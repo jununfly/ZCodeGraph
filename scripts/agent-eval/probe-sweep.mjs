@@ -10,14 +10,19 @@
 // change looks good on probe metrics, run a focused claude audit for the
 // few repos that matter to confirm end-to-end cost behavior.
 //
-// Usage: node scripts/agent-eval/probe-sweep.mjs [--tool=context|explore|trace] [--repos=a,b,c]
+// Usage: node scripts/agent-eval/probe-sweep.mjs [--tool=explore|search|node] [--repos=a,b,c]
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 
 const args = Object.fromEntries(
   process.argv.slice(2).map(a => a.startsWith('--') ? a.slice(2).split('=') : [a, true])
 );
-const TOOL = args.tool ?? 'context';
+const TOOL = args.tool ?? 'explore';
+const TOOL_NAMES = new Set(['explore', 'search', 'node']);
+if (!TOOL_NAMES.has(TOOL)) {
+  console.error('bad --tool value (expected explore|search|node):', TOOL);
+  process.exit(1);
+}
 
 const load = (rel) => import(pathToFileURL(resolve(rel)).href);
 const idx = await load('dist/index.js');
@@ -75,9 +80,9 @@ for (const s of subjects) {
     const cg = CodeGraph.openSync(s.repo);
     const handler = new ToolHandler(cg);
     const t1 = Date.now();
-    const res = await handler.execute('codegraph_' + TOOL,
-      TOOL === 'context' ? { task: s.q } :
-      TOOL === 'explore' ? { query: s.q } : { from: 'main', to: 'main' });
+    const res = await handler.execute('zcodegraph_' + TOOL,
+      TOOL === 'explore' ? { query: s.q } :
+      TOOL === 'search' ? { query: s.q } : { symbol: s.q, includeCode: true });
     const text = res.content?.[0]?.text ?? '';
     const signals = detect(text);
     rows.push({

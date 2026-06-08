@@ -18,7 +18,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
 
 const ROOT = process.argv[2] || '/tmp/arms';
-const cgShort = (n) => n.replace('mcp__codegraph__codegraph_', '').replace('mcp__codegraph__', '');
+const cgShort = (n) => n.replace('mcp__codegraph__zcodegraph_', '').replace('mcp__codegraph__codegraph_', '').replace('mcp__codegraph__', '');
 
 function parse(file) {
   if (!existsSync(file)) return null;

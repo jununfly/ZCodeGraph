@@ -9,7 +9,7 @@ REPO="$1"; Q="$2"; N="${3:-4}"
 NAME="$(basename "$REPO")"
 CG="/Users/colby/Development/Personal/codegraph/dist/bin/codegraph.js"
 OUT="/tmp/ab-why/$NAME"; mkdir -p "$OUT"
-WHY=$'\n\nIMPORTANT — diagnostic: if you use the Read or Grep tool at ANY point, for EACH such call explain why codegraph_explore / codegraph_node did not already give you what you needed. End your entire answer with a section titled exactly "## Why I read" listing every Read and Grep you made and the precise reason codegraph fell short for it. If you used neither, write "## Why I read" then "none — codegraph was sufficient."'
+WHY=$'\n\nIMPORTANT — diagnostic: if you use the Read or Grep tool at ANY point, for EACH such call explain why zcodegraph_explore / zcodegraph_node did not already give you what you needed. End your entire answer with a section titled exactly "## Why I read" listing every Read and Grep you made and the precise reason codegraph fell short for it. If you used neither, write "## Why I read" then "none — codegraph was sufficient."'
 printf '{"mcpServers":{"codegraph":{"command":"%s","args":["serve","--mcp","--path","%s"]}}}' "$CG" "$REPO" > "$OUT/cg.json"
 
 for i in $(seq 1 "$N"); do

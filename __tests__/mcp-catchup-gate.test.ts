@@ -57,7 +57,7 @@ describe('MCP catch-up gate', () => {
     });
     handler.setCatchUpGate(gate);
 
-    const res = await handler.execute('codegraph_search', { query: 'survivor' });
+    const res = await handler.execute('zcodegraph_search', { query: 'survivor' });
     expect(gateResolved).toBe(true);
     expect(res.isError).toBeFalsy();
     expect(res.content[0].text).toMatch(/survivor/);
@@ -71,9 +71,9 @@ describe('MCP catch-up gate', () => {
     });
     handler.setCatchUpGate(gate);
 
-    await handler.execute('codegraph_search', { query: 'survivor' });
+    await handler.execute('zcodegraph_search', { query: 'survivor' });
     const before = awaitCount;
-    await handler.execute('codegraph_search', { query: 'survivor' });
+    await handler.execute('zcodegraph_search', { query: 'survivor' });
     // The promise body runs once when constructed; second execute never
     // resubscribes to a fresh promise because the gate field was nulled.
     expect(awaitCount).toBe(before);
@@ -90,7 +90,7 @@ describe('MCP catch-up gate', () => {
     // uses (`cg.sync()` returns a Promise<SyncResult>, the wrapper voids it).
     handler.setCatchUpGate(cg.sync().then(() => undefined));
 
-    const res = await handler.execute('codegraph_search', { query: 'deletedLater' });
+    const res = await handler.execute('zcodegraph_search', { query: 'deletedLater' });
     expect(res.isError).toBeFalsy();
     const text = res.content[0].text;
     expect(text).not.toMatch(/src\/deleted-later\.ts/);
@@ -105,7 +105,7 @@ describe('MCP catch-up gate', () => {
 
     handler.setCatchUpGate(cg.sync().then(() => undefined));
 
-    const res = await handler.execute('codegraph_search', { query: 'survivor' });
+    const res = await handler.execute('zcodegraph_search', { query: 'survivor' });
     expect(res.isError).toBeFalsy();
     expect(cg.getStats().fileCount).toBe(0);
   });
@@ -115,7 +115,7 @@ describe('MCP catch-up gate', () => {
     // not poison tool dispatch — the engine logs it, the handler proceeds.
     handler.setCatchUpGate(Promise.reject(new Error('simulated sync failure')));
 
-    const res = await handler.execute('codegraph_search', { query: 'survivor' });
+    const res = await handler.execute('zcodegraph_search', { query: 'survivor' });
     expect(res.isError).toBeFalsy();
     expect(res.content[0].text).toMatch(/survivor/);
   });

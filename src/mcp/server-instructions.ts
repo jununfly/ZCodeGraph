@@ -9,7 +9,7 @@
  * Goals when editing this:
  *   - Tool selection by intent (which tool for which question)
  *   - Common chains (refactor planning = X then Y)
- *   - Anti-patterns (don't grep when codegraph_search is faster)
+ *   - Anti-patterns (don't grep when zcodegraph_search is faster)
  *
  * Keep it tight. The agent reads this every session — long instructions
  * burn tokens. Reference only tools that exist on `main`; gate any
@@ -25,8 +25,8 @@ editing code, not during.
 ## Answer directly — don't delegate exploration
 
 For "how does X work", architecture, trace, or where-is-X questions,
-answer DIRECTLY — usually with ONE \`codegraph_explore\` call.
-\`codegraph_explore\` takes either a natural-language question or a bag of
+answer DIRECTLY — usually with ONE \`zcodegraph_explore\` call.
+\`zcodegraph_explore\` takes either a natural-language question or a bag of
 symbol/file names and returns the verbatim source of the relevant symbols
 grouped by file, so it is Read-equivalent and most often the ONLY
 codegraph call you need. Codegraph IS the pre-built search index — so
@@ -38,28 +38,28 @@ typically one to a few calls; a grep/read exploration is dozens.
 
 ## Tool selection by intent
 
-- **Almost any question — "how does X work", architecture, a bug, "what/where is X", or surveying an area** → \`codegraph_explore\` (PRIMARY — call FIRST; ONE capped call returns the verbatim source of the relevant symbols grouped by file; most often the ONLY call you need)
-- **"How does X reach/become Y? / the flow / the path from X to Y"** → \`codegraph_explore\`, naming the symbols that span the flow (e.g. \`mutateElement renderScene\`) — it surfaces the call path among them, including dynamic-dispatch hops (callbacks, React re-render, JSX children) grep can't follow
-- **"What is the symbol named X?" (just its location)** → \`codegraph_search\`
-- **"What calls this?" / "What does this call?" / "What would changing this break?"** → \`codegraph_callers\` / \`codegraph_callees\` / \`codegraph_impact\`
-- **One specific symbol's full source (esp. a body \`codegraph_explore\` trimmed), or an OVERLOADED name** → \`codegraph_node\` (with \`includeCode\`): for an ambiguous name it returns EVERY matching definition's body in one call, so you never Read a file to find the right overload
-- **"What's in directory X?"** → \`codegraph_files\`
-- **"Is the index ready / what's its size?"** → \`codegraph_status\`
+- **Almost any question — "how does X work", architecture, a bug, "what/where is X", or surveying an area** → \`zcodegraph_explore\` (PRIMARY — call FIRST; ONE capped call returns the verbatim source of the relevant symbols grouped by file; most often the ONLY call you need)
+- **"How does X reach/become Y? / the flow / the path from X to Y"** → \`zcodegraph_explore\`, naming the symbols that span the flow (e.g. \`mutateElement renderScene\`) — it surfaces the call path among them, including dynamic-dispatch hops (callbacks, React re-render, JSX children) grep can't follow
+- **"What is the symbol named X?" (just its location)** → \`zcodegraph_search\`
+- **"What calls this?" / "What does this call?" / "What would changing this break?"** → \`zcodegraph_callers\` / \`zcodegraph_callees\` / \`zcodegraph_impact\`
+- **One specific symbol's full source (esp. a body \`zcodegraph_explore\` trimmed), or an OVERLOADED name** → \`zcodegraph_node\` (with \`includeCode\`): for an ambiguous name it returns EVERY matching definition's body in one call, so you never Read a file to find the right overload
+- **"What's in directory X?"** → \`zcodegraph_files\`
+- **"Is the index ready / what's its size?"** → \`zcodegraph_status\`
 
 ## Common chains
 
-- **Flow / "how does X reach Y"**: ONE \`codegraph_explore\` with the symbol names spanning the flow — it surfaces the call path among them (riding dynamic-dispatch hops) AND returns their source. No need to reconstruct the path with \`codegraph_search\` + \`codegraph_callers\`.
-- **Onboarding / understanding any area**: ONE \`codegraph_explore\` is usually the whole answer. Only follow up — \`codegraph_node\` for a specific symbol — if something is still unclear.
-- **Refactor planning**: \`codegraph_search\` → \`codegraph_callers\` → \`codegraph_impact\`. The blast-radius answer comes from impact, not from walking callers manually.
-- **Debugging a regression**: \`codegraph_callers\` of the suspected symbol; widen with \`codegraph_impact\` if an unexpected call appears.
+- **Flow / "how does X reach Y"**: ONE \`zcodegraph_explore\` with the symbol names spanning the flow — it surfaces the call path among them (riding dynamic-dispatch hops) AND returns their source. No need to reconstruct the path with \`zcodegraph_search\` + \`zcodegraph_callers\`.
+- **Onboarding / understanding any area**: ONE \`zcodegraph_explore\` is usually the whole answer. Only follow up — \`zcodegraph_node\` for a specific symbol — if something is still unclear.
+- **Refactor planning**: \`zcodegraph_search\` → \`zcodegraph_callers\` → \`zcodegraph_impact\`. The blast-radius answer comes from impact, not from walking callers manually.
+- **Debugging a regression**: \`zcodegraph_callers\` of the suspected symbol; widen with \`zcodegraph_impact\` if an unexpected call appears.
 
 ## Anti-patterns
 
 - **Trust codegraph's results — don't re-verify them with grep.** They come from a full AST parse; re-checking with grep is slower, less accurate, and wastes context.
-- **Don't grep first** when looking up a symbol by name — \`codegraph_search\` is faster and returns kind + location + signature.
-- **Don't chain \`codegraph_search\` + \`codegraph_node\`** to understand an area — ONE \`codegraph_explore\` returns the relevant symbols' source together in a single round-trip.
-- **Don't loop \`codegraph_node\` over many symbols** — one \`codegraph_explore\` call returns them all grouped by file, while each separate call re-reads the whole context and costs far more. Use \`codegraph_node\` for a single symbol.
-- **After editing, check the staleness banner.** When a tool response starts with "⚠️ Some files referenced below were edited since the last index sync…", the listed files are pending re-index — Read those specific files for accurate content. Every file NOT in that banner is fresh, so still trust codegraph. \`codegraph_status\` also lists pending files under "Pending sync".
+- **Don't grep first** when looking up a symbol by name — \`zcodegraph_search\` is faster and returns kind + location + signature.
+- **Don't chain \`zcodegraph_search\` + \`zcodegraph_node\`** to understand an area — ONE \`zcodegraph_explore\` returns the relevant symbols' source together in a single round-trip.
+- **Don't loop \`zcodegraph_node\` over many symbols** — one \`zcodegraph_explore\` call returns them all grouped by file, while each separate call re-reads the whole context and costs far more. Use \`zcodegraph_node\` for a single symbol.
+- **After editing, check the staleness banner.** When a tool response starts with "⚠️ Some files referenced below were edited since the last index sync…", the listed files are pending re-index — Read those specific files for accurate content. Every file NOT in that banner is fresh, so still trust codegraph. \`zcodegraph_status\` also lists pending files under "Pending sync".
 
 ## Limitations
 

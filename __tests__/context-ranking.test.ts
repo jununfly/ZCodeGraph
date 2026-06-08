@@ -110,7 +110,7 @@ export function downloadDataset(name: string): string { return name; }
     expect(typeof md).toBe('string');
     expect(md as string).toContain(LOW_CONFIDENCE_MARKER);
     // The handoff routes to the precise tools rather than claiming completeness.
-    expect(md as string).toMatch(/codegraph_explore/);
+    expect(md as string).toMatch(/zcodegraph_explore/);
   });
 
   it('does not emit the handoff for a precise, distinctive-symbol query', async () => {

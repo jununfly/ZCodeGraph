@@ -145,9 +145,9 @@ describe('worktree mismatch surfaces on hot read tools (issue #155)', () => {
     fs.rmSync(mainRepo, { recursive: true, force: true });
   });
 
-  it('prefixes a compact notice on codegraph_search run from a nested worktree', async () => {
+  it('prefixes a compact notice on zcodegraph_search run from a nested worktree', async () => {
     handler.setDefaultProjectHint(worktree);
-    const res = await handler.execute('codegraph_search', { query: 'mainOnly' });
+    const res = await handler.execute('zcodegraph_search', { query: 'mainOnly' });
     const text = res.content[0].text;
     expect(res.isError).toBeFalsy();
     expect(text).toContain('different git worktree');
@@ -157,13 +157,13 @@ describe('worktree mismatch surfaces on hot read tools (issue #155)', () => {
 
   it('does NOT prefix when the default project is the main checkout itself', async () => {
     handler.setDefaultProjectHint(mainRepo);
-    const res = await handler.execute('codegraph_search', { query: 'mainOnly' });
+    const res = await handler.execute('zcodegraph_search', { query: 'mainOnly' });
     expect(res.content[0].text).not.toContain('different git worktree');
   });
 
-  it('still shows the verbose warning on codegraph_status', async () => {
+  it('still shows the verbose warning on zcodegraph_status', async () => {
     handler.setDefaultProjectHint(worktree);
-    const res = await handler.execute('codegraph_status', {});
+    const res = await handler.execute('zcodegraph_status', {});
     const text = res.content[0].text;
     expect(text).toContain('different git working tree');
     expect(text).toContain(real(worktree));
@@ -172,7 +172,7 @@ describe('worktree mismatch surfaces on hot read tools (issue #155)', () => {
   it('caches detection — a later tool call needs no further git spawn', async () => {
     handler.setDefaultProjectHint(worktree);
     // First call computes + caches the mismatch (this is the only git spawn).
-    const first = await handler.execute('codegraph_search', { query: 'mainOnly' });
+    const first = await handler.execute('zcodegraph_search', { query: 'mainOnly' });
     expect(first.content[0].text).toContain('different git worktree');
 
     // Make git unreachable. A fresh detection would now return null (no notice);
@@ -180,7 +180,7 @@ describe('worktree mismatch surfaces on hot read tools (issue #155)', () => {
     const savedPath = process.env.PATH;
     process.env.PATH = '';
     try {
-      const second = await handler.execute('codegraph_explore', { query: 'mainOnly' });
+      const second = await handler.execute('zcodegraph_explore', { query: 'mainOnly' });
       expect(second.content[0].text).toContain('different git worktree');
     } finally {
       process.env.PATH = savedPath;

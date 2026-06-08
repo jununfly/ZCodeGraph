@@ -1145,14 +1145,14 @@ program
 }
 `));
         console.error('Available tools:');
-        console.error(chalk.cyan('  codegraph_explore') + '   - Primary: source of the relevant symbols for any question');
-        console.error(chalk.cyan('  codegraph_search') + '    - Search for code symbols');
-        console.error(chalk.cyan('  codegraph_callers') + '   - Find callers of a symbol');
-        console.error(chalk.cyan('  codegraph_callees') + '   - Find what a symbol calls');
-        console.error(chalk.cyan('  codegraph_impact') + '    - Analyze impact of changes');
-        console.error(chalk.cyan('  codegraph_node') + '      - Get symbol details');
-        console.error(chalk.cyan('  codegraph_files') + '     - Get project file structure');
-        console.error(chalk.cyan('  codegraph_status') + '    - Get index status');
+        console.error(chalk.cyan('  zcodegraph_explore') + '   - Primary: source of the relevant symbols for any question');
+        console.error(chalk.cyan('  zcodegraph_search') + '    - Search for code symbols');
+        console.error(chalk.cyan('  zcodegraph_callers') + '   - Find callers of a symbol');
+        console.error(chalk.cyan('  zcodegraph_callees') + '   - Find what a symbol calls');
+        console.error(chalk.cyan('  zcodegraph_impact') + '    - Analyze impact of changes');
+        console.error(chalk.cyan('  zcodegraph_node') + '      - Get symbol details');
+        console.error(chalk.cyan('  zcodegraph_files') + '     - Get project file structure');
+        console.error(chalk.cyan('  zcodegraph_status') + '    - Get index status');
       }
     } catch (err) {
       error(`Failed to start server: ${err instanceof Error ? err.message : String(err)}`);
@@ -1193,7 +1193,7 @@ program
 /**
  * codegraph callers <symbol>
  *
- * CLI parity with the MCP graph tools (codegraph_callers/callees/impact) so the
+ * CLI parity with the MCP graph tools (zcodegraph_callers/callees/impact) so the
  * traversal queries work in scripts, CI, and git hooks without a running MCP
  * server.
  */

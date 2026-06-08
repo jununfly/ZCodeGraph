@@ -23,9 +23,9 @@ mkdir -p "$OUT"
 [ -n "$CG_BIN" ] || { echo "no codegraph binary (set CG_BIN)"; exit 1; }
 [ -d "$REPO/.codegraph" ] || { echo "no .codegraph index at $REPO"; exit 1; }
 
-STEER='Flow questions ("how does X reach/become Y", "trace the flow", request to handler, state to render): call codegraph_trace(from,to) FIRST — one call returns the whole path. Use codegraph_context/search only to locate the two endpoint symbols if you do not know them. Do NOT reconstruct the path with repeated search/callers/explore.'
-KEEP_NO_EXPLORE="trace,search,node,context,callers,callees,impact,files,status"
-KEEP_TRACE_CENTRIC="trace,search,node,callers,callees,impact,files,status"
+STEER='Flow questions ("how does X reach/become Y", "trace the flow", request to handler, state to render): call zcodegraph_explore FIRST with the endpoint symbols in the query — one call returns the relevant source plus the flow among named symbols. Use zcodegraph_search only to locate endpoint symbols if you do not know them. Do NOT reconstruct the path with repeated search/callers.'
+KEEP_NO_EXPLORE="search,node,callers,callees,impact,files,status"
+KEEP_TRACE_CENTRIC="search,node,callers,callees,impact,files,status"
 
 case "$ARM" in
   A|G|H|I) TOOLS="";            STEERING="" ;;  # no steering; H = body-trace, I = body-trace + destination callees (sufficiency)

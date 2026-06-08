@@ -6,7 +6,7 @@
  * (`export const actions = { foo: () => {} }`) or RETURNED by an initializer
  * call (`export const useStore = create((set, get) => ({ foo: () => {} }))`,
  * incl. middleware wrappers). This makes store actions (Zustand/Redux/Pinia/
- * MobX/handler maps) real nodes, so `codegraph_node`/`callers` on them resolve
+ * MobX/handler maps) real nodes, so `zcodegraph_node`/`callers` on them resolve
  * instead of returning "not found" and forcing the agent to Read the store.
  *
  * Keyed purely on AST shape — no library names in the implementation — so any

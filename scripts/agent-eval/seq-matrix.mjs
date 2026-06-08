@@ -3,7 +3,7 @@
 // for what the aggregate matrix can't see: the call SEQUENCE and per-call output SIZE.
 //
 // Answers three questions:
-//   1. Trace adoption — on a flow question, does the with-arm actually call codegraph_trace?
+//   1. Flow adoption — on a flow question, does the with-arm actually call zcodegraph_explore?
 //   2. Payload size vs repo size — is trace path-scoped (tiny, size-independent) while
 //      explore is breadth-scoped (grows with the repo / over-returns on small repos)?
 //   3. Round-trips — num_turns with vs without (the real wall-clock driver).
@@ -22,7 +22,7 @@ if (existsSync(MD)) for (const line of readFileSync(MD, 'utf8').split('\n')) {
   if (m) repoMeta[m[3]] = { lang: m[1].trim(), size: m[2], files: +m[4] };
 }
 
-const cgShort = (n) => n.replace('mcp__codegraph__codegraph_', '').replace('mcp__codegraph__', '');
+const cgShort = (n) => n.replace('mcp__codegraph__zcodegraph_', '').replace('mcp__codegraph__codegraph_', '').replace('mcp__codegraph__', '');
 const tag = (n) => n === 'Read' ? 'R' : n === 'Grep' ? 'G' : n === 'Glob' ? 'Gl'
   : n === 'Bash' ? 'B' : n === 'Task' ? 'Ag' : n === 'ToolSearch' ? 'TS'
   : n.includes('codegraph') ? cgShort(n) : n;

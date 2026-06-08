@@ -59,7 +59,7 @@ const MAX_PATH_LENGTH = 4_096;
 const RUST_PATH_PREFIXES = new Set(['crate', 'super', 'self']);
 
 /**
- * Node kinds that contain other symbols. For these, `codegraph_node` with
+ * Node kinds that contain other symbols. For these, `zcodegraph_node` with
  * `includeCode=true` returns a structural outline (member names + signatures
  * + line numbers) instead of the full body, which for a large class is a
  * multi-thousand-character wall of source that bloats the agent's context.
@@ -75,7 +75,7 @@ function lastQualifierPart(symbol: string): string {
 }
 
 /**
- * Calculate the recommended number of codegraph_explore calls based on project size.
+ * Calculate the recommended number of zcodegraph_explore calls based on project size.
  * Larger codebases need more exploration calls to cover their surface area,
  * but smaller ones should use fewer to avoid unnecessary overhead.
  */
@@ -88,7 +88,7 @@ export function getExploreBudget(fileCount: number): number {
 }
 
 /**
- * Adaptive output budget for `codegraph_explore`, scaled to project size.
+ * Adaptive output budget for `zcodegraph_explore`, scaled to project size.
  *
  * Smaller codebases get a tighter total cap, fewer default files, smaller
  * per-file cap, and tighter clustering — so a focused query on a 100-file
@@ -238,7 +238,7 @@ export function getExploreOutputBudget(fileCount: number): ExploreOutputBudget {
 }
 
 /**
- * Whether `codegraph_explore` should prefix source lines with their line
+ * Whether `zcodegraph_explore` should prefix source lines with their line
  * numbers (cat -n style: `<num>\t<code>`).
  *
  * Line numbers let the agent cite `file:line` straight from the explore
@@ -253,7 +253,7 @@ function exploreLineNumbersEnabled(): boolean {
 }
 
 /**
- * Adaptive explore sizing (default ON). `codegraph_explore` skeletonizes OFF-SPINE
+ * Adaptive explore sizing (default ON). `zcodegraph_explore` skeletonizes OFF-SPINE
  * polymorphic-sibling files — a file whose class is one of ≥3 interchangeable
  * implementations of a shared interface (e.g. OkHttp's `: Interceptor` classes) —
  * to class + member signatures (bodies elided), keeping the on-spine exemplar full.
@@ -369,7 +369,7 @@ const projectPathProperty: PropertySchema = {
 /**
  * All CodeGraph MCP tools
  *
- * Designed for minimal context usage - use codegraph_explore as the primary tool
+ * Designed for minimal context usage - use zcodegraph_explore as the primary tool
  * (one call usually answers the whole question), and only use other tools for
  * targeted follow-up queries.
  *
@@ -377,8 +377,8 @@ const projectPathProperty: PropertySchema = {
  */
 export const tools: ToolDefinition[] = [
   {
-    name: 'codegraph_search',
-    description: 'Quick symbol search by name. Returns locations only (no code). Use codegraph_explore instead to get the actual source / understand an area in one call.',
+    name: 'zcodegraph_search',
+    description: 'Quick symbol search by name. Returns locations only (no code). Use zcodegraph_explore instead to get the actual source / understand an area in one call.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -402,8 +402,8 @@ export const tools: ToolDefinition[] = [
     },
   },
   {
-    name: 'codegraph_callers',
-    description: 'List functions that call <symbol>. For the full flow, use codegraph_explore.',
+    name: 'zcodegraph_callers',
+    description: 'List functions that call <symbol>. For the full flow, use zcodegraph_explore.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -422,8 +422,8 @@ export const tools: ToolDefinition[] = [
     },
   },
   {
-    name: 'codegraph_callees',
-    description: 'List functions that <symbol> calls. For the full flow, use codegraph_explore.',
+    name: 'zcodegraph_callees',
+    description: 'List functions that <symbol> calls. For the full flow, use zcodegraph_explore.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -442,7 +442,7 @@ export const tools: ToolDefinition[] = [
     },
   },
   {
-    name: 'codegraph_impact',
+    name: 'zcodegraph_impact',
     description: 'List symbols affected by changing <symbol>. Use before a refactor.',
     inputSchema: {
       type: 'object',
@@ -462,8 +462,8 @@ export const tools: ToolDefinition[] = [
     },
   },
   {
-    name: 'codegraph_node',
-    description: 'SECONDARY (after codegraph_explore): get ONE symbol in full — its location, signature, callers/callees trail, and verbatim body (includeCode=true). When the name is AMBIGUOUS (an overloaded method, or the same method name on different types), it returns EVERY matching definition\'s full body in a single call — so you never need to Read a file to find the specific overload you want. For a heavily-overloaded name, pass `file` (and/or `line`) to pin the exact definition — e.g. the `file:line` a trail or another tool already showed you. Reach for this when explore trimmed a body you need. Use codegraph_explore for several related symbols or the full flow.',
+    name: 'zcodegraph_node',
+    description: 'SECONDARY (after zcodegraph_explore): get ONE symbol in full — its location, signature, callers/callees trail, and verbatim body (includeCode=true). When the name is AMBIGUOUS (an overloaded method, or the same method name on different types), it returns EVERY matching definition\'s full body in a single call — so you never need to Read a file to find the specific overload you want. For a heavily-overloaded name, pass `file` (and/or `line`) to pin the exact definition — e.g. the `file:line` a trail or another tool already showed you. Reach for this when explore trimmed a body you need. Use zcodegraph_explore for several related symbols or the full flow.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -490,14 +490,14 @@ export const tools: ToolDefinition[] = [
     },
   },
   {
-    name: 'codegraph_explore',
+    name: 'zcodegraph_explore',
     description: 'PRIMARY TOOL — call FIRST for almost any question: how does X work, architecture, a bug, where/what is X, or surveying an area. Returns the verbatim source of the relevant symbols grouped by file in ONE capped call (Read-equivalent — do NOT re-open shown files). Query can be a natural-language question OR a bag of symbol/file names. Usually the ONLY call you need — answers without further search/node/Read/Grep.',
     inputSchema: {
       type: 'object',
       properties: {
         query: {
           type: 'string',
-          description: 'Symbol names, file names, or short code terms to explore (e.g., "AuthService loginUser session-manager", "GraphTraverser BFS impact traversal.ts"). Use codegraph_search first to find relevant names.',
+          description: 'Symbol names, file names, or short code terms to explore (e.g., "AuthService loginUser session-manager", "GraphTraverser BFS impact traversal.ts"). Use zcodegraph_search first to find relevant names.',
         },
         maxFiles: {
           type: 'number',
@@ -510,7 +510,7 @@ export const tools: ToolDefinition[] = [
     },
   },
   {
-    name: 'codegraph_status',
+    name: 'zcodegraph_status',
     description: 'Index health check (files / nodes / edges). Skip unless debugging.',
     inputSchema: {
       type: 'object',
@@ -520,7 +520,7 @@ export const tools: ToolDefinition[] = [
     },
   },
   {
-    name: 'codegraph_files',
+    name: 'zcodegraph_files',
     description: 'Indexed file tree with language + symbol counts. Faster than Glob for project layout.',
     inputSchema: {
       type: 'object',
@@ -563,8 +563,8 @@ export const tools: ToolDefinition[] = [
 export function getStaticTools(): ToolDefinition[] {
   const raw = process.env.CODEGRAPH_MCP_TOOLS;
   if (!raw || !raw.trim()) return tools;
-  const allow = new Set(raw.split(',').map(s => s.trim().replace(/^codegraph_/, '')).filter(Boolean));
-  return allow.size ? tools.filter(t => allow.has(t.name.replace(/^codegraph_/, ''))) : tools;
+  const allow = new Set(raw.split(',').map(s => s.trim().replace(/^zcodegraph_/, '')).filter(Boolean));
+  return allow.size ? tools.filter(t => allow.has(t.name.replace(/^zcodegraph_/, ''))) : tools;
 }
 
 /**
@@ -635,12 +635,12 @@ export class ToolHandler {
    * Unset/empty → every tool is exposed. Lets an operator (or an A/B harness)
    * trim the tool surface without rebuilding the client config; the ablated
    * tool is then truly absent from ListTools rather than merely denied on call.
-   * Matching is on the short form, so "node" and "codegraph_node" both work.
+   * Matching is on the short form, so "node" and "zcodegraph_node" both work.
    */
   private toolAllowlist(): Set<string> | null {
     const raw = process.env.CODEGRAPH_MCP_TOOLS;
     if (!raw || !raw.trim()) return null;
-    const short = (s: string) => s.trim().replace(/^codegraph_/, '');
+    const short = (s: string) => s.trim().replace(/^zcodegraph_/, '');
     const set = new Set(raw.split(',').map(short).filter(Boolean));
     return set.size ? set : null;
   }
@@ -648,19 +648,19 @@ export class ToolHandler {
   /** Whether a tool name passes the CODEGRAPH_MCP_TOOLS allowlist (if any). */
   private isToolAllowed(name: string): boolean {
     const allow = this.toolAllowlist();
-    return !allow || allow.has(name.replace(/^codegraph_/, ''));
+    return !allow || allow.has(name.replace(/^zcodegraph_/, ''));
   }
 
   /**
    * Get tool definitions with dynamic descriptions based on project size.
-   * The codegraph_explore tool description includes a budget recommendation
+   * The zcodegraph_explore tool description includes a budget recommendation
    * scaled to the number of indexed files. Honors the CODEGRAPH_MCP_TOOLS
    * allowlist so a trimmed surface is reflected in ListTools.
    */
   getTools(): ToolDefinition[] {
     const allow = this.toolAllowlist();
     let visible = allow
-      ? tools.filter(t => allow.has(t.name.replace(/^codegraph_/, '')))
+      ? tools.filter(t => allow.has(t.name.replace(/^zcodegraph_/, '')))
       : tools;
     if (!this.cg) return visible;
 
@@ -676,7 +676,7 @@ export class ToolHandler {
       // n=2 audits ruled out cutting below 5 tools:
       // - 3-tool gate (search + context + trace): cost regressed on
       //   cobra/ky/sinatra. The agent fell back to raw Reads to cover
-      //   what codegraph_node + codegraph_explore would have answered.
+      //   what zcodegraph_node + zcodegraph_explore would have answered.
       // - 1-tool gate (search only): catastrophic regression — express
       //   went from -43% WIN to +107% LOSS. With only search, the agent
       //   can't navigate the call graph structurally and reads everything.
@@ -692,16 +692,16 @@ export class ToolHandler {
       // so it deserves the same gating.
       const TINY_REPO_FILE_THRESHOLD = 500;
       const TINY_REPO_CORE_TOOLS = new Set([
-        'codegraph_explore',
-        'codegraph_search',
-        'codegraph_node',
+        'zcodegraph_explore',
+        'zcodegraph_search',
+        'zcodegraph_node',
       ]);
       if (stats.fileCount < TINY_REPO_FILE_THRESHOLD) {
         visible = visible.filter(t => TINY_REPO_CORE_TOOLS.has(t.name));
       }
 
       return visible.map(tool => {
-        if (tool.name === 'codegraph_explore') {
+        if (tool.name === 'zcodegraph_explore') {
           return {
             ...tool,
             description: `${tool.description} Budget: make at most ${budget} calls for this project (${stats.fileCount.toLocaleString()} files indexed).`,
@@ -878,7 +878,7 @@ export class ToolHandler {
    * notice when the resolved index belongs to a different git working tree than
    * the caller's (issue #155). Without this, an agent in a nested worktree
    * silently trusts main-branch results. No-op on error results and when there
-   * is no mismatch. `codegraph_status` is excluded — it embeds its own verbose
+   * is no mismatch. `zcodegraph_status` is excluded — it embeds its own verbose
    * warning — so it stays out of this path.
    */
   private withWorktreeNotice(result: ToolResult, projectPath?: string): ToolResult {
@@ -1000,7 +1000,7 @@ export class ToolHandler {
       if (typeof pathCheck === 'object' && pathCheck !== undefined) {
         return pathCheck;
       }
-      // The `path` and `pattern` properties used by codegraph_files are
+      // The `path` and `pattern` properties used by zcodegraph_files are
       // also path-shaped — apply the same cap.
       if (args.path !== undefined) {
         const check = this.validateOptionalPath(args.path, 'path');
@@ -1019,24 +1019,24 @@ export class ToolHandler {
       // with what the read tools surface.
       let result: ToolResult;
       switch (toolName) {
-        case 'codegraph_search':
+        case 'zcodegraph_search':
           result = await this.handleSearch(args); break;
-        case 'codegraph_callers':
+        case 'zcodegraph_callers':
           result = await this.handleCallers(args); break;
-        case 'codegraph_callees':
+        case 'zcodegraph_callees':
           result = await this.handleCallees(args); break;
-        case 'codegraph_impact':
+        case 'zcodegraph_impact':
           result = await this.handleImpact(args); break;
-        case 'codegraph_explore':
+        case 'zcodegraph_explore':
           result = await this.handleExplore(args); break;
-        case 'codegraph_node':
+        case 'zcodegraph_node':
           result = await this.handleNode(args); break;
-        case 'codegraph_status':
+        case 'zcodegraph_status':
           // status embeds the pending-files list as a first-class section
           // (see handleStatus), so we skip the auto-banner wrapper here to
           // avoid duplicating the same info at the top of the response.
           return await this.handleStatus(args);
-        case 'codegraph_files':
+        case 'zcodegraph_files':
           result = await this.handleFiles(args); break;
         default:
           return this.errorResult(`Unknown tool: ${toolName}`);
@@ -1049,7 +1049,7 @@ export class ToolHandler {
   }
 
   /**
-   * Handle codegraph_search
+   * Handle zcodegraph_search
    */
   private async handleSearch(args: Record<string, unknown>): Promise<ToolResult> {
     const query = this.validateString(args.query, 'query');
@@ -1083,7 +1083,7 @@ export class ToolHandler {
   }
 
   /**
-   * Handle codegraph_callers
+   * Handle zcodegraph_callers
    */
   private async handleCallers(args: Record<string, unknown>): Promise<ToolResult> {
     const symbol = this.validateString(args.symbol, 'symbol');
@@ -1118,7 +1118,7 @@ export class ToolHandler {
   }
 
   /**
-   * Handle codegraph_callees
+   * Handle zcodegraph_callees
    */
   private async handleCallees(args: Record<string, unknown>): Promise<ToolResult> {
     const symbol = this.validateString(args.symbol, 'symbol');
@@ -1153,7 +1153,7 @@ export class ToolHandler {
   }
 
   /**
-   * Handle codegraph_impact
+   * Handle zcodegraph_impact
    */
   private async handleImpact(args: Record<string, unknown>): Promise<ToolResult> {
     const symbol = this.validateString(args.symbol, 'symbol');
@@ -1266,7 +1266,7 @@ export class ToolHandler {
   }
 
   /**
-   * Flow-from-named-symbols: an agent's codegraph_explore query is a bag of
+   * Flow-from-named-symbols: an agent's zcodegraph_explore query is a bag of
    * symbol names that usually spans the flow it's investigating (e.g.
    * "PmsProductController getList PmsProductService list PmsProductServiceImpl").
    * Surface the longest call chain AMONG those named symbols — scoped to what the
@@ -1549,11 +1549,11 @@ export class ToolHandler {
   }
 
   /**
-   * Handle codegraph_explore — deep exploration in a single call
+   * Handle zcodegraph_explore — deep exploration in a single call
    *
    * Strategy: find relevant symbols via graph traversal, group by file,
    * then read contiguous file sections covering all symbols per file.
-   * This replaces multiple codegraph_node + Read calls.
+   * This replaces multiple zcodegraph_node + Read calls.
    *
    * Output size is adaptive to project file count via
    * `getExploreOutputBudget` — see #185 for why a fixed 35k cap was a
@@ -1660,7 +1660,7 @@ export class ToolHandler {
         // 50+-overload name (tokio `poll`) ranks the wanted def (`Harness::poll`)
         // below the FTS cut, so findAllSymbols would never see it and the
         // type-token bias below couldn't pick the harness.rs one. (Same fix as
-        // codegraph_node's findSymbolMatches.) Qualified tokens keep findAllSymbols.
+        // zcodegraph_node's findSymbolMatches.) Qualified tokens keep findAllSymbols.
         const isQual = /[.\/]|::/.test(t);
         const raw = isQual ? this.findAllSymbols(cg, t).nodes : cg.getNodesByName(t);
         const cands = raw
@@ -1671,7 +1671,7 @@ export class ToolHandler {
         // only: the overloads whose file/class the query ALSO names (the agent
         // told us which one it wants — DataRequest's, not Validation.swift's),
         // capped; else fall back to the single most-substantive def. This is the
-        // explore-side mirror of codegraph_node's overload disambiguation.
+        // explore-side mirror of zcodegraph_node's overload disambiguation.
         let picks: Node[];
         if (cands.length <= 3) {
           picks = cands;
@@ -2148,15 +2148,15 @@ export class ToolHandler {
         if (skel.length > 0) {
           const names = [...new Set(group.nodes.filter(n => n.kind !== 'import' && n.kind !== 'export').map(n => n.name))]
             .slice(0, budget.maxSymbolsInFileHeader).join(', ');
-          // Steer the agent to codegraph_explore for an elided body — NEVER to
+          // Steer the agent to zcodegraph_explore for an elided body — NEVER to
           // Read. The old "Read for more" / "Read for a full body" tags invited
           // a Read of the very file just skeletonized; on a central, wanted file
           // (Session.swift, DataRequest.swift) that fired an over-investigation
           // spiral (the agent Read the skeletonized file, then kept digging).
           // CLAUDE.md: explore output must never tell the agent to Read.
           const tag = bodyIds.size > 0
-            ? 'focused (the methods you named in full, the rest as signatures — codegraph_explore a signature by name for its body; do NOT Read)'
-            : 'skeleton (signatures only — codegraph_explore a name for its full body; do NOT Read)';
+            ? 'focused (the methods you named in full, the rest as signatures — zcodegraph_explore a signature by name for its body; do NOT Read)'
+            : 'skeleton (signatures only — zcodegraph_explore a name for its full body; do NOT Read)';
           lines.push(`#### ${filePath} — ${names} · ${tag}`, '', '```' + lang, skel.join('\n'), '```', '');
           totalChars += skel.join('\n').length + 120;
           filesIncluded++;
@@ -2475,10 +2475,10 @@ export class ToolHandler {
     if (budget.includeCompletenessSignal) {
       lines.push('');
       lines.push('---');
-      lines.push(`> **Complete source for ${filesIncluded} files is included above — do NOT re-read them.** If your question also needs files/symbols listed under "Not shown above" (or any area this call didn't cover), make ANOTHER codegraph_explore targeting those names — it returns the same source with line numbers and is cheaper and more complete than reading. Reserve Read for a single specific line range explore can't surface.`);
+      lines.push(`> **Complete source for ${filesIncluded} files is included above — do NOT re-read them.** If your question also needs files/symbols listed under "Not shown above" (or any area this call didn't cover), make ANOTHER zcodegraph_explore targeting those names — it returns the same source with line numbers and is cheaper and more complete than reading. Reserve Read for a single specific line range explore can't surface.`);
     } else if (anyFileTrimmed) {
       lines.push('');
-      lines.push(`> Some file sections were trimmed for size. For a specific symbol you still need, run another \`codegraph_explore\` (or \`codegraph_node\`) with its exact name — line-numbered source, cheaper and more complete than Read.`);
+      lines.push(`> Some file sections were trimmed for size. For a specific symbol you still need, run another \`zcodegraph_explore\` (or \`zcodegraph_node\`) with its exact name — line-numbered source, cheaper and more complete than Read.`);
     }
 
     // Add explore budget note based on project size
@@ -2513,13 +2513,13 @@ export class ToolHandler {
       const lastSection = cut.lastIndexOf('\n#### ');
       const boundary = lastSection > hardCeiling * 0.5 ? lastSection : cut.lastIndexOf('\n');
       const safe = boundary > 0 ? cut.slice(0, boundary) : cut;
-      return this.textResult(safe + '\n\n... (output truncated to budget; the source above is complete and verbatim — treat it as already Read. For any area not covered, run another codegraph_explore with the specific names — do NOT Read these files.)');
+      return this.textResult(safe + '\n\n... (output truncated to budget; the source above is complete and verbatim — treat it as already Read. For any area not covered, run another zcodegraph_explore with the specific names — do NOT Read these files.)');
     }
     return this.textResult(output);
   }
 
   /**
-   * Handle codegraph_node
+   * Handle zcodegraph_node
    */
   private async handleNode(args: Record<string, unknown>): Promise<ToolResult> {
     const symbol = this.validateString(args.symbol, 'symbol');
@@ -2568,7 +2568,7 @@ export class ToolHandler {
     // different types (Alamofire `didCompleteTask`/`task`/`validate`, gin
     // `reset`). Returning ONE forces the agent to guess, and when it guesses
     // wrong it READS the file to find the right overload — the dominant
-    // codegraph_node read cause on Swift/Go. So return them ALL: pack as many
+    // zcodegraph_node read cause on Swift/Go. So return them ALL: pack as many
     // FULL bodies as fit a char budget (the agent gets the one it needs in this
     // one call, no follow-up parameter to learn), and list any remainder by
     // file:line so a large overload set can't overflow the per-tool cap.
@@ -2618,7 +2618,7 @@ export class ToolHandler {
       if (listed.length > LIST_CAP) out.push(`- … +${listed.length - LIST_CAP} more`);
       out.push(
         '',
-        `> Need one of these in full? Call codegraph_node again with \`file\` (e.g. \`"${listed[0]!.filePath.split('/').pop()}"\`) or \`line\` — do NOT Read it.`,
+        `> Need one of these in full? Call zcodegraph_node again with \`file\` (e.g. \`"${listed[0]!.filePath.split('/').pop()}"\`) or \`line\` — do NOT Read it.`,
       );
     }
     return this.textResult(this.truncateOutput(out.join('\n')));
@@ -2645,9 +2645,9 @@ export class ToolHandler {
 
   /**
    * Build the "trail" for a symbol: its direct callees (what it calls) and
-   * callers (what calls it), each with file:line — so codegraph_node doubles as
+   * callers (what calls it), each with file:line — so zcodegraph_node doubles as
    * the structural Grep→Read→expand primitive: a spot PLUS where to go next.
-   * Capped to stay cheap. Walk the graph by calling codegraph_node on a trail
+   * Capped to stay cheap. Walk the graph by calling zcodegraph_node on a trail
    * entry; no Read needed for covered hops. Empty edges on a non-leaf often mean
    * dynamic dispatch the static graph couldn't resolve — that absence is itself
    * a signal (read that one hop) rather than a dead end.
@@ -2672,7 +2672,7 @@ export class ToolHandler {
     const callees = collect(cg.getCallees(node.id));
     const callers = collect(cg.getCallers(node.id));
     if (callees.length === 0 && callers.length === 0) return '';
-    const lines: string[] = ['', '### Trail — codegraph_node any of these to follow it (no Read needed)'];
+    const lines: string[] = ['', '### Trail — zcodegraph_node any of these to follow it (no Read needed)'];
     if (callees.length > 0) {
       lines.push(`**Calls →** ${callees.slice(0, TRAIL_CAP).map(fmt).join(', ')}${callees.length > TRAIL_CAP ? `, +${callees.length - TRAIL_CAP} more` : ''}`);
     }
@@ -2683,7 +2683,7 @@ export class ToolHandler {
   }
 
   /**
-   * Handle codegraph_status
+   * Handle zcodegraph_status
    */
   private async handleStatus(args: Record<string, unknown>): Promise<ToolResult> {
     let cg = this.getCodeGraph(args.projectPath as string | undefined);
@@ -2773,7 +2773,7 @@ export class ToolHandler {
   }
 
   /**
-   * Handle codegraph_files - get project file structure from the index
+   * Handle zcodegraph_files - get project file structure from the index
    */
   private async handleFiles(args: Record<string, unknown>): Promise<ToolResult> {
     const cg = this.getCodeGraph(args.projectPath as string | undefined);
@@ -3035,7 +3035,7 @@ export class ToolHandler {
   }
 
   /**
-   * Find ALL definitions matching a name, ranked, so codegraph_node can return
+   * Find ALL definitions matching a name, ranked, so zcodegraph_node can return
    * every overload instead of guessing one (the wrong guess → a Read). Keepers
    * rank before generated stubs (.pb.go etc.); stable within a group preserves
    * FTS order. Returns [] when nothing matches; a qualified lookup that finds no
@@ -3243,9 +3243,9 @@ export class ToolHandler {
 
     if (outline) {
       lines.push('', outline, '',
-        `> Structural outline only. Read \`${node.filePath}\` or call codegraph_node on a specific member for its body.`);
+        `> Structural outline only. Read \`${node.filePath}\` or call zcodegraph_node on a specific member for its body.`);
     } else if (code) {
-      // Line-numbered (cat -n style, like codegraph_explore and Read) so the
+      // Line-numbered (cat -n style, like zcodegraph_explore and Read) so the
       // agent can cite/edit exact lines without re-Reading the file for them.
       const numbered = node.startLine ? numberSourceLines(code, node.startLine) : code;
       lines.push('', '```' + node.language, numbered, '```');

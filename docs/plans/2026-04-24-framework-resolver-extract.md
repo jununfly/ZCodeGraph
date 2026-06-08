@@ -1043,7 +1043,7 @@ CodeGraph recognizes web framework routing files and links URL patterns to their
 - **ASP.NET**: `[HttpGet]` + action method
 - **Vapor**: `app.get("x", use: handler)`
 
-Query `codegraph_callers(YourView)` and the route pattern will appear as an incoming edge.
+Query `zcodegraph_callers(YourView)` and the route pattern will appear as an incoming edge.
 ```
 
 - [ ] **Step 4: Commit**
@@ -1074,7 +1074,7 @@ gh pr create \
   --body "$(cat <<'EOF'
 ## Problem
 
-`FrameworkResolver.extractNodes` is declared in the type but never called anywhere in `src/`. As a result, the graph has zero `route` nodes for any framework, and the URL-to-handler link (e.g. Django `urls.py` entry -> view class) doesn't exist. This makes `codegraph_callers(MyView)` silently miss its most important caller.
+`FrameworkResolver.extractNodes` is declared in the type but never called anywhere in `src/`. As a result, the graph has zero `route` nodes for any framework, and the URL-to-handler link (e.g. Django `urls.py` entry -> view class) doesn't exist. This makes `zcodegraph_callers(MyView)` silently miss its most important caller.
 
 ## Fix
 

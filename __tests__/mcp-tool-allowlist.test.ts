@@ -17,23 +17,24 @@ describe('CODEGRAPH_MCP_TOOLS allowlist', () => {
 
   const listed = () => new ToolHandler(null).getTools().map(t => t.name).sort();
 
-  it('exposes the full tool surface when unset', () => {
+  it('exposes the renamed ZCodeGraph tool surface when unset', () => {
     delete process.env[ENV];
     const all = listed();
-    expect(all).toContain('codegraph_explore');
-    expect(all).not.toContain('codegraph_context');
-    expect(all).not.toContain('codegraph_trace');
+    expect(all).toContain('zcodegraph_explore');
+    expect(all).not.toContain('codegraph_explore');
+    expect(all).not.toContain('zcodegraph_context');
+    expect(all).not.toContain('zcodegraph_trace');
     expect(all.length).toBeGreaterThanOrEqual(8);
   });
 
   it('filters ListTools to the allowlisted short names', () => {
     process.env[ENV] = 'explore,search,node';
-    expect(listed()).toEqual(['codegraph_explore', 'codegraph_node', 'codegraph_search']);
+    expect(listed()).toEqual(['zcodegraph_explore', 'zcodegraph_node', 'zcodegraph_search']);
   });
 
-  it('accepts fully-qualified codegraph_ names and ignores whitespace', () => {
-    process.env[ENV] = ' codegraph_explore , search ';
-    expect(listed()).toEqual(['codegraph_explore', 'codegraph_search']);
+  it('accepts fully-qualified zcodegraph_ names and ignores whitespace', () => {
+    process.env[ENV] = ' zcodegraph_explore , search ';
+    expect(listed()).toEqual(['zcodegraph_explore', 'zcodegraph_search']);
   });
 
   it('treats an empty/whitespace value as unset (full surface)', () => {
@@ -43,16 +44,23 @@ describe('CODEGRAPH_MCP_TOOLS allowlist', () => {
 
   it('rejects a disabled tool on execute (defense in depth)', async () => {
     process.env[ENV] = 'node';
-    const res = await new ToolHandler(null).execute('codegraph_explore', {});
+    const res = await new ToolHandler(null).execute('zcodegraph_explore', {});
     expect(res.isError).toBe(true);
     expect(res.content[0].text).toMatch(/disabled via CODEGRAPH_MCP_TOOLS/);
+  });
+
+  it('does not keep old codegraph_* names as compatibility aliases', async () => {
+    delete process.env[ENV];
+    const res = await new ToolHandler(null).execute('codegraph_explore', { query: 'x' });
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('Unknown tool: codegraph_explore');
   });
 
   it('lets an allowlisted tool past the guard', async () => {
     process.env[ENV] = 'search';
     // No CodeGraph attached, so it fails *after* the allowlist guard — the
     // "disabled" message must NOT appear, proving the guard passed it through.
-    const res = await new ToolHandler(null).execute('codegraph_search', { query: 'x' });
+    const res = await new ToolHandler(null).execute('zcodegraph_search', { query: 'x' });
     expect(res.content[0].text).not.toMatch(/disabled via CODEGRAPH_MCP_TOOLS/);
   });
 });

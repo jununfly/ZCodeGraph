@@ -63,7 +63,7 @@ const LEGACY_BLOCK = [
   '<!-- CODEGRAPH_START -->',
   '## CodeGraph',
   '',
-  'Prefer `codegraph_search` / `codegraph_callers` over grep.',
+  'Prefer `zcodegraph_search` / `zcodegraph_callers` over grep.',
   '<!-- CODEGRAPH_END -->',
 ].join('\n');
 
@@ -1020,7 +1020,7 @@ describe('Installer targets — partial-state idempotency', () => {
     // The unrelated GitKraken hook survives untouched.
     expect(stopCommands.some((c: string) => c.includes('gk') && c.includes('ai hook run'))).toBe(true);
     // Permissions still written as normal alongside the cleanup.
-    expect(after.permissions?.allow).toContain('mcp__codegraph__codegraph_search');
+    expect(after.permissions?.allow).toContain('mcp__codegraph__zcodegraph_search');
   });
 
   it('claude: cleanupLegacyHooks preserves a sibling hook sharing our matcher group', () => {
@@ -1373,7 +1373,7 @@ describe('Installer — Cursor rules file cleanup on uninstall', () => {
     const after = fs.readFileSync(rulesFile(), 'utf-8');
     expect(after).toContain('keep me');
     // Our tool-usage block is gone.
-    expect(after).not.toContain('codegraph_search');
+    expect(after).not.toContain('zcodegraph_search');
     expect(after).not.toContain('CODEGRAPH_START');
   });
 });

@@ -604,7 +604,7 @@ export function handle(): void {}
       const findSymbolMatches = (handler as any).findSymbolMatches.bind(handler);
 
       // Both same-named definitions are returned (no longer one + a dead-end
-      // note) so codegraph_node can hand back every overload and the agent never
+      // note) so zcodegraph_node can hand back every overload and the agent never
       // Reads to find the one it wanted.
       const matches = findSymbolMatches(cg, 'handle');
       expect(matches.length).toBe(2);

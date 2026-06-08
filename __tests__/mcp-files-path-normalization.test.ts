@@ -1,5 +1,5 @@
 /**
- * codegraph_files path-filter normalization (#426)
+ * zcodegraph_files path-filter normalization (#426)
  *
  * Stored file paths are project-relative POSIX (e.g. "src/foo.ts"). Some
  * agents pass project-root variants like "/", ".", "./" or "" when they want
@@ -17,7 +17,7 @@ import * as os from 'os';
 import CodeGraph from '../src/index';
 import { ToolHandler } from '../src/mcp/tools';
 
-describe('codegraph_files path normalization', () => {
+describe('zcodegraph_files path normalization', () => {
   let tempDir: string;
   let cg: CodeGraph;
   let handler: ToolHandler;
@@ -47,7 +47,7 @@ describe('codegraph_files path normalization', () => {
   });
 
   async function listed(pathFilter: string | undefined): Promise<string> {
-    const result = await handler.execute('codegraph_files', {
+    const result = await handler.execute('zcodegraph_files', {
       ...(pathFilter !== undefined ? { path: pathFilter } : {}),
       format: 'flat',
       includeMetadata: false,

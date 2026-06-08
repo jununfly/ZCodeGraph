@@ -155,10 +155,10 @@ describe.skipIf(!HAS_SQLITE)('matchesSymbol — module-qualified lookups (#173)'
     expect(matches.length).toBe(0);
   });
 
-  it('codegraph_node with a `file` hint pins an overloaded name to that file', async () => {
+  it('zcodegraph_node with a `file` hint pins an overloaded name to that file', async () => {
     // `run` is defined in BOTH stage_apply.rs and stage_detect.rs. A bare lookup
     // returns both; the `file` hint narrows to the one the caller saw in a trail.
-    const res = await handler.execute('codegraph_node', {
+    const res = await handler.execute('zcodegraph_node', {
       symbol: 'run',
       includeCode: true,
       file: 'stage_detect.rs',
@@ -207,11 +207,11 @@ describe.skipIf(!HAS_SQLITE)('matchesSymbol — dotted lookups (regression for #
     expect(matches[0]!.qualifiedName).toContain('Session::request');
   });
 
-  it('codegraph_node on an ambiguous bare name returns ALL overloads with bodies (no guess)', async () => {
+  it('zcodegraph_node on an ambiguous bare name returns ALL overloads with bodies (no guess)', async () => {
     // `request` is BOTH a method (Session.request) and a free function. The old
     // behavior returned one + a dead-end "Others:" note, forcing a Read to get
     // the other overload; now both bodies come back in one call.
-    const res = await handler.execute('codegraph_node', { symbol: 'request', includeCode: true });
+    const res = await handler.execute('zcodegraph_node', { symbol: 'request', includeCode: true });
     const text = res.content?.[0]?.text ?? '';
     expect(text).toContain('2 definitions named "request"');
     // Both definitions are rendered (method + function), each with a Location.

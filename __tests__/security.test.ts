@@ -179,8 +179,8 @@ describe('Path Traversal Prevention', () => {
 describe('Symlink escape prevention (#527)', () => {
   // An in-repo symlink whose logical path is inside the project root but whose
   // REAL target escapes the root must never be served. validatePathWithinRoot
-  // is the chokepoint both content-serving read sinks go through (codegraph_node
-  // includeCode + codegraph_explore source rendering), so it must resolve
+  // is the chokepoint both content-serving read sinks go through (zcodegraph_node
+  // includeCode + zcodegraph_explore source rendering), so it must resolve
   // symlinks, not just compare strings. realpathSync the roots so the test's own
   // expectations don't trip over /tmp -> /private/tmp on macOS.
   let root: string;
@@ -310,43 +310,43 @@ describe('MCP Input Validation', () => {
     cleanupTempDir(testDir);
   });
 
-  it('should reject non-string query in codegraph_search', async () => {
-    const result = await handler.execute('codegraph_search', { query: null });
+  it('should reject non-string query in zcodegraph_search', async () => {
+    const result = await handler.execute('zcodegraph_search', { query: null });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('non-empty string');
   });
 
-  it('should reject empty string query in codegraph_search', async () => {
-    const result = await handler.execute('codegraph_search', { query: '' });
+  it('should reject empty string query in zcodegraph_search', async () => {
+    const result = await handler.execute('zcodegraph_search', { query: '' });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('non-empty string');
   });
 
-  it('should accept valid query in codegraph_search', async () => {
-    const result = await handler.execute('codegraph_search', { query: 'example' });
+  it('should accept valid query in zcodegraph_search', async () => {
+    const result = await handler.execute('zcodegraph_search', { query: 'example' });
     expect(result.isError).toBeFalsy();
   });
 
-  it('should clamp limit to valid range in codegraph_search', async () => {
+  it('should clamp limit to valid range in zcodegraph_search', async () => {
     // Extremely large limit should still work (clamped to 100)
-    const result = await handler.execute('codegraph_search', { query: 'example', limit: 999999 });
+    const result = await handler.execute('zcodegraph_search', { query: 'example', limit: 999999 });
     expect(result.isError).toBeFalsy();
   });
 
-  it('should reject non-string symbol in codegraph_callers', async () => {
-    const result = await handler.execute('codegraph_callers', { symbol: 123 });
+  it('should reject non-string symbol in zcodegraph_callers', async () => {
+    const result = await handler.execute('zcodegraph_callers', { symbol: 123 });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('non-empty string');
   });
 
-  it('should reject non-string query in codegraph_explore', async () => {
-    const result = await handler.execute('codegraph_explore', { query: undefined });
+  it('should reject non-string query in zcodegraph_explore', async () => {
+    const result = await handler.execute('zcodegraph_explore', { query: undefined });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('non-empty string');
   });
 
   it('should truncate oversized tool output', async () => {
-    // Force a huge result set through codegraph_search; the response must be
+    // Force a huge result set through zcodegraph_search; the response must be
     // truncated with the sentinel rather than flooding the agent's context.
     const many = Array.from({ length: 3000 }, (_, i) => ({
       node: {
@@ -365,34 +365,34 @@ describe('MCP Input Validation', () => {
     };
     const fakeHandler = new ToolHandler(fakeCg as unknown as CodeGraph);
 
-    const result = await fakeHandler.execute('codegraph_search', { query: 'x' });
+    const result = await fakeHandler.execute('zcodegraph_search', { query: 'x' });
 
     expect(result.isError).toBeFalsy();
     expect(result.content[0].text).toContain('... (output truncated)');
   });
 
-  it('should reject non-string symbol in codegraph_impact', async () => {
-    const result = await handler.execute('codegraph_impact', { symbol: [] });
+  it('should reject non-string symbol in zcodegraph_impact', async () => {
+    const result = await handler.execute('zcodegraph_impact', { symbol: [] });
     expect(result.isError).toBe(true);
   });
 
-  it('should reject non-string symbol in codegraph_node', async () => {
-    const result = await handler.execute('codegraph_node', { symbol: false });
+  it('should reject non-string symbol in zcodegraph_node', async () => {
+    const result = await handler.execute('zcodegraph_node', { symbol: false });
     expect(result.isError).toBe(true);
   });
 
-  it('should reject non-string symbol in codegraph_callees', async () => {
-    const result = await handler.execute('codegraph_callees', { symbol: {} });
+  it('should reject non-string symbol in zcodegraph_callees', async () => {
+    const result = await handler.execute('zcodegraph_callees', { symbol: {} });
     expect(result.isError).toBe(true);
   });
 
   it('should handle NaN limit gracefully', async () => {
-    const result = await handler.execute('codegraph_search', { query: 'example', limit: 'abc' });
+    const result = await handler.execute('zcodegraph_search', { query: 'example', limit: 'abc' });
     expect(result.isError).toBeFalsy();
   });
 
   it('should handle negative limit gracefully', async () => {
-    const result = await handler.execute('codegraph_search', { query: 'example', limit: -5 });
+    const result = await handler.execute('zcodegraph_search', { query: 'example', limit: -5 });
     expect(result.isError).toBeFalsy();
   });
 
@@ -403,7 +403,7 @@ describe('MCP Input Validation', () => {
   it.runIf(process.platform !== 'win32')(
     'rejects a sensitive POSIX projectPath (/etc) via the MCP handler',
     async () => {
-      const result = await handler.execute('codegraph_search', {
+      const result = await handler.execute('zcodegraph_search', {
         query: 'example',
         projectPath: '/etc',
       });
@@ -415,7 +415,7 @@ describe('MCP Input Validation', () => {
   it.runIf(process.platform === 'win32')(
     'rejects a sensitive Windows projectPath (C:\\Windows) via the MCP handler',
     async () => {
-      const result = await handler.execute('codegraph_search', {
+      const result = await handler.execute('zcodegraph_search', {
         query: 'example',
         projectPath: 'C:\\Windows',
       });

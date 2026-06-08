@@ -46,7 +46,7 @@ flowchart LR
 
 ### Problem
 
-`codegraph_explore` 的 ranking、flow spine、source rendering、skeletonization、staleness banner、tool description 与 Agent sufficiency 策略散在 MCP handler 和 context builder 周边。
+`zcodegraph_explore` 的 ranking、flow spine、source rendering、skeletonization、staleness banner、tool description 与 Agent sufficiency 策略散在 MCP handler 和 context builder 周边。
 
 当前 **Module** 有真实价值，但 **Interface** 对维护者不够深：要理解一个 Explore answer 为什么够用，需要在多个位置追踪预算、排序和渲染规则。
 

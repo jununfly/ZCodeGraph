@@ -417,7 +417,7 @@ describe('Shared MCP daemon (issue #411)', () => {
     const daemonPid = readLockPid(realRoot)!;
 
     // A warm call goes through the daemon.
-    sendMessage(server.child, { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'codegraph_status', arguments: {} } });
+    sendMessage(server.child, { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'zcodegraph_status', arguments: {} } });
     await waitFor(() => findResponse(server.stdout, 2), 10000);
 
     // Kill the daemon out from under the live proxy.
@@ -427,7 +427,7 @@ describe('Shared MCP daemon (issue #411)', () => {
     // The proxy must still be alive and still answer — served in-process now.
     expect(isAlive(server.child.pid!)).toBe(true);
     await waitFor(() => server.stderr.some((l) => l.includes('serving this session in-process')), 8000);
-    sendMessage(server.child, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'codegraph_status', arguments: {} } });
+    sendMessage(server.child, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'zcodegraph_status', arguments: {} } });
     const resp = await waitFor(() => findResponse(server.stdout, 3), 15000);
     expect(resp.result !== undefined || resp.error !== undefined).toBe(true);
     expect(isAlive(server.child.pid!)).toBe(true);

@@ -15,14 +15,14 @@ Agents configured by the installer launch this automatically. When a `.codegraph
 
 | Tool | Purpose |
 |---|---|
-| `codegraph_search` | Find symbols by name across the codebase |
-| `codegraph_callers` | Find what calls a function |
-| `codegraph_callees` | Find what a function calls |
-| `codegraph_impact` | Analyze what code is affected by changing a symbol |
-| `codegraph_node` | Get details about a specific symbol (optionally with source code) |
-| `codegraph_explore` | Return source for several related symbols grouped by file, plus a relationship map, in one call |
-| `codegraph_files` | Get the indexed file structure (faster than filesystem scanning) |
-| `codegraph_status` | Check index health and statistics |
+| `zcodegraph_search` | Find symbols by name across the codebase |
+| `zcodegraph_callers` | Find what calls a function |
+| `zcodegraph_callees` | Find what a function calls |
+| `zcodegraph_impact` | Analyze what code is affected by changing a symbol |
+| `zcodegraph_node` | Get details about a specific symbol (optionally with source code) |
+| `zcodegraph_explore` | Return source for several related symbols grouped by file, plus a relationship map, in one call |
+| `zcodegraph_files` | Get the indexed file structure (faster than filesystem scanning) |
+| `zcodegraph_status` | Check index health and statistics |
 
 ## How agents should use it
 

@@ -45,7 +45,7 @@ Run **all** of the following test categories against the codebase. Use the Node.
 
 ---
 
-### Test 1: `codegraph_explore` — Deep Exploration (MOST IMPORTANT)
+### Test 1: `zcodegraph_explore` — Deep Exploration (MOST IMPORTANT)
 
 This is the primary tool LLMs use. It must return relevant source code grouped by file, with correct relationships, for a natural language query. Test it with **at least 5 different query types**:
 
@@ -126,7 +126,7 @@ test().catch(console.error);
 
 ---
 
-### Test 2: `codegraph_search` — Symbol Lookup
+### Test 2: `zcodegraph_search` — Symbol Lookup
 
 Test that searching for specific symbols returns the right results ranked correctly.
 
@@ -175,7 +175,7 @@ test().catch(console.error);
 
 ---
 
-### Test 3: `codegraph_callers` / `codegraph_callees` — Call Chain Tracing
+### Test 3: `zcodegraph_callers` / `zcodegraph_callees` — Call Chain Tracing
 
 Test that call relationships were extracted correctly.
 
@@ -218,7 +218,7 @@ test().catch(console.error);
 
 ---
 
-### Test 4: `codegraph_impact` — Change Impact Analysis
+### Test 4: `zcodegraph_impact` — Change Impact Analysis
 
 Test that the impact radius correctly identifies affected code.
 
@@ -348,7 +348,7 @@ If an expected node kind has 0 count, the language extractor is missing that AST
 
 ### Test 7: Real-World LLM Prompts
 
-This is the final and most important test. Simulate the kinds of questions a developer would actually ask an LLM that's using CodeGraph. For each prompt, run `findRelevantContext` (which powers `codegraph_explore`) and evaluate whether the returned context would let an LLM give a correct, complete answer.
+This is the final and most important test. Simulate the kinds of questions a developer would actually ask an LLM that's using CodeGraph. For each prompt, run `findRelevantContext` (which powers `zcodegraph_explore`) and evaluate whether the returned context would let an LLM give a correct, complete answer.
 
 **Run at least 5 of these prompt styles, adapted to the actual codebase:**
 
@@ -438,7 +438,7 @@ test().catch(console.error);
 | Symptom | Likely Cause | Where to Fix |
 |---------|-------------|--------------|
 | Method missing owner type in `qualified_name` | Language needs `getReceiverType` | `src/extraction/languages/<lang>.ts` |
-| `codegraph_explore` returns irrelevant files | Common names flooding FTS; co-location boost not helping | `src/db/queries.ts: findNodesByExactName`, `src/context/index.ts` |
+| `zcodegraph_explore` returns irrelevant files | Common names flooding FTS; co-location boost not helping | `src/db/queries.ts: findNodesByExactName`, `src/context/index.ts` |
 | Zero `calls` edges | `callTypes` missing or wrong AST node type | `src/extraction/languages/<lang>.ts: callTypes` |
 | Zero `extends`/`implements` edges | `extractInheritance()` doesn't handle this language's AST | `src/extraction/tree-sitter.ts: extractInheritance()` |
 | Missing node kinds (no enums, no interfaces) | AST type not listed in extractor | `src/extraction/languages/<lang>.ts: enumTypes`, `interfaceTypes`, etc. |
@@ -532,7 +532,7 @@ if (receiverType) {
 | `src/search/query-utils.ts` | `STOP_WORDS`, `extractSearchTerms`, `scorePathRelevance` |
 | `src/db/queries.ts` | `searchNodesFTS` (BM25), `findNodesByExactName` (co-location boost) |
 | `src/context/index.ts` | `findRelevantContext` — hybrid search + graph traversal |
-| `src/mcp/tools.ts` | MCP tool handlers — `codegraph_explore` implementation |
+| `src/mcp/tools.ts` | MCP tool handlers — `zcodegraph_explore` implementation |
 
 ## Language Status
 

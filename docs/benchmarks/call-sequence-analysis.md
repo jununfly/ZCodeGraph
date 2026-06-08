@@ -27,9 +27,10 @@ count can explain. The matrix records tool *counts*, not the call **sequence** o
 4. **Round-trips are 25% fewer with codegraph (283 vs 375 turns)** but wall-clock is only 16%
    faster — because the with-arm's turns each carry a ~18K explore payload, inflating TTFT and
    eroding the turn savings.
-5. **Root cause:** `src/mcp/server-instructions.ts` leads with *"answer directly … `codegraph_context`
-   first, then ONE `codegraph_explore`"* as the headline pattern. The trace-first guidance is buried
-   in a table + a chain list below it. Agents anchor on the prominent headline → context→explore.
+5. **Root cause (historical):** `src/mcp/server-instructions.ts` led with *"answer directly … context
+   first, then ONE explore"* as the headline pattern. The trace-first guidance was buried
+   in a table + a chain list below it. Agents anchored on the prominent headline → context→explore.
+   The context/trace MCP tools have since been removed; current validation should use `zcodegraph_explore`.
 
 **Decision:** the next experiment is **trace-first steering / adoption**, not enriching trace. We
 can't evaluate trace's completeness when it's used 3/37 times. Get adoption up first, then measure
@@ -40,7 +41,7 @@ whether the residual `node`/`explore` follow-ups need a richer trace.
 | metric | value |
 |---|---|
 | flow-question cells | 37 (all of them) |
-| cells that called `codegraph_trace` | **3** (`cpp-leveldb`, `excalidraw`, `c-redis`) |
+| cells that called historical `trace` | **3** (`cpp-leveldb`, `excalidraw`, `c-redis`) |
 | dominant pattern instead | `context` → `search`×N → `explore` |
 
 The 3 trace cells, and what followed the trace call:
@@ -112,18 +113,10 @@ production install defers codegraph tools the same way.
 Measure-first changed the plan. The hypothesis was "enrich trace so one call is self-sufficient."
 The data says trace is **used 3/37 times**, so completeness is moot until adoption is fixed.
 
-**Experiment: trace-first steering A/B.**
-- **Change:** rewrite the `server-instructions.ts` headline so a *flow* question (how does X reach Y
-  / trace / from→to) routes to `codegraph_trace` **first**, demoting the context→explore pattern to
-  non-flow/onboarding questions. Mirror into `instructions-template.ts` + `.cursor/rules/codegraph.mdc`.
-- **Metric:** trace-adoption rate (target ≫ 3/37), with-arm total payload (expect ↓ sharply,
-  especially small repos), turns (expect ↓), wall-clock (expect the 16% gap to widen toward the
-  25% turn gap as 18K explore payloads are replaced by <1K traces).
-- **Control:** a non-flow "what's the deal with module X" question must still go context→explore —
-  don't over-steer everything to trace.
-- **Then, step 2:** with adoption up, measure the `node`/`explore` follow-ups after trace
-  (cpp-leveldb/excalidraw/c-redis all had them). If they're frequent, enrich trace (per-hop body
-  snippet, capped per hop) so one trace call ends the flow investigation.
+**Experiment status:** superseded by the removal of context/trace MCP tools.
+- **Current direction:** use `zcodegraph_explore` as the single flow-surfacing tool; flow questions should provide endpoint symbols in the query so explore can surface its Flow section.
+- **Metric:** explore sufficiency for flow questions, with-arm total payload, turns, wall-clock, and Read/Grep displacement.
+- **Control:** a non-flow "what's the deal with module X" question should still get useful scoped context without over-returning.
 
 ## Reproduce
 

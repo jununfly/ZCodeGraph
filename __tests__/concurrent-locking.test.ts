@@ -131,12 +131,12 @@ describe('issue #238 — ToolHandler reuses the default instance (#2)', () => {
     const openSpy = vi.spyOn(CodeGraph, 'openSync');
     try {
       const calls: Promise<{ content: Array<{ text: string }>; isError?: boolean }>[] = [
-        handler.execute('codegraph_search', { query: 'helper' }),
-        handler.execute('codegraph_search', { query: 'helper', projectPath: root }),
-        handler.execute('codegraph_callers', { symbol: 'helper', projectPath: root }),
-        handler.execute('codegraph_callees', { symbol: 'main' }),
-        handler.execute('codegraph_files', { projectPath: root }),
-        handler.execute('codegraph_status', { projectPath: root }),
+        handler.execute('zcodegraph_search', { query: 'helper' }),
+        handler.execute('zcodegraph_search', { query: 'helper', projectPath: root }),
+        handler.execute('zcodegraph_callers', { symbol: 'helper', projectPath: root }),
+        handler.execute('zcodegraph_callees', { symbol: 'main' }),
+        handler.execute('zcodegraph_files', { projectPath: root }),
+        handler.execute('zcodegraph_status', { projectPath: root }),
       ];
       const results = await Promise.all(calls);
       for (const r of results) {

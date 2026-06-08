@@ -7,12 +7,12 @@ observer / event-emitter / signal patterns, where a *dispatcher* invokes callbac
 registered elsewhere through a shared store — so flows like "how does an update
 reach the screen" actually exist in the graph.
 
-> **Update (2026-06-01):** the `codegraph_trace` and `codegraph_context` MCP tools
-> were since **removed** — `codegraph_explore` is the single surfacing tool now. Its
-> "Flow" section (`buildFlowFromNamedSymbols`) and the `codegraph_node` trail surface
+> **Update (2026-06-01):** the `zcodegraph_trace` and `zcodegraph_context` MCP tools
+> were since **removed** — `zcodegraph_explore` is the single surfacing tool now. Its
+> "Flow" section (`buildFlowFromNamedSymbols`) and the `zcodegraph_node` trail surface
 > these synthesized edges; the `trace(a, b)` notation below means "the a→b flow,"
-> which you now verify with `codegraph_explore` / `probe-explore.mjs` (the
-> `probe-trace.mjs` / `probe-context.mjs` dev probes went away with the tools).
+> which you now verify with `zcodegraph_explore` / `probe-explore.mjs` (the
+> legacy `probe-trace.mjs` / `probe-context.mjs` dev probes now shim to explore).
 
 ---
 
@@ -180,8 +180,8 @@ This is one half of closing dynamic-dispatch coverage. The other artifacts on `m
   `_iterable_class` → `ModelIterable.__iter__`).
 - **Retrieval/UX changes** (separate from coverage): `explore` whole-small-file + glue
   fixes, the `explore` Flow section (`buildFlowFromNamedSymbols`), and `node`-with-trail
-  — all in `src/mcp/tools.ts`. (`codegraph_trace` / `codegraph_context` were later
-  removed; explore is the one surfacing tool.)
+  — all in `src/mcp/tools.ts`. (trace/context MCP tools were later
+  removed; `zcodegraph_explore` is the one surfacing tool.)
 - **Full investigation context + findings:** auto-memory
   `project_codegraph_read_displacement` (why coverage — not prompting/hooks/new-tools —
   is the lever for getting agents to use codegraph over Read).

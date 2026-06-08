@@ -1,5 +1,5 @@
 /**
- * Adaptive output budget for codegraph_explore (#185).
+ * Adaptive output budget for zcodegraph_explore (#185).
  *
  * The explore tool used to apply a fixed 35KB output cap regardless of
  * project size, which on small codebases was a net loss vs. native
@@ -137,7 +137,7 @@ describe('getExploreOutputBudget', () => {
  * Regression guard for #185 — protects against future edits to handleExplore
  * silently re-introducing the fixed 35KB cap on small projects.
  */
-describe('codegraph_explore output respects the adaptive budget', () => {
+describe('zcodegraph_explore output respects the adaptive budget', () => {
   let testDir: string;
   let cg: CodeGraph;
   let handler: ToolHandler;
@@ -185,7 +185,7 @@ describe('codegraph_explore output respects the adaptive budget', () => {
   });
 
   it('keeps total output under the small-project cap', async () => {
-    const result = await handler.execute('codegraph_explore', { query: 'Session method helper' });
+    const result = await handler.execute('zcodegraph_explore', { query: 'Session method helper' });
     const text = result.content?.[0]?.text ?? '';
     const smallBudget = getExploreOutputBudget(100);
     // Allow a small overshoot for the trailing markers — the cap is enforced
@@ -194,7 +194,7 @@ describe('codegraph_explore output respects the adaptive budget', () => {
   });
 
   it('omits the meta-text gated off for small projects', async () => {
-    const result = await handler.execute('codegraph_explore', { query: 'Session method helper' });
+    const result = await handler.execute('zcodegraph_explore', { query: 'Session method helper' });
     const text = result.content?.[0]?.text ?? '';
     expect(text).not.toContain('### Additional relevant files');
     expect(text).not.toContain('Complete source code is included above');
@@ -202,7 +202,7 @@ describe('codegraph_explore output respects the adaptive budget', () => {
   });
 
   it('still includes the Relationships section — it is the cheapest structural signal', async () => {
-    const result = await handler.execute('codegraph_explore', { query: 'Session method helper' });
+    const result = await handler.execute('zcodegraph_explore', { query: 'Session method helper' });
     const text = result.content?.[0]?.text ?? '';
     // Either there are relationships, or no edges were significant — both are fine.
     // We just want to confirm we did not accidentally gate it off.
@@ -213,7 +213,7 @@ describe('codegraph_explore output respects the adaptive budget', () => {
 
   it('prefixes source lines with line numbers by default (cat -n style)', async () => {
     delete process.env.CODEGRAPH_EXPLORE_LINENUMS;
-    const result = await handler.execute('codegraph_explore', { query: 'Session method helper' });
+    const result = await handler.execute('zcodegraph_explore', { query: 'Session method helper' });
     const text = result.content?.[0]?.text ?? '';
     // At least one fenced source line should look like `<digits>\t<code>`.
     expect(/\n\d+\t/.test(text)).toBe(true);
@@ -222,7 +222,7 @@ describe('codegraph_explore output respects the adaptive budget', () => {
   it('omits line numbers when CODEGRAPH_EXPLORE_LINENUMS=0', async () => {
     process.env.CODEGRAPH_EXPLORE_LINENUMS = '0';
     try {
-      const result = await handler.execute('codegraph_explore', { query: 'Session method helper' });
+      const result = await handler.execute('zcodegraph_explore', { query: 'Session method helper' });
       const text = result.content?.[0]?.text ?? '';
       // The synthetic source has no tab-prefixed numeric lines of its own,
       // so none should appear when the toggle is off.
@@ -235,7 +235,7 @@ describe('codegraph_explore output respects the adaptive budget', () => {
   it('uses language-neutral omission markers (no C-style // in the output)', async () => {
     // The gap/trimmed separators must not assume `//` is a comment — that's
     // wrong in Python, Ruby, etc. They render inside fenced source blocks.
-    const result = await handler.execute('codegraph_explore', { query: 'Session method helper' });
+    const result = await handler.execute('zcodegraph_explore', { query: 'Session method helper' });
     const text = result.content?.[0]?.text ?? '';
     expect(text).not.toContain('// ... (gap)');
     expect(text).not.toContain('// ... trimmed');
@@ -246,7 +246,7 @@ describe('codegraph_explore output respects the adaptive budget', () => {
     // envelope filter it would form one giant cluster that tail-trims to
     // the class declaration, hiding the methods. Confirm real method bodies
     // make it into the output. Regression guard for the #185 follow-up.
-    const result = await handler.execute('codegraph_explore', { query: 'Session method helper' });
+    const result = await handler.execute('zcodegraph_explore', { query: 'Session method helper' });
     const text = result.content?.[0]?.text ?? '';
     // A method body line (`methodN(arg: string)`) should appear, not just
     // the `export class Session {` opener.

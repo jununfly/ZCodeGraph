@@ -78,7 +78,7 @@ lean-main-via-capped-codegraph is, and it's cheaper.
 split is needed; the unified "answer directly" instruction is right for Claude Code *and* for
 Codex / Cursor / opencode (which have no Explore-agent mechanism and would otherwise read files
 directly). This conclusion drove updating the README's `## CodeGraph` example block, which
-previously told agents to "NEVER call `codegraph_explore` directly / ALWAYS spawn an Explore
+previously told agents to "NEVER call `zcodegraph_explore` directly / ALWAYS spawn an Explore
 agent" — i.e., it steered Claude Code toward the *worse* (17–26 read, ~28%-more-token) path.
 
 **Caveat / future work (not a blocker):** an Explore agent that *itself uses codegraph* could in

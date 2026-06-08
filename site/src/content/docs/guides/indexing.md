@@ -65,10 +65,10 @@ When your editor / agent (re)connects to the MCP server, codegraph runs a fast f
 
 ### Verify what the watcher sees
 
-`codegraph_status` exposes the pending set first-class — useful for an agent asking "is the index caught up?" in one call:
+`zcodegraph_status` exposes the pending set first-class — useful for an agent asking "is the index caught up?" in one call:
 
 ```
-codegraph_status →
+zcodegraph_status →
   ## CodeGraph Status
   …
   ### Pending sync:
@@ -94,7 +94,7 @@ Otherwise: just use it. The watcher + banner + connect-sync covers the AI-assist
 codegraph status
 ```
 
-Reports node/edge/file counts, the active SQLite backend, and the journal mode. In an agent session, the MCP-side `codegraph_status` additionally surfaces the `### Pending sync:` block described above.
+Reports node/edge/file counts, the active SQLite backend, and the journal mode. In an agent session, the MCP-side `zcodegraph_status` additionally surfaces the `### Pending sync:` block described above.
 
 ## What gets indexed
 

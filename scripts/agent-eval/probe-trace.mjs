@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Probe codegraph_trace against an index using the built dist.
+// Legacy shim: the old trace tool was removed; use zcodegraph_explore with endpoint symbols.
 // Usage: node probe-trace.mjs <repo-with-.codegraph> <from> <to>
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
@@ -15,6 +15,6 @@ const ToolHandler = tools.ToolHandler ?? tools.default?.ToolHandler;
 
 const cg = CodeGraph.openSync(repo);
 const h = new ToolHandler(cg);
-const res = await h.execute('codegraph_trace', { from, to });
+const res = await h.execute('zcodegraph_explore', { query: `${from} ${to}` });
 console.log(res.content?.[0]?.text ?? '(no text)');
 try { cg.close?.(); } catch {}

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Probe codegraph_node (with trail) against an index using the built dist.
+// Probe zcodegraph_node (with trail) against an index using the built dist.
 // Usage: node probe-node.mjs <repo-with-.codegraph> <symbol> [code]
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
@@ -15,6 +15,6 @@ const ToolHandler = tools.ToolHandler ?? tools.default?.ToolHandler;
 
 const cg = CodeGraph.openSync(repo);
 const h = new ToolHandler(cg);
-const res = await h.execute('codegraph_node', { symbol, includeCode: code === 'code' });
+const res = await h.execute('zcodegraph_node', { symbol, includeCode: code === 'code' });
 console.log(res.content?.[0]?.text ?? '(no text)');
 try { cg.close?.(); } catch {}

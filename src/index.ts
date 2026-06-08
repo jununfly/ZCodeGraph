@@ -689,7 +689,7 @@ export class CodeGraph {
   /**
    * Active SQLite backend for this project's connection (`node-sqlite` — Node's
    * built-in real-SQLite module). Surfaced via `codegraph status` and the
-   * `codegraph_status` MCP tool alongside the effective journal mode.
+   * `zcodegraph_status` MCP tool alongside the effective journal mode.
    */
   getBackend(): import('./db').SqliteBackend {
     return this.db.getBackend();
@@ -699,7 +699,7 @@ export class CodeGraph {
    * The journal mode actually in effect ('wal', 'delete', …). 'wal' means
    * readers never block on a concurrent writer; anything else means they can,
    * which is the precondition for the "database is locked" failures in issue
-   * #238. Surfaced via `codegraph status` and the `codegraph_status` MCP tool.
+   * #238. Surfaced via `codegraph status` and the `zcodegraph_status` MCP tool.
    */
   getJournalMode(): string {
     return this.db.getJournalMode();
@@ -750,7 +750,7 @@ export class CodeGraph {
    * Find the project's "primary route file" — the file with the densest
    * concentration of framework-emitted `route` nodes (≥3 routes, ≥30%
    * of all non-test routes). Used to inline the routing config in
-   * `codegraph_explore` responses on small realworld template repos
+   * `zcodegraph_explore` responses on small realworld template repos
    * (rails-realworld, laravel-realworld, drupal-admintoolbar, …) where
    * Glob+Read of `routes.rb`/`urls.py`/etc. otherwise beats codegraph.
    */

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Probe codegraph_context (with call-paths) against an index using the built dist.
+// Legacy shim: the old context tool was removed; use zcodegraph_explore.
 // Usage: node probe-context.mjs <repo-with-.codegraph> <task words...>
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
@@ -16,6 +16,6 @@ const ToolHandler = tools.ToolHandler ?? tools.default?.ToolHandler;
 
 const cg = CodeGraph.openSync(repo);
 const h = new ToolHandler(cg);
-const res = await h.execute('codegraph_context', { task });
+const res = await h.execute('zcodegraph_explore', { query: task });
 console.log(res.content?.[0]?.text ?? '(no text)');
 try { cg.close?.(); } catch {}

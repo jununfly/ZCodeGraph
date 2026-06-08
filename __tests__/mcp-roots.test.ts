@@ -109,7 +109,7 @@ describe('MCP project resolution via roots/list (issue #196)', () => {
     send(child, { jsonrpc: '2.0', method: 'notifications/initialized' });
 
     // First tool call (no projectPath) drives the server to ask us for roots.
-    send(child, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'codegraph_status', arguments: {} } });
+    send(child, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'zcodegraph_status', arguments: {} } });
 
     const rootsReq = await waitForMessage(messages, (m) => m.method === 'roots/list', 5000);
     expect(typeof rootsReq.id).toBe('string'); // server-initiated id
@@ -136,7 +136,7 @@ describe('MCP project resolution via roots/list (issue #196)', () => {
     await waitForMessage(messages, (m) => m.id === 0 && !!m.result, 5000);
     send(child, { jsonrpc: '2.0', method: 'notifications/initialized' });
 
-    send(child, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'codegraph_status', arguments: {} } });
+    send(child, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'zcodegraph_status', arguments: {} } });
     const resp = await waitForMessage(messages, (m) => m.id === 1, 8000);
     const text = resp.result.content[0].text as string;
 
@@ -169,7 +169,7 @@ describe('MCP project resolution via roots/list (issue #196)', () => {
     await waitForMessage(messages, (m) => m.id === 0 && !!m.result, 5000);
     send(child, { jsonrpc: '2.0', method: 'notifications/initialized' });
 
-    send(child, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'codegraph_status', arguments: {} } });
+    send(child, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'zcodegraph_status', arguments: {} } });
     const resp = await waitForMessage(messages, (m) => m.id === 1, 8000);
     const text = resp.result.content[0].text as string;
 

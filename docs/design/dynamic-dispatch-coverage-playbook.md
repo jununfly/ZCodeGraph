@@ -9,10 +9,10 @@ each one the same way, so cross-symbol *flows* exist in the graph everywhere.
 > synthesizer) is in [`callback-edge-synthesis.md`](./callback-edge-synthesis.md).
 > Full investigation context + findings: auto-memory `project_codegraph_read_displacement`.
 
-> **Update (2026-06-01):** the `codegraph_trace` and `codegraph_context` MCP tools were
-> **removed** — `codegraph_explore` is the single surfacing tool now. Its "Flow" section
+> **Update (2026-06-01):** the trace/context MCP tools were
+> **removed** — `zcodegraph_explore` is the single surfacing tool now. Its "Flow" section
 > (`buildFlowFromNamedSymbols`) surfaces the synthesized edges this playbook is about, and
-> you validate coverage with `codegraph_explore` / `scripts/agent-eval/probe-explore.mjs`.
+> you validate coverage with `zcodegraph_explore` / `scripts/agent-eval/probe-explore.mjs`.
 > Where the text below writes `trace(a, b)` or lists `trace`/`context` among the tools,
 > read it as "the a→b flow, now surfaced and verified via explore." The synthesizers and
 > the coverage matrix are unchanged.
@@ -101,7 +101,7 @@ Key distinction driving the mechanism choice:
   so a repo with no closure-collection dispatch yields **0 edges** regardless of how many `.append`
   sites it has. Pairs dispatcher → registrar globally by field name (cross-file/class required),
   fan-out-capped. Surfaced two ways: inline in `trace`, and as a "Dynamic-dispatch links among your
-  symbols" section in `codegraph_explore` (`buildFlowFromNamedSymbols`) so the relationship shows even
+  symbols" section in `zcodegraph_explore` (`buildFlowFromNamedSymbols`) so the relationship shows even
   when the agent named only `validate`, not the `didCompleteTask` that drains the list.
 - **Files:** `src/resolution/callback-synthesizer.ts` (`closureCollectionEdges`),
   `src/mcp/tools.ts` (`synthEdgeNote` closure-collection case + the explore synth-links section).
@@ -115,7 +115,7 @@ Alamofire (110 files) was the README's weakest repo and was written off as the "
 (native grep is cheap, so the agent reads anyway). It wasn't. Reading the **transcripts** — every
 `Read`'s `file_path`+offset and the assistant text right before it — surfaced the agent's own words:
 *"the trace collided with same-named symbols (44 `request`s, 8 `task`s), let me read by line."*
-`codegraph_trace`'s endpoint disambiguation (`scorePair`, shared-dir-prefix only) was resolving an
+The historical trace endpoint disambiguation (`scorePair`, shared-dir-prefix only) was resolving an
 overloaded name to an **empty delegate/protocol stub** — `request` → `EventMonitor.request(){}`
 (a 1-line no-op) over the real `Session.request`, because two unrelated `Source/Features/` stubs
 shared a deeper dir prefix than the correct `Source/Core/` pair. Garbage trace → manual reading,

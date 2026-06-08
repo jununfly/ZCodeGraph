@@ -88,7 +88,7 @@ function isWithinDir(child: string, parent: string): boolean {
  * logical path is inside the root but whose real target points outside it
  * (issue #527). A symlink that stays within the root is still allowed, so
  * legitimate in-tree symlinks keep working. Both content-serving read sinks
- * (codegraph_node `includeCode`, codegraph_explore source) go through here, so
+ * (zcodegraph_node `includeCode`, zcodegraph_explore source) go through here, so
  * this is the chokepoint that keeps out-of-root file contents from leaking.
  *
  * @param projectRoot - The project root directory
