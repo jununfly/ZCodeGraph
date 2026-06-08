@@ -8,7 +8,7 @@
  *     canonical installer script (single source of truth) so the download /
  *     version-resolution / PATH logic never drifts between first-install and
  *     upgrade.
- *   - **npm** — installed via `npm i -g @colbymchenry/codegraph`. Upgrading
+ *   - **npm** — installed via `npm i -g @jununfly/zcodegraph`. Upgrading
  *     shells out to npm.
  *   - **npx** — ephemeral; nothing to upgrade (next `npx` fetches latest).
  *   - **source** — a git checkout running its own `dist/`; `git pull` + rebuild.
@@ -30,7 +30,7 @@ import * as https from 'https';
 import { spawnSync } from 'child_process';
 
 export const REPO = 'colbymchenry/codegraph';
-export const NPM_PACKAGE = '@colbymchenry/codegraph';
+export const NPM_PACKAGE = '@jununfly/zcodegraph';
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/main`;
 export const INSTALL_SH_URL = `${RAW_BASE}/install.sh`;
 
@@ -46,7 +46,7 @@ export type InstallMethod =
   | { kind: 'unknown'; reason: string };
 
 export interface DetectInput {
-  /** `__filename` of the running CLI module — `<…>/dist/bin/codegraph.js`. */
+  /** `__filename` of the running CLI module — `<…>/dist/bin/zcodegraph.js`. */
   filename: string;
   platform: NodeJS.Platform;
   cwd: string;
@@ -99,11 +99,11 @@ export function detectInstallMethod(input: DetectInput): InstallMethod {
   const P = isWin ? path.win32 : path.posix;
   const binDir = P.dirname(input.filename); // <…>/bin
 
-  // Bundle: <root>/lib/dist/bin/codegraph.js → <root> is up 3 from bin/.
+  // Bundle: <root>/lib/dist/bin/zcodegraph.js → <root> is up 3 from bin/.
   // A bundle has a vendored node + a launcher script as siblings of lib/.
   const bundleRoot = P.resolve(binDir, '..', '..', '..');
   const vendoredNode = P.join(bundleRoot, isWin ? 'node.exe' : 'node');
-  const launcher = P.join(bundleRoot, 'bin', isWin ? 'codegraph.cmd' : 'codegraph');
+  const launcher = P.join(bundleRoot, 'bin', isWin ? 'zcodegraph.cmd' : 'zcodegraph');
   if (exists(vendoredNode) && exists(launcher)) {
     const os = isWin ? 'windows' : 'unix';
     return { kind: 'bundle', os, bundleRoot, installDir: deriveInstallDir(bundleRoot, os, exists) };
@@ -111,7 +111,7 @@ export function detectInstallMethod(input: DetectInput): InstallMethod {
 
   const norm = toPosix(input.filename);
 
-  // npx cache: <…>/_npx/<hash>/node_modules/@colbymchenry/codegraph/…
+  // npx cache: <…>/_npx/<hash>/node_modules/@jununfly/zcodegraph/…
   if (norm.includes('/_npx/')) {
     return { kind: 'npx' };
   }
@@ -122,7 +122,7 @@ export function detectInstallMethod(input: DetectInput): InstallMethod {
     return { kind: 'npm', scope: underCwd ? 'local' : 'global' };
   }
 
-  // Source checkout: running <repo>/dist/bin/codegraph.js with a sibling .git.
+  // Source checkout: running <repo>/dist/bin/zcodegraph.js with a sibling .git.
   const repoRoot = P.resolve(binDir, '..', '..');
   if (exists(P.join(repoRoot, 'package.json')) && exists(P.join(repoRoot, '.git'))) {
     return { kind: 'source', root: repoRoot };

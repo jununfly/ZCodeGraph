@@ -102,11 +102,11 @@ export async function runInstallerWithOptions(opts: RunInstallerOptions): Promis
     return;
   }
 
-  // Step 2: install the codegraph npm package on PATH (always offered;
+  // Step 2: install the zcodegraph npm package on PATH (always offered;
   // matches existing behavior). Skipped when --yes (assume present).
   if (!useDefaults) {
     const shouldInstallGlobally = await clack.confirm({
-      message: 'Install the codegraph CLI on your PATH? (Required so agents can launch the MCP server)',
+      message: 'Install the zcodegraph CLI on your PATH? (Required so agents can launch the MCP server)',
       initialValue: true,
     });
     if (clack.isCancel(shouldInstallGlobally)) {
@@ -115,13 +115,13 @@ export async function runInstallerWithOptions(opts: RunInstallerOptions): Promis
     }
     if (shouldInstallGlobally) {
       const s = clack.spinner();
-      s.start('Installing codegraph CLI...');
+      s.start('Installing zcodegraph CLI...');
       try {
-        execSync('npm install -g @colbymchenry/codegraph', { stdio: 'pipe', windowsHide: true });
-        s.stop('Installed codegraph CLI on PATH');
+        execSync('npm install -g @jununfly/zcodegraph', { stdio: 'pipe', windowsHide: true });
+        s.stop('Installed zcodegraph CLI on PATH');
       } catch {
         s.stop('Could not install (permission denied)');
-        clack.log.warn('Try: sudo npm install -g @colbymchenry/codegraph');
+        clack.log.warn('Try: sudo npm install -g @jununfly/zcodegraph');
       }
     } else {
       clack.log.info('Skipped CLI install — agents will not be able to launch the MCP server without it');
@@ -208,7 +208,7 @@ export async function runInstallerWithOptions(opts: RunInstallerOptions): Promis
   }
 
   if (location === 'global') {
-    clack.note('cd your-project\ncodegraph init -i', 'Quick start');
+    clack.note('cd your-project\nzcodegraph init -i', 'Quick start');
   }
 
   const finalNote = targets.length > 0
@@ -363,7 +363,7 @@ export async function runUninstaller(opts: RunUninstallerOptions): Promise<void>
   // Step 4: for local uninstall, the index dir is separate — point at
   // `uninit` so the user knows it's still there (and how to remove it).
   if (location === 'local' && fs.existsSync(path.join(process.cwd(), '.codegraph'))) {
-    clack.log.info('The .codegraph/ index for this project is still here. Run `codegraph uninit` to delete it.');
+    clack.log.info('The .codegraph/ index for this project is still here. Run `zcodegraph uninit` to delete it.');
   }
 
   // Step 5: summary.
@@ -455,7 +455,7 @@ async function initializeLocalProject(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     clack.log.error(`Could not load native modules: ${msg}`);
-    clack.log.info('Skipping project initialization. Run "codegraph init -i" later.');
+    clack.log.info('Skipping project initialization. Run "zcodegraph init -i" later.');
     return;
   }
 
@@ -496,7 +496,7 @@ async function initializeLocalProject(
  * When the live file watcher will be disabled for this project (e.g. WSL2
  * /mnt drives, or CODEGRAPH_NO_WATCH), the index would silently go stale.
  * Explain that, and offer to keep it fresh automatically via git hooks
- * (commit / pull / checkout) instead of manual `codegraph sync`.
+ * (commit / pull / checkout) instead of manual `zcodegraph sync`.
  *
  * No-op on environments where the watcher runs normally, so it's safe to
  * call unconditionally after init.
@@ -514,7 +514,7 @@ export async function offerWatchFallback(
 
   // No git repo → the commit-hook path doesn't apply; point at manual sync.
   if (!isGitRepo(projectPath)) {
-    clack.log.info('Run `codegraph sync` after changing files to refresh the index.');
+    clack.log.info('Run `zcodegraph sync` after changing files to refresh the index.');
     return;
   }
 
@@ -532,19 +532,19 @@ export async function offerWatchFallback(
       message: 'How should CodeGraph keep its index fresh?',
       options: [
         { value: 'hook' as const, label: 'Sync on git commit / pull / checkout', hint: 'installs git hooks (recommended)' },
-        { value: 'manual' as const, label: 'I\'ll run `codegraph sync` myself', hint: 'fully manual' },
+        { value: 'manual' as const, label: 'I\'ll run `zcodegraph sync` myself', hint: 'fully manual' },
       ],
       initialValue: 'hook' as const,
     });
     if (clack.isCancel(sel)) {
-      clack.log.info('Skipped — run `codegraph sync` after changes to refresh the index.');
+      clack.log.info('Skipped — run `zcodegraph sync` after changes to refresh the index.');
       return;
     }
     choice = sel;
   }
 
   if (choice === 'manual') {
-    clack.log.info('Run `codegraph sync` after changing files to refresh the index.');
+    clack.log.info('Run `zcodegraph sync` after changing files to refresh the index.');
     return;
   }
 
@@ -554,11 +554,11 @@ export async function offerWatchFallback(
       `Installed git ${result.installed.join(', ')} hook${result.installed.length > 1 ? 's' : ''} — ` +
       'the index refreshes in the background after each.',
     );
-    clack.log.info('Run `codegraph sync` anytime to refresh immediately.');
+    clack.log.info('Run `zcodegraph sync` anytime to refresh immediately.');
   } else {
     clack.log.warn(
       `Could not install git hooks${result.skipped ? ` (${result.skipped})` : ''}. ` +
-      'Run `codegraph sync` after changes instead.',
+      'Run `zcodegraph sync` after changes instead.',
     );
   }
 }

@@ -4,7 +4,7 @@
 // npm thin-installer launcher for CodeGraph.
 //
 // The heavy artifact (a vendored Node runtime + the app) ships as a per-platform
-// optionalDependency: @colbymchenry/codegraph-<platform>-<arch>. npm installs
+// optionalDependency: @jununfly/zcodegraph-<platform>-<arch>. npm installs
 // only the one matching the host, via each package's `os`/`cpu` fields (the
 // esbuild pattern). This shim — run by the user's OWN Node — locates that bundle
 // and execs its launcher, so the real work always runs on the bundled Node 24
@@ -23,7 +23,7 @@
 //   CODEGRAPH_DOWNLOAD_BASE=URL release-download base (for mirrors/air-gapped)
 //
 // Wired up at release time as the main package's `bin`:
-//   "bin": { "codegraph": "npm-shim.js" }
+//   "bin": { "zcodegraph": "npm-shim.js" }
 // with the platform packages listed in `optionalDependencies`.
 
 var childProcess = require('child_process');
@@ -32,9 +32,9 @@ var os = require('os');
 var path = require('path');
 
 var target = process.platform + '-' + process.arch; // e.g. darwin-arm64, linux-x64
-var pkg = '@colbymchenry/codegraph-' + target;
+var pkg = '@jununfly/zcodegraph-' + target;
 var isWindows = process.platform === 'win32';
-var REPO = 'colbymchenry/codegraph';
+var REPO = 'jununfly/ZCodeGraph';
 
 main().catch(function (e) {
   process.stderr.write('codegraph: ' + (e && e.message ? e.message : String(e)) + '\n');
@@ -62,10 +62,10 @@ function resolveInstalledBundle() {
       // CVE-2024-27980 hardening on Node 24), so invoke the bundled node.exe
       // against the app entry point and pass --liftoff-only here.
       var nodeExe = require.resolve(pkg + '/node.exe');
-      var entry = require.resolve(pkg + '/lib/dist/bin/codegraph.js');
+      var entry = require.resolve(pkg + '/lib/dist/bin/zcodegraph.js');
       return { command: nodeExe, args: liftoff(entry) };
     }
-    return { command: require.resolve(pkg + '/bin/codegraph'), args: process.argv.slice(2) };
+    return { command: require.resolve(pkg + '/bin/zcodegraph'), args: process.argv.slice(2) };
   } catch (e) {
     return null;
   }
@@ -77,19 +77,19 @@ function resolveInstalledBundle() {
 function launcherIn(dir) {
   if (isWindows) {
     var nodeExe = path.join(dir, 'node.exe');
-    var entry = path.join(dir, 'lib', 'dist', 'bin', 'codegraph.js');
+    var entry = path.join(dir, 'lib', 'dist', 'bin', 'zcodegraph.js');
     if (fs.existsSync(nodeExe) && fs.existsSync(entry)) {
       return { command: nodeExe, args: liftoff(entry) };
     }
   } else {
-    var launcher = path.join(dir, 'bin', 'codegraph');
+    var launcher = path.join(dir, 'bin', 'zcodegraph');
     if (fs.existsSync(launcher)) return { command: launcher, args: process.argv.slice(2) };
   }
   return null;
 }
 
 // --liftoff-only keeps tree-sitter's WASM grammars off V8's turboshaft tier to
-// avoid the Zone OOM on Node >= 22 (issues #293/#298). The unix bin/codegraph
+// avoid the Zone OOM on Node >= 22 (issues #293/#298). The unix bin/zcodegraph
 // launcher already passes it; on Windows we invoke node.exe directly so add it.
 function liftoff(entry) {
   return ['--liftoff-only', entry].concat(process.argv.slice(2));
@@ -111,7 +111,7 @@ async function selfHealBundle() {
     fail('the network fallback is disabled (CODEGRAPH_NO_DOWNLOAD is set).');
   }
 
-  var asset = 'codegraph-' + target + (isWindows ? '.zip' : '.tar.gz');
+  var asset = 'zcodegraph-' + target + (isWindows ? '.zip' : '.tar.gz');
   var base = process.env.CODEGRAPH_DOWNLOAD_BASE || ('https://github.com/' + REPO + '/releases/download');
   var url = base + '/v' + version + '/' + asset;
 
@@ -238,7 +238,7 @@ function fail(reason) {
     'A registry mirror (e.g. npmmirror/cnpm) that did not mirror the per-platform\n' +
     'package is the usual cause. Fixes:\n' +
     '  - install from the official registry:\n' +
-    '      npm i -g @colbymchenry/codegraph --registry=https://registry.npmjs.org\n' +
+    '      npm i -g @jununfly/zcodegraph --registry=https://registry.npmjs.org\n' +
     '  - or use the standalone installer (no Node required):\n' +
     '      curl -fsSL https://raw.githubusercontent.com/' + REPO + '/main/install.sh | sh\n'
   );

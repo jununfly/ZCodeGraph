@@ -103,9 +103,9 @@ function preferredMcpConfigPath(): string {
 }
 
 /**
- * Resolve the on-disk path of the `codegraph` binary so a Mac GUI app
+ * Resolve the on-disk path of the `zcodegraph` binary so a Mac GUI app
  * launched from Dock/Finder (with a stripped PATH) can find it. Falls
- * back to the bare `codegraph` name when:
+ * back to the bare `zcodegraph` name when:
  *
  *  - we're not on macOS (Linux GUI apps inherit user PATH; Windows
  *    uses env PATH directly), OR
@@ -118,9 +118,9 @@ function preferredMcpConfigPath(): string {
  * nvm-managed tools like ours.
  */
 function resolveCodegraphCommand(): string {
-  if (process.platform !== 'darwin') return 'codegraph';
+  if (process.platform !== 'darwin') return 'zcodegraph';
   try {
-    const resolved = execSync('command -v codegraph || which codegraph', {
+    const resolved = execSync('command -v zcodegraph || which zcodegraph', {
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
       shell: '/bin/bash',
@@ -130,7 +130,7 @@ function resolveCodegraphCommand(): string {
   } catch {
     /* fall through to bare name */
   }
-  return 'codegraph';
+  return 'zcodegraph';
 }
 
 /**

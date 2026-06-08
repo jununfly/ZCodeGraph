@@ -14,7 +14,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { CodeGraph } from '../src';
 
-const BIN = path.resolve(__dirname, '../dist/bin/codegraph.js');
+const BIN = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
 const PKG_VERSION = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf-8'),
 ).version as string;

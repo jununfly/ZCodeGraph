@@ -16,8 +16,8 @@
 #     node-version:  e.g. v24.16.0 (default below; pin for reproducible builds)
 #
 # Output:
-#   unix:    release/codegraph-<target>.tar.gz   (launcher: bin/codegraph)
-#   windows: release/codegraph-<target>.zip      (launcher: bin/codegraph.cmd)
+#   unix:    release/zcodegraph-<target>.tar.gz   (launcher: bin/zcodegraph)
+#   windows: release/zcodegraph-<target>.zip      (launcher: bin/zcodegraph.cmd)
 set -euo pipefail
 
 TARGET="${1:?usage: build-bundle.sh <target> [node-version]}"
@@ -60,7 +60,7 @@ echo "[bundle] building app"
 ( cd "$ROOT" && npm run build >/dev/null )
 
 # 3. Stage: app + production-only deps (pure JS/wasm → portable across platforms).
-STAGE="$WORK/codegraph-${TARGET}"
+STAGE="$WORK/zcodegraph-${TARGET}"
 mkdir -p "$STAGE/lib" "$STAGE/bin"
 cp -R "$ROOT/dist" "$STAGE/lib/dist"
 cp "$ROOT/package.json" "$ROOT/package-lock.json" "$STAGE/lib/"
@@ -81,13 +81,13 @@ rm -f "$STAGE/lib/package-lock.json"
 # runs are covered too; passing it here avoids that extra spawn.)
 if [ "$OSFAM" = "win32" ]; then
   cp "$NODE_BIN" "$STAGE/node.exe"
-  printf '@"%%~dp0..\\node.exe" --liftoff-only "%%~dp0..\\lib\\dist\\bin\\codegraph.js" %%*\r\n' \
-    > "$STAGE/bin/codegraph.cmd"
+  printf '@"%%~dp0..\\node.exe" --liftoff-only "%%~dp0..\\lib\\dist\\bin\\zcodegraph.js" %%*\r\n' \
+    > "$STAGE/bin/zcodegraph.cmd"
 else
   cp "$NODE_BIN" "$STAGE/node"
-  cat > "$STAGE/bin/codegraph" <<'LAUNCH'
+  cat > "$STAGE/bin/zcodegraph" <<'LAUNCH'
 #!/bin/sh
-# Resolve symlinks (e.g. the ~/.local/bin/codegraph link install.sh creates) so
+# Resolve symlinks (e.g. the ~/.local/bin/zcodegraph link install.sh creates) so
 # we find the real bundle dir, not the symlink's location.
 SELF="$0"
 while [ -L "$SELF" ]; do
@@ -99,20 +99,20 @@ while [ -L "$SELF" ]; do
 done
 DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 # --liftoff-only: avoid the V8 turboshaft WASM Zone OOM (issues #293/#298).
-exec "$DIR/node" --liftoff-only "$DIR/lib/dist/bin/codegraph.js" "$@"
+exec "$DIR/node" --liftoff-only "$DIR/lib/dist/bin/zcodegraph.js" "$@"
 LAUNCH
-  chmod +x "$STAGE/bin/codegraph"
+  chmod +x "$STAGE/bin/zcodegraph"
 fi
 
 # 5. Archive (.zip for Windows, .tar.gz otherwise).
 mkdir -p "$OUT"
 if [ "$OSFAM" = "win32" ]; then
-  ARCHIVE="$OUT/codegraph-${TARGET}.zip"
+  ARCHIVE="$OUT/zcodegraph-${TARGET}.zip"
   rm -f "$ARCHIVE"
-  ( cd "$WORK" && zip -rqX "$ARCHIVE" "codegraph-${TARGET}" )
+  ( cd "$WORK" && zip -rqX "$ARCHIVE" "zcodegraph-${TARGET}" )
 else
-  ARCHIVE="$OUT/codegraph-${TARGET}.tar.gz"
+  ARCHIVE="$OUT/zcodegraph-${TARGET}.tar.gz"
   # --no-xattrs: don't embed macOS xattrs that make GNU tar warn on Linux.
-  tar --no-xattrs -czf "$ARCHIVE" -C "$WORK" "codegraph-${TARGET}"
+  tar --no-xattrs -czf "$ARCHIVE" -C "$WORK" "zcodegraph-${TARGET}"
 fi
 echo "[bundle] wrote ${ARCHIVE} ($(du -h "$ARCHIVE" | cut -f1))"

@@ -44,7 +44,7 @@ async function loadCodeGraph(): Promise<typeof import('../index')> {
     console.error(`\x1b[31m${getGlyphs().err}\x1b[0m Failed to load CodeGraph modules.`);
     console.error(`\n  Node: ${process.version}  Platform: ${process.platform} ${process.arch}`);
     console.error(`\n  Error: ${msg}`);
-    console.error('\n  Try reinstalling with: npm install -g @colbymchenry/codegraph\n');
+    console.error('\n  Try reinstalling with: npm install -g @jununfly/zcodegraph\n');
     process.exit(1);
   }
 }
@@ -149,7 +149,7 @@ const chalk = {
 };
 
 program
-  .name('codegraph')
+  .name('zcodegraph')
   .description('Code intelligence and knowledge graph for any codebase')
   .version(packageJson.version);
 
@@ -1137,8 +1137,8 @@ program
         console.error(chalk.dim(`
 {
   "mcpServers": {
-    "codegraph": {
-      "command": "codegraph",
+    "zcodegraph": {
+      "command": "zcodegraph",
       "args": ["serve", "--mcp"]
     }
   }

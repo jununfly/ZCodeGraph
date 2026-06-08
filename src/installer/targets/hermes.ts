@@ -252,7 +252,7 @@ function escapeRegExp(value: string): string {
 function renderCodeGraphMcpChild(): string[] {
   return [
     '  codegraph:',
-    '    command: codegraph',
+    '    command: zcodegraph',
     '    args:',
     '      - serve',
     '      - --mcp',

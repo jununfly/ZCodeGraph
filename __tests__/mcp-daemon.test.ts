@@ -19,7 +19,7 @@
  *     idle-times-out after the last client leaves (so a single session can't
  *     leak a daemon forever).
  *
- * These tests intentionally spawn real `node dist/bin/codegraph.js` processes
+ * These tests intentionally spawn real `node dist/bin/zcodegraph.js` processes
  * over real sockets/pipes — the same surface a Claude Code / Cursor / Codex
  * install exercises. The daemon logs to `.codegraph/daemon.log` (it has no
  * client stderr of its own), so daemon-side assertions read that file.
@@ -40,7 +40,7 @@ import * as path from 'path';
 import { CodeGraph } from '../src';
 import { getDaemonSocketPath } from '../src/mcp/daemon-paths';
 
-const BIN = path.resolve(__dirname, '../dist/bin/codegraph.js');
+const BIN = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
 
 interface SpawnedServer {
   child: ChildProcessWithoutNullStreams;

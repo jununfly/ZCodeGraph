@@ -349,7 +349,7 @@ describe('Installer targets — partial-state idempotency', () => {
     expect(fs.existsSync(geminiMd)).toBe(false);
 
     const cfg = JSON.parse(fs.readFileSync(settings, 'utf-8'));
-    expect(cfg.mcpServers.codegraph).toEqual({ type: 'stdio', command: 'codegraph', args: ['serve', '--mcp'] });
+    expect(cfg.mcpServers.codegraph).toEqual({ type: 'stdio', command: 'zcodegraph', args: ['serve', '--mcp'] });
   });
 
   it('gemini: install preserves pre-existing settings (security.auth survives)', () => {
@@ -416,7 +416,7 @@ describe('Installer targets — partial-state idempotency', () => {
     expect(fs.existsSync(steering)).toBe(false);
 
     const cfg = JSON.parse(fs.readFileSync(mcp, 'utf-8'));
-    expect(cfg.mcpServers.codegraph).toEqual({ type: 'stdio', command: 'codegraph', args: ['serve', '--mcp'] });
+    expect(cfg.mcpServers.codegraph).toEqual({ type: 'stdio', command: 'zcodegraph', args: ['serve', '--mcp'] });
   });
 
   it('kiro: install deletes a leftover steering codegraph.md (self-heal) (#529)', () => {
@@ -564,7 +564,7 @@ describe('Installer targets — partial-state idempotency', () => {
     const legacyFile = path.join(tmpHome, '.gemini', 'antigravity', 'mcp_config.json');
     fs.mkdirSync(path.dirname(legacyFile), { recursive: true });
     fs.writeFileSync(legacyFile, JSON.stringify({
-      mcpServers: { codegraph: { command: 'codegraph', args: ['serve', '--mcp'] } },
+      mcpServers: { codegraph: { command: 'zcodegraph', args: ['serve', '--mcp'] } },
     }, null, 2) + '\n');
     fs.mkdirSync(path.join(tmpHome, '.gemini', 'config'), { recursive: true });
     fs.writeFileSync(path.join(tmpHome, '.gemini', 'config', '.migrated'), '');
@@ -643,10 +643,10 @@ describe('Installer targets — partial-state idempotency', () => {
     fs.mkdirSync(path.dirname(legacy), { recursive: true });
     fs.mkdirSync(path.dirname(unified), { recursive: true });
     fs.writeFileSync(legacy, JSON.stringify({
-      mcpServers: { codegraph: { command: 'codegraph', args: ['serve', '--mcp'] } },
+      mcpServers: { codegraph: { command: 'zcodegraph', args: ['serve', '--mcp'] } },
     }, null, 2) + '\n');
     fs.writeFileSync(unified, JSON.stringify({
-      mcpServers: { codegraph: { command: 'codegraph', args: ['serve', '--mcp'] } },
+      mcpServers: { codegraph: { command: 'zcodegraph', args: ['serve', '--mcp'] } },
     }, null, 2) + '\n');
     fs.writeFileSync(path.join(path.dirname(unified), '.migrated'), '');
 
@@ -715,7 +715,7 @@ describe('Installer targets — partial-state idempotency', () => {
     const body = fs.readFileSync(config, 'utf-8');
     expect(body).toContain('model:\n  default: qwen-3.7');
     expect(body).toContain('mcp_servers:\n  other:\n    command: other');
-    expect(body).toContain('  codegraph:\n    command: codegraph');
+    expect(body).toContain('  codegraph:\n    command: zcodegraph');
     expect(body).toContain('    - hermes-cli');
     expect(body).toContain('    - mcp-codegraph');
     expect(body).toContain('  discord:\n    - hermes-discord');
@@ -915,7 +915,7 @@ describe('Installer targets — partial-state idempotency', () => {
     const legacy = path.join(tmpCwd, '.claude.json');
     fs.writeFileSync(
       legacy,
-      JSON.stringify({ mcpServers: { codegraph: { type: 'stdio', command: 'codegraph', args: ['serve', '--mcp'] } } }, null, 2),
+      JSON.stringify({ mcpServers: { codegraph: { type: 'stdio', command: 'zcodegraph', args: ['serve', '--mcp'] } } }, null, 2),
     );
 
     claude.install('local', { autoAllow: false });
@@ -934,7 +934,7 @@ describe('Installer targets — partial-state idempotency', () => {
       legacy,
       JSON.stringify({
         mcpServers: {
-          codegraph: { type: 'stdio', command: 'codegraph', args: ['serve', '--mcp'] },
+          codegraph: { type: 'stdio', command: 'zcodegraph', args: ['serve', '--mcp'] },
           other: { command: 'x' },
         },
         somethingElse: true,
@@ -957,11 +957,11 @@ describe('Installer targets — partial-state idempotency', () => {
     // A user left with both the working .mcp.json and a stale .claude.json.
     fs.writeFileSync(
       path.join(tmpCwd, '.mcp.json'),
-      JSON.stringify({ mcpServers: { codegraph: { command: 'codegraph' } } }, null, 2),
+      JSON.stringify({ mcpServers: { codegraph: { command: 'zcodegraph' } } }, null, 2),
     );
     fs.writeFileSync(
       path.join(tmpCwd, '.claude.json'),
-      JSON.stringify({ mcpServers: { codegraph: { command: 'codegraph' }, other: { command: 'x' } } }, null, 2),
+      JSON.stringify({ mcpServers: { codegraph: { command: 'zcodegraph' }, other: { command: 'x' } } }, null, 2),
     );
 
     claude.uninstall('local');
@@ -1072,10 +1072,10 @@ describe('Installer targets — partial-state idempotency', () => {
     const file = seedSettings('local', {
       hooks: {
         PostToolUse: [
-          { matcher: 'Edit|Write', hooks: [{ type: 'command', command: 'npx @colbymchenry/codegraph mark-dirty', async: true }] },
+          { matcher: 'Edit|Write', hooks: [{ type: 'command', command: 'npx @jununfly/zcodegraph mark-dirty', async: true }] },
         ],
         Stop: [
-          { hooks: [{ type: 'command', command: 'npx @colbymchenry/codegraph sync-if-dirty' }] },
+          { hooks: [{ type: 'command', command: 'npx @jununfly/zcodegraph sync-if-dirty' }] },
         ],
       },
     });
@@ -1116,23 +1116,23 @@ describe('Installer targets — registry', () => {
 describe('Installer targets — TOML serializer (Codex backbone)', () => {
   it('builds a [mcp_servers.codegraph] block with command + args', () => {
     const block = buildTomlTable('mcp_servers.codegraph', {
-      command: 'codegraph',
+      command: 'zcodegraph',
       args: ['serve', '--mcp'],
     });
     expect(block).toContain('[mcp_servers.codegraph]');
-    expect(block).toContain('command = "codegraph"');
+    expect(block).toContain('command = "zcodegraph"');
     expect(block).toContain('args = ["serve", "--mcp"]');
   });
 
   it('upsert inserts into empty content', () => {
-    const block = buildTomlTable('mcp_servers.codegraph', { command: 'codegraph', args: ['serve'] });
+    const block = buildTomlTable('mcp_servers.codegraph', { command: 'zcodegraph', args: ['serve'] });
     const { content, action } = upsertTomlTable('', 'mcp_servers.codegraph', block);
     expect(action).toBe('inserted');
     expect(content.startsWith('[mcp_servers.codegraph]')).toBe(true);
   });
 
   it('upsert is idempotent — second call returns unchanged', () => {
-    const block = buildTomlTable('mcp_servers.codegraph', { command: 'codegraph', args: ['serve'] });
+    const block = buildTomlTable('mcp_servers.codegraph', { command: 'zcodegraph', args: ['serve'] });
     const first = upsertTomlTable('', 'mcp_servers.codegraph', block);
     const second = upsertTomlTable(first.content, 'mcp_servers.codegraph', block);
     expect(second.action).toBe('unchanged');
@@ -1153,7 +1153,7 @@ describe('Installer targets — TOML serializer (Codex backbone)', () => {
       '',
     ].join('\n');
     const newBlock = buildTomlTable('mcp_servers.codegraph', {
-      command: 'codegraph',
+      command: 'zcodegraph',
       args: ['serve', '--mcp'],
     });
     const { content, action } = upsertTomlTable(existing, 'mcp_servers.codegraph', newBlock);
@@ -1162,7 +1162,7 @@ describe('Installer targets — TOML serializer (Codex backbone)', () => {
     expect(content).toContain('foo = "bar"');
     expect(content).toContain('[zzz]');
     expect(content).toContain('baz = "qux"');
-    expect(content).toContain('command = "codegraph"');
+    expect(content).toContain('command = "zcodegraph"');
     expect(content).not.toContain('old-codegraph');
   });
 
@@ -1198,7 +1198,7 @@ describe('Installer targets — TOML serializer (Codex backbone)', () => {
       'name = "b"',
       '',
     ].join('\n');
-    const block = buildTomlTable('mcp_servers.codegraph', { command: 'codegraph', args: ['serve'] });
+    const block = buildTomlTable('mcp_servers.codegraph', { command: 'zcodegraph', args: ['serve'] });
     const { content } = upsertTomlTable(existing, 'mcp_servers.codegraph', block);
     expect(content.match(/\[\[foo\]\]/g)?.length).toBe(2);
     expect(content).toContain('[mcp_servers.codegraph]');

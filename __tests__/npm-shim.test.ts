@@ -27,7 +27,7 @@ import type { AddressInfo } from 'net';
 
 const SHIM_SRC = path.join(__dirname, '..', 'scripts', 'npm-shim.js');
 const target = `${process.platform}-${process.arch}`;
-const asset = `codegraph-${target}.tar.gz`;
+const asset = `zcodegraph-${target}.tar.gz`;
 const isWindows = process.platform === 'win32';
 
 function hasOpenssl(): boolean {
@@ -39,12 +39,12 @@ function mkTmp(label: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), `cg-shim-${label}-`));
 }
 
-// A temp dir standing in for the installed @colbymchenry/codegraph main package.
+// A temp dir standing in for the installed @jununfly/zcodegraph main package.
 function makePkg(version = '9.9.9-test'): string {
   const dir = mkTmp('pkg');
   fs.copyFileSync(SHIM_SRC, path.join(dir, 'npm-shim.js'));
   fs.writeFileSync(path.join(dir, 'package.json'),
-    JSON.stringify({ name: '@colbymchenry/codegraph', version }) + '\n');
+    JSON.stringify({ name: '@jununfly/zcodegraph', version }) + '\n');
   return dir;
 }
 
@@ -52,7 +52,7 @@ function makePkg(version = '9.9.9-test'): string {
 // shim found and exec'd it (and passed args through).
 function writeLauncher(binDir: string): void {
   fs.mkdirSync(binDir, { recursive: true });
-  const p = path.join(binDir, 'codegraph');
+  const p = path.join(binDir, 'zcodegraph');
   fs.writeFileSync(p, '#!/bin/sh\necho "FAKE_BUNDLE_RAN args:$*"\n');
   fs.chmodSync(p, 0o755);
 }
@@ -74,10 +74,10 @@ function runShim(pkgDir: string, args: string[], env: Record<string, string>) {
 describe.skipIf(isWindows)('npm-shim launcher', () => {
   it('runs the installed optional-dependency bundle without any download', async () => {
     const pkg = makePkg();
-    const platformPkg = path.join(pkg, 'node_modules', '@colbymchenry', `codegraph-${target}`);
+    const platformPkg = path.join(pkg, 'node_modules', '@jununfly', `zcodegraph-${target}`);
     writeLauncher(path.join(platformPkg, 'bin'));
     fs.writeFileSync(path.join(platformPkg, 'package.json'),
-      JSON.stringify({ name: `@colbymchenry/codegraph-${target}`, version: '9.9.9-test' }) + '\n');
+      JSON.stringify({ name: `@jununfly/zcodegraph-${target}`, version: '9.9.9-test' }) + '\n');
     const cache = mkTmp('cache');
     const r = await runShim(pkg, ['--probe-abc'], { CODEGRAPH_INSTALL_DIR: cache });
 
@@ -112,7 +112,7 @@ describe.skipIf(isWindows)('npm-shim launcher', () => {
 
     expect(r.status).toBe(1);
     expect(r.stderr).toContain(`no prebuilt bundle for ${target}`);
-    expect(r.stderr).toContain(`@colbymchenry/codegraph-${target}`);
+    expect(r.stderr).toContain(`@jununfly/zcodegraph-${target}`);
     expect(r.stderr).toContain('--registry=https://registry.npmjs.org');
     expect(r.stderr).toContain('install.sh');
   });
@@ -135,11 +135,11 @@ describe.skipIf(!CAN_NET)('npm-shim download fallback (local HTTPS)', () => {
       { stdio: 'ignore' },
     );
 
-    // Build a fake bundle archive (codegraph-<target>/bin/codegraph), like a real release asset.
+    // Build a fake bundle archive (zcodegraph-<target>/bin/zcodegraph), like a real release asset.
     const work = mkTmp('fixture');
-    writeLauncher(path.join(work, `codegraph-${target}`, 'bin'));
+    writeLauncher(path.join(work, `zcodegraph-${target}`, 'bin'));
     const archive = path.join(work, asset);
-    execSync(`tar -czf ${JSON.stringify(archive)} -C ${JSON.stringify(work)} codegraph-${target}`);
+    execSync(`tar -czf ${JSON.stringify(archive)} -C ${JSON.stringify(work)} zcodegraph-${target}`);
     fixtureBytes = fs.readFileSync(archive);
     fixtureSha = crypto.createHash('sha256').update(fixtureBytes).digest('hex');
 
@@ -179,7 +179,7 @@ describe.skipIf(!CAN_NET)('npm-shim download fallback (local HTTPS)', () => {
     expect(r.status).toBe(0);
     expect(r.stdout).toContain('FAKE_BUNDLE_RAN');
     expect(r.stdout).toContain('--probe-net');
-    expect(fs.existsSync(path.join(cache, 'bundles', `${target}-5.0.0-net`, 'bin', 'codegraph'))).toBe(true);
+    expect(fs.existsSync(path.join(cache, 'bundles', `${target}-5.0.0-net`, 'bin', 'zcodegraph'))).toBe(true);
   }, 20000);
 
   it('aborts (exit 1) on a checksum mismatch and caches nothing', async () => {

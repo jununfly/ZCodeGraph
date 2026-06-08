@@ -19,7 +19,7 @@ import * as path from 'path';
 export function getMcpServerConfig(): { type: string; command: string; args: string[] } {
   return {
     type: 'stdio',
-    command: 'codegraph',
+    command: 'zcodegraph',
     args: ['serve', '--mcp'],
   };
 }

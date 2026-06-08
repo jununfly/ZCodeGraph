@@ -28,7 +28,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-const BIN = path.resolve(__dirname, '../dist/bin/codegraph.js');
+const BIN = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
 
 function isAlive(pid: number): boolean {
   try {

@@ -33,8 +33,8 @@ describe('detectInstallMethod', () => {
 
   it('detects a unix bundle and derives the install dir from the versions/ layout', () => {
     const root = '/home/u/.codegraph/versions/v0.9.9';
-    const filename = `${root}/lib/dist/bin/codegraph.js`;
-    const present = new Set([`${root}/node`, `${root}/bin/codegraph`, '/home/u/.codegraph']);
+    const filename = `${root}/lib/dist/bin/zcodegraph.js`;
+    const present = new Set([`${root}/node`, `${root}/bin/zcodegraph`, '/home/u/.codegraph']);
     const m = detectInstallMethod({
       filename,
       platform: 'linux',
@@ -51,8 +51,8 @@ describe('detectInstallMethod', () => {
 
   it('detects a windows bundle and derives the install dir from current\\', () => {
     const root = 'C:/Users/u/AppData/Local/codegraph/current';
-    const filename = `${root}/lib/dist/bin/codegraph.js`;
-    const present = new Set([`${root}/node.exe`, `${root}/bin/codegraph.cmd`]);
+    const filename = `${root}/lib/dist/bin/zcodegraph.js`;
+    const present = new Set([`${root}/node.exe`, `${root}/bin/zcodegraph.cmd`]);
     const m = detectInstallMethod({
       filename,
       platform: 'win32',
@@ -66,7 +66,7 @@ describe('detectInstallMethod', () => {
   });
 
   it('detects a global npm install', () => {
-    const filename = '/usr/local/lib/node_modules/@colbymchenry/codegraph/dist/bin/codegraph.js';
+    const filename = '/usr/local/lib/node_modules/@jununfly/zcodegraph/dist/bin/zcodegraph.js';
     const m = detectInstallMethod({
       filename,
       platform: 'linux',
@@ -78,20 +78,20 @@ describe('detectInstallMethod', () => {
 
   it('detects a local (project) npm install as local', () => {
     const cwd = '/home/u/project';
-    const filename = `${cwd}/node_modules/@colbymchenry/codegraph/dist/bin/codegraph.js`;
+    const filename = `${cwd}/node_modules/@jununfly/zcodegraph/dist/bin/zcodegraph.js`;
     const m = detectInstallMethod({ filename, platform: 'linux', cwd, exists: () => false });
     expect(m).toEqual({ kind: 'npm', scope: 'local' });
   });
 
   it('detects an npx run from the _npx cache', () => {
-    const filename = '/home/u/.npm/_npx/abc123/node_modules/@colbymchenry/codegraph/dist/bin/codegraph.js';
+    const filename = '/home/u/.npm/_npx/abc123/node_modules/@jununfly/zcodegraph/dist/bin/zcodegraph.js';
     const m = detectInstallMethod({ filename, platform: 'linux', cwd: '/home/u', exists: () => false });
     expect(m).toEqual({ kind: 'npx' });
   });
 
   it('detects a source checkout via sibling package.json + .git', () => {
     const repo = '/home/u/dev/codegraph';
-    const filename = `${repo}/dist/bin/codegraph.js`;
+    const filename = `${repo}/dist/bin/zcodegraph.js`;
     const present = new Set([`${repo}/package.json`, `${repo}/.git`]);
     const m = detectInstallMethod({
       filename,
