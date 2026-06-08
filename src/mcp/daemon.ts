@@ -1,7 +1,7 @@
 /**
  * Shared MCP daemon — issue #411.
  *
- * One detached `codegraph serve --mcp` daemon process per project root,
+ * One detached `zcodegraph serve --mcp` daemon process per project root,
  * accepting N concurrent MCP clients over a Unix-domain socket (or named pipe
  * on Windows). Each incoming connection gets its own {@link MCPSession}; all
  * sessions share a single {@link MCPEngine}, which means a single file watcher

@@ -4,11 +4,11 @@
 
 This handoff is for a fresh agent continuing the architecture-improvement work that corresponds to:
 
-- `docs/plan/architecture-review-2026-06-08T18-03-08.md`
+- `docs/plans/architecture-review-2026-06-08T18-03-08.md`
 
 Do not duplicate that plan in full. Treat it as the source artifact for the architecture candidates and read it before continuing.
 
-Important cleanup rule from the user: after the architecture-review plan has been completed or converted into durable follow-up artifacts, `docs/plan/architecture-review-2026-06-08T18-03-08.md` should be deleted as a temporary planning artifact.
+Important cleanup rule from the user: after the architecture-review plan has been completed or converted into durable follow-up artifacts, `docs/plans/architecture-review-2026-06-08T18-03-08.md` should be deleted as a temporary planning artifact.
 
 ## Current repository state
 
@@ -64,7 +64,7 @@ Preserved exceptions:
 
 Source plan:
 
-- `docs/plan/architecture-review-2026-06-08T18-03-08.md`
+- `docs/plans/architecture-review-2026-06-08T18-03-08.md`
 
 The plan’s top recommendation is **Candidate 1: Explore response planner / output budget Seam**.
 
@@ -86,7 +86,7 @@ Start with Candidate 1 unless the user chooses otherwise.
 
 Recommended approach:
 
-1. Re-read `docs/plan/architecture-review-2026-06-08T18-03-08.md`, especially Candidate 1.
+1. Re-read `docs/plans/architecture-review-2026-06-08T18-03-08.md`, especially Candidate 1.
 2. Inspect current Explore path:
    - `src/mcp/tools.ts`
    - `src/context/index.ts`
@@ -98,7 +98,7 @@ Recommended approach:
    - first test an observable Explore output behavior;
    - then extract minimal planner seam;
    - keep MCP as adapter.
-5. After the architecture plan is completed or converted into durable issues/ADRs, delete `docs/plan/architecture-review-2026-06-08T18-03-08.md` per user instruction.
+5. After the architecture plan is completed or converted into durable issues/ADRs, delete `docs/plans/architecture-review-2026-06-08T18-03-08.md` per user instruction.
 
 ## Suggested skills
 
@@ -124,4 +124,4 @@ When this handoff has served its purpose:
 
 - This temporary handoff file can be discarded.
 - After the architecture-review plan itself is completed or converted into durable artifacts, delete:
-  - `docs/plan/architecture-review-2026-06-08T18-03-08.md`
+  - `docs/plans/architecture-review-2026-06-08T18-03-08.md`

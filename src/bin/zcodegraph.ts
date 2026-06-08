@@ -5,22 +5,22 @@
  * Command-line interface for CodeGraph code intelligence.
  *
  * Usage:
- *   codegraph                    Run interactive installer (when no args)
- *   codegraph install            Run interactive installer
- *   codegraph uninstall          Remove CodeGraph from your agents
- *   codegraph init [path]        Initialize CodeGraph in a project
- *   codegraph uninit [path]      Remove CodeGraph from a project
- *   codegraph index [path]       Index all files in the project
- *   codegraph sync [path]        Sync changes since last index
- *   codegraph status [path]      Show index status
- *   codegraph query <search>     Search for symbols
- *   codegraph files [options]    Show project file structure
- *   codegraph context <task>     Build context for a task
- *   codegraph callers <symbol>   Find what calls a function/method
- *   codegraph callees <symbol>   Find what a function/method calls
- *   codegraph impact <symbol>    Analyze what code is affected by changing a symbol
- *   codegraph affected [files]   Find test files affected by changes
- *   codegraph upgrade [version]  Update CodeGraph to the latest release
+ *   zcodegraph                    Run interactive installer (when no args)
+ *   zcodegraph install            Run interactive installer
+ *   zcodegraph uninstall          Remove CodeGraph from your agents
+ *   zcodegraph init [path]        Initialize CodeGraph in a project
+ *   zcodegraph uninit [path]      Remove CodeGraph from a project
+ *   zcodegraph index [path]       Index all files in the project
+ *   zcodegraph sync [path]        Sync changes since last index
+ *   zcodegraph status [path]      Show index status
+ *   zcodegraph query <search>     Search for symbols
+ *   zcodegraph files [options]    Show project file structure
+ *   zcodegraph context <task>     Build context for a task
+ *   zcodegraph callers <symbol>   Find what calls a function/method
+ *   zcodegraph callees <symbol>   Find what a function/method calls
+ *   zcodegraph impact <symbol>    Analyze what code is affected by changing a symbol
+ *   zcodegraph affected [files]   Find test files affected by changes
+ *   zcodegraph upgrade [version]  Update CodeGraph to the latest release
  */
 
 import { Command } from 'commander';
@@ -414,7 +414,7 @@ function writeErrorLog(projectPath: string, errors: Array<{ message: string; fil
 // =============================================================================
 
 /**
- * codegraph init [path]
+ * zcodegraph init [path]
  */
 program
   .command('init [path]')
@@ -544,7 +544,7 @@ program
     try {
       if (!isInitialized(projectPath)) {
         error(`CodeGraph not initialized in ${projectPath}`);
-        info('Run "codegraph init" first');
+        info('Run "zcodegraph init" first');
         process.exit(1);
       }
 
@@ -690,7 +690,7 @@ program
         console.log(chalk.bold('\nCodeGraph Status\n'));
         info(`Project: ${projectPath}`);
         warn('Not initialized');
-        info('Run "codegraph init" to initialize');
+        info('Run "zcodegraph init" to initialize');
         return;
       }
 
@@ -1104,7 +1104,7 @@ function printFileTree(
 }
 
 /**
- * codegraph serve
+ * zcodegraph serve
  */
 program
   .command('serve')

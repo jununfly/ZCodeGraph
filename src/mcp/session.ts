@@ -237,7 +237,7 @@ export class MCPSession {
    *   2. if still uninitialized and we never asked the client for its roots,
    *      do so now (one-shot); fall back to cwd if the client lacks roots;
    *   3. last-resort: re-walk from the best candidate — picks up projects
-   *      that were `codegraph init`'d *after* the server started.
+   *      that were `zcodegraph init`'d *after* the server started.
    */
   private async retryInitIfNeeded(): Promise<void> {
     if (this.resolvePromise) {

@@ -4,7 +4,7 @@
 // can drive a write-extractor -> build -> re-check loop.
 //
 // Usage: node scripts/add-lang/verify-extraction.mjs <repo-path> <lang>
-// Reads `codegraph status <repo> --json` using whatever codegraph is on PATH,
+// Reads `zcodegraph status <repo> --json` using whatever zcodegraph is on PATH,
 // so it reflects the binary that built the index.
 //
 // Exit codes: 0 = pass or soft-warn, 1 = critical fail, 2 = could not run.
@@ -22,7 +22,7 @@ try {
   const out = execFileSync('codegraph', ['status', repo, '--json'], { encoding: 'utf8' });
   status = JSON.parse(out);
 } catch (e) {
-  console.error(`[verify] could not read codegraph status for ${repo}: ${e.message}`);
+  console.error(`[verify] could not read zcodegraph status for ${repo}: ${e.message}`);
   process.exit(2);
 }
 
