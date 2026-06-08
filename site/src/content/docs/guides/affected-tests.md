@@ -3,12 +3,12 @@ title: Affected Tests in CI
 description: Run only the tests a change actually touches.
 ---
 
-`codegraph affected` traces import dependencies transitively to find which test files are affected by a set of changed source files — so CI can run only the relevant tests.
+`zcodegraph affected` traces import dependencies transitively to find which test files are affected by a set of changed source files — so CI can run only the relevant tests.
 
 ```bash
-codegraph affected src/utils.ts src/api.ts          # pass files as arguments
-git diff --name-only | codegraph affected --stdin    # pipe from git diff
-codegraph affected src/auth.ts --filter "e2e/*"      # custom test-file pattern
+zcodegraph affected src/utils.ts src/api.ts          # pass files as arguments
+git diff --name-only | zcodegraph affected --stdin    # pipe from git diff
+zcodegraph affected src/auth.ts --filter "e2e/*"      # custom test-file pattern
 ```
 
 ## Options
@@ -25,7 +25,7 @@ codegraph affected src/auth.ts --filter "e2e/*"      # custom test-file pattern
 
 ```bash
 #!/usr/bin/env bash
-AFFECTED=$(git diff --name-only HEAD | codegraph affected --stdin --quiet)
+AFFECTED=$(git diff --name-only HEAD | zcodegraph affected --stdin --quiet)
 if [ -n "$AFFECTED" ]; then
   npx vitest run $AFFECTED
 fi

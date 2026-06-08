@@ -15,7 +15,7 @@ After parsing, CodeGraph resolves:
 
 ## Framework awareness
 
-CodeGraph recognizes web-framework routing files and emits `route` nodes linked by `references` edges to their handler classes or functions — so querying the callers of a view or controller surfaces the URL pattern that binds it. See [Framework Routes](/codegraph/guides/framework-routes/) for the full list of recognized frameworks.
+CodeGraph recognizes web-framework routing files and emits `route` nodes linked by `references` edges to their handler classes or functions — so querying the callers of a view or controller surfaces the URL pattern that binds it. See [Framework Routes](/ZCodeGraph/guides/framework-routes/) for the full list of recognized frameworks.
 
 ## Dynamic-dispatch coverage
 

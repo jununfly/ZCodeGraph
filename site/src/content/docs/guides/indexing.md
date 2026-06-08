@@ -7,24 +7,24 @@ description: Full index, incremental sync, and the file watcher.
 
 ```bash
 cd your-project
-codegraph init -i      # initialize + full index
+zcodegraph init -i      # initialize + full index
 ```
 
-`init` creates `.codegraph/`; `-i`/`--index` builds the index immediately. To initialize without indexing, drop the flag and run `codegraph index` later.
+`init` creates `.codegraph/`; `-i`/`--index` builds the index immediately. To initialize without indexing, drop the flag and run `zcodegraph index` later.
 
 ## Full vs. incremental
 
 ```bash
-codegraph index           # full index of the whole project
-codegraph index --force   # re-index from scratch
-codegraph sync            # incremental — only changed files
+zcodegraph index           # full index of the whole project
+zcodegraph index --force   # re-index from scratch
+zcodegraph sync            # incremental — only changed files
 ```
 
 `sync` is fast because it only reparses what changed. Use it after a branch switch or a batch of edits.
 
 ## Stay fresh automatically
 
-**You don't need to run `codegraph sync` by hand during an agent session.** When your agent (Claude Code, Cursor, Codex, opencode, Hermes, Gemini, Antigravity, Kiro) launches `codegraph serve --mcp`, three layers cooperate to keep the index in step with your code — and to never give the agent a quiet wrong answer in the small window between an edit and the next sync.
+**You don't need to run `zcodegraph sync` by hand during an agent session.** When your agent (Claude Code, Cursor, Codex, opencode, Hermes, Gemini, Antigravity, Kiro) launches `zcodegraph serve --mcp`, three layers cooperate to keep the index in step with your code — and to never give the agent a quiet wrong answer in the small window between an edit and the next sync.
 
 ### 1. File watcher with debounced auto-sync (always on)
 
@@ -77,25 +77,25 @@ zcodegraph_status →
 
 If `### Pending sync:` isn't in the response, nothing is in flight.
 
-### When manual `codegraph sync` makes sense
+### When manual `zcodegraph sync` makes sense
 
 Almost never. The edge cases:
 
-- **The watcher is disabled.** Sandboxes that block local fs watchers, or you've set `CODEGRAPH_NO_DAEMON=1` to opt out of the shared daemon. In those cases `codegraph sync` is the manual fallback.
-- **Pre-flight before a CI run.** If you're scripting against the index outside an agent session, a single `codegraph sync` at the start of the script guarantees the index reflects the current working tree.
+- **The watcher is disabled.** Sandboxes that block local fs watchers, or you've set `CODEGRAPH_NO_DAEMON=1` to opt out of the shared daemon. In those cases `zcodegraph sync` is the manual fallback.
+- **Pre-flight before a CI run.** If you're scripting against the index outside an agent session, a single `zcodegraph sync` at the start of the script guarantees the index reflects the current working tree.
 
 Otherwise: just use it. The watcher + banner + connect-sync covers the AI-assisted workflow end-to-end. If you're seeing files genuinely missed after the debounce window has passed, that's a bug — please file an issue with a reproduction.
 
-> See the v0.9.5 release notes for the [staleness banner (#403)](https://github.com/colbymchenry/codegraph/releases/tag/v0.9.5) and the connect-time catch-up (#414); both shipped together.
+> See the v0.9.5 release notes for the [staleness banner (#403)](https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.5) and the connect-time catch-up (#414); both shipped together.
 
 ## Check status
 
 ```bash
-codegraph status
+zcodegraph status
 ```
 
 Reports node/edge/file counts, the active SQLite backend, and the journal mode. In an agent session, the MCP-side `zcodegraph_status` additionally surfaces the `### Pending sync:` block described above.
 
 ## What gets indexed
 
-Every file whose extension maps to a [supported language](/codegraph/reference/languages/), minus dependency/build directories excluded by default (`node_modules`, `vendor`, `dist`, …), anything your `.gitignore` excludes, and files over 1 MB. See [Configuration](/codegraph/getting-started/configuration/).
+Every file whose extension maps to a [supported language](/ZCodeGraph/reference/languages/), minus dependency/build directories excluded by default (`node_modules`, `vendor`, `dist`, …), anything your `.gitignore` excludes, and files over 1 MB. See [Configuration](/ZCodeGraph/getting-started/configuration/).

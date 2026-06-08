@@ -30,9 +30,9 @@ function parse(file) {
         else if (/codegraph/.test(n)) cg++;
       }
     }
-    // MCP cold-start race: the headless agent fired before `codegraph serve --mcp`
+    // MCP cold-start race: the headless agent fired before `zcodegraph serve --mcp`
     // finished registering its tools, so early calls returned "No such tool
-    // available" and the agent floundered into grep/Read. That measures CodeGraph's
+    // available" and the agent floundered into grep/Read. That measures ZCodeGraph's
     // startup latency, NOT its steady-state value — flag the run so the aggregate
     // can exclude it (an artifact of headless first-turn timing, not the tool).
     if (e.type === 'user') for (const b of (Array.isArray(e.message?.content) ? e.message.content : [])) {

@@ -1,14 +1,16 @@
 <div align="center">
 
-# CodeGraph
+# ZCodeGraph
+
+<sub>maintained by jununfly · based on upstream CodeGraph by Colby McHenry</sub>
 
 ### Supercharge Claude Code, Cursor, Codex, OpenCode, Hermes Agent, Gemini, Antigravity, and Kiro with Semantic Code Intelligence
 
 **~16% cheaper · ~58% fewer tool calls · 100% local**
 
-### [Documentation & Website →](https://colbymchenry.github.io/codegraph/)
+### [Documentation & Website →](https://jununfly.github.io/ZCodeGraph/)
 
-[![npm version](https://img.shields.io/npm/v/@colbymchenry/codegraph.svg)](https://www.npmjs.com/package/@colbymchenry/codegraph)
+[![npm version](https://img.shields.io/npm/v/@jununfly/zcodegraph.svg)](https://www.npmjs.com/package/@jununfly/zcodegraph)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Self-contained](https://img.shields.io/badge/Node.js-bundled%20%C2%B7%20none%20required-brightgreen.svg)](https://nodejs.org/)
 
@@ -27,9 +29,9 @@
 
 <br>
 
-**The CodeGraph platform is coming** — for every PR, know exactly what to test, what could break, which flows are affected, and whether business logic is compromised.
+**The ZCodeGraph platform is coming** — for every PR, know exactly what to test, what could break, which flows are affected, and whether business logic is compromised.
 
-<a href="https://getcodegraph.com"><img alt="Join the waitlist for early beta access" src="https://raw.githubusercontent.com/colbymchenry/codegraph/main/assets/waitlist.svg?v=2" height="52"></a>
+<a href="https://getcodegraph.com"><img alt="Join the waitlist for early beta access" src="https://raw.githubusercontent.com/jununfly/ZCodeGraph/main/assets/waitlist.svg?v=2" height="52"></a>
 
 <sub>Get <b>early beta access</b> to the hosted product · <a href="https://getcodegraph.com">getcodegraph.com</a></sub>
 
@@ -43,40 +45,40 @@
 
 ```bash
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
+npm install -g @jununfly/zcodegraph
 
 # Windows (PowerShell)
-irm https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.ps1 | iex
+npm install -g @jununfly/zcodegraph
 ```
 
 Already have Node? Use npm instead (works on any version):
 
 ```bash
-npm i -g @colbymchenry/codegraph
+npm i -g @jununfly/zcodegraph
 ```
 
-<sub>CodeGraph bundles its own runtime — nothing to compile, no native build, works the same everywhere. The installer puts `codegraph` on your PATH but **doesn't change your current shell** — open a new terminal before the next step so the command resolves.</sub>
+<sub>ZCodeGraph bundles its own runtime — nothing to compile, no native build, works the same everywhere. The installer puts `zcodegraph` on your PATH but **doesn't change your current shell** — open a new terminal before the next step so the command resolves.</sub>
 
-<sub>**Upgrade any time** with `codegraph upgrade` — it detects how you installed (bundle, npm, or npx) and updates in place. Add `--check` to see if an update is available, or `codegraph upgrade <version>` to pin one.</sub>
+<sub>**Upgrade any time** with `zcodegraph upgrade` — it detects how you installed (bundle, npm, or npx) and updates in place. Add `--check` to see if an update is available, or `zcodegraph upgrade <version>` to pin one.</sub>
 
 ### 2. Wire up your agent(s)
 
-In a **new terminal**, run the installer to connect CodeGraph to the agents you use:
+In a **new terminal**, run the installer to connect ZCodeGraph to the agents you use:
 
 ```bash
-codegraph install
+zcodegraph install
 ```
 
-<sub>Detects and auto-configures Claude Code, Cursor, Codex CLI, opencode, Hermes Agent, Gemini CLI, Antigravity IDE, and Kiro — wiring the CodeGraph MCP server into each. **This is the step that connects CodeGraph to your agent;** installing the CLI in step 1 does not do it on its own. (Shortcut: `npx @colbymchenry/codegraph` downloads and runs this in one go.)</sub>
+<sub>Detects and auto-configures Claude Code, Cursor, Codex CLI, opencode, Hermes Agent, Gemini CLI, Antigravity IDE, and Kiro — wiring the ZCodeGraph MCP server into each. **This is the step that connects ZCodeGraph to your agent;** installing the CLI in step 1 does not do it on its own. (Shortcut: `npx @jununfly/zcodegraph` downloads and runs this in one go.)</sub>
 
 ### 3. Initialize each project
 
 ```bash
 cd your-project
-codegraph init -i
+zcodegraph init -i
 ```
 
-<sub>`codegraph init` just creates the local `.codegraph/` index directory; adding `-i` (`--index`) also builds the initial graph in the same step. Without `-i`, run `codegraph index` afterwards to populate it.</sub>
+<sub>`zcodegraph init` just creates the local `.codegraph/` index directory; adding `-i` (`--index`) also builds the initial graph in the same step. Without `-i`, run `zcodegraph index` afterwards to populate it.</sub>
 
 <div align="center">
 
@@ -86,25 +88,25 @@ codegraph init -i
 
 ### Uninstall
 
-Changed your mind? One command removes CodeGraph from every agent it configured:
+Changed your mind? One command removes ZCodeGraph from every agent it configured:
 
 ```bash
-codegraph uninstall
+zcodegraph uninstall
 ```
 
-<sub>Reverses the installer — strips CodeGraph's MCP server config, instructions, and permissions from each configured agent. Your project indexes (`.codegraph/`) are left untouched; remove those per-project with `codegraph uninit`. Use `--target` to remove from specific agents, or `--yes` to run non-interactively.</sub>
+<sub>Reverses the installer — strips ZCodeGraph's MCP server config, instructions, and permissions from each configured agent. Your project indexes (`.codegraph/`) are left untouched; remove those per-project with `zcodegraph uninit`. Use `--target` to remove from specific agents, or `--yes` to run non-interactively.</sub>
 
 ---
 
-## Why CodeGraph?
+## Why ZCodeGraph?
 
 When Claude Code explores a codebase, it spawns **Explore agents** that scan files with grep, glob, and Read — consuming tokens on every tool call.
 
-**CodeGraph gives those agents a pre-indexed knowledge graph** — symbol relationships, call graphs, and code structure. Agents query the graph instantly instead of scanning files.
+**ZCodeGraph gives those agents a pre-indexed knowledge graph** — symbol relationships, call graphs, and code structure. Agents query the graph instantly instead of scanning files.
 
 ### Benchmark Results
 
-Tested across **7 real-world open-source codebases** spanning 7 languages, comparing an agent (Claude Code, headless) answering one architecture question **with** and **without** CodeGraph. Each cell is the savings at the **median of 4 runs per arm**. _Re-validated on Opus 4.8 (2026-06-02), on the current build (`codegraph_explore` as the primary tool)._
+Tested across **7 real-world open-source codebases** spanning 7 languages, comparing an agent (Claude Code, headless) answering one architecture question **with** and **without** ZCodeGraph. Each cell is the savings at the **median of 4 runs per arm**. _Re-validated on Opus 4.8 (2026-06-02), on the current build (`zcodegraph_explore` as the primary tool)._
 
 > **Average: 16% cheaper · 47% fewer tokens · 22% faster · 58% fewer tool calls**
 
@@ -118,7 +120,7 @@ Tested across **7 real-world open-source codebases** spanning 7 languages, compa
 | **Gin** | Go · ~110 | 19% cheaper | 23% fewer | 24% faster | 44% fewer |
 | **Alamofire** | Swift · ~110 | 40% cheaper | 64% fewer | 33% faster | 58% fewer |
 
-CodeGraph cuts **tokens, tool calls, and wall-clock time on every repo** — across small, medium, and large codebases — and answers them with **near-zero file reads**, while the no-CodeGraph agent spends its budget on grep/find/Read discovery. `codegraph_explore` shows the answer in full — the mechanism plus the exact methods you asked about, even when they're buried in a multi-thousand-line file — while collapsing redundant interchangeable implementations to signatures, so the response is sized to the *answer* rather than the file count. **Cost stays flat-to-cheaper everywhere** — largest on the small repos (Alamofire, OkHttp), roughly break-even on the most response-heavy ones (Excalidraw, Tokio), where CodeGraph trades the no-CodeGraph agent's many small grep/read round-trips for a few large, cache-heavy tool responses.
+ZCodeGraph cuts **tokens, tool calls, and wall-clock time on every repo** — across small, medium, and large codebases — and answers them with **near-zero file reads**, while the no-ZCodeGraph agent spends its budget on grep/find/Read discovery. `zcodegraph_explore` shows the answer in full — the mechanism plus the exact methods you asked about, even when they're buried in a multi-thousand-line file — while collapsing redundant interchangeable implementations to signatures, so the response is sized to the *answer* rather than the file count. **Cost stays flat-to-cheaper everywhere** — largest on the small repos (Alamofire, OkHttp), roughly break-even on the most response-heavy ones (Excalidraw, Tokio), where ZCodeGraph trades the no-ZCodeGraph agent's many small grep/read round-trips for a few large, cache-heavy tool responses.
 
 <details>
 <summary><strong>Per-repo breakdown — WITH vs WITHOUT (median of 4)</strong></summary>
@@ -198,7 +200,7 @@ CodeGraph cuts **tokens, tool calls, and wall-clock time on every repo** — acr
 <details>
 <summary><strong>Full benchmark details</strong></summary>
 
-**Methodology.** Each arm is `claude -p` (Claude Opus 4.8) run headlessly against the repo with `--strict-mcp-config`: **WITH** = CodeGraph's MCP server enabled, **WITHOUT** = an empty MCP config. Built-in Read/Grep/Bash stay available to both. Same question per repo, **4 runs per arm, median reported**. Cost = the run's `total_cost_usd`; Tokens = total tokens processed (input incl. cached + output); Time = wall-clock; Tool calls = every tool invocation, including those inside any sub-agents the model spawns. Repos cloned at `--depth 1` and indexed by the same CodeGraph build that served them. Re-validated 2026-06-02 on the current build. These numbers are lower than the prior Opus 4.7 validation — not a CodeGraph regression but a stronger native baseline: Opus 4.8 greps/reads efficiently on the main thread instead of fanning out into large Explore-subagent sweeps, so the no-CodeGraph arm is leaner than it used to be. Per-repo numbers move run-to-run with how hard the without-arm thrashes (the median-of-4 smooths it, but tails remain — e.g. Django's without-arm hit $2.71/14m one batch).
+**Methodology.** Each arm is `claude -p` (Claude Opus 4.8) run headlessly against the repo with `--strict-mcp-config`: **WITH** = ZCodeGraph's MCP server enabled, **WITHOUT** = an empty MCP config. Built-in Read/Grep/Bash stay available to both. Same question per repo, **4 runs per arm, median reported**. Cost = the run's `total_cost_usd`; Tokens = total tokens processed (input incl. cached + output); Time = wall-clock; Tool calls = every tool invocation, including those inside any sub-agents the model spawns. Repos cloned at `--depth 1` and indexed by the same CodeGraph build that served them. Re-validated 2026-06-02 on the current build. These numbers are lower than the prior Opus 4.7 validation — not a CodeGraph regression but a stronger native baseline: Opus 4.8 greps/reads efficiently on the main thread instead of fanning out into large Explore-subagent sweeps, so the no-CodeGraph arm is leaner than it used to be. Per-repo numbers move run-to-run with how hard the without-arm thrashes (the median-of-4 smooths it, but tails remain — e.g. Django's without-arm hit $2.71/14m one batch).
 
 **Queries:**
 | Codebase | Query |
@@ -211,7 +213,7 @@ CodeGraph cuts **tokens, tool calls, and wall-clock time on every repo** — acr
 | Gin | "How does gin route requests through its middleware chain?" |
 | Alamofire | "How does Alamofire build, send, and validate a request?" |
 
-**Why CodeGraph wins:** with the index available, the agent answers directly — usually one `codegraph_explore` returns the relevant source — and stops, usually with zero file reads. Without it, the agent spends most of its budget on discovery (find/ls/grep) before reading the right code. CodeGraph only helps when queried *directly*, so its instructions steer agents to answer directly rather than delegate exploration to file-reading sub-agents — otherwise a sub-agent reads files regardless and CodeGraph becomes overhead.
+**Why ZCodeGraph wins:** with the index available, the agent answers directly — usually one `zcodegraph_explore` returns the relevant source — and stops, usually with zero file reads. Without it, the agent spends most of its budget on discovery (find/ls/grep) before reading the right code. ZCodeGraph only helps when queried *directly*, so its instructions steer agents to answer directly rather than delegate exploration to file-reading sub-agents — otherwise a sub-agent reads files regardless and ZCodeGraph becomes overhead.
 
 </details>
 
@@ -231,9 +233,9 @@ CodeGraph cuts **tokens, tool calls, and wall-clock time on every repo** — acr
 | **100% Local** | No data leaves your machine. No API keys. No external services. SQLite database only |
 
 <details>
-<summary><strong>How auto-syncing works — and why you don't need to run <code>codegraph sync</code> manually</strong></summary>
+<summary><strong>How auto-syncing works — and why you don't need to run <code>zcodegraph sync</code> manually</strong></summary>
 
-When your agent (Claude Code, Cursor, Codex, opencode) launches `codegraph serve --mcp`, three layers keep the index in step with your code — and make sure the agent never gets a silent wrong answer in the brief window between an edit and the next sync:
+When your agent (Claude Code, Cursor, Codex, opencode) launches `zcodegraph serve --mcp`, three layers keep the index in step with your code — and make sure the agent never gets a silent wrong answer in the brief window between an edit and the next sync:
 
 1. **File watcher with debounced auto-sync.** A native FSEvents / inotify / ReadDirectoryChangesW watcher captures every source-file create / modify / delete and triggers a re-index after a debounce window (default `2000ms`, tunable via `CODEGRAPH_WATCH_DEBOUNCE_MS`, clamped to `[100ms, 60s]`). Bursts of edits collapse into a single sync.
 
@@ -249,11 +251,11 @@ agent writes src/Widget.ts
   → next agent query sees it
 ```
 
-**Verify any time** with `codegraph_status` (via MCP) or `codegraph status` (CLI). If anything is pending, you'll see a `### Pending sync:` section naming the files and their edit age.
+**Verify any time** with `zcodegraph_status` (via MCP) or `zcodegraph status` (CLI). If anything is pending, you'll see a `### Pending sync:` section naming the files and their edit age.
 
-The handful of cases where manual `codegraph sync` makes sense: the watcher is disabled (sandboxed environments, or `CODEGRAPH_NO_DAEMON=1`), or you're scripting against the index outside an agent session and want a pre-flight sync at the start of your script.
+The handful of cases where manual `zcodegraph sync` makes sense: the watcher is disabled (sandboxed environments, or `CODEGRAPH_NO_DAEMON=1`), or you're scripting against the index outside an agent session and want a pre-flight sync at the start of your script.
 
-→ Full deep-dive in [Guides → Indexing a Project](https://colbymchenry.github.io/codegraph/guides/indexing/#stay-fresh-automatically).
+→ Full deep-dive in [Guides → Indexing a Project](https://jununfly.github.io/ZCodeGraph/guides/indexing/#stay-fresh-automatically).
 
 </details>
 
@@ -316,24 +318,24 @@ Each bridge emits edges tagged `provenance:'heuristic'` with `metadata.synthesiz
 ### 1. Run the Installer
 
 ```bash
-npx @colbymchenry/codegraph
+npx @jununfly/zcodegraph
 ```
 
 The installer will:
 - Ask which agent(s) to configure — auto-detects installed ones from: **Claude Code**, **Cursor**, **Codex CLI**, **opencode**, **Hermes Agent**, **Gemini CLI**, **Antigravity IDE**, **Kiro**
-- Prompt to install `codegraph` on your PATH (so agents can launch the MCP server)
+- Prompt to install `zcodegraph` on your PATH (so agents can launch the MCP server)
 - Ask whether configs apply to all your projects or just this one
-- Write each chosen agent's MCP server config (the codegraph usage guide is delivered by the MCP server itself, so no instructions file is added to `CLAUDE.md` / `AGENTS.md` / etc.)
+- Write each chosen agent's MCP server config (the ZCodeGraph usage guide is delivered by the MCP server itself, so no instructions file is added to `CLAUDE.md` / `AGENTS.md` / etc.)
 - Set up auto-allow permissions when Claude Code is one of the targets
 - Initialize your current project (local installs only)
 
 **Non-interactive (scripting / CI):**
 
 ```bash
-codegraph install --yes                              # auto-detect agents, install global
-codegraph install --target=cursor,claude --yes       # explicit target list
-codegraph install --target=auto --location=local     # detected agents, project-local
-codegraph install --print-config codex               # print snippet, no file writes
+zcodegraph install --yes                              # auto-detect agents, install global
+zcodegraph install --target=cursor,claude --yes       # explicit target list
+zcodegraph install --target=auto --location=local     # detected agents, project-local
+zcodegraph install --print-config codex               # print snippet, no file writes
 ```
 
 | Flag | Values | Default |
@@ -352,19 +354,19 @@ Restart your agent (Claude Code / Cursor / Codex CLI / opencode / Hermes Agent /
 
 ```bash
 cd your-project
-codegraph init -i
+zcodegraph init -i
 ```
 
-Builds the per-project knowledge graph index. A single global `codegraph install` works in every project you open — no need to re-run the installer per project.
+Builds the per-project knowledge graph index. A single global `zcodegraph install` works in every project you open — no need to re-run the installer per project.
 
-That's it — your agent will use CodeGraph tools automatically when a `.codegraph/` directory exists.
+That's it — your agent will use ZCodeGraph tools automatically when a `.codegraph/` directory exists.
 
 <details>
 <summary><strong>Manual Setup (Alternative)</strong></summary>
 
 **Install globally:**
 ```bash
-npm install -g @colbymchenry/codegraph
+npm install -g @jununfly/zcodegraph
 ```
 
 **Add to `~/.claude.json`:**
@@ -385,14 +387,14 @@ npm install -g @colbymchenry/codegraph
 {
   "permissions": {
     "allow": [
-      "mcp__codegraph__codegraph_search",
-      "mcp__codegraph__codegraph_explore",
-      "mcp__codegraph__codegraph_callers",
-      "mcp__codegraph__codegraph_callees",
-      "mcp__codegraph__codegraph_impact",
-      "mcp__codegraph__codegraph_node",
-      "mcp__codegraph__codegraph_status",
-      "mcp__codegraph__codegraph_files"
+      "mcp__codegraph__zcodegraph_search",
+      "mcp__codegraph__zcodegraph_explore",
+      "mcp__codegraph__zcodegraph_callers",
+      "mcp__codegraph__zcodegraph_callees",
+      "mcp__codegraph__zcodegraph_impact",
+      "mcp__codegraph__zcodegraph_node",
+      "mcp__codegraph__zcodegraph_status",
+      "mcp__codegraph__zcodegraph_files"
     ]
   }
 }
@@ -403,12 +405,12 @@ npm install -g @colbymchenry/codegraph
 <details>
 <summary><strong>Agent Tool Guidance</strong></summary>
 
-CodeGraph's MCP server delivers its usage guidance to your agent **automatically**, in the MCP `initialize` response — there's no instructions file to manage and nothing is added to your `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`. In short, it tells the agent to:
+ZCodeGraph's MCP server delivers its usage guidance to your agent **automatically**, in the MCP `initialize` response — there's no instructions file to manage and nothing is added to your `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`. In short, it tells the agent to:
 
-- **Answer structural questions directly with CodeGraph** — it *is* the pre-built index, so a grep/read loop just repeats work it already did. Treat the returned source as already read.
-- **Pick the tool by intent:** `codegraph_explore` for almost anything — "how does X work", a flow/"how does X reach Y", or surveying an area (one call returns the relevant symbols' source grouped by file); `codegraph_search` to just locate a symbol; `codegraph_callers`/`codegraph_callees` to walk call flow; `codegraph_impact` before editing; `codegraph_node` for one specific symbol's full source (it returns every overload for an ambiguous name).
+- **Answer structural questions directly with ZCodeGraph** — it *is* the pre-built index, so a grep/read loop just repeats work it already did. Treat the returned source as already read.
+- **Pick the tool by intent:** `zcodegraph_explore` for almost anything — "how does X work", a flow/"how does X reach Y", or surveying an area (one call returns the relevant symbols' source grouped by file); `zcodegraph_search` to just locate a symbol; `zcodegraph_callers`/`zcodegraph_callees` to walk call flow; `zcodegraph_impact` before editing; `zcodegraph_node` for one specific symbol's full source (it returns every overload for an ambiguous name).
 - **Trust the results — don't re-verify with grep**, and check the staleness banner after edits.
-- If `.codegraph/` doesn't exist yet, offer to run `codegraph init -i`.
+- If `.codegraph/` doesn't exist yet, offer to run `zcodegraph init -i`.
 
 The exact text is `src/mcp/server-instructions.ts` — the single source of truth.
 
@@ -452,32 +454,32 @@ The exact text is `src/mcp/server-instructions.ts` — the single source of trut
 ## CLI Reference
 
 ```bash
-codegraph                         # Run interactive installer
-codegraph install                 # Run installer (explicit)
-codegraph uninstall               # Remove CodeGraph from your agents (inverse of install)
-codegraph init [path]             # Initialize in a project (--index to also index)
-codegraph uninit [path]           # Remove CodeGraph from a project (--force to skip prompt)
-codegraph index [path]            # Full index (--force to re-index, --quiet for less output)
-codegraph sync [path]             # Incremental update
-codegraph status [path]           # Show statistics
-codegraph query <search>          # Search symbols (--kind, --limit, --json)
-codegraph files [path]            # Show file structure (--format, --filter, --max-depth, --json)
-codegraph callers <symbol>        # Find what calls a function/method (--limit, --json)
-codegraph callees <symbol>        # Find what a function/method calls (--limit, --json)
-codegraph impact <symbol>         # Analyze what code is affected by changing a symbol (--depth, --json)
-codegraph affected [files...]     # Find test files affected by changes (see below)
-codegraph serve --mcp             # Start MCP server
-codegraph upgrade [version]       # Update to the latest release (--check, --force)
+zcodegraph                         # Run interactive installer
+zcodegraph install                 # Run installer (explicit)
+zcodegraph uninstall               # Remove ZCodeGraph from your agents (inverse of install)
+zcodegraph init [path]             # Initialize in a project (--index to also index)
+zcodegraph uninit [path]           # Remove ZCodeGraph from a project (--force to skip prompt)
+zcodegraph index [path]            # Full index (--force to re-index, --quiet for less output)
+zcodegraph sync [path]             # Incremental update
+zcodegraph status [path]           # Show statistics
+zcodegraph query <search>          # Search symbols (--kind, --limit, --json)
+zcodegraph files [path]            # Show file structure (--format, --filter, --max-depth, --json)
+zcodegraph callers <symbol>        # Find what calls a function/method (--limit, --json)
+zcodegraph callees <symbol>        # Find what a function/method calls (--limit, --json)
+zcodegraph impact <symbol>         # Analyze what code is affected by changing a symbol (--depth, --json)
+zcodegraph affected [files...]     # Find test files affected by changes (see below)
+zcodegraph serve --mcp             # Start MCP server
+zcodegraph upgrade [version]       # Update to the latest release (--check, --force)
 ```
 
-### `codegraph affected`
+### `zcodegraph affected`
 
 Traces import dependencies transitively to find which test files are affected by changed source files.
 
 ```bash
-codegraph affected src/utils.ts src/api.ts         # Pass files as arguments
-git diff --name-only | codegraph affected --stdin   # Pipe from git diff
-codegraph affected src/auth.ts --filter "e2e/*"     # Custom test file pattern
+zcodegraph affected src/utils.ts src/api.ts         # Pass files as arguments
+git diff --name-only | zcodegraph affected --stdin   # Pipe from git diff
+zcodegraph affected src/auth.ts --filter "e2e/*"     # Custom test file pattern
 ```
 
 | Option | Description | Default |
@@ -492,7 +494,7 @@ codegraph affected src/auth.ts --filter "e2e/*"     # Custom test file pattern
 
 ```bash
 #!/usr/bin/env bash
-AFFECTED=$(git diff --name-only HEAD | codegraph affected --stdin --quiet)
+AFFECTED=$(git diff --name-only HEAD | zcodegraph affected --stdin --quiet)
 if [ -n "$AFFECTED" ]; then
   npx vitest run $AFFECTED
 fi
@@ -502,18 +504,18 @@ fi
 
 ## MCP Tools
 
-When running as an MCP server, CodeGraph exposes these tools to Claude Code:
+When running as an MCP server, ZCodeGraph exposes these tools to Claude Code:
 
 | Tool | Purpose |
 |------|---------|
-| `codegraph_explore` | **Primary.** Answer almost any question in one call — "how does X work", a flow ("how does X reach Y"), or surveying an area — returning the relevant symbols' verbatim source grouped by file, plus a relationship map and blast radius. Surfaces dynamic-dispatch hops (callbacks, React re-render, interface→impl) grep can't follow. |
-| `codegraph_search` | Find symbols by name across the codebase |
-| `codegraph_callers` | Find what calls a function |
-| `codegraph_callees` | Find what a function calls |
-| `codegraph_impact` | Analyze what code is affected by changing a symbol |
-| `codegraph_node` | Get one specific symbol's details + full source (returns every overload for an ambiguous name) |
-| `codegraph_files` | Get indexed file structure (faster than filesystem scanning) |
-| `codegraph_status` | Check index health and statistics |
+| `zcodegraph_explore` | **Primary.** Answer almost any question in one call — "how does X work", a flow ("how does X reach Y"), or surveying an area — returning the relevant symbols' verbatim source grouped by file, plus a relationship map and blast radius. Surfaces dynamic-dispatch hops (callbacks, React re-render, interface→impl) grep can't follow. |
+| `zcodegraph_search` | Find symbols by name across the codebase |
+| `zcodegraph_callers` | Find what calls a function |
+| `zcodegraph_callees` | Find what a function calls |
+| `zcodegraph_impact` | Analyze what code is affected by changing a symbol |
+| `zcodegraph_node` | Get one specific symbol's details + full source (returns every overload for an ambiguous name) |
+| `zcodegraph_files` | Get indexed file structure (faster than filesystem scanning) |
+| `zcodegraph_status` | Check index health and statistics |
 
 ---
 
@@ -524,9 +526,9 @@ API, so both `import` and `require` resolve the `CodeGraph` class in your own
 process — handy for embedding it in an app (e.g. an Electron main process).
 
 ```typescript
-import CodeGraph from '@colbymchenry/codegraph';
+import CodeGraph from '@jununfly/zcodegraph';
 // CommonJS works too:
-//   const { CodeGraph } = require('@colbymchenry/codegraph');
+//   const { CodeGraph } = require('@jununfly/zcodegraph');
 
 const cg = await CodeGraph.init('/path/to/project');
 // Or: const cg = await CodeGraph.open('/path/to/project');
@@ -551,7 +553,7 @@ that drive the graph directly: `DatabaseConnection`, `QueryBuilder`,
 
 **Embedding requirements**
 
-- Install from npm (`npm i @colbymchenry/codegraph`) so the matching
+- Install from npm (`npm i @jununfly/zcodegraph`) so the matching
   per-platform package — which carries the compiled library and its
   dependencies — is fetched alongside the shim.
 - The API runs on **your** runtime, so it needs **Node 22.5+** for the built-in
@@ -671,26 +673,26 @@ Framework routing is validated the same way, on a canonical app per framework: E
 
 ## Troubleshooting
 
-**"CodeGraph not initialized"** — Run `codegraph init` in your project directory first.
+**"CodeGraph not initialized"** — Run `zcodegraph init` in your project directory first.
 
 **Indexing is slow** — Check that `node_modules` and other large directories are excluded. Use `--quiet` to reduce output overhead.
 
 **MCP hits `database is locked`** — current builds shouldn't: CodeGraph bundles its own Node runtime and uses Node's built-in `node:sqlite` in WAL mode, where concurrent reads never block on a writer. If you still see it:
 
-- **You're on an old (pre-0.9) install.** Reinstall to get the bundled runtime — `curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh` (macOS/Linux), `irm https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.ps1 | iex` (Windows), or `npm i -g @colbymchenry/codegraph@latest`.
-- **`codegraph status` shows `Journal:` other than `wal`** — WAL couldn't be enabled on this filesystem (common on network shares and WSL2 `/mnt`), so reads can block on writes. Move the project (with its `.codegraph/` folder) onto a local disk.
+- **You're on an old (pre-0.9) install.** Reinstall to get the bundled runtime — `npm install -g @jununfly/zcodegraph` (macOS/Linux), `npm install -g @jununfly/zcodegraph` (Windows), or `npm i -g @jununfly/zcodegraph@latest`.
+- **`zcodegraph status` shows `Journal:` other than `wal`** — WAL couldn't be enabled on this filesystem (common on network shares and WSL2 `/mnt`), so reads can block on writes. Move the project (with its `.codegraph/` folder) onto a local disk.
 
-**MCP server not connecting** — Ensure the project is initialized/indexed, verify the path in your MCP config, and check that `codegraph serve --mcp` works from the command line.
+**MCP server not connecting** — Ensure the project is initialized/indexed, verify the path in your MCP config, and check that `zcodegraph serve --mcp` works from the command line.
 
-**Missing symbols** — The MCP server auto-syncs on save (wait a couple seconds). Run `codegraph sync` manually if needed. Check that the file's language is supported and isn't inside a `.gitignore`d or default-excluded directory (e.g. `node_modules`, `dist`).
+**Missing symbols** — The MCP server auto-syncs on save (wait a couple seconds). Run `zcodegraph sync` manually if needed. Check that the file's language is supported and isn't inside a `.gitignore`d or default-excluded directory (e.g. `node_modules`, `dist`).
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=colbymchenry%2Fcodegraph&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=jununfly%2FZCodeGraph&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=colbymchenry/codegraph&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=colbymchenry/codegraph&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=colbymchenry/codegraph&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=jununfly/ZCodeGraph&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=jununfly/ZCodeGraph&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=jununfly/ZCodeGraph&type=date&legend=top-left" />
  </picture>
 </a>
 
@@ -704,6 +706,6 @@ MIT
 
 **Made for AI coding agents — Claude Code, Cursor, Codex CLI, opencode, Hermes Agent, Gemini CLI, Antigravity IDE, and Kiro**
 
-[Report Bug](https://github.com/colbymchenry/codegraph/issues) · [Request Feature](https://github.com/colbymchenry/codegraph/issues)
+[Report Bug](https://github.com/jununfly/ZCodeGraph/issues) · [Request Feature](https://github.com/jununfly/ZCodeGraph/issues)
 
 </div>

@@ -1,36 +1,31 @@
 ---
 title: Get Started
-description: Get up and running with CodeGraph in seconds.
+description: Get up and running with ZCodeGraph in seconds.
 ---
 
-Get up and running with CodeGraph in seconds.
+Get up and running with ZCodeGraph in seconds.
 
-## No Node.js required — one command grabs the right build for your OS
-
-```bash
-# macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
-
-# Windows (PowerShell)
-irm https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.ps1 | iex
-```
-
-## Already have Node? Use npm instead (works on any version)
+## Install the CLI
 
 ```bash
-npx @colbymchenry/codegraph        # zero-install, or:
-npm i -g @colbymchenry/codegraph
+npm install -g @jununfly/zcodegraph
 ```
 
-CodeGraph bundles its own runtime — nothing to compile, no native build, works the same everywhere. The interactive installer auto-configures your agent(s) — Claude Code, Cursor, Codex CLI, opencode, Hermes Agent, Gemini CLI, Antigravity IDE, Kiro.
+## Wire up your agent
+
+```bash
+zcodegraph install
+```
+
+The installer auto-configures your agent(s) — Claude Code, Cursor, Codex CLI, opencode, Hermes Agent, Gemini CLI, Antigravity IDE, Kiro.
 
 ## Initialize Projects
 
 ```bash
 cd your-project
-codegraph init -i
+zcodegraph init -i
 ```
 
-That's it — your agent will use CodeGraph tools automatically when a `.codegraph/` directory exists.
+That's it — your agent will use ZCodeGraph tools automatically when a `.codegraph/` directory exists.
 
-Next: build [Your First Graph](/codegraph/getting-started/your-first-graph/), or see the full [Installation](/codegraph/getting-started/installation/) options.
+Next: build [Your First Graph](/ZCodeGraph/getting-started/your-first-graph/), or see the full [Installation](/ZCodeGraph/getting-started/installation/) options.

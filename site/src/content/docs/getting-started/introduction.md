@@ -3,7 +3,7 @@ title: Introduction
 description: What CodeGraph is, and why it makes AI coding agents faster and cheaper.
 ---
 
-CodeGraph is a **local-first code-intelligence tool**. It parses your codebase with [tree-sitter](https://tree-sitter.github.io/), stores every symbol, edge, and file in a local SQLite database, and exposes the result as a queryable **knowledge graph** — over the [Model Context Protocol (MCP)](/codegraph/reference/mcp-server/), a CLI, and a TypeScript library.
+CodeGraph is a **local-first code-intelligence tool**. It parses your codebase with [tree-sitter](https://tree-sitter.github.io/), stores every symbol, edge, and file in a local SQLite database, and exposes the result as a queryable **knowledge graph** — over the [Model Context Protocol (MCP)](/ZCodeGraph/reference/mcp-server/), a CLI, and a TypeScript library.
 
 It exists to make AI coding agents — Claude Code, Cursor, Codex CLI, opencode, Hermes Agent, Gemini CLI, Antigravity IDE, and Kiro — **answer structural questions without scanning files**. Instead of fanning out across `grep`, `glob`, and `Read` to reconstruct how code fits together, an agent queries a pre-built index and gets the answer in a handful of calls.
 
@@ -32,4 +32,4 @@ Extraction is **deterministic** — derived from the AST, never LLM-summarized.
 
 No data leaves your machine. No API keys, no external services — just a SQLite database in `.codegraph/`.
 
-Ready to try it? Head to the [Quickstart](/codegraph/getting-started/quickstart/).
+Ready to try it? Head to the [Quickstart](/ZCodeGraph/getting-started/quickstart/).

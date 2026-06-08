@@ -6,7 +6,7 @@ description: The tools CodeGraph exposes to AI agents over MCP.
 CodeGraph runs as a [Model Context Protocol](https://modelcontextprotocol.io/) server. Start it with:
 
 ```bash
-codegraph serve --mcp
+zcodegraph serve --mcp
 ```
 
 Agents configured by the installer launch this automatically. When a `.codegraph/` index exists, the agent uses the tools below.
