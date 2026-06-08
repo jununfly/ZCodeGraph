@@ -982,7 +982,11 @@ export class ToolHandler {
       // running. The gate is cleared after first await — subsequent calls
       // pay nothing. Catch-up failures are logged by the engine; we
       // proceed regardless so a transient sync error never breaks tools.
-      if (this.catchUpGate) {
+      //
+      // Only gate the DEFAULT project (no explicit projectPath). Cross-project
+      // queries open CodeGraph on demand without a watcher or catch-up sync,
+      // so there is no gate to wait for (Issue #5: isolate MCP project state).
+      if (!args.projectPath && this.catchUpGate) {
         const gate = this.catchUpGate;
         this.catchUpGate = null;
         try { await gate; } catch { /* engine already logged */ }
