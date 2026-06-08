@@ -188,7 +188,7 @@ export class MCPEngine {
     if (disabledReason) {
       process.stderr.write(
         `[CodeGraph MCP] File watcher disabled — ${disabledReason}. ` +
-        `The graph will not auto-update; run \`codegraph sync\` (or install the git sync hooks via \`codegraph init\`) to refresh.\n`
+        `The graph will not auto-update; run \`zcodegraph sync\` (or install the git sync hooks via \`zcodegraph init\`) to refresh.\n`
       );
       this.watcherStarted = true;
       return;
@@ -223,7 +223,7 @@ export class MCPEngine {
       process.stderr.write('[CodeGraph MCP] File watcher active — graph will auto-sync on changes\n');
     } else {
       process.stderr.write(
-        '[CodeGraph MCP] File watcher unavailable on this platform — run `codegraph sync` to refresh the graph after changes.\n'
+        '[CodeGraph MCP] File watcher unavailable on this platform — run `zcodegraph sync` to refresh the graph after changes.\n'
       );
     }
   }

@@ -1,7 +1,7 @@
 /**
  * Daemon socket + lockfile path helpers — issue #411.
  *
- * One shared `codegraph serve --mcp` daemon per project root means we need a
+ * One shared `zcodegraph serve --mcp` daemon per project root means we need a
  * stable, project-keyed rendezvous between cooperating processes. The IPC
  * surface area is just two file paths:
  *

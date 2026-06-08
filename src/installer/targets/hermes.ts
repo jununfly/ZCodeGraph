@@ -5,7 +5,7 @@
  * top-level `mcp_servers` key, and exposes discovered MCP tools through
  * dynamic toolsets named `mcp-<server>`. We add:
  *
- *   mcp_servers.codegraph -> `codegraph serve --mcp`
+ *   mcp_servers.codegraph -> `zcodegraph serve --mcp`
  *   platform_toolsets.cli -> `mcp-codegraph`
  *
  * The second entry matters because Hermes CLI profiles often enable an
