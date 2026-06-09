@@ -41,6 +41,9 @@ npm-debug.log*
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 
+# WorkBuddy project-local data
+.workbuddy/
+
 # Parallels Windows VM SSH/connection config (local machine, see CLAUDE.md)
 .parallels
 
