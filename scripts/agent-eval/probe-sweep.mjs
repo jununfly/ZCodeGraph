@@ -81,8 +81,8 @@ for (const s of subjects) {
     const handler = new ToolHandler(cg);
     const t1 = Date.now();
     const res = await handler.execute('zcodegraph_' + TOOL,
-      TOOL === 'explore' ? { query: s.q } :
-      TOOL === 'search' ? { query: s.q } : { symbol: s.q, includeCode: true });
+      TOOL === 'explore' ? { query: s.q, projectPath: s.repo } :
+      TOOL === 'search' ? { query: s.q, projectPath: s.repo } : { symbol: s.q, includeCode: true, projectPath: s.repo });
     const text = res.content?.[0]?.text ?? '';
     const signals = detect(text);
     rows.push({
