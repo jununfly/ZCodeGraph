@@ -139,4 +139,20 @@ export interface ExplorePlan {
   // ===== Adaptive Sizing Signal =====
   /** Whether CODEGRAPH_ADAPTIVE_EXPLORE is enabled (skeletonization on). */
   adaptiveEnabled: boolean;
+
+  // ===== Glue Nodes (Issue #25) =====
+  /** Nodes added as callers/callees of entry roots, from subgraph files. */
+  glueNodeIds: Set<string>;
+
+  // ===== Connectivity (Issue #25) =====
+  /** Nodes directly connected by edge to any entryNodeIds. */
+  connectedToEntry: Set<string>;
+
+  // ===== Central Files (Issue #25) =====
+  /** Top 1-2 graph-central files that also match a query term. */
+  centralFiles: Set<string>;
+
+  // ===== Project Root (Issue #25) =====
+  /** Project root path, read from CodeGraph. */
+  projectRoot: string;
 }

@@ -645,13 +645,13 @@ export function gateAndSortFiles(
 /**
  * Read CODEGRAPH_ADAPTIVE_EXPLORE environment variable.
  *
- * When set to a non-empty, non-"0" value, adaptive explore is enabled,
- * which lets the renderer skeletonize low-value files to fit more
- * evidence within the output budget.
+ * When set to "0" or "false", adaptive explore is disabled.
+ * When unset or any other value, adaptive explore is enabled.
+ * This matches the semantics of adaptiveExploreEnabled() in tools.ts.
  */
 export function readAdaptiveEnabled(): boolean {
   const raw = process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
-  return raw !== undefined && raw !== '' && raw !== '0';
+  return raw === undefined || (raw !== '' && raw !== '0' && raw !== 'false');
 }
 
 // ===========================================================================
@@ -749,6 +749,43 @@ export async function plan(
   // Step 4: Apply relevance gate and sort files.
   const sortedFiles = gateAndSortFiles(subgraph, namedSeedIds, entryNodeIds, fileGroups, query);
 
+  // Compute connectedToEntry: nodes directly connected by edge to any entry.
+  const connectedToEntry = new Set<string>();
+  for (const edge of subgraph.edges) {
+    if (entryNodeIds.has(edge.source)) connectedToEntry.add(edge.target);
+    if (entryNodeIds.has(edge.target)) connectedToEntry.add(edge.source);
+  }
+
+  // Compute centralFiles: top 1-2 graph-central files that also match a query term.
+  const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length >= 3);
+  const uniqueQueryTerms = [...new Set(queryTerms)].filter(t => t.length >= 3);
+  const fileTermHits = new Map<string, number>();
+  for (const [fp, group] of fileGroups) {
+    const hay = fp.toLowerCase() + ' ' + group.nodes.map(n => n.name.toLowerCase()).join(' ');
+    let hits = 0;
+    for (const t of uniqueQueryTerms) if (hay.includes(t)) hits++;
+    fileTermHits.set(fp, hits);
+  }
+  const nodeRwr = computeGraphRelevance(
+    [...subgraph.nodes.keys()], subgraph.edges, entryNodeIds,
+  );
+  const fileGraphScore = new Map<string, number>();
+  for (const node of subgraph.nodes.values()) {
+    fileGraphScore.set(
+      node.filePath,
+      (fileGraphScore.get(node.filePath) ?? 0) + (nodeRwr.get(node.id) ?? 0),
+    );
+  }
+  const centralFiles = new Set(
+    [...fileGraphScore.entries()]
+      .filter(([fp, g]) => g > 0 && (fileTermHits.get(fp) ?? 0) >= 1)
+      .sort((a, b) => b[1] - a[1] || (fileTermHits.get(b[0]) ?? 0) - (fileTermHits.get(a[0]) ?? 0))
+      .slice(0, 2)
+      .map(([f]) => f),
+  );
+
+  const projectRoot = cg.getProjectRoot();
+
   const plan: ExplorePlan = {
     query,
     budget,
@@ -759,6 +796,10 @@ export async function plan(
     sortedFiles,
     spine,
     adaptiveEnabled: readAdaptiveEnabled(),
+    glueNodeIds,
+    connectedToEntry,
+    centralFiles,
+    projectRoot,
   };
 
   return plan;

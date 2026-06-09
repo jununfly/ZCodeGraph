@@ -236,7 +236,7 @@ describe('plan', () => {
     expect(result.fileGroups).toBeInstanceOf(Map);
     expect(result.sortedFiles).toEqual([]);
     expect(result.spine).toBeDefined();
-    expect(result.adaptiveEnabled).toBe(false);
+    expect(typeof result.adaptiveEnabled).toBe('boolean');
   });
 
   it('selects correct budget tier for project size <150', async () => {
@@ -415,9 +415,22 @@ describe('plan', () => {
     }
   });
 
-  it('adaptiveEnabled is false when env var is not set or "0" (Slice #24)', async () => {
+  it('adaptiveEnabled defaults to true when env var is not set (Slice #24)', async () => {
     const prev = process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
     delete process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
+    try {
+      const cg = mockCodeGraph({ fileCount: 100 });
+      const result = await plan(cg, 'test');
+      expect(result.adaptiveEnabled).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
+      else process.env['CODEGRAPH_ADAPTIVE_EXPLORE'] = prev;
+    }
+  });
+
+  it('adaptiveEnabled is false when env var is "0" (Slice #24)', async () => {
+    const prev = process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
+    process.env['CODEGRAPH_ADAPTIVE_EXPLORE'] = '0';
     try {
       const cg = mockCodeGraph({ fileCount: 100 });
       const result = await plan(cg, 'test');
@@ -426,6 +439,73 @@ describe('plan', () => {
       if (prev === undefined) delete process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
       else process.env['CODEGRAPH_ADAPTIVE_EXPLORE'] = prev;
     }
+  });
+
+  // ===== Issue #25: complete ExplorePlan fields =====
+
+  it('returns glueNodeIds, connectedToEntry, centralFiles, projectRoot (Issue #25)', async () => {
+    const cg = mockCodeGraph({ fileCount: 100 });
+    const result = await plan(cg, 'nothing');
+    expect(result.glueNodeIds).toBeInstanceOf(Set);
+    expect(result.connectedToEntry).toBeInstanceOf(Set);
+    expect(result.centralFiles).toBeInstanceOf(Set);
+    expect(typeof result.projectRoot).toBe('string');
+    expect(result.projectRoot.length).toBeGreaterThan(0);
+  });
+
+  it('connectedToEntry reflects edges from entry nodes (Issue #25)', async () => {
+    const cg = {
+      ...mockCodeGraph({ fileCount: 100 }),
+      findRelevantContext: async () => ({
+        nodes: new Map([
+          ['n1', { id: 'n1', name: 'fn1', kind: 'function', filePath: 'src/a.ts', startLine: 1, endLine: 10 } as Node],
+          ['n2', { id: 'n2', name: 'fn2', kind: 'function', filePath: 'src/b.ts', startLine: 1, endLine: 5 } as Node],
+          ['n3', { id: 'n3', name: 'fn3', kind: 'function', filePath: 'src/c.ts', startLine: 1, endLine: 5 } as Node],
+        ]),
+        edges: [
+          { source: 'n1', target: 'n2', kind: 'calls' } as Edge,
+        ] as Edge[],
+        roots: ['n1'],
+      }),
+    } as unknown as import('../src/index').default;
+    const result = await plan(cg, 'fn1 fn2 fn3');
+    expect(result.connectedToEntry.has('n2')).toBe(true);
+    expect(result.connectedToEntry.has('n3')).toBe(false);
+  });
+
+  it('centralFiles identifies file with highest graph score + term hit (Issue #25)', async () => {
+    const cg = {
+      ...mockCodeGraph({ fileCount: 100 }),
+      findRelevantContext: async () => ({
+        nodes: new Map([
+          ['n1', { id: 'n1', name: 'MainHandler', kind: 'function', filePath: 'src/main.ts', startLine: 1, endLine: 30 } as Node],
+          ['n2', { id: 'n2', name: 'helperFn', kind: 'function', filePath: 'src/helper.ts', startLine: 1, endLine: 5 } as Node],
+        ]),
+        edges: [
+          { source: 'n1', target: 'n2', kind: 'calls' } as Edge,
+        ] as Edge[],
+        roots: ['n1'],
+      }),
+    } as unknown as import('../src/index').default;
+    const result = await plan(cg, 'MainHandler helperFn');
+    expect(result.centralFiles.has('src/main.ts')).toBe(true);
+  });
+
+  it('glueNodeIds populated when roots have neighbors in subgraph files (Issue #25)', async () => {
+    const n1 = { id: 'n1', name: 'handler', kind: 'function' as Node['kind'], filePath: 'src/main.ts', startLine: 1, endLine: 10 } as Node;
+    const n2 = { id: 'n2', name: 'bridge', kind: 'function' as Node['kind'], filePath: 'src/main.ts', startLine: 12, endLine: 20 } as Node;
+    const cg = {
+      ...mockCodeGraph({ fileCount: 100 }),
+      findRelevantContext: async () => ({
+        nodes: new Map([['n1', n1]]),
+        edges: [] as Edge[],
+        roots: ['n1'],
+      }),
+      getCallers: () => [{ node: n2, edge: { source: 'n2', target: 'n1', kind: 'calls' } }],
+      getCallees: () => [],
+    } as unknown as import('../src/index').default;
+    const result = await plan(cg, 'handler');
+    expect(result.glueNodeIds.has('n2')).toBe(true);
   });
 });
 
@@ -1340,9 +1420,9 @@ describe('readAdaptiveEnabled', () => {
     else process.env[KEY] = prev;
   };
 
-  it('returns false when env var is not set', () => {
+  it('returns true when env var is not set (default on)', () => {
     delete process.env[KEY];
-    expect(readAdaptiveEnabled()).toBe(false);
+    expect(readAdaptiveEnabled()).toBe(true);
     restore();
   });
 
