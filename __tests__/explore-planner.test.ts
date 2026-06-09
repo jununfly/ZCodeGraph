@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { computeGraphRelevance, synthEdgeNote, plan, matchesSymbol, parseQueryTokens, isTestPath, bodyLines, inNamedContext, seedNamedSymbols, CALLABLE_KINDS, isLowValue, buildFileGroups, countDistinctTermHits, aggregateFileGraphScores, gateAndSortFiles } from '../src/mcp/explore-planner';
+import { computeGraphRelevance, synthEdgeNote, plan, matchesSymbol, parseQueryTokens, isTestPath, bodyLines, inNamedContext, seedNamedSymbols, CALLABLE_KINDS, isLowValue, buildFileGroups, countDistinctTermHits, aggregateFileGraphScores, gateAndSortFiles, readAdaptiveEnabled } from '../src/mcp/explore-planner';
 import type { Edge, Node, Subgraph } from '../src/types';
 import type { ExplorePlan, FileGroup } from '../src/mcp/explore-types';
 
@@ -329,6 +329,103 @@ describe('plan', () => {
     expect(result.sortedFiles.length).toBeGreaterThan(0);
     // entryNodeIds should include roots + named seeds
     expect(result.entryNodeIds.has('n1')).toBe(true);
+  });
+
+  it('returns empty spine when no named symbols are found (Slice #24)', async () => {
+    const cg = {
+      ...mockCodeGraph({ fileCount: 100 }),
+      findRelevantContext: async () => ({
+        nodes: new Map([
+          ['n1', { id: 'n1', name: 'fn1', kind: 'function', filePath: 'src/a.ts', startLine: 1, endLine: 10 } as Node],
+          ['n2', { id: 'n2', name: 'fn2', kind: 'function', filePath: 'src/b.ts', startLine: 1, endLine: 5 } as Node],
+        ]),
+        edges: [] as Edge[],
+        roots: ['n1'],
+      }),
+    } as unknown as import('../src/index').default;
+    const result = await plan(cg, 'fn1 fn2');
+    // buildFlowFromNamedSymbols returns EMPTY when no callable named symbols found
+    expect(result.spine.text).toBe('');
+    expect(result.spine.pathNodeIds.size).toBe(0);
+    expect(result.spine.namedNodeIds.size).toBe(0);
+    expect(result.spine.uniqueNamedNodeIds.size).toBe(0);
+  });
+
+  it('populates spine with call chain when named symbols are found (Slice #24)', async () => {
+    const n1 = { id: 'n1', name: 'execute', kind: 'method' as Node['kind'], filePath: 'src/main.ts', startLine: 1, endLine: 20 } as Node;
+    const n2 = { id: 'n2', name: 'validate', kind: 'function' as Node['kind'], filePath: 'src/main.ts', startLine: 30, endLine: 40 } as Node;
+    const n3 = { id: 'n3', name: 'doWork', kind: 'function' as Node['kind'], filePath: 'src/main.ts', startLine: 22, endLine: 28 } as Node;
+
+    const cg = {
+      ...mockCodeGraph({ fileCount: 100 }),
+      findRelevantContext: async () => ({
+        nodes: new Map([
+          ['n1', n1], ['n2', n2], ['n3', n3],
+        ]),
+        edges: [
+          { source: 'n1', target: 'n3', kind: 'calls' } as Edge,
+          { source: 'n3', target: 'n2', kind: 'calls' } as Edge,
+        ],
+        roots: ['n1'],
+      }),
+      // findAllSymbols → searchNodes. Return all three;
+      // matchesSymbol will pick execute→n1, validate→n2.
+      searchNodes: () => [
+        { node: n1 }, { node: n2 }, { node: n3 },
+      ],
+      // BFS: n1 calls n3, n3 calls n2
+      getCallers: (id: string) => {
+        if (id === 'n3') return [{ node: n1, edge: { source: 'n1', target: 'n3', kind: 'calls' } }];
+        if (id === 'n2') return [{ node: n3, edge: { source: 'n3', target: 'n2', kind: 'calls' } }];
+        return [];
+      },
+      getCallees: (id: string) => {
+        if (id === 'n1') return [{ node: n3, edge: { source: 'n1', target: 'n3', kind: 'calls' } }];
+        if (id === 'n3') return [{ node: n2, edge: { source: 'n3', target: 'n2', kind: 'calls' } }];
+        return [];
+      },
+      getNodesByName: () => [] as Node[],
+    } as unknown as import('../src/index').default;
+
+    const result = await plan(cg, 'execute validate');
+    // Spine should be non-empty
+    expect(result.spine.text.length).toBeGreaterThan(0);
+    // pathNodeIds tracks the call path: n1 → n3 → n2
+    expect(result.spine.pathNodeIds.has('n1')).toBe(true);
+    expect(result.spine.pathNodeIds.has('n3')).toBe(true);
+    expect(result.spine.pathNodeIds.has('n2')).toBe(true);
+    // namedNodeIds = all callable entities the agent named
+    expect(result.spine.namedNodeIds.has('n1')).toBe(true);
+    expect(result.spine.namedNodeIds.has('n2')).toBe(true);
+    // uniqueNamedNodeIds = definitions ≤ 3 (both have exactly 1)
+    expect(result.spine.uniqueNamedNodeIds.has('n1')).toBe(true);
+    expect(result.spine.uniqueNamedNodeIds.has('n2')).toBe(true);
+  });
+
+  it('sets adaptiveEnabled from CODEGRAPH_ADAPTIVE_EXPLORE env var (Slice #24)', async () => {
+    const prev = process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
+    process.env['CODEGRAPH_ADAPTIVE_EXPLORE'] = '1';
+    try {
+      const cg = mockCodeGraph({ fileCount: 100 });
+      const result = await plan(cg, 'test');
+      expect(result.adaptiveEnabled).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
+      else process.env['CODEGRAPH_ADAPTIVE_EXPLORE'] = prev;
+    }
+  });
+
+  it('adaptiveEnabled is false when env var is not set or "0" (Slice #24)', async () => {
+    const prev = process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
+    delete process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
+    try {
+      const cg = mockCodeGraph({ fileCount: 100 });
+      const result = await plan(cg, 'test');
+      expect(result.adaptiveEnabled).toBe(false);
+    } finally {
+      if (prev === undefined) delete process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
+      else process.env['CODEGRAPH_ADAPTIVE_EXPLORE'] = prev;
+    }
   });
 });
 
@@ -1225,5 +1322,51 @@ describe('gateAndSortFiles', () => {
     // Both have score ≥ 3, gate should not prune below 2
     const result = gateAndSortFiles(subgraph, new Set(), new Set(['a']), fileGroups, 'fn1 fn2');
     expect(result.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ===========================================================================
+// readAdaptiveEnabled — Issue #24: env var reader
+// ===========================================================================
+
+describe('readAdaptiveEnabled', () => {
+  const KEY = 'CODEGRAPH_ADAPTIVE_EXPLORE';
+
+  const prev = process.env[KEY];
+
+  // Restore after each test to avoid leakage
+  const restore = () => {
+    if (prev === undefined) delete process.env[KEY];
+    else process.env[KEY] = prev;
+  };
+
+  it('returns false when env var is not set', () => {
+    delete process.env[KEY];
+    expect(readAdaptiveEnabled()).toBe(false);
+    restore();
+  });
+
+  it('returns false when env var is "0"', () => {
+    process.env[KEY] = '0';
+    expect(readAdaptiveEnabled()).toBe(false);
+    restore();
+  });
+
+  it('returns true when env var is "1"', () => {
+    process.env[KEY] = '1';
+    expect(readAdaptiveEnabled()).toBe(true);
+    restore();
+  });
+
+  it('returns true when env var is any non-zero, non-empty string', () => {
+    process.env[KEY] = 'true';
+    expect(readAdaptiveEnabled()).toBe(true);
+    restore();
+  });
+
+  it('returns false when env var is empty string', () => {
+    process.env[KEY] = '';
+    expect(readAdaptiveEnabled()).toBe(false);
+    restore();
   });
 });

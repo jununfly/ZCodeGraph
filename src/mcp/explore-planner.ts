@@ -11,7 +11,7 @@
 
 import type CodeGraph from '../index';
 import type { Edge, Node, Subgraph } from '../types';
-import type { ExploreOutputBudget, ExplorePlan, FileGroup } from './explore-types';
+import type { ExploreOutputBudget, ExplorePlan, FileGroup, FlowSpine } from './explore-types';
 import { getExploreOutputBudget } from './tools';
 import { clamp, isConfigLeafNode } from '../utils';
 import { isGeneratedFile } from '../extraction/generated-detection';
@@ -639,8 +639,24 @@ export function gateAndSortFiles(
 }
 
 // ===========================================================================
-// plan() — the explore planner seam
+// readAdaptiveEnabled — Issue #24: env var reader
 // ===========================================================================
+
+/**
+ * Read CODEGRAPH_ADAPTIVE_EXPLORE environment variable.
+ *
+ * When set to a non-empty, non-"0" value, adaptive explore is enabled,
+ * which lets the renderer skeletonize low-value files to fit more
+ * evidence within the output budget.
+ */
+export function readAdaptiveEnabled(): boolean {
+  const raw = process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
+  return raw !== undefined && raw !== '' && raw !== '0';
+}
+
+// ===========================================================================
+// plan() — the explore planner seam
+// ==========================================================================="
 
 /**
  * Options for the explore planner.
@@ -717,14 +733,20 @@ export async function plan(
     }
   }
 
-  // Empty spine — will be filled in Slice #24.
-  const spine = { text: '', pathNodeIds: new Set<string>(), namedNodeIds: new Set<string>(), uniqueNamedNodeIds: new Set<string>() };
+  // Step 2: Trace the flow spine through named symbols.
+  const flow = buildFlowFromNamedSymbols(cg, query);
+  const spine: FlowSpine = {
+    text: flow.text,
+    pathNodeIds: flow.pathNodeIds,
+    namedNodeIds: flow.namedNodeIds,
+    uniqueNamedNodeIds: flow.uniqueNamedNodeIds,
+  };
 
-  // Step 2: Group nodes by file, score by relevance.
+  // Step 3: Group nodes by file, score by relevance.
   const entryNodeIds = new Set([...subgraph.roots, ...namedSeedIds]);
   const fileGroups = buildFileGroups(subgraph, namedSeedIds, entryNodeIds);
 
-  // Step 3: Apply relevance gate and sort files.
+  // Step 4: Apply relevance gate and sort files.
   const sortedFiles = gateAndSortFiles(subgraph, namedSeedIds, entryNodeIds, fileGroups, query);
 
   const plan: ExplorePlan = {
@@ -736,7 +758,7 @@ export async function plan(
     fileGroups,
     sortedFiles,
     spine,
-    adaptiveEnabled: false,
+    adaptiveEnabled: readAdaptiveEnabled(),
   };
 
   return plan;
