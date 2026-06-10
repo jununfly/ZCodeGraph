@@ -137,7 +137,7 @@ function* methodAndFunctionNodes(queries: QueryBuilder): IterableIterator<Node> 
 }
 
 /** Phase 1: field-backed observer channels (registrar/dispatcher share a store). */
-function fieldChannelEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[] {
+export function fieldChannelEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[] {
   const registrars: Array<{ node: Node; field: string }> = [];
   const dispatchers: Array<{ node: Node; field: string }> = [];
 
@@ -208,7 +208,7 @@ function fieldChannelEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[
  * subclass `DataRequest.validate`), bounded by a fan-out cap so a generic field
  * name shared across unrelated classes can't fan out into noise.
  */
-function closureCollectionEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[] {
+export function closureCollectionEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[] {
   const dispatchers = new Map<string, Array<{ node: Node; line: number }>>(); // field → dispatcher methods + forEach line
   const registrars = new Map<string, Array<{ node: Node; line: number }>>();   // field → registrar methods + append line
 
@@ -269,7 +269,7 @@ function closureCollectionEdges(queries: QueryBuilder, ctx: ResolutionContext): 
 }
 
 /** Phase 2: string-keyed EventEmitter channels (on('e', fn) ↔ emit('e')). */
-function eventEmitterEdges(ctx: ResolutionContext): Edge[] {
+export function eventEmitterEdges(ctx: ResolutionContext): Edge[] {
   const emitsByEvent = new Map<string, Set<string>>();          // event → dispatcher node ids
   const handlersByEvent = new Map<string, Map<string, string>>(); // event → handler id → registration site (file:line)
 
@@ -336,7 +336,7 @@ function eventEmitterEdges(ctx: ResolutionContext): Edge[] {
  * `this.setState`). Over-approximation (all setState methods reach render) is
  * accepted — it's reachability-correct, like the callback channels.
  */
-function reactRenderEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[] {
+export function reactRenderEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
   for (const cls of queries.getNodesByKind('class')) {
@@ -375,7 +375,7 @@ function reactRenderEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[]
  * body calls `setState(` → `build`. The setState gate + `.dart` file keep this to
  * Flutter State classes. Over-approximation accepted (reachability-correct).
  */
-function flutterBuildEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[] {
+export function flutterBuildEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
   for (const cls of queries.getNodesByKind('class')) {
@@ -415,7 +415,7 @@ function flutterBuildEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[
  * implementation(s). Over-approximation accepted (reachability-correct); capped
  * per class and gated to C++ to avoid touching other languages' dispatch.
  */
-function cppOverrideEdges(queries: QueryBuilder): Edge[] {
+export function cppOverrideEdges(queries: QueryBuilder): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
   const methodsOf = (classId: string): Node[] =>
@@ -486,7 +486,7 @@ const IFACE_OVERRIDE_LANGS = new Set([
  * with the other dispatch synthesizers; capped per interface. Empty interfaces
  * (`any`) are skipped so they don't match every struct.
  */
-function goImplementsEdges(queries: QueryBuilder): Edge[] {
+export function goImplementsEdges(queries: QueryBuilder): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
 
@@ -555,7 +555,7 @@ function goImplementsEdges(queries: QueryBuilder): Edge[] {
  * matching the same-file edges extraction already emits). Skips methods that
  * already have a type parent (the same-file case). (#583, cross-file half)
  */
-function goCrossFileMethodContainsEdges(queries: QueryBuilder): Edge[] {
+export function goCrossFileMethodContainsEdges(queries: QueryBuilder): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
   const TYPE_KINDS = new Set<NodeKind>(['struct', 'class', 'interface', 'enum', 'type_alias']);
@@ -632,7 +632,7 @@ function kmpKindsCompatible(a: string, b: string): boolean {
   return a === b || (KMP_TYPE_KINDS.has(a) && KMP_TYPE_KINDS.has(b));
 }
 
-function kotlinExpectActualEdges(queries: QueryBuilder): Edge[] {
+export function kotlinExpectActualEdges(queries: QueryBuilder): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
   const actuals = queries
@@ -668,7 +668,7 @@ function kotlinExpectActualEdges(queries: QueryBuilder): Edge[] {
   return edges;
 }
 
-function interfaceOverrideEdges(queries: QueryBuilder): Edge[] {
+export function interfaceOverrideEdges(queries: QueryBuilder): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
   const methodsOf = (classId: string): Node[] =>
@@ -747,7 +747,7 @@ function interfaceOverrideEdges(queries: QueryBuilder): Edge[] {
  * Provenance: `heuristic`, `synthesizedBy: 'go-grpc-stub-impl'`. The
  * stub's source line is the wiring site shown in the trace trail.
  */
-function goGrpcStubImplEdges(queries: QueryBuilder): Edge[] {
+export function goGrpcStubImplEdges(queries: QueryBuilder): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
 
@@ -840,7 +840,7 @@ function goGrpcStubImplEdges(queries: QueryBuilder): Edge[] {
  * component/function/class node — TS generics like `Array<Foo>` resolve to a type
  * (or nothing) and are dropped.
  */
-function reactJsxChildEdges(ctx: ResolutionContext): Edge[] {
+export function reactJsxChildEdges(ctx: ResolutionContext): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
   const PARENT_KINDS = new Set(['method', 'function', 'component']);
@@ -889,7 +889,7 @@ function reactJsxChildEdges(ctx: ResolutionContext): Edge[] {
  * component, handler→function/method) keeps precision; inline arrows / `$emit`
  * skipped.
  */
-function vueTemplateEdges(ctx: ResolutionContext): Edge[] {
+export function vueTemplateEdges(ctx: ResolutionContext): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
   const COMPONENT_KINDS = new Set(['component', 'function', 'class']);
@@ -1032,7 +1032,7 @@ const RN_JVM_EMIT_RE = /\.emit\s*\(\s*"([^"]+)"\s*,/g;
 // is followed by `… ) {`) never matches. Multi-line tolerant. (java/kotlin/swift)
 const RN_NATIVE_SENDEVENT_RE = /\bsendEvent\s*\([^;{}]*?"([^"]+)"/g;
 
-function rnEventEdges(ctx: ResolutionContext): Edge[] {
+export function rnEventEdges(ctx: ResolutionContext): Edge[] {
   // Native dispatchers (source = the native method whose body sends the
   // event) and JS handlers (target = the function/method registered as
   // the listener) keyed by event name.
@@ -1222,7 +1222,7 @@ const FABRIC_NATIVE_SUFFIXES = ['', 'View', 'ViewManager', 'ComponentView', 'Man
  * caller. The Expo method nodes are id-prefixed `expo-module:` and qualified
  * `<file>::<module>.<method>` by the framework extractor.
  */
-function expoCrossPlatformEdges(queries: QueryBuilder): Edge[] {
+export function expoCrossPlatformEdges(queries: QueryBuilder): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
   const byKey = new Map<string, Node[]>();
@@ -1269,7 +1269,7 @@ function expoCrossPlatformEdges(queries: QueryBuilder): Edge[] {
  * `getFreeDiskStorage`) — that's the JS-visible name, and how the iOS selector
  * lines up with the bare Android method name.
  */
-function rnCrossPlatformEdges(queries: QueryBuilder): Edge[] {
+export function rnCrossPlatformEdges(queries: QueryBuilder): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
   const NATIVE = new Set(['java', 'kotlin', 'objc', 'cpp']);
@@ -1335,7 +1335,7 @@ function rnCrossPlatformEdges(queries: QueryBuilder): Edge[] {
   return edges;
 }
 
-function fabricNativeImplEdges(ctx: ResolutionContext): Edge[] {
+export function fabricNativeImplEdges(ctx: ResolutionContext): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
 
@@ -1397,7 +1397,7 @@ function fabricNativeImplEdges(ctx: ResolutionContext): Edge[] {
  * same simple name) are dropped. We need-not bridge by package because Java
  * mapper interfaces are typically uniquely named within a project.
  */
-function mybatisJavaXmlEdges(queries: QueryBuilder): Edge[] {
+export function mybatisJavaXmlEdges(queries: QueryBuilder): Edge[] {
   const edges: Edge[] = [];
   const seen = new Set<string>();
   // Index Java methods by `<ClassName>::<methodName>` for O(1) lookup.
@@ -1507,7 +1507,7 @@ function goHandlerIdent(expr: string): string | null {
   return m ? m[1]! : null;
 }
 
-function ginMiddlewareChainEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[] {
+export function ginMiddlewareChainEdges(queries: QueryBuilder, ctx: ResolutionContext): Edge[] {
   // 1. Find the chain dispatcher(s): a Go method that invokes a `handlers` slice by index.
   const dispatchers: Node[] = [];
   for (const n of queries.iterateNodesByKind('method')) {
@@ -1574,7 +1574,7 @@ function ginMiddlewareChainEdges(queries: QueryBuilder, ctx: ResolutionContext):
  * clause. Link the unit → its form so a `.dfm`/`.fmx` used only as a form
  * definition isn't orphaned, and editing the form surfaces its code-behind unit.
  */
-function pascalFormEdges(ctx: ResolutionContext): Edge[] {
+export function pascalFormEdges(ctx: ResolutionContext): Edge[] {
   const edges: Edge[] = [];
   const allFiles = new Set(ctx.getAllFiles());
   for (const file of allFiles) {
@@ -1611,7 +1611,7 @@ function pascalFormEdges(ctx: ResolutionContext): Edge[] {
  * a loader's data shows the page it feeds) and the page's dependencies include
  * its loader.
  */
-function svelteKitLoadEdges(ctx: ResolutionContext): Edge[] {
+export function svelteKitLoadEdges(ctx: ResolutionContext): Edge[] {
   const edges: Edge[] = [];
   const allFiles = new Set(ctx.getAllFiles());
   const HOOKS = new Set(['load', 'actions']);
