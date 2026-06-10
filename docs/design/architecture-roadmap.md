@@ -227,9 +227,41 @@ Relationship to Candidates 1–4:
 - Candidate 4 makes the parse execution swappable and independently testable.
 - Candidates 1–2 improve what agents receive; 3–4 improve how the index is built.
 
-### Candidate 5: CLI command adapter / execution context Seam
+### Candidate 5: CLI command adapter / execution context Seam ✅ COMPLETED (2026-06-10)
 
 Goal: separate command behavior from process-level IO, formatting, and exit handling.
+
+**Status: Implemented.** Generalizes the `UpgradeDeps` pattern into a
+reusable `CommandContext` interface:
+
+- **`src/cli/command-context.ts`** — `CommandContext`, `CommandResult`,
+  `CommandFn<Args>`, `CommandOutput`, `CommandError` types. Factories:
+  `createProcessContext()` (real IO), `createTestContext()` (in-memory
+  buffers, `exit()` throws `TestExit`). Helpers: `writeCommandOutput()`,
+  `writeCommandErrors()`.
+- **`src/cli/command-helpers.ts`** — Pure functions extracted from
+  `zcodegraph.ts`: `resolveProjectPath()`, `isProjectInitialized()`,
+  `requireInitialized()`, `requireNotInitialized()`, `formatNumber()`,
+  `formatDuration()`, `truncate()`, `formatSize()`. All independently
+  testable without process-level IO.
+- **`src/cli/commands.ts`** — Example command implementations using the
+  `CommandFn` pattern: `runInit`, `runUninit`, `runIndex`, `runStatus`.
+  Each accepts typed args + `CommandContext`, returns `CommandResult`.
+  No `process.exit()`, no `console.log()` — all side effects through
+  injected context.
+- **`__tests__/command-context.test.ts`** — 20 tests: `createTestContext`
+  (stdout/stderr capture, log capture, TestExit throwing),
+  `writeCommandOutput` (text/lines/json/empty), `writeCommandErrors`
+  (error→stderr, warn/info→stdout, mixed).
+- **`__tests__/command-helpers.test.ts`** — 22 tests: `resolveProjectPath`
+  (cross-platform), `isProjectInitialized` (dir/file/nonexistent),
+  `requireInitialized`/`requireNotInitialized` (ok/error paths),
+  `formatNumber`, `formatDuration` (ms/s/min), `truncate`, `formatSize`.
+
+The pattern enables: commands tested in-process with injected context,
+output captured in buffers, exit handled via `TestExit` throw instead
+of process termination. Existing commands in `zcodegraph.ts` can be
+migrated incrementally.
 
 ### Candidate 6: Installer target adapter contract hardening
 
