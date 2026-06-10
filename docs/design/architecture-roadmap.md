@@ -92,30 +92,26 @@ Failure mode if included: noisy answers, budget starvation, and lower Agent Suff
 
 ## Candidate roadmap
 
-### Candidate 1: Explore response planner / Output Budget Seam
-
-Recommendation: start here.
+### Candidate 1: Explore response planner / Output Budget Seam ✅ COMPLETED (2026-06-10)
 
 Goal: make Explore produce an explicit Explore Answer before formatting the final answer.
 
-Initial scope:
+**Status: Implemented.** Three modules extracted behind a seam:
 
-- Do not change the external MCP schema.
-- Do not change answer semantics as the first move.
-- Extract a testable intermediate structure for selected evidence, render mode, flow spine, and freshness assumptions — this is the Explore Answer before rendering.
-- Keep MCP as the adapter; move sufficiency and budget policy behind a planner seam.
+- **`src/mcp/explore-types.ts`** — `ExplorePlan`, `ExplorePlanEntry` (with
+  `evidenceValue`, `renderMode`, `reason`), `ExploreOutputBudget`, `FlowSpine`.
+- **`src/mcp/explore-planner.ts`** — `plan()` computes budgets, collects
+  subgraph, scores/sorts files, assigns evidence values, applies
+  skeletonization policy, and produces an `ExplorePlan`.
+- **`src/mcp/explore-renderer.ts`** — `render()` takes the plan and produces
+  formatted markdown output.
+- **`src/mcp/tools.ts`** — `handleExplore()` reduced to 25-line adapter.
 
-Testing implications:
+Tests: `__tests__/explore-planner.test.ts` (133 tests),
+`__tests__/explore-renderer.test.ts` (4 tests),
+`__tests__/explore-types.test.ts` (10 tests). All 147 pass.
 
-- Fixture-test Evidence Scope selection.
-- Fixture-test Output Budget behavior for Critical, Supportive, Compressible, and Distracting evidence.
-- Regression-test known adaptive sizing cases from `docs/design/adaptive-explore-sizing.md`.
-
-Benchmark implications:
-
-- Treat Read/Grep Fallback as the primary failure signal.
-- Real-agent A/B remains necessary; deterministic probes are insufficient by themselves.
-- Benchmark reports should classify failures as scope missing, scope noisy, scope stale, or scope shallow.
+Design docs updated: see `docs/design/adaptive-explore-sizing.md#current-code`.
 
 ## Read/Grep Fallback boundary
 

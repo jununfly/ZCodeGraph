@@ -283,3 +283,25 @@ the agent's real query — that mismatch is what this refinement corrects.)
 - **Exemplar selection** when *no* interceptor is on the spine: today all siblings
   skeletonize and the agent leans on the interface contract; showing one as a
   forced exemplar might read slightly better (untested).
+
+## Current Code (2026-06-10)
+
+The skeletonization policy has been extracted from `handleExplore()` into two
+modules as part of the **Explore Answer Planner Seam** (Phase 1 / Candidate 1):
+
+- **`src/mcp/explore-planner.ts`** — `plan()` computes `renderMode` for each
+  `ExplorePlanEntry`. Skeletonization decisions (`isPolymorphicSibling`,
+  `definesPolymorphicSupertype`, `spared`, `onSpineGodFile`) are made during
+  plan construction. The `spine` (flow spine) is built by
+  `buildFlowFromNamedSymbols` and stored in `ExplorePlan.spine`.
+
+- **`src/mcp/explore-renderer.ts`** — `render()` reads `plan.spine` and
+  `plan.entries[].renderMode` to produce the formatted markdown output. It
+  still holds the rendering-time skeletonization logic for backward
+  compatibility; the plan's `entries` are the authoritative source.
+
+- **`src/mcp/tools.ts`** — `handleExplore()` is now a 25-line adapter:
+  validate args → `plan()` → `render()` → return.
+
+- **Tests**: `__tests__/explore-planner.test.ts` (133 tests) and
+  `__tests__/explore-renderer.test.ts` (4 tests) cover the extracted policy.
