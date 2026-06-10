@@ -31,10 +31,6 @@
 
 **The ZCodeGraph platform is coming** — for every PR, know exactly what to test, what could break, which flows are affected, and whether business logic is compromised.
 
-<a href="https://getcodegraph.com"><img alt="Join the waitlist for early beta access" src="https://raw.githubusercontent.com/jununfly/ZCodeGraph/main/assets/waitlist.svg?v=2" height="52"></a>
-
-<sub>Get <b>early beta access</b> to the hosted product · <a href="https://getcodegraph.com">getcodegraph.com</a></sub>
-
 </div>
 
 ## Get Started
@@ -79,12 +75,6 @@ zcodegraph init -i
 ```
 
 <sub>`zcodegraph init` just creates the local `.codegraph/` index directory; adding `-i` (`--index`) also builds the initial graph in the same step. Without `-i`, run `zcodegraph index` afterwards to populate it.</sub>
-
-<div align="center">
-
-![1_C_VYnhpys0UHrOuOgpgoyw](https://github.com/user-attachments/assets/f168182f-4d9a-44e0-94d7-08d018cc8a3a)
-
-</div>
 
 ### Uninstall
 
