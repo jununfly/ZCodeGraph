@@ -80,6 +80,53 @@ export interface FlowSpine {
 }
 
 // ===========================================================================
+// EvidenceValue
+// ===========================================================================
+
+/**
+ * The expected contribution tier of a file to agent sufficiency.
+ *
+ * - `critical` — entry-point file or on the flow spine; the answer lives here.
+ * - `supportive` — connected to entry via edges or central to the query graph.
+ * - `compressible` — in the relevant set but not critical or supportive; may
+ *   be skeletonized or dropped first under budget pressure.
+ * - `distracting` — test, generated, or low-value file; excluded from output
+ *   unless the query specifically targets such content.
+ *
+ * @see docs/plans/2026-06-09-architecture-candidates-and-explore-planner.md
+ */
+export type EvidenceValue = 'critical' | 'supportive' | 'compressible' | 'distracting';
+
+// ===========================================================================
+// ExplorePlanEntry
+// ===========================================================================
+
+/**
+ * A single file entry in the explore plan, annotated with its evidence
+ * value and render mode so the renderer can make per-file decisions
+ * without recomputing plan-level logic.
+ *
+ * Replaces the raw `[filePath, FileGroup]` tuples previously in
+ * `sortedFiles`, keeping the same ordering but adding semantic labels.
+ *
+ * @see EvidenceValue
+ */
+export interface ExplorePlanEntry {
+  /** Absolute file path relative to project root. */
+  filePath: string;
+  /** Symbols surfaced for this file (deduplicated). */
+  symbols: string[];
+  /** Expected contribution tier to agent sufficiency. */
+  evidenceValue: EvidenceValue;
+  /** How the renderer should present this file. */
+  renderMode: 'full' | 'focused' | 'skeleton' | 'omit';
+  /** Human-readable reason — useful for debug fixtures and diagnostics. */
+  reason: string;
+  /** File-level aggregated relevance score (from FileGroup). */
+  score: number;
+}
+
+// ===========================================================================
 // ExplorePlan
 // ===========================================================================
 
@@ -131,6 +178,13 @@ export interface ExplorePlan {
   fileGroups: Map<string, FileGroup>;
   /** Files that survived the relevance threshold, sorted by priority. */
   sortedFiles: Array<[string, FileGroup]>;
+  /**
+   * Sorted file entries with evidence-value annotations.
+   *
+   * Computed from sortedFiles + entryNodeIds + connectedToEntry + spine.
+   * The renderer should prefer this over sortedFiles when available.
+   */
+  entries: ExplorePlanEntry[];
 
   // ===== Flow Spine =====
   /** The call-path spine traced through named symbols. */

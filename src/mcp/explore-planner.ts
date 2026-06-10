@@ -11,7 +11,7 @@
 
 import type CodeGraph from '../index';
 import type { Edge, Node, Subgraph } from '../types';
-import type { ExploreOutputBudget, ExplorePlan, FileGroup, FlowSpine } from './explore-types';
+import type { ExploreOutputBudget, ExplorePlan, ExplorePlanEntry, FileGroup, FlowSpine } from './explore-types';
 import { getExploreOutputBudget } from './tools';
 import { clamp, isConfigLeafNode } from '../utils';
 import { isGeneratedFile } from '../extraction/generated-detection';
@@ -786,6 +786,63 @@ export async function plan(
 
   const projectRoot = cg.getProjectRoot();
 
+  // ===== Compute entries with evidence value annotations =====
+  // Maps each sorted file to an ExplorePlanEntry with semantic labels
+  // so the renderer can make per-file decisions without recomputing
+  // plan-level logic.
+  const entries: ExplorePlanEntry[] = [];
+  for (const [filePath, group] of sortedFiles) {
+    const entry: ExplorePlanEntry = {
+      filePath,
+      symbols: [...new Set(
+        group.nodes
+          .filter(n => n.kind !== 'import' && n.kind !== 'export')
+          .map(n => n.name),
+      )],
+      evidenceValue: 'compressible', // default, overridden below
+      renderMode: 'full',           // default, renderer may override
+      reason: '',
+      score: group.score,
+    };
+
+    // Determine evidence value from plan-level data
+    const nodesInFile = group.nodes;
+    const fileHasEntryNode = nodesInFile.some(n => entryNodeIds.has(n.id));
+    const fileOnSpine = nodesInFile.some(n => spine.pathNodeIds.has(n.id));
+    const fileHasNamedSymbol = nodesInFile.some(n =>
+      spine.namedNodeIds.has(n.id) || spine.uniqueNamedNodeIds.has(n.id),
+    );
+    const fileConnected = nodesInFile.some(n => connectedToEntry.has(n.id));
+    const isCentral = centralFiles.has(filePath);
+
+    // Check for distracting (low-value) paths
+    const isDistracting = isLowValue(filePath);
+
+    if (isDistracting) {
+      entry.evidenceValue = 'distracting';
+      entry.renderMode = 'omit';
+      entry.reason = 'low-value path (test/generated)';
+    } else if (fileHasEntryNode || fileOnSpine) {
+      entry.evidenceValue = 'critical';
+      entry.reason = fileHasEntryNode
+        ? 'contains entry-point nodes'
+        : 'on flow spine';
+    } else if (fileConnected || isCentral) {
+      entry.evidenceValue = 'supportive';
+      entry.reason = fileConnected
+        ? 'connected to entry via graph edges'
+        : 'central to query graph';
+    } else if (fileHasNamedSymbol) {
+      entry.evidenceValue = 'supportive';
+      entry.reason = 'contains named symbol referenced by query';
+    } else {
+      entry.evidenceValue = 'compressible';
+      entry.reason = 'additional relevant file';
+    }
+
+    entries.push(entry);
+  }
+
   const plan: ExplorePlan = {
     query,
     budget,
@@ -794,6 +851,7 @@ export async function plan(
     entryNodeIds,
     fileGroups,
     sortedFiles,
+    entries,
     spine,
     adaptiveEnabled: readAdaptiveEnabled(),
     glueNodeIds,

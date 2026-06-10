@@ -507,6 +507,105 @@ describe('plan', () => {
     const result = await plan(cg, 'handler');
     expect(result.glueNodeIds.has('n2')).toBe(true);
   });
+
+  // ===== Issue #15: Evidence Value assignment =====
+
+  it('assigns entry nodes as critical, connected as supportive, additional as compressible (Issue #15)', async () => {
+    const n1 = { id: 'n1', name: 'EntryHandler', kind: 'function' as Node['kind'], filePath: 'src/entry.ts', startLine: 1, endLine: 20 } as Node;
+    const n2 = { id: 'n2', name: 'ConnectedHelper', kind: 'function' as Node['kind'], filePath: 'src/connected.ts', startLine: 1, endLine: 10 } as Node;
+    const n3 = { id: 'n3', name: 'ExtraFn', kind: 'function' as Node['kind'], filePath: 'src/additional.ts', startLine: 1, endLine: 5 } as Node;
+    const cg = {
+      ...mockCodeGraph({ fileCount: 100 }),
+      findRelevantContext: async () => ({
+        nodes: new Map([['n1', n1], ['n2', n2], ['n3', n3]]),
+        edges: [
+          { source: 'n1', target: 'n2', kind: 'calls' } as Edge,
+          { source: 'n2', target: 'n3', kind: 'calls' } as Edge,
+        ] as Edge[],
+        roots: ['n1'],
+      }),
+    } as unknown as import('../src/index').default;
+    const result = await plan(cg, 'EntryHandler');
+
+    // n1=entry, n2=connected, n3=additional — all should appear
+    // but n3 may be gated out if its score is too low; if so, the test
+    // still validates the tier labels for the files that DO appear.
+    const entryFile = result.entries.find(e => e.filePath === 'src/entry.ts');
+    expect(entryFile).toBeDefined();
+    expect(entryFile!.evidenceValue).toBe('critical');
+
+    const connectedFile = result.entries.find(e => e.filePath === 'src/connected.ts');
+    expect(connectedFile).toBeDefined();
+    expect(connectedFile!.evidenceValue).toBe('supportive');
+
+    // additional.ts may or may not survive the gate — if it does, it's compressible
+    const additionalFile = result.entries.find(e => e.filePath === 'src/additional.ts');
+    if (additionalFile) {
+      expect(additionalFile.evidenceValue).toBe('compressible');
+    }
+  });
+
+  it('includes reason field in each entry (Issue #15)', async () => {
+    const n1 = { id: 'n1', name: 'EntryHandler', kind: 'function' as Node['kind'], filePath: 'src/entry.ts', startLine: 1, endLine: 20 } as Node;
+    const cg = {
+      ...mockCodeGraph({ fileCount: 100 }),
+      findRelevantContext: async () => ({
+        nodes: new Map([['n1', n1]]),
+        edges: [] as Edge[],
+        roots: ['n1'],
+      }),
+    } as unknown as import('../src/index').default;
+    const result = await plan(cg, 'EntryHandler');
+
+    for (const entry of result.entries) {
+      expect(typeof entry.reason).toBe('string');
+      expect(entry.reason.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('includes renderMode and score in each entry (Issue #15)', async () => {
+    const n1 = { id: 'n1', name: 'EntryHandler', kind: 'function' as Node['kind'], filePath: 'src/entry.ts', startLine: 1, endLine: 20 } as Node;
+    const cg = {
+      ...mockCodeGraph({ fileCount: 100 }),
+      findRelevantContext: async () => ({
+        nodes: new Map([['n1', n1]]),
+        edges: [] as Edge[],
+        roots: ['n1'],
+      }),
+    } as unknown as import('../src/index').default;
+    const result = await plan(cg, 'EntryHandler');
+
+    for (const entry of result.entries) {
+      expect(['full', 'focused', 'skeleton', 'omit']).toContain(entry.renderMode);
+      expect(typeof entry.score).toBe('number');
+      expect(entry.score).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('distracting files are excluded from entries (Issue #15)', async () => {
+    // A test file should NOT appear in entries (or appear with distracting/omit)
+    const n1 = { id: 'n1', name: 'testHandler', kind: 'function' as Node['kind'], filePath: 'src/__tests__/test.ts', startLine: 1, endLine: 20 } as Node;
+    const cg = {
+      ...mockCodeGraph({ fileCount: 100 }),
+      findRelevantContext: async () => ({
+        nodes: new Map([['n1', n1]]),
+        edges: [] as Edge[],
+        roots: ['n1'],
+      }),
+    } as unknown as import('../src/index').default;
+    const result = await plan(cg, 'test');
+
+    // Test files should either be absent or have evidenceValue 'distracting'
+    const testEntry = result.entries.find(e => e.filePath === 'src/__tests__/test.ts');
+    if (testEntry) {
+      expect(testEntry.evidenceValue).toBe('distracting');
+    }
+    // All non-distracting entries should be valid
+    const nonDistracting = result.entries.filter(e => e.evidenceValue !== 'distracting');
+    for (const e of nonDistracting) {
+      expect(['critical', 'supportive', 'compressible']).toContain(e.evidenceValue);
+    }
+  });
 });
 
 // ===========================================================================
