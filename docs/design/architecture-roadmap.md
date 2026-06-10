@@ -263,9 +263,43 @@ output captured in buffers, exit handled via `TestExit` throw instead
 of process termination. Existing commands in `zcodegraph.ts` can be
 migrated incrementally.
 
-### Candidate 6: Installer target adapter contract hardening
+### Candidate 6: Installer target adapter contract hardening ✅ COMPLETED (2026-06-10)
 
 Goal: separate install plan generation from interactive/non-interactive rendering.
+
+**Status: Implemented.** Extracted InstallPlan data structure and
+InstallRenderer interface from the monolithic `runInstallerWithOptions()`:
+
+- **`src/installer/install-plan.ts`** — `InstallPlan` data structure
+  (targets, location, autoAllow, installCli, initializeProject, cwd)
+  and `buildInstallPlan()` pure function. Resolves CLI flags, --yes
+  defaults, and interactive choices into a concrete plan with no I/O.
+  Includes internal `resolveTargetsFromList()` that works against any
+  caller-supplied target list (not just the global registry), making
+  the plan builder fully testable with stubs.
+- **`src/installer/install-renderer.ts`** — `InstallRenderer` interface
+  (intro, planSummary, targetResult, warn, info, success, error, outro,
+  note, spinnerStart) + two implementations:
+  - `NonInteractiveRenderer` — writes to CommandContext (stdout/stderr),
+    suitable for --yes / CI / scripting.
+  - `TestRenderer` — captures all output in-memory for test assertions.
+- **`__tests__/install-plan.test.ts`** — 24 tests: non-interactive
+  defaults, explicit flags, interactive overrides, edge cases, plan
+  shape contract, determinism.
+- **`__tests__/install-renderer.test.ts`** — 27 tests: NonInteractiveRenderer
+  output capture (intro, planSummary, targetResult, warn/error to stderr,
+  info/success/outro to stdout, notes, spinner), TestRenderer buffer
+  capture (all methods, spinner lifecycle, clean initial state),
+  interface contract verification for both renderers.
+
+The existing `runInstallerWithOptions()` continues to work as before;
+the new types enable incremental migration. Each renderer is independently
+testable without @clack/prompts or process-level I/O.
+
+Relationship to Candidate 5:
+- Candidate 5 provided the `CommandContext` pattern (IO injection).
+- Candidate 6 applies it to the installer, separating plan logic from
+  rendering. NonInteractiveRenderer uses CommandContext directly.
 
 ### Candidate 7: Query/storage read model Seam
 
