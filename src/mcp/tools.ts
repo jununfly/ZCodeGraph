@@ -28,6 +28,7 @@ import {
 import { clamp, validateProjectPath } from '../utils';
 import { isGeneratedFile } from '../extraction/generated-detection';
 import { resolve as resolvePath } from 'path';
+import type { ExploreOutputBudget } from './explore-types.js';
 import { plan } from './explore-planner';
 import { render } from './explore-renderer';
 
@@ -88,55 +89,8 @@ export function getExploreBudget(fileCount: number): number {
   return 5;
 }
 
-/**
- * Adaptive output budget for `zcodegraph_explore`, scaled to project size.
- *
- * Smaller codebases get a tighter total cap, fewer default files, smaller
- * per-file cap, and tighter clustering — so a focused query on a 100-file
- * project doesn't dump a whole file's worth of source into the agent's
- * context. Larger codebases keep the generous defaults because the
- * agent's native discovery cost (grep + find + many Reads) genuinely
- * dwarfs a fat explore call at that scale.
- *
- * Meta-text (relationships map, "additional relevant files" list,
- * completeness signal, budget note) is gated off for tiny projects
- * where one rich call is the whole story and the extra prose is just
- * overhead.
- *
- * Tier breakpoints mirror `getExploreBudget` so a project sits in the
- * same tier across both knobs.
- */
-export interface ExploreOutputBudget {
-  /** Hard cap on total output characters. */
-  maxOutputChars: number;
-  /** Default `maxFiles` when the caller didn't specify one. */
-  defaultMaxFiles: number;
-  /** Cap on contiguous source returned per file (across all its clusters). */
-  maxCharsPerFile: number;
-  /** Cluster gap threshold in lines — tighter clustering on small projects. */
-  gapThreshold: number;
-  /** Max symbols listed in the per-file header (`#### path — sym(kind), ...`). */
-  maxSymbolsInFileHeader: number;
-  /** Max edges shown per relationship kind in the Relationships section. */
-  maxEdgesPerRelationshipKind: number;
-  /** Include the "Relationships" section. */
-  includeRelationships: boolean;
-  /** Include the "Additional relevant files (not shown)" trailing list. */
-  includeAdditionalFiles: boolean;
-  /** Include the "Complete source code is included above…" reminder. */
-  includeCompletenessSignal: boolean;
-  /** Include the explore-budget reminder at the end. */
-  includeBudgetNote: boolean;
-  /**
-   * Hard-drop test/spec/icon/i18n files from the relevant-file set unless
-   * the query itself mentions tests. Today they're only deprioritized in
-   * the sort, which on tiny repos still lets one slip into the top N (e.g.
-   * cobra's `command_test.go` displaced `args.go` and contributed ~10KB of
-   * pure noise to "How does cobra parse commands?"). Off by default; on
-   * for the very-tiny tier where one slip dominates the budget.
-   */
-  excludeLowValueFiles: boolean;
-}
+// ExploreOutputBudget is defined in explore-types.ts (single source of truth).
+export type { ExploreOutputBudget } from './explore-types.js';
 
 export function getExploreOutputBudget(fileCount: number): ExploreOutputBudget {
   // Tiered budget, scaled to project size. The budget is a CEILING (relevance
