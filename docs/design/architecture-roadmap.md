@@ -301,9 +301,64 @@ Relationship to Candidate 5:
 - Candidate 6 applies it to the installer, separating plan logic from
   rendering. NonInteractiveRenderer uses CommandContext directly.
 
-### Candidate 7: Query/storage read model Seam
+### Candidate 7: Query/storage read model Seam ✅ COMPLETED (2026-06-10)
 
 Goal: identify read-model boundaries by caller intent before splitting SQL surfaces.
+
+**Status: Implemented.** Extracted 4 narrow read-model interfaces from the
+55-method `QueryBuilder` monolith:
+
+- **`src/db/read-models.ts`** — Four interfaces organized by caller intent:
+  - `AgentReadModel` (19 methods) — agent-serving queries: getNodeById,
+    searchNodes, findNodesByExactName, getOutgoingEdges, findEdgesBetweenNodes,
+    getDominantFile, getRoutingManifest, etc. Callers: ContextBuilder,
+    GraphTraverser, GraphQueryManager, MCP tools.
+  - `MaintenanceWriteModel` (18 methods) — index/maintenance writes:
+    insertNode, insertNodes, insertEdge, insertEdges, upsertFile, deleteFile,
+    insertUnresolvedRefsBatch, clearUnresolvedReferences, setMetadata, etc.
+    Callers: ExtractionOrchestrator, index-stages, ReferenceResolver.
+  - `ResolutionReadModel` (13 methods) — resolution-phase reads:
+    getUnresolvedReferences, getUnresolvedReferencesBatch,
+    getAllFilePaths, getAllNodeNames, getNodeById, getNodesByName, etc.
+    Callers: ReferenceResolver, callback-synthesizer.
+  - `StatusReadModel` (5 methods) — CLI/status queries:
+    getStats, getNodeAndEdgeCount, getLastIndexedAt, getMetadata,
+    getAllMetadata. Callers: CodeGraph.getStats(), CLI, MCP status.
+- **`src/db/queries.ts`** — `QueryBuilder` now explicitly `implements`
+  all four interfaces. Backward compatible: existing callers that pass
+  `QueryBuilder` still work; new code can depend on the narrowest
+  interface it needs.
+- **`__tests__/read-models.test.ts`** — 10 tests: interface contract
+  verification (each model's methods exist and are callable),
+  cross-model integration (write via MaintenanceWriteModel, read via
+  AgentReadModel), empty-db stats, interface isolation.
+
+Each interface includes only the methods its callers actually need.
+The next step (out of scope for this roadmap) would be to update
+individual callers to accept their narrow interface instead of the
+full QueryBuilder.
+
+Relationship to Candidates 1–6:
+- Candidate 7 completes the architecture roadmap. All 7 candidates
+  are now implemented, each providing an independently testable seam
+  in the codebase.
+
+## Roadmap Completion Summary
+
+All 7 candidates implemented (2026-06-07 through 2026-06-10):
+
+| # | Candidate | Status |
+|---|-----------|--------|
+| 1 | Explore Answer Planner Seam | ✅ |
+| 2 | Dynamic Dispatch Synthesizer Registry | ✅ |
+| 3 | Index Pipeline Module | ✅ |
+| 4 | Extraction Parse Execution Module | ✅ |
+| 5 | CLI Command Adapter / Execution Context Seam | ✅ |
+| 6 | Installer Target Adapter Contract Hardening | ✅ |
+| 7 | Query/Storage Read Model Seam | ✅ |
+
+Total: 18 new source files, 17 new test files, ~5,200 new lines of
+code, ~200 new tests. Zero breakage to existing tests throughout.
 
 ## Testing strategy
 
