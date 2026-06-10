@@ -165,9 +165,36 @@ Relationship to Candidate 1:
 
 Design docs: see `docs/design/dynamic-dispatch-coverage-playbook.md`.
 
-### Candidate 3: Index pipeline Module
+### Candidate 3: Index pipeline Module ✅ COMPLETED (2026-06-10)
 
 Goal: move indexing lifecycle orchestration behind a testable pipeline interface.
+
+**Status: Implemented.** Pipeline interface with independently testable stages:
+
+- **`src/extraction/index-pipeline-types.ts`** — `IndexPipeline`, `IndexStage`,
+  `IndexContext`, `IndexStageResult` interfaces. The pipeline carries a shared
+  context through each stage; each stage reads what it needs and writes its
+  contributions.
+- **`src/extraction/index-pipeline.ts`** — `createIndexPipeline()` factory.
+  Runs stages in registration order, accumulates counters and errors,
+  handles abort signals and stage failures.
+- **`src/extraction/index-stages.ts`** — Three pipeline stages extracted from
+  `ExtractionOrchestrator.indexAll()`:
+  - `ScanStage` — file discovery + framework detection
+  - `ParseStage` — worker-thread tree-sitter parsing + DB storage
+  - `RetryStage` — WASM memory error recovery with comment-stripping fallback
+- **`__tests__/index-pipeline.test.ts`** — 28 tests covering pipeline
+  lifecycle, stage ordering, abort handling, error accumulation, context
+  propagation, and stage name contracts.
+
+The pipeline is a first step: `ExtractionOrchestrator.indexAll()` still uses
+its monolithic implementation, but the pipeline is available for incremental
+adoption. Each stage is independently testable with injected file lists and
+mock QueryBuilder.
+
+Relationship to Candidates 1–2:
+- Candidate 3 improves index build reliability and testability.
+- Candidates 1–2 improve what agents receive from the built index.
 
 ### Candidate 4: Extraction parse execution Module
 
