@@ -196,9 +196,36 @@ Relationship to Candidates 1–2:
 - Candidate 3 improves index build reliability and testability.
 - Candidates 1–2 improve what agents receive from the built index.
 
-### Candidate 4: Extraction parse execution Module
+### Candidate 4: Extraction parse execution Module ✅ COMPLETED (2026-06-10)
 
 Goal: isolate parse execution behind worker and in-process adapters.
+
+**Status: Implemented.** Unified `ParseExecutor` interface with two adapters:
+
+- **`src/extraction/parse-executor-types.ts`** — `ParseExecutor` interface
+  (`initialize`, `parse`, `dispose`), `ParseRequest`, `ParseExecutionResult`,
+  `ParseExecutorConfig`.
+- **`src/extraction/parse-executor-inprocess.ts`** — `InProcessParseExecutor`
+  calls `extractFromSource()` directly. Used when worker threads are
+  unavailable or in tests.
+- **`src/extraction/parse-executor-worker.ts`** — `WorkerParseExecutor`
+  encapsulates worker thread lifecycle: creation, grammar loading, message
+  routing, timeout handling, periodic recycling, WASM crash detection.
+  Previously ~230 lines spread across ParseStage.
+- **`src/extraction/parse-executor-fallback.ts`** — `stripCommentLines()` and
+  `isWasmMemoryError()` helpers, independently testable.
+- **`__tests__/parse-executor.test.ts`** — 32 tests covering
+  InProcessParseExecutor lifecycle, parsing, error propagation,
+  WorkerParseExecutor construction/config, stripCommentLines (10 cases),
+  isWasmMemoryError (7 cases), and interface contract verification.
+
+Both executors share the same interface. Callers use `executor.parse(request)`
+regardless of whether parsing happens in a worker thread or in-process.
+Retry/failure logic remains in RetryStage which can use either executor.
+
+Relationship to Candidates 1–4:
+- Candidate 4 makes the parse execution swappable and independently testable.
+- Candidates 1–2 improve what agents receive; 3–4 improve how the index is built.
 
 ### Candidate 5: CLI command adapter / execution context Seam
 
