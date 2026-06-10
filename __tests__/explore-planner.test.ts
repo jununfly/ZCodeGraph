@@ -219,6 +219,8 @@ describe('plan', () => {
       searchNodes: () => [],
       getCallers: () => [],
       getCallees: () => [],
+      getOutgoingEdges: () => [],
+      getIncomingEdges: () => [],
     } as unknown as import('../src/index').default;
   }
 
@@ -604,6 +606,234 @@ describe('plan', () => {
     const nonDistracting = result.entries.filter(e => e.evidenceValue !== 'distracting');
     for (const e of nonDistracting) {
       expect(['critical', 'supportive', 'compressible']).toContain(e.evidenceValue);
+    }
+  });
+
+  // ===== Issue #16: Skeletonization policy =====
+
+  it('sets renderMode skeleton for off-spine polymorphic siblings (Issue #16)', async () => {
+    // Use 'method' kind so buildFlowFromNamedSymbols treats them as callable.
+    // The skeletonization logic checks edge kinds (implements/extends), not node kinds.
+    const nInterceptor = { id: 'n0', name: 'Interceptor', kind: 'interface' as Node['kind'], filePath: 'src/interceptor.ts', startLine: 1, endLine: 5 } as Node;
+    const nLogging = { id: 'n1', name: 'LoggingInterceptor', kind: 'method' as Node['kind'], filePath: 'src/LoggingInterceptor.ts', startLine: 1, endLine: 20 } as Node;
+    const nBridge = { id: 'n2', name: 'BridgeInterceptor', kind: 'method' as Node['kind'], filePath: 'src/BridgeInterceptor.ts', startLine: 1, endLine: 15 } as Node;
+    const nCache = { id: 'n3', name: 'CacheInterceptor', kind: 'method' as Node['kind'], filePath: 'src/CacheInterceptor.ts', startLine: 1, endLine: 15 } as Node;
+    const nRetry = { id: 'n4', name: 'RetryInterceptor', kind: 'method' as Node['kind'], filePath: 'src/RetryInterceptor.ts', startLine: 1, endLine: 15 } as Node;
+    // Create 4+ duplicates so findAllSymbols returns >3 results → specific=false
+    // → uniqueNamedNodeIds won't include it → not spared → skeletonized
+    const nRetryDup1 = { id: 'n4dup1', name: 'RetryInterceptor', kind: 'method' as Node['kind'], filePath: 'src/legacy/RetryInterceptor1.ts', startLine: 1, endLine: 15 } as Node;
+    const nRetryDup2 = { id: 'n4dup2', name: 'RetryInterceptor', kind: 'method' as Node['kind'], filePath: 'src/legacy/RetryInterceptor2.ts', startLine: 1, endLine: 15 } as Node;
+    const nRetryDup3 = { id: 'n4dup3', name: 'RetryInterceptor', kind: 'method' as Node['kind'], filePath: 'src/legacy/RetryInterceptor3.ts', startLine: 1, endLine: 15 } as Node;
+    const nRetryDup4 = { id: 'n4dup4', name: 'RetryInterceptor', kind: 'method' as Node['kind'], filePath: 'src/legacy/RetryInterceptor4.ts', startLine: 1, endLine: 15 } as Node;
+
+    // Outgoing edges: each impl extends/implements Interceptor
+    const outgoingEdges = new Map<string, Edge[]>();
+    outgoingEdges.set('n1', [{ source: 'n1', target: 'n0', kind: 'implements' } as Edge]);
+    outgoingEdges.set('n2', [{ source: 'n2', target: 'n0', kind: 'implements' } as Edge]);
+    outgoingEdges.set('n3', [{ source: 'n3', target: 'n0', kind: 'implements' } as Edge]);
+    outgoingEdges.set('n4', [{ source: 'n4', target: 'n0', kind: 'implements' } as Edge]);
+
+    // Incoming edges to Interceptor: 4 implementers (≥3 → sibling family)
+    const incomingEdges = new Map<string, Edge[]>();
+    incomingEdges.set('n0', [
+      { source: 'n1', target: 'n0', kind: 'implements' } as Edge,
+      { source: 'n2', target: 'n0', kind: 'implements' } as Edge,
+      { source: 'n3', target: 'n0', kind: 'implements' } as Edge,
+      { source: 'n4', target: 'n0', kind: 'implements' } as Edge,
+    ]);
+
+    // n1→n2→n3 is the call chain (spine, length 3 → hasMain=true)
+    // n4 is connected via 'references' edge → off-spine sibling
+    const subgraph = {
+      nodes: new Map([['n0', nInterceptor], ['n1', nLogging], ['n2', nBridge], ['n3', nCache], ['n4', nRetry]]),
+      edges: [
+        { source: 'n1', target: 'n2', kind: 'calls' } as Edge,
+        { source: 'n2', target: 'n3', kind: 'calls' } as Edge,
+        { source: 'n1', target: 'n4', kind: 'references' } as Edge,
+      ],
+      roots: ['n1'],
+    };
+
+    const allNodes = [nLogging, nBridge, nCache, nRetry, nRetryDup1, nRetryDup2, nRetryDup3, nRetryDup4, nInterceptor];
+
+    // searchNodes returns matching nodes for buildFlowFromNamedSymbols
+    const searchNodes = (q: string) => {
+      return allNodes
+        .filter(n => n.name.toLowerCase().includes(q.toLowerCase()))
+        .map(n => ({ node: n }));
+    };
+
+    // getCallees: n1→n2→n3 (spine), n4 is off-spine
+    const callees = new Map<string, Array<{ node: Node; edge: Edge }>>();
+    callees.set('n1', [{ node: nBridge, edge: { source: 'n1', target: 'n2', kind: 'calls' } as Edge }]);
+    callees.set('n2', [{ node: nCache, edge: { source: 'n2', target: 'n3', kind: 'calls' } as Edge }]);
+
+    const cg = {
+      ...mockCodeGraph({ fileCount: 100, subgraph }),
+      getOutgoingEdges: (nodeId: string) => outgoingEdges.get(nodeId) ?? [],
+      getIncomingEdges: (nodeId: string) => incomingEdges.get(nodeId) ?? [],
+      searchNodes,
+      getCallees: (nodeId: string) => callees.get(nodeId) ?? [],
+    } as unknown as import('../src/index').default;
+
+    const result = await plan(cg, 'LoggingInterceptor BridgeInterceptor CacheInterceptor RetryInterceptor');
+
+    // n1-n3 are on-spine → kept full/focused
+    // n4 (RetryInterceptor) is off-spine → skeleton
+    const bridgeEntry = result.entries.find(e => e.filePath === 'src/BridgeInterceptor.ts');
+    const cacheEntry = result.entries.find(e => e.filePath === 'src/CacheInterceptor.ts');
+    const retryEntry = result.entries.find(e => e.filePath === 'src/RetryInterceptor.ts');
+
+    expect(bridgeEntry).toBeDefined();
+    // On-spine siblings should NOT be skeleton
+    expect(bridgeEntry!.renderMode).not.toBe('skeleton');
+    expect(cacheEntry).toBeDefined();
+    expect(cacheEntry!.renderMode).not.toBe('skeleton');
+    // Only off-spine sibling (RetryInterceptor) should be skeleton
+    expect(retryEntry).toBeDefined();
+    expect(retryEntry!.renderMode).toBe('skeleton');
+  });
+
+  it('keeps on-spine file full even though it is a sibling (Issue #16)', async () => {
+    const n0 = { id: 'n0', name: 'Super', kind: 'interface' as Node['kind'], filePath: 'src/super.ts', startLine: 1, endLine: 3 } as Node;
+    const nOnSpine = { id: 'n1', name: 'OnSpineImpl', kind: 'class' as Node['kind'], filePath: 'src/OnSpineImpl.ts', startLine: 1, endLine: 20 } as Node;
+    const nOffSpine = { id: 'n2', name: 'OffSpineImpl', kind: 'class' as Node['kind'], filePath: 'src/OffSpineImpl.ts', startLine: 1, endLine: 15 } as Node;
+    const nOffSpine2 = { id: 'n3', name: 'OffSpineImpl2', kind: 'class' as Node['kind'], filePath: 'src/OffSpineImpl2.ts', startLine: 1, endLine: 15 } as Node;
+
+    const outgoing = new Map<string, Edge[]>();
+    outgoing.set('n1', [{ source: 'n1', target: 'n0', kind: 'implements' } as Edge]);
+    outgoing.set('n2', [{ source: 'n2', target: 'n0', kind: 'implements' } as Edge]);
+    outgoing.set('n3', [{ source: 'n3', target: 'n0', kind: 'implements' } as Edge]);
+
+    const incoming = new Map<string, Edge[]>();
+    incoming.set('n0', [
+      { source: 'n1', target: 'n0', kind: 'implements' } as Edge,
+      { source: 'n2', target: 'n0', kind: 'implements' } as Edge,
+      { source: 'n3', target: 'n0', kind: 'implements' } as Edge,
+    ]);
+
+    const subgraph = {
+      nodes: new Map([['n0', n0], ['n1', nOnSpine], ['n2', nOffSpine], ['n3', nOffSpine2]]),
+      edges: [
+        { source: 'n1', target: 'n2', kind: 'calls' } as Edge,
+        { source: 'n2', target: 'n3', kind: 'calls' } as Edge,
+      ],
+      roots: ['n1'],
+    };
+
+    const cg = {
+      ...mockCodeGraph({ fileCount: 100, subgraph }),
+      getOutgoingEdges: (nodeId: string) => outgoing.get(nodeId) ?? [],
+      getIncomingEdges: (nodeId: string) => incoming.get(nodeId) ?? [],
+    } as unknown as import('../src/index').default;
+
+    const result = await plan(cg, 'OnSpineImpl');
+    // On-spine stays full
+    const onSpineEntry = result.entries.find(e => e.filePath === 'src/OnSpineImpl.ts');
+    expect(onSpineEntry).toBeDefined();
+    expect(onSpineEntry!.renderMode).toBe('full');
+  });
+
+  it('spares an off-spine sibling when uniquely named (Issue #16)', async () => {
+    const n0 = { id: 'n0', name: 'Super', kind: 'interface' as Node['kind'], filePath: 'src/super.ts', startLine: 1, endLine: 3 } as Node;
+    const nOnSpine = { id: 'n1', name: 'MainImpl', kind: 'method' as Node['kind'], filePath: 'src/MainImpl.ts', startLine: 1, endLine: 20 } as Node;
+    const nNamed = { id: 'n2', name: 'getResponse', kind: 'method' as Node['kind'], filePath: 'src/RealCall.ts', startLine: 10, endLine: 50 } as Node;
+    const nOffSpine = { id: 'n3', name: 'OtherImpl', kind: 'method' as Node['kind'], filePath: 'src/OtherImpl.ts', startLine: 1, endLine: 15 } as Node;
+
+    const outgoing = new Map<string, Edge[]>();
+    outgoing.set('n1', [{ source: 'n1', target: 'n0', kind: 'implements' } as Edge]);
+    outgoing.set('n2', [{ source: 'n2', target: 'n0', kind: 'implements' } as Edge]);
+    outgoing.set('n3', [{ source: 'n3', target: 'n0', kind: 'implements' } as Edge]);
+
+    const incoming = new Map<string, Edge[]>();
+    incoming.set('n0', [
+      { source: 'n1', target: 'n0', kind: 'implements' } as Edge,
+      { source: 'n2', target: 'n0', kind: 'implements' } as Edge,
+      { source: 'n3', target: 'n0', kind: 'implements' } as Edge,
+    ]);
+
+    const subgraph = {
+      nodes: new Map([['n0', n0], ['n1', nOnSpine], ['n2', nNamed], ['n3', nOffSpine]]),
+      edges: [
+        { source: 'n1', target: 'n2', kind: 'calls' } as Edge,
+        { source: 'n2', target: 'n3', kind: 'calls' } as Edge,
+      ],
+      roots: ['n1'],
+    };
+
+    const cg = {
+      ...mockCodeGraph({ fileCount: 100, subgraph }),
+      getOutgoingEdges: (nodeId: string) => outgoing.get(nodeId) ?? [],
+      getIncomingEdges: (nodeId: string) => incoming.get(nodeId) ?? [],
+      getNodesByName: (name: string) => name === 'getResponse' ? [nNamed] : [],
+      // searchNodes for buildFlowFromNamedSymbols
+      searchNodes: (q: string) => {
+        const all = [nOnSpine, nNamed, nOffSpine, n0];
+        return all.filter(n => n.name.toLowerCase().includes(q.toLowerCase())).map(n => ({ node: n }));
+      },
+      // getCallees: n1 calls n2 calls n3 (spine = n1→n2→n3, length 3)
+      getCallees: (nodeId: string) => {
+        if (nodeId === 'n1') return [{ node: nNamed, edge: { source: 'n1', target: 'n2', kind: 'calls' } as Edge }];
+        if (nodeId === 'n2') return [{ node: nOffSpine, edge: { source: 'n2', target: 'n3', kind: 'calls' } as Edge }];
+        return [];
+      },
+    } as unknown as import('../src/index').default;
+
+    // Query names the unique callable → should spare RealCall.ts
+    // Include all three names so buildFlowFromNamedSymbols can find ≥3 nodes
+    const result = await plan(cg, 'MainImpl getResponse OtherImpl');
+    const realCallEntry = result.entries.find(e => e.filePath === 'src/RealCall.ts');
+    expect(realCallEntry).toBeDefined();
+    // Spared because getResponse is uniquely named (1 def)
+    expect(realCallEntry!.renderMode).toBe('focused');
+  });
+
+  it('sets renderMode full when adaptive is disabled (Issue #16)', async () => {
+    // Save and set CODEGRAPH_ADAPTIVE_EXPLORE=0
+    const prev = process.env.CODEGRAPH_ADAPTIVE_EXPLORE;
+    process.env.CODEGRAPH_ADAPTIVE_EXPLORE = '0';
+
+    try {
+      const n0 = { id: 'n0', name: 'Super', kind: 'interface' as Node['kind'], filePath: 'src/super.ts', startLine: 1, endLine: 3 } as Node;
+      const nOffSpine = { id: 'n2', name: 'Sibling', kind: 'class' as Node['kind'], filePath: 'src/Sibling.ts', startLine: 1, endLine: 15 } as Node;
+      const nOffSpine2 = { id: 'n3', name: 'Sibling2', kind: 'class' as Node['kind'], filePath: 'src/Sibling2.ts', startLine: 1, endLine: 15 } as Node;
+      const nOffSpine3 = { id: 'n4', name: 'Sibling3', kind: 'class' as Node['kind'], filePath: 'src/Sibling3.ts', startLine: 1, endLine: 15 } as Node;
+
+      const outgoing = new Map<string, Edge[]>();
+      outgoing.set('n2', [{ source: 'n2', target: 'n0', kind: 'implements' } as Edge]);
+      outgoing.set('n3', [{ source: 'n3', target: 'n0', kind: 'implements' } as Edge]);
+      outgoing.set('n4', [{ source: 'n4', target: 'n0', kind: 'implements' } as Edge]);
+
+      const incoming = new Map<string, Edge[]>();
+      incoming.set('n0', [
+        { source: 'n2', target: 'n0', kind: 'implements' } as Edge,
+        { source: 'n3', target: 'n0', kind: 'implements' } as Edge,
+        { source: 'n4', target: 'n0', kind: 'implements' } as Edge,
+      ]);
+
+      const subgraph = {
+        nodes: new Map([['n0', n0], ['n2', nOffSpine], ['n3', nOffSpine2], ['n4', nOffSpine3]]),
+        edges: [],
+        roots: ['n2'],
+      };
+
+      const cg = {
+        ...mockCodeGraph({ fileCount: 100, subgraph }),
+        getOutgoingEdges: (nodeId: string) => outgoing.get(nodeId) ?? [],
+        getIncomingEdges: (nodeId: string) => incoming.get(nodeId) ?? [],
+      } as unknown as import('../src/index').default;
+
+      const result = await plan(cg, 'Sibling');
+      expect(result.adaptiveEnabled).toBe(false);
+
+      // When adaptive is disabled, everything should be full
+      const nonDistracting = result.entries.filter(e => e.evidenceValue !== 'distracting');
+      for (const e of nonDistracting) {
+        expect(e.renderMode).toBe('full');
+      }
+    } finally {
+      if (prev !== undefined) process.env.CODEGRAPH_ADAPTIVE_EXPLORE = prev;
+      else delete process.env.CODEGRAPH_ADAPTIVE_EXPLORE;
     }
   });
 });

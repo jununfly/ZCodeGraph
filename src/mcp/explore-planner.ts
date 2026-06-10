@@ -9,7 +9,7 @@
  * See docs/plans/2026-06-09-architecture-candidates-and-explore-planner.md
  */
 
-import type CodeGraph from '../index';
+import CodeGraph from '../index';
 import type { Edge, Node, Subgraph } from '../types';
 import type { ExploreOutputBudget, ExplorePlan, ExplorePlanEntry, FileGroup, FlowSpine } from './explore-types';
 import { getExploreOutputBudget } from './tools';
@@ -412,6 +412,7 @@ export function buildFileGroups(
   subgraph: Subgraph,
   namedSeedIds: Set<string>,
   entryNodeIds: Set<string>,
+  spineNodeIds: Set<string> = new Set(),
 ): Map<string, FileGroup> {
   const fileGroups = new Map<string, FileGroup>();
 
@@ -435,6 +436,8 @@ export function buildFileGroups(
       group.score += 50;
     } else if (entryNodeIds.has(node.id)) {
       group.score += 10;
+    } else if (spineNodeIds.has(node.id)) {
+      group.score += 5;
     } else if (connectedToEntry.has(node.id)) {
       group.score += 3;
     } else {
@@ -535,6 +538,7 @@ export function gateAndSortFiles(
   entryNodeIds: Set<string>,
   fileGroups: Map<string, FileGroup>,
   query: string,
+  spineNodeIds: Set<string> = new Set(),
 ): Array<[string, FileGroup]> {
   // Step 1: Filter to files with score ≥ 3
   let relevantFiles = [...fileGroups.entries()].filter(([, group]) => group.score >= 3);
@@ -590,11 +594,20 @@ export function gateAndSortFiles(
   }
 
   // Step 7: Relevance gate
+  // Files on the flow spine are always preserved — the agent needs them
+  // to understand the call path even if their RWR score is low.
+  const spineFiles = new Set<string>();
+  for (const id of spineNodeIds) {
+    const n = subgraph.nodes.get(id);
+    if (n) spineFiles.add(n.filePath);
+  }
+
   if (maxGraph > 0) {
     const gated = relevantFiles.filter(([fp]) =>
       (fileGraphScore.get(fp) ?? 0) >= maxGraph * 0.06
       || centralFiles.has(fp)
       || entryFiles.has(fp)
+      || spineFiles.has(fp)
       || (fileTermHits.get(fp) ?? 0) >= 2,
     );
     if (gated.length >= 2) relevantFiles = gated;
@@ -744,10 +757,10 @@ export async function plan(
 
   // Step 3: Group nodes by file, score by relevance.
   const entryNodeIds = new Set([...subgraph.roots, ...namedSeedIds]);
-  const fileGroups = buildFileGroups(subgraph, namedSeedIds, entryNodeIds);
+  const fileGroups = buildFileGroups(subgraph, namedSeedIds, entryNodeIds, spine.pathNodeIds);
 
   // Step 4: Apply relevance gate and sort files.
-  const sortedFiles = gateAndSortFiles(subgraph, namedSeedIds, entryNodeIds, fileGroups, query);
+  const sortedFiles = gateAndSortFiles(subgraph, namedSeedIds, entryNodeIds, fileGroups, query, spine.pathNodeIds);
 
   // Compute connectedToEntry: nodes directly connected by edge to any entry.
   const connectedToEntry = new Set<string>();
@@ -838,6 +851,71 @@ export async function plan(
     } else {
       entry.evidenceValue = 'compressible';
       entry.reason = 'additional relevant file';
+    }
+
+    // ===== Skeletonization policy (renderMode) =====
+    // Only when adaptive explore is enabled, a flow spine exists,
+    // and the file is NOT distracting.
+    if (entry.evidenceValue !== 'distracting' && readAdaptiveEnabled() && spine.pathNodeIds.size > 0) {
+      // Polymorphic-sibling detector. A class that implements/extends a
+      // supertype shared by >= MIN_SIBLINGS (3) classes is one of many
+      // INTERCHANGEABLE implementations — skeletonize off-spine siblings.
+      const MIN_SIBLINGS = 3;
+      const siblingSuper = new Map<string, boolean>();
+      const isPolymorphicSibling = (nodes: Node[]): boolean => {
+        for (const n of nodes) {
+          for (const e of cg.getOutgoingEdges(n.id)) {
+            if (e.kind !== 'implements' && e.kind !== 'extends') continue;
+            let many = siblingSuper.get(e.target);
+            if (many === undefined) {
+              many = cg.getIncomingEdges(e.target)
+                .filter((x) => x.kind === 'implements' || x.kind === 'extends').length >= MIN_SIBLINGS;
+              siblingSuper.set(e.target, many);
+            }
+            if (many) return true;
+          }
+        }
+        return false;
+      };
+
+      // A file that DEFINES a polymorphic supertype with ≥MIN_SIBLINGS
+      // implementers is a "family" file — it still skeletonizes even when
+      // the agent named a method in it.
+      const superMany = new Map<string, boolean>();
+      const definesPolymorphicSupertype = (nodes: Node[]): boolean => {
+        for (const n of nodes) {
+          if (n.kind !== 'class' && n.kind !== 'interface' && n.kind !== 'struct'
+              && n.kind !== 'trait' && n.kind !== 'protocol' && n.kind !== 'type_alias') continue;
+          let many = superMany.get(n.id);
+          if (many === undefined) {
+            many = cg.getIncomingEdges(n.id)
+              .filter((x) => x.kind === 'implements' || x.kind === 'extends').length >= MIN_SIBLINGS;
+            superMany.set(n.id, many);
+          }
+          if (many) return true;
+        }
+        return false;
+      };
+
+      const hasSpineNode = nodesInFile.some(n => spine.pathNodeIds.has(n.id));
+      const spareNamed = nodesInFile.some(n => spine.uniqueNamedNodeIds.has(n.id));
+      const fileDefinesSuper = definesPolymorphicSupertype(nodesInFile);
+      const spared = spareNamed && !fileDefinesSuper;
+      const isSibling = isPolymorphicSibling(nodesInFile);
+
+      if (!hasSpineNode && isSibling && !spared) {
+        // Off-spine polymorphic sibling → skeletonize
+        entry.renderMode = 'skeleton';
+        entry.reason += '; skeletonized: off-spine polymorphic sibling';
+      } else if (hasSpineNode && isSibling && spared && !fileDefinesSuper) {
+        // On-spine sibling that is uniquely named → keep focused
+        entry.renderMode = 'focused';
+        entry.reason += '; focused: on-spine named callable spared';
+      }
+      // Note: onSpineGodFile logic (renderer lines 203-217) is complex and
+      // depends on file content analysis (bodyChars computation). It stays
+      // in the renderer for now — the planner sets the initial renderMode
+      // and the renderer may further refine it during rendering.
     }
 
     entries.push(entry);
