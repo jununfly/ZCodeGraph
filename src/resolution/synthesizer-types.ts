@@ -164,6 +164,40 @@ export interface PerReferenceSynthesizer {
  */
 export type Synthesizer = FullGraphSynthesizer | PerReferenceSynthesizer;
 
+// ── Configuration ───────────────────────────────────────────────────────
+
+/**
+ * Configuration for the synthesizer registry.
+ * Allows callers to control which synthesizers are enabled based on
+ * project languages, precision thresholds, and explicit overrides.
+ */
+export interface SynthesizerConfig {
+  /**
+   * Languages present in the project. Synthesizers whose declared languages
+   * don't intersect with this set are disabled (unless their `languages`
+   * array is empty — meaning language-agnostic).
+   */
+  projectLanguages?: Language[];
+
+  /**
+   * Minimum precision threshold. Synthesizers below this threshold are
+   * disabled. Default: 'low' (everything enabled).
+   */
+  minPrecision?: Precision;
+
+  /**
+   * Explicitly disabled synthesizer IDs. Takes precedence over language
+   * and precision filters.
+   */
+  disabled?: string[];
+
+  /**
+   * Explicitly enabled synthesizer IDs. Overrides language/precision
+   * filters (even if the synthesizer's languages don't match).
+   */
+  enabled?: string[];
+}
+
 // ── Registry ────────────────────────────────────────────────────────────
 
 /**
@@ -191,8 +225,7 @@ export interface SynthesizerRegistry {
 
   /**
    * List synthesizers in dependency order for full-graph execution.
-   * Synthesizers with no dependencies come first; those that depend on
-   * earlier ones are ordered after their dependencies.
+   * Only returns enabled synthesizers.
    */
   fullGraphOrder(): FullGraphSynthesizer[];
 
@@ -201,6 +234,18 @@ export interface SynthesizerRegistry {
    * Only returns those whose detect() passes for the project.
    */
   detectApplicable(context: ResolutionContext, languages: Language[]): PerReferenceSynthesizer[];
+
+  /**
+   * Apply configuration to enable/disable synthesizers based on project
+   * languages, precision thresholds, and explicit overrides.
+   * Call after registration, before execution.
+   */
+  applyConfig(config: SynthesizerConfig): void;
+
+  /**
+   * Check whether a synthesizer is currently enabled.
+   */
+  isEnabled(id: string): boolean;
 
   /** Remove a synthesizer by id. */
   remove(id: string): void;

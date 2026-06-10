@@ -12,6 +12,7 @@ import type {
   FullGraphSynthesizer,
   PerReferenceSynthesizer,
 } from '../src/resolution/synthesizer-types';
+import type { Language } from '../src/types';
 import type { ResolutionContext } from '../src/resolution/types';
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -19,7 +20,7 @@ import type { ResolutionContext } from '../src/resolution/types';
 function makeFgSynth(
   id: string,
   opts?: {
-    languages?: string[];
+    languages?: Language[];
     dependsOn?: string[];
     precision?: 'high' | 'medium' | 'low';
   },
@@ -251,6 +252,94 @@ describe('SynthesizerRegistry', () => {
       const applicable = reg.detectApplicable(mockCtx(), []);
       expect(applicable).toHaveLength(1);
       expect(applicable[0]!.descriptor.id).toBe('ok');
+    });
+  });
+
+  describe('applyConfig — enable/disable', () => {
+    it('disables synthesizers not matching project languages', () => {
+      reg.register(makeFgSynth('go-only', { languages: ['go'] }));
+      reg.register(makeFgSynth('java-only', { languages: ['java'] }));
+      reg.register(makeFgSynth('agnostic', { languages: [] }));
+
+      reg.applyConfig({ projectLanguages: ['go'] });
+
+      expect(reg.isEnabled('go-only')).toBe(true);
+      expect(reg.isEnabled('java-only')).toBe(false);
+      expect(reg.isEnabled('agnostic')).toBe(true);
+
+      // fullGraphOrder excludes disabled
+      const order = reg.fullGraphOrder();
+      const ids = order.map((s) => s.descriptor.id);
+      expect(ids).toContain('go-only');
+      expect(ids).toContain('agnostic');
+      expect(ids).not.toContain('java-only');
+    });
+
+    it('filters by precision threshold', () => {
+      reg.register(makeFgSynth('high', { precision: 'high' }));
+      reg.register(makeFgSynth('medium', { precision: 'medium' }));
+      reg.register(makeFgSynth('low', { precision: 'low' }));
+
+      reg.applyConfig({ minPrecision: 'medium' });
+
+      expect(reg.isEnabled('high')).toBe(true);
+      expect(reg.isEnabled('medium')).toBe(true);
+      expect(reg.isEnabled('low')).toBe(false);
+    });
+
+    it('respects explicit disabled list', () => {
+      reg.register(makeFgSynth('a'));
+      reg.register(makeFgSynth('b'));
+
+      reg.applyConfig({ disabled: ['a'] });
+
+      expect(reg.isEnabled('a')).toBe(false);
+      expect(reg.isEnabled('b')).toBe(true);
+    });
+
+    it('respects explicit enabled list (overrides language/precision filters)', () => {
+      reg.register(makeFgSynth('go-only', { languages: ['go'] }));
+      reg.register(makeFgSynth('low-prec', { precision: 'low' }));
+
+      reg.applyConfig({
+        projectLanguages: ['java'],
+        minPrecision: 'medium',
+        enabled: ['go-only', 'low-prec'],
+      });
+
+      expect(reg.isEnabled('go-only')).toBe(true);
+      expect(reg.isEnabled('low-prec')).toBe(true);
+    });
+
+    it('disabled synthesizers are excluded from detectApplicable', () => {
+      reg.register(makePrSynth('go-pr', true));
+      const javaPr: PerReferenceSynthesizer = {
+        descriptor: {
+          id: 'java-pr', name: 'java-pr', strategy: 'per-reference',
+          languages: ['java'], precision: 'medium', cost: 'cheap', knownFalsePositives: [],
+        },
+        detect: () => true,
+        resolve: () => null,
+      };
+      reg.register(javaPr);
+
+      reg.applyConfig({ projectLanguages: ['go'] });
+
+      const applicable = reg.detectApplicable(mockCtx(), ['go']);
+      const ids = applicable.map((s) => s.descriptor.id);
+      expect(ids).toContain('go-pr');
+      expect(ids).not.toContain('java-pr');
+    });
+
+    it('re-applying config clears previous state', () => {
+      reg.register(makeFgSynth('a'));
+      reg.register(makeFgSynth('b'));
+
+      reg.applyConfig({ disabled: ['a'] });
+      expect(reg.isEnabled('a')).toBe(false);
+
+      reg.applyConfig({}); // reset
+      expect(reg.isEnabled('a')).toBe(true);
     });
   });
 });

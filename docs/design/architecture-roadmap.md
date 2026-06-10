@@ -137,14 +137,33 @@ It does not count as fallback when the agent reads beyond the promised Evidence 
 
 Benchmark reports may still show raw Read/Grep counts, but interpretation should classify reads as fallback reads, legitimate deepening reads, edit-prep reads, verification reads, or irrelevant/noisy reads.
 
-### Candidate 2: Dynamic dispatch synthesizer registry / Seam
+### Candidate 2: Dynamic dispatch synthesizer registry / Seam ✅ COMPLETED (2026-06-10)
 
 Goal: turn callback/framework/language-specific edge synthesis into registry entries with explicit precision guards and metadata contracts.
 
-Relationship to Candidate 1:
+**Status: Implemented.** Unified registry with 42 entries (21 full-graph + 21 per-reference):
 
+- **`src/resolution/synthesizer-types.ts`** — `FullGraphSynthesizer`,
+  `PerReferenceSynthesizer`, `SynthesizerDescriptor` (with precision, cost,
+  knownFalsePositives, dependsOn), `SynthesizerRegistry` interface,
+  `SynthesizerConfig` for enable/disable control, `wrapFrameworkResolver()`.
+- **`src/resolution/synthesizer-registry.ts`** — `createSynthesizerRegistry()`
+  with topological sort, language filtering, precision thresholds,
+  `applyConfig()`.
+- **`src/resolution/synthesizer-modules.ts`** — 21 `FullGraphSynthesizer`
+  entries wrapping the exported functions from `callback-synthesizer.ts`.
+- **`src/resolution/callback-synthesizer.ts`** — all 19+ synthesize functions
+  now `export function` (was private).
+- **`src/resolution/frameworks/index.ts`** — `registerFrameworkSynthesizers()`
+  wraps 21 FrameworkResolvers into the unified registry.
+- **`__tests__/synthesizer-registry.test.ts`** — 22 tests (register, topo
+  sort, language filter, precision threshold, enable/disable config).
+
+Relationship to Candidate 1:
 - Candidate 2 improves graph evidence availability.
 - Candidate 1 decides whether that evidence becomes useful answer evidence.
+
+Design docs: see `docs/design/dynamic-dispatch-coverage-playbook.md`.
 
 ### Candidate 3: Index pipeline Module
 

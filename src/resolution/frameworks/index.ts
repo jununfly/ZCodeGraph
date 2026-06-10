@@ -2,10 +2,16 @@
  * Framework Resolver Registry
  *
  * Manages framework-specific resolvers.
+ *
+ * Two registration paths are supported:
+ * 1. Legacy: FRAMEWORK_RESOLVERS array + detectFrameworks() (existing callers)
+ * 2. New: registerFrameworkSynthesizers() → SynthesizerRegistry (Candidate 2)
  */
 
 import { FrameworkResolver, ResolutionContext } from '../types';
 import type { Language } from '../../types';
+import type { SynthesizerRegistry } from '../synthesizer-types';
+import { wrapFrameworkResolver } from '../synthesizer-types';
 import { drupalResolver } from './drupal';
 import { laravelResolver } from './laravel';
 import { expressResolver } from './express';
@@ -118,6 +124,20 @@ export function registerFrameworkResolver(resolver: FrameworkResolver): void {
     FRAMEWORK_RESOLVERS.splice(index, 1);
   }
   FRAMEWORK_RESOLVERS.push(resolver);
+}
+
+/**
+ * Register all framework resolvers as PerReferenceSynthesizer entries
+ * into a SynthesizerRegistry. This is the Candidate 2 unification path:
+ * framework resolvers and callback synthesizers share the same registry.
+ *
+ * After registration, call registry.applyConfig() to enable/disable based
+ * on project languages and precision thresholds.
+ */
+export function registerFrameworkSynthesizers(registry: SynthesizerRegistry): void {
+  for (const fw of FRAMEWORK_RESOLVERS) {
+    registry.register(wrapFrameworkResolver(fw));
+  }
 }
 
 // Re-export framework resolvers

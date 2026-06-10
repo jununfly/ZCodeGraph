@@ -13,6 +13,8 @@ import type {
   FullGraphSynthesizer,
   PerReferenceSynthesizer,
   SynthesizerStrategy,
+  SynthesizerConfig,
+  Precision,
 } from './synthesizer-types';
 import type { Language } from '../types';
 import type { ResolutionContext } from './types';
@@ -20,6 +22,8 @@ import type { ResolutionContext } from './types';
 export function createSynthesizerRegistry(): SynthesizerRegistry {
   const _entries: Synthesizer[] = [];
   const _byId = new Map<string, Synthesizer>();
+  const _disabled = new Set<string>();
+  const _enabled = new Set<string>();
 
   return {
     register(synth: Synthesizer): void {
@@ -59,7 +63,8 @@ export function createSynthesizerRegistry(): SynthesizerRegistry {
 
     fullGraphOrder(): FullGraphSynthesizer[] {
       const fg = _entries.filter(
-        (s): s is FullGraphSynthesizer => s.descriptor.strategy === 'full-graph',
+        (s): s is FullGraphSynthesizer =>
+          s.descriptor.strategy === 'full-graph' && !_disabled.has(s.descriptor.id),
       );
       // Topological sort by dependsOn
       const idSet = new Set(fg.map((s) => s.descriptor.id));
@@ -110,7 +115,8 @@ export function createSynthesizerRegistry(): SynthesizerRegistry {
       languages: Language[],
     ): PerReferenceSynthesizer[] {
       const prs = _entries.filter(
-        (s): s is PerReferenceSynthesizer => s.descriptor.strategy === 'per-reference',
+        (s): s is PerReferenceSynthesizer =>
+          s.descriptor.strategy === 'per-reference' && !_disabled.has(s.descriptor.id),
       );
       return prs.filter((s) => {
         // Language filter
@@ -124,6 +130,52 @@ export function createSynthesizerRegistry(): SynthesizerRegistry {
           return false;
         }
       });
+    },
+
+    applyConfig(config: SynthesizerConfig): void {
+      _disabled.clear();
+      _enabled.clear();
+
+      for (const id of config.enabled ?? []) {
+        _enabled.add(id);
+      }
+
+      for (const synth of _entries) {
+        const id = synth.descriptor.id;
+
+        // Explicitly enabled → never disable
+        if (_enabled.has(id)) continue;
+
+        // Explicitly disabled
+        if (config.disabled?.includes(id)) {
+          _disabled.add(id);
+          continue;
+        }
+
+        // Precision threshold
+        if (config.minPrecision) {
+          const order: Precision[] = ['low', 'medium', 'high'];
+          if (order.indexOf(synth.descriptor.precision) < order.indexOf(config.minPrecision)) {
+            _disabled.add(id);
+            continue;
+          }
+        }
+
+        // Language filter: skip if synthesizer has languages and none match
+        if (
+          config.projectLanguages &&
+          config.projectLanguages.length > 0 &&
+          synth.descriptor.languages.length > 0
+        ) {
+          if (!synth.descriptor.languages.some((l) => config.projectLanguages!.includes(l))) {
+            _disabled.add(id);
+          }
+        }
+      }
+    },
+
+    isEnabled(id: string): boolean {
+      return !_disabled.has(id);
     },
 
     remove(id: string): void {
