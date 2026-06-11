@@ -29,7 +29,7 @@ interface Migration {
 const migrations: Migration[] = [
   {
     version: 2,
-    description: 'Add project metadata, provenance tracking, and unresolved ref context',
+    description: 'Add project metadata, edge origin tracking, and unresolved ref context',
     up: (db) => {
       db.exec(`
         CREATE TABLE IF NOT EXISTS project_metadata (
@@ -39,9 +39,9 @@ const migrations: Migration[] = [
         );
         ALTER TABLE unresolved_refs ADD COLUMN file_path TEXT NOT NULL DEFAULT '';
         ALTER TABLE unresolved_refs ADD COLUMN language TEXT NOT NULL DEFAULT 'unknown';
-        ALTER TABLE edges ADD COLUMN provenance TEXT DEFAULT NULL;
+        ALTER TABLE edges ADD COLUMN edgeOrigin TEXT DEFAULT NULL;
         CREATE INDEX IF NOT EXISTS idx_unresolved_file_path ON unresolved_refs(file_path);
-        CREATE INDEX IF NOT EXISTS idx_edges_provenance ON edges(provenance);
+        CREATE INDEX IF NOT EXISTS idx_edges_edgeOrigin ON edges(edgeOrigin);
       `);
     },
   },

@@ -89,7 +89,7 @@ interface EdgeRow {
   metadata: string | null;
   line: number | null;
   col: number | null;
-  provenance: string | null;
+  edgeOrigin: string | null;
 }
 
 interface FileRow {
@@ -154,7 +154,7 @@ function rowToEdge(row: EdgeRow): Edge {
     metadata: row.metadata ? safeJsonParse(row.metadata, undefined) : undefined,
     line: row.line ?? undefined,
     column: row.col ?? undefined,
-    provenance: row.provenance as Edge['provenance'],
+    edgeOrigin: row.edgeOrigin as Edge['edgeOrigin'],
   };
 }
 
@@ -1242,8 +1242,8 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
   insertEdge(edge: Edge): void {
     if (!this.stmts.insertEdge) {
       this.stmts.insertEdge = this.db.prepare(`
-        INSERT OR IGNORE INTO edges (source, target, kind, metadata, line, col, provenance)
-        VALUES (@source, @target, @kind, @metadata, @line, @col, @provenance)
+        INSERT OR IGNORE INTO edges (source, target, kind, metadata, line, col, edgeOrigin)
+        VALUES (@source, @target, @kind, @metadata, @line, @col, @edgeOrigin)
       `);
     }
 
@@ -1254,7 +1254,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       metadata: edge.metadata ? JSON.stringify(edge.metadata) : null,
       line: edge.line ?? null,
       col: edge.column ?? null,
-      provenance: edge.provenance ?? null,
+      edgeOrigin: edge.edgeOrigin ?? null,
     });
   }
 
@@ -1294,8 +1294,8 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
   /**
    * Get outgoing edges from a node
    */
-  getOutgoingEdges(sourceId: string, kinds?: EdgeKind[], provenance?: string): Edge[] {
-    if ((kinds && kinds.length > 0) || provenance) {
+  getOutgoingEdges(sourceId: string, kinds?: EdgeKind[], edgeOrigin?: string): Edge[] {
+    if ((kinds && kinds.length > 0) || edgeOrigin) {
       let sql = 'SELECT * FROM edges WHERE source = ?';
       const params: (string | number)[] = [sourceId];
 
@@ -1304,9 +1304,9 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
         params.push(...kinds);
       }
 
-      if (provenance) {
-        sql += ' AND provenance = ?';
-        params.push(provenance);
+      if (edgeOrigin) {
+        sql += ' AND edgeOrigin = ?';
+        params.push(edgeOrigin);
       }
 
       const rows = this.db.prepare(sql).all(...params) as EdgeRow[];

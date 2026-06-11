@@ -79,7 +79,7 @@ export function matchesSymbol(node: Node, symbol: string): boolean {
  * Extracted from ToolsHandler.synthEdgeNote.
  */
 export function synthEdgeNote(edge: Edge | null): { label: string; compact: string; registeredAt?: string } | null {
-  if (!edge || edge.provenance !== 'heuristic') return null;
+  if (!edge || edge.edgeOrigin !== 'heuristic') return null;
   const m = edge.metadata as Record<string, unknown> | undefined;
   const registeredAt = typeof m?.registeredAt === 'string' ? m.registeredAt : undefined;
   const at = registeredAt ? ` @${registeredAt}` : '';
@@ -1098,7 +1098,7 @@ export function buildFlowFromNamedSymbols(cg: CodeGraph, query: string): FlowRes
       if (synthLines.length >= 6) break;
       for (const { node: other, edge } of [...cg.getCallers(n.id), ...cg.getCallees(n.id)]) {
         if (synthLines.length >= 6) break;
-        if (edge.provenance !== 'heuristic' || other.id === n.id) continue;
+        if (edge.edgeOrigin !== 'heuristic' || other.id === n.id) continue;
         if (pathIds.has(edge.source) && pathIds.has(edge.target)) continue;
         const src = edge.source === n.id ? n : other;
         const tgt = edge.source === n.id ? other : n;

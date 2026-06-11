@@ -797,7 +797,7 @@ describe('Java anonymous-class override synthesis — end-to-end', () => {
       .getOutgoingEdges(baseAbstract!.id)
       .find((e) => e.target === anonOverride!.id && e.kind === 'calls');
     expect(synthEdge, 'BaseIter.separatorStart should bridge to anon.separatorStart').toBeDefined();
-    expect(synthEdge!.provenance).toBe('heuristic');
+    expect(synthEdge!.edgeOrigin).toBe('heuristic');
     expect((synthEdge!.metadata as { synthesizedBy?: string } | undefined)?.synthesizedBy).toBe(
       'interface-impl'
     );
@@ -858,7 +858,7 @@ describe('Go gRPC stub→impl synthesis', () => {
         .getOutgoingEdges(stubSend!.id)
         .find((e) => e.target === implSend!.id && e.kind === 'calls');
       expect(bridge, 'stub Send should bridge to impl Send').toBeDefined();
-      expect(bridge!.provenance).toBe('heuristic');
+      expect(bridge!.edgeOrigin).toBe('heuristic');
       expect((bridge!.metadata as { synthesizedBy?: string } | undefined)?.synthesizedBy).toBe(
         'go-grpc-stub-impl'
       );

@@ -52,7 +52,7 @@ export interface AgentAccessModel {
   findNodesByNameSubstring(substring: string, options?: SearchOptions): SearchResult[];
 
   // Edge traversal
-  getOutgoingEdges(sourceId: string, kinds?: EdgeKind[], provenance?: string): Edge[];
+  getOutgoingEdges(sourceId: string, kinds?: EdgeKind[], edgeOrigin?: string): Edge[];
   getIncomingEdges(targetId: string, kinds?: EdgeKind[]): Edge[];
   findEdgesBetweenNodes(nodeIds: string[], kinds?: EdgeKind[]): Edge[];
 

@@ -123,7 +123,7 @@ describe('synthEdgeNote', () => {
       source: 'a',
       target: 'b',
       kind: 'calls',
-      // no provenance — default, not heuristic
+      // no edgeOrigin — default, not heuristic
     };
     expect(synthEdgeNote(edge)).toBeNull();
   });
@@ -135,7 +135,7 @@ describe('synthEdgeNote', () => {
   it('recognizes callback strategy', () => {
     const edge: Edge = {
       source: 'reg', target: 'handler', kind: 'calls',
-      provenance: 'heuristic',
+      edgeOrigin: 'heuristic',
       metadata: { synthesizedBy: 'callback', via: 'addEventListener', field: 'onClick' },
     };
     const note = synthEdgeNote(edge);
@@ -147,7 +147,7 @@ describe('synthEdgeNote', () => {
   it('recognizes event-emitter strategy', () => {
     const edge: Edge = {
       source: 'emitter', target: 'listener', kind: 'calls',
-      provenance: 'heuristic',
+      edgeOrigin: 'heuristic',
       metadata: { synthesizedBy: 'event-emitter', event: 'data' },
     };
     const note = synthEdgeNote(edge);
@@ -159,7 +159,7 @@ describe('synthEdgeNote', () => {
   it('recognizes react-render strategy', () => {
     const edge: Edge = {
       source: 'component', target: 'render', kind: 'calls',
-      provenance: 'heuristic',
+      edgeOrigin: 'heuristic',
       metadata: { synthesizedBy: 'react-render' },
     };
     const note = synthEdgeNote(edge);
@@ -170,7 +170,7 @@ describe('synthEdgeNote', () => {
   it('includes registeredAt in compact note when present', () => {
     const edge: Edge = {
       source: 'a', target: 'b', kind: 'calls',
-      provenance: 'heuristic',
+      edgeOrigin: 'heuristic',
       metadata: { synthesizedBy: 'callback', via: 'on', registeredAt: 'app.tsx:42' },
     };
     const note = synthEdgeNote(edge);
@@ -181,7 +181,7 @@ describe('synthEdgeNote', () => {
   it('recognizes vue-handler strategy', () => {
     const edge: Edge = {
       source: 'tmpl', target: 'method', kind: 'calls',
-      provenance: 'heuristic',
+      edgeOrigin: 'heuristic',
       metadata: { synthesizedBy: 'vue-handler', event: 'click' },
     };
     const note = synthEdgeNote(edge);

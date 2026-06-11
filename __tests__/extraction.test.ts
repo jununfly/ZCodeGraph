@@ -3305,7 +3305,7 @@ actual class Platform {
     const bridge = impact.edges.find(
       (e) =>
         e.target === actualFn!.id &&
-        e.provenance === 'heuristic' &&
+        e.edgeOrigin === 'heuristic' &&
         (e.metadata as { synthesizedBy?: string } | undefined)?.synthesizedBy ===
           'kotlin-expect-actual'
     );

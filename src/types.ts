@@ -190,7 +190,7 @@ export interface Edge {
   column?: number;
 
   /** How this edge was created */
-  provenance?: 'tree-sitter' | 'scip' | 'heuristic';
+  edgeOrigin?: 'tree-sitter' | 'scip' | 'heuristic';
 }
 
 /**

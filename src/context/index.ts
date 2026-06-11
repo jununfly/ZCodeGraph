@@ -376,7 +376,7 @@ export class ContextBuilder {
     // "source>target".
     const synthByPair = new Map<string, string>();
     for (const e of subgraph.edges) {
-      if (e.kind !== 'calls' || e.provenance !== 'heuristic') continue;
+      if (e.kind !== 'calls' || e.edgeOrigin !== 'heuristic') continue;
       const m = e.metadata as Record<string, unknown> | undefined;
       if (!m?.synthesizedBy) continue;
       const at = typeof m.registeredAt === 'string' ? ` @${m.registeredAt}` : '';

@@ -1131,7 +1131,7 @@ export class ToolHandler {
    * hop reads as "registered via onUpdate at App.tsx:3148", not a bare arrow.
    */
   private synthEdgeNote(edge: Edge | null): { label: string; compact: string; registeredAt?: string } | null {
-    if (!edge || edge.provenance !== 'heuristic') return null;
+    if (!edge || edge.edgeOrigin !== 'heuristic') return null;
     const m = edge.metadata as Record<string, unknown> | undefined;
     const registeredAt = typeof m?.registeredAt === 'string' ? m.registeredAt : undefined;
     const at = registeredAt ? ` @${registeredAt}` : '';
@@ -1301,7 +1301,7 @@ export class ToolHandler {
         if (synthLines.length >= 6) break;
         for (const { node: other, edge } of [...cg.getCallers(n.id), ...cg.getCallees(n.id)]) {
           if (synthLines.length >= 6) break;
-          if (edge.provenance !== 'heuristic' || other.id === n.id) continue;
+          if (edge.edgeOrigin !== 'heuristic' || other.id === n.id) continue;
           if (pathIds.has(edge.source) && pathIds.has(edge.target)) continue; // already in the main chain
           const src = edge.source === n.id ? n : other;
           const tgt = edge.source === n.id ? other : n;

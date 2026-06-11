@@ -92,7 +92,7 @@ class OtherApp {
                 t.name target_name,
                 t.kind target_kind,
                 e.kind edge_kind,
-                e.provenance provenance,
+                e.edgeOrigin edgeOrigin,
                 json_extract(e.metadata,'$.synthesizedBy') synthesizedBy,
                 json_extract(e.metadata,'$.via') via,
                 json_extract(e.metadata,'$.field') field,
@@ -116,7 +116,7 @@ class OtherApp {
     expect(edge.source_kind).toBe('method');
     expect(edge.target_kind).toBe('method');
     expect(edge.edge_kind).toBe('calls');
-    expect(edge.provenance).toBe('heuristic');
+    expect(edge.edgeOrigin).toBe('heuristic');
     expect(edge.synthesizedBy).toBe('callback');
     expect(edge.via).toBe('onUpdate');
     expect(edge.field).toBe('callbacks');

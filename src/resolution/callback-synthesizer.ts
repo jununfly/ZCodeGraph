@@ -19,7 +19,7 @@
  * named callbacks only; field channels paired by file+field; EventEmitter
  * channels capped by event fan-out (generic names like 'error' skipped — they
  * need receiver-type matching, deferred to Phase 3). All synthesized edges are
- * tagged `provenance:'heuristic'`. See docs/design/callback-edge-synthesis.md.
+ * tagged `edgeOrigin:'heuristic'`. See docs/design/callback-edge-synthesis.md.
  */
 import type { Edge, Node, NodeKind } from '../types';
 import type { QueryBuilder } from '../db/queries';
@@ -178,7 +178,7 @@ export function fieldChannelEdges(queries: QueryBuilder, ctx: ResolutionContext)
         seen.add(key);
         edges.push({
           source: disp.node.id, target: fn.id, kind: 'calls', line: disp.node.startLine,
-          provenance: 'heuristic',
+          edgeOrigin: 'heuristic',
           metadata: {
             synthesizedBy: 'callback', via: reg.node.name, field: reg.field,
             // Where the callback was wired up (`scene.onUpdate(this.triggerRender)`).
@@ -260,7 +260,7 @@ export function closureCollectionEdges(queries: QueryBuilder, ctx: ResolutionCon
       seen.add(key);
       edges.push({
         source: disp.node.id, target: reg.node.id, kind: 'calls', line: disp.line,
-        provenance: 'heuristic',
+        edgeOrigin: 'heuristic',
         metadata: { synthesizedBy: 'closure-collection', field, registeredAt: `${reg.node.filePath}:${reg.line}` },
       });
     }
@@ -319,7 +319,7 @@ export function eventEmitterEdges(ctx: ResolutionContext): Edge[] {
       const key = `${d}>${h}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      edges.push({ source: d, target: h, kind: 'calls', provenance: 'heuristic', metadata: { synthesizedBy: 'event-emitter', event, registeredAt } });
+      edges.push({ source: d, target: h, kind: 'calls', edgeOrigin: 'heuristic', metadata: { synthesizedBy: 'event-emitter', event, registeredAt } });
     }
   }
   return edges;
@@ -357,7 +357,7 @@ export function reactRenderEdges(queries: QueryBuilder, ctx: ResolutionContext):
       seen.add(key);
       edges.push({
         source: m.id, target: render.id, kind: 'calls', line: m.startLine,
-        provenance: 'heuristic',
+        edgeOrigin: 'heuristic',
         metadata: { synthesizedBy: 'react-render', via: 'setState', registeredAt: `${render.filePath}:${render.startLine}` },
       });
       added++;
@@ -396,7 +396,7 @@ export function flutterBuildEdges(queries: QueryBuilder, ctx: ResolutionContext)
       seen.add(key);
       edges.push({
         source: m.id, target: build.id, kind: 'calls', line: m.startLine,
-        provenance: 'heuristic',
+        edgeOrigin: 'heuristic',
         metadata: { synthesizedBy: 'flutter-build', via: 'setState', registeredAt: `${build.filePath}:${build.startLine}` },
       });
       added++;
@@ -443,7 +443,7 @@ export function cppOverrideEdges(queries: QueryBuilder): Edge[] {
           target: m.id,
           kind: 'calls',
           line: bm.startLine,
-          provenance: 'heuristic',
+          edgeOrigin: 'heuristic',
           metadata: { synthesizedBy: 'cpp-override', via: m.name, registeredAt: `${m.filePath}:${m.startLine}` },
         });
         added++;
@@ -525,7 +525,7 @@ export function goImplementsEdges(queries: QueryBuilder): Edge[] {
         target: iface.id,
         kind: 'implements',
         line: s.startLine,
-        provenance: 'heuristic',
+        edgeOrigin: 'heuristic',
         metadata: { synthesizedBy: 'go-implements', via: iface.name, registeredAt: `${s.filePath}:${s.startLine}` },
       });
       added++;
@@ -551,7 +551,7 @@ export function goImplementsEdges(queries: QueryBuilder): Edge[] {
  * Go guarantees a method's receiver type is declared in the SAME PACKAGE as the
  * method, and a Go package is a single directory — so this is a deterministic
  * structural link, not a heuristic: find the same-named type in the method's own
- * directory and add the missing `contains` edge (no `provenance: 'heuristic'`,
+ * directory and add the missing `contains` edge (no `edgeOrigin: 'heuristic'`,
  * matching the same-file edges extraction already emits). Skips methods that
  * already have a type parent (the same-file case). (#583, cross-file half)
  */
@@ -655,7 +655,7 @@ export function kotlinExpectActualEdges(queries: QueryBuilder): Edge[] {
         target: act.id,
         kind: 'calls',
         line: cand.startLine,
-        provenance: 'heuristic',
+        edgeOrigin: 'heuristic',
         metadata: {
           synthesizedBy: 'kotlin-expect-actual',
           via: act.name,
@@ -710,7 +710,7 @@ export function interfaceOverrideEdges(queries: QueryBuilder): Edge[] {
             target: m.id,
             kind: 'calls',
             line: bm.startLine,
-            provenance: 'heuristic',
+            edgeOrigin: 'heuristic',
             metadata: { synthesizedBy: 'interface-impl', via: m.name, registeredAt: `${m.filePath}:${m.startLine}` },
           });
           added++;
@@ -816,7 +816,7 @@ export function goGrpcStubImplEdges(queries: QueryBuilder): Edge[] {
             target: cm.id,
             kind: 'calls',
             line: sm.startLine,
-            provenance: 'heuristic',
+            edgeOrigin: 'heuristic',
             metadata: {
               synthesizedBy: 'go-grpc-stub-impl',
               via: cm.name,
@@ -867,7 +867,7 @@ export function reactJsxChildEdges(ctx: ResolutionContext): Edge[] {
         seen.add(key);
         edges.push({
           source: parent.id, target: child.id, kind: 'calls', line: parent.startLine,
-          provenance: 'heuristic',
+          edgeOrigin: 'heuristic',
           metadata: { synthesizedBy: 'jsx-render', via: name },
         });
         added++;
@@ -936,7 +936,7 @@ export function vueTemplateEdges(ctx: ResolutionContext): Edge[] {
       const k = `${comp.id}>${target.id}>${meta.synthesizedBy}`;
       if (seen.has(k)) return;
       seen.add(k);
-      edges.push({ source: comp.id, target: target.id, kind: 'calls', line: comp.startLine, provenance: 'heuristic', metadata: meta });
+      edges.push({ source: comp.id, target: target.id, kind: 'calls', line: comp.startLine, edgeOrigin: 'heuristic', metadata: meta });
       added++;
     };
     // Prefer a target in THIS SFC (handlers live in the same file's script) —
@@ -1177,7 +1177,7 @@ export function rnEventEdges(ctx: ResolutionContext): Edge[] {
           source: d,
           target: h,
           kind: 'calls',
-          provenance: 'heuristic',
+          edgeOrigin: 'heuristic',
           metadata: { synthesizedBy: 'rn-event-channel', event, registeredAt },
         });
       }
@@ -1201,7 +1201,7 @@ export function rnEventEdges(ctx: ResolutionContext): Edge[] {
  *
  * This synthesizer walks every Fabric component node and looks for a
  * native class matching one of those names; when found, emits a
- * `calls` edge `component → native class` (provenance `'heuristic'`,
+ * `calls` edge `component → native class` (edgeOrigin `'heuristic'`,
  * `synthesizedBy:'fabric-native-impl'`) so trace from JSX usage of the
  * component continues into native.
  *
@@ -1247,7 +1247,7 @@ export function expoCrossPlatformEdges(queries: QueryBuilder): Edge[] {
           target: b.id,
           kind: 'calls',
           line: a.startLine,
-          provenance: 'heuristic',
+          edgeOrigin: 'heuristic',
           metadata: { synthesizedBy: 'expo-cross-platform', via: a.name },
         });
       }
@@ -1325,7 +1325,7 @@ export function rnCrossPlatformEdges(queries: QueryBuilder): Edge[] {
             target: b.id,
             kind: 'calls',
             line: a.startLine,
-            provenance: 'heuristic',
+            edgeOrigin: 'heuristic',
             metadata: { synthesizedBy: 'rn-cross-platform', via: norm(m.name) },
           });
         }
@@ -1368,7 +1368,7 @@ export function fabricNativeImplEdges(ctx: ResolutionContext): Edge[] {
           source: component.id,
           target: native.id,
           kind: 'calls',
-          provenance: 'heuristic',
+          edgeOrigin: 'heuristic',
           metadata: {
             synthesizedBy: 'fabric-native-impl',
             viaSuffix: suffix || '(exact)',
@@ -1437,7 +1437,7 @@ export function mybatisJavaXmlEdges(queries: QueryBuilder): Edge[] {
       target: xml.id,
       kind: 'calls',
       line: java.startLine,
-      provenance: 'heuristic',
+      edgeOrigin: 'heuristic',
       metadata: {
         synthesizedBy: 'mybatis-java-xml',
         via: `${className}.${id}`,
@@ -1558,7 +1558,7 @@ export function ginMiddlewareChainEdges(queries: QueryBuilder, ctx: ResolutionCo
       seen.add(key);
       edges.push({
         source: disp.id, target: handler.id, kind: 'calls', line: disp.startLine,
-        provenance: 'heuristic',
+        edgeOrigin: 'heuristic',
         metadata: { synthesizedBy: 'gin-middleware-chain', via: name, registeredAt },
       });
       added++;
@@ -1589,7 +1589,7 @@ export function pascalFormEdges(ctx: ResolutionContext): Edge[] {
       target: formNode.id,
       kind: 'references',
       line: unitNode.startLine,
-      provenance: 'heuristic',
+      edgeOrigin: 'heuristic',
       metadata: { synthesizedBy: 'pascal-form', registeredAt: pasFile },
     });
   }
@@ -1605,7 +1605,7 @@ export function pascalFormEdges(ctx: ResolutionContext): Edge[] {
  * server-side dependency. Link the page component to its sibling loader's
  * `load` / `actions` (same for `+layout`). The pairing is path-deterministic
  * (same directory, matching `+page`/`+layout` prefix), so it's precise — but
- * it's a framework-convention edge, so provenance stays `heuristic`.
+ * it's a framework-convention edge, so edgeOrigin stays `heuristic`.
  *
  * Direction: page → load, so `getImpactRadius(load)` surfaces the page (editing
  * a loader's data shows the page it feeds) and the page's dependencies include
@@ -1633,7 +1633,7 @@ export function svelteKitLoadEdges(ctx: ResolutionContext): Edge[] {
           target: hook.id,
           kind: 'references',
           line: page.startLine,
-          provenance: 'heuristic',
+          edgeOrigin: 'heuristic',
           metadata: {
             synthesizedBy: 'sveltekit-load',
             via: hook.name,
