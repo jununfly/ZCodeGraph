@@ -1,5 +1,7 @@
 # Architecture Candidates Phasing & Explore Answer Planner — Design & Implementation Plan
 
+> **Status: Phase 1–4 ALL COMPLETED** (2026-06-10). This document is preserved as historical record of the design decisions and implementation tasks. See `docs/design/architecture-roadmap.md` for current status.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task.
 
 **Phase goal (this plan):** Partition the 7 architecture candidates into phases and produce the actual design & first implementation steps for Candidate 1 (Explore Answer planner seam).
@@ -16,29 +18,31 @@
 
 The 7 candidates are intentionally ordered in `docs/design/architecture-roadmap.md` by recommendation strength. Execution should follow the same priority:
 
-### Phase 1: Candidate 1 — Explore Answer Planner Seam
+### Phase 1: Candidate 1 — Explore Answer Planner Seam ✅ COMPLETED (2026-06-10)
 
-**When?** Start now. This plan covers it.
+**When?** Done. This plan covered it.
 
 **Scope:** Extract Explore answer planning into its own module. Expose the Explore Answer as a testable intermediate structure. Keep MCP as adapter.
 
 **Dependencies:** None.
 
-### Phase 2: Candidate 2 — Dynamic Dispatch Synthesizer Registry / Seam
+**Result:** See Candidate 1 section in `docs/design/architecture-roadmap.md`.
 
-**When?** After Candidate 1 yields a working planner + benchmark baseline.
+### Phase 2: Candidate 2 — Dynamic Dispatch Synthesizer Registry / Seam ✅ COMPLETED (2026-06-10)
+
+**When?** Done — Candidate 1 yielded a working planner; benchmark baseline was **not** recorded before proceeding (see Post-Phase Benchmarks note below).
 
 **Relationship to Phase 1:** Candidate 2 improves graph evidence availability; Candidate 1 decides whether that evidence becomes useful answer evidence. A working planner lets us measure Candidate 2's actual agent-facing impact.
 
-### Phase 3: Candidates 3–4 — Index Pipeline & Extraction Parse Execution
+### Phase 3: Candidates 3–4 — Index Pipeline & Extraction Parse Execution ✅ COMPLETED (2026-06-10)
 
-**When?** After the first two phases stabilize.
+**When?** Done. Stabilized alongside Phase 2 on the same day.
 
 **Rationale:** These are internal lifecycle improvements. They improve maintainability and testability but have no direct agent-facing signal. Evaluate together as one "internal pipeline" phase.
 
-### Phase 4: Candidates 5–7 — CLI, Installer, Query
+### Phase 4: Candidates 5–7 — CLI, Installer, Query ✅ COMPLETED (2026-06-10)
 
-**When?** When the above phases are done or when a specific pain point surfaces.
+**When?** Done. All 7 candidates completed in a single session.
 
 **Rationale:** These are lower-priority. Don't actively plan until the agent-facing signal needs them.
 
@@ -250,7 +254,7 @@ These test MCP integration.
 
 ## Task Breakdown
 
-### Task 1: Create explore-types.ts
+### Task 1: Create explore-types.ts ✅ COMPLETED
 
 **Files:** Create `src/mcp/explore-types.ts`
 
@@ -260,7 +264,7 @@ These test MCP integration.
 
 **Commit:** `git add src/mcp/explore-types.ts && git commit -m "feat(explore): add ExplorePlan types for planner seam"`
 
-### Task 2: Extract explore-planner.ts
+### Task 2: Extract explore-planner.ts ✅ COMPLETED
 
 **Files:**
 - Create: `src/mcp/explore-planner.ts`
@@ -337,7 +341,7 @@ git add src/mcp/explore-planner.ts src/mcp/explore-types.ts src/mcp/tools.ts __t
 git commit -m "feat(explore): extract ExplorePlan with named-entry test"
 ```
 
-### Task 3: Extract explore-renderer.ts
+### Task 3: Extract explore-renderer.ts ✅ COMPLETED (with design deviation — see note below)
 
 **Files:**
 - Create: `src/mcp/explore-renderer.ts`
@@ -398,7 +402,7 @@ git add src/mcp/explore-renderer.ts __tests__/explore-renderer.test.ts src/mcp/t
 git commit -m "feat(explore): extract Explore Answer renderer with full-source test"
 ```
 
-### Task 4: Port Evidence Value assignment
+### Task 4: Port Evidence Value assignment ✅ COMPLETED
 
 **Files:**
 - Modify: `src/mcp/explore-planner.ts`
@@ -439,7 +443,7 @@ git add src/mcp/explore-planner.ts __tests__/explore-planner.test.ts
 git commit -m "feat(explore): port Evidence Value assignment to planner"
 ```
 
-### Task 5: Port skeletonization policy
+### Task 5: Port skeletonization policy ✅ COMPLETED
 
 **Files:**
 - Modify: `src/mcp/explore-planner.ts`
@@ -480,7 +484,7 @@ git add src/mcp/explore-planner.ts __tests__/explore-planner.test.ts
 git commit -m "feat(explore): port skeletonization policy to planner"
 ```
 
-### Task 6: Port Output Budget enforcement
+### Task 6: Port Output Budget enforcement ✅ COMPLETED
 
 **Files:**
 - Modify: `src/mcp/explore-planner.ts`, `src/mcp/tools.ts`
@@ -529,7 +533,7 @@ git add src/mcp/explore-planner.ts src/mcp/tools.ts __tests__/explore-planner.te
 git commit -m "feat(explore): port Output Budget enforcement to planner"
 ```
 
-### Task 7: Port freshness banner
+### Task 7: Port freshness banner ✅ COMPLETED
 
 **Files:**
 - Modify: `src/mcp/explore-planner.ts`, `src/mcp/explore-renderer.ts`
@@ -566,7 +570,7 @@ git add src/mcp/explore-planner.ts src/mcp/explore-renderer.ts __tests__/explore
 git commit -m "feat(explore): port freshness banner to planner plan"
 ```
 
-### Task 8: Cleanup and final verification
+### Task 8: Cleanup and final verification ✅ COMPLETED
 
 **Files:** All touched files.
 
@@ -604,7 +608,7 @@ git add src/mcp/tools.ts
 git commit -m "refactor(explore): remove ported planning logic from handleExplore"
 ```
 
-### Task 9: Update design docs
+### Task 9: Update design docs ✅ COMPLETED
 
 **Files:**
 - Modify: `docs/design/adaptive-explore-sizing.md`
@@ -632,11 +636,13 @@ git commit -m "docs: update design docs after Explore planner extraction"
 
 ## Post-Phase Benchmarks
 
-After the seam extraction is complete and the commit chain is clean:
+**⚠️ STATUS: PARTIAL — unit baseline recorded, agent A/B pending (2026-06-11).**
 
-1. Run the existing benchmark suite to verify no regression.
-2. If the seam extraction is behavior-preserving (which it should be), the benchmark numbers should match the pre-extraction baseline.
-3. Record the benchmark output as a baseline for Candidate 1's policy improvements.
+Unit-test regression baseline: see `docs/benchmarks/post-c1-baseline-2026-06-11.md`.
+
+**Summary:** 175/175 explore-specific tests pass. Build clean. 23 pre-existing failures in unrelated subsystems (MCP daemon, JVM resolution, C/C++ includes, symlink security).
+
+Agent-level A/B benchmarks (`call-sequence-analysis.md`, `answer-directly-vs-explore-agent.md`) require external indexed codebases and real agent sessions — **not yet re-run post-extraction**. This is the remaining gap before Candidate 2+ policy improvements can be measured against a true sufficiency baseline.
 
 ## Risks / Guardrails
 
