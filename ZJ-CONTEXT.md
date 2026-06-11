@@ -21,7 +21,7 @@
 
 **Definition:** The degree to which a ZCodeGraph answer gives an agent enough code understanding to continue the task without falling back to generic file-reading or text-search tools.
 
-**Use when:** Discussing Explore output quality, context planning, benchmark goals, or whether code graph information was presented in an actionable form.
+**Use when:** Discussing Explore Answer quality, context planning, benchmark goals, or whether code graph information was presented in an actionable form.
 
 **Not:** A claim that the underlying graph contains every possible code relationship. Graph completeness can contribute to sufficiency, but it is not the same thing.
 
@@ -71,7 +71,7 @@
 
 **Definition:** A visible agent behavior where, after receiving a ZCodeGraph answer, the agent still uses generic file-reading or text-search tools to recover code facts that the answer was expected to provide.
 
-**Use when:** Classifying benchmark failures, evaluating Explore output sufficiency, or deciding whether a planner change improved the agent workflow.
+**Use when:** Classifying benchmark failures, evaluating Explore Answer sufficiency, or deciding whether a planner change improved the agent workflow.
 
 **Not:** Any use of file-reading tools. Some tasks legitimately require reading source after ZCodeGraph narrows the target. A fallback only counts when the agent uses generic tools to rediscover information that should have been present in the ZCodeGraph answer.
 

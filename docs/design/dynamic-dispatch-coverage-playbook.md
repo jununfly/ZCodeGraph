@@ -209,7 +209,7 @@ were found). Confirm it's dynamic by reading the break symbol's body.
 | `scripts/agent-eval/probe-trace.mjs <repo> <from> <to>` | call-path between two symbols (the hole detector) |
 | `scripts/agent-eval/probe-node.mjs <repo> <sym> [code]` | symbol + trail (callers/callees); `code` adds the body |
 | `scripts/agent-eval/probe-context.mjs <repo> "<task>"` | context output incl. call-paths |
-| `scripts/agent-eval/probe-explore.mjs <repo> "<query>"` | explore output |
+| `scripts/agent-eval/probe-explore.mjs <repo> "<query>"` | Explore Answer |
 | `scripts/agent-eval/{audit,run-agent,itrun}.sh` | agent A/B (headless + interactive); also the `/agent-eval` skill |
 | `sqlite3 <repo>/.zcodegraph/zcodegraph.db` | direct edge/node inspection (provenance, metadata, counts) |
 

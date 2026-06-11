@@ -10,7 +10,7 @@ ZCodeGraph is a fork-productized code understanding tool. Its highest-value user
 
 The architecture review identified several candidates for deepening the codebase:
 
-- Explore response planner / Output Budget seam.
+- Explore Answer planner / Output Budget seam.
 - Dynamic dispatch synthesizer registry / seam.
 - Index pipeline module.
 - Extraction parse execution module.
@@ -51,7 +51,7 @@ The first tech-design artifact for this direction is `docs/design/architecture-r
 ### Positive
 
 - Architecture candidates can be compared by whether they improve agent-facing sufficiency, not just internal graph completeness.
-- Candidate 1, the Explore response planner / Output Budget seam, becomes the recommended starting point because it directly controls the evidence an agent receives.
+- Candidate 1, the Explore Answer planner / Output Budget seam, becomes the recommended starting point because it directly controls the evidence an agent receives.
 - Testing can target planner decisions: Evidence Scope selection, Output Budget allocation, rendering fidelity, and benchmark-level fallback reduction.
 - Benchmarks can classify failures as scope missing, scope noisy, scope stale, or scope shallow instead of only reporting raw Read/Grep counts.
 

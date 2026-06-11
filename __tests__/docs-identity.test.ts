@@ -91,4 +91,17 @@ describe('ZCodeGraph docs and agent-facing identity', () => {
     expect(userFacing).not.toMatch(/\bUse ["`]codegraph\b/);
     expect(userFacing).not.toMatch(/\bcodegraph (init|index|sync|status|serve|install|uninstall|uninit|upgrade|query|files|callers|callees|impact|affected|context)\b/);
   });
+
+  it('uses Explore Answer for the domain concept, not older output or response aliases', () => {
+    const docsAndComments = [
+      'ZJ-CONTEXT.md',
+      'src/mcp/tools.ts',
+      'src/mcp/explore-types.ts',
+      'docs/design/adaptive-explore-sizing.md',
+    ].map(read).join('\n---\n');
+
+    expect(docsAndComments).toContain('Explore Answer');
+    expect(docsAndComments).not.toMatch(new RegExp(`\\bexplore ${'output'}\\b`, 'i'));
+    expect(docsAndComments).not.toMatch(new RegExp(`\\bexplore ${'response'}\\b`, 'i'));
+  });
 });

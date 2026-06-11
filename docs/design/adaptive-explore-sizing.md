@@ -84,7 +84,7 @@ mechanism in full.
   base+subclasses family file), freeing budget → **~10% cheaper**. (The earlier
   claim that Django was "byte-identical / 0 skeletons" was an artifact of the
   *probe* query; the agent's real query DOES surface the SQLCompiler family.)
-- **Excalidraw / Tokio / VS Code / Gin:** explore output is **byte-identical**
+- **Excalidraw / Tokio / VS Code / Gin:** the Explore Answer is **byte-identical**
   with the flag on/off (0 skeletons) — their flows have no off-spine
   ≥3-implementer sibling group. The corrected gate only *adds* a spare
   condition, so it skeletonizes a **strict subset** of the original gate → these

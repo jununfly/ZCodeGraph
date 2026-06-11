@@ -283,7 +283,7 @@ export function render(
         // a Read of the very file just skeletonized; on a central, wanted file
         // (Session.swift, DataRequest.swift) that fired an over-investigation
         // spiral (the agent Read the skeletonized file, then kept digging).
-        // CLAUDE.md: explore output must never tell the agent to Read.
+        // CLAUDE.md: Explore Answer text must never tell the agent to Read.
         const tag = bodyIds.size > 0
           ? 'focused (the methods you named in full, the rest as signatures — zcodegraph_explore a signature by name for its body; do NOT Read)'
           : 'skeleton (signatures only — zcodegraph_explore a name for its full body; do NOT Read)';

@@ -23,8 +23,8 @@ Domain Language 校对确认正式术语为 **"Explore Answer"**。代码注释�
 
 | 当前用法 | 应改为 |
 |---------|--------|
-| "explore output" | "Explore Answer" |
-| "explore response" | "Explore Answer" |
+| output-oriented Explore wording | "Explore Answer" |
+| response-oriented Explore wording | "Explore Answer" |
 
 ### 受影响文件
 

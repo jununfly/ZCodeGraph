@@ -137,7 +137,7 @@ describe('getExploreOutputBudget', () => {
  * Regression guard for #185 — protects against future edits to handleExplore
  * silently re-introducing the fixed 35KB cap on small projects.
  */
-describe('zcodegraph_explore output respects the adaptive budget', () => {
+describe('Explore Answer respects the adaptive budget', () => {
   let testDir: string;
   let cg: CodeGraph;
   let handler: ToolHandler;

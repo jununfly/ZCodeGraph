@@ -92,7 +92,7 @@ Failure mode if included: noisy answers, budget starvation, and lower Agent Suff
 
 ## Candidate roadmap
 
-### Candidate 1: Explore response planner / Output Budget Seam ✅ COMPLETED (2026-06-10)
+### Candidate 1: Explore Answer planner / Output Budget Seam ✅ COMPLETED (2026-06-10)
 
 Goal: make Explore produce an explicit Explore Answer before formatting the final answer.
 

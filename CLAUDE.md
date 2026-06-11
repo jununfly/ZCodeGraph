@@ -122,7 +122,7 @@ Two functions in `src/mcp/tools.ts` scale explore with indexed file count. This 
 
 - `getExploreBudget(fileCount)` → **call** budget: `<500→1, <5000→2, <15000→3, <25000→4, ≥25000→5` (max 5).
 - `getExploreOutputBudget(fileCount)` → **per-call** output (chars / files / per-file). **Invariant: a larger tier must never get a smaller `maxCharsPerFile` than a smaller tier.** (Regression that motivated this doc: the `<5000` tier's 2500 was *below* the `<500` tier's 3800, so on a god-file repo — excalidraw's 415 KB `App.tsx` — one explore returned <1% of the file and forced a Read.)
-- Explore output must **never tell the agent to "use Read"** — steer to another `zcodegraph_explore` and "treat returned source as already Read."
+- Explore Answer text must **never tell the agent to "use Read"** — steer to another `zcodegraph_explore` and "treat returned source as already Read."
 
 ### Dynamic-dispatch coverage — the flow must EXIST in the graph end-to-end
 

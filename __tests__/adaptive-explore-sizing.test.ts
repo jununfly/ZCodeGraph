@@ -292,7 +292,7 @@ export class YamlCodec extends Codec {
       ['retry-interceptor.ts', 'RETRY_BODY_MARKER'],
     ] as const) {
       const section = sectionFor(text, file);
-      expect(section, `${file} should be present in the explore output`).not.toBe('');
+      expect(section, `${file} should be present in the Explore Answer`).not.toBe('');
       expect(section, `${file} should be skeletonized`).toContain(SKELETON_MARK);
       // The signature line survives; the body (with its marker) is elided.
       expect(section).toContain('intercept(request');
