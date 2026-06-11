@@ -59,7 +59,7 @@ export interface ExploreOutputBudget {
 // ===========================================================================
 
 /**
- * Result of tracing the call-path spine through named symbols.
+ * Result of tracing the Flow Spine through named symbols.
  *
  * The spine is the actual chain of calls the agent asked about;
  * everything else is context around it.  The spine determines
@@ -187,7 +187,7 @@ export interface ExplorePlan {
   entries: ExplorePlanEntry[];
 
   // ===== Flow Spine =====
-  /** The call-path spine traced through named symbols. */
+  /** The Flow Spine traced through named symbols. */
   spine: FlowSpine;
 
   // ===== Adaptive Sizing Signal =====

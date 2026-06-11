@@ -6,12 +6,26 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import {
   ExploreOutputBudget,
   FlowSpine,
   ExplorePlan,
 } from '../src/mcp/explore-types';
 import type { Node, Edge } from '../src/types';
+
+describe('domain language', () => {
+  it('uses Flow Spine terminology for MCP explore source comments', () => {
+    const mcpDir = join(__dirname, '..', 'src', 'mcp');
+    const source = ['explore-types.ts', 'explore-planner.ts']
+      .map((file) => readFileSync(join(mcpDir, file), 'utf8'))
+      .join('\n');
+
+    expect(source).not.toContain('call-path spine');
+    expect(source).toContain('Flow Spine');
+  });
+});
 
 // ---------------------------------------------------------------------------
 // ExploreOutputBudget

@@ -1002,7 +1002,7 @@ export function findAllSymbols(cg: CodeGraph, symbol: string): { nodes: Node[]; 
 // ===========================================================================
 
 /**
- * Result of tracing the call-path spine through named symbols.
+ * Result of tracing the Flow Spine through named symbols.
  */
 export interface FlowResult {
   /** Human-readable markdown description of the call chain. */
