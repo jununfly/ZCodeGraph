@@ -200,3 +200,23 @@ or whether a synthesizer is producing false positives.
 Edge Origin explains provenance; EdgeKind explains the relationship type.
 
 **Related terms:** EdgeKind, Synthesizer.
+
+### Polymorphic Family
+
+**Definition:** A supertype and all its subtype implementors, treated as a unit
+for skeletonization decisions. When a supertype has ≥3 implementors, the
+**Family File** (root, defines the supertype) retains full source, while each
+**Polymorphic Sibling** (leaf implementor) may be skeletonized to signature level.
+
+**Sub-concepts:**
+- **Family File** — the file that defines a polymorphic supertype with ≥3 implementors.
+- **Polymorphic Sibling** — a file whose class implements/extends a supertype shared by ≥3 classes.
+
+**Use when:** Discussing why certain files are skeletonized, how the explore planner/renderer
+decides between per-method and per-file body caps, or why a God File triggers special handling
+(because it breaks the Polymorphic Family clustering strategy).
+
+**Not:** Any inheritance relationship. The ≥3 threshold and the Family-File-vs-Sibling distinction
+are what give the term its skeletonization decision power.
+
+**Related terms:** Skeletonization, God File, Flow Spine, Source Depth.
