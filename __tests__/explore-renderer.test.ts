@@ -44,7 +44,7 @@ function mockExplorePlan(overrides: Partial<ExplorePlan> = {}): ExplorePlan {
     subgraph: {
       nodes: new Map(),
       edges: [],
-      roots: [],
+      entryNodes: [],
     },
     entryNodeIds: new Set(),
     fileGroups: new Map(),
@@ -74,7 +74,7 @@ describe('render', () => {
       subgraph: {
         nodes: new Map([['n1', n1]]),
         edges: [],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       },
       entryNodeIds: new Set(['n1']),
       fileGroups: new Map([
@@ -99,7 +99,7 @@ describe('render', () => {
       subgraph: {
         nodes: new Map([['n1', n1]]),
         edges: [],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       },
       entryNodeIds: new Set(['n1']),
       fileGroups: new Map([
@@ -122,7 +122,7 @@ describe('render', () => {
       subgraph: {
         nodes: new Map([['n1', n1]]),
         edges: [],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       },
       entryNodeIds: new Set(['n1']),
       fileGroups: new Map([
@@ -147,7 +147,7 @@ describe('render', () => {
       subgraph: {
         nodes: new Map([['n1', n1], ['n2', n2]]),
         edges: [{ source: 'n1', target: 'n2', kind: 'calls' } as Edge],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       },
       entryNodeIds: new Set(['n1']),
       fileGroups: new Map([

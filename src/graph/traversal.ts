@@ -50,7 +50,7 @@ export class GraphTraverser {
     const startNode = this.queries.getNodeById(startId);
 
     if (!startNode) {
-      return { nodes: new Map(), edges: [], roots: [] };
+      return { nodes: new Map(), edges: [], entryNodes: [] };
     }
 
     const nodes = new Map<string, Node>();
@@ -115,7 +115,7 @@ export class GraphTraverser {
     return {
       nodes,
       edges,
-      roots: [startId],
+      entryNodes: [startId],
     };
   }
 
@@ -131,7 +131,7 @@ export class GraphTraverser {
     const startNode = this.queries.getNodeById(startId);
 
     if (!startNode) {
-      return { nodes: new Map(), edges: [], roots: [] };
+      return { nodes: new Map(), edges: [], entryNodes: [] };
     }
 
     const nodes = new Map<string, Node>();
@@ -147,7 +147,7 @@ export class GraphTraverser {
     return {
       nodes,
       edges,
-      roots: [startId],
+      entryNodes: [startId],
     };
   }
 
@@ -319,7 +319,7 @@ export class GraphTraverser {
   getCallGraph(nodeId: string, depth: number = 2): Subgraph {
     const focalNode = this.queries.getNodeById(nodeId);
     if (!focalNode) {
-      return { nodes: new Map(), edges: [], roots: [] };
+      return { nodes: new Map(), edges: [], entryNodes: [] };
     }
 
     const nodes = new Map<string, Node>();
@@ -345,7 +345,7 @@ export class GraphTraverser {
     return {
       nodes,
       edges,
-      roots: [nodeId],
+      entryNodes: [nodeId],
     };
   }
 
@@ -358,7 +358,7 @@ export class GraphTraverser {
   getTypeHierarchy(nodeId: string): Subgraph {
     const focalNode = this.queries.getNodeById(nodeId);
     if (!focalNode) {
-      return { nodes: new Map(), edges: [], roots: [] };
+      return { nodes: new Map(), edges: [], entryNodes: [] };
     }
 
     const nodes = new Map<string, Node>();
@@ -377,7 +377,7 @@ export class GraphTraverser {
     return {
       nodes,
       edges,
-      roots: [nodeId],
+      entryNodes: [nodeId],
     };
   }
 
@@ -466,7 +466,7 @@ export class GraphTraverser {
   getImpactRadius(nodeId: string, maxDepth: number = 3): Subgraph {
     const focalNode = this.queries.getNodeById(nodeId);
     if (!focalNode) {
-      return { nodes: new Map(), edges: [], roots: [] };
+      return { nodes: new Map(), edges: [], entryNodes: [] };
     }
 
     const nodes = new Map<string, Node>();
@@ -482,7 +482,7 @@ export class GraphTraverser {
     return {
       nodes,
       edges,
-      roots: [nodeId],
+      entryNodes: [nodeId],
     };
   }
 

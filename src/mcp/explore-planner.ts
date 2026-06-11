@@ -325,7 +325,7 @@ export const CALLABLE_KINDS = new Set(['method', 'function', 'component', 'const
 export function seedNamedSymbols(
   cg: { getNodesByName(name: string): Node[]; searchNodes(query: string, opts?: { limit?: number }): Array<{ node: Node }> },
   query: string,
-  subgraph: { nodes: Map<string, Node>; edges: Edge[]; roots: string[] },
+  subgraph: { nodes: Map<string, Node>; edges: Edge[]; entryNodes: string[] },
 ): Set<string> {
   const namedSeedIds = new Set<string>();
   const tokens = parseQueryTokens(query);
@@ -400,8 +400,8 @@ export function isLowValue(filePath: string): boolean {
  *
  * Scoring:
  *   +50 — named seed (agent explicitly asked for this symbol by name)
- *   +10 — entry node (subgraph root or named seed)
- *    +3 — directly connected to an entry node
+ *   +10 — Entry Node (subgraph Entry Node or named seed)
+ *    +3 — directly connected to an Entry Node
  *    +1 — all other callable/symbol nodes
  *
  * Import/export nodes and config-leaf nodes are skipped (noise).
@@ -416,7 +416,7 @@ export function buildFileGroups(
 ): Map<string, FileGroup> {
   const fileGroups = new Map<string, FileGroup>();
 
-  // Build set of nodes directly connected to entry points (depth 1)
+  // Build set of nodes directly connected to Entry Nodes (depth 1)
   const connectedToEntry = new Set<string>();
   for (const edge of subgraph.edges) {
     if (entryNodeIds.has(edge.source)) connectedToEntry.add(edge.target);
@@ -719,20 +719,20 @@ export async function plan(
   // the agent explicitly named is in the subgraph and its file is scored.
   const namedSeedIds = seedNamedSymbols(cg, query, subgraph);
 
-  // Glue nodes: pull in callers/callees of entry roots that live in
+  // Glue nodes: pull in callers/callees of Entry Nodes that live in
   // files the subgraph already surfaces.  This adds wiring without
   // dragging in unrelated files.
   const glueNodeIds = new Set<string>();
   const subgraphFiles = new Set<string>();
   for (const n of subgraph.nodes.values()) subgraphFiles.add(n.filePath);
   const GLUE_NODE_CAP = 60;
-  for (const rootId of subgraph.roots) {
+  for (const entryNodeId of subgraph.entryNodes) {
     if (glueNodeIds.size >= GLUE_NODE_CAP) break;
     let neighbors: Node[] = [];
     try {
       neighbors = [
-        ...cg.getCallers(rootId).map(c => c.node),
-        ...cg.getCallees(rootId).map(c => c.node),
+        ...cg.getCallers(entryNodeId).map(c => c.node),
+        ...cg.getCallees(entryNodeId).map(c => c.node),
       ];
     } catch {
       continue;
@@ -756,7 +756,7 @@ export async function plan(
   };
 
   // Step 3: Group nodes by file, score by relevance.
-  const entryNodeIds = new Set([...subgraph.roots, ...namedSeedIds]);
+  const entryNodeIds = new Set([...subgraph.entryNodes, ...namedSeedIds]);
   const fileGroups = buildFileGroups(subgraph, namedSeedIds, entryNodeIds, spine.pathNodeIds);
 
   // Step 4: Apply relevance gate and sort files.

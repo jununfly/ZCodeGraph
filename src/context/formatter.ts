@@ -68,7 +68,7 @@ export function formatContextAsMarkdown(context: TaskContext): string {
     lines.push('');
   }
 
-  // Code blocks - only for key entry points. Re-sort so non-generated blocks
+  // Code blocks - only for key Entry Nodes. Re-sort so non-generated blocks
   // show first (consistent with Entry Points reordering above).
   if (context.codeBlocks.length > 0) {
     const orderedBlocks = [...context.codeBlocks].sort((a, b) => {
@@ -121,7 +121,7 @@ export function formatContextAsJson(context: TaskContext): string {
 /**
  * Format a subgraph as an ASCII tree structure
  */
-export function formatSubgraphTree(subgraph: Subgraph, entryPoints: Node[]): string {
+export function formatSubgraphTree(subgraph: Subgraph, entryNodes: Node[]): string {
   const lines: string[] = [];
   const printed = new Set<string>();
 
@@ -133,13 +133,13 @@ export function formatSubgraphTree(subgraph: Subgraph, entryPoints: Node[]): str
     outgoing.set(edge.source, existing);
   }
 
-  // Print each entry point as a tree root
-  for (const entry of entryPoints) {
+  // Print each Entry Node as a tree root
+  for (const entry of entryNodes) {
     formatNodeTree(entry, subgraph, outgoing, printed, lines, 0, '');
     lines.push(''); // Blank line between trees
   }
 
-  // Print any remaining nodes not reached from entry points
+  // Print any remaining nodes not reached from Entry Nodes
   const remaining: Node[] = [];
   for (const node of subgraph.nodes.values()) {
     if (!printed.has(node.id)) {

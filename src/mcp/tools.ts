@@ -1117,7 +1117,7 @@ export class ToolHandler {
     const mergedImpact = {
       nodes: mergedNodes,
       edges: mergedEdges,
-      roots: allMatches.nodes.map(n => n.id),
+      entryNodes: allMatches.nodes.map(n => n.id),
     };
 
     const formatted = this.formatImpact(symbol, mergedImpact) + allMatches.note;
@@ -1362,16 +1362,16 @@ export class ToolHandler {
     ]);
     const rel = (p: string) => p.replace(/\\/g, '/');
 
-    const roots = subgraph.roots
+    const entryNodes = subgraph.entryNodes
       .map((id) => subgraph.nodes.get(id))
       .filter((n): n is Node => !!n && MEANINGFUL.has(n.kind))
       .slice(0, ROOT_CAP);
-    if (roots.length === 0) return '';
+    if (entryNodes.length === 0) return '';
 
     const entries: string[] = [];
-    for (const root of roots) {
+    for (const entryNode of entryNodes) {
       let callers: Array<{ node: Node }> = [];
-      try { callers = cg.getCallers(root.id) as Array<{ node: Node }>; } catch { /* skip this root */ }
+      try { callers = cg.getCallers(entryNode.id) as Array<{ node: Node }>; } catch { /* skip this Entry Node */ }
 
       const seen = new Set<string>();
       const uniq: Node[] = [];
@@ -1392,7 +1392,7 @@ export class ToolHandler {
         : '; ⚠️ no covering tests found';
 
       entries.push(
-        `- \`${root.name}\` (${rel(root.filePath)}:${root.startLine}) — ${uniq.length} caller${uniq.length === 1 ? '' : 's'}${where}${tests}`,
+        `- \`${entryNode.name}\` (${rel(entryNode.filePath)}:${entryNode.startLine}) — ${uniq.length} caller${uniq.length === 1 ? '' : 's'}${where}${tests}`,
       );
     }
     if (entries.length === 0) return '';

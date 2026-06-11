@@ -173,7 +173,7 @@ describe('ExplorePlan', () => {
     const subgraph = {
       nodes: new Map(),
       edges: [] as Edge[],
-      roots: [] as string[],
+      entryNodes: [] as string[],
     };
 
     return {
@@ -203,7 +203,7 @@ describe('ExplorePlan', () => {
     expect(plan.adaptiveEnabled).toBe(true);
   });
 
-  it('holds entry node ids', () => {
+  it('holds Entry Node ids', () => {
     const plan = makePlan({ entryNodeIds: new Set(['a', 'b']) });
     expect(plan.entryNodeIds.has('a')).toBe(true);
     expect(plan.entryNodeIds.has('b')).toBe(true);

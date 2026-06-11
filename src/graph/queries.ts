@@ -381,7 +381,7 @@ export class GraphQueryManager {
     return {
       nodes,
       edges,
-      roots: [],
+      entryNodes: [],
     };
   }
 

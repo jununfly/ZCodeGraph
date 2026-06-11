@@ -226,7 +226,7 @@ the agent's real query — that mismatch is what this refinement corrects.)
    explore refills the freed budget with other full bodies (28,478 → 28,424).
    Ranking ≠ shrinking; you must *skeletonize* to shrink.
 2. **Gate on entry-node membership.** A precise symbol-bag explore query *names*
-   every chain participant, so they're all "entry nodes" — no separation, nothing
+   every chain participant, so they're all "Entry Nodes" — no separation, nothing
    skeletonizes.
 3. **Rely on interface-impl synthesizer edges** (`synthesizedBy:'interface-impl'`)
    for the sibling signal. They were **not** created for OkHttp's `Interceptor`

@@ -301,7 +301,7 @@ export function render(
     // round-trip and a re-read every later turn. Reserve clustering for files
     // too big to ship whole. Still bounded by the total maxOutputChars check.
     //
-    // CENTRAL files (where the query's entry points live) get a larger — but
+    // CENTRAL files (where the query's Entry Nodes live) get a larger — but
     // bounded — ceiling: they're the heart of the answer, the file(s) the agent
     // would Read whole, so a genuinely small one comes back whole rather than as
     // thin clusters. A LARGE central file (the 791-line org-user store) exceeds
@@ -463,7 +463,7 @@ export function render(
     const GAP_MARKER = '\n\n... (gap) ...\n\n';
   
     // Rank clusters for inclusion under the per-file cap. Entry-point
-    // clusters come first: a cluster containing a query entry point
+    // clusters come first: a cluster containing a query Entry Node
     // (importance 10) must outrank a dense block of mere declarations,
     // otherwise on a large file like Session.swift the top-of-file class
     // header + property list (many adjacent low-importance nodes, high

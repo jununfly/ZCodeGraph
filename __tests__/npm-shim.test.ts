@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { spawn, execSync } from 'child_process';
+import { spawn, execSync, execFileSync } from 'child_process';
 import * as https from 'https';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -33,7 +33,24 @@ const isWindows = process.platform === 'win32';
 function hasOpenssl(): boolean {
   try { execSync('openssl version', { stdio: 'ignore' }); return true; } catch { return false; }
 }
-const CAN_NET = !isWindows && hasOpenssl();
+
+function canListenLocalhost(): boolean {
+  try {
+    execFileSync(process.execPath, ['-e', `
+      const net = require('net');
+      const server = net.createServer();
+      const done = (code) => server.close(() => process.exit(code));
+      server.on('error', () => process.exit(1));
+      server.listen(0, '127.0.0.1', () => done(0));
+      setTimeout(() => process.exit(2), 2000);
+    `], { stdio: 'ignore', timeout: 3000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const CAN_NET = !isWindows && hasOpenssl() && canListenLocalhost();
 
 function mkTmp(label: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), `cg-shim-${label}-`));

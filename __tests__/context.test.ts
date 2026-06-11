@@ -307,7 +307,7 @@ export function validateEmail(email: string): boolean {
   });
 
   describe('Context structure', () => {
-    it('should find entry points from search', async () => {
+    it('should find Entry Nodes from search', async () => {
       const result = await cg.buildContext('PaymentService', {
         format: 'json',
       });
@@ -318,7 +318,7 @@ export function validateEmail(email: string): boolean {
       expect(parsed.entryPoints.length).toBeGreaterThan(0);
     });
 
-    it('should traverse graph from entry points', async () => {
+    it('should traverse graph from Entry Nodes', async () => {
       const result = await cg.buildContext('CheckoutController', {
         format: 'json',
         traversalDepth: 2,

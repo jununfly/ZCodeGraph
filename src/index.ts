@@ -1045,8 +1045,8 @@ export class CodeGraph {
    * Build context for a task
    *
    * Creates comprehensive context by:
-   * 1. Running FTS search to find entry points
-   * 2. Expanding the graph around entry points
+   * 1. Running FTS search to find Entry Nodes
+   * 2. Expanding the graph around Entry Nodes
    * 3. Extracting code blocks for key nodes
    * 4. Formatting output for Claude
    *

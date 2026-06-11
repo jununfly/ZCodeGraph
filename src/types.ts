@@ -310,12 +310,12 @@ export interface Subgraph {
   /** Edges in this subgraph */
   edges: Edge[];
 
-  /** Root node IDs (entry points) */
-  roots: string[];
+  /** Entry Node IDs */
+  entryNodes: string[];
 
   /**
    * Retrieval confidence for context-style queries. `'low'` means the query
-   * resolved only to isolated common-word matches (no entry point corroborated
+   * resolved only to isolated common-word matches (no Entry Node corroborated
    * by 2+ distinct query terms) — callers should surface an honest handoff to
    * explore/trace rather than present the results as comprehensive. Undefined
    * for graph traversals that don't run the search-ranking path.
@@ -517,7 +517,7 @@ export interface BuildContextOptions {
   /** Number of semantic search results (default: 5) */
   searchLimit?: number;
 
-  /** Graph traversal depth from entry points (default: 2) */
+  /** Graph traversal depth from Entry Nodes (default: 2) */
   traversalDepth?: number;
 
   /** Minimum semantic similarity score (default: 0.3) */

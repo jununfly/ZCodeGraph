@@ -42,7 +42,7 @@ export function scoreSearchNodes(
 export function scoreFindRelevantContext(
   caseId: string,
   expectedSymbols: string[],
-  subgraph: { nodes: Map<string, { name: string }>; edges: unknown[]; roots: string[] },
+  subgraph: { nodes: Map<string, { name: string }>; edges: unknown[]; entryNodes: string[] },
   latencyMs: number
 ): EvalResult {
   const expectedLower = new Set(expectedSymbols.map((s) => s.toLowerCase()));

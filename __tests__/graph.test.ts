@@ -150,7 +150,7 @@ export { main };
       });
 
       expect(subgraph.nodes.size).toBeGreaterThan(0);
-      expect(subgraph.roots).toContain(mainFunc.id);
+      expect(subgraph.entryNodes).toContain(mainFunc.id);
     });
 
     it('should respect maxDepth option', () => {

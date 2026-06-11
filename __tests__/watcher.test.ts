@@ -18,6 +18,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -51,6 +52,40 @@ function waitFor(
     check();
   });
 }
+
+function canDeliverNativeWatchEvent(): boolean {
+  try {
+    execFileSync(process.execPath, ['-e', `
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-watch-probe-'));
+      const src = path.join(dir, 'src');
+      fs.mkdirSync(src);
+      let watcher;
+      const cleanup = (code) => {
+        try { watcher && watcher.close(); } catch {}
+        try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+        process.exit(code);
+      };
+      try {
+        watcher = fs.watch(dir, { recursive: process.platform === 'darwin' || process.platform === 'win32' }, (_event, filename) => {
+          if (String(filename || '').includes('probe.ts')) cleanup(0);
+        });
+      } catch {
+        cleanup(1);
+      }
+      watcher.on('error', () => cleanup(1));
+      setTimeout(() => fs.writeFileSync(path.join(src, 'probe.ts'), 'export const probe = 1;'), 50);
+      setTimeout(() => cleanup(2), 1500);
+    `], { stdio: 'ignore', timeout: 2500 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const CAN_DELIVER_NATIVE_WATCH_EVENT = canDeliverNativeWatchEvent();
 
 describe('FileWatcher', () => {
   let testDir: string;
@@ -396,7 +431,7 @@ describe('FileWatcher', () => {
       //  but we verify no errors are thrown)
     });
 
-    it('should auto-sync when files change while watching (real fs.watch end-to-end)', async () => {
+    it.skipIf(!CAN_DELIVER_NATIVE_WATCH_EVENT)('should auto-sync when files change while watching (real fs.watch end-to-end)', async () => {
       // The one test that exercises the genuine native watcher: a real file
       // write must propagate through fs.watch → debounce → sync into the graph.
       cg = CodeGraph.initSync(testDir, {

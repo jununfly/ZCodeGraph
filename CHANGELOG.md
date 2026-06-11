@@ -9,6 +9,10 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Breaking Changes
+
+- The public `Subgraph` type now exposes `entryNodes` instead of `roots`, matching the project terminology for Entry Nodes.
+
 ### Security
 
 - Closed a path-traversal hole where a symbolic link inside an indexed project that pointed *outside* the project root could make CodeGraph serve that out-of-root file's contents (for example a file under your home directory) to the AI agent. CodeGraph now resolves symlinks when validating file access and refuses to read anything whose real location is outside the project, while still allowing symlinks that stay within it. Thanks @sulthonzh. (#527)

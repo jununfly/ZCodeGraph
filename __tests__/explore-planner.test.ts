@@ -208,7 +208,7 @@ describe('plan', () => {
     const emptySubgraph: import('../src/types').Subgraph = {
       nodes: new Map(),
       edges: [],
-      roots: [],
+      entryNodes: [],
     };
 
     return {
@@ -275,7 +275,7 @@ describe('plan', () => {
       findRelevantContext: async () => ({
         nodes: new Map(),
         edges: [] as Edge[],
-        roots: [] as string[],
+        entryNodes: [] as string[],
       }),
       getNodesByName: () => [],
       searchNodes: () => [],
@@ -321,7 +321,7 @@ describe('plan', () => {
           ['n2', { id: 'n2', name: 'fn2', kind: 'function', filePath: 'src/b.ts', startLine: 1, endLine: 5 } as Node],
         ]),
         edges: [] as Edge[],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       }),
     } as unknown as import('../src/index').default;
     const result = await plan(cg, 'fn1 fn2');
@@ -342,7 +342,7 @@ describe('plan', () => {
           ['n2', { id: 'n2', name: 'fn2', kind: 'function', filePath: 'src/b.ts', startLine: 1, endLine: 5 } as Node],
         ]),
         edges: [] as Edge[],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       }),
     } as unknown as import('../src/index').default;
     const result = await plan(cg, 'fn1 fn2');
@@ -368,7 +368,7 @@ describe('plan', () => {
           { source: 'n1', target: 'n3', kind: 'calls' } as Edge,
           { source: 'n3', target: 'n2', kind: 'calls' } as Edge,
         ],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       }),
       // findAllSymbols → searchNodes. Return all three;
       // matchesSymbol will pick execute→n1, validate→n2.
@@ -455,7 +455,7 @@ describe('plan', () => {
     expect(result.projectRoot.length).toBeGreaterThan(0);
   });
 
-  it('connectedToEntry reflects edges from entry nodes (Issue #25)', async () => {
+  it('connectedToEntry reflects edges from Entry Nodes (Issue #25)', async () => {
     const cg = {
       ...mockCodeGraph({ fileCount: 100 }),
       findRelevantContext: async () => ({
@@ -467,7 +467,7 @@ describe('plan', () => {
         edges: [
           { source: 'n1', target: 'n2', kind: 'calls' } as Edge,
         ] as Edge[],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       }),
     } as unknown as import('../src/index').default;
     const result = await plan(cg, 'fn1 fn2 fn3');
@@ -486,7 +486,7 @@ describe('plan', () => {
         edges: [
           { source: 'n1', target: 'n2', kind: 'calls' } as Edge,
         ] as Edge[],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       }),
     } as unknown as import('../src/index').default;
     const result = await plan(cg, 'MainHandler helperFn');
@@ -501,7 +501,7 @@ describe('plan', () => {
       findRelevantContext: async () => ({
         nodes: new Map([['n1', n1]]),
         edges: [] as Edge[],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       }),
       getCallers: () => [{ node: n2, edge: { source: 'n2', target: 'n1', kind: 'calls' } }],
       getCallees: () => [],
@@ -512,7 +512,7 @@ describe('plan', () => {
 
   // ===== Issue #15: Evidence Value assignment =====
 
-  it('assigns entry nodes as critical, connected as supportive, additional as compressible (Issue #15)', async () => {
+  it('assigns Entry Nodes as critical, connected as supportive, additional as compressible (Issue #15)', async () => {
     const n1 = { id: 'n1', name: 'EntryHandler', kind: 'function' as Node['kind'], filePath: 'src/entry.ts', startLine: 1, endLine: 20 } as Node;
     const n2 = { id: 'n2', name: 'ConnectedHelper', kind: 'function' as Node['kind'], filePath: 'src/connected.ts', startLine: 1, endLine: 10 } as Node;
     const n3 = { id: 'n3', name: 'ExtraFn', kind: 'function' as Node['kind'], filePath: 'src/additional.ts', startLine: 1, endLine: 5 } as Node;
@@ -524,7 +524,7 @@ describe('plan', () => {
           { source: 'n1', target: 'n2', kind: 'calls' } as Edge,
           { source: 'n2', target: 'n3', kind: 'calls' } as Edge,
         ] as Edge[],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       }),
     } as unknown as import('../src/index').default;
     const result = await plan(cg, 'EntryHandler');
@@ -554,7 +554,7 @@ describe('plan', () => {
       findRelevantContext: async () => ({
         nodes: new Map([['n1', n1]]),
         edges: [] as Edge[],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       }),
     } as unknown as import('../src/index').default;
     const result = await plan(cg, 'EntryHandler');
@@ -572,7 +572,7 @@ describe('plan', () => {
       findRelevantContext: async () => ({
         nodes: new Map([['n1', n1]]),
         edges: [] as Edge[],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       }),
     } as unknown as import('../src/index').default;
     const result = await plan(cg, 'EntryHandler');
@@ -592,7 +592,7 @@ describe('plan', () => {
       findRelevantContext: async () => ({
         nodes: new Map([['n1', n1]]),
         edges: [] as Edge[],
-        roots: ['n1'],
+        entryNodes: ['n1'],
       }),
     } as unknown as import('../src/index').default;
     const result = await plan(cg, 'test');
@@ -651,7 +651,7 @@ describe('plan', () => {
         { source: 'n2', target: 'n3', kind: 'calls' } as Edge,
         { source: 'n1', target: 'n4', kind: 'references' } as Edge,
       ],
-      roots: ['n1'],
+      entryNodes: ['n1'],
     };
 
     const allNodes = [nLogging, nBridge, nCache, nRetry, nRetryDup1, nRetryDup2, nRetryDup3, nRetryDup4, nInterceptor];
@@ -718,7 +718,7 @@ describe('plan', () => {
         { source: 'n1', target: 'n2', kind: 'calls' } as Edge,
         { source: 'n2', target: 'n3', kind: 'calls' } as Edge,
       ],
-      roots: ['n1'],
+      entryNodes: ['n1'],
     };
 
     const cg = {
@@ -758,7 +758,7 @@ describe('plan', () => {
         { source: 'n1', target: 'n2', kind: 'calls' } as Edge,
         { source: 'n2', target: 'n3', kind: 'calls' } as Edge,
       ],
-      roots: ['n1'],
+      entryNodes: ['n1'],
     };
 
     const cg = {
@@ -814,7 +814,7 @@ describe('plan', () => {
       const subgraph = {
         nodes: new Map([['n0', n0], ['n2', nOffSpine], ['n3', nOffSpine2], ['n4', nOffSpine3]]),
         edges: [],
-        roots: ['n2'],
+        entryNodes: ['n2'],
       };
 
       const cg = {
@@ -1147,7 +1147,7 @@ describe('seedNamedSymbols', () => {
   }
 
   it('returns empty set for empty query', () => {
-    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], roots: [] as string[] };
+    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], entryNodes: [] as string[] };
     const result = seedNamedSymbols(mockCg(), '', subgraph);
     expect(result.size).toBe(0);
     expect(subgraph.nodes.size).toBe(0);
@@ -1156,7 +1156,7 @@ describe('seedNamedSymbols', () => {
   it('injects a simple token resolved via getNodesByName', () => {
     const injected = nd({ id: 'n1', name: 'validate', kind: 'method', filePath: 'src/validate.ts' });
     const cg = mockCg({ getNodesByName: (name) => name === 'validate' ? [injected] : [] });
-    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], roots: [] as string[] };
+    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], entryNodes: [] as string[] };
 
     const result = seedNamedSymbols(cg, 'validate', subgraph);
     expect(result.has('n1')).toBe(true);
@@ -1166,7 +1166,7 @@ describe('seedNamedSymbols', () => {
   it('skips non-callable kinds', () => {
     const leaf = nd({ id: 'n1', name: 'config', kind: 'variable', filePath: 'src/config.ts' });
     const cg = mockCg({ getNodesByName: () => [leaf] });
-    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], roots: [] as string[] };
+    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], entryNodes: [] as string[] };
 
     const result = seedNamedSymbols(cg, 'config', subgraph);
     expect(result.size).toBe(0); // variable kind is not callable
@@ -1175,7 +1175,7 @@ describe('seedNamedSymbols', () => {
   it('skips test-path nodes', () => {
     const testFn = nd({ id: 'n1', name: 'validate', kind: 'method', filePath: 'src/__tests__/validate.test.ts' });
     const cg = mockCg({ getNodesByName: () => [testFn] });
-    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], roots: [] as string[] };
+    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], entryNodes: [] as string[] };
 
     const result = seedNamedSymbols(cg, 'validate', subgraph);
     expect(result.size).toBe(0);
@@ -1186,7 +1186,7 @@ describe('seedNamedSymbols', () => {
     const b = nd({ id: 'b', name: 'run', kind: 'function', filePath: 'src/b.ts', endLine: 50 });
     const c = nd({ id: 'c', name: 'run', kind: 'function', filePath: 'src/c.ts', endLine: 30 });
     const cg = mockCg({ getNodesByName: () => [a, b, c] });
-    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], roots: [] as string[] };
+    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], entryNodes: [] as string[] };
 
     const result = seedNamedSymbols(cg, 'run', subgraph);
     expect(result.has('a')).toBe(true);
@@ -1203,7 +1203,7 @@ describe('seedNamedSymbols', () => {
     const cg = mockCg({
       getNodesByName: (name) => name === 'validate' ? [a, b, c, d] : [],
     });
-    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], roots: [] as string[] };
+    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], entryNodes: [] as string[] };
 
     // Query includes 'DataRequest' as a PascalCase type token for disambiguation
     const result = seedNamedSymbols(cg, 'DataRequest validate', subgraph);
@@ -1220,7 +1220,7 @@ describe('seedNamedSymbols', () => {
     const d = nd({ id: 'd', name: 'poll', kind: 'function', filePath: 'src/d.rs', qualifiedName: 'd::poll', endLine: 30 });
     // Sorted by bodyLines descending: b(100), d(30), a(10), c(5)
     const cg = mockCg({ getNodesByName: () => [a, b, c, d] });
-    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], roots: [] as string[] };
+    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], entryNodes: [] as string[] };
 
     // Query has no PascalCase type token to disambiguate → fallback to best (most lines)
     const result = seedNamedSymbols(cg, 'poll', subgraph);
@@ -1237,7 +1237,7 @@ describe('seedNamedSymbols', () => {
     const subgraph = {
       nodes: new Map<string, Node>([['existing', existing]]),
       edges: [] as Edge[],
-      roots: ['existing'],
+      entryNodes: ['existing'],
     };
 
     const result = seedNamedSymbols(cg, 'execute', subgraph);
@@ -1341,7 +1341,7 @@ describe('buildFileGroups', () => {
   }
 
   it('returns empty map for empty subgraph', () => {
-    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], roots: [] as string[] };
+    const subgraph = { nodes: new Map<string, Node>(), edges: [] as Edge[], entryNodes: [] as string[] };
     const result = buildFileGroups(subgraph, new Set(), new Set());
     expect(result.size).toBe(0);
   });
@@ -1352,7 +1352,7 @@ describe('buildFileGroups', () => {
     const subgraph = {
       nodes: new Map<string, Node>([['a', a], ['b', b]]),
       edges: [] as Edge[],
-      roots: ['a'],
+      entryNodes: ['a'],
     };
     const entryIds = new Set(['a']);
     const result = buildFileGroups(subgraph, new Set(), entryIds);
@@ -1366,7 +1366,7 @@ describe('buildFileGroups', () => {
     const subgraph = {
       nodes: new Map<string, Node>([['a', a], ['b', b]]),
       edges: [] as Edge[],
-      roots: ['a'],
+      entryNodes: ['a'],
     };
     const result = buildFileGroups(subgraph, new Set(), new Set(['a']));
     expect(result.size).toBe(2);
@@ -1379,19 +1379,19 @@ describe('buildFileGroups', () => {
     const subgraph = {
       nodes: new Map<string, Node>([['a', a]]),
       edges: [] as Edge[],
-      roots: [],
+      entryNodes: [],
     };
     const namedSeeds = new Set(['a']);
     const result = buildFileGroups(subgraph, namedSeeds, new Set());
     expect(result.get('src/a.ts')!.score).toBe(50);
   });
 
-  it('assigns +10 to entry nodes', () => {
+  it('assigns +10 to Entry Nodes', () => {
     const a = nd({ id: 'a', name: 'fn1', filePath: 'src/a.ts' });
     const subgraph = {
       nodes: new Map<string, Node>([['a', a]]),
       edges: [] as Edge[],
-      roots: ['a'],
+      entryNodes: ['a'],
     };
     const result = buildFileGroups(subgraph, new Set(), new Set(['a']));
     expect(result.get('src/a.ts')!.score).toBe(10);
@@ -1404,7 +1404,7 @@ describe('buildFileGroups', () => {
     const subgraph = {
       nodes: new Map<string, Node>([['a', a], ['b', b], ['c', c]]),
       edges: [{ source: 'a', target: 'b', kind: 'calls' }] as Edge[],
-      roots: ['a'],
+      entryNodes: ['a'],
     };
     const result = buildFileGroups(subgraph, new Set(), new Set(['a']));
     expect(result.get('src/a.ts')!.score).toBe(10); // entry
@@ -1417,7 +1417,7 @@ describe('buildFileGroups', () => {
     const subgraph = {
       nodes: new Map<string, Node>([['a', a]]),
       edges: [] as Edge[],
-      roots: [],
+      entryNodes: [],
     };
     const result = buildFileGroups(subgraph, new Set(), new Set());
     expect(result.get('src/a.ts')!.score).toBe(1);
@@ -1430,7 +1430,7 @@ describe('buildFileGroups', () => {
     const subgraph = {
       nodes: new Map<string, Node>([['a', a], ['imp', imp], ['exp', exp]]),
       edges: [] as Edge[],
-      roots: [],
+      entryNodes: [],
     };
     const result = buildFileGroups(subgraph, new Set(), new Set());
     // Only the function node should be counted
@@ -1444,7 +1444,7 @@ describe('buildFileGroups', () => {
     const subgraph = {
       nodes: new Map<string, Node>([['a', a], ['b', b]]),
       edges: [] as Edge[],
-      roots: ['a'],
+      entryNodes: ['a'],
     };
     const result = buildFileGroups(subgraph, new Set(), new Set(['a']));
     // a: entry=10, b: other=1 → total=11
@@ -1546,7 +1546,7 @@ describe('aggregateFileGraphScores', () => {
   }
 
   it('returns zero maxGraph for empty subgraph', () => {
-    const subgraph: Subgraph = { nodes: new Map(), edges: [], roots: [] };
+    const subgraph: Subgraph = { nodes: new Map(), edges: [], entryNodes: [] };
     const { fileGraphScore, maxGraph } = aggregateFileGraphScores(subgraph, new Map());
     expect(maxGraph).toBe(0);
     expect(fileGraphScore.size).toBe(0);
@@ -1559,7 +1559,7 @@ describe('aggregateFileGraphScores', () => {
     const subgraph: Subgraph = {
       nodes: new Map([['a', a], ['b', b], ['c', c]]),
       edges: [],
-      roots: [],
+      entryNodes: [],
     };
     const rwr = new Map([['a', 0.3], ['b', 0.2], ['c', 0.5]]);
 
@@ -1574,7 +1574,7 @@ describe('aggregateFileGraphScores', () => {
     const subgraph: Subgraph = {
       nodes: new Map([['a', a]]),
       edges: [],
-      roots: [],
+      entryNodes: [],
     };
     // no RWR scores for 'a'
     const { fileGraphScore, maxGraph } = aggregateFileGraphScores(subgraph, new Map());
@@ -1589,7 +1589,7 @@ describe('aggregateFileGraphScores', () => {
     const subgraph: Subgraph = {
       nodes: new Map([['a', a], ['b', b], ['c', c]]),
       edges: [],
-      roots: [],
+      entryNodes: [],
     };
     const rwr = new Map([['a', 0.1], ['b', 0.8], ['c', 0.3]]);
 
@@ -1611,8 +1611,8 @@ describe('gateAndSortFiles', () => {
     } as Node;
   }
 
-  function makeSubgraph(nodes: Node[], edges: Edge[] = [], roots: string[] = []): Subgraph {
-    return { nodes: new Map(nodes.map(n => [n.id, n])), edges, roots };
+  function makeSubgraph(nodes: Node[], edges: Edge[] = [], entryNodes: string[] = []): Subgraph {
+    return { nodes: new Map(nodes.map(n => [n.id, n])), edges, entryNodes };
   }
 
   it('returns empty array for empty fileGroups', () => {
@@ -1704,7 +1704,7 @@ describe('gateAndSortFiles', () => {
   });
 
   it('deprioritizes generated files in sort', () => {
-    // Neither gen nor src is an entry node → RWR scores similar,
+    // Neither gen nor src is an Entry Node → RWR scores similar,
     // so comparator falls through to the generated-file penalty.
     const entry = nd({ id: 'entry', name: 'main', kind: 'function', filePath: 'src/main.ts' });
     const gen = nd({ id: 'gen', name: 'fn1', kind: 'function', filePath: 'src/foo.pb.go' });

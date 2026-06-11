@@ -165,10 +165,10 @@ export interface ExplorePlan {
   maxFiles: number;
 
   // ===== Subgraph & Seeding =====
-  /** The collected subgraph (nodes, edges, roots). */
+  /** The collected subgraph (nodes, edges, Entry Nodes). */
   subgraph: Subgraph;
   /**
-   * Union of subgraph roots and named seeds — the entry points
+   * Union of subgraph Entry Nodes and named seeds
    * into the evidence scope.
    */
   entryNodeIds: Set<string>;
@@ -195,7 +195,7 @@ export interface ExplorePlan {
   adaptiveEnabled: boolean;
 
   // ===== Glue Nodes (Issue #25) =====
-  /** Nodes added as callers/callees of entry roots, from subgraph files. */
+  /** Nodes added as callers/callees of Entry Nodes, from subgraph files. */
   glueNodeIds: Set<string>;
 
   // ===== Connectivity (Issue #25) =====

@@ -146,7 +146,7 @@ const DEFAULT_BUILD_OPTIONS: Required<BuildContextOptions> = {
   maxCodeBlockSize: 1500, // Reduced from 2000
   includeCode: true,
   format: 'markdown',
-  searchLimit: 3,         // Reduced from 5 - fewer entry points
+  searchLimit: 3,         // Reduced from 5 - fewer Entry Nodes
   traversalDepth: 1,      // Reduced from 2 - shallower graph expansion
   minScore: 0.3,
 };
@@ -204,8 +204,8 @@ export class ContextBuilder {
    *
    * Pipeline:
    * 1. Parse task input (string or {title, description})
-   * 2. Run semantic search to find entry points
-   * 3. Expand graph around entry points
+   * 2. Run semantic search to find Entry Nodes
+   * 3. Expand graph around Entry Nodes
    * 4. Extract code blocks for key nodes
    * 5. Format output for Claude
    *
@@ -230,8 +230,8 @@ export class ContextBuilder {
       minScore: opts.minScore,
     });
 
-    // Get entry points (nodes from semantic search)
-    const entryPoints = this.getEntryPoints(subgraph);
+    // Get Entry Nodes from semantic search
+    const entryNodes = this.getEntryNodes(subgraph);
 
     // Extract code blocks for key nodes
     const codeBlocks = opts.includeCode
@@ -242,7 +242,7 @@ export class ContextBuilder {
     const relatedFiles = this.getRelatedFiles(subgraph);
 
     // Generate summary
-    const summary = this.generateSummary(query, subgraph, entryPoints);
+    const summary = this.generateSummary(query, subgraph, entryNodes);
 
     // Calculate stats
     const stats = {
@@ -256,7 +256,7 @@ export class ContextBuilder {
     const context: TaskContext = {
       query,
       subgraph,
-      entryPoints,
+      entryPoints: entryNodes,
       codeBlocks,
       relatedFiles,
       summary,
@@ -267,7 +267,7 @@ export class ContextBuilder {
     if (opts.format === 'markdown') {
       return formatContextAsMarkdown(context)
         + this.buildCallPathsSection(subgraph)
-        + (subgraph.confidence === 'low' ? this.buildLowConfidenceNote(entryPoints) : '');
+        + (subgraph.confidence === 'low' ? this.buildLowConfidenceNote(entryNodes) : '');
     } else if (opts.format === 'json') {
       return formatContextAsJson(context);
     }
@@ -282,10 +282,10 @@ export class ContextBuilder {
    * uncertainty and routes the agent to the precise tools (explore with real
    * symbol names, search, or files to browse the closest areas we *did* surface).
    */
-  private buildLowConfidenceNote(entryPoints: Node[]): string {
+  private buildLowConfidenceNote(entryNodes: Node[]): string {
     const dirs: string[] = [];
     const seen = new Set<string>();
-    for (const n of entryPoints) {
+    for (const n of entryNodes) {
       const slash = n.filePath.lastIndexOf('/');
       const dir = slash > 0 ? n.filePath.slice(0, slash) : n.filePath;
       if (!seen.has(dir)) { seen.add(dir); dirs.push(dir); }
@@ -295,7 +295,7 @@ export class ContextBuilder {
       ? `\n- \`zcodegraph_files\` a likely area: ${dirs.map(d => `\`${d}\``).join(', ')}`
       : '';
     return `\n\n${LOW_CONFIDENCE_MARKER}\n\n`
-      + 'This query matched mostly on common words, so the entry points above may '
+      + 'This query matched mostly on common words, so the Entry Nodes above may '
       + 'be off-target — treat them as a starting point, not a complete answer. '
       + 'For a reliable result:\n'
       + '- `zcodegraph_explore` with the **exact symbol names** you are after '
@@ -344,22 +344,22 @@ export class ContextBuilder {
         seen.delete(t);
       }
     };
-    const starts = (subgraph.roots.length > 0
-      ? subgraph.roots.filter((id) => adj.has(id))
+    const starts = (subgraph.entryNodes.length > 0
+      ? subgraph.entryNodes.filter((id) => adj.has(id))
       : [...adj.keys()]
     ).slice(0, 5);
     for (const s of starts) dfs(s, [s], new Set([s]));
     if (chains.length === 0) return '';
 
-    // Keep only chains that connect TWO OR MORE query-relevant symbols (roots).
-    // A chain from a root into an arbitrary callee (render → onMagicFrameGenerate)
-    // is structurally valid but tangential to the question; requiring ≥2 roots
+    // Keep only chains that connect TWO OR MORE query-relevant symbols (Entry Nodes).
+    // A chain from an Entry Node into an arbitrary callee (render → onMagicFrameGenerate)
+    // is structurally valid but tangential to the question; requiring ≥2 Entry Nodes
     // keeps the chain anchored to what the user actually asked about. Rank by
-    // #roots then length, and drop any that are a sub-path of a longer kept chain.
-    const rootSet = new Set(subgraph.roots);
-    const rootCount = (c: string[]): number => c.reduce((n, id) => n + (rootSet.has(id) ? 1 : 0), 0);
-    const relevant = chains.filter((c) => rootCount(c) >= 2);
-    relevant.sort((a, b) => rootCount(b) - rootCount(a) || b.length - a.length);
+    // Entry Node count then length, and drop any that are a sub-path of a longer kept chain.
+    const entryNodeSet = new Set(subgraph.entryNodes);
+    const entryNodeCount = (c: string[]): number => c.reduce((n, id) => n + (entryNodeSet.has(id) ? 1 : 0), 0);
+    const relevant = chains.filter((c) => entryNodeCount(c) >= 2);
+    relevant.sort((a, b) => entryNodeCount(b) - entryNodeCount(a) || b.length - a.length);
     const kept: string[][] = [];
     for (const c of relevant) {
       const key = c.join('>');
@@ -423,7 +423,7 @@ export class ContextBuilder {
    * 2. Look up exact matches for those symbols (high confidence)
    * 3. Use semantic search for concept matching
    * 4. Merge results, prioritizing exact matches
-   * 5. Traverse graph from entry points
+   * 5. Traverse graph from Entry Nodes
    *
    * @param query - Natural language query
    * @param options - Search and traversal options
@@ -438,11 +438,11 @@ export class ContextBuilder {
     // Start with empty subgraph
     const nodes = new Map<string, Node>();
     const edges: Edge[] = [];
-    const roots: string[] = [];
+    const entryNodes: string[] = [];
 
     // Handle empty query - return empty subgraph
     if (!query || query.trim().length === 0) {
-      return { nodes, edges, roots };
+      return { nodes, edges, entryNodes };
     }
 
     // === HYBRID SEARCH ===
@@ -894,16 +894,16 @@ export class ContextBuilder {
     // they want the TerminalPanel class, not the import statement
     filteredResults = this.resolveImportsToDefinitions(filteredResults);
 
-    // Cap entry points so traversal budget isn't spread too thin.
-    // With 36 entry points and maxNodes=120, each gets only 3 nodes — useless.
-    // Cap to searchLimit so each entry point gets a meaningful traversal budget.
+    // Cap Entry Nodes so traversal budget isn't spread too thin.
+    // With 36 Entry Nodes and maxNodes=120, each gets only 3 nodes — useless.
+    // Cap to searchLimit so each Entry Node gets a meaningful traversal budget.
     if (filteredResults.length > opts.searchLimit) {
       filteredResults = filteredResults.slice(0, opts.searchLimit);
     }
 
     // Confidence signal for the honest-handoff footer (consumed in buildContext).
     // A multi-term prose query that resolves only to isolated common-word matches
-    // — no entry point corroborated by 2+ distinct query terms, and none a
+    // — no Entry Node corroborated by 2+ distinct query terms, and none a
     // distinctive identifier the user explicitly named — is LOW confidence: the
     // results are best-effort, not a located answer, so the agent should be told
     // to drill in with explore/trace rather than trust the list as comprehensive.
@@ -930,14 +930,14 @@ export class ContextBuilder {
       if (!anyStrong) confidence = 'low';
     }
 
-    // Add entry points to subgraph
+    // Add Entry Nodes to subgraph
     for (const result of filteredResults) {
       nodes.set(result.node.id, result.node);
-      roots.push(result.node.id);
+      entryNodes.push(result.node.id);
     }
 
-    // Expand type hierarchy for class/interface entry points.
-    // BFS often exhausts its per-entry-point budget on contained methods
+    // Expand type hierarchy for class/interface Entry Nodes.
+    // BFS often exhausts its per-Entry Node budget on contained methods
     // before reaching extends/implements neighbors. This dedicated step
     // ensures subclasses and superclasses always appear in results.
     // Budget: up to maxNodes/4 hierarchy nodes to avoid flooding.
@@ -969,7 +969,7 @@ export class ContextBuilder {
     // E.g., InternalEngine → Engine (parent, from pass 1) → ReadOnlyEngine (sibling).
     if (hierarchyNodesAdded > 0) {
       const pass2Candidates = [...nodes.values()].filter(
-        n => typeHierarchyKinds.has(n.kind) && !roots.includes(n.id)
+        n => typeHierarchyKinds.has(n.kind) && !entryNodes.includes(n.id)
       );
       for (const candidate of pass2Candidates) {
         if (hierarchyNodesAdded >= maxHierarchyNodes) break;
@@ -993,7 +993,7 @@ export class ContextBuilder {
       }
     }
 
-    // Traverse from each entry point
+    // Traverse from each Entry Node
     for (const result of filteredResults) {
       const traversalResult = this.traverser.traverseBFS(result.node.id, {
         maxDepth: opts.traversalDepth,
@@ -1025,8 +1025,8 @@ export class ContextBuilder {
     let finalNodes = nodes;
     let finalEdges = edges;
     if (nodes.size > opts.maxNodes) {
-      // Prioritize entry points and their direct neighbors
-      const priorityIds = new Set(roots);
+      // Prioritize Entry Nodes and their direct neighbors
+      const priorityIds = new Set(entryNodes);
       for (const edge of edges) {
         if (priorityIds.has(edge.source)) {
           priorityIds.add(edge.target);
@@ -1062,7 +1062,7 @@ export class ContextBuilder {
     // Per-file diversity cap: prevent any single file from monopolizing the
     // node budget. When BFS traverses from a method, it follows `contains`
     // to the parent class, then back down to all sibling methods. With
-    // multiple entry points in the same class, one file can consume 30-40%
+    // multiple Entry Nodes in the same class, one file can consume 30-40%
     // of maxNodes. Cap each file to ~20% to ensure cross-file diversity.
     const maxPerFile = Math.max(5, Math.ceil(opts.maxNodes * 0.2));
     const fileCounts = new Map<string, string[]>();
@@ -1071,20 +1071,20 @@ export class ContextBuilder {
       ids.push(id);
       fileCounts.set(node.filePath, ids);
     }
-    const rootSet = new Set(roots);
+    const entryNodeSet = new Set(entryNodes);
     for (const [, nodeIds] of fileCounts) {
       if (nodeIds.length <= maxPerFile) continue;
-      // Sort: entry points first, then classes/interfaces, then others
+      // Sort: Entry Nodes first, then classes/interfaces, then others
       const kindPriority: Record<string, number> = {
         class: 3, interface: 3, struct: 3, trait: 3, protocol: 3, enum: 3,
         method: 1, function: 1, property: 0, field: 0, variable: 0,
       };
       nodeIds.sort((a, b) => {
-        const aRoot = rootSet.has(a) ? 10 : 0;
-        const bRoot = rootSet.has(b) ? 10 : 0;
+        const aEntryNode = entryNodeSet.has(a) ? 10 : 0;
+        const bEntryNode = entryNodeSet.has(b) ? 10 : 0;
         const aKind = kindPriority[finalNodes.get(a)!.kind] ?? 0;
         const bKind = kindPriority[finalNodes.get(b)!.kind] ?? 0;
-        return (bRoot + bKind) - (aRoot + aKind);
+        return (bEntryNode + bKind) - (aEntryNode + aKind);
       });
       // Remove excess nodes (keep the highest-priority ones)
       for (const id of nodeIds.slice(maxPerFile)) {
@@ -1095,7 +1095,7 @@ export class ContextBuilder {
     // at most 15% of the budget. Many codebases have dozens of near-identical
     // test implementations (e.g., 6 Guard classes in integration tests) that
     // individually survive score dampening but collectively flood the result.
-    // Test entry points are NOT exempt — they should be evicted too.
+    // Test Entry Nodes are NOT exempt — they should be evicted too.
     if (!isTestQuery) {
       const maxNonProd = Math.max(3, Math.ceil(opts.maxNodes * 0.15));
       const nonProdIds: string[] = [];
@@ -1107,9 +1107,9 @@ export class ContextBuilder {
       if (nonProdIds.length > maxNonProd) {
         for (const id of nonProdIds.slice(maxNonProd)) {
           finalNodes.delete(id);
-          // Also remove from roots — test file entry points shouldn't anchor results
-          const rootIdx = roots.indexOf(id);
-          if (rootIdx !== -1) roots.splice(rootIdx, 1);
+          // Also remove from entryNodes — test file Entry Nodes shouldn't anchor results
+          const entryNodeIdx = entryNodes.indexOf(id);
+          if (entryNodeIdx !== -1) entryNodes.splice(entryNodeIdx, 1);
         }
       }
     }
@@ -1119,7 +1119,7 @@ export class ContextBuilder {
       (e) => finalNodes.has(e.source) && finalNodes.has(e.target)
     );
 
-    // Edge recovery: BFS with many entry points leaves most nodes disconnected.
+    // Edge recovery: BFS with many Entry Nodes leaves most nodes disconnected.
     // Discover edges between already-selected nodes to recover connectivity.
     const recoveryKinds: EdgeKind[] = ['calls', 'extends', 'implements', 'references', 'overrides'];
     const recoveredEdges = this.queries.findEdgesBetweenNodes(
@@ -1137,7 +1137,7 @@ export class ContextBuilder {
       }
     }
 
-    return { nodes: finalNodes, edges: finalEdges, roots, confidence };
+    return { nodes: finalNodes, edges: finalEdges, entryNodes, confidence };
   }
 
   /**
@@ -1191,10 +1191,10 @@ export class ContextBuilder {
   }
 
   /**
-   * Get entry points from a subgraph (the root nodes)
+   * Get Entry Nodes from a subgraph
    */
-  private getEntryPoints(subgraph: Subgraph): Node[] {
-    return subgraph.roots
+  private getEntryNodes(subgraph: Subgraph): Node[] {
+    return subgraph.entryNodes
       .map((id) => subgraph.nodes.get(id))
       .filter((n): n is Node => n !== undefined);
   }
@@ -1209,11 +1209,11 @@ export class ContextBuilder {
   ): Promise<CodeBlock[]> {
     const blocks: CodeBlock[] = [];
 
-    // Prioritize entry points, then functions/methods
+    // Prioritize Entry Nodes, then functions/methods
     const priorityNodes: Node[] = [];
 
-    // First: entry points
-    for (const id of subgraph.roots) {
+    // First: Entry Nodes
+    for (const id of subgraph.entryNodes) {
       const node = subgraph.nodes.get(id);
       if (node) {
         priorityNodes.push(node);
@@ -1222,7 +1222,7 @@ export class ContextBuilder {
 
     // Then: functions and methods
     for (const node of subgraph.nodes.values()) {
-      if (!subgraph.roots.includes(node.id)) {
+      if (!subgraph.entryNodes.includes(node.id)) {
         if (node.kind === 'function' || node.kind === 'method') {
           priorityNodes.push(node);
         }
@@ -1231,7 +1231,7 @@ export class ContextBuilder {
 
     // Then: classes
     for (const node of subgraph.nodes.values()) {
-      if (!subgraph.roots.includes(node.id)) {
+      if (!subgraph.entryNodes.includes(node.id)) {
         if (node.kind === 'class') {
           priorityNodes.push(node);
         }
@@ -1292,7 +1292,7 @@ export class ContextBuilder {
     const remaining = entryPoints.length > 3 ? ` and ${entryPoints.length - 3} more` : '';
 
     return `Found ${nodeCount} relevant code symbols across ${files.length} files. ` +
-      `Key entry points: ${entryPointNames}${remaining}. ` +
+      `Key Entry Nodes: ${entryPointNames}${remaining}. ` +
       `${edgeCount} relationships identified.`;
   }
 

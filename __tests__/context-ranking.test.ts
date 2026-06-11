@@ -3,7 +3,7 @@
  *
  * Regression coverage for the failure where a prose query
  * ("capture intro onboarding screen flat object") surfaced an unrelated
- * constant named `FLAT` (in a download script) as a top entry point — because
+ * constant named `FLAT` (in a download script) as a top Entry Node — because
  * the descriptive word "flat" exact-matched it and the +exact-name bonus was
  * exempt from single-term dampening. The fix: only distinctive identifiers earn
  * that exemption; an isolated common-word exact match is demoted, and a query
@@ -86,9 +86,9 @@ export function downloadDataset(name: string): string { return name; }
     const sg = await cg.findRelevantContext(
       'capture intro onboarding screen flat object'
     );
-    const rootNames = sg.roots.map((id) => sg.nodes.get(id)?.name);
+    const rootNames = sg.entryNodes.map((id) => sg.nodes.get(id)?.name);
 
-    // The corroborated capture screen surfaces as an entry point...
+    // The corroborated capture screen surfaces as an Entry Node...
     expect(rootNames).toContain('CaptureIntroScreen');
     // ...and the trap constant is never the lead result (the bug we fixed).
     expect(rootNames[0]).not.toBe('FLAT');

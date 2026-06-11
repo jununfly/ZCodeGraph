@@ -33,7 +33,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
+import { ChildProcessWithoutNullStreams, execFileSync, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -41,6 +41,34 @@ import { CodeGraph } from '../src';
 import { getDaemonSocketPath } from '../src/mcp/daemon-paths';
 
 const BIN = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
+
+function canListenDaemonSocket(): boolean {
+  if (process.platform === 'win32') return true;
+  try {
+    execFileSync(process.execPath, ['-e', `
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      const net = require('net');
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-sock-probe-'));
+      const sock = path.join(dir, 'probe.sock');
+      const server = net.createServer();
+      const cleanup = (code) => server.close(() => {
+        try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+        process.exit(code);
+      });
+      server.on('error', () => {
+        try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+        process.exit(1);
+      });
+      server.listen(sock, () => cleanup(0));
+      setTimeout(() => process.exit(2), 2000);
+    `], { stdio: 'ignore', timeout: 3000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 interface SpawnedServer {
   child: ChildProcessWithoutNullStreams;
@@ -55,7 +83,12 @@ function spawnServer(cwd: string, env: NodeJS.ProcessEnv = {}): SpawnedServer {
     // #618: the daemon-attach log line is now off by default; opt the test
     // harness into it (CODEGRAPH_MCP_LOG_ATTACH=1) so the attach assertions
     // below can still observe a successful attach. A per-test env still wins.
-    env: { CODEGRAPH_MCP_LOG_ATTACH: '1', ...process.env, ...env },
+    env: {
+      CODEGRAPH_MCP_LOG_ATTACH: '1',
+      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
+      ...process.env,
+      ...env,
+    },
   }) as ChildProcessWithoutNullStreams;
   // Swallow spawn/EPIPE errors so killing a child mid-write can't surface as an
   // unhandled error that crashes the vitest worker.
@@ -165,7 +198,7 @@ async function waitProcessExit(pid: number, timeoutMs: number): Promise<boolean>
   return waitFor(() => !isAlive(pid), timeoutMs).then(() => true).catch(() => false);
 }
 
-describe('Shared MCP daemon (issue #411)', () => {
+describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () => {
   let tempDir: string;   // the (possibly symlinked) path processes are spawned with
   let realRoot: string;  // its canonical form — what the daemon keys paths on
   const servers: SpawnedServer[] = [];
