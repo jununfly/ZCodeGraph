@@ -97,7 +97,7 @@ export interface AgentTarget {
   uninstall(loc: Location): WriteResult;
   /**
    * Print the MCP-server snippet a user would paste manually for this
-   * target. Used by `codegraph install --print-config <id>` and by
+   * target. Used by `zcodegraph install --print-config <id>` and by
    * the README. Must NOT touch the filesystem.
    */
   printConfig(loc: Location): string;

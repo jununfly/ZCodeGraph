@@ -1,7 +1,7 @@
 /**
  * Directory Management
  *
- * Manages the .codegraph/ directory structure for CodeGraph data.
+ * Manages the .zcodegraph/ directory structure for CodeGraph data.
  */
 
 import * as fs from 'fs';
@@ -10,10 +10,10 @@ import * as path from 'path';
 /**
  * CodeGraph directory name
  */
-export const CODEGRAPH_DIR = '.codegraph';
+export const CODEGRAPH_DIR = '.zcodegraph';
 
 /**
- * Get the .codegraph directory path for a project
+ * Get the .zcodegraph directory path for a project
  */
 export function getCodeGraphDir(projectRoot: string): string {
   return path.join(projectRoot, CODEGRAPH_DIR);
@@ -21,26 +21,26 @@ export function getCodeGraphDir(projectRoot: string): string {
 
 /**
  * Check if a project has been initialized with CodeGraph
- * Requires both .codegraph/ directory AND codegraph.db to exist
+ * Requires both .zcodegraph/ directory AND zcodegraph.db to exist
  */
 export function isInitialized(projectRoot: string): boolean {
   const codegraphDir = getCodeGraphDir(projectRoot);
   if (!fs.existsSync(codegraphDir) || !fs.statSync(codegraphDir).isDirectory()) {
     return false;
   }
-  // Must have codegraph.db, not just .codegraph folder
-  const dbPath = path.join(codegraphDir, 'codegraph.db');
+  // Must have zcodegraph.db, not just .zcodegraph folder
+  const dbPath = path.join(codegraphDir, 'zcodegraph.db');
   return fs.existsSync(dbPath);
 }
 
 /**
- * Find the nearest parent directory containing .codegraph/
+ * Find the nearest parent directory containing .zcodegraph/
  *
  * Walks up from the given path to find a CodeGraph-initialized project,
  * similar to how git finds .git/ directories.
  *
  * @param startPath - Directory to start searching from
- * @returns The project root containing .codegraph/, or null if not found
+ * @returns The project root containing .zcodegraph/, or null if not found
  */
 export function findNearestCodeGraphRoot(startPath: string): string | null {
   let current = path.resolve(startPath);
@@ -64,15 +64,15 @@ export function findNearestCodeGraphRoot(startPath: string): string | null {
 }
 
 /**
- * Create the .codegraph directory structure
- * Note: Only throws if codegraph.db already exists, not just if .codegraph/ exists.
+ * Create the .zcodegraph directory structure
+ * Note: Only throws if zcodegraph.db already exists, not just if .zcodegraph/ exists.
  */
 export function createDirectory(projectRoot: string): void {
   const codegraphDir = getCodeGraphDir(projectRoot);
-  const dbPath = path.join(codegraphDir, 'codegraph.db');
+  const dbPath = path.join(codegraphDir, 'zcodegraph.db');
 
   // Only throw if CodeGraph is actually initialized (db exists)
-  // .codegraph/ folder alone is fine
+  // .zcodegraph/ folder alone is fine
   if (fs.existsSync(dbPath)) {
     throw new Error(`CodeGraph already initialized in ${projectRoot}`);
   }
@@ -80,11 +80,11 @@ export function createDirectory(projectRoot: string): void {
   // Create main directory (if it doesn't exist)
   fs.mkdirSync(codegraphDir, { recursive: true });
 
-  // Create .gitignore inside .codegraph (if it doesn't exist)
+  // Create .gitignore inside .zcodegraph (if it doesn't exist)
   const gitignorePath = path.join(codegraphDir, '.gitignore');
   if (!fs.existsSync(gitignorePath)) {
     const gitignoreContent = `# CodeGraph data files — local to each machine, not for committing.
-# Ignore everything in .codegraph/ except this file itself, so transient
+# Ignore everything in .zcodegraph/ except this file itself, so transient
 # files (the database, daemon.pid, sockets, logs) never show up in git.
 *
 !.gitignore
@@ -95,7 +95,7 @@ export function createDirectory(projectRoot: string): void {
 }
 
 /**
- * Remove the .codegraph directory
+ * Remove the .zcodegraph directory
  */
 export function removeDirectory(projectRoot: string): void {
   const codegraphDir = getCodeGraphDir(projectRoot);
@@ -104,7 +104,7 @@ export function removeDirectory(projectRoot: string): void {
     return;
   }
 
-  // Verify .codegraph is a real directory, not a symlink pointing elsewhere
+  // Verify .zcodegraph is a real directory, not a symlink pointing elsewhere
   const lstat = fs.lstatSync(codegraphDir);
   if (lstat.isSymbolicLink()) {
     // Only remove the symlink itself, never follow it for recursive delete
@@ -123,7 +123,7 @@ export function removeDirectory(projectRoot: string): void {
 }
 
 /**
- * Get all files in the .codegraph directory
+ * Get all files in the .zcodegraph directory
  */
 export function listDirectoryContents(projectRoot: string): string[] {
   const codegraphDir = getCodeGraphDir(projectRoot);
@@ -140,7 +140,7 @@ export function listDirectoryContents(projectRoot: string): string[] {
     for (const entry of entries) {
       const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
 
-      // Skip symlinks to prevent following links outside .codegraph
+      // Skip symlinks to prevent following links outside .zcodegraph
       if (entry.isSymbolicLink()) {
         continue;
       }
@@ -158,7 +158,7 @@ export function listDirectoryContents(projectRoot: string): string[] {
 }
 
 /**
- * Get the total size of the .codegraph directory in bytes
+ * Get the total size of the .zcodegraph directory in bytes
  */
 export function getDirectorySize(projectRoot: string): number {
   const codegraphDir = getCodeGraphDir(projectRoot);
@@ -173,7 +173,7 @@ export function getDirectorySize(projectRoot: string): number {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
 
     for (const entry of entries) {
-      // Skip symlinks to prevent following links outside .codegraph
+      // Skip symlinks to prevent following links outside .zcodegraph
       if (entry.isSymbolicLink()) {
         continue;
       }
@@ -194,7 +194,7 @@ export function getDirectorySize(projectRoot: string): number {
 }
 
 /**
- * Ensure a subdirectory exists within .codegraph
+ * Ensure a subdirectory exists within .zcodegraph
  */
 export function ensureSubdirectory(projectRoot: string, subdirName: string): string {
   if (subdirName.includes('..') || subdirName.includes(path.sep) || subdirName.includes('/')) {
@@ -211,7 +211,7 @@ export function ensureSubdirectory(projectRoot: string, subdirName: string): str
 }
 
 /**
- * Check if the .codegraph directory has valid structure
+ * Check if the .zcodegraph directory has valid structure
  */
 export function validateDirectory(projectRoot: string): {
   valid: boolean;
@@ -226,7 +226,7 @@ export function validateDirectory(projectRoot: string): {
   }
 
   if (!fs.statSync(codegraphDir).isDirectory()) {
-    errors.push('.codegraph exists but is not a directory');
+    errors.push('.zcodegraph exists but is not a directory');
     return { valid: false, errors };
   }
 
@@ -234,11 +234,11 @@ export function validateDirectory(projectRoot: string): {
   const gitignorePath = path.join(codegraphDir, '.gitignore');
   if (!fs.existsSync(gitignorePath)) {
     try {
-      const gitignoreContent = `# CodeGraph data files — local to each machine, not for committing.\n# Ignore everything in .codegraph/ except this file itself, so transient\n# files (the database, daemon.pid, sockets, logs) never show up in git.\n*\n!.gitignore\n`;
+      const gitignoreContent = `# CodeGraph data files — local to each machine, not for committing.\n# Ignore everything in .zcodegraph/ except this file itself, so transient\n# files (the database, daemon.pid, sockets, logs) never show up in git.\n*\n!.gitignore\n`;
       fs.writeFileSync(gitignorePath, gitignoreContent, 'utf-8');
     } catch {
       // Non-fatal: warn but don't block
-      errors.push('.gitignore missing in .codegraph directory and could not be created');
+      errors.push('.gitignore missing in .zcodegraph directory and could not be created');
     }
   }
 

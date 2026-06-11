@@ -74,7 +74,7 @@ cd your-project
 zcodegraph init -i
 ```
 
-<sub>`zcodegraph init` just creates the local `.codegraph/` index directory; adding `-i` (`--index`) also builds the initial graph in the same step. Without `-i`, run `zcodegraph index` afterwards to populate it.</sub>
+<sub>`zcodegraph init` just creates the local `.zcodegraph/` index directory; adding `-i` (`--index`) also builds the initial graph in the same step. Without `-i`, run `zcodegraph index` afterwards to populate it.</sub>
 
 ### Uninstall
 
@@ -84,7 +84,7 @@ Changed your mind? One command removes ZCodeGraph from every agent it configured
 zcodegraph uninstall
 ```
 
-<sub>Reverses the installer — strips ZCodeGraph's MCP server config, instructions, and permissions from each configured agent. Your project indexes (`.codegraph/`) are left untouched; remove those per-project with `zcodegraph uninit`. Use `--target` to remove from specific agents, or `--yes` to run non-interactively.</sub>
+<sub>Reverses the installer — strips ZCodeGraph's MCP server config, instructions, and permissions from each configured agent. Your project indexes (`.zcodegraph/`) are left untouched; remove those per-project with `zcodegraph uninit`. Use `--target` to remove from specific agents, or `--yes` to run non-interactively.</sub>
 
 ---
 
@@ -349,7 +349,7 @@ zcodegraph init -i
 
 Builds the per-project knowledge graph index. A single global `zcodegraph install` works in every project you open — no need to re-run the installer per project.
 
-That's it — your agent will use ZCodeGraph tools automatically when a `.codegraph/` directory exists.
+That's it — your agent will use ZCodeGraph tools automatically when a `.zcodegraph/` directory exists.
 
 <details>
 <summary><strong>Manual Setup (Alternative)</strong></summary>
@@ -363,9 +363,9 @@ npm install -g @jununfly/zcodegraph
 ```json
 {
   "mcpServers": {
-    "codegraph": {
+    "zcodegraph": {
       "type": "stdio",
-      "command": "codegraph",
+      "command": "zcodegraph",
       "args": ["serve", "--mcp"]
     }
   }
@@ -377,14 +377,14 @@ npm install -g @jununfly/zcodegraph
 {
   "permissions": {
     "allow": [
-      "mcp__codegraph__zcodegraph_search",
-      "mcp__codegraph__zcodegraph_explore",
-      "mcp__codegraph__zcodegraph_callers",
-      "mcp__codegraph__zcodegraph_callees",
-      "mcp__codegraph__zcodegraph_impact",
-      "mcp__codegraph__zcodegraph_node",
-      "mcp__codegraph__zcodegraph_status",
-      "mcp__codegraph__zcodegraph_files"
+      "mcp__zcodegraph__zcodegraph_search",
+      "mcp__zcodegraph__zcodegraph_explore",
+      "mcp__zcodegraph__zcodegraph_callers",
+      "mcp__zcodegraph__zcodegraph_callees",
+      "mcp__zcodegraph__zcodegraph_impact",
+      "mcp__zcodegraph__zcodegraph_node",
+      "mcp__zcodegraph__zcodegraph_status",
+      "mcp__zcodegraph__zcodegraph_files"
     ]
   }
 }
@@ -400,7 +400,7 @@ ZCodeGraph's MCP server delivers its usage guidance to your agent **automaticall
 - **Answer structural questions directly with ZCodeGraph** — it *is* the pre-built index, so a grep/read loop just repeats work it already did. Treat the returned source as already read.
 - **Pick the tool by intent:** `zcodegraph_explore` for almost anything — "how does X work", a flow/"how does X reach Y", or surveying an area (one call returns the relevant symbols' source grouped by file); `zcodegraph_search` to just locate a symbol; `zcodegraph_callers`/`zcodegraph_callees` to walk call flow; `zcodegraph_impact` before editing; `zcodegraph_node` for one specific symbol's full source (it returns every overload for an ambiguous name).
 - **Trust the results — don't re-verify with grep**, and check the staleness banner after edits.
-- If `.codegraph/` doesn't exist yet, offer to run `zcodegraph init -i`.
+- If `.zcodegraph/` doesn't exist yet, offer to run `zcodegraph init -i`.
 
 The exact text is `src/mcp/server-instructions.ts` — the single source of truth.
 
@@ -433,7 +433,7 @@ The exact text is `src/mcp/server-instructions.ts` — the single source of trut
 
 1. **Extraction** — [tree-sitter](https://tree-sitter.github.io/) parses source code into ASTs. Language-specific queries extract nodes (functions, classes, methods) and edges (calls, imports, extends, implements).
 
-2. **Storage** — Everything goes into a local SQLite database (`.codegraph/codegraph.db`) with FTS5 full-text search.
+2. **Storage** — Everything goes into a local SQLite database (`.zcodegraph/zcodegraph.db`) with FTS5 full-text search.
 
 3. **Resolution** — After extraction, references are resolved: function calls → definitions, imports → source files, class inheritance, and framework-specific patterns.
 
@@ -670,7 +670,7 @@ Framework routing is validated the same way, on a canonical app per framework: E
 **MCP hits `database is locked`** — current builds shouldn't: CodeGraph bundles its own Node runtime and uses Node's built-in `node:sqlite` in WAL mode, where concurrent reads never block on a writer. If you still see it:
 
 - **You're on an old (pre-0.9) install.** Reinstall to get the bundled runtime — `npm install -g @jununfly/zcodegraph` (macOS/Linux), `npm install -g @jununfly/zcodegraph` (Windows), or `npm i -g @jununfly/zcodegraph@latest`.
-- **`zcodegraph status` shows `Journal:` other than `wal`** — WAL couldn't be enabled on this filesystem (common on network shares and WSL2 `/mnt`), so reads can block on writes. Move the project (with its `.codegraph/` folder) onto a local disk.
+- **`zcodegraph status` shows `Journal:` other than `wal`** — WAL couldn't be enabled on this filesystem (common on network shares and WSL2 `/mnt`), so reads can block on writes. Move the project (with its `.zcodegraph/` folder) onto a local disk.
 
 **MCP server not connecting** — Ensure the project is initialized/indexed, verify the path in your MCP config, and check that `zcodegraph serve --mcp` works from the command line.
 

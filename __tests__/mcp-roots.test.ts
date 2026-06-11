@@ -5,7 +5,7 @@
  * doesn't pass a `rootUri`/`workspaceFolders` in `initialize`, the server used
  * to fall straight back to `process.cwd()` — which for many IDE clients is the
  * wrong directory. Every tool call without an explicit `projectPath` then
- * failed with a misleading "CodeGraph not initialized. Run 'codegraph init'."
+ * failed with a misleading "CodeGraph not initialized. Run 'zcodegraph init'."
  *
  * The fix: when no explicit path is provided, the server asks the client for
  * its workspace root via the spec-blessed `roots/list` request (if the client
@@ -75,13 +75,13 @@ function send(child: ChildProcessWithoutNullStreams, msg: object): void {
 const CLIENT_INFO = { name: 'test', version: '0.0.0' };
 
 describe('MCP project resolution via roots/list (issue #196)', () => {
-  let cwdDir: string;     // where the server is launched — has NO .codegraph
+  let cwdDir: string;     // where the server is launched — has NO .zcodegraph
   let projectDir: string; // the real indexed project the client reports
   let child: ChildProcessWithoutNullStreams | null = null;
 
   beforeEach(() => {
-    cwdDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-mcp-cwd-'));
-    projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-mcp-proj-'));
+    cwdDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-mcp-cwd-'));
+    projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-mcp-proj-'));
   });
 
   afterEach(() => {

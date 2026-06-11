@@ -35,7 +35,7 @@ beforeAll(async () => {
 
 // Create a temporary directory for each test
 function createTempDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-pr19-test-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-pr19-test-'));
 }
 
 // Clean up temporary directory
@@ -327,7 +327,7 @@ describe('Database Layer Improvements', () => {
     const { DatabaseConnection } = await import('../src/db');
     const { QueryBuilder } = await import('../src/db/queries');
 
-    const dbPath = path.join(testDir, 'codegraph.db');
+    const dbPath = path.join(testDir, 'zcodegraph.db');
     const db = DatabaseConnection.initialize(dbPath);
     const queries = new QueryBuilder(db.getDb());
 
@@ -383,7 +383,7 @@ describe('Database Layer Improvements', () => {
     const { DatabaseConnection } = await import('../src/db');
     const { QueryBuilder } = await import('../src/db/queries');
 
-    const dbPath = path.join(testDir, 'codegraph.db');
+    const dbPath = path.join(testDir, 'zcodegraph.db');
     const db = DatabaseConnection.initialize(dbPath);
     const queries = new QueryBuilder(db.getDb());
 
@@ -414,7 +414,7 @@ describe('Database Layer Improvements', () => {
   it.skipIf(!HAS_SQLITE)('should set performance pragmas on initialization', async () => {
     const { DatabaseConnection } = await import('../src/db');
 
-    const dbPath = path.join(testDir, 'codegraph.db');
+    const dbPath = path.join(testDir, 'zcodegraph.db');
     const db = DatabaseConnection.initialize(dbPath);
     const rawDb = db.getDb();
 
@@ -438,7 +438,7 @@ describe('Database Layer Improvements', () => {
     const { DatabaseConnection } = await import('../src/db');
     const { QueryBuilder } = await import('../src/db/queries');
 
-    const dbPath = path.join(testDir, 'codegraph.db');
+    const dbPath = path.join(testDir, 'zcodegraph.db');
     const db = DatabaseConnection.initialize(dbPath);
     const queries = new QueryBuilder(db.getDb());
 
@@ -667,7 +667,7 @@ describe('CLI uninit', () => {
     // Uninitialize
     cg.uninitialize();
 
-    // .codegraph directory should be removed
+    // .zcodegraph directory should be removed
     expect(CodeGraph.isInitialized(testDir)).toBe(false);
   });
 });

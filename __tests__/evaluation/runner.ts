@@ -14,8 +14,8 @@ if (!codebasePath) {
 }
 
 const resolvedPath = path.resolve(codebasePath);
-if (!fs.existsSync(path.join(resolvedPath, '.codegraph', 'codegraph.db'))) {
-  console.error(`No .codegraph/codegraph.db found at ${resolvedPath}`);
+if (!fs.existsSync(path.join(resolvedPath, '.zcodegraph', 'zcodegraph.db'))) {
+  console.error(`No .zcodegraph/zcodegraph.db found at ${resolvedPath}`);
   process.exit(1);
 }
 

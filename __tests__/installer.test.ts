@@ -20,7 +20,7 @@ import {
 } from '../src/installer/config-writer';
 
 function createTempDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-installer-test-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-installer-test-'));
 }
 
 function cleanupTempDir(dir: string): void {
@@ -54,7 +54,7 @@ describe('Installer Config Writer', () => {
 
       const content = JSON.parse(fs.readFileSync(mcpJson, 'utf-8'));
       expect(content.mcpServers).toBeDefined();
-      expect(content.mcpServers.codegraph).toBeDefined();
+      expect(content.mcpServers.zcodegraph).toBeDefined();
     });
 
     it('should handle corrupted JSON by creating backup', () => {
@@ -81,7 +81,7 @@ describe('Installer Config Writer', () => {
 
       // New file should be valid JSON with codegraph config
       const content = JSON.parse(fs.readFileSync(mcpJson, 'utf-8'));
-      expect(content.mcpServers.codegraph).toBeDefined();
+      expect(content.mcpServers.zcodegraph).toBeDefined();
 
       warnSpy.mockRestore();
     });
@@ -96,7 +96,7 @@ describe('Installer Config Writer', () => {
       writeMcpConfig('local');
 
       const content = JSON.parse(fs.readFileSync(mcpJson, 'utf-8'));
-      expect(content.mcpServers.codegraph).toBeDefined();
+      expect(content.mcpServers.zcodegraph).toBeDefined();
       expect(content.mcpServers.other).toBeDefined();
       expect(content.customField).toBe('preserved');
     });

@@ -33,7 +33,7 @@ export function buildNode25BlockBanner(nodeVersion: string): string {
     '  brew install node@22 && brew link --overwrite --force node@22  # Homebrew',
     '',
     'To override (NOT recommended - you will likely OOM):',
-    '  CODEGRAPH_ALLOW_UNSAFE_NODE=1 codegraph ...',
+    '  CODEGRAPH_ALLOW_UNSAFE_NODE=1 zcodegraph ...',
     sep,
   ].join('\n');
 }
@@ -70,7 +70,7 @@ export function buildNodeTooOldBanner(nodeVersion: string): string {
     '  brew install node@22 && brew link --overwrite --force node@22  # Homebrew',
     '',
     'To override (NOT recommended - unsupported):',
-    '  CODEGRAPH_ALLOW_UNSAFE_NODE=1 codegraph ...',
+    '  CODEGRAPH_ALLOW_UNSAFE_NODE=1 zcodegraph ...',
     sep,
   ].join('\n');
 }

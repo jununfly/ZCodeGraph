@@ -295,7 +295,7 @@ export function uninstallTargets(
  * one block per agent so the user sees exactly which providers it hit.
  *
  * Removes only what install wrote (MCP server entry, instructions
- * block, permissions) — never the `.codegraph/` index, which `codegraph
+ * block, permissions) — never the `.zcodegraph/` index, which `codegraph
  * uninit` owns.
  */
 export async function runUninstaller(opts: RunUninstallerOptions): Promise<void> {
@@ -362,8 +362,8 @@ export async function runUninstaller(opts: RunUninstallerOptions): Promise<void>
 
   // Step 4: for local uninstall, the index dir is separate — point at
   // `uninit` so the user knows it's still there (and how to remove it).
-  if (location === 'local' && fs.existsSync(path.join(process.cwd(), '.codegraph'))) {
-    clack.log.info('The .codegraph/ index for this project is still here. Run `zcodegraph uninit` to delete it.');
+  if (location === 'local' && fs.existsSync(path.join(process.cwd(), '.zcodegraph'))) {
+    clack.log.info('The .zcodegraph/ index for this project is still here. Run `zcodegraph uninit` to delete it.');
   }
 
   // Step 5: summary.
@@ -468,7 +468,7 @@ async function initializeLocalProject(
 
   // Initialize
   const cg = await CodeGraph.init(projectPath);
-  clack.log.success('Created .codegraph/ directory');
+  clack.log.success('Created .zcodegraph/ directory');
 
   // Index the project with shimmer progress (worker thread for smooth animation)
   const { createShimmerProgress } = await import('../ui/shimmer-progress');

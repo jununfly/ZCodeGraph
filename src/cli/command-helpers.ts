@@ -25,12 +25,13 @@ export function resolveProjectPath(pathArg: string | undefined, cwd: string): st
 // ─── Initialization checks ──────────────────────────────────────────────────
 
 /**
- * Check whether a project directory is initialized (has .codegraph/).
+ * Check whether a project directory is initialized (has .zcodegraph/zcodegraph.db).
  */
 export function isProjectInitialized(projectPath: string): boolean {
   try {
-    const dotDir = path.join(projectPath, '.codegraph');
-    return fs.existsSync(dotDir) && fs.statSync(dotDir).isDirectory();
+    const dotDir = path.join(projectPath, '.zcodegraph');
+    const dbPath = path.join(dotDir, 'zcodegraph.db');
+    return fs.existsSync(dotDir) && fs.statSync(dotDir).isDirectory() && fs.existsSync(dbPath);
   } catch {
     return false;
   }

@@ -65,7 +65,7 @@ char budget. On a question whose answer spans many *same-shaped* classes — e.g
 "how does OkHttp process a request through its interceptor chain?", which touches
 ~14 `class … : Interceptor` implementations — that meant ~28 KB of mostly
 **redundant full bodies**. Because those bodies ride in the context window for
-the rest of the session, the WITH-CodeGraph arm cost *more* than the WITHOUT arm
+the rest of the session, the WITH-ZCodeGraph arm cost *more* than the WITHOUT arm
 (which answers the well-named interceptor question in ~10 cheap greps). OkHttp
 was the benchmark's cost outlier (−3% — i.e. *costlier* than native search).
 
@@ -198,7 +198,7 @@ agent can pull one specific implementation if it truly needs it.
 
 ## Validation (refined gate)
 
-Headless `claude -p`, Opus 4.8, **WITH vs WITHOUT** CodeGraph (the real benchmark
+Headless `claude -p`, Opus 4.8, **WITH vs WITHOUT** ZCodeGraph (the real benchmark
 arm, not the on/off probe the first cut used). Cost = median `total_cost_usd`.
 
 | Repo | WITH→WITHOUT cost | WITH reads | WITHOUT reads | RealCall/compiler read-back |

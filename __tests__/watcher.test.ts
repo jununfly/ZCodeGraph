@@ -96,7 +96,7 @@ describe('FileWatcher', () => {
     new FileWatcher(testDir, syncFn, { inertForTests: true, ...opts });
 
   beforeEach(() => {
-    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-watcher-'));
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-watcher-'));
     // Create a source file so the directory isn't empty
     const srcDir = path.join(testDir, 'src');
     fs.mkdirSync(srcDir);
@@ -205,16 +205,16 @@ describe('FileWatcher', () => {
       watcher.stop();
     });
 
-    it('should ignore .codegraph directory changes', async () => {
+    it('should ignore .zcodegraph directory changes', async () => {
       const syncFn = vi.fn().mockResolvedValue({ filesChanged: 0, durationMs: 0 });
       const watcher = newWatcher(syncFn, { debounceMs: 200 });
 
       watcher.start();
       await watcher.waitUntilReady();
 
-      // A .codegraph event — FileWatcher's `isAlwaysIgnored` filter must drop
+      // A .zcodegraph event — FileWatcher's `isAlwaysIgnored` filter must drop
       // it before scheduling sync.
-      __emitWatchEventForTests(testDir, '.codegraph/db.sqlite');
+      __emitWatchEventForTests(testDir, '.zcodegraph/db.sqlite');
 
       await new Promise((r) => setTimeout(r, 400));
       expect(syncFn).not.toHaveBeenCalled();

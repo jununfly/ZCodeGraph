@@ -26,7 +26,7 @@ describe('ZCodeGraph docs and agent-facing identity', () => {
     expect(readme).not.toContain('npx @colbymchenry/codegraph');
     expect(readme).not.toContain('https://github.com/colbymchenry/codegraph');
     expect(readme).not.toContain('https://colbymchenry.github.io/codegraph');
-    expect(readme).not.toContain('mcp__codegraph__codegraph_');
+    expect(readme).not.toContain('mcp__zcodegraph__codegraph_');
   });
 
   it('site docs use the ZCodeGraph package and CLI in user-facing setup pages', () => {
@@ -50,8 +50,6 @@ describe('ZCodeGraph docs and agent-facing identity', () => {
     expect(docs).not.toContain('https://github.com/colbymchenry/codegraph');
     expect(docs).not.toContain('https://colbymchenry.github.io/codegraph');
     expect(docs).not.toContain('/codegraph/');
-    expect(docs).not.toContain('@jununfly/zzcodegraph');
-    expect(docs).not.toContain('zzcodegraph');
     expect(docs).not.toMatch(/\bnpx\s+codegraph\b/);
     expect(docs).not.toMatch(/\bcodegraph\s+(init|status|serve|install|watch|sync|search|callers|callees|impact|node|files|uninstall|uninit|index|query|affected|upgrade|context)\b/);
   });
@@ -67,5 +65,30 @@ describe('ZCodeGraph docs and agent-facing identity', () => {
     expect(scripts).not.toContain('@colbymchenry/codegraph');
     expect(scripts).not.toContain('/Users/colby/codegraph');
     expect(scripts).not.toContain('/Users/colby/Development/Personal/codegraph');
+  });
+
+  it('documents product naming and uses zcodegraph for user commands', () => {
+    const context = read('ZJ-CONTEXT.md');
+    expect(context).toContain('### Product Naming');
+    expect(context).toContain('**ZCodeGraph**');
+    expect(context).toContain('**CodeGraph**');
+    expect(context).toContain('**zcodegraph**');
+    expect(context).toContain('`.zcodegraph/`');
+    expect(context).toContain('`zcodegraph.db`');
+    expect(context).toContain('server key `zcodegraph`');
+    expect(context).toContain('legacy compatibility name');
+
+    const userFacing = [
+      read('README.md'),
+      read('src/bin/zcodegraph.ts'),
+      read('src/bin/node-version-check.ts'),
+      read('src/mcp/tools.ts'),
+    ].join('\n');
+
+    expect(userFacing).not.toContain('"command": "codegraph"');
+    expect(userFacing).not.toContain('"codegraph": {\n      "type": "stdio"');
+    expect(userFacing).not.toMatch(/\bRun ["`]codegraph\b/);
+    expect(userFacing).not.toMatch(/\bUse ["`]codegraph\b/);
+    expect(userFacing).not.toMatch(/\bcodegraph (init|index|sync|status|serve|install|uninstall|uninit|upgrade|query|files|callers|callees|impact|affected|context)\b/);
   });
 });

@@ -44,7 +44,7 @@ describe('Context ranking — common-word precision & confidence', () => {
   let cg: CodeGraph;
 
   beforeEach(async () => {
-    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-ctxrank-'));
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-ctxrank-'));
 
     // The corroborated target: a capture-flow screen whose NAME alone matches
     // three query terms (capture + intro + screen), and which lives under a

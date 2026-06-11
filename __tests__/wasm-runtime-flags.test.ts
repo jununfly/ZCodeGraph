@@ -1,6 +1,6 @@
 /**
  * WASM runtime flags — the workaround for the V8 turboshaft WASM Zone OOM
- * (`Fatal process out of memory: Zone`) that crashed `codegraph index` on large
+ * (`Fatal process out of memory: Zone`) that crashed `zcodegraph index` on large
  * polyglot repos under Node >= 22. See issues #293 and #298.
  *
  * The crash was reproduced with the real indexer on the bundled Node 24 runtime;

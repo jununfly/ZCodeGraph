@@ -28,7 +28,7 @@ describe('MCP catch-up gate', () => {
   let handler: ToolHandler;
 
   beforeEach(async () => {
-    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-catchup-gate-'));
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-catchup-gate-'));
     fs.mkdirSync(path.join(testDir, 'src'));
     fs.writeFileSync(
       path.join(testDir, 'src', 'survivor.ts'),

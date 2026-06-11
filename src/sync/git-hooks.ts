@@ -3,11 +3,11 @@
  *
  * When the live file watcher is disabled (e.g. on WSL2 `/mnt/*` drives,
  * see watch-policy.ts), the CodeGraph index would otherwise go stale until
- * the user runs `codegraph sync` by hand. As an opt-in alternative, we can
+ * the user runs `zcodegraph sync` by hand. As an opt-in alternative, we can
  * install git hooks that refresh the index after the operations that change
  * files on disk: commit, merge (covers `git pull`), and checkout.
  *
- * The hooks run `codegraph sync` in the background so they never block git,
+ * The hooks run `zcodegraph sync` in the background so they never block git,
  * and are guarded by `command -v codegraph` so they no-op cleanly when the
  * CLI isn't on PATH. Our snippet is delimited by marker comments so install
  * is idempotent and removal preserves any user-authored hook content.
@@ -17,8 +17,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
 
-const MARKER_BEGIN = '# >>> codegraph sync hook >>>';
-const MARKER_END = '# <<< codegraph sync hook <<<';
+const MARKER_BEGIN = '# >>> zcodegraph sync hook >>>';
+const MARKER_END = '# <<< zcodegraph sync hook <<<';
 
 export type GitHookName = 'post-commit' | 'post-merge' | 'post-checkout';
 
@@ -77,9 +77,9 @@ function markerBlock(): string {
     MARKER_BEGIN,
     '# Keeps the CodeGraph index fresh while the live file watcher is off',
     '# (e.g. WSL2 /mnt drives). Runs in the background so it never blocks git.',
-    '# Managed by codegraph; remove with `codegraph uninit` or delete this block.',
+    '# Managed by codegraph; remove with `zcodegraph uninit` or delete this block.',
     'if command -v codegraph >/dev/null 2>&1; then',
-    '  ( codegraph sync >/dev/null 2>&1 & ) >/dev/null 2>&1',
+    '  ( zcodegraph sync >/dev/null 2>&1 & ) >/dev/null 2>&1',
     'fi',
     MARKER_END,
   ].join('\n');

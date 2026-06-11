@@ -28,7 +28,7 @@
  *   - Listening on the daemon socket and spawning per-connection sessions.
  *   - The handshake "hello" line that lets a proxy verify it found a
  *     same-version daemon before piping any JSON-RPC through it.
- *   - The lockfile (`.codegraph/daemon.pid`) competing daemons arbitrate
+ *   - The lockfile (`.zcodegraph/daemon.pid`) competing daemons arbitrate
  *     against — atomic `O_EXCL` create with the full record written in the same
  *     breath (no empty-file window) + cleanup on exit.
  *   - Reference counting + idle timeout.
@@ -84,7 +84,8 @@ const MAX_HELLO_LINE_BYTES = 4096;
  * direct mode on mismatch rather than risk subtle wire incompatibilities.
  */
 export interface DaemonHello {
-  codegraph: string; // package version (must match the proxy's own version)
+  zcodegraph: string; // package version (must match the proxy's own version)
+  codegraph?: string; // legacy 0.9.x daemon hello field
   pid: number;       // daemon pid (informational; for `ps` debugging)
   socketPath: string; // echoed back so the proxy can log it
   protocol: 1;       // bump if the hello shape changes
@@ -96,11 +97,12 @@ export interface DaemonHello {
  * process dies WITHOUT the socket ever signalling close (the Windows named-pipe
  * hazard behind #692). Entirely optional and fail-safe: a connection that never
  * sends it (a legacy/direct client) just falls back to the socket-close
- * lifecycle. The `codegraph_client` marker is what tells it apart from the
+ * lifecycle. The `zcodegraph_client` marker is what tells it apart from the
  * client's first JSON-RPC message.
  */
 export interface DaemonClientHello {
-  codegraph_client: 1;
+  zcodegraph_client: 1;
+  codegraph_client?: 1;
   pid: number;             // the proxy process's own pid
   hostPid: number | null;  // the MCP host pid (past any launcher shim), if known
 }
@@ -175,7 +177,7 @@ export class Daemon {
       server.once('error', (err) => reject(err));
       server.listen(this.socketPath, () => {
         // POSIX: tighten permissions to user-only — the socket lives under
-        // `.codegraph/`, which is git-ignored but may be on a shared FS.
+        // `.zcodegraph/`, which is git-ignored but may be on a shared FS.
         if (process.platform !== 'win32') {
           try { fs.chmodSync(this.socketPath, 0o600); } catch { /* best-effort */ }
         }
@@ -254,7 +256,7 @@ export class Daemon {
     // Hello first so the proxy can verify versions before piping any
     // application bytes. The proxy reads exactly one line, then forwards.
     const hello: DaemonHello = {
-      codegraph: CodeGraphPackageVersion,
+      zcodegraph: CodeGraphPackageVersion,
       pid: process.pid,
       socketPath: this.socketPath,
       protocol: 1,
@@ -412,7 +414,7 @@ export type AcquireResult =
  */
 export function tryAcquireDaemonLock(projectRoot: string): AcquireResult {
   const pidPath = getDaemonPidPath(projectRoot);
-  // Make sure the .codegraph/ directory exists — the daemon may be the first
+  // Make sure the .zcodegraph/ directory exists — the daemon may be the first
   // thing to touch it on a fresh-clone-but-already-initialized checkout.
   fs.mkdirSync(path.dirname(pidPath), { recursive: true });
 
@@ -522,7 +524,7 @@ function resolveClientSweepMs(): number {
 
 /**
  * Parse one client-hello line. Returns the peer pids if `line` is a well-formed
- * client-hello (carries the `codegraph_client` marker), or null otherwise — in
+ * client-hello (carries the `zcodegraph_client` marker), or null otherwise — in
  * which case the caller treats the bytes as ordinary JSON-RPC.
  */
 export function parseClientHelloLine(
@@ -532,7 +534,8 @@ export function parseClientHelloLine(
   try { parsed = JSON.parse(line); } catch { return null; }
   if (!parsed || typeof parsed !== 'object') return null;
   const o = parsed as Record<string, unknown>;
-  if (o.codegraph_client !== 1 || typeof o.pid !== 'number') return null;
+  if (o.zcodegraph_client !== 1 && o.codegraph_client !== 1) return null;
+  if (typeof o.pid !== 'number') return null;
   return { pid: o.pid, hostPid: typeof o.hostPid === 'number' ? o.hostPid : null };
 }
 

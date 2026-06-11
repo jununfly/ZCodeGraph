@@ -16,7 +16,7 @@
  *
  * We detect the marker at install time and write to the right path. On
  * uninstall we sweep BOTH — so a user who installed on the legacy path,
- * was then auto-migrated by Antigravity, and re-ran `codegraph install`
+ * was then auto-migrated by Antigravity, and re-ran `zcodegraph install`
  * doesn't end up with stale codegraph entries in two files.
  *
  * ## Entry shape: no `type: stdio` field
@@ -43,7 +43,7 @@
  * — written by the `./gemini.ts` target. We deliberately don't touch it
  * here so uninstalling Antigravity without uninstalling Gemini CLI
  * leaves CLI instructions intact. Users who install only Antigravity
- * still get a working MCP integration; the prefer-codegraph-over-grep
+ * still get a working MCP integration; the prefer-zcodegraph-over-grep
  * guidance just won't be present unless they also install the gemini
  * target.
  *
@@ -65,6 +65,8 @@ import {
   WriteResult,
 } from './types';
 import {
+  LEGACY_MCP_SERVER_KEY,
+  MCP_SERVER_KEY,
   jsonDeepEqual,
   readJsonFile,
   writeJsonFile,
@@ -161,7 +163,7 @@ class AntigravityTarget implements AgentTarget {
     }
     const file = preferredMcpConfigPath();
     const config = readJsonFile(file);
-    const alreadyConfigured = !!config.mcpServers?.codegraph;
+    const alreadyConfigured = !!config.mcpServers?.[MCP_SERVER_KEY];
     // "Installed" heuristic: either the unified config dir, the legacy
     // config dir, or one of the config files exists. Antigravity creates
     // ~/.gemini/ on first launch even before MCP configs.
@@ -221,7 +223,7 @@ class AntigravityTarget implements AgentTarget {
       return '# Antigravity IDE has no project-local config — use --location=global.\n';
     }
     const file = preferredMcpConfigPath();
-    const snippet = JSON.stringify({ mcpServers: { codegraph: buildAntigravityEntry() } }, null, 2);
+    const snippet = JSON.stringify({ mcpServers: { [MCP_SERVER_KEY]: buildAntigravityEntry() } }, null, 2);
     return `# Add to ${file}\n\n${snippet}\n`;
   }
 
@@ -237,7 +239,7 @@ function writeMcpEntry(): WriteResult['files'][number] {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   const existing = readJsonFile(file);
-  const before = existing.mcpServers?.codegraph;
+  const before = existing.mcpServers?.[MCP_SERVER_KEY];
   const after = buildAntigravityEntry();
 
   if (jsonDeepEqual(before, after)) {
@@ -246,7 +248,8 @@ function writeMcpEntry(): WriteResult['files'][number] {
   const action: 'created' | 'updated' =
     before ? 'updated' : (fs.existsSync(file) ? 'updated' : 'created');
   if (!existing.mcpServers) existing.mcpServers = {};
-  existing.mcpServers.codegraph = after;
+  existing.mcpServers[MCP_SERVER_KEY] = after;
+  delete existing.mcpServers[LEGACY_MCP_SERVER_KEY];
   writeJsonFile(file, existing);
   return { path: file, action };
 }
@@ -263,8 +266,16 @@ function cleanupLegacyEntry(): WriteResult['files'][number] | null {
   const legacy = legacyMcpConfigPath();
   if (!fs.existsSync(legacy)) return null;
   const config = readJsonFile(legacy);
-  if (!config.mcpServers?.codegraph) return null;
-  delete config.mcpServers.codegraph;
+  let removed = false;
+  if (config.mcpServers?.[MCP_SERVER_KEY]) {
+    delete config.mcpServers[MCP_SERVER_KEY];
+    removed = true;
+  }
+  if (config.mcpServers?.[LEGACY_MCP_SERVER_KEY]) {
+    delete config.mcpServers[LEGACY_MCP_SERVER_KEY];
+    removed = true;
+  }
+  if (!removed) return null;
   if (Object.keys(config.mcpServers).length === 0) {
     delete config.mcpServers;
   }
@@ -275,8 +286,16 @@ function cleanupLegacyEntry(): WriteResult['files'][number] | null {
 function removeCodegraphFromFile(file: string): WriteResult['files'][number] {
   if (!fs.existsSync(file)) return { path: file, action: 'not-found' };
   const config = readJsonFile(file);
-  if (!config.mcpServers?.codegraph) return { path: file, action: 'not-found' };
-  delete config.mcpServers.codegraph;
+  let removed = false;
+  if (config.mcpServers?.[MCP_SERVER_KEY]) {
+    delete config.mcpServers[MCP_SERVER_KEY];
+    removed = true;
+  }
+  if (config.mcpServers?.[LEGACY_MCP_SERVER_KEY]) {
+    delete config.mcpServers[LEGACY_MCP_SERVER_KEY];
+    removed = true;
+  }
+  if (!removed) return { path: file, action: 'not-found' };
   if (Object.keys(config.mcpServers).length === 0) {
     delete config.mcpServers;
   }

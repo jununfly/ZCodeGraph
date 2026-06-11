@@ -21,7 +21,7 @@
  *
  * These tests intentionally spawn real `node dist/bin/zcodegraph.js` processes
  * over real sockets/pipes — the same surface a Claude Code / Cursor / Codex
- * install exercises. The daemon logs to `.codegraph/daemon.log` (it has no
+ * install exercises. The daemon logs to `.zcodegraph/daemon.log` (it has no
  * client stderr of its own), so daemon-side assertions read that file.
  *
  * `realRoot` vs `tempDir`: processes are spawned with the (possibly symlinked)
@@ -173,14 +173,14 @@ function isAlive(pid: number): boolean {
 
 function readLockPid(root: string): number | null {
   try {
-    const raw = fs.readFileSync(path.join(root, '.codegraph', 'daemon.pid'), 'utf8');
+    const raw = fs.readFileSync(path.join(root, '.zcodegraph', 'daemon.pid'), 'utf8');
     const info = JSON.parse(raw);
     return typeof info.pid === 'number' ? info.pid : null;
   } catch { return null; }
 }
 
 function readDaemonLog(root: string): string {
-  try { return fs.readFileSync(path.join(root, '.codegraph', 'daemon.log'), 'utf8'); }
+  try { return fs.readFileSync(path.join(root, '.zcodegraph', 'daemon.log'), 'utf8'); }
   catch { return ''; }
 }
 
@@ -204,7 +204,7 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
   const servers: SpawnedServer[] = [];
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-mcp-daemon-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-mcp-daemon-'));
     const cg = await CodeGraph.init(tempDir);
     cg.close();
     realRoot = fs.realpathSync(tempDir);
@@ -238,7 +238,7 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
     await waitFor(() => first.stderr.some((l) => l.includes('Attached to shared daemon')), 8000);
 
     // A detached daemon came up and recorded itself.
-    await waitFor(() => fs.existsSync(path.join(realRoot, '.codegraph', 'daemon.pid')), 8000);
+    await waitFor(() => fs.existsSync(path.join(realRoot, '.zcodegraph', 'daemon.pid')), 8000);
     await waitFor(() => countListeningLines(realRoot) >= 1, 8000);
     const daemonPid = readLockPid(realRoot);
     expect(daemonPid).toBeTruthy();
@@ -332,14 +332,14 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
     await waitFor(() => findResponse(first.stdout, 1), 10000);
     // Direct mode — no daemon machinery touched.
     expect(first.stderr.some((l) => l.includes('Attached to shared daemon'))).toBe(false);
-    expect(fs.existsSync(path.join(realRoot, '.codegraph', 'daemon.pid'))).toBe(false);
-    expect(fs.existsSync(path.join(realRoot, '.codegraph', 'daemon.log'))).toBe(false);
+    expect(fs.existsSync(path.join(realRoot, '.zcodegraph', 'daemon.pid'))).toBe(false);
+    expect(fs.existsSync(path.join(realRoot, '.zcodegraph', 'daemon.log'))).toBe(false);
   }, 20000);
 
   it('clears a stale (dead-pid) lockfile and a fresh daemon takes over', async () => {
     // Plant a lockfile pointing at a definitely-dead pid + the real socket path.
     fs.writeFileSync(
-      path.join(realRoot, '.codegraph', 'daemon.pid'),
+      path.join(realRoot, '.zcodegraph', 'daemon.pid'),
       JSON.stringify({
         pid: 999_999,
         version: '0.0.0-fake',
@@ -369,7 +369,7 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
     // Plant a live-pid lockfile so the launcher treats the lock as held, and a
     // mini-server that answers with a mismatched-version hello.
     fs.writeFileSync(
-      path.join(realRoot, '.codegraph', 'daemon.pid'),
+      path.join(realRoot, '.zcodegraph', 'daemon.pid'),
       JSON.stringify({ pid: process.pid, version: '0.0.0-mismatch', socketPath: sockPath, startedAt: Date.now() }),
     );
     const miniServer = net.createServer((sock) => {
@@ -416,7 +416,7 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
     // should fire and the daemon should exit and clean up its lockfile.
     expect(await waitProcessExit(daemonPid, 12000)).toBe(true);
     expect(readDaemonLog(realRoot)).toContain('inactivity backstop');
-    expect(fs.existsSync(path.join(realRoot, '.codegraph', 'daemon.pid'))).toBe(false);
+    expect(fs.existsSync(path.join(realRoot, '.zcodegraph', 'daemon.pid'))).toBe(false);
   }, 30000);
 
   it('daemon idle-times-out after the last client disconnects', async () => {
@@ -433,7 +433,7 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
     server.child.stdin.end();
 
     expect(await waitProcessExit(daemonPid, 10000)).toBe(true);
-    expect(fs.existsSync(path.join(realRoot, '.codegraph', 'daemon.pid'))).toBe(false);
+    expect(fs.existsSync(path.join(realRoot, '.zcodegraph', 'daemon.pid'))).toBe(false);
   }, 30000);
 
   it('proxy survives the daemon dying mid-session and keeps serving (#662)', async () => {

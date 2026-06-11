@@ -6,7 +6,7 @@
  *
  *   - MCP server entry to `~/.gemini/settings.json` (global) or
  *     `./.gemini/settings.json` (local) under the standard
- *     `mcpServers.codegraph` key. Same shape as Claude / Cursor.
+ *     `mcpServers.zcodegraph` key. Same shape as Claude / Cursor.
  *   - Instructions to `~/.gemini/GEMINI.md` (global) or `./GEMINI.md`
  *     (local — Gemini reads the project root file directly, not
  *     under `.gemini/`).
@@ -33,6 +33,8 @@ import {
   WriteResult,
 } from './types';
 import {
+  LEGACY_MCP_SERVER_KEY,
+  MCP_SERVER_KEY,
   getMcpServerConfig,
   jsonDeepEqual,
   readJsonFile,
@@ -73,7 +75,7 @@ class GeminiTarget implements AgentTarget {
   detect(loc: Location): DetectionResult {
     const file = settingsJsonPath(loc);
     const config = readJsonFile(file);
-    const alreadyConfigured = !!config.mcpServers?.codegraph;
+    const alreadyConfigured = !!config.mcpServers?.[MCP_SERVER_KEY];
     const installed = loc === 'global'
       ? fs.existsSync(configDir('global')) || fs.existsSync(file)
       : fs.existsSync(file) || fs.existsSync(configDir('local'));
@@ -98,8 +100,16 @@ class GeminiTarget implements AgentTarget {
 
     const file = settingsJsonPath(loc);
     const config = readJsonFile(file);
-    if (config.mcpServers?.codegraph) {
-      delete config.mcpServers.codegraph;
+    let removedMcp = false;
+    if (config.mcpServers?.[MCP_SERVER_KEY]) {
+      delete config.mcpServers[MCP_SERVER_KEY];
+      removedMcp = true;
+    }
+    if (config.mcpServers?.[LEGACY_MCP_SERVER_KEY]) {
+      delete config.mcpServers[LEGACY_MCP_SERVER_KEY];
+      removedMcp = true;
+    }
+    if (removedMcp) {
       if (Object.keys(config.mcpServers).length === 0) {
         delete config.mcpServers;
       }
@@ -119,7 +129,7 @@ class GeminiTarget implements AgentTarget {
 
   printConfig(loc: Location): string {
     const target = settingsJsonPath(loc);
-    const snippet = JSON.stringify({ mcpServers: { codegraph: getMcpServerConfig() } }, null, 2);
+    const snippet = JSON.stringify({ mcpServers: { [MCP_SERVER_KEY]: getMcpServerConfig() } }, null, 2);
     return `# Add to ${target}\n\n${snippet}\n`;
   }
 
@@ -134,7 +144,7 @@ function writeMcpEntry(loc: Location): WriteResult['files'][number] {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   const existing = readJsonFile(file);
-  const before = existing.mcpServers?.codegraph;
+  const before = existing.mcpServers?.[MCP_SERVER_KEY];
   const after = getMcpServerConfig();
 
   if (jsonDeepEqual(before, after)) {
@@ -143,7 +153,8 @@ function writeMcpEntry(loc: Location): WriteResult['files'][number] {
   const action: 'created' | 'updated' =
     before ? 'updated' : (fs.existsSync(file) ? 'updated' : 'created');
   if (!existing.mcpServers) existing.mcpServers = {};
-  existing.mcpServers.codegraph = after;
+  existing.mcpServers[MCP_SERVER_KEY] = after;
+  delete existing.mcpServers[LEGACY_MCP_SERVER_KEY];
   writeJsonFile(file, existing);
   return { path: file, action };
 }

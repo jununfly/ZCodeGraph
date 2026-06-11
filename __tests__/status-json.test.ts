@@ -1,5 +1,5 @@
 /**
- * Tests for the CI/scripting fields `codegraph status --json` exposes (issue
+ * Tests for the CI/scripting fields `zcodegraph status --json` exposes (issue
  * #329): the `version`, `indexPath`, and `lastIndexed` fields, plus the
  * matching `CodeGraph.getLastIndexedAt()` library method.
  *
@@ -32,11 +32,11 @@ function runStatusJson(cwd: string): Record<string, unknown> {
   return JSON.parse(line);
 }
 
-describe('codegraph status --json — CI fields (#329)', () => {
+describe('zcodegraph status --json — CI fields (#329)', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-status-json-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-status-json-'));
   });
   afterEach(() => {
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -64,7 +64,7 @@ describe('codegraph status --json — CI fields (#329)', () => {
     expect(out.initialized).toBe(false);
     expect(out.version).toBe(PKG_VERSION);
     expect(typeof out.indexPath).toBe('string');
-    expect(out.indexPath as string).toContain('.codegraph');
+    expect(out.indexPath as string).toContain('.zcodegraph');
     expect(out.lastIndexed).toBeNull();
   });
 
@@ -79,7 +79,7 @@ describe('codegraph status --json — CI fields (#329)', () => {
     const out = runStatusJson(tempDir);
     expect(out.initialized).toBe(true);
     expect(out.version).toBe(PKG_VERSION);
-    expect(out.indexPath as string).toContain('.codegraph');
+    expect(out.indexPath as string).toContain('.zcodegraph');
     expect(typeof out.lastIndexed).toBe('string');
     // ISO string that round-trips back into the index window.
     const ms = Date.parse(out.lastIndexed as string);

@@ -43,9 +43,10 @@ describe('resolveProjectPath', () => {
 
 describe('isProjectInitialized', () => {
   it('returns true for initialized project', () => {
-    // Create a temp dir with .codegraph/
+    // Create a temp dir with .zcodegraph/
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'zcg-test-'));
-    fs.mkdirSync(path.join(tmp, '.codegraph'));
+    fs.mkdirSync(path.join(tmp, '.zcodegraph'));
+    fs.writeFileSync(path.join(tmp, '.zcodegraph', 'zcodegraph.db'), '');
     try {
       expect(isProjectInitialized(tmp)).toBe(true);
     } finally {
@@ -62,13 +63,23 @@ describe('isProjectInitialized', () => {
     }
   });
 
+  it('returns false for .zcodegraph without zcodegraph.db', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'zcg-test-'));
+    fs.mkdirSync(path.join(tmp, '.zcodegraph'));
+    try {
+      expect(isProjectInitialized(tmp)).toBe(false);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('returns false for non-existent path', () => {
     expect(isProjectInitialized('/nonexistent/path/12345')).toBe(false);
   });
 
-  it('returns false when .codegraph is a file, not a directory', () => {
+  it('returns false when .zcodegraph is a file, not a directory', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'zcg-test-'));
-    fs.writeFileSync(path.join(tmp, '.codegraph'), 'not a dir');
+    fs.writeFileSync(path.join(tmp, '.zcodegraph'), 'not a dir');
     try {
       expect(isProjectInitialized(tmp)).toBe(false);
     } finally {
@@ -82,7 +93,8 @@ describe('isProjectInitialized', () => {
 describe('requireInitialized', () => {
   it('returns ok with path for initialized project', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'zcg-test-'));
-    fs.mkdirSync(path.join(tmp, '.codegraph'));
+    fs.mkdirSync(path.join(tmp, '.zcodegraph'));
+    fs.writeFileSync(path.join(tmp, '.zcodegraph', 'zcodegraph.db'), '');
     try {
       const result = requireInitialized(undefined, tmp);
       expect(result.ok).toBe(true);
@@ -119,7 +131,8 @@ describe('requireNotInitialized', () => {
 
   it('returns error for initialized project', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'zcg-test-'));
-    fs.mkdirSync(path.join(tmp, '.codegraph'));
+    fs.mkdirSync(path.join(tmp, '.zcodegraph'));
+    fs.writeFileSync(path.join(tmp, '.zcodegraph', 'zcodegraph.db'), '');
     try {
       const result = requireNotInitialized(undefined, tmp);
       expect(result.ok).toBe(false);
@@ -127,6 +140,16 @@ describe('requireNotInitialized', () => {
         expect(result.message).toContain('already initialized');
         expect(result.hint).toContain('uninit');
       }
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('returns false for legacy .codegraph only', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'zcg-test-'));
+    fs.mkdirSync(path.join(tmp, '.codegraph'));
+    try {
+      expect(isProjectInitialized(tmp)).toBe(false);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

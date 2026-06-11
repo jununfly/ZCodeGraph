@@ -71,7 +71,7 @@ describe('peerIsDead', () => {
 describe('Daemon.reapDeadClients', () => {
   // Construct with idleTimeoutMs:0 so dropping the last client doesn't arm a real
   // idle timer. The constructor opens no sockets/DB, so this stays a fast unit test.
-  const makeDaemon = () => new Daemon('/tmp/codegraph-reap-unit-test', { idleTimeoutMs: 0 }) as any;
+  const makeDaemon = () => new Daemon('/tmp/zcodegraph-reap-unit-test', { idleTimeoutMs: 0 }) as any;
   const fakeSession = () => ({ stopped: false, stop() { this.stopped = true; } });
 
   it('drops clients with a dead peer and leaves live ones attached', () => {

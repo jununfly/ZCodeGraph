@@ -21,7 +21,7 @@ import * as path from 'path';
 import * as os from 'os';
 import CodeGraph from '../../src/index';
 
-function createTempDir(prefix = 'codegraph-int-'): string {
+function createTempDir(prefix = 'zcodegraph-int-'): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 

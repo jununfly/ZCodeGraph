@@ -8,7 +8,7 @@
  *   - `daemon.sock` — Unix domain socket / named pipe the daemon listens on.
  *   - `daemon.pid` — atomic-create lockfile holding the daemon's pid + version.
  *
- * Both live under `.codegraph/` so the project-scoped uninstall (`codegraph
+ * Both live under `.zcodegraph/` so the project-scoped uninstall (`codegraph
  * uninit`) sweeps them up for free.
  *
  * Special-case: Unix domain socket paths have a hard length limit (~104 on
@@ -38,13 +38,13 @@ function projectHash(projectRoot: string): string {
  */
 export function getDaemonSocketPath(projectRoot: string): string {
   if (process.platform === 'win32') {
-    return `\\\\.\\pipe\\codegraph-${projectHash(projectRoot)}`;
+    return `\\\\.\\pipe\\zcodegraph-${projectHash(projectRoot)}`;
   }
   const inProject = path.join(getCodeGraphDir(projectRoot), 'daemon.sock');
   if (inProject.length <= POSIX_SOCKET_PATH_LIMIT) return inProject;
   // Long project paths (deep monorepos, Bazel out dirs) need tmpdir fallback
   // or `bind` returns EADDRINUSE / ENAMETOOLONG. Hash keeps it project-scoped.
-  return path.join(os.tmpdir(), `codegraph-${projectHash(projectRoot)}.sock`);
+  return path.join(os.tmpdir(), `zcodegraph-${projectHash(projectRoot)}.sock`);
 }
 
 /** Absolute path to the daemon pid lockfile for `projectRoot`. */

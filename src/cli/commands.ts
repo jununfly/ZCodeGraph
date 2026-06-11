@@ -103,12 +103,12 @@ export const runUninit: CommandFn<UninitArgs> = async (args, ctx) => {
     const projectPath = check.path;
     const { default: CodeGraph } = await import('../index');
     const cg = await CodeGraph.open(projectPath);
-    await cg.destroy(); // cleans up .codegraph/
+    await cg.destroy(); // cleans up .zcodegraph/
 
-    // Remove .codegraph directory
+    // Remove .zcodegraph directory
     const fs = await import('fs/promises');
     const path = await import('path');
-    await fs.rm(path.join(projectPath, '.codegraph'), { recursive: true, force: true });
+    await fs.rm(path.join(projectPath, '.zcodegraph'), { recursive: true, force: true });
 
     if (!args.quiet) {
       ctx.log(`Removed CodeGraph from ${projectPath}`);

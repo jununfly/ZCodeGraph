@@ -19,7 +19,7 @@ describe('Sync Module', () => {
     let cg: CodeGraph;
 
     beforeEach(async () => {
-      testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-sync-func-'));
+      testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-sync-func-'));
 
       // Create initial source files
       const srcDir = path.join(testDir, 'src');
@@ -161,7 +161,7 @@ describe('Sync Module', () => {
     }
 
     beforeEach(async () => {
-      testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-git-sync-'));
+      testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-git-sync-'));
 
       // Initialize a git repo with an initial commit
       git('init');

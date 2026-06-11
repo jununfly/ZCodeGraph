@@ -24,7 +24,7 @@ describe('Resolution Module', () => {
 
   beforeEach(() => {
     // Create temp directory
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-resolution-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-resolution-test-'));
   });
 
   afterEach(() => {
@@ -1784,7 +1784,7 @@ func main() {
 
     it('should discover include directories from compile_commands.json', () => {
       // Create a temp project with compile_commands.json
-      const tempProject = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-cpp-test-'));
+      const tempProject = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-cpp-test-'));
       try {
         const compileDb = [
           {
@@ -1815,7 +1815,7 @@ func main() {
     });
 
     it('should fall back to heuristic include dirs when no compile_commands.json', () => {
-      const tempProject = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-cpp-test-'));
+      const tempProject = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-cpp-test-'));
       try {
         // Create include/ and src/ directories with headers
         fs.mkdirSync(path.join(tempProject, 'include'), { recursive: true });
@@ -1845,7 +1845,7 @@ func main() {
     // "exclude objc dirs" refactor breaks loudly and reviewers see the
     // trade-off explicitly.
     it('heuristic claims any top-level dir containing .h files, including Obj-C', () => {
-      const tempProject = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-cpp-test-'));
+      const tempProject = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-cpp-test-'));
       try {
         // C++ side: an `cppmod` dir with a .hpp (C++-only extension)
         fs.mkdirSync(path.join(tempProject, 'cppmod'), { recursive: true });
@@ -1871,7 +1871,7 @@ func main() {
     // edge). This pins the include-dir resolution path so the headline PR
     // feature can't silently regress to a no-op in the indexing flow.
     it('connects #include to the real header file via include-dir scan (end-to-end)', async () => {
-      const tempProject = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-cpp-e2e-'));
+      const tempProject = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-cpp-e2e-'));
       try {
         fs.mkdirSync(path.join(tempProject, 'include'), { recursive: true });
         fs.mkdirSync(path.join(tempProject, 'src'), { recursive: true });
@@ -1894,7 +1894,7 @@ func main() {
         // The `#include "utils.h"` edge should target the real
         // `include/utils.h` file node — not a floating `import` node
         // living inside main.cpp.
-        const db = DatabaseConnection.open(path.join(tempProject, '.codegraph', 'codegraph.db'));
+        const db = DatabaseConnection.open(path.join(tempProject, '.zcodegraph', 'zcodegraph.db'));
         const rows = db.getDb().prepare(`
           select dst.kind as dstKind, dst.file_path as dstPath
           from edges e

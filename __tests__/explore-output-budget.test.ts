@@ -143,7 +143,7 @@ describe('zcodegraph_explore output respects the adaptive budget', () => {
   let handler: ToolHandler;
 
   beforeAll(async () => {
-    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-explore-budget-'));
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-explore-budget-'));
     const srcDir = path.join(testDir, 'src');
     fs.mkdirSync(srcDir);
 

@@ -15,7 +15,7 @@ import { DatabaseConnection, getDatabasePath } from '../src/db';
 
 // Create a temporary directory for each test
 function createTempDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-test-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-test-'));
 }
 
 // Clean up temporary directory
@@ -47,14 +47,17 @@ describe('CodeGraph Foundation', () => {
       cg.close();
     });
 
-    it('should create .gitignore in .CodeGraph directory', () => {
+    it('should create .gitignore in .zcodegraph directory', () => {
       const cg = CodeGraph.initSync(tempDir);
 
       const gitignorePath = path.join(getCodeGraphDir(tempDir), '.gitignore');
       expect(fs.existsSync(gitignorePath)).toBe(true);
 
       const content = fs.readFileSync(gitignorePath, 'utf-8');
-      // Ignore everything in .codegraph/ except this file itself, so transient
+      expect(getCodeGraphDir(tempDir)).toBe(path.join(tempDir, '.zcodegraph'));
+      expect(getDatabasePath(tempDir)).toBe(path.join(tempDir, '.zcodegraph', 'zcodegraph.db'));
+
+      // Ignore everything in .zcodegraph/ except this file itself, so transient
       // files (db, daemon.pid, sockets, logs) never show up in git. (#492, #484)
       expect(content).toContain('*');
       expect(content).toContain('!.gitignore');
@@ -96,6 +99,14 @@ describe('CodeGraph Foundation', () => {
       const cg = CodeGraph.initSync(tempDir);
       expect(CodeGraph.isInitialized(tempDir)).toBe(true);
       cg.close();
+    });
+
+    it('does not treat a legacy .codegraph database as initialized', () => {
+      fs.mkdirSync(path.join(tempDir, '.codegraph'));
+      fs.writeFileSync(path.join(tempDir, '.codegraph', 'codegraph.db'), '');
+
+      expect(CodeGraph.isInitialized(tempDir)).toBe(false);
+      expect(() => CodeGraph.openSync(tempDir)).toThrow(/not initialized/i);
     });
   });
 
@@ -162,7 +173,7 @@ describe('CodeGraph Foundation', () => {
   });
 
   describe('Uninitialize', () => {
-    it('should remove .CodeGraph directory', () => {
+    it('should remove .zcodegraph directory', () => {
       const cg = CodeGraph.initSync(tempDir);
 
       cg.uninitialize();
@@ -173,7 +184,7 @@ describe('CodeGraph Foundation', () => {
   });
 
   describe('Close/Destroy', () => {
-    it('should close database but keep .CodeGraph directory', () => {
+    it('should close database but keep .zcodegraph directory', () => {
       const cg = CodeGraph.initSync(tempDir);
 
       cg.destroy(); // destroy is alias for close

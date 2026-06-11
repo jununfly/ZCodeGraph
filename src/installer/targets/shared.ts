@@ -11,6 +11,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+export const MCP_SERVER_KEY = 'zcodegraph';
+export const LEGACY_MCP_SERVER_KEY = 'codegraph';
+
 /**
  * The MCP-server config block codegraph injects. Same shape across
  * all JSON-shaped agent configs (Claude, Cursor, opencode), only the
@@ -31,14 +34,14 @@ export function getMcpServerConfig(): { type: string; command: string; args: str
  */
 export function getCodeGraphPermissions(): string[] {
   return [
-    'mcp__codegraph__zcodegraph_explore',
-    'mcp__codegraph__zcodegraph_search',
-    'mcp__codegraph__zcodegraph_node',
-    'mcp__codegraph__zcodegraph_callers',
-    'mcp__codegraph__zcodegraph_callees',
-    'mcp__codegraph__zcodegraph_impact',
-    'mcp__codegraph__zcodegraph_files',
-    'mcp__codegraph__zcodegraph_status',
+    'mcp__zcodegraph__zcodegraph_explore',
+    'mcp__zcodegraph__zcodegraph_search',
+    'mcp__zcodegraph__zcodegraph_node',
+    'mcp__zcodegraph__zcodegraph_callers',
+    'mcp__zcodegraph__zcodegraph_callees',
+    'mcp__zcodegraph__zcodegraph_impact',
+    'mcp__zcodegraph__zcodegraph_files',
+    'mcp__zcodegraph__zcodegraph_status',
   ];
 }
 

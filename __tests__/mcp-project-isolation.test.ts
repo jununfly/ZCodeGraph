@@ -192,8 +192,8 @@ describe('MCP project state isolation', () => {
       // Set a hint for project A
       handler.setDefaultProjectHint(dirA);
 
-      // Query a directory that exists but has no .codegraph/
-      const noCG = path.join(dirA, '..', 'no-codegraph-here');
+      // Query a directory that exists but has no .zcodegraph/
+      const noCG = path.join(dirA, '..', 'no-zcodegraph-here');
       fs.mkdirSync(noCG, { recursive: true });
       try {
         const res = await handler.execute('zcodegraph_search', {

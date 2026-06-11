@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * CodeGraph CLI
+ * ZCodeGraph CLI
  *
- * Command-line interface for CodeGraph code intelligence.
+ * Command-line interface for ZCodeGraph code intelligence.
  *
  * Usage:
  *   zcodegraph                    Run interactive installer (when no args)
  *   zcodegraph install            Run interactive installer
- *   zcodegraph uninstall          Remove CodeGraph from your agents
- *   zcodegraph init [path]        Initialize CodeGraph in a project
- *   zcodegraph uninit [path]      Remove CodeGraph from a project
+ *   zcodegraph uninstall          Remove ZCodeGraph from your agents
+ *   zcodegraph init [path]        Initialize ZCodeGraph in a project
+ *   zcodegraph uninit [path]      Remove ZCodeGraph from a project
  *   zcodegraph index [path]       Index all files in the project
  *   zcodegraph sync [path]        Sync changes since last index
  *   zcodegraph status [path]      Show index status
@@ -20,7 +20,7 @@
  *   zcodegraph callees <symbol>   Find what a function/method calls
  *   zcodegraph impact <symbol>    Analyze what code is affected by changing a symbol
  *   zcodegraph affected [files]   Find test files affected by changes
- *   zcodegraph upgrade [version]  Update CodeGraph to the latest release
+ *   zcodegraph upgrade [version]  Update ZCodeGraph to the latest release
  */
 
 import { Command } from 'commander';
@@ -160,18 +160,18 @@ program
 /**
  * Resolve project path from argument or current directory
  * Walks up parent directories to find nearest initialized CodeGraph project
- * (must have .codegraph/codegraph.db, not just .codegraph/lessons.db)
+ * (must have .zcodegraph/zcodegraph.db, not just .zcodegraph/lessons.db)
  */
 function resolveProjectPath(pathArg?: string): string {
   const absolutePath = path.resolve(pathArg || process.cwd());
 
-  // If exact path is initialized (has codegraph.db), use it
+  // If exact path is initialized (has zcodegraph.db), use it
   if (isInitialized(absolutePath)) {
     return absolutePath;
   }
 
   // Walk up to find nearest parent with CodeGraph initialized
-  // Note: findNearestCodeGraphRoot finds any .codegraph folder, but we need one with codegraph.db
+  // Note: findNearestCodeGraphRoot finds any .zcodegraph folder, but we need one with zcodegraph.db
   let current = absolutePath;
   const root = path.parse(current).root;
 
@@ -349,14 +349,14 @@ function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexR
 
     if (projectPath) {
       writeErrorLog(projectPath, result.errors);
-      clack.log.info('See .codegraph/errors.log for details');
+      clack.log.info('See .zcodegraph/errors.log for details');
     }
 
     if (result.filesIndexed > 0) {
       clack.log.info(`The index is fully usable ${getGlyphs().dash} only the failed files are missing.`);
     }
   } else if (projectPath) {
-    const logPath = path.join(projectPath, '.codegraph', 'errors.log');
+    const logPath = path.join(projectPath, '.zcodegraph', 'errors.log');
     if (fs.existsSync(logPath)) {
       fs.unlinkSync(logPath);
     }
@@ -364,10 +364,10 @@ function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexR
 }
 
 /**
- * Write detailed error log to .codegraph/errors.log
+ * Write detailed error log to .zcodegraph/errors.log
  */
 function writeErrorLog(projectPath: string, errors: Array<{ message: string; filePath?: string; severity: string; code?: string }>): void {
-  const cgDir = path.join(projectPath, '.codegraph');
+  const cgDir = path.join(projectPath, '.zcodegraph');
   if (!fs.existsSync(cgDir)) return;
 
   const logPath = path.join(cgDir, 'errors.log');
@@ -418,19 +418,19 @@ function writeErrorLog(projectPath: string, errors: Array<{ message: string; fil
  */
 program
   .command('init [path]')
-  .description('Initialize CodeGraph in a project directory and build the initial index')
+  .description('Initialize ZCodeGraph in a project directory and build the initial index')
   .option('-i, --index', 'Deprecated: indexing now runs by default; flag accepted for backward compatibility')
   .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
   .action(async (pathArg: string | undefined, options: { index?: boolean; verbose?: boolean }) => {
     const projectPath = path.resolve(pathArg || process.cwd());
     const clack = await importESM('@clack/prompts');
 
-    clack.intro('Initializing CodeGraph');
+    clack.intro('Initializing ZCodeGraph');
 
     try {
       if (isInitialized(projectPath)) {
         clack.log.warn(`Already initialized in ${projectPath}`);
-        clack.log.info('Use "codegraph index" to re-index or "codegraph sync" to update');
+        clack.log.info('Use "zcodegraph index" to re-index or "zcodegraph sync" to update');
         try {
           const { offerWatchFallback } = await import('../installer');
           await offerWatchFallback(clack, projectPath);
@@ -476,11 +476,11 @@ program
   });
 
 /**
- * codegraph uninit [path]
+ * zcodegraph uninit [path]
  */
 program
   .command('uninit [path]')
-  .description('Remove CodeGraph from a project (deletes .codegraph/ directory)')
+  .description('Remove ZCodeGraph from a project (deletes .zcodegraph/ directory)')
   .option('-f, --force', 'Skip confirmation prompt')
   .action(async (pathArg: string | undefined, options: { force?: boolean }) => {
     const projectPath = resolveProjectPath(pathArg);
@@ -530,7 +530,7 @@ program
   });
 
 /**
- * codegraph index [path]
+ * zcodegraph index [path]
  */
 program
   .command('index [path]')
@@ -599,7 +599,7 @@ program
   });
 
 /**
- * codegraph sync [path]
+ * zcodegraph sync [path]
  */
 program
   .command('sync [path]')
@@ -661,7 +661,7 @@ program
   });
 
 /**
- * codegraph status [path]
+ * zcodegraph status [path]
  */
 program
   .command('status [path]')
@@ -802,7 +802,7 @@ program
         if (changes.removed.length > 0) {
           console.log(`  Removed:   ${changes.removed.length} files`);
         }
-        info('Run "codegraph sync" to update the index');
+        info('Run "zcodegraph sync" to update the index');
       } else {
         success('Index is up to date');
       }
@@ -813,7 +813,7 @@ program
       if (reindexRecommended) {
         const builtWith = buildInfo.version ? `v${buildInfo.version.replace(/^v/, '')}` : 'an earlier version';
         warn(`Index was built by ${builtWith}; re-index to pick up this engine's improvements.`);
-        info('Run "codegraph index -f" (full rebuild) or "codegraph sync"');
+        info('Run "zcodegraph index -f" (full rebuild) or "zcodegraph sync"');
         console.log();
       }
 
@@ -825,7 +825,7 @@ program
   });
 
 /**
- * codegraph query <search>
+ * zcodegraph query <search>
  */
 program
   .command('query <search>')
@@ -897,7 +897,7 @@ program
   });
 
 /**
- * codegraph files [path]
+ * zcodegraph files [path]
  */
 program
   .command('files')
@@ -931,7 +931,7 @@ program
       let files = cg.getFiles();
 
       if (files.length === 0) {
-        info('No files indexed. Run "codegraph index" first.');
+        info('No files indexed. Run "zcodegraph index" first.');
         cg.destroy();
         return;
       }
@@ -1108,7 +1108,7 @@ function printFileTree(
  */
 program
   .command('serve')
-  .description('Start CodeGraph as an MCP server for AI assistants')
+  .description('Start ZCodeGraph as an MCP server for AI assistants')
   .option('-p, --path <path>', 'Project path (optional for MCP mode, uses rootUri from client)')
   .option('--mcp', 'Run as MCP server (stdio transport)')
   .option('--no-watch', 'Disable the file watcher (no auto-sync; useful on slow filesystems like WSL2 /mnt drives)')
@@ -1175,7 +1175,7 @@ program
         return;
       }
 
-      const lockPath = path.join(getCodeGraphDir(projectPath), 'codegraph.lock');
+      const lockPath = path.join(getCodeGraphDir(projectPath), 'zcodegraph.lock');
 
       if (!fs.existsSync(lockPath)) {
         info(`No lock file found ${getGlyphs().dash} nothing to do`);
@@ -1191,7 +1191,7 @@ program
   });
 
 /**
- * codegraph callers <symbol>
+ * zcodegraph callers <symbol>
  *
  * CLI parity with the MCP graph tools (zcodegraph_callers/callees/impact) so the
  * traversal queries work in scripts, CI, and git hooks without a running MCP
@@ -1274,7 +1274,7 @@ program
   });
 
 /**
- * codegraph callees <symbol>
+ * zcodegraph callees <symbol>
  */
 program
   .command('callees <symbol>')
@@ -1352,7 +1352,7 @@ program
   });
 
 /**
- * codegraph impact <symbol>
+ * zcodegraph impact <symbol>
  */
 program
   .command('impact <symbol>')
@@ -1449,14 +1449,14 @@ program
   });
 
 /**
- * codegraph affected [files...]
+ * zcodegraph affected [files...]
  *
  * Find test files affected by the given source files.
  * Traces dependency edges transitively to find test files that depend on changed code.
  *
  * Usage:
- *   git diff --name-only | codegraph affected --stdin
- *   codegraph affected src/lib/components/Editor.svelte src/routes/+page.svelte
+ *   git diff --name-only | zcodegraph affected --stdin
+ *   zcodegraph affected src/lib/components/Editor.svelte src/routes/+page.svelte
  */
 program
   .command('affected [files...]')
@@ -1587,11 +1587,11 @@ program
   });
 
 /**
- * codegraph install
+ * zcodegraph install
  */
 program
   .command('install')
-  .description('Install codegraph MCP server into one or more agents (Claude Code, Cursor, Codex CLI, opencode, Hermes Agent)')
+  .description('Install the ZCodeGraph MCP server into one or more agents (Claude Code, Cursor, Codex CLI, opencode, Hermes Agent)')
   .option('-t, --target <ids>', 'Target agent(s): comma-separated ids, or "auto"|"all"|"none". Default: prompt')
   .option('-l, --location <where>', 'Install location: "global" or "local". Default: prompt')
   .option('-y, --yes', 'Non-interactive: defaults to --location=global --target=auto, auto-allow on')
@@ -1649,16 +1649,16 @@ program
   });
 
 /**
- * codegraph uninstall
+ * zcodegraph uninstall
  *
  * Inverse of `install`. Removes the codegraph MCP server entry,
  * instructions block, and permissions from every agent (or a
  * `--target` subset). Prompts global-vs-local when not given. Does NOT
- * delete the `.codegraph/` index — that's `codegraph uninit`.
+ * delete the `.zcodegraph/` index — that's `zcodegraph uninit`.
  */
 program
   .command('uninstall')
-  .description('Remove codegraph from your agents (Claude Code, Cursor, Codex CLI, opencode, Hermes Agent)')
+  .description('Remove ZCodeGraph from your agents (Claude Code, Cursor, Codex CLI, opencode, Hermes Agent)')
   .option('-t, --target <ids>', 'Target agent(s): comma-separated ids, or "all". Default: all')
   .option('-l, --location <where>', 'Uninstall location: "global" or "local". Default: prompt')
   .option('-y, --yes', 'Non-interactive: defaults to --location=global --target=all')
@@ -1685,7 +1685,7 @@ program
   });
 
 /**
- * codegraph upgrade [version]
+ * zcodegraph upgrade [version]
  *
  * Self-update, however CodeGraph was installed (bundle via install.sh/.ps1,
  * npm-global, npx, or a source checkout). See ../upgrade for the detection and
@@ -1693,7 +1693,7 @@ program
  */
 program
   .command('upgrade [version]')
-  .description('Update CodeGraph to the latest release (or a specific version)')
+  .description('Update ZCodeGraph to the latest release (or a specific version)')
   .option('--check', 'Check whether an update is available without installing')
   .option('-f, --force', 'Reinstall even if already on the target version')
   .action(async (versionArg: string | undefined, options: { check?: boolean; force?: boolean }) => {

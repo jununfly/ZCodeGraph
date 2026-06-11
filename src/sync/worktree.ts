@@ -1,7 +1,7 @@
 /**
  * Git Worktree Awareness
  *
- * A CodeGraph index lives in a `.codegraph/` directory and is resolved by
+ * A CodeGraph index lives in a `.zcodegraph/` directory and is resolved by
  * walking up parent directories to the nearest one (see
  * `findNearestCodeGraphRoot`). That walk is unaware of git worktrees: when a
  * worktree is created *inside* the main checkout (e.g. some tools place them
@@ -46,7 +46,7 @@ export function gitWorktreeRoot(dir: string): string | null {
 export interface WorktreeIndexMismatch {
   /** The git working tree the command was run from. */
   worktreeRoot: string;
-  /** The (different) working tree whose `.codegraph` index is being used. */
+  /** The (different) working tree whose `.zcodegraph` index is being used. */
   indexRoot: string;
 }
 
@@ -58,7 +58,7 @@ export interface WorktreeIndexMismatch {
  *   - `startPath` isn't in a git repo (or git is unavailable),
  *   - the index already lives in `startPath`'s own working tree, or
  *   - `indexRoot` isn't itself a working-tree root (an unrelated parent dir
- *     that merely happens to contain a `.codegraph/`), which keeps non-git
+ *     that merely happens to contain a `.zcodegraph/`), which keeps non-git
  *     and monorepo-subdir layouts from producing false warnings.
  */
 export function detectWorktreeIndexMismatch(

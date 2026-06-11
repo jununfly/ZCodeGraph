@@ -1,7 +1,7 @@
 /**
  * Git worktree index-mismatch detection (issue #155).
  *
- * A CodeGraph index is resolved by walking up to the nearest `.codegraph/`.
+ * A CodeGraph index is resolved by walking up to the nearest `.zcodegraph/`.
  * When a worktree is nested inside the main checkout, that walk reaches the
  * MAIN checkout's index and a query silently returns the main branch's code
  * instead of the worktree's. `detectWorktreeIndexMismatch` spots exactly this
@@ -34,7 +34,7 @@ function real(p: string): string {
 }
 
 describe('detectWorktreeIndexMismatch (issue #155)', () => {
-  let mainRepo: string;   // main checkout — owns the .codegraph index
+  let mainRepo: string;   // main checkout — owns the .zcodegraph index
   let worktree: string;   // a linked worktree nested inside the main checkout
   let nonGit: string;     // a directory outside any git repo
 
@@ -100,7 +100,7 @@ describe('detectWorktreeIndexMismatch (issue #155)', () => {
     const msg = worktreeMismatchWarning(detectWorktreeIndexMismatch(worktree, mainRepo)!);
     expect(msg).toContain(real(worktree));
     expect(msg).toContain(real(mainRepo));
-    expect(msg).toContain('codegraph init');
+    expect(msg).toContain('zcodegraph init');
   });
 });
 
@@ -152,7 +152,7 @@ describe('worktree mismatch surfaces on hot read tools (issue #155)', () => {
     expect(res.isError).toBeFalsy();
     expect(text).toContain('different git worktree');
     expect(text).toContain(real(worktree));
-    expect(text).toContain('codegraph init');
+    expect(text).toContain('zcodegraph init');
   });
 
   it('does NOT prefix when the default project is the main checkout itself', async () => {

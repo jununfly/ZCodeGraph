@@ -20,7 +20,7 @@ import { DatabaseConnection, getDatabasePath } from '../src/db';
 import { QueryBuilder } from '../src/db/queries';
 
 function createTempDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-security-test-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-security-test-'));
 }
 
 function cleanupTempDir(dir: string): void {

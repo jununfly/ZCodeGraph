@@ -28,6 +28,8 @@ import {
   WriteResult,
 } from './types';
 import {
+  LEGACY_MCP_SERVER_KEY,
+  MCP_SERVER_KEY,
   getCodeGraphPermissions,
   getMcpServerConfig,
   jsonDeepEqual,
@@ -82,7 +84,7 @@ class ClaudeCodeTarget implements AgentTarget {
   detect(loc: Location): DetectionResult {
     const mcpPath = mcpJsonPath(loc);
     const config = readJsonFile(mcpPath);
-    const alreadyConfigured = !!config.mcpServers?.codegraph;
+    const alreadyConfigured = !!config.mcpServers?.[MCP_SERVER_KEY];
     // For "installed" we infer from the existence of either the dir
     // (global) or the project marker file (local). Cheap and avoids
     // shelling out to `claude --version`.
@@ -112,7 +114,7 @@ class ClaudeCodeTarget implements AgentTarget {
     }
 
     // 2b. Strip stale auto-sync hooks left by a pre-0.8 install. Those
-    // versions wrote `codegraph mark-dirty` / `sync-if-dirty` hooks to
+    // versions wrote `zcodegraph mark-dirty` / `sync-if-dirty` hooks to
     // settings.json; both subcommands are gone from the CLI, so the
     // Stop hook now fails every turn with "unknown command
     // 'sync-if-dirty'". Cleaning up on install makes an upgrade
@@ -139,8 +141,16 @@ class ClaudeCodeTarget implements AgentTarget {
     // 1. MCP server entry
     const mcpPath = mcpJsonPath(loc);
     const config = readJsonFile(mcpPath);
-    if (config.mcpServers?.codegraph) {
-      delete config.mcpServers.codegraph;
+    let removedMcp = false;
+    if (config.mcpServers?.[MCP_SERVER_KEY]) {
+      delete config.mcpServers[MCP_SERVER_KEY];
+      removedMcp = true;
+    }
+    if (config.mcpServers?.[LEGACY_MCP_SERVER_KEY]) {
+      delete config.mcpServers[LEGACY_MCP_SERVER_KEY];
+      removedMcp = true;
+    }
+    if (removedMcp) {
       if (Object.keys(config.mcpServers).length === 0) {
         delete config.mcpServers;
       }
@@ -163,7 +173,7 @@ class ClaudeCodeTarget implements AgentTarget {
     if (Array.isArray(settings.permissions?.allow)) {
       const before = settings.permissions.allow.length;
       settings.permissions.allow = settings.permissions.allow.filter(
-        (p: string) => !p.startsWith('mcp__codegraph__'),
+        (p: string) => !p.startsWith('mcp__zcodegraph__') && !p.startsWith('mcp__codegraph__'),
       );
       if (settings.permissions.allow.length !== before) {
         if (settings.permissions.allow.length === 0) {
@@ -197,7 +207,7 @@ class ClaudeCodeTarget implements AgentTarget {
 
   printConfig(loc: Location): string {
     const target = mcpJsonPath(loc);
-    const snippet = JSON.stringify({ mcpServers: { codegraph: getMcpServerConfig() } }, null, 2);
+    const snippet = JSON.stringify({ mcpServers: { [MCP_SERVER_KEY]: getMcpServerConfig() } }, null, 2);
     return `# Add to ${target}\n\n${snippet}\n`;
   }
 
@@ -216,7 +226,7 @@ class ClaudeCodeTarget implements AgentTarget {
 export function writeMcpEntry(loc: Location): WriteResult['files'][number] {
   const file = mcpJsonPath(loc);
   const existing = readJsonFile(file);
-  const before = existing.mcpServers?.codegraph;
+  const before = existing.mcpServers?.[MCP_SERVER_KEY];
   const after = getMcpServerConfig();
 
   if (jsonDeepEqual(before, after)) {
@@ -232,7 +242,8 @@ export function writeMcpEntry(loc: Location): WriteResult['files'][number] {
   // ours alone to manage.
   const action: 'created' | 'updated' = before ? 'updated' : (fs.existsSync(file) ? 'updated' : 'created');
   if (!existing.mcpServers) existing.mcpServers = {};
-  existing.mcpServers.codegraph = after;
+  existing.mcpServers[MCP_SERVER_KEY] = after;
+  delete existing.mcpServers[LEGACY_MCP_SERVER_KEY];
   writeJsonFile(file, existing);
   return { path: file, action };
 }
@@ -249,8 +260,16 @@ function cleanupLegacyLocalMcp(): WriteResult['files'][number] | null {
   const file = legacyLocalMcpPath();
   if (!fs.existsSync(file)) return null;
   const config = readJsonFile(file);
-  if (!config.mcpServers?.codegraph) return null;
-  delete config.mcpServers.codegraph;
+  let removed = false;
+  if (config.mcpServers?.[MCP_SERVER_KEY]) {
+    delete config.mcpServers[MCP_SERVER_KEY];
+    removed = true;
+  }
+  if (config.mcpServers?.[LEGACY_MCP_SERVER_KEY]) {
+    delete config.mcpServers[LEGACY_MCP_SERVER_KEY];
+    removed = true;
+  }
+  if (!removed) return null;
   if (Object.keys(config.mcpServers).length === 0) delete config.mcpServers;
   if (Object.keys(config).length === 0) {
     try { fs.unlinkSync(file); } catch { /* ignore */ }
@@ -264,11 +283,11 @@ function cleanupLegacyLocalMcp(): WriteResult['files'][number] | null {
  * True when a Claude Code hook `command` is one of the auto-sync hooks
  * a pre-0.8 install wrote. Those installers added
  * `PostToolUse(Edit|Write) → codegraph mark-dirty` and
- * `Stop → codegraph sync-if-dirty` (local builds used the
+ * `Stop → zcodegraph sync-if-dirty` (local builds used the
  * `npx @jununfly/zcodegraph …` form, which still contains the
- * `codegraph <subcommand>` substring). Both subcommands were later
+ * `zcodegraph <subcommand>` substring). Both subcommands were later
  * removed from the CLI, so the Stop hook fails every turn with
- * "unknown command 'sync-if-dirty'". Matching on the codegraph-scoped
+ * "unknown command 'sync-if-dirty'". Matching on the zcodegraph-scoped
  * subcommand keeps unrelated user hooks (e.g. GitKraken's
  * `gk ai hook run`) untouched.
  */
@@ -276,7 +295,7 @@ function isLegacyCodegraphHookCommand(command: unknown): boolean {
   if (typeof command !== 'string') return false;
   return (
     command.includes('codegraph mark-dirty') ||
-    command.includes('codegraph sync-if-dirty')
+    command.includes('zcodegraph sync-if-dirty')
   );
 }
 

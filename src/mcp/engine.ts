@@ -43,7 +43,7 @@ export class MCPEngine {
   private cg: CodeGraph | null = null;
   private toolHandler: ToolHandler;
   // Project root we resolved to. Null until `ensureInitialized` succeeds
-  // (or null forever if no .codegraph/ ever turned up — that's a valid
+  // (or null forever if no .zcodegraph/ ever turned up — that's a valid
   // state for the engine, since cross-project queries still work).
   private projectPath: string | null = null;
   // Set on first `ensureInitialized` so subsequent sessions don't redo work.
@@ -84,7 +84,7 @@ export class MCPEngine {
   }
 
   /**
-   * Walk up from `searchFrom` to find the nearest `.codegraph/` and open it.
+   * Walk up from `searchFrom` to find the nearest `.zcodegraph/` and open it.
    * Idempotent: concurrent callers share one in-flight init; subsequent
    * callers after success are no-ops.
    *
@@ -157,7 +157,7 @@ export class MCPEngine {
 
     const resolvedRoot = findNearestCodeGraphRoot(searchFrom);
     if (!resolvedRoot) {
-      // No .codegraph/ above searchFrom. Sessions may still discover one later via roots/list
+      // No .zcodegraph/ above searchFrom. Sessions may still discover one later via roots/list
       this.projectPath = searchFrom;
       return;
     }

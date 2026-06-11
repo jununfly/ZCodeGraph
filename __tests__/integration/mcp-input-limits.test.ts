@@ -21,7 +21,7 @@ describe('MCP input size limits', () => {
   let handler: ToolHandler;
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-mcp-limits-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-mcp-limits-'));
     fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
     fs.writeFileSync(
       path.join(tempDir, 'src', 'a.ts'),

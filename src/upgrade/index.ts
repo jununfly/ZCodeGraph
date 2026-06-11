@@ -1,5 +1,5 @@
 /**
- * `codegraph upgrade`
+ * `zcodegraph upgrade`
  *
  * Self-update for the CLI, whatever way it was installed:
  *
@@ -233,7 +233,7 @@ export async function resolveLatestVersion(repo = REPO, timeoutMs = 12000): Prom
   try {
     const res = await httpsGet(
       `https://github.com/${repo}/releases/latest`,
-      { 'User-Agent': 'codegraph-upgrade' },
+      { 'User-Agent': 'zcodegraph-upgrade' },
       timeoutMs
     );
     const loc = res.headers.location;
@@ -245,7 +245,7 @@ export async function resolveLatestVersion(repo = REPO, timeoutMs = 12000): Prom
   try {
     const res = await httpsGet(
       `https://api.github.com/repos/${repo}/releases/latest`,
-      { 'User-Agent': 'codegraph-upgrade', Accept: 'application/vnd.github+json' },
+      { 'User-Agent': 'zcodegraph-upgrade', Accept: 'application/vnd.github+json' },
       timeoutMs
     );
     const tag = JSON.parse(res.body)?.tag_name;
@@ -254,7 +254,7 @@ export async function resolveLatestVersion(repo = REPO, timeoutMs = 12000): Prom
     /* fall through to error */
   }
   throw new Error(
-    'could not resolve the latest version from GitHub. Check your network, or pin a version: `codegraph upgrade <version>`.'
+    'could not resolve the latest version from GitHub. Check your network, or pin a version: `zcodegraph upgrade <version>`.'
   );
 }
 
@@ -298,9 +298,9 @@ export function reindexAdvisory(): string {
   return [
     c.dim('Your existing project indexes keep working, but were built by the previous version.'),
     c.dim('To pick up this version’s extraction improvements, refresh each project:'),
-    `  ${c.cyan('codegraph sync')}        ${c.dim('# incremental, fast')}`,
+    `  ${c.cyan('zcodegraph sync')}        ${c.dim('# incremental, fast')}`,
     `  ${c.cyan('codegraph index -f')}    ${c.dim('# full rebuild')}`,
-    c.dim('(`codegraph status` flags any index that predates the engine you’re running.)'),
+    c.dim('(`zcodegraph status` flags any index that predates the engine you’re running.)'),
   ].join('\n');
 }
 
@@ -327,7 +327,7 @@ export async function runUpgrade(opts: UpgradeOptions, deps: UpgradeDeps): Promi
   if (opts.check) {
     if (updateAvailable) {
       deps.log(c.yellow(`An update is available: ${currentDisplay} → ${latest}`));
-      deps.log(c.dim('Run `codegraph upgrade` to install it.'));
+      deps.log(c.dim('Run `zcodegraph upgrade` to install it.'));
     } else {
       deps.log(c.green(`You’re on the latest version (${currentDisplay}).`));
     }
@@ -336,7 +336,7 @@ export async function runUpgrade(opts: UpgradeOptions, deps: UpgradeDeps): Promi
 
   if (!updateAvailable && !opts.force && !opts.version) {
     deps.log(c.green(`Already up to date (${currentDisplay}).`));
-    deps.log(c.dim('Use `--force` to reinstall, or `codegraph upgrade <version>` to change versions.'));
+    deps.log(c.dim('Use `--force` to reinstall, or `zcodegraph upgrade <version>` to change versions.'));
     return 0;
   }
 
@@ -400,7 +400,7 @@ function upgradeUnixBundle(
 /** Build the in-place Windows upgrade script (exported for unit-testing). */
 export function buildWindowsUpgradeScript(bundleRoot: string, version: string, arch: string): string {
   const target = `win32-${arch}`;
-  const url = `https://github.com/${REPO}/releases/download/${version}/codegraph-${target}.zip`;
+  const url = `https://github.com/${REPO}/releases/download/${version}/zcodegraph-${target}.zip`;
   // Windows can't DELETE a running exe but CAN rename it, so we upgrade IN
   // PLACE: download → rename the locked node.exe aside → extract the new bundle
   // over current\. Synchronous, no detached helper (which dies under SSH/job
@@ -418,7 +418,7 @@ export function buildWindowsUpgradeScript(bundleRoot: string, version: string, a
     `Invoke-WebRequest -Uri $url -OutFile $zip`,
     `$stage=Join-Path $tmp 'stage'`,
     `Expand-Archive -Path $zip -DestinationPath $stage -Force`,
-    `$inner=Join-Path $stage 'codegraph-${target}'`,
+    `$inner=Join-Path $stage 'zcodegraph-${target}'`,
     `$src=if(Test-Path $inner){$inner}else{$stage}`,
     `$node=Join-Path $dest 'node.exe'`,
     `if(Test-Path $node){Rename-Item -Path $node -NewName ('node.exe.old-'+[guid]::NewGuid().ToString('N')) -Force}`,

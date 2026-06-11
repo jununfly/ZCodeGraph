@@ -32,9 +32,9 @@ describe('detectInstallMethod', () => {
   }
 
   it('detects a unix bundle and derives the install dir from the versions/ layout', () => {
-    const root = '/home/u/.codegraph/versions/v0.9.9';
+    const root = '/home/u/.zcodegraph/versions/v0.9.9';
     const filename = `${root}/lib/dist/bin/zcodegraph.js`;
-    const present = new Set([`${root}/node`, `${root}/bin/zcodegraph`, '/home/u/.codegraph']);
+    const present = new Set([`${root}/node`, `${root}/bin/zcodegraph`, '/home/u/.zcodegraph']);
     const m = detectInstallMethod({
       filename,
       platform: 'linux',
@@ -45,7 +45,7 @@ describe('detectInstallMethod', () => {
       kind: 'bundle',
       os: 'unix',
       bundleRoot: root,
-      installDir: '/home/u/.codegraph',
+      installDir: '/home/u/.zcodegraph',
     });
   });
 
@@ -115,7 +115,7 @@ describe('detectInstallMethod', () => {
 
 describe('deriveInstallDir', () => {
   it('unix: returns the dir above versions/', () => {
-    expect(deriveInstallDir('/a/b/.codegraph/versions/v1.2.3', 'unix', () => true)).toBe('/a/b/.codegraph');
+    expect(deriveInstallDir('/a/b/.zcodegraph/versions/v1.2.3', 'unix', () => true)).toBe('/a/b/.zcodegraph');
   });
   it('unix: null when not under versions/', () => {
     expect(deriveInstallDir('/a/b/somewhere', 'unix', () => true)).toBeNull();
@@ -170,18 +170,18 @@ describe('version helpers', () => {
 
   it('reindexAdvisory mentions the refresh commands', () => {
     const a = reindexAdvisory();
-    expect(a).toContain('codegraph sync');
+    expect(a).toContain('zcodegraph sync');
     expect(a).toContain('codegraph index -f');
   });
 
   it('buildWindowsUpgradeScript targets the right asset per arch and renames-not-deletes the exe', () => {
     const arm = buildWindowsUpgradeScript('C:\\cg\\current', 'v1.2.3', 'arm64');
-    expect(arm).toContain('releases/download/v1.2.3/codegraph-win32-arm64.zip');
+    expect(arm).toContain('releases/download/v1.2.3/zcodegraph-win32-arm64.zip');
     expect(arm).toContain("$dest='C:\\cg\\current'");
     expect(arm).toContain('Rename-Item'); // never Remove-Item on the locked exe
     expect(arm).not.toMatch(/Remove-Item[^;]*\$dest'?\s*;/); // doesn't delete current\
     const x64 = buildWindowsUpgradeScript('C:\\cg\\current', 'v1.2.3', 'x64');
-    expect(x64).toContain('codegraph-win32-x64.zip');
+    expect(x64).toContain('zcodegraph-win32-x64.zip');
   });
 });
 
@@ -246,7 +246,7 @@ describe('runUpgrade', () => {
 
   it('unix bundle: runs the installer via sh with the derived install dir', async () => {
     const { deps, calls } = makeDeps({
-      method: { kind: 'bundle', os: 'unix', bundleRoot: '/h/.codegraph/versions/v0.9.8', installDir: '/h/.codegraph' },
+      method: { kind: 'bundle', os: 'unix', bundleRoot: '/h/.zcodegraph/versions/v0.9.8', installDir: '/h/.zcodegraph' },
       currentVersion: '0.9.8',
     });
     const code = await runUpgrade({}, deps);
@@ -256,13 +256,13 @@ describe('runUpgrade', () => {
     expect(calls.runs[0].args[0]).toBe('-c');
     expect(calls.runs[0].args[1]).toContain('curl -fsSL');
     expect(calls.runs[0].args[1]).toContain('| sh');
-    expect(calls.runs[0].env?.CODEGRAPH_INSTALL_DIR).toBe('/h/.codegraph');
-    expect(calls.logs.join('\n')).toMatch(/codegraph sync/); // re-index advisory printed
+    expect(calls.runs[0].env?.CODEGRAPH_INSTALL_DIR).toBe('/h/.zcodegraph');
+    expect(calls.logs.join('\n')).toMatch(/zcodegraph sync/); // re-index advisory printed
   });
 
   it('unix bundle: falls back to wget, and errors when neither downloader exists', async () => {
     const { deps, calls } = makeDeps({
-      method: { kind: 'bundle', os: 'unix', bundleRoot: '/h/.codegraph/versions/v0.9.8', installDir: null },
+      method: { kind: 'bundle', os: 'unix', bundleRoot: '/h/.zcodegraph/versions/v0.9.8', installDir: null },
       currentVersion: '0.9.8',
       hasCommand: () => false,
     });
@@ -284,7 +284,7 @@ describe('runUpgrade', () => {
     expect(calls.runs[0].cmd).toBe('powershell.exe');
     const decoded = decodeEncodedCommand(calls.runs[0].args);
     // Downloads the right asset, renames the locked exe aside, copies over current\.
-    expect(decoded).toContain('releases/download/v0.9.9/codegraph-win32-');
+    expect(decoded).toContain('releases/download/v0.9.9/zcodegraph-win32-');
     expect(decoded).toContain('Rename-Item');
     expect(decoded).toContain('node.exe.old-');
     expect(decoded).toContain('Copy-Item');

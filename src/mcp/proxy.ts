@@ -48,8 +48,12 @@ const LOG_ATTACH_ENV = 'CODEGRAPH_MCP_LOG_ATTACH';
 export function logAttachedDaemon(socketPath: string, hello: DaemonHello): void {
   if (process.env[LOG_ATTACH_ENV] !== '1') return;
   process.stderr.write(
-    `[CodeGraph MCP] Attached to shared daemon on ${socketPath} (pid ${hello.pid}, v${hello.codegraph}).\n`
+    `[CodeGraph MCP] Attached to shared daemon on ${socketPath} (pid ${hello.pid}, v${daemonVersion(hello)}).\n`
   );
+}
+
+function daemonVersion(hello: DaemonHello): string {
+  return hello.zcodegraph || hello.codegraph || '';
 }
 
 export interface ProxyResult {
@@ -100,9 +104,10 @@ export async function runProxy(
     return { outcome: 'fallback-needed', reason: hello.message };
   }
 
-  if (hello.codegraph !== expectedVersion) {
+  const version = daemonVersion(hello);
+  if (version !== expectedVersion) {
     process.stderr.write(
-      `[CodeGraph MCP] Found a daemon on ${socketPath} but version (${hello.codegraph}) ` +
+      `[CodeGraph MCP] Found a daemon on ${socketPath} but version (${version}) ` +
       `differs from ours (${expectedVersion}); falling back to direct mode.\n`
     );
     socket.destroy();
@@ -138,11 +143,12 @@ export async function connectWithHello(
     socket.destroy();
     return null; // no daemon yet — caller should keep polling
   }
-  if (hello.codegraph !== expectedVersion) {
+  const version = daemonVersion(hello);
+  if (version !== expectedVersion) {
     // A daemon IS up but it's the wrong version — definitive, not a "not yet".
     // Don't poll; the caller serves in-process so we never run stale-vs-new.
     process.stderr.write(
-      `[CodeGraph MCP] Found a daemon on ${socketPath} but version (${hello.codegraph}) ` +
+      `[CodeGraph MCP] Found a daemon on ${socketPath} but version (${version}) ` +
       `differs from ours (${expectedVersion}); serving this session in-process.\n`
     );
     socket.destroy();
@@ -164,7 +170,7 @@ export async function connectWithHello(
  */
 function sendClientHello(socket: net.Socket): void {
   const clientHello: DaemonClientHello = {
-    codegraph_client: 1,
+    zcodegraph_client: 1,
     pid: process.pid,
     hostPid: parseHostPpid(process.env[HOST_PPID_ENV]) ?? process.ppid,
   };
@@ -418,10 +424,12 @@ function readHelloLine(socket: net.Socket): Promise<DaemonHello> {
       }
       try {
         const parsed = JSON.parse(line) as DaemonHello;
-        if (typeof parsed.codegraph !== 'string' || typeof parsed.pid !== 'number') {
+        const version = parsed.zcodegraph || parsed.codegraph;
+        if (typeof version !== 'string' || typeof parsed.pid !== 'number') {
           reject(new Error('daemon hello missing required fields'));
           return;
         }
+        parsed.zcodegraph = version;
         resolve(parsed);
       } catch (err) {
         reject(new Error(`daemon hello not JSON: ${err instanceof Error ? err.message : String(err)}`));

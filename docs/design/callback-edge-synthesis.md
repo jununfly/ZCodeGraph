@@ -36,14 +36,14 @@ We synthesize `dispatcher → callback` edges that static parsing misses. It wor
 **How to reproduce / test:**
 ```bash
 npm run build
-rm -rf /tmp/codegraph-corpus/excalidraw/.codegraph
-( cd /tmp/codegraph-corpus/excalidraw && zcodegraph init -i )
+rm -rf /tmp/zcodegraph-corpus/excalidraw/.zcodegraph
+( cd /tmp/zcodegraph-corpus/excalidraw && zcodegraph init -i )
 # synthesized edges (provenance='heuristic', metadata.synthesizedBy in {callback,event-emitter}):
-sqlite3 /tmp/codegraph-corpus/excalidraw/.codegraph/codegraph.db \
+sqlite3 /tmp/zcodegraph-corpus/excalidraw/.zcodegraph/zcodegraph.db \
   "select s.name||' → '||t.name||'  '||coalesce(e.metadata,'') from edges e \
    join nodes s on e.source=s.id join nodes t on e.target=t.id where e.provenance='heuristic';"
 # end-to-end flow (the synthesized edge shows up in explore's Flow section + node trail):
-node scripts/agent-eval/probe-explore.mjs /tmp/codegraph-corpus/excalidraw "triggerUpdate triggerRender"
+node scripts/agent-eval/probe-explore.mjs /tmp/zcodegraph-corpus/excalidraw "triggerUpdate triggerRender"
 ```
 Probe scripts (dev-only, in `scripts/agent-eval/`): `probe-node.mjs` (symbol + trail),
 `probe-explore.mjs` (relevant source + the flow among named symbols). EventEmitter
@@ -184,4 +184,4 @@ This is one half of closing dynamic-dispatch coverage. The other artifacts on `m
   removed; `zcodegraph_explore` is the one surfacing tool.)
 - **Full investigation context + findings:** auto-memory
   `project_codegraph_read_displacement` (why coverage — not prompting/hooks/new-tools —
-  is the lever for getting agents to use codegraph over Read).
+  is the lever for getting agents to use ZCodeGraph over Read).

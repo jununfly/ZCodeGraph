@@ -2,6 +2,21 @@
 
 ## Domain Language
 
+### Product Naming
+
+**Definition:** The product, package shorthand, command names, filesystem names, and protocol keys share the ZCodeGraph/zcodegraph family.
+
+**Use when:** Writing README copy, design docs, CLI help text, installer guidance, release notes, or agent-facing instructions.
+
+**Rules:**
+- **ZCodeGraph** — product name, GitHub repo name, package/API shorthand in prose, official documentation titles, and public-facing prose.
+- **CodeGraph** — existing code identifiers such as the `CodeGraph` class.
+- **zcodegraph** — the CLI command, MCP tool prefix, filesystem namespace, database filename, and MCP server key, such as `zcodegraph init`, `zcodegraph_explore`, `.zcodegraph/`, `zcodegraph.db`, and the server key `zcodegraph`.
+
+**Not:** A generic lowercase product name. `codegraph` appears only as a legacy compatibility name or in historical references.
+
+**Related terms:** Agent Sufficiency, Explore Answer.
+
 ### Agent Sufficiency
 
 **Definition:** The degree to which a ZCodeGraph answer gives an agent enough code understanding to continue the task without falling back to generic file-reading or text-search tools.

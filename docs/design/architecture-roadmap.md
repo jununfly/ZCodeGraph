@@ -391,6 +391,6 @@ Failure classifications:
 ## Guardrails
 
 - Do not rename internal `CodeGraph` domain/API names as part of this roadmap.
-- Do not replace `.codegraph/` with `.zcodegraph/`.
+- Do not replace `.zcodegraph/` with `.zcodegraph/`.
 - Do not treat graph completeness as sufficient without agent-facing sufficiency evidence.
 - Avoid speculative large refactors. Each seam should be extracted by a small, testable slice.

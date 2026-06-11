@@ -39,6 +39,8 @@ import {
 } from './types';
 import {
   atomicWriteFileSync,
+  LEGACY_MCP_SERVER_KEY,
+  MCP_SERVER_KEY,
   jsonDeepEqual,
   removeMarkedSection,
 } from './shared';
@@ -116,7 +118,7 @@ class OpencodeTarget implements AgentTarget {
   detect(loc: Location): DetectionResult {
     const file = configPath(loc);
     const config = parseConfig(readConfigText(file));
-    const alreadyConfigured = !!config.mcp?.codegraph;
+    const alreadyConfigured = !!config.mcp?.[MCP_SERVER_KEY];
     const installed = loc === 'global'
       ? fs.existsSync(globalConfigDir())
       : fs.existsSync(file);
@@ -145,14 +147,20 @@ class OpencodeTarget implements AgentTarget {
     } else {
       const text = readConfigText(file);
       const config = parseConfig(text);
-      if (!config.mcp?.codegraph) {
+      if (!config.mcp?.[MCP_SERVER_KEY] && !config.mcp?.[LEGACY_MCP_SERVER_KEY]) {
         files.push({ path: file, action: 'not-found' });
       } else {
         // Drop our key surgically. Leaves siblings + comments untouched.
-        let edits = modify(text, ['mcp', 'codegraph'], undefined, {
+        let edits = modify(text, ['mcp', MCP_SERVER_KEY], undefined, {
           formattingOptions: FORMATTING,
         });
         let updated = applyEdits(text, edits);
+        if (config.mcp?.[LEGACY_MCP_SERVER_KEY]) {
+          edits = modify(updated, ['mcp', LEGACY_MCP_SERVER_KEY], undefined, {
+            formattingOptions: FORMATTING,
+          });
+          updated = applyEdits(updated, edits);
+        }
 
         // If `mcp` is now an empty object, drop the wrapper too.
         const afterParsed = parseConfig(updated);
@@ -176,7 +184,7 @@ class OpencodeTarget implements AgentTarget {
     const target = configPath(loc);
     const snippet = JSON.stringify({
       $schema: 'https://opencode.ai/config.json',
-      mcp: { codegraph: getOpencodeServerEntry() },
+      mcp: { [MCP_SERVER_KEY]: getOpencodeServerEntry() },
     }, null, 2);
     return `# Add to ${target}\n\n${snippet}\n`;
   }
@@ -199,7 +207,7 @@ function writeMcpEntry(loc: Location): WriteResult['files'][number] {
   }
 
   const config = parseConfig(text);
-  const before = config.mcp?.codegraph;
+  const before = config.mcp?.[MCP_SERVER_KEY];
   const after = getOpencodeServerEntry();
 
   if (jsonDeepEqual(before, after)) {
@@ -216,7 +224,14 @@ function writeMcpEntry(loc: Location): WriteResult['files'][number] {
 
   // Surgical edit — preserves comments, formatting, and order of
   // every key we don't touch.
-  const edits = modify(text, ['mcp', 'codegraph'], after, {
+  let edits;
+  if (config.mcp?.[LEGACY_MCP_SERVER_KEY]) {
+    edits = modify(text, ['mcp', LEGACY_MCP_SERVER_KEY], undefined, {
+      formattingOptions: FORMATTING,
+    });
+    text = applyEdits(text, edits);
+  }
+  edits = modify(text, ['mcp', MCP_SERVER_KEY], after, {
     formattingOptions: FORMATTING,
   });
   const updated = applyEdits(text, edits);

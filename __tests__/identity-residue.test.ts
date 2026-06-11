@@ -85,7 +85,7 @@ describe('ZCodeGraph identity residue verification', () => {
     }
   });
 
-  // ---------- Source-level CLI command residue (codegraph init / serve) ----------
+  // ---------- Source-level CLI command residue (zcodegraph init / serve) ----------
 
   describe('CLI command identity in source files', () => {
     const srcFiles = walkDir(path.join(root, 'src'), ['.ts', '.tsx']);
@@ -94,13 +94,13 @@ describe('ZCodeGraph identity residue verification', () => {
 
     const cliResiduePatterns: Array<{ name: string; regex: RegExp; files?: string[] }> = [
       {
-        name: 'codegraph init (user-facing)',
-        regex: /Run ["]codegraph init/,
+        name: 'zcodegraph init (user-facing)',
+        regex: /Run ["]zcodegraph init/,
         files: ['src/sync/worktree.ts', 'src/mcp/tools.ts', 'src/bin/zcodegraph.ts'],
       },
       {
-        name: 'codegraph init (agent instructions)',
-        regex: /codegraph init -i/,
+        name: 'zcodegraph init (agent instructions)',
+        regex: /zcodegraph init -i/,
         files: ['src/mcp/server-instructions.ts', 'src/mcp/engine.ts'],
       },
       {
@@ -109,8 +109,8 @@ describe('ZCodeGraph identity residue verification', () => {
         files: ['src/mcp/daemon.ts', 'src/mcp/daemon-paths.ts', 'src/installer/targets/hermes.ts'],
       },
       {
-        name: 'codegraph sync',
-        regex: /codegraph sync/,
+        name: 'zcodegraph sync',
+        regex: /zcodegraph sync/,
         files: ['src/mcp/engine.ts'],
       },
     ];
@@ -186,7 +186,7 @@ describe('ZCodeGraph identity residue verification', () => {
       expect(hits.length).toBeGreaterThan(0);
     });
 
-    it('.codegraph/ index directory is referenced in source and docs', () => {
+    it('.zcodegraph/ index directory is referenced in source and docs', () => {
       // Collect paths independently — walkDir returns paths relative to base,
       // so src/ results are relative to src/, docs/ results relative to docs/.
       const srcFiles = walkDir(path.join(root, 'src'), ['.ts', '.tsx']).map(
@@ -205,7 +205,7 @@ describe('ZCodeGraph identity residue verification', () => {
       for (const { rel, full } of allFiles) {
         if (!fs.existsSync(full)) continue;
         const content = fs.readFileSync(full, 'utf8');
-        if (/\.codegraph\//.test(content) || /`.codegraph`/.test(content)) {
+        if (/\.zcodegraph\//.test(content) || /`.zcodegraph`/.test(content)) {
           hits.push(rel);
         }
       }

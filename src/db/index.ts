@@ -24,7 +24,7 @@ export { SqliteDatabase, SqliteBackend } from './sqlite-adapter';
  * The 5s window (was 120s) rides out a normal incremental sync; the old
  * 2-minute wait presented as a frozen, hung agent. With WAL, reads never block
  * on a writer, so this timeout only governs cross-process write contention
- * (e.g. the git-hook `codegraph sync` running while the MCP server writes).
+ * (e.g. the git-hook `zcodegraph sync` running while the MCP server writes).
  */
 function configureConnection(db: SqliteDatabase): void {
   db.pragma('busy_timeout = 5000');      // MUST be first — see above
@@ -133,7 +133,7 @@ export class DatabaseConnection {
    * SQLite silently keeps the prior mode if WAL can't be enabled — e.g. on
    * filesystems without shared-memory support (some network/virtualized mounts,
    * WSL2 /mnt), and always on the wasm backend. So the effective mode can differ
-   * from what `configureConnection` requested. Surfaced in `codegraph status` so
+   * from what `configureConnection` requested. Surfaced in `zcodegraph status` so
    * a "database is locked" report is triageable: 'wal' ⇒ readers never block on a
    * writer; anything else ⇒ they can. See issue #238.
    */
@@ -234,11 +234,11 @@ export class DatabaseConnection {
 /**
  * Default database filename
  */
-export const DATABASE_FILENAME = 'codegraph.db';
+export const DATABASE_FILENAME = 'zcodegraph.db';
 
 /**
  * Get the default database path for a project
  */
 export function getDatabasePath(projectRoot: string): string {
-  return path.join(projectRoot, '.codegraph', DATABASE_FILENAME);
+  return path.join(projectRoot, '.zcodegraph', DATABASE_FILENAME);
 }

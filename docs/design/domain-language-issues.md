@@ -92,15 +92,18 @@ Domain Language 校对确认正式术语为 **"Flow Spine"**。代码注释中�
 
 | 用法 | 当前出现位置 | 建议场景 |
 |------|------------|---------|
-| "ZCodeGraph" | 文档标题、npm package | 项目名、产品名（对外） |
-| "CodeGraph" | 类型名、API 注释、代码内引用 | 内部 API/类型命名 |
-| "codegraph" | `.codegraph/` 目录、`zcodegraph_` MCP 工具前缀 | 文件系统路径、工具名 |
+| "ZCodeGraph" | 文档标题、GitHub repo、发布材料 | 项目名、产品名（对外） |
+| "CodeGraph" | 类型名、代码内引用 | 现有代码标识符（例如 `CodeGraph` 类） |
+| "zcodegraph" | CLI 命令、`zcodegraph_` MCP 工具前缀、`.zcodegraph/`、`zcodegraph.db`、MCP server key | 用户输入的命令、工具名、文件系统路径、协议/配置键 |
+| "codegraph" | 旧 `.codegraph/`、旧 MCP server key | 仅作为 legacy 兼容或历史引用 |
 
 ### 建议决策
 
 - **对外文档/README/发布材料**："ZCodeGraph"（大写 Z，驼峰）
-- **内部 API 和类型**："CodeGraph"（如 `CodeGraph` 类、注释中的 "CodeGraph"）
-- **文件系统/MCP 工具名**："codegraph"（小写，如 `.codegraph/` 目录、`zcodegraph_*` 工具前缀）
+- **API/包的文档简称**："ZCodeGraph"
+- **现有代码标识符**："CodeGraph"（如 `CodeGraph` 类）
+- **CLI/MCP 工具名/文件系统/配置键**："zcodegraph"（小写，如 `zcodegraph init`、`zcodegraph_*` 工具前缀、`.zcodegraph/`、`zcodegraph.db`、MCP server key）
+- **legacy 名称**："codegraph" 只用于兼容旧 `.codegraph/` 或旧 MCP server key，不再作为新写入口径
 
 需在 `ZJ-CONTEXT.md` 中记录此约定。
 

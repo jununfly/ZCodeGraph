@@ -3,7 +3,7 @@
  *
  * On Linux, when an MCP host (Claude Code, opencode, …) is SIGKILL'd by the
  * OOM killer / a force-quit / a container teardown, the kernel does NOT
- * propagate the death to its `codegraph serve --mcp` child. The child gets
+ * propagate the death to its `zcodegraph serve --mcp` child. The child gets
  * reparented to init/systemd, its stdin stays half-open in some
  * configurations, and the existing `stdin.on('end' | 'close')` handlers
  * never fire — the server lingers indefinitely, holding inotify watches,
@@ -157,7 +157,7 @@ describe.skipIf(process.platform === 'win32')('MCP PPID watchdog (#277)', () => 
     const stderrContent = fs.existsSync(stderrLog) ? fs.readFileSync(stderrLog, 'utf-8') : '<no stderr captured>';
     expect(
       exited,
-      `codegraph child (pid=${childPid}) did not exit within 5s after wrapper was SIGKILL'd.\nstderr:\n${stderrContent}`,
+      `zcodegraph child (pid=${childPid}) did not exit within 5s after wrapper was SIGKILL'd.\nstderr:\n${stderrContent}`,
     ).toBe(true);
     // The watchdog announces itself before tearing down — assert that the
     // shutdown came from the parent-death path, not from any other signal.

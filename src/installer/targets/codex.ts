@@ -2,7 +2,7 @@
  * OpenAI Codex CLI target.
  *
  *   - MCP server entry to `~/.codex/config.toml` as the dotted-key
- *     table `[mcp_servers.codegraph]`. TOML — not JSON — handled by
+ *     table `[mcp_servers.zcodegraph]`. TOML — not JSON — handled by
  *     the narrow serializer in `./toml.ts`.
  *   - Instructions to `~/.codex/AGENTS.md`.
  *
@@ -35,7 +35,8 @@ import {
 } from '../instructions-template';
 import { buildTomlTable, removeTomlTable, upsertTomlTable } from './toml';
 
-const TOML_HEADER = 'mcp_servers.codegraph';
+const TOML_HEADER = 'mcp_servers.zcodegraph';
+const LEGACY_TOML_HEADER = 'mcp_servers.codegraph';
 
 function configDir(): string {
   return path.join(os.homedir(), '.codex');
@@ -99,12 +100,14 @@ class CodexTarget implements AgentTarget {
     const tomlPath = tomlConfigPath();
     if (fs.existsSync(tomlPath)) {
       const content = fs.readFileSync(tomlPath, 'utf-8');
-      const { content: nextContent, action } = removeTomlTable(content, TOML_HEADER);
-      if (action === 'removed') {
-        if (nextContent.trim() === '') {
+      const first = removeTomlTable(content, TOML_HEADER);
+      const second = removeTomlTable(first.content, LEGACY_TOML_HEADER);
+      const removed = first.action === 'removed' || second.action === 'removed';
+      if (removed) {
+        if (second.content.trim() === '') {
           try { fs.unlinkSync(tomlPath); } catch { /* ignore */ }
         } else {
-          atomicWriteFileSync(tomlPath, nextContent.trimEnd() + '\n');
+          atomicWriteFileSync(tomlPath, second.content.trimEnd() + '\n');
         }
         files.push({ path: tomlPath, action: 'removed' });
       } else {
@@ -152,9 +155,10 @@ function writeMcpEntry(): WriteResult['files'][number] {
   // between two `fs.existsSync` calls.
   const existing = fs.existsSync(file) ? fs.readFileSync(file, 'utf-8') : '';
   const created = existing.length === 0;
-  const { content: nextContent, action } = upsertTomlTable(existing, TOML_HEADER, block);
+  const withoutLegacy = removeTomlTable(existing, LEGACY_TOML_HEADER).content;
+  const { content: nextContent, action } = upsertTomlTable(withoutLegacy, TOML_HEADER, block);
 
-  if (action === 'unchanged') {
+  if (action === 'unchanged' && withoutLegacy === existing) {
     return { path: file, action: 'unchanged' };
   }
   atomicWriteFileSync(file, nextContent);

@@ -36,7 +36,7 @@ function hasSqliteBindings(): boolean {
 const HAS_SQLITE = hasSqliteBindings();
 
 function tmpRoot(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-symbol-lookup-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-symbol-lookup-'));
 }
 
 function rmTree(dir: string): void {

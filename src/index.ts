@@ -154,7 +154,7 @@ export class CodeGraph {
     this.queries = queries;
     this.projectRoot = projectRoot;
     this.fileLock = new FileLock(
-      path.join(projectRoot, '.codegraph', 'codegraph.lock')
+      path.join(projectRoot, '.zcodegraph', 'zcodegraph.lock')
     );
     this.orchestrator = new ExtractionOrchestrator(projectRoot, queries);
     this.resolver = createResolver(projectRoot, queries);
@@ -384,8 +384,8 @@ export class CodeGraph {
           result.edgesCreated = after.edges - before.edges;
         }
 
-        // Stamp the index with the engine that built it, so `codegraph status`
-        // and `codegraph upgrade` can recommend a re-index when the running
+        // Stamp the index with the engine that built it, so `zcodegraph status`
+        // and `zcodegraph upgrade` can recommend a re-index when the running
         // engine produces richer extraction than the one on disk. Only on a
         // real full index — a sync touches a subset, so it must NOT advance the
         // extraction stamp (the bulk would still be stale). See extraction-version.ts.
@@ -593,7 +593,7 @@ export class CodeGraph {
   /**
    * Most recent index timestamp (ms since epoch) across all tracked files, or
    * null when nothing is indexed yet. Lets library consumers check index
-   * freshness without shelling out to `codegraph status --json`. (#329)
+   * freshness without shelling out to `zcodegraph status --json`. (#329)
    */
   getLastIndexedAt(): number | null {
     return this.queries.getLastIndexedAt();
@@ -616,8 +616,8 @@ export class CodeGraph {
    * True when the on-disk index was built by an engine whose extraction is
    * older than the one now running — i.e. a re-index would add data a migration
    * can't backfill. False when there's no index yet (nothing to refresh) or the
-   * stamp is current. This is the signal behind `codegraph status`'s re-index
-   * hint and `codegraph upgrade`'s reminder.
+   * stamp is current. This is the signal behind `zcodegraph status`'s re-index
+   * hint and `zcodegraph upgrade`'s reminder.
    */
   isIndexStale(): boolean {
     if (this.queries.getLastIndexedAt() == null) return false;
@@ -688,7 +688,7 @@ export class CodeGraph {
 
   /**
    * Active SQLite backend for this project's connection (`node-sqlite` — Node's
-   * built-in real-SQLite module). Surfaced via `codegraph status` and the
+   * built-in real-SQLite module). Surfaced via `zcodegraph status` and the
    * `zcodegraph_status` MCP tool alongside the effective journal mode.
    */
   getBackend(): import('./db').SqliteBackend {
@@ -699,7 +699,7 @@ export class CodeGraph {
    * The journal mode actually in effect ('wal', 'delete', …). 'wal' means
    * readers never block on a concurrent writer; anything else means they can,
    * which is the precondition for the "database is locked" failures in issue
-   * #238. Surfaced via `codegraph status` and the `zcodegraph_status` MCP tool.
+   * #238. Surfaced via `zcodegraph status` and the `zcodegraph_status` MCP tool.
    */
   getJournalMode(): string {
     return this.db.getJournalMode();

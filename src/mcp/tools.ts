@@ -287,7 +287,7 @@ export interface ToolResult {
  */
 const projectPathProperty: PropertySchema = {
   type: 'string',
-  description: 'Path to a different project with .codegraph/ initialized. If omitted, uses current project. Use this to query other codebases.',
+  description: 'Path to a different project with .zcodegraph/ initialized. If omitted, uses current project. Use this to query other codebases.',
 };
 
 /**
@@ -505,7 +505,7 @@ export class ToolHandler {
   private defaultProjectHint: string | null = null;
   // Per-start-path cache of the git worktree/index mismatch (issue #155). The
   // mismatch is a fixed property of (where the request came from → which
-  // .codegraph/ it resolves to), so the up-to-two `git rev-parse` spawns run
+  // .zcodegraph/ it resolves to), so the up-to-two `git rev-parse` spawns run
   // once and every later tool call reuses the result — never shelling out to
   // git on the hot path. `undefined` = not computed yet; `null` = no mismatch.
   private worktreeMismatchCache: Map<string, WorktreeIndexMismatch | null> = new Map();
@@ -644,7 +644,7 @@ export class ToolHandler {
    * If projectPath is provided, opens that project's CodeGraph (cached).
    * Otherwise returns the default CodeGraph instance.
    *
-   * Walks up parent directories to find the nearest .codegraph/ folder,
+   * Walks up parent directories to find the nearest .zcodegraph/ folder,
    * similar to how git finds .git/ directories.
    */
   private getCodeGraph(projectPath?: string): CodeGraph {
@@ -653,7 +653,7 @@ export class ToolHandler {
         const searched = this.defaultProjectHint ?? process.cwd();
         throw new Error(
           'No CodeGraph project is loaded for this session.\n' +
-          `Searched for a .codegraph/ directory starting from: ${searched}\n` +
+          `Searched for a .zcodegraph/ directory starting from: ${searched}\n` +
           'The index is likely fine — this is a working-directory detection issue: ' +
           "the MCP client launched the server outside your project and didn't report the " +
           'workspace root. Fix it either way:\n' +
@@ -671,7 +671,7 @@ export class ToolHandler {
 
     // Reject sensitive system directories before opening. Only validate a
     // path that actually exists — a nested or not-yet-created sub-path of a
-    // real project must still be allowed to resolve UP to its .codegraph/
+    // real project must still be allowed to resolve UP to its .zcodegraph/
     // root below (issue #238), so we don't run the existence-checking
     // validator on paths that are meant to walk up.
     if (existsSync(projectPath)) {
@@ -681,7 +681,7 @@ export class ToolHandler {
       }
     }
 
-    // Walk up parent directories to find nearest .codegraph/
+    // Walk up parent directories to find nearest .zcodegraph/
     const resolvedRoot = findNearestCodeGraphRoot(projectPath);
 
     if (!resolvedRoot) {
@@ -1709,7 +1709,7 @@ export class ToolHandler {
     const allFiles = cg.getFiles();
 
     if (allFiles.length === 0) {
-      return this.textResult('No files indexed. Run `codegraph index` first.');
+      return this.textResult('No files indexed. Run `zcodegraph index` first.');
     }
 
     // Filter by path prefix. Stored paths are project-relative POSIX (e.g.

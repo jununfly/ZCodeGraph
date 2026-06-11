@@ -34,7 +34,7 @@ export interface SqliteDatabase {
 
 /**
  * The active SQLite backend. Only one now (`node:sqlite`); kept as a named type
- * so `codegraph status` and the per-instance reporting have a stable shape.
+ * so `zcodegraph status` and the per-instance reporting have a stable shape.
  */
 export type SqliteBackend = 'node-sqlite';
 

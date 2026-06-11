@@ -15,7 +15,7 @@
  * that ISN'T the workspace root AND doesn't pass `rootUri` /
  * `workspaceFolders` in the MCP initialize call. The codegraph MCP
  * server's `process.cwd()` fallback therefore misses the workspace's
- * `.codegraph/` and reports "not initialized" on every tool call.
+ * `.zcodegraph/` and reports "not initialized" on every tool call.
  *
  * So we inject `--path` into the args ourselves:
  *
@@ -42,6 +42,8 @@ import {
   WriteResult,
 } from './types';
 import {
+  LEGACY_MCP_SERVER_KEY,
+  MCP_SERVER_KEY,
   atomicWriteFileSync,
   getMcpServerConfig,
   jsonDeepEqual,
@@ -96,7 +98,7 @@ class CursorTarget implements AgentTarget {
   detect(loc: Location): DetectionResult {
     const mcpPath = mcpJsonPath(loc);
     const config = readJsonFile(mcpPath);
-    const alreadyConfigured = !!config.mcpServers?.codegraph;
+    const alreadyConfigured = !!config.mcpServers?.[MCP_SERVER_KEY];
     // "Installed" heuristic: does ~/.cursor exist (global) or has the
     // user opted into a project-local cursor config dir?
     const installed = loc === 'global'
@@ -130,8 +132,16 @@ class CursorTarget implements AgentTarget {
 
     const mcpPath = mcpJsonPath(loc);
     const config = readJsonFile(mcpPath);
-    if (config.mcpServers?.codegraph) {
-      delete config.mcpServers.codegraph;
+    let removedMcp = false;
+    if (config.mcpServers?.[MCP_SERVER_KEY]) {
+      delete config.mcpServers[MCP_SERVER_KEY];
+      removedMcp = true;
+    }
+    if (config.mcpServers?.[LEGACY_MCP_SERVER_KEY]) {
+      delete config.mcpServers[LEGACY_MCP_SERVER_KEY];
+      removedMcp = true;
+    }
+    if (removedMcp) {
       if (Object.keys(config.mcpServers).length === 0) {
         delete config.mcpServers;
       }
@@ -150,7 +160,7 @@ class CursorTarget implements AgentTarget {
 
   printConfig(loc: Location): string {
     const target = mcpJsonPath(loc);
-    const snippet = JSON.stringify({ mcpServers: { codegraph: buildCursorMcpConfig(loc) } }, null, 2);
+    const snippet = JSON.stringify({ mcpServers: { [MCP_SERVER_KEY]: buildCursorMcpConfig(loc) } }, null, 2);
     return `# Add to ${target}\n\n${snippet}\n`;
   }
 
@@ -177,7 +187,7 @@ function buildCursorMcpConfig(loc: Location): { type: string; command: string; a
 function writeMcpEntry(loc: Location): WriteResult['files'][number] {
   const file = mcpJsonPath(loc);
   const existing = readJsonFile(file);
-  const before = existing.mcpServers?.codegraph;
+  const before = existing.mcpServers?.[MCP_SERVER_KEY];
   const after = buildCursorMcpConfig(loc);
 
   if (jsonDeepEqual(before, after)) {
@@ -185,7 +195,8 @@ function writeMcpEntry(loc: Location): WriteResult['files'][number] {
   }
   const action: 'created' | 'updated' = before ? 'updated' : (fs.existsSync(file) ? 'updated' : 'created');
   if (!existing.mcpServers) existing.mcpServers = {};
-  existing.mcpServers.codegraph = after;
+  existing.mcpServers[MCP_SERVER_KEY] = after;
+  delete existing.mcpServers[LEGACY_MCP_SERVER_KEY];
   writeJsonFile(file, existing);
   return { path: file, action };
 }

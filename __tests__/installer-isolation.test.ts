@@ -26,13 +26,13 @@ describe('Issue #6 — installer config uses zcodegraph', () => {
    * The permission strings combine the MCP server KEY (intentionally
    * kept as "codegraph") with the tool names ("zcodegraph_*").
    */
-  it('getCodeGraphPermissions() uses mcp__codegraph__zcodegraph_* format', () => {
+  it('getCodeGraphPermissions() uses mcp__zcodegraph__zcodegraph_* format', () => {
     const perms = getCodeGraphPermissions();
     expect(perms.length).toBeGreaterThan(0);
     for (const p of perms) {
       // KEY is "codegraph" (intentional internal identity from Issue #4)
       // Tool names are "zcodegraph_*" (new identity)
-      expect(p).toMatch(/^mcp__codegraph__zcodegraph_/);
+      expect(p).toMatch(/^mcp__zcodegraph__zcodegraph_/);
     }
   });
 
@@ -51,7 +51,7 @@ describe('Issue #6 — installer config uses zcodegraph', () => {
    */
   it('getDaemonPidPath() returns project-scoped path', () => {
     const p = getDaemonPidPath('/my/project');
-    expect(p).toContain('.codegraph');
+    expect(p).toContain('.zcodegraph');
     expect(p).toContain('daemon.pid');
   });
 

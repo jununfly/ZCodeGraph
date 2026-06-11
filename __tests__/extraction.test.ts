@@ -20,7 +20,7 @@ beforeAll(async () => {
 
 // Create a temporary directory for each test
 function createTempDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'codegraph-test-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-test-'));
 }
 
 // Clean up temporary directory

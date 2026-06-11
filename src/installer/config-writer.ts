@@ -17,7 +17,7 @@ import {
   writeMcpEntry,
   writePermissionsEntry,
 } from './targets/claude';
-import { readJsonFile } from './targets/shared';
+import { LEGACY_MCP_SERVER_KEY, MCP_SERVER_KEY, readJsonFile } from './targets/shared';
 
 export type InstallLocation = 'global' | 'local';
 
@@ -46,7 +46,7 @@ export function hasMcpConfig(location: InstallLocation): boolean {
     ? path.join(os.homedir(), '.claude.json')
     : path.join(process.cwd(), '.mcp.json');
   const config = readJsonFile(file);
-  return !!config.mcpServers?.codegraph;
+  return !!config.mcpServers?.[MCP_SERVER_KEY] || !!config.mcpServers?.[LEGACY_MCP_SERVER_KEY];
 }
 
 export function hasPermissions(location: InstallLocation): boolean {
@@ -56,5 +56,5 @@ export function hasPermissions(location: InstallLocation): boolean {
   const settings = readJsonFile(file);
   const allow = settings.permissions?.allow;
   if (!Array.isArray(allow)) return false;
-  return allow.some((p: string) => p.startsWith('mcp__codegraph__'));
+  return allow.some((p: string) => p.startsWith('mcp__zcodegraph__') || p.startsWith('mcp__codegraph__'));
 }
