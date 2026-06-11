@@ -289,7 +289,7 @@ the agent's real query — that mismatch is what this refinement corrects.)
 The skeletonization policy has been extracted from `handleExplore()` into two
 modules as part of the **Explore Answer Planner Seam** (Phase 1 / Candidate 1):
 
-- **`src/mcp/explore-planner.ts`** — `plan()` computes `renderMode` for each
+- **`src/mcp/explore-planner.ts`** — `plan()` computes the Source Depth for each
   `ExplorePlanEntry`. Skeletonization decisions (`isPolymorphicSibling`,
   `definesPolymorphicSupertype`, `spared`, `onSpineGodFile`) are made during
   plan construction. The `spine` (flow spine) is built by

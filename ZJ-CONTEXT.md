@@ -108,7 +108,7 @@ full source vs. signatures only, or how the explore planner prioritizes evidence
 (omitting method bodies) for off-spine files in an Explore Answer, reducing
 token consumption while preserving symbol-relationship visibility.
 
-**Verb form:** skeletonize. **renderMode value:** `"skeleton"`.
+**Verb form:** skeletonize. **Source Depth value:** `"skeleton"`.
 
 **Use when:** Discussing why an Explore Answer omits method bodies, how
 off-spine files are rendered, or tuning output budget allocation.
@@ -155,7 +155,7 @@ and Output Budget.
 **Values:** `full` (complete source), `focused` (only named callables' bodies),
 `skeleton` (signatures only), `omit` (not rendered).
 
-**Use when:** Discussing renderMode, why a file appears with full source vs.
+**Use when:** Discussing Source Depth, why a file appears with full source vs.
 signatures, or how the explore planner allocates output budget across files.
 
 **Not:** The Output Budget itself. Source Depth is per-file; Output Budget is the

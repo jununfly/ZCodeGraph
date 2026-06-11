@@ -853,7 +853,7 @@ export async function plan(
       entry.reason = 'additional relevant file';
     }
 
-    // ===== Skeletonization policy (renderMode) =====
+    // ===== Skeletonization policy (Source Depth) =====
     // Only when adaptive explore is enabled, a flow spine exists,
     // and the file is NOT distracting.
     if (entry.evidenceValue !== 'distracting' && readAdaptiveEnabled() && spine.pathNodeIds.size > 0) {
@@ -914,7 +914,7 @@ export async function plan(
       }
       // Note: onSpineGodFile logic (renderer lines 203-217) is complex and
       // depends on file content analysis (bodyChars computation). It stays
-      // in the renderer for now — the planner sets the initial renderMode
+      // in the renderer for now — the planner sets the initial Source Depth
       // and the renderer may further refine it during rendering.
     }
 

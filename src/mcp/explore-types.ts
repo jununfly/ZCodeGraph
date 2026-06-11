@@ -103,7 +103,7 @@ export type EvidenceValue = 'critical' | 'supportive' | 'compressible' | 'distra
 
 /**
  * A single file entry in the explore plan, annotated with its evidence
- * value and render mode so the renderer can make per-file decisions
+ * value and source depth so the renderer can make per-file decisions
  * without recomputing plan-level logic.
  *
  * Replaces the raw `[filePath, FileGroup]` tuples previously in
