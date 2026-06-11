@@ -16,7 +16,7 @@ The architecture review identified several candidates for deepening the codebase
 - Extraction parse execution module.
 - CLI command adapter / execution context seam.
 - Installer target adapter contract hardening.
-- Query/storage read model seam.
+- Query/storage Access Model seam.
 
 Without a shared decision criterion, those candidates can optimize different things: graph completeness, file decomposition, output size, trace adoption, or benchmark cost. The project needs a durable north star that ties architecture work to observable agent behavior.
 

@@ -22,11 +22,11 @@ import { kindBonus, nameMatchBonus, scorePathRelevance } from '../search/query-u
 import { parseQuery, boundedEditDistance } from '../search/query-parser';
 import { isGeneratedFile } from '../extraction/generated-detection';
 import type {
-  AgentReadModel,
-  MaintenanceWriteModel,
-  ResolutionReadModel,
-  StatusReadModel,
-} from './read-models';
+  AgentAccessModel,
+  MaintenanceAccessModel,
+  ResolutionAccessModel,
+  StatusAccessModel,
+} from './access-models';
 
 /**
  * Path-only heuristic for files that should not be candidates for
@@ -177,7 +177,7 @@ function rowToFileRecord(row: FileRow): FileRecord {
 /**
  * Query builder for the knowledge graph database
  */
-export class QueryBuilder implements AgentReadModel, MaintenanceWriteModel, ResolutionReadModel, StatusReadModel {
+export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, ResolutionAccessModel, StatusAccessModel {
   private db: SqliteDatabase;
 
   // Node cache for frequently accessed nodes (LRU-style, max 1000 entries)

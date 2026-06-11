@@ -12,6 +12,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Breaking Changes
 
 - The public `Subgraph` type now exposes `entryNodes` instead of `roots`, matching the project terminology for Entry Nodes.
+- Database access interfaces now use Access Model names, so TypeScript users should import `AgentAccessModel`, `MaintenanceAccessModel`, `ResolutionAccessModel`, and `StatusAccessModel` from the new access-model module.
 - ZCodeGraph now uses a private `zcodegraph` namespace for new project indexes and MCP server configs: project data lives in `.zcodegraph/zcodegraph.db`, and installers write the MCP server key `zcodegraph`. Existing `.codegraph/` indexes are no longer opened as initialized projects; run `zcodegraph init -i` to build a fresh index in the new namespace.
 
 ### Security

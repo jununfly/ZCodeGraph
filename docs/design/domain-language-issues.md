@@ -135,26 +135,27 @@ Domain Language 校对确认正式术语为 **"Flow Spine"**。代码注释中�
 
 ---
 
-## Issue 6: Domain Language — "Read Model" 重命名为 "Access Model"
+## Issue 6: Domain Language — "Access Model" 命名统一
 
 **Labels**: `domain-language`, `code`
 **Type**: code
+**Status**: done
 
 ### 背景
 
-术语表确认正式术语为 **"Access Model"**（替代 "Read Model"）。
-但 `src/db/read-models.ts` 中 4 个接口名仍使用 `XxxReadModel` / `XxxWriteModel`，命名不一致。
+术语表确认正式术语为 **"Access Model"**。数据库访问接口已统一使用
+`src/db/access-models.ts` 和 `XxxAccessModel` 命名。
 
-| 当前名 | 应改为 |
-|--------|--------|
-| `AgentReadModel` | `AgentAccessModel` |
-| `MaintenanceWriteModel` | `MaintenanceAccessModel` |
-| `ResolutionReadModel` | `ResolutionAccessModel` |
-| `StatusReadModel` | `StatusAccessModel` |
+当前接口名：
+
+- `AgentAccessModel`
+- `MaintenanceAccessModel`
+- `ResolutionAccessModel`
+- `StatusAccessModel`
 
 ### 范围
 
-Breaking change——`QueryBuilder` 实现这四个接口，需全量搜索引用并更新所有调用者。
+Breaking change——`QueryBuilder` 实现这四个接口，所有引用已迁移到 Access Model 命名。
 
 ---
 

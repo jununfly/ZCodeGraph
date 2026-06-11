@@ -1,13 +1,13 @@
 /**
- * Read Model Interfaces
+ * Access Model Interfaces
  *
  * Extracted from QueryBuilder to separate callers by intent:
- *   - AgentReadModel       → agent-serving queries (ContextBuilder, MCP tools)
- *   - MaintenanceWriteModel → index/maintenance writes (ExtractionOrchestrator)
- *   - ResolutionReadModel  → resolution-phase reads (ReferenceResolver)
- *   - StatusReadModel      → CLI/status queries (getStats, getMetadata)
+ *   - AgentAccessModel       → agent-serving queries (ContextBuilder, MCP tools)
+ *   - MaintenanceAccessModel → index/maintenance writes (ExtractionOrchestrator)
+ *   - ResolutionAccessModel  → resolution-phase reads (ReferenceResolver)
+ *   - StatusAccessModel      → CLI/status queries (getStats, getMetadata)
  *
- * Candidate 7: Query/storage read model Seam.
+ * Candidate 7: Query/storage access model Seam.
  *
  * QueryBuilder implements all four interfaces for backward compatibility.
  * New code should depend on the narrowest interface it needs.
@@ -26,16 +26,16 @@ import type {
 } from '../types';
 
 // ============================================================
-// AgentReadModel — agent-serving queries
+// AgentAccessModel — agent-serving queries
 // ============================================================
 
 /**
- * Read model for agent-serving code understanding queries.
+ * Access model for agent-serving code understanding queries.
  *
  * Callers: ContextBuilder, GraphTraverser, GraphQueryManager,
  * MCP explore-planner, MCP explore-renderer.
  */
-export interface AgentReadModel {
+export interface AgentAccessModel {
   // Node lookups
   getNodeById(id: string): Node | null;
   getNodesByIds(ids: readonly string[]): Map<string, Node>;
@@ -72,16 +72,16 @@ export interface AgentReadModel {
 }
 
 // ============================================================
-// MaintenanceWriteModel — index/maintenance writes
+// MaintenanceAccessModel — index/maintenance writes
 // ============================================================
 
 /**
- * Write model for index building and maintenance operations.
+ * Access model for index building and maintenance operations.
  *
  * Callers: ExtractionOrchestrator, index-stages (storeExtractionResult),
  * ReferenceResolver (write path).
  */
-export interface MaintenanceWriteModel {
+export interface MaintenanceAccessModel {
   // Node writes
   insertNode(node: Node): void;
   insertNodes(nodes: Node[]): void;
@@ -114,19 +114,19 @@ export interface MaintenanceWriteModel {
 }
 
 // ============================================================
-// ResolutionReadModel — resolution-phase reads
+// ResolutionAccessModel — resolution-phase reads
 // ============================================================
 
 /**
- * Read model for the reference resolution phase.
+ * Access model for the reference resolution phase.
  *
  * Callers: ReferenceResolver, callback-synthesizer.ts.
  *
  * Note: these callers ALSO need write access (they insert synthesized
- * edges), so they typically receive both ResolutionReadModel and
- * MaintenanceWriteModel.
+ * edges), so they typically receive both ResolutionAccessModel and
+ * MaintenanceAccessModel.
  */
-export interface ResolutionReadModel {
+export interface ResolutionAccessModel {
   // Unresolved references
   getUnresolvedReferences(): UnresolvedReference[];
   getUnresolvedReferencesCount(): number;
@@ -138,7 +138,7 @@ export interface ResolutionReadModel {
   getAllFilePaths(): string[];
   getAllNodeNames(): string[];
 
-  // Node lookups (subset of AgentReadModel)
+  // Node lookups (subset of AgentAccessModel)
   getNodeById(id: string): Node | null;
   getNodesByFile(filePath: string): Node[];
   getNodesByName(name: string): Node[];
@@ -148,15 +148,15 @@ export interface ResolutionReadModel {
 }
 
 // ============================================================
-// StatusReadModel — CLI/status queries
+// StatusAccessModel — CLI/status queries
 // ============================================================
 
 /**
- * Read model for CLI commands and MCP status tools.
+ * Access model for CLI commands and MCP status tools.
  *
  * Callers: CodeGraph.getStats(), CLI status command, MCP handleStatus.
  */
-export interface StatusReadModel {
+export interface StatusAccessModel {
   getStats(): GraphStats;
   getNodeAndEdgeCount(): { nodes: number; edges: number };
   getLastIndexedAt(): number | null;

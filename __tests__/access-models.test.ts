@@ -1,11 +1,11 @@
 /**
- * Read Model Interface Tests
+ * Access Model Interface Tests
  *
- * Contract tests for the 4 read-model interfaces extracted from QueryBuilder:
- *   - AgentReadModel   (agent-serving queries)
- *   - MaintenanceWriteModel (index/maintenance writes)
- *   - ResolutionReadModel   (resolution-phase reads)
- *   - StatusReadModel  (CLI/status queries)
+ * Contract tests for the 4 access-model interfaces extracted from QueryBuilder:
+ *   - AgentAccessModel   (agent-serving queries)
+ *   - MaintenanceAccessModel (index/maintenance writes)
+ *   - ResolutionAccessModel   (resolution-phase reads)
+ *   - StatusAccessModel  (CLI/status queries)
  *
  * These tests verify that QueryBuilder implements all interfaces and that
  * each interface exposes only the methods its callers need.
@@ -20,18 +20,25 @@ import * as os from 'os';
 import { DatabaseConnection } from '../src/db';
 import { QueryBuilder } from '../src/db/queries';
 import type {
-  AgentReadModel,
-  MaintenanceWriteModel,
-  ResolutionReadModel,
-  StatusReadModel,
-} from '../src/db/read-models';
+  AgentAccessModel,
+  MaintenanceAccessModel,
+  ResolutionAccessModel,
+  StatusAccessModel,
+} from '../src/db/access-models';
+
+describe('access model module naming', () => {
+  it('uses access-models.ts as the source module name', () => {
+    expect(fs.existsSync(path.join(__dirname, '../src/db/access-models.ts'))).toBe(true);
+    expect(fs.existsSync(path.join(__dirname, '../src/db/read-models.ts'))).toBe(false);
+  });
+});
 
 // ============================================================
 // Helpers
 // ============================================================
 
 function createTempDb(): { dir: string; db: DatabaseConnection; qb: QueryBuilder } {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'read-models-test-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'access-models-test-'));
   const db = DatabaseConnection.initialize(path.join(dir, 'test.db'));
   const qb = new QueryBuilder(db.getDb());
   return { dir, db, qb };
@@ -43,10 +50,10 @@ function cleanupTempDb(dir: string, db: DatabaseConnection): void {
 }
 
 // ============================================================
-// TB1a: AgentReadModel contract
+// TB1a: AgentAccessModel contract
 // ============================================================
 
-describe('AgentReadModel interface', () => {
+describe('AgentAccessModel interface', () => {
   let dir: string;
   let db: DatabaseConnection;
   let qb: QueryBuilder;
@@ -62,8 +69,8 @@ describe('AgentReadModel interface', () => {
     cleanupTempDb(dir, db);
   });
 
-  it('QueryBuilder implements AgentReadModel', () => {
-    const model: AgentReadModel = qb;
+  it('QueryBuilder implements AgentAccessModel', () => {
+    const model: AgentAccessModel = qb;
 
     // Verify all methods are callable (TypeScript structural typing)
     expect(typeof model.getNodeById).toBe('function');
@@ -87,8 +94,8 @@ describe('AgentReadModel interface', () => {
     expect(typeof model.getRoutingManifest).toBe('function');
   });
 
-  it('AgentReadModel does not expose write methods at type level', () => {
-    const model: AgentReadModel = qb;
+  it('AgentAccessModel does not expose write methods at type level', () => {
+    const model: AgentAccessModel = qb;
 
     // Read-only: should return null for nonexistent node
     const node = model.getNodeById('nonexistent');
@@ -102,10 +109,10 @@ describe('AgentReadModel interface', () => {
 });
 
 // ============================================================
-// TB1b: MaintenanceWriteModel contract
+// TB1b: MaintenanceAccessModel contract
 // ============================================================
 
-describe('MaintenanceWriteModel interface', () => {
+describe('MaintenanceAccessModel interface', () => {
   let dir: string;
   let db: DatabaseConnection;
   let qb: QueryBuilder;
@@ -121,8 +128,8 @@ describe('MaintenanceWriteModel interface', () => {
     cleanupTempDb(dir, db);
   });
 
-  it('QueryBuilder implements MaintenanceWriteModel', () => {
-    const model: MaintenanceWriteModel = qb;
+  it('QueryBuilder implements MaintenanceAccessModel', () => {
+    const model: MaintenanceAccessModel = qb;
 
     // Write methods
     expect(typeof model.insertNode).toBe('function');
@@ -145,12 +152,12 @@ describe('MaintenanceWriteModel interface', () => {
     expect(typeof model.clear).toBe('function');
   });
 
-  it('can insert and query a node via MaintenanceWriteModel + AgentReadModel', () => {
-    const writeModel: MaintenanceWriteModel = qb;
-    const readModel: AgentReadModel = qb;
+  it('can insert and query a node via MaintenanceAccessModel + AgentAccessModel', () => {
+    const maintenanceAccessModel: MaintenanceAccessModel = qb;
+    const agentAccessModel: AgentAccessModel = qb;
 
-    // Insert via write model
-    writeModel.insertNode({
+    // Insert via maintenance access model
+    maintenanceAccessModel.insertNode({
       id: 'test-node-1',
       kind: 'function' as any,
       name: 'hello',
@@ -168,8 +175,8 @@ describe('MaintenanceWriteModel interface', () => {
       updatedAt: Date.now(),
     });
 
-    // Read via agent model
-    const node = readModel.getNodeById('test-node-1');
+    // Read via agent access model
+    const node = agentAccessModel.getNodeById('test-node-1');
     expect(node).not.toBeNull();
     expect(node!.name).toBe('hello');
     expect(node!.kind).toBe('function');
@@ -177,10 +184,10 @@ describe('MaintenanceWriteModel interface', () => {
 });
 
 // ============================================================
-// TB1c: ResolutionReadModel contract
+// TB1c: ResolutionAccessModel contract
 // ============================================================
 
-describe('ResolutionReadModel interface', () => {
+describe('ResolutionAccessModel interface', () => {
   let dir: string;
   let db: DatabaseConnection;
   let qb: QueryBuilder;
@@ -196,8 +203,8 @@ describe('ResolutionReadModel interface', () => {
     cleanupTempDb(dir, db);
   });
 
-  it('QueryBuilder implements ResolutionReadModel', () => {
-    const model: ResolutionReadModel = qb;
+  it('QueryBuilder implements ResolutionAccessModel', () => {
+    const model: ResolutionAccessModel = qb;
 
     expect(typeof model.getUnresolvedReferences).toBe('function');
     expect(typeof model.getUnresolvedReferencesCount).toBe('function');
@@ -216,10 +223,10 @@ describe('ResolutionReadModel interface', () => {
 });
 
 // ============================================================
-// TB1d: StatusReadModel contract
+// TB1d: StatusAccessModel contract
 // ============================================================
 
-describe('StatusReadModel interface', () => {
+describe('StatusAccessModel interface', () => {
   let dir: string;
   let db: DatabaseConnection;
   let qb: QueryBuilder;
@@ -235,8 +242,8 @@ describe('StatusReadModel interface', () => {
     cleanupTempDb(dir, db);
   });
 
-  it('QueryBuilder implements StatusReadModel', () => {
-    const model: StatusReadModel = qb;
+  it('QueryBuilder implements StatusAccessModel', () => {
+    const model: StatusAccessModel = qb;
 
     expect(typeof model.getStats).toBe('function');
     expect(typeof model.getNodeAndEdgeCount).toBe('function');
@@ -245,8 +252,8 @@ describe('StatusReadModel interface', () => {
     expect(typeof model.getAllMetadata).toBe('function');
   });
 
-  it('StatusReadModel returns stats from empty db', () => {
-    const model: StatusReadModel = qb;
+  it('StatusAccessModel returns stats from empty db', () => {
+    const model: StatusAccessModel = qb;
 
     const stats = model.getStats();
     expect(stats).toBeDefined();
@@ -255,12 +262,12 @@ describe('StatusReadModel interface', () => {
     expect(stats.fileCount).toBe(0);
   });
 
-  it('StatusReadModel returns counts after inserting data', () => {
-    const writeModel: MaintenanceWriteModel = qb;
-    const statusModel: StatusReadModel = qb;
+  it('StatusAccessModel returns counts after inserting data', () => {
+    const maintenanceAccessModel: MaintenanceAccessModel = qb;
+    const statusModel: StatusAccessModel = qb;
 
     // Insert a file and a node
-    writeModel.upsertFile({
+    maintenanceAccessModel.upsertFile({
       path: '/test/hello.ts',
       contentHash: 'abc123',
       language: 'typescript' as any,
@@ -270,7 +277,7 @@ describe('StatusReadModel interface', () => {
       nodeCount: 0,
     });
 
-    writeModel.insertNode({
+    maintenanceAccessModel.insertNode({
       id: 'n1',
       kind: 'function' as any,
       name: 'hello',
@@ -298,7 +305,7 @@ describe('StatusReadModel interface', () => {
 // TB1e: Interface isolation — each interface is self-contained
 // ============================================================
 
-describe('Read model isolation', () => {
+describe('Access model isolation', () => {
   let dir: string;
   let db: DatabaseConnection;
   let qb: QueryBuilder;
@@ -314,23 +321,23 @@ describe('Read model isolation', () => {
     cleanupTempDb(dir, db);
   });
 
-  it('AgentReadModel and StatusReadModel share no write methods', () => {
-    const agentModel: AgentReadModel = qb;
-    const statusModel: StatusReadModel = qb;
+  it('AgentAccessModel and StatusAccessModel share no write methods', () => {
+    const agentModel: AgentAccessModel = qb;
+    const statusModel: StatusAccessModel = qb;
 
     // Both can call getNodeById (it's a read method used by both)
     expect(agentModel.getNodeById('x')).toBeNull();
 
-    // getStats is on StatusReadModel
+    // getStats is on StatusAccessModel
     expect(statusModel.getStats().nodeCount).toBe(0);
   });
 
-  it('ResolutionReadModel can coexist with MaintenanceWriteModel', () => {
-    const readModel: ResolutionReadModel = qb;
-    const writeModel: MaintenanceWriteModel = qb;
+  it('ResolutionAccessModel can coexist with MaintenanceAccessModel', () => {
+    const resolutionAccessModel: ResolutionAccessModel = qb;
+    const maintenanceAccessModel: MaintenanceAccessModel = qb;
 
-    // Insert a node via write model
-    writeModel.insertNode({
+    // Insert a node via maintenance access model
+    maintenanceAccessModel.insertNode({
       id: 'res-test',
       kind: 'class' as any,
       name: 'MyClass',
@@ -344,13 +351,13 @@ describe('Read model isolation', () => {
       updatedAt: Date.now(),
     });
 
-    // Read via resolution model
-    const node = readModel.getNodeById('res-test');
+    // Read via resolution access model
+    const node = resolutionAccessModel.getNodeById('res-test');
     expect(node).not.toBeNull();
     expect(node!.name).toBe('MyClass');
 
     // Resolution model can also read by name
-    const byName = readModel.getNodesByName('MyClass');
+    const byName = resolutionAccessModel.getNodesByName('MyClass');
     expect(byName).toHaveLength(1);
   });
 });
