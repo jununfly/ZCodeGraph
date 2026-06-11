@@ -363,10 +363,10 @@ export function render(
     // Alamofire is the canonical case: the `Session` class spans ~1,400
     // lines). We want the granular symbols inside, not the envelope.
     const ENVELOPE_KINDS = new Set(['file', 'module', 'class', 'struct', 'interface', 'enum', 'namespace', 'protocol', 'trait', 'component']);
-    // Cluster from this file's gathered nodes PLUS any callable the agent NAMED that
-    // lives here. Explore's relevance gather can miss a named method def in a huge
+    // Cluster from this file's collected nodes PLUS any callable the agent NAMED that
+    // lives here. Explore's relevance collect can miss a named method def in a huge
     // non-sibling file — Django's query.py is 3,040 lines and `_fetch_all` (L2237)
-    // was gathered only as call-reference edges, never as a def, so it formed no
+    // was collected only as call-reference edges, never as a def, so it formed no
     // cluster and the agent Read it back. Inject named defs directly and rank them
     // ABOVE connected/glue nodes (importance 9) so their cluster wins the per-file
     // budget — the agent explicitly asked for these symbols.

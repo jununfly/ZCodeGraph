@@ -307,7 +307,7 @@ export const CALLABLE_KINDS = new Set(['method', 'function', 'component', 'const
  * and inject them as named seeds into the subgraph.
  *
  * Returns the set of node ids that were explicitly named by the agent
- * (including nodes that FTS already gathered — being "named by the agent"
+ * (including nodes that FTS already collected — being "named by the agent"
  * is independent of whether search happened to surface them).
  *
  * Mutates `subgraph.nodes` to include any newly injected seeds.

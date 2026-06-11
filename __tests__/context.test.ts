@@ -212,9 +212,9 @@ export function validateEmail(email: string): boolean {
     });
   });
 
-  describe('buildContext()', () => {
+  describe('collectContext()', () => {
     it('should build context with markdown format', async () => {
-      const result = await cg.buildContext('Fix checkout error', {
+      const result = await cg.collectContext('Fix checkout error', {
         format: 'markdown',
         maxCodeBlocks: 3,
       });
@@ -228,7 +228,7 @@ export function validateEmail(email: string): boolean {
     });
 
     it('should build context with JSON format', async () => {
-      const result = await cg.buildContext('payment processing', {
+      const result = await cg.collectContext('payment processing', {
         format: 'json',
       });
 
@@ -241,7 +241,7 @@ export function validateEmail(email: string): boolean {
     });
 
     it('should accept object input with title and description', async () => {
-      const result = await cg.buildContext(
+      const result = await cg.collectContext(
         {
           title: 'Checkout bug',
           description: 'Cart total calculation is wrong',
@@ -254,7 +254,7 @@ export function validateEmail(email: string): boolean {
     });
 
     it('should include code blocks when requested', async () => {
-      const result = await cg.buildContext('PaymentService', {
+      const result = await cg.collectContext('PaymentService', {
         format: 'markdown',
         includeCode: true,
         maxCodeBlocks: 2,
@@ -268,7 +268,7 @@ export function validateEmail(email: string): boolean {
     });
 
     it('should exclude code blocks when requested', async () => {
-      const result = await cg.buildContext('payment', {
+      const result = await cg.collectContext('payment', {
         format: 'markdown',
         includeCode: false,
       });
@@ -280,7 +280,7 @@ export function validateEmail(email: string): boolean {
     });
 
     it('should include related symbols in compact format', async () => {
-      const result = await cg.buildContext('checkout', {
+      const result = await cg.collectContext('checkout', {
         format: 'markdown',
         maxNodes: 10,
       });
@@ -293,7 +293,7 @@ export function validateEmail(email: string): boolean {
     });
 
     it('should have compact output without verbose stats footer', async () => {
-      const result = await cg.buildContext('payment', {
+      const result = await cg.collectContext('payment', {
         format: 'markdown',
       });
 
@@ -308,7 +308,7 @@ export function validateEmail(email: string): boolean {
 
   describe('Context structure', () => {
     it('should find Entry Nodes from search', async () => {
-      const result = await cg.buildContext('PaymentService', {
+      const result = await cg.collectContext('PaymentService', {
         format: 'json',
       });
 
@@ -319,7 +319,7 @@ export function validateEmail(email: string): boolean {
     });
 
     it('should traverse graph from Entry Nodes', async () => {
-      const result = await cg.buildContext('CheckoutController', {
+      const result = await cg.collectContext('CheckoutController', {
         format: 'json',
         traversalDepth: 2,
       });
@@ -338,13 +338,13 @@ export function validateEmail(email: string): boolean {
 
   describe('Edge cases', () => {
     it('should handle empty query', async () => {
-      const result = await cg.buildContext('', { format: 'markdown' });
+      const result = await cg.collectContext('', { format: 'markdown' });
 
       expect(typeof result).toBe('string');
     });
 
     it('should handle query with no matches', async () => {
-      const result = await cg.buildContext('xyznonexistent123', {
+      const result = await cg.collectContext('xyznonexistent123', {
         format: 'json',
       });
 
@@ -355,7 +355,7 @@ export function validateEmail(email: string): boolean {
     });
 
     it('should truncate long code blocks', async () => {
-      const result = await cg.buildContext('PaymentService', {
+      const result = await cg.collectContext('PaymentService', {
         format: 'markdown',
         maxCodeBlockSize: 100,
         includeCode: true,

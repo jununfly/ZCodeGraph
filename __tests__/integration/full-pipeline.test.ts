@@ -2,7 +2,7 @@
  * End-to-end pipeline integration tests
  *
  * Exercises the full happy path that unit tests cover in isolation:
- *   init → indexAll → resolveReferences → searchNodes/getCallers/buildContext → sync
+ *   init → indexAll → resolveReferences → searchNodes/getCallers/collectContext → sync
  *
  * Also covers two error paths that were previously uncovered:
  *   - Indexing a file that contains a syntactically invalid snippet
@@ -132,8 +132,8 @@ describe('Integration: full pipeline', () => {
       // be wired up.
       expect(Array.isArray(callers)).toBe(true);
 
-      // ── buildContext ─────────────────────────────────────────────
-      const context = await cg.buildContext('entry function chain', {
+      // ── collectContext ─────────────────────────────────────────────
+      const context = await cg.collectContext('entry function chain', {
         maxNodes: 10,
         format: 'markdown',
       });

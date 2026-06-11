@@ -16,7 +16,7 @@ import {
   CodeBlock,
   TaskContext,
   TaskInput,
-  BuildContextOptions,
+  CollectContextOptions,
   FindRelevantContextOptions,
   SearchResult,
 } from '../types';
@@ -140,7 +140,7 @@ function extractSymbolsFromQuery(query: string): string[] {
  * - Smaller code block size limit
  * - Shallower traversal
  */
-const DEFAULT_BUILD_OPTIONS: Required<BuildContextOptions> = {
+const DEFAULT_BUILD_OPTIONS: Required<CollectContextOptions> = {
   maxNodes: 20,           // Reduced from 50 - most tasks don't need 50 symbols
   maxCodeBlocks: 5,       // Reduced from 10 - only show most relevant code
   maxCodeBlockSize: 1500, // Reduced from 2000
@@ -213,9 +213,9 @@ export class ContextBuilder {
    * @param options - Build options
    * @returns TaskContext (structured) or formatted string
    */
-  async buildContext(
+  async collectContext(
     input: TaskInput,
-    options: BuildContextOptions = {}
+    options: CollectContextOptions = {}
   ): Promise<TaskContext | string> {
     const opts = { ...DEFAULT_BUILD_OPTIONS, ...options };
 
@@ -901,7 +901,7 @@ export class ContextBuilder {
       filteredResults = filteredResults.slice(0, opts.searchLimit);
     }
 
-    // Confidence signal for the honest-handoff footer (consumed in buildContext).
+    // Confidence signal for the honest-handoff footer (consumed in collectContext).
     // A multi-term prose query that resolves only to isolated common-word matches
     // — no Entry Node corroborated by 2+ distinct query terms, and none a
     // distinctive identifier the user explicitly named — is LOW confidence: the
@@ -1163,7 +1163,7 @@ export class ContextBuilder {
   private async extractNodeCode(node: Node): Promise<string | null> {
     // SECURITY (#383): a config-leaf node's on-disk line is `key = <secret>`.
     // Return the KEY only — never read the value off disk. This closes the
-    // includeCode / buildContext code-block path, mirroring the explore source
+    // includeCode / collectContext code-block path, mirroring the explore source
     // renderer; an agent that genuinely needs a value can read the file itself.
     if (isConfigLeafNode(node)) {
       return node.signature || node.qualifiedName || node.name;

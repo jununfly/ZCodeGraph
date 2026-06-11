@@ -106,7 +106,7 @@ export function downloadDataset(name: string): string { return name; }
     const sg = await cg.findRelevantContext(query);
     expect(sg.confidence).toBe('low');
 
-    const md = await cg.buildContext(query, { format: 'markdown' });
+    const md = await cg.collectContext(query, { format: 'markdown' });
     expect(typeof md).toBe('string');
     expect(md as string).toContain(LOW_CONFIDENCE_MARKER);
     // The handoff routes to the precise tools rather than claiming completeness.
@@ -117,7 +117,7 @@ export function downloadDataset(name: string): string { return name; }
     const sg = await cg.findRelevantContext('CaptureIntroScreen');
     expect(sg.confidence).toBe('high');
 
-    const md = await cg.buildContext('CaptureIntroScreen', { format: 'markdown' });
+    const md = await cg.collectContext('CaptureIntroScreen', { format: 'markdown' });
     expect(md as string).not.toContain(LOW_CONFIDENCE_MARKER);
   });
 });

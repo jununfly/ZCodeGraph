@@ -19,7 +19,7 @@ import {
   GraphStats,
   TaskInput,
   TaskContext,
-  BuildContextOptions,
+  CollectContextOptions,
   FindRelevantContextOptions,
 } from './types';
 import { DatabaseConnection, getDatabasePath } from './db';
@@ -1054,11 +1054,11 @@ export class CodeGraph {
    * @param options - Build options (maxNodes, includeCode, format, etc.)
    * @returns TaskContext object or formatted string (markdown/JSON)
    */
-  async buildContext(
+  async collectContext(
     input: TaskInput,
-    options?: BuildContextOptions
+    options?: CollectContextOptions
   ): Promise<TaskContext | string> {
-    return this.contextBuilder.buildContext(input, options);
+    return this.contextBuilder.collectContext(input, options);
   }
 
   // ===========================================================================

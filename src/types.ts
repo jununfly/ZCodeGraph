@@ -487,7 +487,7 @@ export interface GraphStats {
 }
 
 // =============================================================================
-// Task Context Types (for buildContext)
+// Task Context Types (for collectContext)
 // =============================================================================
 
 /**
@@ -498,7 +498,7 @@ export type TaskInput = string | { title: string; description?: string };
 /**
  * Options for building task context
  */
-export interface BuildContextOptions {
+export interface CollectContextOptions {
   /** Maximum number of nodes to include (default: 50) */
   maxNodes?: number;
 
