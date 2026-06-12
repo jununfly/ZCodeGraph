@@ -363,16 +363,14 @@ export class GraphTraverser {
 
     const nodes = new Map<string, Node>();
     const edges: Edge[] = [];
-    const visited = new Set<string>();
-
     // Add focal node
     nodes.set(focalNode.id, focalNode);
 
     // Get ancestors (what this extends/implements)
-    this.getTypeAncestors(nodeId, nodes, edges, visited);
+    this.getTypeAncestors(nodeId, nodes, edges, new Set<string>());
 
     // Get descendants (what extends/implements this)
-    this.getTypeDescendants(nodeId, nodes, edges, visited);
+    this.getTypeDescendants(nodeId, nodes, edges, new Set<string>());
 
     return {
       nodes,

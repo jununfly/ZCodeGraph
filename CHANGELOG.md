@@ -32,6 +32,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixes
 
+- `zcodegraph_explore` now keeps polymorphic Java implementation families together when answering broad implementation questions, so Elasticsearch Engine queries include the base type, write-capable engines, read-only engines, and relevant plugin engines without pulling in test-only subclasses. (#46)
 - `zcodegraph_explore` now keeps Java allocation services and allocator implementations in scope for broad shard-allocation questions, so "How does shard rebalancing and allocation work?" surfaces the service and concrete shard allocator evidence. (#45)
 - `zcodegraph_explore` now keeps Java-style action/request/response families together for broad operation questions, so "How does bulk indexing work?" surfaces the bulk action, request, and response instead of unrelated one-word matches. (#44)
 - `zcodegraph_explore` now shows the exact callback registration line for synthesized callback edges, so React-style observer flows such as `Scene.onUpdate(this.triggerRender)` can be explained without opening the wiring file. (#43)

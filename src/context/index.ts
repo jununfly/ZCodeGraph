@@ -1038,12 +1038,21 @@ export class ContextBuilder {
       if (typeHierarchyKinds.has(result.node.kind)) {
         const hierarchy = this.traverser.getTypeHierarchy(result.node.id);
         for (const [id, node] of hierarchy.nodes) {
+          if (isTestFile(node.filePath) && !isTestQuery) continue;
           if (!nodes.has(id)) {
             nodes.set(id, node);
             hierarchyNodesAdded++;
           }
         }
         for (const edge of hierarchy.edges) {
+          const sourceNode = hierarchy.nodes.get(edge.source) || nodes.get(edge.source);
+          const targetNode = hierarchy.nodes.get(edge.target) || nodes.get(edge.target);
+          if (
+            (sourceNode && isTestFile(sourceNode.filePath) && !isTestQuery) ||
+            (targetNode && isTestFile(targetNode.filePath) && !isTestQuery)
+          ) {
+            continue;
+          }
           const exists = edges.some(
             (e) => e.source === edge.source && e.target === edge.target && e.kind === edge.kind
           );
@@ -1064,12 +1073,21 @@ export class ContextBuilder {
         if (hierarchyNodesAdded >= maxHierarchyNodes) break;
         const siblingHierarchy = this.traverser.getTypeHierarchy(candidate.id);
         for (const [id, node] of siblingHierarchy.nodes) {
+          if (isTestFile(node.filePath) && !isTestQuery) continue;
           if (!nodes.has(id) && hierarchyNodesAdded < maxHierarchyNodes) {
             nodes.set(id, node);
             hierarchyNodesAdded++;
           }
         }
         for (const edge of siblingHierarchy.edges) {
+          const sourceNode = siblingHierarchy.nodes.get(edge.source) || nodes.get(edge.source);
+          const targetNode = siblingHierarchy.nodes.get(edge.target) || nodes.get(edge.target);
+          if (
+            (sourceNode && isTestFile(sourceNode.filePath) && !isTestQuery) ||
+            (targetNode && isTestFile(targetNode.filePath) && !isTestQuery)
+          ) {
+            continue;
+          }
           if (nodes.has(edge.source) && nodes.has(edge.target)) {
             const exists = edges.some(
               (e) => e.source === edge.source && e.target === edge.target && e.kind === edge.kind

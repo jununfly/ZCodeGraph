@@ -112,6 +112,21 @@ Follow-up validation for #45:
   Read/Grep fallback: the entry nodes include `BalancedShardsAllocator`,
   `AllocationService`, and the `ShardsAllocator` interface directly.
 
+Follow-up validation for #46:
+
+- The `explore-engine-implementations` miss was reproduced against
+  `/tmp/codegraph-corpus/elasticsearch` before the fix: recall 0.67, missing
+  `ReadOnlyEngine` while finding `Engine` and `InternalEngine`.
+- After fixing type-hierarchy expansion to include descendants as well as
+  ancestors, the deterministic public-API probe
+  `findRelevantContext("What are the Engine implementations for indexing?")`
+  finds `Engine`, `InternalEngine`, and `ReadOnlyEngine` with recall 1.00.
+- Evidence Scope is sufficient for this deterministic case without generic
+  Read/Grep fallback: the graph includes write-capable `InternalEngine`,
+  read-only `ReadOnlyEngine`, and plugin-family evidence including
+  `IndexEngine`, `SearchEngine`, and `HollowIndexEngine`; test-only Engine
+  subclasses are filtered out for non-test queries.
+
 ## Explore Query Matrix
 
 The headless A/B run used three planner-seam prompts:

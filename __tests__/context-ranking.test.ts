@@ -282,3 +282,100 @@ public class TrainedModelAssignmentRebalancer {
     expect(names).toContain('BalancedShardsAllocator');
   });
 });
+
+describe('Context ranking — polymorphic implementation family recall', () => {
+  let testDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(async () => {
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-engine-family-'));
+
+    const engineDir = path.join(testDir, 'server', 'src', 'main', 'java', 'org', 'elasticsearch', 'index', 'engine');
+    fs.mkdirSync(engineDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(engineDir, 'Engine.java'),
+      `package org.elasticsearch.index.engine;
+public abstract class Engine {
+  public abstract void index();
+}
+`
+    );
+    fs.writeFileSync(
+      path.join(engineDir, 'InternalEngine.java'),
+      `package org.elasticsearch.index.engine;
+public class InternalEngine extends Engine {
+  public void index() {}
+}
+`
+    );
+    fs.writeFileSync(
+      path.join(engineDir, 'ReadOnlyEngine.java'),
+      `package org.elasticsearch.index.engine;
+public class ReadOnlyEngine extends Engine {
+  public void index() {}
+}
+`
+    );
+
+    const statelessDir = path.join(testDir, 'x-pack', 'plugin', 'stateless', 'src', 'main', 'java', 'org', 'elasticsearch', 'xpack', 'stateless', 'engine');
+    fs.mkdirSync(statelessDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(statelessDir, 'IndexEngine.java'),
+      `package org.elasticsearch.xpack.stateless.engine;
+import org.elasticsearch.index.engine.InternalEngine;
+public class IndexEngine extends InternalEngine {
+  public void index() {}
+}
+`
+    );
+
+    const noiseDir = path.join(testDir, 'server', 'src', 'main', 'java', 'org', 'elasticsearch', 'action', 'index');
+    fs.mkdirSync(noiseDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(noiseDir, 'IndexNoise.java'),
+      `package org.elasticsearch.action.index;
+public class IndexRequest {}
+public class IndexResponse {}
+public class IndexerUtils {}
+public class IndexedDISI {}
+`
+    );
+
+    const testDirPath = path.join(testDir, 'server', 'src', 'test', 'java', 'org', 'elasticsearch', 'index', 'engine');
+    fs.mkdirSync(testDirPath, { recursive: true });
+    fs.writeFileSync(
+      path.join(testDirPath, 'TestEngine.java'),
+      `package org.elasticsearch.index.engine;
+public class TestEngine extends Engine {
+  public void index() {}
+}
+`
+    );
+
+    cg = CodeGraph.initSync(testDir, {
+      config: { include: ['**/*.java'], exclude: [] },
+    });
+    await cg.indexAll();
+  });
+
+  afterEach(() => {
+    if (cg) cg.destroy();
+    if (fs.existsSync(testDir)) fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('keeps write-capable and read-only Engine implementations in a broad implementation query', async () => {
+    const sg = await cg.findRelevantContext('What are the Engine implementations for indexing?', {
+      searchLimit: 4,
+      traversalDepth: 0,
+      maxNodes: 40,
+      minScore: 0.2,
+    });
+    const names = new Set([...sg.nodes.values()].map((n) => n.name));
+
+    expect(names).toContain('Engine');
+    expect(names).toContain('InternalEngine');
+    expect(names).toContain('ReadOnlyEngine');
+    expect(names).toContain('IndexEngine');
+    expect(names).not.toContain('TestEngine');
+  });
+});
