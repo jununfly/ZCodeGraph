@@ -78,18 +78,21 @@ export function matchesSymbol(node: Node, symbol: string): boolean {
  *
  * Extracted from ToolsHandler.synthEdgeNote.
  */
-export function synthEdgeNote(edge: Edge | null): { label: string; compact: string; registeredAt?: string } | null {
+export function synthEdgeNote(edge: Edge | null): { label: string; compact: string; registeredAt?: string; registrationSnippet?: string } | null {
   if (!edge || edge.edgeOrigin !== 'heuristic') return null;
   const m = edge.metadata as Record<string, unknown> | undefined;
   const registeredAt = typeof m?.registeredAt === 'string' ? m.registeredAt : undefined;
+  const registrationSnippet = typeof m?.registrationSnippet === 'string' ? m.registrationSnippet : undefined;
   const at = registeredAt ? ` @${registeredAt}` : '';
+  const snippet = registrationSnippet ? ` — \`${registrationSnippet}\`` : '';
   if (m?.synthesizedBy === 'callback') {
     const via = m.via ? `\`${String(m.via)}\`` : 'a registrar';
     const field = m.field ? ` on .${String(m.field)}` : '';
     return {
       label: `callback — registered via ${via}${field} (dynamic dispatch)`,
-      compact: `dynamic: callback via ${via}${at}`,
+      compact: `dynamic: callback via ${via}${at}${snippet}`,
       registeredAt,
+      registrationSnippet,
     };
   }
   if (m?.synthesizedBy === 'event-emitter') {

@@ -29,6 +29,25 @@ function numberSourceLines(text: string, startLine: number): string {
   return text.split('\n').map((l, i) => `${startLine + i}\t${l}`).join('\n');
 }
 
+function registrationSnippetFromLocation(projectRoot: string, registeredAt: string | undefined): string | undefined {
+  if (!registeredAt) return undefined;
+  const match = registeredAt.match(/^(.*):(\d+)$/);
+  if (!match) return undefined;
+  const [, filePath, rawLine] = match;
+  const lineNo = Number(rawLine);
+  if (!filePath || !Number.isFinite(lineNo) || lineNo < 1) return undefined;
+  const absPath = validatePathWithinRoot(projectRoot, filePath);
+  if (!absPath || !existsSync(absPath)) return undefined;
+  try {
+    const line = readFileSync(absPath, 'utf-8').split('\n')[lineNo - 1];
+    const snippet = line?.trim().replace(/\s+/g, ' ');
+    if (!snippet) return undefined;
+    return snippet.length > 160 ? `${snippet.slice(0, 157)}...` : snippet;
+  } catch {
+    return undefined;
+  }
+}
+
 export function render(
   plan: ExplorePlan,
   cg: CodeGraph,
@@ -81,6 +100,42 @@ export function render(
       }
       lines.push('');
     }
+  }
+
+  const dynamicEvidence: string[] = [];
+  const dynamicSeen = new Set<string>();
+  if (cg) {
+    for (const nodeId of subgraph.nodes.keys()) {
+      if (dynamicEvidence.length >= 6) break;
+      for (const edge of [...cg.getOutgoingEdges(nodeId), ...cg.getIncomingEdges(nodeId)]) {
+        if (dynamicEvidence.length >= 6) break;
+        if (edge.kind !== 'calls' || edge.edgeOrigin !== 'heuristic') continue;
+        const meta = edge.metadata as Record<string, unknown> | undefined;
+        if (meta?.synthesizedBy !== 'callback') continue;
+        const source = subgraph.nodes.get(edge.source) ?? cg.getNode(edge.source);
+        const target = subgraph.nodes.get(edge.target) ?? cg.getNode(edge.target);
+        if (!source || !target) continue;
+        const key = `${edge.source}>${edge.target}`;
+        if (dynamicSeen.has(key)) continue;
+        dynamicSeen.add(key);
+        const registeredAt = typeof meta.registeredAt === 'string' ? meta.registeredAt : undefined;
+        const registrationSnippet = typeof meta.registrationSnippet === 'string'
+          ? meta.registrationSnippet
+          : registrationSnippetFromLocation(projectRoot, registeredAt);
+        const via = typeof meta.via === 'string' ? ` via \`${meta.via}\`` : '';
+        const at = registeredAt ? ` @${registeredAt}` : '';
+        const snippet = registrationSnippet ? ` — \`${registrationSnippet}\`` : '';
+        dynamicEvidence.push(`- ${source.name} → ${target.name}   [callback${via}${at}${snippet}]`);
+      }
+    }
+  }
+  if (dynamicEvidence.length > 0) {
+    lines.push('### Dynamic-dispatch evidence');
+    lines.push('');
+    lines.push('Synthesized callback edges include the registration line so you do not need to read the wiring file just to confirm the callback target.');
+    lines.push('');
+    lines.push(...dynamicEvidence);
+    lines.push('');
   }
 
   // ================================================================

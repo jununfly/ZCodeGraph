@@ -216,6 +216,37 @@ propose heuristic changes for those categories from this dataset.
 - #43: eliminate the remaining Excalidraw `App.tsx` fallback reads.
 - #48: improve Explore Flow section connectivity for ZCodeGraph self-queries.
 
+### Follow-up Validation — #43
+
+Issue #43 tightened the Excalidraw callback evidence for the residual
+`App.tsx` reads in `EX-1 run1` and `EX-2 run1`. The 2026-06-12 follow-up reran
+the Excalidraw prompts with the local build and WITH-ZCodeGraph MCP only. Logs
+were written under `/tmp/z43-agent-runs/`.
+
+Deterministic probes confirmed that `zcodegraph_explore` now includes a
+`Dynamic-dispatch evidence` section for the callback bridge:
+
+```text
+triggerUpdate -> triggerRender [callback via `onUpdate`
+  @packages/excalidraw/components/App.tsx:3146
+  - `this.scene.onUpdate(this.triggerRender);`]
+```
+
+Agent reruns:
+
+| Prompt | Run | Duration | Cost | Turns | Tools | CodeGraph | Read | Grep | Bash |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| EX-1 | 1 | 38s | $0.901 | 7 | 6 | 6 | 0 | 0 | 0 |
+| EX-1 | 2 | 42s | $0.987 | 7 | 6 | 6 | 0 | 0 | 0 |
+| EX-2 | 1 | 33s | $0.793 | 3 | 2 | 2 | 0 | 0 | 0 |
+| EX-2 | 2 | 39s | $0.808 | 3 | 2 | 2 | 0 | 0 | 0 |
+| EX-3 | 1 | 38s | $0.676 | 5 | 4 | 4 | 0 | 0 | 0 |
+| EX-3 | 2 | 59s | $1.154 | 7 | 6 | 6 | 0 | 0 | 0 |
+
+Result: #43 passes. EX-1 and EX-2 both completed twice with zero generic
+Read/Grep/Bash fallback, and the EX-3 no-regression prompt also completed twice
+with zero generic fallback.
+
 ## Per-Run Template
 
 Copy this template once per run.

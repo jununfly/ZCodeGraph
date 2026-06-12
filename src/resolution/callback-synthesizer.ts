@@ -110,6 +110,12 @@ function dispatcherField(src: string): string | null {
   return null;
 }
 
+function compactRegistrationSnippet(line: string | undefined): string | undefined {
+  const snippet = line?.trim().replace(/\s+/g, ' ');
+  if (!snippet) return undefined;
+  return snippet.length > 160 ? `${snippet.slice(0, 157)}...` : snippet;
+}
+
 const FN_KINDS = new Set(['method', 'function', 'component']);
 
 /** Innermost function/method node whose line range contains `line`. */
@@ -185,6 +191,7 @@ export function fieldChannelEdges(queries: QueryBuilder, ctx: ResolutionContext)
             // This is the #1 thing an agent reads/greps to explain the flow — surface
             // it so node/trace/context can show it without a callers() + Read round-trip.
             registeredAt: `${caller.filePath}:${e.line}`,
+            registrationSnippet: compactRegistrationSnippet(line),
           },
         });
         added++;
