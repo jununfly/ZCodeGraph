@@ -391,6 +391,8 @@ export class CodeGraph {
         // extraction stamp (the bulk would still be stale). See extraction-version.ts.
         if (result.success && result.filesIndexed > 0) {
           try {
+            this.queries.setMetadata('indexed_with_engine', 'typescript');
+            this.queries.setMetadata('indexed_with_engine_version', CodeGraphPackageVersion);
             this.queries.setMetadata('indexed_with_version', CodeGraphPackageVersion);
             this.queries.setMetadata('indexed_with_extraction_version', String(EXTRACTION_VERSION));
           } catch { /* metadata is advisory — never fail an index over it */ }
@@ -605,11 +607,18 @@ export class CodeGraph {
    * index built before stamping existed (treated as stale). See
    * `extraction-version.ts` and `isIndexStale()`.
    */
-  getIndexBuildInfo(): { version: string | null; extractionVersion: number | null } {
+  getIndexBuildInfo(): {
+    version: string | null;
+    extractionVersion: number | null;
+    engine: string | null;
+    engineVersion: string | null;
+  } {
+    const engine = this.queries.getMetadata('indexed_with_engine');
+    const engineVersion = this.queries.getMetadata('indexed_with_engine_version');
     const version = this.queries.getMetadata('indexed_with_version');
     const ev = this.queries.getMetadata('indexed_with_extraction_version');
     const parsed = ev != null ? parseInt(ev, 10) : NaN;
-    return { version, extractionVersion: Number.isFinite(parsed) ? parsed : null };
+    return { version, extractionVersion: Number.isFinite(parsed) ? parsed : null, engine, engineVersion };
   }
 
   /**

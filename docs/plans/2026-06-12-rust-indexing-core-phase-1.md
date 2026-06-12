@@ -96,29 +96,29 @@ TypeScript CLI / MCP / installer / Explore
 
 ### 3. SQLite Contract And Metadata
 
-- [ ] Document the SQLite tables Phase 1 Rust will write.
-- [ ] Document the columns Rust must preserve exactly.
-- [ ] Document which ordering differences are irrelevant.
+- [x] Document the SQLite tables Phase 1 Rust will write.
+- [x] Document the columns Rust must preserve exactly.
+- [x] Document which ordering differences are irrelevant.
 - [ ] Write files records for indexed JS/TS/JSX/TSX files.
 - [ ] Write node records using stable IDs compatible with TypeScript readers.
 - [ ] Write intra-file edges such as `contains`, local `calls`, `imports`, and
   `exports` where Phase 1 extraction supports them.
 - [ ] Write unresolved references needed by the existing TypeScript resolver.
-- [ ] Write index engine metadata, including engine name and engine version.
-- [ ] Preserve existing schema version and extraction version semantics.
-- [ ] Ensure TypeScript `CodeGraph` can open and query a Rust-written index.
+- [x] Write index engine metadata, including engine name and engine version.
+- [x] Preserve existing schema version and extraction version semantics.
+- [x] Ensure TypeScript `CodeGraph` can open and query a Rust-written index.
 
 ### 4. Locking And Failure Safety
 
-- [ ] Reuse the existing project write lock location and semantics.
-- [ ] Add a Rust-side lock acquisition test.
-- [ ] Add a cross-process test showing TypeScript and Rust do not write at the
+- [x] Reuse the existing project write lock location and semantics.
+- [x] Add a Rust-side lock acquisition test.
+- [x] Add a cross-process test showing TypeScript and Rust do not write at the
   same time.
-- [ ] Ensure Rust indexing writes to a temporary or otherwise failure-safe
+- [x] Ensure Rust indexing writes to a temporary or otherwise failure-safe
   target.
-- [ ] Ensure a Rust indexing failure leaves the previous good index active.
-- [ ] Ensure partial Rust output is not mistaken for a complete index.
-- [ ] Ensure Ctrl-C or subprocess termination does not leave a permanently
+- [x] Ensure a Rust indexing failure leaves the previous good index active.
+- [x] Ensure partial Rust output is not mistaken for a complete index.
+- [x] Ensure Ctrl-C or subprocess termination does not leave a permanently
   locked index.
 
 ### 5. Native Tree-Sitter JS/TS Parser

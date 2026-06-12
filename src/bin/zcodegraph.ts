@@ -30,6 +30,8 @@ import { getCodeGraphDir, isInitialized } from '../directory';
 import { detectWorktreeIndexMismatch, worktreeMismatchWarning } from '../sync/worktree';
 import { createShimmerProgress } from '../ui/shimmer-progress';
 import { getGlyphs } from '../ui/glyphs';
+import { resolveIndexEngine } from '../indexing/engine-selection';
+import { runRustIndexer } from '../indexing/rust-indexer';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
 import { relaunchWithWasmRuntimeFlagsIfNeeded } from '../extraction/wasm-runtime-flags';
@@ -538,50 +540,76 @@ program
   .option('-f, --force', 'Force full re-index even if already indexed')
   .option('-q, --quiet', 'Suppress progress output')
   .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
-  .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean }) => {
+  .option('--engine <engine>', 'Index engine to use: typescript or rust')
+  .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string }) => {
     const projectPath = resolveProjectPath(pathArg);
 
     try {
+      const engine = resolveIndexEngine(options.engine);
+
       if (!isInitialized(projectPath)) {
         error(`CodeGraph not initialized in ${projectPath}`);
         info('Run "zcodegraph init" first');
         process.exit(1);
       }
 
-      const { default: CodeGraph } = await loadCodeGraph();
-      const cg = await CodeGraph.open(projectPath);
-
       if (options.quiet) {
         // Quiet mode: no UI, just run
-        if (options.force) cg.clear();
-        const result = await cg.indexAll();
+        const result = engine === 'rust'
+          ? await runRustIndexer(projectPath, { force: options.force })
+          : await (async () => {
+              const { default: CodeGraph } = await loadCodeGraph();
+              const cg = await CodeGraph.open(projectPath);
+              try {
+                if (options.force) cg.clear();
+                return await cg.indexAll();
+              } finally {
+                cg.destroy();
+              }
+            })();
         if (!result.success) process.exit(1);
-        cg.destroy();
         return;
       }
 
       const clack = await importESM('@clack/prompts');
       clack.intro('Indexing project');
 
-      if (options.force) {
-        cg.clear();
-        clack.log.info('Cleared existing index');
-      }
-
       let result: IndexResult;
 
-      if (options.verbose) {
-        result = await cg.indexAll({
-          onProgress: createVerboseProgress(),
-          verbose: true,
+      if (engine === 'rust') {
+        if (options.force) {
+          clack.log.info('Rust engine selected; force re-index requested');
+        }
+        result = await runRustIndexer(projectPath, {
+          force: options.force,
+          verbose: options.verbose,
+          onProgress: options.verbose ? createVerboseProgress() : undefined,
         });
       } else {
-        process.stdout.write(`${colors.dim}${getGlyphs().rail}${colors.reset}\n`);
-        const progress = createShimmerProgress();
-        result = await cg.indexAll({
-          onProgress: progress.onProgress,
-        });
-        await progress.stop();
+        const { default: CodeGraph } = await loadCodeGraph();
+        const cg = await CodeGraph.open(projectPath);
+        try {
+          if (options.force) {
+            cg.clear();
+            clack.log.info('Cleared existing index');
+          }
+
+          if (options.verbose) {
+            result = await cg.indexAll({
+              onProgress: createVerboseProgress(),
+              verbose: true,
+            });
+          } else {
+            process.stdout.write(`${colors.dim}${getGlyphs().rail}${colors.reset}\n`);
+            const progress = createShimmerProgress();
+            result = await cg.indexAll({
+              onProgress: progress.onProgress,
+            });
+            await progress.stop();
+          }
+        } finally {
+          cg.destroy();
+        }
       }
 
       printIndexResult(clack, result, projectPath);
@@ -591,7 +619,6 @@ program
       }
 
       clack.outro('Done');
-      cg.destroy();
     } catch (err) {
       error(`Failed to index: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
@@ -730,6 +757,8 @@ program
             ? { worktreeRoot: worktreeMismatch.worktreeRoot, indexRoot: worktreeMismatch.indexRoot }
             : null,
           index: {
+            engine: buildInfo.engine,
+            engineVersion: buildInfo.engineVersion,
             builtWithVersion: buildInfo.version,
             builtWithExtractionVersion: buildInfo.extractionVersion,
             currentExtractionVersion: EXTRACTION_VERSION,
