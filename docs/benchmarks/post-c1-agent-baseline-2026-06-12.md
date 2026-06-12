@@ -127,6 +127,20 @@ Follow-up validation for #46:
   `IndexEngine`, `SearchEngine`, and `HollowIndexEngine`; test-only Engine
   subclasses are filtered out for non-test queries.
 
+Follow-up validation for #47:
+
+- The ES-3 baseline was the headless WITH-arm run from this document: 180s,
+  5 turns, 4 `zcodegraph_explore` calls, and 0 generic Read/Grep fallback calls.
+- After seeding a concrete REST-to-transport action slice for broad flow
+  questions, the deterministic public-API Explore probe against
+  `/tmp/codegraph-corpus/elasticsearch` completed in 38.8s with 1
+  `zcodegraph_explore` call and 0 generic fallback calls.
+- Evidence Scope is sufficient for this deterministic case: the rendered source
+  includes route dispatch (`RestController`), handler preparation
+  (`BaseRestHandler` and `RestUpdateAction.prepareRequest`), local client
+  execution (`NodeClient.executeLocally`), and transport action execution
+  (`TransportUpdateAction.doExecute`) in the first answer.
+
 ## Explore Query Matrix
 
 The headless A/B run used three planner-seam prompts:

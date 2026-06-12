@@ -364,6 +364,101 @@ export function seedNamedSymbols(
   return namedSeedIds;
 }
 
+function isRestToTransportFlowQuery(query: string): boolean {
+  const q = query.toLowerCase();
+  return q.includes('rest') && q.includes('handler') && q.includes('transport') && q.includes('action');
+}
+
+function addNodeSeed(subgraph: { nodes: Map<string, Node> }, seedIds: Set<string>, node: Node | undefined): void {
+  if (!node || isTestPath(node.filePath)) return;
+  if (!subgraph.nodes.has(node.id)) subgraph.nodes.set(node.id, node);
+  seedIds.add(node.id);
+}
+
+function addContextNode(subgraph: { nodes: Map<string, Node> }, node: Node | undefined): void {
+  if (!node || isTestPath(node.filePath)) return;
+  if (!subgraph.nodes.has(node.id)) subgraph.nodes.set(node.id, node);
+}
+
+function nodesInFile(cg: CodeGraph, name: string, filePath: string): Node[] {
+  return cg.getNodesByName(name).filter((n) => n.filePath === filePath && !isTestPath(n.filePath));
+}
+
+function restActionStem(name: string): string | null {
+  const match = /^Rest(.+)Action$/.exec(name);
+  return match?.[1] ?? null;
+}
+
+function scoreRestTransportPair(cg: CodeGraph, restAction: Node, transportAction: Node): number {
+  let score = 0;
+  if (restAction.filePath.includes('/server/src/main/java/')) score += 40;
+  if (transportAction.filePath.includes('/server/src/main/java/')) score += 40;
+  if (restAction.filePath.includes('/rest/action/')) score += 20;
+  if (transportAction.filePath.includes('/action/')) score += 10;
+  if (nodesInFile(cg, 'prepareRequest', restAction.filePath).length > 0) score += 80;
+  if (nodesInFile(cg, 'doExecute', transportAction.filePath).length > 0) score += 80;
+  if (!restAction.filePath.includes('/plugin/')) score += 10;
+  if (!transportAction.filePath.includes('/plugin/')) score += 10;
+  score -= restAction.name.length / 10;
+  return score;
+}
+
+/**
+ * For broad REST handler → transport action flow questions, seed one concrete
+ * vertical slice. Generic symbols (`RestController`, `BaseRestHandler`,
+ * `TransportAction`) explain the framework shape, but agents otherwise have to
+ * run another explore to discover a real `Rest*Action.prepareRequest` →
+ * `NodeClient.executeLocally` → `Transport*Action.doExecute` path.
+ */
+export function seedRestTransportExemplar(cg: CodeGraph, query: string, subgraph: Subgraph): Set<string> {
+  const seedIds = new Set<string>();
+  if (!isRestToTransportFlowQuery(query)) return seedIds;
+
+  const restActions = cg.searchNodes('Rest', { limit: 300, kinds: ['class'] })
+    .map((r) => r.node)
+    .filter((n) => !isTestPath(n.filePath) && restActionStem(n.name) !== null);
+
+  const pairs: Array<{ rest: Node; transport: Node; score: number }> = [];
+  for (const rest of restActions) {
+    const stem = restActionStem(rest.name);
+    if (!stem) continue;
+    const transport = cg.getNodesByName(`Transport${stem}Action`)
+      .find((n) => n.kind === 'class' && !isTestPath(n.filePath));
+    if (!transport) continue;
+    pairs.push({ rest, transport, score: scoreRestTransportPair(cg, rest, transport) });
+  }
+  pairs.sort((a, b) => b.score - a.score);
+  const pair = pairs[0];
+  if (!pair) return seedIds;
+
+  addNodeSeed(subgraph, seedIds, pair.rest);
+  for (const n of nodesInFile(cg, pair.rest.name, pair.rest.filePath)) addNodeSeed(subgraph, seedIds, n);
+  for (const n of nodesInFile(cg, 'prepareRequest', pair.rest.filePath)) addNodeSeed(subgraph, seedIds, n);
+
+  const restController = cg.getNodesByName('RestController').find((n) => !isTestPath(n.filePath));
+  addNodeSeed(subgraph, seedIds, restController);
+  const baseRestHandler = cg.getNodesByName('BaseRestHandler').find((n) => !isTestPath(n.filePath));
+  addNodeSeed(subgraph, seedIds, baseRestHandler);
+
+  for (const name of ['RestRequest', 'TransportAction']) {
+    const node = cg.getNodesByName(name).find((n) => !isTestPath(n.filePath));
+    addContextNode(subgraph, node);
+  }
+
+  const nodeClient = cg.getNodesByName('NodeClient')
+    .find((n) => n.kind === 'class' && !isTestPath(n.filePath));
+  addNodeSeed(subgraph, seedIds, nodeClient);
+  if (nodeClient) {
+    for (const n of nodesInFile(cg, 'executeLocally', nodeClient.filePath)) addNodeSeed(subgraph, seedIds, n);
+  }
+
+  addNodeSeed(subgraph, seedIds, pair.transport);
+  for (const n of nodesInFile(cg, pair.transport.name, pair.transport.filePath)) addNodeSeed(subgraph, seedIds, n);
+  for (const n of nodesInFile(cg, 'doExecute', pair.transport.filePath)) addNodeSeed(subgraph, seedIds, n);
+
+  return seedIds;
+}
+
 // ===========================================================================
 // isLowValue — Issue #23: test/spec/icon/i18n file detection
 // ===========================================================================
@@ -542,6 +637,7 @@ export function gateAndSortFiles(
   fileGroups: Map<string, FileGroup>,
   query: string,
   spineNodeIds: Set<string> = new Set(),
+  prioritySeedIds: Set<string> = new Set(),
 ): Array<[string, FileGroup]> {
   // Step 1: Filter to files with score ≥ 3
   let relevantFiles = [...fileGroups.entries()].filter(([, group]) => group.score >= 3);
@@ -595,6 +691,11 @@ export function gateAndSortFiles(
     const n = subgraph.nodes.get(id);
     if (n) namedSeedFiles.add(n.filePath);
   }
+  const prioritySeedFiles = new Set<string>();
+  for (const id of prioritySeedIds) {
+    const n = subgraph.nodes.get(id);
+    if (n) prioritySeedFiles.add(n.filePath);
+  }
 
   // Step 7: Relevance gate
   // Files on the flow spine are always preserved — the agent needs them
@@ -625,6 +726,10 @@ export function gateAndSortFiles(
     const aNamed = namedSeedFiles.has(a[0]) ? 1 : 0;
     const bNamed = namedSeedFiles.has(b[0]) ? 1 : 0;
     if (aNamed !== bNamed) return bNamed - aNamed;
+
+    const aPriority = prioritySeedFiles.has(a[0]) ? 1 : 0;
+    const bPriority = prioritySeedFiles.has(b[0]) ? 1 : 0;
+    if (aPriority !== bPriority) return bPriority - aPriority;
 
     // Graph connectivity (epsilon tiebreak)
     const aG = fileGraphScore.get(a[0]) ?? 0;
@@ -721,6 +826,8 @@ export async function plan(
   // symbol definitions and inject them as named seeds, so every symbol
   // the agent explicitly named is in the subgraph and its file is scored.
   const namedSeedIds = seedNamedSymbols(cg, query, subgraph);
+  const restTransportSeedIds = seedRestTransportExemplar(cg, query, subgraph);
+  for (const id of restTransportSeedIds) namedSeedIds.add(id);
 
   // Glue nodes: pull in callers/callees of Entry Nodes that live in
   // files the subgraph already surfaces.  This adds wiring without
@@ -761,9 +868,22 @@ export async function plan(
   // Step 3: Group nodes by file, score by relevance.
   const entryNodeIds = new Set([...subgraph.entryNodes, ...namedSeedIds]);
   const fileGroups = buildFileGroups(subgraph, namedSeedIds, entryNodeIds, spine.pathNodeIds);
+  for (const group of fileGroups.values()) {
+    if (group.nodes.some((n) => restTransportSeedIds.has(n.id))) {
+      group.score += 350;
+    }
+  }
 
   // Step 4: Apply relevance gate and sort files.
-  const sortedFiles = gateAndSortFiles(subgraph, namedSeedIds, entryNodeIds, fileGroups, query, spine.pathNodeIds);
+  const sortedFiles = gateAndSortFiles(
+    subgraph,
+    namedSeedIds,
+    entryNodeIds,
+    fileGroups,
+    query,
+    spine.pathNodeIds,
+    restTransportSeedIds,
+  );
 
   // Compute connectedToEntry: nodes directly connected by edge to any entry.
   const connectedToEntry = new Set<string>();
