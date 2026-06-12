@@ -2,13 +2,14 @@
 
 ## Purpose
 
-This document is the run sheet and result template for issue #38.
+This document is the run sheet and result summary for issue #38 and issue #42.
 
 It evaluates current `zcodegraph_explore` Agent Sufficiency for flow questions
 using **Read/Grep Fallback displacement** as the primary metric.
 
-No benchmark runs have been executed in this slice. This document defines the
-prompt matrix and stable result format for the follow-up run issues.
+The completed 2026-06-12 matrix is summarized below. The compact source record
+is `docs/states/explore-sufficiency-2026-06-12-results.md`; raw transcripts
+remain outside the repository under `/tmp/zcodegraph-sufficiency/`.
 
 ## Scope
 
@@ -89,6 +90,85 @@ Self-sufficiency check for current architecture seams.
 | ZCG-1 | How does a `zcodegraph_explore` request become rendered markdown? Use this symbol bag: `handleExplore plan ExplorePlan render`. |
 | ZCG-2 | How does indexing source files reach database node writes? Use this symbol bag: `runIndex CodeGraph.indexAll ExtractionOrchestrator.indexAll ParseStage QueryBuilder.insertNode`. |
 | ZCG-3 | How does reference resolution run synthesizers and persist heuristic edges? Use this symbol bag: `ReferenceResolver.resolveAll createSynthesizerRegistry registerFullGraphSynthesizers executeFullGraphSynthesizers QueryBuilder.insertEdge`. |
+
+## Results — 2026-06-12
+
+The first-pass matrix covered 36 headless agent runs: 3 repositories, 3 prompts
+per repository, 2 runs per prompt, and WITH/WITHOUT ZCodeGraph arms.
+
+### Overall First-Pass Verdict
+
+| Repo | Verdict | Main failure mode if any |
+|---|---|---|
+| Excalidraw | Pass with one scoped follow-up | `scope shallow` |
+| Django | Pass | None observed |
+| ZCodeGraph | Pass for fallback displacement; partial for Flow section connectivity | `graph disconnected`, `scope shallow` |
+
+Overall verdict: current `zcodegraph_explore` passes the flow-question Agent
+Sufficiency bar for Read/Grep fallback displacement in this matrix. The WITH arm
+replaced broad generic exploration with CodeGraph calls, stayed faster overall,
+and left two concrete product gaps rather than an unbounded class of failures.
+
+This verdict applies only to flow questions with precise endpoint symbols or
+symbol bags. Broad surveys, PR review, edit-task sufficiency, and open-ended
+implementation tasks remain outside this evaluation.
+
+### Raw Counts
+
+| Arm | Runs | Duration | Cost | Tools | CodeGraph | Read | Grep/Bash |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| WITH | 18 | 764s | $19.106 | 68 | 66 | 2 | 0 |
+| WITHOUT | 18 | 1506s | $23.210 | 262 | 0 | 127 | 125 |
+
+### Read/Grep Fallback Displacement
+
+Raw Read/Grep counts are reported above; displacement is the product signal.
+Because these were flow-only prompts, generic Read/Grep-style calls in the
+WITHOUT arm are classified as expected answer-evidence fallback. In the WITH arm,
+only the two Excalidraw `App.tsx` reads were classified as fallback.
+
+- Generic Read fallback: 127 -> 2.
+- Generic Grep/Bash fallback: 125 -> 0.
+- Total tool calls: 262 -> 68.
+- Duration: 1506s -> 764s.
+- Cost: $23.210 -> $19.106.
+
+### Repo Verdicts
+
+| Repo | WITH fallback R/G | WITHOUT fallback R/G | Flow connected | Verdict |
+|---|---:|---:|---|---|
+| Excalidraw | 2 Read / 0 Grep | 56 Read / 67 Grep/Bash | 6/6 WITH runs | Pass with scoped sufficiency gap |
+| Django | 0 Read / 0 Grep | 22 Read / 16 Grep/Bash | 6/6 WITH runs | Pass |
+| ZCodeGraph | 0 Read / 0 Grep | 49 Read / 42 Grep/Bash | 3/6 WITH runs | Pass on fallback displacement; partial on Flow quality |
+
+### Findings
+
+Excalidraw displaced nearly all generic fallback. The only residual fallback was
+two `App.tsx` reads in `EX-1 run1` and `EX-2 run1`, after the Flow section had
+already surfaced the relevant `Scene.onUpdate` wiring. This is classified as
+`scope shallow`: the graph found the right region and dynamic boundary, but the
+answer was not self-contained enough for the agent to stop. Follow-up: #43.
+
+Django is the clean positive control. All 6 WITH runs connected the query/compiler
+flow, used zero generic Read/Grep calls, and improved duration, tool count, and
+cost against the WITHOUT arm. No recurring failure mode was observed.
+
+ZCodeGraph self-queries displaced all generic fallback: 0 Read and 0 Grep in the
+WITH arm versus 49 Read and 42 Grep/Bash in the WITHOUT arm. However, only 3 of 6
+WITH runs reported an end-to-end connected Flow section. This is not a fallback
+regression, but it is a product quality gap for Explore's Flow section. Classify
+it as `graph disconnected` where the named path fails to connect and
+`scope shallow` where the answer is sufficient for the agent but the Flow section
+does not carry the complete path. Follow-up: #48.
+
+There is no grounded evidence in this matrix for `scope missing`, `scope noisy`,
+`scope stale`, or `agent ignored evidence` as recurring failure modes. Do not
+propose heuristic changes for those categories from this dataset.
+
+### Follow-up Issues
+
+- #43: eliminate the remaining Excalidraw `App.tsx` fallback reads.
+- #48: improve Explore Flow section connectivity for ZCodeGraph self-queries.
 
 ## Per-Run Template
 
