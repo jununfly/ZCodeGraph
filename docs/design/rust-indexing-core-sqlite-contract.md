@@ -98,8 +98,13 @@ means recording file nodes plus import/export nodes and references instead.
 `nodes_fts` is populated by the existing SQLite triggers when Rust inserts
 nodes, so Rust does not write that virtual table directly.
 
-Issues #54-#56 extend this raw extraction output with resolver handoff,
-semantic parity comparison, and CLI/MCP integration coverage.
+After a Rust extraction run, the TypeScript CLI reopens the same index and runs
+the existing post-extract framework finalization, batched reference resolution,
+and dynamic-dispatch synthesizers. The index remains marked as Rust-built; the
+TypeScript pass only completes graph edges and maintenance.
+
+Issues #55-#56 extend this output with semantic parity comparison and CLI/MCP
+integration coverage.
 
 ## Failure Safety
 

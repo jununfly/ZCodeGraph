@@ -546,6 +546,33 @@ program
 
     try {
       const engine = resolveIndexEngine(options.engine);
+      const runRustIndexAndFinalize = async (onProgress?: (progress: { phase: string; current: number; total: number; currentFile?: string }) => void): Promise<IndexResult> => {
+        const result = await runRustIndexer(projectPath, {
+          force: options.force,
+          verbose: options.verbose,
+          onProgress,
+        });
+        if (!result.success || result.filesIndexed === 0) {
+          return result;
+        }
+
+        const { default: CodeGraph } = await loadCodeGraph();
+        const cg = await CodeGraph.open(projectPath);
+        try {
+          const finalized = await cg.finalizeRustIndex((current, total) => {
+            onProgress?.({
+              phase: 'resolving',
+              current,
+              total,
+            });
+          });
+          result.nodesCreated += finalized.nodesCreated;
+          result.edgesCreated += finalized.edgesCreated;
+        } finally {
+          cg.destroy();
+        }
+        return result;
+      };
 
       if (!isInitialized(projectPath)) {
         error(`CodeGraph not initialized in ${projectPath}`);
@@ -556,7 +583,7 @@ program
       if (options.quiet) {
         // Quiet mode: no UI, just run
         const result = engine === 'rust'
-          ? await runRustIndexer(projectPath, { force: options.force })
+          ? await runRustIndexAndFinalize()
           : await (async () => {
               const { default: CodeGraph } = await loadCodeGraph();
               const cg = await CodeGraph.open(projectPath);
@@ -580,11 +607,7 @@ program
         if (options.force) {
           clack.log.info('Rust engine selected; force re-index requested');
         }
-        result = await runRustIndexer(projectPath, {
-          force: options.force,
-          verbose: options.verbose,
-          onProgress: options.verbose ? createVerboseProgress() : undefined,
-        });
+        result = await runRustIndexAndFinalize(options.verbose ? createVerboseProgress() : undefined);
       } else {
         const { default: CodeGraph } = await loadCodeGraph();
         const cg = await CodeGraph.open(projectPath);

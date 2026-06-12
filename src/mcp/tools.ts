@@ -1469,6 +1469,7 @@ export class ToolHandler {
       } catch { /* closed instance — leave as is */ }
     }
     const stats = cg.getStats();
+    const buildInfo = cg.getIndexBuildInfo();
 
     // Warn when this index actually belongs to a different git working tree
     // (e.g. the server resolved up from a nested worktree to the main checkout).
@@ -1490,6 +1491,12 @@ export class ToolHandler {
       `**Total edges:** ${stats.edgeCount}`,
       `**Database size:** ${(stats.dbSizeBytes / 1024 / 1024).toFixed(2)} MB`,
     );
+    if (buildInfo.engine) {
+      lines.push(`**Index engine:** ${buildInfo.engine}`);
+    }
+    if (buildInfo.engineVersion) {
+      lines.push(`**Index engine version:** ${buildInfo.engineVersion}`);
+    }
 
     // Surface the active SQLite backend (node:sqlite, Node's built-in real
     // SQLite — full WAL + FTS5, no native build).

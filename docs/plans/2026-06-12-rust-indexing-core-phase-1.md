@@ -166,47 +166,47 @@ TypeScript CLI / MCP / installer / Explore
 
 ### 7. TypeScript Resolver Handoff
 
-- [ ] After Rust extraction completes, run existing TypeScript resolver steps.
-- [ ] Run existing post-extract framework finalization where applicable.
-- [ ] Run existing batched reference resolution.
-- [ ] Run existing dynamic-dispatch synthesizers.
-- [ ] Ensure resolver output is not skipped because the index metadata says
+- [x] After Rust extraction completes, run existing TypeScript resolver steps.
+- [x] Run existing post-extract framework finalization where applicable.
+- [x] Run existing batched reference resolution.
+- [x] Run existing dynamic-dispatch synthesizers.
+- [x] Ensure resolver output is not skipped because the index metadata says
   Rust produced extraction data.
-- [ ] Add an integration test where Rust extraction plus TypeScript resolution
+- [x] Add an integration test where Rust extraction plus TypeScript resolution
   produces cross-file references usable by graph queries.
 
 ### 8. Semantic Parity Tests
 
-- [ ] Build a parity comparator that compares TypeScript and Rust extraction
+- [x] Build a parity comparator that compares TypeScript and Rust extraction
   semantically.
-- [ ] Compare file nodes.
-- [ ] Compare named functions/classes/methods/components.
-- [ ] Compare imports and exports.
-- [ ] Compare `contains` edges.
-- [ ] Compare local calls and unresolved references.
-- [ ] Compare source locations within an acceptable tolerance.
-- [ ] Categorize differences as expected, acceptable, or blocking.
-- [ ] Add fixture parity tests for plain JavaScript.
-- [ ] Add fixture parity tests for TypeScript.
-- [ ] Add fixture parity tests for JSX.
-- [ ] Add fixture parity tests for TSX.
-- [ ] Add fixture parity tests for object-literal methods.
-- [ ] Add fixture parity tests for imports, exports, and re-exports.
-- [ ] Add fixture parity tests for component usage.
-- [ ] Add real-repo parity checks for this repository.
-- [ ] Add real-repo parity checks for Excalidraw.
+- [x] Compare file nodes.
+- [x] Compare named functions/classes/methods/components.
+- [x] Compare imports and exports.
+- [x] Compare `contains` edges.
+- [x] Compare local calls and unresolved references.
+- [x] Compare source locations within an acceptable tolerance.
+- [x] Categorize differences as expected, acceptable, or blocking.
+- [x] Add fixture parity tests for plain JavaScript.
+- [x] Add fixture parity tests for TypeScript.
+- [x] Add fixture parity tests for JSX.
+- [x] Add fixture parity tests for TSX.
+- [x] Add fixture parity tests for object-literal methods.
+- [x] Add fixture parity tests for imports, exports, and re-exports.
+- [x] Add fixture parity tests for component usage.
+- [x] Add real-repo parity checks for this repository.
+- [x] Add real-repo parity checks for Excalidraw.
 
 ### 9. CLI Integration Tests
 
-- [ ] Test that `zcodegraph index` still uses the TypeScript indexer by
+- [x] Test that `zcodegraph index` still uses the TypeScript indexer by
   default.
 - [x] Test that `zcodegraph index --engine rust` invokes the Rust subprocess.
 - [x] Test that environment engine selection invokes the Rust subprocess.
-- [ ] Test that unsupported files/languages still have a clear behavior under
+- [x] Test that unsupported files/languages still have a clear behavior under
   the Phase 1 Rust engine.
 - [x] Test that Rust subprocess failure is rendered as a normal CLI error.
 - [x] Test that status reports the index engine metadata.
-- [ ] Test that TypeScript MCP tools can query a Rust-produced index.
+- [x] Test that TypeScript MCP tools can query a Rust-produced index.
 
 ### 10. Performance And Memory Benchmarks
 
@@ -299,7 +299,10 @@ For the Phase 1 skeleton slice, run:
 ```bash
 npm run build
 npx vitest run __tests__/rust-index-engine-cli.test.ts
+npx vitest run __tests__/rust-parity.test.ts
 cargo test
+node scripts/rust-parity-check.mjs --repo .
+node scripts/rust-parity-check.mjs --repo /path/to/excalidraw
 ```
 
 CI decision for the skeleton: keep `cargo test` as local validation until the

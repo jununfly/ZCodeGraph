@@ -434,6 +434,17 @@ fn extract_statement_refs(
                     language,
                 );
             }
+            for binding in import_export_binding_names(node.utf8_text(source)?) {
+                push_ref(
+                    unresolved_refs,
+                    from_node_id,
+                    &binding,
+                    "imports",
+                    node,
+                    relative_path,
+                    language,
+                );
+            }
         }
         "export_statement" => {
             if let Some(module_node) = module_literal_node(node) {
@@ -442,6 +453,17 @@ fn extract_statement_refs(
                     unresolved_refs,
                     from_node_id,
                     &module,
+                    "exports",
+                    node,
+                    relative_path,
+                    language,
+                );
+            }
+            for binding in import_export_binding_names(node.utf8_text(source)?) {
+                push_ref(
+                    unresolved_refs,
+                    from_node_id,
+                    &binding,
                     "exports",
                     node,
                     relative_path,
@@ -488,6 +510,34 @@ fn extract_statement_refs(
     }
 
     Ok(())
+}
+
+fn import_export_binding_names(statement: &str) -> Vec<String> {
+    let Some(open) = statement.find('{') else {
+        return Vec::new();
+    };
+    let Some(close_offset) = statement[open + 1..].find('}') else {
+        return Vec::new();
+    };
+    let close = open + 1 + close_offset;
+    statement[open + 1..close]
+        .split(',')
+        .filter_map(|part| {
+            let raw = part.trim();
+            if raw.is_empty() {
+                return None;
+            }
+            let imported = raw
+                .split_once(" as ")
+                .map(|(left, _)| left)
+                .unwrap_or(raw)
+                .trim();
+            if imported.is_empty() || imported == "type" {
+                return None;
+            }
+            Some(imported.trim_start_matches("type ").to_string())
+        })
+        .collect()
 }
 
 fn module_literal_node(node: SyntaxNode) -> Option<SyntaxNode> {

@@ -669,6 +669,39 @@ export class CodeGraph {
   }
 
   /**
+   * Complete the TypeScript-side graph passes after an external extractor
+   * has written files, nodes, edges, and unresolved_refs into the database.
+   *
+   * The Rust Phase 1 indexer owns extraction and metadata stamping; this method
+   * deliberately only runs framework finalization, reference resolution, dynamic
+   * edge synthesis, and maintenance so the index remains marked as Rust-built.
+   */
+  async finalizeRustIndex(onProgress?: (current: number, total: number) => void): Promise<{ nodesCreated: number; edgesCreated: number }> {
+    return this.indexMutex.withLock(async () => {
+      try {
+        this.fileLock.acquire();
+      } catch {
+        throw new Error('Could not acquire file lock - another process may be indexing');
+      }
+
+      try {
+        const before = this.queries.getNodeAndEdgeCount();
+        this.resolver.initialize();
+        this.resolver.runPostExtract();
+        await this.resolveReferencesBatched(onProgress);
+        this.db.runMaintenance();
+        const after = this.queries.getNodeAndEdgeCount();
+        return {
+          nodesCreated: after.nodes - before.nodes,
+          edgesCreated: after.edges - before.edges,
+        };
+      } finally {
+        this.fileLock.release();
+      }
+    });
+  }
+
+  /**
    * Get detected frameworks in the project
    */
   getDetectedFrameworks(): string[] {

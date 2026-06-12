@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { CodeGraph } from '../src';
+import { ToolHandler } from '../src/mcp/tools';
 
 const BIN = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
 const RUST_CORE_BIN = path.resolve(
@@ -24,14 +25,34 @@ function makeTempProject(): string {
 
 function writeFakeRustCore(dir: string): string {
   const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-core.cjs' : 'fake-rust-core');
+  const marker = path.join(dir, '.fake-rust-core-invoked');
   fs.writeFileSync(
     script,
     [
       '#!/usr/bin/env node',
+      `require("fs").writeFileSync(${JSON.stringify(marker)}, "1\\n");`,
       'const args = process.argv.slice(2);',
       'if (!args.includes("index")) process.exit(2);',
       'process.stdout.write(JSON.stringify({ type: "progress", phase: "scanning", current: 0, total: 1 }) + "\\n");',
       'process.stdout.write(JSON.stringify({ type: "result", success: true, filesIndexed: 0, filesSkipped: 0, filesErrored: 0, nodesCreated: 0, edgesCreated: 0, errors: [], durationMs: 1 }) + "\\n");',
+    ].join('\n') + '\n',
+  );
+  fs.chmodSync(script, 0o755);
+  return script;
+}
+
+function fakeRustCoreMarker(dir: string): string {
+  return path.join(dir, '.fake-rust-core-invoked');
+}
+
+function writeFailingRustCore(dir: string): string {
+  const script = path.join(dir, process.platform === 'win32' ? 'failing-rust-core.cjs' : 'failing-rust-core');
+  fs.writeFileSync(
+    script,
+    [
+      '#!/usr/bin/env node',
+      'process.stderr.write(JSON.stringify({ type: "error", message: "Rust core should not have been invoked" }) + "\\n");',
+      'process.exit(70);',
     ].join('\n') + '\n',
   );
   fs.chmodSync(script, 0o755);
@@ -95,12 +116,16 @@ describe('zcodegraph index engine selection', () => {
   });
 
   it('uses the TypeScript indexer by default', () => {
-    const result = runCli(tempDir, ['index', '--quiet']);
+    const rustCore = writeFailingRustCore(tempDir);
+    const result = runCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
 
     expect(result.status).toBe(0);
     const cg = CodeGraph.openSync(tempDir);
     try {
       expect(cg.searchNodes('alpha').some((match) => match.node.name === 'alpha')).toBe(true);
+      expect(cg.getIndexBuildInfo()).toMatchObject({ engine: 'typescript' });
     } finally {
       cg.close();
     }
@@ -113,6 +138,7 @@ describe('zcodegraph index engine selection', () => {
     });
 
     expect(result.status).toBe(0);
+    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(true);
     expect(result.stderr).not.toContain('Failed to index');
   });
 
@@ -124,6 +150,7 @@ describe('zcodegraph index engine selection', () => {
     });
 
     expect(result.status).toBe(0);
+    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(true);
     expect(result.stderr).not.toContain('Failed to index');
   });
 
@@ -186,6 +213,25 @@ describe('zcodegraph index engine selection', () => {
         engineVersion: '0.1.0',
       });
       expect(cg.getStats().fileCount).toBeGreaterThanOrEqual(1);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('reports Rust index-engine metadata through MCP status', async () => {
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(indexResult.status).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const handler = new ToolHandler(cg);
+      const result = await handler.execute('zcodegraph_status', {});
+
+      expect(result.isError).toBeFalsy();
+      expect(result.content[0].text).toContain('**Index engine:** rust');
+      expect(result.content[0].text).toContain('**Index engine version:** 0.1.0');
     } finally {
       cg.close();
     }
@@ -264,6 +310,101 @@ describe('zcodegraph index engine selection', () => {
     try {
       expect(cg.searchNodes('stillIndexed').some((match) => match.node.kind === 'function')).toBe(true);
       expect(cg.searchNodes('broken.js').some((match) => match.node.kind === 'file')).toBe(true);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('skips unsupported Phase 1 languages while indexing supported files', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'supported.ts'),
+      [
+        'export function supportedSymbol() {',
+        '  return 7;',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(path.join(tempDir, 'README.md'), '# not indexed by the Rust Phase 1 engine\n');
+
+    const indexResult = spawnSync(RUST_CORE_BIN, [
+      'index',
+      '--engine',
+      'rust',
+      '--project-path',
+      tempDir,
+      '--index-path',
+      path.join(tempDir, '.zcodegraph', 'zcodegraph.db'),
+    ], {
+      cwd: tempDir,
+      encoding: 'utf-8',
+    });
+    expect(indexResult.status).toBe(0);
+
+    const resultLine = indexResult.stdout
+      .trim()
+      .split('\n')
+      .filter((line) => line.includes('"type":"result"'))
+      .pop();
+    expect(resultLine).toBeDefined();
+    const result = JSON.parse(resultLine!) as {
+      filesIndexed: number;
+      filesSkipped: number;
+      filesErrored: number;
+      errors: Array<{ message: string }>;
+    };
+    expect(result.filesIndexed).toBeGreaterThanOrEqual(2);
+    expect(result.filesSkipped).toBe(0);
+    expect(result.filesErrored).toBe(0);
+    expect(result.errors).toEqual([]);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      expect(cg.searchNodes('supportedSymbol').some((match) => match.node.kind === 'function')).toBe(true);
+      expect(cg.searchNodes('README.md').some((match) => match.node.kind === 'file')).toBe(false);
+      expect(cg.getStats().filesByLanguage).not.toHaveProperty('markdown');
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('serves Rust-produced indexes through MCP search and graph tools', async () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'callee.ts'),
+      [
+        'export function mcpHelper() {',
+        '  return 42;',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'caller.ts'),
+      [
+        'import { mcpHelper } from "./callee";',
+        'export function mcpEntry() {',
+        '  return mcpHelper();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(indexResult.status).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const handler = new ToolHandler(cg);
+      const search = await handler.execute('zcodegraph_search', { query: 'mcpHelper' });
+      expect(search.isError).toBeFalsy();
+      expect(search.content[0].text).toContain('mcpHelper');
+
+      const callers = await handler.execute('zcodegraph_callers', { symbol: 'mcpHelper' });
+      expect(callers.isError).toBeFalsy();
+      expect(callers.content[0].text).toContain('mcpEntry');
+
+      const callees = await handler.execute('zcodegraph_callees', { symbol: 'mcpEntry' });
+      expect(callees.isError).toBeFalsy();
+      expect(callees.content[0].text).toContain('mcpHelper');
     } finally {
       cg.close();
     }
@@ -369,27 +510,17 @@ describe('zcodegraph index engine selection', () => {
         ]),
       );
 
-      const refs = db.prepare(
-        "SELECT reference_name AS referenceName, reference_kind AS referenceKind, file_path AS filePath, language FROM unresolved_refs ORDER BY reference_kind, reference_name",
-      ).all() as Array<{
-        referenceName: string;
-        referenceKind: string;
-        filePath: string;
-        language: string;
-      }>;
-      expect(refs).toEqual(
-        expect.arrayContaining([
-          { referenceName: './card', referenceKind: 'imports', filePath: 'models.ts', language: 'typescript' },
-          { referenceName: './card', referenceKind: 'exports', filePath: 'models.ts', language: 'typescript' },
-          { referenceName: './models', referenceKind: 'imports', filePath: 'helpers.js', language: 'javascript' },
-          { referenceName: 'localHelper', referenceKind: 'calls', filePath: 'helpers.js', language: 'javascript' },
-          { referenceName: 'loadUser', referenceKind: 'calls', filePath: 'models.ts', language: 'typescript' },
-          { referenceName: 'Avatar', referenceKind: 'references', filePath: 'card.jsx', language: 'jsx' },
-          { referenceName: 'ProfileCard', referenceKind: 'references', filePath: 'dashboard.tsx', language: 'tsx' },
-          { referenceName: 'UserService', referenceKind: 'instantiates', filePath: 'dashboard.tsx', language: 'tsx' },
-          { referenceName: 'LocalWidget', referenceKind: 'instantiates', filePath: 'helpers.js', language: 'javascript' },
-        ]),
-      );
+      const localHelper = cg.searchNodes('localHelper').find((match) => match.node.kind === 'function')!.node;
+      const exportedHelper = cg.searchNodes('exportedHelper').find((match) => match.node.kind === 'function')!.node;
+      const loadUser = cg.searchNodes('loadUser').find((match) => match.node.kind === 'function')!.node;
+      const dashboard = cg.searchNodes('Dashboard').find((match) => match.node.kind === 'component')!.node;
+      const profileCard = cg.searchNodes('ProfileCard').find((match) => match.node.kind === 'component')!.node;
+
+      expect(cg.getCallers(localHelper.id).some((entry) => entry.node.id === exportedHelper.id)).toBe(true);
+      expect(cg.getCallees(exportedHelper.id).some((entry) => entry.node.id === localHelper.id)).toBe(true);
+      expect(cg.getCallers(loadUser.id).some((entry) => entry.node.id === localHelper.id)).toBe(true);
+      expect(cg.getCallees(dashboard.id).some((entry) => entry.node.id === profileCard.id)).toBe(true);
+
       const sourceRows = db.prepare(
         "SELECT name, kind, language, start_line AS startLine, start_column AS startColumn FROM nodes WHERE name IN ('helpers.js', 'localHelper', 'mutableUser', 'cache', 'ProfileCard', 'Dashboard')",
       ).all() as Array<{
@@ -413,6 +544,82 @@ describe('zcodegraph index engine selection', () => {
         expect(row.startLine).toBeGreaterThanOrEqual(1);
         expect(row.startColumn).toBeGreaterThanOrEqual(0);
       }
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('resolves Rust-extracted cross-file references through TypeScript graph queries', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'callee.ts'),
+      [
+        'export function sharedHelper() {',
+        '  return 42;',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'caller.ts'),
+      [
+        'import { sharedHelper } from "./callee";',
+        'export function runFeature() {',
+        '  return sharedHelper();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(indexResult.status).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const helper = cg.searchNodes('sharedHelper').find((match) => match.node.kind === 'function')?.node;
+      const caller = cg.searchNodes('runFeature').find((match) => match.node.kind === 'function')?.node;
+      expect(helper).toBeDefined();
+      expect(caller).toBeDefined();
+
+      expect(cg.getCallers(helper!.id).some((entry) => entry.node.id === caller!.id)).toBe(true);
+      expect(cg.getCallees(caller!.id).some((entry) => entry.node.id === helper!.id)).toBe(true);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('runs dynamic synthesizers after Rust extraction so JSX child edges are queryable', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'Child.tsx'),
+      [
+        'export function ChildWidget() {',
+        '  return <span />;',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'Parent.tsx'),
+      [
+        'import { ChildWidget } from "./Child";',
+        'export function ParentWidget() {',
+        '  return <ChildWidget />;',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(indexResult.status).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const parent = cg.searchNodes('ParentWidget').find((match) => match.node.kind === 'component')?.node;
+      const child = cg.searchNodes('ChildWidget').find((match) => match.node.kind === 'component')?.node;
+      expect(parent).toBeDefined();
+      expect(child).toBeDefined();
+
+      const childEdges = cg.getCallees(parent!.id);
+      expect(childEdges.some((entry) => entry.node.id === child!.id && entry.edge.kind === 'calls')).toBe(true);
     } finally {
       cg.close();
     }
