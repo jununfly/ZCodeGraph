@@ -92,18 +92,24 @@ TypeScript CLI / MCP / installer / Explore
 - [x] Ensure MCP and normal CLI behavior remain TypeScript-indexer by default.
 - [x] Ensure an unavailable Rust binary fails cleanly and does not corrupt the
   active index.
-- [ ] Add status metadata display for the engine that produced the index.
+- [x] Add status metadata display for the engine that produced the index.
 
 ### 3. SQLite Contract And Metadata
 
 - [x] Document the SQLite tables Phase 1 Rust will write.
 - [x] Document the columns Rust must preserve exactly.
 - [x] Document which ordering differences are irrelevant.
-- [ ] Write files records for indexed JS/TS/JSX/TSX files.
-- [ ] Write node records using stable IDs compatible with TypeScript readers.
-- [ ] Write intra-file edges such as `contains`, local `calls`, `imports`, and
-  `exports` where Phase 1 extraction supports them.
-- [ ] Write unresolved references needed by the existing TypeScript resolver.
+- [x] Write files records for indexed JS files.
+- [x] Write node records for JS file/function/class symbols using stable IDs
+  compatible with TypeScript readers.
+- [x] Write intra-file `contains` edges for JS file/function/class symbols.
+- [x] Write files records for indexed TS/JSX/TSX files.
+- [x] Write node records for TS/JSX/TSX symbols using stable IDs compatible
+  with TypeScript readers.
+- [x] Write intra-file `contains` edges for TS/JSX/TSX file/symbol nodes.
+- [x] Write unresolved references for local `calls`, `imports`, and `exports`
+  where Phase 1 extraction supports them.
+- [x] Write unresolved references needed by the existing TypeScript resolver.
 - [x] Write index engine metadata, including engine name and engine version.
 - [x] Preserve existing schema version and extraction version semantics.
 - [x] Ensure TypeScript `CodeGraph` can open and query a Rust-written index.
@@ -123,33 +129,39 @@ TypeScript CLI / MCP / installer / Explore
 
 ### 5. Native Tree-Sitter JS/TS Parser
 
-- [ ] Add Rust tree-sitter dependencies for JavaScript and TypeScript grammars.
-- [ ] Support `.js`, `.jsx`, `.ts`, and `.tsx` detection.
-- [ ] Parse files without using Node `web-tree-sitter` or WebAssembly.
-- [ ] Bound parser concurrency so peak RSS can be controlled.
-- [ ] Release AST/parser resources promptly after each file or batch.
-- [ ] Add parser unit tests for each supported extension.
-- [ ] Add error handling for parse failures that mirrors existing indexer
+- [x] Add Rust tree-sitter dependencies for JavaScript grammar.
+- [x] Add Rust tree-sitter dependencies for TypeScript grammar.
+- [x] Support `.js` detection.
+- [x] Support `.jsx`, `.ts`, and `.tsx` detection.
+- [x] Parse JS/TS/JSX/TSX files without using Node `web-tree-sitter` or
+  WebAssembly.
+- [x] Bound parser concurrency so peak RSS can be controlled.
+- [x] Release AST/parser resources promptly after each file or batch.
+- [x] Add parser integration coverage for `.js`.
+- [x] Add parser integration coverage for `.jsx`, `.ts`, and `.tsx`.
+- [x] Add error handling for parse failures that mirrors existing indexer
   behavior.
 
 ### 6. JS/TS/JSX/TSX Extraction Slice
 
-- [ ] Extract file nodes.
-- [ ] Extract modules where applicable.
-- [ ] Extract exported and non-exported functions.
-- [ ] Extract classes.
-- [ ] Extract methods.
-- [ ] Extract constructors.
-- [ ] Extract properties and fields where supported by Phase 1.
-- [ ] Extract variables and constants needed by current JS/TS graph behavior.
-- [ ] Extract type aliases and interfaces.
-- [ ] Extract imports and exports.
-- [ ] Extract JSX components and component usages needed by existing behavior.
-- [ ] Extract object-literal methods used by store/action patterns.
-- [ ] Extract local call references.
-- [ ] Extract unresolved references for TypeScript resolver follow-up.
-- [ ] Preserve language values expected by TypeScript readers.
-- [ ] Preserve source line and column ranges well enough for Explore source
+- [x] Extract JS/TS/JSX/TSX file nodes.
+- [x] Document that JS/TS Phase 1 does not add `module` nodes because the
+  existing JS/TS extractor does not emit ES module nodes.
+- [x] Extract JS/TS/JSX/TSX exported and non-exported function declarations.
+- [x] Extract JS/TS/JSX/TSX class declarations.
+- [x] Extract methods.
+- [x] Extract constructors as method nodes.
+- [x] Extract properties and fields where supported by Phase 1.
+- [x] Extract variables and constants needed by current JS/TS graph behavior.
+- [x] Extract type aliases and interfaces.
+- [x] Extract imports and exports.
+- [x] Extract JSX/TSX component declarations needed by existing behavior.
+- [x] Extract JSX/TSX component usages needed by existing behavior.
+- [x] Extract object-literal methods used by store/action patterns.
+- [x] Extract local call references.
+- [x] Extract unresolved references for TypeScript resolver follow-up.
+- [x] Preserve language values expected by TypeScript readers.
+- [x] Preserve source line and column ranges well enough for Explore source
   rendering and blast-radius output.
 
 ### 7. TypeScript Resolver Handoff
@@ -188,12 +200,12 @@ TypeScript CLI / MCP / installer / Explore
 
 - [ ] Test that `zcodegraph index` still uses the TypeScript indexer by
   default.
-- [ ] Test that `zcodegraph index --engine rust` invokes the Rust subprocess.
-- [ ] Test that environment engine selection invokes the Rust subprocess.
+- [x] Test that `zcodegraph index --engine rust` invokes the Rust subprocess.
+- [x] Test that environment engine selection invokes the Rust subprocess.
 - [ ] Test that unsupported files/languages still have a clear behavior under
   the Phase 1 Rust engine.
-- [ ] Test that Rust subprocess failure is rendered as a normal CLI error.
-- [ ] Test that status reports the index engine metadata.
+- [x] Test that Rust subprocess failure is rendered as a normal CLI error.
+- [x] Test that status reports the index engine metadata.
 - [ ] Test that TypeScript MCP tools can query a Rust-produced index.
 
 ### 10. Performance And Memory Benchmarks

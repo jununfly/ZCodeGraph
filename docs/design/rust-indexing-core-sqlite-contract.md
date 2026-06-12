@@ -29,19 +29,77 @@ The Rust core creates all tables, indexes, triggers, and virtual tables from the
 same schema text used by TypeScript, then stamps the current schema version so
 `CodeGraph.open()` does not re-run migrations against already-present columns.
 
-## Tables Reserved For Later Phase 1 Slices
+## JavaScript File Slice
 
-The Rust database contains these existing tables, but issue #51 intentionally
-leaves them empty:
+Issue #52 adds the first semantic write path. For `.js` files, the Rust core
+now writes:
 
 - `files`
+  - `path`
+  - `content_hash`
+  - `language = javascript`
+  - `size`
+  - `modified_at`
+  - `indexed_at`
+  - `node_count`
+  - `errors`
 - `nodes`
+  - `file` nodes for indexed JavaScript files
+  - `function` nodes for `function_declaration`
+  - `class` nodes for `class_declaration`
+  - stable IDs generated from `filePath:kind:name:line`, matching the
+    TypeScript ID contract
+  - one-indexed line ranges and zero-indexed columns for TypeScript readers
 - `edges`
-- `unresolved_refs`
-- `nodes_fts`
+  - `contains` edges from the file node to extracted function/class nodes
 
-Issues #52-#56 fill these tables incrementally. Until then, a Rust-produced
-index is valid and inspectable, but it has zero files, nodes, and edges.
+The parser is native Rust tree-sitter JavaScript. It does not use Node,
+`web-tree-sitter`, or WebAssembly.
+
+## TypeScript, JSX, And TSX Slice
+
+Issue #53 expands the same file/node/contains-edge contract to `.ts`, `.jsx`,
+and `.tsx`.
+
+The Rust core now writes:
+
+- `files`
+  - `language = typescript` for `.ts`
+  - `language = jsx` for `.jsx`
+  - `language = tsx` for `.tsx`
+- `nodes`
+  - `file` nodes for each indexed source file
+  - `function` nodes for function declarations
+  - `class` nodes for class declarations
+  - `method` nodes for method definitions
+  - `field` nodes for supported field declarations
+  - `interface` nodes for TypeScript interfaces
+  - `type_alias` nodes for TypeScript type aliases
+  - `constant` / `variable` nodes for variable declarations
+  - `component` nodes for PascalCase JSX/TSX function, class, and variable
+    declarations
+  - `import` / `export` nodes for module source declarations
+- `edges`
+  - `contains` edges from file nodes to extracted symbol nodes
+- `unresolved_refs`
+  - `imports` references for import module sources
+  - `exports` references for re-export module sources
+  - `calls` references for local call expressions
+  - `instantiates` references for constructor calls
+  - `references` references for PascalCase JSX/TSX component usages
+
+The parser is native Rust tree-sitter JavaScript / TypeScript / TSX. It does
+not use Node, `web-tree-sitter`, or WebAssembly.
+
+The JS/TS Phase 1 slice does not add `module` nodes. The existing TypeScript
+JS/TS extractor does not emit ES module nodes, so preserving reader expectations
+means recording file nodes plus import/export nodes and references instead.
+
+`nodes_fts` is populated by the existing SQLite triggers when Rust inserts
+nodes, so Rust does not write that virtual table directly.
+
+Issues #54-#56 extend this raw extraction output with resolver handoff,
+semantic parity comparison, and CLI/MCP integration coverage.
 
 ## Failure Safety
 
