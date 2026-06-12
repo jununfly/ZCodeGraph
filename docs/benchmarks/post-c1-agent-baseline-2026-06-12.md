@@ -86,6 +86,19 @@ Interpretation:
 - Candidate 2+ work should treat broad exploration recall as a regression
   guardrail, not as solved by the Candidate 1 seam.
 
+Follow-up validation for #44:
+
+- The `explore-bulk-indexing` miss was reproduced against
+  `/tmp/codegraph-corpus/elasticsearch` before the fix: recall 0.00 for
+  `TransportBulkAction`, `BulkRequest`, and `BulkResponse`.
+- After preserving Java-style action/request/response operation families for
+  broad prose queries, the deterministic public-API probe
+  `findRelevantContext("How does bulk indexing work?")` finds all three expected
+  symbols with recall 1.00.
+- Evidence Scope is sufficient for this deterministic case without generic
+  Read/Grep fallback: the entry nodes include `TransportBulkAction`,
+  `BulkRequest`, and `BulkResponse` directly.
+
 ## Explore Query Matrix
 
 The headless A/B run used three planner-seam prompts:

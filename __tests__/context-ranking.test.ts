@@ -121,3 +121,85 @@ export function downloadDataset(name: string): string { return name; }
     expect(md as string).not.toContain(LOW_CONFIDENCE_MARKER);
   });
 });
+
+describe('Context ranking — broad operation family recall', () => {
+  let testDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(async () => {
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-opfamily-'));
+
+    const bulkDir = path.join(testDir, 'server', 'src', 'main', 'java', 'org', 'elasticsearch', 'action', 'bulk');
+    fs.mkdirSync(bulkDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(bulkDir, 'TransportBulkAction.java'),
+      `package org.elasticsearch.action.bulk;
+public class TransportBulkAction {
+  public BulkResponse execute(BulkRequest request) { return new BulkResponse(); }
+}
+class BulkRequest {}
+class BulkResponse {}
+`
+    );
+
+    const statsDir = path.join(testDir, 'server', 'src', 'main', 'java', 'org', 'elasticsearch', 'index', 'bulk', 'stats');
+    fs.mkdirSync(statsDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(statsDir, 'BulkStats.java'),
+      `package org.elasticsearch.index.bulk.stats;
+public class BulkStats {}
+public class BulkOperationListener {}
+public class ShardBulkStats {}
+`
+    );
+
+    const vectorsDir = path.join(testDir, 'server', 'src', 'main', 'java', 'org', 'elasticsearch', 'index', 'codec', 'vectors');
+    fs.mkdirSync(vectorsDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(vectorsDir, 'VectorScoringUtils.java'),
+      `package org.elasticsearch.index.codec.vectors;
+public class VectorScoringUtils {
+  public void bulk() {}
+  public void indexing() {}
+}
+`
+    );
+
+    const noiseDir = path.join(testDir, 'x-pack', 'plugin', 'core', 'src', 'main', 'java', 'org', 'elasticsearch', 'indexing');
+    fs.mkdirSync(noiseDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(noiseDir, 'IndexerNoise.java'),
+      `package org.elasticsearch.indexing;
+public class IndexEngine {}
+public class IndexerUtils {}
+public class IndexedDISI {}
+public enum IndexerState { STARTED }
+public class IndexerJobStats {}
+`
+    );
+
+    cg = CodeGraph.initSync(testDir, {
+      config: { include: ['**/*.java'], exclude: [] },
+    });
+    await cg.indexAll();
+  });
+
+  afterEach(() => {
+    if (cg) cg.destroy();
+    if (fs.existsSync(testDir)) fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('keeps action/request/response symbols for a broad bulk indexing query', async () => {
+    const sg = await cg.findRelevantContext('How does bulk indexing work?', {
+      searchLimit: 4,
+      traversalDepth: 1,
+      maxNodes: 40,
+      minScore: 0.2,
+    });
+    const names = new Set([...sg.nodes.values()].map((n) => n.name));
+
+    expect(names).toContain('TransportBulkAction');
+    expect(names).toContain('BulkRequest');
+    expect(names).toContain('BulkResponse');
+  });
+});

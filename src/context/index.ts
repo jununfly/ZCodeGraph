@@ -132,6 +132,35 @@ function extractSymbolsFromQuery(query: string): string[] {
   return Array.from(symbols).filter(s => !commonWords.has(s.toLowerCase()));
 }
 
+const OPERATION_FAMILY_SUFFIX_SCORE: Record<string, number> = {
+  Action: 70,
+  Request: 65,
+  Response: 65,
+};
+
+function scoreOperationFamilyCandidate(node: Node, titleCasedTerm: string, query: string): number | null {
+  const matchingSuffix = Object.keys(OPERATION_FAMILY_SUFFIX_SCORE).find((suffix) =>
+    node.name.endsWith(`${titleCasedTerm}${suffix}`)
+  );
+  if (!matchingSuffix) return null;
+
+  const termLower = titleCasedTerm.toLowerCase();
+  const pathLower = node.filePath.toLowerCase();
+  let score = OPERATION_FAMILY_SUFFIX_SCORE[matchingSuffix]!;
+
+  // Request/response/action families are strongest when the package path also
+  // names the operation, e.g. Elasticsearch's action/bulk/BulkRequest and
+  // action/bulk/TransportBulkAction.
+  if (pathLower.includes(`/action/${termLower}/`)) score += 80;
+  else if (pathLower.includes(`/${termLower}/`)) score += 25;
+
+  if (node.name === `${titleCasedTerm}${matchingSuffix}`) score += 20;
+  if (node.name === `Transport${titleCasedTerm}Action`) score += 20;
+  score += scorePathRelevance(node.filePath, query);
+  score += Math.max(0, 8 - (node.name.length - titleCasedTerm.length) / 4);
+  return score;
+}
+
 /**
  * Default options for context building
  *
@@ -893,6 +922,49 @@ export class ContextBuilder {
     // If someone searches "terminal" and finds `import { TerminalPanel }`,
     // they want the TerminalPanel class, not the import statement
     filteredResults = this.resolveImportsToDefinitions(filteredResults);
+
+    // Final preservation pass for broad operation-family queries. This runs
+    // after the global candidate truncation above, because large repos can have
+    // hundreds of one-term `bulk`/`indexing` hits before the core
+    // action/request/response family appears.
+    const familyBaseTerms = new Set<string>(extractSearchTerms(query, { stems: false }));
+    for (const sym of symbolsFromQuery) familyBaseTerms.add(sym);
+    if (familyBaseTerms.size > 0) {
+      const familyKinds: NodeKind[] = ['class', 'interface', 'struct', 'trait',
+        'protocol', 'enum', 'type_alias'];
+      const familySymbols = new Set<string>(familyBaseTerms);
+      for (const sym of symbolsFromQuery) {
+        familySymbols.add(sym);
+        for (const variant of getStemVariants(sym)) familySymbols.add(variant);
+      }
+
+      const familyResults: SearchResult[] = [];
+      for (const sym of familySymbols) {
+        const titleCased = sym.charAt(0).toUpperCase() + sym.slice(1).toLowerCase();
+        if (titleCased.length < 3) continue;
+        const likeResults = this.queries.findNodesByNameSubstring(titleCased, {
+          limit: 300,
+          kinds: familyKinds,
+          excludePrefix: false,
+        });
+        for (const r of likeResults) {
+          if (isTestFile(r.node.filePath) && !isTestQuery) continue;
+          const score = scoreOperationFamilyCandidate(r.node, titleCased, query);
+          if (score === null) continue;
+          familyResults.push({ node: r.node, score });
+        }
+      }
+      familyResults.sort((a, b) => b.score - a.score);
+      for (const r of familyResults.slice(0, opts.searchLimit)) {
+        const existing = filteredResults.find((s) => s.node.id === r.node.id);
+        if (existing) {
+          existing.score = Math.max(existing.score, r.score);
+        } else {
+          filteredResults.push(r);
+        }
+      }
+      filteredResults.sort((a, b) => b.score - a.score);
+    }
 
     // Cap Entry Nodes so traversal budget isn't spread too thin.
     // With 36 Entry Nodes and maxNodes=120, each gets only 3 nodes — useless.
