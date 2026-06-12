@@ -305,8 +305,15 @@ fn visit_js_node(
         let extracted =
             ExtractedNode::symbol(relative_path, kind, &name, node, language.codegraph_name());
         let extracted_id = extracted.id.clone();
+        let contains_source = if current_from_node_id != file_node_id
+            && matches!(kind, "method" | "field" | "property")
+        {
+            current_from_node_id.to_string()
+        } else {
+            file_node_id.to_string()
+        };
         edges.push(ExtractedEdge {
-            source: file_node_id.to_string(),
+            source: contains_source,
             target: extracted_id.clone(),
             kind: "contains".to_string(),
             line: extracted.start_line,
@@ -356,7 +363,7 @@ fn extract_named_symbol<'a>(
     if node.kind() == "function_declaration" || node.kind() == "class_declaration" {
         if let Some(name_node) = node.child_by_field_name("name") {
             let name = name_node.utf8_text(source)?;
-            let kind = if language.has_jsx() && is_pascal_case(name) {
+            let kind = if node.kind() == "function_declaration" && language.has_jsx() && is_pascal_case(name) {
                 "component"
             } else if node.kind() == "function_declaration" {
                 "function"
@@ -382,7 +389,9 @@ fn extract_named_symbol<'a>(
         "interface_declaration" => Some("interface"),
         "type_alias_declaration" => Some("type_alias"),
         "method_definition" => Some("method"),
-        "public_field_definition" | "field_definition" => Some("field"),
+        "public_field_definition" | "field_definition" => {
+            if node_has_function_value(node) { Some("method") } else { Some("field") }
+        }
         _ => None,
     };
     if let Some(kind) = kind {
@@ -403,6 +412,9 @@ fn extract_named_symbol<'a>(
                     if language.has_jsx() && is_pascal_case(name) {
                         return Ok(Some(("component", name_node)));
                     }
+                    if variable_declarator_has_function_value(child) {
+                        return Ok(Some(("function", name_node)));
+                    }
                     return Ok(Some((kind, name_node)));
                 }
             }
@@ -410,6 +422,16 @@ fn extract_named_symbol<'a>(
     }
 
     Ok(None)
+}
+
+fn variable_declarator_has_function_value(node: SyntaxNode) -> bool {
+    node_has_function_value(node)
+}
+
+fn node_has_function_value(node: SyntaxNode) -> bool {
+    node.child_by_field_name("value")
+        .map(|value| matches!(value.kind(), "arrow_function" | "function" | "function_expression"))
+        .unwrap_or(false)
 }
 
 fn extract_statement_refs(

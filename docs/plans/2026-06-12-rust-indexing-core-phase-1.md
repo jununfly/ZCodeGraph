@@ -210,37 +210,37 @@ TypeScript CLI / MCP / installer / Explore
 
 ### 10. Performance And Memory Benchmarks
 
-- [ ] Establish TypeScript indexer baseline for this repository.
-- [ ] Establish Rust indexer baseline for this repository.
-- [ ] Establish TypeScript indexer baseline for Excalidraw.
-- [ ] Establish Rust indexer baseline for Excalidraw.
-- [ ] Capture wall-clock indexing time.
-- [ ] Capture peak RSS.
-- [ ] Record Node version, Rust version, OS, CPU, and repo commit.
-- [ ] Verify Rust is at least 25% faster or at least 30% lower peak RSS on this
+- [x] Establish TypeScript indexer baseline for this repository.
+- [x] Establish Rust indexer baseline for this repository.
+- [x] Establish TypeScript indexer baseline for Excalidraw.
+- [x] Establish Rust indexer baseline for Excalidraw.
+- [x] Capture wall-clock indexing time.
+- [x] Capture peak RSS.
+- [x] Record Node version, Rust version, OS, CPU, and repo commit.
+- [x] Verify Rust is at least 25% faster or at least 30% lower peak RSS on this
   repository, with the other metric not significantly worse.
-- [ ] Verify Rust is at least 25% faster or at least 30% lower peak RSS on
+- [x] Verify Rust is at least 25% faster or at least 30% lower peak RSS on
   Excalidraw, with the other metric not significantly worse.
-- [ ] Store benchmark results in a compact repo document.
+- [x] Store benchmark results in a compact repo document.
 - [ ] If the hard gate fails, stop expansion and document why.
 
 ### 11. Agent Sufficiency Guardrails
 
-- [ ] Index this repository with the TypeScript engine and run representative
+- [x] Index this repository with the TypeScript engine and run representative
   ZCodeGraph flow prompts.
-- [ ] Index this repository with the Rust engine and run the same ZCodeGraph
+- [x] Index this repository with the Rust engine and run the same ZCodeGraph
   flow prompts.
-- [ ] Index Excalidraw with the TypeScript engine and run representative
+- [x] Index Excalidraw with the TypeScript engine and run representative
   Excalidraw flow prompts.
-- [ ] Index Excalidraw with the Rust engine and run the same Excalidraw flow
+- [x] Index Excalidraw with the Rust engine and run the same Excalidraw flow
   prompts.
-- [ ] Verify generic Read fallback does not increase.
-- [ ] Verify generic Grep/Bash fallback does not increase.
-- [ ] Verify Flow section connectivity does not regress for prompts that were
+- [x] Verify generic Read fallback does not increase.
+- [x] Verify generic Grep/Bash fallback does not increase.
+- [x] Verify Flow section connectivity does not regress for prompts that were
   already connected.
-- [ ] Record any differences as graph coverage, scope shallow, scope noisy, or
+- [x] Record any differences as graph coverage, scope shallow, scope noisy, or
   agent ignored evidence.
-- [ ] Store guardrail results in a compact repo document.
+- [x] Store guardrail results in a compact repo document.
 
 ### 12. Packaging And Release Readiness
 
@@ -257,9 +257,9 @@ TypeScript CLI / MCP / installer / Explore
 - [ ] Confirm semantic parity is good enough for JS/TS/JSX/TSX.
 - [ ] Confirm TypeScript resolver handoff works.
 - [ ] Confirm TypeScript MCP/Explore can use Rust-produced indexes.
-- [ ] Confirm performance or memory hard gates pass on this repository.
-- [ ] Confirm performance or memory hard gates pass on Excalidraw.
-- [ ] Confirm Agent Sufficiency guardrails do not regress.
+- [x] Confirm performance or memory hard gates pass on this repository.
+- [x] Confirm performance or memory hard gates pass on Excalidraw.
+- [x] Confirm Agent Sufficiency guardrails do not regress.
 - [ ] If all checks pass, propose Phase 2 language expansion issues.
 - [ ] If any hard gate fails, document the failure and keep Rust indexer
   experimental/off by default.
@@ -277,8 +277,8 @@ TypeScript CLI / MCP / installer / Explore
 - [ ] Issue G: Wire Rust extraction to existing TypeScript resolver handoff.
 - [ ] Issue H: Add semantic parity comparator and fixture suite.
 - [ ] Issue I: Add CLI/MCP integration tests for Rust-produced indexes.
-- [ ] Issue J: Run performance and memory benchmark gates.
-- [ ] Issue K: Run Agent Sufficiency guardrail matrix.
+- [x] Issue J: Run performance and memory benchmark gates.
+- [x] Issue K: Run Agent Sufficiency guardrail matrix.
 - [ ] Issue L: Document stop/continue decision and next phase.
 
 ## Agent Handoff Notes
@@ -303,6 +303,8 @@ npx vitest run __tests__/rust-parity.test.ts
 cargo test
 node scripts/rust-parity-check.mjs --repo .
 node scripts/rust-parity-check.mjs --repo /path/to/excalidraw
+node scripts/rust-index-benchmark.mjs --repo zcodegraph=. --repo excalidraw=/path/to/excalidraw
+node scripts/rust-sufficiency-guardrail.mjs --repo zcodegraph=. --repo excalidraw=/path/to/excalidraw
 ```
 
 CI decision for the skeleton: keep `cargo test` as local validation until the

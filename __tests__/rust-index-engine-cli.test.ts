@@ -410,6 +410,118 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
+  it('treats exported arrow-function constants as callable functions in Rust-produced indexes', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'renderer.ts'),
+      [
+        'const localImpl = () => {',
+        '  return 1;',
+        '};',
+        '',
+        'export const renderPublic = () => {',
+        '  return localImpl();',
+        '};',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'canvas.ts'),
+      [
+        'import { renderPublic } from "./renderer";',
+        'export function StaticCanvas() {',
+        '  return renderPublic();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(indexResult.status).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const renderPublic = cg.searchNodes('renderPublic').find((match) => match.node.kind === 'function')?.node;
+      const localImpl = cg.searchNodes('localImpl').find((match) => match.node.kind === 'function')?.node;
+      const staticCanvas = cg.searchNodes('StaticCanvas').find((match) => match.node.kind === 'function')?.node;
+      expect(renderPublic).toBeDefined();
+      expect(localImpl).toBeDefined();
+      expect(staticCanvas).toBeDefined();
+
+      expect(cg.getCallees(staticCanvas!.id).some((entry) => entry.node.id === renderPublic!.id)).toBe(true);
+      expect(cg.getCallees(renderPublic!.id).some((entry) => entry.node.id === localImpl!.id)).toBe(true);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('treats class field arrow callbacks as callable methods in Rust-produced indexes', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'scene.ts'),
+      [
+        'type Callback = () => void;',
+        'export class Scene {',
+        '  private callbacks = new Set<Callback>();',
+        '  triggerUpdate() {',
+        '    for (const callback of Array.from(this.callbacks)) {',
+        '      callback();',
+        '    }',
+        '  }',
+        '  onUpdate(cb: Callback) {',
+        '    this.callbacks.add(cb);',
+        '  }',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'app.ts'),
+      [
+        'import { Scene } from "./scene";',
+        'export class App extends React.Component {',
+        '  scene = new Scene();',
+        '  triggerRender = () => {',
+        '    this.setState({});',
+        '  };',
+        '  render() {',
+        '    return null;',
+        '  }',
+        '  mount() {',
+        '    this.scene.onUpdate(this.triggerRender);',
+        '  }',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(indexResult.status).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const triggerUpdate = cg.searchNodes('triggerUpdate').find((match) => match.node.kind === 'method')?.node;
+      const triggerRender = cg.searchNodes('triggerRender').find((match) => match.node.kind === 'method')?.node;
+      const render = cg.searchNodes('render').find((match) => match.node.kind === 'method')?.node;
+      const app = cg.searchNodes('App').find((match) => match.node.kind === 'class')?.node;
+      expect(app).toBeDefined();
+      expect(triggerUpdate).toBeDefined();
+      expect(triggerRender).toBeDefined();
+      expect(render).toBeDefined();
+
+      expect(cg.getCallees(triggerUpdate!.id).some((entry) => (
+        entry.node.id === triggerRender!.id &&
+        entry.edge.kind === 'calls' &&
+        entry.edge.edgeOrigin === 'heuristic'
+      ))).toBe(true);
+      expect(cg.getCallees(triggerRender!.id).some((entry) => (
+        entry.node.id === render!.id &&
+        entry.edge.kind === 'calls' &&
+        entry.edge.edgeOrigin === 'heuristic'
+      ))).toBe(true);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
   it('indexes TypeScript, JSX, and TSX symbols through the Rust engine', () => {
     fs.writeFileSync(
       path.join(tempDir, 'helpers.js'),
