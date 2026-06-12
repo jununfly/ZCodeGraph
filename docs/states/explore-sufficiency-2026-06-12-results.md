@@ -86,6 +86,21 @@ Exceptions and notes:
 - Keep Django query/compiler prompts as a positive control for future Explore
   Answer planner changes.
 
+## 2026-06-12 #48 Follow-Up
+
+After the #48 Flow planner fix, a deterministic local probe against the current
+ZCodeGraph index showed:
+
+| Prompt | Flow section | Notes |
+|---|---|---|
+| ZCG-1 | connected | `handleExplore -> plan -> render`, with the missing planner call grounded by exact source-call evidence at `src/mcp/tools.ts:1429`. |
+| ZCG-2 | connected | `runIndex -> indexAll -> storeExtractionResult -> insertNode`; the previous unrelated `detectLanguage -> looksLikeObjc` path no longer appears. |
+| ZCG-3 | not connected | The named registry/synthesizer functions are not currently connected by real call evidence from `ReferenceResolver.resolveAll`; this remains a graph-coverage frontier rather than a Flow shortcut candidate. |
+
+This improves the ZCodeGraph self-query Flow signal beyond the original
+3/6 connected WITH-run baseline while preserving the zero generic Read/Grep
+fallback result recorded above.
+
 ## Files Not Embedded
 
 This compact file intentionally omits:

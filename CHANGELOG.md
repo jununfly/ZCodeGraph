@@ -32,6 +32,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixes
 
+- `zcodegraph_explore` now keeps self-query Flow sections on the named path for planner and indexing questions, avoiding fuzzy fallback matches that could show unrelated helper paths instead of the requested symbols. (#48)
 - `zcodegraph_explore` now seeds a concrete Java REST-to-transport action slice for broad flow questions, so a single answer includes route dispatch, handler preparation, local client execution, and transport action execution evidence instead of forcing repeated follow-up explores. (#47)
 - `zcodegraph_explore` now keeps polymorphic Java implementation families together when answering broad implementation questions, so Elasticsearch Engine queries include the base type, write-capable engines, read-only engines, and relevant plugin engines without pulling in test-only subclasses. (#46)
 - `zcodegraph_explore` now keeps Java allocation services and allocator implementations in scope for broad shard-allocation questions, so "How does shard rebalancing and allocation work?" surfaces the service and concrete shard allocator evidence. (#45)

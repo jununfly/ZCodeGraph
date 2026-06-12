@@ -1427,9 +1427,7 @@ export class ToolHandler {
 
     // Delegate ALL planning to the explore planner (Issue #25).
     const planResult = await plan(cg, query, { maxFiles: args.maxFiles as number | undefined });
-
-    // Compute flow spine (used by rendering for Flow section + adaptive sizing).
-    const flow = this.buildFlowFromNamedSymbols(cg, query);
+    const flow = planResult.spine || this.buildFlowFromNamedSymbols(cg, query);
 
     if (planResult.subgraph.nodes.size === 0) {
       return this.textResult(`No relevant code found for "${query}"`);

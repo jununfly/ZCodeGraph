@@ -15,6 +15,8 @@ import type { ExploreOutputBudget, ExplorePlan, ExplorePlanEntry, FileGroup, Flo
 import { getExploreOutputBudget } from './tools';
 import { clamp, isConfigLeafNode } from '../utils';
 import { isGeneratedFile } from '../extraction/generated-detection';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 
 /**
  * Rust path roots that have no file-system equivalent — `crate` is the
@@ -138,6 +140,13 @@ export function synthEdgeNote(edge: Edge | null): { label: string; compact: stri
     return {
       label: `closure collection — runs handlers appended to ${field} (dynamic dispatch)`,
       compact: `dynamic: runs ${field} handlers${at}`,
+      registeredAt,
+    };
+  }
+  if (m?.synthesizedBy === 'source-call-scan') {
+    return {
+      label: `source call evidence — exact call syntax in the caller body`,
+      compact: `source call${at}`,
       registeredAt,
     };
   }
@@ -1166,15 +1175,22 @@ export function buildFlowFromNamedSymbols(cg: CodeGraph, query: string): FlowRes
     for (const t of tokens) for (const s of t.toLowerCase().split(/::|\./)) if (s) segPool.add(s);
     const named = new Map<string, Node>();
     const uniqueNamedNodeIds = new Set<string>();
+    const topLevelExact = (n: Node, token: string): boolean => {
+      if (n.name !== token) return false;
+      const qualified = n.qualifiedName || n.name;
+      return qualified === n.name || !/::|\./.test(qualified);
+    };
     for (const t of tokens) {
-      const cands = findAllSymbols(cg, t).nodes.filter((n) => CALLABLE.has(n.kind));
+      const cands = findAllSymbols(cg, t).nodes.filter((n) =>
+        CALLABLE.has(n.kind) && (n.name === t || matchesSymbol(n, t))
+      );
       const specific = cands.length <= 3;
       const pick = specific
         ? cands
         : cands.filter((n) => {
             const segs = (n.qualifiedName || '').toLowerCase().split(/::|\./).filter(Boolean);
             const container = segs.length >= 2 ? segs[segs.length - 2] : '';
-            return !!container && segPool.has(container);
+            return (!!container && segPool.has(container)) || topLevelExact(n, t);
           });
       for (const n of pick.slice(0, 6)) {
         named.set(n.id, n);
@@ -1184,7 +1200,47 @@ export function buildFlowFromNamedSymbols(cg: CodeGraph, query: string): FlowRes
     }
     if (named.size < 2) return EMPTY;
     const MAX_HOPS = 7;
-    let best: Array<{ node: Node; edge: Edge | null }> | null = null;
+    let best: Array<{ node: Node; edge: Edge | null; via?: Node }> | null = null;
+    const projectRoot = cg.getProjectRoot();
+    const sourceCallCallees = (source: Node): Array<{ node: Node; edge: Edge }> => {
+      if (!projectRoot || !source.filePath || !source.endLine || source.endLine < source.startLine) return [];
+      const directCallees = cg.getCallees(source.id);
+      const directlyResolvedNames = new Set(directCallees.map((c) => c.node.name));
+      const absPath = join(projectRoot, source.filePath);
+      if (!existsSync(absPath)) return [];
+      let lines: string[];
+      try {
+        lines = readFileSync(absPath, 'utf-8').split('\n');
+      } catch {
+        return [];
+      }
+      const bodyStartLine = Math.min(source.endLine, source.startLine + 1);
+      const body = lines.slice(Math.max(0, bodyStartLine - 1), source.endLine);
+      const out: Array<{ node: Node; edge: Edge }> = [];
+      for (const target of named.values()) {
+        if (target.id === source.id) continue;
+        if (directlyResolvedNames.has(target.name)) continue;
+        const callPattern = new RegExp(`\\b${target.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`);
+        const offset = body.findIndex((line) => callPattern.test(line));
+        if (offset < 0) continue;
+        const line = bodyStartLine + offset;
+        out.push({
+          node: target,
+          edge: {
+            source: source.id,
+            target: target.id,
+            kind: 'calls',
+            line,
+            edgeOrigin: 'heuristic',
+            metadata: {
+              synthesizedBy: 'source-call-scan',
+              registeredAt: `${source.filePath}:${line}`,
+            },
+          },
+        });
+      }
+      return out;
+    };
     // BFS the full call graph from each named seed.
     for (const seed of [...named.values()].slice(0, 8)) {
       const parent = new Map<string, { prev: string | null; edge: Edge | null; node: Node }>();
@@ -1196,7 +1252,12 @@ export function buildFlowFromNamedSymbols(cg: CodeGraph, query: string): FlowRes
         const { id, depth, streak } = q[h]!;
         if (id !== seed.id && named.has(id) && depth > deepDepth) { deep = id; deepDepth = depth; }
         if (depth >= MAX_HOPS - 1) continue;
-        for (const c of cg.getCallees(id)) {
+        const current = parent.get(id)?.node;
+        const callees = [
+          ...cg.getCallees(id),
+          ...(current ? sourceCallCallees(current) : []),
+        ];
+        for (const c of callees) {
           if (c.edge.kind !== 'calls' || parent.has(c.node.id)) continue;
           const newStreak = named.has(c.node.id) ? 0 : streak + 1;
           if (newStreak > MAX_BRIDGE) continue;
@@ -1204,12 +1265,25 @@ export function buildFlowFromNamedSymbols(cg: CodeGraph, query: string): FlowRes
           q.push({ id: c.node.id, depth: depth + 1, streak: newStreak });
         }
       }
-      if (!deep) continue;
-      const chain: Array<{ node: Node; edge: Edge | null }> = [];
-      let cur: string | null = deep;
-      while (cur) { const p = parent.get(cur); if (!p) break; chain.push({ node: p.node, edge: p.edge }); cur = p.prev; }
-      chain.reverse();
-      if (!best || chain.length > best.length) best = chain;
+      if (deep) {
+        const chain: Array<{ node: Node; edge: Edge | null; via?: Node }> = [];
+        let cur: string | null = deep;
+        while (cur) { const p = parent.get(cur); if (!p) break; chain.push({ node: p.node, edge: p.edge }); cur = p.prev; }
+        chain.reverse();
+        if (!best || chain.length > best.length) best = chain;
+      }
+
+      const namedCallees = [...cg.getCallees(seed.id), ...sourceCallCallees(seed)]
+        .filter((c) => c.edge.kind === 'calls' && named.has(c.node.id))
+        .sort((a, b) =>
+          (a.edge.line ?? a.node.startLine ?? 0) - (b.edge.line ?? b.node.startLine ?? 0)
+          || a.node.startLine - b.node.startLine
+        );
+      if (namedCallees.length >= 2) {
+        const chain: Array<{ node: Node; edge: Edge | null; via?: Node }> = [{ node: seed, edge: null }];
+        for (const c of namedCallees) chain.push({ node: c.node, edge: c.edge, via: seed });
+        if (!best || chain.length > best.length) best = chain;
+      }
     }
     const hasMain = !!best && best.length >= 3;
     const pathIds = new Set((best ?? []).map((s) => s.node.id));
@@ -1239,7 +1313,11 @@ export function buildFlowFromNamedSymbols(cg: CodeGraph, query: string): FlowRes
       out.push('## Flow (call path among the symbols you queried)', '');
       for (let i = 0; i < best!.length; i++) {
         const step = best![i]!;
-        if (step.edge) { const sy = synthEdgeNote(step.edge); out.push(`   ↓ ${sy ? sy.compact : step.edge.kind}`); }
+        if (step.edge) {
+          const sy = synthEdgeNote(step.edge);
+          const relation = sy ? sy.compact : step.edge.kind;
+          out.push(`   ↓ ${step.via ? `${relation} from ${step.via.name}` : relation}`);
+        }
         out.push(`${i + 1}. ${step.node.name} (${step.node.filePath}:${step.node.startLine})`);
       }
       out.push('');
