@@ -2,7 +2,8 @@
 
 ## Purpose
 
-This document is the run sheet and result summary for issue #38 and issue #42.
+This document is the run sheet and result summary for issue #37, issue #38,
+and issue #42.
 
 It evaluates current `zcodegraph_explore` Agent Sufficiency for flow questions
 using **Read/Grep Fallback displacement** as the primary metric.
@@ -95,6 +96,51 @@ Self-sufficiency check for current architecture seams.
 
 The first-pass matrix covered 36 headless agent runs: 3 repositories, 3 prompts
 per repository, 2 runs per prompt, and WITH/WITHOUT ZCodeGraph arms.
+
+### Per-Run Result Index
+
+This table records the compact per-run evidence required by issue #37. Full tool
+sequences and generic Read/Grep call classification are preserved in the compact
+state file and local raw logs referenced above.
+
+| Repo | Prompt | Run | Arm | Status | Duration | Cost | Turns | Tools | CodeGraph | Read | Grep/Bash | Flow |
+|---|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| ZCodeGraph | ZCG-1 | 1 | WITH | success | 41s | $1.324 | 4 | 3 | 3 | 0 | 0 | no |
+| ZCodeGraph | ZCG-1 | 1 | WITHOUT | success | 70s | $2.438 | 10 | 9 | 0 | 6 | 3 | n/a |
+| ZCodeGraph | ZCG-1 | 2 | WITH | success | 42s | $1.291 | 4 | 3 | 3 | 0 | 0 | no |
+| ZCodeGraph | ZCG-1 | 2 | WITHOUT | success | 57s | $1.623 | 9 | 8 | 0 | 5 | 3 | n/a |
+| ZCodeGraph | ZCG-2 | 1 | WITH | success | 41s | $1.284 | 5 | 4 | 4 | 0 | 0 | yes |
+| ZCodeGraph | ZCG-2 | 1 | WITHOUT | success | 93s | $1.008 | 2 | 16 | 0 | 8 | 7 | n/a |
+| ZCodeGraph | ZCG-2 | 2 | WITH | success | 36s | $1.188 | 4 | 3 | 3 | 0 | 0 | no |
+| ZCodeGraph | ZCG-2 | 2 | WITHOUT | success | 82s | $2.120 | 15 | 14 | 0 | 6 | 8 | n/a |
+| ZCodeGraph | ZCG-3 | 1 | WITH | success | 70s | $2.633 | 9 | 8 | 8 | 0 | 0 | yes |
+| ZCodeGraph | ZCG-3 | 1 | WITHOUT | success | 145s | $2.589 | 8 | 28 | 0 | 16 | 11 | n/a |
+| ZCodeGraph | ZCG-3 | 2 | WITH | success | 54s | $1.279 | 5 | 4 | 4 | 0 | 0 | yes |
+| ZCodeGraph | ZCG-3 | 2 | WITHOUT | success | 121s | $1.616 | 5 | 19 | 0 | 8 | 10 | n/a |
+| Excalidraw | EX-1 | 1 | WITH | success | 49s | $1.202 | 8 | 7 | 6 | 1 | 0 | yes |
+| Excalidraw | EX-1 | 1 | WITHOUT | success | 109s | $0.856 | 2 | 36 | 0 | 15 | 20 | n/a |
+| Excalidraw | EX-1 | 2 | WITH | success | 55s | $0.959 | 7 | 6 | 6 | 0 | 0 | yes |
+| Excalidraw | EX-1 | 2 | WITHOUT | success | 124s | $1.103 | 2 | 31 | 0 | 14 | 16 | n/a |
+| Excalidraw | EX-2 | 1 | WITH | success | 31s | $0.731 | 4 | 3 | 2 | 1 | 0 | yes |
+| Excalidraw | EX-2 | 1 | WITHOUT | success | 111s | $0.876 | 2 | 19 | 0 | 10 | 8 | n/a |
+| Excalidraw | EX-2 | 2 | WITH | success | 37s | $1.123 | 5 | 4 | 4 | 0 | 0 | yes |
+| Excalidraw | EX-2 | 2 | WITHOUT | success | 97s | $0.861 | 2 | 22 | 0 | 9 | 12 | n/a |
+| Excalidraw | EX-3 | 1 | WITH | success | 40s | $0.819 | 6 | 5 | 5 | 0 | 0 | yes |
+| Excalidraw | EX-3 | 1 | WITHOUT | success | 90s | $0.777 | 2 | 15 | 0 | 5 | 9 | n/a |
+| Excalidraw | EX-3 | 2 | WITH | success | 35s | $0.876 | 6 | 5 | 5 | 0 | 0 | yes |
+| Excalidraw | EX-3 | 2 | WITHOUT | success | 79s | $0.579 | 2 | 6 | 0 | 3 | 2 | n/a |
+| Django | DJ-1 | 1 | WITH | success | 49s | $0.630 | 3 | 2 | 2 | 0 | 0 | yes |
+| Django | DJ-1 | 1 | WITHOUT | success | 65s | $1.333 | 7 | 6 | 0 | 4 | 2 | n/a |
+| Django | DJ-1 | 2 | WITH | success | 33s | $0.751 | 3 | 2 | 2 | 0 | 0 | yes |
+| Django | DJ-1 | 2 | WITHOUT | success | 38s | $0.951 | 7 | 6 | 0 | 3 | 3 | n/a |
+| Django | DJ-2 | 1 | WITH | success | 38s | $0.867 | 3 | 2 | 2 | 0 | 0 | yes |
+| Django | DJ-2 | 1 | WITHOUT | success | 60s | $1.495 | 8 | 7 | 0 | 5 | 2 | n/a |
+| Django | DJ-2 | 2 | WITH | success | 36s | $0.632 | 4 | 3 | 3 | 0 | 0 | yes |
+| Django | DJ-2 | 2 | WITHOUT | success | 47s | $1.105 | 6 | 5 | 0 | 3 | 2 | n/a |
+| Django | DJ-3 | 1 | WITH | success | 39s | $0.757 | 3 | 2 | 2 | 0 | 0 | yes |
+| Django | DJ-3 | 1 | WITHOUT | success | 47s | $1.063 | 7 | 6 | 0 | 4 | 2 | n/a |
+| Django | DJ-3 | 2 | WITH | success | 38s | $0.757 | 3 | 2 | 2 | 0 | 0 | yes |
+| Django | DJ-3 | 2 | WITHOUT | success | 71s | $0.815 | 2 | 9 | 0 | 3 | 5 | n/a |
 
 ### Overall First-Pass Verdict
 
