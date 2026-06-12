@@ -171,7 +171,8 @@ describe('version helpers', () => {
   it('reindexAdvisory mentions the refresh commands', () => {
     const a = reindexAdvisory();
     expect(a).toContain('zcodegraph sync');
-    expect(a).toContain('codegraph index -f');
+    expect(a).toContain('zcodegraph index -f');
+    expect(a).not.toMatch(/(^|[^\w])codegraph index -f/);
   });
 
   it('buildWindowsUpgradeScript targets the right asset per arch and renames-not-deletes the exe', () => {

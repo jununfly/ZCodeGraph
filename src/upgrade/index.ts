@@ -299,7 +299,7 @@ export function reindexAdvisory(): string {
     c.dim('Your existing project indexes keep working, but were built by the previous version.'),
     c.dim('To pick up this version’s extraction improvements, refresh each project:'),
     `  ${c.cyan('zcodegraph sync')}        ${c.dim('# incremental, fast')}`,
-    `  ${c.cyan('codegraph index -f')}    ${c.dim('# full rebuild')}`,
+    `  ${c.cyan('zcodegraph index -f')}   ${c.dim('# full rebuild')}`,
     c.dim('(`zcodegraph status` flags any index that predates the engine you’re running.)'),
   ].join('\n');
 }

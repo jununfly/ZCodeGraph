@@ -138,7 +138,7 @@ describe('ZCodeGraph identity residue verification', () => {
     it('scripts use zcodegraph CLI, not codegraph', () => {
       const scriptFiles = walkDir(path.join(root, 'scripts'), ['.sh', '.js', '.mjs']);
       const hits: string[] = [];
-      const re = /(?<!\.)\bcodegraph (init|serve|sync|index|status)\b/;
+      const re = /(?<!\.)\bcodegraph (init|serve|sync|index|status)|command -v codegraph\b|execFileSync\(['"`]codegraph['"`]/;
       for (const file of scriptFiles) {
         const content = fs.readFileSync(path.join(root, 'scripts', file), 'utf8');
         if (re.test(content)) {

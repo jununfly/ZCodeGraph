@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Legacy shim: the old trace tool was removed; use zcodegraph_explore with endpoint symbols.
-// Usage: node probe-trace.mjs <repo-with-.codegraph> <from> <to>
+// Usage: node probe-trace.mjs <repo-with-.zcodegraph> <from> <to>
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 
