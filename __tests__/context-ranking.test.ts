@@ -203,3 +203,82 @@ public class IndexerJobStats {}
     expect(names).toContain('BulkResponse');
   });
 });
+
+describe('Context ranking — broad allocation service recall', () => {
+  let testDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(async () => {
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-allocation-'));
+
+    const allocationDir = path.join(testDir, 'server', 'src', 'main', 'java', 'org', 'elasticsearch', 'cluster', 'routing', 'allocation');
+    fs.mkdirSync(allocationDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(allocationDir, 'AllocationService.java'),
+      `package org.elasticsearch.cluster.routing.allocation;
+public class AllocationService {
+  private final BalancedShardsAllocator allocator = new BalancedShardsAllocator();
+  public void reroute() { allocator.allocate(); }
+}
+class RoutingAllocation {}
+`
+    );
+
+    const allocatorDir = path.join(allocationDir, 'allocator');
+    fs.mkdirSync(allocatorDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(allocatorDir, 'BalancedShardsAllocator.java'),
+      `package org.elasticsearch.cluster.routing.allocation.allocator;
+public class BalancedShardsAllocator {
+  public void allocate() {}
+}
+`
+    );
+
+    const deciderDir = path.join(allocationDir, 'decider');
+    fs.mkdirSync(deciderDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(deciderDir, 'EnableAllocationDecider.java'),
+      `package org.elasticsearch.cluster.routing.allocation.decider;
+public class EnableAllocationDecider {
+  public enum Rebalance { ALWAYS, INDICES_ALL_ACTIVE }
+}
+public class RebalanceOnlyWhenActiveAllocationDecider {}
+`
+    );
+
+    const mlDir = path.join(testDir, 'x-pack', 'plugin', 'ml', 'src', 'main', 'java', 'org', 'elasticsearch', 'xpack', 'ml', 'inference', 'assignment');
+    fs.mkdirSync(mlDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(mlDir, 'TrainedModelAssignmentRebalancer.java'),
+      `package org.elasticsearch.xpack.ml.inference.assignment;
+public class TrainedModelAssignmentRebalancer {
+  public void rebalance() {}
+}
+`
+    );
+
+    cg = CodeGraph.initSync(testDir, {
+      config: { include: ['**/*.java'], exclude: [] },
+    });
+    await cg.indexAll();
+  });
+
+  afterEach(() => {
+    if (cg) cg.destroy();
+    if (fs.existsSync(testDir)) fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('keeps allocation service and allocator evidence for a broad shard rebalancing query', async () => {
+    const sg = await cg.findRelevantContext('How does shard rebalancing and allocation work?', {
+      searchLimit: 4,
+      traversalDepth: 1,
+      maxNodes: 40,
+      minScore: 0.2,
+    });
+    const names = new Set([...sg.nodes.values()].map((n) => n.name));
+
+    expect(names).toContain('AllocationService');
+    expect(names).toContain('BalancedShardsAllocator');
+  });
+});

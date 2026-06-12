@@ -136,23 +136,40 @@ const OPERATION_FAMILY_SUFFIX_SCORE: Record<string, number> = {
   Action: 70,
   Request: 65,
   Response: 65,
+  Service: 70,
+  Allocator: 65,
 };
 
 function scoreOperationFamilyCandidate(node: Node, titleCasedTerm: string, query: string): number | null {
-  const matchingSuffix = Object.keys(OPERATION_FAMILY_SUFFIX_SCORE).find((suffix) =>
-    node.name.endsWith(`${titleCasedTerm}${suffix}`)
-  );
+  const matchingSuffix = Object.keys(OPERATION_FAMILY_SUFFIX_SCORE).find((suffix) => {
+    return node.name.endsWith(`${titleCasedTerm}${suffix}`) ||
+      node.name.endsWith(`${titleCasedTerm}s${suffix}`);
+  });
   if (!matchingSuffix) return null;
 
   const termLower = titleCasedTerm.toLowerCase();
   const pathLower = node.filePath.toLowerCase();
   let score = OPERATION_FAMILY_SUFFIX_SCORE[matchingSuffix]!;
 
-  // Request/response/action families are strongest when the package path also
+  // Request/response/action/service/allocator families are strongest when the package path also
   // names the operation, e.g. Elasticsearch's action/bulk/BulkRequest and
-  // action/bulk/TransportBulkAction.
+  // action/bulk/TransportBulkAction, or cluster/routing/allocation/AllocationService.
   if (pathLower.includes(`/action/${termLower}/`)) score += 80;
   else if (pathLower.includes(`/${termLower}/`)) score += 25;
+  if (
+    (matchingSuffix === 'Service' || matchingSuffix === 'Allocator') &&
+    pathLower.includes('/allocation/') &&
+    extractSearchTerms(query, { stems: false }).includes('allocation')
+  ) {
+    score += 140;
+  }
+  if (
+    matchingSuffix === 'Allocator' &&
+    node.kind !== 'interface' &&
+    pathLower.includes('/allocation/allocator/')
+  ) {
+    score += 100;
+  }
 
   if (node.name === `${titleCasedTerm}${matchingSuffix}`) score += 20;
   if (node.name === `Transport${titleCasedTerm}Action`) score += 20;
