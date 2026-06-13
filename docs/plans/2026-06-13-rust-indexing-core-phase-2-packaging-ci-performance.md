@@ -6,6 +6,10 @@ Depends on: [Rust Indexing Core Phase 1 Plan](2026-06-12-rust-indexing-core-phas
 
 Phase 1 decision: [Rust Indexing Core Phase 1 Stop/Continue Decision](../benchmarks/2026-06-13-rust-indexing-core-phase-1-decision.md)
 
+Phase 2 status: complete
+
+Phase 2 results: [Rust Indexing Core Phase 2 Results](../benchmarks/2026-06-13-rust-indexing-core-phase-2-results.md)
+
 Phase 2 decision: [Rust Indexing Core Phase 2 Stop/Continue Decision](../benchmarks/2026-06-13-rust-indexing-core-phase-2-decision.md)
 
 Published tracking issue: [#70 — Plan: Rust indexing core Phase 2 packaging, CI, and performance hardening](https://github.com/jununfly/ZCodeGraph/issues/70)
@@ -254,7 +258,7 @@ inside published packages. Source development remains explicit:
 - [x] Record the new benchmark/profile results in a compact repo document.
 - [x] State whether the <100% slower stretch goal was met.
 - [x] Stretch goal was met, so no missed-stretch bottleneck record is needed;
-  default rollout remains blocked pending #69.
+  default rollout remains blocked by the #69 decision.
 
 #67 optimization evidence: the first repository profile after #66 showed
 SQLite writing as the dominant Rust-side phase (`sqliteWriteMs=5136ms` versus
@@ -289,6 +293,8 @@ remain in #68.
   and Agent Sufficiency guardrails and record Phase 2 results.
 - [x] [#69](https://github.com/jununfly/ZCodeGraph/issues/69): Make the Phase 2
   stop/continue decision for default-rollout readiness.
+- [x] [#70](https://github.com/jununfly/ZCodeGraph/issues/70): Track and close
+  the Phase 2 packaging, CI, and performance-hardening plan.
 
 ## Local Validation
 
@@ -304,8 +310,8 @@ node scripts/rust-index-profile.mjs --repo zcodegraph=. --repo excalidraw=/path/
 node scripts/rust-sufficiency-guardrail.mjs --repo zcodegraph=. --repo excalidraw=/path/to/excalidraw
 ```
 
-Bundle and npm smoke validation should be added during Phase 2 once packaged
-binary support exists.
+Bundle and npm smoke validation was added during Phase 2 as part of the release
+bundle and npm platform package packaging stages.
 
 ## Agent Handoff Notes
 
