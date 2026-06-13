@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
 # Build a self-contained CodeGraph bundle: an official Node runtime + the
-# compiled app + its production deps, so CodeGraph runs with NO system Node and
-# NO native build — node:sqlite is built into the bundled Node. One archive per
-# platform.
+# compiled app + its production deps + the prebuilt Rust indexing core, so
+# CodeGraph runs with NO system Node and npm users do not compile native code.
+# One archive per platform.
 #
-# Because dropping better-sqlite3 left zero native addons, the recipe is pure
-# file-packaging (download the target's Node, copy the app, archive) — so any
-# platform's bundle can be built on any OS. No cross-compile, no native runners.
+# This script is file-packaging only: download the target's Node, copy the app,
+# copy the target-matching zcodegraph-core artifact, and archive. Rust binaries
+# are built before this script and staged under release/rust-core/.
 #
 # Usage:
 #   scripts/build-bundle.sh <target> [node-version]
@@ -24,14 +24,26 @@ TARGET="${1:?usage: build-bundle.sh <target> [node-version]}"
 NODE_VERSION="${2:-v24.16.0}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="$ROOT/release"
+OUT="${ZCODEGRAPH_RELEASE_DIR:-$ROOT/release}"
+RUST_CORE_ARTIFACT_DIR="${ZCODEGRAPH_RUST_CORE_ARTIFACT_DIR:-$OUT/rust-core}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 ARCH="${TARGET##*-}"   # x64 | arm64
 OSFAM="${TARGET%-*}"   # darwin | linux | win32
+RUST_CORE_EXE="zcodegraph-core"
+if [ "$OSFAM" = "win32" ]; then
+  RUST_CORE_EXE="zcodegraph-core.exe"
+fi
+RUST_CORE_ARTIFACT="$RUST_CORE_ARTIFACT_DIR/zcodegraph-core-${TARGET}/${RUST_CORE_EXE}"
 
 echo "[bundle] target=${TARGET} node=${NODE_VERSION}"
+
+[ -f "$RUST_CORE_ARTIFACT" ] || {
+  echo "[bundle] error: Rust core artifact not found: $RUST_CORE_ARTIFACT" >&2
+  echo "[bundle] expected artifact layout: $RUST_CORE_ARTIFACT_DIR/zcodegraph-core-<target>/zcodegraph-core(.exe)" >&2
+  exit 1
+}
 
 # 1. Download + extract the official Node runtime for the target platform.
 if [ "$OSFAM" = "win32" ]; then
@@ -64,6 +76,8 @@ STAGE="$WORK/zcodegraph-${TARGET}"
 mkdir -p "$STAGE/lib" "$STAGE/bin"
 cp -R "$ROOT/dist" "$STAGE/lib/dist"
 cp "$ROOT/package.json" "$ROOT/package-lock.json" "$STAGE/lib/"
+cp "$RUST_CORE_ARTIFACT" "$STAGE/bin/$RUST_CORE_EXE"
+chmod +x "$STAGE/bin/$RUST_CORE_EXE" 2>/dev/null || true
 echo "[bundle] installing production dependencies"
 ( cd "$STAGE/lib" && npm ci --omit=dev --ignore-scripts >/dev/null 2>&1 )
 rm -f "$STAGE/lib/package-lock.json"

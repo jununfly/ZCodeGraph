@@ -171,22 +171,22 @@ inside published packages. Source development remains explicit:
 
 ### 2. Release Bundle Packaging
 
-- [ ] Decide and implement the release artifact staging directory for Rust
+- [x] Decide and implement the release artifact staging directory for Rust
   binaries.
-- [ ] Update `scripts/build-bundle.sh` to require and copy the target-matching
+- [x] Update `scripts/build-bundle.sh` to require and copy the target-matching
   Rust binary into `bin/`.
-- [ ] Make `scripts/build-bundle.sh` fail if the target Rust binary is missing.
-- [ ] Preserve the existing launcher paths:
-  - [ ] Unix: `bin/zcodegraph`
-  - [ ] Windows: `bin/zcodegraph.cmd`
-- [ ] Verify generated `.tar.gz` and `.zip` archives contain the Rust binary.
-- [ ] Add bundle smoke tests that extract an archive and run the bundled
+- [x] Make `scripts/build-bundle.sh` fail if the target Rust binary is missing.
+- [x] Preserve the existing launcher paths:
+  - [x] Unix: `bin/zcodegraph`
+  - [x] Windows: `bin/zcodegraph.cmd`
+- [x] Verify generated `.tar.gz` and `.zip` archives contain the Rust binary.
+- [x] Add bundle smoke tests that extract an archive and run the bundled
   launcher with default TypeScript indexing.
-- [ ] Add bundle smoke tests that extract an archive and run explicit
+- [x] Add bundle smoke tests that extract an archive and run explicit
   `--engine rust` indexing.
-- [ ] Add a bundle smoke test for missing Rust binary behavior if the binary is
+- [x] Add a bundle smoke test for missing Rust binary behavior if the binary is
   removed after extraction.
-- [ ] Keep standalone install behavior unchanged when Rust is unused.
+- [x] Keep standalone install behavior unchanged when Rust is unused.
 
 ### 3. NPM Platform Package Packaging
 
@@ -258,7 +258,7 @@ inside published packages. Source development remains explicit:
 - [x] [#61](https://github.com/jununfly/ZCodeGraph/issues/61): Define packaged
   Rust binary artifact contract and discovery
   precedence.
-- [ ] [#62](https://github.com/jununfly/ZCodeGraph/issues/62): Package
+- [x] [#62](https://github.com/jununfly/ZCodeGraph/issues/62): Package
   `zcodegraph-core` into GitHub Release bundles.
 - [ ] [#63](https://github.com/jununfly/ZCodeGraph/issues/63): Preserve
   packaged Rust binary through npm platform packages and packed npm smoke tests.
