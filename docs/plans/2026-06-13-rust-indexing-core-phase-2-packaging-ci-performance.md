@@ -1,0 +1,274 @@
+# Rust Indexing Core Phase 2 Plan
+
+Parent PRD: [Rust Indexing Core Vertical Slice PRD](../prds/2026-06-12-rust-indexing-core-vertical-slice.md)
+
+Depends on: [Rust Indexing Core Phase 1 Plan](2026-06-12-rust-indexing-core-phase-1.md)
+
+Phase 1 decision: [Rust Indexing Core Phase 1 Stop/Continue Decision](../benchmarks/2026-06-13-rust-indexing-core-phase-1-decision.md)
+
+Published tracking issue: [#70 — Plan: Rust indexing core Phase 2 packaging, CI, and performance hardening](https://github.com/jununfly/ZCodeGraph/issues/70)
+
+## Goal
+
+Make the Phase 1 JavaScript, TypeScript, JSX, and TSX Rust indexing slice
+release-packageable and continuously verifiable without expanding language
+coverage or making Rust the default engine.
+
+Phase 2 is a packaging, CI, and performance-hardening phase. It must prove that
+prebuilt `zcodegraph-core` binaries can ship through the existing GitHub Release,
+npm optional platform package, npx, and standalone bundle paths while preserving
+the default TypeScript indexer behavior. Performance work in this phase must
+produce repeatable profiling evidence, at least one low-risk optimization
+attempt, and fresh benchmark results, but speed improvement is not the release
+packaging hard gate.
+
+## Current Decisions
+
+- [x] Do not expand to a second language in Phase 2.
+- [x] Do not make Rust the default index engine in Phase 2.
+- [x] Use one Phase 2 plan with five internal stages.
+- [x] Treat release packaging and CI verification as the Phase 2 hard gate.
+- [x] Treat Rust wall-clock speed as an investigation and improvement gate, not
+  as the packaging completion gate.
+- [x] Ship prebuilt Rust binaries in release bundles and npm platform packages.
+- [x] Do not add npm `postinstall` compilation.
+- [x] Do not require Rust or Cargo for npm/npx users.
+- [x] Keep source-development builds explicit: `cargo build --package
+  zcodegraph-core`.
+- [x] Cover the same six release targets as the current bundle workflow:
+  `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `win32-x64`, and
+  `win32-arm64`.
+- [x] Do not accept platform coverage gaps. If Windows ARM64 or another target
+  needs runner/cross-compile research, track that as a blocker issue, but keep
+  six-target coverage as the Phase 2 hard gate.
+- [x] Put the packaged Rust binary next to the launcher:
+  `bin/zcodegraph-core` on Unix and `bin/zcodegraph-core.exe` on Windows.
+
+## Non-Goals
+
+- [ ] Do not migrate languages beyond JavaScript, TypeScript, JSX, and TSX.
+- [ ] Do not default `zcodegraph index` to Rust.
+- [ ] Do not require Cargo, Rustup, Visual Studio Build Tools, Xcode, or a C
+  toolchain for npm/npx users.
+- [ ] Do not rewrite the MCP server, installer, upgrade flow, npm shim,
+  ReferenceResolver, framework resolvers, dynamic-dispatch synthesizers, Explore
+  planner, or Explore renderer in Rust.
+- [ ] Do not change the MCP tool surface.
+- [ ] Do not publish a release path where one of the six existing platform
+  packages lacks a Rust binary while claiming Rust packaging is complete.
+- [ ] Do not treat the performance stretch goal as permission to default Rust.
+
+## Hard Gates
+
+Phase 2 is complete only when all hard gates pass:
+
+- [ ] Every release target has a prebuilt `zcodegraph-core` artifact.
+- [ ] Every GitHub Release bundle includes the matching Rust binary at
+  `bin/zcodegraph-core` or `bin/zcodegraph-core.exe`.
+- [ ] Every npm platform package includes the matching Rust binary.
+- [ ] `zcodegraph index` without `--engine rust` and without
+  `ZCODEGRAPH_INDEX_ENGINE=rust` still uses the TypeScript indexer and does not
+  require the Rust binary.
+- [ ] `zcodegraph index --engine rust` finds the packaged Rust binary on every
+  supported target.
+- [ ] A missing packaged Rust binary fails only the explicit Rust path, with a
+  clear error and no active-index corruption.
+- [ ] CI verifies Rust build/test/CLI behavior on macOS, Linux, and Windows.
+- [ ] The release workflow fails if any target lacks a Rust binary artifact.
+- [ ] The existing benchmark and Agent Sufficiency guardrails still pass their
+  Phase 1 non-regression bars after packaging changes.
+
+## Performance Gate
+
+Phase 2 must produce performance evidence, not necessarily a speed win:
+
+- [ ] Add or extend profiling so a run can separate Rust extraction time, SQLite
+  write time, TypeScript finalization time, and subprocess startup/handoff time.
+- [ ] Record profiles for this repository and Excalidraw.
+- [ ] Attempt at least one low-risk optimization based on the profile.
+- [ ] Rerun `scripts/rust-index-benchmark.mjs` after the optimization attempt.
+- [ ] Confirm peak RSS does not regress materially against Phase 1.
+- [ ] Record remaining speed blockers if Rust is still slower.
+
+Stretch goal: reduce Rust slowdown from the Phase 1 range of 166-297% slower to
+less than 100% slower on both ZCodeGraph and Excalidraw. Missing this stretch
+goal does not block Phase 2 packaging completion, but it continues to block any
+default-rollout decision.
+
+## Architecture Boundary
+
+```text
+Release workflow / CI
+  -> build zcodegraph-core for each release target
+  -> upload target-named Rust binary artifacts
+  -> bundle job downloads artifacts
+  -> build-bundle.sh copies bin/zcodegraph-core(.exe) into each bundle
+  -> pack-npm.sh preserves bin/ in each platform package
+  -> npm-shim / bundled launcher continue launching zcodegraph normally
+      -> default index path remains TypeScript
+      -> explicit Rust engine discovers packaged binary
+```
+
+The TypeScript product shell remains responsible for CLI orchestration, MCP
+server behavior, installer and upgrade flows, resolution, synthesizers, Explore
+planning, and rendering.
+
+## Phase 2 Checklist
+
+### 1. Artifact Contract
+
+- [ ] Define target-to-binary artifact names for all six release targets.
+- [ ] Define packaged binary paths:
+  - [ ] Unix: `bin/zcodegraph-core`
+  - [ ] Windows: `bin/zcodegraph-core.exe`
+- [ ] Document that npm/npx users never compile Rust locally.
+- [ ] Document that source developers run `cargo build --package
+  zcodegraph-core`.
+- [ ] Add packaged-binary discovery to the TypeScript Rust indexer path.
+- [ ] Preserve `ZCODEGRAPH_RUST_CORE_BINARY` as the explicit override for tests
+  and local experiments.
+- [ ] Preserve repo-dev discovery through `target/debug/zcodegraph-core` or
+  `cargo run` when running from source.
+- [ ] Ensure packaged-binary discovery works from compiled `dist/` inside a
+  release bundle and npm platform package.
+- [ ] Add tests for discovery precedence: env override, packaged binary,
+  source-debug binary, source `cargo run`, unavailable.
+- [ ] Add a test proving the default TypeScript indexer does not require any
+  Rust binary.
+- [ ] Add a test proving explicit Rust engine failure leaves the previous good
+  index active.
+
+### 2. Release Bundle Packaging
+
+- [ ] Decide and implement the release artifact staging directory for Rust
+  binaries.
+- [ ] Update `scripts/build-bundle.sh` to require and copy the target-matching
+  Rust binary into `bin/`.
+- [ ] Make `scripts/build-bundle.sh` fail if the target Rust binary is missing.
+- [ ] Preserve the existing launcher paths:
+  - [ ] Unix: `bin/zcodegraph`
+  - [ ] Windows: `bin/zcodegraph.cmd`
+- [ ] Verify generated `.tar.gz` and `.zip` archives contain the Rust binary.
+- [ ] Add bundle smoke tests that extract an archive and run the bundled
+  launcher with default TypeScript indexing.
+- [ ] Add bundle smoke tests that extract an archive and run explicit
+  `--engine rust` indexing.
+- [ ] Add a bundle smoke test for missing Rust binary behavior if the binary is
+  removed after extraction.
+- [ ] Keep standalone install behavior unchanged when Rust is unused.
+
+### 3. NPM Platform Package Packaging
+
+- [ ] Ensure `scripts/pack-npm.sh` preserves `bin/zcodegraph-core(.exe)` from
+  each release bundle into each platform package.
+- [ ] Ensure generated platform package `files` includes the Rust binary path.
+- [ ] Confirm the main shim package remains thin and does not include the Rust
+  binary directly.
+- [ ] Confirm optionalDependencies still map exactly to the six platform
+  packages.
+- [ ] Add npm tarball smoke tests from generated `release/npm/*` packages.
+- [ ] Test `npx` or packed-main-package execution uses the platform package and
+  keeps default TypeScript indexing working.
+- [ ] Test explicit `--engine rust` through the packed npm path.
+- [ ] Test missing optional platform package/self-heal behavior remains focused
+  on bundle acquisition, not Rust compilation.
+- [ ] Confirm no `postinstall` or local Rust build step is introduced.
+
+### 4. CI And Release Workflow
+
+- [ ] Add a Rust binary build matrix for all six release targets.
+- [ ] Ensure each target runs `cargo build --release --package
+  zcodegraph-core` or an explicitly documented equivalent.
+- [ ] Upload one named Rust binary artifact per release target.
+- [ ] Resolve the Windows ARM64 build path; do not mark Phase 2 complete until a
+  real artifact is produced.
+- [ ] Update the release packaging job to download all Rust binary artifacts.
+- [ ] Make the release workflow fail if any expected artifact is missing.
+- [ ] Add CI coverage for `cargo test`.
+- [ ] Add CI coverage for Rust CLI integration tests on macOS, Linux, and
+  Windows.
+- [ ] Add CI coverage proving default TypeScript indexing works when no Rust
+  binary is available.
+- [ ] Add CI coverage proving packaged Rust indexing works where the binary is
+  available.
+- [ ] Keep release-note promotion, GitHub Release creation, npm publish, and
+  npmmirror sync behavior intact.
+- [ ] Update release workflow comments that currently say there is no native
+  compilation.
+
+### 5. Performance Hardening
+
+- [ ] Add profiling output or a profiling script that separates:
+  - [ ] Rust source scan time
+  - [ ] Rust parse/extraction time
+  - [ ] SQLite write time
+  - [ ] TypeScript finalization/resolution/synthesis time
+  - [ ] subprocess startup and handoff time
+- [ ] Run the profile on this repository.
+- [ ] Run the profile on Excalidraw.
+- [ ] Choose one low-risk optimization based on the profile.
+- [ ] Implement the optimization behind the existing Rust path without changing
+  default TypeScript behavior.
+- [ ] Add regression coverage for the optimized behavior if it changes observable
+  output or failure safety.
+- [ ] Rerun `scripts/rust-index-benchmark.mjs` on this repository and
+  Excalidraw.
+- [ ] Rerun `scripts/rust-sufficiency-guardrail.mjs` on this repository and
+  Excalidraw.
+- [ ] Record the new benchmark/profile results in a compact repo document.
+- [ ] State whether the <100% slower stretch goal was met.
+- [ ] If the stretch goal is missed, record the remaining bottleneck and keep
+  default rollout blocked.
+
+## Published Issue Breakdown
+
+- [ ] [#60](https://github.com/jununfly/ZCodeGraph/issues/60): Resolve
+  six-target Rust binary build strategy.
+- [ ] [#61](https://github.com/jununfly/ZCodeGraph/issues/61): Define packaged
+  Rust binary artifact contract and discovery
+  precedence.
+- [ ] [#62](https://github.com/jununfly/ZCodeGraph/issues/62): Package
+  `zcodegraph-core` into GitHub Release bundles.
+- [ ] [#63](https://github.com/jununfly/ZCodeGraph/issues/63): Preserve
+  packaged Rust binary through npm platform packages and packed npm smoke tests.
+- [ ] [#64](https://github.com/jununfly/ZCodeGraph/issues/64): Add release/CI
+  matrix for six Rust binary artifacts, including Windows ARM64 resolution.
+- [ ] [#65](https://github.com/jununfly/ZCodeGraph/issues/65): Add
+  cross-platform CI for Rust tests, CLI integration, default TS path, and
+  packaged Rust path.
+- [ ] [#66](https://github.com/jununfly/ZCodeGraph/issues/66): Add performance
+  profiling for Rust indexing phases.
+- [ ] [#67](https://github.com/jununfly/ZCodeGraph/issues/67): Apply one
+  low-risk Rust indexing performance optimization.
+- [ ] [#68](https://github.com/jununfly/ZCodeGraph/issues/68): Rerun benchmark
+  and Agent Sufficiency guardrails and record Phase 2 results.
+- [ ] [#69](https://github.com/jununfly/ZCodeGraph/issues/69): Make the Phase 2
+  stop/continue decision for default-rollout readiness.
+
+## Local Validation
+
+Minimum local validation before opening Phase 2 issues:
+
+```bash
+npm run build
+cargo test
+npx vitest run __tests__/rust-index-engine-cli.test.ts __tests__/rust-parity.test.ts __tests__/status-json.test.ts
+node scripts/rust-parity-check.mjs --repo .
+node scripts/rust-index-benchmark.mjs --repo zcodegraph=. --repo excalidraw=/path/to/excalidraw
+node scripts/rust-sufficiency-guardrail.mjs --repo zcodegraph=. --repo excalidraw=/path/to/excalidraw
+```
+
+Bundle and npm smoke validation should be added during Phase 2 once packaged
+binary support exists.
+
+## Agent Handoff Notes
+
+- Start with binary discovery and packaging tests before editing the release
+  workflow. Otherwise failures will be hard to diagnose.
+- Treat Windows ARM64 as a first-class release target, not an optional cleanup.
+- Do not add npm `postinstall` compilation.
+- Do not require Rust for npm/npx users.
+- Preserve the default TypeScript indexer as the safe path.
+- Keep Rust opt-in until a later default-rollout decision explicitly changes it.
+- Performance profiling should explain the slowdown before optimization work
+  broadens.
