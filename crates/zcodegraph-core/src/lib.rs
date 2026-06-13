@@ -28,7 +28,15 @@ pub struct IndexResult {
     pub nodes_created: u32,
     pub edges_created: u32,
     pub duration_ms: u128,
+    pub profile: IndexProfile,
     pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct IndexProfile {
+    pub source_scan_ms: u128,
+    pub parse_extraction_ms: u128,
+    pub sqlite_write_ms: u128,
 }
 
 pub fn run_index(request: &IndexRequest) -> IndexResult {
@@ -43,6 +51,7 @@ pub fn run_index(request: &IndexRequest) -> IndexResult {
             nodes_created: counts.nodes_created,
             edges_created: counts.edges_created,
             duration_ms: started.elapsed().as_millis(),
+            profile: counts.profile,
             errors: counts.errors,
         },
         Err(err) => {
@@ -54,6 +63,7 @@ pub fn run_index(request: &IndexRequest) -> IndexResult {
                 nodes_created: 0,
                 edges_created: 0,
                 duration_ms: started.elapsed().as_millis(),
+                profile: IndexProfile::default(),
                 errors: vec![err.to_string()],
             };
         }
@@ -66,6 +76,7 @@ pub struct WriteCounts {
     pub files_errored: u32,
     pub nodes_created: u32,
     pub edges_created: u32,
+    pub profile: IndexProfile,
     pub errors: Vec<String>,
 }
 
@@ -90,16 +101,23 @@ pub fn write_minimal_index(
 
     let write_result = (|| -> Result<WriteCounts, Box<dyn std::error::Error>> {
         let counts = {
+            let sqlite_setup_started = Instant::now();
             let conn = Connection::open(&temp_path)?;
             conn.pragma_update(None, "journal_mode", "WAL")?;
             conn.pragma_update(None, "foreign_keys", "ON")?;
             conn.execute_batch(SCHEMA_SQL)?;
             stamp_schema_version(&conn)?;
             stamp_metadata(&conn)?;
-            index_javascript_files(&conn, Path::new(&request.project_path))?
+            let sqlite_setup_ms = sqlite_setup_started.elapsed().as_millis();
+            let mut counts = index_javascript_files(&conn, Path::new(&request.project_path))?;
+            counts.profile.sqlite_write_ms += sqlite_setup_ms;
+            counts
         };
 
+        let replace_started = Instant::now();
         replace_active_index(&temp_path, index_path)?;
+        let mut counts = counts;
+        counts.profile.sqlite_write_ms += replace_started.elapsed().as_millis();
         cleanup_sqlite_sidecars(&temp_path);
         Ok(counts)
     })();
@@ -128,10 +146,13 @@ fn index_javascript_files(
     conn: &Connection,
     project_path: &Path,
 ) -> Result<WriteCounts, Box<dyn std::error::Error>> {
+    let scan_started = Instant::now();
     let files = collect_supported_files(project_path)?;
     let mut counts = WriteCounts::default();
+    counts.profile.source_scan_ms = scan_started.elapsed().as_millis();
 
     for file_path in files {
+        let parse_started = Instant::now();
         let language = SourceLanguage::from_path(&file_path)
             .ok_or_else(|| format!("Unsupported source file: {}", file_path.display()))?;
         let mut parser = Parser::new();
@@ -166,8 +187,10 @@ fn index_javascript_files(
                 &mut unresolved_refs,
             )?;
         }
+        counts.profile.parse_extraction_ms += parse_started.elapsed().as_millis();
 
         let indexed_at = now_ms();
+        let sqlite_write_started = Instant::now();
         insert_nodes(conn, &nodes)?;
         insert_edges(conn, &edges)?;
         insert_unresolved_refs(conn, &unresolved_refs)?;
@@ -180,6 +203,7 @@ fn index_javascript_files(
             indexed_at,
             nodes.len() as i64,
         )?;
+        counts.profile.sqlite_write_ms += sqlite_write_started.elapsed().as_millis();
 
         counts.files_indexed += 1;
         counts.nodes_created += nodes.len() as u32;
@@ -884,7 +908,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -892,7 +916,10 @@ pub fn result_json(result: &IndexResult) -> String {
         result.nodes_created,
         result.edges_created,
         errors,
-        result.duration_ms
+        result.duration_ms,
+        result.profile.source_scan_ms,
+        result.profile.parse_extraction_ms,
+        result.profile.sqlite_write_ms
     )
 }
 
@@ -1137,12 +1164,17 @@ mod tests {
             nodes_created: 0,
             edges_created: 0,
             duration_ms: 7,
+            profile: IndexProfile {
+                source_scan_ms: 1,
+                parse_extraction_ms: 2,
+                sqlite_write_ms: 3,
+            },
             errors: Vec::new(),
         };
 
         assert_eq!(
             result_json(&result),
-            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7}"
+            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3}}"
         );
     }
 

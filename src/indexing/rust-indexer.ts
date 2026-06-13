@@ -136,6 +136,8 @@ export async function runRustIndexer(
   }
 
   return new Promise<IndexResult>((resolve, reject) => {
+    const spawnedAt = Date.now();
+    let subprocessStartupHandoffMs: number | undefined;
     const child = spawn(core.command, args, {
       cwd: core.cwd,
       env: process.env,
@@ -155,6 +157,7 @@ export async function runRustIndexer(
         try {
           const message = parseRustCoreLine(line);
           if (!message) continue;
+          subprocessStartupHandoffMs ??= Date.now() - spawnedAt;
           if (message.type === 'progress') {
             options.onProgress?.({
               phase: message.phase,
@@ -164,6 +167,10 @@ export async function runRustIndexer(
             });
           } else if (message.type === 'result') {
             const { type: _type, ...indexResult } = message;
+            indexResult.profile = {
+              ...indexResult.profile,
+              subprocessStartupHandoffMs,
+            };
             result = indexResult;
           }
         } catch (err) {
@@ -190,7 +197,12 @@ export async function runRustIndexer(
         try {
           const message = parseRustCoreLine(stdoutBuffer);
           if (message?.type === 'result') {
+            subprocessStartupHandoffMs ??= Date.now() - spawnedAt;
             const { type: _type, ...indexResult } = message;
+            indexResult.profile = {
+              ...indexResult.profile,
+              subprocessStartupHandoffMs,
+            };
             result = indexResult;
           }
         } catch (err) {

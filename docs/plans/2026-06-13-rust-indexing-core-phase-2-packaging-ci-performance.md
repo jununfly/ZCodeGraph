@@ -229,12 +229,12 @@ inside published packages. Source development remains explicit:
 
 ### 5. Performance Hardening
 
-- [ ] Add profiling output or a profiling script that separates:
-  - [ ] Rust source scan time
-  - [ ] Rust parse/extraction time
-  - [ ] SQLite write time
-  - [ ] TypeScript finalization/resolution/synthesis time
-  - [ ] subprocess startup and handoff time
+- [x] Add profiling output or a profiling script that separates:
+  - [x] Rust source scan time
+  - [x] Rust parse/extraction time
+  - [x] SQLite write time
+  - [x] TypeScript finalization/resolution/synthesis time
+  - [x] subprocess startup and handoff time
 - [ ] Run the profile on this repository.
 - [ ] Run the profile on Excalidraw.
 - [ ] Choose one low-risk optimization based on the profile.
@@ -267,7 +267,7 @@ inside published packages. Source development remains explicit:
 - [x] [#65](https://github.com/jununfly/ZCodeGraph/issues/65): Add
   cross-platform CI for Rust tests, CLI integration, default TS path, and
   packaged Rust path.
-- [ ] [#66](https://github.com/jununfly/ZCodeGraph/issues/66): Add performance
+- [x] [#66](https://github.com/jununfly/ZCodeGraph/issues/66): Add performance
   profiling for Rust indexing phases.
 - [ ] [#67](https://github.com/jununfly/ZCodeGraph/issues/67): Apply one
   low-risk Rust indexing performance optimization.
@@ -286,6 +286,7 @@ cargo test
 npx vitest run __tests__/rust-index-engine-cli.test.ts __tests__/rust-parity.test.ts __tests__/status-json.test.ts
 node scripts/rust-parity-check.mjs --repo .
 node scripts/rust-index-benchmark.mjs --repo zcodegraph=. --repo excalidraw=/path/to/excalidraw
+node scripts/rust-index-profile.mjs --repo zcodegraph=. --repo excalidraw=/path/to/excalidraw
 node scripts/rust-sufficiency-guardrail.mjs --repo zcodegraph=. --repo excalidraw=/path/to/excalidraw
 ```
 

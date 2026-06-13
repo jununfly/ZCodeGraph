@@ -70,6 +70,13 @@ export interface IndexResult {
   edgesCreated: number;
   errors: ExtractionError[];
   durationMs: number;
+  profile?: {
+    sourceScanMs?: number;
+    parseExtractionMs?: number;
+    sqliteWriteMs?: number;
+    typescriptFinalizationMs?: number;
+    subprocessStartupHandoffMs?: number;
+  };
 }
 
 /**
