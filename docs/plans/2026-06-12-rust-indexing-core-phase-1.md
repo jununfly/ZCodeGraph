@@ -264,19 +264,22 @@ TypeScript CLI / MCP / installer / Explore
 - [x] If any hard gate fails, document the failure and keep Rust indexer
   experimental/off by default.
 
-## Suggested Issue Breakdown
+## Original Issue Breakdown
 
-- [ ] Issue A: Add Cargo workspace and Rust core CLI skeleton.
-- [ ] Issue B: Add TypeScript index-engine selection seam and opt-in flag/env.
-- [ ] Issue C: Define Rust subprocess protocol, progress events, and error
+This original breakdown is complete; later GitHub issue numbers map to these
+work items rather than the A-L labels.
+
+- [x] Issue A: Add Cargo workspace and Rust core CLI skeleton.
+- [x] Issue B: Add TypeScript index-engine selection seam and opt-in flag/env.
+- [x] Issue C: Define Rust subprocess protocol, progress events, and error
   contract.
-- [ ] Issue D: Implement SQLite writer, metadata, lock discipline, and
+- [x] Issue D: Implement SQLite writer, metadata, lock discipline, and
   failure-safe writes.
-- [ ] Issue E: Implement native tree-sitter parser for JS/TS/JSX/TSX.
-- [ ] Issue F: Port semantic extraction slice for JS/TS/JSX/TSX.
-- [ ] Issue G: Wire Rust extraction to existing TypeScript resolver handoff.
-- [ ] Issue H: Add semantic parity comparator and fixture suite.
-- [ ] Issue I: Add CLI/MCP integration tests for Rust-produced indexes.
+- [x] Issue E: Implement native tree-sitter parser for JS/TS/JSX/TSX.
+- [x] Issue F: Port semantic extraction slice for JS/TS/JSX/TSX.
+- [x] Issue G: Wire Rust extraction to existing TypeScript resolver handoff.
+- [x] Issue H: Add semantic parity comparator and fixture suite.
+- [x] Issue I: Add CLI/MCP integration tests for Rust-produced indexes.
 - [x] Issue J: Run performance and memory benchmark gates.
 - [x] Issue K: Run Agent Sufficiency guardrail matrix.
 - [x] Issue L: Document stop/continue decision and next phase.
