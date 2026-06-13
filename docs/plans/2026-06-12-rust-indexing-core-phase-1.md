@@ -244,24 +244,24 @@ TypeScript CLI / MCP / installer / Explore
 
 ### 12. Packaging And Release Readiness
 
-- [ ] Decide how the Rust binary is built for local development.
-- [ ] Decide how the Rust binary is included in per-platform bundles.
-- [ ] Ensure npm install and npx behavior remain unchanged when Rust is unused.
-- [ ] Ensure the experimental Rust path is absent or clearly unavailable on
+- [x] Decide how the Rust binary is built for local development.
+- [x] Decide how the Rust binary is included in per-platform bundles.
+- [x] Ensure npm install and npx behavior remain unchanged when Rust is unused.
+- [x] Ensure the experimental Rust path is absent or clearly unavailable on
   unsupported platforms.
-- [ ] Add documentation for the experimental flag and rollback path.
-- [ ] Add a changelog entry only when the feature becomes user-visible.
+- [x] Add documentation for the experimental flag and rollback path.
+- [x] Add a changelog entry only when the feature becomes user-visible.
 
 ### 13. Stop / Continue Decision
 
-- [ ] Confirm semantic parity is good enough for JS/TS/JSX/TSX.
-- [ ] Confirm TypeScript resolver handoff works.
-- [ ] Confirm TypeScript MCP/Explore can use Rust-produced indexes.
+- [x] Confirm semantic parity is good enough for JS/TS/JSX/TSX.
+- [x] Confirm TypeScript resolver handoff works.
+- [x] Confirm TypeScript MCP/Explore can use Rust-produced indexes.
 - [x] Confirm performance or memory hard gates pass on this repository.
 - [x] Confirm performance or memory hard gates pass on Excalidraw.
 - [x] Confirm Agent Sufficiency guardrails do not regress.
-- [ ] If all checks pass, propose Phase 2 language expansion issues.
-- [ ] If any hard gate fails, document the failure and keep Rust indexer
+- [x] If all checks pass, propose Phase 2 language expansion issues.
+- [x] If any hard gate fails, document the failure and keep Rust indexer
   experimental/off by default.
 
 ## Suggested Issue Breakdown
@@ -279,7 +279,7 @@ TypeScript CLI / MCP / installer / Explore
 - [ ] Issue I: Add CLI/MCP integration tests for Rust-produced indexes.
 - [x] Issue J: Run performance and memory benchmark gates.
 - [x] Issue K: Run Agent Sufficiency guardrail matrix.
-- [ ] Issue L: Document stop/continue decision and next phase.
+- [x] Issue L: Document stop/continue decision and next phase.
 
 ## Agent Handoff Notes
 
@@ -290,7 +290,10 @@ TypeScript CLI / MCP / installer / Explore
   extraction data that the existing resolver can finish.
 - Do not optimize for byte-identical output. Optimize for stable semantic
   contract, Agent Sufficiency, and the hard performance/memory gates.
-- Keep the Rust engine opt-in until the stop/continue checklist passes.
+- Keep the Rust engine opt-in after Phase 1; the stop/continue decision allows
+  more experimental work, not default rollout.
+- Phase 1 stop/continue decision:
+  [Rust Indexing Core Phase 1 Stop/Continue Decision](../benchmarks/2026-06-13-rust-indexing-core-phase-1-decision.md).
 
 ## Local Validation
 
