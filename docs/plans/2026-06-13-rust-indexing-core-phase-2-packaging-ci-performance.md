@@ -236,20 +236,20 @@ inside published packages. Source development remains explicit:
   - [x] TypeScript finalization/resolution/synthesis time
   - [x] subprocess startup and handoff time
 - [x] Run the profile on this repository.
-- [ ] Run the profile on Excalidraw.
+- [x] Run the profile on Excalidraw.
 - [x] Choose one low-risk optimization based on the profile.
 - [x] Implement the optimization behind the existing Rust path without changing
   default TypeScript behavior.
 - [x] Add regression coverage for the optimized behavior if it changes observable
   output or failure safety.
-- [ ] Rerun `scripts/rust-index-benchmark.mjs` on this repository and
+- [x] Rerun `scripts/rust-index-benchmark.mjs` on this repository and
   Excalidraw.
-- [ ] Rerun `scripts/rust-sufficiency-guardrail.mjs` on this repository and
+- [x] Rerun `scripts/rust-sufficiency-guardrail.mjs` on this repository and
   Excalidraw.
-- [ ] Record the new benchmark/profile results in a compact repo document.
-- [ ] State whether the <100% slower stretch goal was met.
-- [ ] If the stretch goal is missed, record the remaining bottleneck and keep
-  default rollout blocked.
+- [x] Record the new benchmark/profile results in a compact repo document.
+- [x] State whether the <100% slower stretch goal was met.
+- [x] Stretch goal was met, so no missed-stretch bottleneck record is needed;
+  default rollout remains blocked pending #69.
 
 #67 optimization evidence: the first repository profile after #66 showed
 SQLite writing as the dominant Rust-side phase (`sqliteWriteMs=5136ms` versus
@@ -280,7 +280,7 @@ remain in #68.
   profiling for Rust indexing phases.
 - [x] [#67](https://github.com/jununfly/ZCodeGraph/issues/67): Apply one
   low-risk Rust indexing performance optimization.
-- [ ] [#68](https://github.com/jununfly/ZCodeGraph/issues/68): Rerun benchmark
+- [x] [#68](https://github.com/jununfly/ZCodeGraph/issues/68): Rerun benchmark
   and Agent Sufficiency guardrails and record Phase 2 results.
 - [ ] [#69](https://github.com/jununfly/ZCodeGraph/issues/69): Make the Phase 2
   stop/continue decision for default-rollout readiness.
