@@ -102,15 +102,19 @@ pub fn write_minimal_index(
     let write_result = (|| -> Result<WriteCounts, Box<dyn std::error::Error>> {
         let counts = {
             let sqlite_setup_started = Instant::now();
-            let conn = Connection::open(&temp_path)?;
+            let mut conn = Connection::open(&temp_path)?;
             conn.pragma_update(None, "journal_mode", "WAL")?;
             conn.pragma_update(None, "foreign_keys", "ON")?;
             conn.execute_batch(SCHEMA_SQL)?;
             stamp_schema_version(&conn)?;
             stamp_metadata(&conn)?;
             let sqlite_setup_ms = sqlite_setup_started.elapsed().as_millis();
-            let mut counts = index_javascript_files(&conn, Path::new(&request.project_path))?;
+            let tx = conn.transaction()?;
+            let mut counts = index_javascript_files(&tx, Path::new(&request.project_path))?;
+            let commit_started = Instant::now();
+            tx.commit()?;
             counts.profile.sqlite_write_ms += sqlite_setup_ms;
+            counts.profile.sqlite_write_ms += commit_started.elapsed().as_millis();
             counts
         };
 
@@ -387,7 +391,10 @@ fn extract_named_symbol<'a>(
     if node.kind() == "function_declaration" || node.kind() == "class_declaration" {
         if let Some(name_node) = node.child_by_field_name("name") {
             let name = name_node.utf8_text(source)?;
-            let kind = if node.kind() == "function_declaration" && language.has_jsx() && is_pascal_case(name) {
+            let kind = if node.kind() == "function_declaration"
+                && language.has_jsx()
+                && is_pascal_case(name)
+            {
                 "component"
             } else if node.kind() == "function_declaration" {
                 "function"
@@ -414,7 +421,11 @@ fn extract_named_symbol<'a>(
         "type_alias_declaration" => Some("type_alias"),
         "method_definition" => Some("method"),
         "public_field_definition" | "field_definition" => {
-            if node_has_function_value(node) { Some("method") } else { Some("field") }
+            if node_has_function_value(node) {
+                Some("method")
+            } else {
+                Some("field")
+            }
         }
         _ => None,
     };
@@ -454,7 +465,12 @@ fn variable_declarator_has_function_value(node: SyntaxNode) -> bool {
 
 fn node_has_function_value(node: SyntaxNode) -> bool {
     node.child_by_field_name("value")
-        .map(|value| matches!(value.kind(), "arrow_function" | "function" | "function_expression"))
+        .map(|value| {
+            matches!(
+                value.kind(),
+                "arrow_function" | "function" | "function_expression"
+            )
+        })
         .unwrap_or(false)
 }
 
@@ -1197,6 +1213,48 @@ mod tests {
 
         drop(first);
         assert!(ProjectLock::acquire(&lock_path).is_ok());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_keeps_sqlite_writes_batched_for_symbol_heavy_projects() {
+        let dir = temp_dir("batched-writes");
+        for file_index in 0..40 {
+            let mut source = String::new();
+            for symbol_index in 0..80 {
+                source.push_str(&format!(
+                    "export function f{}_{}() {{ return {}; }}\n",
+                    file_index, symbol_index, symbol_index
+                ));
+            }
+            fs::write(dir.join(format!("f{}.ts", file_index)), source).unwrap();
+        }
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 40);
+        assert!(result.nodes_created >= 3_200);
+        let max_expected_sqlite_ms = 500.max(result.profile.parse_extraction_ms * 4);
+        assert!(
+            result.profile.sqlite_write_ms <= max_expected_sqlite_ms,
+            "sqliteWriteMs={}ms parseExtractionMs={}ms maxExpectedSqliteMs={}ms",
+            result.profile.sqlite_write_ms,
+            result.profile.parse_extraction_ms,
+            max_expected_sqlite_ms
+        );
         fs::remove_dir_all(dir).unwrap();
     }
 }

@@ -235,12 +235,12 @@ inside published packages. Source development remains explicit:
   - [x] SQLite write time
   - [x] TypeScript finalization/resolution/synthesis time
   - [x] subprocess startup and handoff time
-- [ ] Run the profile on this repository.
+- [x] Run the profile on this repository.
 - [ ] Run the profile on Excalidraw.
-- [ ] Choose one low-risk optimization based on the profile.
-- [ ] Implement the optimization behind the existing Rust path without changing
+- [x] Choose one low-risk optimization based on the profile.
+- [x] Implement the optimization behind the existing Rust path without changing
   default TypeScript behavior.
-- [ ] Add regression coverage for the optimized behavior if it changes observable
+- [x] Add regression coverage for the optimized behavior if it changes observable
   output or failure safety.
 - [ ] Rerun `scripts/rust-index-benchmark.mjs` on this repository and
   Excalidraw.
@@ -250,6 +250,15 @@ inside published packages. Source development remains explicit:
 - [ ] State whether the <100% slower stretch goal was met.
 - [ ] If the stretch goal is missed, record the remaining bottleneck and keep
   default rollout blocked.
+
+#67 optimization evidence: the first repository profile after #66 showed
+SQLite writing as the dominant Rust-side phase (`sqliteWriteMs=5136ms` versus
+`parseExtractionMs=843ms` on this repository). The low-risk optimization is to
+batch Rust core SQLite writes in one transaction. After the change, the same
+local profile on this repository reported `sqliteWriteMs=1074ms`, and the local
+benchmark reported Rust peak RSS below the TypeScript path (`217415680` bytes
+versus `356696064` bytes). Full Excalidraw reruns and benchmark result recording
+remain in #68.
 
 ## Published Issue Breakdown
 
@@ -269,7 +278,7 @@ inside published packages. Source development remains explicit:
   packaged Rust path.
 - [x] [#66](https://github.com/jununfly/ZCodeGraph/issues/66): Add performance
   profiling for Rust indexing phases.
-- [ ] [#67](https://github.com/jununfly/ZCodeGraph/issues/67): Apply one
+- [x] [#67](https://github.com/jununfly/ZCodeGraph/issues/67): Apply one
   low-risk Rust indexing performance optimization.
 - [ ] [#68](https://github.com/jununfly/ZCodeGraph/issues/68): Rerun benchmark
   and Agent Sufficiency guardrails and record Phase 2 results.
