@@ -36,6 +36,34 @@ function writeFakePrimitive(dir: string, name: string, exitCode = 0): string {
   return script;
 }
 
+function writeFakeProfilePrimitive(dir: string): string {
+  const script = path.join(dir, 'profile.mjs');
+  fs.writeFileSync(
+    script,
+    [
+      '#!/usr/bin/env node',
+      'const payload = {',
+      '  primitive: "profile",',
+      '  generatedAt: "2026-06-13T00:00:00.000Z",',
+      '  toolchain: { node: process.version, platform: process.platform, arch: process.arch },',
+      '  results: [{',
+      '    name: "zcodegraph",',
+      '    engines: {',
+      '      typescript: { wallMs: 10, peakRssBytes: 1000, rssUnavailableReason: null },',
+      '      rust: { wallMs: 12, peakRssBytes: null, rssUnavailableReason: "process ended before RSS sample" }',
+      '    },',
+      '    finalizationSubphases: { frameworkPostExtractMs: 1, referenceResolutionMs: 2, dynamicDispatchSynthesisMs: 3, dbMaintenanceMs: 4 }',
+      '  }],',
+      '  gateFailures: [],',
+      '  regressions: [],',
+      '};',
+      'process.stdout.write(JSON.stringify(payload, null, 2));',
+    ].join('\n') + '\n',
+  );
+  fs.chmodSync(script, 0o755);
+  return script;
+}
+
 function writeFakeMatrixPrimitive(dir: string, exitCode = 0): string {
   const script = path.join(dir, 'failure-matrix.cjs');
   fs.writeFileSync(
@@ -184,7 +212,7 @@ describe('Phase 3 Rust validation harness', () => {
         env: {
           ...process.env,
           ZCODEGRAPH_PHASE3_BENCHMARK_SCRIPT: writeFakePrimitive(binDir, 'benchmark'),
-          ZCODEGRAPH_PHASE3_PROFILE_SCRIPT: writeFakePrimitive(binDir, 'profile'),
+          ZCODEGRAPH_PHASE3_PROFILE_SCRIPT: writeFakeProfilePrimitive(binDir),
           ZCODEGRAPH_PHASE3_SUFFICIENCY_SCRIPT: writeFakePrimitive(binDir, 'sufficiency'),
           ZCODEGRAPH_PHASE3_FAILURE_MATRIX_SCRIPT: writeFakeMatrixPrimitive(binDir),
           ZCODEGRAPH_PHASE3_PACKAGE_SMOKE_SCRIPT: writeFakePackageSmokePrimitive(binDir),
@@ -208,6 +236,13 @@ describe('Phase 3 Rust validation harness', () => {
     expect(summaryJson.gates.every((gate: { passed: boolean }) => gate.passed)).toBe(true);
     expect(summaryJson.artifacts.benchmark.stdout).toBe('benchmark/stdout.json');
     expect(summaryJson.artifacts.profile.stdout).toBe('profile/stdout.json');
+    expect(summaryJson.profileRssEvidence).toEqual([
+      {
+        name: 'zcodegraph',
+        typescript: { peakRssBytes: 1000, rssUnavailableReason: null },
+        rust: { peakRssBytes: null, rssUnavailableReason: 'process ended before RSS sample' },
+      },
+    ]);
     expect(summaryJson.artifacts.sufficiency.stdout).toBe('sufficiency/stdout.json');
     expect(summaryJson.artifacts.failureSafetyMatrix.stdout).toBe('failure-safety-matrix/stdout.json');
     expect(summaryJson.artifacts.packageSmoke.stdout).toBe('package-smoke/stdout.json');
@@ -217,10 +252,29 @@ describe('Phase 3 Rust validation harness', () => {
     }));
     expect(summaryJson.packageSmoke.publishAttempted).toBe(false);
     expect(summaryJson.packageSmoke.registryContactAllowed).toBe(false);
+    expect(summaryJson.phase4Readiness).toEqual({
+      packageSmokePassed: true,
+      failureSafetyPassed: true,
+      diagnosticsPassed: true,
+      defaultTypescriptSmokePassed: true,
+      rustSmokePassed: true,
+      ciArtifactContractCovered: true,
+      artifacts: {
+        packageSmoke: summaryJson.artifacts.packageSmoke,
+        failureSafetyMatrix: summaryJson.artifacts.failureSafetyMatrix,
+        diagnostics: summaryJson.artifacts.diagnostics,
+        defaultTypescriptSmoke: summaryJson.artifacts.defaultTypescriptSmoke,
+        rustSmoke: summaryJson.artifacts.rustSmoke,
+      },
+    });
     expect(summaryJson.diagnostics.statusJson.initialized).toBe(true);
     expect(summaryJson.diagnostics.statusJson.rust.core.discoverySource).toBeTypeOf('string');
     expect(summaryMd).toContain('# Rust Indexing Core Phase 3 Validation Summary');
     expect(summaryMd).toContain('| benchmark | pass |');
+    expect(summaryMd).toContain('## Phase 4 Readiness');
+    expect(summaryMd).toContain('| package smoke | pass |');
+    expect(summaryMd).toContain('| failure safety | pass |');
+    expect(summaryMd).toContain('| diagnostics | pass |');
     expect(fs.existsSync(path.join(out, 'benchmark', 'stdout.json'))).toBe(true);
     expect(fs.existsSync(path.join(out, 'profile', 'stdout.json'))).toBe(true);
     expect(fs.existsSync(path.join(out, 'sufficiency', 'stdout.json'))).toBe(true);

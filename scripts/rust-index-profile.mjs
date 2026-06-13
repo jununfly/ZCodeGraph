@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -44,6 +44,11 @@ function usage() {
     '  referenceResolutionMs',
     '  dynamicDispatchSynthesisMs',
     '  dbMaintenanceMs',
+    '',
+    'Memory evidence:',
+    '  engines.typescript.peakRssBytes',
+    '  engines.rust.peakRssBytes',
+    '  engines.<engine>.rssUnavailableReason',
   ].join('\n'));
 }
 
@@ -137,6 +142,134 @@ function baseEnv(rustCore) {
   };
 }
 
+function indexWithMeasuredCli(project, engine, rustCore) {
+  run(process.execPath, [distBin, 'init', project], project, baseEnv(rustCore));
+
+  const args = [
+    distBin,
+    'index',
+    project,
+    '--force',
+    '--quiet',
+  ];
+  const env = baseEnv(rustCore);
+  if (engine === 'rust') {
+    args.push('--engine', 'rust');
+  }
+
+  const startedAt = Date.now();
+  return spawnMeasured(process.execPath, args, project, env).then((result) => {
+    if (result.code !== 0) {
+      throw new Error([
+        `${process.execPath} ${args.join(' ')} failed in ${project}`,
+        result.stdout,
+        result.stderr,
+      ].filter(Boolean).join('\n'));
+    }
+
+    return {
+      engine,
+      wallMs: Date.now() - startedAt,
+      peakRssBytes: result.peakRssBytes,
+      rssUnavailableReason: result.rssUnavailableReason,
+    };
+  });
+}
+
+function sampleProcessTreeRssBytes(rootPid) {
+  if (!Number.isFinite(rootPid)) {
+    return { peakRssBytes: null, unavailableReason: 'process pid is unavailable' };
+  }
+  const result = spawnSync('ps', ['-axo', 'pid=,ppid=,rss='], { encoding: 'utf-8' });
+  if (result.error) {
+    return {
+      peakRssBytes: null,
+      unavailableReason: result.error instanceof Error ? result.error.message : String(result.error),
+    };
+  }
+  if (result.status !== 0) {
+    return {
+      peakRssBytes: null,
+      unavailableReason: result.stderr?.trim() || '`ps -axo pid=,ppid=,rss=` failed',
+    };
+  }
+
+  const rows = result.stdout.trim().split('\n').map((line) => {
+    const [pid, ppid, rssKb] = line.trim().split(/\s+/).map(Number);
+    return { pid, ppid, rssKb };
+  }).filter((row) => Number.isFinite(row.pid) && Number.isFinite(row.ppid) && Number.isFinite(row.rssKb));
+  if (rows.length === 0) {
+    return { peakRssBytes: null, unavailableReason: 'process RSS sample returned no rows' };
+  }
+
+  const children = new Map();
+  for (const row of rows) {
+    const list = children.get(row.ppid) ?? [];
+    list.push(row.pid);
+    children.set(row.ppid, list);
+  }
+
+  const wanted = new Set([rootPid]);
+  const queue = [rootPid];
+  while (queue.length > 0) {
+    const pid = queue.shift();
+    for (const child of children.get(pid) ?? []) {
+      if (wanted.has(child)) continue;
+      wanted.add(child);
+      queue.push(child);
+    }
+  }
+
+  let totalKb = 0;
+  for (const row of rows) {
+    if (wanted.has(row.pid)) totalKb += row.rssKb;
+  }
+  return totalKb > 0
+    ? { peakRssBytes: totalKb * 1024, unavailableReason: null }
+    : { peakRssBytes: null, unavailableReason: 'process tree RSS sample was zero' };
+}
+
+function spawnMeasured(command, args, cwd, env) {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, {
+      cwd,
+      env: { ...process.env, ...env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let peakRssBytes = 0;
+    let rssUnavailableReason = null;
+    const sample = () => {
+      const rss = sampleProcessTreeRssBytes(child.pid);
+      if (rss.peakRssBytes != null && rss.peakRssBytes > peakRssBytes) {
+        peakRssBytes = rss.peakRssBytes;
+        rssUnavailableReason = null;
+      } else if (peakRssBytes === 0 && rss.unavailableReason) {
+        rssUnavailableReason = rss.unavailableReason;
+      }
+    };
+    const timer = setInterval(sample, 50);
+    sample();
+
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf-8'); });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf-8'); });
+    child.on('close', (code, signal) => {
+      sample();
+      clearInterval(timer);
+      resolve({
+        code,
+        signal,
+        stdout,
+        stderr,
+        peakRssBytes: peakRssBytes || null,
+        rssUnavailableReason: peakRssBytes > 0 ? null : (rssUnavailableReason ?? 'RSS sampling did not capture a live process tree'),
+      });
+    });
+  });
+}
+
 async function loadDist() {
   if (!fs.existsSync(distBin)) {
     throw new Error('dist/bin/zcodegraph.js not found. Run npm run build first.');
@@ -150,11 +283,18 @@ async function loadDist() {
 }
 
 async function profileRepo(repo, rustCore, dist) {
-  const slice = copyPhase1Slice(repo.path, repo.name);
+  const typescriptSlice = copyPhase1Slice(repo.path, `${repo.name}-typescript`);
+  const measuredRustSlice = copyPhase1Slice(repo.path, `${repo.name}-rust-measured`);
+  const slice = copyPhase1Slice(repo.path, `${repo.name}-rust-profile`);
   const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
   process.env.ZCODEGRAPH_RUST_CORE_BINARY = rustCore;
 
   try {
+    const engines = {
+      typescript: await indexWithMeasuredCli(typescriptSlice.path, 'typescript', rustCore),
+      rust: await indexWithMeasuredCli(measuredRustSlice.path, 'rust', rustCore),
+    };
+
     dist.CodeGraph.initSync(slice.path).close();
     const wallStarted = Date.now();
     const rustResult = await dist.runRustIndexer(slice.path, { force: true });
@@ -194,6 +334,7 @@ async function profileRepo(repo, rustCore, dist) {
       profileSource: 'docs/plans/2026-06-13-rust-indexing-core-phase-2-packaging-ci-performance.md#66',
       phase1CopiedFiles: slice.copiedFiles,
       tempProjectPath: slice.path,
+      engines,
       wallMs: Date.now() - wallStarted,
       result: {
         success: rustResult.success,
@@ -241,6 +382,8 @@ async function main() {
     generatedAt: new Date().toISOString(),
     toolchain: {
       node: process.version,
+      platform: process.platform,
+      arch: process.arch,
       rustc: run('rustc', ['--version'], repoRoot).stdout.trim(),
       cargo: run('cargo', ['--version'], repoRoot).stdout.trim(),
       os: `${os.type()} ${os.release()} ${os.arch()}`,

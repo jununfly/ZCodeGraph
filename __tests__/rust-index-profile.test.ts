@@ -110,16 +110,52 @@ describe('Rust indexing profiler script', () => {
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
     const parsed = JSON.parse(result.stdout) as {
+      toolchain: {
+        node: string;
+        os: string;
+        platform: string;
+        arch: string;
+      };
       results: Array<{
         name: string;
+        phase1CopiedFiles: number;
+        engines: {
+          typescript: {
+            wallMs: number;
+            peakRssBytes: number | null;
+            rssUnavailableReason: string | null;
+          };
+          rust: {
+            wallMs: number;
+            peakRssBytes: number | null;
+            rssUnavailableReason: string | null;
+          };
+        };
         profile: Record<string, number>;
         finalizationSubphases: Record<string, number>;
         dominantFinalizationSubphase: string;
       }>;
     };
 
+    expect(parsed.toolchain.node).toBe(process.version);
+    expect(parsed.toolchain.platform).toBe(process.platform);
+    expect(parsed.toolchain.arch).toBe(process.arch);
+    expect(parsed.toolchain.os).toContain(os.arch());
     expect(parsed.results).toHaveLength(1);
     expect(parsed.results[0]?.name).toBe('fixture');
+    expect(parsed.results[0]?.phase1CopiedFiles).toBeGreaterThanOrEqual(1);
+    for (const engine of ['typescript', 'rust'] as const) {
+      const measured = parsed.results[0]?.engines[engine];
+      expect(measured?.wallMs).toBeTypeOf('number');
+      expect(measured?.wallMs).toBeGreaterThanOrEqual(0);
+      if (measured?.peakRssBytes == null) {
+        expect(measured?.rssUnavailableReason).toBeTypeOf('string');
+        expect(measured?.rssUnavailableReason).not.toHaveLength(0);
+      } else {
+        expect(measured.peakRssBytes).toBeGreaterThan(0);
+        expect(measured.rssUnavailableReason).toBeNull();
+      }
+    }
     for (const phase of PHASE_NAMES) {
       expect(parsed.results[0]?.profile[phase]).toBeTypeOf('number');
       expect(parsed.results[0]?.profile[phase]).toBeGreaterThanOrEqual(0);

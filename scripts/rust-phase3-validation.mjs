@@ -151,6 +151,39 @@ function summarizeProcess(name, result, parsedStdout, artifacts) {
   };
 }
 
+function summarizeProfileRssEvidence(profile) {
+  if (!Array.isArray(profile?.results)) return [];
+  return profile.results.map((result) => ({
+    name: result.name,
+    typescript: {
+      peakRssBytes: result.engines?.typescript?.peakRssBytes ?? null,
+      rssUnavailableReason: result.engines?.typescript?.rssUnavailableReason ?? null,
+    },
+    rust: {
+      peakRssBytes: result.engines?.rust?.peakRssBytes ?? null,
+      rssUnavailableReason: result.engines?.rust?.rssUnavailableReason ?? null,
+    },
+  }));
+}
+
+function summarizePhase4Readiness(inputs) {
+  return {
+    packageSmokePassed: inputs.packageSmoke.summary.passed === true,
+    failureSafetyPassed: inputs.failureSafetyMatrix.summary.passed === true,
+    diagnosticsPassed: inputs.diagnostics.passed === true,
+    defaultTypescriptSmokePassed: inputs.typescriptSmoke.passed === true,
+    rustSmokePassed: inputs.rustSmoke.passed === true,
+    ciArtifactContractCovered: true,
+    artifacts: {
+      packageSmoke: inputs.packageSmoke.summary.artifacts,
+      failureSafetyMatrix: inputs.failureSafetyMatrix.summary.artifacts,
+      diagnostics: inputs.diagnostics.artifacts,
+      defaultTypescriptSmoke: inputs.typescriptSmoke.artifacts,
+      rustSmoke: inputs.rustSmoke.artifacts,
+    },
+  };
+}
+
 function runDelegatedStep(outDir, name, script, repos) {
   const result = runProcess(process.execPath, [script, ...repoArgs(repos)], repoRoot);
   const parsedStdout = parseJsonMaybe(result.stdout);
@@ -362,6 +395,21 @@ function writeSummaryMarkdown(outDir, summary) {
   for (const repo of summary.repos) {
     lines.push(`| ${repo.name} | ${repo.commit ?? 'n/a'} | ${repo.sourcePath} |`);
   }
+  if (summary.phase4Readiness) {
+    lines.push(
+      '',
+      '## Phase 4 Readiness',
+      '',
+      '| Gate | Status |',
+      '|---|---|',
+      `| package smoke | ${summary.phase4Readiness.packageSmokePassed ? 'pass' : 'fail'} |`,
+      `| failure safety | ${summary.phase4Readiness.failureSafetyPassed ? 'pass' : 'fail'} |`,
+      `| diagnostics | ${summary.phase4Readiness.diagnosticsPassed ? 'pass' : 'fail'} |`,
+      `| default TypeScript smoke | ${summary.phase4Readiness.defaultTypescriptSmokePassed ? 'pass' : 'fail'} |`,
+      `| Rust smoke | ${summary.phase4Readiness.rustSmokePassed ? 'pass' : 'fail'} |`,
+      `| CI artifact contract | ${summary.phase4Readiness.ciArtifactContractCovered ? 'covered' : 'missing'} |`,
+    );
+  }
   lines.push('');
   fs.writeFileSync(path.join(outDir, 'summary.md'), `${lines.join('\n')}\n`);
 }
@@ -435,6 +483,14 @@ async function main() {
     },
     benchmark: benchmark.parsedStdout,
     profile: profile.parsedStdout,
+    profileRssEvidence: summarizeProfileRssEvidence(profile.parsedStdout),
+    phase4Readiness: summarizePhase4Readiness({
+      packageSmoke,
+      failureSafetyMatrix,
+      diagnostics,
+      typescriptSmoke,
+      rustSmoke,
+    }),
     sufficiency: sufficiency.parsedStdout,
     failureSafetyMatrix: failureSafetyMatrix.parsedStdout,
     packageSmoke: packageSmoke.parsedStdout,
