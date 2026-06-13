@@ -121,7 +121,7 @@ describe('zcodegraph index engine selection', () => {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
-    expect(result.status).toBe(0);
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
     const cg = CodeGraph.openSync(tempDir);
     try {
       expect(cg.searchNodes('alpha').some((match) => match.node.name === 'alpha')).toBe(true);
@@ -137,7 +137,7 @@ describe('zcodegraph index engine selection', () => {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
-    expect(result.status).toBe(0);
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
     expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(true);
     expect(result.stderr).not.toContain('Failed to index');
   });
@@ -152,6 +152,36 @@ describe('zcodegraph index engine selection', () => {
     expect(result.status).toBe(0);
     expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(true);
     expect(result.stderr).not.toContain('Failed to index');
+  });
+
+  it('runs the packaged Rust subprocess from a bundle layout without an env override', () => {
+    const bundle = path.join(tempDir, 'bundle');
+    const packagedDist = path.join(bundle, 'lib', 'dist');
+    fs.cpSync(path.resolve(__dirname, '..', 'dist'), packagedDist, { recursive: true });
+    fs.copyFileSync(path.resolve(__dirname, '..', 'package.json'), path.join(bundle, 'lib', 'package.json'));
+    const packagedBinDir = path.join(bundle, 'bin');
+    fs.mkdirSync(packagedBinDir, { recursive: true });
+    const rustCore = writeFakeRustCore(packagedBinDir);
+    const packagedRustCore = path.join(packagedBinDir, process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core');
+    fs.renameSync(rustCore, packagedRustCore);
+    const packagedBin = path.join(packagedDist, 'bin', 'zcodegraph.js');
+
+    const result = spawnSync(process.execPath, [packagedBin, 'index', '--engine', 'rust', '--quiet'], {
+      cwd: tempDir,
+      env: {
+        ...process.env,
+        CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
+        CODEGRAPH_NO_DAEMON: '1',
+        CODEGRAPH_NO_RELAUNCH: '1',
+        NODE_PATH: path.resolve(__dirname, '..', 'node_modules'),
+        ZCODEGRAPH_RUST_CORE_BINARY: undefined,
+      },
+      encoding: 'utf-8',
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    expect(fs.existsSync(fakeRustCoreMarker(packagedBinDir))).toBe(true);
+    expect(result.stderr).not.toContain('Rust index engine is unavailable');
   });
 
   it('rejects unsupported engine values before indexing', () => {

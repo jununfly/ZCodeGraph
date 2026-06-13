@@ -215,14 +215,14 @@ inside published packages. Source development remains explicit:
   real artifact is produced.
 - [x] Update the release packaging job to download all Rust binary artifacts.
 - [x] Make the release workflow fail if any expected artifact is missing.
-- [ ] Add CI coverage for `cargo test`.
-- [ ] Add CI coverage for Rust CLI integration tests on macOS, Linux, and
+- [x] Add CI coverage for `cargo test`.
+- [x] Add CI coverage for Rust CLI integration tests on macOS, Linux, and
   Windows.
-- [ ] Add CI coverage proving default TypeScript indexing works when no Rust
+- [x] Add CI coverage proving default TypeScript indexing works when no Rust
   binary is available.
-- [ ] Add CI coverage proving packaged Rust indexing works where the binary is
+- [x] Add CI coverage proving packaged Rust indexing works where the binary is
   available.
-- [ ] Keep release-note promotion, GitHub Release creation, npm publish, and
+- [x] Keep release-note promotion, GitHub Release creation, npm publish, and
   npmmirror sync behavior intact.
 - [x] Update release workflow comments that currently say there is no native
   compilation.
@@ -264,7 +264,7 @@ inside published packages. Source development remains explicit:
   packaged Rust binary through npm platform packages and packed npm smoke tests.
 - [x] [#64](https://github.com/jununfly/ZCodeGraph/issues/64): Add release/CI
   matrix for six Rust binary artifacts, including Windows ARM64 resolution.
-- [ ] [#65](https://github.com/jununfly/ZCodeGraph/issues/65): Add
+- [x] [#65](https://github.com/jununfly/ZCodeGraph/issues/65): Add
   cross-platform CI for Rust tests, CLI integration, default TS path, and
   packaged Rust path.
 - [ ] [#66](https://github.com/jununfly/ZCodeGraph/issues/66): Add performance
