@@ -24,6 +24,14 @@ const FINALIZATION_SUBPHASES = [
   'dbMaintenanceMs',
 ];
 
+const REFERENCE_RESOLUTION_BREAKDOWN = [
+  'importResolutionMs',
+  'nameMatchingMs',
+  'frameworkMatchingMs',
+  'databaseAccessMs',
+  'otherResolutionMs',
+];
+
 function writeFakeRustCore(dir: string): string {
   const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-core.cjs' : 'fake-rust-core');
   fs.writeFileSync(
@@ -84,6 +92,9 @@ describe('Rust indexing profiler script', () => {
     for (const phase of FINALIZATION_SUBPHASES) {
       expect(result.stdout).toContain(phase);
     }
+    for (const phase of REFERENCE_RESOLUTION_BREAKDOWN) {
+      expect(result.stdout).toContain(phase);
+    }
   });
 
   it('emits comparable machine-readable phase timings', () => {
@@ -133,6 +144,7 @@ describe('Rust indexing profiler script', () => {
         };
         profile: Record<string, number>;
         finalizationSubphases: Record<string, number>;
+        referenceResolutionBreakdown: Record<string, number>;
         dominantFinalizationSubphase: string;
       }>;
     };
@@ -163,6 +175,10 @@ describe('Rust indexing profiler script', () => {
     for (const phase of FINALIZATION_SUBPHASES) {
       expect(parsed.results[0]?.finalizationSubphases[phase]).toBeTypeOf('number');
       expect(parsed.results[0]?.finalizationSubphases[phase]).toBeGreaterThanOrEqual(0);
+    }
+    for (const phase of REFERENCE_RESOLUTION_BREAKDOWN) {
+      expect(parsed.results[0]?.referenceResolutionBreakdown[phase]).toBeTypeOf('number');
+      expect(parsed.results[0]?.referenceResolutionBreakdown[phase]).toBeGreaterThanOrEqual(0);
     }
     expect(FINALIZATION_SUBPHASES).toContain(parsed.results[0]?.dominantFinalizationSubphase);
   });

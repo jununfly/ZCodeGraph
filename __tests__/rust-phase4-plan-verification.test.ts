@@ -15,6 +15,9 @@ describe('Rust indexing Phase 4 plan verification', () => {
     const text = fs.readFileSync(PLAN, 'utf-8');
 
     expect(text).toContain('Phase 4 aims to collect the missing rollout-readiness evidence');
+    expect(text).toContain('Phase 4 results and decision');
+    expect(text).toContain('Branch B, continue opt-in hardening');
+    expect(text).toContain('Branch A is blocked');
     expect(text).toContain('Rust remains opt-in throughout Phase 4');
     expect(text).toContain('Target decision branch A');
     expect(text).toContain('Require one bounded, data-driven optimization trial');

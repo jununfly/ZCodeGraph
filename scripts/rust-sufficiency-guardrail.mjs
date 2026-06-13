@@ -73,13 +73,15 @@ const PROMPTS = {
 
 function usage() {
   console.log([
-    'Usage: node scripts/rust-sufficiency-guardrail.mjs --repo <name>=<path> [--repo <name>=<path> ...]',
+    'Usage: node scripts/rust-sufficiency-guardrail.mjs --repo <name>=<path> [--repo <name>=<path> ...] [--prompts <json>]',
     '',
     'Names with built-in prompts: zcodegraph, excalidraw, zustand',
+    'Use --prompts for long-running repo-specific probes such as VS Code.',
     '',
     'Examples:',
     '  npm run build && cargo build --package zcodegraph-core',
     '  node scripts/rust-sufficiency-guardrail.mjs --repo zcodegraph=. --repo excalidraw=/tmp/codegraph-corpus/excalidraw',
+    '  node scripts/rust-sufficiency-guardrail.mjs --repo vscode=/tmp/codegraph-corpus/vscode --prompts docs/benchmarks/vscode-sufficiency-prompts.json',
     '',
     'The script creates TypeScript- and Rust-produced indexes, runs',
     'zcodegraph_explore for representative flow prompts, and compares Flow',
@@ -89,9 +91,10 @@ function usage() {
 
 function parseArgs(argv) {
   const repos = [];
+  const promptFiles = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === '--help' || arg === '-h') return { help: true, repos };
+    if (arg === '--help' || arg === '-h') return { help: true, repos, promptFiles };
     if (arg === '--repo') {
       const spec = argv[++i];
       if (!spec) throw new Error('--repo requires name=path');
@@ -100,9 +103,51 @@ function parseArgs(argv) {
       repos.push({ name: spec.slice(0, eq), path: path.resolve(spec.slice(eq + 1)) });
       continue;
     }
+    if (arg === '--prompts') {
+      const file = argv[++i];
+      if (!file) throw new Error('--prompts requires a JSON file path');
+      promptFiles.push(path.resolve(file));
+      continue;
+    }
     throw new Error(`Unknown argument: ${arg}`);
   }
-  return { help: false, repos };
+  return { help: false, repos, promptFiles };
+}
+
+function loadPromptFiles(files) {
+  const prompts = { ...PROMPTS };
+  for (const file of files) {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    if (parsed == null || Array.isArray(parsed) || typeof parsed !== 'object') {
+      throw new Error(`Prompt file must contain an object keyed by repo name: ${file}`);
+    }
+    for (const [repoName, repoPrompts] of Object.entries(parsed)) {
+      validatePrompts(repoName, repoPrompts, file);
+      prompts[repoName] = repoPrompts;
+    }
+  }
+  return prompts;
+}
+
+function validatePrompts(repoName, prompts, source) {
+  if (!Array.isArray(prompts) || prompts.length === 0) {
+    throw new Error(`Prompt file ${source} must define a non-empty array for repo "${repoName}"`);
+  }
+  for (const [index, prompt] of prompts.entries()) {
+    const label = `${source} ${repoName}[${index}]`;
+    if (prompt == null || typeof prompt !== 'object') {
+      throw new Error(`Prompt ${label} must be an object`);
+    }
+    if (typeof prompt.id !== 'string' || prompt.id.length === 0) {
+      throw new Error(`Prompt ${label} must include a non-empty string id`);
+    }
+    if (typeof prompt.query !== 'string' || prompt.query.length === 0) {
+      throw new Error(`Prompt ${label} must include a non-empty string query`);
+    }
+    if (!Array.isArray(prompt.expected) || prompt.expected.some((symbol) => typeof symbol !== 'string' || symbol.length === 0)) {
+      throw new Error(`Prompt ${label} must include a non-empty string expected array`);
+    }
+  }
 }
 
 function run(command, args, cwd, env = {}) {
@@ -142,8 +187,8 @@ function copyRepo(source, label) {
   return dest;
 }
 
-function initAndIndex(project, engine) {
-  run(process.execPath, [distBin, 'init', project], project);
+function initAndIndex(project, engine, CodeGraph) {
+  CodeGraph.initSync(project).close();
   const args = [distBin, 'index', project, '--force', '--quiet'];
   const env = {};
   if (engine === 'rust') {
@@ -218,26 +263,30 @@ function collectRegressions(results) {
 }
 
 async function main() {
-  const { help, repos } = parseArgs(process.argv.slice(2));
+  const { help, repos, promptFiles } = parseArgs(process.argv.slice(2));
   if (help) {
     usage();
     return;
   }
   if (repos.length === 0) throw new Error('At least one --repo name=path is required');
+  const promptCatalog = loadPromptFiles(promptFiles);
+  for (const repo of repos) {
+    if (!promptCatalog[repo.name]) throw new Error(`No built-in or configured prompts for repo name "${repo.name}"`);
+  }
   if (!fs.existsSync(distBin)) throw new Error('dist/bin/zcodegraph.js not found. Run npm run build first.');
   if (!fs.existsSync(rustCore)) throw new Error('target/debug/zcodegraph-core not found. Run cargo build --package zcodegraph-core first.');
 
+  const dist = await loadDist();
   const results = [];
   for (const repo of repos) {
-    const prompts = PROMPTS[repo.name];
-    if (!prompts) throw new Error(`No built-in prompts for repo name "${repo.name}"`);
+    const prompts = promptCatalog[repo.name];
 
     const copies = {
       typescript: copyRepo(repo.path, `${repo.name}-ts`),
       rust: copyRepo(repo.path, `${repo.name}-rust`),
     };
-    initAndIndex(copies.typescript, 'typescript');
-    initAndIndex(copies.rust, 'rust');
+    initAndIndex(copies.typescript, 'typescript', dist.CodeGraph);
+    initAndIndex(copies.rust, 'rust', dist.CodeGraph);
 
     const promptResults = [];
     for (const prompt of prompts) {

@@ -56,6 +56,14 @@ export interface ResolutionResult {
     resolved: number;
     unresolved: number;
     byMethod: Record<string, number>;
+    timings?: {
+      importResolutionMs?: number;
+      nameMatchingMs?: number;
+      frameworkMatchingMs?: number;
+      databaseAccessMs?: number;
+      otherResolutionMs?: number;
+      dynamicDispatchSynthesisMs?: number;
+    };
   };
 }
 

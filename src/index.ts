@@ -682,6 +682,13 @@ export class CodeGraph {
     profile: {
       frameworkPostExtractMs: number;
       referenceResolutionMs: number;
+      referenceResolutionBreakdown: {
+        importResolutionMs: number;
+        nameMatchingMs: number;
+        frameworkMatchingMs: number;
+        databaseAccessMs: number;
+        otherResolutionMs: number;
+      };
       dynamicDispatchSynthesisMs: number;
       dbMaintenanceMs: number;
     };
@@ -698,6 +705,13 @@ export class CodeGraph {
         const profile = {
           frameworkPostExtractMs: 0,
           referenceResolutionMs: 0,
+          referenceResolutionBreakdown: {
+            importResolutionMs: 0,
+            nameMatchingMs: 0,
+            frameworkMatchingMs: 0,
+            databaseAccessMs: 0,
+            otherResolutionMs: 0,
+          },
           dynamicDispatchSynthesisMs: 0,
           dbMaintenanceMs: 0,
         };
@@ -709,13 +723,15 @@ export class CodeGraph {
         const resolutionStarted = Date.now();
         const resolution = await this.resolveReferencesBatched(onProgress);
         const resolutionTotalMs = Date.now() - resolutionStarted;
-        const synthesizedEdges = resolution.stats.byMethod['callback-synthesis'] ?? 0;
-        // The synthesizer currently executes inside the batched resolver. Until
-        // the resolver exposes nested timings, surface a conservative split:
-        // zero when no synthesized edges were emitted, otherwise mark the shared
-        // resolver window as the dynamic-dispatch cost so profiles still expose
-        // the dominant remaining risk instead of hiding it in one opaque total.
-        profile.dynamicDispatchSynthesisMs = synthesizedEdges > 0 ? resolutionTotalMs : 0;
+        const resolutionTimings = resolution.stats.timings;
+        profile.referenceResolutionBreakdown = {
+          importResolutionMs: resolutionTimings?.importResolutionMs ?? 0,
+          nameMatchingMs: resolutionTimings?.nameMatchingMs ?? 0,
+          frameworkMatchingMs: resolutionTimings?.frameworkMatchingMs ?? 0,
+          databaseAccessMs: resolutionTimings?.databaseAccessMs ?? 0,
+          otherResolutionMs: resolutionTimings?.otherResolutionMs ?? 0,
+        };
+        profile.dynamicDispatchSynthesisMs = resolutionTimings?.dynamicDispatchSynthesisMs ?? 0;
         profile.referenceResolutionMs = Math.max(0, resolutionTotalMs - profile.dynamicDispatchSynthesisMs);
 
         const maintenanceStarted = Date.now();

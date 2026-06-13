@@ -45,6 +45,13 @@ function usage() {
     '  dynamicDispatchSynthesisMs',
     '  dbMaintenanceMs',
     '',
+    'Reference resolution breakdown:',
+    '  importResolutionMs',
+    '  nameMatchingMs',
+    '  frameworkMatchingMs',
+    '  databaseAccessMs',
+    '  otherResolutionMs',
+    '',
     'Memory evidence:',
     '  engines.typescript.peakRssBytes',
     '  engines.rust.peakRssBytes',
@@ -142,8 +149,8 @@ function baseEnv(rustCore) {
   };
 }
 
-function indexWithMeasuredCli(project, engine, rustCore) {
-  run(process.execPath, [distBin, 'init', project], project, baseEnv(rustCore));
+function indexWithMeasuredCli(project, engine, rustCore, CodeGraph) {
+  CodeGraph.initSync(project).close();
 
   const args = [
     distBin,
@@ -291,8 +298,8 @@ async function profileRepo(repo, rustCore, dist) {
 
   try {
     const engines = {
-      typescript: await indexWithMeasuredCli(typescriptSlice.path, 'typescript', rustCore),
-      rust: await indexWithMeasuredCli(measuredRustSlice.path, 'rust', rustCore),
+      typescript: await indexWithMeasuredCli(typescriptSlice.path, 'typescript', rustCore, dist.CodeGraph),
+      rust: await indexWithMeasuredCli(measuredRustSlice.path, 'rust', rustCore, dist.CodeGraph),
     };
 
     dist.CodeGraph.initSync(slice.path).close();
@@ -302,9 +309,17 @@ async function profileRepo(repo, rustCore, dist) {
     let finalizationSubphases = {
       frameworkPostExtractMs: 0,
       referenceResolutionMs: 0,
+      referenceResolutionBreakdown: {
+        importResolutionMs: 0,
+        nameMatchingMs: 0,
+        frameworkMatchingMs: 0,
+        databaseAccessMs: 0,
+        otherResolutionMs: 0,
+      },
       dynamicDispatchSynthesisMs: 0,
       dbMaintenanceMs: 0,
     };
+    let referenceResolutionBreakdown = finalizationSubphases.referenceResolutionBreakdown;
 
     if (rustResult.success && rustResult.filesIndexed > 0) {
       const finalizeStarted = Date.now();
@@ -314,6 +329,7 @@ async function profileRepo(repo, rustCore, dist) {
         rustResult.nodesCreated += finalized.nodesCreated;
         rustResult.edgesCreated += finalized.edgesCreated;
         finalizationSubphases = finalized.profile ?? finalizationSubphases;
+        referenceResolutionBreakdown = finalizationSubphases.referenceResolutionBreakdown ?? referenceResolutionBreakdown;
       } finally {
         cg.destroy();
       }
@@ -348,7 +364,9 @@ async function profileRepo(repo, rustCore, dist) {
       },
       profile,
       finalizationSubphases,
+      referenceResolutionBreakdown,
       dominantFinalizationSubphase: dominantSubphase(finalizationSubphases),
+      dominantReferenceResolutionSubpath: dominantSubphase(referenceResolutionBreakdown),
     };
   } finally {
     if (previousRustCore === undefined) {
@@ -360,7 +378,9 @@ async function profileRepo(repo, rustCore, dist) {
 }
 
 function dominantSubphase(subphases) {
-  return Object.entries(subphases).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'frameworkPostExtractMs';
+  return Object.entries(subphases)
+    .filter((entry) => typeof entry[1] === 'number')
+    .sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'frameworkPostExtractMs';
 }
 
 async function main() {

@@ -6,6 +6,12 @@ Depends on: [Rust Indexing Core Phase 3 Production Hardening Plan](2026-06-13-ru
 
 Phase 3 results: [Rust Indexing Core Phase 3 Results](../benchmarks/2026-06-13-rust-indexing-core-phase-3-results.md)
 
+Phase 4 results and decision: [Rust Indexing Core Phase 4 Results And Decision](../benchmarks/2026-06-13-rust-indexing-core-phase-4-results-and-decision.md)
+
+Phase 4 decision outcome: Branch B, continue opt-in hardening. Rust remains
+opt-in; Branch A is blocked until the follow-up rollout blockers named in the
+decision document are addressed.
+
 ## Goal
 
 Phase 4 aims to collect the missing rollout-readiness evidence and perform one

@@ -22,6 +22,8 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New Features
 
+- The Rust indexing profiler now breaks reference resolution into database, name-matching, import, framework, and other timing buckets, so large-repo bottlenecks can be targeted with evidence. (#87)
+- Phase 4 readiness work now records profile, memory, package-safety, and large VS Code sufficiency evidence for experimental Rust indexing, with a continue opt-in decision while follow-up blockers are addressed. (#83)
 - New Rust indexing profiler script reports source scanning, parsing/extraction, SQLite writing, TypeScript finalization, and subprocess handoff timings as JSON, making the experimental Rust path easier to compare across local runs. (#66)
 - The experimental Rust indexing path now batches SQLite writes in one transaction, reducing write overhead while preserving the TypeScript indexer as the default. (#67)
 - `zcodegraph index` now has an experimental opt-in Rust indexing engine path for the first JavaScript/TypeScript migration slice; the TypeScript indexer remains the default while the Rust core proves out parity, performance, memory, safe SQLite handoff, JS/TS/JSX/TSX indexing, graph-resolution, semantic-parity, CLI/MCP integration, benchmark, agent-sufficiency, and packaging-readiness gates. (#50, #51, #52, #53, #54, #55, #56, #57, #58, #59)

@@ -27,6 +27,28 @@ import { logDebug } from '../errors';
 import type { ReExport } from './types';
 import { LRUCache } from './lru-cache';
 
+type ReferenceResolutionTimings = NonNullable<ResolutionResult['stats']['timings']>;
+
+function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
+  return {
+    importResolutionMs: 0,
+    nameMatchingMs: 0,
+    frameworkMatchingMs: 0,
+    databaseAccessMs: 0,
+    otherResolutionMs: 0,
+    dynamicDispatchSynthesisMs: 0,
+  };
+}
+
+function addElapsed(
+  timings: ReferenceResolutionTimings | undefined,
+  key: keyof ReferenceResolutionTimings,
+  startedAt: number,
+): void {
+  if (!timings) return;
+  timings[key] = (timings[key] ?? 0) + Math.max(0, Date.now() - startedAt);
+}
+
 /**
  * Cache size limits. Each per-resolver cache is bounded so memory
  * stays flat on large codebases (20k+ files). Sizes were chosen to
@@ -471,14 +493,18 @@ export class ReferenceResolver {
     unresolvedRefs: UnresolvedReference[],
     onProgress?: (current: number, total: number) => void
   ): ResolutionResult {
-    // Pre-load all nodes into memory for fast lookups
+    const timings = emptyReferenceResolutionTimings();
+    const warmStarted = Date.now();
+    // Pre-load lightweight lookup caches for fast resolution.
     this.warmCaches();
+    addElapsed(timings, 'databaseAccessMs', warmStarted);
 
     const resolved: ResolvedRef[] = [];
     const unresolved: UnresolvedRef[] = [];
     const byMethod: Record<string, number> = {};
 
     // Convert to our internal format, using denormalized fields when available
+    const hydrateStarted = Date.now();
     const refs: UnresolvedRef[] = unresolvedRefs.map((ref) => ({
       fromNodeId: ref.fromNodeId,
       referenceName: ref.referenceName,
@@ -488,13 +514,14 @@ export class ReferenceResolver {
       filePath: ref.filePath || this.getFilePathFromNodeId(ref.fromNodeId),
       language: ref.language || this.getLanguageFromNodeId(ref.fromNodeId),
     }));
+    addElapsed(timings, 'databaseAccessMs', hydrateStarted);
 
     const total = refs.length;
     let lastReportedPercent = -1;
 
     for (let i = 0; i < refs.length; i++) {
       const ref = refs[i]!; // Array index is guaranteed to be in bounds
-      const result = this.resolveOne(ref);
+      const result = this.resolveOne(ref, timings);
 
       if (result) {
         resolved.push(result);
@@ -526,6 +553,7 @@ export class ReferenceResolver {
         resolved: resolved.length,
         unresolved: unresolved.length,
         byMethod,
+        timings,
       },
     };
   }
@@ -608,9 +636,11 @@ export class ReferenceResolver {
   /**
    * Resolve a single reference
    */
-  resolveOne(ref: UnresolvedRef): ResolvedRef | null {
+  resolveOne(ref: UnresolvedRef, timings?: ReferenceResolutionTimings): ResolvedRef | null {
+    let started = Date.now();
     // Skip built-in/external references
     if (this.isBuiltInOrExternal(ref)) {
+      addElapsed(timings, 'otherResolutionMs', started);
       return null;
     }
 
@@ -620,18 +650,24 @@ export class ReferenceResolver {
     // from './barrel'` where the barrel has `export { signIn as login }
     // from './auth'`) intentionally call a name that has no
     // declaration anywhere — only the renamed upstream symbol does.
-    if (
-      !this.hasAnyPossibleMatch(ref.referenceName) &&
-      !this.matchesAnyImport(ref) &&
-      !this.frameworks.some((f) => f.claimsReference?.(ref.referenceName))
-    ) {
-      return null;
-    }
+    const hasPossibleMatch = this.hasAnyPossibleMatch(ref.referenceName);
+    addElapsed(timings, 'otherResolutionMs', started);
+    started = Date.now();
+    const matchesImport = hasPossibleMatch ? false : this.matchesAnyImport(ref);
+    addElapsed(timings, 'importResolutionMs', started);
+    started = Date.now();
+    const claimedByFramework = hasPossibleMatch || matchesImport
+      ? false
+      : this.frameworks.some((f) => f.claimsReference?.(ref.referenceName));
+    addElapsed(timings, 'frameworkMatchingMs', started);
+    if (!hasPossibleMatch && !matchesImport && !claimedByFramework) return null;
 
     // JVM FQN imports skip framework/name-matcher: `import com.example.Bar`
     // resolves directly through the qualifiedName index, which is unambiguous
     // even when several `Bar` classes exist in different packages.
+    started = Date.now();
     const jvmImport = resolveJvmImport(ref, this.context);
+    addElapsed(timings, 'importResolutionMs', started);
     if (jvmImport) return jvmImport;
 
     // Razor/Blazor: a markup or `@code` type ref resolves through the file's
@@ -640,7 +676,9 @@ export class ReferenceResolver {
     // `CatalogBrand` resolving to `BlazorShared.Models::CatalogBrand` (the DTO,
     // which the `.razor` `@using`s) rather than the same-named domain entity.
     if (ref.language === 'razor') {
+      started = Date.now();
       const razorResult = this.resolveRazorUsing(ref);
+      addElapsed(timings, 'otherResolutionMs', started);
       if (razorResult) return razorResult;
     }
 
@@ -652,7 +690,9 @@ export class ReferenceResolver {
     // edge between two KNOWN families (see its doc), never a `calls` bridge or
     // a config↔code edge.
     for (const framework of this.frameworks) {
+      started = Date.now();
       const result = this.gateFrameworkLanguage(framework.resolve(ref, this.context), ref);
+      addElapsed(timings, 'frameworkMatchingMs', started);
       if (result) {
         if (result.confidence >= 0.9) return result; // High confidence, return immediately
         candidates.push(result);
@@ -660,14 +700,18 @@ export class ReferenceResolver {
     }
 
     // Strategy 2: Try import-based resolution
+    started = Date.now();
     const importResult = this.gateLanguage(resolveViaImport(ref, this.context), ref);
+    addElapsed(timings, 'importResolutionMs', started);
     if (importResult) {
       if (importResult.confidence >= 0.9) return importResult;
       candidates.push(importResult);
     }
 
     // Strategy 3: Try name matching
+    started = Date.now();
     const nameResult = this.gateLanguage(matchReference(ref, this.context), ref);
+    addElapsed(timings, 'nameMatchingMs', started);
     if (nameResult) {
       candidates.push(nameResult);
     }
@@ -734,6 +778,7 @@ export class ReferenceResolver {
     const result = this.resolveAll(unresolvedRefs, onProgress);
 
     // Create edges from resolved references
+    const persistStarted = Date.now();
     const edges = this.createEdges(result.resolved);
 
     // Insert edges into database
@@ -751,6 +796,7 @@ export class ReferenceResolver {
         }))
       );
     }
+    addElapsed(result.stats.timings, 'databaseAccessMs', persistStarted);
 
     return result;
   }
@@ -764,26 +810,34 @@ export class ReferenceResolver {
     onProgress?: (current: number, total: number) => void,
     batchSize: number = 5000
   ): Promise<ResolutionResult> {
-    this.warmCaches();
-
-    const total = this.queries.getUnresolvedReferencesCount();
     let processed = 0;
     const aggregateStats = {
       total: 0,
       resolved: 0,
       unresolved: 0,
       byMethod: {} as Record<string, number>,
+      timings: emptyReferenceResolutionTimings(),
     };
+    let databaseStarted = Date.now();
+    this.warmCaches();
+    const total = this.queries.getUnresolvedReferencesCount();
+    addElapsed(aggregateStats.timings, 'databaseAccessMs', databaseStarted);
 
     // Process in batches. We always read from offset 0 because resolved refs
     // are deleted after each batch, shifting the remaining rows forward.
     while (true) {
+      databaseStarted = Date.now();
       const batch = this.queries.getUnresolvedReferencesBatch(0, batchSize);
+      addElapsed(aggregateStats.timings, 'databaseAccessMs', databaseStarted);
       if (batch.length === 0) break;
 
       const result = this.resolveAll(batch);
+      for (const [key, value] of Object.entries(result.stats.timings ?? {}) as Array<[keyof ReferenceResolutionTimings, number]>) {
+        aggregateStats.timings[key] = (aggregateStats.timings[key] ?? 0) + value;
+      }
 
       // Persist edges immediately
+      const persistStarted = Date.now();
       const edges = this.createEdges(result.resolved);
       if (edges.length > 0) {
         this.queries.insertEdges(edges);
@@ -810,6 +864,7 @@ export class ReferenceResolver {
           }))
         );
       }
+      addElapsed(aggregateStats.timings, 'databaseAccessMs', persistStarted);
 
       // Aggregate stats
       aggregateStats.total += result.stats.total;
@@ -837,7 +892,9 @@ export class ReferenceResolver {
     // callbacks) that static parsing leaves out. Best-effort — never fail the
     // index on it. See docs/design/callback-edge-synthesis.md.
     try {
+      const synthesisStarted = Date.now();
       aggregateStats.byMethod['callback-synthesis'] = synthesizeCallbackEdges(this.queries, this.context);
+      aggregateStats.timings.dynamicDispatchSynthesisMs = Date.now() - synthesisStarted;
     } catch {
       // synthesis is additive and optional; ignore failures
     }
