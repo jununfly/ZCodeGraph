@@ -155,18 +155,18 @@ inside published packages. Source development remains explicit:
 - [x] Document that npm/npx users never compile Rust locally.
 - [x] Document that source developers run `cargo build --package
   zcodegraph-core`.
-- [ ] Add packaged-binary discovery to the TypeScript Rust indexer path.
-- [ ] Preserve `ZCODEGRAPH_RUST_CORE_BINARY` as the explicit override for tests
+- [x] Add packaged-binary discovery to the TypeScript Rust indexer path.
+- [x] Preserve `ZCODEGRAPH_RUST_CORE_BINARY` as the explicit override for tests
   and local experiments.
-- [ ] Preserve repo-dev discovery through `target/debug/zcodegraph-core` or
+- [x] Preserve repo-dev discovery through `target/debug/zcodegraph-core` or
   `cargo run` when running from source.
-- [ ] Ensure packaged-binary discovery works from compiled `dist/` inside a
+- [x] Ensure packaged-binary discovery works from compiled `dist/` inside a
   release bundle and npm platform package.
-- [ ] Add tests for discovery precedence: env override, packaged binary,
+- [x] Add tests for discovery precedence: env override, packaged binary,
   source-debug binary, source `cargo run`, unavailable.
-- [ ] Add a test proving the default TypeScript indexer does not require any
+- [x] Add a test proving the default TypeScript indexer does not require any
   Rust binary.
-- [ ] Add a test proving explicit Rust engine failure leaves the previous good
+- [x] Add a test proving explicit Rust engine failure leaves the previous good
   index active.
 
 ### 2. Release Bundle Packaging
@@ -255,7 +255,7 @@ inside published packages. Source development remains explicit:
 
 - [x] [#60](https://github.com/jununfly/ZCodeGraph/issues/60): Resolve
   six-target Rust binary build strategy.
-- [ ] [#61](https://github.com/jununfly/ZCodeGraph/issues/61): Define packaged
+- [x] [#61](https://github.com/jununfly/ZCodeGraph/issues/61): Define packaged
   Rust binary artifact contract and discovery
   precedence.
 - [ ] [#62](https://github.com/jununfly/ZCodeGraph/issues/62): Package

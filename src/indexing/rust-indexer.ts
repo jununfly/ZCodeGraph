@@ -10,10 +10,15 @@ interface RustIndexerOptions {
   onProgress?: (progress: IndexProgress) => void;
 }
 
-interface RustCoreCommand {
+export interface RustCoreCommand {
   command: string;
   argsPrefix: string[];
   cwd: string;
+}
+
+interface RustCoreDiscoveryOptions {
+  compiledFileDir?: string;
+  platform?: NodeJS.Platform;
 }
 
 type RustCoreMessage =
@@ -21,11 +26,24 @@ type RustCoreMessage =
   | ({ type: 'result' } & IndexResult)
   | { type: 'error'; message: string; severity?: string; code?: string };
 
-function repoRootFromCompiledFile(): string {
-  return path.resolve(__dirname, '..', '..');
+function repoRootFromCompiledFile(compiledFileDir = __dirname): string {
+  return path.resolve(compiledFileDir, '..', '..');
 }
 
-function findRustCoreCommand(env: NodeJS.ProcessEnv = process.env): RustCoreCommand {
+function rustCoreExecutableName(platform: NodeJS.Platform = process.platform): string {
+  return platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core';
+}
+
+function packagedRustCoreBinary(compiledFileDir = __dirname, platform: NodeJS.Platform = process.platform): string {
+  return path.resolve(compiledFileDir, '..', '..', '..', 'bin', rustCoreExecutableName(platform));
+}
+
+export function findRustCoreCommand(
+  env: NodeJS.ProcessEnv = process.env,
+  options: RustCoreDiscoveryOptions = {},
+): RustCoreCommand {
+  const compiledFileDir = options.compiledFileDir ?? __dirname;
+  const platform = options.platform ?? process.platform;
   const configured = env.ZCODEGRAPH_RUST_CORE_BINARY;
   if (configured) {
     const binaryPath = path.resolve(configured);
@@ -35,12 +53,17 @@ function findRustCoreCommand(env: NodeJS.ProcessEnv = process.env): RustCoreComm
     return { command: binaryPath, argsPrefix: [], cwd: process.cwd() };
   }
 
-  const repoRoot = repoRootFromCompiledFile();
+  const packagedBinary = packagedRustCoreBinary(compiledFileDir, platform);
+  if (fs.existsSync(packagedBinary)) {
+    return { command: packagedBinary, argsPrefix: [], cwd: path.dirname(packagedBinary) };
+  }
+
+  const repoRoot = repoRootFromCompiledFile(compiledFileDir);
   const debugBinary = path.join(
     repoRoot,
     'target',
     'debug',
-    process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core',
+    rustCoreExecutableName(platform),
   );
   if (fs.existsSync(debugBinary)) {
     return { command: debugBinary, argsPrefix: [], cwd: repoRoot };
