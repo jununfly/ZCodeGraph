@@ -23,15 +23,23 @@ Phase 4 results are real local measurements and smoke outputs, not generated
 placeholder data. They are still single-run local evidence unless explicitly
 called out otherwise.
 
+## Evidence Durability Policy
+
+Repo-relative `docs/benchmarks/` raw JSON files are durable checked-in evidence.
+`/tmp` raw artifact paths are local-only provenance from the original machine
+runs and may be unavailable after that run. When a `/tmp` raw artifact is
+unavailable, the checked-in human-readable summary named beside that artifact is
+the authoritative durable summary. This document does not invent or rewrite
+benchmark numbers; it only records which evidence is checked in and which
+evidence is local provenance.
+
 Raw artifact locations:
 
-- Profile baseline: `/tmp/zcodegraph-rust-phase4-profile-baseline.json`
-- Optimization after-profile: `/tmp/zcodegraph-rust-phase4-optimization-after.json`
-- Optimization sufficiency: `/tmp/zcodegraph-rust-phase4-optimization-sufficiency.json`
-- Readiness package smoke:
-  `/tmp/zcodegraph-rust-phase4-readiness/package-smoke/summary.json`
-- Readiness failure-safety matrix:
-  `/tmp/zcodegraph-rust-phase4-readiness/failure-safety-matrix/summary.json`
+- Profile baseline: `/tmp/zcodegraph-rust-phase4-profile-baseline.json` (local-only provenance; authoritative summary: [Profile baseline](2026-06-13-rust-indexing-core-phase-4-profile-baseline.md))
+- Optimization after-profile: `/tmp/zcodegraph-rust-phase4-optimization-after.json` (local-only provenance; authoritative summary: [Optimization trial](2026-06-13-rust-indexing-core-phase-4-optimization-trial.md))
+- Optimization sufficiency: `/tmp/zcodegraph-rust-phase4-optimization-sufficiency.json` (local-only provenance; authoritative summary: [Optimization trial](2026-06-13-rust-indexing-core-phase-4-optimization-trial.md))
+- Readiness package smoke: `/tmp/zcodegraph-rust-phase4-readiness/package-smoke/summary.json` (local-only provenance; authoritative summary: [Readiness refresh](2026-06-13-rust-indexing-core-phase-4-readiness-refresh.md))
+- Readiness failure-safety matrix: `/tmp/zcodegraph-rust-phase4-readiness/failure-safety-matrix/summary.json` (local-only provenance; authoritative summary: [Readiness refresh](2026-06-13-rust-indexing-core-phase-4-readiness-refresh.md))
 - VS Code profile:
   `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-profile.raw.json`
 - VS Code sufficiency:

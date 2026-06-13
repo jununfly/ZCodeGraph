@@ -37,12 +37,17 @@ dynamic-dispatch synthesis time without changing graph semantics for applicable
 JS/TS synthesizers such as callback channels, EventEmitter, React render, JSX
 child, Vue, SvelteKit, and interface/implementation bridges.
 
-## Raw Artifacts
+## Raw Artifacts And Durability
 
-- Before profile: `/tmp/zcodegraph-rust-phase4-profile-baseline.json`
-- After profile: `/tmp/zcodegraph-rust-phase4-optimization-after.json`
+- Before profile: `/tmp/zcodegraph-rust-phase4-profile-baseline.json` (local-only provenance)
+- After profile: `/tmp/zcodegraph-rust-phase4-optimization-after.json` (local-only provenance)
 - Sufficiency guardrail:
-  `/tmp/zcodegraph-rust-phase4-optimization-sufficiency.json`
+  `/tmp/zcodegraph-rust-phase4-optimization-sufficiency.json` (local-only provenance)
+
+The `/tmp` raw artifact paths record where the original local runs wrote their
+machine-readable outputs. They may not exist outside that machine or after
+cleanup. This checked-in document is the durable source of truth for the Phase 4
+optimization trial summary when those local-only raw artifacts are unavailable.
 
 After profile generated at: `2026-06-13T13:33:19.761Z`
 
