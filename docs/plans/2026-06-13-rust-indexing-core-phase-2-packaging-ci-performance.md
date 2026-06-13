@@ -113,16 +113,47 @@ The TypeScript product shell remains responsible for CLI orchestration, MCP
 server behavior, installer and upgrade flows, resolution, synthesizers, Explore
 planning, and rendering.
 
+## Rust Binary Artifact Contract
+
+Issue #60 resolves the build strategy contract. The machine-readable source is
+`scripts/rust-core-artifact-contract.mjs`; release and packaging work should
+consume or mirror that contract instead of inventing another target matrix.
+
+| Release target | Rust target triple | Runner | Strategy | Artifact | Bundle path |
+| --- | --- | --- | --- | --- | --- |
+| `darwin-arm64` | `aarch64-apple-darwin` | `macos-14` | native GitHub-hosted runner | `zcodegraph-core-darwin-arm64` | `bin/zcodegraph-core` |
+| `darwin-x64` | `x86_64-apple-darwin` | `macos-13` | native GitHub-hosted runner | `zcodegraph-core-darwin-x64` | `bin/zcodegraph-core` |
+| `linux-x64` | `x86_64-unknown-linux-gnu` | `ubuntu-24.04` | native GitHub-hosted runner | `zcodegraph-core-linux-x64` | `bin/zcodegraph-core` |
+| `linux-arm64` | `aarch64-unknown-linux-gnu` | `ubuntu-24.04-arm` | native GitHub-hosted runner | `zcodegraph-core-linux-arm64` | `bin/zcodegraph-core` |
+| `win32-x64` | `x86_64-pc-windows-msvc` | `windows-2025` | native GitHub-hosted runner | `zcodegraph-core-win32-x64` | `bin/zcodegraph-core.exe` |
+| `win32-arm64` | `aarch64-pc-windows-msvc` | `windows-2025` | cross-compile from Windows x64 MSVC runner after `rustup target add aarch64-pc-windows-msvc` | `zcodegraph-core-win32-arm64` | `bin/zcodegraph-core.exe` |
+
+Every target uses:
+
+```bash
+cargo build --release --package zcodegraph-core --target <rust-target-triple>
+```
+
+The expected output is
+`target/<rust-target-triple>/release/zcodegraph-core` on Unix and
+`target/<rust-target-triple>/release/zcodegraph-core.exe` on Windows.
+
+npm and npx users must receive these binaries through the release bundle and
+platform package path. The contract does not allow `postinstall` compilation,
+local Rust/Rustup/Cargo requirements for npm users, or a source build fallback
+inside published packages. Source development remains explicit:
+`cargo build --package zcodegraph-core`.
+
 ## Phase 2 Checklist
 
 ### 1. Artifact Contract
 
-- [ ] Define target-to-binary artifact names for all six release targets.
-- [ ] Define packaged binary paths:
-  - [ ] Unix: `bin/zcodegraph-core`
-  - [ ] Windows: `bin/zcodegraph-core.exe`
-- [ ] Document that npm/npx users never compile Rust locally.
-- [ ] Document that source developers run `cargo build --package
+- [x] Define target-to-binary artifact names for all six release targets.
+- [x] Define packaged binary paths:
+  - [x] Unix: `bin/zcodegraph-core`
+  - [x] Windows: `bin/zcodegraph-core.exe`
+- [x] Document that npm/npx users never compile Rust locally.
+- [x] Document that source developers run `cargo build --package
   zcodegraph-core`.
 - [ ] Add packaged-binary discovery to the TypeScript Rust indexer path.
 - [ ] Preserve `ZCODEGRAPH_RUST_CORE_BINARY` as the explicit override for tests
@@ -222,7 +253,7 @@ planning, and rendering.
 
 ## Published Issue Breakdown
 
-- [ ] [#60](https://github.com/jununfly/ZCodeGraph/issues/60): Resolve
+- [x] [#60](https://github.com/jununfly/ZCodeGraph/issues/60): Resolve
   six-target Rust binary build strategy.
 - [ ] [#61](https://github.com/jununfly/ZCodeGraph/issues/61): Define packaged
   Rust binary artifact contract and discovery
