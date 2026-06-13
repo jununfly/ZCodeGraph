@@ -27,11 +27,12 @@ import { Command } from 'commander';
 import * as path from 'path';
 import * as fs from 'fs';
 import { getCodeGraphDir, isInitialized } from '../directory';
+import { getDatabasePath } from '../db';
 import { detectWorktreeIndexMismatch, worktreeMismatchWarning } from '../sync/worktree';
 import { createShimmerProgress } from '../ui/shimmer-progress';
 import { getGlyphs } from '../ui/glyphs';
 import { resolveIndexEngine } from '../indexing/engine-selection';
-import { runRustIndexer } from '../indexing/rust-indexer';
+import { getRustReadinessDiagnostics, runRustIndexer } from '../indexing/rust-indexer';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
 import { relaunchWithWasmRuntimeFlagsIfNeeded } from '../extraction/wasm-runtime-flags';
@@ -543,9 +544,11 @@ program
   .option('--engine <engine>', 'Index engine to use: typescript or rust')
   .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string }) => {
     const projectPath = resolveProjectPath(pathArg);
+    let selectedEngine: 'typescript' | 'rust' | undefined;
 
     try {
       const engine = resolveIndexEngine(options.engine);
+      selectedEngine = engine;
       const runRustIndexAndFinalize = async (onProgress?: (progress: { phase: string; current: number; total: number; currentFile?: string }) => void): Promise<IndexResult> => {
         const result = await runRustIndexer(projectPath, {
           force: options.force,
@@ -644,6 +647,21 @@ program
       clack.outro('Done');
     } catch (err) {
       error(`Failed to index: ${err instanceof Error ? err.message : String(err)}`);
+      if (selectedEngine === 'rust' || options.engine === 'rust' || process.env.ZCODEGRAPH_INDEX_ENGINE === 'rust') {
+        const diagnostics = getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null });
+        const activeIndexPreserved = fs.existsSync(getDatabasePath(projectPath));
+        console.error('Rust diagnostics:');
+        console.error(`  discovery source: ${diagnostics.core.discoverySource}`);
+        console.error(`  attempted command: ${diagnostics.core.attemptedCommand}`);
+        if (diagnostics.core.attemptedArgsPrefix.length > 0) {
+          console.error(`  attempted args prefix: ${diagnostics.core.attemptedArgsPrefix.join(' ')}`);
+        }
+        console.error(`  active index preserved: ${activeIndexPreserved ? 'yes' : 'no active index found'}`);
+        const nextAction = diagnostics.core.discoverySource === 'env'
+          ? 'Set ZCODEGRAPH_RUST_CORE_BINARY to an executable zcodegraph-core binary, or unset it to use packaged/source discovery.'
+          : 'Install a release bundle/platform package with bin/zcodegraph-core, or run cargo build --package zcodegraph-core for source development.';
+        console.error(`  next action: ${nextAction}`);
+      }
       process.exit(1);
     }
   });
@@ -734,6 +752,7 @@ program
             projectPath,
             indexPath: getCodeGraphDir(projectPath),
             lastIndexed: null,
+            rust: getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null }),
           }));
           return;
         }
@@ -787,6 +806,7 @@ program
             currentExtractionVersion: EXTRACTION_VERSION,
             reindexRecommended,
           },
+          rust: getRustReadinessDiagnostics(projectPath, buildInfo),
         }));
         cg.destroy();
         return;

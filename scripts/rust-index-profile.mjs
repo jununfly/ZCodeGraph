@@ -38,6 +38,12 @@ function usage() {
     '  sqliteWriteMs',
     '  typescriptFinalizationMs',
     '  subprocessStartupHandoffMs',
+    '',
+    'TypeScript finalization subphases:',
+    '  frameworkPostExtractMs',
+    '  referenceResolutionMs',
+    '  dynamicDispatchSynthesisMs',
+    '  dbMaintenanceMs',
   ].join('\n'));
 }
 
@@ -153,6 +159,12 @@ async function profileRepo(repo, rustCore, dist) {
     const wallStarted = Date.now();
     const rustResult = await dist.runRustIndexer(slice.path, { force: true });
     let typescriptFinalizationMs = 0;
+    let finalizationSubphases = {
+      frameworkPostExtractMs: 0,
+      referenceResolutionMs: 0,
+      dynamicDispatchSynthesisMs: 0,
+      dbMaintenanceMs: 0,
+    };
 
     if (rustResult.success && rustResult.filesIndexed > 0) {
       const finalizeStarted = Date.now();
@@ -161,6 +173,7 @@ async function profileRepo(repo, rustCore, dist) {
         const finalized = await cg.finalizeRustIndex();
         rustResult.nodesCreated += finalized.nodesCreated;
         rustResult.edgesCreated += finalized.edgesCreated;
+        finalizationSubphases = finalized.profile ?? finalizationSubphases;
       } finally {
         cg.destroy();
       }
@@ -193,6 +206,8 @@ async function profileRepo(repo, rustCore, dist) {
         errors: rustResult.errors,
       },
       profile,
+      finalizationSubphases,
+      dominantFinalizationSubphase: dominantSubphase(finalizationSubphases),
     };
   } finally {
     if (previousRustCore === undefined) {
@@ -201,6 +216,10 @@ async function profileRepo(repo, rustCore, dist) {
       process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
     }
   }
+}
+
+function dominantSubphase(subphases) {
+  return Object.entries(subphases).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'frameworkPostExtractMs';
 }
 
 async function main() {

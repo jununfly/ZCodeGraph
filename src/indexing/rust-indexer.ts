@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getDatabasePath } from '../db';
@@ -14,6 +14,33 @@ export interface RustCoreCommand {
   command: string;
   argsPrefix: string[];
   cwd: string;
+}
+
+export interface RustReadinessDiagnostics {
+  configuredEngine: {
+    engine: 'typescript' | 'rust' | 'unavailable';
+    source: 'default' | 'env' | 'unavailable';
+    rawValue?: string;
+    error?: string;
+  };
+  core: {
+    available: boolean;
+    discoverySource: 'env' | 'packaged-binary' | 'source-debug-binary' | 'source-cargo-run' | 'missing';
+    attemptedCommand: string;
+    attemptedArgsPrefix: string[];
+    cwd: string | null;
+    versionCheck: {
+      ok: boolean;
+      stdout?: string;
+      stderr?: string;
+      error?: string;
+    };
+  };
+  lastIndex: {
+    engine: string | null;
+    engineVersion: string | null;
+  };
+  latestProfile: unknown | null;
 }
 
 interface RustCoreDiscoveryOptions {
@@ -81,6 +108,147 @@ export function findRustCoreCommand(
     'Rust index engine is unavailable: no Rust core binary was found. ' +
       'Set ZCODEGRAPH_RUST_CORE_BINARY to a zcodegraph-core executable.',
   );
+}
+
+function configuredEngineDiagnostics(env: NodeJS.ProcessEnv = process.env): RustReadinessDiagnostics['configuredEngine'] {
+  const raw = env.ZCODEGRAPH_INDEX_ENGINE;
+  if (raw == null || raw.trim() === '') {
+    return { engine: 'typescript', source: 'default' };
+  }
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === 'typescript' || normalized === 'ts') {
+    return { engine: 'typescript', source: 'env', rawValue: raw };
+  }
+  if (normalized === 'rust') {
+    return { engine: 'rust', source: 'env', rawValue: raw };
+  }
+  return {
+    engine: 'unavailable',
+    source: 'unavailable',
+    rawValue: raw,
+    error: `Unsupported index engine "${normalized}". Supported engines: typescript, rust`,
+  };
+}
+
+function discoverRustCoreDiagnostics(
+  env: NodeJS.ProcessEnv = process.env,
+  options: RustCoreDiscoveryOptions = {},
+): Omit<RustReadinessDiagnostics['core'], 'versionCheck'> {
+  const compiledFileDir = options.compiledFileDir ?? __dirname;
+  const platform = options.platform ?? process.platform;
+  const configured = env.ZCODEGRAPH_RUST_CORE_BINARY;
+  if (configured) {
+    const binaryPath = path.resolve(configured);
+    return {
+      available: fs.existsSync(binaryPath),
+      discoverySource: 'env',
+      attemptedCommand: binaryPath,
+      attemptedArgsPrefix: [],
+      cwd: process.cwd(),
+    };
+  }
+
+  const packagedBinary = packagedRustCoreBinary(compiledFileDir, platform);
+  if (fs.existsSync(packagedBinary)) {
+    return {
+      available: true,
+      discoverySource: 'packaged-binary',
+      attemptedCommand: packagedBinary,
+      attemptedArgsPrefix: [],
+      cwd: path.dirname(packagedBinary),
+    };
+  }
+
+  const repoRoot = repoRootFromCompiledFile(compiledFileDir);
+  const debugBinary = path.join(repoRoot, 'target', 'debug', rustCoreExecutableName(platform));
+  if (fs.existsSync(debugBinary)) {
+    return {
+      available: true,
+      discoverySource: 'source-debug-binary',
+      attemptedCommand: debugBinary,
+      attemptedArgsPrefix: [],
+      cwd: repoRoot,
+    };
+  }
+
+  if (fs.existsSync(path.join(repoRoot, 'Cargo.toml'))) {
+    return {
+      available: true,
+      discoverySource: 'source-cargo-run',
+      attemptedCommand: 'cargo',
+      attemptedArgsPrefix: ['run', '--quiet', '--package', 'zcodegraph-core', '--'],
+      cwd: repoRoot,
+    };
+  }
+
+  return {
+    available: false,
+    discoverySource: 'missing',
+    attemptedCommand: packagedBinary,
+    attemptedArgsPrefix: [],
+    cwd: null,
+  };
+}
+
+function checkRustCoreVersion(core: Omit<RustReadinessDiagnostics['core'], 'versionCheck'>): RustReadinessDiagnostics['core']['versionCheck'] {
+  if (!core.available) {
+    return {
+      ok: false,
+      error: `${core.attemptedCommand} does not exist`,
+    };
+  }
+  const args = [...core.attemptedArgsPrefix, '--version'];
+  const result = spawnSync(core.attemptedCommand, args, {
+    cwd: core.cwd ?? process.cwd(),
+    env: process.env,
+    encoding: 'utf-8',
+  });
+  return {
+    ok: result.status === 0,
+    stdout: result.stdout.trim() || undefined,
+    stderr: result.stderr.trim() || undefined,
+    error: result.error instanceof Error ? result.error.message : undefined,
+  };
+}
+
+function readLatestRustProfile(projectPath: string): unknown | null {
+  const candidates = [
+    path.join(projectPath, '.zcodegraph', 'rust-profile-summary.json'),
+    path.join(projectPath, '.zcodegraph', 'rust-profile', 'summary.json'),
+  ];
+  for (const candidate of candidates) {
+    if (!fs.existsSync(candidate)) continue;
+    try {
+      return JSON.parse(fs.readFileSync(candidate, 'utf-8'));
+    } catch {
+      return {
+        path: candidate,
+        error: 'Failed to parse latest Rust profile summary',
+      };
+    }
+  }
+  return null;
+}
+
+export function getRustReadinessDiagnostics(
+  projectPath: string,
+  buildInfo: { engine: string | null; engineVersion: string | null },
+  env: NodeJS.ProcessEnv = process.env,
+  options: RustCoreDiscoveryOptions = {},
+): RustReadinessDiagnostics {
+  const core = discoverRustCoreDiagnostics(env, options);
+  return {
+    configuredEngine: configuredEngineDiagnostics(env),
+    core: {
+      ...core,
+      versionCheck: checkRustCoreVersion(core),
+    },
+    lastIndex: {
+      engine: buildInfo.engine,
+      engineVersion: buildInfo.engineVersion,
+    },
+    latestProfile: readLatestRustProfile(projectPath),
+  };
 }
 
 function parseRustCoreLine(line: string): RustCoreMessage | null {

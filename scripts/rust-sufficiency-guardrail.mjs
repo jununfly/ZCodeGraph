@@ -52,13 +52,30 @@ const PROMPTS = {
       expected: ['StaticCanvas', 'renderStaticScene', 'drawElementOnCanvas', 'renderElement'],
     },
   ],
+  zustand: [
+    {
+      id: 'ZU-1',
+      query: 'createStore setState getState subscribe',
+      expected: ['createStore', 'setState', 'getState', 'subscribe'],
+    },
+    {
+      id: 'ZU-2',
+      query: 'create useStore api setState',
+      expected: ['create', 'useStore', 'setState'],
+    },
+    {
+      id: 'ZU-3',
+      query: 'persist createJSONStorage setItem getItem removeItem',
+      expected: ['persist', 'createJSONStorage', 'setItem', 'getItem', 'removeItem'],
+    },
+  ],
 };
 
 function usage() {
   console.log([
     'Usage: node scripts/rust-sufficiency-guardrail.mjs --repo <name>=<path> [--repo <name>=<path> ...]',
     '',
-    'Names with built-in prompts: zcodegraph, excalidraw',
+    'Names with built-in prompts: zcodegraph, excalidraw, zustand',
     '',
     'Examples:',
     '  npm run build && cargo build --package zcodegraph-core',

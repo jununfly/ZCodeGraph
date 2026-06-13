@@ -203,6 +203,11 @@ describe('zcodegraph index engine selection', () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Rust index engine is unavailable');
+    expect(result.stderr).toContain('Rust diagnostics:');
+    expect(result.stderr).toContain('discovery source: env');
+    expect(result.stderr).toContain(`attempted command: ${path.join(tempDir, 'missing-rust-core')}`);
+    expect(result.stderr).toContain('active index preserved: yes');
+    expect(result.stderr).toContain('next action: Set ZCODEGRAPH_RUST_CORE_BINARY');
 
     cg = CodeGraph.openSync(tempDir);
     try {

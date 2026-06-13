@@ -17,6 +17,13 @@ const PHASE_NAMES = [
   'subprocessStartupHandoffMs',
 ];
 
+const FINALIZATION_SUBPHASES = [
+  'frameworkPostExtractMs',
+  'referenceResolutionMs',
+  'dynamicDispatchSynthesisMs',
+  'dbMaintenanceMs',
+];
+
 function writeFakeRustCore(dir: string): string {
   const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-core.cjs' : 'fake-rust-core');
   fs.writeFileSync(
@@ -74,6 +81,9 @@ describe('Rust indexing profiler script', () => {
     for (const phase of PHASE_NAMES) {
       expect(result.stdout).toContain(phase);
     }
+    for (const phase of FINALIZATION_SUBPHASES) {
+      expect(result.stdout).toContain(phase);
+    }
   });
 
   it('emits comparable machine-readable phase timings', () => {
@@ -103,6 +113,8 @@ describe('Rust indexing profiler script', () => {
       results: Array<{
         name: string;
         profile: Record<string, number>;
+        finalizationSubphases: Record<string, number>;
+        dominantFinalizationSubphase: string;
       }>;
     };
 
@@ -112,5 +124,10 @@ describe('Rust indexing profiler script', () => {
       expect(parsed.results[0]?.profile[phase]).toBeTypeOf('number');
       expect(parsed.results[0]?.profile[phase]).toBeGreaterThanOrEqual(0);
     }
+    for (const phase of FINALIZATION_SUBPHASES) {
+      expect(parsed.results[0]?.finalizationSubphases[phase]).toBeTypeOf('number');
+      expect(parsed.results[0]?.finalizationSubphases[phase]).toBeGreaterThanOrEqual(0);
+    }
+    expect(FINALIZATION_SUBPHASES).toContain(parsed.results[0]?.dominantFinalizationSubphase);
   });
 });

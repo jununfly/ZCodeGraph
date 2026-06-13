@@ -676,7 +676,16 @@ export class CodeGraph {
    * deliberately only runs framework finalization, reference resolution, dynamic
    * edge synthesis, and maintenance so the index remains marked as Rust-built.
    */
-  async finalizeRustIndex(onProgress?: (current: number, total: number) => void): Promise<{ nodesCreated: number; edgesCreated: number }> {
+  async finalizeRustIndex(onProgress?: (current: number, total: number) => void): Promise<{
+    nodesCreated: number;
+    edgesCreated: number;
+    profile: {
+      frameworkPostExtractMs: number;
+      referenceResolutionMs: number;
+      dynamicDispatchSynthesisMs: number;
+      dbMaintenanceMs: number;
+    };
+  }> {
     return this.indexMutex.withLock(async () => {
       try {
         this.fileLock.acquire();
@@ -686,14 +695,38 @@ export class CodeGraph {
 
       try {
         const before = this.queries.getNodeAndEdgeCount();
+        const profile = {
+          frameworkPostExtractMs: 0,
+          referenceResolutionMs: 0,
+          dynamicDispatchSynthesisMs: 0,
+          dbMaintenanceMs: 0,
+        };
+        const frameworkStarted = Date.now();
         this.resolver.initialize();
         this.resolver.runPostExtract();
-        await this.resolveReferencesBatched(onProgress);
+        profile.frameworkPostExtractMs = Date.now() - frameworkStarted;
+
+        const resolutionStarted = Date.now();
+        const resolution = await this.resolveReferencesBatched(onProgress);
+        const resolutionTotalMs = Date.now() - resolutionStarted;
+        const synthesizedEdges = resolution.stats.byMethod['callback-synthesis'] ?? 0;
+        // The synthesizer currently executes inside the batched resolver. Until
+        // the resolver exposes nested timings, surface a conservative split:
+        // zero when no synthesized edges were emitted, otherwise mark the shared
+        // resolver window as the dynamic-dispatch cost so profiles still expose
+        // the dominant remaining risk instead of hiding it in one opaque total.
+        profile.dynamicDispatchSynthesisMs = synthesizedEdges > 0 ? resolutionTotalMs : 0;
+        profile.referenceResolutionMs = Math.max(0, resolutionTotalMs - profile.dynamicDispatchSynthesisMs);
+
+        const maintenanceStarted = Date.now();
         this.db.runMaintenance();
+        profile.dbMaintenanceMs = Date.now() - maintenanceStarted;
+
         const after = this.queries.getNodeAndEdgeCount();
         return {
           nodesCreated: after.nodes - before.nodes,
           edgesCreated: after.edges - before.edges,
+          profile,
         };
       } finally {
         this.fileLock.release();

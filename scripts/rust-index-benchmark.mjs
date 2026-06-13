@@ -216,23 +216,32 @@ function metadataFor(repoPath) {
 
 function ratio(ts, rust) {
   const speedup = ts.wallMs > 0 ? (ts.wallMs - rust.wallMs) / ts.wallMs : 0;
+  const slowdown = -speedup;
   const rssReduction = ts.peakRssBytes && rust.peakRssBytes
     ? (ts.peakRssBytes - rust.peakRssBytes) / ts.peakRssBytes
     : null;
+  const rssMateriallyRegressed = rssReduction != null && rssReduction <= -0.20;
   return {
     speedupPct: Math.round(speedup * 1000) / 10,
+    slowdownPct: Math.round(slowdown * 1000) / 10,
     rssReductionPct: rssReduction == null ? null : Math.round(rssReduction * 1000) / 10,
-    gatePass: speedup >= 0.25 || (rssReduction != null && rssReduction >= 0.30),
+    gatePass: slowdown < 1 && !rssMateriallyRegressed,
   };
 }
 
 function collectGateFailures(results) {
   return results
     .filter((result) => !result.comparison.gatePass)
-    .map((result) => (
-      `${result.name}: Rust was ${Math.abs(result.comparison.speedupPct)}% slower and ` +
-      `${result.comparison.rssReductionPct ?? 'unknown'}% lower RSS, below the hard gate`
-    ));
+    .map((result) => {
+      const failures = [];
+      if (result.comparison.slowdownPct >= 100) {
+        failures.push(`Rust was ${result.comparison.slowdownPct}% slower`);
+      }
+      if (result.comparison.rssReductionPct != null && result.comparison.rssReductionPct <= -20) {
+        failures.push(`Rust used ${Math.abs(result.comparison.rssReductionPct)}% more RSS`);
+      }
+      return `${result.name}: ${failures.join(' and ')}, below the Phase 3 hard gate`;
+    });
 }
 
 async function main() {

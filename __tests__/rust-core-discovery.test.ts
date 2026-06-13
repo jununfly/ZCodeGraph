@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { findRustCoreCommand } from '../src/indexing/rust-indexer';
+import { findRustCoreCommand, getRustReadinessDiagnostics } from '../src/indexing/rust-indexer';
 
 const exeName = process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core';
 
@@ -50,6 +50,32 @@ describe('Rust core binary discovery', () => {
         argsPrefix: [],
         cwd: path.dirname(packaged),
       });
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('reports packaged binary diagnostics without requiring env overrides', () => {
+    const root = tempRoot();
+    try {
+      const packaged = touchExecutable(path.join(root, 'zcodegraph-darwin-arm64', 'bin', exeName));
+      const compiledFileDir = path.join(root, 'zcodegraph-darwin-arm64', 'lib', 'dist', 'indexing');
+
+      const diagnostics = getRustReadinessDiagnostics(
+        root,
+        { engine: 'rust', engineVersion: '0.1.0' },
+        {},
+        { compiledFileDir },
+      );
+
+      expect(diagnostics.configuredEngine).toMatchObject({ engine: 'typescript', source: 'default' });
+      expect(diagnostics.core).toMatchObject({
+        available: true,
+        discoverySource: 'packaged-binary',
+        attemptedCommand: packaged,
+        attemptedArgsPrefix: [],
+      });
+      expect(diagnostics.lastIndex).toEqual({ engine: 'rust', engineVersion: '0.1.0' });
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
