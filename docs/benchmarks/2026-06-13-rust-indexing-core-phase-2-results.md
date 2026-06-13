@@ -10,10 +10,11 @@ The Phase 2 rerun passes the memory gate and meets the <100% slower stretch goal
 on both target repositories after the #67 SQLite write batching optimization.
 Agent Sufficiency guardrails reported no Rust-vs-TypeScript regressions.
 
-Default rollout remains blocked pending the explicit Phase 2 stop/continue
-decision in #69. The remaining risk is not the stretch goal; it is whether the
-opt-in Rust path has enough coverage, repeatability, and release confidence to
-be considered for a broader rollout.
+The explicit Phase 2 stop/continue decision is recorded in
+[the #69 decision document](2026-06-13-rust-indexing-core-phase-2-decision.md):
+Default rollout remains blocked. The remaining risk is not the stretch goal; it
+is whether the opt-in Rust path has enough coverage, repeatability, and release
+confidence to be considered for a broader rollout.
 
 Raw JSON was written locally under `/tmp/zcodegraph-phase2-68/`:
 
@@ -86,5 +87,5 @@ The Phase 2 benchmark/profile/sufficiency rerun for #68 is complete:
 - Profiler output was recorded for ZCodeGraph and Excalidraw.
 - Agent Sufficiency guardrails were rerun for ZCodeGraph and Excalidraw.
 - The <100% slower stretch goal was met.
-- No default-rollout decision is made here; default rollout remains blocked
-  until #69 records the Phase 2 stop/continue decision.
+- The #69 stop/continue decision keeps default rollout blocked and keeps Rust
+  opt-in for the next hardening phase.

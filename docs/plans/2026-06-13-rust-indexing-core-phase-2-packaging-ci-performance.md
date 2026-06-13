@@ -6,6 +6,8 @@ Depends on: [Rust Indexing Core Phase 1 Plan](2026-06-12-rust-indexing-core-phas
 
 Phase 1 decision: [Rust Indexing Core Phase 1 Stop/Continue Decision](../benchmarks/2026-06-13-rust-indexing-core-phase-1-decision.md)
 
+Phase 2 decision: [Rust Indexing Core Phase 2 Stop/Continue Decision](../benchmarks/2026-06-13-rust-indexing-core-phase-2-decision.md)
+
 Published tracking issue: [#70 — Plan: Rust indexing core Phase 2 packaging, CI, and performance hardening](https://github.com/jununfly/ZCodeGraph/issues/70)
 
 ## Goal
@@ -60,35 +62,38 @@ packaging hard gate.
 
 ## Hard Gates
 
+- [x] Phase 2 stop/continue decision recorded: continue Rust hardening, keep
+  Rust opt-in, and do not prepare default rollout in this phase.
+
 Phase 2 is complete only when all hard gates pass:
 
-- [ ] Every release target has a prebuilt `zcodegraph-core` artifact.
-- [ ] Every GitHub Release bundle includes the matching Rust binary at
+- [x] Every release target has a prebuilt `zcodegraph-core` artifact.
+- [x] Every GitHub Release bundle includes the matching Rust binary at
   `bin/zcodegraph-core` or `bin/zcodegraph-core.exe`.
-- [ ] Every npm platform package includes the matching Rust binary.
-- [ ] `zcodegraph index` without `--engine rust` and without
+- [x] Every npm platform package includes the matching Rust binary.
+- [x] `zcodegraph index` without `--engine rust` and without
   `ZCODEGRAPH_INDEX_ENGINE=rust` still uses the TypeScript indexer and does not
   require the Rust binary.
-- [ ] `zcodegraph index --engine rust` finds the packaged Rust binary on every
+- [x] `zcodegraph index --engine rust` finds the packaged Rust binary on every
   supported target.
-- [ ] A missing packaged Rust binary fails only the explicit Rust path, with a
+- [x] A missing packaged Rust binary fails only the explicit Rust path, with a
   clear error and no active-index corruption.
-- [ ] CI verifies Rust build/test/CLI behavior on macOS, Linux, and Windows.
-- [ ] The release workflow fails if any target lacks a Rust binary artifact.
-- [ ] The existing benchmark and Agent Sufficiency guardrails still pass their
+- [x] CI verifies Rust build/test/CLI behavior on macOS, Linux, and Windows.
+- [x] The release workflow fails if any target lacks a Rust binary artifact.
+- [x] The existing benchmark and Agent Sufficiency guardrails still pass their
   Phase 1 non-regression bars after packaging changes.
 
 ## Performance Gate
 
 Phase 2 must produce performance evidence, not necessarily a speed win:
 
-- [ ] Add or extend profiling so a run can separate Rust extraction time, SQLite
+- [x] Add or extend profiling so a run can separate Rust extraction time, SQLite
   write time, TypeScript finalization time, and subprocess startup/handoff time.
-- [ ] Record profiles for this repository and Excalidraw.
-- [ ] Attempt at least one low-risk optimization based on the profile.
-- [ ] Rerun `scripts/rust-index-benchmark.mjs` after the optimization attempt.
-- [ ] Confirm peak RSS does not regress materially against Phase 1.
-- [ ] Record remaining speed blockers if Rust is still slower.
+- [x] Record profiles for this repository and Excalidraw.
+- [x] Attempt at least one low-risk optimization based on the profile.
+- [x] Rerun `scripts/rust-index-benchmark.mjs` after the optimization attempt.
+- [x] Confirm peak RSS does not regress materially against Phase 1.
+- [x] Record remaining speed blockers if Rust is still slower.
 
 Stretch goal: reduce Rust slowdown from the Phase 1 range of 166-297% slower to
 less than 100% slower on both ZCodeGraph and Excalidraw. Missing this stretch
@@ -282,7 +287,7 @@ remain in #68.
   low-risk Rust indexing performance optimization.
 - [x] [#68](https://github.com/jununfly/ZCodeGraph/issues/68): Rerun benchmark
   and Agent Sufficiency guardrails and record Phase 2 results.
-- [ ] [#69](https://github.com/jununfly/ZCodeGraph/issues/69): Make the Phase 2
+- [x] [#69](https://github.com/jununfly/ZCodeGraph/issues/69): Make the Phase 2
   stop/continue decision for default-rollout readiness.
 
 ## Local Validation
