@@ -190,20 +190,20 @@ inside published packages. Source development remains explicit:
 
 ### 3. NPM Platform Package Packaging
 
-- [ ] Ensure `scripts/pack-npm.sh` preserves `bin/zcodegraph-core(.exe)` from
+- [x] Ensure `scripts/pack-npm.sh` preserves `bin/zcodegraph-core(.exe)` from
   each release bundle into each platform package.
-- [ ] Ensure generated platform package `files` includes the Rust binary path.
-- [ ] Confirm the main shim package remains thin and does not include the Rust
+- [x] Ensure generated platform package `files` includes the Rust binary path.
+- [x] Confirm the main shim package remains thin and does not include the Rust
   binary directly.
-- [ ] Confirm optionalDependencies still map exactly to the six platform
+- [x] Confirm optionalDependencies still map exactly to the six platform
   packages.
-- [ ] Add npm tarball smoke tests from generated `release/npm/*` packages.
-- [ ] Test `npx` or packed-main-package execution uses the platform package and
+- [x] Add npm tarball smoke tests from generated `release/npm/*` packages.
+- [x] Test `npx` or packed-main-package execution uses the platform package and
   keeps default TypeScript indexing working.
-- [ ] Test explicit `--engine rust` through the packed npm path.
-- [ ] Test missing optional platform package/self-heal behavior remains focused
+- [x] Test explicit `--engine rust` through the packed npm path.
+- [x] Test missing optional platform package/self-heal behavior remains focused
   on bundle acquisition, not Rust compilation.
-- [ ] Confirm no `postinstall` or local Rust build step is introduced.
+- [x] Confirm no `postinstall` or local Rust build step is introduced.
 
 ### 4. CI And Release Workflow
 
@@ -260,7 +260,7 @@ inside published packages. Source development remains explicit:
   precedence.
 - [x] [#62](https://github.com/jununfly/ZCodeGraph/issues/62): Package
   `zcodegraph-core` into GitHub Release bundles.
-- [ ] [#63](https://github.com/jununfly/ZCodeGraph/issues/63): Preserve
+- [x] [#63](https://github.com/jununfly/ZCodeGraph/issues/63): Preserve
   packaged Rust binary through npm platform packages and packed npm smoke tests.
 - [ ] [#64](https://github.com/jununfly/ZCodeGraph/issues/64): Add release/CI
   matrix for six Rust binary artifacts, including Windows ARM64 resolution.
