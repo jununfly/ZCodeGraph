@@ -78,7 +78,9 @@ until #88 is resolved or the limitations are explicitly accepted.
 
 ## Decision Impact
 
-This taxonomy removes the generic "unknown parse errors" blocker from Phase 4.
-It does not make Rust ready for default rollout: #88 remains open for the 16
-real supported JS/TS syntax-gap paths, and #87 remains open for the large-repo
-reference-resolution bottleneck.
+This taxonomy removed the generic "unknown parse errors" blocker from Phase 4.
+#88 later fixed the 16 real supported JS/TS syntax-gap paths; see
+[Rust Indexing Core Phase 4 VS Code Syntax Gap Resolution](2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-resolution.md).
+Rust still is not ready for default rollout because #87 identified the
+large-repo reference-resolution database-access bottleneck as a remaining
+default-rollout blocker.

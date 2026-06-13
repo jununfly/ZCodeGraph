@@ -8,6 +8,7 @@ const PHASE4_DOCS = [
   path.join(REPO_ROOT, 'docs', 'plans', '2026-06-13-rust-indexing-core-phase-4-default-rollout-readiness.md'),
   path.join(REPO_ROOT, 'docs', 'benchmarks', '2026-06-13-rust-indexing-core-phase-4-results-and-decision.md'),
   path.join(REPO_ROOT, 'docs', 'benchmarks', '2026-06-13-rust-indexing-core-phase-4-large-target-readiness.md'),
+  path.join(REPO_ROOT, 'docs', 'benchmarks', '2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-resolution.md'),
 ];
 
 function unreleasedSection(): string {

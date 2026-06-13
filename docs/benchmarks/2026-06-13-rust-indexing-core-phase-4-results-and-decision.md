@@ -46,6 +46,10 @@ Raw artifact locations:
   `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-reference-resolution-profile.raw.json`
 - VS Code reference-resolution sufficiency rerun:
   `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-reference-resolution-sufficiency.raw.json`
+- VS Code syntax-gap targeted rerun:
+  `docs/benchmarks/2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-rerun.raw.json`
+- VS Code syntax-gap full sparse-checkout rerun:
+  `docs/benchmarks/2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-full-rerun.raw.json`
 
 Human-readable summaries:
 
@@ -56,6 +60,7 @@ Human-readable summaries:
 - [Supported Node rerun](2026-06-13-rust-indexing-core-phase-4-supported-node-rerun.md)
 - [VS Code parse-error taxonomy](2026-06-13-rust-indexing-core-phase-4-vscode-parse-error-taxonomy.md)
 - [Reference-resolution investigation](2026-06-13-rust-indexing-core-phase-4-reference-resolution-investigation.md)
+- [VS Code syntax-gap resolution](2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-resolution.md)
 
 ## Benchmark Results And RSS Evidence
 
@@ -140,6 +145,12 @@ The matching targeted sufficiency rerun reported `no regression` for both
 TypeScript and Rust on the configured VS Code prompt, with deterministic
 Read/Grep fallback-risk signals of `0 / 0` for both engines.
 
+The #88 syntax-gap fix removed every real supported JS/TS syntax-gap path from
+the VS Code parse-error set. A full Rust-core parse rerun on the same sparse
+checkout reduced parse errors from 46 to 29; the remaining errors are the
+malformed fixture, prompt/generated, or compiler-scale colorization fixture
+paths already classified by the taxonomy.
+
 ## Package Smoke, Diagnostics, And Failure-Safety
 
 Package smoke passed for:
@@ -179,9 +190,9 @@ Blocking gates:
 - The #87 reference-resolution investigation identifies `databaseAccessMs` as
   the dominant subpath inside `referenceResolutionMs`, so the blocker is now
   targeted but not resolved.
-- The VS Code parse-error taxonomy found no unknown errors, but it identified
-  16 real supported JS/TS syntax-gap paths that need follow-up before default
-  rollout.
+- The VS Code parse-error taxonomy found no unknown errors. The later #88
+  syntax-gap fix moved all 16 real supported JS/TS paths out of the parse-error
+  set, so syntax gaps are no longer a default-rollout blocker.
 
 Follow-up blockers:
 
@@ -189,8 +200,8 @@ Follow-up blockers:
   Node 22 VS Code readiness smoke.
 - [#86](https://github.com/jununfly/ZCodeGraph/issues/86): classify VS Code
   large-target parse errors.
-- [#88](https://github.com/jununfly/ZCodeGraph/issues/88): investigate the
-  real JS/TS syntax-gap subset surfaced by the taxonomy.
+- [#88](https://github.com/jununfly/ZCodeGraph/issues/88): fixed the real
+  JS/TS syntax-gap subset surfaced by the taxonomy.
 - [#87](https://github.com/jununfly/ZCodeGraph/issues/87): completed
   reference-resolution investigation; `databaseAccessMs` is the largest
   subpath and remains a default-rollout blocker until optimized.

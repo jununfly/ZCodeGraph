@@ -164,8 +164,9 @@ fn index_javascript_files(
         let relative_path = relative_slash_path(project_path, &file_path)?;
         let content = fs::read_to_string(&file_path)?;
         let metadata = fs::metadata(&file_path)?;
+        let parse_content = normalize_source_for_parser(&content, language);
         let parsed = parser
-            .parse(&content, None)
+            .parse(parse_content.as_str(), None)
             .ok_or_else(|| format!("Parser returned no tree for {}", relative_path))?;
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
@@ -215,6 +216,206 @@ fn index_javascript_files(
     }
 
     Ok(counts)
+}
+
+fn normalize_source_for_parser(source: &str, language: SourceLanguage) -> String {
+    if matches!(language, SourceLanguage::TypeScript | SourceLanguage::Tsx) {
+        normalize_typescript_contextual_keywords(&normalize_import_type_queries(source))
+    } else {
+        source.to_string()
+    }
+}
+
+fn normalize_import_type_queries(source: &str) -> String {
+    let mut out = source.as_bytes().to_vec();
+    let bytes = source.as_bytes();
+    let mut index = 0;
+
+    while let Some(offset) = find_subslice(&bytes[index..], b"import(") {
+        let start = index + offset;
+        let Some(type_import_context) = looks_like_type_import_context(source, start) else {
+            index = start + "import(".len();
+            continue;
+        };
+
+        let Some((end, has_member_access)) = import_type_query_end(bytes, start) else {
+            index = start + "import(".len();
+            continue;
+        };
+        if !has_member_access && !type_import_context.allows_bare_import_type_query {
+            index = start + "import(".len();
+            continue;
+        }
+
+        replace_with_identifier_placeholder(&mut out, start, end);
+        index = end;
+    }
+
+    String::from_utf8(out).unwrap_or_else(|_| source.to_string())
+}
+
+struct TypeImportContext {
+    allows_bare_import_type_query: bool,
+}
+
+fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
+}
+
+fn looks_like_type_import_context(source: &str, start: usize) -> Option<TypeImportContext> {
+    let prefix = &source[..start];
+    let trimmed = prefix.trim_end();
+    if trimmed.ends_with("typeof") || trimmed.ends_with("readonly") {
+        return Some(TypeImportContext {
+            allows_bare_import_type_query: trimmed.ends_with("typeof"),
+        });
+    }
+    if trimmed
+        .as_bytes()
+        .last()
+        .is_some_and(|ch| matches!(ch, b':' | b'|' | b'&' | b'<' | b'['))
+    {
+        return Some(TypeImportContext {
+            allows_bare_import_type_query: false,
+        });
+    }
+    if trimmed.ends_with('=') && line_before_import_starts_type_alias(trimmed) {
+        return Some(TypeImportContext {
+            allows_bare_import_type_query: false,
+        });
+    }
+    None
+}
+
+fn line_before_import_starts_type_alias(trimmed_prefix: &str) -> bool {
+    let line = trimmed_prefix
+        .rsplit_once('\n')
+        .map(|(_, line)| line)
+        .unwrap_or(trimmed_prefix)
+        .trim_start();
+    line.starts_with("type ") || line.starts_with("export type ")
+}
+
+fn import_type_query_end(bytes: &[u8], start: usize) -> Option<(usize, bool)> {
+    let mut index = start + "import(".len();
+    index = skip_ascii_whitespace(bytes, index);
+    let quote = *bytes.get(index)?;
+    if quote != b'\'' && quote != b'"' {
+        return None;
+    }
+    index += 1;
+    while index < bytes.len() {
+        match bytes[index] {
+            b'\\' => index += 2,
+            ch if ch == quote => {
+                index += 1;
+                break;
+            }
+            _ => index += 1,
+        }
+    }
+    index = skip_ascii_whitespace(bytes, index);
+    if *bytes.get(index)? != b')' {
+        return None;
+    }
+    index += 1;
+    let mut has_member_access = false;
+
+    loop {
+        let before_dot = skip_ascii_whitespace(bytes, index);
+        if bytes.get(before_dot) != Some(&b'.') {
+            return Some((index, has_member_access));
+        }
+        let identifier_start = skip_ascii_whitespace(bytes, before_dot + 1);
+        let Some(identifier_end) = consume_identifier(bytes, identifier_start) else {
+            return Some((index, has_member_access));
+        };
+        has_member_access = true;
+        index = identifier_end;
+    }
+}
+
+fn skip_ascii_whitespace(bytes: &[u8], mut index: usize) -> usize {
+    while bytes.get(index).is_some_and(u8::is_ascii_whitespace) {
+        index += 1;
+    }
+    index
+}
+
+fn consume_identifier(bytes: &[u8], start: usize) -> Option<usize> {
+    let first = *bytes.get(start)?;
+    if !is_identifier_start(first) {
+        return None;
+    }
+    let mut index = start + 1;
+    while bytes
+        .get(index)
+        .is_some_and(|ch| is_identifier_continue(*ch))
+    {
+        index += 1;
+    }
+    Some(index)
+}
+
+fn is_identifier_start(ch: u8) -> bool {
+    ch.is_ascii_alphabetic() || ch == b'_' || ch == b'$'
+}
+
+fn is_identifier_continue(ch: u8) -> bool {
+    is_identifier_start(ch) || ch.is_ascii_digit()
+}
+
+fn replace_with_identifier_placeholder(out: &mut [u8], start: usize, end: usize) {
+    let placeholder = b"ZCGImportType";
+    let len = end.saturating_sub(start);
+    for byte in &mut out[start..end] {
+        *byte = b' ';
+    }
+    let copy_len = len.min(placeholder.len());
+    out[start..start + copy_len].copy_from_slice(&placeholder[..copy_len]);
+}
+
+fn normalize_typescript_contextual_keywords(source: &str) -> String {
+    let mut out = source.as_bytes().to_vec();
+    let bytes = source.as_bytes();
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if word_at(bytes, index, b"abstract") && is_property_name_position(bytes, index + 8) {
+            out[index..index + 8].copy_from_slice(b"_bstract");
+            index += 8;
+            continue;
+        }
+        if word_at(bytes, index, b"unique") && is_member_receiver_position(bytes, index + 6) {
+            out[index..index + 6].copy_from_slice(b"uniq_e");
+            index += 6;
+            continue;
+        }
+        index += 1;
+    }
+
+    String::from_utf8(out).unwrap_or_else(|_| source.to_string())
+}
+
+fn word_at(bytes: &[u8], index: usize, word: &[u8]) -> bool {
+    bytes.get(index..index + word.len()) == Some(word)
+        && index
+            .checked_sub(1)
+            .and_then(|previous| bytes.get(previous))
+            .is_none_or(|ch| !is_identifier_continue(*ch))
+        && bytes
+            .get(index + word.len())
+            .is_none_or(|ch| !is_identifier_continue(*ch))
+}
+
+fn is_property_name_position(bytes: &[u8], after_word: usize) -> bool {
+    bytes.get(skip_ascii_whitespace(bytes, after_word)) == Some(&b':')
+}
+
+fn is_member_receiver_position(bytes: &[u8], after_word: usize) -> bool {
+    bytes.get(skip_ascii_whitespace(bytes, after_word)) == Some(&b'.')
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1255,6 +1456,87 @@ mod tests {
             result.profile.parse_extraction_ms,
             max_expected_sqlite_ms
         );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_accepts_typescript_import_type_queries() {
+        let dir = temp_dir("import-type-queries");
+        fs::write(
+            dir.join("index.ts"),
+            [
+                "type TextEdit = readonly import('./private-to-property.ts').TextEdit[];",
+                "interface TelemetryEventProperties {",
+                "\treadonly [key: string]: string | import('vscode').TelemetryTrustedValue<string> | undefined;",
+                "}",
+                "export async function load(importOriginal: <T>() => Promise<T>): Promise<void> {",
+                "\tconst actual = await importOriginal<typeof import('../slashCommands/claudeSlashCommandRegistry')>();",
+                "\tconst runtimeModule = import('./runtime-module');",
+                "\tvoid runtimeModule;",
+                "\tvoid actual;",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+        assert!(
+            result.errors.is_empty(),
+            "import type queries should parse without Rust-core syntax errors: {:?}",
+            result.errors
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_accepts_typescript_contextual_keyword_identifiers() {
+        let dir = temp_dir("contextual-keywords");
+        fs::write(
+            dir.join("index.ts"),
+            [
+                "export type MemberStats = { abstract: Set<string>; concrete: Set<string> };",
+                "export function commonLength(unique: Element[]): number {",
+                "\treturn unique.length;",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
         fs::remove_dir_all(dir).unwrap();
     }
 }
