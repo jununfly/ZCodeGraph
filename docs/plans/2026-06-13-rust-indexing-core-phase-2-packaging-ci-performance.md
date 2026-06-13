@@ -207,14 +207,14 @@ inside published packages. Source development remains explicit:
 
 ### 4. CI And Release Workflow
 
-- [ ] Add a Rust binary build matrix for all six release targets.
-- [ ] Ensure each target runs `cargo build --release --package
+- [x] Add a Rust binary build matrix for all six release targets.
+- [x] Ensure each target runs `cargo build --release --package
   zcodegraph-core` or an explicitly documented equivalent.
-- [ ] Upload one named Rust binary artifact per release target.
-- [ ] Resolve the Windows ARM64 build path; do not mark Phase 2 complete until a
+- [x] Upload one named Rust binary artifact per release target.
+- [x] Resolve the Windows ARM64 build path; do not mark Phase 2 complete until a
   real artifact is produced.
-- [ ] Update the release packaging job to download all Rust binary artifacts.
-- [ ] Make the release workflow fail if any expected artifact is missing.
+- [x] Update the release packaging job to download all Rust binary artifacts.
+- [x] Make the release workflow fail if any expected artifact is missing.
 - [ ] Add CI coverage for `cargo test`.
 - [ ] Add CI coverage for Rust CLI integration tests on macOS, Linux, and
   Windows.
@@ -224,7 +224,7 @@ inside published packages. Source development remains explicit:
   available.
 - [ ] Keep release-note promotion, GitHub Release creation, npm publish, and
   npmmirror sync behavior intact.
-- [ ] Update release workflow comments that currently say there is no native
+- [x] Update release workflow comments that currently say there is no native
   compilation.
 
 ### 5. Performance Hardening
@@ -262,7 +262,7 @@ inside published packages. Source development remains explicit:
   `zcodegraph-core` into GitHub Release bundles.
 - [x] [#63](https://github.com/jununfly/ZCodeGraph/issues/63): Preserve
   packaged Rust binary through npm platform packages and packed npm smoke tests.
-- [ ] [#64](https://github.com/jununfly/ZCodeGraph/issues/64): Add release/CI
+- [x] [#64](https://github.com/jununfly/ZCodeGraph/issues/64): Add release/CI
   matrix for six Rust binary artifacts, including Windows ARM64 resolution.
 - [ ] [#65](https://github.com/jununfly/ZCodeGraph/issues/65): Add
   cross-platform CI for Rust tests, CLI integration, default TS path, and

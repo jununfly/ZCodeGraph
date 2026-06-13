@@ -6,11 +6,11 @@ name: Release
 #      CHANGELOG.md (and commits + pushes that change back to main), so
 #      the published release notes are never sparse just because the
 #      maintainer didn't pre-stage the [<version>] block by hand,
-#   3. builds a self-contained bundle for every platform (one runner — there's no
-#      native compilation, so cross-packaging is fine),
-#   4. creates the GitHub Release (tag v<version>) with all archives, using the
+#   3. builds one precompiled Rust indexing-core binary per release target,
+#   4. builds a self-contained bundle for every platform using those binaries,
+#   5. creates the GitHub Release (tag v<version>) with all archives, using the
 #      release notes from CHANGELOG.md,
-#   5. publishes the npm thin-installer (shim + per-platform packages).
+#   6. publishes the npm thin-installer (shim + per-platform packages).
 #
 # Before triggering: bump package.json. CHANGELOG.md entries can live under
 # `## [Unreleased]` — step 2 takes care of moving them. Set the NPM_TOKEN secret.
@@ -21,7 +21,60 @@ permissions:
   contents: write   # create the GitHub Release + tag, push the CHANGELOG promote
 
 jobs:
+  build-rust-core:
+    name: Build Rust core (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-arm64
+            rust_target: aarch64-apple-darwin
+            runner: macos-14
+            artifact: zcodegraph-core-darwin-arm64
+            exe: zcodegraph-core
+          - target: darwin-x64
+            rust_target: x86_64-apple-darwin
+            runner: macos-13
+            artifact: zcodegraph-core-darwin-x64
+            exe: zcodegraph-core
+          - target: linux-x64
+            rust_target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            artifact: zcodegraph-core-linux-x64
+            exe: zcodegraph-core
+          - target: linux-arm64
+            rust_target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+            artifact: zcodegraph-core-linux-arm64
+            exe: zcodegraph-core
+          - target: win32-x64
+            rust_target: x86_64-pc-windows-msvc
+            runner: windows-2025
+            artifact: zcodegraph-core-win32-x64
+            exe: zcodegraph-core.exe
+          - target: win32-arm64
+            rust_target: aarch64-pc-windows-msvc
+            runner: windows-2025
+            artifact: zcodegraph-core-win32-arm64
+            exe: zcodegraph-core.exe
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build Rust core
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup target add "${{ matrix.rust_target }}"
+          cargo build --release --package zcodegraph-core --target "${{ matrix.rust_target }}"
+          test -f "target/${{ matrix.rust_target }}/release/${{ matrix.exe }}"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/${{ matrix.rust_target }}/release/${{ matrix.exe }}
+          if-no-files-found: error
+
   release:
+    needs: build-rust-core
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -112,6 +165,27 @@ jobs:
             # Push to the branch the workflow was triggered on (main).
             git push origin "HEAD:${GITHUB_REF#refs/heads/}"
           fi
+
+      - name: Download Rust core artifacts
+        uses: actions/download-artifact@v6
+        with:
+          pattern: zcodegraph-core-*
+          path: release/rust-core
+
+      - name: Verify Rust core artifacts
+        run: |
+          set -euo pipefail
+          for t in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64 win32-arm64; do
+            exe=zcodegraph-core
+            case "$t" in
+              win32-*) exe=zcodegraph-core.exe ;;
+            esac
+            p="release/rust-core/zcodegraph-core-${t}/${exe}"
+            if [ ! -f "$p" ]; then
+              echo "::error::missing Rust core artifact: $p"
+              exit 1
+            fi
+          done
 
       - name: Build all platform bundles
         run: |
