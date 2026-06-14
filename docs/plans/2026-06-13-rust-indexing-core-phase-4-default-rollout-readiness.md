@@ -122,6 +122,23 @@ validation environment, Phase 4 may use a same-class large JavaScript/TypeScript
 repository instead. The replacement must record the reason, repository URL,
 commit, indexed file count, TypeScript/Rust profile, and sufficiency prompt.
 
+## Phase 4 Execution Status
+
+This table is the execution-status index for the original checklist below. The
+checklist records planned scope; this table records what happened, where the
+evidence lives, and which results block Branch A/default rollout. Phase 4 did
+not choose default rollout, and Rust remains opt-in.
+
+| Plan item | Status | Evidence |
+|---|---|---|
+| Profiling and RSS evidence baseline | Completed | [Profile baseline](../benchmarks/2026-06-13-rust-indexing-core-phase-4-profile-baseline.md), [Phase 4 results and decision](../benchmarks/2026-06-13-rust-indexing-core-phase-4-results-and-decision.md) |
+| Data-driven optimization trial | Completed | [Optimization trial](../benchmarks/2026-06-13-rust-indexing-core-phase-4-optimization-trial.md) |
+| Finalization follow-up | Completed; Branch A blocker remains | [#87](https://github.com/jununfly/ZCodeGraph/issues/87), [#91](https://github.com/jununfly/ZCodeGraph/issues/91), [Reference-resolution investigation](../benchmarks/2026-06-13-rust-indexing-core-phase-4-reference-resolution-investigation.md) |
+| Large-target readiness validation | Completed; Branch A blocker remains | [Large-target readiness](../benchmarks/2026-06-13-rust-indexing-core-phase-4-large-target-readiness.md), [Supported Node rerun](../benchmarks/2026-06-13-rust-indexing-core-phase-4-supported-node-rerun.md), [VS Code syntax-gap resolution](../benchmarks/2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-resolution.md) |
+| Release and packaging readiness refresh | Completed | [Readiness refresh](../benchmarks/2026-06-13-rust-indexing-core-phase-4-readiness-refresh.md) |
+| Decision document | Completed | [Phase 4 results and decision](../benchmarks/2026-06-13-rust-indexing-core-phase-4-results-and-decision.md) |
+| Release-cycle npm/npx default-rollout evidence | Deferred / not a Phase 4 gate | [Phase 4 results and decision](../benchmarks/2026-06-13-rust-indexing-core-phase-4-results-and-decision.md) |
+
 ## Phase 4 Checklist
 
 ### 1. Profiling And RSS Evidence Baseline
