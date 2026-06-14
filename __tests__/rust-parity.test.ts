@@ -163,8 +163,8 @@ describe('semantic parity comparator', () => {
       [
         'plain.js',
         [
-          'import { loadUser } from "./typed";',
-          'function localHelper() { return loadUser("1"); }',
+          'import { loadUser as loadProfile } from "./typed";',
+          'function localHelper() { return loadProfile("1"); }',
           'export function exportedHelper() { return localHelper(); }',
           'export class ExportedWidget {',
           '  constructor() {}',
@@ -181,6 +181,7 @@ describe('semantic parity comparator', () => {
         [
           'export interface User { id: UserId; name: string }',
           'export type UserId = string;',
+          'export enum Status { Ready, Loading = "loading" }',
           'export const DEFAULT_LIMIT = 25;',
           'export function loadUser(id: UserId): User {',
           '  return { id, name: "Ada" };',
@@ -225,11 +226,13 @@ describe('semantic parity comparator', () => {
       'constructor',
       'render',
       'store',
+      'loadProfile',
       'fetchUser',
       './typed',
       './card',
       'User',
       'UserId',
+      'Status',
       'DEFAULT_LIMIT',
       'loadUser',
       'UserService',

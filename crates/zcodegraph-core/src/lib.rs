@@ -589,7 +589,10 @@ fn extract_named_symbol<'a>(
     source: &[u8],
     language: SourceLanguage,
 ) -> Result<Option<(&'static str, SyntaxNode<'a>)>, Box<dyn std::error::Error>> {
-    if node.kind() == "function_declaration" || node.kind() == "class_declaration" {
+    if matches!(
+        node.kind(),
+        "function_declaration" | "class_declaration" | "enum_declaration"
+    ) {
         if let Some(name_node) = node.child_by_field_name("name") {
             let name = name_node.utf8_text(source)?;
             let kind = if node.kind() == "function_declaration"
@@ -599,6 +602,8 @@ fn extract_named_symbol<'a>(
                 "component"
             } else if node.kind() == "function_declaration" {
                 "function"
+            } else if node.kind() == "enum_declaration" {
+                "enum"
             } else {
                 "class"
             };
