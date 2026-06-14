@@ -248,7 +248,11 @@ async function explore(project, query) {
 function analyze(text, expected) {
   const hasFlowSection = /## Flow \(call path among the symbols you queried\)/.test(text);
   const flowConnected = hasFlowSection && /(?:→|->)/.test(text.slice(0, Math.min(text.length, 4000)));
-  const missingExpected = expected.filter((symbol) => !text.includes(symbol));
+  const evidenceText = text
+    .split('\n')
+    .filter((line) => !line.startsWith('## Exploration:'))
+    .join('\n');
+  const missingExpected = expected.filter((symbol) => !evidenceText.includes(symbol));
   const fallbackRisk = missingExpected.length > 0 || !flowConnected;
   return {
     outputChars: text.length,

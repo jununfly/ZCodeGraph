@@ -77,6 +77,62 @@ describe('Rust sufficiency guardrail prompt configuration', () => {
     expect(result.stderr).not.toContain('No built-in or configured prompts for repo name "vscode"');
   });
 
+  it.runIf(fs.existsSync(RUST_CORE))('does not treat the explore query echo as expected-symbol evidence', () => {
+    const temp = makeTempDir('zcodegraph-sufficiency-query-echo-');
+    tempDirs.push(temp);
+    const repo = path.join(temp, 'repo');
+    fs.mkdirSync(repo, { recursive: true });
+    fs.writeFileSync(
+      path.join(repo, 'flow.ts'),
+      [
+        'export function present() {',
+        '  return 1;',
+        '}',
+      ].join('\n') + '\n',
+    );
+    const prompts = path.join(temp, 'prompts.json');
+    fs.writeFileSync(
+      prompts,
+      JSON.stringify({
+        fixture: [
+          {
+            id: 'FX-echo',
+            query: 'MissingSymbol present',
+            expected: ['MissingSymbol', 'present'],
+          },
+        ],
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, '--prompts', prompts, '--repo', `fixture=${repo}`],
+      {
+        cwd: REPO_ROOT,
+        env: {
+          ...process.env,
+          CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
+          CODEGRAPH_NO_DAEMON: '1',
+          CODEGRAPH_NO_RELAUNCH: '1',
+        },
+        encoding: 'utf-8',
+      },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const parsed = JSON.parse(result.stdout) as {
+      results: Array<{
+        prompts: Array<{
+          typescript: { missingExpected: string[] };
+          rust: { missingExpected: string[] };
+        }>;
+      }>;
+    };
+
+    expect(parsed.results[0]?.prompts[0]?.typescript.missingExpected).toContain('MissingSymbol');
+    expect(parsed.results[0]?.prompts[0]?.rust.missingExpected).toContain('MissingSymbol');
+  }, 60_000);
+
   it.runIf(fs.existsSync(RUST_CORE))('records JS/TS slice copy metadata in guardrail output', () => {
     const temp = makeTempDir('zcodegraph-sufficiency-slice-');
     tempDirs.push(temp);
