@@ -13,6 +13,10 @@ valid RSS sampling, a positive bounded optimization trial, package/failure
 safety refreshes, and a connected large-target Explore sufficiency probe. The
 evidence does not support preparing a default-rollout plan yet.
 
+Phase 4 decision-producing evidence is complete. Branch A/default-rollout gates did not pass.
+Phase 4 completes as a stop/continue decision rather than as a default-rollout
+readiness approval.
+
 Rust remains opt-in. The TypeScript indexer remains the default for
 `zcodegraph index`, npm/npx users, MCP hosts, release bundles, and install
 flows until a later default-rollout plan explicitly changes that.

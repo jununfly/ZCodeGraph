@@ -8,9 +8,10 @@ Phase 3 results: [Rust Indexing Core Phase 3 Results](../benchmarks/2026-06-13-r
 
 Phase 4 results and decision: [Rust Indexing Core Phase 4 Results And Decision](../benchmarks/2026-06-13-rust-indexing-core-phase-4-results-and-decision.md)
 
-Phase 4 decision outcome: Branch B, continue opt-in hardening. Rust remains
-opt-in; Branch A is blocked until the follow-up rollout blockers named in the
-decision document are addressed.
+Phase 4 decision-producing work is complete. Branch B, continue opt-in hardening.
+Rust remains opt-in. Branch A/default-rollout gates did not pass. Branch A is blocked.
+The follow-up rollout blockers named in the decision document must be addressed
+before Branch A can be reconsidered.
 
 ## Goal
 
@@ -75,9 +76,13 @@ The remaining rollout-readiness gaps are:
 - Do not add telemetry or upload diagnostics.
 - Do not require npm/npx users to compile Rust locally.
 
-## Hard Gates
+## Branch A Hard Gates
 
-Phase 4 is complete only when all hard gates pass:
+These hard gates decide whether Phase 4 evidence can support Branch A, a later
+default-rollout plan. They are not the completion definition for the Phase 4
+decision-producing work. Phase 4 can complete with Branch B or Branch C when the
+evidence is sufficient to reject Branch A for now and identify the blocking
+gates.
 
 - ZCodeGraph, Excalidraw, and Zustand semantic parity remains acceptable for
   the Rust JS/TS/JSX/TSX slice.
