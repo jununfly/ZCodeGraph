@@ -1699,7 +1699,7 @@ export function synthesizeCallbackEdges(queries: QueryBuilder, ctx: ResolutionCo
   const emitterEdges = shouldRunForLanguage(languages, JS_LIKE_LANGUAGES) ? eventEmitterEdges(ctx) : [];
   const renderEdges = shouldRunForLanguage(languages, JS_LIKE_LANGUAGES) ? reactRenderEdges(queries, ctx) : [];
   const jsxEdges = shouldRunForLanguage(languages, JS_LIKE_LANGUAGES) ? reactJsxChildEdges(ctx) : [];
-  const vueEdges = shouldRunForLanguage(languages, JS_LIKE_LANGUAGES) ? vueTemplateEdges(ctx) : [];
+  const vueEdges = shouldRunForLanguage(languages, [...JS_LIKE_LANGUAGES, 'vue']) ? vueTemplateEdges(ctx) : [];
   const svelteKitEdges = shouldRunForLanguage(languages, [...JS_LIKE_LANGUAGES, 'svelte']) ? svelteKitLoadEdges(ctx) : [];
   const pascalEdges = shouldRunForLanguage(languages, ['pascal']) ? pascalFormEdges(ctx) : [];
   const flutterEdges = shouldRunForLanguage(languages, ['dart']) ? flutterBuildEdges(queries, ctx) : [];

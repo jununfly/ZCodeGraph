@@ -140,6 +140,7 @@ export interface ResolutionAccessModel {
 
   // Node lookups (subset of AgentAccessModel)
   getNodeById(id: string): Node | null;
+  getNodeKindsByIds(ids: readonly string[]): Map<string, NodeKind>;
   getNodesByFile(filePath: string): Node[];
   getNodesByName(name: string): Node[];
   getNodesByQualifiedNameExact(qname: string): Node[];

@@ -61,6 +61,11 @@ export interface ResolutionResult {
       nameMatchingMs?: number;
       frameworkMatchingMs?: number;
       databaseAccessMs?: number;
+      cacheWarmupMs?: number;
+      unresolvedReadMs?: number;
+      edgeMaterializationMs?: number;
+      edgeWriteMs?: number;
+      unresolvedCleanupMs?: number;
       otherResolutionMs?: number;
       dynamicDispatchSynthesisMs?: number;
     };

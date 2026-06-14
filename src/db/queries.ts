@@ -471,6 +471,32 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
     return out;
   }
 
+  /**
+   * Batch lookup: fetch only node kinds for many node IDs.
+   *
+   * Reference resolution uses this when materializing edges so it can promote
+   * edge kinds without pulling full node rows or issuing one point lookup per
+   * resolved reference. Missing IDs are absent from the returned map.
+   */
+  getNodeKindsByIds(ids: readonly string[]): Map<string, NodeKind> {
+    const out = new Map<string, NodeKind>();
+    if (ids.length === 0) return out;
+
+    const uniqueIds = [...new Set(ids)];
+    for (let i = 0; i < uniqueIds.length; i += SQLITE_PARAM_CHUNK_SIZE) {
+      const chunk = uniqueIds.slice(i, i + SQLITE_PARAM_CHUNK_SIZE);
+      const placeholders = chunk.map(() => '?').join(',');
+      const rows = this.db
+        .prepare(`SELECT id, kind FROM nodes WHERE id IN (${placeholders})`)
+        .all(...chunk) as Array<{ id: string; kind: NodeKind }>;
+      for (const row of rows) {
+        out.set(row.id, row.kind);
+      }
+    }
+
+    return out;
+  }
+
   private getExistingNodeIds(ids: readonly string[]): Set<string> {
     const out = new Set<string>();
     if (ids.length === 0) return out;
@@ -1699,12 +1725,21 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
    */
   deleteSpecificResolvedReferences(refs: Array<{ fromNodeId: string; referenceName: string; referenceKind: string }>): void {
     if (refs.length === 0) return;
-    const stmt = this.db.prepare(
-      'DELETE FROM unresolved_refs WHERE from_node_id = ? AND reference_name = ? AND reference_kind = ?'
-    );
+    const tupleChunkSize = Math.max(1, Math.floor(SQLITE_PARAM_CHUNK_SIZE / 3));
     const deleteMany = this.db.transaction((items: typeof refs) => {
-      for (const ref of items) {
-        stmt.run(ref.fromNodeId, ref.referenceName, ref.referenceKind);
+      for (let i = 0; i < items.length; i += tupleChunkSize) {
+        const chunk = items.slice(i, i + tupleChunkSize);
+        const placeholders = chunk.map(() => '(?, ?, ?)').join(',');
+        const params = chunk.flatMap((ref) => [
+          ref.fromNodeId,
+          ref.referenceName,
+          ref.referenceKind,
+        ]);
+        this.db
+          .prepare(
+            `DELETE FROM unresolved_refs WHERE (from_node_id, reference_name, reference_kind) IN (${placeholders})`
+          )
+          .run(...params);
       }
     });
     deleteMany(refs);

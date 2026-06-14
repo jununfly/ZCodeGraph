@@ -687,6 +687,11 @@ export class CodeGraph {
         nameMatchingMs: number;
         frameworkMatchingMs: number;
         databaseAccessMs: number;
+        cacheWarmupMs: number;
+        unresolvedReadMs: number;
+        edgeMaterializationMs: number;
+        edgeWriteMs: number;
+        unresolvedCleanupMs: number;
         otherResolutionMs: number;
       };
       dynamicDispatchSynthesisMs: number;
@@ -710,6 +715,11 @@ export class CodeGraph {
             nameMatchingMs: 0,
             frameworkMatchingMs: 0,
             databaseAccessMs: 0,
+            cacheWarmupMs: 0,
+            unresolvedReadMs: 0,
+            edgeMaterializationMs: 0,
+            edgeWriteMs: 0,
+            unresolvedCleanupMs: 0,
             otherResolutionMs: 0,
           },
           dynamicDispatchSynthesisMs: 0,
@@ -729,6 +739,11 @@ export class CodeGraph {
           nameMatchingMs: resolutionTimings?.nameMatchingMs ?? 0,
           frameworkMatchingMs: resolutionTimings?.frameworkMatchingMs ?? 0,
           databaseAccessMs: resolutionTimings?.databaseAccessMs ?? 0,
+          cacheWarmupMs: resolutionTimings?.cacheWarmupMs ?? 0,
+          unresolvedReadMs: resolutionTimings?.unresolvedReadMs ?? 0,
+          edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
+          edgeWriteMs: resolutionTimings?.edgeWriteMs ?? 0,
+          unresolvedCleanupMs: resolutionTimings?.unresolvedCleanupMs ?? 0,
           otherResolutionMs: resolutionTimings?.otherResolutionMs ?? 0,
         };
         profile.dynamicDispatchSynthesisMs = resolutionTimings?.dynamicDispatchSynthesisMs ?? 0;

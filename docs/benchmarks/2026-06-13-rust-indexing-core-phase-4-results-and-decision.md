@@ -159,6 +159,13 @@ checkout reduced parse errors from 46 to 29; the remaining errors are the
 malformed fixture, prompt/generated, or compiler-scale colorization fixture
 paths already classified by the taxonomy.
 
+The #91 reference-resolution database-access optimization added public DB
+sub-buckets and attempted bounded optimizations for edge materialization and
+unresolved-reference cleanup. The VS Code after-profile preserved sufficiency
+but did not reduce `databaseAccessMs` enough to meet the optimization threshold:
+`databaseAccessMs` was 53,038ms and `nameMatchingMs` was 53,205ms. The #87
+default-rollout blocker is still unresolved.
+
 ## Package Smoke, Diagnostics, And Failure-Safety
 
 Package smoke passed for:
@@ -213,6 +220,9 @@ Follow-up blockers:
 - [#87](https://github.com/jununfly/ZCodeGraph/issues/87): completed
   reference-resolution investigation; `databaseAccessMs` is the largest
   subpath and remains a default-rollout blocker until optimized.
+- [#91](https://github.com/jununfly/ZCodeGraph/issues/91): attempted bounded
+  reference-resolution DB optimizations; sufficiency stayed green, but the
+  default-rollout blocker is still unresolved.
 
 Branch C is not chosen. The Rust path still passes sufficiency checks, package
 smoke, failure-safety, diagnostics, and a positive bounded optimization trial.

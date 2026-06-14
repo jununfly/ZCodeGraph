@@ -29,6 +29,11 @@ const REFERENCE_RESOLUTION_BREAKDOWN = [
   'nameMatchingMs',
   'frameworkMatchingMs',
   'databaseAccessMs',
+  'cacheWarmupMs',
+  'unresolvedReadMs',
+  'edgeMaterializationMs',
+  'edgeWriteMs',
+  'unresolvedCleanupMs',
   'otherResolutionMs',
 ];
 

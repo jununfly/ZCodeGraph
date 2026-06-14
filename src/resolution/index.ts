@@ -35,6 +35,11 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     nameMatchingMs: 0,
     frameworkMatchingMs: 0,
     databaseAccessMs: 0,
+    cacheWarmupMs: 0,
+    unresolvedReadMs: 0,
+    edgeMaterializationMs: 0,
+    edgeWriteMs: 0,
+    unresolvedCleanupMs: 0,
     otherResolutionMs: 0,
     dynamicDispatchSynthesisMs: 0,
   };
@@ -498,6 +503,7 @@ export class ReferenceResolver {
     // Pre-load lightweight lookup caches for fast resolution.
     this.warmCaches();
     addElapsed(timings, 'databaseAccessMs', warmStarted);
+    addElapsed(timings, 'cacheWarmupMs', warmStarted);
 
     const resolved: ResolvedRef[] = [];
     const unresolved: UnresolvedRef[] = [];
@@ -515,6 +521,7 @@ export class ReferenceResolver {
       language: ref.language || this.getLanguageFromNodeId(ref.fromNodeId),
     }));
     addElapsed(timings, 'databaseAccessMs', hydrateStarted);
+    addElapsed(timings, 'cacheWarmupMs', hydrateStarted);
 
     const total = refs.length;
     let lastReportedPercent = -1;
@@ -728,15 +735,26 @@ export class ReferenceResolver {
    * Create edges from resolved references
    */
   createEdges(resolved: ResolvedRef[]): Edge[] {
+    const kindIds = new Set<string>();
+    for (const ref of resolved) {
+      if (ref.original.referenceKind === 'extends') {
+        kindIds.add(ref.original.fromNodeId);
+        kindIds.add(ref.targetNodeId);
+      } else if (ref.original.referenceKind === 'calls') {
+        kindIds.add(ref.targetNodeId);
+      }
+    }
+    const nodeKinds = this.queries.getNodeKindsByIds([...kindIds]);
+
     return resolved.map((ref) => {
       let kind = ref.original.referenceKind;
 
       // Promote "extends" to "implements" when a class/struct targets an interface
       if (kind === 'extends') {
-        const targetNode = this.queries.getNodeById(ref.targetNodeId);
-        if (targetNode && (targetNode.kind === 'interface' || targetNode.kind === 'protocol')) {
-          const sourceNode = this.queries.getNodeById(ref.original.fromNodeId);
-          if (sourceNode && sourceNode.kind !== 'interface' && sourceNode.kind !== 'protocol') {
+        const targetKind = nodeKinds.get(ref.targetNodeId);
+        if (targetKind === 'interface' || targetKind === 'protocol') {
+          const sourceKind = nodeKinds.get(ref.original.fromNodeId);
+          if (sourceKind && sourceKind !== 'interface' && sourceKind !== 'protocol') {
             kind = 'implements';
           }
         }
@@ -748,8 +766,8 @@ export class ReferenceResolver {
       // apart from a function call without symbol info, but resolution
       // can: if `Foo` resolves to a class, the call IS an instantiation.
       if (kind === 'calls') {
-        const targetNode = this.queries.getNodeById(ref.targetNodeId);
-        if (targetNode && (targetNode.kind === 'class' || targetNode.kind === 'struct')) {
+        const targetKind = nodeKinds.get(ref.targetNodeId);
+        if (targetKind === 'class' || targetKind === 'struct') {
           kind = 'instantiates';
         }
       }
@@ -780,14 +798,20 @@ export class ReferenceResolver {
     // Create edges from resolved references
     const persistStarted = Date.now();
     const edges = this.createEdges(result.resolved);
+    addElapsed(result.stats.timings, 'databaseAccessMs', persistStarted);
+    addElapsed(result.stats.timings, 'edgeMaterializationMs', persistStarted);
 
     // Insert edges into database
     if (edges.length > 0) {
+      const writeStarted = Date.now();
       this.queries.insertEdges(edges);
+      addElapsed(result.stats.timings, 'databaseAccessMs', writeStarted);
+      addElapsed(result.stats.timings, 'edgeWriteMs', writeStarted);
     }
 
     // Clean up resolved refs from unresolved_refs table so metrics are accurate
     if (result.resolved.length > 0) {
+      const cleanupStarted = Date.now();
       this.queries.deleteSpecificResolvedReferences(
         result.resolved.map((r) => ({
           fromNodeId: r.original.fromNodeId,
@@ -795,8 +819,9 @@ export class ReferenceResolver {
           referenceKind: r.original.referenceKind,
         }))
       );
+      addElapsed(result.stats.timings, 'databaseAccessMs', cleanupStarted);
+      addElapsed(result.stats.timings, 'unresolvedCleanupMs', cleanupStarted);
     }
-    addElapsed(result.stats.timings, 'databaseAccessMs', persistStarted);
 
     return result;
   }
@@ -822,6 +847,7 @@ export class ReferenceResolver {
     this.warmCaches();
     const total = this.queries.getUnresolvedReferencesCount();
     addElapsed(aggregateStats.timings, 'databaseAccessMs', databaseStarted);
+    addElapsed(aggregateStats.timings, 'cacheWarmupMs', databaseStarted);
 
     // Process in batches. We always read from offset 0 because resolved refs
     // are deleted after each batch, shifting the remaining rows forward.
@@ -829,6 +855,7 @@ export class ReferenceResolver {
       databaseStarted = Date.now();
       const batch = this.queries.getUnresolvedReferencesBatch(0, batchSize);
       addElapsed(aggregateStats.timings, 'databaseAccessMs', databaseStarted);
+      addElapsed(aggregateStats.timings, 'unresolvedReadMs', databaseStarted);
       if (batch.length === 0) break;
 
       const result = this.resolveAll(batch);
@@ -839,12 +866,18 @@ export class ReferenceResolver {
       // Persist edges immediately
       const persistStarted = Date.now();
       const edges = this.createEdges(result.resolved);
+      addElapsed(aggregateStats.timings, 'databaseAccessMs', persistStarted);
+      addElapsed(aggregateStats.timings, 'edgeMaterializationMs', persistStarted);
       if (edges.length > 0) {
+        const writeStarted = Date.now();
         this.queries.insertEdges(edges);
+        addElapsed(aggregateStats.timings, 'databaseAccessMs', writeStarted);
+        addElapsed(aggregateStats.timings, 'edgeWriteMs', writeStarted);
       }
 
       // Clean up resolved refs so they don't appear in the next batch
       if (result.resolved.length > 0) {
+        const cleanupStarted = Date.now();
         this.queries.deleteSpecificResolvedReferences(
           result.resolved.map((r) => ({
             fromNodeId: r.original.fromNodeId,
@@ -852,10 +885,13 @@ export class ReferenceResolver {
             referenceKind: r.original.referenceKind,
           }))
         );
+        addElapsed(aggregateStats.timings, 'databaseAccessMs', cleanupStarted);
+        addElapsed(aggregateStats.timings, 'unresolvedCleanupMs', cleanupStarted);
       }
 
       // Delete unresolvable refs from this batch to avoid re-processing them
       if (result.unresolved.length > 0) {
+        const cleanupStarted = Date.now();
         this.queries.deleteSpecificResolvedReferences(
           result.unresolved.map((r) => ({
             fromNodeId: r.fromNodeId,
@@ -863,8 +899,9 @@ export class ReferenceResolver {
             referenceKind: r.referenceKind,
           }))
         );
+        addElapsed(aggregateStats.timings, 'databaseAccessMs', cleanupStarted);
+        addElapsed(aggregateStats.timings, 'unresolvedCleanupMs', cleanupStarted);
       }
-      addElapsed(aggregateStats.timings, 'databaseAccessMs', persistStarted);
 
       // Aggregate stats
       aggregateStats.total += result.stats.total;
