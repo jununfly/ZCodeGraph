@@ -690,6 +690,7 @@ export class CodeGraph {
         cacheWarmupMs: number;
         unresolvedReadMs: number;
         candidateLookupMs: number;
+        sharedCandidateLookupMs: number;
         candidateLookupCacheHitMs: number;
         perReferenceDisambiguationMs: number;
         edgeMaterializationMs: number;
@@ -721,6 +722,7 @@ export class CodeGraph {
             cacheWarmupMs: 0,
             unresolvedReadMs: 0,
             candidateLookupMs: 0,
+            sharedCandidateLookupMs: 0,
             candidateLookupCacheHitMs: 0,
             perReferenceDisambiguationMs: 0,
             edgeMaterializationMs: 0,
@@ -748,6 +750,7 @@ export class CodeGraph {
           cacheWarmupMs: resolutionTimings?.cacheWarmupMs ?? 0,
           unresolvedReadMs: resolutionTimings?.unresolvedReadMs ?? 0,
           candidateLookupMs: resolutionTimings?.candidateLookupMs ?? 0,
+          sharedCandidateLookupMs: resolutionTimings?.sharedCandidateLookupMs ?? 0,
           candidateLookupCacheHitMs: resolutionTimings?.candidateLookupCacheHitMs ?? 0,
           perReferenceDisambiguationMs: resolutionTimings?.perReferenceDisambiguationMs ?? 0,
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,

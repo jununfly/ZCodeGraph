@@ -32,6 +32,7 @@ const REFERENCE_RESOLUTION_BREAKDOWN = [
   'cacheWarmupMs',
   'unresolvedReadMs',
   'candidateLookupMs',
+  'sharedCandidateLookupMs',
   'candidateLookupCacheHitMs',
   'perReferenceDisambiguationMs',
   'edgeMaterializationMs',

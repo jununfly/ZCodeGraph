@@ -105,6 +105,7 @@ export interface MaintenanceAccessModel {
   clearUnresolvedReferences(): void;
   deleteResolvedReferences(fromNodeIds: string[]): void;
   deleteSpecificResolvedReferences(refs: UnresolvedReference[]): void;
+  deleteUnresolvedReferencesByRowIds(rowids: number[]): void;
 
   // Metadata
   setMetadata(key: string, value: string): void;

@@ -38,6 +38,7 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     cacheWarmupMs: 0,
     unresolvedReadMs: 0,
     candidateLookupMs: 0,
+    sharedCandidateLookupMs: 0,
     candidateLookupCacheHitMs: 0,
     perReferenceDisambiguationMs: 0,
     edgeMaterializationMs: 0,
@@ -515,6 +516,7 @@ export class ReferenceResolver {
     // Convert to our internal format, using denormalized fields when available
     const hydrateStarted = Date.now();
     const refs: UnresolvedRef[] = unresolvedRefs.map((ref) => ({
+      rowid: ref.rowid,
       fromNodeId: ref.fromNodeId,
       referenceName: ref.referenceName,
       referenceKind: ref.referenceKind,
@@ -528,6 +530,7 @@ export class ReferenceResolver {
 
     const total = refs.length;
     let lastReportedPercent = -1;
+    this.prewarmGroupedNameMatchingCandidates(refs, timings);
 
     for (let i = 0; i < refs.length; i++) {
       const ref = refs[i]!; // Array index is guaranteed to be in bounds
@@ -566,6 +569,29 @@ export class ReferenceResolver {
         timings,
       },
     };
+  }
+
+  private prewarmGroupedNameMatchingCandidates(refs: UnresolvedRef[], timings: ReferenceResolutionTimings): void {
+    const groups = new Map<string, UnresolvedRef>();
+    for (const ref of refs) {
+      groups.set(`${ref.referenceName}\0${ref.referenceKind}\0${ref.language}`, ref);
+    }
+
+    for (const ref of groups.values()) {
+      if (this.isBuiltInOrExternal(ref) || !this.hasAnyPossibleMatch(ref.referenceName)) {
+        continue;
+      }
+      const started = Date.now();
+      this.context.getNodesByName(ref.referenceName);
+      if (ref.referenceName.includes('::') || ref.referenceName.includes('.')) {
+        this.context.getNodesByQualifiedName(ref.referenceName);
+        const lastName = ref.referenceName.split(/[:.]/).filter(Boolean).pop();
+        if (lastName) this.context.getNodesByName(lastName);
+      }
+      this.context.getNodesByLowerName(ref.referenceName.toLowerCase());
+      addElapsed(timings, 'candidateLookupMs', started);
+      addElapsed(timings, 'sharedCandidateLookupMs', started);
+    }
   }
 
   /**
@@ -862,13 +888,7 @@ export class ReferenceResolver {
     // Clean up resolved refs from unresolved_refs table so metrics are accurate
     if (result.resolved.length > 0) {
       const cleanupStarted = Date.now();
-      this.queries.deleteSpecificResolvedReferences(
-        result.resolved.map((r) => ({
-          fromNodeId: r.original.fromNodeId,
-          referenceName: r.original.referenceName,
-          referenceKind: r.original.referenceKind,
-        }))
-      );
+      this.deleteResolvedOriginals(result.resolved.map((r) => r.original));
       addElapsed(result.stats.timings, 'databaseAccessMs', cleanupStarted);
       addElapsed(result.stats.timings, 'unresolvedCleanupMs', cleanupStarted);
     }
@@ -928,13 +948,7 @@ export class ReferenceResolver {
       // Clean up resolved refs so they don't appear in the next batch
       if (result.resolved.length > 0) {
         const cleanupStarted = Date.now();
-        this.queries.deleteSpecificResolvedReferences(
-          result.resolved.map((r) => ({
-            fromNodeId: r.original.fromNodeId,
-            referenceName: r.original.referenceName,
-            referenceKind: r.original.referenceKind,
-          }))
-        );
+        this.deleteResolvedOriginals(result.resolved.map((r) => r.original));
         addElapsed(aggregateStats.timings, 'databaseAccessMs', cleanupStarted);
         addElapsed(aggregateStats.timings, 'unresolvedCleanupMs', cleanupStarted);
       }
@@ -942,13 +956,7 @@ export class ReferenceResolver {
       // Delete unresolvable refs from this batch to avoid re-processing them
       if (result.unresolved.length > 0) {
         const cleanupStarted = Date.now();
-        this.queries.deleteSpecificResolvedReferences(
-          result.unresolved.map((r) => ({
-            fromNodeId: r.fromNodeId,
-            referenceName: r.referenceName,
-            referenceKind: r.referenceKind,
-          }))
-        );
+        this.deleteResolvedOriginals(result.unresolved);
         addElapsed(aggregateStats.timings, 'databaseAccessMs', cleanupStarted);
         addElapsed(aggregateStats.timings, 'unresolvedCleanupMs', cleanupStarted);
       }
@@ -991,6 +999,22 @@ export class ReferenceResolver {
       unresolved: [],
       stats: aggregateStats,
     };
+  }
+
+  private deleteResolvedOriginals(refs: UnresolvedRef[]): void {
+    const rowids = refs.flatMap((ref) => ref.rowid === undefined ? [] : [ref.rowid]);
+    if (rowids.length === refs.length) {
+      this.queries.deleteUnresolvedReferencesByRowIds(rowids);
+      return;
+    }
+
+    this.queries.deleteSpecificResolvedReferences(
+      refs.map((ref) => ({
+        fromNodeId: ref.fromNodeId,
+        referenceName: ref.referenceName,
+        referenceKind: ref.referenceKind,
+      }))
+    );
   }
 
   /**

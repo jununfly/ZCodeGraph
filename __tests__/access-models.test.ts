@@ -168,6 +168,7 @@ describe('MaintenanceAccessModel interface', () => {
     expect(typeof model.clearUnresolvedReferences).toBe('function');
     expect(typeof model.deleteResolvedReferences).toBe('function');
     expect(typeof model.deleteSpecificResolvedReferences).toBe('function');
+    expect(typeof model.deleteUnresolvedReferencesByRowIds).toBe('function');
     expect(typeof model.setMetadata).toBe('function');
     expect(typeof model.clear).toBe('function');
   });
@@ -281,6 +282,56 @@ describe('MaintenanceAccessModel interface', () => {
     model.deleteSpecificResolvedReferences(targetRefs);
 
     expect(model.getUnresolvedReferences()).toMatchObject([keepRef]);
+  });
+
+  it('reads unresolved-reference row ids and deletes only those rows by row id', () => {
+    const model: MaintenanceAccessModel & ResolutionAccessModel = qb;
+    model.insertNode(testNode('node-a'));
+    model.insertUnresolvedRefsBatch([
+      {
+        fromNodeId: 'node-a',
+        referenceName: 'target',
+        referenceKind: 'calls',
+        line: 1,
+        column: 1,
+        filePath: 'a.ts',
+        language: 'typescript',
+      },
+      {
+        fromNodeId: 'node-a',
+        referenceName: 'target',
+        referenceKind: 'calls',
+        line: 2,
+        column: 1,
+        filePath: 'a.ts',
+        language: 'typescript',
+      },
+      {
+        fromNodeId: 'node-a',
+        referenceName: 'target',
+        referenceKind: 'references',
+        line: 3,
+        column: 1,
+        filePath: 'a.ts',
+        language: 'typescript',
+      },
+    ]);
+
+    const batch = model.getUnresolvedReferencesBatch(0, 3);
+    expect(batch.map((ref) => ref.rowid)).toHaveLength(3);
+    expect(batch.every((ref) => typeof ref.rowid === 'number')).toBe(true);
+
+    model.deleteUnresolvedReferencesByRowIds([batch[0]!.rowid!, batch[2]!.rowid!]);
+
+    expect(model.getUnresolvedReferences()).toMatchObject([
+      {
+        fromNodeId: 'node-a',
+        referenceName: 'target',
+        referenceKind: 'calls',
+        line: 2,
+        column: 1,
+      },
+    ]);
   });
 });
 

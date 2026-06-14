@@ -10,6 +10,8 @@ import { EdgeKind, Language, Node } from '../types';
  * An unresolved reference from extraction
  */
 export interface UnresolvedRef {
+  /** Internal SQLite row identity, present only for database-backed batch reads */
+  rowid?: number;
   /** ID of the source node containing the reference */
   fromNodeId: string;
   /** The name being referenced */
@@ -64,6 +66,7 @@ export interface ResolutionResult {
       cacheWarmupMs?: number;
       unresolvedReadMs?: number;
       candidateLookupMs?: number;
+      sharedCandidateLookupMs?: number;
       candidateLookupCacheHitMs?: number;
       perReferenceDisambiguationMs?: number;
       edgeMaterializationMs?: number;

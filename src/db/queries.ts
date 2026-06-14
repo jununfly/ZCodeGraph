@@ -174,6 +174,20 @@ function rowToFileRecord(row: FileRow): FileRecord {
   };
 }
 
+function rowToUnresolvedReference(row: UnresolvedRefRow): UnresolvedReference {
+  return {
+    rowid: row.id,
+    fromNodeId: row.from_node_id,
+    referenceName: row.reference_name,
+    referenceKind: row.reference_kind as EdgeKind,
+    line: row.line,
+    column: row.col,
+    candidates: row.candidates ? safeJsonParse(row.candidates, undefined) : undefined,
+    filePath: row.file_path,
+    language: row.language as Language,
+  };
+}
+
 /**
  * Query builder for the knowledge graph database
  */
@@ -1583,16 +1597,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       );
     }
     const rows = this.stmts.getUnresolvedByName.all(name) as UnresolvedRefRow[];
-    return rows.map((row) => ({
-      fromNodeId: row.from_node_id,
-      referenceName: row.reference_name,
-      referenceKind: row.reference_kind as EdgeKind,
-      line: row.line,
-      column: row.col,
-      candidates: row.candidates ? safeJsonParse(row.candidates, undefined) : undefined,
-      filePath: row.file_path,
-      language: row.language as Language,
-    }));
+    return rows.map(rowToUnresolvedReference);
   }
 
   /**
@@ -1600,16 +1605,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
    */
   getUnresolvedReferences(): UnresolvedReference[] {
     const rows = this.db.prepare('SELECT * FROM unresolved_refs').all() as UnresolvedRefRow[];
-    return rows.map((row) => ({
-      fromNodeId: row.from_node_id,
-      referenceName: row.reference_name,
-      referenceKind: row.reference_kind as EdgeKind,
-      line: row.line,
-      column: row.col,
-      candidates: row.candidates ? safeJsonParse(row.candidates, undefined) : undefined,
-      filePath: row.file_path,
-      language: row.language as Language,
-    }));
+    return rows.map(rowToUnresolvedReference);
   }
 
   /**
@@ -1636,16 +1632,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       );
     }
     const rows = this.stmts.getUnresolvedBatch.all(limit, offset) as UnresolvedRefRow[];
-    return rows.map((row) => ({
-      fromNodeId: row.from_node_id,
-      referenceName: row.reference_name,
-      referenceKind: row.reference_kind as EdgeKind,
-      line: row.line,
-      column: row.col,
-      candidates: row.candidates ? safeJsonParse(row.candidates, undefined) : undefined,
-      filePath: row.file_path,
-      language: row.language as Language,
-    }));
+    return rows.map(rowToUnresolvedReference);
   }
 
   /**
@@ -1691,16 +1678,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       rows.push(...chunkRows);
     }
 
-    return rows.map((row) => ({
-      fromNodeId: row.from_node_id,
-      referenceName: row.reference_name,
-      referenceKind: row.reference_kind as EdgeKind,
-      line: row.line,
-      column: row.col,
-      candidates: row.candidates ? safeJsonParse(row.candidates, undefined) : undefined,
-      filePath: row.file_path,
-      language: row.language as Language,
-    }));
+    return rows.map(rowToUnresolvedReference);
   }
 
   /**
@@ -1743,6 +1721,23 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       }
     });
     deleteMany(refs);
+  }
+
+  deleteUnresolvedReferencesByRowIds(rowids: number[]): void {
+    if (rowids.length === 0) return;
+    const uniqueRowids = [...new Set(rowids.filter((rowid) => Number.isInteger(rowid) && rowid > 0))];
+    if (uniqueRowids.length === 0) return;
+
+    const deleteMany = this.db.transaction((items: number[]) => {
+      for (let i = 0; i < items.length; i += SQLITE_PARAM_CHUNK_SIZE) {
+        const chunk = items.slice(i, i + SQLITE_PARAM_CHUNK_SIZE);
+        const placeholders = chunk.map(() => '?').join(',');
+        this.db
+          .prepare(`DELETE FROM unresolved_refs WHERE rowid IN (${placeholders})`)
+          .run(...chunk);
+      }
+    });
+    deleteMany(uniqueRowids);
   }
 
   // ===========================================================================
