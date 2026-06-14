@@ -672,12 +672,26 @@ fn variable_declarator_has_function_value(node: SyntaxNode) -> bool {
 fn node_has_function_value(node: SyntaxNode) -> bool {
     node.child_by_field_name("value")
         .map(|value| {
-            matches!(
-                value.kind(),
-                "arrow_function" | "function" | "function_expression"
-            )
+            node_contains_function_value(value)
         })
         .unwrap_or(false)
+}
+
+fn node_contains_function_value(node: SyntaxNode) -> bool {
+    if matches!(
+        node.kind(),
+        "arrow_function" | "function" | "function_expression"
+    ) {
+        return true;
+    }
+
+    let mut cursor = node.walk();
+    for child in node.named_children(&mut cursor) {
+        if node_contains_function_value(child) {
+            return true;
+        }
+    }
+    false
 }
 
 fn extract_statement_refs(

@@ -188,6 +188,7 @@ describe('semantic parity comparator', () => {
           '}',
           'export class UserService {',
           '  cache = new Map<string, User>();',
+          '  refresh = withTrace(() => loadUser("1"));',
           '  constructor() {}',
           '  get(id: UserId): User { return loadUser(id); }',
           '}',
@@ -237,6 +238,7 @@ describe('semantic parity comparator', () => {
       'loadUser',
       'UserService',
       'cache',
+      'refresh',
       'ProfileCard',
       'Dashboard',
     ]);
