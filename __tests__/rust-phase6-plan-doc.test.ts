@@ -15,6 +15,12 @@ const FEASIBILITY_DECISION = path.join(
   'design',
   '2026-06-14-rust-end-to-end-graph-pipeline-feasibility.md',
 );
+const RESULTS_DECISION = path.join(
+  REPO_ROOT,
+  'docs',
+  'benchmarks',
+  '2026-06-14-rust-indexing-core-phase-6-results-and-decision.md',
+);
 
 describe('Rust indexing Phase 6 plan document', () => {
   it('records JS/TS Rust indexing completeness without default rollout or end-to-end migration claims', () => {
@@ -52,6 +58,20 @@ describe('Rust indexing Phase 6 plan document', () => {
     expect(decision).toContain('dynamic synthesizers later');
     expect(decision).toContain('validated on a large VS Code JS/TS sparse checkout');
     expect(decision).toContain('perReferenceDisambiguationMs');
+    expect(decision).not.toContain('default rollout is ready');
+    expect(decision).not.toContain('Rust is ready to become the default');
+  });
+
+  it('records the Phase 6 closeout classification without default rollout claims', () => {
+    const decision = fs.readFileSync(RESULTS_DECISION, 'utf-8');
+
+    expect(decision).toContain('Classification: `ready for end-to-end prototype`');
+    expect(decision).toContain('Rust remains opt-in');
+    expect(decision).toContain('validated on a large VS Code JS/TS sparse checkout');
+    expect(decision).toContain('Branch/default status: TypeScript remains the default');
+    expect(decision).toContain('Next recommended plan: bounded Rust graph-pipeline prototype');
+    expect(decision).toContain('docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-vscode-profile.raw.json');
+    expect(decision).toContain('docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-vscode-sufficiency.raw.json');
     expect(decision).not.toContain('default rollout is ready');
     expect(decision).not.toContain('Rust is ready to become the default');
   });
