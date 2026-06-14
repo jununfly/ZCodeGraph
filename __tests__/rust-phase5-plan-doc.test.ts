@@ -15,6 +15,12 @@ const ISSUE_94_RESULTS = path.join(
   'benchmarks',
   '2026-06-14-rust-indexing-core-phase-5-issue94-grouped-name-rowid-cleanup.md',
 );
+const PHASE_5_DECISION = path.join(
+  REPO_ROOT,
+  'docs',
+  'benchmarks',
+  '2026-06-14-rust-indexing-core-phase-5-results-and-decision.md',
+);
 
 describe('Rust indexing Phase 5 plan document', () => {
   it('records targeted blocker reduction without claiming default rollout readiness', () => {
@@ -59,5 +65,21 @@ describe('Rust indexing Phase 5 plan document', () => {
     expect(results).toContain('did not meet the 15% target-sub-bucket reduction bar');
     expect(results).not.toContain('default rollout is ready');
     expect(results).not.toContain('Rust is ready to become the default');
+  });
+
+  it('records the final Phase 5 stop/continue decision', () => {
+    const plan = fs.readFileSync(PLAN, 'utf-8');
+    const decision = fs.readFileSync(PHASE_5_DECISION, 'utf-8');
+
+    expect(plan).toContain('Phase 5 results and decision | Completed');
+    expect(decision).toContain('Classification: `still unresolved`');
+    expect(decision).toContain('Branch A/default rollout remains blocked');
+    expect(decision).toContain('Rust remains opt-in');
+    expect(decision).toContain('validated on a large VS Code JS/TS sparse checkout');
+    expect(decision).toContain('docs/benchmarks/2026-06-14-rust-indexing-core-phase-5-issue94-vscode-profile.raw.json');
+    expect(decision).toContain('docs/benchmarks/2026-06-14-rust-indexing-core-phase-5-issue94-vscode-sufficiency.raw.json');
+    expect(decision).toContain('name matching policy and per-reference disambiguation cost');
+    expect(decision).not.toContain('default rollout is ready');
+    expect(decision).not.toContain('Rust is ready to become the default');
   });
 });
