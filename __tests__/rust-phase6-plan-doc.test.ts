@@ -9,6 +9,12 @@ const PLAN = path.join(
   'plans',
   '2026-06-14-rust-indexing-core-phase-6-js-ts-completeness.md',
 );
+const FEASIBILITY_DECISION = path.join(
+  REPO_ROOT,
+  'docs',
+  'design',
+  '2026-06-14-rust-end-to-end-graph-pipeline-feasibility.md',
+);
 
 describe('Rust indexing Phase 6 plan document', () => {
   it('records JS/TS Rust indexing completeness without default rollout or end-to-end migration claims', () => {
@@ -33,5 +39,20 @@ describe('Rust indexing Phase 6 plan document', () => {
     expect(plan).toContain('### 5. Operational Completeness Closeout');
     expect(plan).not.toContain('default rollout is ready');
     expect(plan).not.toContain('Rust is ready to become the default');
+  });
+
+  it('records the Phase 6 end-to-end Rust graph pipeline feasibility decision without implementing it', () => {
+    const decision = fs.readFileSync(FEASIBILITY_DECISION, 'utf-8');
+
+    expect(decision).toContain('Decision: `prototype-first`');
+    expect(decision).toContain('Rust remains opt-in');
+    expect(decision).toContain('Phase 6 does not implement the end-to-end Rust graph pipeline');
+    expect(decision).toContain('name matcher only');
+    expect(decision).toContain('reference resolver only');
+    expect(decision).toContain('dynamic synthesizers later');
+    expect(decision).toContain('validated on a large VS Code JS/TS sparse checkout');
+    expect(decision).toContain('perReferenceDisambiguationMs');
+    expect(decision).not.toContain('default rollout is ready');
+    expect(decision).not.toContain('Rust is ready to become the default');
   });
 });
