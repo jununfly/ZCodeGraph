@@ -238,7 +238,7 @@ after-profile clearly identifies one largest remaining actionable sub-bucket.
 | Plan item | Status | Evidence |
 |---|---|---|
 | Phase 5 plan and tracker | Completed | This plan, [#95](https://github.com/jununfly/ZCodeGraph/issues/95) |
-| Reference-resolution profile sub-buckets | Pending | Follow-up issue |
+| Reference-resolution profile sub-buckets | Completed | [#96](https://github.com/jununfly/ZCodeGraph/issues/96); profiler artifacts expose `candidateLookupMs`, `candidateLookupCacheHitMs`, `perReferenceDisambiguationMs`, `unresolvedReadMs`, `edgeWriteMs`, `unresolvedCleanupMs`, `nameMatchingMs`, `databaseAccessMs`, and `referenceResolutionMs` |
 | Grouped name matching and rowid cleanup | Pending | [#94](https://github.com/jununfly/ZCodeGraph/issues/94) |
 | Optional bounded second candidate | Conditional | Created only after #94 if evidence requires it |
 | Phase 5 results and decision | Pending | Future results document |

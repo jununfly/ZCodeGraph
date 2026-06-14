@@ -63,6 +63,9 @@ export interface ResolutionResult {
       databaseAccessMs?: number;
       cacheWarmupMs?: number;
       unresolvedReadMs?: number;
+      candidateLookupMs?: number;
+      candidateLookupCacheHitMs?: number;
+      perReferenceDisambiguationMs?: number;
       edgeMaterializationMs?: number;
       edgeWriteMs?: number;
       unresolvedCleanupMs?: number;

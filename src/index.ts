@@ -689,6 +689,9 @@ export class CodeGraph {
         databaseAccessMs: number;
         cacheWarmupMs: number;
         unresolvedReadMs: number;
+        candidateLookupMs: number;
+        candidateLookupCacheHitMs: number;
+        perReferenceDisambiguationMs: number;
         edgeMaterializationMs: number;
         edgeWriteMs: number;
         unresolvedCleanupMs: number;
@@ -717,6 +720,9 @@ export class CodeGraph {
             databaseAccessMs: 0,
             cacheWarmupMs: 0,
             unresolvedReadMs: 0,
+            candidateLookupMs: 0,
+            candidateLookupCacheHitMs: 0,
+            perReferenceDisambiguationMs: 0,
             edgeMaterializationMs: 0,
             edgeWriteMs: 0,
             unresolvedCleanupMs: 0,
@@ -741,6 +747,9 @@ export class CodeGraph {
           databaseAccessMs: resolutionTimings?.databaseAccessMs ?? 0,
           cacheWarmupMs: resolutionTimings?.cacheWarmupMs ?? 0,
           unresolvedReadMs: resolutionTimings?.unresolvedReadMs ?? 0,
+          candidateLookupMs: resolutionTimings?.candidateLookupMs ?? 0,
+          candidateLookupCacheHitMs: resolutionTimings?.candidateLookupCacheHitMs ?? 0,
+          perReferenceDisambiguationMs: resolutionTimings?.perReferenceDisambiguationMs ?? 0,
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
           edgeWriteMs: resolutionTimings?.edgeWriteMs ?? 0,
           unresolvedCleanupMs: resolutionTimings?.unresolvedCleanupMs ?? 0,

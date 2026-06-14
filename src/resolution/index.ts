@@ -37,6 +37,9 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     databaseAccessMs: 0,
     cacheWarmupMs: 0,
     unresolvedReadMs: 0,
+    candidateLookupMs: 0,
+    candidateLookupCacheHitMs: 0,
+    perReferenceDisambiguationMs: 0,
     edgeMaterializationMs: 0,
     edgeWriteMs: 0,
     unresolvedCleanupMs: 0,
@@ -717,8 +720,15 @@ export class ReferenceResolver {
 
     // Strategy 3: Try name matching
     started = Date.now();
-    const nameResult = this.gateLanguage(matchReference(ref, this.context), ref);
-    addElapsed(timings, 'nameMatchingMs', started);
+    const candidateLookupBefore = timings?.candidateLookupMs ?? 0;
+    const nameResult = this.gateLanguage(matchReference(ref, this.createNameMatchingTimingContext(timings)), ref);
+    const nameMatchingElapsed = Math.max(0, Date.now() - started);
+    if (timings) {
+      timings.nameMatchingMs = (timings.nameMatchingMs ?? 0) + nameMatchingElapsed;
+      const candidateLookupDelta = Math.max(0, (timings.candidateLookupMs ?? 0) - candidateLookupBefore);
+      timings.perReferenceDisambiguationMs = (timings.perReferenceDisambiguationMs ?? 0) +
+        Math.max(0, nameMatchingElapsed - candidateLookupDelta);
+    }
     if (nameResult) {
       candidates.push(nameResult);
     }
@@ -729,6 +739,46 @@ export class ReferenceResolver {
     return candidates.reduce((best, curr) =>
       curr.confidence > best.confidence ? curr : best
     );
+  }
+
+  private createNameMatchingTimingContext(timings?: ReferenceResolutionTimings): ResolutionContext {
+    if (!timings) return this.context;
+
+    const timeCandidateLookup = <T>(cacheHit: boolean, operation: () => T): T => {
+      const started = Date.now();
+      try {
+        return operation();
+      } finally {
+        addElapsed(timings, 'candidateLookupMs', started);
+        if (cacheHit) {
+          addElapsed(timings, 'candidateLookupCacheHitMs', started);
+        }
+      }
+    };
+
+    return {
+      ...this.context,
+      getNodesInFile: (filePath: string) =>
+        timeCandidateLookup(
+          this.nodeCache.has(filePath),
+          () => this.context.getNodesInFile(filePath),
+        ),
+      getNodesByName: (name: string) =>
+        timeCandidateLookup(
+          this.nameCache.get(name) !== undefined,
+          () => this.context.getNodesByName(name),
+        ),
+      getNodesByQualifiedName: (qualifiedName: string) =>
+        timeCandidateLookup(
+          this.qualifiedNameCache.get(qualifiedName) !== undefined,
+          () => this.context.getNodesByQualifiedName(qualifiedName),
+        ),
+      getNodesByLowerName: (lowerName: string) =>
+        timeCandidateLookup(
+          this.lowerNameCache.get(lowerName) !== undefined,
+          () => this.context.getNodesByLowerName(lowerName),
+        ),
+    };
   }
 
   /**
