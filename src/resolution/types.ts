@@ -69,6 +69,14 @@ export interface ResolutionResult {
       sharedCandidateLookupMs?: number;
       candidateLookupCacheHitMs?: number;
       perReferenceDisambiguationMs?: number;
+      rustMatcherMs?: number;
+      rustMatcherStartupMs?: number;
+      rustMatcherSerializationMs?: number;
+      rustMatcherEligibleRefs?: number;
+      rustMatcherHandledRefs?: number;
+      rustMatcherFallbackRefs?: number;
+      rustMatcherSemanticMismatchRefs?: number;
+      rustMatcherFallbackReasons?: Record<string, number>;
       edgeMaterializationMs?: number;
       edgeWriteMs?: number;
       unresolvedCleanupMs?: number;

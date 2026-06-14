@@ -1,10 +1,28 @@
 use std::env;
+use std::io::{self, Read};
 use std::process;
 
-use zcodegraph_core::{error_json, progress_json, result_json, run_index, IndexRequest};
+use zcodegraph_core::{error_json, match_name_json, progress_json, result_json, run_index, IndexRequest};
 
 fn main() {
-    match parse_args(env::args().skip(1).collect()) {
+    let args: Vec<String> = env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("match-name") {
+        let mut input = String::new();
+        if let Err(err) = io::stdin().read_to_string(&mut input) {
+            eprintln!("{}", error_json(&format!("failed to read stdin: {}", err)));
+            process::exit(2);
+        }
+        match match_name_json(&input) {
+            Ok(output) => println!("{}", output),
+            Err(message) => {
+                eprintln!("{}", error_json(&message));
+                process::exit(2);
+            }
+        }
+        return;
+    }
+
+    match parse_args(args) {
         Ok(request) => {
             println!("{}", progress_json("scanning", 0, 1));
             let result = run_index(&request);

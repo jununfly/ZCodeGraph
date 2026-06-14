@@ -693,6 +693,14 @@ export class CodeGraph {
         sharedCandidateLookupMs: number;
         candidateLookupCacheHitMs: number;
         perReferenceDisambiguationMs: number;
+        rustMatcherMs: number;
+        rustMatcherStartupMs: number;
+        rustMatcherSerializationMs: number;
+        rustMatcherEligibleRefs: number;
+        rustMatcherHandledRefs: number;
+        rustMatcherFallbackRefs: number;
+        rustMatcherSemanticMismatchRefs: number;
+        rustMatcherFallbackReasons: Record<string, number>;
         edgeMaterializationMs: number;
         edgeWriteMs: number;
         unresolvedCleanupMs: number;
@@ -725,6 +733,14 @@ export class CodeGraph {
             sharedCandidateLookupMs: 0,
             candidateLookupCacheHitMs: 0,
             perReferenceDisambiguationMs: 0,
+            rustMatcherMs: 0,
+            rustMatcherStartupMs: 0,
+            rustMatcherSerializationMs: 0,
+            rustMatcherEligibleRefs: 0,
+            rustMatcherHandledRefs: 0,
+            rustMatcherFallbackRefs: 0,
+            rustMatcherSemanticMismatchRefs: 0,
+            rustMatcherFallbackReasons: {},
             edgeMaterializationMs: 0,
             edgeWriteMs: 0,
             unresolvedCleanupMs: 0,
@@ -753,6 +769,14 @@ export class CodeGraph {
           sharedCandidateLookupMs: resolutionTimings?.sharedCandidateLookupMs ?? 0,
           candidateLookupCacheHitMs: resolutionTimings?.candidateLookupCacheHitMs ?? 0,
           perReferenceDisambiguationMs: resolutionTimings?.perReferenceDisambiguationMs ?? 0,
+          rustMatcherMs: resolutionTimings?.rustMatcherMs ?? 0,
+          rustMatcherStartupMs: resolutionTimings?.rustMatcherStartupMs ?? 0,
+          rustMatcherSerializationMs: resolutionTimings?.rustMatcherSerializationMs ?? 0,
+          rustMatcherEligibleRefs: resolutionTimings?.rustMatcherEligibleRefs ?? 0,
+          rustMatcherHandledRefs: resolutionTimings?.rustMatcherHandledRefs ?? 0,
+          rustMatcherFallbackRefs: resolutionTimings?.rustMatcherFallbackRefs ?? 0,
+          rustMatcherSemanticMismatchRefs: resolutionTimings?.rustMatcherSemanticMismatchRefs ?? 0,
+          rustMatcherFallbackReasons: resolutionTimings?.rustMatcherFallbackReasons ?? {},
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
           edgeWriteMs: resolutionTimings?.edgeWriteMs ?? 0,
           unresolvedCleanupMs: resolutionTimings?.unresolvedCleanupMs ?? 0,

@@ -1,0 +1,132 @@
+{
+  "generatedAt": "2026-06-14T12:10:03.967Z",
+  "toolchain": {
+    "node": "v26.0.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M5",
+    "cpuCount": 10,
+    "totalMemoryBytes": 17179869184
+  },
+  "rustCore": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/target/debug/zcodegraph-core",
+  "results": [
+    {
+      "name": "vscode",
+      "sourcePath": "/tmp/zcodegraph-phase7-vscode-sparse",
+      "commit": "4ac5322601c",
+      "profileSource": "docs/plans/2026-06-13-rust-indexing-core-phase-2-packaging-ci-performance.md#66",
+      "phase1CopiedFiles": 1727,
+      "tempProjectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-profile-vscode-rust-profile-iDwLZR",
+      "engines": {
+        "typescript": {
+          "engine": "typescript",
+          "wallMs": 61521,
+          "peakRssBytes": null,
+          "rssUnavailableReason": "RSS sampling unavailable: process-list access is sandboxed (spawnSync ps EPERM)"
+        },
+        "rust": {
+          "engine": "rust",
+          "wallMs": 39343,
+          "peakRssBytes": null,
+          "rssUnavailableReason": "RSS sampling unavailable: process-list access is sandboxed (spawnSync ps EPERM)"
+        }
+      },
+      "wallMs": 39309,
+      "result": {
+        "success": true,
+        "filesIndexed": 1725,
+        "filesSkipped": 0,
+        "filesErrored": 3,
+        "nodesCreated": 60929,
+        "edgesCreated": 162438,
+        "durationMs": 11390,
+        "errors": [
+          {
+            "message": "src/vs/platform/files/test/node/fixtures/resolver/examples/employee.js: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/platform/files/test/node/fixtures/resolver/other/deep/employee.js: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/platform/files/test/node/fixtures/service/deep/employee.js: parse error",
+            "severity": "error"
+          }
+        ]
+      },
+      "profile": {
+        "sourceScanMs": 9,
+        "parseExtractionMs": 4261,
+        "sqliteWriteMs": 5569,
+        "typescriptFinalizationMs": 27903,
+        "subprocessStartupHandoffMs": 2
+      },
+      "finalizationSubphases": {
+        "frameworkPostExtractMs": 13,
+        "referenceResolutionMs": 27050,
+        "referenceResolutionBreakdown": {
+          "importResolutionMs": 851,
+          "nameMatchingMs": 1164,
+          "frameworkMatchingMs": 4,
+          "databaseAccessMs": 2629,
+          "cacheWarmupMs": 27,
+          "unresolvedReadMs": 123,
+          "candidateLookupMs": 493,
+          "sharedCandidateLookupMs": 69,
+          "candidateLookupCacheHitMs": 142,
+          "perReferenceDisambiguationMs": 1113,
+          "rustMatcherMs": 20699,
+          "rustMatcherStartupMs": 0,
+          "rustMatcherSerializationMs": 838,
+          "rustMatcherEligibleRefs": 145320,
+          "rustMatcherHandledRefs": 104375,
+          "rustMatcherFallbackRefs": 48800,
+          "rustMatcherSemanticMismatchRefs": 12,
+          "rustMatcherFallbackReasons": {
+            "unresolved": 48788,
+            "semantic-mismatch": 12
+          },
+          "edgeMaterializationMs": 32,
+          "edgeWriteMs": 1303,
+          "unresolvedCleanupMs": 1144,
+          "otherResolutionMs": 29
+        },
+        "dynamicDispatchSynthesisMs": 799,
+        "dbMaintenanceMs": 14
+      },
+      "referenceResolutionBreakdown": {
+        "importResolutionMs": 851,
+        "nameMatchingMs": 1164,
+        "frameworkMatchingMs": 4,
+        "databaseAccessMs": 2629,
+        "cacheWarmupMs": 27,
+        "unresolvedReadMs": 123,
+        "candidateLookupMs": 493,
+        "sharedCandidateLookupMs": 69,
+        "candidateLookupCacheHitMs": 142,
+        "perReferenceDisambiguationMs": 1113,
+        "rustMatcherMs": 20699,
+        "rustMatcherStartupMs": 0,
+        "rustMatcherSerializationMs": 838,
+        "rustMatcherEligibleRefs": 145320,
+        "rustMatcherHandledRefs": 104375,
+        "rustMatcherFallbackRefs": 48800,
+        "rustMatcherSemanticMismatchRefs": 12,
+        "rustMatcherFallbackReasons": {
+          "unresolved": 48788,
+          "semantic-mismatch": 12
+        },
+        "edgeMaterializationMs": 32,
+        "edgeWriteMs": 1303,
+        "unresolvedCleanupMs": 1144,
+        "otherResolutionMs": 29
+      },
+      "dominantFinalizationSubphase": "referenceResolutionMs",
+      "dominantReferenceResolutionSubpath": "rustMatcherMs"
+    }
+  ]
+}

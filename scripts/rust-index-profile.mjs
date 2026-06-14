@@ -336,6 +336,14 @@ async function profileRepo(repo, rustCore, dist) {
         sharedCandidateLookupMs: 0,
         candidateLookupCacheHitMs: 0,
         perReferenceDisambiguationMs: 0,
+        rustMatcherMs: 0,
+        rustMatcherStartupMs: 0,
+        rustMatcherSerializationMs: 0,
+        rustMatcherEligibleRefs: 0,
+        rustMatcherHandledRefs: 0,
+        rustMatcherFallbackRefs: 0,
+        rustMatcherSemanticMismatchRefs: 0,
+        rustMatcherFallbackReasons: {},
         edgeMaterializationMs: 0,
         edgeWriteMs: 0,
         unresolvedCleanupMs: 0,
@@ -404,7 +412,7 @@ async function profileRepo(repo, rustCore, dist) {
 
 function dominantSubphase(subphases) {
   return Object.entries(subphases)
-    .filter((entry) => typeof entry[1] === 'number')
+    .filter((entry) => entry[0].endsWith('Ms') && typeof entry[1] === 'number')
     .sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'frameworkPostExtractMs';
 }
 

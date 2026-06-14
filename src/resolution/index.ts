@@ -26,6 +26,14 @@ import { loadWorkspacePackages, type WorkspacePackages } from './workspace-packa
 import { logDebug } from '../errors';
 import type { ReExport } from './types';
 import { LRUCache } from './lru-cache';
+import {
+  collectRustNameMatcherReference,
+  runRustNameMatcherBatch,
+  rustNameMatcherEnabled,
+  rustNameMatcherKey,
+  rustNameMatcherStrict,
+  type RustNameMatcherDecision,
+} from './rust-name-matcher';
 
 type ReferenceResolutionTimings = NonNullable<ResolutionResult['stats']['timings']>;
 
@@ -41,6 +49,14 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     sharedCandidateLookupMs: 0,
     candidateLookupCacheHitMs: 0,
     perReferenceDisambiguationMs: 0,
+    rustMatcherMs: 0,
+    rustMatcherStartupMs: 0,
+    rustMatcherSerializationMs: 0,
+    rustMatcherEligibleRefs: 0,
+    rustMatcherHandledRefs: 0,
+    rustMatcherFallbackRefs: 0,
+    rustMatcherSemanticMismatchRefs: 0,
+    rustMatcherFallbackReasons: {},
     edgeMaterializationMs: 0,
     edgeWriteMs: 0,
     unresolvedCleanupMs: 0,
@@ -55,7 +71,28 @@ function addElapsed(
   startedAt: number,
 ): void {
   if (!timings) return;
-  timings[key] = (timings[key] ?? 0) + Math.max(0, Date.now() - startedAt);
+  const current = timings[key];
+  if (typeof current === 'object') return;
+  (timings as Record<string, unknown>)[key] = (current ?? 0) + Math.max(0, Date.now() - startedAt);
+}
+
+function mergeFallbackReasons(
+  current: Record<string, number> | undefined,
+  next: Record<string, number>,
+): Record<string, number> {
+  const merged = { ...(current ?? {}) };
+  for (const [reason, count] of Object.entries(next)) {
+    merged[reason] = (merged[reason] ?? 0) + count;
+  }
+  return merged;
+}
+
+function sameResolvedRef(a: ResolvedRef, b: ResolvedRef): boolean {
+  return (
+    a.targetNodeId === b.targetNodeId &&
+    a.resolvedBy === b.resolvedBy &&
+    a.confidence === b.confidence
+  );
 }
 
 /**
@@ -241,6 +278,7 @@ export class ReferenceResolver {
   private goModule: GoModule | null | undefined = undefined;
   // Monorepo workspace member packages. Same lazy/immutable convention.
   private workspacePackages: WorkspacePackages | null | undefined = undefined;
+  private rustNameMatcherDecisions: Map<string, RustNameMatcherDecision> | null = null;
 
   constructor(projectRoot: string, queries: QueryBuilder) {
     this.projectRoot = projectRoot;
@@ -531,6 +569,7 @@ export class ReferenceResolver {
     const total = refs.length;
     let lastReportedPercent = -1;
     this.prewarmGroupedNameMatchingCandidates(refs, timings);
+    this.precomputeRustNameMatcherDecisions(refs, timings);
 
     for (let i = 0; i < refs.length; i++) {
       const ref = refs[i]!; // Array index is guaranteed to be in bounds
@@ -593,6 +632,34 @@ export class ReferenceResolver {
       addElapsed(timings, 'candidateLookupMs', started);
       addElapsed(timings, 'sharedCandidateLookupMs', started);
     }
+  }
+
+  private precomputeRustNameMatcherDecisions(refs: UnresolvedRef[], timings: ReferenceResolutionTimings): void {
+    this.rustNameMatcherDecisions = null;
+    if (!rustNameMatcherEnabled()) return;
+
+    const candidates = [];
+    for (const ref of refs) {
+      const candidate = collectRustNameMatcherReference(ref, this.createNameMatchingTimingContext(timings));
+      if (candidate) {
+        candidates.push(candidate);
+      }
+    }
+
+    const result = runRustNameMatcherBatch(candidates);
+    this.rustNameMatcherDecisions = result.decisions;
+    timings.rustMatcherMs = (timings.rustMatcherMs ?? 0) + result.diagnostics.rustMatcherMs;
+    timings.rustMatcherStartupMs = (timings.rustMatcherStartupMs ?? 0) + result.diagnostics.rustMatcherStartupMs;
+    timings.rustMatcherSerializationMs = (timings.rustMatcherSerializationMs ?? 0) + result.diagnostics.rustMatcherSerializationMs;
+    timings.rustMatcherEligibleRefs = (timings.rustMatcherEligibleRefs ?? 0) + result.diagnostics.rustMatcherEligibleRefs;
+    timings.rustMatcherHandledRefs = (timings.rustMatcherHandledRefs ?? 0) + result.diagnostics.rustMatcherHandledRefs;
+    timings.rustMatcherFallbackRefs = (timings.rustMatcherFallbackRefs ?? 0) + result.diagnostics.rustMatcherFallbackRefs;
+    timings.rustMatcherSemanticMismatchRefs =
+      (timings.rustMatcherSemanticMismatchRefs ?? 0) + result.diagnostics.rustMatcherSemanticMismatchRefs;
+    timings.rustMatcherFallbackReasons = mergeFallbackReasons(
+      timings.rustMatcherFallbackReasons,
+      result.diagnostics.rustMatcherFallbackReasons,
+    );
   }
 
   /**
@@ -748,7 +815,7 @@ export class ReferenceResolver {
     // Strategy 3: Try name matching
     started = Date.now();
     const candidateLookupBefore = timings?.candidateLookupMs ?? 0;
-    const nameResult = this.gateLanguage(matchReference(ref, this.createNameMatchingTimingContext(timings)), ref);
+    const nameResult = this.resolveViaGuardedNameMatcher(ref, timings);
     const nameMatchingElapsed = Math.max(0, Date.now() - started);
     if (timings) {
       timings.nameMatchingMs = (timings.nameMatchingMs ?? 0) + nameMatchingElapsed;
@@ -765,6 +832,49 @@ export class ReferenceResolver {
     // Return highest confidence candidate
     return candidates.reduce((best, curr) =>
       curr.confidence > best.confidence ? curr : best
+    );
+  }
+
+  private resolveViaGuardedNameMatcher(ref: UnresolvedRef, timings?: ReferenceResolutionTimings): ResolvedRef | null {
+    const context = this.createNameMatchingTimingContext(timings);
+    const rustDecision = this.rustNameMatcherDecisions?.get(rustNameMatcherKey(ref));
+    if (!rustDecision) {
+      return this.gateLanguage(matchReference(ref, context), ref);
+    }
+
+    const tsResult = this.gateLanguage(matchReference(ref, context), ref);
+    if (!rustDecision.targetNodeId || !rustDecision.resolvedBy) {
+      this.recordRustMatcherFallback(timings, rustDecision.fallbackReason ?? 'unresolved');
+      return tsResult;
+    }
+
+    const rustResult = this.gateLanguage({
+      original: ref,
+      targetNodeId: rustDecision.targetNodeId,
+      confidence: rustDecision.confidence,
+      resolvedBy: rustDecision.resolvedBy,
+    }, ref);
+
+    if (!rustResult || !tsResult || !sameResolvedRef(rustResult, tsResult)) {
+      this.recordRustMatcherFallback(timings, 'semantic-mismatch');
+      if (timings) {
+        timings.rustMatcherSemanticMismatchRefs = (timings.rustMatcherSemanticMismatchRefs ?? 0) + 1;
+      }
+      if (rustNameMatcherStrict()) {
+        throw new Error(`Rust name matcher semantic mismatch for ${ref.referenceName}`);
+      }
+      return tsResult;
+    }
+
+    return rustResult;
+  }
+
+  private recordRustMatcherFallback(timings: ReferenceResolutionTimings | undefined, reason: string): void {
+    if (!timings) return;
+    timings.rustMatcherFallbackRefs = (timings.rustMatcherFallbackRefs ?? 0) + 1;
+    timings.rustMatcherFallbackReasons = mergeFallbackReasons(
+      timings.rustMatcherFallbackReasons,
+      { [reason]: 1 },
     );
   }
 
@@ -930,8 +1040,16 @@ export class ReferenceResolver {
       if (batch.length === 0) break;
 
       const result = this.resolveAll(batch);
-      for (const [key, value] of Object.entries(result.stats.timings ?? {}) as Array<[keyof ReferenceResolutionTimings, number]>) {
-        aggregateStats.timings[key] = (aggregateStats.timings[key] ?? 0) + value;
+      for (const [key, value] of Object.entries(result.stats.timings ?? {}) as Array<[keyof ReferenceResolutionTimings, ReferenceResolutionTimings[keyof ReferenceResolutionTimings]]>) {
+        if (key === 'rustMatcherFallbackReasons') {
+          aggregateStats.timings.rustMatcherFallbackReasons = mergeFallbackReasons(
+            aggregateStats.timings.rustMatcherFallbackReasons,
+            value as Record<string, number>,
+          );
+        } else if (typeof value === 'number') {
+          (aggregateStats.timings as Record<string, unknown>)[key] =
+            ((aggregateStats.timings[key] as number | undefined) ?? 0) + value;
+        }
       }
 
       // Persist edges immediately

@@ -1,4 +1,5 @@
 use rusqlite::{params, Connection};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::io;
@@ -68,6 +69,512 @@ pub fn run_index(request: &IndexRequest) -> IndexResult {
             };
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NameMatcherBatchRequest {
+    version: u8,
+    references: Vec<NameMatcherReference>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NameMatcherReference {
+    key: String,
+    #[serde(rename = "ref")]
+    ref_data: UnresolvedReferenceFact,
+    candidates: NameMatcherCandidateSet,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UnresolvedReferenceFact {
+    reference_name: String,
+    reference_kind: String,
+    file_path: String,
+    language: String,
+    line: u32,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NameMatcherCandidateSet {
+    by_name: Vec<NodeFact>,
+    by_qualified_name: Vec<NodeFact>,
+    by_leaf_name: Vec<NodeFact>,
+    by_lower_name: Vec<NodeFact>,
+    by_file_name: Vec<NodeFact>,
+    class_candidates: Vec<NodeFact>,
+    capitalized_class_candidates: Vec<NodeFact>,
+    method_candidates: Vec<NodeFact>,
+    nodes_in_files: std::collections::HashMap<String, Vec<NodeFact>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NodeFact {
+    id: String,
+    kind: String,
+    name: String,
+    qualified_name: String,
+    file_path: String,
+    language: String,
+    start_line: u32,
+    is_exported: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NameMatcherBatchResponse {
+    r#type: &'static str,
+    version: u8,
+    decisions: Vec<NameMatcherDecision>,
+    diagnostics: NameMatcherDiagnostics,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NameMatcherDecision {
+    key: String,
+    target_node_id: Option<String>,
+    confidence: f64,
+    resolved_by: Option<&'static str>,
+    fallback_reason: Option<&'static str>,
+}
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NameMatcherDiagnostics {
+    rust_matcher_ms: u128,
+    rust_matcher_startup_ms: u128,
+    rust_matcher_eligible_refs: usize,
+    rust_matcher_handled_refs: usize,
+    rust_matcher_fallback_refs: usize,
+    rust_matcher_semantic_mismatch_refs: usize,
+    rust_matcher_fallback_reasons: std::collections::BTreeMap<String, usize>,
+}
+
+pub fn match_name_json(input: &str) -> Result<String, String> {
+    let started = Instant::now();
+    let request: NameMatcherBatchRequest =
+        serde_json::from_str(input).map_err(|err| format!("invalid match-name request: {}", err))?;
+    if request.version != 1 {
+        return Err(format!("unsupported match-name request version: {}", request.version));
+    }
+
+    let mut diagnostics = NameMatcherDiagnostics {
+        rust_matcher_eligible_refs: request.references.len(),
+        ..NameMatcherDiagnostics::default()
+    };
+    let mut decisions = Vec::with_capacity(request.references.len());
+    for reference in &request.references {
+        match match_reference_fact(reference) {
+            Some(decision) => {
+                diagnostics.rust_matcher_handled_refs += 1;
+                decisions.push(decision);
+            }
+            None => {
+                diagnostics.rust_matcher_fallback_refs += 1;
+                *diagnostics
+                    .rust_matcher_fallback_reasons
+                    .entry("unresolved".to_string())
+                    .or_insert(0) += 1;
+                decisions.push(NameMatcherDecision {
+                    key: reference.key.clone(),
+                    target_node_id: None,
+                    confidence: 0.0,
+                    resolved_by: None,
+                    fallback_reason: Some("unresolved"),
+                });
+            }
+        }
+    }
+    diagnostics.rust_matcher_ms = started.elapsed().as_millis();
+
+    serde_json::to_string(&NameMatcherBatchResponse {
+        r#type: "name_match_result",
+        version: 1,
+        decisions,
+        diagnostics,
+    })
+    .map_err(|err| format!("failed to encode match-name response: {}", err))
+}
+
+fn match_reference_fact(reference: &NameMatcherReference) -> Option<NameMatcherDecision> {
+    match_by_file_path(reference)
+        .or_else(|| match_by_qualified_name(reference))
+        .or_else(|| match_method_call(reference))
+        .or_else(|| match_by_exact_name(reference))
+        .or_else(|| match_fuzzy(reference))
+}
+
+fn match_by_file_path(reference: &NameMatcherReference) -> Option<NameMatcherDecision> {
+    let name = reference.ref_data.reference_name.as_str();
+    if !name.contains('/') && !looks_like_short_extension(name) {
+        return None;
+    }
+    let file_name = name.rsplit('/').next()?;
+    let file_nodes: Vec<&NodeFact> = reference
+        .candidates
+        .by_file_name
+        .iter()
+        .filter(|node| node.kind == "file" && node.name == file_name)
+        .collect();
+    if file_nodes.is_empty() {
+        return None;
+    }
+    if let Some(node) = file_nodes
+        .iter()
+        .copied()
+        .find(|node| node.qualified_name == name || node.file_path == name)
+    {
+        return Some(decision(reference, node, 0.95, "file-path"));
+    }
+    let suffix_matches: Vec<&NodeFact> = file_nodes
+        .iter()
+        .copied()
+        .filter(|node| node.qualified_name.ends_with(name) || node.file_path.ends_with(name))
+        .collect();
+    if !suffix_matches.is_empty() {
+        let best = pick_closest_file_node(&suffix_matches, &reference.ref_data);
+        return Some(decision(reference, best, 0.85, "file-path"));
+    }
+    if file_nodes.len() == 1 {
+        return Some(decision(reference, file_nodes[0], 0.7, "file-path"));
+    }
+    None
+}
+
+fn match_by_qualified_name(reference: &NameMatcherReference) -> Option<NameMatcherDecision> {
+    let name = reference.ref_data.reference_name.as_str();
+    if !name.contains("::") && !name.contains('.') {
+        return None;
+    }
+    if reference.candidates.by_qualified_name.len() == 1 {
+        return Some(decision(reference, &reference.candidates.by_qualified_name[0], 0.95, "qualified-name"));
+    }
+    let candidate = reference
+        .candidates
+        .by_leaf_name
+        .iter()
+        .find(|node| node.qualified_name.ends_with(name))?;
+    Some(decision(reference, candidate, 0.85, "qualified-name"))
+}
+
+fn match_method_call(reference: &NameMatcherReference) -> Option<NameMatcherDecision> {
+    let (receiver, method_name) = parse_method_reference(&reference.ref_data.reference_name)?;
+    for class_node in &reference.candidates.class_candidates {
+        if !is_class_like(class_node) || class_node.language != reference.ref_data.language {
+            continue;
+        }
+        let Some(nodes_in_file) = reference.candidates.nodes_in_files.get(&class_node.file_path) else {
+            continue;
+        };
+        if let Some(method_node) = nodes_in_file.iter().find(|node| {
+            node.kind == "method" &&
+                node.name == method_name &&
+                node.qualified_name.contains(&class_node.name)
+        }) {
+            return Some(decision(reference, method_node, 0.85, "qualified-name"));
+        }
+    }
+
+    let capitalized = capitalize_first(receiver);
+    if capitalized != receiver {
+        for class_node in &reference.candidates.capitalized_class_candidates {
+            if !is_class_like(class_node) || class_node.language != reference.ref_data.language {
+                continue;
+            }
+            let Some(nodes_in_file) = reference.candidates.nodes_in_files.get(&class_node.file_path) else {
+                continue;
+            };
+            if let Some(method_node) = nodes_in_file.iter().find(|node| {
+                node.kind == "method" &&
+                    node.name == method_name &&
+                    node.qualified_name.contains(&class_node.name)
+            }) {
+                return Some(decision(reference, method_node, 0.8, "instance-method"));
+            }
+        }
+    }
+
+    let methods: Vec<&NodeFact> = reference
+        .candidates
+        .method_candidates
+        .iter()
+        .filter(|node| node.kind == "method" && node.name == method_name)
+        .collect();
+    let same_language: Vec<&NodeFact> = methods
+        .iter()
+        .copied()
+        .filter(|node| node.language == reference.ref_data.language)
+        .collect();
+    let target_methods = if same_language.is_empty() { methods } else { same_language };
+    if target_methods.len() == 1 && target_methods[0].language == reference.ref_data.language {
+        return Some(decision(reference, target_methods[0], 0.7, "instance-method"));
+    }
+    if target_methods.len() > 1 {
+        let receiver_words = split_camel_case(receiver);
+        let mut best: Option<&NodeFact> = None;
+        let mut best_score = 0;
+        for method in target_methods {
+            let class_words = split_camel_case(&method.qualified_name);
+            let mut score = receiver_words
+                .iter()
+                .filter(|word| class_words.iter().any(|class_word| class_word.eq_ignore_ascii_case(word)))
+                .count() as i32;
+            if method.language == reference.ref_data.language {
+                score += 1;
+            }
+            if score > best_score {
+                best_score = score;
+                best = Some(method);
+            }
+        }
+        if best_score >= 2 {
+            return best.map(|node| decision(reference, node, 0.65, "instance-method"));
+        }
+    }
+    None
+}
+
+fn match_by_exact_name(reference: &NameMatcherReference) -> Option<NameMatcherDecision> {
+    let candidates = apply_language_gate(&reference.candidates.by_name, &reference.ref_data);
+    if candidates.is_empty() {
+        return None;
+    }
+    if candidates.len() == 1 {
+        let confidence = if candidates[0].language == reference.ref_data.language {
+            0.9
+        } else {
+            0.5
+        };
+        return Some(decision(reference, candidates[0], confidence, "exact-match"));
+    }
+    let best = find_best_match(&reference.ref_data, &candidates)?;
+    let proximity = compute_path_proximity(&reference.ref_data.file_path, &best.file_path);
+    let confidence = if proximity >= 30 { 0.7 } else { 0.4 };
+    Some(decision(reference, best, confidence, "exact-match"))
+}
+
+fn match_fuzzy(reference: &NameMatcherReference) -> Option<NameMatcherDecision> {
+    let callable: Vec<&NodeFact> = reference
+        .candidates
+        .by_lower_name
+        .iter()
+        .filter(|node| matches!(node.kind.as_str(), "function" | "method" | "class"))
+        .collect();
+    let gated = apply_language_gate_refs(&callable, &reference.ref_data);
+    let same_language: Vec<&NodeFact> = gated
+        .iter()
+        .copied()
+        .filter(|node| node.language == reference.ref_data.language)
+        .collect();
+    let final_candidates = if same_language.is_empty() { gated } else { same_language };
+    if final_candidates.len() != 1 {
+        return None;
+    }
+    let confidence = if final_candidates[0].language == reference.ref_data.language {
+        0.5
+    } else {
+        0.3
+    };
+    Some(decision(reference, final_candidates[0], confidence, "fuzzy"))
+}
+
+fn decision(reference: &NameMatcherReference, node: &NodeFact, confidence: f64, resolved_by: &'static str) -> NameMatcherDecision {
+    NameMatcherDecision {
+        key: reference.key.clone(),
+        target_node_id: Some(node.id.clone()),
+        confidence,
+        resolved_by: Some(resolved_by),
+        fallback_reason: None,
+    }
+}
+
+fn apply_language_gate<'a>(candidates: &'a [NodeFact], reference: &UnresolvedReferenceFact) -> Vec<&'a NodeFact> {
+    let refs: Vec<&NodeFact> = candidates.iter().collect();
+    apply_language_gate_refs(&refs, reference)
+}
+
+fn apply_language_gate_refs<'a>(candidates: &[&'a NodeFact], reference: &UnresolvedReferenceFact) -> Vec<&'a NodeFact> {
+    if reference.reference_kind == "references" {
+        return candidates
+            .iter()
+            .copied()
+            .filter(|node| same_language_family(&node.language, &reference.language))
+            .collect();
+    }
+    if reference.reference_kind == "imports" {
+        return candidates
+            .iter()
+            .copied()
+            .filter(|node| !crosses_known_family(&node.language, &reference.language))
+            .collect();
+    }
+    candidates.to_vec()
+}
+
+fn find_best_match<'a>(reference: &UnresolvedReferenceFact, candidates: &[&'a NodeFact]) -> Option<&'a NodeFact> {
+    let mut best: Option<&NodeFact> = None;
+    let mut best_score = f64::NEG_INFINITY;
+    for candidate in candidates {
+        let mut score = 0.0;
+        if candidate.file_path == reference.file_path {
+            score += 100.0;
+        }
+        score += compute_path_proximity(&reference.file_path, &candidate.file_path) as f64;
+        if candidate.language == reference.language {
+            score += 50.0;
+        } else {
+            score -= 80.0;
+        }
+        if reference.reference_kind == "calls" && matches!(candidate.kind.as_str(), "function" | "method") {
+            score += 25.0;
+        }
+        if reference.reference_kind == "instantiates" && is_class_like(candidate) {
+            score += 25.0;
+        }
+        if reference.reference_kind == "decorates" {
+            if matches!(candidate.kind.as_str(), "function" | "method") {
+                score += 25.0;
+            } else if matches!(candidate.kind.as_str(), "class" | "interface") {
+                score += 15.0;
+            }
+        }
+        if candidate.is_exported.unwrap_or(false) {
+            score += 10.0;
+        }
+        if candidate.file_path == reference.file_path {
+            let distance = candidate.start_line.abs_diff(reference.line) as f64;
+            score += 0.0_f64.max(20.0 - distance / 10.0);
+        }
+        if score > best_score {
+            best_score = score;
+            best = Some(candidate);
+        }
+    }
+    best
+}
+
+fn pick_closest_file_node<'a>(candidates: &[&'a NodeFact], reference: &UnresolvedReferenceFact) -> &'a NodeFact {
+    let reference_dir = dir_of(&reference.file_path);
+    let same_dir: Vec<&NodeFact> = candidates
+        .iter()
+        .copied()
+        .filter(|node| dir_of(&node.file_path) == reference_dir)
+        .collect();
+    let pool = if same_dir.is_empty() { candidates.to_vec() } else { same_dir };
+    let mut best = pool[0];
+    let mut best_score = i32::MIN;
+    for candidate in pool {
+        let mut score = compute_path_proximity(&reference.file_path, &candidate.file_path) as i32;
+        if same_language_family(&candidate.language, &reference.language) {
+            score += 5;
+        }
+        if score > best_score {
+            best_score = score;
+            best = candidate;
+        }
+    }
+    best
+}
+
+fn same_language_family(a: &str, b: &str) -> bool {
+    a == b || language_family(a).is_some_and(|family| Some(family) == language_family(b))
+}
+
+fn crosses_known_family(a: &str, b: &str) -> bool {
+    language_family(a).is_some() && language_family(b).is_some() && !same_language_family(a, b)
+}
+
+fn language_family(language: &str) -> Option<&'static str> {
+    match language {
+        "java" | "kotlin" | "scala" => Some("jvm"),
+        "swift" | "objc" => Some("apple"),
+        "typescript" | "tsx" | "javascript" | "jsx" => Some("web"),
+        "c" | "cpp" => Some("c"),
+        "csharp" | "razor" => Some("dotnet"),
+        _ => None,
+    }
+}
+
+fn compute_path_proximity(a: &str, b: &str) -> u32 {
+    let a_parts: Vec<&str> = a.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("").split('/').collect();
+    let b_parts: Vec<&str> = b.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("").split('/').collect();
+    let shared = a_parts
+        .iter()
+        .zip(b_parts.iter())
+        .take_while(|(left, right)| left == right)
+        .count() as u32;
+    (shared * 15).min(80)
+}
+
+fn is_class_like(node: &NodeFact) -> bool {
+    matches!(node.kind.as_str(), "class" | "struct" | "interface")
+}
+
+fn looks_like_short_extension(value: &str) -> bool {
+    let Some((_, extension)) = value.rsplit_once('.') else {
+        return false;
+    };
+    !extension.is_empty() &&
+        extension.len() <= 4 &&
+        extension.chars().next().is_some_and(|ch| ch.is_ascii_alphabetic()) &&
+        extension.chars().all(|ch| ch.is_ascii_alphanumeric())
+}
+
+fn parse_method_reference(value: &str) -> Option<(&str, &str)> {
+    if let Some((receiver, method)) = value.rsplit_once("::") {
+        if !receiver.is_empty() && !method.is_empty() && !receiver.contains("::") && !method.contains("::") {
+            return Some((receiver, method));
+        }
+    }
+    if let Some((receiver, method)) = value.rsplit_once('.') {
+        if !receiver.is_empty() && !method.is_empty() {
+            return Some((receiver, method));
+        }
+    }
+    None
+}
+
+fn split_camel_case(value: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut current = String::new();
+    let mut previous_lower = false;
+    for ch in value.chars() {
+        if !(ch.is_ascii_alphanumeric()) {
+            if current.len() > 1 {
+                words.push(current.clone());
+            }
+            current.clear();
+            previous_lower = false;
+            continue;
+        }
+        if ch.is_ascii_uppercase() && previous_lower && current.len() > 1 {
+            words.push(current.clone());
+            current.clear();
+        }
+        previous_lower = ch.is_ascii_lowercase();
+        current.push(ch);
+    }
+    if current.len() > 1 {
+        words.push(current);
+    }
+    words
+}
+
+fn capitalize_first(value: &str) -> String {
+    let mut chars = value.chars();
+    let Some(first) = chars.next() else {
+        return String::new();
+    };
+    first.to_uppercase().collect::<String>() + chars.as_str()
+}
+
+fn dir_of(value: &str) -> &str {
+    value.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("")
 }
 
 #[derive(Debug, Default)]
@@ -1420,6 +1927,118 @@ mod tests {
             error_json("bad \"path\"\nnext"),
             "{\"type\":\"error\",\"severity\":\"error\",\"message\":\"bad \\\"path\\\"\\nnext\"}"
         );
+    }
+
+    fn node_json(id: &str, kind: &str, name: &str, qualified_name: &str, file_path: &str) -> serde_json::Value {
+        serde_json::json!({
+            "id": id,
+            "kind": kind,
+            "name": name,
+            "qualifiedName": qualified_name,
+            "filePath": file_path,
+            "language": "typescript",
+            "startLine": 1,
+            "isExported": true
+        })
+    }
+
+    fn matcher_response(reference_name: &str, candidates: serde_json::Value) -> serde_json::Value {
+        let request = serde_json::json!({
+            "version": 1,
+            "references": [{
+                "key": "ref-1",
+                "ref": {
+                    "referenceName": reference_name,
+                    "referenceKind": "calls",
+                    "filePath": "src/caller.ts",
+                    "language": "typescript",
+                    "line": 3
+                },
+                "candidates": candidates
+            }]
+        });
+        let output = match_name_json(&request.to_string()).unwrap();
+        serde_json::from_str(&output).unwrap()
+    }
+
+    #[test]
+    fn rust_name_matcher_resolves_exact_candidate_facts() {
+        let target = node_json("node-alpha", "function", "alpha", "src/target.ts::alpha", "src/target.ts");
+        let response = matcher_response("alpha", serde_json::json!({
+            "byName": [target],
+            "byQualifiedName": [],
+            "byLeafName": [],
+            "byLowerName": [],
+            "byFileName": [],
+            "classCandidates": [],
+            "capitalizedClassCandidates": [],
+            "methodCandidates": [],
+            "nodesInFiles": {}
+        }));
+
+        assert_eq!(response["decisions"][0]["targetNodeId"], "node-alpha");
+        assert_eq!(response["decisions"][0]["resolvedBy"], "exact-match");
+        assert_eq!(response["diagnostics"]["rustMatcherHandledRefs"], 1);
+    }
+
+    #[test]
+    fn rust_name_matcher_resolves_qualified_candidate_facts() {
+        let target = node_json("node-qualified", "function", "run", "Service.run", "src/service.ts");
+        let response = matcher_response("Service.run", serde_json::json!({
+            "byName": [],
+            "byQualifiedName": [target],
+            "byLeafName": [],
+            "byLowerName": [],
+            "byFileName": [],
+            "classCandidates": [],
+            "capitalizedClassCandidates": [],
+            "methodCandidates": [],
+            "nodesInFiles": {}
+        }));
+
+        assert_eq!(response["decisions"][0]["targetNodeId"], "node-qualified");
+        assert_eq!(response["decisions"][0]["resolvedBy"], "qualified-name");
+    }
+
+    #[test]
+    fn rust_name_matcher_resolves_method_candidate_facts() {
+        let class_node = node_json("class-service", "class", "Service", "Service", "src/service.ts");
+        let method_node = node_json("method-run", "method", "run", "Service.run", "src/service.ts");
+        let response = matcher_response("Service.run", serde_json::json!({
+            "byName": [],
+            "byQualifiedName": [],
+            "byLeafName": [],
+            "byLowerName": [],
+            "byFileName": [],
+            "classCandidates": [class_node],
+            "capitalizedClassCandidates": [],
+            "methodCandidates": [method_node],
+            "nodesInFiles": {
+                "src/service.ts": [method_node]
+            }
+        }));
+
+        assert_eq!(response["decisions"][0]["targetNodeId"], "method-run");
+        assert_eq!(response["decisions"][0]["resolvedBy"], "qualified-name");
+    }
+
+    #[test]
+    fn rust_name_matcher_reports_fallback_for_unhandled_reference() {
+        let response = matcher_response("missing", serde_json::json!({
+            "byName": [],
+            "byQualifiedName": [],
+            "byLeafName": [],
+            "byLowerName": [],
+            "byFileName": [],
+            "classCandidates": [],
+            "capitalizedClassCandidates": [],
+            "methodCandidates": [],
+            "nodesInFiles": {}
+        }));
+
+        assert_eq!(response["decisions"][0]["targetNodeId"], serde_json::Value::Null);
+        assert_eq!(response["decisions"][0]["fallbackReason"], "unresolved");
+        assert_eq!(response["diagnostics"]["rustMatcherFallbackReasons"]["unresolved"], 1);
     }
 
     #[test]
