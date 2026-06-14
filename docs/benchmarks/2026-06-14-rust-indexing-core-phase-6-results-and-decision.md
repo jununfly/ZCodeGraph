@@ -15,6 +15,7 @@ Next recommended plan: bounded Rust graph-pipeline prototype, starting with the
 
 - `docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-vscode-profile.raw.json`
 - `docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-vscode-sufficiency.raw.json`
+- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-issue105-vscode-sufficiency-node24.raw.json`
 - `docs/design/2026-06-14-rust-end-to-end-graph-pipeline-feasibility.md`
 
 ## Final Large-Target Profile
@@ -55,10 +56,11 @@ be judged in this sandbox and remains a follow-up validation gap.
 
 ## Final Sufficiency Smoke
 
-The final VS Code sparse-checkout Explore sufficiency smoke completed under the
-local Homebrew Node v26.0.0 runtime and reported no deterministic regressions.
-This runtime is not the preferred supported runtime for final performance
-evidence, so the profile evidence above remains the primary timing source.
+The original final VS Code sparse-checkout Explore sufficiency smoke completed
+under the local Homebrew Node v26.0.0 runtime and reported no deterministic
+regressions. Issue #105 then aligned the sufficiency guardrail copy scope with
+the profiler's JavaScript/TypeScript/config slice and reproduced the same smoke
+under the supported bundled Node v24.14.0 runtime.
 
 Prompt `VS-1` stayed connected for both TypeScript and Rust:
 
@@ -66,16 +68,17 @@ Prompt `VS-1` stayed connected for both TypeScript and Rust:
   generic Read/Grep fallback signals at 0.
 - Rust: `flowConnected=true`, no missing expected symbols, deterministic
   generic Read/Grep fallback signals at 0.
+- Supported-runtime rerun: Node v24.14.0, `copyMode=js-ts-config-slice`,
+  11,518 copied JS/TS/config files per engine, no deterministic regressions.
 
-A bounded attempt to run the same sufficiency script under bundled Node v24.14.0
-failed during the TypeScript index setup with V8 Wasm `Fatal process out of
-memory: Zone`. That is recorded as an operational follow-up because it affects
-the reproducibility of the large-target sufficiency guardrail in this local
-environment. It does not change the sufficiency result from the completed run,
-and it does not authorize default rollout.
+The previous Node v24.14.0 failure was specific to the guardrail's full-repo
+copy behavior on this large sparse checkout. The #105 rerun did not reproduce
+the V8 Wasm `Fatal process out of memory: Zone` failure after the guardrail was
+scoped to the JS/TS/config slice.
 
-Follow-up: #105 tracks supported-runtime sufficiency stability and collectable
-RSS evidence for this large-target validation path.
+RSS remains unavailable inside this sandbox when process-list access is denied.
+The profiler now documents that limitation in its help text and records a
+sandbox-specific `rssUnavailableReason` instead of leaving RSS ambiguity.
 
 ## Phase 6 Completion
 

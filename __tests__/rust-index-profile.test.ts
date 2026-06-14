@@ -95,6 +95,7 @@ describe('Rust indexing profiler script', () => {
     expect(result.stdout).toContain('npm run build && cargo build --package zcodegraph-core');
     expect(result.stdout).toContain('--repo zcodegraph=.');
     expect(result.stdout).toContain('--repo excalidraw=');
+    expect(result.stdout).toContain('RSS sampling may be unavailable when process-list access is sandboxed');
     for (const phase of PHASE_NAMES) {
       expect(result.stdout).toContain(phase);
     }

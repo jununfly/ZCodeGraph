@@ -65,6 +65,7 @@ function usage() {
     '  engines.typescript.peakRssBytes',
     '  engines.rust.peakRssBytes',
     '  engines.<engine>.rssUnavailableReason',
+    '  RSS sampling may be unavailable when process-list access is sandboxed.',
   ].join('\n'));
 }
 
@@ -198,15 +199,21 @@ function sampleProcessTreeRssBytes(rootPid) {
   }
   const result = spawnSync('ps', ['-axo', 'pid=,ppid=,rss='], { encoding: 'utf-8' });
   if (result.error) {
+    const message = result.error instanceof Error ? result.error.message : String(result.error);
     return {
       peakRssBytes: null,
-      unavailableReason: result.error instanceof Error ? result.error.message : String(result.error),
+      unavailableReason: /EPERM|operation not permitted/i.test(message)
+        ? `RSS sampling unavailable: process-list access is sandboxed (${message})`
+        : message,
     };
   }
   if (result.status !== 0) {
+    const message = result.stderr?.trim() || '`ps -axo pid=,ppid=,rss=` failed';
     return {
       peakRssBytes: null,
-      unavailableReason: result.stderr?.trim() || '`ps -axo pid=,ppid=,rss=` failed',
+      unavailableReason: /EPERM|operation not permitted/i.test(message)
+        ? `RSS sampling unavailable: process-list access is sandboxed (${message})`
+        : message,
     };
   }
 

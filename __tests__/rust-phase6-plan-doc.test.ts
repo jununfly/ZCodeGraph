@@ -72,6 +72,9 @@ describe('Rust indexing Phase 6 plan document', () => {
     expect(decision).toContain('Next recommended plan: bounded Rust graph-pipeline prototype');
     expect(decision).toContain('docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-vscode-profile.raw.json');
     expect(decision).toContain('docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-vscode-sufficiency.raw.json');
+    expect(decision).toContain('docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-issue105-vscode-sufficiency-node24.raw.json');
+    expect(decision).toContain('Supported-runtime rerun: Node v24.14.0');
+    expect(decision).toContain('copyMode=js-ts-config-slice');
     expect(decision).not.toContain('default rollout is ready');
     expect(decision).not.toContain('Rust is ready to become the default');
   });

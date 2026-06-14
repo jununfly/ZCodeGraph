@@ -15,6 +15,8 @@ const rustCore = path.join(
   process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core',
 );
 
+const PHASE1_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx']);
+const CONFIG_FILES = new Set(['package.json', 'tsconfig.json', 'jsconfig.json']);
 const SKIP_DIRS = new Set(['.git', '.zcodegraph', 'node_modules', 'dist', 'target', '.next', 'coverage']);
 
 const PROMPTS = {
@@ -86,6 +88,9 @@ function usage() {
     'The script creates TypeScript- and Rust-produced indexes, runs',
     'zcodegraph_explore for representative flow prompts, and compares Flow',
     'connectivity plus deterministic fallback-risk signals.',
+    '',
+    'For large JS/TS probes it copies a JavaScript/TypeScript/config slice,',
+    'matching the Rust indexing profile scope and avoiding unrelated files.',
   ].join('\n'));
 }
 
@@ -176,15 +181,36 @@ function baseEnv() {
 
 function copyRepo(source, label) {
   const dest = fs.mkdtempSync(path.join(os.tmpdir(), `zcodegraph-rust-guardrail-${label}-`));
-  fs.cpSync(source, dest, {
-    recursive: true,
-    filter: (src) => {
+  let copiedFiles = 0;
+
+  function walk(current) {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const src = path.join(current, entry.name);
       const rel = path.relative(source, src);
-      if (!rel) return true;
-      return !rel.split(path.sep).some((part) => SKIP_DIRS.has(part));
-    },
-  });
-  return dest;
+      if (entry.isDirectory()) {
+        if (SKIP_DIRS.has(entry.name)) continue;
+        walk(src);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+
+      const basename = path.basename(src);
+      const ext = path.extname(src);
+      if (!PHASE1_EXTENSIONS.has(ext) && !CONFIG_FILES.has(basename)) continue;
+
+      const target = path.join(dest, rel);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(src, target);
+      copiedFiles++;
+    }
+  }
+
+  walk(source);
+  return {
+    path: dest,
+    copiedFiles,
+    mode: 'js-ts-config-slice',
+  };
 }
 
 function initAndIndex(project, engine, CodeGraph) {
@@ -285,13 +311,13 @@ async function main() {
       typescript: copyRepo(repo.path, `${repo.name}-ts`),
       rust: copyRepo(repo.path, `${repo.name}-rust`),
     };
-    initAndIndex(copies.typescript, 'typescript', dist.CodeGraph);
-    initAndIndex(copies.rust, 'rust', dist.CodeGraph);
+    initAndIndex(copies.typescript.path, 'typescript', dist.CodeGraph);
+    initAndIndex(copies.rust.path, 'rust', dist.CodeGraph);
 
     const promptResults = [];
     for (const prompt of prompts) {
-      const tsText = await explore(copies.typescript, prompt.query);
-      const rustText = await explore(copies.rust, prompt.query);
+      const tsText = await explore(copies.typescript.path, prompt.query);
+      const rustText = await explore(copies.rust.path, prompt.query);
       promptResults.push({
         id: prompt.id,
         query: prompt.query,
@@ -303,15 +329,30 @@ async function main() {
     results.push({
       name: repo.name,
       ...metadataFor(repo.path),
+      copyMode: 'js-ts-config-slice',
+      copies: {
+        typescript: {
+          copiedFiles: copies.typescript.copiedFiles,
+          tempProjectPath: copies.typescript.path,
+        },
+        rust: {
+          copiedFiles: copies.rust.copiedFiles,
+          tempProjectPath: copies.rust.path,
+        },
+      },
       prompts: promptResults,
     });
   }
 
   const regressions = collectRegressions(results);
+  const nodeMajor = Number.parseInt(process.versions.node.split('.')[0] ?? '', 10);
   console.log(JSON.stringify({
     generatedAt: new Date().toISOString(),
     mode: 'deterministic-tool-surface',
     note: 'Counts are deterministic fallback-risk signals from zcodegraph_explore output, not stochastic Claude Code Read/Grep tool calls.',
+    runtimeWarnings: Number.isFinite(nodeMajor) && nodeMajor >= 25
+      ? ['Node.js >=25 is outside the supported runtime range and may trigger V8 Wasm tiering instability on large tree-sitter workloads.']
+      : [],
     toolchain: {
       node: process.version,
       rustc: run('rustc', ['--version'], repoRoot).stdout.trim(),
