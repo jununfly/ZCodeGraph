@@ -700,7 +700,25 @@ export class CodeGraph {
         rustMatcherHandledRefs: number;
         rustMatcherFallbackRefs: number;
         rustMatcherSemanticMismatchRefs: number;
+        rustMatcherSemanticMismatchSamples: Array<{
+          referenceName: string;
+          referenceKind: string;
+          filePath: string;
+          language: string;
+          rustTargetNodeId: string | null;
+          rustResolvedBy: string | null;
+          rustConfidence: number;
+          tsTargetNodeId: string | null;
+          tsResolvedBy: string | null;
+          tsConfidence: number | null;
+          reason: string;
+        }>;
         rustMatcherFallbackReasons: Record<string, number>;
+        rustMatcherCandidateMaterializationMs: number;
+        rustMatcherSubprocessMs: number;
+        rustMatcherTsVerificationMs: number;
+        rustMatcherPayloadBytes: number;
+        rustMatcherUniqueCandidateFacts: number;
         edgeMaterializationMs: number;
         edgeWriteMs: number;
         unresolvedCleanupMs: number;
@@ -740,7 +758,25 @@ export class CodeGraph {
             rustMatcherHandledRefs: 0,
             rustMatcherFallbackRefs: 0,
             rustMatcherSemanticMismatchRefs: 0,
+            rustMatcherSemanticMismatchSamples: [] as Array<{
+              referenceName: string;
+              referenceKind: string;
+              filePath: string;
+              language: string;
+              rustTargetNodeId: string | null;
+              rustResolvedBy: string | null;
+              rustConfidence: number;
+              tsTargetNodeId: string | null;
+              tsResolvedBy: string | null;
+              tsConfidence: number | null;
+              reason: string;
+            }>,
             rustMatcherFallbackReasons: {},
+            rustMatcherCandidateMaterializationMs: 0,
+            rustMatcherSubprocessMs: 0,
+            rustMatcherTsVerificationMs: 0,
+            rustMatcherPayloadBytes: 0,
+            rustMatcherUniqueCandidateFacts: 0,
             edgeMaterializationMs: 0,
             edgeWriteMs: 0,
             unresolvedCleanupMs: 0,
@@ -776,7 +812,13 @@ export class CodeGraph {
           rustMatcherHandledRefs: resolutionTimings?.rustMatcherHandledRefs ?? 0,
           rustMatcherFallbackRefs: resolutionTimings?.rustMatcherFallbackRefs ?? 0,
           rustMatcherSemanticMismatchRefs: resolutionTimings?.rustMatcherSemanticMismatchRefs ?? 0,
+          rustMatcherSemanticMismatchSamples: resolutionTimings?.rustMatcherSemanticMismatchSamples ?? [],
           rustMatcherFallbackReasons: resolutionTimings?.rustMatcherFallbackReasons ?? {},
+          rustMatcherCandidateMaterializationMs: resolutionTimings?.rustMatcherCandidateMaterializationMs ?? 0,
+          rustMatcherSubprocessMs: resolutionTimings?.rustMatcherSubprocessMs ?? 0,
+          rustMatcherTsVerificationMs: resolutionTimings?.rustMatcherTsVerificationMs ?? 0,
+          rustMatcherPayloadBytes: resolutionTimings?.rustMatcherPayloadBytes ?? 0,
+          rustMatcherUniqueCandidateFacts: resolutionTimings?.rustMatcherUniqueCandidateFacts ?? 0,
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
           edgeWriteMs: resolutionTimings?.edgeWriteMs ?? 0,
           unresolvedCleanupMs: resolutionTimings?.unresolvedCleanupMs ?? 0,

@@ -56,7 +56,13 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     rustMatcherHandledRefs: 0,
     rustMatcherFallbackRefs: 0,
     rustMatcherSemanticMismatchRefs: 0,
+    rustMatcherSemanticMismatchSamples: [],
     rustMatcherFallbackReasons: {},
+    rustMatcherCandidateMaterializationMs: 0,
+    rustMatcherSubprocessMs: 0,
+    rustMatcherTsVerificationMs: 0,
+    rustMatcherPayloadBytes: 0,
+    rustMatcherUniqueCandidateFacts: 0,
     edgeMaterializationMs: 0,
     edgeWriteMs: 0,
     unresolvedCleanupMs: 0,
@@ -93,6 +99,30 @@ function sameResolvedRef(a: ResolvedRef, b: ResolvedRef): boolean {
     a.resolvedBy === b.resolvedBy &&
     a.confidence === b.confidence
   );
+}
+
+function semanticMismatchReason(rustResult: ResolvedRef | null, tsResult: ResolvedRef | null): string {
+  if (!rustResult) return 'rust-decision-rejected';
+  if (!tsResult) return 'ts-baseline-unresolved';
+  if (rustResult.targetNodeId !== tsResult.targetNodeId) return 'different-target';
+  if (rustResult.resolvedBy !== tsResult.resolvedBy) return 'different-method';
+  if (rustResult.confidence !== tsResult.confidence) return 'different-confidence';
+  return 'unknown';
+}
+
+const MAX_RUST_MATCHER_MISMATCH_SAMPLES = 50;
+
+function classifyRustMatcherFallback(
+  ref: UnresolvedRef,
+  rustDecision: RustNameMatcherDecision,
+  tsResult: ResolvedRef | null,
+): string {
+  if (rustDecision.fallbackReason && rustDecision.fallbackReason !== 'unresolved') {
+    return rustDecision.fallbackReason;
+  }
+  if (!ref.referenceName.trim()) return 'unsupported-reference-shape';
+  if (!tsResult) return 'ts-baseline-unresolved';
+  return 'rust-unresolved';
 }
 
 /**
@@ -638,6 +668,7 @@ export class ReferenceResolver {
     this.rustNameMatcherDecisions = null;
     if (!rustNameMatcherEnabled()) return;
 
+    const candidateMaterializationStarted = Date.now();
     const candidates = [];
     for (const ref of refs) {
       const candidate = collectRustNameMatcherReference(ref, this.createNameMatchingTimingContext(timings));
@@ -645,21 +676,21 @@ export class ReferenceResolver {
         candidates.push(candidate);
       }
     }
+    addElapsed(timings, 'rustMatcherCandidateMaterializationMs', candidateMaterializationStarted);
 
     const result = runRustNameMatcherBatch(candidates);
     this.rustNameMatcherDecisions = result.decisions;
     timings.rustMatcherMs = (timings.rustMatcherMs ?? 0) + result.diagnostics.rustMatcherMs;
     timings.rustMatcherStartupMs = (timings.rustMatcherStartupMs ?? 0) + result.diagnostics.rustMatcherStartupMs;
     timings.rustMatcherSerializationMs = (timings.rustMatcherSerializationMs ?? 0) + result.diagnostics.rustMatcherSerializationMs;
+    timings.rustMatcherSubprocessMs = (timings.rustMatcherSubprocessMs ?? 0) + result.diagnostics.rustMatcherSubprocessMs;
     timings.rustMatcherEligibleRefs = (timings.rustMatcherEligibleRefs ?? 0) + result.diagnostics.rustMatcherEligibleRefs;
     timings.rustMatcherHandledRefs = (timings.rustMatcherHandledRefs ?? 0) + result.diagnostics.rustMatcherHandledRefs;
-    timings.rustMatcherFallbackRefs = (timings.rustMatcherFallbackRefs ?? 0) + result.diagnostics.rustMatcherFallbackRefs;
     timings.rustMatcherSemanticMismatchRefs =
       (timings.rustMatcherSemanticMismatchRefs ?? 0) + result.diagnostics.rustMatcherSemanticMismatchRefs;
-    timings.rustMatcherFallbackReasons = mergeFallbackReasons(
-      timings.rustMatcherFallbackReasons,
-      result.diagnostics.rustMatcherFallbackReasons,
-    );
+    timings.rustMatcherPayloadBytes = (timings.rustMatcherPayloadBytes ?? 0) + result.diagnostics.rustMatcherPayloadBytes;
+    timings.rustMatcherUniqueCandidateFacts =
+      (timings.rustMatcherUniqueCandidateFacts ?? 0) + result.diagnostics.rustMatcherUniqueCandidateFacts;
   }
 
   /**
@@ -764,7 +795,13 @@ export class ReferenceResolver {
       ? false
       : this.frameworks.some((f) => f.claimsReference?.(ref.referenceName));
     addElapsed(timings, 'frameworkMatchingMs', started);
-    if (!hasPossibleMatch && !matchesImport && !claimedByFramework) return null;
+    if (!hasPossibleMatch && !matchesImport && !claimedByFramework) {
+      const rustDecision = this.rustNameMatcherDecisions?.get(rustNameMatcherKey(ref));
+      if (rustDecision && (!rustDecision.targetNodeId || !rustDecision.resolvedBy)) {
+        this.recordRustMatcherFallback(timings, classifyRustMatcherFallback(ref, rustDecision, null));
+      }
+      return null;
+    }
 
     // JVM FQN imports skip framework/name-matcher: `import com.example.Bar`
     // resolves directly through the qualifiedName index, which is unambiguous
@@ -842,9 +879,11 @@ export class ReferenceResolver {
       return this.gateLanguage(matchReference(ref, context), ref);
     }
 
+    const tsVerificationStarted = Date.now();
     const tsResult = this.gateLanguage(matchReference(ref, context), ref);
+    addElapsed(timings, 'rustMatcherTsVerificationMs', tsVerificationStarted);
     if (!rustDecision.targetNodeId || !rustDecision.resolvedBy) {
-      this.recordRustMatcherFallback(timings, rustDecision.fallbackReason ?? 'unresolved');
+      this.recordRustMatcherFallback(timings, classifyRustMatcherFallback(ref, rustDecision, tsResult));
       return tsResult;
     }
 
@@ -859,6 +898,23 @@ export class ReferenceResolver {
       this.recordRustMatcherFallback(timings, 'semantic-mismatch');
       if (timings) {
         timings.rustMatcherSemanticMismatchRefs = (timings.rustMatcherSemanticMismatchRefs ?? 0) + 1;
+        const samples = timings.rustMatcherSemanticMismatchSamples ?? [];
+        if (samples.length < MAX_RUST_MATCHER_MISMATCH_SAMPLES) {
+          samples.push({
+            referenceName: ref.referenceName,
+            referenceKind: ref.referenceKind,
+            filePath: ref.filePath,
+            language: ref.language,
+            rustTargetNodeId: rustDecision.targetNodeId,
+            rustResolvedBy: rustDecision.resolvedBy,
+            rustConfidence: rustDecision.confidence,
+            tsTargetNodeId: tsResult?.targetNodeId ?? null,
+            tsResolvedBy: tsResult?.resolvedBy ?? null,
+            tsConfidence: tsResult?.confidence ?? null,
+            reason: semanticMismatchReason(rustResult, tsResult),
+          });
+          timings.rustMatcherSemanticMismatchSamples = samples;
+        }
       }
       if (rustNameMatcherStrict()) {
         throw new Error(`Rust name matcher semantic mismatch for ${ref.referenceName}`);
@@ -1046,6 +1102,13 @@ export class ReferenceResolver {
             aggregateStats.timings.rustMatcherFallbackReasons,
             value as Record<string, number>,
           );
+        } else if (key === 'rustMatcherSemanticMismatchSamples') {
+          const existing = aggregateStats.timings.rustMatcherSemanticMismatchSamples ?? [];
+          const next = (value as ReferenceResolutionTimings['rustMatcherSemanticMismatchSamples']) ?? [];
+          aggregateStats.timings.rustMatcherSemanticMismatchSamples = [
+            ...existing,
+            ...next,
+          ].slice(0, MAX_RUST_MATCHER_MISMATCH_SAMPLES);
         } else if (typeof value === 'number') {
           (aggregateStats.timings as Record<string, unknown>)[key] =
             ((aggregateStats.timings[key] as number | undefined) ?? 0) + value;

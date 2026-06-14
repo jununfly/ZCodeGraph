@@ -75,6 +75,8 @@ pub fn run_index(request: &IndexRequest) -> IndexResult {
 #[serde(rename_all = "camelCase")]
 struct NameMatcherBatchRequest {
     version: u8,
+    #[serde(default)]
+    candidate_table: std::collections::HashMap<String, NodeFact>,
     references: Vec<NameMatcherReference>,
 }
 
@@ -84,7 +86,10 @@ struct NameMatcherReference {
     key: String,
     #[serde(rename = "ref")]
     ref_data: UnresolvedReferenceFact,
+    #[serde(default)]
     candidates: NameMatcherCandidateSet,
+    #[serde(default)]
+    candidate_ids: Option<NameMatcherCandidateIdSet>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -97,7 +102,7 @@ struct UnresolvedReferenceFact {
     line: u32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct NameMatcherCandidateSet {
     by_name: Vec<NodeFact>,
@@ -109,6 +114,20 @@ struct NameMatcherCandidateSet {
     capitalized_class_candidates: Vec<NodeFact>,
     method_candidates: Vec<NodeFact>,
     nodes_in_files: std::collections::HashMap<String, Vec<NodeFact>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NameMatcherCandidateIdSet {
+    by_name: Vec<String>,
+    by_qualified_name: Vec<String>,
+    by_leaf_name: Vec<String>,
+    by_lower_name: Vec<String>,
+    by_file_name: Vec<String>,
+    class_candidates: Vec<String>,
+    capitalized_class_candidates: Vec<String>,
+    method_candidates: Vec<String>,
+    nodes_in_files: std::collections::HashMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -157,11 +176,12 @@ struct NameMatcherDiagnostics {
 
 pub fn match_name_json(input: &str) -> Result<String, String> {
     let started = Instant::now();
-    let request: NameMatcherBatchRequest =
+    let mut request: NameMatcherBatchRequest =
         serde_json::from_str(input).map_err(|err| format!("invalid match-name request: {}", err))?;
     if request.version != 1 {
         return Err(format!("unsupported match-name request version: {}", request.version));
     }
+    materialize_candidate_tables(&mut request)?;
 
     let mut diagnostics = NameMatcherDiagnostics {
         rust_matcher_eligible_refs: request.references.len(),
@@ -175,17 +195,18 @@ pub fn match_name_json(input: &str) -> Result<String, String> {
                 decisions.push(decision);
             }
             None => {
+                let fallback_reason = fallback_reason(reference);
                 diagnostics.rust_matcher_fallback_refs += 1;
                 *diagnostics
                     .rust_matcher_fallback_reasons
-                    .entry("unresolved".to_string())
+                    .entry(fallback_reason.to_string())
                     .or_insert(0) += 1;
                 decisions.push(NameMatcherDecision {
                     key: reference.key.clone(),
                     target_node_id: None,
                     confidence: 0.0,
                     resolved_by: None,
-                    fallback_reason: Some("unresolved"),
+                    fallback_reason: Some(fallback_reason),
                 });
             }
         }
@@ -199,6 +220,82 @@ pub fn match_name_json(input: &str) -> Result<String, String> {
         diagnostics,
     })
     .map_err(|err| format!("failed to encode match-name response: {}", err))
+}
+
+fn materialize_candidate_tables(request: &mut NameMatcherBatchRequest) -> Result<(), String> {
+    if request.candidate_table.is_empty() {
+        return Ok(());
+    }
+    for reference in &mut request.references {
+        let Some(candidate_ids) = reference.candidate_ids.as_ref() else {
+            continue;
+        };
+        reference.candidates = candidate_ids.materialize(&request.candidate_table)?;
+    }
+    Ok(())
+}
+
+impl NameMatcherCandidateIdSet {
+    fn materialize(
+        &self,
+        table: &std::collections::HashMap<String, NodeFact>,
+    ) -> Result<NameMatcherCandidateSet, String> {
+        let nodes = |ids: &[String]| -> Result<Vec<NodeFact>, String> {
+            ids.iter()
+                .map(|id| {
+                    table
+                        .get(id)
+                        .cloned()
+                        .ok_or_else(|| format!("candidate id not found in table: {}", id))
+                })
+                .collect()
+        };
+
+        let mut nodes_in_files = std::collections::HashMap::new();
+        for (file_path, ids) in &self.nodes_in_files {
+            nodes_in_files.insert(file_path.clone(), nodes(ids)?);
+        }
+
+        Ok(NameMatcherCandidateSet {
+            by_name: nodes(&self.by_name)?,
+            by_qualified_name: nodes(&self.by_qualified_name)?,
+            by_leaf_name: nodes(&self.by_leaf_name)?,
+            by_lower_name: nodes(&self.by_lower_name)?,
+            by_file_name: nodes(&self.by_file_name)?,
+            class_candidates: nodes(&self.class_candidates)?,
+            capitalized_class_candidates: nodes(&self.capitalized_class_candidates)?,
+            method_candidates: nodes(&self.method_candidates)?,
+            nodes_in_files,
+        })
+    }
+}
+
+fn fallback_reason(reference: &NameMatcherReference) -> &'static str {
+    if reference.ref_data.reference_name.trim().is_empty() {
+        return "unsupported-reference-shape";
+    }
+    if !matches!(
+        reference.ref_data.reference_kind.as_str(),
+        "calls" | "references" | "imports" | "instantiates" | "decorates"
+    ) {
+        return "outside-matcher-boundary";
+    }
+    if candidate_fact_count(&reference.candidates) == 0 {
+        return "missing-candidate-facts";
+    }
+    "rust-unresolved"
+}
+
+fn candidate_fact_count(candidates: &NameMatcherCandidateSet) -> usize {
+    candidates.by_name.len()
+        + candidates.by_qualified_name.len()
+        + candidates.by_leaf_name.len()
+        + candidates.by_lower_name.len()
+        + candidates.by_file_name.len()
+        + candidates.class_candidates.len()
+        + candidates.capitalized_class_candidates.len()
+        + candidates.method_candidates.len()
+        + candidates.nodes_in_files.values().map(Vec::len).sum::<usize>()
 }
 
 fn match_reference_fact(reference: &NameMatcherReference) -> Option<NameMatcherDecision> {
@@ -272,7 +369,7 @@ fn match_method_call(reference: &NameMatcherReference) -> Option<NameMatcherDeci
             continue;
         };
         if let Some(method_node) = nodes_in_file.iter().find(|node| {
-            node.kind == "method" &&
+            matches!(node.kind.as_str(), "method" | "function") &&
                 node.name == method_name &&
                 node.qualified_name.contains(&class_node.name)
         }) {
@@ -290,7 +387,7 @@ fn match_method_call(reference: &NameMatcherReference) -> Option<NameMatcherDeci
                 continue;
             };
             if let Some(method_node) = nodes_in_file.iter().find(|node| {
-                node.kind == "method" &&
+                matches!(node.kind.as_str(), "method" | "function") &&
                     node.name == method_name &&
                     node.qualified_name.contains(&class_node.name)
             }) {
@@ -2023,6 +2120,47 @@ mod tests {
     }
 
     #[test]
+    fn rust_name_matcher_resolves_function_member_candidate_facts() {
+        let class_node = node_json("class-service", "class", "Service", "Service", "src/service.ts");
+        let method_node = node_json("function-run", "function", "run", "Service.run", "src/service.ts");
+        let response = matcher_response("Service.run", serde_json::json!({
+            "byName": [],
+            "byQualifiedName": [],
+            "byLeafName": [],
+            "byLowerName": [],
+            "byFileName": [],
+            "classCandidates": [class_node],
+            "capitalizedClassCandidates": [],
+            "methodCandidates": [method_node],
+            "nodesInFiles": {
+                "src/service.ts": [method_node]
+            }
+        }));
+
+        assert_eq!(response["decisions"][0]["targetNodeId"], "function-run");
+        assert_eq!(response["decisions"][0]["resolvedBy"], "qualified-name");
+    }
+
+    #[test]
+    fn rust_name_matcher_reports_decision_oriented_fallback_reason() {
+        let response = matcher_response("missing", serde_json::json!({
+            "byName": [],
+            "byQualifiedName": [],
+            "byLeafName": [],
+            "byLowerName": [],
+            "byFileName": [],
+            "classCandidates": [],
+            "capitalizedClassCandidates": [],
+            "methodCandidates": [],
+            "nodesInFiles": {}
+        }));
+
+        assert_eq!(response["decisions"][0]["fallbackReason"], "missing-candidate-facts");
+        assert_eq!(response["diagnostics"]["rustMatcherFallbackReasons"]["missing-candidate-facts"], 1);
+        assert!(response["diagnostics"]["rustMatcherFallbackReasons"]["unresolved"].is_null());
+    }
+
+    #[test]
     fn rust_name_matcher_reports_fallback_for_unhandled_reference() {
         let response = matcher_response("missing", serde_json::json!({
             "byName": [],
@@ -2037,8 +2175,8 @@ mod tests {
         }));
 
         assert_eq!(response["decisions"][0]["targetNodeId"], serde_json::Value::Null);
-        assert_eq!(response["decisions"][0]["fallbackReason"], "unresolved");
-        assert_eq!(response["diagnostics"]["rustMatcherFallbackReasons"]["unresolved"], 1);
+        assert_eq!(response["decisions"][0]["fallbackReason"], "missing-candidate-facts");
+        assert_eq!(response["diagnostics"]["rustMatcherFallbackReasons"]["missing-candidate-facts"], 1);
     }
 
     #[test]

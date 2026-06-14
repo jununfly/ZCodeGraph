@@ -76,7 +76,25 @@ export interface ResolutionResult {
       rustMatcherHandledRefs?: number;
       rustMatcherFallbackRefs?: number;
       rustMatcherSemanticMismatchRefs?: number;
+      rustMatcherSemanticMismatchSamples?: Array<{
+        referenceName: string;
+        referenceKind: string;
+        filePath: string;
+        language: string;
+        rustTargetNodeId: string | null;
+        rustResolvedBy: string | null;
+        rustConfidence: number;
+        tsTargetNodeId: string | null;
+        tsResolvedBy: string | null;
+        tsConfidence: number | null;
+        reason: string;
+      }>;
       rustMatcherFallbackReasons?: Record<string, number>;
+      rustMatcherCandidateMaterializationMs?: number;
+      rustMatcherSubprocessMs?: number;
+      rustMatcherTsVerificationMs?: number;
+      rustMatcherPayloadBytes?: number;
+      rustMatcherUniqueCandidateFacts?: number;
       edgeMaterializationMs?: number;
       edgeWriteMs?: number;
       unresolvedCleanupMs?: number;

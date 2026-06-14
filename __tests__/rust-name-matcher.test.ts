@@ -44,6 +44,28 @@ function makeQueries(nodes: Node[]): QueryBuilder {
   } as unknown as QueryBuilder;
 }
 
+function makeBatchedQueries(nodes: Node[], unresolved: UnresolvedReference[]): QueryBuilder {
+  const queries = makeQueries(nodes) as QueryBuilder & {
+    __unresolved?: UnresolvedReference[];
+  };
+  queries.__unresolved = [...unresolved];
+  return {
+    ...queries,
+    getUnresolvedReferencesCount: () => queries.__unresolved!.length,
+    getUnresolvedReferencesBatch: (_offset: number, limit: number) => queries.__unresolved!.slice(0, limit),
+    getNodeKindsByIds: (ids: string[]) => new Map(
+      ids.map((id) => [id, nodes.find((item) => item.id === id)?.kind ?? 'function']),
+    ),
+    insertEdges: () => undefined,
+    deleteUnresolvedReferencesByRowIds: (rowids: number[]) => {
+      queries.__unresolved = queries.__unresolved!.filter((item) => !rowids.includes(item.rowid!));
+    },
+    deleteSpecificResolvedReferences: () => {
+      queries.__unresolved = [];
+    },
+  } as unknown as QueryBuilder;
+}
+
 function ref(referenceName: string): UnresolvedReference {
   return {
     fromNodeId: 'caller',
@@ -65,7 +87,13 @@ function writeFakeRustMatcher(dir: string, targetNodeId: string): string {
       '#!/usr/bin/env node',
       'const fs = require("fs");',
       'const input = JSON.parse(fs.readFileSync(0, "utf8"));',
-      'fs.writeFileSync(' + JSON.stringify(marker) + ', JSON.stringify({ argv: process.argv.slice(2), refs: input.references.length }));',
+      'fs.writeFileSync(' + JSON.stringify(marker) + ', JSON.stringify({',
+      '  argv: process.argv.slice(2),',
+      '  refs: input.references.length,',
+      '  candidateTableSize: Object.keys(input.candidateTable || {}).length,',
+      '  firstReferenceHasCandidates: Object.prototype.hasOwnProperty.call(input.references[0] || {}, "candidates"),',
+      '  firstReferenceHasCandidateIds: Object.prototype.hasOwnProperty.call(input.references[0] || {}, "candidateIds"),',
+      '}));',
       'const decisions = input.references.map((entry) => ({',
       '  key: entry.key,',
       '  targetNodeId: ' + JSON.stringify(targetNodeId) + ',',
@@ -84,6 +112,41 @@ function writeFakeRustMatcher(dir: string, targetNodeId: string): string {
       '    rustMatcherFallbackRefs: 0,',
       '    rustMatcherSemanticMismatchRefs: 0,',
       '    rustMatcherFallbackReasons: {}',
+      '  }',
+      '}));',
+    ].join('\n') + '\n',
+  );
+  fs.chmodSync(script, 0o755);
+  return script;
+}
+
+function writeFakeRustFallbackMatcher(dir: string, fallbackReason: string): string {
+  const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-fallback.cjs' : 'fake-rust-fallback');
+  fs.writeFileSync(
+    script,
+    [
+      '#!/usr/bin/env node',
+      'const fs = require("fs");',
+      'const input = JSON.parse(fs.readFileSync(0, "utf8"));',
+      'const decisions = input.references.map((entry) => ({',
+      '  key: entry.key,',
+      '  targetNodeId: null,',
+      '  confidence: 0,',
+      '  resolvedBy: null,',
+      '  fallbackReason: ' + JSON.stringify(fallbackReason),
+      '}));',
+      'process.stdout.write(JSON.stringify({',
+      '  type: "name_match_result",',
+      '  version: 1,',
+      '  decisions,',
+      '  diagnostics: {',
+      '    rustMatcherMs: 2,',
+      '    rustMatcherStartupMs: 1,',
+      '    rustMatcherEligibleRefs: input.references.length,',
+      '    rustMatcherHandledRefs: 0,',
+      '    rustMatcherFallbackRefs: input.references.length,',
+      '    rustMatcherSemanticMismatchRefs: 0,',
+      '    rustMatcherFallbackReasons: { ' + JSON.stringify(fallbackReason) + ': input.references.length }',
       '  }',
       '}));',
     ].join('\n') + '\n',
@@ -144,6 +207,31 @@ describe('guarded Rust name matcher', () => {
     expect(result.stats.timings?.rustMatcherHandledRefs).toBe(1);
   });
 
+  it('deduplicates candidate facts into a batch-level payload table', () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-name-matcher-'));
+    const target = node('target:alpha', 'alpha', 'src/target.ts');
+    const resolver = new ReferenceResolver(tempDir, makeQueries([
+      node('caller', 'caller', 'src/caller.ts'),
+      target,
+    ]));
+    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, target.id);
+    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = '1';
+
+    const result = resolver.resolveAll([{ ...ref('alpha'), rowid: 1 }, { ...ref('alpha'), rowid: 2, line: 4 }]);
+    const marker = JSON.parse(fs.readFileSync(path.join(tempDir, 'rust-matcher-invoked.json'), 'utf8')) as {
+      candidateTableSize: number;
+      firstReferenceHasCandidates: boolean;
+      firstReferenceHasCandidateIds: boolean;
+    };
+
+    expect(result.resolved).toHaveLength(2);
+    expect(marker.candidateTableSize).toBe(1);
+    expect(marker.firstReferenceHasCandidates).toBe(false);
+    expect(marker.firstReferenceHasCandidateIds).toBe(true);
+    expect(result.stats.timings?.rustMatcherPayloadBytes).toBeGreaterThan(0);
+    expect(result.stats.timings?.rustMatcherUniqueCandidateFacts).toBe(1);
+  });
+
   it('falls back to the TypeScript matcher when Rust returns a semantic mismatch', () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-name-matcher-'));
     const target = node('target:alpha', 'alpha', 'src/target.ts');
@@ -163,5 +251,98 @@ describe('guarded Rust name matcher', () => {
     expect(result.stats.timings?.rustMatcherFallbackReasons).toMatchObject({
       'semantic-mismatch': 1,
     });
+  });
+
+  it('records semantic mismatch samples with both Rust and TypeScript decisions', () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-name-matcher-'));
+    const target = node('target:alpha', 'alpha', 'src/target.ts');
+    const wrong = node('target:wrong', 'wrong', 'src/wrong.ts');
+    const resolver = new ReferenceResolver(tempDir, makeQueries([
+      node('caller', 'caller', 'src/caller.ts'),
+      target,
+      wrong,
+    ]));
+    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, wrong.id);
+    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = '1';
+
+    const result = resolver.resolveAll([ref('alpha')]);
+
+    expect(result.resolved[0]?.targetNodeId).toBe(target.id);
+    expect(result.stats.timings?.rustMatcherSemanticMismatchSamples).toEqual([
+      expect.objectContaining({
+        referenceName: 'alpha',
+        referenceKind: 'calls',
+        filePath: 'src/caller.ts',
+        language: 'typescript',
+        rustTargetNodeId: wrong.id,
+        rustResolvedBy: 'exact-match',
+        rustConfidence: 0.9,
+        tsTargetNodeId: target.id,
+        tsResolvedBy: 'exact-match',
+        tsConfidence: 0.9,
+        reason: 'different-target',
+      }),
+    ]);
+  });
+
+  it('preserves semantic mismatch samples when batched resolution merges timings', async () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-name-matcher-'));
+    const target = node('target:alpha', 'alpha', 'src/target.ts');
+    const wrong = node('target:wrong', 'wrong', 'src/wrong.ts');
+    const resolver = new ReferenceResolver(tempDir, makeBatchedQueries([
+      node('caller', 'caller', 'src/caller.ts'),
+      target,
+      wrong,
+    ], [
+      { ...ref('alpha'), rowid: 1 },
+      { ...ref('alpha'), rowid: 2, line: 4 },
+    ]));
+    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, wrong.id);
+    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = '1';
+
+    const result = await resolver.resolveAndPersistBatched(undefined, 1);
+
+    expect(result.stats.timings?.rustMatcherSemanticMismatchRefs).toBe(2);
+    expect(result.stats.timings?.rustMatcherSemanticMismatchSamples).toHaveLength(2);
+    expect(result.stats.timings?.rustMatcherSemanticMismatchSamples?.[0]).toMatchObject({
+      referenceName: 'alpha',
+      reason: 'different-target',
+    });
+  });
+
+  it('classifies Rust fallback as a true Rust gap only when TypeScript resolves it', () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-name-matcher-'));
+    const target = node('target:alpha', 'alpha', 'src/target.ts');
+    const resolver = new ReferenceResolver(tempDir, makeQueries([
+      node('caller', 'caller', 'src/caller.ts'),
+      target,
+    ]));
+    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustFallbackMatcher(tempDir, 'unresolved');
+    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = '1';
+
+    const result = resolver.resolveAll([ref('alpha')]);
+
+    expect(result.resolved[0]?.targetNodeId).toBe(target.id);
+    expect(result.stats.timings?.rustMatcherFallbackReasons).toMatchObject({
+      'rust-unresolved': 1,
+    });
+    expect(result.stats.timings?.rustMatcherFallbackReasons).not.toHaveProperty('unresolved');
+  });
+
+  it('classifies Rust fallback as baseline-unresolved when TypeScript also cannot resolve it', () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-name-matcher-'));
+    const resolver = new ReferenceResolver(tempDir, makeQueries([
+      node('caller', 'caller', 'src/caller.ts'),
+    ]));
+    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustFallbackMatcher(tempDir, 'unresolved');
+    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = '1';
+
+    const result = resolver.resolveAll([ref('missing')]);
+
+    expect(result.resolved).toHaveLength(0);
+    expect(result.stats.timings?.rustMatcherFallbackReasons).toMatchObject({
+      'ts-baseline-unresolved': 1,
+    });
+    expect(result.stats.timings?.rustMatcherFallbackReasons).not.toHaveProperty('unresolved');
   });
 });

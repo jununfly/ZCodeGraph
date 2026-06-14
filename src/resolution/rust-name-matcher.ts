@@ -23,6 +23,18 @@ export interface RustNameMatcherReference {
   candidates: RustNameMatcherCandidateSet;
 }
 
+interface RustNameMatcherCandidateIdSet {
+  byName: string[];
+  byQualifiedName: string[];
+  byLeafName: string[];
+  byLowerName: string[];
+  byFileName: string[];
+  classCandidates: string[];
+  capitalizedClassCandidates: string[];
+  methodCandidates: string[];
+  nodesInFiles: Record<string, string[]>;
+}
+
 export interface RustNameMatcherDecision {
   key: string;
   targetNodeId: string | null;
@@ -40,6 +52,11 @@ export interface RustNameMatcherDiagnostics {
   rustMatcherFallbackRefs: number;
   rustMatcherSemanticMismatchRefs: number;
   rustMatcherFallbackReasons: Record<string, number>;
+  rustMatcherCandidateMaterializationMs: number;
+  rustMatcherSubprocessMs: number;
+  rustMatcherTsVerificationMs: number;
+  rustMatcherPayloadBytes: number;
+  rustMatcherUniqueCandidateFacts: number;
 }
 
 export interface RustNameMatcherBatchResult {
@@ -52,6 +69,12 @@ interface RustNameMatcherResponse {
   version: 1;
   decisions: RustNameMatcherDecision[];
   diagnostics?: Partial<RustNameMatcherDiagnostics>;
+}
+
+interface EncodedRustNameMatcherReference {
+  key: string;
+  ref: UnresolvedRef;
+  candidateIds: RustNameMatcherCandidateIdSet;
 }
 
 export function rustNameMatcherEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -142,6 +165,11 @@ export function runRustNameMatcherBatch(
       rustMatcherFallbackRefs: references.length,
       rustMatcherSemanticMismatchRefs: 0,
       rustMatcherFallbackReasons: { ...fallbackReasons },
+      rustMatcherCandidateMaterializationMs: 0,
+      rustMatcherSubprocessMs: 0,
+      rustMatcherTsVerificationMs: 0,
+      rustMatcherPayloadBytes: 0,
+      rustMatcherUniqueCandidateFacts: 0,
     };
   };
 
@@ -153,9 +181,14 @@ export function runRustNameMatcherBatch(
   }
 
   let serialized = '';
+  let payloadBytes = 0;
+  let uniqueCandidateFacts = 0;
   const serializationStarted = Date.now();
   try {
-    serialized = JSON.stringify({ version: 1, references });
+    const encoded = encodeRustNameMatcherBatch(references);
+    uniqueCandidateFacts = Object.keys(encoded.candidateTable).length;
+    serialized = JSON.stringify(encoded);
+    payloadBytes = Buffer.byteLength(serialized, 'utf8');
   } catch {
     return {
       decisions: new Map(),
@@ -194,7 +227,10 @@ export function runRustNameMatcherBatch(
         ...emptyDiagnostics(result.error ? 'subprocess-error' : 'subprocess-nonzero-exit'),
         rustMatcherMs,
         rustMatcherStartupMs: rustMatcherMs,
+        rustMatcherSubprocessMs: rustMatcherMs,
         rustMatcherSerializationMs,
+        rustMatcherPayloadBytes: payloadBytes,
+        rustMatcherUniqueCandidateFacts: uniqueCandidateFacts,
       },
     };
   }
@@ -210,12 +246,17 @@ export function runRustNameMatcherBatch(
       diagnostics: {
         rustMatcherMs,
         rustMatcherStartupMs: parsed.diagnostics?.rustMatcherStartupMs ?? rustMatcherMs,
+        rustMatcherSubprocessMs: parsed.diagnostics?.rustMatcherSubprocessMs ?? rustMatcherMs,
         rustMatcherSerializationMs,
         rustMatcherEligibleRefs: parsed.diagnostics?.rustMatcherEligibleRefs ?? references.length,
         rustMatcherHandledRefs: parsed.diagnostics?.rustMatcherHandledRefs ?? decisions.size,
         rustMatcherFallbackRefs: parsed.diagnostics?.rustMatcherFallbackRefs ?? Math.max(0, references.length - decisions.size),
         rustMatcherSemanticMismatchRefs: parsed.diagnostics?.rustMatcherSemanticMismatchRefs ?? 0,
         rustMatcherFallbackReasons: parsed.diagnostics?.rustMatcherFallbackReasons ?? {},
+        rustMatcherCandidateMaterializationMs: parsed.diagnostics?.rustMatcherCandidateMaterializationMs ?? 0,
+        rustMatcherTsVerificationMs: parsed.diagnostics?.rustMatcherTsVerificationMs ?? 0,
+        rustMatcherPayloadBytes: parsed.diagnostics?.rustMatcherPayloadBytes ?? payloadBytes,
+        rustMatcherUniqueCandidateFacts: parsed.diagnostics?.rustMatcherUniqueCandidateFacts ?? uniqueCandidateFacts,
       },
     };
   } catch {
@@ -225,10 +266,58 @@ export function runRustNameMatcherBatch(
         ...emptyDiagnostics('invalid-response'),
         rustMatcherMs,
         rustMatcherStartupMs: rustMatcherMs,
+        rustMatcherSubprocessMs: rustMatcherMs,
         rustMatcherSerializationMs,
+        rustMatcherPayloadBytes: payloadBytes,
+        rustMatcherUniqueCandidateFacts: uniqueCandidateFacts,
       },
     };
   }
+}
+
+function encodeRustNameMatcherBatch(references: RustNameMatcherReference[]): {
+  version: 1;
+  candidateTable: Record<string, Node>;
+  references: EncodedRustNameMatcherReference[];
+} {
+  const candidateTable: Record<string, Node> = {};
+
+  const addNodes = (nodes: Node[]): string[] => {
+    const ids: string[] = [];
+    for (const node of nodes) {
+      candidateTable[node.id] = node;
+      ids.push(node.id);
+    }
+    return ids;
+  };
+
+  const encodedReferences = references.map((entry) => {
+    const nodesInFiles: Record<string, string[]> = {};
+    for (const [filePath, nodes] of Object.entries(entry.candidates.nodesInFiles)) {
+      nodesInFiles[filePath] = addNodes(nodes);
+    }
+    return {
+      key: entry.key,
+      ref: entry.ref,
+      candidateIds: {
+        byName: addNodes(entry.candidates.byName),
+        byQualifiedName: addNodes(entry.candidates.byQualifiedName),
+        byLeafName: addNodes(entry.candidates.byLeafName),
+        byLowerName: addNodes(entry.candidates.byLowerName),
+        byFileName: addNodes(entry.candidates.byFileName),
+        classCandidates: addNodes(entry.candidates.classCandidates),
+        capitalizedClassCandidates: addNodes(entry.candidates.capitalizedClassCandidates),
+        methodCandidates: addNodes(entry.candidates.methodCandidates),
+        nodesInFiles,
+      },
+    };
+  });
+
+  return {
+    version: 1,
+    candidateTable,
+    references: encodedReferences,
+  };
 }
 
 function looksQualified(referenceName: string): boolean {
