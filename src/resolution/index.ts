@@ -572,23 +572,24 @@ export class ReferenceResolver {
   }
 
   private prewarmGroupedNameMatchingCandidates(refs: UnresolvedRef[], timings: ReferenceResolutionTimings): void {
-    const groups = new Map<string, UnresolvedRef>();
+    const groups = new Map<string, { ref: UnresolvedRef; count: number }>();
     for (const ref of refs) {
-      groups.set(`${ref.referenceName}\0${ref.referenceKind}\0${ref.language}`, ref);
+      const key = `${ref.referenceName}\0${ref.referenceKind}\0${ref.language}`;
+      const group = groups.get(key);
+      if (group) {
+        group.count += 1;
+      } else {
+        groups.set(key, { ref, count: 1 });
+      }
     }
 
-    for (const ref of groups.values()) {
+    for (const { ref, count } of groups.values()) {
+      if (count < 2) continue;
       if (this.isBuiltInOrExternal(ref) || !this.hasAnyPossibleMatch(ref.referenceName)) {
         continue;
       }
       const started = Date.now();
       this.context.getNodesByName(ref.referenceName);
-      if (ref.referenceName.includes('::') || ref.referenceName.includes('.')) {
-        this.context.getNodesByQualifiedName(ref.referenceName);
-        const lastName = ref.referenceName.split(/[:.]/).filter(Boolean).pop();
-        if (lastName) this.context.getNodesByName(lastName);
-      }
-      this.context.getNodesByLowerName(ref.referenceName.toLowerCase());
       addElapsed(timings, 'candidateLookupMs', started);
       addElapsed(timings, 'sharedCandidateLookupMs', started);
     }
