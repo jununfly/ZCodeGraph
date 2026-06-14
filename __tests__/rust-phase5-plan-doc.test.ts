@@ -16,6 +16,7 @@ describe('Rust indexing Phase 5 plan document', () => {
 
     expect(plan).toContain('Phase 5 is a targeted blocker-reduction phase');
     expect(plan).toContain('Rust remains opt-in');
+    expect(plan).toContain('[#95](https://github.com/jununfly/ZCodeGraph/issues/95)');
     expect(plan).toContain('[#94](https://github.com/jununfly/ZCodeGraph/issues/94)');
     expect(plan).toContain('Do not make Rust the default index engine');
     expect(plan).toContain('validated on a large VS Code JS/TS sparse checkout');
