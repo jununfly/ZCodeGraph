@@ -3,6 +3,7 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { CodeGraph } from '../src';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const SCRIPT = path.join(REPO_ROOT, 'scripts', 'rust-sufficiency-guardrail.mjs');
@@ -45,9 +46,152 @@ describe('Rust sufficiency guardrail prompt configuration', () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('--prompts <json>');
+    expect(result.stdout).toContain('--out <file>');
+    expect(result.stdout).toContain('--prompt-id <id>');
+    expect(result.stdout).toContain('--repo-pair <name>:typescript=<path>');
     expect(result.stdout).toContain('Names with built-in prompts: zcodegraph, excalidraw, zustand');
     expect(result.stdout).toContain('JavaScript/TypeScript/config slice');
   });
+
+  it('writes a machine-readable unavailable artifact for a missing indexed pair', () => {
+    const temp = makeTempDir('zcodegraph-sufficiency-missing-index-');
+    tempDirs.push(temp);
+    const prompts = path.join(temp, 'prompts.json');
+    const out = path.join(temp, 'artifact.json');
+    fs.writeFileSync(
+      prompts,
+      JSON.stringify({
+        fixture: [
+          {
+            id: 'FX-1',
+            query: 'alpha beta',
+            expected: ['alpha', 'beta'],
+          },
+        ],
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [
+        SCRIPT,
+        '--prompts',
+        prompts,
+        '--prompt-id',
+        'FX-1',
+        '--repo-pair',
+        `fixture:typescript=${path.join(temp, 'missing-ts')}`,
+        '--repo-pair',
+        `fixture:rust=${path.join(temp, 'missing-rust')}`,
+        '--out',
+        out,
+      ],
+      { cwd: REPO_ROOT, encoding: 'utf-8' },
+    );
+
+    expect(result.status).toBe(1);
+    const parsed = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      status: string;
+      unavailableKind: string;
+      stages: { copy: { status: string }; typescriptIndex: { status: string }; rustIndex: { status: string } };
+      defaultRolloutReadinessClaimed: boolean;
+    };
+
+    expect(parsed.status).toBe('unavailable');
+    expect(parsed.unavailableKind).toBe('missing-index');
+    expect(parsed.stages.copy.status).toBe('skipped');
+    expect(parsed.stages.typescriptIndex.status).toBe('skipped');
+    expect(parsed.stages.rustIndex.status).toBe('skipped');
+    expect(parsed.defaultRolloutReadinessClaimed).toBe(false);
+  });
+
+  it('preserves stdout JSON while supporting prompt filtering and --out in reuse mode', async () => {
+    const temp = makeTempDir('zcodegraph-sufficiency-reuse-');
+    tempDirs.push(temp);
+    const repo = path.join(temp, 'repo');
+    const ts = path.join(temp, 'ts');
+    const rust = path.join(temp, 'rust');
+    const prompts = path.join(temp, 'prompts.json');
+    const out = path.join(temp, 'artifact.json');
+    for (const dir of [repo, ts, rust]) {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'flow.ts'),
+        [
+          'export function alpha() {',
+          '  return beta();',
+          '}',
+          'export function beta() {',
+          '  return 1;',
+          '}',
+        ].join('\n') + '\n',
+      );
+      const cg = CodeGraph.initSync(dir);
+      await cg.indexAll({ force: true });
+      cg.close();
+    }
+    fs.writeFileSync(
+      prompts,
+      JSON.stringify({
+        fixture: [
+          {
+            id: 'FX-1',
+            query: 'alpha beta',
+            expected: ['alpha', 'beta'],
+          },
+          {
+            id: 'FX-2',
+            query: 'gamma delta',
+            expected: ['gamma', 'delta'],
+          },
+        ],
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [
+        SCRIPT,
+        '--prompts',
+        prompts,
+        '--prompt-id',
+        'FX-1',
+        '--repo',
+        `fixture=${repo}`,
+        '--repo-pair',
+        `fixture:typescript=${ts}`,
+        '--repo-pair',
+        `fixture:rust=${rust}`,
+        '--out',
+        out,
+      ],
+      {
+        cwd: REPO_ROOT,
+        env: {
+          ...process.env,
+          CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
+          CODEGRAPH_NO_DAEMON: '1',
+          CODEGRAPH_NO_RELAUNCH: '1',
+        },
+        encoding: 'utf-8',
+      },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const stdoutParsed = JSON.parse(result.stdout) as { status: string; results: Array<{ prompts: Array<{ id: string }> }> };
+    const outParsed = JSON.parse(fs.readFileSync(out, 'utf-8')) as typeof stdoutParsed & {
+      stages: { copy: { status: string }; typescriptIndex: { status: string }; rustIndex: { status: string } };
+      results: Array<{ reuseIndexedPair: { typescript: { path: string }; rust: { path: string } } }>;
+    };
+
+    expect(stdoutParsed.status).toBe('completed');
+    expect(stdoutParsed.results[0]?.prompts.map((prompt) => prompt.id)).toEqual(['FX-1']);
+    expect(outParsed.stages.copy.status).toBe('skipped');
+    expect(outParsed.stages.typescriptIndex.status).toBe('skipped');
+    expect(outParsed.stages.rustIndex.status).toBe('skipped');
+    expect(outParsed.results[0]?.reuseIndexedPair.typescript.path).toBe(ts);
+    expect(outParsed.results[0]?.reuseIndexedPair.rust.path).toBe(rust);
+  }, 60_000);
 
   it('loads prompt definitions for repositories without built-in prompts before checking build artifacts', () => {
     const temp = makeTempDir('zcodegraph-sufficiency-prompts-');

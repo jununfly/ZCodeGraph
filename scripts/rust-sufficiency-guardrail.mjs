@@ -18,6 +18,16 @@ const rustCore = path.join(
 const PHASE1_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx']);
 const CONFIG_FILES = new Set(['package.json', 'tsconfig.json', 'jsconfig.json']);
 const SKIP_DIRS = new Set(['.git', '.zcodegraph', 'node_modules', 'dist', 'target', '.next', 'coverage']);
+const UNAVAILABLE_KINDS = [
+  'copy-timeout',
+  'typescript-index-timeout',
+  'rust-index-timeout',
+  'explore-timeout',
+  'missing-index',
+  'validator-failed',
+  'process-error',
+  'unsupported-runtime',
+];
 
 const PROMPTS = {
   zcodegraph: [
@@ -77,17 +87,30 @@ function usage() {
   console.log([
     'Usage: node scripts/rust-sufficiency-guardrail.mjs --repo <name>=<path> [--repo <name>=<path> ...] [--prompts <json>]',
     '',
+    'Options:',
+    '  --prompts <json>                         Load external prompt definitions',
+    '  --prompt-id <id>                         Run only matching prompt id (repeatable)',
+    '  --out <file>                             Write final or partial JSON artifact to a file',
+    '  --timeout-ms <ms>                        Bound copy/index/explore stages and emit unavailable artifact on timeout',
+    '  --emit-partial-on-failure                Preserve partial artifact for process failures',
+    '  --repo-pair <name>:typescript=<path>     Reuse an already indexed TypeScript project',
+    '  --repo-pair <name>:rust=<path>           Reuse an already indexed Rust project',
+    '',
     'Names with built-in prompts: zcodegraph, excalidraw, zustand',
     'Use --prompts for long-running repo-specific probes such as VS Code.',
+    '',
+    `Unavailable taxonomy: ${UNAVAILABLE_KINDS.join(', ')}`,
     '',
     'Examples:',
     '  npm run build && cargo build --package zcodegraph-core',
     '  node scripts/rust-sufficiency-guardrail.mjs --repo zcodegraph=. --repo excalidraw=/tmp/codegraph-corpus/excalidraw',
     '  node scripts/rust-sufficiency-guardrail.mjs --repo vscode=/tmp/codegraph-corpus/vscode --prompts docs/benchmarks/vscode-sufficiency-prompts.json',
+    '  node scripts/rust-sufficiency-guardrail.mjs --repo vscode=/tmp/vscode --prompt-id VS-1 --out docs/benchmarks/vscode.raw.json',
     '',
-    'The script creates TypeScript- and Rust-produced indexes, runs',
-    'zcodegraph_explore for representative flow prompts, and compares Flow',
-    'connectivity plus deterministic fallback-risk signals.',
+    'The script creates TypeScript- and Rust-produced indexes, or reuses an',
+    'explicit indexed pair, runs zcodegraph_explore for representative flow',
+    'prompts, and compares Flow connectivity plus deterministic fallback-risk',
+    'signals. Default stdout JSON behavior is preserved.',
     '',
     'For large JS/TS probes it copies a JavaScript/TypeScript/config slice,',
     'matching the Rust indexing profile scope and avoiding unrelated files.',
@@ -97,9 +120,14 @@ function usage() {
 function parseArgs(argv) {
   const repos = [];
   const promptFiles = [];
+  const promptIds = new Set();
+  const repoPairs = new Map();
+  let out = null;
+  let timeoutMs = null;
+  let emitPartialOnFailure = false;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === '--help' || arg === '-h') return { help: true, repos, promptFiles };
+    if (arg === '--help' || arg === '-h') return { help: true, repos, promptFiles, promptIds, out, timeoutMs, emitPartialOnFailure, repoPairs };
     if (arg === '--repo') {
       const spec = argv[++i];
       if (!spec) throw new Error('--repo requires name=path');
@@ -108,15 +136,56 @@ function parseArgs(argv) {
       repos.push({ name: spec.slice(0, eq), path: path.resolve(spec.slice(eq + 1)) });
       continue;
     }
+    if (arg === '--repo-pair') {
+      const spec = argv[++i];
+      if (!spec) throw new Error('--repo-pair requires name:engine=path');
+      const parsed = parseRepoPair(spec);
+      const current = repoPairs.get(parsed.name) ?? {};
+      current[parsed.engine] = parsed.path;
+      repoPairs.set(parsed.name, current);
+      continue;
+    }
     if (arg === '--prompts') {
       const file = argv[++i];
       if (!file) throw new Error('--prompts requires a JSON file path');
       promptFiles.push(path.resolve(file));
       continue;
     }
+    if (arg === '--prompt-id') {
+      const id = argv[++i];
+      if (!id) throw new Error('--prompt-id requires a prompt id');
+      promptIds.add(id);
+      continue;
+    }
+    if (arg === '--out') {
+      const file = argv[++i];
+      if (!file) throw new Error('--out requires a file path');
+      out = path.resolve(file);
+      continue;
+    }
+    if (arg === '--timeout-ms') {
+      const value = Number.parseInt(argv[++i] ?? '', 10);
+      if (!Number.isFinite(value) || value <= 0) throw new Error('--timeout-ms requires a positive integer');
+      timeoutMs = value;
+      continue;
+    }
+    if (arg === '--emit-partial-on-failure') {
+      emitPartialOnFailure = true;
+      continue;
+    }
     throw new Error(`Unknown argument: ${arg}`);
   }
-  return { help: false, repos, promptFiles };
+  return { help: false, repos, promptFiles, promptIds, out, timeoutMs, emitPartialOnFailure, repoPairs };
+}
+
+function parseRepoPair(spec) {
+  const colon = spec.indexOf(':');
+  const eq = spec.indexOf('=');
+  if (colon <= 0 || eq <= colon + 1) throw new Error('--repo-pair must be name:typescript=path or name:rust=path');
+  const name = spec.slice(0, colon);
+  const engine = spec.slice(colon + 1, eq);
+  if (engine !== 'typescript' && engine !== 'rust') throw new Error('--repo-pair engine must be typescript or rust');
+  return { name, engine, path: path.resolve(spec.slice(eq + 1)) };
 }
 
 function loadPromptFiles(files) {
@@ -155,18 +224,30 @@ function validatePrompts(repoName, prompts, source) {
   }
 }
 
-function run(command, args, cwd, env = {}) {
+function filterPrompts(repoName, prompts, promptIds) {
+  if (promptIds.size === 0) return prompts;
+  const filtered = prompts.filter((prompt) => promptIds.has(prompt.id));
+  if (filtered.length === 0) {
+    throw new Error(`No prompts selected for repo "${repoName}" with --prompt-id ${[...promptIds].join(', ')}`);
+  }
+  return filtered;
+}
+
+function run(command, args, cwd, env = {}, timeoutMs = null) {
   const result = spawnSync(command, args, {
     cwd,
     env: { ...process.env, ...baseEnv(), ...env },
     encoding: 'utf-8',
+    timeout: timeoutMs ?? undefined,
   });
   if (result.status !== 0) {
-    throw new Error([
+    const err = new Error([
       `${command} ${args.join(' ')} failed in ${cwd}`,
       result.stdout,
       result.stderr,
     ].filter(Boolean).join('\n'));
+    err.result = result;
+    throw err;
   }
   return result;
 }
@@ -179,11 +260,124 @@ function baseEnv() {
   };
 }
 
-function copyRepo(source, label) {
+function nowMs() {
+  return Date.now();
+}
+
+function makeStage(status = 'pending', extra = {}) {
+  return { status, elapsedMs: 0, ...extra };
+}
+
+function emptyStages() {
+  return {
+    copy: makeStage(),
+    typescriptIndex: makeStage(),
+    rustIndex: makeStage(),
+    exploreAnalyze: makeStage(),
+    comparison: makeStage(),
+  };
+}
+
+function createArtifact({ mode, command, timeoutMs }) {
+  const nodeMajor = Number.parseInt(process.versions.node.split('.')[0] ?? '', 10);
+  return {
+    generatedAt: new Date().toISOString(),
+    status: 'running',
+    mode,
+    command,
+    timeoutMs,
+    unavailableKind: null,
+    unavailableReason: null,
+    note: 'Counts are deterministic fallback-risk signals from zcodegraph_explore output, not stochastic Claude Code Read/Grep tool calls.',
+    unavailableTaxonomy: UNAVAILABLE_KINDS,
+    defaultRolloutReadinessClaimed: false,
+    runtimeWarnings: Number.isFinite(nodeMajor) && nodeMajor >= 25
+      ? ['Node.js >=25 is outside the supported runtime range and may trigger V8 Wasm tiering instability on large tree-sitter workloads.']
+      : [],
+    stages: emptyStages(),
+    toolchain: null,
+    results: [],
+    regressions: [],
+  };
+}
+
+function finishArtifact(artifact, status, extra = {}) {
+  artifact.generatedAt = new Date().toISOString();
+  artifact.status = status;
+  Object.assign(artifact, extra);
+  return artifact;
+}
+
+function markUnavailable(artifact, kind, reason, stageName, extra = {}) {
+  if (stageName && artifact.stages[stageName]) {
+    artifact.stages[stageName].status = 'unavailable';
+  }
+  return finishArtifact(artifact, 'unavailable', {
+    unavailableKind: kind,
+    unavailableReason: reason,
+    ...extra,
+  });
+}
+
+function writeArtifact(out, artifact) {
+  if (!out) return;
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, JSON.stringify(artifact, null, 2) + '\n');
+}
+
+function emitArtifact(out, artifact) {
+  const json = JSON.stringify(artifact, null, 2);
+  writeArtifact(out, artifact);
+  console.log(json);
+}
+
+function tail(text, max = 4000) {
+  if (!text) return '';
+  return text.length <= max ? text : text.slice(text.length - max);
+}
+
+function classifyProcessFailure(engine, result) {
+  const stderr = result?.stderr ?? '';
+  if (stderr.includes('[CodeGraph] Unsupported Node.js version')) {
+    return 'unsupported-runtime';
+  }
+  const timedOut = result?.signal === 'SIGTERM' || result?.error?.code === 'ETIMEDOUT';
+  if (timedOut) {
+    return engine === 'rust' ? 'rust-index-timeout' : 'typescript-index-timeout';
+  }
+  return 'process-error';
+}
+
+function remainingTimeout(deadline) {
+  if (deadline == null) return null;
+  return Math.max(1, deadline - Date.now());
+}
+
+function ensureNotTimedOut(deadline, artifact, stageName) {
+  if (deadline != null && Date.now() >= deadline) {
+    const kind = stageName === 'typescriptIndex'
+      ? 'typescript-index-timeout'
+      : stageName === 'rustIndex'
+        ? 'rust-index-timeout'
+        : stageName === 'exploreAnalyze'
+          ? 'explore-timeout'
+          : 'copy-timeout';
+    throw Object.assign(new Error(`Timed out during ${stageName}`), {
+      unavailableKind: kind,
+      stageName,
+      artifact: markUnavailable(artifact, kind, `Timed out during ${stageName}.`, stageName),
+    });
+  }
+}
+
+function copyRepo(source, label, artifact, deadline) {
+  const started = nowMs();
+  artifact.stages.copy.status = 'running';
   const dest = fs.mkdtempSync(path.join(os.tmpdir(), `zcodegraph-rust-guardrail-${label}-`));
   let copiedFiles = 0;
 
   function walk(current) {
+    ensureNotTimedOut(deadline, artifact, 'copy');
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
       const src = path.join(current, entry.name);
       const rel = path.relative(source, src);
@@ -206,6 +400,10 @@ function copyRepo(source, label) {
   }
 
   walk(source);
+  artifact.stages.copy = makeStage('completed', {
+    elapsedMs: nowMs() - started,
+    mode: 'js-ts-config-slice',
+  });
   return {
     path: dest,
     copiedFiles,
@@ -213,7 +411,10 @@ function copyRepo(source, label) {
   };
 }
 
-function initAndIndex(project, engine, CodeGraph) {
+function initAndIndex(project, engine, CodeGraph, artifact, deadline) {
+  const stageName = engine === 'rust' ? 'rustIndex' : 'typescriptIndex';
+  const started = nowMs();
+  artifact.stages[stageName].status = 'running';
   CodeGraph.initSync(project).close();
   const args = [distBin, 'index', project, '--force', '--quiet'];
   const env = {};
@@ -221,7 +422,25 @@ function initAndIndex(project, engine, CodeGraph) {
     args.push('--engine', 'rust');
     env.ZCODEGRAPH_RUST_CORE_BINARY = rustCore;
   }
-  run(process.execPath, args, project, env);
+  try {
+    run(process.execPath, args, project, env, remainingTimeout(deadline));
+    artifact.stages[stageName] = makeStage('completed', {
+      elapsedMs: nowMs() - started,
+      projectPath: project,
+    });
+  } catch (err) {
+    const kind = classifyProcessFailure(engine, err.result);
+    artifact.stages[stageName] = makeStage('unavailable', {
+      elapsedMs: nowMs() - started,
+      projectPath: project,
+      stderrTail: tail(err.result?.stderr),
+    });
+    throw Object.assign(err, {
+      unavailableKind: kind,
+      stageName,
+      artifact: markUnavailable(artifact, kind, err.message, stageName),
+    });
+  }
 }
 
 async function loadDist() {
@@ -292,85 +511,188 @@ function collectRegressions(results) {
   return regressions;
 }
 
+function toolchain() {
+  return {
+    node: process.version,
+    rustc: run('rustc', ['--version'], repoRoot).stdout.trim(),
+    cargo: run('cargo', ['--version'], repoRoot).stdout.trim(),
+    os: `${os.type()} ${os.release()} ${os.arch()}`,
+    cpu: os.cpus()[0]?.model ?? 'unknown',
+    cpuCount: os.cpus().length,
+  };
+}
+
+function validateIndexedProject(project) {
+  return fs.existsSync(project) && fs.existsSync(path.join(project, '.zcodegraph'));
+}
+
+function repoPairFor(repoPairs, repoName) {
+  const pair = repoPairs.get(repoName);
+  if (!pair) return null;
+  return {
+    typescript: pair.typescript,
+    rust: pair.rust,
+  };
+}
+
+async function runExploreComparison(repo, prompts, projects, artifact, deadline) {
+  const started = nowMs();
+  artifact.stages.exploreAnalyze.status = 'running';
+  const promptResults = [];
+  for (const prompt of prompts) {
+    ensureNotTimedOut(deadline, artifact, 'exploreAnalyze');
+    const tsText = await explore(projects.typescript, prompt.query);
+    ensureNotTimedOut(deadline, artifact, 'exploreAnalyze');
+    const rustText = await explore(projects.rust, prompt.query);
+    promptResults.push({
+      id: prompt.id,
+      query: prompt.query,
+      typescript: analyze(tsText, prompt.expected),
+      rust: analyze(rustText, prompt.expected),
+    });
+  }
+  artifact.stages.exploreAnalyze = makeStage('completed', {
+    elapsedMs: nowMs() - started,
+  });
+  return promptResults;
+}
+
+function commandLine() {
+  return [process.execPath, process.argv[1], ...process.argv.slice(2)].join(' ');
+}
+
 async function main() {
-  const { help, repos, promptFiles } = parseArgs(process.argv.slice(2));
+  const options = parseArgs(process.argv.slice(2));
+  const { help, repos, promptFiles, promptIds, out, timeoutMs, repoPairs } = options;
   if (help) {
     usage();
     return;
   }
-  if (repos.length === 0) throw new Error('At least one --repo name=path is required');
-  const promptCatalog = loadPromptFiles(promptFiles);
-  for (const repo of repos) {
-    if (!promptCatalog[repo.name]) throw new Error(`No built-in or configured prompts for repo name "${repo.name}"`);
-  }
-  if (!fs.existsSync(distBin)) throw new Error('dist/bin/zcodegraph.js not found. Run npm run build first.');
-  if (!fs.existsSync(rustCore)) throw new Error('target/debug/zcodegraph-core not found. Run cargo build --package zcodegraph-core first.');
 
-  const dist = await loadDist();
-  const results = [];
-  for (const repo of repos) {
-    const prompts = promptCatalog[repo.name];
+  const deadline = timeoutMs == null ? null : Date.now() + timeoutMs;
+  const artifact = createArtifact({
+    mode: repoPairs.size > 0 ? 'deterministic-tool-surface-reuse-indexed-pair' : 'deterministic-tool-surface',
+    command: commandLine(),
+    timeoutMs,
+  });
 
-    const copies = {
-      typescript: copyRepo(repo.path, `${repo.name}-ts`),
-      rust: copyRepo(repo.path, `${repo.name}-rust`),
-    };
-    initAndIndex(copies.typescript.path, 'typescript', dist.CodeGraph);
-    initAndIndex(copies.rust.path, 'rust', dist.CodeGraph);
-
-    const promptResults = [];
-    for (const prompt of prompts) {
-      const tsText = await explore(copies.typescript.path, prompt.query);
-      const rustText = await explore(copies.rust.path, prompt.query);
-      promptResults.push({
-        id: prompt.id,
-        query: prompt.query,
-        typescript: analyze(tsText, prompt.expected),
-        rust: analyze(rustText, prompt.expected),
+  try {
+    const promptCatalog = loadPromptFiles(promptFiles);
+    const repoNames = new Set([...repos.map((repo) => repo.name), ...repoPairs.keys()]);
+    if (repoNames.size === 0) throw new Error('At least one --repo name=path or --repo-pair name:engine=path is required');
+    for (const repoName of repoNames) {
+      if (!promptCatalog[repoName]) throw new Error(`No built-in or configured prompts for repo name "${repoName}"`);
+    }
+    if (!fs.existsSync(distBin)) throw new Error('dist/bin/zcodegraph.js not found. Run npm run build first.');
+    if (repoPairs.size === 0 && !fs.existsSync(rustCore)) {
+      throw Object.assign(new Error('target/debug/zcodegraph-core not found. Run cargo build --package zcodegraph-core first.'), {
+        unavailableKind: 'process-error',
+        stageName: 'rustIndex',
       });
     }
 
-    results.push({
-      name: repo.name,
-      ...metadataFor(repo.path),
-      copyMode: 'js-ts-config-slice',
-      copies: {
-        typescript: {
-          copiedFiles: copies.typescript.copiedFiles,
-          tempProjectPath: copies.typescript.path,
-        },
-        rust: {
-          copiedFiles: copies.rust.copiedFiles,
-          tempProjectPath: copies.rust.path,
-        },
-      },
-      prompts: promptResults,
-    });
-  }
+    artifact.toolchain = toolchain();
+    const dist = await loadDist();
+    const results = [];
+    for (const repoName of repoNames) {
+      const sourceRepo = repos.find((item) => item.name === repoName) ?? { name: repoName, path: repoPairFor(repoPairs, repoName)?.typescript ?? '' };
+      const prompts = filterPrompts(repoName, promptCatalog[repoName], promptIds);
+      const pair = repoPairFor(repoPairs, repoName);
+      let projects;
+      let copies = null;
+      let reuseIndexedPair = null;
 
-  const regressions = collectRegressions(results);
-  const nodeMajor = Number.parseInt(process.versions.node.split('.')[0] ?? '', 10);
-  console.log(JSON.stringify({
-    generatedAt: new Date().toISOString(),
-    mode: 'deterministic-tool-surface',
-    note: 'Counts are deterministic fallback-risk signals from zcodegraph_explore output, not stochastic Claude Code Read/Grep tool calls.',
-    runtimeWarnings: Number.isFinite(nodeMajor) && nodeMajor >= 25
-      ? ['Node.js >=25 is outside the supported runtime range and may trigger V8 Wasm tiering instability on large tree-sitter workloads.']
-      : [],
-    toolchain: {
-      node: process.version,
-      rustc: run('rustc', ['--version'], repoRoot).stdout.trim(),
-      cargo: run('cargo', ['--version'], repoRoot).stdout.trim(),
-      os: `${os.type()} ${os.release()} ${os.arch()}`,
-      cpu: os.cpus()[0]?.model ?? 'unknown',
-      cpuCount: os.cpus().length,
-    },
-    results,
-    regressions,
-  }, null, 2));
-  if (regressions.length > 0) {
-    console.error(`Rust sufficiency regressions detected:\n- ${regressions.join('\n- ')}`);
-    process.exitCode = 1;
+      if (pair) {
+        artifact.stages.copy = makeStage('skipped', { reason: 'reuse-indexed-pair' });
+        artifact.stages.typescriptIndex = makeStage('skipped', { reason: 'reuse-indexed-pair' });
+        artifact.stages.rustIndex = makeStage('skipped', { reason: 'reuse-indexed-pair' });
+        if (!pair.typescript || !pair.rust || !validateIndexedProject(pair.typescript) || !validateIndexedProject(pair.rust)) {
+          const missing = [
+            !pair.typescript || !validateIndexedProject(pair.typescript) ? 'typescript' : null,
+            !pair.rust || !validateIndexedProject(pair.rust) ? 'rust' : null,
+          ].filter(Boolean);
+          markUnavailable(artifact, 'missing-index', `Missing indexed project for ${repoName}: ${missing.join(', ')}`, 'exploreAnalyze', {
+            results,
+            missingIndex: {
+              repo: repoName,
+              typescript: pair.typescript ?? null,
+              rust: pair.rust ?? null,
+            },
+          });
+          emitArtifact(out, artifact);
+          process.exitCode = 1;
+          return;
+        }
+        projects = { typescript: pair.typescript, rust: pair.rust };
+        reuseIndexedPair = {
+          sourceTarget: sourceRepo.path || null,
+          typescript: { path: pair.typescript, engineLabel: 'typescript', engineLabelSource: 'caller' },
+          rust: { path: pair.rust, engineLabel: 'rust', engineLabelSource: 'caller' },
+        };
+      } else {
+        const copyTs = copyRepo(sourceRepo.path, `${repoName}-ts`, artifact, deadline);
+        const copyRust = copyRepo(sourceRepo.path, `${repoName}-rust`, artifact, deadline);
+        copies = {
+          typescript: copyTs,
+          rust: copyRust,
+        };
+        initAndIndex(copies.typescript.path, 'typescript', dist.CodeGraph, artifact, deadline);
+        initAndIndex(copies.rust.path, 'rust', dist.CodeGraph, artifact, deadline);
+        projects = { typescript: copies.typescript.path, rust: copies.rust.path };
+      }
+
+      const promptResults = await runExploreComparison(repoName, prompts, projects, artifact, deadline);
+      results.push({
+        name: repoName,
+        ...metadataFor(sourceRepo.path || projects.typescript),
+        copyMode: pair ? 'reuse-indexed-pair' : 'js-ts-config-slice',
+        copies: pair
+          ? {
+              typescript: { copiedFiles: 0, tempProjectPath: projects.typescript, skipped: true },
+              rust: { copiedFiles: 0, tempProjectPath: projects.rust, skipped: true },
+            }
+          : {
+              typescript: {
+                copiedFiles: copies.typescript.copiedFiles,
+                tempProjectPath: copies.typescript.path,
+              },
+              rust: {
+                copiedFiles: copies.rust.copiedFiles,
+                tempProjectPath: copies.rust.path,
+              },
+            },
+        reuseIndexedPair,
+        prompts: promptResults,
+      });
+    }
+
+    artifact.results = results;
+    artifact.regressions = collectRegressions(results);
+    artifact.stages.comparison = makeStage(artifact.regressions.length > 0 ? 'failed' : 'completed', {
+      elapsedMs: 0,
+      regressionCount: artifact.regressions.length,
+    });
+    finishArtifact(artifact, artifact.regressions.length > 0 ? 'failed' : 'completed');
+    emitArtifact(out, artifact);
+    if (artifact.regressions.length > 0) {
+      console.error(`Rust sufficiency regressions detected:\n- ${artifact.regressions.join('\n- ')}`);
+      process.exitCode = 1;
+    }
+  } catch (err) {
+    const partial = err.artifact ?? markUnavailable(
+      artifact,
+      err.unavailableKind ?? 'process-error',
+      err instanceof Error ? err.message : String(err),
+      err.stageName ?? null,
+      { stderrTail: tail(err.result?.stderr) },
+    );
+    writeArtifact(out, partial);
+    if (out) {
+      console.error(partial.unavailableReason ?? (err instanceof Error ? err.message : String(err)));
+    } else {
+      console.error(err instanceof Error ? err.message : String(err));
+    }
+    process.exit(1);
   }
 }
 

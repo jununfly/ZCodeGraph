@@ -1,0 +1,507 @@
+{
+  "generatedAt": "2026-06-14T16:36:18.717Z",
+  "target": {
+    "localPath": "/private/tmp/codegraph-corpus/vscode-sparse",
+    "localPathProvenance": "local-only",
+    "expectedCommit": "4ac5322601c6985aba4cd9349c23f4ef22dc3e65",
+    "commit": "4ac5322601c6985aba4cd9349c23f4ef22dc3e65",
+    "shortCommit": "4ac53226",
+    "commitMatchesExpected": true,
+    "commitDrift": null,
+    "sparsePatterns": [
+      ".github",
+      "build",
+      "extensions",
+      "scripts",
+      "src",
+      "test"
+    ],
+    "copiedJsTsConfigFileCount": 11518,
+    "indexedJsTsFileCount": 11098
+  },
+  "expectedSymbols": [
+    "AbstractExtensionService",
+    "_createExtensionHostManager",
+    "_doCreateExtensionHostManager",
+    "ExtensionHostManager",
+    "start",
+    "ExtensionHostMain",
+    "MainThreadExtensionService"
+  ],
+  "symbols": [
+    {
+      "token": "AbstractExtensionService",
+      "candidateCount": 1,
+      "candidates": [
+        {
+          "id": "class:5614800952da674403f4da9c2457be5d",
+          "kind": "class",
+          "name": "AbstractExtensionService",
+          "qualifiedName": "AbstractExtensionService",
+          "filePath": "src/vs/workbench/services/extensions/common/abstractExtensionService.ts",
+          "startLine": 60,
+          "language": "typescript"
+        }
+      ]
+    },
+    {
+      "token": "_createExtensionHostManager",
+      "candidateCount": 1,
+      "candidates": [
+        {
+          "id": "method:4e7c5f7b23e454b3fa9635eabffe16df",
+          "kind": "method",
+          "name": "_createExtensionHostManager",
+          "qualifiedName": "AbstractExtensionService::_createExtensionHostManager",
+          "filePath": "src/vs/workbench/services/extensions/common/abstractExtensionService.ts",
+          "startLine": 842,
+          "language": "typescript"
+        }
+      ]
+    },
+    {
+      "token": "_doCreateExtensionHostManager",
+      "candidateCount": 2,
+      "candidates": [
+        {
+          "id": "method:75c6a9f14fbd9ad890eb4e443a6d3385",
+          "kind": "method",
+          "name": "_doCreateExtensionHostManager",
+          "qualifiedName": "AbstractExtensionService::_doCreateExtensionHostManager",
+          "filePath": "src/vs/workbench/services/extensions/common/abstractExtensionService.ts",
+          "startLine": 864,
+          "language": "typescript"
+        },
+        {
+          "id": "method:df429fc1cbac2b11eca3b2ffadce235d",
+          "kind": "method",
+          "name": "_doCreateExtensionHostManager",
+          "qualifiedName": "MyTestExtensionService::_doCreateExtensionHostManager",
+          "filePath": "src/vs/workbench/services/extensions/test/browser/extensionService.test.ts",
+          "startLine": 200,
+          "language": "typescript"
+        }
+      ]
+    },
+    {
+      "token": "ExtensionHostManager",
+      "candidateCount": 1,
+      "candidates": [
+        {
+          "id": "class:aa28f1d35cafbd522cede21158da963a",
+          "kind": "class",
+          "name": "ExtensionHostManager",
+          "qualifiedName": "ExtensionHostManager",
+          "filePath": "src/vs/workbench/services/extensions/common/extensionHostManager.ts",
+          "startLine": 58,
+          "language": "typescript"
+        }
+      ]
+    },
+    {
+      "token": "start",
+      "candidateCount": 138,
+      "candidates": [
+        {
+          "id": "method:7b404b2424ad94975e97941e0a3a33c7",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "activate::Runs::start",
+          "filePath": "extensions/copilot/.vscode/extensions/test-extension/main.ts",
+          "startLine": 131,
+          "language": "typescript"
+        },
+        {
+          "id": "method:5d5c5aedd9fafb9d24d2129ec296cfda",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "LanguageModelServer::start",
+          "filePath": "extensions/copilot/src/extension/agents/node/langModelServer.ts",
+          "startLine": 323,
+          "language": "typescript"
+        },
+        {
+          "id": "method:c6e06c449351c35f657a71c92550d8bf",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "MockLanguageModelServer::start",
+          "filePath": "extensions/copilot/src/extension/agents/node/test/mockLanguageModelServer.ts",
+          "startLine": 15,
+          "language": "typescript"
+        },
+        {
+          "id": "method:1fc45442df97184181c9f455a534d924",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "ClaudeLanguageModelServer::start",
+          "filePath": "extensions/copilot/src/extension/chatSessions/claude/node/claudeLanguageModelServer.ts",
+          "startLine": 312,
+          "language": "typescript"
+        },
+        {
+          "id": "method:ced01a3b1c556af955a2fbe92bda0ed2",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "InProcHttpServer::start",
+          "filePath": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/inProcHttpServer.ts",
+          "startLine": 99,
+          "language": "typescript"
+        },
+        {
+          "id": "method:d3a7a9e6f9d51a03e73a3ee4ee4b240e",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "EmptyRecentEditsProvider::start",
+          "filePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/prompt/recentEdits/emptyRecentEditsProvider.ts",
+          "startLine": 15,
+          "language": "typescript"
+        },
+        {
+          "id": "method:5147c17df2464426057952a3caa4bef3",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "FullRecentEditsProvider::start",
+          "filePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/prompt/recentEdits/recentEditsProvider.ts",
+          "startLine": 118,
+          "language": "typescript"
+        },
+        {
+          "id": "method:9536e7c01bb10161cff0d6be125de28a",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "OpenAILanguageModelServer::start",
+          "filePath": "extensions/copilot/src/extension/externalAgents/node/oaiLanguageModelServer.ts",
+          "startLine": 237,
+          "language": "typescript"
+        },
+        {
+          "id": "property:1fdfa2d7595b533e17c04fa16c583077",
+          "kind": "property",
+          "name": "start",
+          "qualifiedName": "HistoryItemChangeRange::start",
+          "filePath": "extensions/copilot/src/extension/git/vscode/mergeConflictServiceImpl.ts",
+          "startLine": 16,
+          "language": "typescript"
+        },
+        {
+          "id": "method:8609d8674f03de2d18d721a127d57fc8",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "CopilotDebugCommandSessionFactory::start",
+          "filePath": "extensions/copilot/src/extension/onboardDebug/node/copilotDebugCommandSessionFactory.tsx",
+          "startLine": 62,
+          "language": "tsx"
+        },
+        {
+          "id": "function:a43f6814e248d8ee5dcb131c6f063f0c",
+          "kind": "function",
+          "name": "start",
+          "qualifiedName": "CopilotDebugCommandContribution::handleUri::start",
+          "filePath": "extensions/copilot/src/extension/onboardDebug/vscode-node/copilotDebugCommandContribution.ts",
+          "startLine": 169,
+          "language": "typescript"
+        },
+        {
+          "id": "method:5c08e1e93113c11073437f73fa9dae48",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "BackgroundSummarizer::start",
+          "filePath": "extensions/copilot/src/extension/prompts/node/agent/backgroundSummarizer.ts",
+          "startLine": 163,
+          "language": "typescript"
+        },
+        {
+          "id": "variable:a6ddbb4c320e34a3bfefea7890c4507d",
+          "kind": "variable",
+          "name": "start",
+          "qualifiedName": "start",
+          "filePath": "extensions/copilot/src/extension/prompts/node/codeMapper/patchEditGeneration.tsx",
+          "startLine": 556,
+          "language": "tsx"
+        },
+        {
+          "id": "method:50a58e7278cc7d4d12dd1d973440cbf0",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "MemoryCleanupService::start",
+          "filePath": "extensions/copilot/src/extension/tools/common/memoryCleanupService.ts",
+          "startLine": 94,
+          "language": "typescript"
+        },
+        {
+          "id": "property:d953784c7b6f8b9670e08278714980b1",
+          "kind": "property",
+          "name": "start",
+          "qualifiedName": "Range::start",
+          "filePath": "extensions/copilot/src/extension/typescriptContext/common/serverProtocol.ts",
+          "startLine": 44,
+          "language": "typescript"
+        },
+        {
+          "id": "property:3840270ac71261ee8013db5d0c832e27",
+          "kind": "property",
+          "name": "start",
+          "qualifiedName": "Range::start",
+          "filePath": "extensions/copilot/src/extension/typescriptContext/serverPlugin/src/common/protocol.ts",
+          "startLine": 44,
+          "language": "typescript"
+        },
+        {
+          "id": "method:c01fb58f727d1f6b5c7f6a4ce04375be",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "ClassTraversal::start",
+          "filePath": "extensions/copilot/src/extension/typescriptContext/serverPlugin/src/common/typescripts.ts",
+          "startLine": 391,
+          "language": "typescript"
+        },
+        {
+          "id": "method:33d1fa2fe44b96120e89d013d7d3db20",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "TypeTraversal::start",
+          "filePath": "extensions/copilot/src/extension/typescriptContext/serverPlugin/src/common/typescripts.ts",
+          "startLine": 423,
+          "language": "typescript"
+        },
+        {
+          "id": "method:445a376d30627b1ac94645fbac68895d",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "CharacterBudget::start",
+          "filePath": "extensions/copilot/src/extension/typescriptContext/vscode-node/languageContextService.ts",
+          "startLine": 1186,
+          "language": "typescript"
+        },
+        {
+          "id": "property:635d30fbb0cf1ace26a775219947828e",
+          "kind": "property",
+          "name": "start",
+          "qualifiedName": "Tag::start",
+          "filePath": "extensions/copilot/src/extension/xtab/common/tags.ts",
+          "startLine": 10,
+          "language": "typescript"
+        }
+      ]
+    },
+    {
+      "token": "ExtensionHostMain",
+      "candidateCount": 1,
+      "candidates": [
+        {
+          "id": "class:d213fc3f824486face8858bc52a3f0a6",
+          "kind": "class",
+          "name": "ExtensionHostMain",
+          "qualifiedName": "ExtensionHostMain",
+          "filePath": "src/vs/workbench/api/common/extensionHostMain.ts",
+          "startLine": 161,
+          "language": "typescript"
+        }
+      ]
+    },
+    {
+      "token": "MainThreadExtensionService",
+      "candidateCount": 1,
+      "candidates": [
+        {
+          "id": "class:2e9d6531a66655d63f6762f0da5b297c",
+          "kind": "class",
+          "name": "MainThreadExtensionService",
+          "qualifiedName": "MainThreadExtensionService",
+          "filePath": "src/vs/workbench/api/browser/mainThreadExtensionService.ts",
+          "startLine": 34,
+          "language": "typescript"
+        }
+      ]
+    }
+  ],
+  "start": {
+    "ambiguityCount": 138,
+    "candidates": [
+      {
+        "id": "method:7b404b2424ad94975e97941e0a3a33c7",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "activate::Runs::start",
+        "filePath": "extensions/copilot/.vscode/extensions/test-extension/main.ts",
+        "startLine": 131,
+        "language": "typescript"
+      },
+      {
+        "id": "method:5d5c5aedd9fafb9d24d2129ec296cfda",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "LanguageModelServer::start",
+        "filePath": "extensions/copilot/src/extension/agents/node/langModelServer.ts",
+        "startLine": 323,
+        "language": "typescript"
+      },
+      {
+        "id": "method:c6e06c449351c35f657a71c92550d8bf",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "MockLanguageModelServer::start",
+        "filePath": "extensions/copilot/src/extension/agents/node/test/mockLanguageModelServer.ts",
+        "startLine": 15,
+        "language": "typescript"
+      },
+      {
+        "id": "method:1fc45442df97184181c9f455a534d924",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "ClaudeLanguageModelServer::start",
+        "filePath": "extensions/copilot/src/extension/chatSessions/claude/node/claudeLanguageModelServer.ts",
+        "startLine": 312,
+        "language": "typescript"
+      },
+      {
+        "id": "method:ced01a3b1c556af955a2fbe92bda0ed2",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "InProcHttpServer::start",
+        "filePath": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/inProcHttpServer.ts",
+        "startLine": 99,
+        "language": "typescript"
+      },
+      {
+        "id": "method:d3a7a9e6f9d51a03e73a3ee4ee4b240e",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "EmptyRecentEditsProvider::start",
+        "filePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/prompt/recentEdits/emptyRecentEditsProvider.ts",
+        "startLine": 15,
+        "language": "typescript"
+      },
+      {
+        "id": "method:5147c17df2464426057952a3caa4bef3",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "FullRecentEditsProvider::start",
+        "filePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/prompt/recentEdits/recentEditsProvider.ts",
+        "startLine": 118,
+        "language": "typescript"
+      },
+      {
+        "id": "method:9536e7c01bb10161cff0d6be125de28a",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "OpenAILanguageModelServer::start",
+        "filePath": "extensions/copilot/src/extension/externalAgents/node/oaiLanguageModelServer.ts",
+        "startLine": 237,
+        "language": "typescript"
+      },
+      {
+        "id": "property:1fdfa2d7595b533e17c04fa16c583077",
+        "kind": "property",
+        "name": "start",
+        "qualifiedName": "HistoryItemChangeRange::start",
+        "filePath": "extensions/copilot/src/extension/git/vscode/mergeConflictServiceImpl.ts",
+        "startLine": 16,
+        "language": "typescript"
+      },
+      {
+        "id": "method:8609d8674f03de2d18d721a127d57fc8",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "CopilotDebugCommandSessionFactory::start",
+        "filePath": "extensions/copilot/src/extension/onboardDebug/node/copilotDebugCommandSessionFactory.tsx",
+        "startLine": 62,
+        "language": "tsx"
+      },
+      {
+        "id": "function:a43f6814e248d8ee5dcb131c6f063f0c",
+        "kind": "function",
+        "name": "start",
+        "qualifiedName": "CopilotDebugCommandContribution::handleUri::start",
+        "filePath": "extensions/copilot/src/extension/onboardDebug/vscode-node/copilotDebugCommandContribution.ts",
+        "startLine": 169,
+        "language": "typescript"
+      },
+      {
+        "id": "method:5c08e1e93113c11073437f73fa9dae48",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "BackgroundSummarizer::start",
+        "filePath": "extensions/copilot/src/extension/prompts/node/agent/backgroundSummarizer.ts",
+        "startLine": 163,
+        "language": "typescript"
+      },
+      {
+        "id": "variable:a6ddbb4c320e34a3bfefea7890c4507d",
+        "kind": "variable",
+        "name": "start",
+        "qualifiedName": "start",
+        "filePath": "extensions/copilot/src/extension/prompts/node/codeMapper/patchEditGeneration.tsx",
+        "startLine": 556,
+        "language": "tsx"
+      },
+      {
+        "id": "method:50a58e7278cc7d4d12dd1d973440cbf0",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "MemoryCleanupService::start",
+        "filePath": "extensions/copilot/src/extension/tools/common/memoryCleanupService.ts",
+        "startLine": 94,
+        "language": "typescript"
+      },
+      {
+        "id": "property:d953784c7b6f8b9670e08278714980b1",
+        "kind": "property",
+        "name": "start",
+        "qualifiedName": "Range::start",
+        "filePath": "extensions/copilot/src/extension/typescriptContext/common/serverProtocol.ts",
+        "startLine": 44,
+        "language": "typescript"
+      },
+      {
+        "id": "property:3840270ac71261ee8013db5d0c832e27",
+        "kind": "property",
+        "name": "start",
+        "qualifiedName": "Range::start",
+        "filePath": "extensions/copilot/src/extension/typescriptContext/serverPlugin/src/common/protocol.ts",
+        "startLine": 44,
+        "language": "typescript"
+      },
+      {
+        "id": "method:c01fb58f727d1f6b5c7f6a4ce04375be",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "ClassTraversal::start",
+        "filePath": "extensions/copilot/src/extension/typescriptContext/serverPlugin/src/common/typescripts.ts",
+        "startLine": 391,
+        "language": "typescript"
+      },
+      {
+        "id": "method:33d1fa2fe44b96120e89d013d7d3db20",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "TypeTraversal::start",
+        "filePath": "extensions/copilot/src/extension/typescriptContext/serverPlugin/src/common/typescripts.ts",
+        "startLine": 423,
+        "language": "typescript"
+      },
+      {
+        "id": "method:445a376d30627b1ac94645fbac68895d",
+        "kind": "method",
+        "name": "start",
+        "qualifiedName": "CharacterBudget::start",
+        "filePath": "extensions/copilot/src/extension/typescriptContext/vscode-node/languageContextService.ts",
+        "startLine": 1186,
+        "language": "typescript"
+      },
+      {
+        "id": "property:635d30fbb0cf1ace26a775219947828e",
+        "kind": "property",
+        "name": "start",
+        "qualifiedName": "Tag::start",
+        "filePath": "extensions/copilot/src/extension/xtab/common/tags.ts",
+        "startLine": 10,
+        "language": "typescript"
+      }
+    ]
+  },
+  "missingSymbols": [],
+  "valid": true,
+  "sufficiencySmokeAllowed": true,
+  "gate": "All expected VS-1 symbols have candidates; sufficiency smoke may run."
+}
