@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // One-shot probe: run handleExplore against an existing index using the built
 // dist, print the output + a few stats. Lets us verify explore's coverage fix
-// without a full agent run. Usage: node probe-explore.mjs <repo-with-.codegraph> "<query>"
+// without a full agent run. Usage: node probe-explore.mjs <repo-with-.zcodegraph> "<query>"
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 

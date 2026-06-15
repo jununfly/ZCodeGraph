@@ -17,11 +17,11 @@
 # Usage: run-arms.sh <repo-path> "<question>" <A|B|C|D|E> [run-id]
 set -uo pipefail
 REPO="${1:?repo path}"; Q="${2:?question}"; ARM="${3:?arm A-E}"; RID="${4:-1}"
-CG_BIN="${CG_BIN:-$(command -v codegraph)}"
+CG_BIN="${CG_BIN:-$(command -v zcodegraph)}"
 OUT="${ARMS_OUT:-/tmp/arms}/$(basename "$REPO")"
 mkdir -p "$OUT"
-[ -n "$CG_BIN" ] || { echo "no codegraph binary (set CG_BIN)"; exit 1; }
-[ -d "$REPO/.codegraph" ] || { echo "no .codegraph index at $REPO"; exit 1; }
+[ -n "$CG_BIN" ] || { echo "no zcodegraph binary (set CG_BIN)"; exit 1; }
+[ -d "$REPO/.zcodegraph" ] || { echo "no .zcodegraph index at $REPO"; exit 1; }
 
 STEER='Flow questions ("how does X reach/become Y", "trace the flow", request to handler, state to render): call zcodegraph_explore FIRST with the endpoint symbols in the query — one call returns the relevant source plus the flow among named symbols. Use zcodegraph_search only to locate endpoint symbols if you do not know them. Do NOT reconstruct the path with repeated search/callers.'
 KEEP_NO_EXPLORE="search,node,callers,callees,impact,files,status"

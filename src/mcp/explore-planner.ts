@@ -15,6 +15,8 @@ import type { ExploreOutputBudget, ExplorePlan, ExplorePlanEntry, FileGroup, Flo
 import { getExploreOutputBudget } from './tools';
 import { clamp, isConfigLeafNode } from '../utils';
 import { isGeneratedFile } from '../extraction/generated-detection';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 
 /**
  * Rust path roots that have no file-system equivalent — `crate` is the
@@ -78,18 +80,21 @@ export function matchesSymbol(node: Node, symbol: string): boolean {
  *
  * Extracted from ToolsHandler.synthEdgeNote.
  */
-export function synthEdgeNote(edge: Edge | null): { label: string; compact: string; registeredAt?: string } | null {
+export function synthEdgeNote(edge: Edge | null): { label: string; compact: string; registeredAt?: string; registrationSnippet?: string } | null {
   if (!edge || edge.edgeOrigin !== 'heuristic') return null;
   const m = edge.metadata as Record<string, unknown> | undefined;
   const registeredAt = typeof m?.registeredAt === 'string' ? m.registeredAt : undefined;
+  const registrationSnippet = typeof m?.registrationSnippet === 'string' ? m.registrationSnippet : undefined;
   const at = registeredAt ? ` @${registeredAt}` : '';
+  const snippet = registrationSnippet ? ` — \`${registrationSnippet}\`` : '';
   if (m?.synthesizedBy === 'callback') {
     const via = m.via ? `\`${String(m.via)}\`` : 'a registrar';
     const field = m.field ? ` on .${String(m.field)}` : '';
     return {
       label: `callback — registered via ${via}${field} (dynamic dispatch)`,
-      compact: `dynamic: callback via ${via}${at}`,
+      compact: `dynamic: callback via ${via}${at}${snippet}`,
       registeredAt,
+      registrationSnippet,
     };
   }
   if (m?.synthesizedBy === 'event-emitter') {
@@ -135,6 +140,13 @@ export function synthEdgeNote(edge: Edge | null): { label: string; compact: stri
     return {
       label: `closure collection — runs handlers appended to ${field} (dynamic dispatch)`,
       compact: `dynamic: runs ${field} handlers${at}`,
+      registeredAt,
+    };
+  }
+  if (m?.synthesizedBy === 'source-call-scan') {
+    return {
+      label: `source call evidence — exact call syntax in the caller body`,
+      compact: `source call${at}`,
       registeredAt,
     };
   }
@@ -361,6 +373,101 @@ export function seedNamedSymbols(
   return namedSeedIds;
 }
 
+function isRestToTransportFlowQuery(query: string): boolean {
+  const q = query.toLowerCase();
+  return q.includes('rest') && q.includes('handler') && q.includes('transport') && q.includes('action');
+}
+
+function addNodeSeed(subgraph: { nodes: Map<string, Node> }, seedIds: Set<string>, node: Node | undefined): void {
+  if (!node || isTestPath(node.filePath)) return;
+  if (!subgraph.nodes.has(node.id)) subgraph.nodes.set(node.id, node);
+  seedIds.add(node.id);
+}
+
+function addContextNode(subgraph: { nodes: Map<string, Node> }, node: Node | undefined): void {
+  if (!node || isTestPath(node.filePath)) return;
+  if (!subgraph.nodes.has(node.id)) subgraph.nodes.set(node.id, node);
+}
+
+function nodesInFile(cg: CodeGraph, name: string, filePath: string): Node[] {
+  return cg.getNodesByName(name).filter((n) => n.filePath === filePath && !isTestPath(n.filePath));
+}
+
+function restActionStem(name: string): string | null {
+  const match = /^Rest(.+)Action$/.exec(name);
+  return match?.[1] ?? null;
+}
+
+function scoreRestTransportPair(cg: CodeGraph, restAction: Node, transportAction: Node): number {
+  let score = 0;
+  if (restAction.filePath.includes('/server/src/main/java/')) score += 40;
+  if (transportAction.filePath.includes('/server/src/main/java/')) score += 40;
+  if (restAction.filePath.includes('/rest/action/')) score += 20;
+  if (transportAction.filePath.includes('/action/')) score += 10;
+  if (nodesInFile(cg, 'prepareRequest', restAction.filePath).length > 0) score += 80;
+  if (nodesInFile(cg, 'doExecute', transportAction.filePath).length > 0) score += 80;
+  if (!restAction.filePath.includes('/plugin/')) score += 10;
+  if (!transportAction.filePath.includes('/plugin/')) score += 10;
+  score -= restAction.name.length / 10;
+  return score;
+}
+
+/**
+ * For broad REST handler → transport action flow questions, seed one concrete
+ * vertical slice. Generic symbols (`RestController`, `BaseRestHandler`,
+ * `TransportAction`) explain the framework shape, but agents otherwise have to
+ * run another explore to discover a real `Rest*Action.prepareRequest` →
+ * `NodeClient.executeLocally` → `Transport*Action.doExecute` path.
+ */
+export function seedRestTransportExemplar(cg: CodeGraph, query: string, subgraph: Subgraph): Set<string> {
+  const seedIds = new Set<string>();
+  if (!isRestToTransportFlowQuery(query)) return seedIds;
+
+  const restActions = cg.searchNodes('Rest', { limit: 300, kinds: ['class'] })
+    .map((r) => r.node)
+    .filter((n) => !isTestPath(n.filePath) && restActionStem(n.name) !== null);
+
+  const pairs: Array<{ rest: Node; transport: Node; score: number }> = [];
+  for (const rest of restActions) {
+    const stem = restActionStem(rest.name);
+    if (!stem) continue;
+    const transport = cg.getNodesByName(`Transport${stem}Action`)
+      .find((n) => n.kind === 'class' && !isTestPath(n.filePath));
+    if (!transport) continue;
+    pairs.push({ rest, transport, score: scoreRestTransportPair(cg, rest, transport) });
+  }
+  pairs.sort((a, b) => b.score - a.score);
+  const pair = pairs[0];
+  if (!pair) return seedIds;
+
+  addNodeSeed(subgraph, seedIds, pair.rest);
+  for (const n of nodesInFile(cg, pair.rest.name, pair.rest.filePath)) addNodeSeed(subgraph, seedIds, n);
+  for (const n of nodesInFile(cg, 'prepareRequest', pair.rest.filePath)) addNodeSeed(subgraph, seedIds, n);
+
+  const restController = cg.getNodesByName('RestController').find((n) => !isTestPath(n.filePath));
+  addNodeSeed(subgraph, seedIds, restController);
+  const baseRestHandler = cg.getNodesByName('BaseRestHandler').find((n) => !isTestPath(n.filePath));
+  addNodeSeed(subgraph, seedIds, baseRestHandler);
+
+  for (const name of ['RestRequest', 'TransportAction']) {
+    const node = cg.getNodesByName(name).find((n) => !isTestPath(n.filePath));
+    addContextNode(subgraph, node);
+  }
+
+  const nodeClient = cg.getNodesByName('NodeClient')
+    .find((n) => n.kind === 'class' && !isTestPath(n.filePath));
+  addNodeSeed(subgraph, seedIds, nodeClient);
+  if (nodeClient) {
+    for (const n of nodesInFile(cg, 'executeLocally', nodeClient.filePath)) addNodeSeed(subgraph, seedIds, n);
+  }
+
+  addNodeSeed(subgraph, seedIds, pair.transport);
+  for (const n of nodesInFile(cg, pair.transport.name, pair.transport.filePath)) addNodeSeed(subgraph, seedIds, n);
+  for (const n of nodesInFile(cg, 'doExecute', pair.transport.filePath)) addNodeSeed(subgraph, seedIds, n);
+
+  return seedIds;
+}
+
 // ===========================================================================
 // isLowValue — Issue #23: test/spec/icon/i18n file detection
 // ===========================================================================
@@ -539,6 +646,7 @@ export function gateAndSortFiles(
   fileGroups: Map<string, FileGroup>,
   query: string,
   spineNodeIds: Set<string> = new Set(),
+  prioritySeedIds: Set<string> = new Set(),
 ): Array<[string, FileGroup]> {
   // Step 1: Filter to files with score ≥ 3
   let relevantFiles = [...fileGroups.entries()].filter(([, group]) => group.score >= 3);
@@ -592,6 +700,11 @@ export function gateAndSortFiles(
     const n = subgraph.nodes.get(id);
     if (n) namedSeedFiles.add(n.filePath);
   }
+  const prioritySeedFiles = new Set<string>();
+  for (const id of prioritySeedIds) {
+    const n = subgraph.nodes.get(id);
+    if (n) prioritySeedFiles.add(n.filePath);
+  }
 
   // Step 7: Relevance gate
   // Files on the flow spine are always preserved — the agent needs them
@@ -622,6 +735,10 @@ export function gateAndSortFiles(
     const aNamed = namedSeedFiles.has(a[0]) ? 1 : 0;
     const bNamed = namedSeedFiles.has(b[0]) ? 1 : 0;
     if (aNamed !== bNamed) return bNamed - aNamed;
+
+    const aPriority = prioritySeedFiles.has(a[0]) ? 1 : 0;
+    const bPriority = prioritySeedFiles.has(b[0]) ? 1 : 0;
+    if (aPriority !== bPriority) return bPriority - aPriority;
 
     // Graph connectivity (epsilon tiebreak)
     const aG = fileGraphScore.get(a[0]) ?? 0;
@@ -718,6 +835,8 @@ export async function plan(
   // symbol definitions and inject them as named seeds, so every symbol
   // the agent explicitly named is in the subgraph and its file is scored.
   const namedSeedIds = seedNamedSymbols(cg, query, subgraph);
+  const restTransportSeedIds = seedRestTransportExemplar(cg, query, subgraph);
+  for (const id of restTransportSeedIds) namedSeedIds.add(id);
 
   // Glue nodes: pull in callers/callees of Entry Nodes that live in
   // files the subgraph already surfaces.  This adds wiring without
@@ -758,9 +877,22 @@ export async function plan(
   // Step 3: Group nodes by file, score by relevance.
   const entryNodeIds = new Set([...subgraph.entryNodes, ...namedSeedIds]);
   const fileGroups = buildFileGroups(subgraph, namedSeedIds, entryNodeIds, spine.pathNodeIds);
+  for (const group of fileGroups.values()) {
+    if (group.nodes.some((n) => restTransportSeedIds.has(n.id))) {
+      group.score += 350;
+    }
+  }
 
   // Step 4: Apply relevance gate and sort files.
-  const sortedFiles = gateAndSortFiles(subgraph, namedSeedIds, entryNodeIds, fileGroups, query, spine.pathNodeIds);
+  const sortedFiles = gateAndSortFiles(
+    subgraph,
+    namedSeedIds,
+    entryNodeIds,
+    fileGroups,
+    query,
+    spine.pathNodeIds,
+    restTransportSeedIds,
+  );
 
   // Compute connectedToEntry: nodes directly connected by edge to any entry.
   const connectedToEntry = new Set<string>();
@@ -1043,15 +1175,22 @@ export function buildFlowFromNamedSymbols(cg: CodeGraph, query: string): FlowRes
     for (const t of tokens) for (const s of t.toLowerCase().split(/::|\./)) if (s) segPool.add(s);
     const named = new Map<string, Node>();
     const uniqueNamedNodeIds = new Set<string>();
+    const topLevelExact = (n: Node, token: string): boolean => {
+      if (n.name !== token) return false;
+      const qualified = n.qualifiedName || n.name;
+      return qualified === n.name || !/::|\./.test(qualified);
+    };
     for (const t of tokens) {
-      const cands = findAllSymbols(cg, t).nodes.filter((n) => CALLABLE.has(n.kind));
+      const cands = findAllSymbols(cg, t).nodes.filter((n) =>
+        CALLABLE.has(n.kind) && (n.name === t || matchesSymbol(n, t))
+      );
       const specific = cands.length <= 3;
       const pick = specific
         ? cands
         : cands.filter((n) => {
             const segs = (n.qualifiedName || '').toLowerCase().split(/::|\./).filter(Boolean);
             const container = segs.length >= 2 ? segs[segs.length - 2] : '';
-            return !!container && segPool.has(container);
+            return (!!container && segPool.has(container)) || topLevelExact(n, t);
           });
       for (const n of pick.slice(0, 6)) {
         named.set(n.id, n);
@@ -1061,7 +1200,47 @@ export function buildFlowFromNamedSymbols(cg: CodeGraph, query: string): FlowRes
     }
     if (named.size < 2) return EMPTY;
     const MAX_HOPS = 7;
-    let best: Array<{ node: Node; edge: Edge | null }> | null = null;
+    let best: Array<{ node: Node; edge: Edge | null; via?: Node }> | null = null;
+    const projectRoot = cg.getProjectRoot();
+    const sourceCallCallees = (source: Node): Array<{ node: Node; edge: Edge }> => {
+      if (!projectRoot || !source.filePath || !source.endLine || source.endLine < source.startLine) return [];
+      const directCallees = cg.getCallees(source.id);
+      const directlyResolvedNames = new Set(directCallees.map((c) => c.node.name));
+      const absPath = join(projectRoot, source.filePath);
+      if (!existsSync(absPath)) return [];
+      let lines: string[];
+      try {
+        lines = readFileSync(absPath, 'utf-8').split('\n');
+      } catch {
+        return [];
+      }
+      const bodyStartLine = Math.min(source.endLine, source.startLine + 1);
+      const body = lines.slice(Math.max(0, bodyStartLine - 1), source.endLine);
+      const out: Array<{ node: Node; edge: Edge }> = [];
+      for (const target of named.values()) {
+        if (target.id === source.id) continue;
+        if (directlyResolvedNames.has(target.name)) continue;
+        const callPattern = new RegExp(`\\b${target.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`);
+        const offset = body.findIndex((line) => callPattern.test(line));
+        if (offset < 0) continue;
+        const line = bodyStartLine + offset;
+        out.push({
+          node: target,
+          edge: {
+            source: source.id,
+            target: target.id,
+            kind: 'calls',
+            line,
+            edgeOrigin: 'heuristic',
+            metadata: {
+              synthesizedBy: 'source-call-scan',
+              registeredAt: `${source.filePath}:${line}`,
+            },
+          },
+        });
+      }
+      return out;
+    };
     // BFS the full call graph from each named seed.
     for (const seed of [...named.values()].slice(0, 8)) {
       const parent = new Map<string, { prev: string | null; edge: Edge | null; node: Node }>();
@@ -1073,7 +1252,12 @@ export function buildFlowFromNamedSymbols(cg: CodeGraph, query: string): FlowRes
         const { id, depth, streak } = q[h]!;
         if (id !== seed.id && named.has(id) && depth > deepDepth) { deep = id; deepDepth = depth; }
         if (depth >= MAX_HOPS - 1) continue;
-        for (const c of cg.getCallees(id)) {
+        const current = parent.get(id)?.node;
+        const callees = [
+          ...cg.getCallees(id),
+          ...(current ? sourceCallCallees(current) : []),
+        ];
+        for (const c of callees) {
           if (c.edge.kind !== 'calls' || parent.has(c.node.id)) continue;
           const newStreak = named.has(c.node.id) ? 0 : streak + 1;
           if (newStreak > MAX_BRIDGE) continue;
@@ -1081,12 +1265,25 @@ export function buildFlowFromNamedSymbols(cg: CodeGraph, query: string): FlowRes
           q.push({ id: c.node.id, depth: depth + 1, streak: newStreak });
         }
       }
-      if (!deep) continue;
-      const chain: Array<{ node: Node; edge: Edge | null }> = [];
-      let cur: string | null = deep;
-      while (cur) { const p = parent.get(cur); if (!p) break; chain.push({ node: p.node, edge: p.edge }); cur = p.prev; }
-      chain.reverse();
-      if (!best || chain.length > best.length) best = chain;
+      if (deep) {
+        const chain: Array<{ node: Node; edge: Edge | null; via?: Node }> = [];
+        let cur: string | null = deep;
+        while (cur) { const p = parent.get(cur); if (!p) break; chain.push({ node: p.node, edge: p.edge }); cur = p.prev; }
+        chain.reverse();
+        if (!best || chain.length > best.length) best = chain;
+      }
+
+      const namedCallees = [...cg.getCallees(seed.id), ...sourceCallCallees(seed)]
+        .filter((c) => c.edge.kind === 'calls' && named.has(c.node.id))
+        .sort((a, b) =>
+          (a.edge.line ?? a.node.startLine ?? 0) - (b.edge.line ?? b.node.startLine ?? 0)
+          || a.node.startLine - b.node.startLine
+        );
+      if (namedCallees.length >= 2) {
+        const chain: Array<{ node: Node; edge: Edge | null; via?: Node }> = [{ node: seed, edge: null }];
+        for (const c of namedCallees) chain.push({ node: c.node, edge: c.edge, via: seed });
+        if (!best || chain.length > best.length) best = chain;
+      }
     }
     const hasMain = !!best && best.length >= 3;
     const pathIds = new Set((best ?? []).map((s) => s.node.id));
@@ -1116,7 +1313,11 @@ export function buildFlowFromNamedSymbols(cg: CodeGraph, query: string): FlowRes
       out.push('## Flow (call path among the symbols you queried)', '');
       for (let i = 0; i < best!.length; i++) {
         const step = best![i]!;
-        if (step.edge) { const sy = synthEdgeNote(step.edge); out.push(`   ↓ ${sy ? sy.compact : step.edge.kind}`); }
+        if (step.edge) {
+          const sy = synthEdgeNote(step.edge);
+          const relation = sy ? sy.compact : step.edge.kind;
+          out.push(`   ↓ ${step.via ? `${relation} from ${step.via.name}` : relation}`);
+        }
         out.push(`${i + 1}. ${step.node.name} (${step.node.filePath}:${step.node.startLine})`);
       }
       out.push('');

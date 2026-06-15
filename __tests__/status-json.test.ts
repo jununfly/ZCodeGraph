@@ -19,17 +19,38 @@ const PKG_VERSION = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf-8'),
 ).version as string;
 
-function runStatusJson(cwd: string): Record<string, unknown> {
+function runStatusJson(cwd: string, env: Record<string, string | undefined> = {}): Record<string, unknown> {
   const stdout = execFileSync(process.execPath, [BIN, 'status', '--json'], {
     cwd,
     encoding: 'utf-8',
-    env: { ...process.env, CODEGRAPH_NO_DAEMON: '1' },
+    env: { ...process.env, ...env, CODEGRAPH_NO_DAEMON: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   // JSON mode prints exactly one line to stdout; be defensive about any stray
   // leading output by parsing the last non-empty line.
   const line = stdout.trim().split('\n').filter(Boolean).pop()!;
   return JSON.parse(line);
+}
+
+function runStatusText(cwd: string): string {
+  return execFileSync(process.execPath, [BIN, 'status'], {
+    cwd,
+    encoding: 'utf-8',
+    env: { ...process.env, CODEGRAPH_NO_DAEMON: '1' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
+function writeFakeRustCore(dir: string): string {
+  const file = path.join(dir, process.platform === 'win32' ? 'zcodegraph-core.cmd' : 'zcodegraph-core');
+  fs.writeFileSync(
+    file,
+    process.platform === 'win32'
+      ? '@echo off\necho zcodegraph-core fake 1.2.3\n'
+      : '#!/bin/sh\necho zcodegraph-core fake 1.2.3\n',
+  );
+  fs.chmodSync(file, 0o755);
+  return file;
 }
 
 describe('zcodegraph status --json — CI fields (#329)', () => {
@@ -66,6 +87,7 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     expect(typeof out.indexPath).toBe('string');
     expect(out.indexPath as string).toContain('.zcodegraph');
     expect(out.lastIndexed).toBeNull();
+    expect((out as { rust: { configuredEngine: { source: string } } }).rust.configuredEngine.source).toBe('default');
   });
 
   it('status --json on an INDEXED project reports version + indexPath + a round-trippable lastIndexed', async () => {
@@ -85,5 +107,101 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     const ms = Date.parse(out.lastIndexed as string);
     expect(ms).toBeGreaterThanOrEqual(before - 1000);
     expect(ms).toBeLessThanOrEqual(after + 1000);
+  });
+
+  it('status --json reports local Rust readiness diagnostics for a missing env override', () => {
+    const cg = CodeGraph.initSync(tempDir);
+    cg.close();
+    const missingCore = path.join(tempDir, 'missing-zcodegraph-core');
+
+    const out = runStatusJson(tempDir, {
+      ZCODEGRAPH_INDEX_ENGINE: 'rust',
+      ZCODEGRAPH_RUST_CORE_BINARY: missingCore,
+    }) as {
+      rust: {
+        configuredEngine: { engine: string; source: string };
+        core: {
+          available: boolean;
+          discoverySource: string;
+          attemptedCommand: string;
+          versionCheck: { ok: boolean; error: string };
+        };
+        lastIndex: { engine: string | null; engineVersion: string | null };
+        latestProfile: unknown;
+      };
+    };
+
+    expect(out.rust.configuredEngine).toMatchObject({ engine: 'rust', source: 'env' });
+    expect(out.rust.core.available).toBe(false);
+    expect(out.rust.core.discoverySource).toBe('env');
+    expect(out.rust.core.attemptedCommand).toBe(missingCore);
+    expect(out.rust.core.versionCheck.ok).toBe(false);
+    expect(out.rust.core.versionCheck.error).toContain('does not exist');
+    expect(out.rust.lastIndex.engine).toBeNull();
+    expect(out.rust.lastIndex.engineVersion).toBeNull();
+    expect(out.rust.latestProfile).toBeNull();
+  });
+
+  it('status --json reports env override Rust core readiness when the binary is executable', () => {
+    const cg = CodeGraph.initSync(tempDir);
+    cg.close();
+    const rustCore = writeFakeRustCore(tempDir);
+
+    const out = runStatusJson(tempDir, {
+      ZCODEGRAPH_INDEX_ENGINE: 'rust',
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    }) as {
+      rust: {
+        configuredEngine: { engine: string; source: string };
+        core: {
+          available: boolean;
+          discoverySource: string;
+          attemptedCommand: string;
+          attemptedArgsPrefix: string[];
+          versionCheck: { ok: boolean; stdout: string };
+        };
+      };
+    };
+
+    expect(out.rust.configuredEngine).toMatchObject({ engine: 'rust', source: 'env' });
+    expect(out.rust.core.available).toBe(true);
+    expect(out.rust.core.discoverySource).toBe('env');
+    expect(out.rust.core.attemptedCommand).toBe(rustCore);
+    expect(out.rust.core.attemptedArgsPrefix).toEqual([]);
+    expect(out.rust.core.versionCheck.ok).toBe(true);
+    expect(out.rust.core.versionCheck.stdout).toContain('zcodegraph-core fake 1.2.3');
+  });
+
+  it('status --json includes the latest local Rust profile summary when present', () => {
+    const cg = CodeGraph.initSync(tempDir);
+    cg.close();
+    const profile = {
+      generatedAt: '2026-06-13T00:00:00.000Z',
+      repos: [{ name: 'zcodegraph' }],
+      gates: [{ name: 'profile', passed: true }],
+    };
+    fs.writeFileSync(
+      path.join(tempDir, '.zcodegraph', 'rust-profile-summary.json'),
+      JSON.stringify(profile, null, 2),
+    );
+
+    const out = runStatusJson(tempDir) as {
+      rust: {
+        latestProfile: unknown;
+      };
+    };
+
+    expect(out.rust.latestProfile).toEqual(profile);
+  });
+
+  it('normal status output stays quiet about Rust diagnostics', () => {
+    const cg = CodeGraph.initSync(tempDir);
+    cg.close();
+
+    const out = runStatusText(tempDir);
+
+    expect(out).not.toContain('Rust diagnostics');
+    expect(out).not.toContain('discovery source');
+    expect(out).not.toContain('attempted command');
   });
 });

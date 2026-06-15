@@ -107,6 +107,13 @@ Goal: make Explore produce an explicit Explore Answer before formatting the fina
   formatted markdown output.
 - **`src/mcp/tools.ts`** — `handleExplore()` reduced to 25-line adapter.
 
+Follow-up cleanup: the Flow spine is now single-sourced in
+`src/mcp/explore-planner.ts`; `handleExplore()` passes `planResult.spine`
+directly to the renderer and no longer keeps a duplicate fallback Flow builder.
+Blast radius and staleness remain adapter-level concerns because they depend on
+tool-wide pending-file state and caller/test lookups shared with other MCP
+outputs.
+
 Tests: `__tests__/explore-planner.test.ts` (133 tests),
 `__tests__/explore-renderer.test.ts` (4 tests),
 `__tests__/explore-types.test.ts` (10 tests). All 147 pass.

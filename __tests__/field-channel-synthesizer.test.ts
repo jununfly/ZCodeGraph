@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { CodeGraph } from '../src';
+import { ToolHandler } from '../src/mcp/tools';
 
 /**
  * End-to-end synthesizer test for field-backed observer callbacks.
@@ -123,5 +124,57 @@ class OtherApp {
     expect(edge.registeredAt).toMatch(/App\.ts:\d+/);
 
     expect(rows.some((r: any) => r.target_name === 'triggerOtherRender')).toBe(false);
+  });
+
+  it('surfaces the callback registration expression in explore flow output', async () => {
+    fs.writeFileSync(
+      path.join(dir, 'App.ts'),
+      `type Callback = () => void;
+
+class Scene {
+  private callbacks = new Set<Callback>();
+
+  onUpdate(cb: Callback) {
+    this.callbacks.add(cb);
+  }
+
+  triggerUpdate() {
+    for (const cb of this.callbacks) {
+      cb();
+    }
+  }
+}
+
+class App {
+  private scene = new Scene();
+
+  constructor() {
+    this.scene.onUpdate(this.triggerRender);
+  }
+
+  triggerRender() {
+    return 'rendered';
+  }
+}
+`
+    );
+
+    const cg = await CodeGraph.init(dir, { silent: true });
+    await cg.indexAll();
+
+    try {
+      const handler = new ToolHandler(cg);
+      const result = await handler.execute('zcodegraph_explore', {
+        query: 'Scene.onUpdate triggerUpdate triggerRender',
+      });
+      const text = result.content?.[0]?.text ?? '';
+      const structuralEvidence = text.slice(0, text.indexOf('### Source Code'));
+
+      expect(structuralEvidence).toContain('triggerUpdate');
+      expect(structuralEvidence).toContain('triggerRender');
+      expect(structuralEvidence).toContain('this.scene.onUpdate(this.triggerRender);');
+    } finally {
+      cg.close?.();
+    }
   });
 });

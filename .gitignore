@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 dist/
+target/
 
 .cmem
 
@@ -47,13 +48,17 @@ npm-debug.log*
 # Parallels Windows VM SSH/connection config (local machine, see CLAUDE.md)
 .parallels
 
-# CodeGraph data directories (in test projects)
+# CodeGraph data directories
 .codegraph/
+.zcodegraph/
 
 test_frameworks
 
 # Test language repos for manual testing
 test-languages/
+
+# Local evaluation run outputs
+__tests__/evaluation/results/
 
 nul
 release/

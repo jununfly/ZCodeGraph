@@ -54,6 +54,23 @@ describe('ZCodeGraph docs and agent-facing identity', () => {
     expect(docs).not.toMatch(/\bcodegraph\s+(init|status|serve|install|watch|sync|search|callers|callees|impact|node|files|uninstall|uninit|index|query|affected|upgrade|context)\b/);
   });
 
+  it('documents Delphi form file extensions in language support tables', () => {
+    const docs = [
+      read('README.md'),
+      read('site/src/content/docs/reference/languages.md'),
+    ].join('\n---\n');
+
+    const pascalRows = docs
+      .split('\n')
+      .filter((line) => line.includes('| Pascal / Delphi |') && line.includes('`.pas`'));
+
+    expect(pascalRows).toHaveLength(2);
+    for (const row of pascalRows) {
+      expect(row).toContain('`.dfm`');
+      expect(row).toContain('`.fmx`');
+    }
+  });
+
   it('agent benchmark scripts do not point at the upstream package identity', () => {
     const scripts = [
       'scripts/agent-eval/audit.sh',

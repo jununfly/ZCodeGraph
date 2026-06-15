@@ -25,6 +25,11 @@ describe('package and CLI identity', () => {
     expect(fs.existsSync(path.join(root, 'src', 'bin', 'codegraph.ts'))).toBe(false);
   });
 
+  it.runIf(process.platform !== 'win32')('keeps the published npm shim executable on POSIX', () => {
+    const mode = fs.statSync(path.join(root, 'scripts', 'npm-shim.js')).mode;
+    expect(mode & 0o111).not.toBe(0);
+  });
+
   it('keeps release and embedded SDK package names aligned with ZCodeGraph', () => {
     const npmShim = fs.readFileSync(path.join(root, 'scripts', 'npm-shim.js'), 'utf8');
     const npmSdk = fs.readFileSync(path.join(root, 'scripts', 'npm-sdk.js'), 'utf8');

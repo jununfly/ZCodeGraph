@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Probe zcodegraph_node (with trail) against an index using the built dist.
-// Usage: node probe-node.mjs <repo-with-.codegraph> <symbol> [code]
+// Usage: node probe-node.mjs <repo-with-.zcodegraph> <symbol> [code]
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Legacy shim: the old context tool was removed; use zcodegraph_explore.
-// Usage: node probe-context.mjs <repo-with-.codegraph> <task words...>
+// Usage: node probe-context.mjs <repo-with-.zcodegraph> <task words...>
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 

@@ -3694,6 +3694,56 @@ std::string use() {
   });
 });
 
+describe('C header invalid-symbol storage safety', () => {
+  let tempDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(() => {
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    if (cg) cg.close();
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('indexes complex C headers without FK failures from skipped empty-name symbols (#42)', async () => {
+    const shared = path.join(tempDir, 'source', 'shared');
+    fs.mkdirSync(shared, { recursive: true });
+    fs.writeFileSync(
+      path.join(shared, 'MYAssetURLs.h'),
+      `#pragma once
+
+typedef struct {
+  const char *url;
+  void (*on_asset)(const char *url);
+} MYAssetURLCallbacks;
+
+extern void (*MYAssetURLResolver(void))(const char *);
+extern const char *MYAssetURLForKey(const char *key, ...);
+`
+    );
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll();
+
+    expect(result.success).toBe(true);
+    expect(result.errors).toHaveLength(0);
+
+    const nodes = cg.getNodesInFile('source/shared/MYAssetURLs.h');
+    expect(nodes.length).toBeGreaterThan(0);
+    expect(nodes.every((n) => n.name.length > 0)).toBe(true);
+
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    for (const node of nodes) {
+      for (const edge of cg.getOutgoingEdges(node.id)) {
+        expect(nodeIds.has(edge.source)).toBe(true);
+        expect(nodeIds.has(edge.target)).toBe(true);
+      }
+    }
+  });
+});
+
 describe('Dart mixins and type references', () => {
   let tempDir: string;
   let cg: CodeGraph;

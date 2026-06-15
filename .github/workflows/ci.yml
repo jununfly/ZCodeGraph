@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  rust-packaged-path:
+    name: Rust packaged path (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-2025]
+    env:
+      CODEGRAPH_ALLOW_UNSAFE_NODE: "1"
+      CODEGRAPH_NO_DAEMON: "1"
+      CODEGRAPH_NO_RELAUNCH: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Build TypeScript CLI
+        run: npm run build
+      - name: Test Rust core
+        run: cargo test
+      - name: Build Rust core
+        run: cargo build --package zcodegraph-core
+      - name: Verify Rust CLI engine paths
+        run: >
+          npx vitest run __tests__/rust-index-engine-cli.test.ts
+          -t "uses the TypeScript indexer by default|runs the packaged Rust subprocess from a bundle layout without an env override|leaves the existing TypeScript index intact when the Rust binary is unavailable"
+      - name: Verify release artifact contracts
+        run: >
+          npx vitest run
+          __tests__/release-workflow-rust-core.test.ts
+          __tests__/rust-core-artifact-contract.test.ts

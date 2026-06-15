@@ -112,6 +112,21 @@ Tested across **7 real-world open-source codebases** spanning 7 languages, compa
 
 ZCodeGraph cuts **tokens, tool calls, and wall-clock time on every repo** — across small, medium, and large codebases — and answers them with **near-zero file reads**, while the no-ZCodeGraph agent spends its budget on grep/find/Read discovery. `zcodegraph_explore` shows the answer in full — the mechanism plus the exact methods you asked about, even when they're buried in a multi-thousand-line file — while collapsing redundant interchangeable implementations to signatures, so the response is sized to the *answer* rather than the file count. **Cost stays flat-to-cheaper everywhere** — largest on the small repos (Alamofire, OkHttp), roughly break-even on the most response-heavy ones (Excalidraw, Tokio), where ZCodeGraph trades the no-ZCodeGraph agent's many small grep/read round-trips for a few large, cache-heavy tool responses.
 
+### Flow-question sufficiency
+
+The stricter test is whether `zcodegraph_explore` gives enough evidence for an agent to stop reading files. On 2026-06-12, the current build was run against **18 flow-question prompts per arm**: 3 prompts each on ZCodeGraph itself, Excalidraw, and Django; 2 runs per prompt; WITH ZCodeGraph vs an empty MCP config. The prompts were precise symbol-bag flow questions, and every generic Read or grep/find Bash call was classified as fallback unless it was edit-prep or verification work. Full logs were captured under `/tmp/zcodegraph-sufficiency/` during the run.
+
+> **Flow-sufficiency result: 18% cheaper · 49% faster · 74% fewer tool calls · 99% fewer Read/Grep fallbacks**
+
+| Repo | Flow prompts | Cost | Time | Tool calls | Read/Grep fallback |
+|---|---:|---:|---:|---:|---:|
+| **ZCodeGraph** | 6 runs/arm | 21% cheaper | 50% faster | 73% fewer | 91 -> 0 |
+| **Excalidraw** | 6 runs/arm | 13% higher | 60% faster | 77% fewer | 123 -> 2 |
+| **Django** | 6 runs/arm | 35% cheaper | 29% faster | 67% fewer | 38 -> 0 |
+| **Total** | 18 runs/arm | 18% cheaper | 49% faster | 74% fewer | 252 -> 2 |
+
+Excalidraw is the hard case: the agent still read `App.tsx` twice even though the Flow section already surfaced the relevant `Scene.onUpdate` wiring. That is a sufficiency gap to keep tightening, but it is no longer broad codebase exploration: the no-ZCodeGraph arm needed 56 file reads and 67 grep/find calls on the same six runs.
+
 <details>
 <summary><strong>Per-repo breakdown — WITH vs WITHOUT (median of 4)</strong></summary>
 
@@ -627,7 +642,7 @@ is written):
 | Svelte | `.svelte` | Full support (script extraction, Svelte 5 runes, SvelteKit routes) |
 | Vue | `.vue` | Full support (script + script-setup extraction, Nuxt page/API/middleware routes) |
 | Liquid | `.liquid` | Full support |
-| Pascal / Delphi | `.pas`, `.dpr`, `.dpk`, `.lpr` | Full support (classes, records, interfaces, enums, DFM/FMX form files) |
+| Pascal / Delphi | `.pas`, `.dpr`, `.dpk`, `.lpr`, `.dfm`, `.fmx` | Full support (classes, records, interfaces, enums, DFM/FMX form files) |
 | Lua | `.lua` | Full support (functions, methods with receivers, local variables, `require` imports, call edges) |
 | Luau | `.luau` | Full support (everything in Lua, plus `type`/`export type` aliases, typed signatures, and Roblox instance-path `require`) |
 

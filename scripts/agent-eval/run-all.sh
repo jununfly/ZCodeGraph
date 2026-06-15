@@ -5,20 +5,20 @@
 # without = empty MCP. Built-in Read/Grep/Bash stay available in both arms.
 #
 # Usage: run-all.sh <repo-path> "<question>" [headless|tmux|all]
-# Env:   CG_BIN          codegraph binary (default: command -v codegraph)
+# Env:   CG_BIN          zcodegraph binary (default: command -v zcodegraph)
 #        AGENT_EVAL_OUT  output dir (default: /tmp/agent-eval)
 set -uo pipefail
 
 REPO="${1:?usage: run-all.sh <repo-path> \"<question>\" [headless|tmux|all]}"
 Q="${2:?question required}"
 MODE="${3:-headless}"
-CG_BIN="${CG_BIN:-$(command -v codegraph)}"
+CG_BIN="${CG_BIN:-$(command -v zcodegraph)}"
 OUT="${AGENT_EVAL_OUT:-/tmp/agent-eval}"
 HARNESS="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$OUT"
 
-[ -n "$CG_BIN" ] || { echo "no codegraph binary on PATH (set CG_BIN)"; exit 1; }
-[ -d "$REPO/.codegraph" ] || { echo "no .codegraph index at $REPO — index it first"; exit 1; }
+[ -n "$CG_BIN" ] || { echo "no zcodegraph binary on PATH (set CG_BIN)"; exit 1; }
+[ -d "$REPO/.zcodegraph" ] || { echo "no .zcodegraph index at $REPO — index it first"; exit 1; }
 case "$MODE" in headless|tmux|all) ;; *) echo "mode must be headless|tmux|all (got '$MODE')"; exit 1;; esac
 
 # MCP config files (path form avoids inline-JSON quoting through tmux).

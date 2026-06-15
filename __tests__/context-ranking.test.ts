@@ -121,3 +121,261 @@ export function downloadDataset(name: string): string { return name; }
     expect(md as string).not.toContain(LOW_CONFIDENCE_MARKER);
   });
 });
+
+describe('Context ranking — broad operation family recall', () => {
+  let testDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(async () => {
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-opfamily-'));
+
+    const bulkDir = path.join(testDir, 'server', 'src', 'main', 'java', 'org', 'elasticsearch', 'action', 'bulk');
+    fs.mkdirSync(bulkDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(bulkDir, 'TransportBulkAction.java'),
+      `package org.elasticsearch.action.bulk;
+public class TransportBulkAction {
+  public BulkResponse execute(BulkRequest request) { return new BulkResponse(); }
+}
+class BulkRequest {}
+class BulkResponse {}
+`
+    );
+
+    const statsDir = path.join(testDir, 'server', 'src', 'main', 'java', 'org', 'elasticsearch', 'index', 'bulk', 'stats');
+    fs.mkdirSync(statsDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(statsDir, 'BulkStats.java'),
+      `package org.elasticsearch.index.bulk.stats;
+public class BulkStats {}
+public class BulkOperationListener {}
+public class ShardBulkStats {}
+`
+    );
+
+    const vectorsDir = path.join(testDir, 'server', 'src', 'main', 'java', 'org', 'elasticsearch', 'index', 'codec', 'vectors');
+    fs.mkdirSync(vectorsDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(vectorsDir, 'VectorScoringUtils.java'),
+      `package org.elasticsearch.index.codec.vectors;
+public class VectorScoringUtils {
+  public void bulk() {}
+  public void indexing() {}
+}
+`
+    );
+
+    const noiseDir = path.join(testDir, 'x-pack', 'plugin', 'core', 'src', 'main', 'java', 'org', 'elasticsearch', 'indexing');
+    fs.mkdirSync(noiseDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(noiseDir, 'IndexerNoise.java'),
+      `package org.elasticsearch.indexing;
+public class IndexEngine {}
+public class IndexerUtils {}
+public class IndexedDISI {}
+public enum IndexerState { STARTED }
+public class IndexerJobStats {}
+`
+    );
+
+    cg = CodeGraph.initSync(testDir, {
+      config: { include: ['**/*.java'], exclude: [] },
+    });
+    await cg.indexAll();
+  });
+
+  afterEach(() => {
+    if (cg) cg.destroy();
+    if (fs.existsSync(testDir)) fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('keeps action/request/response symbols for a broad bulk indexing query', async () => {
+    const sg = await cg.findRelevantContext('How does bulk indexing work?', {
+      searchLimit: 4,
+      traversalDepth: 1,
+      maxNodes: 40,
+      minScore: 0.2,
+    });
+    const names = new Set([...sg.nodes.values()].map((n) => n.name));
+
+    expect(names).toContain('TransportBulkAction');
+    expect(names).toContain('BulkRequest');
+    expect(names).toContain('BulkResponse');
+  });
+});
+
+describe('Context ranking — broad allocation service recall', () => {
+  let testDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(async () => {
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-allocation-'));
+
+    const allocationDir = path.join(testDir, 'server', 'src', 'main', 'java', 'org', 'elasticsearch', 'cluster', 'routing', 'allocation');
+    fs.mkdirSync(allocationDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(allocationDir, 'AllocationService.java'),
+      `package org.elasticsearch.cluster.routing.allocation;
+public class AllocationService {
+  private final BalancedShardsAllocator allocator = new BalancedShardsAllocator();
+  public void reroute() { allocator.allocate(); }
+}
+class RoutingAllocation {}
+`
+    );
+
+    const allocatorDir = path.join(allocationDir, 'allocator');
+    fs.mkdirSync(allocatorDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(allocatorDir, 'BalancedShardsAllocator.java'),
+      `package org.elasticsearch.cluster.routing.allocation.allocator;
+public class BalancedShardsAllocator {
+  public void allocate() {}
+}
+`
+    );
+
+    const deciderDir = path.join(allocationDir, 'decider');
+    fs.mkdirSync(deciderDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(deciderDir, 'EnableAllocationDecider.java'),
+      `package org.elasticsearch.cluster.routing.allocation.decider;
+public class EnableAllocationDecider {
+  public enum Rebalance { ALWAYS, INDICES_ALL_ACTIVE }
+}
+public class RebalanceOnlyWhenActiveAllocationDecider {}
+`
+    );
+
+    const mlDir = path.join(testDir, 'x-pack', 'plugin', 'ml', 'src', 'main', 'java', 'org', 'elasticsearch', 'xpack', 'ml', 'inference', 'assignment');
+    fs.mkdirSync(mlDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(mlDir, 'TrainedModelAssignmentRebalancer.java'),
+      `package org.elasticsearch.xpack.ml.inference.assignment;
+public class TrainedModelAssignmentRebalancer {
+  public void rebalance() {}
+}
+`
+    );
+
+    cg = CodeGraph.initSync(testDir, {
+      config: { include: ['**/*.java'], exclude: [] },
+    });
+    await cg.indexAll();
+  });
+
+  afterEach(() => {
+    if (cg) cg.destroy();
+    if (fs.existsSync(testDir)) fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('keeps allocation service and allocator evidence for a broad shard rebalancing query', async () => {
+    const sg = await cg.findRelevantContext('How does shard rebalancing and allocation work?', {
+      searchLimit: 4,
+      traversalDepth: 1,
+      maxNodes: 40,
+      minScore: 0.2,
+    });
+    const names = new Set([...sg.nodes.values()].map((n) => n.name));
+
+    expect(names).toContain('AllocationService');
+    expect(names).toContain('BalancedShardsAllocator');
+  });
+});
+
+describe('Context ranking — polymorphic implementation family recall', () => {
+  let testDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(async () => {
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-engine-family-'));
+
+    const engineDir = path.join(testDir, 'server', 'src', 'main', 'java', 'org', 'elasticsearch', 'index', 'engine');
+    fs.mkdirSync(engineDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(engineDir, 'Engine.java'),
+      `package org.elasticsearch.index.engine;
+public abstract class Engine {
+  public abstract void index();
+}
+`
+    );
+    fs.writeFileSync(
+      path.join(engineDir, 'InternalEngine.java'),
+      `package org.elasticsearch.index.engine;
+public class InternalEngine extends Engine {
+  public void index() {}
+}
+`
+    );
+    fs.writeFileSync(
+      path.join(engineDir, 'ReadOnlyEngine.java'),
+      `package org.elasticsearch.index.engine;
+public class ReadOnlyEngine extends Engine {
+  public void index() {}
+}
+`
+    );
+
+    const statelessDir = path.join(testDir, 'x-pack', 'plugin', 'stateless', 'src', 'main', 'java', 'org', 'elasticsearch', 'xpack', 'stateless', 'engine');
+    fs.mkdirSync(statelessDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(statelessDir, 'IndexEngine.java'),
+      `package org.elasticsearch.xpack.stateless.engine;
+import org.elasticsearch.index.engine.InternalEngine;
+public class IndexEngine extends InternalEngine {
+  public void index() {}
+}
+`
+    );
+
+    const noiseDir = path.join(testDir, 'server', 'src', 'main', 'java', 'org', 'elasticsearch', 'action', 'index');
+    fs.mkdirSync(noiseDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(noiseDir, 'IndexNoise.java'),
+      `package org.elasticsearch.action.index;
+public class IndexRequest {}
+public class IndexResponse {}
+public class IndexerUtils {}
+public class IndexedDISI {}
+`
+    );
+
+    const testDirPath = path.join(testDir, 'server', 'src', 'test', 'java', 'org', 'elasticsearch', 'index', 'engine');
+    fs.mkdirSync(testDirPath, { recursive: true });
+    fs.writeFileSync(
+      path.join(testDirPath, 'TestEngine.java'),
+      `package org.elasticsearch.index.engine;
+public class TestEngine extends Engine {
+  public void index() {}
+}
+`
+    );
+
+    cg = CodeGraph.initSync(testDir, {
+      config: { include: ['**/*.java'], exclude: [] },
+    });
+    await cg.indexAll();
+  });
+
+  afterEach(() => {
+    if (cg) cg.destroy();
+    if (fs.existsSync(testDir)) fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('keeps write-capable and read-only Engine implementations in a broad implementation query', async () => {
+    const sg = await cg.findRelevantContext('What are the Engine implementations for indexing?', {
+      searchLimit: 4,
+      traversalDepth: 0,
+      maxNodes: 40,
+      minScore: 0.2,
+    });
+    const names = new Set([...sg.nodes.values()].map((n) => n.name));
+
+    expect(names).toContain('Engine');
+    expect(names).toContain('InternalEngine');
+    expect(names).toContain('ReadOnlyEngine');
+    expect(names).toContain('IndexEngine');
+    expect(names).not.toContain('TestEngine');
+  });
+});

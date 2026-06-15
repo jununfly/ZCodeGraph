@@ -8,7 +8,7 @@
  * files on disk: commit, merge (covers `git pull`), and checkout.
  *
  * The hooks run `zcodegraph sync` in the background so they never block git,
- * and are guarded by `command -v codegraph` so they no-op cleanly when the
+ * and are guarded by `command -v zcodegraph` so they no-op cleanly when the
  * CLI isn't on PATH. Our snippet is delimited by marker comments so install
  * is idempotent and removal preserves any user-authored hook content.
  */
@@ -77,8 +77,8 @@ function markerBlock(): string {
     MARKER_BEGIN,
     '# Keeps the CodeGraph index fresh while the live file watcher is off',
     '# (e.g. WSL2 /mnt drives). Runs in the background so it never blocks git.',
-    '# Managed by codegraph; remove with `zcodegraph uninit` or delete this block.',
-    'if command -v codegraph >/dev/null 2>&1; then',
+    '# Managed by ZCodeGraph; remove with `zcodegraph uninit` or delete this block.',
+    'if command -v zcodegraph >/dev/null 2>&1; then',
     '  ( zcodegraph sync >/dev/null 2>&1 & ) >/dev/null 2>&1',
     'fi',
     MARKER_END,

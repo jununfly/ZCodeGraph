@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Sanity-check that codegraph extracted REAL symbols (not just file/import nodes)
+// Sanity-check that zcodegraph extracted REAL symbols (not just file/import nodes)
 // from a repo for a given language. Exits non-zero on a critical failure so it
 // can drive a write-extractor -> build -> re-check loop.
 //
@@ -19,7 +19,7 @@ if (!repo || !lang) {
 
 let status;
 try {
-  const out = execFileSync('codegraph', ['status', repo, '--json'], { encoding: 'utf8' });
+  const out = execFileSync('zcodegraph', ['status', repo, '--json'], { encoding: 'utf8' });
   status = JSON.parse(out);
 } catch (e) {
   console.error(`[verify] could not read zcodegraph status for ${repo}: ${e.message}`);

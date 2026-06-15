@@ -1,103 +1,169 @@
 # Architecture Roadmap — Validation Report
 
-**Date:** 2026-06-10 · **Branch:** `main` · **ZCodeGraph 0.9.9**
+**Date:** 2026-06-11 · **Branch:** `main` · **ZCodeGraph 0.9.9**
 
-This report validates the 7-candidate architecture roadmap by running the full
-test suite, building from source, indexing a real project, and exercising all
-CLI commands.
+This report validates that the 7-candidate architecture roadmap has landed in
+the current codebase. It covers static checks, the full test suite, a production
+build, indexing this repository, and CLI smoke tests against the generated
+`.zcodegraph/` index.
+
+Agent A/B benchmarks were not executed in this pass. They require the benchmark
+corpus and an authenticated agent CLI environment, and are treated as retrieval
+effectiveness experiments rather than architecture-completion checks.
+
+## Validation Summary
+
+| Check | Result |
+|---|---|
+| `npx tsc --noEmit` | ✅ clean |
+| `npm test` | ✅ 81 test files passed, 1 skipped |
+| `npm run build` | ✅ clean |
+| Local index with built CLI | ✅ 252 files indexed |
+| CLI smoke tests | ✅ version, status, query, callers, affected |
+| Agent A/B benchmark | Not run |
+
+The default shell `node` was v26.0.0, which correctly triggers ZCodeGraph's
+unsupported-version guard. CLI validation used the Codex bundled Node v24.14.0,
+which satisfies the project's `<25.0.0` engine range.
 
 ## Test Suite Results
 
-| Metric | Before build | After build |
-|--------|-------------|-------------|
-| Test files passed | 72/82 | 73/82 |
-| Test files failed | 8 (pre-existing) | 7 (pre-existing) |
-| Tests passed | 1,599 | **1,607** |
-| Tests failed | 25 (CLI/daemon, pre-existing) | 17 (pre-existing) |
-| `tsc --noEmit` | ✅ clean | ✅ clean |
+`npm test`:
 
-After building `dist/`, `status-json.test.ts` passed (8 tests), bringing the
-total to 1,607 passing tests. The 7 remaining failures are pre-existing
-integration/daemon tests that require a running daemon or specific environment
-conditions — none are related to the architecture roadmap changes.
+- **Test files:** 81 passed, 1 skipped
+- **Tests:** 1,625 passed, 15 skipped
+- **Failures:** 0
 
-**Zero regressions from all 7 candidates.**
+Focused architecture-related suites are covered in the full run, including:
+
+- `__tests__/explore-planner.test.ts` — 133 tests
+- `__tests__/explore-renderer.test.ts` — 4 tests
+- `__tests__/explore-types.test.ts` — 11 tests
+- `__tests__/synthesizer-registry.test.ts` — 22 tests
+- `__tests__/index-pipeline.test.ts` — 28 tests
+- `__tests__/parse-executor.test.ts` — 32 tests
+- `__tests__/command-context.test.ts` — 20 tests
+- `__tests__/install-plan.test.ts` — 24 tests
+- `__tests__/install-renderer.test.ts` — 27 tests
+- `__tests__/access-models.test.ts` — 11 tests
+
+## Build Results
+
+`npm run build` completed successfully:
+
+- TypeScript compilation passed.
+- `src/db/schema.sql` was copied into `dist/db/schema.sql`.
+- Tree-sitter WASM assets were copied into `dist/extraction/wasm/`.
+- `dist/bin/zcodegraph.js` was marked executable.
 
 ## Real-Project Indexing
 
-Indexed ZCodeGraph itself (252 TypeScript/JavaScript files):
+Indexed ZCodeGraph itself using the built CLI:
 
 ```
-$ zcodegraph init
-  Indexed 252 files
-  3,862 nodes, 16,075 edges in 2.7s
+$ node dist/bin/zcodegraph.js init -i
+Indexed 252 files
+3,873 nodes, 16,104 edges in 1.3s
 ```
 
-Index statistics:
-- **252 files** (232 TypeScript, 18 JavaScript, 2 YAML)
-- **3,862 nodes** (1,015 functions, 1,012 imports, 798 methods, 509 constants, 250 files, 146 interfaces, 58 classes)
-- **16,075 edges** — call graph, imports, type relationships, framework edges
-- **14.07 MB** database (node:sqlite, WAL mode)
-- **2.7s** total indexing time
+Status JSON after indexing:
+
+- **Version:** 0.9.9
+- **Index path:** `.zcodegraph`
+- **Files:** 252
+- **Nodes:** 3,873
+- **Edges:** 16,104
+- **Database size:** 14,819,328 bytes
+- **Backend:** `node-sqlite`
+- **Journal mode:** `wal`
+- **Languages:** JavaScript, TypeScript, YAML
+- **Pending changes:** 0 added, 0 modified, 0 removed
+- **Reindex recommended:** false
+
+Node breakdown:
+
+| Kind | Count |
+|---|---:|
+| class | 58 |
+| constant | 513 |
+| file | 250 |
+| function | 1,019 |
+| import | 1,016 |
+| interface | 145 |
+| method | 798 |
+| property | 2 |
+| type_alias | 31 |
+| variable | 41 |
 
 ## CLI Command Verification
 
-All CLI commands verified working:
+All smoke tests were run against the built CLI with Node v24.14.0:
 
 | Command | Result |
-|---------|--------|
-| `zcodegraph --version` | ✅ 0.9.9 |
-| `zcodegraph status` | ✅ Full stats with node/edge/language breakdown |
-| `zcodegraph status --json` | ✅ JSON with all fields (version, indexPath, nodeCount, edgeCount, dbSizeBytes, backend, nodesByKind, languages, pendingChanges, index info) |
-| `zcodegraph query "ExplorePlan"` | ✅ 9 results with relevance scores, file locations, type info |
-| `zcodegraph callers "plan"` | ✅ 3 callers found (handleExplore, test files) |
-| `zcodegraph callees "handleExplore"` | ✅ 8 callees (validateString, getCodeGraph, plan, buildFlowFromNamedSymbols, etc.) |
-| `zcodegraph impact "QueryBuilder"` | ✅ 302 affected symbols across 40+ files |
-| `zcodegraph files` | ✅ Full project tree with per-file symbol counts |
-| `zcodegraph affected src/mcp/explore-planner.ts` | ✅ 53 affected test files identified |
+|---|---|
+| `zcodegraph --version` | ✅ `0.9.9` |
+| `zcodegraph status --json` | ✅ initialized project, `.zcodegraph` index, current extraction version |
+| `zcodegraph query "ExplorePlan"` | ✅ finds `ExplorePlan`, `ExplorePlanEntry`, `plan`, `render`, and related tests |
+| `zcodegraph callers "plan"` | ✅ finds `handleExplore` and planner tests |
+| `zcodegraph affected src/mcp/explore-planner.ts` | ✅ reports 53 affected test files |
 
 ## Architecture Candidate Coverage Verification
 
-Each candidate's new code is correctly indexed and discoverable:
+Each roadmap candidate is present in source and covered by tests:
 
-| Candidate | Key Types | Query Result |
-|-----------|-----------|-------------|
-| 1. Explore Planner | `ExplorePlan`, `ExplorePlanEntry` | ✅ 9 results for "ExplorePlan" |
-| 2. Synthesizer Registry | `SynthesizerRegistry`, `SynthesizerDescriptor` | ✅ 3 results for "SynthesizerRegistry" |
-| 3. Index Pipeline | `IndexPipeline`, `IndexStage`, `IndexContext` | ✅ Types indexed in index-pipeline-types.ts |
-| 4. Parse Executor | `ParseExecutor`, `InProcessParseExecutor` | ✅ Types indexed in parse-executor-types.ts |
-| 5. CLI Command Adapter | `CommandContext`, `CommandFn`, `runInit` | ✅ `runInit` found as callee of `main` |
-| 6. Installer Adapter | `InstallPlan`, `InstallRenderer` | ✅ Types indexed in install-plan.ts |
-| 7. Read Model Seam | `AgentReadModel`, `MaintenanceWriteModel` | ✅ QueryBuilder correctly shows all methods |
+| Candidate | Key Current Code | Verification |
+|---|---|---|
+| 1. Explore Answer Planner Seam | `src/mcp/explore-types.ts`, `src/mcp/explore-planner.ts`, `src/mcp/explore-renderer.ts` | ✅ `handleExplore()` calls `plan()` then `render()`; planner/renderer/type tests pass |
+| 2. Dynamic Dispatch Synthesizer Registry | `src/resolution/synthesizer-types.ts`, `src/resolution/synthesizer-registry.ts`, `src/resolution/synthesizer-modules.ts` | ✅ registry tests pass; framework resolvers register through the unified registry |
+| 3. Index Pipeline Module | `src/extraction/index-pipeline-types.ts`, `src/extraction/index-pipeline.ts` | ✅ pipeline tests pass |
+| 4. Extraction Parse Execution Module | `src/extraction/parse-executor-types.ts`, `src/extraction/parse-executor.ts` | ✅ parse-executor tests pass |
+| 5. CLI Command Adapter / Execution Context Seam | CLI command modules and `CommandContext` | ✅ command-context and command-helper tests pass |
+| 6. Installer Target Adapter Contract Hardening | install plan/renderer modules and installer targets | ✅ installer target, install plan, and install renderer tests pass |
+| 7. Query/Storage Access Model Seam | `src/db/access-models.ts`, `src/db/queries.ts` | ✅ `QueryBuilder` implements `AgentAccessModel`, `MaintenanceAccessModel`, `ResolutionAccessModel`, and `StatusAccessModel`; access-model tests pass |
 
 ## Edge Graph Verification
 
-The call graph correctly captures the new architecture seams:
+The generated graph captures the new architecture seams:
 
-- `handleExplore` → `plan` (explore-planner) → `buildFileGroups`, `gateAndSortFiles`
-- `main` (CLI) → `runInit`, `runUninit`, `runIndex`, `runStatus` (Candidate 5 commands)
-- `createSynthesizerRegistry` → 21 `FullGraphSynthesizer` entries
-- `QueryBuilder` implements all 4 read-model interfaces (55 methods)
+- `handleExplore` calls `plan` and `render`.
+- Querying `ExplorePlan` finds the planner types, planner function, renderer,
+  and test fixtures.
+- `zcodegraph affected src/mcp/explore-planner.ts` identifies 53 affected test
+  files, matching the expected broad blast radius for the Explore planner seam.
+- `zcodegraph callers "plan"` includes `src/mcp/tools.ts:handleExplore` and
+  `__tests__/explore-planner.test.ts`.
 
-## Benchmark Infrastructure
+## Agent A/B Benchmark Status
 
-Benchmark scripts are present and documented:
-- `scripts/agent-eval/bench-readme.sh` — A/B with/without codegraph on 7 README repos
-- `scripts/agent-eval/run-all.sh` — single-repo with/without headless/tmux
-- `scripts/agent-eval/arms-matrix.sh` — ablation experiments
-- `scripts/agent-eval/parse-*.mjs` — result parsing and aggregation
+Not run in this validation pass.
 
-Running benchmarks requires:
-- `claude` CLI (Claude Code) — not available in this environment
-- Corpus repos cloned under `/tmp/codegraph-corpus/` — not available
+Available benchmark infrastructure:
+
+- `scripts/agent-eval/bench-readme.sh`
+- `scripts/agent-eval/run-all.sh`
+- `scripts/agent-eval/arms-matrix.sh`
+- `scripts/agent-eval/parse-*.mjs`
+- `docs/benchmarks/call-sequence-analysis.md`
+- `docs/benchmarks/answer-directly-vs-explore-agent.md`
+
+Running the real agent A/B suite requires:
+
+- An authenticated agent CLI environment.
+- Corpus repos under `/tmp/codegraph-corpus/`.
+- Multiple runs per arm to handle variance.
+
+Those benchmarks should be used for retrieval-policy changes. They are not a
+precondition for confirming that the 7 architecture seams exist, build, index,
+and pass their test coverage.
 
 ## Conclusion
 
-**All 7 architecture candidates are validated:**
-- ✅ 1,607 tests pass (0 regressions)
-- ✅ TypeScript compilation clean
-- ✅ Real-project indexing works (252 files, 3,862 nodes, 16,075 edges, 2.7s)
-- ✅ All 8 CLI commands produce correct output
-- ✅ Code graph correctly captures new architecture seams
-- ✅ `affected` command correctly identifies 53 test files for explore-planner changes
-- ✅ `impact` command correctly traces 302 affected symbols for QueryBuilder
+The architecture roadmap is complete and validated in the current codebase:
+
+- ✅ All 7 candidates are implemented.
+- ✅ TypeScript compilation is clean.
+- ✅ The full test suite passes with 0 failures.
+- ✅ The project builds successfully.
+- ✅ The built CLI initializes and queries a `.zcodegraph/` index.
+- ✅ The generated graph exposes the new architecture seams.
+- ✅ Agent A/B benchmark status is explicit: not run in this pass.

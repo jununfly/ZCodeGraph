@@ -51,7 +51,8 @@ describe('git sync hooks', () => {
       expect(fs.existsSync(file)).toBe(true);
       const body = fs.readFileSync(file, 'utf8');
       expect(body).toContain('zcodegraph sync');
-      expect(body).toContain('command -v codegraph'); // no-op when not on PATH
+      expect(body).toContain('command -v zcodegraph'); // no-op when not on PATH
+      expect(body).not.toContain('command -v codegraph');
       expect(isExecutable(file)).toBe(true);
     }
     expect(isSyncHookInstalled(repo)).toBe(true);

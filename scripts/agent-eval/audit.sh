@@ -49,8 +49,8 @@ fi
 
 # 3. Wipe + re-index with THIS version (the index must be built by the same
 #    binary that serves it — different versions extract differently).
-echo "→ [3/4] wiping .codegraph and re-indexing with $ACTUAL"
-rm -rf "$REPO/.codegraph"
+echo "→ [3/4] wiping .zcodegraph and re-indexing with $ACTUAL"
+rm -rf "$REPO/.zcodegraph"
 ( cd "$REPO" && zcodegraph init -i ) || { echo "indexing failed"; exit 1; }
 
 # 4. Run the with/without A/B.

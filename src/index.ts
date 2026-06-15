@@ -391,6 +391,8 @@ export class CodeGraph {
         // extraction stamp (the bulk would still be stale). See extraction-version.ts.
         if (result.success && result.filesIndexed > 0) {
           try {
+            this.queries.setMetadata('indexed_with_engine', 'typescript');
+            this.queries.setMetadata('indexed_with_engine_version', CodeGraphPackageVersion);
             this.queries.setMetadata('indexed_with_version', CodeGraphPackageVersion);
             this.queries.setMetadata('indexed_with_extraction_version', String(EXTRACTION_VERSION));
           } catch { /* metadata is advisory — never fail an index over it */ }
@@ -605,11 +607,18 @@ export class CodeGraph {
    * index built before stamping existed (treated as stale). See
    * `extraction-version.ts` and `isIndexStale()`.
    */
-  getIndexBuildInfo(): { version: string | null; extractionVersion: number | null } {
+  getIndexBuildInfo(): {
+    version: string | null;
+    extractionVersion: number | null;
+    engine: string | null;
+    engineVersion: string | null;
+  } {
+    const engine = this.queries.getMetadata('indexed_with_engine');
+    const engineVersion = this.queries.getMetadata('indexed_with_engine_version');
     const version = this.queries.getMetadata('indexed_with_version');
     const ev = this.queries.getMetadata('indexed_with_extraction_version');
     const parsed = ev != null ? parseInt(ev, 10) : NaN;
-    return { version, extractionVersion: Number.isFinite(parsed) ? parsed : null };
+    return { version, extractionVersion: Number.isFinite(parsed) ? parsed : null, engine, engineVersion };
   }
 
   /**
@@ -657,6 +666,72 @@ export class CodeGraph {
    */
   async resolveReferencesBatched(onProgress?: (current: number, total: number) => void): Promise<ResolutionResult> {
     return this.resolver.resolveAndPersistBatched(onProgress);
+  }
+
+  /**
+   * Complete the TypeScript-side graph passes after an external extractor
+   * has written files, nodes, edges, and unresolved_refs into the database.
+   *
+   * The Rust Phase 1 indexer owns extraction and metadata stamping; this method
+   * deliberately only runs framework finalization, reference resolution, dynamic
+   * edge synthesis, and maintenance so the index remains marked as Rust-built.
+   */
+  async finalizeRustIndex(onProgress?: (current: number, total: number) => void): Promise<{
+    nodesCreated: number;
+    edgesCreated: number;
+    profile: {
+      frameworkPostExtractMs: number;
+      referenceResolutionMs: number;
+      dynamicDispatchSynthesisMs: number;
+      dbMaintenanceMs: number;
+    };
+  }> {
+    return this.indexMutex.withLock(async () => {
+      try {
+        this.fileLock.acquire();
+      } catch {
+        throw new Error('Could not acquire file lock - another process may be indexing');
+      }
+
+      try {
+        const before = this.queries.getNodeAndEdgeCount();
+        const profile = {
+          frameworkPostExtractMs: 0,
+          referenceResolutionMs: 0,
+          dynamicDispatchSynthesisMs: 0,
+          dbMaintenanceMs: 0,
+        };
+        const frameworkStarted = Date.now();
+        this.resolver.initialize();
+        this.resolver.runPostExtract();
+        profile.frameworkPostExtractMs = Date.now() - frameworkStarted;
+
+        const resolutionStarted = Date.now();
+        const resolution = await this.resolveReferencesBatched(onProgress);
+        const resolutionTotalMs = Date.now() - resolutionStarted;
+        const synthesizedEdges = resolution.stats.byMethod['callback-synthesis'] ?? 0;
+        // The synthesizer currently executes inside the batched resolver. Until
+        // the resolver exposes nested timings, surface a conservative split:
+        // zero when no synthesized edges were emitted, otherwise mark the shared
+        // resolver window as the dynamic-dispatch cost so profiles still expose
+        // the dominant remaining risk instead of hiding it in one opaque total.
+        profile.dynamicDispatchSynthesisMs = synthesizedEdges > 0 ? resolutionTotalMs : 0;
+        profile.referenceResolutionMs = Math.max(0, resolutionTotalMs - profile.dynamicDispatchSynthesisMs);
+
+        const maintenanceStarted = Date.now();
+        this.db.runMaintenance();
+        profile.dbMaintenanceMs = Date.now() - maintenanceStarted;
+
+        const after = this.queries.getNodeAndEdgeCount();
+        return {
+          nodesCreated: after.nodes - before.nodes,
+          edgesCreated: after.edges - before.edges,
+          profile,
+        };
+      } finally {
+        this.fileLock.release();
+      }
+    });
   }
 
   /**

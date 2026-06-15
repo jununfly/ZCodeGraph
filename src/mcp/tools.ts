@@ -1130,18 +1130,21 @@ export class ToolHandler {
    * for ordinary static edges. Used by trace + the node trail so a synthesized
    * hop reads as "registered via onUpdate at App.tsx:3148", not a bare arrow.
    */
-  private synthEdgeNote(edge: Edge | null): { label: string; compact: string; registeredAt?: string } | null {
+  private synthEdgeNote(edge: Edge | null): { label: string; compact: string; registeredAt?: string; registrationSnippet?: string } | null {
     if (!edge || edge.edgeOrigin !== 'heuristic') return null;
     const m = edge.metadata as Record<string, unknown> | undefined;
     const registeredAt = typeof m?.registeredAt === 'string' ? m.registeredAt : undefined;
+    const registrationSnippet = typeof m?.registrationSnippet === 'string' ? m.registrationSnippet : undefined;
     const at = registeredAt ? ` @${registeredAt}` : '';
+    const snippet = registrationSnippet ? ` — \`${registrationSnippet}\`` : '';
     if (m?.synthesizedBy === 'callback') {
       const via = m.via ? `\`${String(m.via)}\`` : 'a registrar';
       const field = m.field ? ` on .${String(m.field)}` : '';
       return {
         label: `callback — registered via ${via}${field} (dynamic dispatch)`,
-        compact: `dynamic: callback via ${via}${at}`,
+        compact: `dynamic: callback via ${via}${at}${snippet}`,
         registeredAt,
+        registrationSnippet,
       };
     }
     if (m?.synthesizedBy === 'event-emitter') {
@@ -1191,158 +1194,6 @@ export class ToolHandler {
       };
     }
     return null;
-  }
-
-  /**
-   * Flow-from-named-symbols: an agent's zcodegraph_explore query is a bag of
-   * symbol names that usually spans the flow it's investigating (e.g.
-   * "PmsProductController getList PmsProductService list PmsProductServiceImpl").
-   * Surface the longest call chain AMONG those named symbols — scoped to what the
-   * agent explicitly named, so (unlike a fuzzy relevance set) there's no
-   * wrong-feature wandering. Rides synthesized edges, so controller→service-
-   * interface→impl shows up. Returns '' if no chain of >=3 nodes exists.
-   *
-   * Ambiguous tokens (Java `list` → dozens of nodes) are disambiguated by
-   * CO-NAMING: the agent names the class too, so we keep only `list` candidates
-   * whose qualifiedName contains another named token (`PmsProductServiceImpl::list`),
-   * dropping unrelated `OmsOrderService::list`.
-   */
-  private buildFlowFromNamedSymbols(cg: CodeGraph, query: string): { text: string; pathNodeIds: Set<string>; namedNodeIds: Set<string>; uniqueNamedNodeIds: Set<string> } {
-    const EMPTY = { text: '', pathNodeIds: new Set<string>(), namedNodeIds: new Set<string>(), uniqueNamedNodeIds: new Set<string>() };
-    try {
-      const CALLABLE = new Set(['method', 'function', 'component', 'constructor']);
-      // Strip only a REAL file extension (Create.cs → Create); KEEP qualified
-      // names (Class.method / Class::method) — the agent's most precise input,
-      // resolved exactly by findAllSymbols. (The old strip mangled Class.method
-      // into Class, throwing the method away.)
-      const FILE_EXT = /\.(?:java|kt|kts|ts|tsx|js|jsx|mjs|cjs|cs|py|go|rb|php|swift|rs|cpp|cc|cxx|c|h|hpp|scala|lua|dart|vue|svelte)$/i;
-      const tokens = [...new Set(
-        query.split(/[\s,()[\]]+/)
-          .map((t) => t.replace(FILE_EXT, '').trim())
-          .filter((t) => t.length >= 3 && /^[A-Za-z_$][\w$]*(?:(?:::|\.)[\w$]+)*$/.test(t))
-      )].slice(0, 16);
-      if (tokens.length < 2) return EMPTY;
-      // Pool of name SEGMENTS (Class + method from every token) used to
-      // disambiguate an ambiguous SIMPLE name: keep a candidate only if its
-      // CONTAINER class is itself named in the query.
-      const segPool = new Set<string>();
-      for (const t of tokens) for (const s of t.toLowerCase().split(/::|\./)) if (s) segPool.add(s);
-      const named = new Map<string, Node>();
-      // Nodes whose token is SPECIFIC — a (near-)unique callable name (<=3 defs in
-      // the whole graph). These are safe to SPARE a file on: the agent named THIS
-      // method (`getResponseWithInterceptorChain`, 1 def). A hyper-polymorphic name
-      // (`as_sql`, 110 defs across every Expression/Compiler subclass) is NOT here,
-      // so naming it doesn't keep every backend variant full and flood the budget.
-      const uniqueNamedNodeIds = new Set<string>();
-      for (const t of tokens) {
-        const cands = this.findAllSymbols(cg, t).nodes.filter((n) => CALLABLE.has(n.kind));
-        // A qualified or otherwise-specific name (<=3 hits) keeps all; an
-        // ambiguous simple name keeps only candidates whose container is named.
-        const specific = cands.length <= 3;
-        const pick = specific
-          ? cands
-          : cands.filter((n) => {
-              const segs = (n.qualifiedName || '').toLowerCase().split(/::|\./).filter(Boolean);
-              const container = segs.length >= 2 ? segs[segs.length - 2] : '';
-              return !!container && segPool.has(container);
-            });
-        for (const n of pick.slice(0, 6)) {
-          named.set(n.id, n);
-          if (specific) uniqueNamedNodeIds.add(n.id);
-        }
-        if (named.size > 40) break;
-      }
-      if (named.size < 2) return EMPTY;
-      const MAX_HOPS = 7;
-      let best: Array<{ node: Node; edge: Edge | null }> | null = null;
-      // BFS the full call graph (incl. synth edges) from each named seed, but
-      // only ACCEPT a sink that is also named — both ends anchored to symbols the
-      // agent named, so the chain stays on-topic while bridging intermediates
-      // (e.g. the exact interface overload) that the token resolution missed.
-      for (const seed of [...named.values()].slice(0, 8)) {
-        const parent = new Map<string, { prev: string | null; edge: Edge | null; node: Node }>();
-        parent.set(seed.id, { prev: null, edge: null, node: seed });
-        const q: Array<{ id: string; depth: number; streak: number }> = [{ id: seed.id, depth: 0, streak: 0 }];
-        let deep: string | null = null, deepDepth = 0;
-        const MAX_BRIDGE = 1; // ≤1 consecutive UNNAMED hop: bridge one missing intermediate, never wander a god-function's fan-out
-        for (let h = 0; h < q.length && parent.size < 1500; h++) {
-          const { id, depth, streak } = q[h]!;
-          if (id !== seed.id && named.has(id) && depth > deepDepth) { deep = id; deepDepth = depth; }
-          if (depth >= MAX_HOPS - 1) continue;
-          for (const c of cg.getCallees(id)) {
-            if (c.edge.kind !== 'calls' || parent.has(c.node.id)) continue;
-            const newStreak = named.has(c.node.id) ? 0 : streak + 1;
-            if (newStreak > MAX_BRIDGE) continue;
-            parent.set(c.node.id, { prev: id, edge: c.edge, node: c.node });
-            q.push({ id: c.node.id, depth: depth + 1, streak: newStreak });
-          }
-        }
-        if (!deep) continue;
-        const chain: Array<{ node: Node; edge: Edge | null }> = [];
-        let cur: string | null = deep;
-        while (cur) { const p = parent.get(cur); if (!p) break; chain.push({ node: p.node, edge: p.edge }); cur = p.prev; }
-        chain.reverse();
-        if (!best || chain.length > best.length) best = chain;
-      }
-      const hasMain = !!best && best.length >= 3;
-      const pathIds = new Set((best ?? []).map((s) => s.node.id));
-
-      // Supplementary: dynamic-dispatch (synthesized) edges incident to a NAMED
-      // symbol — the indirect hops an agent would otherwise grep/Read to
-      // reconstruct ("where do the appended `validators` actually run?"). The
-      // synth edge IS that answer, so surface it even when the OTHER end wasn't
-      // named (e.g. the agent names `validate` but not the `didCompleteTask`
-      // that drains the collection). On-topic by construction: only heuristic
-      // edges touching a symbol the agent named; skipped when the hop already
-      // shows in the main chain.
-      const synthLines: string[] = [];
-      const synthSeen = new Set<string>();
-      for (const n of named.values()) {
-        if (synthLines.length >= 6) break;
-        for (const { node: other, edge } of [...cg.getCallers(n.id), ...cg.getCallees(n.id)]) {
-          if (synthLines.length >= 6) break;
-          if (edge.edgeOrigin !== 'heuristic' || other.id === n.id) continue;
-          if (pathIds.has(edge.source) && pathIds.has(edge.target)) continue; // already in the main chain
-          const src = edge.source === n.id ? n : other;
-          const tgt = edge.source === n.id ? other : n;
-          const key = `${src.name}>${tgt.name}`;
-          if (synthSeen.has(key)) continue;
-          synthSeen.add(key);
-          const note = this.synthEdgeNote(edge);
-          synthLines.push(`- ${src.name} → ${tgt.name}   [${note ? note.compact : edge.kind}]`);
-        }
-      }
-
-      if (!hasMain && synthLines.length === 0) return EMPTY;
-      const out: string[] = [];
-      if (hasMain) {
-        out.push('## Flow (call path among the symbols you queried)', '');
-        for (let i = 0; i < best!.length; i++) {
-          const step = best![i]!;
-          if (step.edge) { const sy = this.synthEdgeNote(step.edge); out.push(`   ↓ ${sy ? sy.compact : step.edge.kind}`); }
-          out.push(`${i + 1}. ${step.node.name} (${step.node.filePath}:${step.node.startLine})`);
-        }
-        out.push('');
-      }
-      if (synthLines.length) {
-        out.push(
-          '## Dynamic-dispatch links among your symbols',
-          '(synthesized — the indirect hops grep/Read would reconstruct; the `@file:line` is the wiring site)',
-          '',
-          ...synthLines,
-          ''
-        );
-      }
-      out.push('> Full source for these symbols is below — the call flow among them, followed by their bodies.', '');
-      // namedNodeIds = every callable the agent explicitly named (a superset of
-      // the spine). A file holding one is something the agent asked to SEE, so it
-      // must keep full source even if it's an off-spine polymorphic sibling — the
-      // agent named `getResponseWithInterceptorChain` / `SQLCompiler.execute_sql`
-      // as the mechanism, not as an interchangeable leaf. See the skeleton gate.
-      return { text: out.join('\n'), pathNodeIds: pathIds, namedNodeIds: new Set(named.keys()), uniqueNamedNodeIds };
-    } catch {
-      return EMPTY;
-    }
   }
 
   /**
@@ -1425,9 +1276,6 @@ export class ToolHandler {
     // Delegate ALL planning to the explore planner (Issue #25).
     const planResult = await plan(cg, query, { maxFiles: args.maxFiles as number | undefined });
 
-    // Compute flow spine (used by rendering for Flow section + adaptive sizing).
-    const flow = this.buildFlowFromNamedSymbols(cg, query);
-
     if (planResult.subgraph.nodes.size === 0) {
       return this.textResult(`No relevant code found for "${query}"`);
     }
@@ -1436,7 +1284,7 @@ export class ToolHandler {
     const blastRadius = this.buildBlastRadiusSection(cg, planResult.subgraph);
 
     // Delegate ALL rendering to the explore renderer (Issue #14).
-    const output = render(planResult, cg, flow, blastRadius);
+    const output = render(planResult, cg, planResult.spine, blastRadius);
     return this.textResult(output);
   }
 
@@ -1621,6 +1469,7 @@ export class ToolHandler {
       } catch { /* closed instance — leave as is */ }
     }
     const stats = cg.getStats();
+    const buildInfo = cg.getIndexBuildInfo();
 
     // Warn when this index actually belongs to a different git working tree
     // (e.g. the server resolved up from a nested worktree to the main checkout).
@@ -1642,6 +1491,12 @@ export class ToolHandler {
       `**Total edges:** ${stats.edgeCount}`,
       `**Database size:** ${(stats.dbSizeBytes / 1024 / 1024).toFixed(2)} MB`,
     );
+    if (buildInfo.engine) {
+      lines.push(`**Index engine:** ${buildInfo.engine}`);
+    }
+    if (buildInfo.engineVersion) {
+      lines.push(`**Index engine version:** ${buildInfo.engineVersion}`);
+    }
 
     // Surface the active SQLite backend (node:sqlite, Node's built-in real
     // SQLite — full WAL + FTS5, no native build).

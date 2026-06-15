@@ -1,0 +1,76 @@
+use std::env;
+use std::process;
+
+use zcodegraph_core::{error_json, progress_json, result_json, run_index, IndexRequest};
+
+fn main() {
+    match parse_args(env::args().skip(1).collect()) {
+        Ok(request) => {
+            println!("{}", progress_json("scanning", 0, 1));
+            let result = run_index(&request);
+            let success = result.success;
+            println!("{}", result_json(&result));
+            if !success {
+                process::exit(1);
+            }
+        }
+        Err(message) => {
+            eprintln!("{}", error_json(&message));
+            process::exit(2);
+        }
+    }
+}
+
+fn parse_args(args: Vec<String>) -> Result<IndexRequest, String> {
+    if args.first().map(String::as_str) != Some("index") {
+        return Err("expected command: index".to_string());
+    }
+
+    let mut project_path: Option<String> = None;
+    let mut index_path: Option<String> = None;
+    let mut engine: Option<String> = None;
+    let mut force = false;
+    let mut verbose = false;
+    let mut i = 1;
+
+    while i < args.len() {
+        match args[i].as_str() {
+            "--project-path" => {
+                i += 1;
+                project_path = args.get(i).cloned();
+                if project_path.is_none() {
+                    return Err("--project-path requires a value".to_string());
+                }
+            }
+            "--engine" => {
+                i += 1;
+                engine = args.get(i).cloned();
+                if engine.is_none() {
+                    return Err("--engine requires a value".to_string());
+                }
+                if engine.as_deref() != Some("rust") {
+                    return Err("--engine must be rust".to_string());
+                }
+            }
+            "--index-path" => {
+                i += 1;
+                index_path = args.get(i).cloned();
+                if index_path.is_none() {
+                    return Err("--index-path requires a value".to_string());
+                }
+            }
+            "--force" => force = true,
+            "--verbose" => verbose = true,
+            other => return Err(format!("unknown argument: {}", other)),
+        }
+        i += 1;
+    }
+
+    Ok(IndexRequest {
+        engine: engine.unwrap_or_else(|| "rust".to_string()),
+        project_path: project_path.ok_or_else(|| "--project-path is required".to_string())?,
+        index_path: index_path.ok_or_else(|| "--index-path is required".to_string())?,
+        force,
+        verbose,
+    })
+}

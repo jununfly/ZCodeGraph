@@ -27,9 +27,12 @@ import { Command } from 'commander';
 import * as path from 'path';
 import * as fs from 'fs';
 import { getCodeGraphDir, isInitialized } from '../directory';
+import { getDatabasePath } from '../db';
 import { detectWorktreeIndexMismatch, worktreeMismatchWarning } from '../sync/worktree';
 import { createShimmerProgress } from '../ui/shimmer-progress';
 import { getGlyphs } from '../ui/glyphs';
+import { resolveIndexEngine } from '../indexing/engine-selection';
+import { getRustReadinessDiagnostics, runRustIndexer } from '../indexing/rust-indexer';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
 import { relaunchWithWasmRuntimeFlagsIfNeeded } from '../extraction/wasm-runtime-flags';
@@ -538,50 +541,101 @@ program
   .option('-f, --force', 'Force full re-index even if already indexed')
   .option('-q, --quiet', 'Suppress progress output')
   .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
-  .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean }) => {
+  .option('--engine <engine>', 'Index engine to use: typescript or rust')
+  .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string }) => {
     const projectPath = resolveProjectPath(pathArg);
+    let selectedEngine: 'typescript' | 'rust' | undefined;
 
     try {
+      const engine = resolveIndexEngine(options.engine);
+      selectedEngine = engine;
+      const runRustIndexAndFinalize = async (onProgress?: (progress: { phase: string; current: number; total: number; currentFile?: string }) => void): Promise<IndexResult> => {
+        const result = await runRustIndexer(projectPath, {
+          force: options.force,
+          verbose: options.verbose,
+          onProgress,
+        });
+        if (!result.success || result.filesIndexed === 0) {
+          return result;
+        }
+
+        const { default: CodeGraph } = await loadCodeGraph();
+        const cg = await CodeGraph.open(projectPath);
+        try {
+          const finalized = await cg.finalizeRustIndex((current, total) => {
+            onProgress?.({
+              phase: 'resolving',
+              current,
+              total,
+            });
+          });
+          result.nodesCreated += finalized.nodesCreated;
+          result.edgesCreated += finalized.edgesCreated;
+        } finally {
+          cg.destroy();
+        }
+        return result;
+      };
+
       if (!isInitialized(projectPath)) {
         error(`CodeGraph not initialized in ${projectPath}`);
         info('Run "zcodegraph init" first');
         process.exit(1);
       }
 
-      const { default: CodeGraph } = await loadCodeGraph();
-      const cg = await CodeGraph.open(projectPath);
-
       if (options.quiet) {
         // Quiet mode: no UI, just run
-        if (options.force) cg.clear();
-        const result = await cg.indexAll();
+        const result = engine === 'rust'
+          ? await runRustIndexAndFinalize()
+          : await (async () => {
+              const { default: CodeGraph } = await loadCodeGraph();
+              const cg = await CodeGraph.open(projectPath);
+              try {
+                if (options.force) cg.clear();
+                return await cg.indexAll();
+              } finally {
+                cg.destroy();
+              }
+            })();
         if (!result.success) process.exit(1);
-        cg.destroy();
         return;
       }
 
       const clack = await importESM('@clack/prompts');
       clack.intro('Indexing project');
 
-      if (options.force) {
-        cg.clear();
-        clack.log.info('Cleared existing index');
-      }
-
       let result: IndexResult;
 
-      if (options.verbose) {
-        result = await cg.indexAll({
-          onProgress: createVerboseProgress(),
-          verbose: true,
-        });
+      if (engine === 'rust') {
+        if (options.force) {
+          clack.log.info('Rust engine selected; force re-index requested');
+        }
+        result = await runRustIndexAndFinalize(options.verbose ? createVerboseProgress() : undefined);
       } else {
-        process.stdout.write(`${colors.dim}${getGlyphs().rail}${colors.reset}\n`);
-        const progress = createShimmerProgress();
-        result = await cg.indexAll({
-          onProgress: progress.onProgress,
-        });
-        await progress.stop();
+        const { default: CodeGraph } = await loadCodeGraph();
+        const cg = await CodeGraph.open(projectPath);
+        try {
+          if (options.force) {
+            cg.clear();
+            clack.log.info('Cleared existing index');
+          }
+
+          if (options.verbose) {
+            result = await cg.indexAll({
+              onProgress: createVerboseProgress(),
+              verbose: true,
+            });
+          } else {
+            process.stdout.write(`${colors.dim}${getGlyphs().rail}${colors.reset}\n`);
+            const progress = createShimmerProgress();
+            result = await cg.indexAll({
+              onProgress: progress.onProgress,
+            });
+            await progress.stop();
+          }
+        } finally {
+          cg.destroy();
+        }
       }
 
       printIndexResult(clack, result, projectPath);
@@ -591,9 +645,23 @@ program
       }
 
       clack.outro('Done');
-      cg.destroy();
     } catch (err) {
       error(`Failed to index: ${err instanceof Error ? err.message : String(err)}`);
+      if (selectedEngine === 'rust' || options.engine === 'rust' || process.env.ZCODEGRAPH_INDEX_ENGINE === 'rust') {
+        const diagnostics = getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null });
+        const activeIndexPreserved = fs.existsSync(getDatabasePath(projectPath));
+        console.error('Rust diagnostics:');
+        console.error(`  discovery source: ${diagnostics.core.discoverySource}`);
+        console.error(`  attempted command: ${diagnostics.core.attemptedCommand}`);
+        if (diagnostics.core.attemptedArgsPrefix.length > 0) {
+          console.error(`  attempted args prefix: ${diagnostics.core.attemptedArgsPrefix.join(' ')}`);
+        }
+        console.error(`  active index preserved: ${activeIndexPreserved ? 'yes' : 'no active index found'}`);
+        const nextAction = diagnostics.core.discoverySource === 'env'
+          ? 'Set ZCODEGRAPH_RUST_CORE_BINARY to an executable zcodegraph-core binary, or unset it to use packaged/source discovery.'
+          : 'Install a release bundle/platform package with bin/zcodegraph-core, or run cargo build --package zcodegraph-core for source development.';
+        console.error(`  next action: ${nextAction}`);
+      }
       process.exit(1);
     }
   });
@@ -684,6 +752,7 @@ program
             projectPath,
             indexPath: getCodeGraphDir(projectPath),
             lastIndexed: null,
+            rust: getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null }),
           }));
           return;
         }
@@ -730,11 +799,14 @@ program
             ? { worktreeRoot: worktreeMismatch.worktreeRoot, indexRoot: worktreeMismatch.indexRoot }
             : null,
           index: {
+            engine: buildInfo.engine,
+            engineVersion: buildInfo.engineVersion,
             builtWithVersion: buildInfo.version,
             builtWithExtractionVersion: buildInfo.extractionVersion,
             currentExtractionVersion: EXTRACTION_VERSION,
             reindexRecommended,
           },
+          rust: getRustReadinessDiagnostics(projectPath, buildInfo),
         }));
         cg.destroy();
         return;
