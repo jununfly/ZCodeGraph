@@ -1,0 +1,958 @@
+{
+  "generatedAt": "2026-06-14T14:44:53.213Z",
+  "repo": {
+    "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-m6jBjd",
+    "commit": null
+  },
+  "query": "AbstractExtensionService _createExtensionHostManager _doCreateExtensionHostManager ExtensionHostManager start ExtensionHostMain MainThreadExtensionService",
+  "tokens": [
+    "AbstractExtensionService",
+    "_createExtensionHostManager",
+    "_doCreateExtensionHostManager",
+    "ExtensionHostManager",
+    "start",
+    "ExtensionHostMain",
+    "MainThreadExtensionService"
+  ],
+  "explore": {
+    "outputChars": 25202,
+    "hasFlowSection": false,
+    "flowConnected": false
+  },
+  "summary": {
+    "primaryClassification": "missing-symbol",
+    "taxonomy": [
+      "missing-symbol",
+      "ambiguous-symbol",
+      "missing-static-edge",
+      "missing-synthesized-edge",
+      "explore-planner-pathfinding-gap",
+      "expected-runtime-boundary"
+    ]
+  },
+  "classifications": [
+    {
+      "token": "AbstractExtensionService",
+      "classification": "missing-symbol",
+      "candidateCount": 0,
+      "callableCandidateCount": 0,
+      "candidates": []
+    },
+    {
+      "token": "_createExtensionHostManager",
+      "classification": "missing-symbol",
+      "candidateCount": 0,
+      "callableCandidateCount": 0,
+      "candidates": []
+    },
+    {
+      "token": "_doCreateExtensionHostManager",
+      "classification": "missing-symbol",
+      "candidateCount": 0,
+      "callableCandidateCount": 0,
+      "candidates": []
+    },
+    {
+      "token": "ExtensionHostManager",
+      "classification": "missing-symbol",
+      "candidateCount": 0,
+      "callableCandidateCount": 0,
+      "candidates": []
+    },
+    {
+      "token": "start",
+      "classification": "ambiguous-symbol",
+      "candidateCount": 26,
+      "callableCandidateCount": 24,
+      "candidates": [
+        {
+          "id": "method:6cb12ff3717cb86493d7a9d7f27aa7cc",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "ElectronAgentHostStarter::start",
+          "filePath": "src/vs/platform/agentHost/electron-main/electronAgentHostStarter.ts",
+          "startLine": 55,
+          "language": "typescript",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:b1c28eb493cb482da94bb6b1eab74dcc",
+              "otherName": "start",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/extensions/electron-main/extensionHostStarter.ts",
+              "kind": "calls",
+              "line": 114,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:d866fb87d863d56ac8dcbced297169fd",
+              "otherName": "createUtilityProcess",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/sharedProcess/electron-main/sharedProcess.ts",
+              "kind": "calls",
+              "line": 171,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:7adec869189c8442fe21d282c31a2edb",
+              "otherName": "parseAgentHostDebugPort",
+              "otherKind": "function",
+              "otherFilePath": "src/vs/platform/environment/node/environmentService.ts",
+              "kind": "calls",
+              "line": 59,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:e86e124aaf902370fe86079f32f9ba5b",
+              "otherName": "_resolveShellEnv",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/electron-main/electronAgentHostStarter.ts",
+              "kind": "calls",
+              "line": 67,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:31a9449dadbed5ad7e22434938c8e0a8",
+              "otherName": "buildAgentSdkEnv",
+              "otherKind": "function",
+              "otherFilePath": "src/vs/platform/agentHost/common/agentService.ts",
+              "kind": "calls",
+              "line": 72,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 73,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 74,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 75,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 76,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 77,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:772caa04469e95884f7ae335269455cc",
+              "otherName": "buildAgentHostOTelEnv",
+              "otherKind": "function",
+              "otherFilePath": "src/vs/platform/agentHost/common/agentService.ts",
+              "kind": "calls",
+              "line": 83,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 84,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 85,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 86,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "method:312eb22e002c5d1b561176dbd59bdb5b",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "ClaudeProxyService::start",
+          "filePath": "src/vs/platform/agentHost/node/claude/claudeProxyService.ts",
+          "startLine": 148,
+          "language": "typescript",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:0d832b2ce790050d075a535ab9f8c71b",
+              "otherName": "_start",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/node/agentHostService.ts",
+              "kind": "calls",
+              "line": 57,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:3c8b705d905b7616a7030883f1331262",
+              "otherName": "authenticate",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/node/claude/claudeAgent.ts",
+              "kind": "calls",
+              "line": 288,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:src/vs/platform/agentHost/test/node/claudeAgent.integrationTest.ts",
+              "otherName": "claudeAgent.integrationTest.ts",
+              "otherKind": "file",
+              "otherFilePath": "src/vs/platform/agentHost/test/node/claudeAgent.integrationTest.ts",
+              "kind": "calls",
+              "line": 680,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "otherName": "claudeProxyService.test.ts",
+              "otherKind": "file",
+              "otherFilePath": "src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "kind": "calls",
+              "line": 342,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "otherName": "claudeProxyService.test.ts",
+              "otherKind": "file",
+              "otherFilePath": "src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "kind": "calls",
+              "line": 359,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "otherName": "claudeProxyService.test.ts",
+              "otherKind": "file",
+              "otherFilePath": "src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "kind": "calls",
+              "line": 360,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "otherName": "claudeProxyService.test.ts",
+              "otherKind": "file",
+              "otherFilePath": "src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "kind": "calls",
+              "line": 375,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "otherName": "claudeProxyService.test.ts",
+              "otherKind": "file",
+              "otherFilePath": "src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "kind": "calls",
+              "line": 380,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "otherName": "claudeProxyService.test.ts",
+              "otherKind": "file",
+              "otherFilePath": "src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "kind": "calls",
+              "line": 387,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "otherName": "claudeProxyService.test.ts",
+              "otherKind": "file",
+              "otherFilePath": "src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "kind": "calls",
+              "line": 388,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "otherName": "claudeProxyService.test.ts",
+              "otherKind": "file",
+              "otherFilePath": "src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "kind": "calls",
+              "line": 403,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "otherName": "claudeProxyService.test.ts",
+              "otherKind": "file",
+              "otherFilePath": "src/vs/platform/agentHost/test/node/claudeProxyService.test.ts",
+              "kind": "calls",
+              "line": 408,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:8a98699597e7401e0a3b5933f547f41b",
+              "otherName": "_ensureRuntime",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/node/claude/claudeProxyService.ts",
+              "kind": "calls",
+              "line": 153,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:919c7332229b59a5af7b6954778dbbef",
+              "otherName": "_releaseHandle",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/node/claude/claudeProxyService.ts",
+              "kind": "calls",
+              "line": 177,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:39b109b0cbb8aa5c7812614511423a95",
+              "otherName": "IClaudeProxyHandle",
+              "otherKind": "interface",
+              "otherFilePath": "src/vs/platform/agentHost/node/claude/claudeProxyService.ts",
+              "kind": "references",
+              "line": 148,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:39b109b0cbb8aa5c7812614511423a95",
+              "otherName": "IClaudeProxyHandle",
+              "otherKind": "interface",
+              "otherFilePath": "src/vs/platform/agentHost/node/claude/claudeProxyService.ts",
+              "kind": "references",
+              "line": 148,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:39b109b0cbb8aa5c7812614511423a95",
+              "otherName": "IClaudeProxyHandle",
+              "otherKind": "interface",
+              "otherFilePath": "src/vs/platform/agentHost/node/claude/claudeProxyService.ts",
+              "kind": "references",
+              "line": 169,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "method:e689ceff2c3a823b49edb219018cb265",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "CodexProxyService::start",
+          "filePath": "src/vs/platform/agentHost/node/codex/codexProxyService.ts",
+          "startLine": 153,
+          "language": "typescript",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:f617e66e9a8683d396081bdca890d9b4",
+              "otherName": "_startConnection",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/node/codex/codexAgent.ts",
+              "kind": "calls",
+              "line": 560,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:e3c8a4085236bc66fb6704de72550477",
+              "otherName": "_ensureRuntime",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/node/codex/codexProxyService.ts",
+              "kind": "calls",
+              "line": 157,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:c06f8505a605b52b31428fd556852043",
+              "otherName": "_releaseHandle",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/node/codex/codexProxyService.ts",
+              "kind": "calls",
+              "line": 183,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:38dceb274440e28c92de13d20819983b",
+              "otherName": "ICodexProxyHandle",
+              "otherKind": "interface",
+              "otherFilePath": "src/vs/platform/agentHost/node/codex/codexProxyService.ts",
+              "kind": "references",
+              "line": 153,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:38dceb274440e28c92de13d20819983b",
+              "otherName": "ICodexProxyHandle",
+              "otherKind": "interface",
+              "otherFilePath": "src/vs/platform/agentHost/node/codex/codexProxyService.ts",
+              "kind": "references",
+              "line": 153,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "property:62bff979c4872b24f2eee66af348e52e",
+          "kind": "property",
+          "name": "start",
+          "qualifiedName": "ByteRange::start",
+          "filePath": "src/vs/platform/agentHost/node/codex/protocol/generated/v2/ByteRange.ts",
+          "startLine": 9,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": []
+        },
+        {
+          "id": "property:412e4778d3631868de0f814cda5dd82b",
+          "kind": "property",
+          "name": "start",
+          "qualifiedName": "TextRange::start",
+          "filePath": "src/vs/platform/agentHost/node/codex/protocol/generated/v2/TextRange.ts",
+          "startLine": 11,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": []
+        },
+        {
+          "id": "method:6a80e27a7ff4bda36d0097d6533606d5",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "NodeAgentHostStarter::start",
+          "filePath": "src/vs/platform/agentHost/node/nodeAgentHostStarter.ts",
+          "startLine": 65,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:35932a17707a06fd222f4ffe709d9da7",
+              "otherName": "_resolveShellEnv",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/node/nodeAgentHostStarter.ts",
+              "kind": "calls",
+              "line": 68,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:31a9449dadbed5ad7e22434938c8e0a8",
+              "otherName": "buildAgentSdkEnv",
+              "otherKind": "function",
+              "otherFilePath": "src/vs/platform/agentHost/common/agentService.ts",
+              "kind": "calls",
+              "line": 80,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 81,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 82,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 83,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 84,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 85,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:772caa04469e95884f7ae335269455cc",
+              "otherName": "buildAgentHostOTelEnv",
+              "otherKind": "function",
+              "otherFilePath": "src/vs/platform/agentHost/common/agentService.ts",
+              "kind": "calls",
+              "line": 92,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 93,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 94,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 95,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:4a19d04ef9aa6196b036ed468621e27d",
+              "otherName": "getValue",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/test/electron-browser/remoteAgentHostService.test.ts",
+              "kind": "calls",
+              "line": 96,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "method:856734792b49032a880cf2762c1f88f8",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "FakeClaudeProxyService::start",
+          "filePath": "src/vs/platform/agentHost/test/node/claudeAgent.test.ts",
+          "startLine": 98,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:f32c5dee42491a82054d0f6388ea0e8d",
+              "otherName": "push",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/node/claude/claudePromptQueue.ts",
+              "kind": "calls",
+              "line": 99,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:39b109b0cbb8aa5c7812614511423a95",
+              "otherName": "IClaudeProxyHandle",
+              "otherKind": "interface",
+              "otherFilePath": "src/vs/platform/agentHost/node/claude/claudeProxyService.ts",
+              "kind": "references",
+              "line": 98,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:39b109b0cbb8aa5c7812614511423a95",
+              "otherName": "IClaudeProxyHandle",
+              "otherKind": "interface",
+              "otherFilePath": "src/vs/platform/agentHost/node/claude/claudeProxyService.ts",
+              "kind": "references",
+              "line": 98,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "method:ee96e9c6a263b5018890c0ffd329b649",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "RecordingProxyService::start",
+          "filePath": "src/vs/platform/agentHost/test/node/claudeAgent.test.ts",
+          "startLine": 3105,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:39b109b0cbb8aa5c7812614511423a95",
+              "otherName": "IClaudeProxyHandle",
+              "otherKind": "interface",
+              "otherFilePath": "src/vs/platform/agentHost/node/claude/claudeProxyService.ts",
+              "kind": "references",
+              "line": 3105,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:39b109b0cbb8aa5c7812614511423a95",
+              "otherName": "IClaudeProxyHandle",
+              "otherKind": "interface",
+              "otherFilePath": "src/vs/platform/agentHost/node/claude/claudeProxyService.ts",
+              "kind": "references",
+              "line": 3105,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "method:789b7f8734374520e80f9f49d0452cdc",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "TestCopilotClient::start",
+          "filePath": "src/vs/platform/agentHost/test/node/copilotAgent.test.ts",
+          "startLine": 215,
+          "language": "typescript",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:dc9c374b1d5acabbdec0c15a90296270",
+              "otherName": "_ensureClient",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/agentHost/node/copilot/copilotAgent.ts",
+              "kind": "calls",
+              "line": 637,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": []
+        },
+        {
+          "id": "method:8245b1fbac423bd562e8e6d64a5d6cf2",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "ElementPicker::start",
+          "filePath": "src/vs/platform/browserView/electron-browser/preload-browserView.ts",
+          "startLine": 389,
+          "language": "typescript",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "function:3545750694f7c95c43e2267937d8d1e8",
+              "otherName": "init",
+              "otherKind": "function",
+              "otherFilePath": "src/vs/platform/browserView/electron-browser/preload-browserView.ts",
+              "kind": "calls",
+              "line": 169,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:e61c0918f875b2d05bdf6615b4cd2905",
+              "otherName": "acquire",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/browserView/electron-main/browserSessionRemote.ts",
+              "kind": "calls",
+              "line": 145,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:59b77ed99175b8d25f21f78973bd30ec",
+              "otherName": "toggleElementSelection",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/browserView/electron-main/browserViewInspector.ts",
+              "kind": "calls",
+              "line": 292,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:3e5bd8ddbd9cb2753f16c156f9dfeeb2",
+              "otherName": "toggleAreaSelection",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/browserView/electron-main/browserViewInspector.ts",
+              "kind": "calls",
+              "line": 339,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": []
+        },
+        {
+          "id": "method:9d210a63790edfdc0082ebab3c1d1853",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "AreaPicker::start",
+          "filePath": "src/vs/platform/browserView/electron-browser/preload-browserView.ts",
+          "startLine": 821,
+          "language": "typescript",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "function:3545750694f7c95c43e2267937d8d1e8",
+              "otherName": "init",
+              "otherKind": "function",
+              "otherFilePath": "src/vs/platform/browserView/electron-browser/preload-browserView.ts",
+              "kind": "calls",
+              "line": 175,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:14a5ffc44ca3f0ca958e381620028a89",
+              "otherName": "setAttribute",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/quickinput/browser/quickInputBox.ts",
+              "kind": "calls",
+              "line": 832,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "method:686df1e90ddb5125cddeef62450b3de6",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "ExtensionsLifecycle::start",
+          "filePath": "src/vs/platform/extensionManagement/node/extensionLifecycle.ts",
+          "startLine": 103,
+          "language": "typescript",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:109f3b2a5e77f395d9c3c8a441799714",
+              "otherName": "runLifecycleHook",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/extensionManagement/node/extensionLifecycle.ts",
+              "kind": "calls",
+              "line": 67,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:b4435ad3718e7b03dfe56a288f769fd4",
+              "otherName": "onStdout",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/utilityProcess/electron-main/utilityProcess.ts",
+              "kind": "calls",
+              "line": 119,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:3c168c3254221d0f2b0e63b74f0eda38",
+              "otherName": "info",
+              "otherKind": "function",
+              "otherFilePath": "src/vs/platform/terminal/test/common/terminalTestHelpers.ts",
+              "kind": "calls",
+              "line": 119,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:8e17b9a5390f64b8d52efe10d857904b",
+              "otherName": "onStderr",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/utilityProcess/electron-main/utilityProcess.ts",
+              "kind": "calls",
+              "line": 120,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:dcb04322369826579a639932951dfc5a",
+              "otherName": "error",
+              "otherKind": "function",
+              "otherFilePath": "src/vs/platform/terminal/test/common/terminalTestHelpers.ts",
+              "kind": "calls",
+              "line": 120,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:6cc665f0975036d7d215c88dfbe25fe7",
+              "otherName": "ILocalExtension",
+              "otherKind": "interface",
+              "otherFilePath": "src/vs/platform/extensionManagement/common/extensionManagement.ts",
+              "kind": "references",
+              "line": 103,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "token": "ExtensionHostMain",
+      "classification": "missing-symbol",
+      "candidateCount": 0,
+      "callableCandidateCount": 0,
+      "candidates": []
+    },
+    {
+      "token": "MainThreadExtensionService",
+      "classification": "missing-symbol",
+      "candidateCount": 0,
+      "callableCandidateCount": 0,
+      "candidates": []
+    }
+  ]
+}

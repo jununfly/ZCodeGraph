@@ -1,0 +1,17 @@
+{
+  "vscode": [
+    {
+      "id": "VS-1",
+      "query": "AbstractExtensionService _createExtensionHostManager _doCreateExtensionHostManager ExtensionHostManager start ExtensionHostMain MainThreadExtensionService",
+      "expected": [
+        "AbstractExtensionService",
+        "_createExtensionHostManager",
+        "_doCreateExtensionHostManager",
+        "ExtensionHostManager",
+        "start",
+        "ExtensionHostMain",
+        "MainThreadExtensionService"
+      ]
+    }
+  ]
+}

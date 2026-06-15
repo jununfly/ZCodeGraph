@@ -1,0 +1,264 @@
+{
+  "generatedAt": "2026-06-13T16:19:23.276Z",
+  "toolchain": {
+    "node": "v22.21.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M5",
+    "cpuCount": 10,
+    "totalMemoryBytes": 17179869184
+  },
+  "rustCore": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/target/debug/zcodegraph-core",
+  "results": [
+    {
+      "name": "vscode-sparse",
+      "sourcePath": "/private/tmp/codegraph-corpus/vscode-sparse",
+      "commit": "275e1b31",
+      "profileSource": "docs/plans/2026-06-13-rust-indexing-core-phase-2-packaging-ci-performance.md#66",
+      "phase1CopiedFiles": 11518,
+      "tempProjectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-profile-vscode-sparse-rust-profile-ZOXPTW",
+      "engines": {
+        "typescript": {
+          "engine": "typescript",
+          "wallMs": 215267,
+          "peakRssBytes": null,
+          "rssUnavailableReason": "spawnSync ps EPERM"
+        },
+        "rust": {
+          "engine": "rust",
+          "wallMs": 237108,
+          "peakRssBytes": null,
+          "rssUnavailableReason": "spawnSync ps EPERM"
+        }
+      },
+      "wallMs": 234862,
+      "result": {
+        "success": true,
+        "filesIndexed": 11291,
+        "filesSkipped": 0,
+        "filesErrored": 46,
+        "nodesCreated": 557770,
+        "edgesCreated": 1648219,
+        "durationMs": 125927,
+        "errors": [
+          {
+            "message": "build/next/index.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/byok/vscode-node/test/geminiNativeProvider.spec.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/chatSessions/claude/vscode-node/test/claudeSlashCommandService.spec.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/chatSessions/copilotcli/node/test/copilotcliSession.spec.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/test/chatSessionMetadataStoreImpl.spec.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/test/lockFile.spec.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompt/node/intentDetector.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/agent/executionSubagentPrompt.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/agent/openai/gpt51CodexPrompt.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/agent/openai/gpt51Prompt.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/agent/openai/gpt52Prompt.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/agent/openai/gpt53CodexPrompt.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/agent/openai/gpt54Prompt.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/agent/openai/gpt55BasePrompt.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/agent/openai/gpt5Prompt.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/agent/test/copilotCLIPrompt.spec.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/agent/vscModelPrompts.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/base/copilotIdentity.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/panel/panelChatFixPrompt.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/panel/search.tsx: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/test/fixtures/5710.selection.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/test/fixtures/extHost.api.impl.selection.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/test/fixtures/extHost.api.impl.summarized.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/test/fixtures/strings.test-example.3.summarized.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/prompts/node/test/fixtures/vscode.proposed.chatParticipantAdditions.d.selection.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/typescriptContext/serverPlugin/fixtures/context/p1/source/f4.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/typescriptContext/serverPlugin/fixtures/context/p14/source/f2.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/extension/typescriptContext/serverPlugin/src/common/typescripts.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/src/platform/telemetry/common/telemetry.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/test/scenarios/test-cli/wkspc1/stringUtils.js: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/test/simulation/fixtures/fixing/typescript/eslint_comma_expected.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/test/simulation/fixtures/fixing/typescript/eslint_unexpected_token.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/copilot/test/simulation/fixtures/fixing/typescript/tsc_error_1128.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "extensions/vscode-colorize-perf-tests/test/colorize-fixtures/test-checker.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/code/electron-browser/workbench/workbench.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/platform/agentHost/node/claude/claudeSubagentSignals.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/platform/browserView/electron-browser/preload-browserView.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/platform/files/test/node/fixtures/resolver/examples/employee.js: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/platform/files/test/node/fixtures/resolver/other/deep/employee.js: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/platform/files/test/node/fixtures/service/deep/employee.js: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/platform/tunnel/test/node/tunnelProxy.test.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/sessions/electron-browser/sessions.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/workbench/contrib/chat/test/common/promptSyntax/hookSchema.test.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/workbench/contrib/issue/browser/issueFormService.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/workbench/contrib/terminal/test/browser/terminalProfileService.integrationTest.ts: parse error",
+            "severity": "error"
+          },
+          {
+            "message": "src/vs/workbench/services/search/test/node/fixtures/examples/employee.js: parse error",
+            "severity": "error"
+          }
+        ]
+      },
+      "profile": {
+        "sourceScanMs": 164,
+        "parseExtractionMs": 35475,
+        "sqliteWriteMs": 78590,
+        "typescriptFinalizationMs": 108891,
+        "subprocessStartupHandoffMs": 4
+      },
+      "finalizationSubphases": {
+        "frameworkPostExtractMs": 42,
+        "referenceResolutionMs": 99543,
+        "referenceResolutionBreakdown": {
+          "importResolutionMs": 10260,
+          "nameMatchingMs": 36808,
+          "frameworkMatchingMs": 1022,
+          "databaseAccessMs": 50614,
+          "otherResolutionMs": 431
+        },
+        "dynamicDispatchSynthesisMs": 8717,
+        "dbMaintenanceMs": 208
+      },
+      "referenceResolutionBreakdown": {
+        "importResolutionMs": 10260,
+        "nameMatchingMs": 36808,
+        "frameworkMatchingMs": 1022,
+        "databaseAccessMs": 50614,
+        "otherResolutionMs": 431
+      },
+      "dominantFinalizationSubphase": "referenceResolutionMs",
+      "dominantReferenceResolutionSubpath": "databaseAccessMs"
+    }
+  ]
+}

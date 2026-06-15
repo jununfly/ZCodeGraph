@@ -105,6 +105,7 @@ export interface MaintenanceAccessModel {
   clearUnresolvedReferences(): void;
   deleteResolvedReferences(fromNodeIds: string[]): void;
   deleteSpecificResolvedReferences(refs: UnresolvedReference[]): void;
+  deleteUnresolvedReferencesByRowIds(rowids: number[]): void;
 
   // Metadata
   setMetadata(key: string, value: string): void;
@@ -140,6 +141,7 @@ export interface ResolutionAccessModel {
 
   // Node lookups (subset of AgentAccessModel)
   getNodeById(id: string): Node | null;
+  getNodeKindsByIds(ids: readonly string[]): Map<string, NodeKind>;
   getNodesByFile(filePath: string): Node[];
   getNodesByName(name: string): Node[];
   getNodesByQualifiedNameExact(qname: string): Node[];

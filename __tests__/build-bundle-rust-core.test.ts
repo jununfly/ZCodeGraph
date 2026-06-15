@@ -4,8 +4,8 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-const root = path.resolve(__dirname, '..');
-const script = path.join(root, 'scripts', 'build-bundle.sh');
+const repoRoot = path.resolve(__dirname, '..');
+const buildBundleScript = path.join(repoRoot, 'scripts', 'build-bundle.sh');
 const nodePath = process.execPath;
 
 function tempDir(label: string): string {
@@ -16,6 +16,28 @@ function writeExecutable(file: string, body: string): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, body);
   fs.chmodSync(file, 0o755);
+}
+
+function createScriptRoot(work: string): string {
+  const root = path.join(work, 'repo');
+  fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
+  fs.copyFileSync(buildBundleScript, path.join(root, 'scripts', 'build-bundle.sh'));
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({
+    name: '@jununfly/zcodegraph',
+    version: '9.9.9-test',
+  }) + '\n');
+  fs.writeFileSync(path.join(root, 'package-lock.json'), JSON.stringify({
+    name: '@jununfly/zcodegraph',
+    version: '9.9.9-test',
+    lockfileVersion: 3,
+    packages: {
+      '': {
+        name: '@jununfly/zcodegraph',
+        version: '9.9.9-test',
+      },
+    },
+  }) + '\n');
+  return root;
 }
 
 function writeFakeTools(dir: string): string {
@@ -135,8 +157,10 @@ describe('build-bundle.sh Rust core packaging', () => {
   it('fails clearly when the target Rust core artifact is missing', () => {
     const work = tempDir('bundle-missing-rust-core');
     try {
+      const scriptRoot = createScriptRoot(work);
+      const script = path.join(scriptRoot, 'scripts', 'build-bundle.sh');
       const result = spawnSync('bash', [script, 'linux-x64', 'v99.0.0'], {
-        cwd: root,
+        cwd: scriptRoot,
         env: buildEnv(work, path.join(work, 'artifacts'), path.join(work, 'release')),
         encoding: 'utf8',
       });
@@ -152,6 +176,8 @@ describe('build-bundle.sh Rust core packaging', () => {
   it('packages the Unix launcher and Rust core and the extracted bundle can use both index engines', () => {
     const work = tempDir('bundle-unix-rust-core');
     try {
+      const scriptRoot = createScriptRoot(work);
+      const script = path.join(scriptRoot, 'scripts', 'build-bundle.sh');
       const artifacts = path.join(work, 'artifacts');
       const release = path.join(work, 'release');
       const core = path.join(artifacts, 'zcodegraph-core-linux-x64', 'zcodegraph-core');
@@ -164,10 +190,13 @@ exit 0
       );
 
       execFileSync('bash', [script, 'linux-x64', 'v99.0.0'], {
-        cwd: root,
+        cwd: scriptRoot,
         env: buildEnv(work, artifacts, release),
         stdio: 'pipe',
       });
+      expect(fs.readFileSync(path.join(repoRoot, 'dist', 'bin', 'zcodegraph.js'), 'utf8')).not.toContain(
+        'ZCODEGRAPH_FAKE_DEFAULT_MARKER',
+      );
 
       const archive = path.join(release, 'zcodegraph-linux-x64.tar.gz');
       const listing = execFileSync('tar', ['-tf', archive], { encoding: 'utf8' });
@@ -206,13 +235,15 @@ exit 0
   it('packages the Windows launcher and Rust core executable', () => {
     const work = tempDir('bundle-windows-rust-core');
     try {
+      const scriptRoot = createScriptRoot(work);
+      const script = path.join(scriptRoot, 'scripts', 'build-bundle.sh');
       const artifacts = path.join(work, 'artifacts');
       const release = path.join(work, 'release');
       const core = path.join(artifacts, 'zcodegraph-core-win32-x64', 'zcodegraph-core.exe');
       writeExecutable(core, 'fake exe');
 
       execFileSync('bash', [script, 'win32-x64', 'v99.0.0'], {
-        cwd: root,
+        cwd: scriptRoot,
         env: buildEnv(work, artifacts, release),
         stdio: 'pipe',
       });

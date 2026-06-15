@@ -682,6 +682,48 @@ export class CodeGraph {
     profile: {
       frameworkPostExtractMs: number;
       referenceResolutionMs: number;
+      referenceResolutionBreakdown: {
+        importResolutionMs: number;
+        nameMatchingMs: number;
+        frameworkMatchingMs: number;
+        databaseAccessMs: number;
+        cacheWarmupMs: number;
+        unresolvedReadMs: number;
+        candidateLookupMs: number;
+        sharedCandidateLookupMs: number;
+        candidateLookupCacheHitMs: number;
+        perReferenceDisambiguationMs: number;
+        rustMatcherMs: number;
+        rustMatcherStartupMs: number;
+        rustMatcherSerializationMs: number;
+        rustMatcherEligibleRefs: number;
+        rustMatcherHandledRefs: number;
+        rustMatcherFallbackRefs: number;
+        rustMatcherSemanticMismatchRefs: number;
+        rustMatcherSemanticMismatchSamples: Array<{
+          referenceName: string;
+          referenceKind: string;
+          filePath: string;
+          language: string;
+          rustTargetNodeId: string | null;
+          rustResolvedBy: string | null;
+          rustConfidence: number;
+          tsTargetNodeId: string | null;
+          tsResolvedBy: string | null;
+          tsConfidence: number | null;
+          reason: string;
+        }>;
+        rustMatcherFallbackReasons: Record<string, number>;
+        rustMatcherCandidateMaterializationMs: number;
+        rustMatcherSubprocessMs: number;
+        rustMatcherTsVerificationMs: number;
+        rustMatcherPayloadBytes: number;
+        rustMatcherUniqueCandidateFacts: number;
+        edgeMaterializationMs: number;
+        edgeWriteMs: number;
+        unresolvedCleanupMs: number;
+        otherResolutionMs: number;
+      };
       dynamicDispatchSynthesisMs: number;
       dbMaintenanceMs: number;
     };
@@ -698,6 +740,48 @@ export class CodeGraph {
         const profile = {
           frameworkPostExtractMs: 0,
           referenceResolutionMs: 0,
+          referenceResolutionBreakdown: {
+            importResolutionMs: 0,
+            nameMatchingMs: 0,
+            frameworkMatchingMs: 0,
+            databaseAccessMs: 0,
+            cacheWarmupMs: 0,
+            unresolvedReadMs: 0,
+            candidateLookupMs: 0,
+            sharedCandidateLookupMs: 0,
+            candidateLookupCacheHitMs: 0,
+            perReferenceDisambiguationMs: 0,
+            rustMatcherMs: 0,
+            rustMatcherStartupMs: 0,
+            rustMatcherSerializationMs: 0,
+            rustMatcherEligibleRefs: 0,
+            rustMatcherHandledRefs: 0,
+            rustMatcherFallbackRefs: 0,
+            rustMatcherSemanticMismatchRefs: 0,
+            rustMatcherSemanticMismatchSamples: [] as Array<{
+              referenceName: string;
+              referenceKind: string;
+              filePath: string;
+              language: string;
+              rustTargetNodeId: string | null;
+              rustResolvedBy: string | null;
+              rustConfidence: number;
+              tsTargetNodeId: string | null;
+              tsResolvedBy: string | null;
+              tsConfidence: number | null;
+              reason: string;
+            }>,
+            rustMatcherFallbackReasons: {},
+            rustMatcherCandidateMaterializationMs: 0,
+            rustMatcherSubprocessMs: 0,
+            rustMatcherTsVerificationMs: 0,
+            rustMatcherPayloadBytes: 0,
+            rustMatcherUniqueCandidateFacts: 0,
+            edgeMaterializationMs: 0,
+            edgeWriteMs: 0,
+            unresolvedCleanupMs: 0,
+            otherResolutionMs: 0,
+          },
           dynamicDispatchSynthesisMs: 0,
           dbMaintenanceMs: 0,
         };
@@ -709,13 +793,38 @@ export class CodeGraph {
         const resolutionStarted = Date.now();
         const resolution = await this.resolveReferencesBatched(onProgress);
         const resolutionTotalMs = Date.now() - resolutionStarted;
-        const synthesizedEdges = resolution.stats.byMethod['callback-synthesis'] ?? 0;
-        // The synthesizer currently executes inside the batched resolver. Until
-        // the resolver exposes nested timings, surface a conservative split:
-        // zero when no synthesized edges were emitted, otherwise mark the shared
-        // resolver window as the dynamic-dispatch cost so profiles still expose
-        // the dominant remaining risk instead of hiding it in one opaque total.
-        profile.dynamicDispatchSynthesisMs = synthesizedEdges > 0 ? resolutionTotalMs : 0;
+        const resolutionTimings = resolution.stats.timings;
+        profile.referenceResolutionBreakdown = {
+          importResolutionMs: resolutionTimings?.importResolutionMs ?? 0,
+          nameMatchingMs: resolutionTimings?.nameMatchingMs ?? 0,
+          frameworkMatchingMs: resolutionTimings?.frameworkMatchingMs ?? 0,
+          databaseAccessMs: resolutionTimings?.databaseAccessMs ?? 0,
+          cacheWarmupMs: resolutionTimings?.cacheWarmupMs ?? 0,
+          unresolvedReadMs: resolutionTimings?.unresolvedReadMs ?? 0,
+          candidateLookupMs: resolutionTimings?.candidateLookupMs ?? 0,
+          sharedCandidateLookupMs: resolutionTimings?.sharedCandidateLookupMs ?? 0,
+          candidateLookupCacheHitMs: resolutionTimings?.candidateLookupCacheHitMs ?? 0,
+          perReferenceDisambiguationMs: resolutionTimings?.perReferenceDisambiguationMs ?? 0,
+          rustMatcherMs: resolutionTimings?.rustMatcherMs ?? 0,
+          rustMatcherStartupMs: resolutionTimings?.rustMatcherStartupMs ?? 0,
+          rustMatcherSerializationMs: resolutionTimings?.rustMatcherSerializationMs ?? 0,
+          rustMatcherEligibleRefs: resolutionTimings?.rustMatcherEligibleRefs ?? 0,
+          rustMatcherHandledRefs: resolutionTimings?.rustMatcherHandledRefs ?? 0,
+          rustMatcherFallbackRefs: resolutionTimings?.rustMatcherFallbackRefs ?? 0,
+          rustMatcherSemanticMismatchRefs: resolutionTimings?.rustMatcherSemanticMismatchRefs ?? 0,
+          rustMatcherSemanticMismatchSamples: resolutionTimings?.rustMatcherSemanticMismatchSamples ?? [],
+          rustMatcherFallbackReasons: resolutionTimings?.rustMatcherFallbackReasons ?? {},
+          rustMatcherCandidateMaterializationMs: resolutionTimings?.rustMatcherCandidateMaterializationMs ?? 0,
+          rustMatcherSubprocessMs: resolutionTimings?.rustMatcherSubprocessMs ?? 0,
+          rustMatcherTsVerificationMs: resolutionTimings?.rustMatcherTsVerificationMs ?? 0,
+          rustMatcherPayloadBytes: resolutionTimings?.rustMatcherPayloadBytes ?? 0,
+          rustMatcherUniqueCandidateFacts: resolutionTimings?.rustMatcherUniqueCandidateFacts ?? 0,
+          edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
+          edgeWriteMs: resolutionTimings?.edgeWriteMs ?? 0,
+          unresolvedCleanupMs: resolutionTimings?.unresolvedCleanupMs ?? 0,
+          otherResolutionMs: resolutionTimings?.otherResolutionMs ?? 0,
+        };
+        profile.dynamicDispatchSynthesisMs = resolutionTimings?.dynamicDispatchSynthesisMs ?? 0;
         profile.referenceResolutionMs = Math.max(0, resolutionTotalMs - profile.dynamicDispatchSynthesisMs);
 
         const maintenanceStarted = Date.now();

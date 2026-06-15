@@ -45,10 +45,27 @@ function usage() {
     '  dynamicDispatchSynthesisMs',
     '  dbMaintenanceMs',
     '',
+    'Reference resolution breakdown:',
+    '  importResolutionMs',
+    '  nameMatchingMs',
+    '  frameworkMatchingMs',
+    '  databaseAccessMs',
+    '  cacheWarmupMs',
+    '  unresolvedReadMs',
+    '  candidateLookupMs',
+    '  sharedCandidateLookupMs',
+    '  candidateLookupCacheHitMs',
+    '  perReferenceDisambiguationMs',
+    '  edgeMaterializationMs',
+    '  edgeWriteMs',
+    '  unresolvedCleanupMs',
+    '  otherResolutionMs',
+    '',
     'Memory evidence:',
     '  engines.typescript.peakRssBytes',
     '  engines.rust.peakRssBytes',
     '  engines.<engine>.rssUnavailableReason',
+    '  RSS sampling may be unavailable when process-list access is sandboxed.',
   ].join('\n'));
 }
 
@@ -142,8 +159,8 @@ function baseEnv(rustCore) {
   };
 }
 
-function indexWithMeasuredCli(project, engine, rustCore) {
-  run(process.execPath, [distBin, 'init', project], project, baseEnv(rustCore));
+function indexWithMeasuredCli(project, engine, rustCore, CodeGraph) {
+  CodeGraph.initSync(project).close();
 
   const args = [
     distBin,
@@ -182,15 +199,21 @@ function sampleProcessTreeRssBytes(rootPid) {
   }
   const result = spawnSync('ps', ['-axo', 'pid=,ppid=,rss='], { encoding: 'utf-8' });
   if (result.error) {
+    const message = result.error instanceof Error ? result.error.message : String(result.error);
     return {
       peakRssBytes: null,
-      unavailableReason: result.error instanceof Error ? result.error.message : String(result.error),
+      unavailableReason: /EPERM|operation not permitted/i.test(message)
+        ? `RSS sampling unavailable: process-list access is sandboxed (${message})`
+        : message,
     };
   }
   if (result.status !== 0) {
+    const message = result.stderr?.trim() || '`ps -axo pid=,ppid=,rss=` failed';
     return {
       peakRssBytes: null,
-      unavailableReason: result.stderr?.trim() || '`ps -axo pid=,ppid=,rss=` failed',
+      unavailableReason: /EPERM|operation not permitted/i.test(message)
+        ? `RSS sampling unavailable: process-list access is sandboxed (${message})`
+        : message,
     };
   }
 
@@ -291,8 +314,8 @@ async function profileRepo(repo, rustCore, dist) {
 
   try {
     const engines = {
-      typescript: await indexWithMeasuredCli(typescriptSlice.path, 'typescript', rustCore),
-      rust: await indexWithMeasuredCli(measuredRustSlice.path, 'rust', rustCore),
+      typescript: await indexWithMeasuredCli(typescriptSlice.path, 'typescript', rustCore, dist.CodeGraph),
+      rust: await indexWithMeasuredCli(measuredRustSlice.path, 'rust', rustCore, dist.CodeGraph),
     };
 
     dist.CodeGraph.initSync(slice.path).close();
@@ -302,9 +325,34 @@ async function profileRepo(repo, rustCore, dist) {
     let finalizationSubphases = {
       frameworkPostExtractMs: 0,
       referenceResolutionMs: 0,
+      referenceResolutionBreakdown: {
+        importResolutionMs: 0,
+        nameMatchingMs: 0,
+        frameworkMatchingMs: 0,
+        databaseAccessMs: 0,
+        cacheWarmupMs: 0,
+        unresolvedReadMs: 0,
+        candidateLookupMs: 0,
+        sharedCandidateLookupMs: 0,
+        candidateLookupCacheHitMs: 0,
+        perReferenceDisambiguationMs: 0,
+        rustMatcherMs: 0,
+        rustMatcherStartupMs: 0,
+        rustMatcherSerializationMs: 0,
+        rustMatcherEligibleRefs: 0,
+        rustMatcherHandledRefs: 0,
+        rustMatcherFallbackRefs: 0,
+        rustMatcherSemanticMismatchRefs: 0,
+        rustMatcherFallbackReasons: {},
+        edgeMaterializationMs: 0,
+        edgeWriteMs: 0,
+        unresolvedCleanupMs: 0,
+        otherResolutionMs: 0,
+      },
       dynamicDispatchSynthesisMs: 0,
       dbMaintenanceMs: 0,
     };
+    let referenceResolutionBreakdown = finalizationSubphases.referenceResolutionBreakdown;
 
     if (rustResult.success && rustResult.filesIndexed > 0) {
       const finalizeStarted = Date.now();
@@ -314,6 +362,7 @@ async function profileRepo(repo, rustCore, dist) {
         rustResult.nodesCreated += finalized.nodesCreated;
         rustResult.edgesCreated += finalized.edgesCreated;
         finalizationSubphases = finalized.profile ?? finalizationSubphases;
+        referenceResolutionBreakdown = finalizationSubphases.referenceResolutionBreakdown ?? referenceResolutionBreakdown;
       } finally {
         cg.destroy();
       }
@@ -348,7 +397,9 @@ async function profileRepo(repo, rustCore, dist) {
       },
       profile,
       finalizationSubphases,
+      referenceResolutionBreakdown,
       dominantFinalizationSubphase: dominantSubphase(finalizationSubphases),
+      dominantReferenceResolutionSubpath: dominantSubphase(referenceResolutionBreakdown),
     };
   } finally {
     if (previousRustCore === undefined) {
@@ -360,7 +411,9 @@ async function profileRepo(repo, rustCore, dist) {
 }
 
 function dominantSubphase(subphases) {
-  return Object.entries(subphases).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'frameworkPostExtractMs';
+  return Object.entries(subphases)
+    .filter((entry) => entry[0].endsWith('Ms') && typeof entry[1] === 'number')
+    .sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'frameworkPostExtractMs';
 }
 
 async function main() {

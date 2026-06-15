@@ -1,0 +1,117 @@
+{
+  "generatedAt": "2026-06-14T10:28:47.011Z",
+  "toolchain": {
+    "node": "v26.0.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M5",
+    "cpuCount": 10,
+    "totalMemoryBytes": 17179869184
+  },
+  "rustCore": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/target/debug/zcodegraph-core",
+  "results": [
+    {
+      "name": "phase7-reduced",
+      "sourcePath": "/tmp/zcodegraph-phase7-reduced-wm072R",
+      "commit": null,
+      "profileSource": "docs/plans/2026-06-13-rust-indexing-core-phase-2-packaging-ci-performance.md#66",
+      "phase1CopiedFiles": 3,
+      "tempProjectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-profile-phase7-reduced-rust-profile-wR2ESj",
+      "engines": {
+        "typescript": {
+          "engine": "typescript",
+          "wallMs": 217,
+          "peakRssBytes": null,
+          "rssUnavailableReason": "RSS sampling unavailable: process-list access is sandboxed (spawnSync ps EPERM)"
+        },
+        "rust": {
+          "engine": "rust",
+          "wallMs": 107,
+          "peakRssBytes": null,
+          "rssUnavailableReason": "RSS sampling unavailable: process-list access is sandboxed (spawnSync ps EPERM)"
+        }
+      },
+      "wallMs": 19,
+      "result": {
+        "success": true,
+        "filesIndexed": 2,
+        "filesSkipped": 0,
+        "filesErrored": 0,
+        "nodesCreated": 10,
+        "edgesCreated": 15,
+        "durationMs": 5,
+        "errors": []
+      },
+      "profile": {
+        "sourceScanMs": 0,
+        "parseExtractionMs": 0,
+        "sqliteWriteMs": 3,
+        "typescriptFinalizationMs": 12,
+        "subprocessStartupHandoffMs": 1
+      },
+      "finalizationSubphases": {
+        "frameworkPostExtractMs": 0,
+        "referenceResolutionMs": 8,
+        "referenceResolutionBreakdown": {
+          "importResolutionMs": 0,
+          "nameMatchingMs": 1,
+          "frameworkMatchingMs": 0,
+          "databaseAccessMs": 2,
+          "cacheWarmupMs": 1,
+          "unresolvedReadMs": 0,
+          "candidateLookupMs": 0,
+          "sharedCandidateLookupMs": 0,
+          "candidateLookupCacheHitMs": 0,
+          "perReferenceDisambiguationMs": 1,
+          "rustMatcherMs": 3,
+          "rustMatcherStartupMs": 0,
+          "rustMatcherSerializationMs": 0,
+          "rustMatcherEligibleRefs": 12,
+          "rustMatcherHandledRefs": 7,
+          "rustMatcherFallbackRefs": 5,
+          "rustMatcherSemanticMismatchRefs": 0,
+          "rustMatcherFallbackReasons": {
+            "unresolved": 5
+          },
+          "edgeMaterializationMs": 0,
+          "edgeWriteMs": 1,
+          "unresolvedCleanupMs": 0,
+          "otherResolutionMs": 0
+        },
+        "dynamicDispatchSynthesisMs": 1,
+        "dbMaintenanceMs": 0
+      },
+      "referenceResolutionBreakdown": {
+        "importResolutionMs": 0,
+        "nameMatchingMs": 1,
+        "frameworkMatchingMs": 0,
+        "databaseAccessMs": 2,
+        "cacheWarmupMs": 1,
+        "unresolvedReadMs": 0,
+        "candidateLookupMs": 0,
+        "sharedCandidateLookupMs": 0,
+        "candidateLookupCacheHitMs": 0,
+        "perReferenceDisambiguationMs": 1,
+        "rustMatcherMs": 3,
+        "rustMatcherStartupMs": 0,
+        "rustMatcherSerializationMs": 0,
+        "rustMatcherEligibleRefs": 12,
+        "rustMatcherHandledRefs": 7,
+        "rustMatcherFallbackRefs": 5,
+        "rustMatcherSemanticMismatchRefs": 0,
+        "rustMatcherFallbackReasons": {
+          "unresolved": 5
+        },
+        "edgeMaterializationMs": 0,
+        "edgeWriteMs": 1,
+        "unresolvedCleanupMs": 0,
+        "otherResolutionMs": 0
+      },
+      "dominantFinalizationSubphase": "referenceResolutionMs",
+      "dominantReferenceResolutionSubpath": "rustMatcherMs"
+    }
+  ]
+}

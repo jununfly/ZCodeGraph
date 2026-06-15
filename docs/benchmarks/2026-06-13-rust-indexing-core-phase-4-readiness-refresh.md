@@ -12,11 +12,16 @@ failure safety, diagnostics, and default TypeScript safety.
 
 This refresh does not make Rust the default engine.
 
-## Raw Artifacts
+## Raw Artifacts And Durability
 
-- Package smoke: `/tmp/zcodegraph-rust-phase4-readiness/package-smoke/summary.json`
+- Package smoke: `/tmp/zcodegraph-rust-phase4-readiness/package-smoke/summary.json` (local-only provenance)
 - Failure-safety matrix:
-  `/tmp/zcodegraph-rust-phase4-readiness/failure-safety-matrix/summary.json`
+  `/tmp/zcodegraph-rust-phase4-readiness/failure-safety-matrix/summary.json` (local-only provenance)
+
+The `/tmp` raw artifact paths record where the original local runs wrote their
+machine-readable outputs. They may not exist outside that machine or after
+cleanup. This checked-in document is the durable source of truth for the Phase 4
+readiness refresh summary when those local-only raw artifacts are unavailable.
 
 ## Package Smoke
 

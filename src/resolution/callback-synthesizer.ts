@@ -21,7 +21,7 @@
  * need receiver-type matching, deferred to Phase 3). All synthesized edges are
  * tagged `edgeOrigin:'heuristic'`. See docs/design/callback-edge-synthesis.md.
  */
-import type { Edge, Node, NodeKind } from '../types';
+import type { Edge, Language, Node, NodeKind } from '../types';
 import type { QueryBuilder } from '../db/queries';
 import type { ResolutionContext } from './types';
 import { isGeneratedFile } from '../extraction/generated-detection';
@@ -31,6 +31,24 @@ const REGISTRAR_NAME = /^(on[A-Z]\w*|subscribe|addListener|addEventListener|regi
 const DISPATCHER_NAME = /(emit|trigger|notify|dispatch|fire|publish|flush)/i;
 const MAX_CALLBACKS_PER_CHANNEL = 40;
 const EVENT_FANOUT_CAP = 6; // skip events with more handlers/dispatchers than this (too generic without type info)
+const JS_LIKE_LANGUAGES: Language[] = ['javascript', 'typescript', 'jsx', 'tsx'];
+
+function projectLanguages(queries: QueryBuilder): Set<Language> | null {
+  try {
+    const stats = queries.getStats();
+    const languages = Object.keys(stats.filesByLanguage ?? {}) as Language[];
+    return languages.length > 0 ? new Set(languages) : null;
+  } catch {
+    // Older tests/mocks or external callers may not provide stats. Preserve the
+    // historical behavior in that case and run every synthesizer.
+    return null;
+  }
+}
+
+function shouldRunForLanguage(projectLangs: Set<Language> | null, languages: Language[]): boolean {
+  if (projectLangs == null || languages.length === 0) return true;
+  return languages.some((language) => projectLangs.has(language));
+}
 
 const ON_RE = /\.(?:on|once|addListener)\(\s*['"]([^'"]+)['"]\s*,\s*(?:function\s+(\w+)|(?:this\.)?(\w+))/g;
 const EMIT_RE = /\.(?:emit|fire|dispatchEvent)\(\s*['"]([^'"]+)['"]/g;
@@ -1660,40 +1678,43 @@ export function svelteKitLoadEdges(ctx: ResolutionContext): Edge[] {
  * Returns the count added. Never throws into indexing — callers wrap in try/catch.
  */
 export function synthesizeCallbackEdges(queries: QueryBuilder, ctx: ResolutionContext): number {
+  const languages = projectLanguages(queries);
   // Cross-file Go method→type `contains` edges must be synthesized AND persisted
   // FIRST: a method declared in a different file from its receiver type is
   // otherwise orphaned from the struct, and goImplementsEdges (next) derives a
   // struct's method set from its `contains` edges — so without this it would
   // under-count the interfaces a cross-file struct satisfies. (#583)
-  const goMethodContains = goCrossFileMethodContainsEdges(queries);
+  const goMethodContains = shouldRunForLanguage(languages, ['go']) ? goCrossFileMethodContainsEdges(queries) : [];
   if (goMethodContains.length > 0) queries.insertEdges(goMethodContains);
 
   // Go implicit `implements` edges must be synthesized AND persisted next: the
   // interface-dispatch bridge below reads `implements` edges from the DB, and
   // Go has none statically. (Other languages already have static implements
   // edges from extraction, so they don't need this pre-pass.)
-  const goImpl = goImplementsEdges(queries);
+  const goImpl = shouldRunForLanguage(languages, ['go']) ? goImplementsEdges(queries) : [];
   if (goImpl.length > 0) queries.insertEdges(goImpl);
 
   const fieldEdges = fieldChannelEdges(queries, ctx);
   const closureCollEdges = closureCollectionEdges(queries, ctx);
-  const emitterEdges = eventEmitterEdges(ctx);
-  const renderEdges = reactRenderEdges(queries, ctx);
-  const jsxEdges = reactJsxChildEdges(ctx);
-  const vueEdges = vueTemplateEdges(ctx);
-  const svelteKitEdges = svelteKitLoadEdges(ctx);
-  const pascalEdges = pascalFormEdges(ctx);
-  const flutterEdges = flutterBuildEdges(queries, ctx);
-  const cppEdges = cppOverrideEdges(queries);
-  const ifaceEdges = interfaceOverrideEdges(queries);
-  const kotlinExpectActual = kotlinExpectActualEdges(queries);
-  const goGrpcEdges = goGrpcStubImplEdges(queries);
-  const rnEventEdgesList = rnEventEdges(ctx);
-  const fabricNativeEdges = fabricNativeImplEdges(ctx);
-  const expoXPlatEdges = expoCrossPlatformEdges(queries);
-  const rnXPlatEdges = rnCrossPlatformEdges(queries);
-  const mybatisEdges = mybatisJavaXmlEdges(queries);
-  const ginEdges = ginMiddlewareChainEdges(queries, ctx);
+  const emitterEdges = shouldRunForLanguage(languages, JS_LIKE_LANGUAGES) ? eventEmitterEdges(ctx) : [];
+  const renderEdges = shouldRunForLanguage(languages, JS_LIKE_LANGUAGES) ? reactRenderEdges(queries, ctx) : [];
+  const jsxEdges = shouldRunForLanguage(languages, JS_LIKE_LANGUAGES) ? reactJsxChildEdges(ctx) : [];
+  const vueEdges = shouldRunForLanguage(languages, [...JS_LIKE_LANGUAGES, 'vue']) ? vueTemplateEdges(ctx) : [];
+  const svelteKitEdges = shouldRunForLanguage(languages, [...JS_LIKE_LANGUAGES, 'svelte']) ? svelteKitLoadEdges(ctx) : [];
+  const pascalEdges = shouldRunForLanguage(languages, ['pascal']) ? pascalFormEdges(ctx) : [];
+  const flutterEdges = shouldRunForLanguage(languages, ['dart']) ? flutterBuildEdges(queries, ctx) : [];
+  const cppEdges = shouldRunForLanguage(languages, ['cpp']) ? cppOverrideEdges(queries) : [];
+  const ifaceEdges = shouldRunForLanguage(languages, ['java', 'kotlin', 'csharp', ...JS_LIKE_LANGUAGES, 'swift', 'scala', 'go', 'rust'])
+    ? interfaceOverrideEdges(queries)
+    : [];
+  const kotlinExpectActual = shouldRunForLanguage(languages, ['kotlin']) ? kotlinExpectActualEdges(queries) : [];
+  const goGrpcEdges = shouldRunForLanguage(languages, ['go']) ? goGrpcStubImplEdges(queries) : [];
+  const rnEventEdgesList = shouldRunForLanguage(languages, ['objc', 'java', 'kotlin', 'swift']) ? rnEventEdges(ctx) : [];
+  const fabricNativeEdges = shouldRunForLanguage(languages, ['objc', 'java', 'kotlin', 'swift']) ? fabricNativeImplEdges(ctx) : [];
+  const expoXPlatEdges = shouldRunForLanguage(languages, ['swift', 'kotlin', 'java']) ? expoCrossPlatformEdges(queries) : [];
+  const rnXPlatEdges = shouldRunForLanguage(languages, ['objc', 'java', 'kotlin', 'swift']) ? rnCrossPlatformEdges(queries) : [];
+  const mybatisEdges = shouldRunForLanguage(languages, ['java', 'xml']) ? mybatisJavaXmlEdges(queries) : [];
+  const ginEdges = shouldRunForLanguage(languages, ['go']) ? ginMiddlewareChainEdges(queries, ctx) : [];
 
   const merged: Edge[] = [];
   const seen = new Set<string>();

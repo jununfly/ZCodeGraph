@@ -49,6 +49,26 @@ function cleanupTempDb(dir: string, db: DatabaseConnection): void {
   if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
 }
 
+function testNode(id: string) {
+  return {
+    id,
+    kind: 'function' as const,
+    name: id,
+    qualifiedName: id,
+    filePath: 'a.ts',
+    language: 'typescript' as const,
+    startLine: 1,
+    endLine: 1,
+    startColumn: 0,
+    endColumn: 1,
+    isExported: false,
+    isAsync: false,
+    isStatic: false,
+    isAbstract: false,
+    updatedAt: Date.now(),
+  };
+}
+
 // ============================================================
 // TB1a: AgentAccessModel contract
 // ============================================================
@@ -148,6 +168,7 @@ describe('MaintenanceAccessModel interface', () => {
     expect(typeof model.clearUnresolvedReferences).toBe('function');
     expect(typeof model.deleteResolvedReferences).toBe('function');
     expect(typeof model.deleteSpecificResolvedReferences).toBe('function');
+    expect(typeof model.deleteUnresolvedReferencesByRowIds).toBe('function');
     expect(typeof model.setMetadata).toBe('function');
     expect(typeof model.clear).toBe('function');
   });
@@ -180,6 +201,137 @@ describe('MaintenanceAccessModel interface', () => {
     expect(node).not.toBeNull();
     expect(node!.name).toBe('hello');
     expect(node!.kind).toBe('function');
+  });
+
+  it('deletes only exact unresolved-reference identity matches', () => {
+    const model: MaintenanceAccessModel & ResolutionAccessModel = qb;
+    model.insertNode(testNode('node-a'));
+    model.insertUnresolvedRefsBatch([
+      {
+        fromNodeId: 'node-a',
+        referenceName: 'target',
+        referenceKind: 'calls',
+        line: 1,
+        column: 1,
+        filePath: 'a.ts',
+        language: 'typescript',
+      },
+      {
+        fromNodeId: 'node-a',
+        referenceName: 'target',
+        referenceKind: 'references',
+        line: 2,
+        column: 1,
+        filePath: 'a.ts',
+        language: 'typescript',
+      },
+      {
+        fromNodeId: 'node-a',
+        referenceName: 'other',
+        referenceKind: 'calls',
+        line: 3,
+        column: 1,
+        filePath: 'a.ts',
+        language: 'typescript',
+      },
+    ]);
+
+    model.deleteSpecificResolvedReferences([
+      {
+        fromNodeId: 'node-a',
+        referenceName: 'target',
+        referenceKind: 'calls',
+        line: 1,
+        column: 1,
+        filePath: 'a.ts',
+        language: 'typescript',
+      },
+    ]);
+
+    expect(
+      model
+        .getUnresolvedReferences()
+        .map((ref) => `${ref.fromNodeId}:${ref.referenceName}:${ref.referenceKind}`)
+        .sort(),
+    ).toEqual(['node-a:other:calls', 'node-a:target:references']);
+  });
+
+  it('deletes unresolved-reference identities across more than one SQL parameter chunk', () => {
+    const model: MaintenanceAccessModel & ResolutionAccessModel = qb;
+    const targetRefs = Array.from({ length: 180 }, (_, index) => ({
+      fromNodeId: `node-${index}`,
+      referenceName: `target-${index}`,
+      referenceKind: 'calls' as const,
+      line: index + 1,
+      column: 1,
+      filePath: 'a.ts',
+      language: 'typescript' as const,
+    }));
+    model.insertNodes([...targetRefs.map((ref) => testNode(ref.fromNodeId)), testNode('keep-node')]);
+    const keepRef = {
+      fromNodeId: 'keep-node',
+      referenceName: 'keep',
+      referenceKind: 'calls' as const,
+      line: 999,
+      column: 1,
+      filePath: 'a.ts',
+      language: 'typescript' as const,
+    };
+    model.insertUnresolvedRefsBatch([...targetRefs, keepRef]);
+
+    model.deleteSpecificResolvedReferences(targetRefs);
+
+    expect(model.getUnresolvedReferences()).toMatchObject([keepRef]);
+  });
+
+  it('reads unresolved-reference row ids and deletes only those rows by row id', () => {
+    const model: MaintenanceAccessModel & ResolutionAccessModel = qb;
+    model.insertNode(testNode('node-a'));
+    model.insertUnresolvedRefsBatch([
+      {
+        fromNodeId: 'node-a',
+        referenceName: 'target',
+        referenceKind: 'calls',
+        line: 1,
+        column: 1,
+        filePath: 'a.ts',
+        language: 'typescript',
+      },
+      {
+        fromNodeId: 'node-a',
+        referenceName: 'target',
+        referenceKind: 'calls',
+        line: 2,
+        column: 1,
+        filePath: 'a.ts',
+        language: 'typescript',
+      },
+      {
+        fromNodeId: 'node-a',
+        referenceName: 'target',
+        referenceKind: 'references',
+        line: 3,
+        column: 1,
+        filePath: 'a.ts',
+        language: 'typescript',
+      },
+    ]);
+
+    const batch = model.getUnresolvedReferencesBatch(0, 3);
+    expect(batch.map((ref) => ref.rowid)).toHaveLength(3);
+    expect(batch.every((ref) => typeof ref.rowid === 'number')).toBe(true);
+
+    model.deleteUnresolvedReferencesByRowIds([batch[0]!.rowid!, batch[2]!.rowid!]);
+
+    expect(model.getUnresolvedReferences()).toMatchObject([
+      {
+        fromNodeId: 'node-a',
+        referenceName: 'target',
+        referenceKind: 'calls',
+        line: 2,
+        column: 1,
+      },
+    ]);
   });
 });
 
@@ -214,6 +366,7 @@ describe('ResolutionAccessModel interface', () => {
     expect(typeof model.getAllFilePaths).toBe('function');
     expect(typeof model.getAllNodeNames).toBe('function');
     expect(typeof model.getNodeById).toBe('function');
+    expect(typeof model.getNodeKindsByIds).toBe('function');
     expect(typeof model.getNodesByFile).toBe('function');
     expect(typeof model.getNodesByName).toBe('function');
     expect(typeof model.getNodesByQualifiedNameExact).toBe('function');

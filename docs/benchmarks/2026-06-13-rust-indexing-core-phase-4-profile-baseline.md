@@ -10,9 +10,14 @@ Phase 4 profiling now records comparable TypeScript and Rust wall-clock/RSS
 evidence plus Rust-path finalization subphases. This baseline is the input for
 the Phase 4 data-driven optimization trial.
 
-Raw artifact:
+## Raw Artifacts And Durability
 
-- `/tmp/zcodegraph-rust-phase4-profile-baseline.json`
+- `/tmp/zcodegraph-rust-phase4-profile-baseline.json` (local-only provenance)
+
+The `/tmp` raw artifact path records where the original local run wrote its
+machine-readable output. It may not exist outside that machine or after cleanup.
+This checked-in document is the durable source of truth for the Phase 4 profile
+baseline summary when the local-only raw artifact is unavailable.
 
 Generated at: `2026-06-13T13:09:24.779Z`
 

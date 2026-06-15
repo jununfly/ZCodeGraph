@@ -273,6 +273,9 @@ export interface ExtractionError {
  * A reference that couldn't be resolved during extraction
  */
 export interface UnresolvedReference {
+  /** Internal SQLite row identity, present only for database-backed batch reads */
+  rowid?: number;
+
   /** ID of the node containing the reference */
   fromNodeId: string;
 

@@ -24,6 +24,23 @@ const FINALIZATION_SUBPHASES = [
   'dbMaintenanceMs',
 ];
 
+const REFERENCE_RESOLUTION_BREAKDOWN = [
+  'importResolutionMs',
+  'nameMatchingMs',
+  'frameworkMatchingMs',
+  'databaseAccessMs',
+  'cacheWarmupMs',
+  'unresolvedReadMs',
+  'candidateLookupMs',
+  'sharedCandidateLookupMs',
+  'candidateLookupCacheHitMs',
+  'perReferenceDisambiguationMs',
+  'edgeMaterializationMs',
+  'edgeWriteMs',
+  'unresolvedCleanupMs',
+  'otherResolutionMs',
+];
+
 function writeFakeRustCore(dir: string): string {
   const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-core.cjs' : 'fake-rust-core');
   fs.writeFileSync(
@@ -78,10 +95,14 @@ describe('Rust indexing profiler script', () => {
     expect(result.stdout).toContain('npm run build && cargo build --package zcodegraph-core');
     expect(result.stdout).toContain('--repo zcodegraph=.');
     expect(result.stdout).toContain('--repo excalidraw=');
+    expect(result.stdout).toContain('RSS sampling may be unavailable when process-list access is sandboxed');
     for (const phase of PHASE_NAMES) {
       expect(result.stdout).toContain(phase);
     }
     for (const phase of FINALIZATION_SUBPHASES) {
+      expect(result.stdout).toContain(phase);
+    }
+    for (const phase of REFERENCE_RESOLUTION_BREAKDOWN) {
       expect(result.stdout).toContain(phase);
     }
   });
@@ -133,6 +154,7 @@ describe('Rust indexing profiler script', () => {
         };
         profile: Record<string, number>;
         finalizationSubphases: Record<string, number>;
+        referenceResolutionBreakdown: Record<string, number>;
         dominantFinalizationSubphase: string;
       }>;
     };
@@ -163,6 +185,10 @@ describe('Rust indexing profiler script', () => {
     for (const phase of FINALIZATION_SUBPHASES) {
       expect(parsed.results[0]?.finalizationSubphases[phase]).toBeTypeOf('number');
       expect(parsed.results[0]?.finalizationSubphases[phase]).toBeGreaterThanOrEqual(0);
+    }
+    for (const phase of REFERENCE_RESOLUTION_BREAKDOWN) {
+      expect(parsed.results[0]?.referenceResolutionBreakdown[phase]).toBeTypeOf('number');
+      expect(parsed.results[0]?.referenceResolutionBreakdown[phase]).toBeGreaterThanOrEqual(0);
     }
     expect(FINALIZATION_SUBPHASES).toContain(parsed.results[0]?.dominantFinalizationSubphase);
   });

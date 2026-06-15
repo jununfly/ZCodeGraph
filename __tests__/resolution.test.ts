@@ -17,6 +17,7 @@ import type { UnresolvedRef } from '../src/resolution/types';
 import { detectFrameworks, getAllFrameworkResolvers } from '../src/resolution/frameworks';
 import { QueryBuilder } from '../src/db/queries';
 import { DatabaseConnection } from '../src/db';
+import type { ResolvedRef } from '../src/resolution/types';
 
 describe('Resolution Module', () => {
   let tempDir: string;
@@ -34,6 +35,81 @@ describe('Resolution Module', () => {
     } else if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true });
     }
+  });
+
+  describe('ReferenceResolver edge materialization', () => {
+    it('promotes edge kinds from batched node-kind lookups without per-edge node reads', () => {
+      const queries = {
+        getNodeKindsByIds: (ids: readonly string[]) => {
+          expect([...ids].sort()).toEqual([
+            'class:Service',
+            'class:Source',
+            'interface:Contract',
+            'missing:Target',
+          ]);
+          return new Map([
+            ['class:Source', 'class'],
+            ['interface:Contract', 'interface'],
+            ['function:build', 'function'],
+            ['class:Service', 'class'],
+          ]);
+        },
+        getNodeById: () => {
+          throw new Error('createEdges should use batched node-kind lookup');
+        },
+      };
+      const resolver = new ReferenceResolver(tempDir, queries as unknown as QueryBuilder);
+      const resolved: ResolvedRef[] = [
+        {
+          original: {
+            fromNodeId: 'class:Source',
+            referenceName: 'Contract',
+            referenceKind: 'extends',
+            line: 1,
+            column: 1,
+            filePath: 'source.ts',
+            language: 'typescript',
+          },
+          targetNodeId: 'interface:Contract',
+          confidence: 1,
+          resolvedBy: 'exact-match',
+        },
+        {
+          original: {
+            fromNodeId: 'function:build',
+            referenceName: 'Service',
+            referenceKind: 'calls',
+            line: 2,
+            column: 1,
+            filePath: 'source.ts',
+            language: 'typescript',
+          },
+          targetNodeId: 'class:Service',
+          confidence: 1,
+          resolvedBy: 'exact-match',
+        },
+        {
+          original: {
+            fromNodeId: 'class:Source',
+            referenceName: 'Missing',
+            referenceKind: 'extends',
+            line: 3,
+            column: 1,
+            filePath: 'source.ts',
+            language: 'typescript',
+          },
+          targetNodeId: 'missing:Target',
+          confidence: 1,
+          resolvedBy: 'exact-match',
+        },
+      ];
+
+      expect(resolver.createEdges(resolved).map((edge) => edge.kind)).toEqual([
+        'implements',
+        'instantiates',
+        'extends',
+      ]);
+    });
   });
 
   describe('Name Matcher', () => {

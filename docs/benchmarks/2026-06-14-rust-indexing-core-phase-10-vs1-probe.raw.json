@@ -1,0 +1,1271 @@
+{
+  "generatedAt": "2026-06-14T15:26:36.231Z",
+  "repo": {
+    "path": "/private/tmp/codegraph-corpus/vscode-sparse",
+    "commit": "275e1b31"
+  },
+  "query": "AbstractExtensionService _createExtensionHostManager _doCreateExtensionHostManager ExtensionHostManager start ExtensionHostMain MainThreadExtensionService",
+  "tokens": [
+    "AbstractExtensionService",
+    "_createExtensionHostManager",
+    "_doCreateExtensionHostManager",
+    "ExtensionHostManager",
+    "start",
+    "ExtensionHostMain",
+    "MainThreadExtensionService"
+  ],
+  "explore": {
+    "outputChars": 21857,
+    "hasFlowSection": true,
+    "flowConnected": true
+  },
+  "summary": {
+    "primaryClassification": "ambiguous-symbol",
+    "taxonomy": [
+      "missing-symbol",
+      "ambiguous-symbol",
+      "missing-static-edge",
+      "missing-synthesized-edge",
+      "explore-planner-pathfinding-gap",
+      "expected-runtime-boundary"
+    ]
+  },
+  "classifications": [
+    {
+      "token": "AbstractExtensionService",
+      "classification": "expected-runtime-boundary",
+      "candidateCount": 1,
+      "callableCandidateCount": 0,
+      "candidates": [
+        {
+          "id": "class:5614800952da674403f4da9c2457be5d",
+          "kind": "class",
+          "name": "AbstractExtensionService",
+          "qualifiedName": "AbstractExtensionService",
+          "filePath": "src/vs/workbench/services/extensions/common/abstractExtensionService.ts",
+          "startLine": 60,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": []
+        }
+      ]
+    },
+    {
+      "token": "_createExtensionHostManager",
+      "classification": "expected-runtime-boundary",
+      "candidateCount": 1,
+      "callableCandidateCount": 1,
+      "candidates": [
+        {
+          "id": "method:4e7c5f7b23e454b3fa9635eabffe16df",
+          "kind": "method",
+          "name": "_createExtensionHostManager",
+          "qualifiedName": "AbstractExtensionService::_createExtensionHostManager",
+          "filePath": "src/vs/workbench/services/extensions/common/abstractExtensionService.ts",
+          "startLine": 842,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": []
+        }
+      ]
+    },
+    {
+      "token": "_doCreateExtensionHostManager",
+      "classification": "expected-runtime-boundary",
+      "candidateCount": 2,
+      "callableCandidateCount": 2,
+      "candidates": [
+        {
+          "id": "method:75c6a9f14fbd9ad890eb4e443a6d3385",
+          "kind": "method",
+          "name": "_doCreateExtensionHostManager",
+          "qualifiedName": "AbstractExtensionService::_doCreateExtensionHostManager",
+          "filePath": "src/vs/workbench/services/extensions/common/abstractExtensionService.ts",
+          "startLine": 864,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": []
+        },
+        {
+          "id": "method:df429fc1cbac2b11eca3b2ffadce235d",
+          "kind": "method",
+          "name": "_doCreateExtensionHostManager",
+          "qualifiedName": "MyTestExtensionService::_doCreateExtensionHostManager",
+          "filePath": "src/vs/workbench/services/extensions/test/browser/extensionService.test.ts",
+          "startLine": 200,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": []
+        }
+      ]
+    },
+    {
+      "token": "ExtensionHostManager",
+      "classification": "expected-runtime-boundary",
+      "candidateCount": 1,
+      "callableCandidateCount": 0,
+      "candidates": [
+        {
+          "id": "class:aa28f1d35cafbd522cede21158da963a",
+          "kind": "class",
+          "name": "ExtensionHostManager",
+          "qualifiedName": "ExtensionHostManager",
+          "filePath": "src/vs/workbench/services/extensions/common/extensionHostManager.ts",
+          "startLine": 58,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": []
+        }
+      ]
+    },
+    {
+      "token": "start",
+      "classification": "ambiguous-symbol",
+      "candidateCount": 138,
+      "callableCandidateCount": 126,
+      "candidates": [
+        {
+          "id": "method:7b404b2424ad94975e97941e0a3a33c7",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "activate::Runs::start",
+          "filePath": "extensions/copilot/.vscode/extensions/test-extension/main.ts",
+          "startLine": 131,
+          "language": "typescript",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "function:e4e6242f8787008c305f86ced2cee776",
+              "otherName": "activate",
+              "otherKind": "function",
+              "otherFilePath": "extensions/copilot/.vscode/extensions/test-extension/main.ts",
+              "kind": "calls",
+              "line": 175,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": []
+        },
+        {
+          "id": "method:5d5c5aedd9fafb9d24d2129ec296cfda",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "LanguageModelServer::start",
+          "filePath": "extensions/copilot/src/extension/agents/node/langModelServer.ts",
+          "startLine": 323,
+          "language": "typescript",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:b340f016ad0e753bb4af89c05a531001",
+              "otherName": "provideModelProxy",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/externalAgents/node/modelProxyProvider.ts",
+              "kind": "calls",
+              "line": 19,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "function:ee1838a97dd37d3a37ee85f02ebc4bae",
+              "otherName": "startFakeTelemetryServerIfNecessary",
+              "otherKind": "function",
+              "otherFilePath": "extensions/copilot/src/platform/test/node/telemetryFake.ts",
+              "kind": "calls",
+              "line": 74,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:78981ced116538f63df3ce1009d4a149",
+              "otherName": "trigger",
+              "otherKind": "method",
+              "otherFilePath": "extensions/github-authentication/src/flows.ts",
+              "kind": "calls",
+              "line": 358,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:extensions/github-authentication/src/test/node/authServer.test.ts",
+              "otherName": "authServer.test.ts",
+              "otherKind": "file",
+              "otherFilePath": "extensions/github-authentication/src/test/node/authServer.test.ts",
+              "kind": "calls",
+              "line": 16,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:extensions/github-authentication/src/test/node/authServer.test.ts",
+              "otherName": "authServer.test.ts",
+              "otherKind": "file",
+              "otherFilePath": "extensions/github-authentication/src/test/node/authServer.test.ts",
+              "kind": "calls",
+              "line": 74,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:d5e27e6d07b86aae25932231ff2aa943",
+              "otherName": "listen",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/snippy/connectionState.ts",
+              "kind": "calls",
+              "line": 325,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:ab8b97e9a4162d72efdf6a568006a057",
+              "otherName": "address",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/test/simulation/fixtures/doc/issue-6406/debugModel.ts",
+              "kind": "calls",
+              "line": 326,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:b6fc63bc54ee7c9fed94ebf12de13232",
+              "otherName": "trace",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chat/vscode-node/test/chatDebugFileLoggerService.spec.ts",
+              "kind": "calls",
+              "line": 332,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:b060392463bb0c8f89c503a292145620",
+              "otherName": "resolve",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessionContext/vscode-node/chatSessionContextProvider.ts",
+              "kind": "calls",
+              "line": 333,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "method:c6e06c449351c35f657a71c92550d8bf",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "MockLanguageModelServer::start",
+          "filePath": "extensions/copilot/src/extension/agents/node/test/mockLanguageModelServer.ts",
+          "startLine": 15,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": []
+        },
+        {
+          "id": "method:1fc45442df97184181c9f455a534d924",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "ClaudeLanguageModelServer::start",
+          "filePath": "extensions/copilot/src/extension/chatSessions/claude/node/claudeLanguageModelServer.ts",
+          "startLine": 312,
+          "language": "typescript",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:6bf6769a1b442ed377219aa5a14706ce",
+              "otherName": "getLangModelServer",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/claude/node/claudeCodeAgent.ts",
+              "kind": "calls",
+              "line": 53,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:2acba4c4357d881c71e6cba6afbfbb6e",
+              "otherName": "_getLanguageModelServer",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/claude/vscode-node/slashCommands/terminalCommand.ts",
+              "kind": "calls",
+              "line": 164,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:d5e27e6d07b86aae25932231ff2aa943",
+              "otherName": "listen",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/snippy/connectionState.ts",
+              "kind": "calls",
+              "line": 319,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:ab8b97e9a4162d72efdf6a568006a057",
+              "otherName": "address",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/test/simulation/fixtures/doc/issue-6406/debugModel.ts",
+              "kind": "calls",
+              "line": 320,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:d73f09887e26bcacb589a9bb3603794f",
+              "otherName": "info",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/claude/node/claudeLanguageModelServer.ts",
+              "kind": "calls",
+              "line": 326,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:66f7469dbc7b5d801c3edd66eba2dd7d",
+              "otherName": "resolve",
+              "otherKind": "function",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/claude/node/test/skillConfigLocations.spec.ts",
+              "kind": "calls",
+              "line": 327,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:3c61c7b006e07030f25212ea9eb50847",
+              "otherName": "reject",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/util/async.ts",
+              "kind": "calls",
+              "line": 331,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "method:ced01a3b1c556af955a2fbe92bda0ed2",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "InProcHttpServer::start",
+          "filePath": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/inProcHttpServer.ts",
+          "startLine": 99,
+          "language": "typescript",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:69a8f15fd4c0d0a9ac861c4ba8fdd1fb",
+              "otherName": "_startFleetAndWaitForIdle",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/copilotcli/node/copilotcliSession.ts",
+              "kind": "calls",
+              "line": 1893,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:b87616b50aed1d77b41f377ea4ce2a26",
+              "otherName": "_startMcpServer",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/contribution.ts",
+              "kind": "calls",
+              "line": 71,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:32e73dfd145b0a8fe28a748271b2df23",
+              "otherName": "debug",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/test/chatSessionInitializer.spec.ts",
+              "kind": "calls",
+              "line": 104,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "constant:09b4e3bf46db0fec51379492253be6b1",
+              "otherName": "generateUuid",
+              "otherKind": "constant",
+              "otherFilePath": "extensions/copilot/src/util/vs/base/common/uuid.ts",
+              "kind": "calls",
+              "line": 107,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:b471653d5b085cd56b804bc47a865958",
+              "otherName": "getRandomSocketPath",
+              "otherKind": "function",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/inProcHttpServer.ts",
+              "kind": "calls",
+              "line": 108,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:ffe836b8ae15edc6086f19f10cf7f656",
+              "otherName": "trace",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/test/chatSessionInitializer.spec.ts",
+              "kind": "calls",
+              "line": 109,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:1c6900daacc328d8206d0eff265f073a",
+              "otherName": "import",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/workbench/contrib/files/browser/fileImportExport.ts",
+              "kind": "calls",
+              "line": 112,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:1c6900daacc328d8206d0eff265f073a",
+              "otherName": "import",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/workbench/contrib/files/browser/fileImportExport.ts",
+              "kind": "calls",
+              "line": 113,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:59b022996840d3429b993c8fa3ea450d",
+              "otherName": "use",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/typescriptContext/serverPlugin/fixtures/context/p6/source/f2.ts",
+              "kind": "calls",
+              "line": 119,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:59b022996840d3429b993c8fa3ea450d",
+              "otherName": "use",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/typescriptContext/serverPlugin/fixtures/context/p6/source/f2.ts",
+              "kind": "calls",
+              "line": 120,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:2d22088cb2486d635bc44c31a794b39d",
+              "otherName": "_authMiddleware",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/inProcHttpServer.ts",
+              "kind": "calls",
+              "line": 121,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:3e632ffc43f878d880e2ff47b39baef3",
+              "otherName": "_handlePost",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/inProcHttpServer.ts",
+              "kind": "calls",
+              "line": 124,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:cadf845d5a3f3f3e733afb930231c809",
+              "otherName": "_handleGetDelete",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/inProcHttpServer.ts",
+              "kind": "calls",
+              "line": 125,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:cadf845d5a3f3f3e733afb930231c809",
+              "otherName": "_handleGetDelete",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessions/copilotcli/vscode-node/inProcHttpServer.ts",
+              "kind": "calls",
+              "line": 126,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "method:d3a7a9e6f9d51a03e73a3ee4ee4b240e",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "EmptyRecentEditsProvider::start",
+          "filePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/prompt/recentEdits/emptyRecentEditsProvider.ts",
+          "startLine": 15,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": []
+        },
+        {
+          "id": "method:5147c17df2464426057952a3caa4bef3",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "FullRecentEditsProvider::start",
+          "filePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/prompt/recentEdits/recentEditsProvider.ts",
+          "startLine": 118,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:3c52dc31579486c53a5b02c93cbb1194",
+              "otherName": "recomputeInitiallyAndOnChange",
+              "otherKind": "function",
+              "otherFilePath": "extensions/copilot/src/util/vs/base/common/observableInternal/utils/utils.ts",
+              "kind": "calls",
+              "line": 125,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:8a068fafb46e04c2c7535457242ef928",
+              "otherName": "mapObservableArrayCached",
+              "otherKind": "function",
+              "otherFilePath": "extensions/copilot/src/util/vs/base/common/observableInternal/utils/utils.ts",
+              "kind": "calls",
+              "line": 125,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:0b9a05469cb1e3fb896d44f49e4bed0e",
+              "otherName": "add",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/util/vs/base/common/lifecycle.ts",
+              "kind": "calls",
+              "line": 129,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:b0e8afb488f84c1430a14879b8ba9a08",
+              "otherName": "autorunWithChanges",
+              "otherKind": "function",
+              "otherFilePath": "extensions/copilot/src/platform/inlineEdits/common/utils/observable.ts",
+              "kind": "calls",
+              "line": 130,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "function:159b72e1ab1b6dc0d5f6cebcf32ae0e8",
+              "otherName": "toString",
+              "otherKind": "function",
+              "otherFilePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/prompt/prompt.ts",
+              "kind": "calls",
+              "line": 141,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:95cf128aeba7e33fa93bb5a792187013",
+              "otherName": "updateRecentEdits",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/prompt/recentEdits/recentEditsProvider.ts",
+              "kind": "calls",
+              "line": 150,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:95cf128aeba7e33fa93bb5a792187013",
+              "otherName": "updateRecentEdits",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/prompt/recentEdits/recentEditsProvider.ts",
+              "kind": "calls",
+              "line": 153,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:95cf128aeba7e33fa93bb5a792187013",
+              "otherName": "updateRecentEdits",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/prompt/recentEdits/recentEditsProvider.ts",
+              "kind": "calls",
+              "line": 157,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "method:9536e7c01bb10161cff0d6be125de28a",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "OpenAILanguageModelServer::start",
+          "filePath": "extensions/copilot/src/extension/externalAgents/node/oaiLanguageModelServer.ts",
+          "startLine": 237,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:d5e27e6d07b86aae25932231ff2aa943",
+              "otherName": "listen",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/snippy/connectionState.ts",
+              "kind": "calls",
+              "line": 244,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:ab8b97e9a4162d72efdf6a568006a057",
+              "otherName": "address",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/test/simulation/fixtures/doc/issue-6406/debugModel.ts",
+              "kind": "calls",
+              "line": 245,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:421606bdaab43ca8078d89ec0cc5b582",
+              "otherName": "info",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/externalAgents/node/oaiLanguageModelServer.ts",
+              "kind": "calls",
+              "line": 251,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:b060392463bb0c8f89c503a292145620",
+              "otherName": "resolve",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/chatSessionContext/vscode-node/chatSessionContextProvider.ts",
+              "kind": "calls",
+              "line": 252,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:3c61c7b006e07030f25212ea9eb50847",
+              "otherName": "reject",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/util/async.ts",
+              "kind": "calls",
+              "line": 256,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "property:1fdfa2d7595b533e17c04fa16c583077",
+          "kind": "property",
+          "name": "start",
+          "qualifiedName": "HistoryItemChangeRange::start",
+          "filePath": "extensions/copilot/src/extension/git/vscode/mergeConflictServiceImpl.ts",
+          "startLine": 16,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": []
+        },
+        {
+          "id": "method:8609d8674f03de2d18d721a127d57fc8",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "CopilotDebugCommandSessionFactory::start",
+          "filePath": "extensions/copilot/src/extension/onboardDebug/node/copilotDebugCommandSessionFactory.tsx",
+          "startLine": 62,
+          "language": "tsx",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "function:8efc1c82c4b45812b4a904993beeaef1",
+              "otherName": "RecentEdits",
+              "otherKind": "function",
+              "otherFilePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/prompt/components/recentEdits.tsx",
+              "kind": "calls",
+              "line": 67,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:04fb58bd000aad38ec2d325e44e71a45",
+              "otherName": "constructor",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/tools/node/memoryTool.tsx",
+              "kind": "calls",
+              "line": 158,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:3cdc850be3f9892f101ab5f2ad24d704",
+              "otherName": "sendMSFTTelemetryEvent",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/tools/node/test/memoryTool.spec.tsx",
+              "kind": "calls",
+              "line": 70,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:ad1548ea886ffe5481fd0343a766852f",
+              "otherName": "tryMatchExistingConfig",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/node/copilotDebugCommandSessionFactory.tsx",
+              "kind": "calls",
+              "line": 80,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:9fc318bb2226c55d2e2df2e455ef4e25",
+              "otherName": "convert",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/node/commandToConfigConverter.tsx",
+              "kind": "calls",
+              "line": 83,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:3cdc850be3f9892f101ab5f2ad24d704",
+              "otherName": "sendMSFTTelemetryEvent",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/tools/node/test/memoryTool.spec.tsx",
+              "kind": "calls",
+              "line": 104,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:6602c58f666fa3f4f1f61e49359e6155",
+              "otherName": "getWorkspaceFolder",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/textDocumentManager.ts",
+              "kind": "calls",
+              "line": 111,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:2314bcfaa100fd8cdcfca391567bff29",
+              "otherName": "ensureTask",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/vscode-node/copilotDebugCommandContribution.ts",
+              "kind": "calls",
+              "line": 113,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:2b142f4a79b8085af5a6aa843c90cfd2",
+              "otherName": "saveConfigInLRU",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/node/copilotDebugCommandSessionFactory.tsx",
+              "kind": "calls",
+              "line": 121,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:04042ccb44a562252e2b6dae16c0672a",
+              "otherName": "save",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/node/copilotDebugCommandSessionFactory.tsx",
+              "kind": "calls",
+              "line": 123,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:3364681d9999d4190be7745d3f8678c7",
+              "otherName": "hasMatchingExtension",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/node/copilotDebugCommandSessionFactory.tsx",
+              "kind": "calls",
+              "line": 128,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:1a74d70bd95da66e561ccd1ab73b5d50",
+              "otherName": "resolveConfigurationInputs",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/vscode/launchConfigService.ts",
+              "kind": "calls",
+              "line": 132,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:2b142f4a79b8085af5a6aa843c90cfd2",
+              "otherName": "saveConfigInLRU",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/node/copilotDebugCommandSessionFactory.tsx",
+              "kind": "calls",
+              "line": 139,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:a3572955ac9066097695c469cd6a7029",
+              "otherName": "IStartOptions",
+              "otherKind": "interface",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/node/copilotDebugWorker/shared.ts",
+              "kind": "references",
+              "line": 62,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "function:a43f6814e248d8ee5dcb131c6f063f0c",
+          "kind": "function",
+          "name": "start",
+          "qualifiedName": "CopilotDebugCommandContribution::handleUri::start",
+          "filePath": "extensions/copilot/src/extension/onboardDebug/vscode-node/copilotDebugCommandContribution.ts",
+          "startLine": 169,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:912e08376ff48da82dae3616af15a945",
+              "otherName": "warn",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/platform/log/common/logService.ts",
+              "kind": "calls",
+              "line": 172,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:dcfbd507d35df30d3995eb4f3609d13b",
+              "otherName": "getGitHubSession",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/lib/vscode-node/test/getInlineCompletions.spec.ts",
+              "kind": "calls",
+              "line": 178,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:c188357791bf9200bfa6e7137753478f",
+              "otherName": "start",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/workbench/common/editor.ts",
+              "kind": "calls",
+              "line": 180,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:f2d79d384bff4e847b024359f4c995c1",
+              "otherName": "printLabel",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/vscode-node/copilotDebugCommandHandle.ts",
+              "kind": "calls",
+              "line": 184,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:7e4e149aba163be9036b2a3a062b5853",
+              "otherName": "exit",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/vscode-node/copilotDebugCommandHandle.ts",
+              "kind": "calls",
+              "line": 185,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:dc8aede561a417dca19f687ae6304c15",
+              "otherName": "output",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/vscode-node/copilotDebugCommandHandle.ts",
+              "kind": "calls",
+              "line": 189,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:222b32cf9aaee4834048b631b8d844ff",
+              "otherName": "replaceAll",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/editor/contrib/find/browser/findController.ts",
+              "kind": "calls",
+              "line": 189,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:7e4e149aba163be9036b2a3a062b5853",
+              "otherName": "exit",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/vscode-node/copilotDebugCommandHandle.ts",
+              "kind": "calls",
+              "line": 190,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:72c0de7c6bb5a6651f1f3c4c1a40b378",
+              "otherName": "then",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/workbench/services/extensions/common/lazyPromise.ts",
+              "kind": "calls",
+              "line": 192,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:9cf7ddf2c1cd6adeef3f02fc518a9272",
+              "otherName": "confirm",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/onboardDebug/vscode-node/copilotDebugCommandHandle.ts",
+              "kind": "calls",
+              "line": 192,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "constant:ec3c916c63bfd5eadd7d28b0ba09b492",
+              "otherName": "startDebugging",
+              "otherKind": "constant",
+              "otherFilePath": "extensions/copilot/src/extension/prompts/node/test/fixtures/editorGroupWatermark.summarized.ts",
+              "kind": "calls",
+              "line": 194,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:6602c58f666fa3f4f1f61e49359e6155",
+              "otherName": "getWorkspaceFolder",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/completions-core/vscode-node/lib/src/textDocumentManager.ts",
+              "kind": "calls",
+              "line": 194,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        },
+        {
+          "id": "method:5c08e1e93113c11073437f73fa9dae48",
+          "kind": "method",
+          "name": "start",
+          "qualifiedName": "BackgroundSummarizer::start",
+          "filePath": "extensions/copilot/src/extension/prompts/node/agent/backgroundSummarizer.ts",
+          "startLine": 163,
+          "language": "typescript",
+          "incoming": [
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:7fb6279d2bc24caaf679bd3a04e9ea11",
+              "otherName": "_startBackgroundSummarization",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/intents/node/agentIntent.ts",
+              "kind": "calls",
+              "line": 1152,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "method:22f54b86083818b025d0d8fd5623b1e7",
+              "otherName": "_startPrismBackgroundSummarization",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/extension/intents/node/agentIntent.ts",
+              "kind": "calls",
+              "line": 1323,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "otherName": "backgroundSummarizer.spec.ts",
+              "otherKind": "file",
+              "otherFilePath": "extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "kind": "calls",
+              "line": 20,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "otherName": "backgroundSummarizer.spec.ts",
+              "otherKind": "file",
+              "otherFilePath": "extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "kind": "calls",
+              "line": 31,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "otherName": "backgroundSummarizer.spec.ts",
+              "otherKind": "file",
+              "otherFilePath": "extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "kind": "calls",
+              "line": 38,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "otherName": "backgroundSummarizer.spec.ts",
+              "otherKind": "file",
+              "otherFilePath": "extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "kind": "calls",
+              "line": 49,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "otherName": "backgroundSummarizer.spec.ts",
+              "otherKind": "file",
+              "otherFilePath": "extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "kind": "calls",
+              "line": 62,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "otherName": "backgroundSummarizer.spec.ts",
+              "otherKind": "file",
+              "otherFilePath": "extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "kind": "calls",
+              "line": 75,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "otherName": "backgroundSummarizer.spec.ts",
+              "otherKind": "file",
+              "otherFilePath": "extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "kind": "calls",
+              "line": 91,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "otherName": "backgroundSummarizer.spec.ts",
+              "otherKind": "file",
+              "otherFilePath": "extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "kind": "calls",
+              "line": 97,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "otherName": "backgroundSummarizer.spec.ts",
+              "otherKind": "file",
+              "otherFilePath": "extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "kind": "calls",
+              "line": 109,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "incoming",
+              "otherNodeId": "file:extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "otherName": "backgroundSummarizer.spec.ts",
+              "otherKind": "file",
+              "otherFilePath": "extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+              "kind": "calls",
+              "line": 114,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ],
+          "outgoing": [
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:72c0de7c6bb5a6651f1f3c4c1a40b378",
+              "otherName": "then",
+              "otherKind": "method",
+              "otherFilePath": "src/vs/workbench/services/extensions/common/lazyPromise.ts",
+              "kind": "calls",
+              "line": 172,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "method:a00cb83c26a89b04b6eed121301c3018",
+              "otherName": "work",
+              "otherKind": "method",
+              "otherFilePath": "extensions/copilot/src/util/vs/base/common/async.ts",
+              "kind": "calls",
+              "line": 172,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:1aa9fedac8fce3a5b947e2293f48ce5f",
+              "otherName": "CancellationToken",
+              "otherKind": "interface",
+              "otherFilePath": "extensions/copilot/src/util/vs/base/common/cancellation.ts",
+              "kind": "references",
+              "line": 163,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:cb05a261815ae37cdb169db417819ef4",
+              "otherName": "IBackgroundSummarizationResult",
+              "otherKind": "interface",
+              "otherFilePath": "extensions/copilot/src/extension/prompts/node/agent/backgroundSummarizer.ts",
+              "kind": "references",
+              "line": 163,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            },
+            {
+              "direction": "outgoing",
+              "otherNodeId": "interface:1aa9fedac8fce3a5b947e2293f48ce5f",
+              "otherName": "CancellationToken",
+              "otherKind": "interface",
+              "otherFilePath": "extensions/copilot/src/util/vs/base/common/cancellation.ts",
+              "kind": "references",
+              "line": 163,
+              "edgeOrigin": null,
+              "synthesizedBy": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "token": "ExtensionHostMain",
+      "classification": "expected-runtime-boundary",
+      "candidateCount": 1,
+      "callableCandidateCount": 0,
+      "candidates": [
+        {
+          "id": "class:d213fc3f824486face8858bc52a3f0a6",
+          "kind": "class",
+          "name": "ExtensionHostMain",
+          "qualifiedName": "ExtensionHostMain",
+          "filePath": "src/vs/workbench/api/common/extensionHostMain.ts",
+          "startLine": 161,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": []
+        }
+      ]
+    },
+    {
+      "token": "MainThreadExtensionService",
+      "classification": "expected-runtime-boundary",
+      "candidateCount": 1,
+      "callableCandidateCount": 0,
+      "candidates": [
+        {
+          "id": "class:2e9d6531a66655d63f6762f0da5b297c",
+          "kind": "class",
+          "name": "MainThreadExtensionService",
+          "qualifiedName": "MainThreadExtensionService",
+          "filePath": "src/vs/workbench/api/browser/mainThreadExtensionService.ts",
+          "startLine": 34,
+          "language": "typescript",
+          "incoming": [],
+          "outgoing": []
+        }
+      ]
+    }
+  ]
+}

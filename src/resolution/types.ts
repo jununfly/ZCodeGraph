@@ -10,6 +10,8 @@ import { EdgeKind, Language, Node } from '../types';
  * An unresolved reference from extraction
  */
 export interface UnresolvedRef {
+  /** Internal SQLite row identity, present only for database-backed batch reads */
+  rowid?: number;
   /** ID of the source node containing the reference */
   fromNodeId: string;
   /** The name being referenced */
@@ -56,6 +58,49 @@ export interface ResolutionResult {
     resolved: number;
     unresolved: number;
     byMethod: Record<string, number>;
+    timings?: {
+      importResolutionMs?: number;
+      nameMatchingMs?: number;
+      frameworkMatchingMs?: number;
+      databaseAccessMs?: number;
+      cacheWarmupMs?: number;
+      unresolvedReadMs?: number;
+      candidateLookupMs?: number;
+      sharedCandidateLookupMs?: number;
+      candidateLookupCacheHitMs?: number;
+      perReferenceDisambiguationMs?: number;
+      rustMatcherMs?: number;
+      rustMatcherStartupMs?: number;
+      rustMatcherSerializationMs?: number;
+      rustMatcherEligibleRefs?: number;
+      rustMatcherHandledRefs?: number;
+      rustMatcherFallbackRefs?: number;
+      rustMatcherSemanticMismatchRefs?: number;
+      rustMatcherSemanticMismatchSamples?: Array<{
+        referenceName: string;
+        referenceKind: string;
+        filePath: string;
+        language: string;
+        rustTargetNodeId: string | null;
+        rustResolvedBy: string | null;
+        rustConfidence: number;
+        tsTargetNodeId: string | null;
+        tsResolvedBy: string | null;
+        tsConfidence: number | null;
+        reason: string;
+      }>;
+      rustMatcherFallbackReasons?: Record<string, number>;
+      rustMatcherCandidateMaterializationMs?: number;
+      rustMatcherSubprocessMs?: number;
+      rustMatcherTsVerificationMs?: number;
+      rustMatcherPayloadBytes?: number;
+      rustMatcherUniqueCandidateFacts?: number;
+      edgeMaterializationMs?: number;
+      edgeWriteMs?: number;
+      unresolvedCleanupMs?: number;
+      otherResolutionMs?: number;
+      dynamicDispatchSynthesisMs?: number;
+    };
   };
 }
 
