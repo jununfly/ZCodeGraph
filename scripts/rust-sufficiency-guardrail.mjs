@@ -95,6 +95,7 @@ function usage() {
     '  --emit-partial-on-failure                Preserve partial artifact for process failures',
     '  --repo-pair <name>:typescript=<path>     Reuse an already indexed TypeScript project',
     '  --repo-pair <name>:rust=<path>           Reuse an already indexed Rust project',
+    '  --repo-arm <name>:typescript=<path>      Reuse one indexed arm and record the missing peer arm as asymmetric',
     '',
     'Names with built-in prompts: zcodegraph, excalidraw, zustand',
     'Use --prompts for long-running repo-specific probes such as VS Code.',
@@ -122,12 +123,14 @@ function parseArgs(argv) {
   const promptFiles = [];
   const promptIds = new Set();
   const repoPairs = new Map();
+  const repoArms = new Map();
   let out = null;
   let timeoutMs = null;
   let emitPartialOnFailure = false;
+  const failEngineIndexes = new Set();
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === '--help' || arg === '-h') return { help: true, repos, promptFiles, promptIds, out, timeoutMs, emitPartialOnFailure, repoPairs };
+    if (arg === '--help' || arg === '-h') return { help: true, repos, promptFiles, promptIds, out, timeoutMs, emitPartialOnFailure, repoPairs, repoArms, failEngineIndexes };
     if (arg === '--repo') {
       const spec = argv[++i];
       if (!spec) throw new Error('--repo requires name=path');
@@ -139,10 +142,19 @@ function parseArgs(argv) {
     if (arg === '--repo-pair') {
       const spec = argv[++i];
       if (!spec) throw new Error('--repo-pair requires name:engine=path');
-      const parsed = parseRepoPair(spec);
+      const parsed = parseRepoPair(spec, '--repo-pair');
       const current = repoPairs.get(parsed.name) ?? {};
       current[parsed.engine] = parsed.path;
       repoPairs.set(parsed.name, current);
+      continue;
+    }
+    if (arg === '--repo-arm') {
+      const spec = argv[++i];
+      if (!spec) throw new Error('--repo-arm requires name:engine=path');
+      const parsed = parseRepoPair(spec, '--repo-arm');
+      const current = repoArms.get(parsed.name) ?? {};
+      current[parsed.engine] = parsed.path;
+      repoArms.set(parsed.name, current);
       continue;
     }
     if (arg === '--prompts') {
@@ -173,18 +185,24 @@ function parseArgs(argv) {
       emitPartialOnFailure = true;
       continue;
     }
+    if (arg === '--fail-engine-index') {
+      const engine = argv[++i];
+      if (engine !== 'typescript' && engine !== 'rust') throw new Error('--fail-engine-index requires typescript or rust');
+      failEngineIndexes.add(engine);
+      continue;
+    }
     throw new Error(`Unknown argument: ${arg}`);
   }
-  return { help: false, repos, promptFiles, promptIds, out, timeoutMs, emitPartialOnFailure, repoPairs };
+  return { help: false, repos, promptFiles, promptIds, out, timeoutMs, emitPartialOnFailure, repoPairs, repoArms, failEngineIndexes };
 }
 
-function parseRepoPair(spec) {
+function parseRepoPair(spec, optionName = '--repo-pair') {
   const colon = spec.indexOf(':');
   const eq = spec.indexOf('=');
-  if (colon <= 0 || eq <= colon + 1) throw new Error('--repo-pair must be name:typescript=path or name:rust=path');
+  if (colon <= 0 || eq <= colon + 1) throw new Error(`${optionName} must be name:typescript=path or name:rust=path`);
   const name = spec.slice(0, colon);
   const engine = spec.slice(colon + 1, eq);
-  if (engine !== 'typescript' && engine !== 'rust') throw new Error('--repo-pair engine must be typescript or rust');
+  if (engine !== 'typescript' && engine !== 'rust') throw new Error(`${optionName} engine must be typescript or rust`);
   return { name, engine, path: path.resolve(spec.slice(eq + 1)) };
 }
 
@@ -278,14 +296,70 @@ function emptyStages() {
   };
 }
 
+function allowedEnv() {
+  return baseEnv();
+}
+
+function emptyArm(engine) {
+  return {
+    engine,
+    sourceCopy: null,
+    indexing: makeStage(),
+    graphAvailable: false,
+    graphStats: null,
+    lastProgress: null,
+    command: null,
+    diagnostics: [],
+  };
+}
+
+function emptyArms() {
+  return {
+    typescript: emptyArm('typescript'),
+    rust: emptyArm('rust'),
+  };
+}
+
+function createArmCommand(engine, project) {
+  const args = [distBin, 'index', project, '--force', '--quiet'];
+  const env = allowedEnv();
+  if (engine === 'rust') {
+    args.push('--engine', 'rust');
+    env.ZCODEGRAPH_RUST_CORE_BINARY = rustCore;
+  }
+  return {
+    executable: process.execPath,
+    args,
+    cwd: project,
+    nodeVersion: process.version,
+    scriptVersion: 'phase13-ab-v1',
+    gitSha: gitSha(repoRoot),
+    env,
+  };
+}
+
+function gitSha(cwd) {
+  try {
+    return run('git', ['rev-parse', 'HEAD'], cwd).stdout.trim();
+  } catch {
+    return null;
+  }
+}
+
 function createArtifact({ mode, command, timeoutMs }) {
   const nodeMajor = Number.parseInt(process.versions.node.split('.')[0] ?? '', 10);
   return {
     generatedAt: new Date().toISOString(),
     status: 'running',
     mode,
+    experimentMode: 'full-index-ab',
+    executionModel: 'sequential',
     command,
     timeoutMs,
+    target: null,
+    arms: emptyArms(),
+    comparison: makeStage(),
+    classification: null,
     unavailableKind: null,
     unavailableReason: null,
     note: 'Counts are deterministic fallback-risk signals from zcodegraph_explore output, not stochastic Claude Code Read/Grep tool calls.',
@@ -329,6 +403,10 @@ function emitArtifact(out, artifact) {
   const json = JSON.stringify(artifact, null, 2);
   writeArtifact(out, artifact);
   console.log(json);
+}
+
+function snapshotArtifact(out, artifact) {
+  writeArtifact(out, artifact);
 }
 
 function tail(text, max = 4000) {
@@ -411,7 +489,7 @@ function copyRepo(source, label, artifact, deadline) {
   };
 }
 
-function initAndIndex(project, engine, CodeGraph, artifact, deadline) {
+function initAndIndex(project, engine, CodeGraph, artifact, deadline, options = {}) {
   const stageName = engine === 'rust' ? 'rustIndex' : 'typescriptIndex';
   const started = nowMs();
   artifact.stages[stageName].status = 'running';
@@ -423,6 +501,11 @@ function initAndIndex(project, engine, CodeGraph, artifact, deadline) {
     env.ZCODEGRAPH_RUST_CORE_BINARY = rustCore;
   }
   try {
+    if (options.failEngineIndexes?.has(engine)) {
+      throw Object.assign(new Error(`Forced ${engine} indexing failure`), {
+        result: { status: 1, stderr: `Forced ${engine} indexing failure` },
+      });
+    }
     run(process.execPath, args, project, env, remainingTimeout(deadline));
     artifact.stages[stageName] = makeStage('completed', {
       elapsedMs: nowMs() - started,
@@ -493,6 +576,53 @@ function metadataFor(repoPath) {
   return { sourcePath: repoPath, commit };
 }
 
+function collectGraphStats(project, CodeGraph) {
+  const cg = CodeGraph.openSync(project);
+  try {
+    return cg.getStats();
+  } finally {
+    try { cg.close?.(); } catch {}
+  }
+}
+
+function setArmSourceCopy(artifact, engine, sourceCopy) {
+  artifact.arms[engine].sourceCopy = sourceCopy;
+}
+
+function setArmIndexed(artifact, engine, indexing, graphAvailable, graphStats = null) {
+  artifact.arms[engine].indexing = indexing;
+  artifact.arms[engine].graphAvailable = graphAvailable;
+  artifact.arms[engine].graphStats = graphStats;
+}
+
+function recordArmFailure(artifact, engine, err) {
+  const stageName = engine === 'rust' ? 'rustIndex' : 'typescriptIndex';
+  setArmIndexed(artifact, engine, artifact.stages[stageName], false, null);
+  artifact.arms[engine].diagnostics.push({
+    kind: err.unavailableKind ?? classifyProcessFailure(engine, err.result),
+    message: err instanceof Error ? err.message : String(err),
+    stderrTail: tail(err.result?.stderr),
+  });
+}
+
+function updatePhase13Classification(artifact) {
+  if (artifact.comparison.status === 'completed') {
+    artifact.classification = 'success-comparison-completed';
+    return;
+  }
+  const tsAvailable = artifact.arms.typescript.graphAvailable;
+  const rustAvailable = artifact.arms.rust.graphAvailable;
+  if (tsAvailable !== rustAvailable) {
+    artifact.classification = 'success-asymmetric-blocker';
+    return;
+  }
+  if (!tsAvailable && !rustAvailable) {
+    artifact.classification = 'success-both-arms-unavailable';
+    return;
+  }
+  artifact.classification = null;
+}
+
 function collectRegressions(results) {
   const regressions = [];
   for (const repo of results) {
@@ -514,12 +644,20 @@ function collectRegressions(results) {
 function toolchain() {
   return {
     node: process.version,
-    rustc: run('rustc', ['--version'], repoRoot).stdout.trim(),
-    cargo: run('cargo', ['--version'], repoRoot).stdout.trim(),
+    rustc: optionalCommandVersion('rustc', ['--version']),
+    cargo: optionalCommandVersion('cargo', ['--version']),
     os: `${os.type()} ${os.release()} ${os.arch()}`,
     cpu: os.cpus()[0]?.model ?? 'unknown',
     cpuCount: os.cpus().length,
   };
+}
+
+function optionalCommandVersion(command, args) {
+  try {
+    return run(command, args, repoRoot).stdout.trim();
+  } catch {
+    return null;
+  }
 }
 
 function validateIndexedProject(project) {
@@ -533,6 +671,27 @@ function repoPairFor(repoPairs, repoName) {
     typescript: pair.typescript,
     rust: pair.rust,
   };
+}
+
+function repoArmFor(repoArms, repoName) {
+  const arm = repoArms.get(repoName);
+  if (!arm) return null;
+  return {
+    typescript: arm.typescript,
+    rust: arm.rust,
+  };
+}
+
+function recordMissingIndexedArm(artifact, engine, repoName) {
+  const reason = `Missing indexed project for ${repoName}: ${engine}`;
+  const stageName = engine === 'rust' ? 'rustIndex' : 'typescriptIndex';
+  artifact.stages[stageName] = makeStage('unavailable', { reason });
+  setArmIndexed(artifact, engine, artifact.stages[stageName], false, null);
+  artifact.arms[engine].diagnostics.push({
+    kind: 'missing-index',
+    message: reason,
+    stderrTail: '',
+  });
 }
 
 async function runExploreComparison(repo, prompts, projects, artifact, deadline) {
@@ -563,7 +722,7 @@ function commandLine() {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const { help, repos, promptFiles, promptIds, out, timeoutMs, repoPairs } = options;
+  const { help, repos, promptFiles, promptIds, out, timeoutMs, repoPairs, repoArms, failEngineIndexes } = options;
   if (help) {
     usage();
     return;
@@ -571,36 +730,42 @@ async function main() {
 
   const deadline = timeoutMs == null ? null : Date.now() + timeoutMs;
   const artifact = createArtifact({
-    mode: repoPairs.size > 0 ? 'deterministic-tool-surface-reuse-indexed-pair' : 'deterministic-tool-surface',
+    mode: repoPairs.size > 0
+      ? 'deterministic-tool-surface-reuse-indexed-pair'
+      : repoArms.size > 0
+        ? 'deterministic-tool-surface-reuse-indexed-arm'
+        : 'deterministic-tool-surface',
     command: commandLine(),
     timeoutMs,
   });
 
   try {
     const promptCatalog = loadPromptFiles(promptFiles);
-    const repoNames = new Set([...repos.map((repo) => repo.name), ...repoPairs.keys()]);
+    const repoNames = new Set([...repos.map((repo) => repo.name), ...repoPairs.keys(), ...repoArms.keys()]);
     if (repoNames.size === 0) throw new Error('At least one --repo name=path or --repo-pair name:engine=path is required');
     for (const repoName of repoNames) {
       if (!promptCatalog[repoName]) throw new Error(`No built-in or configured prompts for repo name "${repoName}"`);
     }
     if (!fs.existsSync(distBin)) throw new Error('dist/bin/zcodegraph.js not found. Run npm run build first.');
-    if (repoPairs.size === 0 && !fs.existsSync(rustCore)) {
-      throw Object.assign(new Error('target/debug/zcodegraph-core not found. Run cargo build --package zcodegraph-core first.'), {
-        unavailableKind: 'process-error',
-        stageName: 'rustIndex',
-      });
-    }
-
     artifact.toolchain = toolchain();
     const dist = await loadDist();
     const results = [];
     for (const repoName of repoNames) {
-      const sourceRepo = repos.find((item) => item.name === repoName) ?? { name: repoName, path: repoPairFor(repoPairs, repoName)?.typescript ?? '' };
+      const sourceRepo = repos.find((item) => item.name === repoName) ?? {
+        name: repoName,
+        path: repoPairFor(repoPairs, repoName)?.typescript ?? repoArmFor(repoArms, repoName)?.typescript ?? repoArmFor(repoArms, repoName)?.rust ?? '',
+      };
       const prompts = filterPrompts(repoName, promptCatalog[repoName], promptIds);
       const pair = repoPairFor(repoPairs, repoName);
+      const singleArm = repoArmFor(repoArms, repoName);
       let projects;
       let copies = null;
       let reuseIndexedPair = null;
+
+      artifact.target = {
+        name: repoName,
+        sourcePath: sourceRepo.path || null,
+      };
 
       if (pair) {
         artifact.stages.copy = makeStage('skipped', { reason: 'reuse-indexed-pair' });
@@ -629,6 +794,46 @@ async function main() {
           typescript: { path: pair.typescript, engineLabel: 'typescript', engineLabelSource: 'caller' },
           rust: { path: pair.rust, engineLabel: 'rust', engineLabelSource: 'caller' },
         };
+        for (const engine of ['typescript', 'rust']) {
+          setArmSourceCopy(artifact, engine, {
+            path: projects[engine],
+            mode: 'reuse-indexed-pair',
+            skipped: true,
+          });
+          artifact.arms[engine].command = createArmCommand(engine, projects[engine]);
+          setArmIndexed(
+            artifact,
+            engine,
+            makeStage('skipped', { reason: 'reuse-indexed-pair', projectPath: projects[engine] }),
+            true,
+            collectGraphStats(projects[engine], dist.CodeGraph),
+          );
+        }
+      } else if (singleArm) {
+        artifact.stages.copy = makeStage('skipped', { reason: 'reuse-indexed-arm' });
+        artifact.stages.typescriptIndex = makeStage('skipped', { reason: 'reuse-indexed-arm' });
+        artifact.stages.rustIndex = makeStage('skipped', { reason: 'reuse-indexed-arm' });
+        projects = { typescript: singleArm.typescript, rust: singleArm.rust };
+        for (const engine of ['typescript', 'rust']) {
+          const project = projects[engine];
+          if (project && validateIndexedProject(project)) {
+            setArmSourceCopy(artifact, engine, {
+              path: project,
+              mode: 'reuse-indexed-arm',
+              skipped: true,
+            });
+            artifact.arms[engine].command = createArmCommand(engine, project);
+            setArmIndexed(
+              artifact,
+              engine,
+              makeStage('skipped', { reason: 'reuse-indexed-arm', projectPath: project }),
+              true,
+              collectGraphStats(project, dist.CodeGraph),
+            );
+          } else {
+            recordMissingIndexedArm(artifact, engine, repoName);
+          }
+        }
       } else {
         const copyTs = copyRepo(sourceRepo.path, `${repoName}-ts`, artifact, deadline);
         const copyRust = copyRepo(sourceRepo.path, `${repoName}-rust`, artifact, deadline);
@@ -636,20 +841,49 @@ async function main() {
           typescript: copyTs,
           rust: copyRust,
         };
-        initAndIndex(copies.typescript.path, 'typescript', dist.CodeGraph, artifact, deadline);
-        initAndIndex(copies.rust.path, 'rust', dist.CodeGraph, artifact, deadline);
+        setArmSourceCopy(artifact, 'typescript', {
+          path: copies.typescript.path,
+          mode: copies.typescript.mode,
+          copiedFiles: copies.typescript.copiedFiles,
+          skipped: false,
+        });
+        setArmSourceCopy(artifact, 'rust', {
+          path: copies.rust.path,
+          mode: copies.rust.mode,
+          copiedFiles: copies.rust.copiedFiles,
+          skipped: false,
+        });
+        artifact.arms.typescript.command = createArmCommand('typescript', copies.typescript.path);
+        artifact.arms.rust.command = createArmCommand('rust', copies.rust.path);
+        snapshotArtifact(out, artifact);
+        try {
+          initAndIndex(copies.typescript.path, 'typescript', dist.CodeGraph, artifact, deadline, { failEngineIndexes });
+          setArmIndexed(artifact, 'typescript', artifact.stages.typescriptIndex, true, collectGraphStats(copies.typescript.path, dist.CodeGraph));
+        } catch (err) {
+          recordArmFailure(artifact, 'typescript', err);
+        }
+        snapshotArtifact(out, artifact);
+        try {
+          initAndIndex(copies.rust.path, 'rust', dist.CodeGraph, artifact, deadline, { failEngineIndexes });
+          setArmIndexed(artifact, 'rust', artifact.stages.rustIndex, true, collectGraphStats(copies.rust.path, dist.CodeGraph));
+        } catch (err) {
+          recordArmFailure(artifact, 'rust', err);
+        }
+        snapshotArtifact(out, artifact);
         projects = { typescript: copies.typescript.path, rust: copies.rust.path };
       }
 
-      const promptResults = await runExploreComparison(repoName, prompts, projects, artifact, deadline);
+      const promptResults = artifact.arms.typescript.graphAvailable && artifact.arms.rust.graphAvailable
+        ? await runExploreComparison(repoName, prompts, projects, artifact, deadline)
+        : [];
       results.push({
         name: repoName,
         ...metadataFor(sourceRepo.path || projects.typescript),
-        copyMode: pair ? 'reuse-indexed-pair' : 'js-ts-config-slice',
-        copies: pair
+        copyMode: pair ? 'reuse-indexed-pair' : singleArm ? 'reuse-indexed-arm' : 'js-ts-config-slice',
+        copies: pair || singleArm
           ? {
-              typescript: { copiedFiles: 0, tempProjectPath: projects.typescript, skipped: true },
-              rust: { copiedFiles: 0, tempProjectPath: projects.rust, skipped: true },
+              typescript: { copiedFiles: 0, tempProjectPath: projects.typescript ?? null, skipped: true },
+              rust: { copiedFiles: 0, tempProjectPath: projects.rust ?? null, skipped: true },
             }
           : {
               typescript: {
@@ -668,10 +902,18 @@ async function main() {
 
     artifact.results = results;
     artifact.regressions = collectRegressions(results);
-    artifact.stages.comparison = makeStage(artifact.regressions.length > 0 ? 'failed' : 'completed', {
-      elapsedMs: 0,
-      regressionCount: artifact.regressions.length,
-    });
+    const comparisonAvailable = artifact.arms.typescript.graphAvailable && artifact.arms.rust.graphAvailable;
+    artifact.stages.comparison = comparisonAvailable
+      ? makeStage(artifact.regressions.length > 0 ? 'failed' : 'completed', {
+          elapsedMs: 0,
+          regressionCount: artifact.regressions.length,
+        })
+      : makeStage('unavailable', {
+          elapsedMs: 0,
+          reason: 'comparison requires both arms to have graphAvailable=true',
+        });
+    artifact.comparison = artifact.stages.comparison;
+    updatePhase13Classification(artifact);
     finishArtifact(artifact, artifact.regressions.length > 0 ? 'failed' : 'completed');
     emitArtifact(out, artifact);
     if (artifact.regressions.length > 0) {

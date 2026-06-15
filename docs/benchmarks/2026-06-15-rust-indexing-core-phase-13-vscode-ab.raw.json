@@ -1,0 +1,209 @@
+{
+  "generatedAt": "2026-06-15T07:35:10.773Z",
+  "status": "completed",
+  "mode": "deterministic-tool-surface-reuse-indexed-arm",
+  "experimentMode": "full-index-ab",
+  "executionModel": "sequential",
+  "command": "C:\\Users\\victo\\.workbuddy\\binaries\\node\\versions\\22.22.2\\node.exe C:\\workspace\\github\\jununfly\\ZCodeGraph\\scripts\\rust-sufficiency-guardrail.mjs --repo vscode=C:\\workspace\\github\\corpus\\vscode-sparse --repo-arm vscode:typescript=C:\\workspace\\github\\corpus\\vscode-sparse --prompts C:/workspace/github/jununfly/ZCodeGraph/docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-sufficiency-prompts.json --prompt-id VS-1 --timeout-ms 900000 --out C:/workspace/github/jununfly/ZCodeGraph/docs/benchmarks/2026-06-15-rust-indexing-core-phase-13-vscode-ab.raw.json",
+  "timeoutMs": 900000,
+  "target": {
+    "name": "vscode",
+    "sourcePath": "C:\\workspace\\github\\corpus\\vscode-sparse"
+  },
+  "arms": {
+    "typescript": {
+      "engine": "typescript",
+      "sourceCopy": {
+        "path": "C:\\workspace\\github\\corpus\\vscode-sparse",
+        "mode": "reuse-indexed-arm",
+        "skipped": true
+      },
+      "indexing": {
+        "status": "skipped",
+        "elapsedMs": 0,
+        "reason": "reuse-indexed-arm",
+        "projectPath": "C:\\workspace\\github\\corpus\\vscode-sparse"
+      },
+      "graphAvailable": true,
+      "graphStats": {
+        "nodeCount": 330853,
+        "edgeCount": 1515830,
+        "fileCount": 11382,
+        "nodesByKind": {
+          "class": 13300,
+          "component": 10,
+          "constant": 13789,
+          "enum": 2001,
+          "enum_member": 12808,
+          "field": 13,
+          "file": 11345,
+          "function": 21697,
+          "import": 107153,
+          "interface": 13303,
+          "method": 123872,
+          "module": 3,
+          "namespace": 13,
+          "property": 6368,
+          "route": 1,
+          "struct": 6,
+          "trait": 2,
+          "type_alias": 4444,
+          "variable": 725
+        },
+        "edgesByKind": {
+          "calls": 593766,
+          "contains": 319314,
+          "decorates": 760,
+          "extends": 6301,
+          "implements": 4756,
+          "imports": 271571,
+          "instantiates": 54956,
+          "references": 264406
+        },
+        "filesByLanguage": {
+          "c": 1,
+          "cpp": 22,
+          "csharp": 16,
+          "dart": 1,
+          "go": 4,
+          "java": 7,
+          "javascript": 128,
+          "jsx": 1,
+          "lua": 1,
+          "objc": 2,
+          "php": 3,
+          "python": 73,
+          "razor": 1,
+          "ruby": 5,
+          "rust": 4,
+          "swift": 1,
+          "tsx": 263,
+          "typescript": 10782,
+          "xml": 31,
+          "yaml": 36
+        },
+        "dbSizeBytes": 1058672640,
+        "lastUpdated": 1781508910717
+      },
+      "lastProgress": null,
+      "command": {
+        "executable": "C:\\Users\\victo\\.workbuddy\\binaries\\node\\versions\\22.22.2\\node.exe",
+        "args": [
+          "C:\\workspace\\github\\jununfly\\ZCodeGraph\\dist\\bin\\zcodegraph.js",
+          "index",
+          "C:\\workspace\\github\\corpus\\vscode-sparse",
+          "--force",
+          "--quiet"
+        ],
+        "cwd": "C:\\workspace\\github\\corpus\\vscode-sparse",
+        "nodeVersion": "v22.22.2",
+        "scriptVersion": "phase13-ab-v1",
+        "gitSha": "0d1627b70f8fbb02dc39ecd358bc44eca7eb26f8",
+        "env": {
+          "CODEGRAPH_ALLOW_UNSAFE_NODE": "1",
+          "CODEGRAPH_NO_DAEMON": "1",
+          "CODEGRAPH_NO_RELAUNCH": "1"
+        }
+      },
+      "diagnostics": []
+    },
+    "rust": {
+      "engine": "rust",
+      "sourceCopy": null,
+      "indexing": {
+        "status": "unavailable",
+        "elapsedMs": 0,
+        "reason": "Missing indexed project for vscode: rust"
+      },
+      "graphAvailable": false,
+      "graphStats": null,
+      "lastProgress": null,
+      "command": null,
+      "diagnostics": [
+        {
+          "kind": "missing-index",
+          "message": "Missing indexed project for vscode: rust",
+          "stderrTail": ""
+        }
+      ]
+    }
+  },
+  "comparison": {
+    "status": "unavailable",
+    "elapsedMs": 0,
+    "reason": "comparison requires both arms to have graphAvailable=true"
+  },
+  "classification": "success-asymmetric-blocker",
+  "unavailableKind": null,
+  "unavailableReason": null,
+  "note": "Counts are deterministic fallback-risk signals from zcodegraph_explore output, not stochastic Claude Code Read/Grep tool calls.",
+  "unavailableTaxonomy": [
+    "copy-timeout",
+    "typescript-index-timeout",
+    "rust-index-timeout",
+    "explore-timeout",
+    "missing-index",
+    "validator-failed",
+    "process-error",
+    "unsupported-runtime"
+  ],
+  "defaultRolloutReadinessClaimed": false,
+  "runtimeWarnings": [],
+  "stages": {
+    "copy": {
+      "status": "skipped",
+      "elapsedMs": 0,
+      "reason": "reuse-indexed-arm"
+    },
+    "typescriptIndex": {
+      "status": "skipped",
+      "elapsedMs": 0,
+      "reason": "reuse-indexed-arm"
+    },
+    "rustIndex": {
+      "status": "unavailable",
+      "elapsedMs": 0,
+      "reason": "Missing indexed project for vscode: rust"
+    },
+    "exploreAnalyze": {
+      "status": "pending",
+      "elapsedMs": 0
+    },
+    "comparison": {
+      "status": "unavailable",
+      "elapsedMs": 0,
+      "reason": "comparison requires both arms to have graphAvailable=true"
+    }
+  },
+  "toolchain": {
+    "node": "v22.22.2",
+    "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+    "cargo": "cargo 1.96.0 (30a34c682 2026-05-25)",
+    "os": "Windows_NT 10.0.26200 x64",
+    "cpu": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+    "cpuCount": 24
+  },
+  "results": [
+    {
+      "name": "vscode",
+      "sourcePath": "C:\\workspace\\github\\corpus\\vscode-sparse",
+      "commit": "4ac5322601c",
+      "copyMode": "reuse-indexed-arm",
+      "copies": {
+        "typescript": {
+          "copiedFiles": 0,
+          "tempProjectPath": "C:\\workspace\\github\\corpus\\vscode-sparse",
+          "skipped": true
+        },
+        "rust": {
+          "copiedFiles": 0,
+          "tempProjectPath": null,
+          "skipped": true
+        }
+      },
+      "reuseIndexedPair": null,
+      "prompts": []
+    }
+  ],
+  "regressions": []
+}
