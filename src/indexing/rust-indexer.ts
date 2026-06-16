@@ -7,6 +7,7 @@ import { IndexProgress, IndexResult } from '../extraction';
 interface RustIndexerOptions {
   force?: boolean;
   verbose?: boolean;
+  graphWorkProfile?: 'full' | 'matched-ts-js';
   onProgress?: (progress: IndexProgress) => void;
 }
 
@@ -61,6 +62,18 @@ function rustCoreExecutableName(platform: NodeJS.Platform = process.platform): s
   return platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core';
 }
 
+function asExecutableCommand(file: string, cwd: string): RustCoreCommand {
+  try {
+    const header = fs.readFileSync(file, 'utf-8').slice(0, 128);
+    if (header.startsWith('#!/usr/bin/env node') || header.startsWith('#!/usr/bin/node')) {
+      return { command: process.execPath, argsPrefix: [file], cwd };
+    }
+  } catch {
+    // Binary files may not decode as UTF-8; run them directly.
+  }
+  return { command: file, argsPrefix: [], cwd };
+}
+
 function packagedRustCoreBinary(compiledFileDir = __dirname, platform: NodeJS.Platform = process.platform): string {
   return path.resolve(compiledFileDir, '..', '..', '..', 'bin', rustCoreExecutableName(platform));
 }
@@ -77,12 +90,12 @@ export function findRustCoreCommand(
     if (!fs.existsSync(binaryPath)) {
       throw new Error(`Rust index engine is unavailable: ${binaryPath} does not exist`);
     }
-    return { command: binaryPath, argsPrefix: [], cwd: process.cwd() };
+    return asExecutableCommand(binaryPath, process.cwd());
   }
 
   const packagedBinary = packagedRustCoreBinary(compiledFileDir, platform);
   if (fs.existsSync(packagedBinary)) {
-    return { command: packagedBinary, argsPrefix: [], cwd: path.dirname(packagedBinary) };
+    return asExecutableCommand(packagedBinary, path.dirname(packagedBinary));
   }
 
   const repoRoot = repoRootFromCompiledFile(compiledFileDir);
@@ -93,7 +106,7 @@ export function findRustCoreCommand(
     rustCoreExecutableName(platform),
   );
   if (fs.existsSync(debugBinary)) {
-    return { command: debugBinary, argsPrefix: [], cwd: repoRoot };
+    return asExecutableCommand(debugBinary, repoRoot);
   }
 
   if (fs.existsSync(path.join(repoRoot, 'Cargo.toml'))) {
@@ -205,8 +218,8 @@ function checkRustCoreVersion(core: Omit<RustReadinessDiagnostics['core'], 'vers
   });
   return {
     ok: result.status === 0,
-    stdout: result.stdout.trim() || undefined,
-    stderr: result.stderr.trim() || undefined,
+    stdout: result.stdout?.trim() || undefined,
+    stderr: result.stderr?.trim() || undefined,
     error: result.error instanceof Error ? result.error.message : undefined,
   };
 }
@@ -301,6 +314,9 @@ export async function runRustIndexer(
   }
   if (options.verbose) {
     args.push('--verbose');
+  }
+  if (options.graphWorkProfile) {
+    args.push('--graph-work-profile', options.graphWorkProfile);
   }
 
   return new Promise<IndexResult>((resolve, reject) => {

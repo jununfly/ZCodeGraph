@@ -1,0 +1,310 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "rust-indexing-core-phase-15d-vscode-matched-work-stress-local",
+  "kind": "indexing-ab",
+  "generatedAt": "2026-06-16T10:21:12.186Z",
+  "arms": [
+    "typescript",
+    "rust"
+  ],
+  "sourceCopy": {
+    "mode": "js-ts-config-slice",
+    "isolation": "per-arm"
+  },
+  "manifest": {
+    "path": ".workbuddy/phase15d-vscode-matched-work-stress.experiment.json",
+    "unknownFields": []
+  },
+  "preflight": {
+    "status": "completed",
+    "diagnostics": [],
+    "toolchain": {
+      "node": "v22.22.2",
+      "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+      "cargo": "cargo 1.96.0 (30a34c682 2026-05-25)",
+      "os": "Windows_NT 10.0.26200 x64"
+    },
+    "rustCore": {
+      "path": "C:/workspace/github/jununfly/ZCodeGraph/target/debug/zcodegraph-core.exe",
+      "available": true
+    }
+  },
+  "targets": [
+    {
+      "name": "vscode",
+      "targetClass": "stress",
+      "requiredForDecision": false,
+      "requiredAfterPrdCompletion": true,
+      "sparsePatterns": [
+        ".github",
+        "build",
+        "extensions",
+        "scripts",
+        "src",
+        "test"
+      ],
+      "path": {
+        "configuredPathEnv": "ZCODEGRAPH_CORPUS_VSCODE",
+        "configuredPathFallback": "C:/workspace/github/corpus/vscode-sparse",
+        "resolvedPath": "C:\\workspace\\github\\corpus\\vscode-sparse",
+        "pathSource": "fallback"
+      },
+      "preflight": {
+        "status": "available",
+        "kind": null,
+        "diagnostics": [],
+        "commit": "4ac5322601c6985aba4cd9349c23f4ef22dc3e65",
+        "dirty": true,
+        "promptIds": [
+          "VS-1"
+        ]
+      },
+      "arms": {
+        "typescript": {
+          "engine": "typescript",
+          "graphWorkProfile": null,
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 1046846,
+            "peakRssBytes": 52416512,
+            "timingsMs": {
+              "sourceCopy": 7034,
+              "init": 499731,
+              "index": 540080,
+              "graphStats": 181,
+              "total": 1046846
+            },
+            "indexProfile": null,
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-typescript-tr1UJh",
+            "copiedFiles": 11518,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 11098,
+            "nodeCount": 329355,
+            "edgeCount": 1512994,
+            "nodeKinds": {
+              "class": 13204,
+              "component": 9,
+              "constant": 13580,
+              "enum": 1999,
+              "enum_member": 12799,
+              "file": 11098,
+              "function": 21411,
+              "import": 106827,
+              "interface": 13284,
+              "method": 123696,
+              "property": 6368,
+              "route": 1,
+              "type_alias": 4428,
+              "variable": 651
+            },
+            "edgeKinds": {
+              "calls": 592880,
+              "contains": 318058,
+              "decorates": 756,
+              "extends": 6286,
+              "implements": 4753,
+              "imports": 271051,
+              "instantiates": 54921,
+              "references": 264289
+            },
+            "dbSizeBytes": 1055981568
+          },
+          "command": {
+            "executable": "C:\\Users\\victo\\.workbuddy\\binaries\\node\\versions\\22.22.2\\node.exe",
+            "args": [
+              "c:\\workspace\\github\\jununfly\\ZCodeGraph\\dist\\bin\\zcodegraph.js",
+              "index",
+              "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-typescript-tr1UJh",
+              "--force",
+              "--quiet"
+            ],
+            "cwd": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-typescript-tr1UJh",
+            "nodeVersion": "v22.22.2",
+            "env": {}
+          }
+        },
+        "rust": {
+          "engine": "rust",
+          "graphWorkProfile": {
+            "configured": "matched-ts-js",
+            "effective": "matched-ts-js",
+            "source": "experiment"
+          },
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 770037,
+            "peakRssBytes": 62939136,
+            "timingsMs": {
+              "sourceCopy": 7037,
+              "init": 503590,
+              "index": 259410,
+              "graphStats": 134,
+              "total": 770037
+            },
+            "indexProfile": {
+              "rustCore": {
+                "sourceScanMs": 128,
+                "parseExtractionMs": 49799,
+                "sqliteWriteMs": 66991,
+                "subprocessStartupHandoffMs": 38
+              },
+              "finalize": {
+                "frameworkPostExtractMs": 91,
+                "referenceResolutionMs": 110970,
+                "referenceResolutionBreakdown": {
+                  "importResolutionMs": 25600,
+                  "nameMatchingMs": 62099,
+                  "frameworkMatchingMs": 1125,
+                  "databaseAccessMs": 20340,
+                  "cacheWarmupMs": 149,
+                  "unresolvedReadMs": 515,
+                  "candidateLookupMs": 2920,
+                  "sharedCandidateLookupMs": 1007,
+                  "candidateLookupCacheHitMs": 498,
+                  "perReferenceDisambiguationMs": 60183,
+                  "rustMatcherMs": 0,
+                  "rustMatcherStartupMs": 0,
+                  "rustMatcherSerializationMs": 0,
+                  "rustMatcherEligibleRefs": 0,
+                  "rustMatcherHandledRefs": 0,
+                  "rustMatcherFallbackRefs": 0,
+                  "rustMatcherSemanticMismatchRefs": 0,
+                  "rustMatcherSemanticMismatchSamples": [],
+                  "rustMatcherFallbackReasons": {},
+                  "rustMatcherCandidateMaterializationMs": 0,
+                  "rustMatcherSubprocessMs": 0,
+                  "rustMatcherTsVerificationMs": 0,
+                  "rustMatcherPayloadBytes": 0,
+                  "rustMatcherUniqueCandidateFacts": 0,
+                  "edgeMaterializationMs": 49,
+                  "edgeWriteMs": 14225,
+                  "unresolvedCleanupMs": 5403,
+                  "otherResolutionMs": 373
+                },
+                "dynamicDispatchSynthesisMs": 16922,
+                "dbMaintenanceMs": 228
+              },
+              "typescriptFinalizationMs": 128235
+            },
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-rust-OZmv3L",
+            "copiedFiles": 11518,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 11291,
+            "nodeCount": 308848,
+            "edgeCount": 553834,
+            "nodeKinds": {
+              "class": 12680,
+              "enum": 1999,
+              "file": 11291,
+              "function": 40160,
+              "import": 107519,
+              "interface": 13438,
+              "method": 88931,
+              "type_alias": 4948,
+              "variable": 27882
+            },
+            "edgeKinds": {
+              "calls": 1031,
+              "contains": 297601,
+              "imports": 255202
+            },
+            "dbSizeBytes": 466558976
+          },
+          "command": {
+            "executable": "C:\\Users\\victo\\.workbuddy\\binaries\\node\\versions\\22.22.2\\node.exe",
+            "args": [
+              "c:\\workspace\\github\\jununfly\\ZCodeGraph\\dist\\bin\\zcodegraph.js",
+              "index",
+              "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-rust-OZmv3L",
+              "--force",
+              "--quiet",
+              "--engine",
+              "rust",
+              "--graph-work-profile",
+              "matched-ts-js"
+            ],
+            "cwd": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-rust-OZmv3L",
+            "nodeVersion": "v22.22.2",
+            "env": {
+              "ZCODEGRAPH_RUST_CORE_BINARY": "C:/workspace/github/jununfly/ZCodeGraph/target/debug/zcodegraph-core.exe",
+              "ZCODEGRAPH_INDEX_PROFILE_OUT": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-rust-OZmv3L\\.zcodegraph\\rust-index-profile.json"
+            }
+          }
+        }
+      },
+      "gates": {
+        "sufficiency": {
+          "status": "passed",
+          "regressions": []
+        },
+        "performance": {
+          "status": "unavailable",
+          "wallTimeDeltaPct": -26.44218920452483,
+          "peakRssDeltaPct": 20.075017582245838,
+          "diagnostics": [
+            {
+              "kind": "wall-time-phase-dominant",
+              "message": "Dominant Rust wall-time phase is init",
+              "arm": "rust",
+              "phase": "init",
+              "elapsedMs": 503590
+            },
+            {
+              "kind": "wall-time-phase-dominant",
+              "message": "Dominant TypeScript wall-time phase is index",
+              "arm": "typescript",
+              "phase": "index",
+              "elapsedMs": 540080
+            },
+            {
+              "kind": "wall-time-regression-source",
+              "message": "Largest Rust-over-TypeScript wall-time delta is init",
+              "phase": "init",
+              "typescriptMs": 499731,
+              "rustMs": 503590,
+              "deltaMs": 3859
+            }
+          ]
+        }
+      },
+      "classification": "target-failed-performance-gate-unmet"
+    }
+  ],
+  "classification": "failed-required-arm-unavailable",
+  "decisionReadiness": {
+    "sufficiencyPassed": false,
+    "performancePassed": false,
+    "requiredTargetsPassed": false,
+    "rolloutReadinessClaimed": false
+  }
+}

@@ -16,6 +16,7 @@ const defaultRustCore = path.join(
 const PHASE1_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx']);
 const CONFIG_FILES = new Set(['package.json', 'tsconfig.json', 'jsconfig.json']);
 const SKIP_DIRS = new Set(['.git', '.zcodegraph', 'node_modules', 'dist', 'target', '.next', 'coverage']);
+const SUPPORTED_GRAPH_WORK_PROFILES = new Set(['full', 'matched-ts-js']);
 
 const SUPPORTED_TOP_LEVEL_FIELDS = new Set([
   'schemaVersion',
@@ -26,6 +27,7 @@ const SUPPORTED_TOP_LEVEL_FIELDS = new Set([
   'targets',
   'metrics',
   'outputs',
+  'rust',
 ]);
 
 function printHelp() {
@@ -92,6 +94,21 @@ function validateTargetPath(target, index, diagnostics) {
     return false;
   }
   return true;
+}
+
+function validateGraphWorkProfile(value, field, diagnostics) {
+  if (value == null) return null;
+  if (typeof value !== 'string' || !SUPPORTED_GRAPH_WORK_PROFILES.has(value)) {
+    diagnostics.push(
+      diagnostic('unsupported-graph-work-profile', `Unsupported graph work profile at ${field}; supported profiles: full, matched-ts-js`, {
+        field,
+        supported: Array.from(SUPPORTED_GRAPH_WORK_PROFILES),
+        value,
+      }),
+    );
+    return null;
+  }
+  return value;
 }
 
 function validateMetrics(metrics, diagnostics) {
@@ -178,6 +195,8 @@ function validateManifest(manifest) {
     }
   }
 
+  const experimentGraphWorkProfile = validateGraphWorkProfile(manifest.rust?.graphWorkProfile, 'rust.graphWorkProfile', diagnostics);
+
   if (!Array.isArray(manifest.targets)) {
     diagnostics.push(diagnostic('invalid-targets', 'targets must be an array', { field: 'targets' }));
   } else {
@@ -199,6 +218,7 @@ function validateManifest(manifest) {
         seenTargets.add(target.name);
       }
       validateTargetPath(target, index, diagnostics);
+      validateGraphWorkProfile(target.arms?.rust?.graphWorkProfile, `targets[${index}].arms.rust.graphWorkProfile`, diagnostics);
     });
   }
 
@@ -212,6 +232,9 @@ function validateManifest(manifest) {
     sourceCopy: {
       mode: manifest.sourceCopy?.mode,
       isolation: manifest.sourceCopy?.isolation,
+    },
+    rust: {
+      graphWorkProfile: experimentGraphWorkProfile,
     },
     targets: Array.isArray(manifest.targets) ? manifest.targets : [],
     metrics,
@@ -230,8 +253,92 @@ function writeJson(file, value) {
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+function formatSignedNumber(value) {
+  if (value == null || Number.isNaN(value)) return 'n/a';
+  return value > 0 ? `+${value}` : `${value}`;
+}
+
+function graphKindDeltas(tsKinds = {}, rustKinds = {}) {
+  const kinds = Array.from(new Set([...Object.keys(tsKinds), ...Object.keys(rustKinds)])).sort();
+  return kinds.map((kind) => {
+    const typescript = tsKinds[kind] ?? 0;
+    const rust = rustKinds[kind] ?? 0;
+    return { kind, typescript, rust, delta: rust - typescript };
+  });
+}
+
+function wallTimeDiagnosticsLines(target) {
+  return ['typescript', 'rust'].map((engine) => {
+    const timings = target.arms[engine].execution.timingsMs ?? {};
+    return `| ${target.name} | ${engine} | ${timings.sourceCopy ?? 'n/a'} | ${timings.init ?? 'n/a'} | ${timings.index ?? 'n/a'} | ${timings.graphStats ?? 'n/a'} | ${timings.total ?? target.arms[engine].execution.elapsedMs ?? 'n/a'} |`;
+  });
+}
+
+function rustIndexProfileRows(target) {
+  const profile = target.arms.rust.execution.indexProfile;
+  if (!profile) return [];
+  const rows = [];
+  for (const [phase, value] of Object.entries(profile.rustCore ?? {})) {
+    if (typeof value === 'number') rows.push([target.name, phase, value]);
+  }
+  for (const [phase, value] of Object.entries(profile.finalize ?? {})) {
+    if (typeof value === 'number') rows.push([target.name, phase, value]);
+  }
+  if (typeof profile.typescriptFinalizationMs === 'number') rows.push([target.name, 'typescriptFinalizationMs', profile.typescriptFinalizationMs]);
+  return rows;
+}
+
+function graphParitySummaryLines(target) {
+  const tsStats = target.arms.typescript.graphStats;
+  const rustStats = target.arms.rust.graphStats;
+  if (!tsStats || !rustStats) {
+    return [`### ${target.name} graphStats parity`, '', 'GraphStats parity unavailable because one or both arms did not produce graph stats.', ''];
+  }
+  const nodeDeltas = graphKindDeltas(tsStats.nodeKinds, rustStats.nodeKinds);
+  const edgeDeltas = graphKindDeltas(tsStats.edgeKinds, rustStats.edgeKinds);
+  return [
+    `### ${target.name} graphStats parity`,
+    '',
+    `Totals: files ${tsStats.fileCount} → ${rustStats.fileCount} (${formatSignedNumber(rustStats.fileCount - tsStats.fileCount)}); nodes ${tsStats.nodeCount} → ${rustStats.nodeCount} (${formatSignedNumber(rustStats.nodeCount - tsStats.nodeCount)}); edges ${tsStats.edgeCount} → ${rustStats.edgeCount} (${formatSignedNumber(rustStats.edgeCount - tsStats.edgeCount)}).`,
+    '',
+    'Node kind deltas',
+    '',
+    '| Kind | TypeScript | Rust | Delta |',
+    '|---|---:|---:|---:|',
+    ...(nodeDeltas.length > 0 ? nodeDeltas.map((row) => `| ${row.kind} | ${row.typescript} | ${row.rust} | ${formatSignedNumber(row.delta)} |`) : ['| n/a | 0 | 0 | 0 |']),
+    '',
+    'Edge kind deltas',
+    '',
+    '| Kind | TypeScript | Rust | Delta |',
+    '|---|---:|---:|---:|',
+    ...(edgeDeltas.length > 0 ? edgeDeltas.map((row) => `| ${row.kind} | ${row.typescript} | ${row.rust} | ${formatSignedNumber(row.delta)} |`) : ['| n/a | 0 | 0 | 0 |']),
+    '',
+  ];
+}
+
+function graphWorkProfileSummaryLines(targets) {
+  const rows = targets.map((target) => {
+    const profile = target.arms.rust.graphWorkProfile;
+    return `| ${target.name} | ${profile.effective} | ${profile.source} |`;
+  });
+  return [
+    '## Rust graph work profiles',
+    '',
+    '| Target | Effective profile | Source |',
+    '|---|---|---|',
+    ...rows,
+    '',
+    '`full` runs the default Rust extraction scope. matched-ts-js controls the most obvious rerun5 cost drivers, including constant expansion, component detection, field/export extraction, and aggressive call extraction where currently supported, without post-hoc output trimming.',
+    '',
+  ];
+}
+
 function writeSummary(file, artifact, manifestPath) {
   ensureParentDir(file);
+  const requiredPerformanceGateUnmet = artifact.targets.some(
+    (target) => target.requiredForDecision !== false && target.classification === 'target-failed-performance-gate-unmet',
+  );
+  const stressOnlyExperiment = artifact.targets.length > 0 && artifact.targets.every((target) => target.requiredForDecision === false);
   const lines = [
     '# Rust Indexing Core Phase 14 Decision Summary Draft',
     '',
@@ -250,6 +357,7 @@ function writeSummary(file, artifact, manifestPath) {
     `Experiment preflight: ${artifact.preflight.status}`,
     `Rust core: ${artifact.preflight.rustCore?.available ? 'available' : 'unavailable'} (${artifact.preflight.rustCore?.path ?? 'n/a'})`,
     '',
+    ...graphWorkProfileSummaryLines(artifact.targets),
     '## Arm availability and graph stats',
     '',
     ...artifact.targets.flatMap((target) => [
@@ -259,9 +367,27 @@ function writeSummary(file, artifact, manifestPath) {
       `- Rust: ${target.arms.rust.graphAvailable ? 'graph available' : 'graph unavailable'}; stats: ${JSON.stringify(target.arms.rust.graphStats)}`,
       '',
     ]),
+    '## GraphStats parity',
+    '',
+    ...artifact.targets.flatMap((target) => graphParitySummaryLines(target)),
     '## Metrics',
     '',
     ...artifact.targets.map((target) => `- ${target.name}: wallTimeDeltaPct=${target.gates.performance.wallTimeDeltaPct}, peakRssDeltaPct=${target.gates.performance.peakRssDeltaPct}`),
+    '',
+    '## Wall-time diagnostics',
+    '',
+    '| Target | Arm | Source copy ms | Init ms | Index ms | Graph stats ms | Total ms |',
+    '|---|---|---:|---:|---:|---:|---:|',
+    ...artifact.targets.flatMap((target) => wallTimeDiagnosticsLines(target)),
+    '',
+    '## Rust index profile breakdown',
+    '',
+    '| Target | Phase | Duration ms |',
+    '|---|---|---:|',
+    ...artifact.targets.flatMap((target) => {
+      const rows = rustIndexProfileRows(target);
+      return rows.length > 0 ? rows.map(([name, phase, value]) => `| ${name} | ${phase} | ${value} |`) : [`| ${target.name} | n/a | n/a |`];
+    }),
     '',
     '## Gates',
     '',
@@ -278,6 +404,8 @@ function writeSummary(file, artifact, manifestPath) {
     '',
     '## Rollout recommendation draft',
     '',
+    ...(requiredPerformanceGateUnmet ? ['Performance gate is not satisfied for required targets whose TypeScript and Rust arms both completed.'] : []),
+    ...(stressOnlyExperiment ? ['No required targets are present; stress targets are diagnostic and do not claim rollout readiness.'] : []),
     'Rust default rollout readiness is not claimed by this generated draft.',
     '',
   ];
@@ -300,12 +428,75 @@ function getGitCommit(targetPath) {
   return result.status === 0 ? result.stdout.trim() : null;
 }
 
+function childMaxBufferBytes() {
+  const configured = Number.parseInt(process.env.ZCODEGRAPH_EXPERIMENT_CHILD_MAX_BUFFER_BYTES ?? '', 10);
+  if (Number.isFinite(configured) && configured > 0) return configured;
+  return 64 * 1024 * 1024;
+}
+
 function runCommand(command, args, cwd, env = {}) {
   return spawnSync(command, args, {
     cwd,
     env: { ...process.env, ...env },
     encoding: 'utf-8',
+    maxBuffer: childMaxBufferBytes(),
   });
+}
+
+function childProcessFailureDetails(result) {
+  return {
+    status: result.status,
+    signal: result.signal,
+    errorCode: result.error?.code,
+    errorMessage: result.error?.message,
+    stdoutTail: tail(result.stdout),
+    stderrTail: tail(result.stderr),
+  };
+}
+
+function measuredPeakRssBytes(engine) {
+  const envKey = engine === 'rust' ? 'ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PEAK_RSS_BYTES' : 'ZCODEGRAPH_EXPERIMENT_FAKE_TYPESCRIPT_PEAK_RSS_BYTES';
+  const override = process.env[envKey];
+  if (override !== undefined) {
+    const parsed = Number.parseInt(override, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+  const rss = process.memoryUsage().rss;
+  return Number.isFinite(rss) && rss > 0 ? rss : null;
+}
+
+function readJsonIfExists(file) {
+  if (!fs.existsSync(file)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function elapsedSince(startedAt) {
+  return Math.max(0, Date.now() - startedAt);
+}
+
+function dominantTimingPhase(timings) {
+  const entries = Object.entries(timings ?? {}).filter(([phase]) => phase !== 'total');
+  if (entries.length === 0) return null;
+  return entries.reduce((best, entry) => (entry[1] > best[1] ? entry : best), entries[0]);
+}
+
+function phaseTimingDeltas(tsTimings = {}, rustTimings = {}) {
+  return ['sourceCopy', 'init', 'index', 'graphStats'].map((phase) => ({
+    phase,
+    typescriptMs: tsTimings[phase] ?? 0,
+    rustMs: rustTimings[phase] ?? 0,
+    deltaMs: (rustTimings[phase] ?? 0) - (tsTimings[phase] ?? 0),
+  }));
+}
+
+function dominantRegressionPhase(tsTimings, rustTimings) {
+  const deltas = phaseTimingDeltas(tsTimings, rustTimings);
+  const dominant = deltas.reduce((best, row) => (row.deltaMs > best.deltaMs ? row : best), deltas[0]);
+  return dominant && dominant.deltaMs > 0 ? dominant : null;
 }
 
 function tail(text, max = 4000) {
@@ -349,7 +540,26 @@ function copySourceSlice(source, engine) {
 function collectGraphStats(project) {
   const dbFile = path.join(project, '.zcodegraph', 'zcodegraph.db');
   if (fs.existsSync(dbFile)) {
-    const queryResult = runCommand(process.execPath, ['-e', `const Database=require('better-sqlite3');const db=new Database(process.argv[1]);console.log(JSON.stringify({fileCount:db.prepare('select count(*) as c from files').get().c,nodeCount:db.prepare('select count(*) as c from nodes').get().c,edgeCount:db.prepare('select count(*) as c from edges').get().c,dbSizeBytes:require('fs').statSync(process.argv[1]).size}));db.close();`, dbFile], project);
+    const queryScript = `
+const { DatabaseSync } = require('node:sqlite');
+const fs = require('node:fs');
+const db = new DatabaseSync(process.argv[1]);
+function count(sql) { return db.prepare(sql).get().c; }
+function countsByKind(table) {
+  const rows = db.prepare(\`select kind, count(*) as c from \${table} group by kind order by kind\`).all();
+  return Object.fromEntries(rows.map((row) => [row.kind, row.c]));
+}
+console.log(JSON.stringify({
+  fileCount: count('select count(*) as c from files'),
+  nodeCount: count('select count(*) as c from nodes'),
+  edgeCount: count('select count(*) as c from edges'),
+  nodeKinds: countsByKind('nodes'),
+  edgeKinds: countsByKind('edges'),
+  dbSizeBytes: fs.statSync(process.argv[1]).size,
+}));
+db.close();
+`;
+    const queryResult = runCommand(process.execPath, ['-e', queryScript, dbFile], project);
     if (queryResult.status === 0) {
       try {
         return JSON.parse(queryResult.stdout);
@@ -365,6 +575,8 @@ function collectGraphStats(project) {
       fileCount: parsed.fileCount ?? 0,
       nodeCount: parsed.nodeCount ?? 0,
       edgeCount: parsed.edgeCount ?? 0,
+      nodeKinds: {},
+      edgeKinds: {},
       dbSizeBytes: parsed.dbSizeBytes ?? 0,
     };
   } catch {
@@ -378,22 +590,50 @@ function indexArm(target, engine, rustCoreInfo) {
 
   const started = Date.now();
   if (process.env.ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS === '1' && engine === 'rust') {
+    const sourceCopyStarted = Date.now();
     arm.sourceCopy = copySourceSlice(target.path.resolvedPath, engine);
-    arm.execution.elapsedMs = Number.parseInt(process.env.ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS || '1', 10);
+    const elapsedMs = Number.parseInt(process.env.ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS || '1', 10);
+    if (process.env.ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PROFILE) {
+      try {
+        arm.execution.indexProfile = JSON.parse(process.env.ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PROFILE);
+      } catch {
+        arm.execution.diagnostics.push(diagnostic('rust-index-profile-parse-failed', 'Failed to parse fake Rust index profile'));
+      }
+    }
+    arm.execution.elapsedMs = elapsedMs;
+    arm.execution.timingsMs = {
+      sourceCopy: elapsedSince(sourceCopyStarted),
+      init: 0,
+      index: elapsedMs,
+      graphStats: 0,
+      total: elapsedMs,
+    };
+    arm.execution.peakRssBytes = measuredPeakRssBytes(engine);
     arm.execution.status = 'completed';
     arm.indexing.status = 'completed';
     arm.graphStats = {
       fileCount: arm.sourceCopy.copiedFiles,
       nodeCount: 1,
       edgeCount: 1,
+      nodeKinds: { function: 1 },
+      edgeKinds: { contains: 1 },
       dbSizeBytes: 0,
     };
     arm.graphAvailable = true;
     return;
   }
   if (process.env.ZCODEGRAPH_EXPERIMENT_FAIL_ENGINE === engine) {
+    const sourceCopyStarted = Date.now();
     arm.sourceCopy = copySourceSlice(target.path.resolvedPath, engine);
     arm.execution.elapsedMs = Date.now() - started;
+    arm.execution.timingsMs = {
+      sourceCopy: elapsedSince(sourceCopyStarted),
+      init: 0,
+      index: 0,
+      graphStats: 0,
+      total: arm.execution.elapsedMs,
+    };
+    arm.execution.peakRssBytes = measuredPeakRssBytes(engine);
     arm.execution.status = 'failed';
     arm.execution.diagnostics.push(diagnostic('forced-engine-failure', `Forced ${engine} indexing failure`));
     arm.indexing.status = 'failed';
@@ -401,21 +641,34 @@ function indexArm(target, engine, rustCoreInfo) {
     return;
   }
   try {
+    const sourceCopyStarted = Date.now();
     arm.sourceCopy = copySourceSlice(target.path.resolvedPath, engine);
+    const timingsMs = {
+      sourceCopy: elapsedSince(sourceCopyStarted),
+      init: 0,
+      index: 0,
+      graphStats: 0,
+      total: 0,
+    };
     const bin = path.join(repoRoot, 'dist', 'bin', 'zcodegraph.js');
+    const initStarted = Date.now();
     const initResult = runCommand(process.execPath, [bin, 'init', arm.sourceCopy.path], arm.sourceCopy.path);
-    if (initResult.status !== 0) {
+    timingsMs.init = elapsedSince(initStarted);
+    if (initResult.status !== 0 || initResult.error) {
       arm.execution.status = 'failed';
-      arm.execution.diagnostics.push(diagnostic('init-process-failed', `Init failed for ${target.name}:${engine}`, { stderrTail: tail(initResult.stderr) }));
+      arm.execution.diagnostics.push(diagnostic('init-process-failed', `Init failed for ${target.name}:${engine}`, childProcessFailureDetails(initResult)));
       arm.indexing.status = 'failed';
       arm.graphAvailable = false;
       return;
     }
     const args = [bin, 'index', arm.sourceCopy.path, '--force', '--quiet'];
     const env = {};
+    let indexProfileFile = null;
     if (engine === 'rust') {
-      args.push('--engine', 'rust');
+      args.push('--engine', 'rust', '--graph-work-profile', arm.graphWorkProfile.effective);
       env.ZCODEGRAPH_RUST_CORE_BINARY = rustCoreInfo.path;
+      indexProfileFile = path.join(arm.sourceCopy.path, '.zcodegraph', 'rust-index-profile.json');
+      env.ZCODEGRAPH_INDEX_PROFILE_OUT = indexProfileFile;
     }
     arm.command = {
       executable: process.execPath,
@@ -425,26 +678,44 @@ function indexArm(target, engine, rustCoreInfo) {
       env,
     };
     arm.execution.status = 'running';
+    const indexStarted = Date.now();
     const result = runCommand(process.execPath, args, arm.sourceCopy.path, env);
+    timingsMs.index = elapsedSince(indexStarted);
     arm.execution.elapsedMs = Date.now() - started;
-    if (result.status !== 0) {
+    timingsMs.total = arm.execution.elapsedMs;
+    arm.execution.timingsMs = timingsMs;
+    arm.execution.peakRssBytes = measuredPeakRssBytes(engine);
+    if (result.status !== 0 || result.error) {
       arm.execution.status = 'failed';
-      arm.execution.diagnostics.push(diagnostic('index-process-failed', `Indexing failed for ${target.name}:${engine}`, { stderrTail: tail(result.stderr) }));
+      arm.execution.diagnostics.push(diagnostic('index-process-failed', `Indexing failed for ${target.name}:${engine}`, childProcessFailureDetails(result)));
       arm.indexing.status = 'failed';
       arm.graphAvailable = false;
       return;
     }
     arm.execution.status = 'completed';
     arm.indexing.status = 'completed';
+    if (indexProfileFile) {
+      arm.execution.indexProfile = readJsonIfExists(indexProfileFile);
+      if (!arm.execution.indexProfile) {
+        arm.execution.diagnostics.push(diagnostic('missing-rust-index-profile', 'Rust index profile was not emitted by the CLI'));
+      }
+    }
+    const graphStatsStarted = Date.now();
     arm.graphStats = collectGraphStats(arm.sourceCopy.path) ?? {
       fileCount: arm.sourceCopy.copiedFiles,
       nodeCount: 0,
       edgeCount: 0,
+      nodeKinds: {},
+      edgeKinds: {},
       dbSizeBytes: 0,
     };
+    timingsMs.graphStats = elapsedSince(graphStatsStarted);
+    timingsMs.total = arm.execution.elapsedMs;
     arm.graphAvailable = true;
   } catch (error) {
     arm.execution.elapsedMs = Date.now() - started;
+    arm.execution.timingsMs = arm.execution.timingsMs ?? { sourceCopy: 0, init: 0, index: 0, graphStats: 0, total: arm.execution.elapsedMs };
+    arm.execution.peakRssBytes = measuredPeakRssBytes(engine);
     arm.execution.status = 'failed';
     arm.execution.diagnostics.push(diagnostic('index-exception', error instanceof Error ? error.message : String(error)));
     arm.indexing.status = 'failed';
@@ -481,11 +752,39 @@ function applyGates(target, thresholds) {
   }
 
   const wallTimeDeltaPct = computeDeltaPct(ts.execution.elapsedMs, rust.execution.elapsedMs);
-  const peakRssDeltaPct = null;
-  const diagnostics = [diagnostic('missing-peak-rss', 'Peak RSS was not collected')];
+  const peakRssDeltaPct = computeDeltaPct(ts.execution.peakRssBytes, rust.execution.peakRssBytes);
+  const diagnostics = [];
+  if (peakRssDeltaPct == null) diagnostics.push(diagnostic('missing-peak-rss', 'Peak RSS was not collected for one or both arms'));
+  const tsDominant = dominantTimingPhase(ts.execution.timingsMs);
+  const rustDominant = dominantTimingPhase(rust.execution.timingsMs);
+  if (rustDominant) {
+    diagnostics.push(
+      diagnostic('wall-time-phase-dominant', `Dominant Rust wall-time phase is ${rustDominant[0]}`, {
+        arm: 'rust',
+        phase: rustDominant[0],
+        elapsedMs: rustDominant[1],
+      }),
+    );
+  }
+  if (tsDominant) {
+    diagnostics.push(
+      diagnostic('wall-time-phase-dominant', `Dominant TypeScript wall-time phase is ${tsDominant[0]}`, {
+        arm: 'typescript',
+        phase: tsDominant[0],
+        elapsedMs: tsDominant[1],
+      }),
+    );
+  }
+  const regressionPhase = dominantRegressionPhase(ts.execution.timingsMs, rust.execution.timingsMs);
+  if (regressionPhase) {
+    diagnostics.push(
+      diagnostic('wall-time-regression-source', `Largest Rust-over-TypeScript wall-time delta is ${regressionPhase.phase}`, regressionPhase),
+    );
+  }
   const wallTimePasses = wallTimeDeltaPct != null && wallTimeDeltaPct <= -thresholds.wallTimeImprovementPct;
+  const peakRssPasses = peakRssDeltaPct != null && peakRssDeltaPct <= -thresholds.peakRssReductionPct;
   target.gates.performance = {
-    status: wallTimePasses ? 'passed' : 'unavailable',
+    status: wallTimePasses && peakRssPasses ? 'passed' : 'unavailable',
     wallTimeDeltaPct,
     peakRssDeltaPct,
     diagnostics,
@@ -501,6 +800,7 @@ function classifyTarget(target) {
   if (target.gates.sufficiency.status === 'failed') return 'target-failed-comparison-regression';
   if (target.gates.performance.status === 'failed') return 'target-failed-comparison-regression';
   if (target.gates.sufficiency.status === 'passed' && target.gates.performance.status === 'passed') return 'target-success-comparison-completed';
+  if (target.gates.sufficiency.status === 'passed' && target.gates.performance.status !== 'passed') return 'target-failed-performance-gate-unmet';
   return 'target-skipped';
 }
 
@@ -520,6 +820,7 @@ function isGitDirty(targetPath) {
 function emptyArm(engine) {
   return {
     engine,
+    graphWorkProfile: engine === 'rust' ? { configured: null, effective: 'full', source: 'built-in-default' } : null,
     preflight: {
       status: 'available',
       kind: null,
@@ -528,6 +829,9 @@ function emptyArm(engine) {
     execution: {
       status: 'pending',
       elapsedMs: 0,
+      peakRssBytes: null,
+      timingsMs: null,
+      indexProfile: null,
       diagnostics: [],
     },
     indexing: {
@@ -578,12 +882,24 @@ function resolveTargetPath(target) {
   };
 }
 
-function preflightTarget(target, rustCoreInfo) {
+function resolveRustGraphWorkProfile(target, experimentRust) {
+  const targetArmProfile = target.arms?.rust?.graphWorkProfile;
+  if (targetArmProfile) {
+    return { configured: targetArmProfile, effective: targetArmProfile, source: 'target-arm' };
+  }
+  if (experimentRust?.graphWorkProfile) {
+    return { configured: experimentRust.graphWorkProfile, effective: experimentRust.graphWorkProfile, source: 'experiment' };
+  }
+  return { configured: null, effective: 'full', source: 'built-in-default' };
+}
+
+function preflightTarget(target, rustCoreInfo, experimentRust = {}) {
   const targetPath = resolveTargetPath(target);
   const arms = {
     typescript: emptyArm('typescript'),
     rust: emptyArm('rust'),
   };
+  arms.rust.graphWorkProfile = resolveRustGraphWorkProfile(target, experimentRust);
   const preflight = {
     status: 'available',
     kind: null,
@@ -667,10 +983,16 @@ function metricThresholds(metrics) {
 
 function classifyExperiment(targets) {
   const requiredTargets = targets.filter((target) => target.requiredForDecision !== false);
+  if (requiredTargets.length === 0) {
+    if (targets.length === 0) return 'failed-required-arm-unavailable';
+    if (targets.every((target) => target.classification === 'target-success-comparison-completed')) return 'stress-only-targets-completed';
+    return 'stress-only-targets-completed-with-nonblocking-failures';
+  }
   if (requiredTargets.some((target) => target.classification === 'target-failed-preflight')) return 'failed-required-target-unavailable';
   if (requiredTargets.some((target) => target.classification === 'target-failed-arm-unavailable')) return 'failed-required-arm-unavailable';
   if (requiredTargets.some((target) => target.classification === 'target-failed-comparison-regression')) return 'failed-required-comparison-regression';
-  const requiredPassed = requiredTargets.length > 0 && requiredTargets.every((target) => target.classification === 'target-success-comparison-completed');
+  if (requiredTargets.some((target) => target.classification === 'target-failed-performance-gate-unmet')) return 'failed-required-performance-gate-unmet';
+  const requiredPassed = requiredTargets.every((target) => target.classification === 'target-success-comparison-completed');
   if (requiredPassed && targets.some((target) => target.requiredForDecision === false && target.classification !== 'target-success-comparison-completed')) {
     return 'success-required-targets-passed-with-stress-failures';
   }
@@ -691,7 +1013,7 @@ function decisionReadinessFor(classification, targets) {
 function createArtifact(normalized, manifestPath, validation) {
   const preflight = createExperimentPreflight();
   const thresholds = metricThresholds(normalized.metrics);
-  const targets = normalized.targets.map((target) => preflightTarget(target, preflight.rustCore));
+  const targets = normalized.targets.map((target) => preflightTarget(target, preflight.rustCore, normalized.rust));
   for (const target of targets) {
     runArms(target, preflight.rustCore, thresholds);
   }

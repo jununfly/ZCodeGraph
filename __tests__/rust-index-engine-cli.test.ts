@@ -30,8 +30,8 @@ function writeFakeRustCore(dir: string): string {
     script,
     [
       '#!/usr/bin/env node',
-      `require("fs").writeFileSync(${JSON.stringify(marker)}, "1\\n");`,
       'const args = process.argv.slice(2);',
+      `require("fs").writeFileSync(${JSON.stringify(marker)}, JSON.stringify({ args }) + "\\n");`,
       'if (!args.includes("index")) process.exit(2);',
       'process.stdout.write(JSON.stringify({ type: "progress", phase: "scanning", current: 0, total: 1 }) + "\\n");',
       'process.stdout.write(JSON.stringify({ type: "result", success: true, filesIndexed: 0, filesSkipped: 0, filesErrored: 0, nodesCreated: 0, edgesCreated: 0, errors: [], durationMs: 1 }) + "\\n");',
@@ -142,6 +142,18 @@ describe('zcodegraph index engine selection', () => {
     expect(result.stderr).not.toContain('Failed to index');
   });
 
+  it('passes graph work profile to the Rust subprocess when selected by CLI flag', () => {
+    const rustCore = writeFakeRustCore(tempDir);
+    const result = runCli(tempDir, ['index', '--engine', 'rust', '--graph-work-profile', 'matched-ts-js', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const marker = JSON.parse(fs.readFileSync(fakeRustCoreMarker(tempDir), 'utf-8')) as { args: string[] };
+    expect(marker.args).toContain('--graph-work-profile');
+    expect(marker.args).toContain('matched-ts-js');
+  });
+
   it('runs the Rust subprocess when selected by environment variable', () => {
     const rustCore = writeFakeRustCore(tempDir);
     const result = runCli(tempDir, ['index', '--quiet'], {
@@ -184,6 +196,17 @@ describe('zcodegraph index engine selection', () => {
     expect(result.stderr).not.toContain('Rust index engine is unavailable');
   });
 
+  it('rejects unsupported graph work profile values before indexing', () => {
+    const rustCore = writeFailingRustCore(tempDir);
+    const result = runCli(tempDir, ['index', '--engine', 'rust', '--graph-work-profile', 'wide-open', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
+    expect(result.stderr).toContain('Unsupported graph work profile');
+    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(false);
+  });
+
   it('rejects unsupported engine values before indexing', () => {
     const result = runCli(tempDir, ['index', '--engine', 'python', '--quiet']);
 
@@ -217,11 +240,29 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
-  it('writes a Rust-produced index that TypeScript status can inspect', () => {
+  it('writes a Rust-produced index and profile that TypeScript status can inspect', () => {
+    const profileOut = path.join(tempDir, '.zcodegraph', 'rust-index-profile.json');
     const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
     });
     expect(indexResult.status).toBe(0);
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      rustCore: { sourceScanMs: number; parseExtractionMs: number; sqliteWriteMs: number };
+      finalize: { referenceResolutionMs: number; dynamicDispatchSynthesisMs: number; dbMaintenanceMs: number };
+      typescriptFinalizationMs: number;
+    };
+    expect(profile.rustCore).toMatchObject({
+      sourceScanMs: expect.any(Number),
+      parseExtractionMs: expect.any(Number),
+      sqliteWriteMs: expect.any(Number),
+    });
+    expect(profile.finalize).toMatchObject({
+      referenceResolutionMs: expect.any(Number),
+      dynamicDispatchSynthesisMs: expect.any(Number),
+      dbMaintenanceMs: expect.any(Number),
+    });
+    expect(profile.typescriptFinalizationMs).toEqual(expect.any(Number));
 
     const statusResult = runCli(tempDir, ['status', '--json']);
     expect(statusResult.status).toBe(0);

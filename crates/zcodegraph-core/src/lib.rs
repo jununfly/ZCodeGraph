@@ -18,6 +18,60 @@ pub struct IndexRequest {
     pub index_path: String,
     pub force: bool,
     pub verbose: bool,
+    pub graph_work_profile: GraphWorkProfile,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GraphWorkProfile {
+    Full,
+    MatchedTsJs,
+}
+
+impl Default for GraphWorkProfile {
+    fn default() -> Self {
+        GraphWorkProfile::Full
+    }
+}
+
+impl GraphWorkProfile {
+    pub fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "full" => Ok(GraphWorkProfile::Full),
+            "matched-ts-js" => Ok(GraphWorkProfile::MatchedTsJs),
+            other => Err(format!(
+                "unsupported graph work profile: {}. Supported profiles: full, matched-ts-js",
+                other
+            )),
+        }
+    }
+
+    fn features(self) -> GraphWorkFeatures {
+        match self {
+            GraphWorkProfile::Full => GraphWorkFeatures {
+                component_detection: true,
+                constant_extraction: true,
+                field_extraction: true,
+                export_extraction: true,
+                aggressive_call_extraction: true,
+            },
+            GraphWorkProfile::MatchedTsJs => GraphWorkFeatures {
+                component_detection: false,
+                constant_extraction: false,
+                field_extraction: false,
+                export_extraction: false,
+                aggressive_call_extraction: false,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct GraphWorkFeatures {
+    component_detection: bool,
+    constant_extraction: bool,
+    field_extraction: bool,
+    export_extraction: bool,
+    aggressive_call_extraction: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -714,7 +768,7 @@ pub fn write_minimal_index(
             stamp_metadata(&conn)?;
             let sqlite_setup_ms = sqlite_setup_started.elapsed().as_millis();
             let tx = conn.transaction()?;
-            let mut counts = index_javascript_files(&tx, Path::new(&request.project_path))?;
+            let mut counts = index_javascript_files(&tx, Path::new(&request.project_path), request.graph_work_profile.features())?;
             let commit_started = Instant::now();
             tx.commit()?;
             counts.profile.sqlite_write_ms += sqlite_setup_ms;
@@ -753,6 +807,7 @@ fn sleep_after_lock_for_tests() {
 fn index_javascript_files(
     conn: &Connection,
     project_path: &Path,
+    features: GraphWorkFeatures,
 ) -> Result<WriteCounts, Box<dyn std::error::Error>> {
     let scan_started = Instant::now();
     let files = collect_supported_files(project_path)?;
@@ -794,6 +849,7 @@ fn index_javascript_files(
                 &mut nodes,
                 &mut edges,
                 &mut unresolved_refs,
+                features,
             )?;
         }
         counts.profile.parse_extraction_ms += parse_started.elapsed().as_millis();
@@ -1100,6 +1156,7 @@ fn extract_top_level_js_symbols(
     nodes: &mut Vec<ExtractedNode>,
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
+    features: GraphWorkFeatures,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut cursor = root.walk();
     visit_js_node(
@@ -1112,6 +1169,7 @@ fn extract_top_level_js_symbols(
         nodes,
         edges,
         unresolved_refs,
+        features,
     )?;
     Ok(())
 }
@@ -1126,11 +1184,12 @@ fn visit_js_node(
     nodes: &mut Vec<ExtractedNode>,
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
+    features: GraphWorkFeatures,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let node = cursor.node();
     let mut child_from_node_id = current_from_node_id.to_string();
 
-    if let Some((kind, name_node)) = extract_named_symbol(node, source, language)? {
+    if let Some((kind, name_node)) = extract_named_symbol(node, source, language, features)? {
         let mut name = name_node.utf8_text(source)?.to_string();
         if matches!(kind, "import" | "export") {
             name = trim_string_literal(&name).to_string();
@@ -1163,6 +1222,7 @@ fn visit_js_node(
         language,
         current_from_node_id,
         unresolved_refs,
+        features,
     )?;
 
     if cursor.goto_first_child() {
@@ -1177,6 +1237,7 @@ fn visit_js_node(
                 nodes,
                 edges,
                 unresolved_refs,
+                features,
             )?;
             if !cursor.goto_next_sibling() {
                 break;
@@ -1192,6 +1253,7 @@ fn extract_named_symbol<'a>(
     node: SyntaxNode<'a>,
     source: &[u8],
     language: SourceLanguage,
+    features: GraphWorkFeatures,
 ) -> Result<Option<(&'static str, SyntaxNode<'a>)>, Box<dyn std::error::Error>> {
     if matches!(
         node.kind(),
@@ -1200,6 +1262,7 @@ fn extract_named_symbol<'a>(
         if let Some(name_node) = node.child_by_field_name("name") {
             let name = name_node.utf8_text(source)?;
             let kind = if node.kind() == "function_declaration"
+                && features.component_detection
                 && language.has_jsx()
                 && is_pascal_case(name)
             {
@@ -1215,7 +1278,7 @@ fn extract_named_symbol<'a>(
         }
     }
 
-    if matches!(node.kind(), "import_statement" | "export_statement") {
+    if node.kind() == "import_statement" || (node.kind() == "export_statement" && features.export_extraction) {
         if let Some(name_node) = module_literal_node(node) {
             let kind = if node.kind() == "import_statement" {
                 "import"
@@ -1233,8 +1296,10 @@ fn extract_named_symbol<'a>(
         "public_field_definition" | "field_definition" => {
             if node_has_function_value(node) {
                 Some("method")
-            } else {
+            } else if features.field_extraction {
                 Some("field")
+            } else {
+                None
             }
         }
         _ => None,
@@ -1254,11 +1319,14 @@ fn extract_named_symbol<'a>(
             if child.kind() == "variable_declarator" {
                 if let Some(name_node) = child.child_by_field_name("name") {
                     let name = name_node.utf8_text(source)?;
-                    if language.has_jsx() && is_pascal_case(name) {
+                    if features.component_detection && language.has_jsx() && is_pascal_case(name) {
                         return Ok(Some(("component", name_node)));
                     }
                     if variable_declarator_has_function_value(child) {
                         return Ok(Some(("function", name_node)));
+                    }
+                    if kind == "constant" && !features.constant_extraction {
+                        return Ok(None);
                     }
                     return Ok(Some((kind, name_node)));
                 }
@@ -1305,6 +1373,7 @@ fn extract_statement_refs(
     language: SourceLanguage,
     from_node_id: &str,
     unresolved_refs: &mut Vec<UnresolvedRef>,
+    features: GraphWorkFeatures,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match node.kind() {
         "import_statement" => {
@@ -1332,7 +1401,7 @@ fn extract_statement_refs(
                 );
             }
         }
-        "export_statement" => {
+        "export_statement" if features.export_extraction => {
             if let Some(module_node) = module_literal_node(node) {
                 let module = trim_string_literal(module_node.utf8_text(source)?).to_string();
                 push_ref(
@@ -1357,7 +1426,7 @@ fn extract_statement_refs(
                 );
             }
         }
-        "call_expression" | "new_expression" => {
+        "call_expression" | "new_expression" if features.aggressive_call_extraction => {
             if let Some(name_node) = call_target_node(node) {
                 let reference_name = reference_name(name_node, source)?;
                 let reference_kind = if node.kind() == "new_expression" {
@@ -1376,7 +1445,7 @@ fn extract_statement_refs(
                 );
             }
         }
-        "jsx_opening_element" | "jsx_self_closing_element" => {
+        "jsx_opening_element" | "jsx_self_closing_element" if features.component_detection => {
             if let Some(name_node) = node.child_by_field_name("name") {
                 let name = name_node.utf8_text(source)?;
                 if is_pascal_case(name) {
@@ -1987,6 +2056,15 @@ mod tests {
     }
 
     #[test]
+    fn graph_work_profile_parse_rejects_unknown_profiles() {
+        assert_eq!(GraphWorkProfile::parse("full").unwrap(), GraphWorkProfile::Full);
+        assert_eq!(GraphWorkProfile::parse("matched-ts-js").unwrap(), GraphWorkProfile::MatchedTsJs);
+        let err = GraphWorkProfile::parse("wide-open").unwrap_err();
+        assert!(err.contains("unsupported graph work profile"));
+        assert!(err.contains("full, matched-ts-js"));
+    }
+
+    #[test]
     fn emits_machine_readable_progress_json() {
         assert_eq!(
             progress_json("scanning", 0, 1),
@@ -2217,6 +2295,7 @@ mod tests {
                 .to_string(),
             force: true,
             verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
         };
 
         let result = run_index(&request);
@@ -2232,6 +2311,60 @@ mod tests {
             result.profile.parse_extraction_ms,
             max_expected_sqlite_ms
         );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn matched_ts_js_profile_controls_cost_relevant_graph_work_before_write() {
+        let dir = temp_dir("matched-ts-js-profile");
+        fs::write(
+            dir.join("index.tsx"),
+            [
+                "export class Service { field = 1; method() { return helper(); } }",
+                "export const VALUE = 1;",
+                "export function helper() { return VALUE; }",
+                "export function Widget() { return <Service />; }",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::MatchedTsJs,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        {
+            let conn = Connection::open(&request.index_path).unwrap();
+            let count_kind = |kind: &str| -> i64 {
+                conn.query_row("SELECT COUNT(*) FROM nodes WHERE kind = ?1", params![kind], |row| row.get(0))
+                    .unwrap()
+            };
+            let ref_count = conn
+                .query_row("SELECT COUNT(*) FROM unresolved_refs", [], |row| row.get::<_, i64>(0))
+                .unwrap();
+            assert_eq!(count_kind("component"), 0);
+            assert_eq!(count_kind("constant"), 0);
+            assert_eq!(count_kind("field"), 0);
+            assert_eq!(count_kind("export"), 0);
+            assert_eq!(ref_count, 0);
+            assert!(count_kind("file") >= 1);
+            assert!(count_kind("function") >= 1);
+            assert!(count_kind("class") >= 1);
+            assert!(count_kind("method") >= 1);
+        }
         fs::remove_dir_all(dir).unwrap();
     }
 
@@ -2267,6 +2400,7 @@ mod tests {
                 .to_string(),
             force: true,
             verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
         };
 
         let result = run_index(&request);
@@ -2307,6 +2441,7 @@ mod tests {
                 .to_string(),
             force: true,
             verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
         };
 
         let result = run_index(&request);

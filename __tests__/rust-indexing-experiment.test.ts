@@ -110,6 +110,104 @@ describe('Rust indexing formal experiment runner', () => {
     expect(artifact.preflight.diagnostics.map((diagnostic) => diagnostic.kind)).toContain('invalid-manifest-json');
   });
 
+  it('resolves Rust graph work profiles from manifest defaults and target arm overrides', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-graph-work-profile-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(path.join(source, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(source, 'package.json'), JSON.stringify({ type: 'module' }));
+    fs.writeFileSync(path.join(source, 'src', 'flow.ts'), 'export function alpha() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+
+    const { result, out, summaryOut } = runWithManifest(
+      canonicalManifest({
+        rust: { graphWorkProfile: 'matched-ts-js' },
+        targets: [
+          {
+            name: 'manifestDefault',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+          {
+            name: 'targetOverride',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-2'],
+            arms: { rust: { graphWorkProfile: 'full' } },
+          },
+        ],
+      }),
+    );
+
+    const rerun = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', path.join(path.dirname(out), 'experiment.json'), '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+        },
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(rerun.status, `stdout:\n${rerun.stdout}\nstderr:\n${rerun.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      targets: Array<{
+        name: string;
+        arms: {
+          rust: {
+            graphWorkProfile: { configured: string | null; effective: string; source: string };
+          };
+        };
+      }>;
+    };
+    const byName = Object.fromEntries(artifact.targets.map((target) => [target.name, target]));
+    expect(byName.manifestDefault.arms.rust.graphWorkProfile).toEqual({
+      configured: 'matched-ts-js',
+      effective: 'matched-ts-js',
+      source: 'experiment',
+    });
+    expect(byName.targetOverride.arms.rust.graphWorkProfile).toEqual({
+      configured: 'full',
+      effective: 'full',
+      source: 'target-arm',
+    });
+
+    const summary = fs.readFileSync(summaryOut, 'utf-8');
+    expect(summary).toContain('## Rust graph work profiles');
+    expect(summary).toContain('| manifestDefault | matched-ts-js | experiment |');
+    expect(summary).toContain('| targetOverride | full | target-arm |');
+    expect(summary).toContain('matched-ts-js controls the most obvious rerun5 cost drivers');
+  });
+
+  it('rejects unknown Rust graph work profiles from the manifest', () => {
+    const { result, out } = runWithManifest(
+      canonicalManifest({
+        rust: { graphWorkProfile: 'wide-open' },
+      }),
+    );
+
+    expect(result.status).toBe(1);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      classification: string;
+      preflight: { diagnostics: Array<{ kind: string; field?: string }> };
+    };
+    expect(artifact.classification).toBe('failed-manifest-invalid');
+    expect(artifact.preflight.diagnostics).toContainEqual(
+      expect.objectContaining({ kind: 'unsupported-graph-work-profile', field: 'rust.graphWorkProfile' }),
+    );
+  });
+
   it('rejects unsupported kind, arms, duplicate targets, invalid source copy, target paths, and thresholds', () => {
     const { result, out } = runWithManifest(
       canonicalManifest({
@@ -228,6 +326,66 @@ describe('Rust indexing formal experiment runner', () => {
     expect(byName.missingTarget.arms.rust.execution.status).toBe('skipped');
   });
 
+  it('records child process errors when init output exceeds the configured capture buffer', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-init-buffer-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(path.join(source, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(source, 'package.json'), JSON.stringify({ type: 'module' }));
+    for (let i = 0; i < 200; i += 1) {
+      fs.writeFileSync(path.join(source, 'src', `file-${i}.ts`), `export const value${i} = ${i};\n`);
+    }
+    const manifest = path.join(temp, 'experiment.json');
+    const out = path.join(temp, 'artifact.json');
+    const summaryOut = path.join(temp, 'summary.md');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        targets: [
+          {
+            name: 'fixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+        ],
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: path.join(temp, 'missing-rust-core'),
+          ZCODEGRAPH_EXPERIMENT_CHILD_MAX_BUFFER_BYTES: '128',
+        },
+      },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      targets: Array<{
+        arms: {
+          typescript: {
+            execution: { status: string; diagnostics: Array<{ kind: string; errorCode?: string; stdoutTail?: string; stderrTail?: string }> };
+            graphAvailable: boolean;
+          };
+        };
+      }>;
+    };
+    const diagnostic = artifact.targets[0].arms.typescript.execution.diagnostics[0];
+    expect(artifact.targets[0].arms.typescript.execution.status).toBe('failed');
+    expect(artifact.targets[0].arms.typescript.graphAvailable).toBe(false);
+    expect(diagnostic).toMatchObject({ kind: 'init-process-failed', errorCode: 'ENOBUFS' });
+    expect((diagnostic.stdoutTail ?? diagnostic.stderrTail ?? '').length).toBeGreaterThan(0);
+  });
+
   it('copies isolated source slices and preserves one arm failure without losing the other arm evidence', () => {
     const temp = makeTempDir('zcodegraph-rust-experiment-execution-');
     tempDirs.push(temp);
@@ -315,6 +473,378 @@ describe('Rust indexing formal experiment runner', () => {
     expect(rustArm.graphAvailable).toBe(false);
   });
 
+  it('records graphStats parity breakdown by node and edge kind', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-graph-parity-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(path.join(source, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(source, 'package.json'), JSON.stringify({ type: 'module' }));
+    fs.writeFileSync(
+      path.join(source, 'src', 'flow.ts'),
+      'import { helper } from "./helper";\nexport function alpha() { return helper(); }\n',
+    );
+    fs.writeFileSync(path.join(source, 'src', 'helper.ts'), 'export function helper() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+    const manifest = path.join(temp, 'experiment.json');
+    const out = path.join(temp, 'artifact.json');
+    const summaryOut = path.join(temp, 'summary.md');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        targets: [
+          {
+            name: 'fixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+        ],
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+        },
+      },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      targets: Array<{
+        arms: {
+          typescript: { graphStats: { fileCount: number; nodeCount: number; edgeCount: number; nodeKinds: Record<string, number>; edgeKinds: Record<string, number> } };
+          rust: { graphStats: { fileCount: number; nodeCount: number; edgeCount: number; nodeKinds: Record<string, number>; edgeKinds: Record<string, number> } };
+        };
+      }>;
+    };
+    const target = artifact.targets[0];
+    expect(target.arms.typescript.graphStats).toMatchObject({
+      fileCount: expect.any(Number),
+      nodeCount: expect.any(Number),
+      edgeCount: expect.any(Number),
+      nodeKinds: expect.objectContaining({ function: expect.any(Number) }),
+      edgeKinds: expect.objectContaining({ contains: expect.any(Number) }),
+    });
+    expect(target.arms.rust.graphStats).toMatchObject({
+      fileCount: expect.any(Number),
+      nodeCount: expect.any(Number),
+      edgeCount: expect.any(Number),
+      nodeKinds: expect.objectContaining({ function: expect.any(Number) }),
+      edgeKinds: expect.objectContaining({ contains: expect.any(Number) }),
+    });
+
+    const summary = fs.readFileSync(summaryOut, 'utf-8');
+    expect(summary).toContain('## GraphStats parity');
+    expect(summary).toContain('### fixture graphStats parity');
+    expect(summary).toContain('Node kind deltas');
+    expect(summary).toContain('Edge kind deltas');
+    expect(summary).toContain('| function |');
+    expect(summary).toContain('| contains |');
+  });
+
+  it('records peak RSS for completed arms and uses it in the performance gate', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-peak-rss-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(source, { recursive: true });
+    fs.writeFileSync(path.join(source, 'flow.ts'), 'export function alpha() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+    const manifest = path.join(temp, 'experiment.json');
+    const out = path.join(temp, 'artifact.json');
+    const summaryOut = path.join(temp, 'summary.md');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        targets: [
+          {
+            name: 'fixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+        ],
+        metrics: { thresholds: { wallTimeImprovementPct: 0, peakRssReductionPct: 0, maxOtherMetricRegressionPct: 10 } },
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '1',
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PEAK_RSS_BYTES: '1',
+        },
+      },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      targets: Array<{
+        arms: {
+          typescript: { execution: { peakRssBytes: number | null } };
+          rust: { execution: { peakRssBytes: number | null } };
+        };
+        gates: { performance: { status: string; peakRssDeltaPct: number | null; diagnostics: Array<{ kind: string }> } };
+      }>;
+    };
+    const target = artifact.targets[0];
+    expect(target.arms.typescript.execution.peakRssBytes).toEqual(expect.any(Number));
+    expect(target.arms.typescript.execution.peakRssBytes).toBeGreaterThan(0);
+    expect(target.arms.rust.execution.peakRssBytes).toBe(1);
+    expect(target.gates.performance.peakRssDeltaPct).toEqual(expect.any(Number));
+    expect(target.gates.performance.diagnostics.map((diagnostic) => diagnostic.kind)).not.toContain('missing-peak-rss');
+
+    const summary = fs.readFileSync(summaryOut, 'utf-8');
+    expect(summary).toContain('peakRssDeltaPct=');
+  });
+
+  it('records a specific diagnostic when peak RSS collection is unavailable', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-missing-peak-rss-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(source, { recursive: true });
+    fs.writeFileSync(path.join(source, 'flow.ts'), 'export function alpha() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+    const manifest = path.join(temp, 'experiment.json');
+    const out = path.join(temp, 'artifact.json');
+    const summaryOut = path.join(temp, 'summary.md');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        targets: [
+          {
+            name: 'fixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+        ],
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_TYPESCRIPT_PEAK_RSS_BYTES: '0',
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PEAK_RSS_BYTES: '0',
+        },
+      },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      targets: Array<{
+        arms: { typescript: { execution: { peakRssBytes: number | null } }; rust: { execution: { peakRssBytes: number | null } } };
+        gates: { performance: { peakRssDeltaPct: number | null; diagnostics: Array<{ kind: string; message: string }> } };
+      }>;
+    };
+    const target = artifact.targets[0];
+    expect(target.arms.typescript.execution.peakRssBytes).toBeNull();
+    expect(target.arms.rust.execution.peakRssBytes).toBeNull();
+    expect(target.gates.performance.peakRssDeltaPct).toBeNull();
+    expect(target.gates.performance.diagnostics).toContainEqual(
+      expect.objectContaining({ kind: 'missing-peak-rss', message: 'Peak RSS was not collected for one or both arms' }),
+    );
+  });
+
+  it('records Rust index profile breakdown when emitted by the CLI', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-rust-profile-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(source, { recursive: true });
+    fs.writeFileSync(path.join(source, 'flow.ts'), 'export function alpha() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+    const manifest = path.join(temp, 'experiment.json');
+    const out = path.join(temp, 'artifact.json');
+    const summaryOut = path.join(temp, 'summary.md');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        targets: [
+          {
+            name: 'fixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+        ],
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PROFILE: JSON.stringify({
+            rustCore: {
+              sourceScanMs: 11,
+              parseExtractionMs: 22,
+              sqliteWriteMs: 33,
+              subprocessStartupHandoffMs: 4,
+            },
+            finalize: {
+              frameworkPostExtractMs: 5,
+              referenceResolutionMs: 44,
+              dynamicDispatchSynthesisMs: 6,
+              dbMaintenanceMs: 7,
+            },
+            typescriptFinalizationMs: 62,
+          }),
+        },
+      },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      targets: Array<{
+        arms: {
+          rust: {
+            execution: {
+              indexProfile: {
+                rustCore: { sourceScanMs: number; parseExtractionMs: number; sqliteWriteMs: number; subprocessStartupHandoffMs: number };
+                finalize: { frameworkPostExtractMs: number; referenceResolutionMs: number; dynamicDispatchSynthesisMs: number; dbMaintenanceMs: number };
+                typescriptFinalizationMs: number;
+              };
+            };
+          };
+        };
+      }>;
+    };
+    const indexProfile = artifact.targets[0].arms.rust.execution.indexProfile;
+    expect(indexProfile.rustCore).toMatchObject({
+      sourceScanMs: 11,
+      parseExtractionMs: 22,
+      sqliteWriteMs: 33,
+      subprocessStartupHandoffMs: 4,
+    });
+    expect(indexProfile.finalize).toMatchObject({
+      frameworkPostExtractMs: 5,
+      referenceResolutionMs: 44,
+      dynamicDispatchSynthesisMs: 6,
+      dbMaintenanceMs: 7,
+    });
+    expect(indexProfile.typescriptFinalizationMs).toBe(62);
+
+    const summary = fs.readFileSync(summaryOut, 'utf-8');
+    expect(summary).toContain('## Rust index profile breakdown');
+    expect(summary).toContain('| fixture | sourceScanMs | 11 |');
+    expect(summary).toContain('| fixture | referenceResolutionMs | 44 |');
+  });
+
+  it('records wall-time diagnostics by experiment phase', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-wall-time-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(source, { recursive: true });
+    fs.writeFileSync(path.join(source, 'flow.ts'), 'export function alpha() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+    const manifest = path.join(temp, 'experiment.json');
+    const out = path.join(temp, 'artifact.json');
+    const summaryOut = path.join(temp, 'summary.md');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        targets: [
+          {
+            name: 'fixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+        ],
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '60000',
+        },
+      },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      targets: Array<{
+        arms: {
+          typescript: { execution: { timingsMs: Record<string, number> } };
+          rust: { execution: { timingsMs: Record<string, number> } };
+        };
+        gates: { performance: { diagnostics: Array<{ kind: string; phase?: string }> } };
+      }>;
+    };
+    const target = artifact.targets[0];
+    expect(target.arms.typescript.execution.timingsMs).toMatchObject({
+      sourceCopy: expect.any(Number),
+      init: expect.any(Number),
+      index: expect.any(Number),
+      graphStats: expect.any(Number),
+      total: expect.any(Number),
+    });
+    expect(target.arms.rust.execution.timingsMs).toMatchObject({
+      sourceCopy: expect.any(Number),
+      index: expect.any(Number),
+      graphStats: expect.any(Number),
+      total: expect.any(Number),
+    });
+    expect(target.gates.performance.diagnostics.map((diagnostic) => diagnostic.kind)).toContain('wall-time-phase-dominant');
+    expect(target.gates.performance.diagnostics.map((diagnostic) => diagnostic.kind)).toContain('wall-time-regression-source');
+
+    const summary = fs.readFileSync(summaryOut, 'utf-8');
+    expect(summary).toContain('## Wall-time diagnostics');
+    expect(summary).toContain('| fixture | typescript |');
+    expect(summary).toContain('| fixture | rust |');
+  });
+
   it('records sufficiency and performance gates independently', () => {
     const temp = makeTempDir('zcodegraph-rust-experiment-gates-');
     tempDirs.push(temp);
@@ -354,6 +884,7 @@ describe('Rust indexing formal experiment runner', () => {
           ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
           ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
           ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '1',
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PEAK_RSS_BYTES: '1',
         },
       },
     );
@@ -371,8 +902,160 @@ describe('Rust indexing formal experiment runner', () => {
     expect(gates.sufficiency).toMatchObject({ status: 'passed', regressions: [] });
     expect(gates.performance.status).toBe('passed');
     expect(gates.performance.wallTimeDeltaPct).toBeLessThan(0);
-    expect(gates.performance.peakRssDeltaPct).toBeNull();
-    expect(gates.performance.diagnostics.map((diagnostic) => diagnostic.kind)).toContain('missing-peak-rss');
+    expect(gates.performance.peakRssDeltaPct).toEqual(expect.any(Number));
+    expect(gates.performance.diagnostics.map((diagnostic) => diagnostic.kind)).not.toContain('missing-peak-rss');
+  });
+
+  it('classifies completed required arms with unmet performance gates honestly', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-performance-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(source, { recursive: true });
+    fs.writeFileSync(path.join(source, 'flow.ts'), 'export function alpha() { return beta(); }\nexport function beta() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+    const manifest = path.join(temp, 'experiment.json');
+    const out = path.join(temp, 'artifact.json');
+    const summaryOut = path.join(temp, 'summary.md');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        targets: [
+          {
+            name: 'fixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+        ],
+        metrics: { thresholds: { wallTimeImprovementPct: 25, peakRssReductionPct: 30, maxOtherMetricRegressionPct: 10 } },
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '60000',
+        },
+      },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      classification: string;
+      decisionReadiness: { sufficiencyPassed: boolean; performancePassed: boolean; requiredTargetsPassed: boolean; rolloutReadinessClaimed: boolean };
+      targets: Array<{
+        classification: string;
+        arms: { typescript: { execution: { status: string } }; rust: { execution: { status: string } } };
+        gates: { sufficiency: { status: string }; performance: { status: string; wallTimeDeltaPct: number | null; diagnostics: Array<{ kind: string }> } };
+      }>;
+    };
+    const target = artifact.targets[0];
+    expect(target.arms.typescript.execution.status).toBe('completed');
+    expect(target.arms.rust.execution.status).toBe('completed');
+    expect(target.gates.sufficiency.status).toBe('passed');
+    expect(target.gates.performance.status).toBe('unavailable');
+    expect(target.gates.performance.wallTimeDeltaPct).toBeGreaterThan(0);
+    expect(target.gates.performance.diagnostics.map((diagnostic) => diagnostic.kind)).toContain('wall-time-phase-dominant');
+    expect(target.classification).toBe('target-failed-performance-gate-unmet');
+    expect(artifact.classification).toBe('failed-required-performance-gate-unmet');
+    expect(artifact.decisionReadiness).toMatchObject({
+      sufficiencyPassed: true,
+      performancePassed: false,
+      requiredTargetsPassed: false,
+      rolloutReadinessClaimed: false,
+    });
+
+    const summary = fs.readFileSync(summaryOut, 'utf-8');
+    expect(summary).toContain('Classification: failed-required-performance-gate-unmet');
+    expect(summary).toContain('fixture: sufficiency=passed; performance=unavailable');
+    expect(summary).toContain('Performance gate is not satisfied for required targets whose TypeScript and Rust arms both completed.');
+  });
+
+  it('classifies stress-only experiments without pretending a required arm is unavailable', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-stress-only-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(source, { recursive: true });
+    fs.writeFileSync(path.join(source, 'flow.ts'), 'export function alpha() { return beta(); }\nexport function beta() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+    const manifest = path.join(temp, 'experiment.json');
+    const out = path.join(temp, 'artifact.json');
+    const summaryOut = path.join(temp, 'summary.md');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        targets: [
+          {
+            name: 'stressFixture',
+            pathFallback: source,
+            targetClass: 'stress',
+            requiredForDecision: false,
+            requiredAfterPrdCompletion: true,
+            allowDirty: true,
+            promptIds: ['STRESS-1'],
+          },
+        ],
+        metrics: { thresholds: { wallTimeImprovementPct: 25, peakRssReductionPct: 30, maxOtherMetricRegressionPct: 10 } },
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '60000',
+        },
+      },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      classification: string;
+      decisionReadiness: { sufficiencyPassed: boolean; performancePassed: boolean; requiredTargetsPassed: boolean; rolloutReadinessClaimed: boolean };
+      targets: Array<{
+        requiredForDecision: boolean;
+        classification: string;
+        arms: { typescript: { execution: { status: string } }; rust: { execution: { status: string } } };
+        gates: { sufficiency: { status: string }; performance: { status: string } };
+      }>;
+    };
+    const target = artifact.targets[0];
+    expect(target.requiredForDecision).toBe(false);
+    expect(target.arms.typescript.execution.status).toBe('completed');
+    expect(target.arms.rust.execution.status).toBe('completed');
+    expect(target.gates.sufficiency.status).toBe('passed');
+    expect(target.gates.performance.status).toBe('unavailable');
+    expect(target.classification).toBe('target-failed-performance-gate-unmet');
+    expect(artifact.classification).toBe('stress-only-targets-completed-with-nonblocking-failures');
+    expect(artifact.classification).not.toBe('failed-required-arm-unavailable');
+    expect(artifact.decisionReadiness).toMatchObject({
+      sufficiencyPassed: false,
+      performancePassed: false,
+      requiredTargetsPassed: false,
+      rolloutReadinessClaimed: false,
+    });
+
+    const summary = fs.readFileSync(summaryOut, 'utf-8');
+    expect(summary).toContain('Classification: stress-only-targets-completed-with-nonblocking-failures');
+    expect(summary).toContain('| stressFixture | stress | no | available | completed | completed | target-failed-performance-gate-unmet |');
+    expect(summary).toContain('No required targets are present; stress targets are diagnostic and do not claim rollout readiness.');
   });
 
   it('classifies required failures and returns 2 only when fail-on-required-gate-failure is requested', () => {
@@ -401,7 +1084,11 @@ describe('Rust indexing formal experiment runner', () => {
     );
 
     const baseArgs = [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut];
-    const defaultResult = spawnSync(process.execPath, baseArgs, { cwd: REPO_ROOT, encoding: 'utf-8' });
+    const unavailableArmEnv = {
+      ...process.env,
+      ZCODEGRAPH_RUST_CORE_BINARY: path.join(temp, 'missing-rust-core'),
+    };
+    const defaultResult = spawnSync(process.execPath, baseArgs, { cwd: REPO_ROOT, encoding: 'utf-8', env: unavailableArmEnv });
     expect(defaultResult.status, `stdout:\n${defaultResult.stdout}\nstderr:\n${defaultResult.stderr}`).toBe(0);
     const defaultArtifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
       classification: string;
@@ -413,7 +1100,7 @@ describe('Rust indexing formal experiment runner', () => {
     expect(defaultArtifact.decisionReadiness.requiredTargetsPassed).toBe(false);
     expect(defaultArtifact.decisionReadiness.rolloutReadinessClaimed).toBe(false);
 
-    const gatedResult = spawnSync(process.execPath, [...baseArgs, '--fail-on-required-gate-failure'], { cwd: REPO_ROOT, encoding: 'utf-8' });
+    const gatedResult = spawnSync(process.execPath, [...baseArgs, '--fail-on-required-gate-failure'], { cwd: REPO_ROOT, encoding: 'utf-8', env: unavailableArmEnv });
     expect(gatedResult.status).toBe(2);
   });
 

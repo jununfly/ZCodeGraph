@@ -49,6 +49,7 @@ fn parse_args(args: Vec<String>) -> Result<IndexRequest, String> {
     let mut engine: Option<String> = None;
     let mut force = false;
     let mut verbose = false;
+    let mut graph_work_profile = zcodegraph_core::GraphWorkProfile::Full;
     let mut i = 1;
 
     while i < args.len() {
@@ -79,6 +80,13 @@ fn parse_args(args: Vec<String>) -> Result<IndexRequest, String> {
             }
             "--force" => force = true,
             "--verbose" => verbose = true,
+            "--graph-work-profile" => {
+                i += 1;
+                let Some(raw_profile) = args.get(i) else {
+                    return Err("--graph-work-profile requires a value".to_string());
+                };
+                graph_work_profile = zcodegraph_core::GraphWorkProfile::parse(raw_profile)?;
+            }
             other => return Err(format!("unknown argument: {}", other)),
         }
         i += 1;
@@ -90,5 +98,6 @@ fn parse_args(args: Vec<String>) -> Result<IndexRequest, String> {
         index_path: index_path.ok_or_else(|| "--index-path is required".to_string())?,
         force,
         verbose,
+        graph_work_profile,
     })
 }
