@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "rust-indexing-core-phase-15d-vscode-matched-work-stress-local",
+  "kind": "indexing-ab",
+  "generatedAt": "2026-06-16T09:27:15.678Z",
+  "arms": [
+    "typescript",
+    "rust"
+  ],
+  "sourceCopy": {
+    "mode": "js-ts-config-slice",
+    "isolation": "per-arm"
+  },
+  "manifest": {
+    "path": ".workbuddy/phase15d-vscode-matched-work-stress.experiment.json",
+    "unknownFields": []
+  },
+  "preflight": {
+    "status": "completed",
+    "diagnostics": [],
+    "toolchain": {
+      "node": "v22.22.2",
+      "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+      "cargo": "cargo 1.96.0 (30a34c682 2026-05-25)",
+      "os": "Windows_NT 10.0.26200 x64"
+    },
+    "rustCore": {
+      "path": "c:\\workspace\\github\\jununfly\\ZCodeGraph\\target\\debug\\zcodegraph-core.exe",
+      "available": true
+    }
+  },
+  "targets": [
+    {
+      "name": "vscode",
+      "targetClass": "stress",
+      "requiredForDecision": false,
+      "requiredAfterPrdCompletion": true,
+      "sparsePatterns": [
+        ".github",
+        "build",
+        "extensions",
+        "scripts",
+        "src",
+        "test"
+      ],
+      "path": {
+        "configuredPathEnv": "ZCODEGRAPH_CORPUS_VSCODE",
+        "configuredPathFallback": "C:/workspace/github/corpus/vscode-sparse",
+        "resolvedPath": "C:\\workspace\\github\\corpus\\vscode-sparse",
+        "pathSource": "fallback"
+      },
+      "preflight": {
+        "status": "unavailable",
+        "kind": "target-dirty",
+        "diagnostics": [
+          {
+            "kind": "target-dirty",
+            "message": "Target working tree is dirty for vscode"
+          }
+        ],
+        "commit": "4ac5322601c6985aba4cd9349c23f4ef22dc3e65",
+        "dirty": true,
+        "promptIds": [
+          "VS-1"
+        ]
+      },
+      "arms": {
+        "typescript": {
+          "engine": "typescript",
+          "graphWorkProfile": null,
+          "preflight": {
+            "status": "unavailable",
+            "kind": "target-unavailable",
+            "diagnostics": [
+              {
+                "kind": "target-unavailable",
+                "message": "Target working tree is dirty for vscode"
+              }
+            ]
+          },
+          "execution": {
+            "status": "skipped",
+            "elapsedMs": 0,
+            "peakRssBytes": null,
+            "timingsMs": null,
+            "indexProfile": null,
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "skipped"
+          },
+          "sourceCopy": null,
+          "graphAvailable": false,
+          "graphStats": null,
+          "command": null
+        },
+        "rust": {
+          "engine": "rust",
+          "graphWorkProfile": {
+            "configured": "matched-ts-js",
+            "effective": "matched-ts-js",
+            "source": "experiment"
+          },
+          "preflight": {
+            "status": "unavailable",
+            "kind": "target-unavailable",
+            "diagnostics": [
+              {
+                "kind": "target-unavailable",
+                "message": "Target working tree is dirty for vscode"
+              }
+            ]
+          },
+          "execution": {
+            "status": "skipped",
+            "elapsedMs": 0,
+            "peakRssBytes": null,
+            "timingsMs": null,
+            "indexProfile": null,
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "skipped"
+          },
+          "sourceCopy": null,
+          "graphAvailable": false,
+          "graphStats": null,
+          "command": null
+        }
+      },
+      "gates": {
+        "sufficiency": {
+          "status": "unavailable",
+          "regressions": [],
+          "diagnostics": [
+            {
+              "kind": "comparison-requires-both-arms",
+              "message": "Sufficiency comparison requires both arms to be graph-available"
+            }
+          ]
+        },
+        "performance": {
+          "status": "unavailable",
+          "wallTimeDeltaPct": null,
+          "peakRssDeltaPct": null,
+          "diagnostics": [
+            {
+              "kind": "performance-requires-both-arms",
+              "message": "Performance comparison requires both arms to complete"
+            }
+          ]
+        }
+      },
+      "classification": "target-failed-preflight"
+    }
+  ],
+  "classification": "failed-required-arm-unavailable",
+  "decisionReadiness": {
+    "sufficiencyPassed": false,
+    "performancePassed": false,
+    "requiredTargetsPassed": false,
+    "rolloutReadinessClaimed": false
+  }
+}

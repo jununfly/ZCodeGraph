@@ -1,0 +1,307 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "rust-indexing-core-phase-14-required-only-local",
+  "kind": "indexing-ab",
+  "generatedAt": "2026-06-15T10:19:06.707Z",
+  "arms": [
+    "typescript",
+    "rust"
+  ],
+  "sourceCopy": {
+    "mode": "js-ts-config-slice",
+    "isolation": "per-arm"
+  },
+  "manifest": {
+    "path": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.workbuddy\\phase14-required-only.experiment.json",
+    "unknownFields": []
+  },
+  "preflight": {
+    "status": "completed",
+    "diagnostics": [],
+    "toolchain": {
+      "node": "v22.22.2",
+      "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+      "cargo": "cargo 1.96.0 (30a34c682 2026-05-25)",
+      "os": "Windows_NT 10.0.26200 x64"
+    },
+    "rustCore": {
+      "path": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\target\\debug\\zcodegraph-core.exe",
+      "available": true
+    }
+  },
+  "targets": [
+    {
+      "name": "zcodegraph",
+      "targetClass": "required",
+      "requiredForDecision": true,
+      "requiredAfterPrdCompletion": false,
+      "sparsePatterns": [],
+      "path": {
+        "configuredPathEnv": null,
+        "configuredPathFallback": ".",
+        "resolvedPath": "C:\\workspace\\github\\jununfly\\ZCodeGraph",
+        "pathSource": "fallback"
+      },
+      "preflight": {
+        "status": "available",
+        "kind": null,
+        "diagnostics": [],
+        "commit": "73c1b35a5f04cf0dd3ee238c660f301c30470d82",
+        "dirty": true,
+        "promptIds": [
+          "ZCG-1",
+          "ZCG-2",
+          "ZCG-3"
+        ]
+      },
+      "arms": {
+        "typescript": {
+          "engine": "typescript",
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 9581,
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-typescript-dMOkAi",
+            "copiedFiles": 290,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 286,
+            "nodeCount": 4119,
+            "edgeCount": 17466,
+            "dbSizeBytes": 17186816
+          },
+          "command": {
+            "executable": "C:\\Users\\victo\\.workbuddy\\binaries\\node\\versions\\22.22.2\\node.exe",
+            "args": [
+              "C:\\workspace\\github\\jununfly\\ZCodeGraph\\dist\\bin\\zcodegraph.js",
+              "index",
+              "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-typescript-dMOkAi",
+              "--force",
+              "--quiet"
+            ],
+            "cwd": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-typescript-dMOkAi",
+            "nodeVersion": "v22.22.2",
+            "env": {}
+          }
+        },
+        "rust": {
+          "engine": "rust",
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 10764,
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-rust-Q3p85B",
+            "copiedFiles": 290,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 286,
+            "nodeCount": 13984,
+            "edgeCount": 30863,
+            "dbSizeBytes": 23883776
+          },
+          "command": {
+            "executable": "C:\\Users\\victo\\.workbuddy\\binaries\\node\\versions\\22.22.2\\node.exe",
+            "args": [
+              "C:\\workspace\\github\\jununfly\\ZCodeGraph\\dist\\bin\\zcodegraph.js",
+              "index",
+              "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-rust-Q3p85B",
+              "--force",
+              "--quiet",
+              "--engine",
+              "rust"
+            ],
+            "cwd": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-rust-Q3p85B",
+            "nodeVersion": "v22.22.2",
+            "env": {
+              "ZCODEGRAPH_RUST_CORE_BINARY": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\target\\debug\\zcodegraph-core.exe"
+            }
+          }
+        }
+      },
+      "gates": {
+        "sufficiency": {
+          "status": "passed",
+          "regressions": []
+        },
+        "performance": {
+          "status": "unavailable",
+          "wallTimeDeltaPct": 12.347354138398913,
+          "peakRssDeltaPct": null,
+          "diagnostics": [
+            {
+              "kind": "missing-peak-rss",
+              "message": "Peak RSS was not collected"
+            }
+          ]
+        }
+      },
+      "classification": "target-failed-performance-gate-unmet"
+    },
+    {
+      "name": "excalidraw",
+      "targetClass": "required",
+      "requiredForDecision": true,
+      "requiredAfterPrdCompletion": false,
+      "sparsePatterns": [],
+      "path": {
+        "configuredPathEnv": "ZCODEGRAPH_CORPUS_EXCALIDRAW",
+        "configuredPathFallback": "C:/workspace/github/corpus/excalidraw",
+        "resolvedPath": "C:\\workspace\\github\\corpus\\excalidraw",
+        "pathSource": "fallback"
+      },
+      "preflight": {
+        "status": "available",
+        "kind": null,
+        "diagnostics": [],
+        "commit": "069982606dd7178c13e6c2293ede756c6767d3bc",
+        "dirty": false,
+        "promptIds": [
+          "EX-1",
+          "EX-2",
+          "EX-3"
+        ]
+      },
+      "arms": {
+        "typescript": {
+          "engine": "typescript",
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 24520,
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-typescript-7bqoyE",
+            "copiedFiles": 648,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 627,
+            "nodeCount": 10281,
+            "edgeCount": 45018,
+            "dbSizeBytes": 33214464
+          },
+          "command": {
+            "executable": "C:\\Users\\victo\\.workbuddy\\binaries\\node\\versions\\22.22.2\\node.exe",
+            "args": [
+              "C:\\workspace\\github\\jununfly\\ZCodeGraph\\dist\\bin\\zcodegraph.js",
+              "index",
+              "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-typescript-7bqoyE",
+              "--force",
+              "--quiet"
+            ],
+            "cwd": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-typescript-7bqoyE",
+            "nodeVersion": "v22.22.2",
+            "env": {}
+          }
+        },
+        "rust": {
+          "engine": "rust",
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 25628,
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-rust-tILa6m",
+            "copiedFiles": 648,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 627,
+            "nodeCount": 20703,
+            "edgeCount": 55102,
+            "dbSizeBytes": 40177664
+          },
+          "command": {
+            "executable": "C:\\Users\\victo\\.workbuddy\\binaries\\node\\versions\\22.22.2\\node.exe",
+            "args": [
+              "C:\\workspace\\github\\jununfly\\ZCodeGraph\\dist\\bin\\zcodegraph.js",
+              "index",
+              "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-rust-tILa6m",
+              "--force",
+              "--quiet",
+              "--engine",
+              "rust"
+            ],
+            "cwd": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-rust-tILa6m",
+            "nodeVersion": "v22.22.2",
+            "env": {
+              "ZCODEGRAPH_RUST_CORE_BINARY": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\target\\debug\\zcodegraph-core.exe"
+            }
+          }
+        }
+      },
+      "gates": {
+        "sufficiency": {
+          "status": "passed",
+          "regressions": []
+        },
+        "performance": {
+          "status": "unavailable",
+          "wallTimeDeltaPct": 4.518760195758564,
+          "peakRssDeltaPct": null,
+          "diagnostics": [
+            {
+              "kind": "missing-peak-rss",
+              "message": "Peak RSS was not collected"
+            }
+          ]
+        }
+      },
+      "classification": "target-failed-performance-gate-unmet"
+    }
+  ],
+  "classification": "failed-required-performance-gate-unmet",
+  "decisionReadiness": {
+    "sufficiencyPassed": true,
+    "performancePassed": false,
+    "requiredTargetsPassed": false,
+    "rolloutReadinessClaimed": false
+  }
+}

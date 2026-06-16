@@ -1,0 +1,265 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "rust-indexing-core-phase-14-required-only-local",
+  "kind": "indexing-ab",
+  "generatedAt": "2026-06-15T09:15:25.956Z",
+  "arms": [
+    "typescript",
+    "rust"
+  ],
+  "sourceCopy": {
+    "mode": "js-ts-config-slice",
+    "isolation": "per-arm"
+  },
+  "manifest": {
+    "path": ".workbuddy/phase14-required-only.experiment.json",
+    "unknownFields": []
+  },
+  "preflight": {
+    "status": "completed",
+    "diagnostics": [],
+    "toolchain": {
+      "node": "v22.22.2",
+      "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+      "cargo": "cargo 1.96.0 (30a34c682 2026-05-25)",
+      "os": "Windows_NT 10.0.26200 x64"
+    },
+    "rustCore": {
+      "path": "c:\\workspace\\github\\jununfly\\ZCodeGraph\\target\\debug\\zcodegraph-core.exe",
+      "available": false
+    }
+  },
+  "targets": [
+    {
+      "name": "zcodegraph",
+      "targetClass": "required",
+      "requiredForDecision": true,
+      "requiredAfterPrdCompletion": false,
+      "sparsePatterns": [],
+      "path": {
+        "configuredPathEnv": null,
+        "configuredPathFallback": ".",
+        "resolvedPath": "c:\\workspace\\github\\jununfly\\ZCodeGraph",
+        "pathSource": "fallback"
+      },
+      "preflight": {
+        "status": "available",
+        "kind": null,
+        "diagnostics": [],
+        "commit": "73c1b35a5f04cf0dd3ee238c660f301c30470d82",
+        "dirty": false,
+        "promptIds": [
+          "ZCG-1",
+          "ZCG-2",
+          "ZCG-3"
+        ]
+      },
+      "arms": {
+        "typescript": {
+          "engine": "typescript",
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 9630,
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-typescript-OL2qLH",
+            "copiedFiles": 290,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 286,
+            "nodeCount": 4119,
+            "edgeCount": 17463,
+            "dbSizeBytes": 17170432
+          },
+          "command": {
+            "executable": "C:\\Users\\victo\\.workbuddy\\binaries\\node\\versions\\22.22.2\\node.exe",
+            "args": [
+              "c:\\workspace\\github\\jununfly\\ZCodeGraph\\dist\\bin\\zcodegraph.js",
+              "index",
+              "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-typescript-OL2qLH",
+              "--force",
+              "--quiet"
+            ],
+            "cwd": "C:\\Users\\victo\\AppData\\Local\\Temp\\zcodegraph-rust-experiment-typescript-OL2qLH",
+            "nodeVersion": "v22.22.2",
+            "env": {}
+          }
+        },
+        "rust": {
+          "engine": "rust",
+          "preflight": {
+            "status": "unavailable",
+            "kind": "missing-rust-binary",
+            "diagnostics": [
+              {
+                "kind": "missing-rust-binary",
+                "message": "Rust core binary is not available at c:\\workspace\\github\\jununfly\\ZCodeGraph\\target\\debug\\zcodegraph-core.exe"
+              }
+            ]
+          },
+          "execution": {
+            "status": "skipped",
+            "elapsedMs": 0,
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "skipped"
+          },
+          "sourceCopy": null,
+          "graphAvailable": false,
+          "graphStats": null,
+          "command": null
+        }
+      },
+      "gates": {
+        "sufficiency": {
+          "status": "unavailable",
+          "regressions": [],
+          "diagnostics": [
+            {
+              "kind": "comparison-requires-both-arms",
+              "message": "Sufficiency comparison requires both arms to be graph-available"
+            }
+          ]
+        },
+        "performance": {
+          "status": "unavailable",
+          "wallTimeDeltaPct": null,
+          "peakRssDeltaPct": null,
+          "diagnostics": [
+            {
+              "kind": "performance-requires-both-arms",
+              "message": "Performance comparison requires both arms to complete"
+            }
+          ]
+        }
+      },
+      "classification": "target-failed-arm-unavailable"
+    },
+    {
+      "name": "excalidraw",
+      "targetClass": "required",
+      "requiredForDecision": true,
+      "requiredAfterPrdCompletion": false,
+      "sparsePatterns": [],
+      "path": {
+        "configuredPathEnv": "ZCODEGRAPH_CORPUS_EXCALIDRAW",
+        "configuredPathFallback": "C:/workspace/github/corpus/excalidraw",
+        "resolvedPath": "C:\\workspace\\github\\corpus\\excalidraw",
+        "pathSource": "fallback"
+      },
+      "preflight": {
+        "status": "unavailable",
+        "kind": "missing-target-path",
+        "diagnostics": [
+          {
+            "kind": "missing-target-path",
+            "message": "Target path is missing for excalidraw"
+          }
+        ],
+        "commit": null,
+        "dirty": false,
+        "promptIds": [
+          "EX-1",
+          "EX-2",
+          "EX-3"
+        ]
+      },
+      "arms": {
+        "typescript": {
+          "engine": "typescript",
+          "preflight": {
+            "status": "unavailable",
+            "kind": "target-unavailable",
+            "diagnostics": [
+              {
+                "kind": "target-unavailable",
+                "message": "Target path is missing for excalidraw"
+              }
+            ]
+          },
+          "execution": {
+            "status": "skipped",
+            "elapsedMs": 0,
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "skipped"
+          },
+          "sourceCopy": null,
+          "graphAvailable": false,
+          "graphStats": null,
+          "command": null
+        },
+        "rust": {
+          "engine": "rust",
+          "preflight": {
+            "status": "unavailable",
+            "kind": "target-unavailable",
+            "diagnostics": [
+              {
+                "kind": "target-unavailable",
+                "message": "Target path is missing for excalidraw"
+              }
+            ]
+          },
+          "execution": {
+            "status": "skipped",
+            "elapsedMs": 0,
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "skipped"
+          },
+          "sourceCopy": null,
+          "graphAvailable": false,
+          "graphStats": null,
+          "command": null
+        }
+      },
+      "gates": {
+        "sufficiency": {
+          "status": "unavailable",
+          "regressions": [],
+          "diagnostics": [
+            {
+              "kind": "comparison-requires-both-arms",
+              "message": "Sufficiency comparison requires both arms to be graph-available"
+            }
+          ]
+        },
+        "performance": {
+          "status": "unavailable",
+          "wallTimeDeltaPct": null,
+          "peakRssDeltaPct": null,
+          "diagnostics": [
+            {
+              "kind": "performance-requires-both-arms",
+              "message": "Performance comparison requires both arms to complete"
+            }
+          ]
+        }
+      },
+      "classification": "target-failed-preflight"
+    }
+  ],
+  "classification": "failed-required-target-unavailable",
+  "decisionReadiness": {
+    "sufficiencyPassed": false,
+    "performancePassed": false,
+    "requiredTargetsPassed": false,
+    "rolloutReadinessClaimed": false
+  }
+}

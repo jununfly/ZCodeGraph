@@ -76,6 +76,8 @@ export interface IndexResult {
     sqliteWriteMs?: number;
     typescriptFinalizationMs?: number;
     subprocessStartupHandoffMs?: number;
+    rustCore?: unknown;
+    finalize?: unknown;
   };
 }
 

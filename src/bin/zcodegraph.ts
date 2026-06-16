@@ -38,6 +38,21 @@ import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from '.
 import { relaunchWithWasmRuntimeFlagsIfNeeded } from '../extraction/wasm-runtime-flags';
 import { EXTRACTION_VERSION } from '../extraction/extraction-version';
 
+function resolveGraphWorkProfile(raw: string | undefined): 'full' | 'matched-ts-js' | undefined {
+  if (raw == null) return undefined;
+  if (raw === 'full' || raw === 'matched-ts-js') return raw;
+  throw new Error(`Unsupported graph work profile "${raw}". Supported profiles: full, matched-ts-js`);
+}
+
+function writeIndexProfile(projectPath: string, profile: unknown): void {
+  const profileOut = process.env.ZCODEGRAPH_INDEX_PROFILE_OUT;
+  if (!profileOut) return;
+
+  const resolvedProfileOut = path.resolve(projectPath, profileOut);
+  fs.mkdirSync(path.dirname(resolvedProfileOut), { recursive: true });
+  fs.writeFileSync(resolvedProfileOut, `${JSON.stringify(profile, null, 2)}\n`);
+}
+
 // Lazy-load heavy modules (CodeGraph, runInstaller) to keep CLI startup fast.
 async function loadCodeGraph(): Promise<typeof import('../index')> {
   try {
@@ -280,6 +295,12 @@ function warn(message: string): void {
   console.log(chalk.yellow(getGlyphs().warn) + ' ' + message);
 }
 
+type RustIndexProfile = {
+  rustCore?: unknown;
+  finalize?: unknown;
+  typescriptFinalizationMs?: number;
+};
+
 type IndexResult = {
   success: boolean;
   filesIndexed: number;
@@ -289,6 +310,7 @@ type IndexResult = {
   edgesCreated: number;
   errors: Array<{ message: string; filePath?: string; severity: string; code?: string }>;
   durationMs: number;
+  profile?: RustIndexProfile | Record<string, unknown>;
 };
 
 /**
@@ -542,17 +564,20 @@ program
   .option('-q, --quiet', 'Suppress progress output')
   .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
   .option('--engine <engine>', 'Index engine to use: typescript or rust')
-  .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string }) => {
+  .option('--graph-work-profile <profile>', 'Rust graph work profile to use: full or matched-ts-js')
+  .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string; graphWorkProfile?: string }) => {
     const projectPath = resolveProjectPath(pathArg);
     let selectedEngine: 'typescript' | 'rust' | undefined;
 
     try {
       const engine = resolveIndexEngine(options.engine);
+      const graphWorkProfile = resolveGraphWorkProfile(options.graphWorkProfile);
       selectedEngine = engine;
       const runRustIndexAndFinalize = async (onProgress?: (progress: { phase: string; current: number; total: number; currentFile?: string }) => void): Promise<IndexResult> => {
         const result = await runRustIndexer(projectPath, {
           force: options.force,
           verbose: options.verbose,
+          graphWorkProfile,
           onProgress,
         });
         if (!result.success || result.filesIndexed === 0) {
@@ -562,6 +587,7 @@ program
         const { default: CodeGraph } = await loadCodeGraph();
         const cg = await CodeGraph.open(projectPath);
         try {
+          const finalizationStarted = Date.now();
           const finalized = await cg.finalizeRustIndex((current, total) => {
             onProgress?.({
               phase: 'resolving',
@@ -571,9 +597,15 @@ program
           });
           result.nodesCreated += finalized.nodesCreated;
           result.edgesCreated += finalized.edgesCreated;
+          result.profile = {
+            rustCore: result.profile,
+            finalize: finalized.profile,
+            typescriptFinalizationMs: Date.now() - finalizationStarted,
+          };
         } finally {
           cg.destroy();
         }
+        writeIndexProfile(projectPath, result.profile ?? null);
         return result;
       };
 
