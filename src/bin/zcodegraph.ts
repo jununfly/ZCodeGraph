@@ -44,6 +44,12 @@ function resolveGraphWorkProfile(raw: string | undefined): 'full' | 'matched-ts-
   throw new Error(`Unsupported graph work profile "${raw}". Supported profiles: full, matched-ts-js`);
 }
 
+function resolveIndexProfile(raw: string | undefined): 'heap' | undefined {
+  if (raw == null) return undefined;
+  if (raw === 'heap') return raw;
+  throw new Error(`Unsupported index profile "${raw}". Supported profiles: heap`);
+}
+
 function writeIndexProfile(projectPath: string, profile: unknown): void {
   const profileOut = process.env.ZCODEGRAPH_INDEX_PROFILE_OUT;
   if (!profileOut) return;
@@ -565,19 +571,22 @@ program
   .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
   .option('--engine <engine>', 'Index engine to use: typescript or rust')
   .option('--graph-work-profile <profile>', 'Rust graph work profile to use: full or matched-ts-js')
-  .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string; graphWorkProfile?: string }) => {
+  .option('--profile <mode>', 'Rust index profiling mode to use: heap')
+  .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string; graphWorkProfile?: string; profile?: string }) => {
     const projectPath = resolveProjectPath(pathArg);
     let selectedEngine: 'typescript' | 'rust' | undefined;
 
     try {
       const engine = resolveIndexEngine(options.engine);
       const graphWorkProfile = resolveGraphWorkProfile(options.graphWorkProfile);
+      const indexProfile = resolveIndexProfile(options.profile);
       selectedEngine = engine;
       const runRustIndexAndFinalize = async (onProgress?: (progress: { phase: string; current: number; total: number; currentFile?: string }) => void): Promise<IndexResult> => {
         const result = await runRustIndexer(projectPath, {
           force: options.force,
           verbose: options.verbose,
           graphWorkProfile,
+          profiling: indexProfile,
           onProgress,
         });
         if (!result.success || result.filesIndexed === 0) {

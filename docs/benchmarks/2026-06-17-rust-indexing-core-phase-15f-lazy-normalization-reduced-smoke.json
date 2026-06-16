@@ -1,0 +1,25 @@
+{
+  "generatedAt": "2026-06-16T17:26:33.463Z",
+  "issue": 175,
+  "target": "phase15f-reduced-normalization-fixture",
+  "status": "completed",
+  "graphStats": {
+    "fileCount": 2,
+    "nodeCount": 7,
+    "edgeCount": 5,
+    "dbSizeBytes": 143360
+  },
+  "index": {
+    "engine": "rust",
+    "engineVersion": "0.1.0",
+    "builtWithVersion": "0.1.0",
+    "builtWithExtractionVersion": 1,
+    "currentExtractionVersion": 1,
+    "reindexRecommended": false
+  },
+  "normalizationCases": [
+    "typescript import type query",
+    "contextual abstract property",
+    "contextual unique member receiver"
+  ]
+}

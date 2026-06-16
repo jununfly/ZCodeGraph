@@ -1,15 +1,73 @@
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::borrow::Cow;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 use tree_sitter::{Node as SyntaxNode, Parser, TreeCursor};
 
+#[cfg(feature = "dhat")]
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
 const SCHEMA_SQL: &str = include_str!("../../../src/db/schema.sql");
 const CURRENT_SCHEMA_VERSION: i64 = 4;
 const EXTRACTION_VERSION: i64 = 1;
+
+#[cfg(feature = "dhat")]
+pub type HeapProfilerGuard = dhat::Profiler;
+
+#[cfg(not(feature = "dhat"))]
+pub type HeapProfilerGuard = ();
+
+#[cfg(feature = "dhat")]
+pub fn start_heap_profiler(project_path: &str) -> Result<Option<HeapProfilerGuard>, String> {
+    match std::env::var("ZCODEGRAPH_PROFILING") {
+        Ok(value) if value == "heap" => {
+            let experiment_id =
+                std::env::var("ZCODEGRAPH_EXPERIMENT_ID").unwrap_or_else(|_| "manual".to_string());
+            let report_path = Path::new(project_path)
+                .join(".workbuddy")
+                .join("profiling")
+                .join(experiment_id)
+                .join("dhat-heap.json");
+            if let Some(parent) = report_path.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|err| format!("failed to create heap profiling directory: {}", err))?;
+            }
+            Ok(Some(
+                dhat::Profiler::builder()
+                    .file_name(report_path.to_string_lossy().as_ref())
+                    .build(),
+            ))
+        }
+        Ok(value) if value.trim().is_empty() => Ok(None),
+        Ok(value) => Err(format!(
+            "unsupported profiling mode: {}. Supported modes: heap",
+            value
+        )),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(err) => Err(format!("failed to read ZCODEGRAPH_PROFILING: {}", err)),
+    }
+}
+
+#[cfg(not(feature = "dhat"))]
+pub fn start_heap_profiler(_project_path: &str) -> Result<Option<HeapProfilerGuard>, String> {
+    match std::env::var("ZCODEGRAPH_PROFILING") {
+        Ok(value) if value == "heap" => {
+            Err("heap profiling requires building zcodegraph-core with --features dhat".to_string())
+        }
+        Ok(value) if value.trim().is_empty() => Ok(None),
+        Ok(value) => Err(format!(
+            "unsupported profiling mode: {}. Supported modes: heap",
+            value
+        )),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(err) => Err(format!("failed to read ZCODEGRAPH_PROFILING: {}", err)),
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexRequest {
@@ -230,10 +288,13 @@ struct NameMatcherDiagnostics {
 
 pub fn match_name_json(input: &str) -> Result<String, String> {
     let started = Instant::now();
-    let mut request: NameMatcherBatchRequest =
-        serde_json::from_str(input).map_err(|err| format!("invalid match-name request: {}", err))?;
+    let mut request: NameMatcherBatchRequest = serde_json::from_str(input)
+        .map_err(|err| format!("invalid match-name request: {}", err))?;
     if request.version != 1 {
-        return Err(format!("unsupported match-name request version: {}", request.version));
+        return Err(format!(
+            "unsupported match-name request version: {}",
+            request.version
+        ));
     }
     materialize_candidate_tables(&mut request)?;
 
@@ -349,7 +410,11 @@ fn candidate_fact_count(candidates: &NameMatcherCandidateSet) -> usize {
         + candidates.class_candidates.len()
         + candidates.capitalized_class_candidates.len()
         + candidates.method_candidates.len()
-        + candidates.nodes_in_files.values().map(Vec::len).sum::<usize>()
+        + candidates
+            .nodes_in_files
+            .values()
+            .map(Vec::len)
+            .sum::<usize>()
 }
 
 fn match_reference_fact(reference: &NameMatcherReference) -> Option<NameMatcherDecision> {
@@ -403,7 +468,12 @@ fn match_by_qualified_name(reference: &NameMatcherReference) -> Option<NameMatch
         return None;
     }
     if reference.candidates.by_qualified_name.len() == 1 {
-        return Some(decision(reference, &reference.candidates.by_qualified_name[0], 0.95, "qualified-name"));
+        return Some(decision(
+            reference,
+            &reference.candidates.by_qualified_name[0],
+            0.95,
+            "qualified-name",
+        ));
     }
     let candidate = reference
         .candidates
@@ -419,13 +489,17 @@ fn match_method_call(reference: &NameMatcherReference) -> Option<NameMatcherDeci
         if !is_class_like(class_node) || class_node.language != reference.ref_data.language {
             continue;
         }
-        let Some(nodes_in_file) = reference.candidates.nodes_in_files.get(&class_node.file_path) else {
+        let Some(nodes_in_file) = reference
+            .candidates
+            .nodes_in_files
+            .get(&class_node.file_path)
+        else {
             continue;
         };
         if let Some(method_node) = nodes_in_file.iter().find(|node| {
-            matches!(node.kind.as_str(), "method" | "function") &&
-                node.name == method_name &&
-                node.qualified_name.contains(&class_node.name)
+            matches!(node.kind.as_str(), "method" | "function")
+                && node.name == method_name
+                && node.qualified_name.contains(&class_node.name)
         }) {
             return Some(decision(reference, method_node, 0.85, "qualified-name"));
         }
@@ -437,13 +511,17 @@ fn match_method_call(reference: &NameMatcherReference) -> Option<NameMatcherDeci
             if !is_class_like(class_node) || class_node.language != reference.ref_data.language {
                 continue;
             }
-            let Some(nodes_in_file) = reference.candidates.nodes_in_files.get(&class_node.file_path) else {
+            let Some(nodes_in_file) = reference
+                .candidates
+                .nodes_in_files
+                .get(&class_node.file_path)
+            else {
                 continue;
             };
             if let Some(method_node) = nodes_in_file.iter().find(|node| {
-                matches!(node.kind.as_str(), "method" | "function") &&
-                    node.name == method_name &&
-                    node.qualified_name.contains(&class_node.name)
+                matches!(node.kind.as_str(), "method" | "function")
+                    && node.name == method_name
+                    && node.qualified_name.contains(&class_node.name)
             }) {
                 return Some(decision(reference, method_node, 0.8, "instance-method"));
             }
@@ -461,9 +539,18 @@ fn match_method_call(reference: &NameMatcherReference) -> Option<NameMatcherDeci
         .copied()
         .filter(|node| node.language == reference.ref_data.language)
         .collect();
-    let target_methods = if same_language.is_empty() { methods } else { same_language };
+    let target_methods = if same_language.is_empty() {
+        methods
+    } else {
+        same_language
+    };
     if target_methods.len() == 1 && target_methods[0].language == reference.ref_data.language {
-        return Some(decision(reference, target_methods[0], 0.7, "instance-method"));
+        return Some(decision(
+            reference,
+            target_methods[0],
+            0.7,
+            "instance-method",
+        ));
     }
     if target_methods.len() > 1 {
         let receiver_words = split_camel_case(receiver);
@@ -473,7 +560,11 @@ fn match_method_call(reference: &NameMatcherReference) -> Option<NameMatcherDeci
             let class_words = split_camel_case(&method.qualified_name);
             let mut score = receiver_words
                 .iter()
-                .filter(|word| class_words.iter().any(|class_word| class_word.eq_ignore_ascii_case(word)))
+                .filter(|word| {
+                    class_words
+                        .iter()
+                        .any(|class_word| class_word.eq_ignore_ascii_case(word))
+                })
                 .count() as i32;
             if method.language == reference.ref_data.language {
                 score += 1;
@@ -501,7 +592,12 @@ fn match_by_exact_name(reference: &NameMatcherReference) -> Option<NameMatcherDe
         } else {
             0.5
         };
-        return Some(decision(reference, candidates[0], confidence, "exact-match"));
+        return Some(decision(
+            reference,
+            candidates[0],
+            confidence,
+            "exact-match",
+        ));
     }
     let best = find_best_match(&reference.ref_data, &candidates)?;
     let proximity = compute_path_proximity(&reference.ref_data.file_path, &best.file_path);
@@ -522,7 +618,11 @@ fn match_fuzzy(reference: &NameMatcherReference) -> Option<NameMatcherDecision> 
         .copied()
         .filter(|node| node.language == reference.ref_data.language)
         .collect();
-    let final_candidates = if same_language.is_empty() { gated } else { same_language };
+    let final_candidates = if same_language.is_empty() {
+        gated
+    } else {
+        same_language
+    };
     if final_candidates.len() != 1 {
         return None;
     }
@@ -531,10 +631,20 @@ fn match_fuzzy(reference: &NameMatcherReference) -> Option<NameMatcherDecision> 
     } else {
         0.3
     };
-    Some(decision(reference, final_candidates[0], confidence, "fuzzy"))
+    Some(decision(
+        reference,
+        final_candidates[0],
+        confidence,
+        "fuzzy",
+    ))
 }
 
-fn decision(reference: &NameMatcherReference, node: &NodeFact, confidence: f64, resolved_by: &'static str) -> NameMatcherDecision {
+fn decision(
+    reference: &NameMatcherReference,
+    node: &NodeFact,
+    confidence: f64,
+    resolved_by: &'static str,
+) -> NameMatcherDecision {
     NameMatcherDecision {
         key: reference.key.clone(),
         target_node_id: Some(node.id.clone()),
@@ -544,12 +654,18 @@ fn decision(reference: &NameMatcherReference, node: &NodeFact, confidence: f64, 
     }
 }
 
-fn apply_language_gate<'a>(candidates: &'a [NodeFact], reference: &UnresolvedReferenceFact) -> Vec<&'a NodeFact> {
+fn apply_language_gate<'a>(
+    candidates: &'a [NodeFact],
+    reference: &UnresolvedReferenceFact,
+) -> Vec<&'a NodeFact> {
     let refs: Vec<&NodeFact> = candidates.iter().collect();
     apply_language_gate_refs(&refs, reference)
 }
 
-fn apply_language_gate_refs<'a>(candidates: &[&'a NodeFact], reference: &UnresolvedReferenceFact) -> Vec<&'a NodeFact> {
+fn apply_language_gate_refs<'a>(
+    candidates: &[&'a NodeFact],
+    reference: &UnresolvedReferenceFact,
+) -> Vec<&'a NodeFact> {
     if reference.reference_kind == "references" {
         return candidates
             .iter()
@@ -567,7 +683,10 @@ fn apply_language_gate_refs<'a>(candidates: &[&'a NodeFact], reference: &Unresol
     candidates.to_vec()
 }
 
-fn find_best_match<'a>(reference: &UnresolvedReferenceFact, candidates: &[&'a NodeFact]) -> Option<&'a NodeFact> {
+fn find_best_match<'a>(
+    reference: &UnresolvedReferenceFact,
+    candidates: &[&'a NodeFact],
+) -> Option<&'a NodeFact> {
     let mut best: Option<&NodeFact> = None;
     let mut best_score = f64::NEG_INFINITY;
     for candidate in candidates {
@@ -581,7 +700,9 @@ fn find_best_match<'a>(reference: &UnresolvedReferenceFact, candidates: &[&'a No
         } else {
             score -= 80.0;
         }
-        if reference.reference_kind == "calls" && matches!(candidate.kind.as_str(), "function" | "method") {
+        if reference.reference_kind == "calls"
+            && matches!(candidate.kind.as_str(), "function" | "method")
+        {
             score += 25.0;
         }
         if reference.reference_kind == "instantiates" && is_class_like(candidate) {
@@ -609,14 +730,21 @@ fn find_best_match<'a>(reference: &UnresolvedReferenceFact, candidates: &[&'a No
     best
 }
 
-fn pick_closest_file_node<'a>(candidates: &[&'a NodeFact], reference: &UnresolvedReferenceFact) -> &'a NodeFact {
+fn pick_closest_file_node<'a>(
+    candidates: &[&'a NodeFact],
+    reference: &UnresolvedReferenceFact,
+) -> &'a NodeFact {
     let reference_dir = dir_of(&reference.file_path);
     let same_dir: Vec<&NodeFact> = candidates
         .iter()
         .copied()
         .filter(|node| dir_of(&node.file_path) == reference_dir)
         .collect();
-    let pool = if same_dir.is_empty() { candidates.to_vec() } else { same_dir };
+    let pool = if same_dir.is_empty() {
+        candidates.to_vec()
+    } else {
+        same_dir
+    };
     let mut best = pool[0];
     let mut best_score = i32::MIN;
     for candidate in pool {
@@ -652,8 +780,18 @@ fn language_family(language: &str) -> Option<&'static str> {
 }
 
 fn compute_path_proximity(a: &str, b: &str) -> u32 {
-    let a_parts: Vec<&str> = a.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("").split('/').collect();
-    let b_parts: Vec<&str> = b.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("").split('/').collect();
+    let a_parts: Vec<&str> = a
+        .rsplit_once('/')
+        .map(|(dir, _)| dir)
+        .unwrap_or("")
+        .split('/')
+        .collect();
+    let b_parts: Vec<&str> = b
+        .rsplit_once('/')
+        .map(|(dir, _)| dir)
+        .unwrap_or("")
+        .split('/')
+        .collect();
     let shared = a_parts
         .iter()
         .zip(b_parts.iter())
@@ -670,15 +808,22 @@ fn looks_like_short_extension(value: &str) -> bool {
     let Some((_, extension)) = value.rsplit_once('.') else {
         return false;
     };
-    !extension.is_empty() &&
-        extension.len() <= 4 &&
-        extension.chars().next().is_some_and(|ch| ch.is_ascii_alphabetic()) &&
-        extension.chars().all(|ch| ch.is_ascii_alphanumeric())
+    !extension.is_empty()
+        && extension.len() <= 4
+        && extension
+            .chars()
+            .next()
+            .is_some_and(|ch| ch.is_ascii_alphabetic())
+        && extension.chars().all(|ch| ch.is_ascii_alphanumeric())
 }
 
 fn parse_method_reference(value: &str) -> Option<(&str, &str)> {
     if let Some((receiver, method)) = value.rsplit_once("::") {
-        if !receiver.is_empty() && !method.is_empty() && !receiver.contains("::") && !method.contains("::") {
+        if !receiver.is_empty()
+            && !method.is_empty()
+            && !receiver.contains("::")
+            && !method.contains("::")
+        {
             return Some((receiver, method));
         }
     }
@@ -761,18 +906,17 @@ pub fn write_minimal_index(
         let counts = {
             let sqlite_setup_started = Instant::now();
             let mut conn = Connection::open(&temp_path)?;
-            conn.pragma_update(None, "journal_mode", "WAL")?;
-            conn.pragma_update(None, "foreign_keys", "ON")?;
+            configure_index_connection(&conn)?;
             conn.execute_batch(SCHEMA_SQL)?;
             stamp_schema_version(&conn)?;
             stamp_metadata(&conn)?;
             let sqlite_setup_ms = sqlite_setup_started.elapsed().as_millis();
-            let tx = conn.transaction()?;
-            let mut counts = index_javascript_files(&tx, Path::new(&request.project_path), request.graph_work_profile.features())?;
-            let commit_started = Instant::now();
-            tx.commit()?;
+            let mut counts = index_javascript_files(
+                &mut conn,
+                Path::new(&request.project_path),
+                request.graph_work_profile.features(),
+            )?;
             counts.profile.sqlite_write_ms += sqlite_setup_ms;
-            counts.profile.sqlite_write_ms += commit_started.elapsed().as_millis();
             counts
         };
 
@@ -792,6 +936,13 @@ pub fn write_minimal_index(
     write_result
 }
 
+fn configure_index_connection(conn: &Connection) -> rusqlite::Result<()> {
+    conn.pragma_update(None, "journal_mode", "WAL")?;
+    conn.pragma_update(None, "synchronous", "NORMAL")?;
+    conn.pragma_update(None, "foreign_keys", "ON")?;
+    Ok(())
+}
+
 fn sleep_after_lock_for_tests() {
     let Ok(raw) = std::env::var("ZCODEGRAPH_RUST_CORE_TEST_SLEEP_MS") else {
         return;
@@ -805,7 +956,7 @@ fn sleep_after_lock_for_tests() {
 }
 
 fn index_javascript_files(
-    conn: &Connection,
+    conn: &mut Connection,
     project_path: &Path,
     features: GraphWorkFeatures,
 ) -> Result<WriteCounts, Box<dyn std::error::Error>> {
@@ -825,7 +976,7 @@ fn index_javascript_files(
         let metadata = fs::metadata(&file_path)?;
         let parse_content = normalize_source_for_parser(&content, language);
         let parsed = parser
-            .parse(parse_content.as_str(), None)
+            .parse(parse_content.as_ref(), None)
             .ok_or_else(|| format!("Parser returned no tree for {}", relative_path))?;
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
@@ -856,11 +1007,12 @@ fn index_javascript_files(
 
         let indexed_at = now_ms();
         let sqlite_write_started = Instant::now();
-        insert_nodes(conn, &nodes)?;
-        insert_edges(conn, &edges)?;
-        insert_unresolved_refs(conn, &unresolved_refs)?;
+        let tx = conn.transaction()?;
+        insert_nodes(&tx, &nodes)?;
+        insert_edges(&tx, &edges)?;
+        insert_unresolved_refs(&tx, &unresolved_refs)?;
         upsert_file(
-            conn,
+            &tx,
             &relative_path,
             &content,
             &metadata,
@@ -868,6 +1020,7 @@ fn index_javascript_files(
             indexed_at,
             nodes.len() as i64,
         )?;
+        tx.commit()?;
         counts.profile.sqlite_write_ms += sqlite_write_started.elapsed().as_millis();
 
         counts.files_indexed += 1;
@@ -878,50 +1031,66 @@ fn index_javascript_files(
     Ok(counts)
 }
 
-fn normalize_source_for_parser(source: &str, language: SourceLanguage) -> String {
+fn normalize_source_for_parser(source: &str, language: SourceLanguage) -> Cow<'_, str> {
     if matches!(language, SourceLanguage::TypeScript | SourceLanguage::Tsx) {
-        normalize_typescript_contextual_keywords(&normalize_import_type_queries(source))
+        normalize_typescript_source(source)
     } else {
-        source.to_string()
+        Cow::Borrowed(source)
     }
 }
 
-fn normalize_import_type_queries(source: &str) -> String {
-    let mut out = source.as_bytes().to_vec();
+fn normalize_typescript_source(source: &str) -> Cow<'_, str> {
     let bytes = source.as_bytes();
+    let mut out: Option<Vec<u8>> = None;
     let mut index = 0;
 
-    while let Some(offset) = find_subslice(&bytes[index..], b"import(") {
-        let start = index + offset;
-        let Some(type_import_context) = looks_like_type_import_context(source, start) else {
-            index = start + "import(".len();
-            continue;
-        };
+    while index < bytes.len() {
+        if bytes.get(index..index + "import(".len()) == Some(b"import(") {
+            let Some(type_import_context) = looks_like_type_import_context(source, index) else {
+                index += "import(".len();
+                continue;
+            };
 
-        let Some((end, has_member_access)) = import_type_query_end(bytes, start) else {
-            index = start + "import(".len();
-            continue;
-        };
-        if !has_member_access && !type_import_context.allows_bare_import_type_query {
-            index = start + "import(".len();
+            let Some((end, has_member_access)) = import_type_query_end(bytes, index) else {
+                index += "import(".len();
+                continue;
+            };
+            if !has_member_access && !type_import_context.allows_bare_import_type_query {
+                index += "import(".len();
+                continue;
+            }
+
+            replace_with_identifier_placeholder(normalized_bytes(source, &mut out), index, end);
+            index = end;
             continue;
         }
 
-        replace_with_identifier_placeholder(&mut out, start, end);
-        index = end;
+        if word_at(bytes, index, b"abstract") && is_property_name_position(bytes, index + 8) {
+            normalized_bytes(source, &mut out)[index..index + 8].copy_from_slice(b"_bstract");
+            index += 8;
+            continue;
+        }
+        if word_at(bytes, index, b"unique") && is_member_receiver_position(bytes, index + 6) {
+            normalized_bytes(source, &mut out)[index..index + 6].copy_from_slice(b"uniq_e");
+            index += 6;
+            continue;
+        }
+        index += 1;
     }
 
-    String::from_utf8(out).unwrap_or_else(|_| source.to_string())
+    match out {
+        Some(out) => Cow::Owned(String::from_utf8(out).unwrap_or_else(|_| source.to_string())),
+        None => Cow::Borrowed(source),
+    }
+}
+
+fn normalized_bytes<'a>(source: &str, out: &'a mut Option<Vec<u8>>) -> &'a mut [u8] {
+    out.get_or_insert_with(|| source.as_bytes().to_vec())
+        .as_mut_slice()
 }
 
 struct TypeImportContext {
     allows_bare_import_type_query: bool,
-}
-
-fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    haystack
-        .windows(needle.len())
-        .position(|window| window == needle)
 }
 
 fn looks_like_type_import_context(source: &str, start: usize) -> Option<TypeImportContext> {
@@ -1035,28 +1204,6 @@ fn replace_with_identifier_placeholder(out: &mut [u8], start: usize, end: usize)
     }
     let copy_len = len.min(placeholder.len());
     out[start..start + copy_len].copy_from_slice(&placeholder[..copy_len]);
-}
-
-fn normalize_typescript_contextual_keywords(source: &str) -> String {
-    let mut out = source.as_bytes().to_vec();
-    let bytes = source.as_bytes();
-    let mut index = 0;
-
-    while index < bytes.len() {
-        if word_at(bytes, index, b"abstract") && is_property_name_position(bytes, index + 8) {
-            out[index..index + 8].copy_from_slice(b"_bstract");
-            index += 8;
-            continue;
-        }
-        if word_at(bytes, index, b"unique") && is_member_receiver_position(bytes, index + 6) {
-            out[index..index + 6].copy_from_slice(b"uniq_e");
-            index += 6;
-            continue;
-        }
-        index += 1;
-    }
-
-    String::from_utf8(out).unwrap_or_else(|_| source.to_string())
 }
 
 fn word_at(bytes: &[u8], index: usize, word: &[u8]) -> bool {
@@ -1187,7 +1334,7 @@ fn visit_js_node(
     features: GraphWorkFeatures,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let node = cursor.node();
-    let mut child_from_node_id = current_from_node_id.to_string();
+    let mut child_from_node_id: Cow<'_, str> = Cow::Borrowed(current_from_node_id);
 
     if let Some((kind, name_node)) = extract_named_symbol(node, source, language, features)? {
         let mut name = name_node.utf8_text(source)?.to_string();
@@ -1200,19 +1347,19 @@ fn visit_js_node(
         let contains_source = if current_from_node_id != file_node_id
             && matches!(kind, "method" | "field" | "property")
         {
-            current_from_node_id.to_string()
+            current_from_node_id
         } else {
-            file_node_id.to_string()
+            file_node_id
         };
         edges.push(ExtractedEdge {
-            source: contains_source,
+            source: contains_source.to_string(),
             target: extracted_id.clone(),
             kind: "contains".to_string(),
             line: extracted.start_line,
             col: extracted.start_column,
         });
         nodes.push(extracted);
-        child_from_node_id = extracted_id;
+        child_from_node_id = Cow::Owned(extracted_id);
     }
 
     extract_statement_refs(
@@ -1278,7 +1425,9 @@ fn extract_named_symbol<'a>(
         }
     }
 
-    if node.kind() == "import_statement" || (node.kind() == "export_statement" && features.export_extraction) {
+    if node.kind() == "import_statement"
+        || (node.kind() == "export_statement" && features.export_extraction)
+    {
         if let Some(name_node) = module_literal_node(node) {
             let kind = if node.kind() == "import_statement" {
                 "import"
@@ -1343,9 +1492,7 @@ fn variable_declarator_has_function_value(node: SyntaxNode) -> bool {
 
 fn node_has_function_value(node: SyntaxNode) -> bool {
     node.child_by_field_name("value")
-        .map(|value| {
-            node_contains_function_value(value)
-        })
+        .map(|value| node_contains_function_value(value))
         .unwrap_or(false)
 }
 
@@ -2057,11 +2204,71 @@ mod tests {
 
     #[test]
     fn graph_work_profile_parse_rejects_unknown_profiles() {
-        assert_eq!(GraphWorkProfile::parse("full").unwrap(), GraphWorkProfile::Full);
-        assert_eq!(GraphWorkProfile::parse("matched-ts-js").unwrap(), GraphWorkProfile::MatchedTsJs);
+        assert_eq!(
+            GraphWorkProfile::parse("full").unwrap(),
+            GraphWorkProfile::Full
+        );
+        assert_eq!(
+            GraphWorkProfile::parse("matched-ts-js").unwrap(),
+            GraphWorkProfile::MatchedTsJs
+        );
         let err = GraphWorkProfile::parse("wide-open").unwrap_err();
         assert!(err.contains("unsupported graph work profile"));
         assert!(err.contains("full, matched-ts-js"));
+    }
+
+    #[test]
+    fn index_connection_uses_wal_and_normal_synchronous() {
+        let dir = temp_dir("sqlite-pragmas");
+        let db_path = dir.join("index.db");
+        let conn = Connection::open(&db_path).unwrap();
+
+        configure_index_connection(&conn).unwrap();
+
+        let journal_mode: String = conn
+            .pragma_query_value(None, "journal_mode", |row| row.get(0))
+            .unwrap();
+        let synchronous: i64 = conn
+            .pragma_query_value(None, "synchronous", |row| row.get(0))
+            .unwrap();
+        assert_eq!(journal_mode.to_lowercase(), "wal");
+        assert_eq!(synchronous, 1);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn normalization_borrows_sources_when_no_rewrite_is_needed() {
+        let js = "export function alpha() { return 1; }\n";
+        assert!(matches!(
+            normalize_source_for_parser(js, SourceLanguage::JavaScript),
+            Cow::Borrowed(_)
+        ));
+
+        let ts = "export function beta(value: string): string { return value; }\n";
+        assert!(matches!(
+            normalize_source_for_parser(ts, SourceLanguage::TypeScript),
+            Cow::Borrowed(_)
+        ));
+    }
+
+    #[test]
+    fn normalization_allocates_once_when_typescript_rewrites_are_needed() {
+        let source = [
+            "type TextEdit = readonly import('./private-to-property.ts').TextEdit[];",
+            "export type MemberStats = { abstract: Set<string>; concrete: Set<string> };",
+            "export function commonLength(unique: Element[]): number { return unique.length; }",
+            "",
+        ]
+        .join("\n");
+
+        let normalized = normalize_source_for_parser(&source, SourceLanguage::TypeScript);
+
+        let Cow::Owned(normalized) = normalized else {
+            panic!("TypeScript rewrites should allocate only when replacements are needed");
+        };
+        assert!(normalized.contains("ZCGImportType"));
+        assert!(normalized.contains("_bstract"));
+        assert!(normalized.contains("uniq_e.length"));
     }
 
     #[test]
@@ -2104,7 +2311,13 @@ mod tests {
         );
     }
 
-    fn node_json(id: &str, kind: &str, name: &str, qualified_name: &str, file_path: &str) -> serde_json::Value {
+    fn node_json(
+        id: &str,
+        kind: &str,
+        name: &str,
+        qualified_name: &str,
+        file_path: &str,
+    ) -> serde_json::Value {
         serde_json::json!({
             "id": id,
             "kind": kind,
@@ -2138,18 +2351,27 @@ mod tests {
 
     #[test]
     fn rust_name_matcher_resolves_exact_candidate_facts() {
-        let target = node_json("node-alpha", "function", "alpha", "src/target.ts::alpha", "src/target.ts");
-        let response = matcher_response("alpha", serde_json::json!({
-            "byName": [target],
-            "byQualifiedName": [],
-            "byLeafName": [],
-            "byLowerName": [],
-            "byFileName": [],
-            "classCandidates": [],
-            "capitalizedClassCandidates": [],
-            "methodCandidates": [],
-            "nodesInFiles": {}
-        }));
+        let target = node_json(
+            "node-alpha",
+            "function",
+            "alpha",
+            "src/target.ts::alpha",
+            "src/target.ts",
+        );
+        let response = matcher_response(
+            "alpha",
+            serde_json::json!({
+                "byName": [target],
+                "byQualifiedName": [],
+                "byLeafName": [],
+                "byLowerName": [],
+                "byFileName": [],
+                "classCandidates": [],
+                "capitalizedClassCandidates": [],
+                "methodCandidates": [],
+                "nodesInFiles": {}
+            }),
+        );
 
         assert_eq!(response["decisions"][0]["targetNodeId"], "node-alpha");
         assert_eq!(response["decisions"][0]["resolvedBy"], "exact-match");
@@ -2158,18 +2380,27 @@ mod tests {
 
     #[test]
     fn rust_name_matcher_resolves_qualified_candidate_facts() {
-        let target = node_json("node-qualified", "function", "run", "Service.run", "src/service.ts");
-        let response = matcher_response("Service.run", serde_json::json!({
-            "byName": [],
-            "byQualifiedName": [target],
-            "byLeafName": [],
-            "byLowerName": [],
-            "byFileName": [],
-            "classCandidates": [],
-            "capitalizedClassCandidates": [],
-            "methodCandidates": [],
-            "nodesInFiles": {}
-        }));
+        let target = node_json(
+            "node-qualified",
+            "function",
+            "run",
+            "Service.run",
+            "src/service.ts",
+        );
+        let response = matcher_response(
+            "Service.run",
+            serde_json::json!({
+                "byName": [],
+                "byQualifiedName": [target],
+                "byLeafName": [],
+                "byLowerName": [],
+                "byFileName": [],
+                "classCandidates": [],
+                "capitalizedClassCandidates": [],
+                "methodCandidates": [],
+                "nodesInFiles": {}
+            }),
+        );
 
         assert_eq!(response["decisions"][0]["targetNodeId"], "node-qualified");
         assert_eq!(response["decisions"][0]["resolvedBy"], "qualified-name");
@@ -2177,21 +2408,36 @@ mod tests {
 
     #[test]
     fn rust_name_matcher_resolves_method_candidate_facts() {
-        let class_node = node_json("class-service", "class", "Service", "Service", "src/service.ts");
-        let method_node = node_json("method-run", "method", "run", "Service.run", "src/service.ts");
-        let response = matcher_response("Service.run", serde_json::json!({
-            "byName": [],
-            "byQualifiedName": [],
-            "byLeafName": [],
-            "byLowerName": [],
-            "byFileName": [],
-            "classCandidates": [class_node],
-            "capitalizedClassCandidates": [],
-            "methodCandidates": [method_node],
-            "nodesInFiles": {
-                "src/service.ts": [method_node]
-            }
-        }));
+        let class_node = node_json(
+            "class-service",
+            "class",
+            "Service",
+            "Service",
+            "src/service.ts",
+        );
+        let method_node = node_json(
+            "method-run",
+            "method",
+            "run",
+            "Service.run",
+            "src/service.ts",
+        );
+        let response = matcher_response(
+            "Service.run",
+            serde_json::json!({
+                "byName": [],
+                "byQualifiedName": [],
+                "byLeafName": [],
+                "byLowerName": [],
+                "byFileName": [],
+                "classCandidates": [class_node],
+                "capitalizedClassCandidates": [],
+                "methodCandidates": [method_node],
+                "nodesInFiles": {
+                    "src/service.ts": [method_node]
+                }
+            }),
+        );
 
         assert_eq!(response["decisions"][0]["targetNodeId"], "method-run");
         assert_eq!(response["decisions"][0]["resolvedBy"], "qualified-name");
@@ -2199,21 +2445,36 @@ mod tests {
 
     #[test]
     fn rust_name_matcher_resolves_function_member_candidate_facts() {
-        let class_node = node_json("class-service", "class", "Service", "Service", "src/service.ts");
-        let method_node = node_json("function-run", "function", "run", "Service.run", "src/service.ts");
-        let response = matcher_response("Service.run", serde_json::json!({
-            "byName": [],
-            "byQualifiedName": [],
-            "byLeafName": [],
-            "byLowerName": [],
-            "byFileName": [],
-            "classCandidates": [class_node],
-            "capitalizedClassCandidates": [],
-            "methodCandidates": [method_node],
-            "nodesInFiles": {
-                "src/service.ts": [method_node]
-            }
-        }));
+        let class_node = node_json(
+            "class-service",
+            "class",
+            "Service",
+            "Service",
+            "src/service.ts",
+        );
+        let method_node = node_json(
+            "function-run",
+            "function",
+            "run",
+            "Service.run",
+            "src/service.ts",
+        );
+        let response = matcher_response(
+            "Service.run",
+            serde_json::json!({
+                "byName": [],
+                "byQualifiedName": [],
+                "byLeafName": [],
+                "byLowerName": [],
+                "byFileName": [],
+                "classCandidates": [class_node],
+                "capitalizedClassCandidates": [],
+                "methodCandidates": [method_node],
+                "nodesInFiles": {
+                    "src/service.ts": [method_node]
+                }
+            }),
+        );
 
         assert_eq!(response["decisions"][0]["targetNodeId"], "function-run");
         assert_eq!(response["decisions"][0]["resolvedBy"], "qualified-name");
@@ -2221,40 +2482,61 @@ mod tests {
 
     #[test]
     fn rust_name_matcher_reports_decision_oriented_fallback_reason() {
-        let response = matcher_response("missing", serde_json::json!({
-            "byName": [],
-            "byQualifiedName": [],
-            "byLeafName": [],
-            "byLowerName": [],
-            "byFileName": [],
-            "classCandidates": [],
-            "capitalizedClassCandidates": [],
-            "methodCandidates": [],
-            "nodesInFiles": {}
-        }));
+        let response = matcher_response(
+            "missing",
+            serde_json::json!({
+                "byName": [],
+                "byQualifiedName": [],
+                "byLeafName": [],
+                "byLowerName": [],
+                "byFileName": [],
+                "classCandidates": [],
+                "capitalizedClassCandidates": [],
+                "methodCandidates": [],
+                "nodesInFiles": {}
+            }),
+        );
 
-        assert_eq!(response["decisions"][0]["fallbackReason"], "missing-candidate-facts");
-        assert_eq!(response["diagnostics"]["rustMatcherFallbackReasons"]["missing-candidate-facts"], 1);
+        assert_eq!(
+            response["decisions"][0]["fallbackReason"],
+            "missing-candidate-facts"
+        );
+        assert_eq!(
+            response["diagnostics"]["rustMatcherFallbackReasons"]["missing-candidate-facts"],
+            1
+        );
         assert!(response["diagnostics"]["rustMatcherFallbackReasons"]["unresolved"].is_null());
     }
 
     #[test]
     fn rust_name_matcher_reports_fallback_for_unhandled_reference() {
-        let response = matcher_response("missing", serde_json::json!({
-            "byName": [],
-            "byQualifiedName": [],
-            "byLeafName": [],
-            "byLowerName": [],
-            "byFileName": [],
-            "classCandidates": [],
-            "capitalizedClassCandidates": [],
-            "methodCandidates": [],
-            "nodesInFiles": {}
-        }));
+        let response = matcher_response(
+            "missing",
+            serde_json::json!({
+                "byName": [],
+                "byQualifiedName": [],
+                "byLeafName": [],
+                "byLowerName": [],
+                "byFileName": [],
+                "classCandidates": [],
+                "capitalizedClassCandidates": [],
+                "methodCandidates": [],
+                "nodesInFiles": {}
+            }),
+        );
 
-        assert_eq!(response["decisions"][0]["targetNodeId"], serde_json::Value::Null);
-        assert_eq!(response["decisions"][0]["fallbackReason"], "missing-candidate-facts");
-        assert_eq!(response["diagnostics"]["rustMatcherFallbackReasons"]["missing-candidate-facts"], 1);
+        assert_eq!(
+            response["decisions"][0]["targetNodeId"],
+            serde_json::Value::Null
+        );
+        assert_eq!(
+            response["decisions"][0]["fallbackReason"],
+            "missing-candidate-facts"
+        );
+        assert_eq!(
+            response["diagnostics"]["rustMatcherFallbackReasons"]["missing-candidate-facts"],
+            1
+        );
     }
 
     #[test]
@@ -2349,11 +2631,17 @@ mod tests {
         {
             let conn = Connection::open(&request.index_path).unwrap();
             let count_kind = |kind: &str| -> i64 {
-                conn.query_row("SELECT COUNT(*) FROM nodes WHERE kind = ?1", params![kind], |row| row.get(0))
-                    .unwrap()
+                conn.query_row(
+                    "SELECT COUNT(*) FROM nodes WHERE kind = ?1",
+                    params![kind],
+                    |row| row.get(0),
+                )
+                .unwrap()
             };
             let ref_count = conn
-                .query_row("SELECT COUNT(*) FROM unresolved_refs", [], |row| row.get::<_, i64>(0))
+                .query_row("SELECT COUNT(*) FROM unresolved_refs", [], |row| {
+                    row.get::<_, i64>(0)
+                })
                 .unwrap();
             assert_eq!(count_kind("component"), 0);
             assert_eq!(count_kind("constant"), 0);

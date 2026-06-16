@@ -8,6 +8,7 @@ interface RustIndexerOptions {
   force?: boolean;
   verbose?: boolean;
   graphWorkProfile?: 'full' | 'matched-ts-js';
+  profiling?: 'heap';
   onProgress?: (progress: IndexProgress) => void;
 }
 
@@ -322,9 +323,13 @@ export async function runRustIndexer(
   return new Promise<IndexResult>((resolve, reject) => {
     const spawnedAt = Date.now();
     let subprocessStartupHandoffMs: number | undefined;
+    const childEnv = {
+      ...process.env,
+      ...(options.profiling ? { ZCODEGRAPH_PROFILING: options.profiling } : {}),
+    };
     const child = spawn(core.command, args, {
       cwd: core.cwd,
-      env: process.env,
+      env: childEnv,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 

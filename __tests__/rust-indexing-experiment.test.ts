@@ -770,6 +770,72 @@ describe('Rust indexing formal experiment runner', () => {
     expect(summary).toContain('| fixture | referenceResolutionMs | 44 |');
   });
 
+  it('records heap profiling reports requested by the manifest', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-heap-profile-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(source, { recursive: true });
+    fs.writeFileSync(path.join(source, 'flow.ts'), 'export function alpha() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+    const manifest = path.join(temp, 'experiment.json');
+    const out = path.join(temp, 'artifact.json');
+    const summaryOut = path.join(temp, 'summary.md');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        experimentId: 'phase-15e-heap',
+        profiling: { heap: true, summaryHtml: true },
+        targets: [
+          {
+            name: 'fixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+        ],
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+        },
+      },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      profiling: { heap: boolean; summaryHtml: boolean };
+      targets: Array<{
+        arms: {
+          rust: {
+            execution: {
+              profiling: { heapReport: string | null; heapSummaryHtml: string | null };
+            };
+          };
+        };
+      }>;
+    };
+    const heapReport = artifact.targets[0].arms.rust.execution.profiling.heapReport;
+    const summaryHtml = artifact.targets[0].arms.rust.execution.profiling.heapSummaryHtml;
+    expect(artifact.profiling.heap).toBe(true);
+    expect(artifact.profiling.summaryHtml).toBe(true);
+    expect(heapReport).toContain(path.join('.workbuddy', 'profiling', 'phase-15e-heap', 'dhat-heap.json'));
+    expect(fs.existsSync(heapReport!)).toBe(true);
+    expect(summaryHtml).toContain(path.join('.workbuddy', 'profiling', 'phase-15e-heap', 'dhat-summary.html'));
+    expect(fs.existsSync(summaryHtml!)).toBe(true);
+  });
+
   it('records wall-time diagnostics by experiment phase', () => {
     const temp = makeTempDir('zcodegraph-rust-experiment-wall-time-');
     tempDirs.push(temp);

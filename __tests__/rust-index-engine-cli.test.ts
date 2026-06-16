@@ -31,7 +31,7 @@ function writeFakeRustCore(dir: string): string {
     [
       '#!/usr/bin/env node',
       'const args = process.argv.slice(2);',
-      `require("fs").writeFileSync(${JSON.stringify(marker)}, JSON.stringify({ args }) + "\\n");`,
+      `require("fs").writeFileSync(${JSON.stringify(marker)}, JSON.stringify({ args, profiling: process.env.ZCODEGRAPH_PROFILING || null, experimentId: process.env.ZCODEGRAPH_EXPERIMENT_ID || null }) + "\\n");`,
       'if (!args.includes("index")) process.exit(2);',
       'process.stdout.write(JSON.stringify({ type: "progress", phase: "scanning", current: 0, total: 1 }) + "\\n");',
       'process.stdout.write(JSON.stringify({ type: "result", success: true, filesIndexed: 0, filesSkipped: 0, filesErrored: 0, nodesCreated: 0, edgesCreated: 0, errors: [], durationMs: 1 }) + "\\n");',
@@ -154,6 +154,20 @@ describe('zcodegraph index engine selection', () => {
     expect(marker.args).toContain('matched-ts-js');
   });
 
+  it('passes heap profiling to the Rust subprocess when selected by CLI flag', () => {
+    const rustCore = writeFakeRustCore(tempDir);
+    const result = runCli(tempDir, ['index', '--engine', 'rust', '--profile', 'heap', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCODEGRAPH_EXPERIMENT_ID: 'cli-heap-profile',
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const marker = JSON.parse(fs.readFileSync(fakeRustCoreMarker(tempDir), 'utf-8')) as { args: string[]; profiling: string | null; experimentId: string | null };
+    expect(marker.args).not.toContain('--profile');
+    expect(marker.profiling).toBe('heap');
+    expect(marker.experimentId).toBe('cli-heap-profile');
+  });
+
   it('runs the Rust subprocess when selected by environment variable', () => {
     const rustCore = writeFakeRustCore(tempDir);
     const result = runCli(tempDir, ['index', '--quiet'], {
@@ -205,6 +219,16 @@ describe('zcodegraph index engine selection', () => {
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
     expect(result.stderr).toContain('Unsupported graph work profile');
     expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(false);
+  });
+
+  it('rejects unsupported profile values before indexing', () => {
+    const rustCore = writeFailingRustCore(tempDir);
+    const result = runCli(tempDir, ['index', '--engine', 'rust', '--profile', 'cpu', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
+    expect(result.stderr).toContain('Unsupported index profile');
   });
 
   it('rejects unsupported engine values before indexing', () => {

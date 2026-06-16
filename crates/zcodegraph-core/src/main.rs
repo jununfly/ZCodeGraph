@@ -2,7 +2,10 @@ use std::env;
 use std::io::{self, Read};
 use std::process;
 
-use zcodegraph_core::{error_json, match_name_json, progress_json, result_json, run_index, IndexRequest};
+use zcodegraph_core::{
+    error_json, match_name_json, progress_json, result_json, run_index, start_heap_profiler,
+    IndexRequest,
+};
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -24,6 +27,13 @@ fn main() {
 
     match parse_args(args) {
         Ok(request) => {
+            let _heap_profiler = match start_heap_profiler(&request.project_path) {
+                Ok(profiler) => profiler,
+                Err(message) => {
+                    eprintln!("{}", error_json(&message));
+                    process::exit(2);
+                }
+            };
             println!("{}", progress_json("scanning", 0, 1));
             let result = run_index(&request);
             let success = result.success;

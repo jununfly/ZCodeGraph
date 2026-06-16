@@ -28,6 +28,7 @@ const SUPPORTED_TOP_LEVEL_FIELDS = new Set([
   'metrics',
   'outputs',
   'rust',
+  'profiling',
 ]);
 
 function printHelp() {
@@ -137,6 +138,29 @@ function validateMetrics(metrics, diagnostics) {
   return metrics;
 }
 
+function validateProfiling(profiling, diagnostics) {
+  if (profiling === undefined) {
+    return { heap: false, summaryHtml: false };
+  }
+  if (!isPlainObject(profiling)) {
+    diagnostics.push(diagnostic('invalid-profiling', 'profiling must be an object', { field: 'profiling' }));
+    return { heap: false, summaryHtml: false };
+  }
+  for (const field of ['heap', 'summaryHtml']) {
+    if (profiling[field] !== undefined && typeof profiling[field] !== 'boolean') {
+      diagnostics.push(
+        diagnostic('invalid-profiling-field', `profiling.${field} must be a boolean`, {
+          field: `profiling.${field}`,
+        }),
+      );
+    }
+  }
+  return {
+    heap: profiling.heap === true,
+    summaryHtml: profiling.summaryHtml === true,
+  };
+}
+
 function validateManifest(manifest) {
   const diagnostics = [];
   const unknownFields = [];
@@ -223,6 +247,7 @@ function validateManifest(manifest) {
   }
 
   const metrics = validateMetrics(manifest.metrics ?? {}, diagnostics);
+  const profiling = validateProfiling(manifest.profiling, diagnostics);
 
   const normalized = {
     schemaVersion: 1,
@@ -239,6 +264,7 @@ function validateManifest(manifest) {
     targets: Array.isArray(manifest.targets) ? manifest.targets : [],
     metrics,
     outputs: isPlainObject(manifest.outputs) ? manifest.outputs : {},
+    profiling,
   };
 
   return { valid: diagnostics.length === 0, normalized, diagnostics, unknownFields };
@@ -443,6 +469,48 @@ function runCommand(command, args, cwd, env = {}) {
   });
 }
 
+function parsePeakRssBytes(stderr) {
+  const mac = stderr.match(/^\s*(\d+)\s+maximum resident set size/m);
+  if (mac) return Number.parseInt(mac[1], 10);
+  const linux = stderr.match(/Maximum resident set size \(kbytes\):\s*(\d+)/);
+  if (linux) return Number.parseInt(linux[1], 10) * 1024;
+  return null;
+}
+
+function normalizeMeasuredResult(result) {
+  if (
+    process.platform === 'darwin' &&
+    result.status === 1 &&
+    typeof result.stderr === 'string' &&
+    result.stderr.includes('time: sysctl kern.clockrate: Operation not permitted') &&
+    !result.stderr.includes('Failed to index:') &&
+    !result.stderr.includes('Unsupported Node.js version') &&
+    !result.stderr.includes('Rust index engine failed')
+  ) {
+    return { ...result, status: 0 };
+  }
+  return result;
+}
+
+function runMeasuredCommand(command, args, cwd, env = {}) {
+  if (process.env.ZCODEGRAPH_EXPERIMENT_MEASURE_RSS !== '1') {
+    const result = runCommand(command, args, cwd, env);
+    return { result, peakRssBytes: null };
+  }
+  if (process.platform === 'darwin' && fs.existsSync('/usr/bin/time')) {
+    const result = runCommand('/usr/bin/time', ['-l', command, ...args], cwd, env);
+    const peakRssBytes = parsePeakRssBytes(result.stderr ?? '');
+    return { result: normalizeMeasuredResult(result), peakRssBytes };
+  }
+  if (process.platform === 'linux' && fs.existsSync('/usr/bin/time')) {
+    const result = runCommand('/usr/bin/time', ['-v', command, ...args], cwd, env);
+    const peakRssBytes = parsePeakRssBytes(result.stderr ?? '');
+    return { result, peakRssBytes };
+  }
+  const result = runCommand(command, args, cwd, env);
+  return { result, peakRssBytes: null };
+}
+
 function childProcessFailureDetails(result) {
   return {
     status: result.status,
@@ -463,6 +531,11 @@ function measuredPeakRssBytes(engine) {
   }
   const rss = process.memoryUsage().rss;
   return Number.isFinite(rss) && rss > 0 ? rss : null;
+}
+
+function resolvePeakRssBytes(engine, measured) {
+  const override = measuredPeakRssBytes(engine);
+  return override ?? measured ?? null;
 }
 
 function readJsonIfExists(file) {
@@ -584,7 +657,50 @@ db.close();
   }
 }
 
-function indexArm(target, engine, rustCoreInfo) {
+function heapReportPath(sourceCopyPath, experimentId) {
+  return path.join(sourceCopyPath, '.workbuddy', 'profiling', experimentId, 'dhat-heap.json');
+}
+
+function detectHeapReport(arm, experimentId) {
+  if (!arm.sourceCopy) return null;
+  const report = heapReportPath(arm.sourceCopy.path, experimentId);
+  return fs.existsSync(report) ? report : null;
+}
+
+function maybeWriteFakeHeapReport(arm, experimentId, profiling) {
+  if (!profiling.heap || !arm.sourceCopy) return;
+  const report = heapReportPath(arm.sourceCopy.path, experimentId);
+  fs.mkdirSync(path.dirname(report), { recursive: true });
+  fs.writeFileSync(
+    report,
+    `${JSON.stringify(
+      {
+        dhatFileVersion: 2,
+        mode: 'heap',
+        totalBlocks: 0,
+        totalBytes: 0,
+        maxBytes: 0,
+        fake: true,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}
+
+function maybeSummarizeHeapReport(arm, profiling) {
+  if (!profiling.summaryHtml || !arm.execution.profiling.heapReport) return;
+  const script = path.join(repoRoot, 'scripts', 'summarize-dhat.mjs');
+  const result = runCommand(process.execPath, [script, arm.execution.profiling.heapReport], path.dirname(arm.execution.profiling.heapReport));
+  if (result.status === 0 && !result.error) {
+    const summary = result.stdout.trim().split('\n').filter(Boolean).pop();
+    arm.execution.profiling.heapSummaryHtml = summary ? path.resolve(summary) : path.join(path.dirname(arm.execution.profiling.heapReport), 'dhat-summary.html');
+    return;
+  }
+  arm.execution.diagnostics.push(diagnostic('dhat-summary-failed', 'Failed to summarize dhat heap report', childProcessFailureDetails(result)));
+}
+
+function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
   const arm = target.arms[engine];
   if (target.preflight.status !== 'available' || arm.preflight.status !== 'available') return;
 
@@ -608,7 +724,10 @@ function indexArm(target, engine, rustCoreInfo) {
       graphStats: 0,
       total: elapsedMs,
     };
-    arm.execution.peakRssBytes = measuredPeakRssBytes(engine);
+    arm.execution.peakRssBytes = resolvePeakRssBytes(engine, null);
+    maybeWriteFakeHeapReport(arm, experimentId, profiling);
+    arm.execution.profiling.heapReport = detectHeapReport(arm, experimentId);
+    maybeSummarizeHeapReport(arm, profiling);
     arm.execution.status = 'completed';
     arm.indexing.status = 'completed';
     arm.graphStats = {
@@ -633,7 +752,7 @@ function indexArm(target, engine, rustCoreInfo) {
       graphStats: 0,
       total: arm.execution.elapsedMs,
     };
-    arm.execution.peakRssBytes = measuredPeakRssBytes(engine);
+    arm.execution.peakRssBytes = resolvePeakRssBytes(engine, null);
     arm.execution.status = 'failed';
     arm.execution.diagnostics.push(diagnostic('forced-engine-failure', `Forced ${engine} indexing failure`));
     arm.indexing.status = 'failed';
@@ -669,6 +788,10 @@ function indexArm(target, engine, rustCoreInfo) {
       env.ZCODEGRAPH_RUST_CORE_BINARY = rustCoreInfo.path;
       indexProfileFile = path.join(arm.sourceCopy.path, '.zcodegraph', 'rust-index-profile.json');
       env.ZCODEGRAPH_INDEX_PROFILE_OUT = indexProfileFile;
+      if (profiling.heap) {
+        env.ZCODEGRAPH_PROFILING = 'heap';
+        env.ZCODEGRAPH_EXPERIMENT_ID = experimentId;
+      }
     }
     arm.command = {
       executable: process.execPath,
@@ -679,12 +802,13 @@ function indexArm(target, engine, rustCoreInfo) {
     };
     arm.execution.status = 'running';
     const indexStarted = Date.now();
-    const result = runCommand(process.execPath, args, arm.sourceCopy.path, env);
+    const measuredResult = runMeasuredCommand(process.execPath, args, arm.sourceCopy.path, env);
+    const result = measuredResult.result;
     timingsMs.index = elapsedSince(indexStarted);
     arm.execution.elapsedMs = Date.now() - started;
     timingsMs.total = arm.execution.elapsedMs;
     arm.execution.timingsMs = timingsMs;
-    arm.execution.peakRssBytes = measuredPeakRssBytes(engine);
+    arm.execution.peakRssBytes = resolvePeakRssBytes(engine, measuredResult.peakRssBytes);
     if (result.status !== 0 || result.error) {
       arm.execution.status = 'failed';
       arm.execution.diagnostics.push(diagnostic('index-process-failed', `Indexing failed for ${target.name}:${engine}`, childProcessFailureDetails(result)));
@@ -699,6 +823,8 @@ function indexArm(target, engine, rustCoreInfo) {
       if (!arm.execution.indexProfile) {
         arm.execution.diagnostics.push(diagnostic('missing-rust-index-profile', 'Rust index profile was not emitted by the CLI'));
       }
+      arm.execution.profiling.heapReport = detectHeapReport(arm, experimentId);
+      maybeSummarizeHeapReport(arm, profiling);
     }
     const graphStatsStarted = Date.now();
     arm.graphStats = collectGraphStats(arm.sourceCopy.path) ?? {
@@ -715,7 +841,7 @@ function indexArm(target, engine, rustCoreInfo) {
   } catch (error) {
     arm.execution.elapsedMs = Date.now() - started;
     arm.execution.timingsMs = arm.execution.timingsMs ?? { sourceCopy: 0, init: 0, index: 0, graphStats: 0, total: arm.execution.elapsedMs };
-    arm.execution.peakRssBytes = measuredPeakRssBytes(engine);
+    arm.execution.peakRssBytes = resolvePeakRssBytes(engine, null);
     arm.execution.status = 'failed';
     arm.execution.diagnostics.push(diagnostic('index-exception', error instanceof Error ? error.message : String(error)));
     arm.indexing.status = 'failed';
@@ -804,9 +930,9 @@ function classifyTarget(target) {
   return 'target-skipped';
 }
 
-function runArms(target, rustCoreInfo, thresholds) {
-  indexArm(target, 'typescript', rustCoreInfo);
-  indexArm(target, 'rust', rustCoreInfo);
+function runArms(target, rustCoreInfo, thresholds, experimentId, profiling) {
+  indexArm(target, 'typescript', rustCoreInfo, experimentId, profiling);
+  indexArm(target, 'rust', rustCoreInfo, experimentId, profiling);
   applyGates(target, thresholds);
   target.classification = classifyTarget(target);
 }
@@ -832,6 +958,10 @@ function emptyArm(engine) {
       peakRssBytes: null,
       timingsMs: null,
       indexProfile: null,
+      profiling: {
+        heapReport: null,
+        heapSummaryHtml: null,
+      },
       diagnostics: [],
     },
     indexing: {
@@ -1015,7 +1145,7 @@ function createArtifact(normalized, manifestPath, validation) {
   const thresholds = metricThresholds(normalized.metrics);
   const targets = normalized.targets.map((target) => preflightTarget(target, preflight.rustCore, normalized.rust));
   for (const target of targets) {
-    runArms(target, preflight.rustCore, thresholds);
+    runArms(target, preflight.rustCore, thresholds, normalized.experimentId, normalized.profiling);
   }
   const classification = classifyExperiment(targets);
   return {
@@ -1025,6 +1155,7 @@ function createArtifact(normalized, manifestPath, validation) {
     generatedAt: new Date().toISOString(),
     arms: normalized.arms,
     sourceCopy: normalized.sourceCopy,
+    profiling: normalized.profiling,
     manifest: {
       path: manifestPath,
       unknownFields: validation.unknownFields,

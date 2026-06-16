@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>dhat heap summary</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 32px; color: #17202a; background: #f8fafc; }
+    main { max-width: 1120px; margin: 0 auto; }
+    section { margin: 24px 0; }
+    table { border-collapse: collapse; width: 100%; background: white; }
+    th, td { border: 1px solid #d7dde5; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #edf2f7; }
+    code { background: #edf2f7; padding: 2px 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>dhat heap summary</h1>
+  <p>Source: <code>/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-NPkHcr/.workbuddy/profiling/rust-indexing-core-phase-15e-vscode-matched-work-stress-rerun4/dhat-heap.json</code></p>
+  <section>
+    <h2>Total allocations</h2>
+    <p>2.1 GB</p>
+  </section>
+  <section>
+    <h2>Peak heap</h2>
+    <p>8.0 MB</p>
+  </section>
+  <section>
+    <h2>Top 20 allocations by size</h2>
+    <table>
+<thead><tr><th>Total bytes</th><th>Peak bytes</th><th>Call site</th><th>Frames</th></tr></thead>
+<tbody><tr><td>1.1 GB</td><td>4.9 KB</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100840c94: alloc::raw_vec::RawVecInner&lt;A&gt;::try_allocate_in (src/raw_vec/mod.rs:464:47)
+0x100840dac: alloc::raw_vec::RawVecInner&lt;A&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x1008418b0: alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x1008418b0: alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x1008418b0: &lt;T as alloc::slice::&lt;impl [T]&gt;::to_vec_in::ConvertVec&gt;::to_vec (alloc/src/slice.rs:448:29)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec_in (alloc/src/slice.rs:400:16)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec (alloc/src/slice.rs:376:14)
+0x10083f170: alloc::slice::&lt;impl alloc::borrow::ToOwned for [T]&gt;::to_owned (alloc/src/slice.rs:842:14)
+0x10083f170: alloc::str::&lt;impl alloc::borrow::ToOwned for str&gt;::to_owned (alloc/src/str.rs:211:62)
+0x10083f170: &lt;alloc::string::String as core::convert::From&lt;&amp;str&gt;&gt;::from (alloc/src/string.rs:3114:11)
+0x10083f170: &lt;str as alloc::string::SpecToString&gt;::spec_to_string (alloc/src/string.rs:3045:21)
+0x10083db00: &lt;T as alloc::string::ToString&gt;::to_string (alloc/src/string.rs:2894:9)
+0x1007440d8: zcodegraph_core::visit_js_node (zcodegraph-core/src/lib.rs:1247:55)</td></tr>
+<tr><td>146.6 MB</td><td>184.0 KB</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100a345b0: alloc::raw_vec::RawVecInner&lt;A&gt;::finish_grow (src/raw_vec/mod.rs:558:24)
+0x100840a20: alloc::raw_vec::RawVecInner&lt;A&gt;::grow_amortized (src/raw_vec/mod.rs:527:33)
+0x100709670: alloc::raw_vec::RawVecInner&lt;A&gt;::grow_one (src/raw_vec/mod.rs:491:41)
+0x100709670: alloc::raw_vec::RawVec&lt;T,A&gt;::grow_one (src/raw_vec/mod.rs:188:29)
+0x10073d3a0: alloc::vec::Vec&lt;T,A&gt;::push_mut (src/vec/mod.rs:1029:22)
+0x10073cb68: alloc::vec::Vec&lt;T,A&gt;::push (src/vec/mod.rs:992:22)
+0x10074c034: zcodegraph_core::index_javascript_files (zcodegraph-core/src/lib.rs:890:15)</td></tr>
+<tr><td>136.8 MB</td><td>122.8 KB</td><td>0x100a390f8: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100a390f8: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100a390f8: &lt;alloc::raw_vec::RawVecInner&gt;::finish_grow (src/raw_vec/mod.rs:558:24)
+0x100a3900c: &lt;alloc::raw_vec::RawVecInner&gt;::grow_amortized (src/raw_vec/mod.rs:527:33)
+0x100a3900c: &lt;alloc::raw_vec::RawVecInner&lt;_&gt;&gt;::reserve::do_reserve_and_handle::&lt;alloc::alloc::Global&gt; (src/raw_vec/mod.rs:666:44)
+0x100a24e7c: &lt;alloc::raw_vec::RawVecInner&gt;::reserve (src/raw_vec/mod.rs:673:17)
+0x100a24e7c: &lt;alloc::raw_vec::RawVec&lt;u8&gt;&gt;::reserve (src/raw_vec/mod.rs:340:29)
+0x100a24e7c: &lt;alloc::vec::Vec&lt;u8&gt;&gt;::reserve (src/vec/mod.rs:1446:18)
+0x100a24e7c: &lt;alloc::vec::Vec&lt;u8&gt;&gt;::append_elements (src/vec/mod.rs:2879:14)
+0x100a24e7c: &lt;alloc::vec::Vec&lt;u8&gt; as alloc::vec::spec_extend::SpecExtend&lt;&amp;u8, core::slice::iter::Iter&lt;u8&gt;&gt;&gt;::spec_extend (src/vec/spec_extend.rs:56:23)
+0x100a24e7c: &lt;alloc::vec::Vec&lt;u8&gt;&gt;::extend_from_slice (src/vec/mod.rs:3500:14)
+0x100a24e7c: &lt;alloc::string::String&gt;::push_str (alloc/src/string.rs:1102:18)
+0x100a24e7c: &lt;alloc::string::String as core::fmt::Write&gt;::write_str (alloc/src/string.rs:3345:14)
+0x100a28d98: &lt;core::fmt::rt::Argument&gt;::fmt (src/fmt/rt.rs:152:76)
+0x100a28d98: core::fmt::write (src/fmt/mod.rs:1686:22)
+0x100a24b44: &lt;&amp;mut alloc::string::String as core::fmt::Write::write_fmt::SpecWriteFmt&gt;::spec_write_fmt (src/fmt/mod.rs:236:21)
+0x100a24b44: &lt;alloc::string::String as core::fmt::Write&gt;::write_fmt (src/fmt/mod.rs:241:14)
+0x100a24b44: alloc::fmt::format::format_inner (alloc/src/fmt.rs:654:14)
+0x10087639c: alloc::fmt::format::{{closure}} (alloc/src/fmt.rs:659:34)
+0x100877280: core::option::Option&lt;T&gt;::map_or_else (core/src/option.rs:1278:21)
+0x1007561c0: alloc::fmt::format (alloc/src/fmt.rs:659:19)</td></tr>
+<tr><td>126.0 MB</td><td>8.0 MB</td><td>0x100a390f8: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100a390f8: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100a390f8: &lt;alloc::raw_vec::RawVecInner&gt;::finish_grow (src/raw_vec/mod.rs:558:24)
+0x100a24858: &lt;alloc::raw_vec::RawVecInner&gt;::grow_exact (src/raw_vec/mod.rs:798:33)
+0x100a24858: &lt;alloc::raw_vec::RawVecInner&gt;::try_reserve_exact (src/raw_vec/mod.rs:726:22)
+0x100a24858: &lt;alloc::raw_vec::RawVec&lt;u8&gt;&gt;::try_reserve_exact (src/raw_vec/mod.rs:383:29)
+0x100a24858: &lt;alloc::vec::Vec&lt;u8&gt;&gt;::try_reserve_exact (src/vec/mod.rs:1556:18)
+0x100a24858: &lt;alloc::string::String&gt;::try_reserve_exact (alloc/src/string.rs:1346:18)
+0x100a1798c: std::fs::read_to_string::inner (std/src/fs.rs:388:16)
+0x10070d1c4: std::fs::read_to_string (std/src/fs.rs:392:5)
+0x10074bcc4: zcodegraph_core::index_javascript_files (zcodegraph-core/src/lib.rs:879:23)
+0x10071a3ec: zcodegraph_core::write_minimal_index::{{closure}} (zcodegraph-core/src/lib.rs:822:30)
+0x1007490c8: zcodegraph_core::write_minimal_index (zcodegraph-core/src/lib.rs:813:24)
+0x100750d54: zcodegraph_core::run_index (zcodegraph-core/src/lib.rs:153:11)</td></tr>
+<tr><td>124.8 MB</td><td>8.0 MB</td><td>0x100792708: &lt;dhat::Alloc as core::alloc::global::GlobalAlloc&gt;::alloc (dhat-0.3.3/src/lib.rs:1176:9)</td><td>0x100792708: &lt;dhat::Alloc as core::alloc::global::GlobalAlloc&gt;::alloc (dhat-0.3.3/src/lib.rs:1176:9)
+0x100741dc8: __rustc::__rust_alloc (zcodegraph-core/src/lib.rs:12:19)
+0x100a1e07c: &lt;alloc::raw_vec::RawVecInner&gt;::try_allocate_in (???:0:0)
+0x100876284: alloc::raw_vec::RawVecInner&lt;A&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x100876bd0: alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x100876bd0: alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x100876bd0: &lt;T as alloc::slice::&lt;impl [T]&gt;::to_vec_in::ConvertVec&gt;::to_vec (alloc/src/slice.rs:448:29)
+0x100876b04: alloc::slice::&lt;impl [T]&gt;::to_vec_in (alloc/src/slice.rs:400:16)
+0x100876b04: alloc::slice::&lt;impl [T]&gt;::to_vec (alloc/src/slice.rs:376:14)
+0x100750498: zcodegraph_core::normalize_typescript_contextual_keywords (zcodegraph-core/src/lib.rs:1098:37)
+0x10074f774: zcodegraph_core::normalize_source_for_parser (zcodegraph-core/src/lib.rs:940:9)
+0x10074be08: zcodegraph_core::index_javascript_files (zcodegraph-core/src/lib.rs:881:29)
+0x10071a3ec: zcodegraph_core::write_minimal_index::{{closure}} (zcodegraph-core/src/lib.rs:822:30)</td></tr>
+<tr><td>124.8 MB</td><td>8.0 MB</td><td>0x100792708: &lt;dhat::Alloc as core::alloc::global::GlobalAlloc&gt;::alloc (dhat-0.3.3/src/lib.rs:1176:9)</td><td>0x100792708: &lt;dhat::Alloc as core::alloc::global::GlobalAlloc&gt;::alloc (dhat-0.3.3/src/lib.rs:1176:9)
+0x100741dc8: __rustc::__rust_alloc (zcodegraph-core/src/lib.rs:12:19)
+0x100a1e07c: &lt;alloc::raw_vec::RawVecInner&gt;::try_allocate_in (???:0:0)
+0x100876284: alloc::raw_vec::RawVecInner&lt;A&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x100876bd0: alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x100876bd0: alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x100876bd0: &lt;T as alloc::slice::&lt;impl [T]&gt;::to_vec_in::ConvertVec&gt;::to_vec (alloc/src/slice.rs:448:29)
+0x100876b04: alloc::slice::&lt;impl [T]&gt;::to_vec_in (alloc/src/slice.rs:400:16)
+0x100876b04: alloc::slice::&lt;impl [T]&gt;::to_vec (alloc/src/slice.rs:376:14)
+0x10074fd44: zcodegraph_core::normalize_import_type_queries (zcodegraph-core/src/lib.rs:947:37)
+0x10074f728: zcodegraph_core::normalize_source_for_parser (zcodegraph-core/src/lib.rs:940:51)
+0x10074be08: zcodegraph_core::index_javascript_files (zcodegraph-core/src/lib.rs:881:29)
+0x10071a3ec: zcodegraph_core::write_minimal_index::{{closure}} (zcodegraph-core/src/lib.rs:822:30)</td></tr>
+<tr><td>105.3 MB</td><td>72 B</td><td>0x100a390f8: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100a390f8: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100a390f8: &lt;alloc::raw_vec::RawVecInner&gt;::finish_grow (src/raw_vec/mod.rs:558:24)
+0x100a3900c: &lt;alloc::raw_vec::RawVecInner&gt;::grow_amortized (src/raw_vec/mod.rs:527:33)
+0x100a3900c: &lt;alloc::raw_vec::RawVecInner&lt;_&gt;&gt;::reserve::do_reserve_and_handle::&lt;alloc::alloc::Global&gt; (src/raw_vec/mod.rs:666:44)
+0x100a24e7c: &lt;alloc::raw_vec::RawVecInner&gt;::reserve (src/raw_vec/mod.rs:673:17)
+0x100a24e7c: &lt;alloc::raw_vec::RawVec&lt;u8&gt;&gt;::reserve (src/raw_vec/mod.rs:340:29)
+0x100a24e7c: &lt;alloc::vec::Vec&lt;u8&gt;&gt;::reserve (src/vec/mod.rs:1446:18)
+0x100a24e7c: &lt;alloc::vec::Vec&lt;u8&gt;&gt;::append_elements (src/vec/mod.rs:2879:14)
+0x100a24e7c: &lt;alloc::vec::Vec&lt;u8&gt; as alloc::vec::spec_extend::SpecExtend&lt;&amp;u8, core::slice::iter::Iter&lt;u8&gt;&gt;&gt;::spec_extend (src/vec/spec_extend.rs:56:23)
+0x100a24e7c: &lt;alloc::vec::Vec&lt;u8&gt;&gt;::extend_from_slice (src/vec/mod.rs:3500:14)
+0x100a24e7c: &lt;alloc::string::String&gt;::push_str (alloc/src/string.rs:1102:18)
+0x100a24e7c: &lt;alloc::string::String as core::fmt::Write&gt;::write_str (alloc/src/string.rs:3345:14)
+0x100a2e62c: &lt;u8 as core::fmt::LowerHex&gt;::fmt (src/fmt/num.rs:49:19)
+0x10070cda0: &lt;&amp;T as core::fmt::LowerHex&gt;::fmt (src/fmt/mod.rs:2865:62)
+0x100a28e7c: &lt;core::fmt::rt::Argument&gt;::fmt (src/fmt/rt.rs:152:76)
+0x100a28e7c: core::fmt::write (src/fmt/mod.rs:1734:46)
+0x100a24b44: &lt;&amp;mut alloc::string::String as core::fmt::Write::write_fmt::SpecWriteFmt&gt;::spec_write_fmt (src/fmt/mod.rs:236:21)
+0x100a24b44: &lt;alloc::string::String as core::fmt::Write&gt;::write_fmt (src/fmt/mod.rs:241:14)
+0x100a24b44: alloc::fmt::format::format_inner (alloc/src/fmt.rs:654:14)
+0x10087639c: alloc::fmt::format::{{closure}} (alloc/src/fmt.rs:659:34)</td></tr>
+<tr><td>95.2 MB</td><td>136.0 KB</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100a345b0: alloc::raw_vec::RawVecInner&lt;A&gt;::finish_grow (src/raw_vec/mod.rs:558:24)
+0x100840a20: alloc::raw_vec::RawVecInner&lt;A&gt;::grow_amortized (src/raw_vec/mod.rs:527:33)
+0x1007094d8: alloc::raw_vec::RawVecInner&lt;A&gt;::grow_one (src/raw_vec/mod.rs:491:41)
+0x1007094d8: alloc::raw_vec::RawVec&lt;T,A&gt;::grow_one (src/raw_vec/mod.rs:188:29)
+0x10073ce7c: alloc::vec::Vec&lt;T,A&gt;::push_mut (src/vec/mod.rs:1029:22)
+0x10073cab4: alloc::vec::Vec&lt;T,A&gt;::push (src/vec/mod.rs:992:22)
+0x100750d04: zcodegraph_core::push_ref (zcodegraph-core/src/lib.rs:1635:21)</td></tr>
+<tr><td>67.8 MB</td><td>88.0 KB</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100a345b0: alloc::raw_vec::RawVecInner&lt;A&gt;::finish_grow (src/raw_vec/mod.rs:558:24)
+0x100840a20: alloc::raw_vec::RawVecInner&lt;A&gt;::grow_amortized (src/raw_vec/mod.rs:527:33)
+0x100709560: alloc::raw_vec::RawVecInner&lt;A&gt;::grow_one (src/raw_vec/mod.rs:491:41)
+0x100709560: alloc::raw_vec::RawVec&lt;T,A&gt;::grow_one (src/raw_vec/mod.rs:188:29)
+0x10073cf88: alloc::vec::Vec&lt;T,A&gt;::push_mut (src/vec/mod.rs:1029:22)
+0x10073cad8: alloc::vec::Vec&lt;T,A&gt;::push (src/vec/mod.rs:992:22)
+0x10074469c: zcodegraph_core::visit_js_node (zcodegraph-core/src/lib.rs:1264:15)</td></tr>
+<tr><td>18.5 MB</td><td>42.5 KB</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100840c94: alloc::raw_vec::RawVecInner&lt;A&gt;::try_allocate_in (src/raw_vec/mod.rs:464:47)
+0x100840dac: alloc::raw_vec::RawVecInner&lt;A&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x1008418b0: alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x1008418b0: alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x1008418b0: &lt;T as alloc::slice::&lt;impl [T]&gt;::to_vec_in::ConvertVec&gt;::to_vec (alloc/src/slice.rs:448:29)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec_in (alloc/src/slice.rs:400:16)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec (alloc/src/slice.rs:376:14)
+0x10083f170: alloc::slice::&lt;impl alloc::borrow::ToOwned for [T]&gt;::to_owned (alloc/src/slice.rs:842:14)
+0x10083f170: alloc::str::&lt;impl alloc::borrow::ToOwned for str&gt;::to_owned (alloc/src/str.rs:211:62)
+0x10083f170: &lt;alloc::string::String as core::convert::From&lt;&amp;str&gt;&gt;::from (alloc/src/string.rs:3114:11)
+0x10083f170: &lt;str as alloc::string::SpecToString&gt;::spec_to_string (alloc/src/string.rs:3045:21)
+0x10083db00: &lt;T as alloc::string::ToString&gt;::to_string (alloc/src/string.rs:2894:9)
+0x100743c68: zcodegraph_core::ExtractedNode::symbol (zcodegraph-core/src/lib.rs:1699:38)</td></tr>
+<tr><td>17.5 MB</td><td>33.2 KB</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100840c94: alloc::raw_vec::RawVecInner&lt;A&gt;::try_allocate_in (src/raw_vec/mod.rs:464:47)
+0x100840dac: alloc::raw_vec::RawVecInner&lt;A&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x1008418b0: alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x1008418b0: alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x1008418b0: &lt;T as alloc::slice::&lt;impl [T]&gt;::to_vec_in::ConvertVec&gt;::to_vec (alloc/src/slice.rs:448:29)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec_in (alloc/src/slice.rs:400:16)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec (alloc/src/slice.rs:376:14)
+0x10083f170: alloc::slice::&lt;impl alloc::borrow::ToOwned for [T]&gt;::to_owned (alloc/src/slice.rs:842:14)
+0x10083f170: alloc::str::&lt;impl alloc::borrow::ToOwned for str&gt;::to_owned (alloc/src/str.rs:211:62)
+0x10083f170: &lt;alloc::string::String as core::convert::From&lt;&amp;str&gt;&gt;::from (alloc/src/string.rs:3114:11)
+0x10083f170: &lt;str as alloc::string::SpecToString&gt;::spec_to_string (alloc/src/string.rs:3045:21)
+0x10083db00: &lt;T as alloc::string::ToString&gt;::to_string (alloc/src/string.rs:2894:9)
+0x100750c1c: zcodegraph_core::push_ref (zcodegraph-core/src/lib.rs:1641:34)</td></tr>
+<tr><td>10.4 MB</td><td>3.0 KB</td><td>0x100792708: &lt;dhat::Alloc as core::alloc::global::GlobalAlloc&gt;::alloc (dhat-0.3.3/src/lib.rs:1176:9)</td><td>0x100792708: &lt;dhat::Alloc as core::alloc::global::GlobalAlloc&gt;::alloc (dhat-0.3.3/src/lib.rs:1176:9)
+0x100741dc8: __rustc::__rust_alloc (zcodegraph-core/src/lib.rs:12:19)
+0x100a1e07c: &lt;alloc::raw_vec::RawVecInner&gt;::try_allocate_in (???:0:0)
+0x100876284: alloc::raw_vec::RawVecInner&lt;A&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x100739b40: alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x100739b40: alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x100739b40: alloc::vec::Vec&lt;T&gt;::with_capacity (src/vec/mod.rs:524:9)
+0x100739b40: &lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::spec_from_iter_nested::SpecFromIterNested&lt;T,I&gt;&gt;::from_iter (src/vec/spec_from_iter_nested.rs:30:34)
+0x10073e090: &lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::spec_from_iter::SpecFromIter&lt;T,I&gt;&gt;::from_iter (src/vec/spec_from_iter.rs:33:9)
+0x10073db38: &lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (src/vec/mod.rs:3865:9)
+0x1006ff314: core::iter::traits::iterator::Iterator::collect (iter/traits/iterator.rs:2064:9)
+0x10074f624: zcodegraph_core::import_export_binding_names (zcodegraph-core/src/lib.rs:1552:10)
+0x10074b690: zcodegraph_core::extract_statement_refs (zcodegraph-core/src/lib.rs:1449:28)</td></tr>
+<tr><td>9.6 MB</td><td>22.8 KB</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100840c94: alloc::raw_vec::RawVecInner&lt;A&gt;::try_allocate_in (src/raw_vec/mod.rs:464:47)
+0x100840dac: alloc::raw_vec::RawVecInner&lt;A&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x1008418b0: alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x1008418b0: alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x1008418b0: &lt;T as alloc::slice::&lt;impl [T]&gt;::to_vec_in::ConvertVec&gt;::to_vec (alloc/src/slice.rs:448:29)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec_in (alloc/src/slice.rs:400:16)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec (alloc/src/slice.rs:376:14)
+0x10083f170: alloc::slice::&lt;impl alloc::borrow::ToOwned for [T]&gt;::to_owned (alloc/src/slice.rs:842:14)
+0x10083f170: alloc::str::&lt;impl alloc::borrow::ToOwned for str&gt;::to_owned (alloc/src/str.rs:211:62)
+0x10083f170: &lt;alloc::string::String as core::convert::From&lt;&amp;str&gt;&gt;::from (alloc/src/string.rs:3114:11)
+0x10083f170: &lt;str as alloc::string::SpecToString&gt;::spec_to_string (alloc/src/string.rs:3045:21)
+0x10083db00: &lt;T as alloc::string::ToString&gt;::to_string (alloc/src/string.rs:2894:9)
+0x100750b84: zcodegraph_core::push_ref (zcodegraph-core/src/lib.rs:1636:36)</td></tr>
+<tr><td>7.6 MB</td><td>21.1 KB</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100840c94: alloc::raw_vec::RawVecInner&lt;A&gt;::try_allocate_in (src/raw_vec/mod.rs:464:47)
+0x100840dac: alloc::raw_vec::RawVecInner&lt;A&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x1008418b0: alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x1008418b0: alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x1008418b0: &lt;T as alloc::slice::&lt;impl [T]&gt;::to_vec_in::ConvertVec&gt;::to_vec (alloc/src/slice.rs:448:29)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec_in (alloc/src/slice.rs:400:16)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec (alloc/src/slice.rs:376:14)
+0x10083f170: alloc::slice::&lt;impl alloc::borrow::ToOwned for [T]&gt;::to_owned (alloc/src/slice.rs:842:14)
+0x10083f170: alloc::str::&lt;impl alloc::borrow::ToOwned for str&gt;::to_owned (alloc/src/str.rs:211:62)
+0x10083f170: &lt;alloc::string::String as core::convert::From&lt;&amp;str&gt;&gt;::from (alloc/src/string.rs:3114:11)
+0x10083f170: &lt;str as alloc::string::SpecToString&gt;::spec_to_string (alloc/src/string.rs:3045:21)
+0x10083db00: &lt;T as alloc::string::ToString&gt;::to_string (alloc/src/string.rs:2894:9)
+0x100744508: zcodegraph_core::visit_js_node (zcodegraph-core/src/lib.rs:1262:26)</td></tr>
+<tr><td>7.0 MB</td><td>72 B</td><td>0x100a390f8: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100a390f8: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100a390f8: &lt;alloc::raw_vec::RawVecInner&gt;::finish_grow (src/raw_vec/mod.rs:558:24)
+0x100a3900c: &lt;alloc::raw_vec::RawVecInner&gt;::grow_amortized (src/raw_vec/mod.rs:527:33)
+0x100a3900c: &lt;alloc::raw_vec::RawVecInner&lt;_&gt;&gt;::reserve::do_reserve_and_handle::&lt;alloc::alloc::Global&gt; (src/raw_vec/mod.rs:666:44)
+0x100a24d68: &lt;alloc::raw_vec::RawVecInner&gt;::reserve (src/raw_vec/mod.rs:673:17)
+0x100a24d68: &lt;alloc::raw_vec::RawVec&lt;u8&gt;&gt;::reserve (src/raw_vec/mod.rs:340:29)
+0x100a24d68: &lt;alloc::vec::Vec&lt;u8&gt;&gt;::reserve (src/vec/mod.rs:1446:18)
+0x100a24d68: &lt;alloc::string::String&gt;::reserve (alloc/src/string.rs:1220:18)
+0x100a24d68: &lt;alloc::string::String&gt;::push (alloc/src/string.rs:1419:14)
+0x100a24d68: &lt;alloc::string::String as core::fmt::Write&gt;::write_char (alloc/src/string.rs:3351:14)
+0x100a27198: &lt;core::fmt::Formatter&gt;::padding (src/fmt/mod.rs:1966:22)
+0x100a27198: &lt;core::fmt::Formatter&gt;::pad_integral (src/fmt/mod.rs:1865:37)
+0x100a2e62c: &lt;u8 as core::fmt::LowerHex&gt;::fmt (src/fmt/num.rs:49:19)
+0x10070cda0: &lt;&amp;T as core::fmt::LowerHex&gt;::fmt (src/fmt/mod.rs:2865:62)
+0x100a28e7c: &lt;core::fmt::rt::Argument&gt;::fmt (src/fmt/rt.rs:152:76)
+0x100a28e7c: core::fmt::write (src/fmt/mod.rs:1734:46)
+0x100a24b44: &lt;&amp;mut alloc::string::String as core::fmt::Write::write_fmt::SpecWriteFmt&gt;::spec_write_fmt (src/fmt/mod.rs:236:21)
+0x100a24b44: &lt;alloc::string::String as core::fmt::Write&gt;::write_fmt (src/fmt/mod.rs:241:14)
+0x100a24b44: alloc::fmt::format::format_inner (alloc/src/fmt.rs:654:14)</td></tr>
+<tr><td>6.6 MB</td><td>237 B</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100840c94: alloc::raw_vec::RawVecInner&lt;A&gt;::try_allocate_in (src/raw_vec/mod.rs:464:47)
+0x100840dac: alloc::raw_vec::RawVecInner&lt;A&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x1008418b0: alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x1008418b0: alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x1008418b0: &lt;T as alloc::slice::&lt;impl [T]&gt;::to_vec_in::ConvertVec&gt;::to_vec (alloc/src/slice.rs:448:29)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec_in (alloc/src/slice.rs:400:16)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec (alloc/src/slice.rs:376:14)
+0x10083f170: alloc::slice::&lt;impl alloc::borrow::ToOwned for [T]&gt;::to_owned (alloc/src/slice.rs:842:14)
+0x10083f170: alloc::str::&lt;impl alloc::borrow::ToOwned for str&gt;::to_owned (alloc/src/str.rs:211:62)
+0x10083f170: &lt;alloc::string::String as core::convert::From&lt;&amp;str&gt;&gt;::from (alloc/src/string.rs:3114:11)
+0x10083f170: &lt;str as alloc::string::SpecToString&gt;::spec_to_string (alloc/src/string.rs:3045:21)
+0x10083db00: &lt;T as alloc::string::ToString&gt;::to_string (alloc/src/string.rs:2894:9)
+0x1007442e4: zcodegraph_core::visit_js_node (zcodegraph-core/src/lib.rs:1250:53)</td></tr>
+<tr><td>6.4 MB</td><td>18.2 KB</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100840c94: alloc::raw_vec::RawVecInner&lt;A&gt;::try_allocate_in (src/raw_vec/mod.rs:464:47)
+0x100840dac: alloc::raw_vec::RawVecInner&lt;A&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x1008418b0: alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x1008418b0: alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x1008418b0: &lt;T as alloc::slice::&lt;impl [T]&gt;::to_vec_in::ConvertVec&gt;::to_vec (alloc/src/slice.rs:448:29)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec_in (alloc/src/slice.rs:400:16)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec (alloc/src/slice.rs:376:14)
+0x10083f170: alloc::slice::&lt;impl alloc::borrow::ToOwned for [T]&gt;::to_owned (alloc/src/slice.rs:842:14)
+0x10083f170: alloc::str::&lt;impl alloc::borrow::ToOwned for str&gt;::to_owned (alloc/src/str.rs:211:62)
+0x10083f170: &lt;alloc::string::String as core::convert::From&lt;&amp;str&gt;&gt;::from (alloc/src/string.rs:3114:11)
+0x10083f170: &lt;str as alloc::string::SpecToString&gt;::spec_to_string (alloc/src/string.rs:3045:21)
+0x10083db00: &lt;T as alloc::string::ToString&gt;::to_string (alloc/src/string.rs:2894:9)
+0x100743b94: zcodegraph_core::ExtractedNode::symbol (zcodegraph-core/src/lib.rs:1697:24)</td></tr>
+<tr><td>6.3 MB</td><td>16.7 KB</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100840c94: alloc::raw_vec::RawVecInner&lt;A&gt;::try_allocate_in (src/raw_vec/mod.rs:464:47)
+0x100840dac: alloc::raw_vec::RawVecInner&lt;A&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x1008418b0: alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x1008418b0: alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x1008418b0: &lt;T as alloc::slice::&lt;impl [T]&gt;::to_vec_in::ConvertVec&gt;::to_vec (alloc/src/slice.rs:448:29)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec_in (alloc/src/slice.rs:400:16)
+0x10083f170: alloc::slice::&lt;impl [T]&gt;::to_vec (alloc/src/slice.rs:376:14)
+0x10083f170: alloc::slice::&lt;impl alloc::borrow::ToOwned for [T]&gt;::to_owned (alloc/src/slice.rs:842:14)
+0x10083f170: alloc::str::&lt;impl alloc::borrow::ToOwned for str&gt;::to_owned (alloc/src/str.rs:211:62)
+0x10083f170: &lt;alloc::string::String as core::convert::From&lt;&amp;str&gt;&gt;::from (alloc/src/string.rs:3114:11)
+0x10083f170: &lt;str as alloc::string::SpecToString&gt;::spec_to_string (alloc/src/string.rs:3045:21)
+0x10083db00: &lt;T as alloc::string::ToString&gt;::to_string (alloc/src/string.rs:2894:9)
+0x100750b94: zcodegraph_core::push_ref (zcodegraph-core/src/lib.rs:1637:40)</td></tr>
+<tr><td>4.7 MB</td><td>43 B</td><td>0x100a24c0c: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100a24c0c: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100a24c0c: &lt;alloc::raw_vec::RawVecInner&gt;::try_allocate_in (src/raw_vec/mod.rs:464:47)
+0x100a24c0c: &lt;alloc::raw_vec::RawVecInner&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x100a24c0c: &lt;alloc::raw_vec::RawVec&lt;u8&gt;&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x100a24c0c: &lt;alloc::vec::Vec&lt;u8&gt;&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x100a24c0c: &lt;u8 as &lt;[_]&gt;::to_vec_in::ConvertVec&gt;::to_vec::&lt;alloc::alloc::Global&gt; (alloc/src/slice.rs:448:29)
+0x100a24c0c: &lt;[u8]&gt;::to_vec_in::&lt;alloc::alloc::Global&gt; (alloc/src/slice.rs:400:16)
+0x100a24c0c: &lt;alloc::vec::Vec&lt;u8&gt; as core::clone::Clone&gt;::clone (src/vec/mod.rs:3749:9)
+0x100a24c0c: &lt;alloc::string::String as core::clone::Clone&gt;::clone (alloc/src/string.rs:2352:32)
+0x100744494: zcodegraph_core::visit_js_node (zcodegraph-core/src/lib.rs:1256:41)
+0x10074489c: zcodegraph_core::visit_js_node (zcodegraph-core/src/lib.rs:1287:13)
+0x10074f8a8: zcodegraph_core::extract_top_level_js_symbols (zcodegraph-core/src/lib.rs:1219:5)
+0x10074c168: zcodegraph_core::index_javascript_files (zcodegraph-core/src/lib.rs:898:13)
+0x10071a3ec: zcodegraph_core::write_minimal_index::{{closure}} (zcodegraph-core/src/lib.rs:822:30)
+0x1007490c8: zcodegraph_core::write_minimal_index (zcodegraph-core/src/lib.rs:813:24)
+0x100750d54: zcodegraph_core::run_index (zcodegraph-core/src/lib.rs:153:11)</td></tr>
+<tr><td>4.7 MB</td><td>10.1 KB</td><td>0x100a24c0c: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td><td>0x100a24c0c: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)
+0x100a24c0c: &lt;alloc::raw_vec::RawVecInner&gt;::try_allocate_in (src/raw_vec/mod.rs:464:47)
+0x100a24c0c: &lt;alloc::raw_vec::RawVecInner&gt;::with_capacity_in (src/raw_vec/mod.rs:433:15)
+0x100a24c0c: &lt;alloc::raw_vec::RawVec&lt;u8&gt;&gt;::with_capacity_in (src/raw_vec/mod.rs:177:20)
+0x100a24c0c: &lt;alloc::vec::Vec&lt;u8&gt;&gt;::with_capacity_in (src/vec/mod.rs:965:20)
+0x100a24c0c: &lt;u8 as &lt;[_]&gt;::to_vec_in::ConvertVec&gt;::to_vec::&lt;alloc::alloc::Global&gt; (alloc/src/slice.rs:448:29)
+0x100a24c0c: &lt;[u8]&gt;::to_vec_in::&lt;alloc::alloc::Global&gt; (alloc/src/slice.rs:400:16)
+0x100a24c0c: &lt;alloc::vec::Vec&lt;u8&gt; as core::clone::Clone&gt;::clone (src/vec/mod.rs:3749:9)
+0x100a24c0c: &lt;alloc::string::String as core::clone::Clone&gt;::clone (alloc/src/string.rs:2352:32)
+0x1007445f0: zcodegraph_core::visit_js_node (zcodegraph-core/src/lib.rs:1266:34)
+0x10074489c: zcodegraph_core::visit_js_node (zcodegraph-core/src/lib.rs:1287:13)
+0x10074f8a8: zcodegraph_core::extract_top_level_js_symbols (zcodegraph-core/src/lib.rs:1219:5)
+0x10074c168: zcodegraph_core::index_javascript_files (zcodegraph-core/src/lib.rs:898:13)
+0x10071a3ec: zcodegraph_core::write_minimal_index::{{closure}} (zcodegraph-core/src/lib.rs:822:30)
+0x1007490c8: zcodegraph_core::write_minimal_index (zcodegraph-core/src/lib.rs:813:24)
+0x100750d54: zcodegraph_core::run_index (zcodegraph-core/src/lib.rs:153:11)</td></tr></tbody>
+</table>
+  </section>
+  <section>
+    <h2>Top 20 allocations by call site</h2>
+    <table>
+<thead><tr><th>Total bytes</th><th>Peak bytes</th><th>Program points</th><th>Call site</th></tr></thead>
+<tbody><tr><td>1.5 GB</td><td>384.0 KB</td><td>27</td><td>0x100844058: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>375.2 MB</td><td>8.0 MB</td><td>6</td><td>0x100a390f8: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>261.0 MB</td><td>8.0 MB</td><td>11</td><td>0x100792708: &lt;dhat::Alloc as core::alloc::global::GlobalAlloc&gt;::alloc (dhat-0.3.3/src/lib.rs:1176:9)</td></tr>
+<tr><td>22.9 MB</td><td>20.2 KB</td><td>13</td><td>0x100a24c0c: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>5.6 MB</td><td>2.1 MB</td><td>9</td><td>0x100a05e64: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>439.9 KB</td><td>1.1 KB</td><td>6</td><td>0x100a12d94: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>261.6 KB</td><td>86 B</td><td>7</td><td>0x100a0a82c: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>160.1 KB</td><td>336 B</td><td>6</td><td>0x100a12dec: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>19.0 KB</td><td>7.4 KB</td><td>3</td><td>0x100a24b18: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>1.4 KB</td><td>768 B</td><td>1</td><td>0x100a38b64: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>1.0 KB</td><td>1.0 KB</td><td>1</td><td>0x100a0325c: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>678 B</td><td>226 B</td><td>2</td><td>0x100a05d9c: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>128 B</td><td>128 B</td><td>1</td><td>0x100a24ec8: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>115 B</td><td>115 B</td><td>1</td><td>0x100a05b20: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>104 B</td><td>64 B</td><td>2</td><td>0x10088a100: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr>
+<tr><td>64 B</td><td>64 B</td><td>1</td><td>0x100a37be4: &lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (alloc/src/alloc.rs:429:14)</td></tr></tbody>
+</table>
+  </section>
+</main>
+</body>
+</html>

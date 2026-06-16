@@ -140,10 +140,10 @@ required-target (`zcodegraph` + `excalidraw`) full-profile gate.
 
 - [x] This plan document
   (`docs/plans/2026-06-16-rust-indexing-core-phase-15e-rss-gate.md`)
-- [ ] Open GitHub issue for dhat-rs integration (Phase 15E.1, ready-for-agent)
-- [ ] Open GitHub issue for SQLite batching + WAL pragma (Phase 15E.2, ready-for-agent)
-- [ ] Open GitHub issue for dhat summary HTML report (Phase 15E.3, ready-for-agent)
-- [ ] Post this plan as a comment on #49 (parent PRD) and #165 (controlled
+- [x] Open GitHub issue for dhat-rs integration (Phase 15E.1, ready-for-agent)
+- [x] Open GitHub issue for SQLite batching + WAL pragma (Phase 15E.2, ready-for-agent)
+- [x] Open GitHub issue for dhat summary HTML report (Phase 15E.3, ready-for-agent)
+- [x] Post this plan as a comment on #49 (parent PRD) and #165 (controlled
       performance gate interpretation)
 
 ### 2. Phase 15E.1 dhat-rs Integration
@@ -152,8 +152,8 @@ required-target (`zcodegraph` + `excalidraw`) full-profile gate.
   `crates/zcodegraph-core/Cargo.toml` under `[dependencies]` and
   `dhat = ["dep:dhat"]` under `[features]`.
 - In `crates/zcodegraph-core/src/lib.rs`, add a module-level
-  `#[cfg(feature = "dhat")]` block that calls
-  `dhat::Dhat::default().as_global_allocator()`.
+  `#[cfg(feature = "dhat")]` global allocator block and start a
+  `dhat::Profiler` guard for heap profiling runs.
 - In `src/bin/zcodegraph.ts`, read
   `ZCODEGRAPH_PROFILING` env var and the `--profile <mode>` CLI flag.
   Only `mode=heap` is supported in this phase.
@@ -196,8 +196,11 @@ required-target (`zcodegraph` + `excalidraw`) full-profile gate.
   leaves the previous good index in place.
 - Add a focused test
   (`__tests__/rust-sqlite-batching.test.ts`) using a fixture SQLite
-  file verifying that the journal mode is WAL and that each file is
-  wrapped in exactly one transaction.
+  file verifying that the emitted Rust index remains readable and
+  durable in WAL mode. Connection-level `PRAGMA synchronous=NORMAL`
+  and per-file transaction boundaries are verified in Rust core tests,
+  because `synchronous` is not a persistent DB-file property on a later
+  connection.
 - Re-run the Phase 15D VS Code matched-work stress rerun3 scope
   (`docs/benchmarks/...-stress-rerun3`) and capture:
   - `peakRssDeltaPct`
@@ -232,6 +235,32 @@ required-target (`zcodegraph` + `excalidraw`) full-profile gate.
 - Required full-profile gate (open): `docs/benchmarks/2026-06-16-rust-indexing-core-phase-14-required-only-rerun5.raw.json`
 - Parent tracking issues: #49 (PRD), #165 (Phase 15 controlled gate interpretation)
 
-## Decision (filled in after Phase 15E.4 rerun)
+## Decision
 
-> TBD — see "Issue Sequence / 5. Decision And Hand-off" above.
+Classification: `continue-with-batching-only`.
+
+Phase 15E produced reusable heap profiling and a durable VS Code matched-work
+stress rerun4 artifact:
+
+- Raw artifact:
+  `docs/benchmarks/2026-06-16-rust-indexing-core-phase-15e-vscode-matched-work-stress-rerun4.raw.json`
+- Decision summary draft:
+  `docs/benchmarks/2026-06-16-rust-indexing-core-phase-15e-vscode-matched-work-stress-rerun4-decision-summary-draft.md`
+- Heap report:
+  `docs/benchmarks/phase-15e-rerun4/dhat-heap.json`
+- Heap summary:
+  `docs/benchmarks/phase-15e-rerun4/dhat-summary.html`
+
+Compared with Phase 15D rerun3, the VS Code matched-work stress RSS trend moved
+from Rust `+20.08%` versus TypeScript to Rust `-21.41%` versus TypeScript.
+That is a real directional improvement, but it still does not meet the PRD RSS
+gate of Rust at least 30% lower than TypeScript.
+
+The rerun4 wall-time result is not a rollout-readiness signal because the Rust
+arm was intentionally run with `dhat` heap profiling enabled. The stress target
+reported sufficiency as passed, performance as unavailable, and classification
+as `target-failed-performance-gate-unmet`.
+
+Next step: keep #165 open and continue with a narrower batching / AST lifetime
+iteration before escalating to an in-memory + final-flush architecture pivot.
+Do not claim default or full-profile rollout readiness from Phase 15E.
