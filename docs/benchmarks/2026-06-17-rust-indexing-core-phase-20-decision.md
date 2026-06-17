@@ -75,6 +75,8 @@ Issue #204 resolved 279 one-hop ESM named re-export references on ZCodeGraph and
 
 The fallback taxonomy artifact is `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.md`.
 
+Follow-up fallback audit: `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-fallback-audit.md`.
+
 ## VS Code Sparse
 
 The broad Phase 20 manifest includes VS Code sparse at `/private/tmp/codegraph-corpus/vscode-sparse`, but the full three-target smoke did not complete in a bounded local run and was interrupted. That broad run remains unavailable with reason: local broad smoke timeout under Node 26 override.
