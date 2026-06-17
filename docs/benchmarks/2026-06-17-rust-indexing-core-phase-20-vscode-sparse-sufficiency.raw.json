@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-17T13:14:29.137Z",
+  "generatedAt": "2026-06-17T13:51:04.286Z",
   "status": "completed",
   "mode": "deterministic-tool-surface",
   "experimentMode": "full-index-ab",
@@ -14,15 +14,15 @@
     "typescript": {
       "engine": "typescript",
       "sourceCopy": {
-        "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-6aAEhh",
+        "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-un0XJL",
         "mode": "js-ts-config-slice",
         "copiedFiles": 11518,
         "skipped": false
       },
       "indexing": {
         "status": "completed",
-        "elapsedMs": 244116,
-        "projectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-6aAEhh"
+        "elapsedMs": 246553,
+        "projectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-un0XJL"
       },
       "graphAvailable": true,
       "graphStats": {
@@ -62,7 +62,7 @@
           "typescript": 10713
         },
         "dbSizeBytes": 1054994432,
-        "lastUpdated": 1781701619668
+        "lastUpdated": 1781703808429
       },
       "lastProgress": null,
       "command": {
@@ -70,14 +70,14 @@
         "args": [
           "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
           "index",
-          "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-6aAEhh",
+          "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-un0XJL",
           "--force",
           "--quiet"
         ],
-        "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-6aAEhh",
+        "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-un0XJL",
         "nodeVersion": "v22.21.1",
         "scriptVersion": "phase13-ab-v1",
-        "gitSha": "a68630ecd1871ce1171f3054b223aa7fa766029a",
+        "gitSha": "23e7c1770e21c9deb6883e7343f58355ebf8f172",
         "env": {
           "CODEGRAPH_ALLOW_UNSAFE_NODE": "1",
           "CODEGRAPH_NO_DAEMON": "1",
@@ -89,20 +89,20 @@
     "rust": {
       "engine": "rust",
       "sourceCopy": {
-        "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-rust-VtpLFY",
+        "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-rust-7pWBcX",
         "mode": "js-ts-config-slice",
         "copiedFiles": 11518,
         "skipped": false
       },
       "indexing": {
         "status": "completed",
-        "elapsedMs": 436416,
-        "projectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-rust-VtpLFY"
+        "elapsedMs": 441770,
+        "projectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-rust-7pWBcX"
       },
       "graphAvailable": true,
       "graphStats": {
         "nodeCount": 561906,
-        "edgeCount": 1626180,
+        "edgeCount": 1626117,
         "fileCount": 11291,
         "nodesByKind": {
           "class": 12680,
@@ -120,11 +120,11 @@
           "variable": 27882
         },
         "edgesByKind": {
-          "calls": 747792,
+          "calls": 747730,
           "contains": 550659,
           "exports": 7466,
           "imports": 264603,
-          "instantiates": 54325,
+          "instantiates": 54324,
           "references": 1335
         },
         "filesByLanguage": {
@@ -133,8 +133,8 @@
           "tsx": 263,
           "typescript": 10891
         },
-        "dbSizeBytes": 1216630784,
-        "lastUpdated": 1781702056206
+        "dbSizeBytes": 1216704512,
+        "lastUpdated": 1781704250362
       },
       "lastProgress": null,
       "command": {
@@ -142,16 +142,16 @@
         "args": [
           "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
           "index",
-          "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-rust-VtpLFY",
+          "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-rust-7pWBcX",
           "--force",
           "--quiet",
           "--engine",
           "rust"
         ],
-        "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-rust-VtpLFY",
+        "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-rust-7pWBcX",
         "nodeVersion": "v22.21.1",
         "scriptVersion": "phase13-ab-v1",
-        "gitSha": "a68630ecd1871ce1171f3054b223aa7fa766029a",
+        "gitSha": "23e7c1770e21c9deb6883e7343f58355ebf8f172",
         "env": {
           "CODEGRAPH_ALLOW_UNSAFE_NODE": "1",
           "CODEGRAPH_NO_DAEMON": "1",
@@ -186,22 +186,22 @@
   "stages": {
     "copy": {
       "status": "completed",
-      "elapsedMs": 2512,
+      "elapsedMs": 2583,
       "mode": "js-ts-config-slice"
     },
     "typescriptIndex": {
       "status": "completed",
-      "elapsedMs": 244116,
-      "projectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-6aAEhh"
+      "elapsedMs": 246553,
+      "projectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-un0XJL"
     },
     "rustIndex": {
       "status": "completed",
-      "elapsedMs": 436416,
-      "projectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-rust-VtpLFY"
+      "elapsedMs": 441770,
+      "projectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-rust-7pWBcX"
     },
     "exploreAnalyze": {
       "status": "completed",
-      "elapsedMs": 12918
+      "elapsedMs": 13910
     },
     "comparison": {
       "status": "completed",
@@ -226,11 +226,11 @@
       "copies": {
         "typescript": {
           "copiedFiles": 11518,
-          "tempProjectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-6aAEhh"
+          "tempProjectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-ts-un0XJL"
         },
         "rust": {
           "copiedFiles": 11518,
-          "tempProjectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-rust-VtpLFY"
+          "tempProjectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-guardrail-vscode-rust-7pWBcX"
         }
       },
       "reuseIndexedPair": null,

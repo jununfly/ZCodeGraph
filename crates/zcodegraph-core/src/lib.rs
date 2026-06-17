@@ -192,6 +192,7 @@ pub struct IndexProfile {
     pub esm_named_import_export_resolution_ms: u128,
     pub esm_named_import_export_resolved_refs: u32,
     pub esm_named_import_export_fallback_refs: u32,
+    pub esm_one_hop_reexport_resolved_refs: u32,
 }
 
 pub fn run_index(request: &IndexRequest) -> IndexResult {
@@ -1029,6 +1030,7 @@ fn write_index_to_connection(
     counts.profile.esm_named_import_export_resolution_ms = esm_named_started.elapsed().as_millis();
     counts.profile.esm_named_import_export_resolved_refs = esm_named_stats.resolved_refs;
     counts.profile.esm_named_import_export_fallback_refs = esm_named_stats.fallback_refs;
+    counts.profile.esm_one_hop_reexport_resolved_refs = esm_named_stats.reexport_resolved_refs;
     counts.edges_created += esm_named_stats.edges_created;
     let local_reference_started = Instant::now();
     let local_reference_stats = resolve_same_file_exact_callable_refs(conn)?;
@@ -1078,6 +1080,7 @@ struct EsmNamedImportExportStats {
     resolved_refs: u32,
     edges_created: u32,
     fallback_refs: u32,
+    reexport_resolved_refs: u32,
 }
 
 #[derive(Debug)]
@@ -1090,6 +1093,7 @@ struct SymbolCandidateRow {
     id: String,
     kind: String,
     name: String,
+    resolved_by: &'static str,
 }
 
 #[derive(Debug)]
@@ -1399,6 +1403,7 @@ fn resolve_esm_named_import_export_refs(
     conn: &Connection,
     project_path: &Path,
 ) -> Result<EsmNamedImportExportStats, Box<dyn std::error::Error>> {
+    let aliases = load_ts_path_aliases(project_path);
     let binding_refs = load_import_refs(conn)?
         .into_iter()
         .filter(|reference| {
@@ -1425,6 +1430,7 @@ fn resolve_esm_named_import_export_refs(
         let candidates = find_exported_symbol_candidates(
             conn,
             project_path,
+            &aliases,
             &target_file_path,
             &reference.reference_name,
             &mut file_content_cache,
@@ -1434,11 +1440,15 @@ fn resolve_esm_named_import_export_refs(
             continue;
         }
         let target = &candidates[0];
+        let is_reexport = target.resolved_by == "rust-esm-one-hop-reexport";
 
-        if insert_rust_import_symbol_edge(conn, &reference, &target.id)? {
+        if insert_rust_import_symbol_edge(conn, &reference, &target.id, target.resolved_by)? {
             stats.edges_created += 1;
         }
         stats.resolved_refs += 1;
+        if is_reexport {
+            stats.reexport_resolved_refs += 1;
+        }
         resolved_ids.push(reference.id);
 
         let usage_refs = load_imported_symbol_usage_refs(
@@ -1447,10 +1457,13 @@ fn resolve_esm_named_import_export_refs(
             &reference.reference_name,
         )?;
         for usage in usage_refs {
-            if insert_rust_imported_symbol_usage_edge(conn, &usage, &target.id)? {
+            if insert_rust_imported_symbol_usage_edge(conn, &usage, &target.id, target.resolved_by)? {
                 stats.edges_created += 1;
             }
             stats.resolved_refs += 1;
+            if is_reexport {
+                stats.reexport_resolved_refs += 1;
+            }
             resolved_ids.push(usage.id);
         }
     }
@@ -1520,6 +1533,7 @@ fn find_import_edge_target_file(
 fn find_exported_symbol_candidates(
     conn: &Connection,
     project_path: &Path,
+    aliases: &TsPathAliases,
     target_file_path: &str,
     name: &str,
     cache: &mut HashMap<String, String>,
@@ -1538,16 +1552,23 @@ fn find_exported_symbol_candidates(
                 id: row.get(0)?,
                 kind: row.get(1)?,
                 name: row.get(2)?,
+                resolved_by: "rust-esm-named-import-export",
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let Some(content) = cached_file_content(project_path, target_file_path, cache) else {
         return Ok(Vec::new());
     };
-    Ok(rows
+    let content = content.to_string();
+    let direct = rows
         .into_iter()
-        .filter(|candidate| direct_export_declares_name(content, &candidate.kind, &candidate.name))
-        .collect())
+        .filter(|candidate| direct_export_declares_name(&content, &candidate.kind, &candidate.name))
+        .collect::<Vec<_>>();
+    if !direct.is_empty() {
+        return Ok(direct);
+    }
+
+    find_one_hop_reexport_symbol_candidates(conn, project_path, aliases, target_file_path, &content, name, cache)
 }
 
 fn direct_export_declares_name(content: &str, kind: &str, name: &str) -> bool {
@@ -1562,6 +1583,89 @@ fn direct_export_declares_name(content: &str, kind: &str, name: &str) -> bool {
         _ => return false,
     };
     content.contains(&needle)
+}
+
+fn find_one_hop_reexport_symbol_candidates(
+    conn: &Connection,
+    project_path: &Path,
+    aliases: &TsPathAliases,
+    barrel_file_path: &str,
+    barrel_content: &str,
+    name: &str,
+    cache: &mut HashMap<String, String>,
+) -> Result<Vec<SymbolCandidateRow>, Box<dyn std::error::Error>> {
+    let Some(specifier) = direct_named_reexport_specifier(barrel_content, name) else {
+        return Ok(Vec::new());
+    };
+    let leaf_file_path = if is_relative_import_specifier(&specifier) {
+        resolve_relative_import(project_path, barrel_file_path, &specifier)
+    } else if aliases.matches(&specifier) {
+        resolve_alias_import(project_path, aliases, &specifier)
+    } else {
+        None
+    };
+    let Some(leaf_file_path) = leaf_file_path else {
+        return Ok(Vec::new());
+    };
+    let Some(leaf_content) = cached_file_content(project_path, &leaf_file_path, cache) else {
+        return Ok(Vec::new());
+    };
+
+    let mut stmt = conn.prepare(
+        "SELECT id, kind, name
+         FROM nodes
+         WHERE file_path = ?1
+           AND name = ?2
+           AND kind IN ('function', 'class', 'interface', 'type_alias', 'constant', 'variable', 'enum')
+         ORDER BY start_line",
+    )?;
+    let rows = stmt
+        .query_map(params![leaf_file_path, name], |row| {
+            Ok(SymbolCandidateRow {
+                id: row.get(0)?,
+                kind: row.get(1)?,
+                name: row.get(2)?,
+                resolved_by: "rust-esm-one-hop-reexport",
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    Ok(rows
+        .into_iter()
+        .filter(|candidate| direct_export_declares_name(leaf_content, &candidate.kind, &candidate.name))
+        .collect())
+}
+
+fn direct_named_reexport_specifier(content: &str, name: &str) -> Option<String> {
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("export ") || !trimmed.contains(" from ") {
+            continue;
+        }
+        let Some(open) = trimmed.find('{') else {
+            continue;
+        };
+        let Some(close_offset) = trimmed[open + 1..].find('}') else {
+            continue;
+        };
+        let close = open + 1 + close_offset;
+        let export_list = &trimmed[open + 1..close];
+        let same_name = export_list.split(',').any(|part| part.trim() == name);
+        if !same_name {
+            continue;
+        }
+        let rest = trimmed[close + 1..].trim();
+        let Some(raw_specifier) = rest.strip_prefix("from ") else {
+            continue;
+        };
+        let raw_specifier = raw_specifier.trim().trim_end_matches(';').trim();
+        let specifier = trim_string_literal(raw_specifier);
+        if specifier.is_empty() {
+            continue;
+        }
+        return Some(specifier.to_string());
+    }
+    None
 }
 
 fn load_imported_symbol_usage_refs(
@@ -1597,13 +1701,15 @@ fn insert_rust_import_symbol_edge(
     conn: &Connection,
     reference: &ImportRefRow,
     target_node_id: &str,
+    resolved_by: &str,
 ) -> rusqlite::Result<bool> {
+    let metadata = format!("{{\"resolvedBy\":\"{}\"}}", resolved_by);
     insert_rust_finalization_edge(
         conn,
         &reference.from_node_id,
         target_node_id,
         "imports",
-        "{\"resolvedBy\":\"rust-esm-named-import-export\"}",
+        &metadata,
         reference.line,
         reference.col,
     )
@@ -1613,13 +1719,15 @@ fn insert_rust_imported_symbol_usage_edge(
     conn: &Connection,
     reference: &LocalRefRow,
     target_node_id: &str,
+    resolved_by: &str,
 ) -> rusqlite::Result<bool> {
+    let metadata = format!("{{\"resolvedBy\":\"{}\"}}", resolved_by);
     insert_rust_finalization_edge(
         conn,
         &reference.from_node_id,
         target_node_id,
         &reference.reference_kind,
-        "{\"resolvedBy\":\"rust-esm-named-import-export\"}",
+        &metadata,
         reference.line,
         reference.col,
     )
@@ -2804,7 +2912,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -2825,6 +2933,7 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.esm_named_import_export_resolution_ms,
         result.profile.esm_named_import_export_resolved_refs,
         result.profile.esm_named_import_export_fallback_refs,
+        result.profile.esm_one_hop_reexport_resolved_refs,
         result.profile.local_exact_reference_resolution_ms,
         result.profile.local_exact_reference_resolved_refs,
         result.profile.local_exact_reference_fallback_refs
@@ -3152,7 +3261,7 @@ mod tests {
 
         assert_eq!(
             result_json(&result),
-            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
+            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
         );
     }
 

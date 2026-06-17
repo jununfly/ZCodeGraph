@@ -864,12 +864,16 @@ export class CodeGraph {
         const rustImportEdgeCount = this.queries.getRustFinalizationImportEdgeCount();
         const rustLocalReferenceEdgeCount = this.queries.getRustFinalizationLocalReferenceEdgeCount();
         const rustEsmNamedImportExportEdgeCount = this.queries.getRustFinalizationEsmNamedImportExportEdgeCount();
+        const rustEsmOneHopReexportEdgeCount = this.queries.getRustFinalizationEsmOneHopReexportEdgeCount();
         const rustImportFallbacks = classifyRustImportResolutionFallbacks(this.queries.getUnresolvedReferences());
         if (rustImportEdgeCount > 0) {
           profile.boundaryProtocol.rustOwnedStages.push('import-path-alias-resolution');
         }
         if (rustEsmNamedImportExportEdgeCount > 0) {
           profile.boundaryProtocol.rustOwnedStages.push('esm-named-import-export-resolution');
+        }
+        if (rustEsmOneHopReexportEdgeCount > 0) {
+          profile.boundaryProtocol.rustOwnedStages.push('esm-one-hop-reexport-resolution');
         }
         if (rustLocalReferenceEdgeCount > 0) {
           profile.boundaryProtocol.rustOwnedStages.push('local-exact-reference-resolution');

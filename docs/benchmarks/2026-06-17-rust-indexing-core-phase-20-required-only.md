@@ -38,8 +38,8 @@ Rust core: available (/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/ta
 
 ### zcodegraph
 
-- TypeScript: graph available; stats: {"fileCount":290,"nodeCount":4173,"edgeCount":17654,"nodeKinds":{"class":60,"constant":470,"file":290,"function":1098,"import":1201,"interface":165,"method":814,"property":2,"type_alias":35,"variable":38},"edgeKinds":{"calls":7624,"contains":3883,"extends":8,"implements":21,"imports":2909,"instantiates":414,"references":2795},"dbSizeBytes":17309696}
-- Rust: graph available; stats: {"fileCount":290,"nodeCount":14268,"edgeCount":30033,"nodeKinds":{"class":59,"constant":8018,"export":50,"field":233,"file":290,"function":2416,"import":1197,"interface":165,"method":724,"type_alias":38,"variable":1078},"edgeKinds":{"calls":13337,"contains":13978,"exports":186,"imports":2363,"instantiates":169},"dbSizeBytes":25874432}
+- TypeScript: graph available; stats: {"fileCount":290,"nodeCount":4174,"edgeCount":17662,"nodeKinds":{"class":60,"constant":470,"file":290,"function":1098,"import":1201,"interface":165,"method":815,"property":2,"type_alias":35,"variable":38},"edgeKinds":{"calls":7629,"contains":3884,"extends":8,"implements":21,"imports":2909,"instantiates":416,"references":2795},"dbSizeBytes":17342464}
+- Rust: graph available; stats: {"fileCount":290,"nodeCount":14283,"edgeCount":30075,"nodeKinds":{"class":59,"constant":8026,"export":50,"field":233,"file":290,"function":2422,"import":1197,"interface":165,"method":725,"type_alias":38,"variable":1078},"edgeKinds":{"calls":13364,"contains":13993,"exports":186,"imports":2363,"instantiates":169},"dbSizeBytes":25931776}
 
 ### excalidraw
 
@@ -50,21 +50,21 @@ Rust core: available (/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/ta
 
 ### zcodegraph graphStats parity
 
-Totals: files 290 → 290 (0); nodes 4173 → 14268 (+10095); edges 17654 → 30033 (+12379).
+Totals: files 290 → 290 (0); nodes 4174 → 14283 (+10109); edges 17662 → 30075 (+12413).
 
 Node kind deltas
 
 | Kind | TypeScript | Rust | Delta |
 |---|---:|---:|---:|
 | class | 60 | 59 | -1 |
-| constant | 470 | 8018 | +7548 |
+| constant | 470 | 8026 | +7556 |
 | export | 0 | 50 | +50 |
 | field | 0 | 233 | +233 |
 | file | 290 | 290 | 0 |
-| function | 1098 | 2416 | +1318 |
+| function | 1098 | 2422 | +1324 |
 | import | 1201 | 1197 | -4 |
 | interface | 165 | 165 | 0 |
-| method | 814 | 724 | -90 |
+| method | 815 | 725 | -90 |
 | property | 2 | 0 | -2 |
 | type_alias | 35 | 38 | +3 |
 | variable | 38 | 1078 | +1040 |
@@ -73,13 +73,13 @@ Edge kind deltas
 
 | Kind | TypeScript | Rust | Delta |
 |---|---:|---:|---:|
-| calls | 7624 | 13337 | +5713 |
-| contains | 3883 | 13978 | +10095 |
+| calls | 7629 | 13364 | +5735 |
+| contains | 3884 | 13993 | +10109 |
 | exports | 0 | 186 | +186 |
 | extends | 8 | 0 | -8 |
 | implements | 21 | 0 | -21 |
 | imports | 2909 | 2363 | -546 |
-| instantiates | 414 | 169 | -245 |
+| instantiates | 416 | 169 | -247 |
 | references | 2795 | 0 | -2795 |
 
 ### excalidraw graphStats parity
@@ -116,70 +116,72 @@ Edge kind deltas
 
 ## Metrics
 
-- zcodegraph: wallTimeDeltaPct=66.30570595585172, peakRssDeltaPct=7.539536594336154
-- excalidraw: wallTimeDeltaPct=50.84955205437133, peakRssDeltaPct=0
+- zcodegraph: wallTimeDeltaPct=69.44211409395973, peakRssDeltaPct=0.28355387523629494
+- excalidraw: wallTimeDeltaPct=52.20994475138122, peakRssDeltaPct=0
 
 ## Wall-time diagnostics
 
 | Target | Arm | Source copy ms | Init ms | Index ms | Graph stats ms | Total ms |
 |---|---|---:|---:|---:|---:|---:|
-| zcodegraph | typescript | 90 | 2210 | 2502 | 21 | 4802 |
-| zcodegraph | rust | 34 | 2162 | 5790 | 25 | 7986 |
-| excalidraw | typescript | 27 | 1573 | 1637 | 21 | 3237 |
-| excalidraw | rust | 10 | 1582 | 3291 | 21 | 4883 |
+| zcodegraph | typescript | 66 | 2239 | 2463 | 22 | 4768 |
+| zcodegraph | rust | 36 | 2209 | 5833 | 24 | 8079 |
+| excalidraw | typescript | 29 | 1616 | 1613 | 20 | 3258 |
+| excalidraw | rust | 9 | 1600 | 3350 | 23 | 4959 |
 
 ## Rust index profile breakdown
 
 | Target | Phase | Duration ms |
 |---|---|---:|
-| zcodegraph | sourceScanMs | 0 |
-| zcodegraph | parseExtractionMs | 1085 |
-| zcodegraph | sqliteWriteMs | 1441 |
-| zcodegraph | importPathAliasResolutionMs | 92 |
+| zcodegraph | sourceScanMs | 1 |
+| zcodegraph | parseExtractionMs | 1096 |
+| zcodegraph | sqliteWriteMs | 1429 |
+| zcodegraph | importPathAliasResolutionMs | 93 |
 | zcodegraph | importPathAliasResolvedRefs | 616 |
 | zcodegraph | importPathAliasFallbackRefs | 2380 |
 | zcodegraph | importPathAliasBindingFallbackRefs | 2322 |
 | zcodegraph | importPathAliasUnsupportedFallbackRefs | 49 |
 | zcodegraph | importPathAliasUnresolvedFallbackRefs | 9 |
-| zcodegraph | esmNamedImportExportResolutionMs | 364 |
-| zcodegraph | esmNamedImportExportResolvedRefs | 2520 |
-| zcodegraph | esmNamedImportExportFallbackRefs | 1460 |
-| zcodegraph | localExactReferenceResolutionMs | 1574 |
-| zcodegraph | localExactReferenceResolvedRefs | 3579 |
-| zcodegraph | localExactReferenceFallbackRefs | 28789 |
+| zcodegraph | esmNamedImportExportResolutionMs | 432 |
+| zcodegraph | esmNamedImportExportResolvedRefs | 2799 |
+| zcodegraph | esmNamedImportExportFallbackRefs | 1445 |
+| zcodegraph | esmOneHopReexportResolvedRefs | 279 |
+| zcodegraph | localExactReferenceResolutionMs | 1539 |
+| zcodegraph | localExactReferenceResolvedRefs | 3580 |
+| zcodegraph | localExactReferenceFallbackRefs | 28594 |
 | zcodegraph | subprocessStartupHandoffMs | 3 |
 | zcodegraph | frameworkPostExtractMs | 4 |
-| zcodegraph | referenceResolutionMs | 403 |
-| zcodegraph | dynamicDispatchSynthesisMs | 333 |
+| zcodegraph | referenceResolutionMs | 430 |
+| zcodegraph | dynamicDispatchSynthesisMs | 334 |
 | zcodegraph | dbMaintenanceMs | 5 |
-| zcodegraph | typescriptFinalizationMs | 784 |
+| zcodegraph | typescriptFinalizationMs | 812 |
 | excalidraw | sourceScanMs | 0 |
-| excalidraw | parseExtractionMs | 823 |
-| excalidraw | sqliteWriteMs | 544 |
-| excalidraw | importPathAliasResolutionMs | 18 |
+| excalidraw | parseExtractionMs | 820 |
+| excalidraw | sqliteWriteMs | 543 |
+| excalidraw | importPathAliasResolutionMs | 19 |
 | excalidraw | importPathAliasResolvedRefs | 46 |
 | excalidraw | importPathAliasFallbackRefs | 2425 |
 | excalidraw | importPathAliasBindingFallbackRefs | 1734 |
 | excalidraw | importPathAliasUnsupportedFallbackRefs | 221 |
 | excalidraw | importPathAliasUnresolvedFallbackRefs | 470 |
-| excalidraw | esmNamedImportExportResolutionMs | 55 |
+| excalidraw | esmNamedImportExportResolutionMs | 123 |
 | excalidraw | esmNamedImportExportResolvedRefs | 30 |
 | excalidraw | esmNamedImportExportFallbackRefs | 1705 |
-| excalidraw | localExactReferenceResolutionMs | 1060 |
+| excalidraw | esmOneHopReexportResolvedRefs | 0 |
+| excalidraw | localExactReferenceResolutionMs | 1039 |
 | excalidraw | localExactReferenceResolvedRefs | 2092 |
 | excalidraw | localExactReferenceFallbackRefs | 16213 |
 | excalidraw | subprocessStartupHandoffMs | 3 |
-| excalidraw | frameworkPostExtractMs | 3 |
-| excalidraw | referenceResolutionMs | 250 |
-| excalidraw | dynamicDispatchSynthesisMs | 335 |
-| excalidraw | dbMaintenanceMs | 7 |
-| excalidraw | typescriptFinalizationMs | 618 |
+| excalidraw | frameworkPostExtractMs | 4 |
+| excalidraw | referenceResolutionMs | 254 |
+| excalidraw | dynamicDispatchSynthesisMs | 341 |
+| excalidraw | dbMaintenanceMs | 6 |
+| excalidraw | typescriptFinalizationMs | 631 |
 
 ## Rust finalization boundary
 
 | Target | Protocol version | Product shell | Rust-owned stages | Fallback count |
 |---|---:|---|---|---:|
-| zcodegraph | 1 | typescript | source-scan, parse-extraction, graph-write, import-path-alias-resolution, esm-named-import-export-resolution, local-exact-reference-resolution | 1522 |
+| zcodegraph | 1 | typescript | source-scan, parse-extraction, graph-write, import-path-alias-resolution, esm-named-import-export-resolution, esm-one-hop-reexport-resolution, local-exact-reference-resolution | 1507 |
 | excalidraw | 1 | typescript | source-scan, parse-extraction, graph-write, import-path-alias-resolution, esm-named-import-export-resolution, local-exact-reference-resolution | 2400 |
 
 ## Rust finalization fallback taxonomy
@@ -190,7 +192,7 @@ Edge kind deltas
 | zcodegraph | reference-resolution | known-unsupported | typescript-finalization-not-yet-migrated | 1 |
 | zcodegraph | dynamic-dispatch-synthesis | known-unsupported | typescript-finalization-not-yet-migrated | 1 |
 | zcodegraph | db-maintenance | known-unsupported | typescript-finalization-not-yet-migrated | 1 |
-| zcodegraph | reference-resolution | known-unsupported | binding-level-symbol-disambiguation-not-yet-rust-owned | 1460 |
+| zcodegraph | reference-resolution | known-unsupported | binding-level-symbol-disambiguation-not-yet-rust-owned | 1445 |
 | zcodegraph | reference-resolution | known-unsupported | unsupported-import-form-not-yet-rust-owned | 44 |
 | zcodegraph | reference-resolution | known-unsupported | unresolved-file-level-import-target | 14 |
 | excalidraw | framework-post-extract | known-unsupported | typescript-finalization-not-yet-migrated | 1 |
@@ -205,25 +207,25 @@ Edge kind deltas
 
 | Target | Segment | Duration ms | Status |
 |---|---|---:|---|
-| zcodegraph | Rust source scan | 0 | measured |
-| zcodegraph | Rust parse extraction | 1085 | measured |
-| zcodegraph | Rust SQLite write | 1441 | measured |
+| zcodegraph | Rust source scan | 1 | measured |
+| zcodegraph | Rust parse extraction | 1096 | measured |
+| zcodegraph | Rust SQLite write | 1429 | measured |
 | zcodegraph | Rust subprocess startup/handoff | 3 | measured |
-| zcodegraph | TypeScript finalization | 784 | measured |
-| zcodegraph | Reference resolution | 403 | measured |
-| zcodegraph | Dynamic-dispatch synthesis | 333 | measured |
+| zcodegraph | TypeScript finalization | 812 | measured |
+| zcodegraph | Reference resolution | 430 | measured |
+| zcodegraph | Dynamic-dispatch synthesis | 334 | measured |
 | zcodegraph | DB maintenance | 5 | measured |
-| zcodegraph | graphStats measurement | 25 | measured |
+| zcodegraph | graphStats measurement | 24 | measured |
 | zcodegraph | sufficiency measurement | unavailable | unavailable |
 | excalidraw | Rust source scan | 0 | measured |
-| excalidraw | Rust parse extraction | 823 | measured |
-| excalidraw | Rust SQLite write | 544 | measured |
+| excalidraw | Rust parse extraction | 820 | measured |
+| excalidraw | Rust SQLite write | 543 | measured |
 | excalidraw | Rust subprocess startup/handoff | 3 | measured |
-| excalidraw | TypeScript finalization | 618 | measured |
-| excalidraw | Reference resolution | 250 | measured |
-| excalidraw | Dynamic-dispatch synthesis | 335 | measured |
-| excalidraw | DB maintenance | 7 | measured |
-| excalidraw | graphStats measurement | 21 | measured |
+| excalidraw | TypeScript finalization | 631 | measured |
+| excalidraw | Reference resolution | 254 | measured |
+| excalidraw | Dynamic-dispatch synthesis | 341 | measured |
+| excalidraw | DB maintenance | 6 | measured |
+| excalidraw | graphStats measurement | 23 | measured |
 | excalidraw | sufficiency measurement | unavailable | unavailable |
 
 ## Gates
