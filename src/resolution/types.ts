@@ -63,11 +63,15 @@ export interface ResolutionResult {
       nameMatchingMs?: number;
       frameworkMatchingMs?: number;
       databaseAccessMs?: number;
+      cacheWarmupDbMs?: number;
+      refHydrationDbMs?: number;
       cacheWarmupMs?: number;
       unresolvedReadMs?: number;
+      unresolvedReadDbMs?: number;
       candidateLookupMs?: number;
       sharedCandidateLookupMs?: number;
       candidateLookupCacheHitMs?: number;
+      nameMatcherCandidateLookupDbMs?: number;
       perReferenceDisambiguationMs?: number;
       rustMatcherMs?: number;
       rustMatcherStartupMs?: number;
@@ -96,8 +100,11 @@ export interface ResolutionResult {
       rustMatcherPayloadBytes?: number;
       rustMatcherUniqueCandidateFacts?: number;
       edgeMaterializationMs?: number;
+      edgeMaterializationDbMs?: number;
       edgeWriteMs?: number;
+      edgeWriteDbMs?: number;
       unresolvedCleanupMs?: number;
+      unresolvedCleanupDbMs?: number;
       otherResolutionMs?: number;
       dynamicDispatchSynthesisMs?: number;
     };

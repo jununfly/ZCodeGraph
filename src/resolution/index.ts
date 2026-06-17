@@ -43,11 +43,15 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     nameMatchingMs: 0,
     frameworkMatchingMs: 0,
     databaseAccessMs: 0,
+    cacheWarmupDbMs: 0,
+    refHydrationDbMs: 0,
     cacheWarmupMs: 0,
     unresolvedReadMs: 0,
+    unresolvedReadDbMs: 0,
     candidateLookupMs: 0,
     sharedCandidateLookupMs: 0,
     candidateLookupCacheHitMs: 0,
+    nameMatcherCandidateLookupDbMs: 0,
     perReferenceDisambiguationMs: 0,
     rustMatcherMs: 0,
     rustMatcherStartupMs: 0,
@@ -64,8 +68,11 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     rustMatcherPayloadBytes: 0,
     rustMatcherUniqueCandidateFacts: 0,
     edgeMaterializationMs: 0,
+    edgeMaterializationDbMs: 0,
     edgeWriteMs: 0,
+    edgeWriteDbMs: 0,
     unresolvedCleanupMs: 0,
+    unresolvedCleanupDbMs: 0,
     otherResolutionMs: 0,
     dynamicDispatchSynthesisMs: 0,
   };
@@ -575,6 +582,7 @@ export class ReferenceResolver {
     // Pre-load lightweight lookup caches for fast resolution.
     this.warmCaches();
     addElapsed(timings, 'databaseAccessMs', warmStarted);
+    addElapsed(timings, 'cacheWarmupDbMs', warmStarted);
     addElapsed(timings, 'cacheWarmupMs', warmStarted);
 
     const resolved: ResolvedRef[] = [];
@@ -594,6 +602,7 @@ export class ReferenceResolver {
       language: ref.language || this.getLanguageFromNodeId(ref.fromNodeId),
     }));
     addElapsed(timings, 'databaseAccessMs', hydrateStarted);
+    addElapsed(timings, 'refHydrationDbMs', hydrateStarted);
     addElapsed(timings, 'cacheWarmupMs', hydrateStarted);
 
     const total = refs.length;
@@ -658,9 +667,13 @@ export class ReferenceResolver {
         continue;
       }
       const started = Date.now();
+      const cacheHit = this.nameCache.get(ref.referenceName) !== undefined;
       this.context.getNodesByName(ref.referenceName);
       addElapsed(timings, 'candidateLookupMs', started);
       addElapsed(timings, 'sharedCandidateLookupMs', started);
+      if (!cacheHit) {
+        addElapsed(timings, 'nameMatcherCandidateLookupDbMs', started);
+      }
     }
   }
 
@@ -945,6 +958,8 @@ export class ReferenceResolver {
         addElapsed(timings, 'candidateLookupMs', started);
         if (cacheHit) {
           addElapsed(timings, 'candidateLookupCacheHitMs', started);
+        } else {
+          addElapsed(timings, 'nameMatcherCandidateLookupDbMs', started);
         }
       }
     };
@@ -1043,6 +1058,7 @@ export class ReferenceResolver {
     const edges = this.createEdges(result.resolved);
     addElapsed(result.stats.timings, 'databaseAccessMs', persistStarted);
     addElapsed(result.stats.timings, 'edgeMaterializationMs', persistStarted);
+    addElapsed(result.stats.timings, 'edgeMaterializationDbMs', persistStarted);
 
     // Insert edges into database
     if (edges.length > 0) {
@@ -1050,6 +1066,7 @@ export class ReferenceResolver {
       this.queries.insertEdges(edges);
       addElapsed(result.stats.timings, 'databaseAccessMs', writeStarted);
       addElapsed(result.stats.timings, 'edgeWriteMs', writeStarted);
+      addElapsed(result.stats.timings, 'edgeWriteDbMs', writeStarted);
     }
 
     // Clean up resolved refs from unresolved_refs table so metrics are accurate
@@ -1058,6 +1075,7 @@ export class ReferenceResolver {
       this.deleteResolvedOriginals(result.resolved.map((r) => r.original));
       addElapsed(result.stats.timings, 'databaseAccessMs', cleanupStarted);
       addElapsed(result.stats.timings, 'unresolvedCleanupMs', cleanupStarted);
+      addElapsed(result.stats.timings, 'unresolvedCleanupDbMs', cleanupStarted);
     }
 
     return result;
@@ -1084,6 +1102,7 @@ export class ReferenceResolver {
     this.warmCaches();
     const total = this.queries.getUnresolvedReferencesCount();
     addElapsed(aggregateStats.timings, 'databaseAccessMs', databaseStarted);
+    addElapsed(aggregateStats.timings, 'cacheWarmupDbMs', databaseStarted);
     addElapsed(aggregateStats.timings, 'cacheWarmupMs', databaseStarted);
 
     // Process in batches. We always read from offset 0 because resolved refs
@@ -1093,6 +1112,7 @@ export class ReferenceResolver {
       const batch = this.queries.getUnresolvedReferencesBatch(0, batchSize);
       addElapsed(aggregateStats.timings, 'databaseAccessMs', databaseStarted);
       addElapsed(aggregateStats.timings, 'unresolvedReadMs', databaseStarted);
+      addElapsed(aggregateStats.timings, 'unresolvedReadDbMs', databaseStarted);
       if (batch.length === 0) break;
 
       const result = this.resolveAll(batch);
@@ -1120,11 +1140,13 @@ export class ReferenceResolver {
       const edges = this.createEdges(result.resolved);
       addElapsed(aggregateStats.timings, 'databaseAccessMs', persistStarted);
       addElapsed(aggregateStats.timings, 'edgeMaterializationMs', persistStarted);
+      addElapsed(aggregateStats.timings, 'edgeMaterializationDbMs', persistStarted);
       if (edges.length > 0) {
         const writeStarted = Date.now();
         this.queries.insertEdges(edges);
         addElapsed(aggregateStats.timings, 'databaseAccessMs', writeStarted);
         addElapsed(aggregateStats.timings, 'edgeWriteMs', writeStarted);
+        addElapsed(aggregateStats.timings, 'edgeWriteDbMs', writeStarted);
       }
 
       // Clean up every processed ref so it does not appear in the next batch.
@@ -1139,6 +1161,7 @@ export class ReferenceResolver {
         this.deleteResolvedOriginals(processedRefs);
         addElapsed(aggregateStats.timings, 'databaseAccessMs', cleanupStarted);
         addElapsed(aggregateStats.timings, 'unresolvedCleanupMs', cleanupStarted);
+        addElapsed(aggregateStats.timings, 'unresolvedCleanupDbMs', cleanupStarted);
       }
 
       // Aggregate stats

@@ -15,6 +15,23 @@ const RUST_CORE_BIN = path.resolve(
   process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core',
 );
 
+const FINALIZATION_DIAGNOSTIC_BUCKETS = [
+  'databaseAccessMs',
+  'cacheWarmupDbMs',
+  'refHydrationDbMs',
+  'unresolvedReadDbMs',
+  'candidateLookupMs',
+  'sharedCandidateLookupMs',
+  'nameMatcherCandidateLookupDbMs',
+  'perReferenceDisambiguationMs',
+  'edgeMaterializationMs',
+  'edgeMaterializationDbMs',
+  'edgeWriteMs',
+  'edgeWriteDbMs',
+  'unresolvedCleanupMs',
+  'unresolvedCleanupDbMs',
+] as const;
+
 function makeTempProject(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-engine-'));
   fs.writeFileSync(path.join(dir, 'a.ts'), 'export function alpha(): number { return 1; }\n');
@@ -305,7 +322,12 @@ describe('zcodegraph index engine selection', () => {
     expect(indexResult.status).toBe(0);
     const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
       rustCore: { sourceScanMs: number; parseExtractionMs: number; sqliteWriteMs: number };
-      finalize: { referenceResolutionMs: number; dynamicDispatchSynthesisMs: number; dbMaintenanceMs: number };
+      finalize: {
+        referenceResolutionMs: number;
+        dynamicDispatchSynthesisMs: number;
+        dbMaintenanceMs: number;
+        referenceResolutionBreakdown: Record<string, number>;
+      };
       typescriptFinalizationMs: number;
     };
     expect(profile.rustCore).toMatchObject({
@@ -318,6 +340,9 @@ describe('zcodegraph index engine selection', () => {
       dynamicDispatchSynthesisMs: expect.any(Number),
       dbMaintenanceMs: expect.any(Number),
     });
+    for (const bucket of FINALIZATION_DIAGNOSTIC_BUCKETS) {
+      expect(profile.finalize.referenceResolutionBreakdown[bucket]).toEqual(expect.any(Number));
+    }
     expect(profile.typescriptFinalizationMs).toEqual(expect.any(Number));
 
     const statusResult = runCli(tempDir, ['status', '--json']);

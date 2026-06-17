@@ -715,11 +715,15 @@ export class CodeGraph {
         nameMatchingMs: number;
         frameworkMatchingMs: number;
         databaseAccessMs: number;
+        cacheWarmupDbMs: number;
+        refHydrationDbMs: number;
         cacheWarmupMs: number;
         unresolvedReadMs: number;
+        unresolvedReadDbMs: number;
         candidateLookupMs: number;
         sharedCandidateLookupMs: number;
         candidateLookupCacheHitMs: number;
+        nameMatcherCandidateLookupDbMs: number;
         perReferenceDisambiguationMs: number;
         rustMatcherMs: number;
         rustMatcherStartupMs: number;
@@ -748,8 +752,11 @@ export class CodeGraph {
         rustMatcherPayloadBytes: number;
         rustMatcherUniqueCandidateFacts: number;
         edgeMaterializationMs: number;
+        edgeMaterializationDbMs: number;
         edgeWriteMs: number;
+        edgeWriteDbMs: number;
         unresolvedCleanupMs: number;
+        unresolvedCleanupDbMs: number;
         otherResolutionMs: number;
       };
       dynamicDispatchSynthesisMs: number;
@@ -787,11 +794,15 @@ export class CodeGraph {
             nameMatchingMs: 0,
             frameworkMatchingMs: 0,
             databaseAccessMs: 0,
+            cacheWarmupDbMs: 0,
+            refHydrationDbMs: 0,
             cacheWarmupMs: 0,
             unresolvedReadMs: 0,
+            unresolvedReadDbMs: 0,
             candidateLookupMs: 0,
             sharedCandidateLookupMs: 0,
             candidateLookupCacheHitMs: 0,
+            nameMatcherCandidateLookupDbMs: 0,
             perReferenceDisambiguationMs: 0,
             rustMatcherMs: 0,
             rustMatcherStartupMs: 0,
@@ -820,8 +831,11 @@ export class CodeGraph {
             rustMatcherPayloadBytes: 0,
             rustMatcherUniqueCandidateFacts: 0,
             edgeMaterializationMs: 0,
+            edgeMaterializationDbMs: 0,
             edgeWriteMs: 0,
+            edgeWriteDbMs: 0,
             unresolvedCleanupMs: 0,
+            unresolvedCleanupDbMs: 0,
             otherResolutionMs: 0,
           },
           dynamicDispatchSynthesisMs: 0,
@@ -914,11 +928,15 @@ export class CodeGraph {
           nameMatchingMs: resolutionTimings?.nameMatchingMs ?? 0,
           frameworkMatchingMs: resolutionTimings?.frameworkMatchingMs ?? 0,
           databaseAccessMs: resolutionTimings?.databaseAccessMs ?? 0,
+          cacheWarmupDbMs: resolutionTimings?.cacheWarmupDbMs ?? 0,
+          refHydrationDbMs: resolutionTimings?.refHydrationDbMs ?? 0,
           cacheWarmupMs: resolutionTimings?.cacheWarmupMs ?? 0,
           unresolvedReadMs: resolutionTimings?.unresolvedReadMs ?? 0,
+          unresolvedReadDbMs: resolutionTimings?.unresolvedReadDbMs ?? 0,
           candidateLookupMs: resolutionTimings?.candidateLookupMs ?? 0,
           sharedCandidateLookupMs: resolutionTimings?.sharedCandidateLookupMs ?? 0,
           candidateLookupCacheHitMs: resolutionTimings?.candidateLookupCacheHitMs ?? 0,
+          nameMatcherCandidateLookupDbMs: resolutionTimings?.nameMatcherCandidateLookupDbMs ?? 0,
           perReferenceDisambiguationMs: resolutionTimings?.perReferenceDisambiguationMs ?? 0,
           rustMatcherMs: resolutionTimings?.rustMatcherMs ?? 0,
           rustMatcherStartupMs: resolutionTimings?.rustMatcherStartupMs ?? 0,
@@ -935,8 +953,11 @@ export class CodeGraph {
           rustMatcherPayloadBytes: resolutionTimings?.rustMatcherPayloadBytes ?? 0,
           rustMatcherUniqueCandidateFacts: resolutionTimings?.rustMatcherUniqueCandidateFacts ?? 0,
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
+          edgeMaterializationDbMs: resolutionTimings?.edgeMaterializationDbMs ?? 0,
           edgeWriteMs: resolutionTimings?.edgeWriteMs ?? 0,
+          edgeWriteDbMs: resolutionTimings?.edgeWriteDbMs ?? 0,
           unresolvedCleanupMs: resolutionTimings?.unresolvedCleanupMs ?? 0,
+          unresolvedCleanupDbMs: resolutionTimings?.unresolvedCleanupDbMs ?? 0,
           otherResolutionMs: resolutionTimings?.otherResolutionMs ?? 0,
         };
         profile.dynamicDispatchSynthesisMs = resolutionTimings?.dynamicDispatchSynthesisMs ?? 0;
