@@ -99,7 +99,14 @@ Manifest kept for rerun:
 
 ## Decision
 
-Phase 20 is not complete as an end-to-end Rust indexing data-production migration.
+Phase 20 is accepted as opt-in end-to-end Rust indexing data production complete with known-unsupported taxonomy.
+
+This acceptance is deliberately narrow:
+
+- Rust is not the default indexing engine.
+- The post-PRD performance/RSS targets remain open under #165 and #193.
+- Broader JS/TS reference resolution, framework post-extract finalization, dynamic-dispatch synthesis, and DB maintenance remain hybrid or TypeScript-owned.
+- The accepted fallback taxonomy is visible and non-zero rather than eliminated.
 
 What is complete:
 
@@ -108,13 +115,15 @@ What is complete:
 - #203 has one bounded symbol-level import expansion: direct same-name ESM named import/export resolution.
 - #204 has one bounded re-export expansion: one-hop direct same-name ESM named re-export resolution for relative and existing `paths` alias targets.
 - #201 has explicit fallback taxonomy evidence for required targets.
+- #202 has final validation and decision evidence for required targets and VS Code sparse bounded smoke.
 
 What remains:
 
 - Binding-level import/export symbol disambiguation is partially Rust-owned; non-direct named import/export forms remain known-unsupported.
 - Broad JS/TS reference resolution remains hybrid.
 - Framework post-extract finalization, dynamic-dispatch synthesis, and DB maintenance remain TypeScript-owned.
+- Performance remains outside the PRD completion envelope and should be handled by #165/#193 rather than expanding Phase 20.
 
-Issue #202 should remain open until the remaining Rust-owned finalization work is completed and a final Phase 20 decision can say whether the non-zero known-unsupported fallback is acceptable or must be burned down first.
+The fallback audit found no strong next import/export micro-slice after #204. It also found that the largest Rust-core-only unresolved surface is broad JS/TS reference resolution, and that some Excalidraw file-level fallback is affected by required-target copy incompleteness rather than resolver behavior. Therefore the accepted path is to close #202 and carry deeper completeness or optimization work outside Phase 20.
 
 No Rust default rollout readiness is claimed.
