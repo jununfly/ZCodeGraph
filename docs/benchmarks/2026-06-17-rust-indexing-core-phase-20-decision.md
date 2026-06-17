@@ -2,9 +2,10 @@
 
 ## Scope
 
-This record covers Phase 20 issues #199-#202 after adding two Rust-owned finalization slices:
+This record covers Phase 20 issues #199-#203 after adding three Rust-owned finalization slices:
 
 - `import-path-alias-resolution`
+- `esm-named-import-export-resolution`
 - `local-exact-reference-resolution`
 
 This is not a Rust default rollout decision and does not close the post-PRD performance/RSS optimization targets in #165 or #193.
@@ -16,11 +17,12 @@ Rust now writes finalization edges directly into the existing SQLite schema with
 The implemented slices are:
 
 - JS/TS relative and root `tsconfig.json` / `jsconfig.json` `compilerOptions.paths` file-level import resolution.
+- Direct same-name ESM named import/export symbol disambiguation for already resolved relative and `paths` alias file targets.
 - Same-file exact callable reference resolution for unambiguous `calls` and `instantiates` references.
 
 Unsupported resolver behavior remains explicit fallback:
 
-- imported binding to exported symbol disambiguation,
+- imported binding forms outside direct same-name ESM named imports,
 - package/import forms outside the file-level relative/path-alias slice,
 - unresolved file-level import targets,
 - framework post-extract finalization,
@@ -36,12 +38,13 @@ Commands run:
 - `npm run build`
 - `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "resolves JS/TS relative and paths-alias imports"`
 - `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "same-file exact callable"`
-- `CODEGRAPH_ALLOW_UNSAFE_NODE=1 node scripts/rust-indexing-experiment.mjs --experiment docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.experiment.json --out docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.raw.json --summary-out docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.md`
+- `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "direct ESM named imports"`
+- `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "paths-alias ESM named imports"`
+- `npx vitest run __tests__/rust-index-engine-cli.test.ts`
+- `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-indexing-experiment.mjs --experiment docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.experiment.json --out docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.raw.json --summary-out docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.md`
 - `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-sufficiency-guardrail.mjs --repo vscode=/private/tmp/codegraph-corpus/vscode-sparse --prompts docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-sufficiency-prompts.json --prompt-id VS-1 --timeout-ms 900000 --out docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-vscode-sparse-sufficiency.raw.json`
 
-The validation used Node `v26.0.0` with `CODEGRAPH_ALLOW_UNSAFE_NODE=1` because no Node 22 binary was available in this shell. Treat the run as Phase 20 smoke evidence, not rollout-readiness evidence.
-
-The VS Code sparse sufficiency smoke used Node `v22.21.1` and completed successfully.
+The latest required-target and VS Code sparse smoke artifacts used Node `v22.21.1`.
 
 ## Required Target Results
 
@@ -49,8 +52,8 @@ Required-only validation completed for ZCodeGraph and Excalidraw.
 
 | Target | TS wall ms | Rust wall ms | TS peak RSS | Rust peak RSS | Rust-owned stages | Sufficiency |
 |---|---:|---:|---:|---:|---|---|
-| zcodegraph | 4967 | 7762 | 58228736 | 58425344 | source-scan, parse-extraction, graph-write, import-path-alias-resolution, local-exact-reference-resolution | passed |
-| excalidraw | 3427 | 4952 | 57671680 | 56410112 | source-scan, parse-extraction, graph-write, import-path-alias-resolution, local-exact-reference-resolution | passed |
+| zcodegraph | 4802 | 7986 | 44548096 | 47906816 | source-scan, parse-extraction, graph-write, import-path-alias-resolution, esm-named-import-export-resolution, local-exact-reference-resolution | passed |
+| excalidraw | 3237 | 4883 | 48103424 | 48103424 | source-scan, parse-extraction, graph-write, import-path-alias-resolution, esm-named-import-export-resolution, local-exact-reference-resolution | passed |
 
 Both Rust arms produced active indexes readable by the TypeScript shell and graphStats collection.
 
@@ -60,8 +63,8 @@ Fallback is visible and non-zero.
 
 | Target | Total fallback | Main remaining categories |
 |---|---:|---|
-| zcodegraph | 2384 | binding-level symbol disambiguation, unsupported import forms, unresolved file-level imports, TypeScript-owned finalization stages |
-| excalidraw | 2429 | binding-level symbol disambiguation, unsupported import forms, unresolved file-level imports, TypeScript-owned finalization stages |
+| zcodegraph | 1522 | non-direct binding-level symbol disambiguation, unsupported import forms, unresolved file-level imports, TypeScript-owned finalization stages |
+| excalidraw | 2400 | non-direct binding-level symbol disambiguation, unsupported import forms, unresolved file-level imports, TypeScript-owned finalization stages |
 
 The fallback taxonomy artifact is `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.md`.
 
@@ -74,9 +77,9 @@ A bounded Node 22 sufficiency smoke completed afterward:
 - Artifact: `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-vscode-sparse-sufficiency.raw.json`
 - Commit: `4ac53226`
 - Copied files: 11518 per arm
-- TypeScript index: 223409 ms
-- Rust index: 403737 ms
-- Explore analyze: 13719 ms
+- TypeScript index: 244116 ms
+- Rust index: 436416 ms
+- Explore analyze: 12918 ms
 - Classification: `success-comparison-completed`
 - Regression count: 0
 - Default rollout readiness claimed: false
@@ -93,11 +96,12 @@ What is complete:
 
 - #199 import/path-alias file-level slice is implemented and covered by public `--engine rust` integration behavior.
 - #200 has one bounded expansion beyond import/path-alias: same-file exact callable reference resolution.
+- #203 has one bounded symbol-level import expansion: direct same-name ESM named import/export resolution.
 - #201 has explicit fallback taxonomy evidence for required targets.
 
 What remains:
 
-- Binding-level import/export symbol disambiguation is still not Rust-owned.
+- Binding-level import/export symbol disambiguation is partially Rust-owned; non-direct named import/export forms remain known-unsupported.
 - Broad JS/TS reference resolution remains hybrid.
 - Framework post-extract finalization, dynamic-dispatch synthesis, and DB maintenance remain TypeScript-owned.
 

@@ -387,17 +387,9 @@ describe('zcodegraph index engine selection', () => {
     const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
       finalize: {
         boundaryProtocol: { rustOwnedStages: string[] };
-        fallbackTaxonomy: {
-          entries: Array<{ stage: string; reason: string; count: number }>;
-        };
       };
     };
     expect(profile.finalize.boundaryProtocol.rustOwnedStages).toContain('import-path-alias-resolution');
-    expect(profile.finalize.fallbackTaxonomy.entries).toContainEqual(expect.objectContaining({
-      stage: 'reference-resolution',
-      reason: 'binding-level-symbol-disambiguation-not-yet-rust-owned',
-      count: expect.any(Number),
-    }));
 
     const cg = CodeGraph.openSync(tempDir);
     try {
@@ -447,6 +439,102 @@ describe('zcodegraph index engine selection', () => {
     try {
       const entry = cg.searchNodes('localEntry').find((match) => match.node.kind === 'function')?.node;
       const helper = cg.searchNodes('localHelper').find((match) => match.node.kind === 'function')?.node;
+      expect(entry).toBeDefined();
+      expect(helper).toBeDefined();
+
+      const calls = cg.getOutgoingEdges(entry!.id).filter((edge) => edge.kind === 'calls');
+      expect(calls.some((edge) => edge.target === helper!.id && edge.edgeOrigin === 'rust-finalization')).toBe(true);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('resolves direct ESM named imports to exported target-file symbols as Rust-owned edges', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'target.ts'),
+      [
+        'export function importedHelper() {',
+        '  return 41;',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'main.ts'),
+      [
+        'import { importedHelper } from "./target";',
+        'export function importedEntry() {',
+        '  return importedHelper();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-named-import-profile.json');
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: { boundaryProtocol: { rustOwnedStages: string[] } };
+    };
+    expect(profile.finalize.boundaryProtocol.rustOwnedStages).toContain('esm-named-import-export-resolution');
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const entry = cg.searchNodes('importedEntry').find((match) => match.node.kind === 'function')?.node;
+      const helper = cg.searchNodes('importedHelper').find((match) => match.node.kind === 'function' && match.node.filePath === 'src/target.ts')?.node;
+      expect(entry).toBeDefined();
+      expect(helper).toBeDefined();
+
+      const calls = cg.getOutgoingEdges(entry!.id).filter((edge) => edge.kind === 'calls');
+      expect(calls.some((edge) => edge.target === helper!.id && edge.edgeOrigin === 'rust-finalization')).toBe(true);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('resolves paths-alias ESM named imports to exported target-file symbols as Rust-owned edges', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          baseUrl: '.',
+          paths: {
+            '@app/*': ['src/*'],
+          },
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'alias-target.ts'),
+      [
+        'export function aliasedHelper() {',
+        '  return 41;',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'main.ts'),
+      [
+        'import { aliasedHelper } from "@app/alias-target";',
+        'export function aliasedEntry() {',
+        '  return aliasedHelper();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const entry = cg.searchNodes('aliasedEntry').find((match) => match.node.kind === 'function')?.node;
+      const helper = cg.searchNodes('aliasedHelper').find((match) => match.node.kind === 'function' && match.node.filePath === 'src/alias-target.ts')?.node;
       expect(entry).toBeDefined();
       expect(helper).toBeDefined();
 

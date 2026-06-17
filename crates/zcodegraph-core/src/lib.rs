@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -188,6 +189,9 @@ pub struct IndexProfile {
     pub local_exact_reference_resolution_ms: u128,
     pub local_exact_reference_resolved_refs: u32,
     pub local_exact_reference_fallback_refs: u32,
+    pub esm_named_import_export_resolution_ms: u128,
+    pub esm_named_import_export_resolved_refs: u32,
+    pub esm_named_import_export_fallback_refs: u32,
 }
 
 pub fn run_index(request: &IndexRequest) -> IndexResult {
@@ -1020,6 +1024,12 @@ fn write_index_to_connection(
     counts.profile.import_path_alias_unresolved_fallback_refs =
         import_stats.unresolved_fallback_refs;
     counts.edges_created += import_stats.edges_created;
+    let esm_named_started = Instant::now();
+    let esm_named_stats = resolve_esm_named_import_export_refs(conn, Path::new(&request.project_path))?;
+    counts.profile.esm_named_import_export_resolution_ms = esm_named_started.elapsed().as_millis();
+    counts.profile.esm_named_import_export_resolved_refs = esm_named_stats.resolved_refs;
+    counts.profile.esm_named_import_export_fallback_refs = esm_named_stats.fallback_refs;
+    counts.edges_created += esm_named_stats.edges_created;
     let local_reference_started = Instant::now();
     let local_reference_stats = resolve_same_file_exact_callable_refs(conn)?;
     counts.profile.local_exact_reference_resolution_ms =
@@ -1061,6 +1071,25 @@ struct LocalReferenceStats {
     resolved_refs: u32,
     edges_created: u32,
     fallback_refs: u32,
+}
+
+#[derive(Debug, Default)]
+struct EsmNamedImportExportStats {
+    resolved_refs: u32,
+    edges_created: u32,
+    fallback_refs: u32,
+}
+
+#[derive(Debug)]
+struct FileImportEdgeRow {
+    target_file_path: String,
+}
+
+#[derive(Debug)]
+struct SymbolCandidateRow {
+    id: String,
+    kind: String,
+    name: String,
 }
 
 #[derive(Debug)]
@@ -1364,6 +1393,263 @@ fn delete_resolved_import_refs(conn: &Connection, ids: &[i64]) -> rusqlite::Resu
         stmt.execute(params![id])?;
     }
     Ok(())
+}
+
+fn resolve_esm_named_import_export_refs(
+    conn: &Connection,
+    project_path: &Path,
+) -> Result<EsmNamedImportExportStats, Box<dyn std::error::Error>> {
+    let binding_refs = load_import_refs(conn)?
+        .into_iter()
+        .filter(|reference| {
+            matches!(
+                reference.language.as_str(),
+                "javascript" | "jsx" | "typescript" | "tsx"
+            ) && looks_like_imported_binding(&reference.reference_name)
+        })
+        .collect::<Vec<_>>();
+    let mut stats = EsmNamedImportExportStats::default();
+    let mut resolved_ids = Vec::new();
+    let mut file_content_cache: HashMap<String, String> = HashMap::new();
+
+    for reference in binding_refs {
+        if is_type_only_import_line(project_path, &reference.file_path, reference.line, &mut file_content_cache) {
+            stats.fallback_refs += 1;
+            continue;
+        }
+
+        let Some(target_file_path) = find_import_edge_target_file(conn, &reference)? else {
+            stats.fallback_refs += 1;
+            continue;
+        };
+        let candidates = find_exported_symbol_candidates(
+            conn,
+            project_path,
+            &target_file_path,
+            &reference.reference_name,
+            &mut file_content_cache,
+        )?;
+        if candidates.len() != 1 {
+            stats.fallback_refs += 1;
+            continue;
+        }
+        let target = &candidates[0];
+
+        if insert_rust_import_symbol_edge(conn, &reference, &target.id)? {
+            stats.edges_created += 1;
+        }
+        stats.resolved_refs += 1;
+        resolved_ids.push(reference.id);
+
+        let usage_refs = load_imported_symbol_usage_refs(
+            conn,
+            &reference.file_path,
+            &reference.reference_name,
+        )?;
+        for usage in usage_refs {
+            if insert_rust_imported_symbol_usage_edge(conn, &usage, &target.id)? {
+                stats.edges_created += 1;
+            }
+            stats.resolved_refs += 1;
+            resolved_ids.push(usage.id);
+        }
+    }
+
+    delete_resolved_import_refs(conn, &resolved_ids)?;
+    Ok(stats)
+}
+
+fn is_type_only_import_line(
+    project_path: &Path,
+    file_path: &str,
+    line: i64,
+    cache: &mut HashMap<String, String>,
+) -> bool {
+    let Some(content) = cached_file_content(project_path, file_path, cache) else {
+        return false;
+    };
+    content
+        .lines()
+        .nth(line.saturating_sub(1) as usize)
+        .map(|line_text| line_text.trim_start().starts_with("import type "))
+        .unwrap_or(false)
+}
+
+fn cached_file_content<'a>(
+    project_path: &Path,
+    file_path: &str,
+    cache: &'a mut HashMap<String, String>,
+) -> Option<&'a str> {
+    if !cache.contains_key(file_path) {
+        let content = fs::read_to_string(project_path.join(file_path)).ok()?;
+        cache.insert(file_path.to_string(), content);
+    }
+    cache.get(file_path).map(String::as_str)
+}
+
+fn find_import_edge_target_file(
+    conn: &Connection,
+    reference: &ImportRefRow,
+) -> rusqlite::Result<Option<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT target.file_path
+         FROM edges e
+         JOIN nodes target ON target.id = e.target
+         WHERE e.source = ?1
+           AND e.kind = 'imports'
+           AND e.edgeOrigin = 'rust-finalization'
+           AND target.kind = 'file'
+           AND e.line = ?2
+           AND e.col = ?3
+         ORDER BY e.id",
+    )?;
+    let rows = stmt
+        .query_map(params![reference.from_node_id, reference.line, reference.col], |row| {
+            Ok(FileImportEdgeRow {
+                target_file_path: row.get(0)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    if rows.len() == 1 {
+        Ok(Some(rows[0].target_file_path.clone()))
+    } else {
+        Ok(None)
+    }
+}
+
+fn find_exported_symbol_candidates(
+    conn: &Connection,
+    project_path: &Path,
+    target_file_path: &str,
+    name: &str,
+    cache: &mut HashMap<String, String>,
+) -> Result<Vec<SymbolCandidateRow>, Box<dyn std::error::Error>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, kind, name
+         FROM nodes
+         WHERE file_path = ?1
+           AND name = ?2
+           AND kind IN ('function', 'class', 'interface', 'type_alias', 'constant', 'variable', 'enum')
+         ORDER BY start_line",
+    )?;
+    let rows = stmt
+        .query_map(params![target_file_path, name], |row| {
+            Ok(SymbolCandidateRow {
+                id: row.get(0)?,
+                kind: row.get(1)?,
+                name: row.get(2)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let Some(content) = cached_file_content(project_path, target_file_path, cache) else {
+        return Ok(Vec::new());
+    };
+    Ok(rows
+        .into_iter()
+        .filter(|candidate| direct_export_declares_name(content, &candidate.kind, &candidate.name))
+        .collect())
+}
+
+fn direct_export_declares_name(content: &str, kind: &str, name: &str) -> bool {
+    let needle = match kind {
+        "function" => format!("export function {}", name),
+        "class" => format!("export class {}", name),
+        "interface" => format!("export interface {}", name),
+        "type_alias" => format!("export type {}", name),
+        "constant" => format!("export const {}", name),
+        "variable" => format!("export let {}", name),
+        "enum" => format!("export enum {}", name),
+        _ => return false,
+    };
+    content.contains(&needle)
+}
+
+fn load_imported_symbol_usage_refs(
+    conn: &Connection,
+    file_path: &str,
+    reference_name: &str,
+) -> rusqlite::Result<Vec<LocalRefRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, from_node_id, reference_name, reference_kind, line, col, file_path, language
+         FROM unresolved_refs
+         WHERE file_path = ?1
+           AND reference_name = ?2
+           AND reference_kind IN ('calls', 'instantiates', 'references')
+         ORDER BY id",
+    )?;
+    let rows = stmt.query_map(params![file_path, reference_name], |row| {
+        Ok(LocalRefRow {
+            id: row.get(0)?,
+            from_node_id: row.get(1)?,
+            reference_name: row.get(2)?,
+            reference_kind: row.get(3)?,
+            line: row.get(4)?,
+            col: row.get(5)?,
+            file_path: row.get(6)?,
+            language: row.get(7)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+fn insert_rust_import_symbol_edge(
+    conn: &Connection,
+    reference: &ImportRefRow,
+    target_node_id: &str,
+) -> rusqlite::Result<bool> {
+    insert_rust_finalization_edge(
+        conn,
+        &reference.from_node_id,
+        target_node_id,
+        "imports",
+        "{\"resolvedBy\":\"rust-esm-named-import-export\"}",
+        reference.line,
+        reference.col,
+    )
+}
+
+fn insert_rust_imported_symbol_usage_edge(
+    conn: &Connection,
+    reference: &LocalRefRow,
+    target_node_id: &str,
+) -> rusqlite::Result<bool> {
+    insert_rust_finalization_edge(
+        conn,
+        &reference.from_node_id,
+        target_node_id,
+        &reference.reference_kind,
+        "{\"resolvedBy\":\"rust-esm-named-import-export\"}",
+        reference.line,
+        reference.col,
+    )
+}
+
+fn insert_rust_finalization_edge(
+    conn: &Connection,
+    source_node_id: &str,
+    target_node_id: &str,
+    kind: &str,
+    metadata: &str,
+    line: i64,
+    col: i64,
+) -> rusqlite::Result<bool> {
+    let existing: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM edges
+         WHERE source = ?1 AND target = ?2 AND kind = ?3 AND edgeOrigin = 'rust-finalization'",
+        params![source_node_id, target_node_id, kind],
+        |row| row.get(0),
+    )?;
+    if existing > 0 {
+        return Ok(false);
+    }
+
+    conn.execute(
+        "INSERT INTO edges (source, target, kind, metadata, line, col, edgeOrigin)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'rust-finalization')",
+        params![source_node_id, target_node_id, kind, metadata, line, col],
+    )?;
+    Ok(true)
 }
 
 fn resolve_same_file_exact_callable_refs(
@@ -2518,7 +2804,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -2536,6 +2822,9 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.import_path_alias_binding_fallback_refs,
         result.profile.import_path_alias_unsupported_fallback_refs,
         result.profile.import_path_alias_unresolved_fallback_refs,
+        result.profile.esm_named_import_export_resolution_ms,
+        result.profile.esm_named_import_export_resolved_refs,
+        result.profile.esm_named_import_export_fallback_refs,
         result.profile.local_exact_reference_resolution_ms,
         result.profile.local_exact_reference_resolved_refs,
         result.profile.local_exact_reference_fallback_refs
@@ -2863,7 +3152,7 @@ mod tests {
 
         assert_eq!(
             result_json(&result),
-            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
+            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
         );
     }
 

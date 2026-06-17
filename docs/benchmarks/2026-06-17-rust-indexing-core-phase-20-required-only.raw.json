@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "experimentId": "rust-indexing-core-phase-20-required-only",
   "kind": "indexing-ab",
-  "generatedAt": "2026-06-17T12:10:40.450Z",
+  "generatedAt": "2026-06-17T13:02:35.882Z",
   "arms": [
     "typescript",
     "rust"
@@ -27,7 +27,7 @@
     "status": "completed",
     "diagnostics": [],
     "toolchain": {
-      "node": "v26.0.0",
+      "node": "v22.21.1",
       "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
       "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
       "os": "Darwin 25.5.0 arm64"
@@ -54,7 +54,7 @@
         "status": "available",
         "kind": null,
         "diagnostics": [],
-        "commit": "f345b40eda18318793d7e88685c5aa3a4eba5833",
+        "commit": "a68630ecd1871ce1171f3054b223aa7fa766029a",
         "dirty": true,
         "promptIds": [
           "ZCG-1",
@@ -74,14 +74,14 @@
           },
           "execution": {
             "status": "completed",
-            "elapsedMs": 4967,
-            "peakRssBytes": 58228736,
+            "elapsedMs": 4802,
+            "peakRssBytes": 44548096,
             "timingsMs": {
-              "sourceCopy": 86,
-              "init": 2380,
-              "index": 2501,
-              "graphStats": 46,
-              "total": 4967
+              "sourceCopy": 90,
+              "init": 2210,
+              "index": 2502,
+              "graphStats": 21,
+              "total": 4802
             },
             "indexProfile": null,
             "profiling": {
@@ -94,7 +94,7 @@
             "status": "completed"
           },
           "sourceCopy": {
-            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-PWPYuj",
+            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-d3aqRK",
             "copiedFiles": 299,
             "mode": "js-ts-config-slice",
             "skipped": false
@@ -102,8 +102,8 @@
           "graphAvailable": true,
           "graphStats": {
             "fileCount": 290,
-            "nodeCount": 4172,
-            "edgeCount": 17646,
+            "nodeCount": 4173,
+            "edgeCount": 17654,
             "nodeKinds": {
               "class": 60,
               "constant": 470,
@@ -111,33 +111,33 @@
               "function": 1098,
               "import": 1201,
               "interface": 165,
-              "method": 813,
+              "method": 814,
               "property": 2,
               "type_alias": 35,
               "variable": 38
             },
             "edgeKinds": {
-              "calls": 7619,
-              "contains": 3882,
+              "calls": 7624,
+              "contains": 3883,
               "extends": 8,
               "implements": 21,
               "imports": 2909,
-              "instantiates": 412,
+              "instantiates": 414,
               "references": 2795
             },
-            "dbSizeBytes": 17362944
+            "dbSizeBytes": 17309696
           },
           "command": {
-            "executable": "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+            "executable": "/private/tmp/node-v22.21.1-darwin-arm64/bin/node",
             "args": [
               "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
               "index",
-              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-PWPYuj",
+              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-d3aqRK",
               "--force",
               "--quiet"
             ],
-            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-PWPYuj",
-            "nodeVersion": "v26.0.0",
+            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-d3aqRK",
+            "nodeVersion": "v22.21.1",
             "env": {}
           }
         },
@@ -160,45 +160,48 @@
           },
           "execution": {
             "status": "completed",
-            "elapsedMs": 7762,
-            "peakRssBytes": 58425344,
+            "elapsedMs": 7986,
+            "peakRssBytes": 47906816,
             "timingsMs": {
               "sourceCopy": 34,
-              "init": 2258,
-              "index": 5470,
-              "graphStats": 48,
-              "total": 7762
+              "init": 2162,
+              "index": 5790,
+              "graphStats": 25,
+              "total": 7986
             },
             "indexProfile": {
               "rustCore": {
                 "sourceScanMs": 0,
-                "parseExtractionMs": 1061,
-                "sqliteWriteMs": 1376,
-                "importPathAliasResolutionMs": 90,
+                "parseExtractionMs": 1085,
+                "sqliteWriteMs": 1441,
+                "importPathAliasResolutionMs": 92,
                 "importPathAliasResolvedRefs": 616,
                 "importPathAliasFallbackRefs": 2380,
                 "importPathAliasBindingFallbackRefs": 2322,
                 "importPathAliasUnsupportedFallbackRefs": 49,
                 "importPathAliasUnresolvedFallbackRefs": 9,
-                "localExactReferenceResolutionMs": 1599,
-                "localExactReferenceResolvedRefs": 3582,
-                "localExactReferenceFallbackRefs": 30382,
+                "esmNamedImportExportResolutionMs": 364,
+                "esmNamedImportExportResolvedRefs": 2520,
+                "esmNamedImportExportFallbackRefs": 1460,
+                "localExactReferenceResolutionMs": 1574,
+                "localExactReferenceResolvedRefs": 3579,
+                "localExactReferenceFallbackRefs": 28789,
                 "subprocessStartupHandoffMs": 3
               },
               "finalize": {
                 "frameworkPostExtractMs": 4,
-                "referenceResolutionMs": 455,
+                "referenceResolutionMs": 403,
                 "referenceResolutionBreakdown": {
-                  "importResolutionMs": 83,
-                  "nameMatchingMs": 67,
-                  "frameworkMatchingMs": 11,
-                  "databaseAccessMs": 268,
-                  "cacheWarmupMs": 4,
-                  "unresolvedReadMs": 29,
-                  "candidateLookupMs": 14,
+                  "importResolutionMs": 59,
+                  "nameMatchingMs": 58,
+                  "frameworkMatchingMs": 13,
+                  "databaseAccessMs": 248,
+                  "cacheWarmupMs": 6,
+                  "unresolvedReadMs": 26,
+                  "candidateLookupMs": 21,
                   "sharedCandidateLookupMs": 5,
-                  "candidateLookupCacheHitMs": 3,
-                  "perReferenceDisambiguationMs": 58,
+                  "candidateLookupCacheHitMs": 6,
+                  "perReferenceDisambiguationMs": 42,
                   "rustMatcherMs": 0,
                   "rustMatcherStartupMs": 0,
                   "rustMatcherSerializationMs": 0,
@@ -213,13 +216,13 @@
                   "rustMatcherTsVerificationMs": 0,
                   "rustMatcherPayloadBytes": 0,
                   "rustMatcherUniqueCandidateFacts": 0,
-                  "edgeMaterializationMs": 4,
-                  "edgeWriteMs": 96,
-                  "unresolvedCleanupMs": 135,
-                  "otherResolutionMs": 11
+                  "edgeMaterializationMs": 5,
+                  "edgeWriteMs": 72,
+                  "unresolvedCleanupMs": 139,
+                  "otherResolutionMs": 7
                 },
-                "dynamicDispatchSynthesisMs": 343,
-                "dbMaintenanceMs": 8,
+                "dynamicDispatchSynthesisMs": 333,
+                "dbMaintenanceMs": 5,
                 "boundaryProtocol": {
                   "version": 1,
                   "productShell": "typescript",
@@ -228,11 +231,12 @@
                     "parse-extraction",
                     "graph-write",
                     "import-path-alias-resolution",
+                    "esm-named-import-export-resolution",
                     "local-exact-reference-resolution"
                   ]
                 },
                 "fallbackTaxonomy": {
-                  "totalFallbacks": 2384,
+                  "totalFallbacks": 1522,
                   "entries": [
                     {
                       "stage": "framework-post-extract",
@@ -262,7 +266,7 @@
                       "stage": "reference-resolution",
                       "classification": "known-unsupported",
                       "reason": "binding-level-symbol-disambiguation-not-yet-rust-owned",
-                      "count": 2322
+                      "count": 1460
                     },
                     {
                       "stage": "reference-resolution",
@@ -279,7 +283,7 @@
                   ]
                 }
               },
-              "typescriptFinalizationMs": 856
+              "typescriptFinalizationMs": 784
             },
             "profiling": {
               "heapReport": null,
@@ -291,7 +295,7 @@
             "status": "completed"
           },
           "sourceCopy": {
-            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-QTlfhS",
+            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-NXA3MT",
             "copiedFiles": 299,
             "mode": "js-ts-config-slice",
             "skipped": false
@@ -299,36 +303,36 @@
           "graphAvailable": true,
           "graphStats": {
             "fileCount": 290,
-            "nodeCount": 14253,
-            "edgeCount": 30507,
+            "nodeCount": 14268,
+            "edgeCount": 30033,
             "nodeKinds": {
               "class": 59,
-              "constant": 8010,
+              "constant": 8018,
               "export": 50,
               "field": 233,
               "file": 290,
-              "function": 2410,
+              "function": 2416,
               "import": 1197,
               "interface": 165,
-              "method": 723,
+              "method": 724,
               "type_alias": 38,
               "variable": 1078
             },
             "edgeKinds": {
-              "calls": 13814,
-              "contains": 13963,
+              "calls": 13337,
+              "contains": 13978,
               "exports": 186,
               "imports": 2363,
-              "instantiates": 181
+              "instantiates": 169
             },
-            "dbSizeBytes": 25300992
+            "dbSizeBytes": 25874432
           },
           "command": {
-            "executable": "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+            "executable": "/private/tmp/node-v22.21.1-darwin-arm64/bin/node",
             "args": [
               "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
               "index",
-              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-QTlfhS",
+              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-NXA3MT",
               "--force",
               "--quiet",
               "--engine",
@@ -338,11 +342,11 @@
               "--sqlite-write-mode",
               "final-flush"
             ],
-            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-QTlfhS",
-            "nodeVersion": "v26.0.0",
+            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-NXA3MT",
+            "nodeVersion": "v22.21.1",
             "env": {
               "ZCODEGRAPH_RUST_CORE_BINARY": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/target/debug/zcodegraph-core",
-              "ZCODEGRAPH_INDEX_PROFILE_OUT": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-QTlfhS/.zcodegraph/rust-index-profile.json"
+              "ZCODEGRAPH_INDEX_PROFILE_OUT": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-NXA3MT/.zcodegraph/rust-index-profile.json"
             }
           }
         }
@@ -354,30 +358,30 @@
         },
         "performance": {
           "status": "unavailable",
-          "wallTimeDeltaPct": 56.27139118179988,
-          "peakRssDeltaPct": 0.3376477208778841,
+          "wallTimeDeltaPct": 66.30570595585172,
+          "peakRssDeltaPct": 7.539536594336154,
           "diagnostics": [
             {
               "kind": "wall-time-phase-dominant",
               "message": "Dominant Rust wall-time phase is index",
               "arm": "rust",
               "phase": "index",
-              "elapsedMs": 5470
+              "elapsedMs": 5790
             },
             {
               "kind": "wall-time-phase-dominant",
               "message": "Dominant TypeScript wall-time phase is index",
               "arm": "typescript",
               "phase": "index",
-              "elapsedMs": 2501
+              "elapsedMs": 2502
             },
             {
               "kind": "wall-time-regression-source",
               "message": "Largest Rust-over-TypeScript wall-time delta is index",
               "phase": "index",
-              "typescriptMs": 2501,
-              "rustMs": 5470,
-              "deltaMs": 2969
+              "typescriptMs": 2502,
+              "rustMs": 5790,
+              "deltaMs": 3288
             }
           ]
         }
@@ -420,14 +424,14 @@
           },
           "execution": {
             "status": "completed",
-            "elapsedMs": 3427,
-            "peakRssBytes": 57671680,
+            "elapsedMs": 3237,
+            "peakRssBytes": 48103424,
             "timingsMs": {
-              "sourceCopy": 28,
-              "init": 1681,
-              "index": 1717,
-              "graphStats": 45,
-              "total": 3427
+              "sourceCopy": 27,
+              "init": 1573,
+              "index": 1637,
+              "graphStats": 21,
+              "total": 3237
             },
             "indexProfile": null,
             "profiling": {
@@ -440,7 +444,7 @@
             "status": "completed"
           },
           "sourceCopy": {
-            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-ON9TtI",
+            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-IUt2Zd",
             "copiedFiles": 34,
             "mode": "js-ts-config-slice",
             "skipped": false
@@ -472,16 +476,16 @@
             "dbSizeBytes": 11526144
           },
           "command": {
-            "executable": "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+            "executable": "/private/tmp/node-v22.21.1-darwin-arm64/bin/node",
             "args": [
               "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
               "index",
-              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-ON9TtI",
+              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-IUt2Zd",
               "--force",
               "--quiet"
             ],
-            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-ON9TtI",
-            "nodeVersion": "v26.0.0",
+            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-IUt2Zd",
+            "nodeVersion": "v22.21.1",
             "env": {}
           }
         },
@@ -504,45 +508,48 @@
           },
           "execution": {
             "status": "completed",
-            "elapsedMs": 4952,
-            "peakRssBytes": 56410112,
+            "elapsedMs": 4883,
+            "peakRssBytes": 48103424,
             "timingsMs": {
-              "sourceCopy": 9,
-              "init": 1689,
-              "index": 3254,
-              "graphStats": 52,
-              "total": 4952
+              "sourceCopy": 10,
+              "init": 1582,
+              "index": 3291,
+              "graphStats": 21,
+              "total": 4883
             },
             "indexProfile": {
               "rustCore": {
                 "sourceScanMs": 0,
-                "parseExtractionMs": 810,
-                "sqliteWriteMs": 533,
-                "importPathAliasResolutionMs": 19,
+                "parseExtractionMs": 823,
+                "sqliteWriteMs": 544,
+                "importPathAliasResolutionMs": 18,
                 "importPathAliasResolvedRefs": 46,
                 "importPathAliasFallbackRefs": 2425,
                 "importPathAliasBindingFallbackRefs": 1734,
                 "importPathAliasUnsupportedFallbackRefs": 221,
                 "importPathAliasUnresolvedFallbackRefs": 470,
-                "localExactReferenceResolutionMs": 1018,
+                "esmNamedImportExportResolutionMs": 55,
+                "esmNamedImportExportResolvedRefs": 30,
+                "esmNamedImportExportFallbackRefs": 1705,
+                "localExactReferenceResolutionMs": 1060,
                 "localExactReferenceResolvedRefs": 2092,
-                "localExactReferenceFallbackRefs": 16214,
+                "localExactReferenceFallbackRefs": 16213,
                 "subprocessStartupHandoffMs": 3
               },
               "finalize": {
-                "frameworkPostExtractMs": 4,
-                "referenceResolutionMs": 260,
+                "frameworkPostExtractMs": 3,
+                "referenceResolutionMs": 250,
                 "referenceResolutionBreakdown": {
-                  "importResolutionMs": 102,
-                  "nameMatchingMs": 33,
-                  "frameworkMatchingMs": 1,
-                  "databaseAccessMs": 102,
-                  "cacheWarmupMs": 3,
-                  "unresolvedReadMs": 19,
-                  "candidateLookupMs": 12,
-                  "sharedCandidateLookupMs": 3,
-                  "candidateLookupCacheHitMs": 3,
-                  "perReferenceDisambiguationMs": 23,
+                  "importResolutionMs": 88,
+                  "nameMatchingMs": 43,
+                  "frameworkMatchingMs": 3,
+                  "databaseAccessMs": 96,
+                  "cacheWarmupMs": 4,
+                  "unresolvedReadMs": 15,
+                  "candidateLookupMs": 14,
+                  "sharedCandidateLookupMs": 4,
+                  "candidateLookupCacheHitMs": 7,
+                  "perReferenceDisambiguationMs": 33,
                   "rustMatcherMs": 0,
                   "rustMatcherStartupMs": 0,
                   "rustMatcherSerializationMs": 0,
@@ -557,12 +564,12 @@
                   "rustMatcherTsVerificationMs": 0,
                   "rustMatcherPayloadBytes": 0,
                   "rustMatcherUniqueCandidateFacts": 0,
-                  "edgeMaterializationMs": 1,
-                  "edgeWriteMs": 24,
-                  "unresolvedCleanupMs": 55,
-                  "otherResolutionMs": 8
+                  "edgeMaterializationMs": 3,
+                  "edgeWriteMs": 21,
+                  "unresolvedCleanupMs": 53,
+                  "otherResolutionMs": 4
                 },
-                "dynamicDispatchSynthesisMs": 358,
+                "dynamicDispatchSynthesisMs": 335,
                 "dbMaintenanceMs": 7,
                 "boundaryProtocol": {
                   "version": 1,
@@ -572,11 +579,12 @@
                     "parse-extraction",
                     "graph-write",
                     "import-path-alias-resolution",
+                    "esm-named-import-export-resolution",
                     "local-exact-reference-resolution"
                   ]
                 },
                 "fallbackTaxonomy": {
-                  "totalFallbacks": 2429,
+                  "totalFallbacks": 2400,
                   "entries": [
                     {
                       "stage": "framework-post-extract",
@@ -606,7 +614,7 @@
                       "stage": "reference-resolution",
                       "classification": "known-unsupported",
                       "reason": "binding-level-symbol-disambiguation-not-yet-rust-owned",
-                      "count": 1734
+                      "count": 1705
                     },
                     {
                       "stage": "reference-resolution",
@@ -623,7 +631,7 @@
                   ]
                 }
               },
-              "typescriptFinalizationMs": 654
+              "typescriptFinalizationMs": 618
             },
             "profiling": {
               "heapReport": null,
@@ -635,7 +643,7 @@
             "status": "completed"
           },
           "sourceCopy": {
-            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-SoxSOb",
+            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-H3eCy3",
             "copiedFiles": 34,
             "mode": "js-ts-config-slice",
             "skipped": false
@@ -666,14 +674,14 @@
               "instantiates": 35,
               "references": 28
             },
-            "dbSizeBytes": 13942784
+            "dbSizeBytes": 13946880
           },
           "command": {
-            "executable": "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+            "executable": "/private/tmp/node-v22.21.1-darwin-arm64/bin/node",
             "args": [
               "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
               "index",
-              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-SoxSOb",
+              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-H3eCy3",
               "--force",
               "--quiet",
               "--engine",
@@ -683,11 +691,11 @@
               "--sqlite-write-mode",
               "final-flush"
             ],
-            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-SoxSOb",
-            "nodeVersion": "v26.0.0",
+            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-H3eCy3",
+            "nodeVersion": "v22.21.1",
             "env": {
               "ZCODEGRAPH_RUST_CORE_BINARY": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/target/debug/zcodegraph-core",
-              "ZCODEGRAPH_INDEX_PROFILE_OUT": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-SoxSOb/.zcodegraph/rust-index-profile.json"
+              "ZCODEGRAPH_INDEX_PROFILE_OUT": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-H3eCy3/.zcodegraph/rust-index-profile.json"
             }
           }
         }
@@ -699,30 +707,30 @@
         },
         "performance": {
           "status": "unavailable",
-          "wallTimeDeltaPct": 44.49956229938722,
-          "peakRssDeltaPct": -2.1875,
+          "wallTimeDeltaPct": 50.84955205437133,
+          "peakRssDeltaPct": 0,
           "diagnostics": [
             {
               "kind": "wall-time-phase-dominant",
               "message": "Dominant Rust wall-time phase is index",
               "arm": "rust",
               "phase": "index",
-              "elapsedMs": 3254
+              "elapsedMs": 3291
             },
             {
               "kind": "wall-time-phase-dominant",
               "message": "Dominant TypeScript wall-time phase is index",
               "arm": "typescript",
               "phase": "index",
-              "elapsedMs": 1717
+              "elapsedMs": 1637
             },
             {
               "kind": "wall-time-regression-source",
               "message": "Largest Rust-over-TypeScript wall-time delta is index",
               "phase": "index",
-              "typescriptMs": 1717,
-              "rustMs": 3254,
-              "deltaMs": 1537
+              "typescriptMs": 1637,
+              "rustMs": 3291,
+              "deltaMs": 1654
             }
           ]
         }

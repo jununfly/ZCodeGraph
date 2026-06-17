@@ -1771,6 +1771,13 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
     return row.count;
   }
 
+  getRustFinalizationEsmNamedImportExportEdgeCount(): number {
+    const row = this.db
+      .prepare("SELECT COUNT(*) AS count FROM edges WHERE edgeOrigin = 'rust-finalization' AND metadata LIKE '%rust-esm-named-import-export%'")
+      .get() as { count: number };
+    return row.count;
+  }
+
   /**
    * Get graph statistics
    */
