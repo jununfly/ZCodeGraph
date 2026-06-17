@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "rust-indexing-core-phase-16-sqlite-memory-final-flush-reduced-smoke",
+  "generatedAt": "2026-06-17T03:47:15.385Z",
+  "kind": "reduced-smoke",
+  "sqliteWriteMode": "memory-final-flush",
+  "runtime": {
+    "node": "/Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "rustCore": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/target/debug/zcodegraph-core"
+  },
+  "target": {
+    "path": "/private/tmp/zcodegraph-phase16-reduced-smoke",
+    "files": ["index.ts"]
+  },
+  "commands": [
+    "node dist/bin/zcodegraph.js init /private/tmp/zcodegraph-phase16-reduced-smoke",
+    "ZCODEGRAPH_RUST_CORE_BINARY=/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/target/debug/zcodegraph-core node dist/bin/zcodegraph.js index /private/tmp/zcodegraph-phase16-reduced-smoke --engine rust --sqlite-write-mode memory-final-flush --force --quiet",
+    "node dist/bin/zcodegraph.js status /private/tmp/zcodegraph-phase16-reduced-smoke --json"
+  ],
+  "status": {
+    "initialized": true,
+    "version": "0.9.9",
+    "fileCount": 1,
+    "nodeCount": 3,
+    "edgeCount": 3,
+    "dbSizeBytes": 143360,
+    "backend": "node-sqlite",
+    "journalMode": "wal",
+    "nodesByKind": {
+      "file": 1,
+      "function": 2
+    },
+    "languages": ["typescript"],
+    "index": {
+      "engine": "rust",
+      "engineVersion": "0.1.0",
+      "builtWithVersion": "0.1.0",
+      "builtWithExtractionVersion": 1,
+      "currentExtractionVersion": 1,
+      "reindexRecommended": false
+    }
+  },
+  "classification": "prototype-reduced-smoke-passed"
+}

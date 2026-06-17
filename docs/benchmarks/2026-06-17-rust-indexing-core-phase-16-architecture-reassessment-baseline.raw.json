@@ -1,0 +1,866 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "rust-indexing-core-phase-16-architecture-reassessment-baseline",
+  "kind": "indexing-ab",
+  "generatedAt": "2026-06-17T04:17:10.517Z",
+  "arms": [
+    "typescript",
+    "rust"
+  ],
+  "sourceCopy": {
+    "mode": "js-ts-config-slice",
+    "isolation": "per-arm"
+  },
+  "rust": {
+    "graphWorkProfile": "matched-ts-js",
+    "sqliteWriteMode": "disk"
+  },
+  "profiling": {
+    "heap": false,
+    "summaryHtml": false
+  },
+  "manifest": {
+    "path": "docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-architecture-reassessment-baseline.experiment.json",
+    "unknownFields": []
+  },
+  "preflight": {
+    "status": "completed",
+    "diagnostics": [],
+    "toolchain": {
+      "node": "v24.14.0",
+      "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+      "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+      "os": "Darwin 25.5.0 arm64"
+    },
+    "rustCore": {
+      "path": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/target/debug/zcodegraph-core",
+      "available": true
+    }
+  },
+  "targets": [
+    {
+      "name": "zcodegraph",
+      "targetClass": "required",
+      "requiredForDecision": true,
+      "requiredAfterPrdCompletion": false,
+      "sparsePatterns": [],
+      "path": {
+        "configuredPathEnv": null,
+        "configuredPathFallback": ".",
+        "resolvedPath": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph",
+        "pathSource": "fallback"
+      },
+      "preflight": {
+        "status": "available",
+        "kind": null,
+        "diagnostics": [],
+        "commit": "48a088a2a8167416cc5ee21ece3fe800245474e8",
+        "dirty": true,
+        "promptIds": [
+          "ZCG-1",
+          "ZCG-2",
+          "ZCG-3"
+        ]
+      },
+      "arms": {
+        "typescript": {
+          "engine": "typescript",
+          "graphWorkProfile": null,
+          "sqliteWriteMode": null,
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 4519,
+            "peakRssBytes": 48840704,
+            "timingsMs": {
+              "sourceCopy": 76,
+              "init": 2040,
+              "index": 2403,
+              "graphStats": 22,
+              "total": 4519
+            },
+            "indexProfile": null,
+            "profiling": {
+              "heapReport": null,
+              "heapSummaryHtml": null
+            },
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-Wy7Vxv",
+            "copiedFiles": 299,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 290,
+            "nodeCount": 4169,
+            "edgeCount": 17617,
+            "nodeKinds": {
+              "class": 60,
+              "constant": 470,
+              "file": 290,
+              "function": 1097,
+              "import": 1201,
+              "interface": 165,
+              "method": 811,
+              "property": 2,
+              "type_alias": 35,
+              "variable": 38
+            },
+            "edgeKinds": {
+              "calls": 7597,
+              "contains": 3879,
+              "extends": 8,
+              "implements": 21,
+              "imports": 2908,
+              "instantiates": 410,
+              "references": 2794
+            },
+            "dbSizeBytes": 17252352
+          },
+          "command": {
+            "executable": "/Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+            "args": [
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
+              "index",
+              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-Wy7Vxv",
+              "--force",
+              "--quiet"
+            ],
+            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-Wy7Vxv",
+            "nodeVersion": "v24.14.0",
+            "env": {}
+          }
+        },
+        "rust": {
+          "engine": "rust",
+          "graphWorkProfile": {
+            "configured": "matched-ts-js",
+            "effective": "matched-ts-js",
+            "source": "experiment"
+          },
+          "sqliteWriteMode": {
+            "configured": "disk",
+            "effective": "disk",
+            "source": "experiment"
+          },
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 4150,
+            "peakRssBytes": 51380224,
+            "timingsMs": {
+              "sourceCopy": 38,
+              "init": 1869,
+              "index": 2243,
+              "graphStats": 21,
+              "total": 4150
+            },
+            "indexProfile": {
+              "rustCore": {
+                "sourceScanMs": 0,
+                "parseExtractionMs": 913,
+                "sqliteWriteMs": 462,
+                "subprocessStartupHandoffMs": 3
+              },
+              "finalize": {
+                "frameworkPostExtractMs": 3,
+                "referenceResolutionMs": 116,
+                "referenceResolutionBreakdown": {
+                  "importResolutionMs": 45,
+                  "nameMatchingMs": 35,
+                  "frameworkMatchingMs": 9,
+                  "databaseAccessMs": 21,
+                  "cacheWarmupMs": 1,
+                  "unresolvedReadMs": 3,
+                  "candidateLookupMs": 12,
+                  "sharedCandidateLookupMs": 3,
+                  "candidateLookupCacheHitMs": 2,
+                  "perReferenceDisambiguationMs": 26,
+                  "rustMatcherMs": 0,
+                  "rustMatcherStartupMs": 0,
+                  "rustMatcherSerializationMs": 0,
+                  "rustMatcherEligibleRefs": 0,
+                  "rustMatcherHandledRefs": 0,
+                  "rustMatcherFallbackRefs": 0,
+                  "rustMatcherSemanticMismatchRefs": 0,
+                  "rustMatcherSemanticMismatchSamples": [],
+                  "rustMatcherFallbackReasons": {},
+                  "rustMatcherCandidateMaterializationMs": 0,
+                  "rustMatcherSubprocessMs": 0,
+                  "rustMatcherTsVerificationMs": 0,
+                  "rustMatcherPayloadBytes": 0,
+                  "rustMatcherUniqueCandidateFacts": 0,
+                  "edgeMaterializationMs": 1,
+                  "edgeWriteMs": 12,
+                  "unresolvedCleanupMs": 4,
+                  "otherResolutionMs": 0
+                },
+                "dynamicDispatchSynthesisMs": 323,
+                "dbMaintenanceMs": 5
+              },
+              "typescriptFinalizationMs": 448
+            },
+            "profiling": {
+              "heapReport": null,
+              "heapSummaryHtml": null
+            },
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-H81YoT",
+            "copiedFiles": 299,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 290,
+            "nodeCount": 5949,
+            "edgeCount": 7957,
+            "nodeKinds": {
+              "class": 59,
+              "file": 290,
+              "function": 2401,
+              "import": 1197,
+              "interface": 165,
+              "method": 721,
+              "type_alias": 38,
+              "variable": 1078
+            },
+            "edgeKinds": {
+              "calls": 1,
+              "contains": 5659,
+              "imports": 2297
+            },
+            "dbSizeBytes": 6606848
+          },
+          "command": {
+            "executable": "/Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+            "args": [
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
+              "index",
+              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-H81YoT",
+              "--force",
+              "--quiet",
+              "--engine",
+              "rust",
+              "--graph-work-profile",
+              "matched-ts-js"
+            ],
+            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-H81YoT",
+            "nodeVersion": "v24.14.0",
+            "env": {
+              "ZCODEGRAPH_RUST_CORE_BINARY": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/target/debug/zcodegraph-core",
+              "ZCODEGRAPH_INDEX_PROFILE_OUT": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-H81YoT/.zcodegraph/rust-index-profile.json"
+            }
+          }
+        }
+      },
+      "gates": {
+        "sufficiency": {
+          "status": "passed",
+          "regressions": []
+        },
+        "performance": {
+          "status": "unavailable",
+          "wallTimeDeltaPct": -8.16552334587298,
+          "peakRssDeltaPct": 5.19959745051996,
+          "diagnostics": [
+            {
+              "kind": "wall-time-phase-dominant",
+              "message": "Dominant Rust wall-time phase is index",
+              "arm": "rust",
+              "phase": "index",
+              "elapsedMs": 2243
+            },
+            {
+              "kind": "wall-time-phase-dominant",
+              "message": "Dominant TypeScript wall-time phase is index",
+              "arm": "typescript",
+              "phase": "index",
+              "elapsedMs": 2403
+            }
+          ]
+        }
+      },
+      "classification": "target-failed-performance-gate-unmet"
+    },
+    {
+      "name": "excalidraw",
+      "targetClass": "required",
+      "requiredForDecision": true,
+      "requiredAfterPrdCompletion": false,
+      "sparsePatterns": [],
+      "path": {
+        "configuredPathEnv": "ZCODEGRAPH_CORPUS_EXCALIDRAW",
+        "configuredPathFallback": "/private/tmp/codegraph-corpus/excalidraw",
+        "resolvedPath": "/private/tmp/codegraph-corpus/excalidraw",
+        "pathSource": "env"
+      },
+      "preflight": {
+        "status": "available",
+        "kind": null,
+        "diagnostics": [],
+        "commit": null,
+        "dirty": false,
+        "promptIds": [
+          "EX-1",
+          "EX-2",
+          "EX-3"
+        ]
+      },
+      "arms": {
+        "typescript": {
+          "engine": "typescript",
+          "graphWorkProfile": null,
+          "sqliteWriteMode": null,
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 3627,
+            "peakRssBytes": 45432832,
+            "timingsMs": {
+              "sourceCopy": 28,
+              "init": 1678,
+              "index": 1921,
+              "graphStats": 25,
+              "total": 3627
+            },
+            "indexProfile": null,
+            "profiling": {
+              "heapReport": null,
+              "heapSummaryHtml": null
+            },
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-1N7BbM",
+            "copiedFiles": 34,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 34,
+            "nodeCount": 2360,
+            "edgeCount": 7204,
+            "nodeKinds": {
+              "class": 11,
+              "constant": 297,
+              "file": 34,
+              "function": 532,
+              "import": 757,
+              "interface": 11,
+              "method": 388,
+              "property": 208,
+              "type_alias": 105,
+              "variable": 17
+            },
+            "edgeKinds": {
+              "calls": 2729,
+              "contains": 2326,
+              "imports": 1175,
+              "instantiates": 95,
+              "references": 879
+            },
+            "dbSizeBytes": 11526144
+          },
+          "command": {
+            "executable": "/Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+            "args": [
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
+              "index",
+              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-1N7BbM",
+              "--force",
+              "--quiet"
+            ],
+            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-1N7BbM",
+            "nodeVersion": "v24.14.0",
+            "env": {}
+          }
+        },
+        "rust": {
+          "engine": "rust",
+          "graphWorkProfile": {
+            "configured": "matched-ts-js",
+            "effective": "matched-ts-js",
+            "source": "experiment"
+          },
+          "sqliteWriteMode": {
+            "configured": "disk",
+            "effective": "disk",
+            "source": "experiment"
+          },
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 3325,
+            "peakRssBytes": 48840704,
+            "timingsMs": {
+              "sourceCopy": 11,
+              "init": 1714,
+              "index": 1600,
+              "graphStats": 19,
+              "total": 3325
+            },
+            "indexProfile": {
+              "rustCore": {
+                "sourceScanMs": 0,
+                "parseExtractionMs": 769,
+                "sqliteWriteMs": 304,
+                "subprocessStartupHandoffMs": 3
+              },
+              "finalize": {
+                "frameworkPostExtractMs": 2,
+                "referenceResolutionMs": 80,
+                "referenceResolutionBreakdown": {
+                  "importResolutionMs": 45,
+                  "nameMatchingMs": 16,
+                  "frameworkMatchingMs": 1,
+                  "databaseAccessMs": 14,
+                  "cacheWarmupMs": 2,
+                  "unresolvedReadMs": 2,
+                  "candidateLookupMs": 6,
+                  "sharedCandidateLookupMs": 1,
+                  "candidateLookupCacheHitMs": 1,
+                  "perReferenceDisambiguationMs": 11,
+                  "rustMatcherMs": 0,
+                  "rustMatcherStartupMs": 0,
+                  "rustMatcherSerializationMs": 0,
+                  "rustMatcherEligibleRefs": 0,
+                  "rustMatcherHandledRefs": 0,
+                  "rustMatcherFallbackRefs": 0,
+                  "rustMatcherSemanticMismatchRefs": 0,
+                  "rustMatcherSemanticMismatchSamples": [],
+                  "rustMatcherFallbackReasons": {},
+                  "rustMatcherCandidateMaterializationMs": 0,
+                  "rustMatcherSubprocessMs": 0,
+                  "rustMatcherTsVerificationMs": 0,
+                  "rustMatcherPayloadBytes": 0,
+                  "rustMatcherUniqueCandidateFacts": 0,
+                  "edgeMaterializationMs": 1,
+                  "edgeWriteMs": 5,
+                  "unresolvedCleanupMs": 4,
+                  "otherResolutionMs": 0
+                },
+                "dynamicDispatchSynthesisMs": 315,
+                "dbMaintenanceMs": 3
+              },
+              "typescriptFinalizationMs": 400
+            },
+            "profiling": {
+              "heapReport": null,
+              "heapSummaryHtml": null
+            },
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-wihdkT",
+            "copiedFiles": 34,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 34,
+            "nodeCount": 2630,
+            "edgeCount": 3755,
+            "nodeKinds": {
+              "class": 11,
+              "file": 34,
+              "function": 890,
+              "import": 757,
+              "interface": 11,
+              "method": 364,
+              "type_alias": 106,
+              "variable": 457
+            },
+            "edgeKinds": {
+              "calls": 68,
+              "contains": 2596,
+              "imports": 1091
+            },
+            "dbSizeBytes": 3702784
+          },
+          "command": {
+            "executable": "/Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+            "args": [
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
+              "index",
+              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-wihdkT",
+              "--force",
+              "--quiet",
+              "--engine",
+              "rust",
+              "--graph-work-profile",
+              "matched-ts-js"
+            ],
+            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-wihdkT",
+            "nodeVersion": "v24.14.0",
+            "env": {
+              "ZCODEGRAPH_RUST_CORE_BINARY": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/target/debug/zcodegraph-core",
+              "ZCODEGRAPH_INDEX_PROFILE_OUT": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-wihdkT/.zcodegraph/rust-index-profile.json"
+            }
+          }
+        }
+      },
+      "gates": {
+        "sufficiency": {
+          "status": "passed",
+          "regressions": []
+        },
+        "performance": {
+          "status": "unavailable",
+          "wallTimeDeltaPct": -8.3264405845051,
+          "peakRssDeltaPct": 7.500901550667148,
+          "diagnostics": [
+            {
+              "kind": "wall-time-phase-dominant",
+              "message": "Dominant Rust wall-time phase is init",
+              "arm": "rust",
+              "phase": "init",
+              "elapsedMs": 1714
+            },
+            {
+              "kind": "wall-time-phase-dominant",
+              "message": "Dominant TypeScript wall-time phase is index",
+              "arm": "typescript",
+              "phase": "index",
+              "elapsedMs": 1921
+            },
+            {
+              "kind": "wall-time-regression-source",
+              "message": "Largest Rust-over-TypeScript wall-time delta is init",
+              "phase": "init",
+              "typescriptMs": 1678,
+              "rustMs": 1714,
+              "deltaMs": 36
+            }
+          ]
+        }
+      },
+      "classification": "target-failed-performance-gate-unmet"
+    },
+    {
+      "name": "vscode",
+      "targetClass": "stress",
+      "requiredForDecision": false,
+      "requiredAfterPrdCompletion": true,
+      "sparsePatterns": [
+        ".github",
+        "build",
+        "extensions",
+        "scripts",
+        "src",
+        "test"
+      ],
+      "path": {
+        "configuredPathEnv": "ZCODEGRAPH_CORPUS_VSCODE",
+        "configuredPathFallback": "/private/tmp/codegraph-corpus/vscode-sparse",
+        "resolvedPath": "/private/tmp/codegraph-corpus/vscode-sparse",
+        "pathSource": "env"
+      },
+      "preflight": {
+        "status": "available",
+        "kind": null,
+        "diagnostics": [],
+        "commit": "4ac5322601c6985aba4cd9349c23f4ef22dc3e65",
+        "dirty": true,
+        "promptIds": [
+          "VS-1"
+        ]
+      },
+      "arms": {
+        "typescript": {
+          "engine": "typescript",
+          "graphWorkProfile": null,
+          "sqliteWriteMode": null,
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 504394,
+            "peakRssBytes": 9895936,
+            "timingsMs": {
+              "sourceCopy": 2729,
+              "init": 231602,
+              "index": 270061,
+              "graphStats": 166,
+              "total": 504394
+            },
+            "indexProfile": null,
+            "profiling": {
+              "heapReport": null,
+              "heapSummaryHtml": null
+            },
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-rOjIV9",
+            "copiedFiles": 11518,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 11098,
+            "nodeCount": 329355,
+            "edgeCount": 1512994,
+            "nodeKinds": {
+              "class": 13204,
+              "component": 9,
+              "constant": 13580,
+              "enum": 1999,
+              "enum_member": 12799,
+              "file": 11098,
+              "function": 21411,
+              "import": 106827,
+              "interface": 13284,
+              "method": 123696,
+              "property": 6368,
+              "route": 1,
+              "type_alias": 4428,
+              "variable": 651
+            },
+            "edgeKinds": {
+              "calls": 592880,
+              "contains": 318058,
+              "decorates": 756,
+              "extends": 6286,
+              "implements": 4753,
+              "imports": 271051,
+              "instantiates": 54921,
+              "references": 264289
+            },
+            "dbSizeBytes": 1057366016
+          },
+          "command": {
+            "executable": "/Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+            "args": [
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
+              "index",
+              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-rOjIV9",
+              "--force",
+              "--quiet"
+            ],
+            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-typescript-rOjIV9",
+            "nodeVersion": "v24.14.0",
+            "env": {}
+          }
+        },
+        "rust": {
+          "engine": "rust",
+          "graphWorkProfile": {
+            "configured": "matched-ts-js",
+            "effective": "matched-ts-js",
+            "source": "experiment"
+          },
+          "sqliteWriteMode": {
+            "configured": "disk",
+            "effective": "disk",
+            "source": "experiment"
+          },
+          "preflight": {
+            "status": "available",
+            "kind": null,
+            "diagnostics": []
+          },
+          "execution": {
+            "status": "completed",
+            "elapsedMs": 385397,
+            "peakRssBytes": 12861440,
+            "timingsMs": {
+              "sourceCopy": 2918,
+              "init": 230091,
+              "index": 152388,
+              "graphStats": 48,
+              "total": 385397
+            },
+            "indexProfile": {
+              "rustCore": {
+                "sourceScanMs": 93,
+                "parseExtractionMs": 40557,
+                "sqliteWriteMs": 66317,
+                "subprocessStartupHandoffMs": 4
+              },
+              "finalize": {
+                "frameworkPostExtractMs": 44,
+                "referenceResolutionMs": 24620,
+                "referenceResolutionBreakdown": {
+                  "importResolutionMs": 5806,
+                  "nameMatchingMs": 9205,
+                  "frameworkMatchingMs": 481,
+                  "databaseAccessMs": 8236,
+                  "cacheWarmupMs": 158,
+                  "unresolvedReadMs": 345,
+                  "candidateLookupMs": 1624,
+                  "sharedCandidateLookupMs": 585,
+                  "candidateLookupCacheHitMs": 320,
+                  "perReferenceDisambiguationMs": 8166,
+                  "rustMatcherMs": 0,
+                  "rustMatcherStartupMs": 0,
+                  "rustMatcherSerializationMs": 0,
+                  "rustMatcherEligibleRefs": 0,
+                  "rustMatcherHandledRefs": 0,
+                  "rustMatcherFallbackRefs": 0,
+                  "rustMatcherSemanticMismatchRefs": 0,
+                  "rustMatcherSemanticMismatchSamples": [],
+                  "rustMatcherFallbackReasons": {},
+                  "rustMatcherCandidateMaterializationMs": 0,
+                  "rustMatcherSubprocessMs": 0,
+                  "rustMatcherTsVerificationMs": 0,
+                  "rustMatcherPayloadBytes": 0,
+                  "rustMatcherUniqueCandidateFacts": 0,
+                  "edgeMaterializationMs": 21,
+                  "edgeWriteMs": 5315,
+                  "unresolvedCleanupMs": 2397,
+                  "otherResolutionMs": 129
+                },
+                "dynamicDispatchSynthesisMs": 8577,
+                "dbMaintenanceMs": 80
+              },
+              "typescriptFinalizationMs": 33344
+            },
+            "profiling": {
+              "heapReport": null,
+              "heapSummaryHtml": null
+            },
+            "diagnostics": []
+          },
+          "indexing": {
+            "status": "completed"
+          },
+          "sourceCopy": {
+            "path": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-4b9F5K",
+            "copiedFiles": 11518,
+            "mode": "js-ts-config-slice",
+            "skipped": false
+          },
+          "graphAvailable": true,
+          "graphStats": {
+            "fileCount": 11291,
+            "nodeCount": 308848,
+            "edgeCount": 553834,
+            "nodeKinds": {
+              "class": 12680,
+              "enum": 1999,
+              "file": 11291,
+              "function": 40160,
+              "import": 107519,
+              "interface": 13438,
+              "method": 88931,
+              "type_alias": 4948,
+              "variable": 27882
+            },
+            "edgeKinds": {
+              "calls": 1031,
+              "contains": 297601,
+              "imports": 255202
+            },
+            "dbSizeBytes": 466526208
+          },
+          "command": {
+            "executable": "/Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+            "args": [
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
+              "index",
+              "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-4b9F5K",
+              "--force",
+              "--quiet",
+              "--engine",
+              "rust",
+              "--graph-work-profile",
+              "matched-ts-js"
+            ],
+            "cwd": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-4b9F5K",
+            "nodeVersion": "v24.14.0",
+            "env": {
+              "ZCODEGRAPH_RUST_CORE_BINARY": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/target/debug/zcodegraph-core",
+              "ZCODEGRAPH_INDEX_PROFILE_OUT": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-experiment-rust-4b9F5K/.zcodegraph/rust-index-profile.json"
+            }
+          }
+        }
+      },
+      "gates": {
+        "sufficiency": {
+          "status": "passed",
+          "regressions": []
+        },
+        "performance": {
+          "status": "unavailable",
+          "wallTimeDeltaPct": -23.592072863674034,
+          "peakRssDeltaPct": 29.96688741721854,
+          "diagnostics": [
+            {
+              "kind": "wall-time-phase-dominant",
+              "message": "Dominant Rust wall-time phase is init",
+              "arm": "rust",
+              "phase": "init",
+              "elapsedMs": 230091
+            },
+            {
+              "kind": "wall-time-phase-dominant",
+              "message": "Dominant TypeScript wall-time phase is index",
+              "arm": "typescript",
+              "phase": "index",
+              "elapsedMs": 270061
+            },
+            {
+              "kind": "wall-time-regression-source",
+              "message": "Largest Rust-over-TypeScript wall-time delta is sourceCopy",
+              "phase": "sourceCopy",
+              "typescriptMs": 2729,
+              "rustMs": 2918,
+              "deltaMs": 189
+            }
+          ]
+        }
+      },
+      "classification": "target-failed-performance-gate-unmet"
+    }
+  ],
+  "classification": "failed-required-performance-gate-unmet",
+  "decisionReadiness": {
+    "sufficiencyPassed": true,
+    "performancePassed": false,
+    "requiredTargetsPassed": false,
+    "rolloutReadinessClaimed": false
+  }
+}

@@ -8,6 +8,7 @@ interface RustIndexerOptions {
   force?: boolean;
   verbose?: boolean;
   graphWorkProfile?: 'full' | 'matched-ts-js';
+  sqliteWriteMode?: 'disk' | 'memory-final-flush';
   profiling?: 'heap';
   onProgress?: (progress: IndexProgress) => void;
 }
@@ -318,6 +319,9 @@ export async function runRustIndexer(
   }
   if (options.graphWorkProfile) {
     args.push('--graph-work-profile', options.graphWorkProfile);
+  }
+  if (options.sqliteWriteMode) {
+    args.push('--sqlite-write-mode', options.sqliteWriteMode);
   }
 
   return new Promise<IndexResult>((resolve, reject) => {

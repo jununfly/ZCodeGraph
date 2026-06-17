@@ -77,6 +77,7 @@ pub struct IndexRequest {
     pub force: bool,
     pub verbose: bool,
     pub graph_work_profile: GraphWorkProfile,
+    pub sqlite_write_mode: SqliteWriteMode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,6 +120,31 @@ impl GraphWorkProfile {
                 export_extraction: false,
                 aggressive_call_extraction: false,
             },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SqliteWriteMode {
+    Disk,
+    MemoryFinalFlush,
+}
+
+impl Default for SqliteWriteMode {
+    fn default() -> Self {
+        SqliteWriteMode::Disk
+    }
+}
+
+impl SqliteWriteMode {
+    pub fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "disk" => Ok(SqliteWriteMode::Disk),
+            "memory-final-flush" => Ok(SqliteWriteMode::MemoryFinalFlush),
+            other => Err(format!(
+                "unsupported SQLite write mode: {}. Supported modes: disk, memory-final-flush",
+                other
+            )),
         }
     }
 }
@@ -903,22 +929,7 @@ pub fn write_minimal_index(
     }
 
     let write_result = (|| -> Result<WriteCounts, Box<dyn std::error::Error>> {
-        let counts = {
-            let sqlite_setup_started = Instant::now();
-            let mut conn = Connection::open(&temp_path)?;
-            configure_index_connection(&conn)?;
-            conn.execute_batch(SCHEMA_SQL)?;
-            stamp_schema_version(&conn)?;
-            stamp_metadata(&conn)?;
-            let sqlite_setup_ms = sqlite_setup_started.elapsed().as_millis();
-            let mut counts = index_javascript_files(
-                &mut conn,
-                Path::new(&request.project_path),
-                request.graph_work_profile.features(),
-            )?;
-            counts.profile.sqlite_write_ms += sqlite_setup_ms;
-            counts
-        };
+        let counts = write_temp_index(request, &temp_path)?;
 
         let replace_started = Instant::now();
         replace_active_index(&temp_path, index_path)?;
@@ -934,6 +945,49 @@ pub fn write_minimal_index(
     }
 
     write_result
+}
+
+fn write_temp_index(
+    request: &IndexRequest,
+    temp_path: &Path,
+) -> Result<WriteCounts, Box<dyn std::error::Error>> {
+    match request.sqlite_write_mode {
+        SqliteWriteMode::Disk => {
+            let mut conn = Connection::open(temp_path)?;
+            write_index_to_connection(&mut conn, request)
+        }
+        SqliteWriteMode::MemoryFinalFlush => {
+            let mut conn = Connection::open_in_memory()?;
+            let mut counts = write_index_to_connection(&mut conn, request)?;
+            let flush_started = Instant::now();
+            if temp_path.exists() {
+                fs::remove_file(temp_path)?;
+            }
+            let escaped_path = temp_path.to_string_lossy().replace('\'', "''");
+            conn.execute_batch(&format!("VACUUM main INTO '{}'", escaped_path))?;
+            counts.profile.sqlite_write_ms += flush_started.elapsed().as_millis();
+            Ok(counts)
+        }
+    }
+}
+
+fn write_index_to_connection(
+    conn: &mut Connection,
+    request: &IndexRequest,
+) -> Result<WriteCounts, Box<dyn std::error::Error>> {
+    let sqlite_setup_started = Instant::now();
+    configure_index_connection(conn)?;
+    conn.execute_batch(SCHEMA_SQL)?;
+    stamp_schema_version(conn)?;
+    stamp_metadata(conn)?;
+    let sqlite_setup_ms = sqlite_setup_started.elapsed().as_millis();
+    let mut counts = index_javascript_files(
+        conn,
+        Path::new(&request.project_path),
+        request.graph_work_profile.features(),
+    )?;
+    counts.profile.sqlite_write_ms += sqlite_setup_ms;
+    Ok(counts)
 }
 
 fn configure_index_connection(conn: &Connection) -> rusqlite::Result<()> {
@@ -2578,6 +2632,7 @@ mod tests {
             force: true,
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
         };
 
         let result = run_index(&request);
@@ -2623,6 +2678,7 @@ mod tests {
             force: true,
             verbose: false,
             graph_work_profile: GraphWorkProfile::MatchedTsJs,
+            sqlite_write_mode: SqliteWriteMode::Disk,
         };
 
         let result = run_index(&request);
@@ -2689,6 +2745,7 @@ mod tests {
             force: true,
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
         };
 
         let result = run_index(&request);
@@ -2700,6 +2757,61 @@ mod tests {
             "import type queries should parse without Rust-core syntax errors: {:?}",
             result.errors
         );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn memory_final_flush_sqlite_mode_writes_a_readable_index() {
+        let dir = temp_dir("memory-final-flush");
+        fs::write(
+            dir.join("index.ts"),
+            "export function alpha(): number { return 1; }\n",
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::MemoryFinalFlush,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 1);
+        let conn = Connection::open(&request.index_path).unwrap();
+        let alpha_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM nodes WHERE name = 'alpha'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let schema_version: i64 = conn
+            .query_row(
+                "SELECT version FROM schema_versions WHERE version = ?1",
+                params![CURRENT_SCHEMA_VERSION],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let engine: String = conn
+            .query_row(
+                "SELECT value FROM project_metadata WHERE key = 'indexed_with_engine'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(alpha_count, 1);
+        assert_eq!(schema_version, CURRENT_SCHEMA_VERSION);
+        assert_eq!(engine, "rust");
         fs::remove_dir_all(dir).unwrap();
     }
 
@@ -2730,6 +2842,7 @@ mod tests {
             force: true,
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
         };
 
         let result = run_index(&request);

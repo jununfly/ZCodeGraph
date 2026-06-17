@@ -154,6 +154,27 @@ describe('zcodegraph index engine selection', () => {
     expect(marker.args).toContain('matched-ts-js');
   });
 
+  it('passes experimental SQLite write mode to the Rust subprocess only when selected by CLI flag', () => {
+    const rustCore = writeFakeRustCore(tempDir);
+    const defaultResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(defaultResult.status, `stdout:\n${defaultResult.stdout}\nstderr:\n${defaultResult.stderr}`).toBe(0);
+    const defaultMarker = JSON.parse(fs.readFileSync(fakeRustCoreMarker(tempDir), 'utf-8')) as { args: string[] };
+    expect(defaultMarker.args).not.toContain('--sqlite-write-mode');
+
+    fs.rmSync(fakeRustCoreMarker(tempDir), { force: true });
+    const experimentResult = runCli(tempDir, ['index', '--engine', 'rust', '--sqlite-write-mode', 'memory-final-flush', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(experimentResult.status, `stdout:\n${experimentResult.stdout}\nstderr:\n${experimentResult.stderr}`).toBe(0);
+    const experimentMarker = JSON.parse(fs.readFileSync(fakeRustCoreMarker(tempDir), 'utf-8')) as { args: string[] };
+    expect(experimentMarker.args).toContain('--sqlite-write-mode');
+    expect(experimentMarker.args).toContain('memory-final-flush');
+  });
+
   it('passes heap profiling to the Rust subprocess when selected by CLI flag', () => {
     const rustCore = writeFakeRustCore(tempDir);
     const result = runCli(tempDir, ['index', '--engine', 'rust', '--profile', 'heap', '--quiet'], {

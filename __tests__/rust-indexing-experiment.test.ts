@@ -190,6 +190,78 @@ describe('Rust indexing formal experiment runner', () => {
     expect(summary).toContain('matched-ts-js controls the most obvious rerun5 cost drivers');
   });
 
+  it('passes experimental SQLite write mode from the manifest to the Rust arm only', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-sqlite-write-mode-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(path.join(source, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(source, 'package.json'), JSON.stringify({ type: 'module' }));
+    fs.writeFileSync(path.join(source, 'src', 'flow.ts'), 'export function alpha() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+
+    const { result, out, summaryOut } = runWithManifest(
+      canonicalManifest({
+        rust: {
+          graphWorkProfile: 'matched-ts-js',
+          sqliteWriteMode: 'memory-final-flush',
+        },
+        targets: [
+          {
+            name: 'fixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+        ],
+      }),
+    );
+
+    const rerun = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', path.join(path.dirname(out), 'experiment.json'), '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+        },
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(rerun.status, `stdout:\n${rerun.stdout}\nstderr:\n${rerun.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      rust: { sqliteWriteMode: string };
+      targets: Array<{
+        arms: {
+          typescript: { command: { args: string[] } };
+          rust: {
+            sqliteWriteMode: { configured: string; effective: string; source: string };
+            command: { args: string[] };
+          };
+        };
+      }>;
+    };
+    expect(artifact.rust.sqliteWriteMode).toBe('memory-final-flush');
+    expect(artifact.targets[0].arms.rust.sqliteWriteMode).toEqual({
+      configured: 'memory-final-flush',
+      effective: 'memory-final-flush',
+      source: 'experiment',
+    });
+    expect(artifact.targets[0].arms.rust.command.args).toContain('--sqlite-write-mode');
+    expect(artifact.targets[0].arms.rust.command.args).toContain('memory-final-flush');
+    expect(artifact.targets[0].arms.typescript.command.args).not.toContain('--sqlite-write-mode');
+
+    const summary = fs.readFileSync(summaryOut, 'utf-8');
+    expect(summary).toContain('## Rust SQLite write modes');
+    expect(summary).toContain('| fixture | memory-final-flush | experiment |');
+  });
+
   it('rejects unknown Rust graph work profiles from the manifest', () => {
     const { result, out } = runWithManifest(
       canonicalManifest({

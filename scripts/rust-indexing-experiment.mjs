@@ -17,6 +17,7 @@ const PHASE1_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx']);
 const CONFIG_FILES = new Set(['package.json', 'tsconfig.json', 'jsconfig.json']);
 const SKIP_DIRS = new Set(['.git', '.zcodegraph', 'node_modules', 'dist', 'target', '.next', 'coverage']);
 const SUPPORTED_GRAPH_WORK_PROFILES = new Set(['full', 'matched-ts-js']);
+const SUPPORTED_SQLITE_WRITE_MODES = new Set(['disk', 'memory-final-flush']);
 
 const SUPPORTED_TOP_LEVEL_FIELDS = new Set([
   'schemaVersion',
@@ -104,6 +105,21 @@ function validateGraphWorkProfile(value, field, diagnostics) {
       diagnostic('unsupported-graph-work-profile', `Unsupported graph work profile at ${field}; supported profiles: full, matched-ts-js`, {
         field,
         supported: Array.from(SUPPORTED_GRAPH_WORK_PROFILES),
+        value,
+      }),
+    );
+    return null;
+  }
+  return value;
+}
+
+function validateSqliteWriteMode(value, field, diagnostics) {
+  if (value == null) return null;
+  if (typeof value !== 'string' || !SUPPORTED_SQLITE_WRITE_MODES.has(value)) {
+    diagnostics.push(
+      diagnostic('unsupported-sqlite-write-mode', `Unsupported SQLite write mode at ${field}; supported modes: disk, memory-final-flush`, {
+        field,
+        supported: Array.from(SUPPORTED_SQLITE_WRITE_MODES),
         value,
       }),
     );
@@ -220,6 +236,7 @@ function validateManifest(manifest) {
   }
 
   const experimentGraphWorkProfile = validateGraphWorkProfile(manifest.rust?.graphWorkProfile, 'rust.graphWorkProfile', diagnostics);
+  const experimentSqliteWriteMode = validateSqliteWriteMode(manifest.rust?.sqliteWriteMode, 'rust.sqliteWriteMode', diagnostics);
 
   if (!Array.isArray(manifest.targets)) {
     diagnostics.push(diagnostic('invalid-targets', 'targets must be an array', { field: 'targets' }));
@@ -243,6 +260,7 @@ function validateManifest(manifest) {
       }
       validateTargetPath(target, index, diagnostics);
       validateGraphWorkProfile(target.arms?.rust?.graphWorkProfile, `targets[${index}].arms.rust.graphWorkProfile`, diagnostics);
+      validateSqliteWriteMode(target.arms?.rust?.sqliteWriteMode, `targets[${index}].arms.rust.sqliteWriteMode`, diagnostics);
     });
   }
 
@@ -260,6 +278,7 @@ function validateManifest(manifest) {
     },
     rust: {
       graphWorkProfile: experimentGraphWorkProfile,
+      sqliteWriteMode: experimentSqliteWriteMode,
     },
     targets: Array.isArray(manifest.targets) ? manifest.targets : [],
     metrics,
@@ -359,6 +378,23 @@ function graphWorkProfileSummaryLines(targets) {
   ];
 }
 
+function sqliteWriteModeSummaryLines(targets) {
+  const rows = targets.map((target) => {
+    const mode = target.arms.rust.sqliteWriteMode;
+    return `| ${target.name} | ${mode.effective} | ${mode.source} |`;
+  });
+  return [
+    '## Rust SQLite write modes',
+    '',
+    '| Target | Effective mode | Source |',
+    '|---|---|---|',
+    ...rows,
+    '',
+    '`disk` is the default active-index write path. `memory-final-flush` is an explicit experimental prototype for Phase 16 architecture reassessment and does not claim production rollout readiness.',
+    '',
+  ];
+}
+
 function writeSummary(file, artifact, manifestPath) {
   ensureParentDir(file);
   const requiredPerformanceGateUnmet = artifact.targets.some(
@@ -384,6 +420,7 @@ function writeSummary(file, artifact, manifestPath) {
     `Rust core: ${artifact.preflight.rustCore?.available ? 'available' : 'unavailable'} (${artifact.preflight.rustCore?.path ?? 'n/a'})`,
     '',
     ...graphWorkProfileSummaryLines(artifact.targets),
+    ...sqliteWriteModeSummaryLines(artifact.targets),
     '## Arm availability and graph stats',
     '',
     ...artifact.targets.flatMap((target) => [
@@ -512,13 +549,16 @@ function runMeasuredCommand(command, args, cwd, env = {}) {
 }
 
 function childProcessFailureDetails(result) {
+  const fallbackTail = result.error?.message || '';
+  const stdoutTail = tail(result.stdout) || fallbackTail;
+  const stderrTail = tail(result.stderr) || fallbackTail;
   return {
     status: result.status,
     signal: result.signal,
     errorCode: result.error?.code,
     errorMessage: result.error?.message,
-    stdoutTail: tail(result.stdout),
-    stderrTail: tail(result.stderr),
+    stdoutTail,
+    stderrTail,
   };
 }
 
@@ -708,6 +748,20 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
   if (process.env.ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS === '1' && engine === 'rust') {
     const sourceCopyStarted = Date.now();
     arm.sourceCopy = copySourceSlice(target.path.resolvedPath, engine);
+    const bin = path.join(repoRoot, 'dist', 'bin', 'zcodegraph.js');
+    const args = [bin, 'index', arm.sourceCopy.path, '--force', '--quiet', '--engine', 'rust', '--graph-work-profile', arm.graphWorkProfile.effective];
+    if (arm.sqliteWriteMode?.effective && arm.sqliteWriteMode.effective !== 'disk') {
+      args.push('--sqlite-write-mode', arm.sqliteWriteMode.effective);
+    }
+    arm.command = {
+      executable: process.execPath,
+      args,
+      cwd: arm.sourceCopy.path,
+      nodeVersion: process.version,
+      env: {
+        ZCODEGRAPH_RUST_CORE_BINARY: rustCoreInfo.path,
+      },
+    };
     const elapsedMs = Number.parseInt(process.env.ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS || '1', 10);
     if (process.env.ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PROFILE) {
       try {
@@ -785,6 +839,9 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
     let indexProfileFile = null;
     if (engine === 'rust') {
       args.push('--engine', 'rust', '--graph-work-profile', arm.graphWorkProfile.effective);
+      if (arm.sqliteWriteMode?.effective && arm.sqliteWriteMode.effective !== 'disk') {
+        args.push('--sqlite-write-mode', arm.sqliteWriteMode.effective);
+      }
       env.ZCODEGRAPH_RUST_CORE_BINARY = rustCoreInfo.path;
       indexProfileFile = path.join(arm.sourceCopy.path, '.zcodegraph', 'rust-index-profile.json');
       env.ZCODEGRAPH_INDEX_PROFILE_OUT = indexProfileFile;
@@ -947,6 +1004,7 @@ function emptyArm(engine) {
   return {
     engine,
     graphWorkProfile: engine === 'rust' ? { configured: null, effective: 'full', source: 'built-in-default' } : null,
+    sqliteWriteMode: engine === 'rust' ? { configured: null, effective: 'disk', source: 'built-in-default' } : null,
     preflight: {
       status: 'available',
       kind: null,
@@ -1023,6 +1081,17 @@ function resolveRustGraphWorkProfile(target, experimentRust) {
   return { configured: null, effective: 'full', source: 'built-in-default' };
 }
 
+function resolveRustSqliteWriteMode(target, experimentRust) {
+  const targetArmMode = target.arms?.rust?.sqliteWriteMode;
+  if (targetArmMode) {
+    return { configured: targetArmMode, effective: targetArmMode, source: 'target-arm' };
+  }
+  if (experimentRust?.sqliteWriteMode) {
+    return { configured: experimentRust.sqliteWriteMode, effective: experimentRust.sqliteWriteMode, source: 'experiment' };
+  }
+  return { configured: null, effective: 'disk', source: 'built-in-default' };
+}
+
 function preflightTarget(target, rustCoreInfo, experimentRust = {}) {
   const targetPath = resolveTargetPath(target);
   const arms = {
@@ -1030,6 +1099,7 @@ function preflightTarget(target, rustCoreInfo, experimentRust = {}) {
     rust: emptyArm('rust'),
   };
   arms.rust.graphWorkProfile = resolveRustGraphWorkProfile(target, experimentRust);
+  arms.rust.sqliteWriteMode = resolveRustSqliteWriteMode(target, experimentRust);
   const preflight = {
     status: 'available',
     kind: null,
@@ -1155,6 +1225,7 @@ function createArtifact(normalized, manifestPath, validation) {
     generatedAt: new Date().toISOString(),
     arms: normalized.arms,
     sourceCopy: normalized.sourceCopy,
+    rust: normalized.rust,
     profiling: normalized.profiling,
     manifest: {
       path: manifestPath,
