@@ -726,6 +726,20 @@ export class CodeGraph {
       };
       dynamicDispatchSynthesisMs: number;
       dbMaintenanceMs: number;
+      boundaryProtocol: {
+        version: number;
+        productShell: 'typescript';
+        rustOwnedStages: string[];
+      };
+      fallbackTaxonomy: {
+        totalFallbacks: number;
+        entries: Array<{
+          stage: string;
+          classification: 'parity-bug' | 'intentional-improvement-candidate' | 'known-unsupported';
+          reason: string;
+          count: number;
+        }>;
+      };
     };
   }> {
     return this.indexMutex.withLock(async () => {
@@ -784,6 +798,40 @@ export class CodeGraph {
           },
           dynamicDispatchSynthesisMs: 0,
           dbMaintenanceMs: 0,
+          boundaryProtocol: {
+            version: 1,
+            productShell: 'typescript' as const,
+            rustOwnedStages: ['source-scan', 'parse-extraction', 'graph-write'],
+          },
+          fallbackTaxonomy: {
+            totalFallbacks: 4,
+            entries: [
+              {
+                stage: 'framework-post-extract',
+                classification: 'known-unsupported' as const,
+                reason: 'typescript-finalization-not-yet-migrated',
+                count: 1,
+              },
+              {
+                stage: 'reference-resolution',
+                classification: 'known-unsupported' as const,
+                reason: 'typescript-finalization-not-yet-migrated',
+                count: 1,
+              },
+              {
+                stage: 'dynamic-dispatch-synthesis',
+                classification: 'known-unsupported' as const,
+                reason: 'typescript-finalization-not-yet-migrated',
+                count: 1,
+              },
+              {
+                stage: 'db-maintenance',
+                classification: 'known-unsupported' as const,
+                reason: 'typescript-finalization-not-yet-migrated',
+                count: 1,
+              },
+            ],
+          },
         };
         const frameworkStarted = Date.now();
         this.resolver.initialize();

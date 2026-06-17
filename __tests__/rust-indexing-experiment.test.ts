@@ -961,6 +961,130 @@ describe('Rust indexing formal experiment runner', () => {
     expect(summary).toContain('| fixture | sufficiency measurement | unavailable |');
   });
 
+  it('surfaces Rust finalization boundary and fallback taxonomy in experiment artifacts', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-finalization-boundary-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(path.join(source, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(source, 'package.json'), JSON.stringify({ type: 'module' }));
+    fs.writeFileSync(path.join(source, 'src', 'flow.ts'), 'export { alpha } from "./alpha";\n');
+    fs.writeFileSync(path.join(source, 'src', 'alpha.ts'), 'export function alpha() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+    const manifest = path.join(temp, 'experiment.json');
+    const out = path.join(temp, 'artifact.json');
+    const summaryOut = path.join(temp, 'summary.md');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        experimentId: 'phase-20-finalization-boundary',
+        targets: [
+          {
+            name: 'fixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+        ],
+      }),
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PROFILE: JSON.stringify({
+            rustCore: {
+              sourceScanMs: 1,
+              parseExtractionMs: 2,
+              sqliteWriteMs: 3,
+              subprocessStartupHandoffMs: 4,
+            },
+            finalize: {
+              frameworkPostExtractMs: 5,
+              referenceResolutionMs: 6,
+              dynamicDispatchSynthesisMs: 7,
+              dbMaintenanceMs: 8,
+              boundaryProtocol: {
+                version: 1,
+                productShell: 'typescript',
+                rustOwnedStages: ['import-path-alias-resolution'],
+              },
+              fallbackTaxonomy: {
+                totalFallbacks: 2,
+                entries: [
+                  {
+                    stage: 'name-matching',
+                    classification: 'known-unsupported',
+                    reason: 'not-migrated-yet',
+                    count: 2,
+                  },
+                ],
+              },
+            },
+            typescriptFinalizationMs: 26,
+          }),
+        },
+      },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      targets: Array<{
+        arms: {
+          rust: {
+            execution: {
+              indexProfile: {
+                finalize: {
+                  boundaryProtocol: {
+                    version: number;
+                    productShell: string;
+                    rustOwnedStages: string[];
+                  };
+                  fallbackTaxonomy: {
+                    totalFallbacks: number;
+                    entries: Array<{ stage: string; classification: string; reason: string; count: number }>;
+                  };
+                };
+              };
+            };
+          };
+        };
+      }>;
+    };
+    const finalize = artifact.targets[0].arms.rust.execution.indexProfile.finalize;
+    expect(finalize.boundaryProtocol).toMatchObject({
+      version: 1,
+      productShell: 'typescript',
+      rustOwnedStages: ['import-path-alias-resolution'],
+    });
+    expect(finalize.fallbackTaxonomy).toMatchObject({
+      totalFallbacks: 2,
+      entries: [
+        {
+          stage: 'name-matching',
+          classification: 'known-unsupported',
+          reason: 'not-migrated-yet',
+          count: 2,
+        },
+      ],
+    });
+
+    const summary = fs.readFileSync(summaryOut, 'utf-8');
+    expect(summary).toContain('## Rust finalization boundary');
+    expect(summary).toContain('| fixture | 1 | typescript | import-path-alias-resolution | 2 |');
+    expect(summary).toContain('## Rust finalization fallback taxonomy');
+    expect(summary).toContain('| fixture | name-matching | known-unsupported | not-migrated-yet | 2 |');
+  });
+
   it('records heap profiling reports requested by the manifest', () => {
     const temp = makeTempDir('zcodegraph-rust-experiment-heap-profile-');
     tempDirs.push(temp);

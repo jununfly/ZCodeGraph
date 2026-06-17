@@ -364,6 +364,63 @@ function fullProfileSegmentSummaryLines(targets) {
   ];
 }
 
+function finalizationBoundaryRows(target) {
+  const finalize = target.arms.rust.execution.indexProfile?.finalize ?? {};
+  const protocol = finalize.boundaryProtocol;
+  if (!protocol) return [];
+  const taxonomy = finalize.fallbackTaxonomy ?? {};
+  const stages = Array.isArray(protocol.rustOwnedStages) && protocol.rustOwnedStages.length > 0
+    ? protocol.rustOwnedStages.join(', ')
+    : 'none';
+  return [[
+    target.name,
+    protocol.version ?? 'n/a',
+    protocol.productShell ?? 'n/a',
+    stages,
+    taxonomy.totalFallbacks ?? 0,
+  ]];
+}
+
+function finalizationBoundarySummaryLines(targets) {
+  const rows = targets.flatMap((target) => finalizationBoundaryRows(target));
+  return [
+    '## Rust finalization boundary',
+    '',
+    '| Target | Protocol version | Product shell | Rust-owned stages | Fallback count |',
+    '|---|---:|---|---|---:|',
+    ...(rows.length > 0
+      ? rows.map(([target, version, productShell, stages, fallbackCount]) => `| ${target} | ${version} | ${productShell} | ${stages} | ${fallbackCount} |`)
+      : ['| n/a | n/a | n/a | n/a | 0 |']),
+    '',
+  ];
+}
+
+function finalizationFallbackRows(target) {
+  const entries = target.arms.rust.execution.indexProfile?.finalize?.fallbackTaxonomy?.entries;
+  if (!Array.isArray(entries)) return [];
+  return entries.map((entry) => [
+    target.name,
+    entry.stage ?? 'unknown',
+    entry.classification ?? 'unknown',
+    entry.reason ?? 'unknown',
+    entry.count ?? 0,
+  ]);
+}
+
+function finalizationFallbackSummaryLines(targets) {
+  const rows = targets.flatMap((target) => finalizationFallbackRows(target));
+  return [
+    '## Rust finalization fallback taxonomy',
+    '',
+    '| Target | Stage | Classification | Reason | Count |',
+    '|---|---|---|---|---:|',
+    ...(rows.length > 0
+      ? rows.map(([target, stage, classification, reason, count]) => `| ${target} | ${stage} | ${classification} | ${reason} | ${count} |`)
+      : ['| n/a | none | none | none | 0 |']),
+    '',
+  ];
+}
+
 function graphParitySummaryLines(target) {
   const tsStats = target.arms.typescript.graphStats;
   const rustStats = target.arms.rust.graphStats;
@@ -483,6 +540,8 @@ function writeSummary(file, artifact, manifestPath) {
       return rows.length > 0 ? rows.map(([name, phase, value]) => `| ${name} | ${phase} | ${value} |`) : [`| ${target.name} | n/a | n/a |`];
     }),
     '',
+    ...finalizationBoundarySummaryLines(artifact.targets),
+    ...finalizationFallbackSummaryLines(artifact.targets),
     ...fullProfileSegmentSummaryLines(artifact.targets),
     '## Gates',
     '',
