@@ -37,8 +37,11 @@ Commands run:
 - `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "resolves JS/TS relative and paths-alias imports"`
 - `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "same-file exact callable"`
 - `CODEGRAPH_ALLOW_UNSAFE_NODE=1 node scripts/rust-indexing-experiment.mjs --experiment docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.experiment.json --out docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.raw.json --summary-out docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.md`
+- `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-sufficiency-guardrail.mjs --repo vscode=/private/tmp/codegraph-corpus/vscode-sparse --prompts docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-sufficiency-prompts.json --prompt-id VS-1 --timeout-ms 900000 --out docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-vscode-sparse-sufficiency.raw.json`
 
 The validation used Node `v26.0.0` with `CODEGRAPH_ALLOW_UNSAFE_NODE=1` because no Node 22 binary was available in this shell. Treat the run as Phase 20 smoke evidence, not rollout-readiness evidence.
+
+The VS Code sparse sufficiency smoke used Node `v22.21.1` and completed successfully.
 
 ## Required Target Results
 
@@ -64,7 +67,19 @@ The fallback taxonomy artifact is `docs/benchmarks/2026-06-17-rust-indexing-core
 
 ## VS Code Sparse
 
-The broad Phase 20 manifest includes VS Code sparse at `/private/tmp/codegraph-corpus/vscode-sparse`, but the full three-target smoke did not complete in a bounded local run and was interrupted. The stress target remains unavailable for this decision with reason: local broad smoke timeout under Node 26 override.
+The broad Phase 20 manifest includes VS Code sparse at `/private/tmp/codegraph-corpus/vscode-sparse`, but the full three-target smoke did not complete in a bounded local run and was interrupted. That broad run remains unavailable with reason: local broad smoke timeout under Node 26 override.
+
+A bounded Node 22 sufficiency smoke completed afterward:
+
+- Artifact: `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-vscode-sparse-sufficiency.raw.json`
+- Commit: `4ac53226`
+- Copied files: 11518 per arm
+- TypeScript index: 223409 ms
+- Rust index: 403737 ms
+- Explore analyze: 13719 ms
+- Classification: `success-comparison-completed`
+- Regression count: 0
+- Default rollout readiness claimed: false
 
 Manifest kept for rerun:
 
@@ -85,8 +100,7 @@ What remains:
 - Binding-level import/export symbol disambiguation is still not Rust-owned.
 - Broad JS/TS reference resolution remains hybrid.
 - Framework post-extract finalization, dynamic-dispatch synthesis, and DB maintenance remain TypeScript-owned.
-- VS Code sparse Phase 20 smoke still needs a bounded rerun on a supported Node environment.
 
-#202 should remain open until the remaining Rust-owned finalization work is completed and VS Code sparse has a completed run or a more durable unavailable reason.
+#202 should remain open until the remaining Rust-owned finalization work is completed and a final Phase 20 decision can say whether the non-zero known-unsupported fallback is acceptable or must be burned down first.
 
 No Rust default rollout readiness is claimed.
