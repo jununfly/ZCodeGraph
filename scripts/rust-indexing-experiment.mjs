@@ -333,6 +333,37 @@ function rustIndexProfileRows(target) {
   return rows;
 }
 
+function fullProfileSegmentRows(target) {
+  const profile = target.arms.rust.execution.indexProfile ?? {};
+  const rustCore = profile.rustCore ?? {};
+  const finalize = profile.finalize ?? {};
+  const timings = target.arms.rust.execution.timingsMs ?? {};
+  return [
+    [target.name, 'Rust source scan', rustCore.sourceScanMs],
+    [target.name, 'Rust parse extraction', rustCore.parseExtractionMs],
+    [target.name, 'Rust SQLite write', rustCore.sqliteWriteMs],
+    [target.name, 'Rust subprocess startup/handoff', rustCore.subprocessStartupHandoffMs],
+    [target.name, 'TypeScript finalization', profile.typescriptFinalizationMs],
+    [target.name, 'Reference resolution', finalize.referenceResolutionMs],
+    [target.name, 'Dynamic-dispatch synthesis', finalize.dynamicDispatchSynthesisMs],
+    [target.name, 'DB maintenance', finalize.dbMaintenanceMs],
+    [target.name, 'graphStats measurement', timings.graphStats],
+    [target.name, 'sufficiency measurement', null, 'unavailable'],
+  ];
+}
+
+function fullProfileSegmentSummaryLines(targets) {
+  const rows = targets.flatMap((target) => fullProfileSegmentRows(target));
+  return [
+    '## Full-profile end-to-end segments',
+    '',
+    '| Target | Segment | Duration ms | Status |',
+    '|---|---|---:|---|',
+    ...rows.map(([target, segment, value, status]) => `| ${target} | ${segment} | ${typeof value === 'number' ? value : 'unavailable'} | ${status ?? (typeof value === 'number' ? 'measured' : 'unavailable')} |`),
+    '',
+  ];
+}
+
 function graphParitySummaryLines(target) {
   const tsStats = target.arms.typescript.graphStats;
   const rustStats = target.arms.rust.graphStats;
@@ -452,6 +483,7 @@ function writeSummary(file, artifact, manifestPath) {
       return rows.length > 0 ? rows.map(([name, phase, value]) => `| ${name} | ${phase} | ${value} |`) : [`| ${target.name} | n/a | n/a |`];
     }),
     '',
+    ...fullProfileSegmentSummaryLines(artifact.targets),
     '## Gates',
     '',
     ...artifact.targets.map((target) => `- ${target.name}: sufficiency=${target.gates.sufficiency.status}; performance=${target.gates.performance.status}`),

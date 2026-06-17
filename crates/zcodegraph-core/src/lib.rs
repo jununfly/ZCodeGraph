@@ -956,7 +956,16 @@ fn write_temp_index(
     match request.sqlite_write_mode {
         SqliteWriteMode::Disk | SqliteWriteMode::FinalFlush => {
             let mut conn = Connection::open(temp_path)?;
-            write_index_to_connection(&mut conn, request)
+            if request.sqlite_write_mode == SqliteWriteMode::FinalFlush {
+                configure_final_flush_staging_connection(&conn)?;
+            }
+            let mut counts = write_index_to_connection(&mut conn, request)?;
+            if request.sqlite_write_mode == SqliteWriteMode::FinalFlush {
+                let finalize_started = Instant::now();
+                configure_index_connection(&conn)?;
+                counts.profile.sqlite_write_ms += finalize_started.elapsed().as_millis();
+            }
+            Ok(counts)
         }
         SqliteWriteMode::MemoryFinalFlush => {
             let mut conn = Connection::open_in_memory()?;
@@ -996,6 +1005,15 @@ fn configure_index_connection(conn: &Connection) -> rusqlite::Result<()> {
     conn.pragma_update(None, "journal_mode", "WAL")?;
     conn.pragma_update(None, "synchronous", "NORMAL")?;
     conn.pragma_update(None, "foreign_keys", "ON")?;
+    Ok(())
+}
+
+fn configure_final_flush_staging_connection(conn: &Connection) -> rusqlite::Result<()> {
+    conn.pragma_update(None, "journal_mode", "OFF")?;
+    conn.pragma_update(None, "synchronous", "OFF")?;
+    conn.pragma_update(None, "temp_store", "MEMORY")?;
+    conn.pragma_update(None, "locking_mode", "EXCLUSIVE")?;
+    conn.pragma_update(None, "foreign_keys", "OFF")?;
     Ok(())
 }
 
@@ -2865,6 +2883,48 @@ mod tests {
             )
             .unwrap();
         assert_eq!(stable_count, 1);
+        assert_eq!(engine, "rust");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn final_flush_sqlite_mode_leaves_active_index_in_wal_mode() {
+        let dir = temp_dir("final-flush-active-wal");
+        fs::write(
+            dir.join("index.ts"),
+            "export function alpha(): number { return 1; }\n",
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(&request.index_path).unwrap();
+        let journal_mode: String = conn
+            .pragma_query_value(None, "journal_mode", |row| row.get(0))
+            .unwrap();
+        let engine: String = conn
+            .query_row(
+                "SELECT value FROM project_metadata WHERE key = 'indexed_with_engine'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(journal_mode.to_lowercase(), "wal");
         assert_eq!(engine, "rust");
         fs::remove_dir_all(dir).unwrap();
     }

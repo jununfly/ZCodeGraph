@@ -12,7 +12,7 @@ From the user's perspective, ZCodeGraph should be a reliable local code intellig
 
 Introduce an experimental Rust indexing core as a vertical slice for JavaScript, TypeScript, JSX, and TSX files. The Rust core runs as a subprocess, parses with native tree-sitter, writes the existing SQLite index schema directly, and leaves the TypeScript product shell in place for CLI orchestration, MCP tools, installer behavior, resolution, synthesizers, Explore planning, and rendering.
 
-The Rust indexer is opt-in only at first, enabled by an explicit CLI flag or environment variable. The existing TypeScript indexer remains the default and fallback path. The first phase succeeds only if semantic extraction parity is good enough, Agent Sufficiency does not regress, and the Rust path proves the intended performance or memory advantage on real repositories.
+The Rust indexer is opt-in only at first, enabled by an explicit CLI flag or environment variable. The existing TypeScript indexer remains the default and fallback path. The first PRD slice succeeds if semantic extraction parity is good enough, Agent Sufficiency does not regress, the Rust path stays within the Phase completion performance envelope, and the remaining performance blockers are captured with data-backed follow-up work. The deeper performance target remains important, but it is deferred into a post-PRD optimization milestone rather than blocking completion of the opt-in vertical slice.
 
 ## User Stories
 
@@ -58,18 +58,19 @@ The Rust indexer is opt-in only at first, enabled by an explicit CLI flag or env
 - The Rust core should expose a small command surface suitable for TypeScript orchestration: project path, database path or project index location, force/fresh-index mode, progress events, and machine-readable errors.
 - Progress and errors should be emitted in a stable machine-readable protocol that the TypeScript CLI can render using the existing user experience.
 - The first phase should avoid changing the MCP protocol, tool names, installer behavior, or release semantics beyond packaging the experimental Rust binary where needed.
-- The hard acceptance gate is: on both the ZCodeGraph repository and Excalidraw, indexing wall time must be at least 25% faster or peak RSS at least 30% lower, with the other metric not significantly worse.
+- The Phase completion gate is: on both the ZCodeGraph repository and Excalidraw, the Rust opt-in full path must index end-to-end without Agent Sufficiency regression, must leave the active index readable by the TypeScript shell and MCP tools, and must not be significantly worse than the TypeScript indexer. For this PRD, "not significantly worse" means Rust wall time is no more than 30% slower than TypeScript and peak RSS is no more than 15% higher than TypeScript on the required targets. If either metric exceeds that envelope, the PRD remains incomplete unless there is a documented maintainer decision to accept the regression for a narrower opt-in release.
+- The post-PRD optimization gate remains: on both the ZCodeGraph repository and Excalidraw, Rust indexing should become at least 25% faster or peak RSS at least 30% lower than TypeScript, with the other metric not significantly worse. This is no longer the completion gate for the Rust opt-in vertical slice; it is the follow-up deep optimization target after the end-to-end Rust implementation is complete.
 - Agent Sufficiency must not regress: representative ZCodeGraph and Excalidraw flow prompts must not increase generic Read/Grep fallback after indexing with the Rust core.
 - Rust indexing must avoid the Node/WebAssembly parser hot path for the supported JavaScript and TypeScript slice.
 
 ## Testing Decisions
 
-- Good tests should verify externally visible behavior and durable contracts, not private implementation details. The most important outcomes are: the current TypeScript shell can read the Rust-produced index, Explore answers remain sufficient, and the Rust indexer proves its speed or memory value.
+- Good tests should verify externally visible behavior and durable contracts, not private implementation details. The most important outcomes are: the current TypeScript shell can read the Rust-produced index, Explore answers remain sufficient, the Rust indexer stays within the Phase completion performance envelope, and post-PRD optimization work has trustworthy benchmark artifacts.
 - The highest test seam is CLI indexing with engine selection followed by existing MCP/Explore queries against the resulting index.
 - The next seam is the SQLite contract: files, nodes, edges, unresolved references, schema metadata, extraction version, and index engine metadata must be readable by the existing TypeScript layers.
 - The extraction parity seam compares TypeScript and Rust indexing output semantically for JS/TS/JSX/TSX fixtures. It should cover exported functions, classes, methods, object-literal methods, components, imports, exports, calls, contains edges, references, and unresolved references.
 - Real-repo parity should run against the ZCodeGraph repository and Excalidraw, with differences categorized as expected, acceptable, or blocking.
-- Performance tests should capture wall-clock index time and peak RSS for both engines on the same machine and repository snapshot.
+- Performance tests should capture wall-clock index time and peak RSS for both engines on the same machine and repository snapshot. Phase completion tests judge the 30% wall-time / 15% RSS regression envelope; post-PRD optimization tests judge the deeper 25% faster / 30% lower RSS target.
 - Agent Sufficiency guardrails should reuse the existing Explore sufficiency prompts for ZCodeGraph and Excalidraw. The Rust indexer must not increase generic Read/Grep fallback.
 - Failure-safety tests should verify that a Rust indexing error does not leave a corrupted or partially mixed index as the active project index.
 - Locking tests should verify that TypeScript and Rust indexing paths respect the same cross-process write lock.
@@ -85,10 +86,10 @@ The Rust indexer is opt-in only at first, enabled by an explicit CLI flag or env
 - Migrating languages beyond JavaScript, TypeScript, JSX, and TSX in the first phase.
 - Changing the user-facing MCP tool surface.
 - Changing the SQLite schema except for minimal metadata needed to identify the index engine, unless a separate migration decision is made.
-- Making the Rust indexer default before parity, performance, memory, and Agent Sufficiency gates pass.
+- Making the Rust indexer default before parity, Agent Sufficiency, failure-safety, and the post-PRD performance/memory optimization gates pass.
 
 ## Further Notes
 
 This PRD intentionally chooses an incremental migration because the user's motivation is concentrated in the indexing hot path: Node/WebAssembly runtime risk, indexing performance, and peak memory control. The current TypeScript layers remain valuable for fast Agent Sufficiency iteration, npm distribution, MCP integration, and installer behavior.
 
-If the first slice fails the hard performance or memory gate, the project should stop expanding Rust coverage and reassess whether the architecture boundary is wrong, the implementation is immature, or the migration is not justified. If the first slice passes, the next planning step is issue decomposition for the Rust core skeleton, SQLite writer contract, JS/TS native tree-sitter extraction, CLI engine wiring, parity tests, and benchmark/guardrail runs.
+If the Rust opt-in slice fails the Phase completion gate, the project should stop expanding Rust coverage and reassess whether the architecture boundary is wrong, the implementation is immature, or the migration is not justified. If the Rust opt-in slice passes the Phase completion gate but misses the post-PRD optimization gate, the project may complete this PRD while keeping a dedicated optimization tracker open. That follow-up should use the end-to-end scoreboard and segment-level A/B methodology to pursue the original speed and RSS targets without blocking completion of the opt-in Rust indexing vertical slice.

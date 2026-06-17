@@ -948,6 +948,17 @@ describe('Rust indexing formal experiment runner', () => {
     expect(summary).toContain('## Rust index profile breakdown');
     expect(summary).toContain('| fixture | sourceScanMs | 11 |');
     expect(summary).toContain('| fixture | referenceResolutionMs | 44 |');
+    expect(summary).toContain('## Full-profile end-to-end segments');
+    expect(summary).toContain('| fixture | Rust source scan | 11 |');
+    expect(summary).toContain('| fixture | Rust parse extraction | 22 |');
+    expect(summary).toContain('| fixture | Rust SQLite write | 33 |');
+    expect(summary).toContain('| fixture | Rust subprocess startup/handoff | 4 |');
+    expect(summary).toContain('| fixture | TypeScript finalization | 62 |');
+    expect(summary).toContain('| fixture | Reference resolution | 44 |');
+    expect(summary).toContain('| fixture | Dynamic-dispatch synthesis | 6 |');
+    expect(summary).toContain('| fixture | DB maintenance | 7 |');
+    expect(summary).toContain('| fixture | graphStats measurement | 0 |');
+    expect(summary).toContain('| fixture | sufficiency measurement | unavailable |');
   });
 
   it('records heap profiling reports requested by the manifest', () => {
