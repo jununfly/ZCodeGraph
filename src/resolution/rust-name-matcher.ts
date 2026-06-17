@@ -2,6 +2,7 @@ import { spawnSync } from 'child_process';
 import { Node } from '../types';
 import { findRustCoreCommand } from '../indexing/rust-indexer';
 import { ResolvedRef, ResolutionContext, UnresolvedRef } from './types';
+import { matchReference } from './name-matcher';
 
 const JS_TS_LANGUAGES = new Set(['javascript', 'typescript', 'jsx', 'tsx']);
 
@@ -62,6 +63,30 @@ export interface RustNameMatcherDiagnostics {
 export interface RustNameMatcherBatchResult {
   decisions: Map<string, RustNameMatcherDecision>;
   diagnostics: RustNameMatcherDiagnostics;
+}
+
+export interface NameMatcherReplayMismatch {
+  key: string;
+  referenceName: string;
+  referenceKind: string;
+  filePath: string;
+  language: string;
+  baselineTargetNodeId: string | null;
+  baselineResolvedBy: ResolvedRef['resolvedBy'] | null;
+  baselineConfidence: number | null;
+  replayTargetNodeId: string | null;
+  replayResolvedBy: ResolvedRef['resolvedBy'] | null;
+  replayConfidence: number | null;
+  reason: 'different-target' | 'different-method' | 'different-confidence' | 'baseline-unresolved' | 'replay-unresolved';
+}
+
+export interface NameMatcherReplayEquivalence {
+  totalRefs: number;
+  eligibleRefs: number;
+  replayedRefs: number;
+  equivalentRefs: number;
+  mismatchCount: number;
+  mismatches: NameMatcherReplayMismatch[];
 }
 
 interface RustNameMatcherResponse {
@@ -148,6 +173,101 @@ export function collectRustNameMatcherReference(
       nodesInFiles,
     },
   };
+}
+
+export function compareNameMatcherCandidateReplay(
+  refs: UnresolvedRef[],
+  context: ResolutionContext,
+  maxMismatchSamples = 50,
+): NameMatcherReplayEquivalence {
+  let eligibleRefs = 0;
+  let replayedRefs = 0;
+  let equivalentRefs = 0;
+  const mismatches: NameMatcherReplayMismatch[] = [];
+
+  for (const ref of refs) {
+    if (!isRustNameMatcherEligible(ref)) continue;
+    eligibleRefs += 1;
+    const candidate = collectRustNameMatcherReference(ref, context);
+    if (!candidate) continue;
+    replayedRefs += 1;
+
+    const baseline = matchReference(ref, context);
+    const replay = matchReference(ref, createCandidateSetResolutionContext(candidate, context));
+    const reason = replayMismatchReason(baseline, replay);
+    if (!reason) {
+      equivalentRefs += 1;
+      continue;
+    }
+
+    if (mismatches.length < maxMismatchSamples) {
+      mismatches.push({
+        key: candidate.key,
+        referenceName: ref.referenceName,
+        referenceKind: ref.referenceKind,
+        filePath: ref.filePath,
+        language: ref.language,
+        baselineTargetNodeId: baseline?.targetNodeId ?? null,
+        baselineResolvedBy: baseline?.resolvedBy ?? null,
+        baselineConfidence: baseline?.confidence ?? null,
+        replayTargetNodeId: replay?.targetNodeId ?? null,
+        replayResolvedBy: replay?.resolvedBy ?? null,
+        replayConfidence: replay?.confidence ?? null,
+        reason,
+      });
+    }
+  }
+
+  return {
+    totalRefs: refs.length,
+    eligibleRefs,
+    replayedRefs,
+    equivalentRefs,
+    mismatchCount: replayedRefs - equivalentRefs,
+    mismatches,
+  };
+}
+
+function createCandidateSetResolutionContext(
+  entry: RustNameMatcherReference,
+  baseline: ResolutionContext,
+): ResolutionContext {
+  const { ref, candidates } = entry;
+  const { receiver, methodName } = parseMethodReference(ref.referenceName);
+  const fileName = referenceFileName(ref.referenceName);
+  const leafName = referenceLeafName(ref.referenceName);
+  const capitalizedReceiver = receiver ? receiver.charAt(0).toUpperCase() + receiver.slice(1) : null;
+
+  return {
+    ...baseline,
+    getNodesInFile: (filePath: string) => candidates.nodesInFiles[filePath] ?? [],
+    getNodesByName: (name: string) => {
+      if (name === ref.referenceName) return candidates.byName;
+      if (leafName && name === leafName) return candidates.byLeafName;
+      if (fileName && name === fileName) return candidates.byFileName;
+      if (receiver && name === receiver) return candidates.classCandidates;
+      if (capitalizedReceiver && name === capitalizedReceiver) return candidates.capitalizedClassCandidates;
+      if (methodName && name === methodName) return candidates.methodCandidates;
+      return [];
+    },
+    getNodesByQualifiedName: (qualifiedName: string) =>
+      qualifiedName === ref.referenceName ? candidates.byQualifiedName : [],
+    getNodesByLowerName: (lowerName: string) =>
+      lowerName === ref.referenceName.toLowerCase() ? candidates.byLowerName : [],
+  };
+}
+
+function replayMismatchReason(
+  baseline: ResolvedRef | null,
+  replay: ResolvedRef | null,
+): NameMatcherReplayMismatch['reason'] | null {
+  if (!baseline && !replay) return null;
+  if (!baseline) return 'baseline-unresolved';
+  if (!replay) return 'replay-unresolved';
+  if (baseline.targetNodeId !== replay.targetNodeId) return 'different-target';
+  if (baseline.resolvedBy !== replay.resolvedBy) return 'different-method';
+  if (baseline.confidence !== replay.confidence) return 'different-confidence';
+  return null;
 }
 
 export function runRustNameMatcherBatch(

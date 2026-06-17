@@ -5,6 +5,10 @@ import * as path from 'path';
 import { ReferenceResolver } from '../src/resolution';
 import type { QueryBuilder } from '../src/db/queries';
 import type { Node, UnresolvedReference } from '../src/types';
+import {
+  compareNameMatcherCandidateReplay,
+} from '../src/resolution/rust-name-matcher';
+import type { ResolutionContext, UnresolvedRef } from '../src/resolution/types';
 
 const originalEnv = {
   ZCODEGRAPH_RUST_NAME_MATCHER: process.env.ZCODEGRAPH_RUST_NAME_MATCHER,
@@ -12,10 +16,16 @@ const originalEnv = {
   ZCODEGRAPH_RUST_CORE_BINARY: process.env.ZCODEGRAPH_RUST_CORE_BINARY,
 };
 
-function node(id: string, name: string, filePath: string, qualifiedName = `${filePath}::${name}`): Node {
+function node(
+  id: string,
+  name: string,
+  filePath: string,
+  qualifiedName = `${filePath}::${name}`,
+  kind: Node['kind'] = 'function',
+): Node {
   return {
     id,
-    kind: 'function',
+    kind,
     name,
     qualifiedName,
     filePath,
@@ -42,6 +52,22 @@ function makeQueries(nodes: Node[]): QueryBuilder {
     getNodesByKind: (kind: Node['kind']) => nodes.filter((item) => item.kind === kind),
     getNodeById: (id: string) => nodes.find((item) => item.id === id) ?? null,
   } as unknown as QueryBuilder;
+}
+
+function makeContext(nodes: Node[]): ResolutionContext {
+  return {
+    getAllFiles: () => [...new Set(nodes.map((item) => item.filePath))],
+    getNodesByName: (name: string) => nodes.filter((item) => item.name === name),
+    getNodesByQualifiedName: (qualifiedName: string) =>
+      nodes.filter((item) => item.qualifiedName === qualifiedName),
+    getNodesByLowerName: (lowerName: string) =>
+      nodes.filter((item) => item.name.toLowerCase() === lowerName),
+    getNodesInFile: (filePath: string) => nodes.filter((item) => item.filePath === filePath),
+    getNodesByKind: (kind: Node['kind']) => nodes.filter((item) => item.kind === kind),
+    fileExists: () => true,
+    readFile: () => null,
+    getProjectRoot: () => '/fixture',
+  };
 }
 
 function makeBatchedQueries(nodes: Node[], unresolved: UnresolvedReference[]): QueryBuilder {
@@ -164,6 +190,66 @@ describe('guarded Rust name matcher', () => {
     process.env.ZCODEGRAPH_RUST_CORE_BINARY = originalEnv.ZCODEGRAPH_RUST_CORE_BINARY;
     if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
     tempDir = undefined;
+  });
+
+  it('proves candidate-set replay preserves TypeScript matcher decisions per reference', () => {
+    const alpha = node('target:alpha', 'alpha', 'src/alpha.ts');
+    const permissionClass = node(
+      'class:PermissionEngine',
+      'PermissionEngine',
+      'src/permission.ts',
+      'PermissionEngine',
+      'class',
+    );
+    const validate = node(
+      'method:PermissionEngine.validate',
+      'validate',
+      'src/permission.ts',
+      'PermissionEngine::validate',
+      'method',
+    );
+    const loose = node('function:Loose', 'Loose', 'src/loose.ts');
+    const context = makeContext([
+      node('caller', 'caller', 'src/caller.ts'),
+      alpha,
+      permissionClass,
+      validate,
+      loose,
+    ]);
+    const refs: UnresolvedRef[] = [
+      { ...ref('alpha'), rowid: 1 },
+      { ...ref('permissionEngine.validate'), rowid: 2 },
+      { ...ref('loose'), referenceName: 'loose', rowid: 3 },
+    ];
+
+    const result = compareNameMatcherCandidateReplay(refs, context);
+
+    expect(result).toMatchObject({
+      totalRefs: 3,
+      eligibleRefs: 3,
+      replayedRefs: 3,
+      equivalentRefs: 3,
+      mismatchCount: 0,
+      mismatches: [],
+    });
+  });
+
+  it('keeps the candidate-set replay prototype scoped to JS and TypeScript references', () => {
+    const context = makeContext([
+      node('caller', 'caller', 'src/caller.ts'),
+      node('target:alpha', 'alpha', 'src/alpha.ts'),
+    ]);
+    const refs: UnresolvedRef[] = [
+      { ...ref('alpha'), rowid: 1 },
+      { ...ref('alpha'), rowid: 2, language: 'python', filePath: 'src/caller.py' },
+    ];
+
+    const result = compareNameMatcherCandidateReplay(refs, context);
+
+    expect(result.totalRefs).toBe(2);
+    expect(result.eligibleRefs).toBe(1);
+    expect(result.replayedRefs).toBe(1);
+    expect(result.mismatchCount).toBe(0);
   });
 
   it('keeps the TypeScript matcher path by default', () => {
