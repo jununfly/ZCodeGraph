@@ -8,7 +8,7 @@ interface RustIndexerOptions {
   force?: boolean;
   verbose?: boolean;
   graphWorkProfile?: 'full' | 'matched-ts-js';
-  sqliteWriteMode?: 'disk' | 'memory-final-flush';
+  sqliteWriteMode?: 'disk' | 'final-flush' | 'memory-final-flush';
   profiling?: 'heap';
   onProgress?: (progress: IndexProgress) => void;
 }

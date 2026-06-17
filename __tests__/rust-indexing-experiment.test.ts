@@ -262,6 +262,114 @@ describe('Rust indexing formal experiment runner', () => {
     expect(summary).toContain('| fixture | memory-final-flush | experiment |');
   });
 
+  it('uses production final-flush as the Rust scoreboard SQLite write mode by default', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-final-flush-default-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(path.join(source, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(source, 'package.json'), JSON.stringify({ type: 'module' }));
+    fs.writeFileSync(path.join(source, 'src', 'flow.ts'), 'export function alpha() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+
+    const { out, summaryOut } = runWithManifest(
+      canonicalManifest({
+        targets: [
+          {
+            name: 'fixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+        ],
+      }),
+    );
+
+    const rerun = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', path.join(path.dirname(out), 'experiment.json'), '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+        },
+      },
+    );
+
+    expect(rerun.status, `stdout:\n${rerun.stdout}\nstderr:\n${rerun.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      targets: Array<{
+        arms: {
+          rust: {
+            sqliteWriteMode: { configured: string | null; effective: string; source: string };
+            command: { args: string[] };
+          };
+        };
+      }>;
+    };
+    expect(artifact.targets[0].arms.rust.sqliteWriteMode).toEqual({
+      configured: null,
+      effective: 'final-flush',
+      source: 'built-in-default',
+    });
+    expect(artifact.targets[0].arms.rust.command.args).toContain('--sqlite-write-mode');
+    expect(artifact.targets[0].arms.rust.command.args).toContain('final-flush');
+  });
+
+  it('passes disk SQLite write mode overrides to the Rust scoreboard arm', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-disk-override-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(path.join(source, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(source, 'package.json'), JSON.stringify({ type: 'module' }));
+    fs.writeFileSync(path.join(source, 'src', 'flow.ts'), 'export function alpha() { return 1; }\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+
+    const { out, summaryOut } = runWithManifest(
+      canonicalManifest({
+        rust: { sqliteWriteMode: 'disk' },
+        targets: [
+          {
+            name: 'fixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['FX-1'],
+          },
+        ],
+      }),
+    );
+
+    const rerun = spawnSync(
+      process.execPath,
+      [SCRIPT, '--experiment', path.join(path.dirname(out), 'experiment.json'), '--out', out, '--summary-out', summaryOut],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+        },
+      },
+    );
+
+    expect(rerun.status, `stdout:\n${rerun.stdout}\nstderr:\n${rerun.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      targets: Array<{ arms: { rust: { sqliteWriteMode: { effective: string }; command: { args: string[] } } } }>;
+    };
+    expect(artifact.targets[0].arms.rust.sqliteWriteMode.effective).toBe('disk');
+    expect(artifact.targets[0].arms.rust.command.args).toContain('--sqlite-write-mode');
+    expect(artifact.targets[0].arms.rust.command.args).toContain('disk');
+  });
+
   it('rejects unknown Rust graph work profiles from the manifest', () => {
     const { result, out } = runWithManifest(
       canonicalManifest({

@@ -50,10 +50,10 @@ function resolveIndexProfile(raw: string | undefined): 'heap' | undefined {
   throw new Error(`Unsupported index profile "${raw}". Supported profiles: heap`);
 }
 
-function resolveSqliteWriteMode(raw: string | undefined): 'disk' | 'memory-final-flush' | undefined {
-  if (raw == null) return undefined;
-  if (raw === 'disk' || raw === 'memory-final-flush') return raw;
-  throw new Error(`Unsupported SQLite write mode "${raw}". Supported modes: disk, memory-final-flush`);
+function resolveSqliteWriteMode(raw: string | undefined): 'disk' | 'final-flush' | 'memory-final-flush' {
+  if (raw == null) return 'final-flush';
+  if (raw === 'disk' || raw === 'final-flush' || raw === 'memory-final-flush') return raw;
+  throw new Error(`Unsupported SQLite write mode "${raw}". Supported modes: disk, final-flush, memory-final-flush`);
 }
 
 function writeIndexProfile(projectPath: string, profile: unknown): void {
@@ -577,7 +577,7 @@ program
   .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
   .option('--engine <engine>', 'Index engine to use: typescript or rust')
   .option('--graph-work-profile <profile>', 'Rust graph work profile to use: full or matched-ts-js')
-  .option('--sqlite-write-mode <mode>', 'Experimental Rust SQLite write mode: disk or memory-final-flush')
+  .option('--sqlite-write-mode <mode>', 'Rust SQLite write mode: final-flush, disk, or memory-final-flush')
   .option('--profile <mode>', 'Rust index profiling mode to use: heap')
   .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string; graphWorkProfile?: string; sqliteWriteMode?: string; profile?: string }) => {
     const projectPath = resolveProjectPath(pathArg);

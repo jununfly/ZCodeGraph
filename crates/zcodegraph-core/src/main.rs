@@ -60,7 +60,7 @@ fn parse_args(args: Vec<String>) -> Result<IndexRequest, String> {
     let mut force = false;
     let mut verbose = false;
     let mut graph_work_profile = zcodegraph_core::GraphWorkProfile::Full;
-    let mut sqlite_write_mode = zcodegraph_core::SqliteWriteMode::Disk;
+    let mut sqlite_write_mode = zcodegraph_core::SqliteWriteMode::FinalFlush;
     let mut i = 1;
 
     while i < args.len() {

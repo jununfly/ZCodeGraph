@@ -127,12 +127,13 @@ impl GraphWorkProfile {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SqliteWriteMode {
     Disk,
+    FinalFlush,
     MemoryFinalFlush,
 }
 
 impl Default for SqliteWriteMode {
     fn default() -> Self {
-        SqliteWriteMode::Disk
+        SqliteWriteMode::FinalFlush
     }
 }
 
@@ -140,9 +141,10 @@ impl SqliteWriteMode {
     pub fn parse(value: &str) -> Result<Self, String> {
         match value {
             "disk" => Ok(SqliteWriteMode::Disk),
+            "final-flush" => Ok(SqliteWriteMode::FinalFlush),
             "memory-final-flush" => Ok(SqliteWriteMode::MemoryFinalFlush),
             other => Err(format!(
-                "unsupported SQLite write mode: {}. Supported modes: disk, memory-final-flush",
+                "unsupported SQLite write mode: {}. Supported modes: disk, final-flush, memory-final-flush",
                 other
             )),
         }
@@ -952,7 +954,7 @@ fn write_temp_index(
     temp_path: &Path,
 ) -> Result<WriteCounts, Box<dyn std::error::Error>> {
     match request.sqlite_write_mode {
-        SqliteWriteMode::Disk => {
+        SqliteWriteMode::Disk | SqliteWriteMode::FinalFlush => {
             let mut conn = Connection::open(temp_path)?;
             write_index_to_connection(&mut conn, request)
         }
@@ -2811,6 +2813,58 @@ mod tests {
             .unwrap();
         assert_eq!(alpha_count, 1);
         assert_eq!(schema_version, CURRENT_SCHEMA_VERSION);
+        assert_eq!(engine, "rust");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn final_flush_sqlite_mode_preserves_previous_good_index_when_staging_fails() {
+        let dir = temp_dir("final-flush-preserves-active-index");
+        fs::write(
+            dir.join("index.ts"),
+            "export function stableSymbol(): number { return 1; }\n",
+        )
+        .unwrap();
+        let index_path = dir.join(".zcodegraph").join("zcodegraph.db");
+
+        let initial_request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: index_path.to_string_lossy().to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+        };
+
+        let initial = run_index(&initial_request);
+        assert!(initial.success, "{:?}", initial.errors);
+
+        let staging_path = temp_index_path(&index_path);
+        fs::create_dir(&staging_path).unwrap();
+
+        let failed = run_index(&initial_request);
+        assert!(
+            !failed.success,
+            "staging should fail when the temp DB path is blocked"
+        );
+
+        let conn = Connection::open(&index_path).unwrap();
+        let stable_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM nodes WHERE name = 'stableSymbol'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let engine: String = conn
+            .query_row(
+                "SELECT value FROM project_metadata WHERE key = 'indexed_with_engine'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stable_count, 1);
         assert_eq!(engine, "rust");
         fs::remove_dir_all(dir).unwrap();
     }

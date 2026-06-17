@@ -17,7 +17,7 @@ const PHASE1_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx']);
 const CONFIG_FILES = new Set(['package.json', 'tsconfig.json', 'jsconfig.json']);
 const SKIP_DIRS = new Set(['.git', '.zcodegraph', 'node_modules', 'dist', 'target', '.next', 'coverage']);
 const SUPPORTED_GRAPH_WORK_PROFILES = new Set(['full', 'matched-ts-js']);
-const SUPPORTED_SQLITE_WRITE_MODES = new Set(['disk', 'memory-final-flush']);
+const SUPPORTED_SQLITE_WRITE_MODES = new Set(['disk', 'final-flush', 'memory-final-flush']);
 
 const SUPPORTED_TOP_LEVEL_FIELDS = new Set([
   'schemaVersion',
@@ -117,7 +117,7 @@ function validateSqliteWriteMode(value, field, diagnostics) {
   if (value == null) return null;
   if (typeof value !== 'string' || !SUPPORTED_SQLITE_WRITE_MODES.has(value)) {
     diagnostics.push(
-      diagnostic('unsupported-sqlite-write-mode', `Unsupported SQLite write mode at ${field}; supported modes: disk, memory-final-flush`, {
+      diagnostic('unsupported-sqlite-write-mode', `Unsupported SQLite write mode at ${field}; supported modes: disk, final-flush, memory-final-flush`, {
         field,
         supported: Array.from(SUPPORTED_SQLITE_WRITE_MODES),
         value,
@@ -390,7 +390,7 @@ function sqliteWriteModeSummaryLines(targets) {
     '|---|---|---|',
     ...rows,
     '',
-    '`disk` is the default active-index write path. `memory-final-flush` is an explicit experimental prototype for Phase 16 architecture reassessment and does not claim production rollout readiness.',
+    '`final-flush` is the production Rust opt-in write path. `disk` remains a debug escape hatch, and `memory-final-flush` remains an explicit experimental prototype that does not claim production rollout readiness.',
     '',
   ];
 }
@@ -750,7 +750,7 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
     arm.sourceCopy = copySourceSlice(target.path.resolvedPath, engine);
     const bin = path.join(repoRoot, 'dist', 'bin', 'zcodegraph.js');
     const args = [bin, 'index', arm.sourceCopy.path, '--force', '--quiet', '--engine', 'rust', '--graph-work-profile', arm.graphWorkProfile.effective];
-    if (arm.sqliteWriteMode?.effective && arm.sqliteWriteMode.effective !== 'disk') {
+    if (arm.sqliteWriteMode?.effective) {
       args.push('--sqlite-write-mode', arm.sqliteWriteMode.effective);
     }
     arm.command = {
@@ -839,7 +839,7 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
     let indexProfileFile = null;
     if (engine === 'rust') {
       args.push('--engine', 'rust', '--graph-work-profile', arm.graphWorkProfile.effective);
-      if (arm.sqliteWriteMode?.effective && arm.sqliteWriteMode.effective !== 'disk') {
+      if (arm.sqliteWriteMode?.effective) {
         args.push('--sqlite-write-mode', arm.sqliteWriteMode.effective);
       }
       env.ZCODEGRAPH_RUST_CORE_BINARY = rustCoreInfo.path;
@@ -1004,7 +1004,7 @@ function emptyArm(engine) {
   return {
     engine,
     graphWorkProfile: engine === 'rust' ? { configured: null, effective: 'full', source: 'built-in-default' } : null,
-    sqliteWriteMode: engine === 'rust' ? { configured: null, effective: 'disk', source: 'built-in-default' } : null,
+    sqliteWriteMode: engine === 'rust' ? { configured: null, effective: 'final-flush', source: 'built-in-default' } : null,
     preflight: {
       status: 'available',
       kind: null,
@@ -1089,7 +1089,7 @@ function resolveRustSqliteWriteMode(target, experimentRust) {
   if (experimentRust?.sqliteWriteMode) {
     return { configured: experimentRust.sqliteWriteMode, effective: experimentRust.sqliteWriteMode, source: 'experiment' };
   }
-  return { configured: null, effective: 'disk', source: 'built-in-default' };
+  return { configured: null, effective: 'final-flush', source: 'built-in-default' };
 }
 
 function preflightTarget(target, rustCoreInfo, experimentRust = {}) {
