@@ -7,6 +7,7 @@ import type { QueryBuilder } from '../src/db/queries';
 import type { Node, UnresolvedReference } from '../src/types';
 import {
   compareNameMatcherCandidateReplay,
+  compareNameMatcherCandidateReplayForRef,
 } from '../src/resolution/rust-name-matcher';
 import type { ResolutionContext, UnresolvedRef } from '../src/resolution/types';
 
@@ -14,6 +15,7 @@ const originalEnv = {
   ZCODEGRAPH_RUST_NAME_MATCHER: process.env.ZCODEGRAPH_RUST_NAME_MATCHER,
   ZCODEGRAPH_RUST_NAME_MATCHER_STRICT: process.env.ZCODEGRAPH_RUST_NAME_MATCHER_STRICT,
   ZCODEGRAPH_RUST_CORE_BINARY: process.env.ZCODEGRAPH_RUST_CORE_BINARY,
+  ZCODEGRAPH_NAME_MATCHER_REPLAY_AB: process.env.ZCODEGRAPH_NAME_MATCHER_REPLAY_AB,
 };
 
 function node(
@@ -188,6 +190,7 @@ describe('guarded Rust name matcher', () => {
     process.env.ZCODEGRAPH_RUST_NAME_MATCHER = originalEnv.ZCODEGRAPH_RUST_NAME_MATCHER;
     process.env.ZCODEGRAPH_RUST_NAME_MATCHER_STRICT = originalEnv.ZCODEGRAPH_RUST_NAME_MATCHER_STRICT;
     process.env.ZCODEGRAPH_RUST_CORE_BINARY = originalEnv.ZCODEGRAPH_RUST_CORE_BINARY;
+    process.env.ZCODEGRAPH_NAME_MATCHER_REPLAY_AB = originalEnv.ZCODEGRAPH_NAME_MATCHER_REPLAY_AB;
     if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
     tempDir = undefined;
   });
@@ -250,6 +253,54 @@ describe('guarded Rust name matcher', () => {
     expect(result.eligibleRefs).toBe(1);
     expect(result.replayedRefs).toBe(1);
     expect(result.mismatchCount).toBe(0);
+  });
+
+  it('records guarded candidate replay A/B equivalence while keeping baseline decisions authoritative', () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-name-replay-ab-'));
+    const target = node('target:alpha', 'alpha', 'src/target.ts');
+    const resolver = new ReferenceResolver(tempDir, makeQueries([
+      node('caller', 'caller', 'src/caller.ts'),
+      target,
+    ]));
+    process.env.ZCODEGRAPH_NAME_MATCHER_REPLAY_AB = '1';
+
+    const result = resolver.resolveAll([ref('alpha')]);
+
+    expect(result.resolved).toHaveLength(1);
+    expect(result.resolved[0]?.targetNodeId).toBe(target.id);
+    expect(result.stats.timings).toMatchObject({
+      candidateReplayEligibleRefs: 1,
+      candidateReplayComparedRefs: 1,
+      candidateReplayEquivalentRefs: 1,
+      candidateReplayMismatchRefs: 0,
+      candidateReplayMismatchReasons: {},
+      candidateReplayMismatchSamples: [],
+    });
+  });
+
+  it('keeps baseline authoritative when guarded candidate replay mismatches', () => {
+    const target = node('target:alpha', 'alpha', 'src/target.ts');
+    const baseline = {
+      original: ref('alpha'),
+      targetNodeId: target.id,
+      confidence: 0.9,
+      resolvedBy: 'exact-match' as const,
+    };
+    const replayContext = makeContext([
+      node('caller', 'caller', 'src/caller.ts'),
+    ]);
+
+    const result = compareNameMatcherCandidateReplayForRef(ref('alpha'), replayContext, baseline);
+
+    expect(result?.replay).toBeNull();
+    expect(result?.mismatch).toEqual(
+      expect.objectContaining({
+        referenceName: 'alpha',
+        baselineTargetNodeId: target.id,
+        replayTargetNodeId: null,
+        reason: 'replay-unresolved',
+      }),
+    );
   });
 
   it('keeps the TypeScript matcher path by default', () => {

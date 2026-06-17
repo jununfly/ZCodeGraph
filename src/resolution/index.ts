@@ -28,6 +28,8 @@ import type { ReExport } from './types';
 import { LRUCache } from './lru-cache';
 import {
   collectRustNameMatcherReference,
+  compareNameMatcherCandidateReplayForRef,
+  nameMatcherReplayAbEnabled,
   runRustNameMatcherBatch,
   rustNameMatcherEnabled,
   rustNameMatcherKey,
@@ -67,6 +69,12 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     rustMatcherTsVerificationMs: 0,
     rustMatcherPayloadBytes: 0,
     rustMatcherUniqueCandidateFacts: 0,
+    candidateReplayEligibleRefs: 0,
+    candidateReplayComparedRefs: 0,
+    candidateReplayEquivalentRefs: 0,
+    candidateReplayMismatchRefs: 0,
+    candidateReplayMismatchReasons: {},
+    candidateReplayMismatchSamples: [],
     edgeMaterializationMs: 0,
     edgeMaterializationDbMs: 0,
     edgeWriteMs: 0,
@@ -889,12 +897,15 @@ export class ReferenceResolver {
     const context = this.createNameMatchingTimingContext(timings);
     const rustDecision = this.rustNameMatcherDecisions?.get(rustNameMatcherKey(ref));
     if (!rustDecision) {
-      return this.gateLanguage(matchReference(ref, context), ref);
+      const tsResult = this.gateLanguage(matchReference(ref, context), ref);
+      this.recordCandidateReplayAb(ref, context, tsResult, timings);
+      return tsResult;
     }
 
     const tsVerificationStarted = Date.now();
     const tsResult = this.gateLanguage(matchReference(ref, context), ref);
     addElapsed(timings, 'rustMatcherTsVerificationMs', tsVerificationStarted);
+    this.recordCandidateReplayAb(ref, context, tsResult, timings);
     if (!rustDecision.targetNodeId || !rustDecision.resolvedBy) {
       this.recordRustMatcherFallback(timings, classifyRustMatcherFallback(ref, rustDecision, tsResult));
       return tsResult;
@@ -936,6 +947,34 @@ export class ReferenceResolver {
     }
 
     return rustResult;
+  }
+
+  private recordCandidateReplayAb(
+    ref: UnresolvedRef,
+    context: ResolutionContext,
+    baseline: ResolvedRef | null,
+    timings: ReferenceResolutionTimings | undefined,
+  ): void {
+    if (!timings || !nameMatcherReplayAbEnabled()) return;
+    timings.candidateReplayEligibleRefs = (timings.candidateReplayEligibleRefs ?? 0) + 1;
+    const replay = compareNameMatcherCandidateReplayForRef(ref, context, baseline);
+    if (!replay) return;
+    timings.candidateReplayComparedRefs = (timings.candidateReplayComparedRefs ?? 0) + 1;
+    if (!replay.mismatch) {
+      timings.candidateReplayEquivalentRefs = (timings.candidateReplayEquivalentRefs ?? 0) + 1;
+      return;
+    }
+
+    timings.candidateReplayMismatchRefs = (timings.candidateReplayMismatchRefs ?? 0) + 1;
+    timings.candidateReplayMismatchReasons = mergeFallbackReasons(
+      timings.candidateReplayMismatchReasons,
+      { [replay.mismatch.reason]: 1 },
+    );
+    const samples = timings.candidateReplayMismatchSamples ?? [];
+    if (samples.length < MAX_RUST_MATCHER_MISMATCH_SAMPLES) {
+      samples.push(replay.mismatch);
+      timings.candidateReplayMismatchSamples = samples;
+    }
   }
 
   private recordRustMatcherFallback(timings: ReferenceResolutionTimings | undefined, reason: string): void {

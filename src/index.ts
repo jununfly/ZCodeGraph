@@ -751,6 +751,24 @@ export class CodeGraph {
         rustMatcherTsVerificationMs: number;
         rustMatcherPayloadBytes: number;
         rustMatcherUniqueCandidateFacts: number;
+        candidateReplayEligibleRefs: number;
+        candidateReplayComparedRefs: number;
+        candidateReplayEquivalentRefs: number;
+        candidateReplayMismatchRefs: number;
+        candidateReplayMismatchReasons: Record<string, number>;
+        candidateReplayMismatchSamples: Array<{
+          referenceName: string;
+          referenceKind: string;
+          filePath: string;
+          language: string;
+          baselineTargetNodeId: string | null;
+          baselineResolvedBy: string | null;
+          baselineConfidence: number | null;
+          replayTargetNodeId: string | null;
+          replayResolvedBy: string | null;
+          replayConfidence: number | null;
+          reason: string;
+        }>;
         edgeMaterializationMs: number;
         edgeMaterializationDbMs: number;
         edgeWriteMs: number;
@@ -830,6 +848,24 @@ export class CodeGraph {
             rustMatcherTsVerificationMs: 0,
             rustMatcherPayloadBytes: 0,
             rustMatcherUniqueCandidateFacts: 0,
+            candidateReplayEligibleRefs: 0,
+            candidateReplayComparedRefs: 0,
+            candidateReplayEquivalentRefs: 0,
+            candidateReplayMismatchRefs: 0,
+            candidateReplayMismatchReasons: {},
+            candidateReplayMismatchSamples: [] as Array<{
+              referenceName: string;
+              referenceKind: string;
+              filePath: string;
+              language: string;
+              baselineTargetNodeId: string | null;
+              baselineResolvedBy: string | null;
+              baselineConfidence: number | null;
+              replayTargetNodeId: string | null;
+              replayResolvedBy: string | null;
+              replayConfidence: number | null;
+              reason: string;
+            }>,
             edgeMaterializationMs: 0,
             edgeMaterializationDbMs: 0,
             edgeWriteMs: 0,
@@ -952,6 +988,12 @@ export class CodeGraph {
           rustMatcherTsVerificationMs: resolutionTimings?.rustMatcherTsVerificationMs ?? 0,
           rustMatcherPayloadBytes: resolutionTimings?.rustMatcherPayloadBytes ?? 0,
           rustMatcherUniqueCandidateFacts: resolutionTimings?.rustMatcherUniqueCandidateFacts ?? 0,
+          candidateReplayEligibleRefs: resolutionTimings?.candidateReplayEligibleRefs ?? 0,
+          candidateReplayComparedRefs: resolutionTimings?.candidateReplayComparedRefs ?? 0,
+          candidateReplayEquivalentRefs: resolutionTimings?.candidateReplayEquivalentRefs ?? 0,
+          candidateReplayMismatchRefs: resolutionTimings?.candidateReplayMismatchRefs ?? 0,
+          candidateReplayMismatchReasons: resolutionTimings?.candidateReplayMismatchReasons ?? {},
+          candidateReplayMismatchSamples: resolutionTimings?.candidateReplayMismatchSamples ?? [],
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
           edgeMaterializationDbMs: resolutionTimings?.edgeMaterializationDbMs ?? 0,
           edgeWriteMs: resolutionTimings?.edgeWriteMs ?? 0,

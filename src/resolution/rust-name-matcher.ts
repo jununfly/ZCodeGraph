@@ -112,6 +112,11 @@ export function rustNameMatcherStrict(env: NodeJS.ProcessEnv = process.env): boo
   return raw === '1' || raw === 'true';
 }
 
+export function nameMatcherReplayAbEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = env.ZCODEGRAPH_NAME_MATCHER_REPLAY_AB;
+  return raw === '1' || raw === 'true';
+}
+
 export function rustNameMatcherKey(ref: UnresolvedRef): string {
   return [
     ref.rowid ?? '',
@@ -225,6 +230,42 @@ export function compareNameMatcherCandidateReplay(
     equivalentRefs,
     mismatchCount: replayedRefs - equivalentRefs,
     mismatches,
+  };
+}
+
+export function compareNameMatcherCandidateReplayForRef(
+  ref: UnresolvedRef,
+  context: ResolutionContext,
+  baseline: ResolvedRef | null,
+): {
+  key: string;
+  replay: ResolvedRef | null;
+  mismatch: NameMatcherReplayMismatch | null;
+} | null {
+  if (!isRustNameMatcherEligible(ref)) return null;
+  const candidate = collectRustNameMatcherReference(ref, context);
+  if (!candidate) return null;
+  const replay = matchReference(ref, createCandidateSetResolutionContext(candidate, context));
+  const reason = replayMismatchReason(baseline, replay);
+  return {
+    key: candidate.key,
+    replay,
+    mismatch: reason
+      ? {
+          key: candidate.key,
+          referenceName: ref.referenceName,
+          referenceKind: ref.referenceKind,
+          filePath: ref.filePath,
+          language: ref.language,
+          baselineTargetNodeId: baseline?.targetNodeId ?? null,
+          baselineResolvedBy: baseline?.resolvedBy ?? null,
+          baselineConfidence: baseline?.confidence ?? null,
+          replayTargetNodeId: replay?.targetNodeId ?? null,
+          replayResolvedBy: replay?.resolvedBy ?? null,
+          replayConfidence: replay?.confidence ?? null,
+          reason,
+        }
+      : null,
   };
 }
 

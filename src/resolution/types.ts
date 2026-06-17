@@ -99,6 +99,24 @@ export interface ResolutionResult {
       rustMatcherTsVerificationMs?: number;
       rustMatcherPayloadBytes?: number;
       rustMatcherUniqueCandidateFacts?: number;
+      candidateReplayEligibleRefs?: number;
+      candidateReplayComparedRefs?: number;
+      candidateReplayEquivalentRefs?: number;
+      candidateReplayMismatchRefs?: number;
+      candidateReplayMismatchReasons?: Record<string, number>;
+      candidateReplayMismatchSamples?: Array<{
+        referenceName: string;
+        referenceKind: string;
+        filePath: string;
+        language: string;
+        baselineTargetNodeId: string | null;
+        baselineResolvedBy: string | null;
+        baselineConfidence: number | null;
+        replayTargetNodeId: string | null;
+        replayResolvedBy: string | null;
+        replayConfidence: number | null;
+        reason: string;
+      }>;
       edgeMaterializationMs?: number;
       edgeMaterializationDbMs?: number;
       edgeWriteMs?: number;
