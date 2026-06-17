@@ -1127,18 +1127,16 @@ export class ReferenceResolver {
         addElapsed(aggregateStats.timings, 'edgeWriteMs', writeStarted);
       }
 
-      // Clean up resolved refs so they don't appear in the next batch
-      if (result.resolved.length > 0) {
+      // Clean up every processed ref so it does not appear in the next batch.
+      // Resolved and intentionally-unresolved refs are both terminal for this
+      // pass, so delete them in one rowid batch instead of two transactions.
+      const processedRefs = [
+        ...result.resolved.map((r) => r.original),
+        ...result.unresolved,
+      ];
+      if (processedRefs.length > 0) {
         const cleanupStarted = Date.now();
-        this.deleteResolvedOriginals(result.resolved.map((r) => r.original));
-        addElapsed(aggregateStats.timings, 'databaseAccessMs', cleanupStarted);
-        addElapsed(aggregateStats.timings, 'unresolvedCleanupMs', cleanupStarted);
-      }
-
-      // Delete unresolvable refs from this batch to avoid re-processing them
-      if (result.unresolved.length > 0) {
-        const cleanupStarted = Date.now();
-        this.deleteResolvedOriginals(result.unresolved);
+        this.deleteResolvedOriginals(processedRefs);
         addElapsed(aggregateStats.timings, 'databaseAccessMs', cleanupStarted);
         addElapsed(aggregateStats.timings, 'unresolvedCleanupMs', cleanupStarted);
       }
