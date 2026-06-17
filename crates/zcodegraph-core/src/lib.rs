@@ -1,5 +1,6 @@
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::fs;
@@ -178,6 +179,15 @@ pub struct IndexProfile {
     pub source_scan_ms: u128,
     pub parse_extraction_ms: u128,
     pub sqlite_write_ms: u128,
+    pub import_path_alias_resolution_ms: u128,
+    pub import_path_alias_resolved_refs: u32,
+    pub import_path_alias_fallback_refs: u32,
+    pub import_path_alias_binding_fallback_refs: u32,
+    pub import_path_alias_unsupported_fallback_refs: u32,
+    pub import_path_alias_unresolved_fallback_refs: u32,
+    pub local_exact_reference_resolution_ms: u128,
+    pub local_exact_reference_resolved_refs: u32,
+    pub local_exact_reference_fallback_refs: u32,
 }
 
 pub fn run_index(request: &IndexRequest) -> IndexResult {
@@ -998,7 +1008,477 @@ fn write_index_to_connection(
         request.graph_work_profile.features(),
     )?;
     counts.profile.sqlite_write_ms += sqlite_setup_ms;
+    let import_resolution_started = Instant::now();
+    let import_stats = resolve_js_ts_file_imports(conn, Path::new(&request.project_path))?;
+    counts.profile.import_path_alias_resolution_ms =
+        import_resolution_started.elapsed().as_millis();
+    counts.profile.import_path_alias_resolved_refs = import_stats.resolved_refs;
+    counts.profile.import_path_alias_fallback_refs = import_stats.fallback_refs();
+    counts.profile.import_path_alias_binding_fallback_refs = import_stats.binding_fallback_refs;
+    counts.profile.import_path_alias_unsupported_fallback_refs =
+        import_stats.unsupported_fallback_refs;
+    counts.profile.import_path_alias_unresolved_fallback_refs =
+        import_stats.unresolved_fallback_refs;
+    counts.edges_created += import_stats.edges_created;
+    let local_reference_started = Instant::now();
+    let local_reference_stats = resolve_same_file_exact_callable_refs(conn)?;
+    counts.profile.local_exact_reference_resolution_ms =
+        local_reference_started.elapsed().as_millis();
+    counts.profile.local_exact_reference_resolved_refs = local_reference_stats.resolved_refs;
+    counts.profile.local_exact_reference_fallback_refs = local_reference_stats.fallback_refs;
+    counts.edges_created += local_reference_stats.edges_created;
     Ok(counts)
+}
+
+#[derive(Debug, Default)]
+struct ImportResolutionStats {
+    resolved_refs: u32,
+    edges_created: u32,
+    binding_fallback_refs: u32,
+    unsupported_fallback_refs: u32,
+    unresolved_fallback_refs: u32,
+}
+
+impl ImportResolutionStats {
+    fn fallback_refs(&self) -> u32 {
+        self.binding_fallback_refs + self.unsupported_fallback_refs + self.unresolved_fallback_refs
+    }
+}
+
+#[derive(Debug)]
+struct ImportRefRow {
+    id: i64,
+    from_node_id: String,
+    reference_name: String,
+    line: i64,
+    col: i64,
+    file_path: String,
+    language: String,
+}
+
+#[derive(Debug, Default)]
+struct LocalReferenceStats {
+    resolved_refs: u32,
+    edges_created: u32,
+    fallback_refs: u32,
+}
+
+#[derive(Debug)]
+struct LocalRefRow {
+    id: i64,
+    from_node_id: String,
+    reference_name: String,
+    reference_kind: String,
+    line: i64,
+    col: i64,
+    file_path: String,
+    language: String,
+}
+
+#[derive(Debug, Default)]
+struct TsPathAliases {
+    base_url: PathBuf,
+    patterns: Vec<TsPathAliasPattern>,
+}
+
+#[derive(Debug)]
+struct TsPathAliasPattern {
+    prefix: String,
+    suffix: String,
+    targets: Vec<TsPathAliasTarget>,
+}
+
+#[derive(Debug)]
+struct TsPathAliasTarget {
+    prefix: String,
+    suffix: String,
+}
+
+fn resolve_js_ts_file_imports(
+    conn: &Connection,
+    project_path: &Path,
+) -> Result<ImportResolutionStats, Box<dyn std::error::Error>> {
+    let aliases = load_ts_path_aliases(project_path);
+    let refs = load_import_refs(conn)?;
+    let mut stats = ImportResolutionStats::default();
+    let mut resolved_ids = Vec::new();
+
+    for reference in refs {
+        if !matches!(
+            reference.language.as_str(),
+            "javascript" | "jsx" | "typescript" | "tsx"
+        ) {
+            continue;
+        }
+
+        let specifier = reference.reference_name.as_str();
+        let target = if is_relative_import_specifier(specifier) {
+            resolve_relative_import(project_path, &reference.file_path, specifier)
+        } else if aliases.matches(specifier) {
+            resolve_alias_import(project_path, &aliases, specifier)
+        } else if looks_like_imported_binding(specifier) {
+            stats.binding_fallback_refs += 1;
+            continue;
+        } else {
+            stats.unsupported_fallback_refs += 1;
+            continue;
+        };
+
+        let Some(target_file_path) = target else {
+            stats.unresolved_fallback_refs += 1;
+            continue;
+        };
+        let Some(target_node_id) = find_file_node_id(conn, &target_file_path)? else {
+            stats.unresolved_fallback_refs += 1;
+            continue;
+        };
+
+        if insert_rust_import_edge(conn, &reference, &target_node_id)? {
+            stats.edges_created += 1;
+        }
+        stats.resolved_refs += 1;
+        resolved_ids.push(reference.id);
+    }
+
+    delete_resolved_import_refs(conn, &resolved_ids)?;
+    Ok(stats)
+}
+
+fn load_import_refs(conn: &Connection) -> rusqlite::Result<Vec<ImportRefRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, from_node_id, reference_name, line, col, file_path, language
+         FROM unresolved_refs
+         WHERE reference_kind = 'imports'
+         ORDER BY id",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(ImportRefRow {
+            id: row.get(0)?,
+            from_node_id: row.get(1)?,
+            reference_name: row.get(2)?,
+            line: row.get(3)?,
+            col: row.get(4)?,
+            file_path: row.get(5)?,
+            language: row.get(6)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+fn is_relative_import_specifier(specifier: &str) -> bool {
+    specifier.starts_with("./") || specifier.starts_with("../")
+}
+
+fn looks_like_imported_binding(specifier: &str) -> bool {
+    let mut chars = specifier.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    (first == '_' || first == '$' || first.is_ascii_alphabetic())
+        && chars.all(|ch| ch == '_' || ch == '$' || ch.is_ascii_alphanumeric())
+}
+
+impl TsPathAliases {
+    fn matches(&self, specifier: &str) -> bool {
+        self.patterns
+            .iter()
+            .any(|pattern| pattern.matches(specifier).is_some())
+    }
+}
+
+impl TsPathAliasPattern {
+    fn matches<'a>(&self, specifier: &'a str) -> Option<&'a str> {
+        if !specifier.starts_with(&self.prefix) || !specifier.ends_with(&self.suffix) {
+            return None;
+        }
+        let start = self.prefix.len();
+        let end = specifier.len().saturating_sub(self.suffix.len());
+        if start > end {
+            return None;
+        }
+        Some(&specifier[start..end])
+    }
+}
+
+fn load_ts_path_aliases(project_path: &Path) -> TsPathAliases {
+    for config_name in ["tsconfig.json", "jsconfig.json"] {
+        let config_path = project_path.join(config_name);
+        let Ok(content) = fs::read_to_string(&config_path) else {
+            continue;
+        };
+        if let Some(aliases) = parse_ts_path_aliases(project_path, &content) {
+            return aliases;
+        }
+    }
+    TsPathAliases::default()
+}
+
+fn parse_ts_path_aliases(project_path: &Path, content: &str) -> Option<TsPathAliases> {
+    let parsed: Value = serde_json::from_str(content).ok()?;
+    let compiler_options = parsed.get("compilerOptions")?;
+    let base_url = compiler_options
+        .get("baseUrl")
+        .and_then(Value::as_str)
+        .unwrap_or(".");
+    let paths = compiler_options.get("paths")?.as_object()?;
+    let mut aliases = TsPathAliases {
+        base_url: project_path.join(base_url),
+        patterns: Vec::new(),
+    };
+
+    for (alias, raw_targets) in paths {
+        let targets = raw_targets
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .filter_map(split_alias_pattern)
+            .map(|(prefix, suffix)| TsPathAliasTarget { prefix, suffix })
+            .collect::<Vec<_>>();
+        if targets.is_empty() {
+            continue;
+        }
+        let Some((prefix, suffix)) = split_alias_pattern(alias) else {
+            continue;
+        };
+        aliases.patterns.push(TsPathAliasPattern {
+            prefix,
+            suffix,
+            targets,
+        });
+    }
+
+    Some(aliases)
+}
+
+fn split_alias_pattern(pattern: &str) -> Option<(String, String)> {
+    match pattern.split_once('*') {
+        Some((prefix, suffix)) => Some((prefix.to_string(), suffix.to_string())),
+        None => Some((pattern.to_string(), String::new())),
+    }
+}
+
+fn resolve_relative_import(project_path: &Path, from_file_path: &str, specifier: &str) -> Option<String> {
+    let from_dir = Path::new(from_file_path).parent().unwrap_or_else(|| Path::new(""));
+    let base = project_path.join(from_dir).join(specifier);
+    resolve_import_candidate(project_path, &base)
+}
+
+fn resolve_alias_import(
+    project_path: &Path,
+    aliases: &TsPathAliases,
+    specifier: &str,
+) -> Option<String> {
+    for pattern in &aliases.patterns {
+        let Some(capture) = pattern.matches(specifier) else {
+            continue;
+        };
+        for target in &pattern.targets {
+            let candidate = aliases
+                .base_url
+                .join(format!("{}{}{}", target.prefix, capture, target.suffix));
+            if let Some(resolved) = resolve_import_candidate(project_path, &candidate) {
+                return Some(resolved);
+            }
+        }
+    }
+    None
+}
+
+fn resolve_import_candidate(project_path: &Path, base: &Path) -> Option<String> {
+    for candidate in import_file_candidates(base) {
+        if candidate.is_file() {
+            return canonical_relative_slash_path(project_path, &candidate);
+        }
+    }
+    None
+}
+
+fn import_file_candidates(base: &Path) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if base.extension().is_some() {
+        candidates.push(base.to_path_buf());
+    } else {
+        for extension in ["ts", "tsx", "d.ts", "js", "jsx"] {
+            candidates.push(base.with_extension(extension));
+        }
+    }
+    for extension in ["ts", "tsx", "js", "jsx"] {
+        candidates.push(base.join("index").with_extension(extension));
+    }
+    candidates
+}
+
+fn canonical_relative_slash_path(project_path: &Path, path: &Path) -> Option<String> {
+    let canonical_root = fs::canonicalize(project_path).ok()?;
+    let canonical_path = fs::canonicalize(path).ok()?;
+    canonical_path
+        .strip_prefix(canonical_root)
+        .ok()
+        .map(|relative| relative.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/"))
+}
+
+fn find_file_node_id(conn: &Connection, file_path: &str) -> rusqlite::Result<Option<String>> {
+    let mut stmt = conn.prepare("SELECT id FROM nodes WHERE kind = 'file' AND file_path = ?1 LIMIT 1")?;
+    let mut rows = stmt.query(params![file_path])?;
+    if let Some(row) = rows.next()? {
+        Ok(Some(row.get(0)?))
+    } else {
+        Ok(None)
+    }
+}
+
+fn insert_rust_import_edge(
+    conn: &Connection,
+    reference: &ImportRefRow,
+    target_node_id: &str,
+) -> rusqlite::Result<bool> {
+    let existing: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM edges
+         WHERE source = ?1 AND target = ?2 AND kind = 'imports' AND edgeOrigin = 'rust-finalization'",
+        params![reference.from_node_id, target_node_id],
+        |row| row.get(0),
+    )?;
+    if existing > 0 {
+        return Ok(false);
+    }
+
+    conn.execute(
+        "INSERT INTO edges (source, target, kind, metadata, line, col, edgeOrigin)
+         VALUES (?1, ?2, 'imports', ?3, ?4, ?5, 'rust-finalization')",
+        params![
+            reference.from_node_id,
+            target_node_id,
+            "{\"resolvedBy\":\"rust-import-path-alias\"}",
+            reference.line,
+            reference.col,
+        ],
+    )?;
+    Ok(true)
+}
+
+fn delete_resolved_import_refs(conn: &Connection, ids: &[i64]) -> rusqlite::Result<()> {
+    let mut stmt = conn.prepare("DELETE FROM unresolved_refs WHERE id = ?1")?;
+    for id in ids {
+        stmt.execute(params![id])?;
+    }
+    Ok(())
+}
+
+fn resolve_same_file_exact_callable_refs(
+    conn: &Connection,
+) -> Result<LocalReferenceStats, Box<dyn std::error::Error>> {
+    let refs = load_local_callable_refs(conn)?;
+    let mut stats = LocalReferenceStats::default();
+    let mut resolved_ids = Vec::new();
+
+    for reference in refs {
+        if !matches!(
+            reference.language.as_str(),
+            "javascript" | "jsx" | "typescript" | "tsx"
+        ) {
+            continue;
+        }
+        let candidates = find_same_file_callable_candidates(
+            conn,
+            &reference.file_path,
+            &reference.reference_name,
+            &reference.reference_kind,
+        )?;
+        if candidates.len() != 1 {
+            stats.fallback_refs += 1;
+            continue;
+        }
+        if insert_rust_local_reference_edge(conn, &reference, &candidates[0])? {
+            stats.edges_created += 1;
+        }
+        stats.resolved_refs += 1;
+        resolved_ids.push(reference.id);
+    }
+
+    delete_resolved_import_refs(conn, &resolved_ids)?;
+    Ok(stats)
+}
+
+fn load_local_callable_refs(conn: &Connection) -> rusqlite::Result<Vec<LocalRefRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, from_node_id, reference_name, reference_kind, line, col, file_path, language
+         FROM unresolved_refs
+         WHERE reference_kind IN ('calls', 'instantiates')
+         ORDER BY id",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(LocalRefRow {
+            id: row.get(0)?,
+            from_node_id: row.get(1)?,
+            reference_name: row.get(2)?,
+            reference_kind: row.get(3)?,
+            line: row.get(4)?,
+            col: row.get(5)?,
+            file_path: row.get(6)?,
+            language: row.get(7)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+fn find_same_file_callable_candidates(
+    conn: &Connection,
+    file_path: &str,
+    reference_name: &str,
+    reference_kind: &str,
+) -> rusqlite::Result<Vec<String>> {
+    let kinds = if reference_kind == "instantiates" {
+        vec!["class"]
+    } else {
+        vec!["function", "method", "component"]
+    };
+    let placeholders = kinds.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!(
+        "SELECT id FROM nodes
+         WHERE file_path = ?1 AND name = ?2 AND kind IN ({})
+         ORDER BY start_line",
+        placeholders
+    );
+    let mut params: Vec<&dyn rusqlite::ToSql> = vec![&file_path, &reference_name];
+    for kind in &kinds {
+        params.push(kind);
+    }
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(params.as_slice(), |row| row.get::<_, String>(0))?;
+    rows.collect()
+}
+
+fn insert_rust_local_reference_edge(
+    conn: &Connection,
+    reference: &LocalRefRow,
+    target_node_id: &str,
+) -> rusqlite::Result<bool> {
+    let existing: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM edges
+         WHERE source = ?1 AND target = ?2 AND kind = ?3 AND edgeOrigin = 'rust-finalization'",
+        params![reference.from_node_id, target_node_id, reference.reference_kind],
+        |row| row.get(0),
+    )?;
+    if existing > 0 {
+        return Ok(false);
+    }
+
+    conn.execute(
+        "INSERT INTO edges (source, target, kind, metadata, line, col, edgeOrigin)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'rust-finalization')",
+        params![
+            reference.from_node_id,
+            target_node_id,
+            reference.reference_kind,
+            "{\"resolvedBy\":\"rust-local-exact-reference\"}",
+            reference.line,
+            reference.col,
+        ],
+    )?;
+    Ok(true)
 }
 
 fn configure_index_connection(conn: &Connection) -> rusqlite::Result<()> {
@@ -2038,7 +2518,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -2049,7 +2529,16 @@ pub fn result_json(result: &IndexResult) -> String {
         result.duration_ms,
         result.profile.source_scan_ms,
         result.profile.parse_extraction_ms,
-        result.profile.sqlite_write_ms
+        result.profile.sqlite_write_ms,
+        result.profile.import_path_alias_resolution_ms,
+        result.profile.import_path_alias_resolved_refs,
+        result.profile.import_path_alias_fallback_refs,
+        result.profile.import_path_alias_binding_fallback_refs,
+        result.profile.import_path_alias_unsupported_fallback_refs,
+        result.profile.import_path_alias_unresolved_fallback_refs,
+        result.profile.local_exact_reference_resolution_ms,
+        result.profile.local_exact_reference_resolved_refs,
+        result.profile.local_exact_reference_fallback_refs
     )
 }
 
@@ -2367,13 +2856,14 @@ mod tests {
                 source_scan_ms: 1,
                 parse_extraction_ms: 2,
                 sqlite_write_ms: 3,
+                ..IndexProfile::default()
             },
             errors: Vec::new(),
         };
 
         assert_eq!(
             result_json(&result),
-            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3}}"
+            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
         );
     }
 

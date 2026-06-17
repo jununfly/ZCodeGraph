@@ -21,6 +21,7 @@ import {
   TaskContext,
   CollectContextOptions,
   FindRelevantContextOptions,
+  UnresolvedReference,
 } from './types';
 import { DatabaseConnection, getDatabasePath } from './db';
 import { QueryBuilder } from './db/queries';
@@ -84,6 +85,33 @@ export {
 export { Mutex, FileLock, processInBatches, debounce, throttle, MemoryMonitor } from './utils';
 export { FileWatcher, WatchOptions, PendingFile, LockUnavailableError } from './sync';
 export { MCPServer } from './mcp';
+
+function classifyRustImportResolutionFallbacks(refs: UnresolvedReference[]): {
+  bindingLevelSymbolDisambiguation: number;
+  unsupportedImportForm: number;
+  unresolvedImportTarget: number;
+} {
+  const counts = {
+    bindingLevelSymbolDisambiguation: 0,
+    unsupportedImportForm: 0,
+    unresolvedImportTarget: 0,
+  };
+
+  for (const ref of refs) {
+    if (ref.referenceKind !== 'imports') continue;
+    if (ref.language == null || !['javascript', 'jsx', 'typescript', 'tsx'].includes(ref.language)) continue;
+    const name = ref.referenceName;
+    if (name.startsWith('./') || name.startsWith('../') || name.includes('/')) {
+      counts.unresolvedImportTarget += 1;
+    } else if (/^[$_A-Za-z][$_A-Za-z0-9]*$/.test(name)) {
+      counts.bindingLevelSymbolDisambiguation += 1;
+    } else {
+      counts.unsupportedImportForm += 1;
+    }
+  }
+
+  return counts;
+}
 
 /**
  * Options for initializing a new CodeGraph project
@@ -833,6 +861,37 @@ export class CodeGraph {
             ],
           },
         };
+        const rustImportEdgeCount = this.queries.getRustFinalizationImportEdgeCount();
+        const rustLocalReferenceEdgeCount = this.queries.getRustFinalizationLocalReferenceEdgeCount();
+        const rustImportFallbacks = classifyRustImportResolutionFallbacks(this.queries.getUnresolvedReferences());
+        if (rustImportEdgeCount > 0) {
+          profile.boundaryProtocol.rustOwnedStages.push('import-path-alias-resolution');
+        }
+        if (rustLocalReferenceEdgeCount > 0) {
+          profile.boundaryProtocol.rustOwnedStages.push('local-exact-reference-resolution');
+        }
+        const additionalFallbackEntries = [
+          {
+            stage: 'reference-resolution',
+            classification: 'known-unsupported' as const,
+            reason: 'binding-level-symbol-disambiguation-not-yet-rust-owned',
+            count: rustImportFallbacks.bindingLevelSymbolDisambiguation,
+          },
+          {
+            stage: 'reference-resolution',
+            classification: 'known-unsupported' as const,
+            reason: 'unsupported-import-form-not-yet-rust-owned',
+            count: rustImportFallbacks.unsupportedImportForm,
+          },
+          {
+            stage: 'reference-resolution',
+            classification: 'known-unsupported' as const,
+            reason: 'unresolved-file-level-import-target',
+            count: rustImportFallbacks.unresolvedImportTarget,
+          },
+        ].filter((entry) => entry.count > 0);
+        profile.fallbackTaxonomy.entries.push(...additionalFallbackEntries);
+        profile.fallbackTaxonomy.totalFallbacks += additionalFallbackEntries.reduce((sum, entry) => sum + entry.count, 0);
         const frameworkStarted = Date.now();
         this.resolver.initialize();
         this.resolver.runPostExtract();

@@ -1757,6 +1757,20 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       .get() as { nodes: number; edges: number };
   }
 
+  getRustFinalizationImportEdgeCount(): number {
+    const row = this.db
+      .prepare("SELECT COUNT(*) AS count FROM edges WHERE kind = 'imports' AND edgeOrigin = 'rust-finalization'")
+      .get() as { count: number };
+    return row.count;
+  }
+
+  getRustFinalizationLocalReferenceEdgeCount(): number {
+    const row = this.db
+      .prepare("SELECT COUNT(*) AS count FROM edges WHERE kind IN ('calls', 'instantiates') AND edgeOrigin = 'rust-finalization'")
+      .get() as { count: number };
+    return row.count;
+  }
+
   /**
    * Get graph statistics
    */

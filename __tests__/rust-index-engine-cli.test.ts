@@ -350,6 +350,113 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
+  it('resolves JS/TS relative and paths-alias imports as Rust-owned file-level edges', () => {
+    const srcDir = path.join(tempDir, 'src');
+    fs.mkdirSync(srcDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          baseUrl: '.',
+          paths: {
+            '@app/*': ['src/*'],
+          },
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(path.join(srcDir, 'lib.ts'), 'export function libValue() { return 1; }\n');
+    fs.writeFileSync(path.join(srcDir, 'alias-target.ts'), 'export function aliasValue() { return 2; }\n');
+    fs.writeFileSync(
+      path.join(srcDir, 'main.ts'),
+      [
+        'import { libValue } from "./lib";',
+        'import { aliasValue } from "@app/alias-target";',
+        'export function mainValue() {',
+        '  return libValue() + aliasValue();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'rust-import-profile.json');
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        boundaryProtocol: { rustOwnedStages: string[] };
+        fallbackTaxonomy: {
+          entries: Array<{ stage: string; reason: string; count: number }>;
+        };
+      };
+    };
+    expect(profile.finalize.boundaryProtocol.rustOwnedStages).toContain('import-path-alias-resolution');
+    expect(profile.finalize.fallbackTaxonomy.entries).toContainEqual(expect.objectContaining({
+      stage: 'reference-resolution',
+      reason: 'binding-level-symbol-disambiguation-not-yet-rust-owned',
+      count: expect.any(Number),
+    }));
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const files = cg.getNodesByKind('file');
+      const mainFile = files.find((node) => node.filePath === 'src/main.ts');
+      const relativeTarget = files.find((node) => node.filePath === 'src/lib.ts');
+      const aliasTarget = files.find((node) => node.filePath === 'src/alias-target.ts');
+      expect(mainFile).toBeDefined();
+      expect(relativeTarget).toBeDefined();
+      expect(aliasTarget).toBeDefined();
+
+      const imports = cg.getOutgoingEdges(mainFile!.id).filter((edge) => edge.kind === 'imports');
+      expect(imports.some((edge) => edge.target === relativeTarget!.id)).toBe(true);
+      expect(imports.some((edge) => edge.target === aliasTarget!.id)).toBe(true);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('resolves same-file exact callable references as Rust-owned edges', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'local-calls.ts'),
+      [
+        'function localHelper() {',
+        '  return 1;',
+        '}',
+        '',
+        'export function localEntry() {',
+        '  return localHelper();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'rust-local-reference-profile.json');
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: { boundaryProtocol: { rustOwnedStages: string[] } };
+    };
+    expect(profile.finalize.boundaryProtocol.rustOwnedStages).toContain('local-exact-reference-resolution');
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const entry = cg.searchNodes('localEntry').find((match) => match.node.kind === 'function')?.node;
+      const helper = cg.searchNodes('localHelper').find((match) => match.node.kind === 'function')?.node;
+      expect(entry).toBeDefined();
+      expect(helper).toBeDefined();
+
+      const calls = cg.getOutgoingEdges(entry!.id).filter((edge) => edge.kind === 'calls');
+      expect(calls.some((edge) => edge.target === helper!.id && edge.edgeOrigin === 'rust-finalization')).toBe(true);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
   it('reports Rust index-engine metadata through MCP status', async () => {
     const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
