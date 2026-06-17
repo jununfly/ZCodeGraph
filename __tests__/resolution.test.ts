@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { CodeGraph } from '../src';
-import { Node, UnresolvedReference } from '../src/types';
+import { Edge, Node, UnresolvedReference } from '../src/types';
 import { ReferenceResolver, createResolver, ResolutionContext } from '../src/resolution';
 import { matchReference } from '../src/resolution/name-matcher';
 import { resolveImportPath, extractImportMappings, resolveJvmImport, loadCppIncludeDirs, clearCppIncludeDirCache } from '../src/resolution/import-resolver';
@@ -108,6 +108,112 @@ describe('Resolution Module', () => {
         'implements',
         'instantiates',
         'extends',
+      ]);
+    });
+
+    it('persists finalization edges through a prevalidated batch writer', () => {
+      const source: Node = {
+        id: 'function:source',
+        kind: 'function',
+        name: 'source',
+        qualifiedName: 'source',
+        filePath: 'source.ts',
+        language: 'typescript',
+        startLine: 1,
+        endLine: 3,
+        startColumn: 0,
+        endColumn: 0,
+        updatedAt: Date.now(),
+      };
+      const target: Node = {
+        id: 'function:target',
+        kind: 'function',
+        name: 'target',
+        qualifiedName: 'target',
+        filePath: 'target.ts',
+        language: 'typescript',
+        startLine: 1,
+        endLine: 3,
+        startColumn: 0,
+        endColumn: 0,
+        updatedAt: Date.now(),
+      };
+      const staleTarget: Node = {
+        ...target,
+        id: 'function:stale',
+        name: 'stale',
+        qualifiedName: 'stale',
+      };
+      const inserted: Edge[] = [];
+      const queries = {
+        getAllFilePaths: () => ['source.ts', 'target.ts'],
+        getAllNodeNames: () => ['target', 'stale'],
+        getNodesByFile: () => [source],
+        getNodesByName: (name: string) => {
+          if (name === 'target') return [target];
+          if (name === 'stale') return [staleTarget];
+          return [];
+        },
+        getNodesByQualifiedNameExact: () => [],
+        getNodesByKind: () => [],
+        getNodesByLowerName: () => [],
+        getNodeById: (id: string) => {
+          if (id === source.id) return source;
+          if (id === target.id) return target;
+          if (id === staleTarget.id) return staleTarget;
+          return null;
+        },
+        getNodeKindsByIds: (ids: readonly string[]) => {
+          expect(new Set(ids)).toEqual(new Set(['function:source', 'function:target', 'function:stale']));
+          return new Map([
+            ['function:source', 'function'],
+            ['function:target', 'function'],
+          ]);
+        },
+        insertEdges: () => {
+          throw new Error('resolveAndPersist should use prevalidated edge writes');
+        },
+        insertValidatedEdges: (edges: Edge[]) => {
+          inserted.push(...edges);
+        },
+        deleteSpecificResolvedReferences: () => undefined,
+        deleteUnresolvedReferencesByRowIds: () => undefined,
+      };
+      const resolver = new ReferenceResolver(tempDir, queries as unknown as QueryBuilder);
+
+      const result = resolver.resolveAndPersist([
+        {
+          fromNodeId: source.id,
+          referenceName: 'target',
+          referenceKind: 'references',
+          line: 2,
+          column: 4,
+          filePath: 'source.ts',
+          language: 'typescript',
+        },
+        {
+          fromNodeId: source.id,
+          referenceName: 'stale',
+          referenceKind: 'references',
+          line: 3,
+          column: 4,
+          filePath: 'source.ts',
+          language: 'typescript',
+        },
+      ]);
+
+      expect(result.resolved.map((ref) => ref.targetNodeId)).toEqual([
+        'function:target',
+        'function:stale',
+      ]);
+      expect(inserted).toEqual([
+        expect.objectContaining({
+          source: source.id,
+          target: target.id,
+          kind: 'references',
+          line: 2,
+          column: 4,
+        }),
       ]);
     });
   });

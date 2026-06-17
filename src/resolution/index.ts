@@ -1083,6 +1083,52 @@ export class ReferenceResolver {
     });
   }
 
+  private createPersistableEdges(resolved: ResolvedRef[]): Edge[] {
+    const endpointAndKindIds = new Set<string>();
+    for (const ref of resolved) {
+      endpointAndKindIds.add(ref.original.fromNodeId);
+      endpointAndKindIds.add(ref.targetNodeId);
+    }
+    const nodeKinds = this.queries.getNodeKindsByIds([...endpointAndKindIds]);
+
+    return resolved.flatMap((ref) => {
+      if (!nodeKinds.has(ref.original.fromNodeId) || !nodeKinds.has(ref.targetNodeId)) {
+        return [];
+      }
+
+      let kind = ref.original.referenceKind;
+
+      if (kind === 'extends') {
+        const targetKind = nodeKinds.get(ref.targetNodeId);
+        if (targetKind === 'interface' || targetKind === 'protocol') {
+          const sourceKind = nodeKinds.get(ref.original.fromNodeId);
+          if (sourceKind && sourceKind !== 'interface' && sourceKind !== 'protocol') {
+            kind = 'implements';
+          }
+        }
+      }
+
+      if (kind === 'calls') {
+        const targetKind = nodeKinds.get(ref.targetNodeId);
+        if (targetKind === 'class' || targetKind === 'struct') {
+          kind = 'instantiates';
+        }
+      }
+
+      return [{
+        source: ref.original.fromNodeId,
+        target: ref.targetNodeId,
+        kind,
+        line: ref.original.line,
+        column: ref.original.column,
+        metadata: {
+          confidence: ref.confidence,
+          resolvedBy: ref.resolvedBy,
+        },
+      }];
+    });
+  }
+
   /**
    * Resolve and persist edges to database
    */
@@ -1094,7 +1140,7 @@ export class ReferenceResolver {
 
     // Create edges from resolved references
     const persistStarted = Date.now();
-    const edges = this.createEdges(result.resolved);
+    const edges = this.createPersistableEdges(result.resolved);
     addElapsed(result.stats.timings, 'databaseAccessMs', persistStarted);
     addElapsed(result.stats.timings, 'edgeMaterializationMs', persistStarted);
     addElapsed(result.stats.timings, 'edgeMaterializationDbMs', persistStarted);
@@ -1102,7 +1148,7 @@ export class ReferenceResolver {
     // Insert edges into database
     if (edges.length > 0) {
       const writeStarted = Date.now();
-      this.queries.insertEdges(edges);
+      this.queries.insertValidatedEdges(edges);
       addElapsed(result.stats.timings, 'databaseAccessMs', writeStarted);
       addElapsed(result.stats.timings, 'edgeWriteMs', writeStarted);
       addElapsed(result.stats.timings, 'edgeWriteDbMs', writeStarted);
@@ -1176,13 +1222,13 @@ export class ReferenceResolver {
 
       // Persist edges immediately
       const persistStarted = Date.now();
-      const edges = this.createEdges(result.resolved);
+      const edges = this.createPersistableEdges(result.resolved);
       addElapsed(aggregateStats.timings, 'databaseAccessMs', persistStarted);
       addElapsed(aggregateStats.timings, 'edgeMaterializationMs', persistStarted);
       addElapsed(aggregateStats.timings, 'edgeMaterializationDbMs', persistStarted);
       if (edges.length > 0) {
         const writeStarted = Date.now();
-        this.queries.insertEdges(edges);
+        this.queries.insertValidatedEdges(edges);
         addElapsed(aggregateStats.timings, 'databaseAccessMs', writeStarted);
         addElapsed(aggregateStats.timings, 'edgeWriteMs', writeStarted);
         addElapsed(aggregateStats.timings, 'edgeWriteDbMs', writeStarted);

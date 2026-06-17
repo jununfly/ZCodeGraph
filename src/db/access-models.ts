@@ -92,6 +92,7 @@ export interface MaintenanceAccessModel {
   // Edge writes
   insertEdge(edge: Edge): void;
   insertEdges(edges: Edge[]): void;
+  insertValidatedEdges(edges: Edge[]): void;
   deleteEdgesBySource(sourceId: string): void;
 
   // File writes

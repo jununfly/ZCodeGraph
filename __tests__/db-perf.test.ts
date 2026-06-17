@@ -172,6 +172,32 @@ describe('insertEdges endpoint validation', () => {
     ).not.toThrow();
     expect(q.getOutgoingEdges('source')).toEqual([]);
   });
+
+  it('can insert a prevalidated edge batch without repeating endpoint validation', () => {
+    q.insertNodes([makeNode('source'), makeNode('target')]);
+
+    q.insertValidatedEdges([
+      {
+        source: 'source',
+        target: 'target',
+        kind: 'references',
+        line: 7,
+        column: 3,
+        metadata: { confidence: 1, resolvedBy: 'exact-match' },
+      },
+    ]);
+
+    expect(q.getOutgoingEdges('source')).toEqual([
+      expect.objectContaining({
+        source: 'source',
+        target: 'target',
+        kind: 'references',
+        line: 7,
+        column: 3,
+        metadata: { confidence: 1, resolvedBy: 'exact-match' },
+      }),
+    ]);
+  });
 });
 
 describe('runMaintenance', () => {

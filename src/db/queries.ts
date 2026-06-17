@@ -1299,26 +1299,36 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
   }
 
   /**
+   * Insert multiple edges whose endpoints have already been validated by the
+   * caller against the current nodes table.
+   */
+  insertValidatedEdges(edges: Edge[]): void {
+    if (edges.length === 0) return;
+
+    this.db.transaction(() => {
+      for (const edge of edges) {
+        this.insertEdge(edge);
+      }
+    })();
+  }
+
+  /**
    * Insert multiple edges in a transaction
    */
   insertEdges(edges: Edge[]): void {
     if (edges.length === 0) return;
 
-    this.db.transaction(() => {
-      const endpointIds = new Set<string>();
-      for (const edge of edges) {
-        endpointIds.add(edge.source);
-        endpointIds.add(edge.target);
-      }
-      const existingNodeIds = this.getExistingNodeIds([...endpointIds]);
+    const endpointIds = new Set<string>();
+    for (const edge of edges) {
+      endpointIds.add(edge.source);
+      endpointIds.add(edge.target);
+    }
+    const existingNodeIds = this.getExistingNodeIds([...endpointIds]);
+    const validEdges = edges.filter((edge) =>
+      existingNodeIds.has(edge.source) && existingNodeIds.has(edge.target)
+    );
 
-      for (const edge of edges) {
-        if (!existingNodeIds.has(edge.source) || !existingNodeIds.has(edge.target)) {
-          continue;
-        }
-        this.insertEdge(edge);
-      }
-    })();
+    this.insertValidatedEdges(validEdges);
   }
 
   /**

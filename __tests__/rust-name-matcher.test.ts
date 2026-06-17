@@ -85,6 +85,7 @@ function makeBatchedQueries(nodes: Node[], unresolved: UnresolvedReference[]): Q
       ids.map((id) => [id, nodes.find((item) => item.id === id)?.kind ?? 'function']),
     ),
     insertEdges: () => undefined,
+    insertValidatedEdges: () => undefined,
     deleteUnresolvedReferencesByRowIds: (rowids: number[]) => {
       queries.__unresolved = queries.__unresolved!.filter((item) => !rowids.includes(item.rowid!));
     },
