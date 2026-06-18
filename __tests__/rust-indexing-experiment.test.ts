@@ -1485,6 +1485,119 @@ describe('Rust indexing formal experiment runner', () => {
     expect(gatedResult.status).toBe(2);
   });
 
+  it('classifies zero-source real-repo targets as unavailable instead of completed graphs', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-empty-corpus-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(source, { recursive: true });
+    fs.writeFileSync(path.join(source, 'README.md'), '# empty fixture\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+    const manifest = path.join(temp, 'experiment.json');
+    const out = path.join(temp, 'artifact.json');
+    const summaryOut = path.join(temp, 'summary.md');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        targets: [
+          {
+            name: 'emptyFixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            promptIds: ['EMPTY-1'],
+          },
+        ],
+      }),
+    );
+
+    const result = spawnSync(process.execPath, [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut], {
+      cwd: REPO_ROOT,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+        ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+      },
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      classification: string;
+      targets: Array<{
+        classification: string;
+        emptyCorpus: { status: string; diagnostics: Array<{ kind: string; arm?: string }> };
+        arms: {
+          typescript: { sourceCopy: { copiedFiles: number; copiedSourceFiles: number }; graphStats: { fileCount: number; nodeCount: number } };
+          rust: { sourceCopy: { copiedFiles: number; copiedSourceFiles: number }; graphStats: { fileCount: number; nodeCount: number } };
+        };
+      }>;
+    };
+    const target = artifact.targets[0];
+    expect(target.arms.typescript.sourceCopy.copiedSourceFiles).toBe(0);
+    expect(target.arms.rust.sourceCopy.copiedSourceFiles).toBe(0);
+    expect(target.emptyCorpus.status).toBe('invalid');
+    expect(target.emptyCorpus.diagnostics.map((diagnostic) => diagnostic.kind)).toContain('empty-corpus');
+    expect(target.classification).toBe('target-failed-empty-corpus');
+    expect(artifact.classification).toBe('failed-required-target-unavailable');
+
+    const summary = fs.readFileSync(summaryOut, 'utf-8');
+    expect(summary).toContain('emptyFixture: invalid');
+    expect(summary).toContain('empty-corpus');
+  });
+
+  it('allows intentionally empty targets only with an explicit manifest escape hatch', () => {
+    const temp = makeTempDir('zcodegraph-rust-experiment-allow-empty-corpus-');
+    tempDirs.push(temp);
+    const source = path.join(temp, 'source');
+    fs.mkdirSync(source, { recursive: true });
+    fs.writeFileSync(path.join(source, 'README.md'), '# intentionally empty fixture\n');
+    const rustCore = path.join(temp, 'fake-rust-core');
+    fs.writeFileSync(rustCore, 'not a real rust core');
+    const manifest = path.join(temp, 'experiment.json');
+    const out = path.join(temp, 'artifact.json');
+    const summaryOut = path.join(temp, 'summary.md');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        targets: [
+          {
+            name: 'emptyFixture',
+            pathFallback: source,
+            targetClass: 'required',
+            requiredForDecision: true,
+            allowDirty: true,
+            allowEmptyCorpus: true,
+            promptIds: ['EMPTY-1'],
+          },
+        ],
+      }),
+    );
+
+    const result = spawnSync(process.execPath, [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut], {
+      cwd: REPO_ROOT,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+        ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+      },
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const artifact = JSON.parse(fs.readFileSync(out, 'utf-8')) as {
+      classification: string;
+      targets: Array<{ classification: string; allowEmptyCorpus: boolean; emptyCorpus: { status: string; diagnostics: Array<{ kind: string }> } }>;
+    };
+    const target = artifact.targets[0];
+    expect(target.allowEmptyCorpus).toBe(true);
+    expect(target.emptyCorpus.status).toBe('allowed');
+    expect(target.emptyCorpus.diagnostics.map((diagnostic) => diagnostic.kind)).toContain('empty-corpus-allowed');
+    expect(target.classification).not.toBe('target-failed-empty-corpus');
+    expect(artifact.classification).not.toBe('failed-required-target-unavailable');
+  });
+
   it('accepts the canonical manifest and writes a complete decision summary draft', () => {
     const temp = makeTempDir('zcodegraph-rust-experiment-summary-');
     tempDirs.push(temp);

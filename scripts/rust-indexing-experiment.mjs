@@ -259,6 +259,13 @@ function validateManifest(manifest) {
         seenTargets.add(target.name);
       }
       validateTargetPath(target, index, diagnostics);
+      if (target.allowEmptyCorpus !== undefined && typeof target.allowEmptyCorpus !== 'boolean') {
+        diagnostics.push(
+          diagnostic('invalid-manifest-field', `targets[${index}].allowEmptyCorpus must be a boolean`, {
+            field: `targets[${index}].allowEmptyCorpus`,
+          }),
+        );
+      }
       validateGraphWorkProfile(target.arms?.rust?.graphWorkProfile, `targets[${index}].arms.rust.graphWorkProfile`, diagnostics);
       validateSqliteWriteMode(target.arms?.rust?.sqliteWriteMode, `targets[${index}].arms.rust.sqliteWriteMode`, diagnostics);
     });
@@ -518,6 +525,16 @@ function writeSummary(file, artifact, manifestPath) {
       `- Rust: ${target.arms.rust.graphAvailable ? 'graph available' : 'graph unavailable'}; stats: ${JSON.stringify(target.arms.rust.graphStats)}`,
       '',
     ]),
+    '## Empty corpus validation',
+    '',
+    ...artifact.targets.flatMap((target) => {
+      const diagnostics = target.emptyCorpus?.diagnostics ?? [];
+      return [
+        `- ${target.name}: ${target.emptyCorpus?.status ?? 'unavailable'}`,
+        ...diagnostics.map((entry) => `  - ${entry.kind}: ${entry.message}`),
+      ];
+    }),
+    '',
     '## GraphStats parity',
     '',
     ...artifact.targets.flatMap((target) => graphParitySummaryLines(target)),
@@ -711,6 +728,7 @@ function tail(text, max = 4000) {
 function copySourceSlice(source, engine) {
   const dest = fs.mkdtempSync(path.join(os.tmpdir(), `zcodegraph-rust-experiment-${engine}-`));
   let copiedFiles = 0;
+  let copiedSourceFiles = 0;
 
   function walk(current) {
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
@@ -729,6 +747,7 @@ function copySourceSlice(source, engine) {
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.copyFileSync(src, target);
       copiedFiles += 1;
+      if (PHASE1_EXTENSIONS.has(ext)) copiedSourceFiles += 1;
     }
   }
 
@@ -736,6 +755,7 @@ function copySourceSlice(source, engine) {
   return {
     path: dest,
     copiedFiles,
+    copiedSourceFiles,
     mode: 'js-ts-config-slice',
     skipped: false,
   };
@@ -1067,6 +1087,7 @@ function applyGates(target, thresholds) {
 
 function classifyTarget(target) {
   if (target.preflight.status !== 'available') return 'target-failed-preflight';
+  if (target.emptyCorpus?.status === 'invalid') return 'target-failed-empty-corpus';
   const ts = target.arms.typescript;
   const rust = target.arms.rust;
   if (ts.preflight.status !== 'available' || rust.preflight.status !== 'available') return 'target-failed-arm-unavailable';
@@ -1081,8 +1102,70 @@ function classifyTarget(target) {
 function runArms(target, rustCoreInfo, thresholds, experimentId, profiling) {
   indexArm(target, 'typescript', rustCoreInfo, experimentId, profiling);
   indexArm(target, 'rust', rustCoreInfo, experimentId, profiling);
+  evaluateEmptyCorpus(target);
   applyGates(target, thresholds);
   target.classification = classifyTarget(target);
+}
+
+function emptyCorpusArmDiagnostics(target, armName) {
+  const arm = target.arms[armName];
+  if (arm.execution.status !== 'completed') return [];
+  const diagnostics = [];
+  const copiedSourceFiles = arm.sourceCopy?.copiedSourceFiles ?? 0;
+  const graphFileCount = arm.graphStats?.fileCount ?? 0;
+  const graphNodeCount = arm.graphStats?.nodeCount ?? 0;
+  if (copiedSourceFiles === 0) {
+    diagnostics.push(
+      diagnostic('empty-corpus', `${target.name}:${armName} copied zero JS/TS source files`, {
+        arm: armName,
+        reason: 'zero-copied-source-files',
+        copiedFiles: arm.sourceCopy?.copiedFiles ?? 0,
+        copiedSourceFiles,
+      }),
+    );
+  }
+  if (graphFileCount === 0) {
+    diagnostics.push(
+      diagnostic('empty-corpus', `${target.name}:${armName} produced zero graph files`, {
+        arm: armName,
+        reason: 'zero-graph-files',
+        fileCount: graphFileCount,
+      }),
+    );
+  }
+  if (graphNodeCount === 0) {
+    diagnostics.push(
+      diagnostic('empty-corpus', `${target.name}:${armName} produced zero graph nodes`, {
+        arm: armName,
+        reason: 'zero-graph-nodes',
+        nodeCount: graphNodeCount,
+      }),
+    );
+  }
+  return diagnostics;
+}
+
+function evaluateEmptyCorpus(target) {
+  const diagnostics = ['typescript', 'rust'].flatMap((armName) => emptyCorpusArmDiagnostics(target, armName));
+  if (diagnostics.length === 0) {
+    target.emptyCorpus = { status: 'valid', diagnostics: [] };
+    return;
+  }
+  if (target.allowEmptyCorpus) {
+    target.emptyCorpus = {
+      status: 'allowed',
+      diagnostics: [
+        diagnostic('empty-corpus-allowed', `${target.name} intentionally allows an empty corpus`, {
+          underlyingDiagnostics: diagnostics,
+        }),
+      ],
+    };
+    return;
+  }
+  target.emptyCorpus = {
+    status: 'invalid',
+    diagnostics,
+  };
 }
 
 function isGitDirty(targetPath) {
@@ -1234,10 +1317,15 @@ function preflightTarget(target, rustCoreInfo, experimentRust = {}) {
     targetClass: target.targetClass ?? 'required',
     requiredForDecision: target.requiredForDecision !== false,
     requiredAfterPrdCompletion: target.requiredAfterPrdCompletion === true,
+    allowEmptyCorpus: target.allowEmptyCorpus === true,
     sparsePatterns: Array.isArray(target.sparsePatterns) ? target.sparsePatterns : [],
     path: targetPath,
     preflight,
     arms,
+    emptyCorpus: {
+      status: 'unavailable',
+      diagnostics: [],
+    },
     gates: {
       sufficiency: { status: 'unavailable', regressions: [] },
       performance: { status: 'unavailable', wallTimeDeltaPct: null, peakRssDeltaPct: null, diagnostics: [] },
@@ -1280,6 +1368,7 @@ function classifyExperiment(targets) {
     return 'stress-only-targets-completed-with-nonblocking-failures';
   }
   if (requiredTargets.some((target) => target.classification === 'target-failed-preflight')) return 'failed-required-target-unavailable';
+  if (requiredTargets.some((target) => target.classification === 'target-failed-empty-corpus')) return 'failed-required-target-unavailable';
   if (requiredTargets.some((target) => target.classification === 'target-failed-arm-unavailable')) return 'failed-required-arm-unavailable';
   if (requiredTargets.some((target) => target.classification === 'target-failed-comparison-regression')) return 'failed-required-comparison-regression';
   if (requiredTargets.some((target) => target.classification === 'target-failed-performance-gate-unmet')) return 'failed-required-performance-gate-unmet';

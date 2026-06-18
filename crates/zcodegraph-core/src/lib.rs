@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -1006,6 +1006,7 @@ fn write_index_to_connection(
     conn.execute_batch(SCHEMA_SQL)?;
     stamp_schema_version(conn)?;
     stamp_metadata(conn)?;
+    suspend_node_fts_triggers_for_bulk_write(conn)?;
     let sqlite_setup_ms = sqlite_setup_started.elapsed().as_millis();
     let mut counts = index_javascript_files(
         conn,
@@ -1013,6 +1014,9 @@ fn write_index_to_connection(
         request.graph_work_profile.features(),
     )?;
     counts.profile.sqlite_write_ms += sqlite_setup_ms;
+    let fts_rebuild_started = Instant::now();
+    rebuild_node_fts_after_bulk_write(conn)?;
+    counts.profile.sqlite_write_ms += fts_rebuild_started.elapsed().as_millis();
     let import_resolution_started = Instant::now();
     let import_stats = resolve_js_ts_file_imports(conn, Path::new(&request.project_path))?;
     counts.profile.import_path_alias_resolution_ms =
@@ -1026,7 +1030,8 @@ fn write_index_to_connection(
         import_stats.unresolved_fallback_refs;
     counts.edges_created += import_stats.edges_created;
     let esm_named_started = Instant::now();
-    let esm_named_stats = resolve_esm_named_import_export_refs(conn, Path::new(&request.project_path))?;
+    let esm_named_stats =
+        resolve_esm_named_import_export_refs(conn, Path::new(&request.project_path))?;
     counts.profile.esm_named_import_export_resolution_ms = esm_named_started.elapsed().as_millis();
     counts.profile.esm_named_import_export_resolved_refs = esm_named_stats.resolved_refs;
     counts.profile.esm_named_import_export_fallback_refs = esm_named_stats.fallback_refs;
@@ -1292,8 +1297,14 @@ fn split_alias_pattern(pattern: &str) -> Option<(String, String)> {
     }
 }
 
-fn resolve_relative_import(project_path: &Path, from_file_path: &str, specifier: &str) -> Option<String> {
-    let from_dir = Path::new(from_file_path).parent().unwrap_or_else(|| Path::new(""));
+fn resolve_relative_import(
+    project_path: &Path,
+    from_file_path: &str,
+    specifier: &str,
+) -> Option<String> {
+    let from_dir = Path::new(from_file_path)
+        .parent()
+        .unwrap_or_else(|| Path::new(""));
     let base = project_path.join(from_dir).join(specifier);
     resolve_import_candidate(project_path, &base)
 }
@@ -1349,11 +1360,16 @@ fn canonical_relative_slash_path(project_path: &Path, path: &Path) -> Option<Str
     canonical_path
         .strip_prefix(canonical_root)
         .ok()
-        .map(|relative| relative.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/"))
+        .map(|relative| {
+            relative
+                .to_string_lossy()
+                .replace(std::path::MAIN_SEPARATOR, "/")
+        })
 }
 
 fn find_file_node_id(conn: &Connection, file_path: &str) -> rusqlite::Result<Option<String>> {
-    let mut stmt = conn.prepare("SELECT id FROM nodes WHERE kind = 'file' AND file_path = ?1 LIMIT 1")?;
+    let mut stmt =
+        conn.prepare("SELECT id FROM nodes WHERE kind = 'file' AND file_path = ?1 LIMIT 1")?;
     let mut rows = stmt.query(params![file_path])?;
     if let Some(row) = rows.next()? {
         Ok(Some(row.get(0)?))
@@ -1418,7 +1434,12 @@ fn resolve_esm_named_import_export_refs(
     let mut file_content_cache: HashMap<String, String> = HashMap::new();
 
     for reference in binding_refs {
-        if is_type_only_import_line(project_path, &reference.file_path, reference.line, &mut file_content_cache) {
+        if is_type_only_import_line(
+            project_path,
+            &reference.file_path,
+            reference.line,
+            &mut file_content_cache,
+        ) {
             stats.fallback_refs += 1;
             continue;
         }
@@ -1451,13 +1472,11 @@ fn resolve_esm_named_import_export_refs(
         }
         resolved_ids.push(reference.id);
 
-        let usage_refs = load_imported_symbol_usage_refs(
-            conn,
-            &reference.file_path,
-            &reference.reference_name,
-        )?;
+        let usage_refs =
+            load_imported_symbol_usage_refs(conn, &reference.file_path, &reference.reference_name)?;
         for usage in usage_refs {
-            if insert_rust_imported_symbol_usage_edge(conn, &usage, &target.id, target.resolved_by)? {
+            if insert_rust_imported_symbol_usage_edge(conn, &usage, &target.id, target.resolved_by)?
+            {
                 stats.edges_created += 1;
             }
             stats.resolved_refs += 1;
@@ -1517,11 +1536,14 @@ fn find_import_edge_target_file(
          ORDER BY e.id",
     )?;
     let rows = stmt
-        .query_map(params![reference.from_node_id, reference.line, reference.col], |row| {
-            Ok(FileImportEdgeRow {
-                target_file_path: row.get(0)?,
-            })
-        })?
+        .query_map(
+            params![reference.from_node_id, reference.line, reference.col],
+            |row| {
+                Ok(FileImportEdgeRow {
+                    target_file_path: row.get(0)?,
+                })
+            },
+        )?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     if rows.len() == 1 {
         Ok(Some(rows[0].target_file_path.clone()))
@@ -1568,7 +1590,15 @@ fn find_exported_symbol_candidates(
         return Ok(direct);
     }
 
-    find_one_hop_reexport_symbol_candidates(conn, project_path, aliases, target_file_path, &content, name, cache)
+    find_one_hop_reexport_symbol_candidates(
+        conn,
+        project_path,
+        aliases,
+        target_file_path,
+        &content,
+        name,
+        cache,
+    )
 }
 
 fn direct_export_declares_name(content: &str, kind: &str, name: &str) -> bool {
@@ -1632,7 +1662,9 @@ fn find_one_hop_reexport_symbol_candidates(
 
     Ok(rows
         .into_iter()
-        .filter(|candidate| direct_export_declares_name(leaf_content, &candidate.kind, &candidate.name))
+        .filter(|candidate| {
+            direct_export_declares_name(leaf_content, &candidate.kind, &candidate.name)
+        })
         .collect())
 }
 
@@ -1766,6 +1798,8 @@ fn resolve_same_file_exact_callable_refs(
     let refs = load_local_callable_refs(conn)?;
     let mut stats = LocalReferenceStats::default();
     let mut resolved_ids = Vec::new();
+    let mut candidate_cache: HashMap<(String, String, String), Vec<String>> = HashMap::new();
+    let mut existing_edges = load_rust_finalization_edge_keys(conn)?;
 
     for reference in refs {
         if !matches!(
@@ -1774,17 +1808,31 @@ fn resolve_same_file_exact_callable_refs(
         ) {
             continue;
         }
-        let candidates = find_same_file_callable_candidates(
-            conn,
-            &reference.file_path,
-            &reference.reference_name,
-            &reference.reference_kind,
-        )?;
+        let cache_key = (
+            reference.file_path.clone(),
+            reference.reference_name.clone(),
+            reference.reference_kind.clone(),
+        );
+        let candidates = if let Some(candidates) = candidate_cache.get(&cache_key) {
+            candidates
+        } else {
+            let candidates = find_same_file_callable_candidates(
+                conn,
+                &reference.file_path,
+                &reference.reference_name,
+                &reference.reference_kind,
+            )?;
+            candidate_cache.insert(cache_key.clone(), candidates);
+            candidate_cache
+                .get(&cache_key)
+                .expect("candidate cache entry should exist")
+        };
         if candidates.len() != 1 {
             stats.fallback_refs += 1;
             continue;
         }
-        if insert_rust_local_reference_edge(conn, &reference, &candidates[0])? {
+        if insert_rust_local_reference_edge(conn, &reference, &candidates[0], &mut existing_edges)?
+        {
             stats.edges_created += 1;
         }
         stats.resolved_refs += 1;
@@ -1815,6 +1863,23 @@ fn load_local_callable_refs(conn: &Connection) -> rusqlite::Result<Vec<LocalRefR
         })
     })?;
 
+    rows.collect()
+}
+
+fn load_rust_finalization_edge_keys(
+    conn: &Connection,
+) -> rusqlite::Result<HashSet<(String, String, String)>> {
+    let mut stmt = conn.prepare(
+        "SELECT source, target, kind FROM edges
+         WHERE edgeOrigin = 'rust-finalization'",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+        ))
+    })?;
     rows.collect()
 }
 
@@ -1849,14 +1914,14 @@ fn insert_rust_local_reference_edge(
     conn: &Connection,
     reference: &LocalRefRow,
     target_node_id: &str,
+    existing_edges: &mut HashSet<(String, String, String)>,
 ) -> rusqlite::Result<bool> {
-    let existing: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM edges
-         WHERE source = ?1 AND target = ?2 AND kind = ?3 AND edgeOrigin = 'rust-finalization'",
-        params![reference.from_node_id, target_node_id, reference.reference_kind],
-        |row| row.get(0),
-    )?;
-    if existing > 0 {
+    let edge_key = (
+        reference.from_node_id.clone(),
+        target_node_id.to_string(),
+        reference.reference_kind.clone(),
+    );
+    if existing_edges.contains(&edge_key) {
         return Ok(false);
     }
 
@@ -1872,6 +1937,7 @@ fn insert_rust_local_reference_edge(
             reference.col,
         ],
     )?;
+    existing_edges.insert(edge_key);
     Ok(true)
 }
 
@@ -1889,6 +1955,41 @@ fn configure_final_flush_staging_connection(conn: &Connection) -> rusqlite::Resu
     conn.pragma_update(None, "locking_mode", "EXCLUSIVE")?;
     conn.pragma_update(None, "foreign_keys", "OFF")?;
     Ok(())
+}
+
+fn suspend_node_fts_triggers_for_bulk_write(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(
+        "
+        DROP TRIGGER IF EXISTS nodes_ai;
+        DROP TRIGGER IF EXISTS nodes_ad;
+        DROP TRIGGER IF EXISTS nodes_au;
+        ",
+    )
+}
+
+fn rebuild_node_fts_after_bulk_write(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(
+        "
+        INSERT INTO nodes_fts(nodes_fts) VALUES ('rebuild');
+
+        CREATE TRIGGER IF NOT EXISTS nodes_ai AFTER INSERT ON nodes BEGIN
+            INSERT INTO nodes_fts(rowid, id, name, qualified_name, docstring, signature)
+            VALUES (NEW.rowid, NEW.id, NEW.name, NEW.qualified_name, NEW.docstring, NEW.signature);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS nodes_ad AFTER DELETE ON nodes BEGIN
+            INSERT INTO nodes_fts(nodes_fts, rowid, id, name, qualified_name, docstring, signature)
+            VALUES ('delete', OLD.rowid, OLD.id, OLD.name, OLD.qualified_name, OLD.docstring, OLD.signature);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS nodes_au AFTER UPDATE ON nodes BEGIN
+            INSERT INTO nodes_fts(nodes_fts, rowid, id, name, qualified_name, docstring, signature)
+            VALUES ('delete', OLD.rowid, OLD.id, OLD.name, OLD.qualified_name, OLD.docstring, OLD.signature);
+            INSERT INTO nodes_fts(rowid, id, name, qualified_name, docstring, signature)
+            VALUES (NEW.rowid, NEW.id, NEW.name, NEW.qualified_name, NEW.docstring, NEW.signature);
+        END;
+        ",
+    )
 }
 
 fn sleep_after_lock_for_tests() {
@@ -3555,6 +3656,99 @@ mod tests {
             result.profile.sqlite_write_ms,
             result.profile.parse_extraction_ms,
             max_expected_sqlite_ms
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_bulk_write_rebuilds_search_index_for_symbol_heavy_projects() {
+        let dir = temp_dir("bulk-search-index");
+        for file_index in 0..80 {
+            let mut source = String::new();
+            for symbol_index in 0..500 {
+                source.push_str(&format!(
+                    "export function f{}_{}() {{ return {}; }}\n",
+                    file_index, symbol_index, symbol_index
+                ));
+            }
+            fs::write(dir.join(format!("f{}.ts", file_index)), source).unwrap();
+        }
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 80);
+        assert!(result.nodes_created >= 40_000);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let fts_count: i64 = conn
+            .query_row("SELECT count(*) FROM nodes_fts", [], |row| row.get(0))
+            .unwrap();
+        let node_count: i64 = conn
+            .query_row("SELECT count(*) FROM nodes", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(fts_count, node_count);
+
+        let max_expected_sqlite_ms = 250.max(result.profile.parse_extraction_ms * 2);
+        assert!(
+            result.profile.sqlite_write_ms <= max_expected_sqlite_ms,
+            "sqliteWriteMs={}ms parseExtractionMs={}ms maxExpectedSqliteMs={}ms",
+            result.profile.sqlite_write_ms,
+            result.profile.parse_extraction_ms,
+            max_expected_sqlite_ms
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_reuses_local_exact_candidate_lookups_for_repeated_calls() {
+        let dir = temp_dir("local-exact-repeated-calls");
+        let mut source = String::from("export function helper() { return 1; }\n");
+        for index in 0..900 {
+            source.push_str(&format!(
+                "export function caller{}() {{ return helper(); }}\n",
+                index
+            ));
+        }
+        fs::write(dir.join("index.ts"), source).unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.profile.local_exact_reference_resolved_refs, 900);
+        assert_eq!(result.profile.local_exact_reference_fallback_refs, 0);
+        assert!(
+            result.profile.local_exact_reference_resolution_ms <= 160,
+            "localExactReferenceResolutionMs={}ms resolvedRefs={}",
+            result.profile.local_exact_reference_resolution_ms,
+            result.profile.local_exact_reference_resolved_refs
         );
         fs::remove_dir_all(dir).unwrap();
     }
