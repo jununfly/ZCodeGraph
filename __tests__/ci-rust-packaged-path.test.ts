@@ -22,11 +22,13 @@ describe('CI Rust packaged path coverage', () => {
     expect(workflow).toContain('cargo build --package zcodegraph-core');
   });
 
-  it('checks default TypeScript indexing, packaged Rust indexing, and release artifact coverage', () => {
+  it('checks default rust-hybrid indexing, packaged Rust discovery, and release artifact coverage', () => {
     const workflow = fs.readFileSync(ciPath, 'utf8');
 
     expect(workflow).toContain('__tests__/rust-index-engine-cli.test.ts');
-    expect(workflow).toContain('uses the TypeScript indexer by default');
+    expect(workflow).not.toContain('uses the TypeScript indexer by default');
+    expect(workflow).toContain('uses the rust-hybrid indexer by default');
+    expect(workflow).toContain('uses rust-hybrid for init indexing by default');
     expect(workflow).toContain('runs the packaged Rust subprocess from a bundle layout without an env override');
     expect(workflow).toContain('leaves the existing TypeScript index intact when the Rust binary is unavailable');
     expect(workflow).toContain('__tests__/release-workflow-rust-core.test.ts');

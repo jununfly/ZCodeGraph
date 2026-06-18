@@ -7,6 +7,8 @@
 - Phase 4 decision: `docs/plans/2026-06-18-rust-hybrid-phase-4-decision.md`
 - Phase 4 smoke evidence: `docs/benchmarks/2026-06-18-rust-hybrid-phase-4-diagnostic-bundle-smoke-evidence.md`
 - Phase 5 tracker: [#251](https://github.com/jununfly/ZCodeGraph/issues/251)
+- Phase 5 decision: `docs/plans/2026-06-18-rust-hybrid-phase-5-decision.md`
+- Phase 5 smoke evidence: `docs/benchmarks/2026-06-18-rust-hybrid-phase-5-packaged-smoke-evidence.md`
 
 ## Context
 

@@ -38,16 +38,68 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const args = process.argv.slice(2);
-if (args.includes('--engine') && args[args.indexOf('--engine') + 1] === 'rust') {
+function projectArg(command) {
+  const candidate = args[1];
+  return candidate && !candidate.startsWith('-') ? candidate : process.cwd();
+}
+function ensureIndex(project, degraded) {
+  fs.mkdirSync(path.join(project, '.zcodegraph'), { recursive: true });
+  fs.writeFileSync(path.join(project, '.zcodegraph', 'status.json'), JSON.stringify({
+    index: {
+      engine: 'rust-hybrid',
+      hybrid: {
+        fallbackState: degraded ? 'degraded' : 'healthy',
+        fallbackFileCount: degraded ? 1 : 0,
+        fallbackReasonTaxonomy: degraded ? { 'language-level-typescript-fallback': 1 } : {}
+      }
+    }
+  }));
+  fs.mkdirSync(path.join(project, '.zcodegraph', 'diagnostics'), { recursive: true });
+  fs.writeFileSync(path.join(project, '.zcodegraph', 'diagnostics', 'last-run.json'), '{}');
+}
+function invokeRustCore() {
   const core = path.resolve(__dirname, '..', '..', '..', 'bin', process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core');
   if (!fs.existsSync(core)) {
+    const project = projectArg(args[0] || 'index');
+    fs.mkdirSync(path.join(project, '.zcodegraph', 'diagnostics'), { recursive: true });
+    fs.writeFileSync(path.join(project, '.zcodegraph', 'diagnostics', 'last-failure.json'), '{}');
     process.stderr.write('Rust index engine is unavailable: no Rust core binary was found\\nnext action: install a package with bin/zcodegraph-core\\n');
     process.exit(1);
   }
   const result = spawnSync(core, ['index'], { cwd: process.cwd(), encoding: 'utf8' });
-  process.exit(result.status || 0);
+  if (result.status) process.exit(result.status);
 }
-fs.writeFileSync(${JSON.stringify(defaultMarker)}, '1\\n');
+if (args[0] === 'init') {
+  const project = projectArg('init');
+  invokeRustCore();
+  ensureIndex(project, fs.existsSync(path.join(project, 'worker.py')));
+  process.exit(0);
+}
+if (args[0] === 'index') {
+  const project = projectArg('index');
+  invokeRustCore();
+  ensureIndex(project, fs.existsSync(path.join(project, 'worker.py')));
+  fs.writeFileSync(${JSON.stringify(defaultMarker)}, '1\\n');
+  process.exit(0);
+}
+if (args[0] === 'status' && args.includes('--json')) {
+  const project = projectArg('status');
+  process.stdout.write(fs.readFileSync(path.join(project, '.zcodegraph', 'status.json'), 'utf8') + '\\n');
+  process.exit(0);
+}
+if (args[0] === 'doctor') {
+  const project = projectArg('doctor');
+  const source = args.includes('--last-failure') ? 'last-failure' : 'last-run';
+  const bundle = path.join(project, '.zcodegraph', 'diagnostics', 'bundles', source);
+  fs.mkdirSync(bundle, { recursive: true });
+  process.stdout.write(path.relative(project, bundle).split(path.sep).join('/') + '\\n');
+  process.exit(0);
+}
+if (args.includes('--version')) {
+  process.stdout.write('9.9.9-smoke\\n');
+  process.exit(0);
+}
+process.exit(0);
 `;
 }
 
@@ -132,17 +184,29 @@ describe.skipIf(process.platform === 'win32')('local Rust package smoke primitiv
     expect(summary.gateFailures).toEqual([]);
     expect(summary.bundle).toMatchObject({
       launcherPathPreserved: true,
-      defaultTypescriptIndexWorks: true,
-      explicitRustIndexWorks: true,
+      initRustHybridWorks: true,
+      defaultRustHybridIndexWorks: true,
+      explicitRustHybridIndexWorks: true,
+      statusShowsHybridMetadata: true,
+      degradedDoctorLastRunWorks: true,
       missingRustBinaryFailsSafely: true,
+      failureDoctorLastFailureWorks: true,
     });
     expect(summary.npm).toMatchObject({
-      defaultTypescriptIndexWorks: true,
-      explicitRustIndexWorks: true,
+      initRustHybridWorks: true,
+      defaultRustHybridIndexWorks: true,
+      explicitRustHybridIndexWorks: true,
+      statusShowsHybridMetadata: true,
+      degradedDoctorLastRunWorks: true,
+      failureDoctorLastFailureWorks: true,
       optionalPlatformPackageSuppliesRustCore: true,
       missingOptionalPackageFailsClearly: true,
       hasPostinstall: false,
       npxLikeSmokeWorks: true,
     });
+    expect(summary.gates.map((gate: { name: string }) => gate.name)).toContain('bundle-default-rust-hybrid');
+    expect(summary.gates.map((gate: { name: string }) => gate.name)).toContain('npm-doctor-last-failure');
+    expect(summary.gates.map((gate: { name: string }) => gate.name)).not.toContain('bundle-default-typescript');
+    expect(summary.gates.map((gate: { name: string }) => gate.name)).not.toContain('npm-default-typescript');
   });
 });
