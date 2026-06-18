@@ -34,6 +34,7 @@ import { getGlyphs } from '../ui/glyphs';
 import { IndexEngine, resolveIndexEngine } from '../indexing/engine-selection';
 import { getRustReadinessDiagnostics, runRustIndexer } from '../indexing/rust-indexer';
 import { buildRustHybridMetadataFromPlan, planRustHybridAssignments } from '../indexing/rust-hybrid-contract';
+import { createDiagnosticBundle, writeDiagnosticRunRecord } from '../diagnostics';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
 import { relaunchWithWasmRuntimeFlagsIfNeeded } from '../extraction/wasm-runtime-flags';
@@ -566,6 +567,69 @@ function shouldShowRustDiagnostics(engine: IndexEngine | undefined): boolean {
   return engine === 'rust' || engine === 'rust-hybrid';
 }
 
+function recordRustHybridRun(
+  projectPath: string,
+  engine: IndexEngine,
+  commandName: string,
+  startedAt: number,
+  result: IndexResult,
+): void {
+  if (engine !== 'rust-hybrid') return;
+  writeDiagnosticRunRecord(projectPath, {
+    kind: result.success ? 'last-run' : 'last-failure',
+    engine,
+    commandName,
+    args: process.argv.slice(2),
+    startedAt,
+    exitCode: result.success ? 0 : 1,
+    result,
+    previousIndexPreserved: fs.existsSync(getDatabasePath(projectPath)),
+  });
+}
+
+function recordRustHybridFailure(
+  projectPath: string,
+  engine: IndexEngine | undefined,
+  commandName: string,
+  startedAt: number,
+  err: unknown,
+): void {
+  if (engine !== 'rust-hybrid') return;
+  writeDiagnosticRunRecord(projectPath, {
+    kind: 'last-failure',
+    engine,
+    commandName,
+    args: process.argv.slice(2),
+    startedAt,
+    exitCode: 1,
+    error: err,
+    previousIndexPreserved: fs.existsSync(getDatabasePath(projectPath)),
+  });
+}
+
+function rustHybridFallbackFileCount(result: IndexResult): number {
+  const profile = result.profile as RustIndexProfile | undefined;
+  return profile?.typescriptFallbackAppend?.fallbackFileCount ?? 0;
+}
+
+function printRustHybridDoctorHint(
+  clack: typeof import('@clack/prompts'),
+  result: IndexResult,
+): void {
+  if (!result.success) return;
+  if (rustHybridFallbackFileCount(result) <= 0) return;
+  clack.log.info('Indexed with rust-hybrid');
+  clack.log.warn('Fallback health: degraded');
+  clack.log.info('Run diagnostic bundle:\n  zcodegraph doctor --engine rust-hybrid --bundle --last-run');
+}
+
+function printRustHybridFailureDoctorHint(): void {
+  console.error('Rust-hybrid indexing failed before fallback could safely continue.');
+  console.error('Previous index was preserved.');
+  console.error('Run:');
+  console.error('  zcodegraph doctor --engine rust-hybrid --bundle --last-failure');
+}
+
 // =============================================================================
 // Commands
 // =============================================================================
@@ -583,6 +647,7 @@ program
     const projectPath = path.resolve(pathArg || process.cwd());
     const clack = await importESM('@clack/prompts');
     let selectedEngine: IndexEngine | undefined;
+    const commandStartedAt = Date.now();
 
     clack.intro('Initializing ZCodeGraph');
 
@@ -619,6 +684,10 @@ program
         await progress.stop();
       }
       printIndexResult(clack, result, projectPath);
+      recordRustHybridRun(projectPath, engine, 'init', commandStartedAt, result);
+      if (engine === 'rust-hybrid') {
+        printRustHybridDoctorHint(clack, result);
+      }
 
       if (!result.success) {
         process.exit(1);
@@ -631,6 +700,7 @@ program
 
       clack.outro('Done');
     } catch (err) {
+      recordRustHybridFailure(projectPath, selectedEngine, 'init', commandStartedAt, err);
       clack.log.error(`Failed: ${err instanceof Error ? err.message : String(err)}`);
       if (shouldShowRustDiagnostics(selectedEngine)) {
         const diagnostics = getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null });
@@ -642,6 +712,9 @@ program
           console.error(`  attempted args prefix: ${diagnostics.core.attemptedArgsPrefix.join(' ')}`);
         }
         console.error(`  active index preserved: ${activeIndexPreserved ? 'yes' : 'no active index found'}`);
+        if (selectedEngine === 'rust-hybrid') {
+          printRustHybridFailureDoctorHint();
+        }
       }
       process.exit(1);
     }
@@ -717,6 +790,7 @@ program
   .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string; graphWorkProfile?: string; sqliteWriteMode?: string; profile?: string }) => {
     const projectPath = resolveProjectPath(pathArg);
     let selectedEngine: IndexEngine | undefined;
+    const commandStartedAt = Date.now();
 
     try {
       const engine = resolveIndexEngine(options.engine);
@@ -740,6 +814,7 @@ program
           sqliteWriteMode,
           profile: indexProfile,
         });
+        recordRustHybridRun(projectPath, engine, 'index', commandStartedAt, result);
         if (!result.success) process.exit(1);
         return;
       }
@@ -778,6 +853,10 @@ program
       }
 
       printIndexResult(clack, result, projectPath);
+      recordRustHybridRun(projectPath, engine, 'index', commandStartedAt, result);
+      if (engine === 'rust-hybrid') {
+        printRustHybridDoctorHint(clack, result);
+      }
 
       if (!result.success) {
         process.exit(1);
@@ -785,6 +864,7 @@ program
 
       clack.outro('Done');
     } catch (err) {
+      recordRustHybridFailure(projectPath, selectedEngine, 'index', commandStartedAt, err);
       error(`Failed to index: ${err instanceof Error ? err.message : String(err)}`);
       if (shouldShowRustDiagnostics(selectedEngine)) {
         const diagnostics = getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null });
@@ -800,6 +880,9 @@ program
           ? 'Set ZCODEGRAPH_RUST_CORE_BINARY to an executable zcodegraph-core binary, or unset it to use packaged/source discovery.'
           : 'Install a release bundle/platform package with bin/zcodegraph-core, or run cargo build --package zcodegraph-core for source development.';
         console.error(`  next action: ${nextAction}`);
+        if (selectedEngine === 'rust-hybrid' && !options.quiet) {
+          printRustHybridFailureDoctorHint();
+        }
       }
       process.exit(1);
     }
@@ -1032,6 +1115,50 @@ program
       cg.destroy();
     } catch (err) {
       error(`Failed to get status: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+/**
+ * zcodegraph doctor [path]
+ */
+program
+  .command('doctor [path]')
+  .description('Create local diagnostic bundles for maintainers')
+  .option('--engine <engine>', 'Index engine diagnostics to collect: rust-hybrid')
+  .option('--bundle', 'Create a local diagnostic bundle directory')
+  .option('--last-run', 'Bundle the last completed run')
+  .option('--last-failure', 'Bundle the last failed run')
+  .option('--include-source-slice', 'Unsupported in diagnostic bundle v1')
+  .action((pathArg: string | undefined, options: { engine?: string; bundle?: boolean; lastRun?: boolean; lastFailure?: boolean; includeSourceSlice?: boolean }) => {
+    const projectPath = resolveProjectPath(pathArg);
+    try {
+      if (options.includeSourceSlice) {
+        throw new Error('source slices are not supported in diagnostic bundle v1; bundles exclude source by default');
+      }
+      if (!options.bundle) {
+        throw new Error('doctor currently requires --bundle');
+      }
+      if (options.lastRun === options.lastFailure) {
+        throw new Error('Specify exactly one of --last-run or --last-failure');
+      }
+      const engine = resolveIndexEngine(options.engine);
+      if (engine !== 'rust-hybrid') {
+        throw new Error('doctor bundle v1 currently supports --engine rust-hybrid');
+      }
+      if (!isInitialized(projectPath)) {
+        throw new Error(`CodeGraph not initialized in ${projectPath}. Run "zcodegraph init" first.`);
+      }
+      const source = options.lastRun ? 'last-run' : 'last-failure';
+      const bundlePath = createDiagnosticBundle(projectPath, {
+        engine,
+        source,
+        version: packageJson.version,
+      });
+      success('Created diagnostic bundle:');
+      console.log(bundlePath);
+    } catch (err) {
+      error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
   });

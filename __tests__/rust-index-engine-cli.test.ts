@@ -409,6 +409,8 @@ describe('zcodegraph index engine selection', () => {
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
     expect(result.stdout).toContain('TypeScript fallback files');
+    expect(result.stdout).toContain('Fallback health: degraded');
+    expect(result.stdout).toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
   }, 30_000);
 
   it('appends fallback files without clearing existing graph data or stamping TypeScript metadata', async () => {
@@ -544,6 +546,24 @@ describe('zcodegraph index engine selection', () => {
     } finally {
       cg.close();
     }
+  }, 30_000);
+
+  it('prints the rust-hybrid failure doctor hint when the Rust binary is unavailable', async () => {
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      await cg.indexAll();
+    } finally {
+      cg.close();
+    }
+
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--force'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: path.join(tempDir, 'missing-rust-core'),
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Rust-hybrid indexing failed before fallback could safely continue.');
+    expect(result.stderr).toContain('Previous index was preserved.');
+    expect(result.stderr).toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-failure');
   }, 30_000);
 
   it('writes a Rust-produced index and profile that TypeScript status can inspect', () => {
