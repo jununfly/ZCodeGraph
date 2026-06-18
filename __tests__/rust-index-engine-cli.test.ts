@@ -5,7 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { CodeGraph } from '../src';
 import { ToolHandler } from '../src/mcp/tools';
-import { planRustHybridAssignments } from '../src/indexing/rust-hybrid-contract';
+import { buildRustHybridMetadataFromPlan, mergeRustOwnedGapDiagnostics, planRustHybridAssignments } from '../src/indexing/rust-hybrid-contract';
 
 const BIN = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
 const RUST_CORE_BIN = path.resolve(
@@ -57,6 +57,73 @@ function writeFakeRustCore(dir: string): string {
       'if (!args.includes("index")) process.exit(2);',
       'process.stdout.write(JSON.stringify({ type: "progress", phase: "scanning", current: 0, total: 1 }) + "\\n");',
       'process.stdout.write(JSON.stringify({ type: "result", success: true, filesIndexed: 0, filesSkipped: 0, filesErrored: 0, nodesCreated: 0, edgesCreated: 0, errors: [], durationMs: 1 }) + "\\n");',
+    ].join('\n') + '\n',
+  );
+  fs.chmodSync(script, 0o755);
+  return script;
+}
+
+function writeFakeRustCoreWithPerFileGap(dir: string, filePath: string, code = 'rust-owned-parse-gap'): string {
+  const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-core-gap.cjs' : 'fake-rust-core-gap');
+  fs.writeFileSync(
+    script,
+    [
+      '#!/usr/bin/env node',
+      'const args = process.argv.slice(2);',
+      'if (!args.includes("index")) process.exit(2);',
+      'process.stdout.write(JSON.stringify({ type: "progress", phase: "scanning", current: 0, total: 1 }) + "\\n");',
+      'process.stdout.write(JSON.stringify({',
+      '  type: "result",',
+      '  success: true,',
+      '  filesIndexed: 1,',
+      '  filesSkipped: 0,',
+      '  filesErrored: 1,',
+      '  nodesCreated: 0,',
+      '  edgesCreated: 0,',
+      '  errors: [{',
+      `    filePath: ${JSON.stringify(filePath)},`,
+      '    language: "typescript",',
+      `    code: ${JSON.stringify(code)},`,
+      '    severity: "warning",',
+      '    writtenByRust: false,',
+      '    line: 1,',
+      '    column: 1,',
+      '    message: "fake Rust-owned parse gap"',
+      '  }],',
+      '  durationMs: 1',
+      '}) + "\\n");',
+    ].join('\n') + '\n',
+  );
+  fs.chmodSync(script, 0o755);
+  return script;
+}
+
+function writeFakeRustCoreWithPartialWriteGap(dir: string, filePath: string): string {
+  const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-core-partial-gap.cjs' : 'fake-rust-core-partial-gap');
+  fs.writeFileSync(
+    script,
+    [
+      '#!/usr/bin/env node',
+      'const args = process.argv.slice(2);',
+      'if (!args.includes("index")) process.exit(2);',
+      'process.stdout.write(JSON.stringify({',
+      '  type: "result",',
+      '  success: true,',
+      '  filesIndexed: 1,',
+      '  filesSkipped: 0,',
+      '  filesErrored: 1,',
+      '  nodesCreated: 0,',
+      '  edgesCreated: 0,',
+      '  errors: [{',
+      `    filePath: ${JSON.stringify(filePath)},`,
+      '    language: "typescript",',
+      '    code: "rust-owned-parse-gap",',
+      '    severity: "warning",',
+      '    writtenByRust: true,',
+      '    message: "fake partial Rust write gap"',
+      '  }],',
+      '  durationMs: 1',
+      '}) + "\\n");',
     ].join('\n') + '\n',
   );
   fs.chmodSync(script, 0o755);
@@ -375,6 +442,31 @@ describe('zcodegraph index engine selection', () => {
     expect(plan.pendingFallbacks).toContain('rust-owned-parse-gap');
   });
 
+  it('merges Rust-owned per-file gap diagnostics into degraded rust-hybrid metadata', () => {
+    const plan = planRustHybridAssignments(tempDir);
+    const merged = mergeRustOwnedGapDiagnostics(plan, [
+      {
+        filePath: 'a.ts',
+        language: 'typescript',
+        code: 'rust-owned-parse-gap',
+        severity: 'warning',
+        writtenByRust: false,
+      },
+    ]);
+
+    const metadata = buildRustHybridMetadataFromPlan(merged);
+
+    expect(merged.fallbackFiles).toContain('a.ts');
+    expect(metadata).toMatchObject({
+      fallbackState: 'degraded',
+      fallbackByLanguage: { typescript: 1 },
+      fallbackFileCount: 1,
+      fallbackReasonTaxonomy: { 'rust-owned-parse-gap': 1 },
+      pendingFallbacks: [],
+    });
+    expect(metadata.fallbackMessage).toContain('Rust-owned gap fallback appended 1 file');
+  });
+
   it('indexes non-Rust-owned supported languages through TypeScript fallback under rust-hybrid', () => {
     fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
 
@@ -394,6 +486,55 @@ describe('zcodegraph index engine selection', () => {
         fallbackByLanguage: { python: 1 },
         fallbackFileCount: 1,
         pendingFallbacks: ['rust-owned-parse-gap'],
+      });
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('appends TypeScript fallback for Rust-owned per-file gaps from a successful Rust core', () => {
+    const rustCore = writeFakeRustCoreWithPerFileGap(tempDir, 'a.ts');
+
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      expect(cg.searchNodes('alpha').some((match) => match.node.kind === 'function' && match.node.language === 'typescript')).toBe(true);
+      const buildInfo = cg.getIndexBuildInfo();
+      expect(buildInfo.engine).toBe('rust-hybrid');
+      expect(buildInfo.hybrid).toMatchObject({
+        fallbackState: 'degraded',
+        fallbackByLanguage: { typescript: 1 },
+        fallbackFileCount: 1,
+        fallbackReasonTaxonomy: { 'rust-owned-parse-gap': 1 },
+        pendingFallbacks: [],
+      });
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('does not append fallback when a Rust-owned gap may have partial graph writes', () => {
+    const rustCore = writeFakeRustCoreWithPartialWriteGap(tempDir, 'a.ts');
+
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      expect(cg.searchNodes('alpha').some((match) => match.node.language === 'typescript')).toBe(false);
+      const buildInfo = cg.getIndexBuildInfo();
+      expect(buildInfo.engine).toBe('rust-hybrid');
+      expect(buildInfo.hybrid).toMatchObject({
+        fallbackState: 'degraded',
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
+        fallbackReasonTaxonomy: { 'rust-owned-gap-with-partial-write-blocked': 1 },
       });
     } finally {
       cg.close();
@@ -659,7 +800,7 @@ describe('zcodegraph index engine selection', () => {
 
     expect(status.index.engine).toBe('rust-hybrid');
     expect(status.index.hybrid).toMatchObject({
-      phase: 'phase-3-typescript-fallback-writes',
+      phase: 'phase-6-rust-owned-per-file-gap-fallback',
       rustOwnedLanguages: ['javascript', 'jsx', 'typescript', 'tsx', 'go'],
       engineByLanguage: { typescript: 'rust' },
       engineByFileCount: { rust: 1 },
@@ -1239,10 +1380,16 @@ describe('zcodegraph index engine selection', () => {
     expect(resultLine).toBeDefined();
     const result = JSON.parse(resultLine!) as {
       filesErrored: number;
-      errors: Array<{ message: string }>;
+      errors: Array<{ message: string; filePath?: string; code?: string; severity?: string; writtenByRust?: boolean }>;
     };
     expect(result.filesErrored).toBeGreaterThanOrEqual(1);
-    expect(result.errors.some((error) => error.message.includes('broken.js: parse error'))).toBe(true);
+    expect(result.errors).toContainEqual(expect.objectContaining({
+      message: 'parse error',
+      filePath: 'broken.js',
+      code: 'rust-owned-parse-gap',
+      severity: 'warning',
+      writtenByRust: false,
+    }));
 
     const cg = CodeGraph.openSync(tempDir);
     try {

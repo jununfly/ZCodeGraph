@@ -43,6 +43,40 @@ function latestBundlePath(stdout: string): string {
   return line!.slice(line!.indexOf('.zcodegraph/diagnostics/bundles/'));
 }
 
+function writeFakeRustCoreWithPerFileGap(dir: string, filePath: string): string {
+  const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-core-gap.cjs' : 'fake-rust-core-gap');
+  fs.writeFileSync(
+    script,
+    [
+      '#!/usr/bin/env node',
+      'const args = process.argv.slice(2);',
+      'if (!args.includes("index")) process.exit(2);',
+      'process.stdout.write(JSON.stringify({',
+      '  type: "result",',
+      '  success: true,',
+      '  filesIndexed: 1,',
+      '  filesSkipped: 0,',
+      '  filesErrored: 1,',
+      '  nodesCreated: 0,',
+      '  edgesCreated: 0,',
+      '  errors: [{',
+      `    filePath: ${JSON.stringify(filePath)},`,
+      '    language: "typescript",',
+      '    code: "rust-owned-extraction-gap",',
+      '    severity: "warning",',
+      '    writtenByRust: false,',
+      '    line: 1,',
+      '    column: 8,',
+      '    message: "fake Rust-owned extraction gap"',
+      '  }],',
+      '  durationMs: 1',
+      '}) + "\\n");',
+    ].join('\n') + '\n',
+  );
+  fs.chmodSync(script, 0o755);
+  return script;
+}
+
 describe('rust-hybrid doctor diagnostic bundles', () => {
   let tempDir: string;
 
@@ -112,6 +146,42 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     expect(diagnosticsText).not.toContain('worker.py');
     expect(bundleText).not.toContain('secretSourceNeedle');
     expect(bundleText).not.toContain(tempDir);
+  }, 30_000);
+
+  it('includes Rust-owned per-file fallback taxonomy in the doctor last-run bundle', () => {
+    const rustCore = writeFakeRustCoreWithPerFileGap(tempDir, 'a.ts');
+
+    const index = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+    expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
+
+    const doctor = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-run']);
+    expect(doctor.status, `stdout:\n${doctor.stdout}\nstderr:\n${doctor.stderr}`).toBe(0);
+    const bundleDir = path.resolve(tempDir, latestBundlePath(doctor.stdout));
+
+    const status = readJson(path.join(bundleDir, 'status.json'));
+    expect(status.index.hybrid).toMatchObject({
+      fallbackState: 'degraded',
+      fallbackFileCount: 1,
+      fallbackReasonTaxonomy: { 'rust-owned-extraction-gap': 1 },
+    });
+
+    const perFile = readJson(path.join(bundleDir, 'per-file-diagnostics.json'));
+    expect(perFile.errors).toEqual([
+      expect.objectContaining({
+        pathHash: expect.any(String),
+        extension: '.ts',
+        language: 'typescript',
+        code: 'rust-owned-extraction-gap',
+        severity: 'warning',
+        line: 1,
+        column: 8,
+      }),
+    ]);
+    const diagnosticsText = fs.readFileSync(path.join(bundleDir, 'per-file-diagnostics.json'), 'utf-8');
+    expect(diagnosticsText).not.toContain('a.ts');
+    expect(diagnosticsText).not.toContain(tempDir);
   }, 30_000);
 
   it('writes a last-failure record and creates a failure bundle for Rust process failure', () => {

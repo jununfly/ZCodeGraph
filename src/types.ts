@@ -267,6 +267,9 @@ export interface ExtractionError {
 
   /** Error code for categorization */
   code?: string;
+
+  /** Rust-hybrid contract: false means TypeScript fallback can safely append this file. */
+  writtenByRust?: boolean;
 }
 
 /**

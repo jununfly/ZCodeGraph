@@ -33,7 +33,12 @@ import { createShimmerProgress } from '../ui/shimmer-progress';
 import { getGlyphs } from '../ui/glyphs';
 import { IndexEngine, resolveIndexEngine } from '../indexing/engine-selection';
 import { getRustReadinessDiagnostics, runRustIndexer } from '../indexing/rust-indexer';
-import { buildRustHybridMetadataFromPlan, planRustHybridAssignments } from '../indexing/rust-hybrid-contract';
+import {
+  buildRustHybridMetadataFromPlan,
+  mergeRustOwnedGapDiagnostics,
+  planRustHybridAssignments,
+  RustOwnedPerFileGapDiagnostic,
+} from '../indexing/rust-hybrid-contract';
 import { createDiagnosticBundle, writeDiagnosticRunRecord } from '../diagnostics';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
@@ -501,8 +506,11 @@ async function runSelectedIndex(
   const cg = await CodeGraph.open(projectPath);
   try {
     let fallbackResult: Awaited<ReturnType<typeof cg.indexFallbackFiles>> | null = null;
-    if (engine === 'rust-hybrid' && hybridPlan && hybridPlan.fallbackFiles.length > 0) {
-      fallbackResult = await cg.indexFallbackFiles(hybridPlan.fallbackFiles);
+    const runtimeHybridPlan = engine === 'rust-hybrid' && hybridPlan
+      ? mergeRustOwnedGapDiagnostics(hybridPlan, result.errors as RustOwnedPerFileGapDiagnostic[])
+      : hybridPlan;
+    if (engine === 'rust-hybrid' && runtimeHybridPlan && runtimeHybridPlan.fallbackFiles.length > 0) {
+      fallbackResult = await cg.indexFallbackFiles(runtimeHybridPlan.fallbackFiles);
       if (!fallbackResult.success) {
         return {
           success: false,
@@ -540,7 +548,7 @@ async function runSelectedIndex(
       });
     });
     if (engine === 'rust-hybrid') {
-      cg.markRustHybridIndex(buildRustHybridMetadataFromPlan(hybridPlan ?? planRustHybridAssignments(projectPath)));
+      cg.markRustHybridIndex(buildRustHybridMetadataFromPlan(runtimeHybridPlan ?? planRustHybridAssignments(projectPath)));
     }
     result.nodesCreated += finalized.nodesCreated;
     result.edgesCreated += finalized.edgesCreated;

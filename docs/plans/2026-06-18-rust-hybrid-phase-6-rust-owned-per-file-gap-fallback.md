@@ -4,6 +4,8 @@
 
 - First-user release PRD: `docs/prds/2026-06-18-rust-hybrid-first-user-release.md`
 - Phase 6 tracker: [#257](https://github.com/jununfly/ZCodeGraph/issues/257)
+- Phase 6 decision: `docs/plans/2026-06-18-rust-hybrid-phase-6-decision.md`
+- Phase 6 evidence: `docs/benchmarks/2026-06-18-rust-hybrid-phase-6-per-file-gap-fallback-evidence.md`
 - Phase 5 plan: `docs/plans/2026-06-18-rust-hybrid-phase-5-release-like-packaged-smoke.md`
 - Phase 5 decision: `docs/plans/2026-06-18-rust-hybrid-phase-5-decision.md`
 - Phase 5 smoke evidence: `docs/benchmarks/2026-06-18-rust-hybrid-phase-5-packaged-smoke-evidence.md`

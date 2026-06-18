@@ -163,6 +163,40 @@ struct GraphWorkFeatures {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndexError {
+    pub message: String,
+    pub file_path: Option<String>,
+    pub language: Option<String>,
+    pub severity: String,
+    pub code: Option<String>,
+    pub written_by_rust: Option<bool>,
+}
+
+impl IndexError {
+    fn system(message: String) -> Self {
+        Self {
+            message,
+            file_path: None,
+            language: None,
+            severity: "error".to_string(),
+            code: None,
+            written_by_rust: None,
+        }
+    }
+
+    fn rust_owned_parse_gap(file_path: String, language: String) -> Self {
+        Self {
+            message: "parse error".to_string(),
+            file_path: Some(file_path),
+            language: Some(language),
+            severity: "warning".to_string(),
+            code: Some("rust-owned-parse-gap".to_string()),
+            written_by_rust: Some(false),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexResult {
     pub success: bool,
     pub files_indexed: u32,
@@ -172,7 +206,7 @@ pub struct IndexResult {
     pub edges_created: u32,
     pub duration_ms: u128,
     pub profile: IndexProfile,
-    pub errors: Vec<String>,
+    pub errors: Vec<IndexError>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -220,7 +254,7 @@ pub fn run_index(request: &IndexRequest) -> IndexResult {
                 edges_created: 0,
                 duration_ms: started.elapsed().as_millis(),
                 profile: IndexProfile::default(),
-                errors: vec![err.to_string()],
+                errors: vec![IndexError::system(err.to_string())],
             };
         }
     }
@@ -923,7 +957,7 @@ pub struct WriteCounts {
     pub nodes_created: u32,
     pub edges_created: u32,
     pub profile: IndexProfile,
-    pub errors: Vec<String>,
+    pub errors: Vec<IndexError>,
 }
 
 pub fn write_minimal_index(
@@ -2036,9 +2070,10 @@ fn index_javascript_files(
 
         if parsed.root_node().has_error() {
             counts.files_errored += 1;
-            counts
-                .errors
-                .push(format!("{}: parse error", relative_path));
+            counts.errors.push(IndexError::rust_owned_parse_gap(
+                relative_path.clone(),
+                language.codegraph_name().to_string(),
+            ));
         } else {
             if language.is_go() {
                 extract_go_symbols(
@@ -3492,11 +3527,24 @@ pub fn result_json(result: &IndexResult) -> String {
     let errors = result
         .errors
         .iter()
-        .map(|message| {
-            format!(
-                "{{\"message\":\"{}\",\"severity\":\"error\"}}",
-                escape_json(message)
-            )
+        .map(|err| {
+            let mut fields = vec![
+                format!("\"message\":\"{}\"", escape_json(&err.message)),
+                format!("\"severity\":\"{}\"", escape_json(&err.severity)),
+            ];
+            if let Some(file_path) = &err.file_path {
+                fields.push(format!("\"filePath\":\"{}\"", escape_json(file_path)));
+            }
+            if let Some(language) = &err.language {
+                fields.push(format!("\"language\":\"{}\"", escape_json(language)));
+            }
+            if let Some(code) = &err.code {
+                fields.push(format!("\"code\":\"{}\"", escape_json(code)));
+            }
+            if let Some(written_by_rust) = err.written_by_rust {
+                fields.push(format!("\"writtenByRust\":{}", written_by_rust));
+            }
+            format!("{{{}}}", fields.join(","))
         })
         .collect::<Vec<_>>()
         .join(",");
@@ -3853,6 +3901,30 @@ mod tests {
             result_json(&result),
             "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
         );
+    }
+
+    #[test]
+    fn emits_structured_rust_owned_parse_gap_errors() {
+        let result = IndexResult {
+            success: true,
+            files_indexed: 1,
+            files_skipped: 0,
+            files_errored: 1,
+            nodes_created: 1,
+            edges_created: 0,
+            duration_ms: 7,
+            profile: IndexProfile::default(),
+            errors: vec![IndexError::rust_owned_parse_gap(
+                "src/bad.ts".to_string(),
+                "typescript".to_string(),
+            )],
+        };
+
+        assert!(result_json(&result).contains("\"filePath\":\"src/bad.ts\""));
+        assert!(result_json(&result).contains("\"language\":\"typescript\""));
+        assert!(result_json(&result).contains("\"code\":\"rust-owned-parse-gap\""));
+        assert!(result_json(&result).contains("\"severity\":\"warning\""));
+        assert!(result_json(&result).contains("\"writtenByRust\":false"));
     }
 
     #[test]

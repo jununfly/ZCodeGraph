@@ -111,6 +111,16 @@ function tailText(text: string | undefined, projectRoot: string): DiagnosticOutp
   return { text: sanitizeDiagnosticText(clipped, projectRoot) };
 }
 
+function sanitizeErrorMessage(message: string, projectRoot: string, filePath: string | undefined): string {
+  let sanitized = sanitizeDiagnosticText(message, projectRoot);
+  if (filePath) {
+    const relative = path.isAbsolute(filePath) ? path.relative(projectRoot, filePath) : filePath;
+    sanitized = sanitized.split(relative).join('<path>');
+    sanitized = sanitized.split(path.basename(relative)).join('<path>');
+  }
+  return sanitized;
+}
+
 function safeRelativePathDetails(projectRoot: string, filePath: string | undefined): {
   pathHash?: string;
   extension?: string;
@@ -165,7 +175,7 @@ export function writeDiagnosticRunRecord(projectRoot: string, input: DiagnosticR
     ...(input.result?.errors ?? []),
     ...(input.error ? [{ message: input.error instanceof Error ? input.error.message : String(input.error), severity: 'error' }] : []),
   ].map((err) => ({
-    message: sanitizeDiagnosticText(err.message, projectRoot),
+    message: sanitizeErrorMessage(err.message, projectRoot, err.filePath),
     code: err.code,
     severity: err.severity,
     ...safeRelativePathDetails(projectRoot, err.filePath),

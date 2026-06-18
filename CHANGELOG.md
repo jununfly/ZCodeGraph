@@ -22,6 +22,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New Features
 
+- `rust-hybrid` indexing now safely falls back to the TypeScript indexer for individual Rust-owned files that hit a Rust parse gap, marks the run as degraded, and records privacy-preserving diagnostics for replayable bug reports. (#257)
 - The Rust indexing profiler now breaks reference resolution into database, name-matching, import, framework, and other timing buckets, so large-repo bottlenecks can be targeted with evidence. (#87)
 - The experimental Rust indexer now accepts more modern TypeScript syntax used in large VS Code sources, including import-type queries and contextual keyword identifiers. (#88)
 - Phase 4 readiness work now records profile, memory, package-safety, and large VS Code sufficiency evidence for experimental Rust indexing, with a continue opt-in decision while follow-up blockers are addressed. (#83)
