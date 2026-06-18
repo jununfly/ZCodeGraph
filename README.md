@@ -74,7 +74,7 @@ cd your-project
 zcodegraph init -i
 ```
 
-<sub>`zcodegraph init` just creates the local `.zcodegraph/` index directory; adding `-i` (`--index`) also builds the initial graph in the same step. Without `-i`, run `zcodegraph index` afterwards to populate it.</sub>
+<sub>Builds the local `.zcodegraph/` knowledge graph for this project. ZCodeGraph uses its fastest supported local indexing path automatically, with per-file fallback when needed, so you don't have to choose an engine during setup. The `-i` flag is still accepted for existing scripts and muscle memory.</sub>
 
 ### Uninstall
 
@@ -362,7 +362,7 @@ cd your-project
 zcodegraph init -i
 ```
 
-Builds the per-project knowledge graph index. A single global `zcodegraph install` works in every project you open — no need to re-run the installer per project.
+Builds the per-project knowledge graph index. ZCodeGraph uses Rust-backed indexing where supported and falls back file-by-file where needed, while your agent still reads one local graph. A single global `zcodegraph install` works in every project you open — no need to re-run the installer per project.
 
 That's it — your agent will use ZCodeGraph tools automatically when a `.zcodegraph/` directory exists.
 
@@ -462,7 +462,7 @@ The exact text is `src/mcp/server-instructions.ts` — the single source of trut
 zcodegraph                         # Run interactive installer
 zcodegraph install                 # Run installer (explicit)
 zcodegraph uninstall               # Remove ZCodeGraph from your agents (inverse of install)
-zcodegraph init [path]             # Initialize in a project (--index to also index)
+zcodegraph init [path]             # Initialize a project and build the initial index
 zcodegraph uninit [path]           # Remove ZCodeGraph from a project (--force to skip prompt)
 zcodegraph index [path]            # Full index (--force to re-index, --quiet for less output)
 zcodegraph sync [path]             # Incremental update
@@ -678,9 +678,23 @@ Framework routing is validated the same way, on a canonical app per framework: E
 
 ## Troubleshooting
 
-**"CodeGraph not initialized"** — Run `zcodegraph init` in your project directory first.
+**"CodeGraph not initialized"** — Run `zcodegraph init -i` in your project directory first.
 
 **Indexing is slow** — Check that `node_modules` and other large directories are excluded. Use `--quiet` to reduce output overhead.
+
+**Indexing completed with fallback or failed** — Run a local diagnostic bundle and attach it to your issue. Bundles do not include source code by default:
+
+```bash
+zcodegraph doctor --engine rust-hybrid --bundle --last-run
+zcodegraph doctor --engine rust-hybrid --bundle --last-failure
+```
+
+**Need the mature TypeScript indexer while reporting a Rust-backed indexing issue** — Use the escape hatch for the next full index:
+
+```bash
+zcodegraph index --engine typescript
+ZCODEGRAPH_INDEX_ENGINE=typescript zcodegraph index
+```
 
 **MCP hits `database is locked`** — current builds shouldn't: CodeGraph bundles its own Node runtime and uses Node's built-in `node:sqlite` in WAL mode, where concurrent reads never block on a writer. If you still see it:
 
