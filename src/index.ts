@@ -52,6 +52,14 @@ import { Mutex, FileLock } from './utils';
 import { FileWatcher, WatchOptions, PendingFile, LockUnavailableError } from './sync';
 import { EXTRACTION_VERSION } from './extraction/extraction-version';
 import { CodeGraphPackageVersion } from './mcp/version';
+import { IndexEngine } from './indexing/engine-selection';
+import { runRustIndexer } from './indexing/rust-indexer';
+import {
+  buildRustHybridMetadataFromPlan,
+  mergeRustOwnedGapDiagnostics,
+  planRustHybridAssignments,
+  RustOwnedPerFileGapDiagnostic,
+} from './indexing/rust-hybrid-contract';
 
 // Re-export types for consumers
 export * from './types';
@@ -68,6 +76,7 @@ export {
   CODEGRAPH_DIR,
 } from './directory';
 export { IndexProgress, IndexResult, SyncResult } from './extraction';
+export { IndexEngine } from './indexing/engine-selection';
 export { detectLanguage, isLanguageSupported, isGrammarLoaded, getSupportedLanguages, initGrammars, loadGrammarsForLanguages, loadAllGrammars } from './extraction';
 export { ResolutionResult } from './resolution';
 export {
@@ -122,6 +131,9 @@ export interface InitOptions {
   /** Whether to run initial indexing after init */
   index?: boolean;
 
+  /** Full-index engine to use when index is true. Defaults to rust-hybrid. */
+  engine?: IndexEngine;
+
   /** Progress callback for indexing */
   onProgress?: (progress: IndexProgress) => void;
 }
@@ -141,6 +153,9 @@ export interface OpenOptions {
  * Options for indexing
  */
 export interface IndexOptions {
+  /** Full-index engine to use. Defaults to rust-hybrid. */
+  engine?: IndexEngine;
+
   /** Progress callback */
   onProgress?: (progress: IndexProgress) => void;
 
@@ -231,7 +246,7 @@ export class CodeGraph {
 
     // Run initial indexing if requested
     if (options.index) {
-      await instance.indexAll({ onProgress: options.onProgress });
+      await instance.indexAll({ engine: options.engine, onProgress: options.onProgress });
     }
 
     return instance;
@@ -355,6 +370,11 @@ export class CodeGraph {
    * Uses a mutex to prevent concurrent indexing operations.
    */
   async indexAll(options: IndexOptions = {}): Promise<IndexResult> {
+    const engine = options.engine ?? 'rust-hybrid';
+    if (engine === 'rust' || engine === 'rust-hybrid') {
+      return this.indexExternalEngine(engine, options);
+    }
+
     return this.indexMutex.withLock(async () => {
       try {
         this.fileLock.acquire();
@@ -433,6 +453,113 @@ export class CodeGraph {
         this.fileLock.release();
       }
     });
+  }
+
+  private async indexExternalEngine(engine: 'rust' | 'rust-hybrid', options: IndexOptions): Promise<IndexResult> {
+    return this.indexMutex.withLock(async () => {
+      this.closeDatabaseForExternalIndex();
+      try {
+        const result = await runRustIndexer(this.projectRoot, {
+          verbose: options.verbose,
+          onProgress: options.onProgress,
+        });
+        if (!result.success || result.filesIndexed === 0) {
+          return result;
+        }
+
+        const cg = await CodeGraph.open(this.projectRoot);
+        try {
+          let fallbackResult: Awaited<ReturnType<typeof cg.indexFallbackFiles>> | null = null;
+          const hybridPlan = engine === 'rust-hybrid' ? planRustHybridAssignments(this.projectRoot) : null;
+          const runtimeHybridPlan = engine === 'rust-hybrid' && hybridPlan
+            ? mergeRustOwnedGapDiagnostics(hybridPlan, result.errors as RustOwnedPerFileGapDiagnostic[])
+            : hybridPlan;
+
+          if (engine === 'rust-hybrid' && runtimeHybridPlan && runtimeHybridPlan.fallbackFiles.length > 0) {
+            fallbackResult = await cg.indexFallbackFiles(runtimeHybridPlan.fallbackFiles);
+            if (!fallbackResult.success) {
+              return {
+                success: false,
+                filesIndexed: result.filesIndexed + fallbackResult.filesIndexed,
+                filesSkipped: result.filesSkipped + fallbackResult.filesSkipped,
+                filesErrored: result.filesErrored + fallbackResult.filesErrored,
+                nodesCreated: result.nodesCreated + fallbackResult.nodesCreated,
+                edgesCreated: result.edgesCreated + fallbackResult.edgesCreated,
+                errors: fallbackResult.errors,
+                durationMs: result.durationMs + fallbackResult.durationMs,
+                profile: {
+                  rustCore: result.profile,
+                  typescriptFallbackAppend: {
+                    durationMs: fallbackResult.durationMs,
+                    fallbackFileCount: fallbackResult.fallbackFileCount,
+                    errorTaxonomy: fallbackResult.errorTaxonomy,
+                  },
+                },
+              };
+            }
+            result.filesIndexed += fallbackResult.filesIndexed;
+            result.filesSkipped += fallbackResult.filesSkipped;
+            result.filesErrored += fallbackResult.filesErrored;
+            result.nodesCreated += fallbackResult.nodesCreated;
+            result.edgesCreated += fallbackResult.edgesCreated;
+            result.errors.push(...fallbackResult.errors);
+          }
+
+          const finalizationStarted = Date.now();
+          const finalized = await cg.finalizeRustIndex((current, total) => {
+            options.onProgress?.({
+              phase: 'resolving',
+              current,
+              total,
+            });
+          });
+          if (engine === 'rust-hybrid') {
+            cg.markRustHybridIndex(buildRustHybridMetadataFromPlan(runtimeHybridPlan ?? planRustHybridAssignments(this.projectRoot)));
+          }
+          result.nodesCreated += finalized.nodesCreated;
+          result.edgesCreated += finalized.edgesCreated;
+          result.profile = {
+            rustCore: result.profile,
+            ...(fallbackResult ? {
+              typescriptFallbackAppend: {
+                durationMs: fallbackResult.durationMs,
+                fallbackFileCount: fallbackResult.fallbackFileCount,
+                errorTaxonomy: fallbackResult.errorTaxonomy,
+              },
+            } : {}),
+            finalize: finalized.profile,
+            typescriptFinalizationMs: Date.now() - finalizationStarted,
+          };
+          return result;
+        } finally {
+          cg.close();
+        }
+      } finally {
+        this.reopenDatabaseAfterExternalIndex();
+      }
+    });
+  }
+
+  private closeDatabaseForExternalIndex(): void {
+    this.unwatch();
+    this.fileLock.release();
+    this.db.close();
+  }
+
+  private reopenDatabaseAfterExternalIndex(): void {
+    const db = DatabaseConnection.open(getDatabasePath(this.projectRoot));
+    const queries = new QueryBuilder(db.getDb());
+    this.db = db;
+    this.queries = queries;
+    this.orchestrator = new ExtractionOrchestrator(this.projectRoot, queries);
+    this.resolver = createResolver(this.projectRoot, queries);
+    this.graphManager = new GraphQueryManager(queries);
+    this.traverser = new GraphTraverser(queries);
+    this.contextBuilder = createContextBuilder(
+      this.projectRoot,
+      queries,
+      this.traverser
+    );
   }
 
   /**

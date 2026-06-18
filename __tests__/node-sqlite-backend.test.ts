@@ -34,7 +34,7 @@ describe.skipIf(!nodeSqliteAvailable)('node:sqlite backend — real index + quer
       path.join(dir, 'b.ts'),
       "import { helper } from './a';\nexport function main(): number { return helper(); }\n"
     );
-    cg = await CodeGraph.init(dir, { index: true });
+    cg = await CodeGraph.init(dir, { index: true, engine: 'typescript' });
   });
 
   afterAll(() => {

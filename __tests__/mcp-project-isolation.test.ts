@@ -47,12 +47,12 @@ describe('MCP project state isolation', () => {
     fs.mkdirSync(path.join(dirA, 'src'));
     fs.writeFileSync(path.join(dirA, 'src', 'a.ts'), 'export const alpha = "project-a";\n');
     cgA = CodeGraph.initSync(dirA, { config: { include: ['**/*.ts'], exclude: [] } });
-    await cgA.indexAll();
+    await cgA.indexAll({ engine: 'typescript' });
 
     fs.mkdirSync(path.join(dirB, 'src'));
     fs.writeFileSync(path.join(dirB, 'src', 'b.ts'), 'export const beta = "project-b";\n');
     cgB = CodeGraph.initSync(dirB, { config: { include: ['**/*.ts'], exclude: [] } });
-    await cgB.indexAll();
+    await cgB.indexAll({ engine: 'typescript' });
 
     // Handler starts with no default — sessions will use projectPath for isolation
     handler = new ToolHandler(null);

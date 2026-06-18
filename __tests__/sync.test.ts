@@ -36,7 +36,7 @@ describe('Sync Module', () => {
           exclude: [],
         },
       });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
     });
 
     afterEach(() => {
@@ -185,7 +185,7 @@ describe('Sync Module', () => {
           exclude: [],
         },
       });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
     });
 
     afterEach(() => {

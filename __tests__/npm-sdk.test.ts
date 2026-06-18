@@ -48,7 +48,17 @@ function writeFakeLib(libDistDir: string, sentinel: string): void {
   fs.mkdirSync(libDistDir, { recursive: true });
   fs.writeFileSync(
     path.join(libDistDir, 'index.js'),
-    `module.exports = { SENTINEL: ${JSON.stringify(sentinel)}, CodeGraph: function CodeGraph() {} };\n`
+    [
+      `function CodeGraph() {}`,
+      `CodeGraph.DEFAULT_INDEX_ENGINE = 'rust-hybrid';`,
+      `CodeGraph.prototype.indexAll = function indexAll() {};`,
+      `module.exports = {`,
+      `  SENTINEL: ${JSON.stringify(sentinel)},`,
+      `  CodeGraph,`,
+      `  SDK_ENGINE_CONTRACT: ['typescript', 'rust', 'rust-hybrid']`,
+      `};`,
+      '',
+    ].join('\n')
   );
 }
 
@@ -74,6 +84,18 @@ function requireSdk(mainPkg: string, env: Record<string, string> = {}) {
   return { status: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
+function requireSdkContract(mainPkg: string, env: Record<string, string> = {}) {
+  const code =
+    `try { const m = require(${JSON.stringify(path.join(mainPkg, 'npm-sdk.js'))});` +
+    ` process.stdout.write(JSON.stringify({ engines: m.SDK_ENGINE_CONTRACT, defaultEngine: m.CodeGraph.DEFAULT_INDEX_ENGINE, indexAll: typeof m.CodeGraph.prototype.indexAll })); }` +
+    ` catch (e) { process.stderr.write(String(e && e.message || e)); process.exit(7); }`;
+  const r = spawnSync(process.execPath, ['-e', code], {
+    encoding: 'utf8',
+    env: { ...process.env, ...env },
+  });
+  return { status: r.status, stdout: r.stdout, stderr: r.stderr };
+}
+
 describe('npm-sdk programmatic entry', () => {
   it('re-exports the installed platform bundle library', () => {
     const { root, mainPkg } = makeConsumer();
@@ -82,6 +104,20 @@ describe('npm-sdk programmatic entry', () => {
     const r = requireSdk(mainPkg, { CODEGRAPH_INSTALL_DIR: path.join(root, '.empty-cache') });
     expect(r.status).toBe(0);
     expect(JSON.parse(r.stdout)).toEqual({ sentinel: 'platform-lib', cg: 'function' });
+  });
+
+  it('re-exports the platform SDK engine contract without wrapping it', () => {
+    const { root, mainPkg } = makeConsumer();
+    installPlatformPackage(root, 'platform-lib');
+
+    const r = requireSdkContract(mainPkg, { CODEGRAPH_INSTALL_DIR: path.join(root, '.empty-cache') });
+
+    expect(r.status).toBe(0);
+    expect(JSON.parse(r.stdout)).toEqual({
+      engines: ['typescript', 'rust', 'rust-hybrid'],
+      defaultEngine: 'rust-hybrid',
+      indexAll: 'function',
+    });
   });
 
   it('falls back to a self-healed cache bundle when the optional dep is absent', () => {

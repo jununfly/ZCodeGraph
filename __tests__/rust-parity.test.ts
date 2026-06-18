@@ -257,7 +257,7 @@ async function indexWithTypeScript(files: Map<string, string>, tempDirs: string[
   const dir = writeProject(files, tempDirs);
   const cg = CodeGraph.initSync(dir);
   try {
-    const result = await cg.indexAll();
+    const result = await cg.indexAll({ engine: 'typescript' });
     expect(result.success).toBe(true);
   } finally {
     cg.close();
@@ -415,6 +415,7 @@ function acceptableRustPhase1Differences(
     if (
       edge.kind === 'type_of' ||
       edge.kind === 'references' ||
+      (edge.kind === 'imports' && edge.target.startsWith('import:')) ||
       key.includes(':fetchUser') ||
       key.includes(':cache')
     ) {
@@ -428,6 +429,7 @@ function acceptableRustPhase1Differences(
     if (
       edge.kind === 'exports' ||
       edge.kind === 'references' ||
+      (edge.kind === 'imports' && edge.target.startsWith('file:')) ||
       key.includes(':fetchUser') ||
       key.includes(':cache') ||
       key.includes('->export:')

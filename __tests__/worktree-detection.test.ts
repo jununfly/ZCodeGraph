@@ -130,7 +130,7 @@ describe('worktree mismatch surfaces on hot read tools (issue #155)', () => {
 
     // The index lives in the MAIN checkout.
     cg = CodeGraph.initSync(mainRepo);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     // Nested worktree, mirroring tools that place them under .claude/worktrees/<name>/.
     worktree = path.join(mainRepo, 'wt');

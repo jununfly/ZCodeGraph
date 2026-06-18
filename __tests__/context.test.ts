@@ -144,7 +144,7 @@ export function validateEmail(email: string): boolean {
     });
 
     // Index the codebase
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
   });
 
   afterEach(() => {

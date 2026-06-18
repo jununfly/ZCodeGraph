@@ -608,7 +608,13 @@ function childMaxBufferBytes() {
 function runCommand(command, args, cwd, env = {}) {
   return spawnSync(command, args, {
     cwd,
-    env: { ...process.env, ...env },
+    env: {
+      ...process.env,
+      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
+      CODEGRAPH_NO_DAEMON: '1',
+      CODEGRAPH_NO_RELAUNCH: '1',
+      ...env,
+    },
     encoding: 'utf-8',
     maxBuffer: childMaxBufferBytes(),
   });
@@ -936,7 +942,12 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
     };
     const bin = path.join(repoRoot, 'dist', 'bin', 'zcodegraph.js');
     const initStarted = Date.now();
-    const initResult = runCommand(process.execPath, [bin, 'init', arm.sourceCopy.path], arm.sourceCopy.path);
+    const initResult = runCommand(
+      process.execPath,
+      [bin, 'init', arm.sourceCopy.path, '--engine', engine],
+      arm.sourceCopy.path,
+      engine === 'rust' ? { ZCODEGRAPH_RUST_CORE_BINARY: rustCoreInfo.path } : {},
+    );
     timingsMs.init = elapsedSince(initStarted);
     if (initResult.status !== 0 || initResult.error) {
       arm.execution.status = 'failed';
@@ -960,6 +971,8 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
         env.ZCODEGRAPH_PROFILING = 'heap';
         env.ZCODEGRAPH_EXPERIMENT_ID = experimentId;
       }
+    } else {
+      args.push('--engine', 'typescript');
     }
     arm.command = {
       executable: process.execPath,

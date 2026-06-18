@@ -3279,7 +3279,7 @@ actual class Platform {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     // The expect/actual markers are captured onto the node's decorators.
@@ -3337,7 +3337,7 @@ actual typealias Lock = java.util.concurrent.locks.ReentrantLock
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const aliasNode = cg
@@ -3417,7 +3417,7 @@ object Folding {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const monoid = cg.getNodesByKind('trait').find((n) => n.name === 'Monoid');
@@ -3496,7 +3496,7 @@ class Service {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     // The PHP namespace is captured into the qualified name, so the two
@@ -3568,7 +3568,7 @@ end
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const model = cg.getNodesByKind('class').find((n) => n.name === 'Model');
@@ -3617,7 +3617,7 @@ end
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     // The require edges target fetcher.rb's FILE node. Editing it should reach
@@ -3676,7 +3676,7 @@ std::string use() {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     // The functions are extracted under their real names, not `string`.
@@ -3725,7 +3725,7 @@ extern const char *MYAssetURLForKey(const char *key, ...);
     );
 
     cg = CodeGraph.initSync(tempDir);
-    const result = await cg.indexAll();
+    const result = await cg.indexAll({ engine: 'typescript' });
 
     expect(result.success).toBe(true);
     expect(result.errors).toHaveLength(0);
@@ -3791,7 +3791,7 @@ class UserService extends Repository with Loggable {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const inModels = (name: string) =>
@@ -3852,7 +3852,7 @@ describe('Static-member / value-read references', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     // JsonScope is used ONLY as `JsonScope.EMPTY_DOCUMENT` (a static-field value
@@ -3886,7 +3886,7 @@ describe('Static-member / value-read references', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const tsBuild = cg.getNodesByKind('class').find((n) => n.name === 'Build' && n.filePath.endsWith('Build.ts'));
@@ -3936,7 +3936,7 @@ describe('Cross-language type/import gate (RN name collisions)', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const ktRunner = cg
@@ -3968,7 +3968,7 @@ describe('Cross-language type/import gate (RN name collisions)', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const swiftWidget = cg
@@ -4014,7 +4014,7 @@ describe('Python absolute module import resolution', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const signals = cg.getNodesByKind('file').find((n) => n.filePath.endsWith('conduit/apps/signals.py'));
@@ -4044,7 +4044,7 @@ describe('Python absolute module import resolution', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const appUrls = cg.getNodesByKind('file').find((n) => n.filePath.endsWith('app/urls.py'));
@@ -4070,7 +4070,7 @@ describe('Python absolute module import resolution', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const routesAuth = cg.getNodesByKind('file').find((n) => n.filePath.endsWith('routes/authentication.py'));
@@ -4116,7 +4116,7 @@ describe('Razor / Blazor markup extraction', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     // `@model LoginViewModel` → the view-model class.
@@ -4141,7 +4141,7 @@ describe('Razor / Blazor markup extraction', () => {
     fs.writeFileSync(path.join(tempDir, 'dto.cs'), `namespace App.Models { public class CatalogBrand { } }`);
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const brands = cg.getNodesByKind('class').filter((n) => n.name === 'CatalogBrand');
     expect(brands.length, 'both CatalogBrand classes indexed').toBe(2);
@@ -4167,7 +4167,7 @@ describe('Razor / Blazor markup extraction', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const dto = cg.getNodesByKind('class').find((n) => n.qualifiedName === 'App.Models::CatalogBrand');
@@ -4190,7 +4190,7 @@ describe('Razor / Blazor markup extraction', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const svc = cg.getNodesByKind('class').find((n) => n.name === 'CatalogService');
@@ -4223,7 +4223,7 @@ describe('Default import resolution (renamed default export)', () => {
     fs.writeFileSync(path.join(tempDir, 'app/routes.ts'), `import myController from './controller';\nexport const api = myController;\n`);
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const controller = cg.getNodesByKind('file').find((n) => n.filePath.endsWith('app/controller.ts'));
@@ -4261,7 +4261,7 @@ describe('Chained method-call resolution (C# extension methods)', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const ext = cg
@@ -4302,7 +4302,7 @@ describe('Same-directory include + KMP import resolution', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const winHeader = cg.getNodesByKind('file').find((n) => n.filePath.endsWith('windows/Storage.h'));
@@ -4328,7 +4328,7 @@ describe('Same-directory include + KMP import resolution', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const expectCtx = cg
@@ -4362,7 +4362,7 @@ describe('Delphi form code-behind pairing', () => {
       `unit UFRMAbout;\ninterface\nuses Forms;\ntype\n  TFRMAbout = class(TForm)\n  end;\nimplementation\n{$R *.dfm}\nend.\n`);
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const dfm = cg.getNodesByKind('file').find((n) => n.filePath.endsWith('UFRMAbout.dfm'));
@@ -4398,7 +4398,7 @@ describe('Liquid Shopify JSON template section resolution', () => {
     fs.writeFileSync(path.join(tempDir, 'templates/customers/login.json'), JSON.stringify({ sections: { main: { type: 'main-login' } }, order: ['main'] }));
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const product = cg.getNodesByKind('file').find((n) => n.filePath.endsWith('sections/main-product.liquid'));
@@ -4437,7 +4437,7 @@ describe('Lua/Luau require resolution', () => {
     fs.writeFileSync(path.join(tempDir, 'src/init.luau'), `local helper = require(script.Util.helper)\nreturn helper\n`);
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const config = cg.getNodesByKind('file').find((n) => n.filePath.endsWith('myapp/config.lua'));
@@ -4482,7 +4482,7 @@ describe('Rust module-path call resolution', () => {
     fs.writeFileSync(path.join(http, 'profiles.rs'), `pub fn router() -> i32 { 2 }\n`);
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     // Each submodule's same-named `router` fn must get mod.rs as a dependent —
@@ -4518,7 +4518,7 @@ describe('Rust module-path call resolution', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const find = cg
@@ -4546,7 +4546,7 @@ describe('Rust module-path call resolution', () => {
     fs.writeFileSync(path.join(routes, 'users.rs'), `pub fn post_users() {}\npub fn get_user() {}\n`);
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const handlers = cg.getNodesByKind('function').filter((n) => n.filePath.endsWith('routes/users.rs'));
@@ -4586,7 +4586,7 @@ describe('SvelteKit load → page synthesizer', () => {
     fs.writeFileSync(path.join(register, '+page.server.js'), `export function load() { return { y: 2 }; }\n`);
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const loginLoad = cg
@@ -4628,7 +4628,7 @@ describe('Nuxt nested auto-imported component resolution', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const card = cg.getNodesByKind('component').find((n) => n.filePath.endsWith('media/Card.vue'));
@@ -4664,7 +4664,7 @@ describe('Swift property-wrapper attribute type references', () => {
       `  var categories: [Category]\n}\n`);
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const pivot = cg.getNodesByKind('class').find((n) => n.name === 'AcronymCategoryPivot');
@@ -4721,7 +4721,7 @@ describe('Objective-C messages, class receivers, and #import', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     // 1. The single-argument selector `[SDImageCache storeImage:@"k"]` resolves
@@ -4778,7 +4778,7 @@ export function multiply(a: number, b: number): number {
 
     // Initialize and index
     const cg = CodeGraph.initSync(tempDir);
-    const result = await cg.indexAll();
+    const result = await cg.indexAll({ engine: 'typescript' });
 
     expect(result.success).toBe(true);
     expect(result.filesIndexed).toBe(1);
@@ -4812,7 +4812,7 @@ export function multiply(a: number, b: number): number {
 
     // Initialize and index
     const cg = CodeGraph.initSync(tempDir);
-    const result = await cg.indexAll();
+    const result = await cg.indexAll({ engine: 'typescript' });
 
     expect(result.success).toBe(true);
     expect(result.filesIndexed).toBe(2);
@@ -4831,7 +4831,7 @@ export function multiply(a: number, b: number): number {
 
     // Initialize and index
     const cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     // Check file is tracked
     const file = cg.getFile('src/main.ts');
@@ -4859,7 +4859,7 @@ export function multiply(a: number, b: number): number {
 
     // Initialize and index
     const cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const initialNodes = cg.getNodesInFile('src/main.ts');
     expect(initialNodes.some((n) => n.name === 'original')).toBe(true);
@@ -4887,7 +4887,7 @@ export function multiply(a: number, b: number): number {
     fs.writeFileSync(path.join(tempDir, 'routes.yml'), 'route: value\n');
 
     const cg = CodeGraph.initSync(tempDir);
-    const result = await cg.indexAll();
+    const result = await cg.indexAll({ engine: 'typescript' });
 
     expect(result.success).toBe(true);
     expect(result.filesIndexed).toBe(2);
@@ -4919,7 +4919,7 @@ export function multiply(a: number, b: number): number {
     fs.writeFileSync(path.join(tempDir, 'log.properties'), 'log.level=INFO\n');
 
     const cg = CodeGraph.initSync(tempDir);
-    const result = await cg.indexAll();
+    const result = await cg.indexAll({ engine: 'typescript' });
 
     expect(result.success).toBe(true);
     expect(result.filesIndexed).toBe(2);
@@ -6163,7 +6163,7 @@ export const registry = [widget];
         `import { widget } from './foo';\nexport { helper } from './foo';\nexport const registry = [widget];\n`
       );
       const cg = CodeGraph.initSync(dir, { config: { include: ['src/**/*.ts'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('src/foo.ts')).toContain('src/bar.ts');
       cg.destroy();
@@ -6182,7 +6182,7 @@ export const registry = [widget];
       // `foo.SOME_CONST` would not, so the module-import backstop must link it.
       fs.writeFileSync(path.join(dir, 'src', 'bar.ts'), `import * as foo from './foo';\nexport const x = foo.SOME_CONST;\n`);
       const cg = CodeGraph.initSync(dir, { config: { include: ['src/**/*.ts'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('src/foo.ts')).toContain('src/bar.ts');
       cg.destroy();
@@ -6223,7 +6223,7 @@ describe('Python import dependency linking (blast-radius recall)', () => {
       // called, so before import-linking bar had no edge to foo.
       fs.writeFileSync(path.join(dir, 'pkg', 'bar.py'), `from foo import widget, helper\nregistry = [widget]\n`);
       const cg = CodeGraph.initSync(dir, { config: { include: ['pkg/**/*.py'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('pkg/foo.py')).toContain('pkg/bar.py');
       cg.destroy();
@@ -6243,7 +6243,7 @@ describe('Python import dependency linking (blast-radius recall)', () => {
       // can't link it. Also exercises the Python relative-dot path fix (`.certs`).
       fs.writeFileSync(path.join(dir, 'pkg', 'utils.py'), `from . import certs\ndef go():\n    return certs.where()\n`);
       const cg = CodeGraph.initSync(dir, { config: { include: ['pkg/**/*.py'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('pkg/certs.py')).toContain('pkg/utils.py');
       cg.destroy();
@@ -6263,7 +6263,7 @@ describe('Python import dependency linking (blast-radius recall)', () => {
       fs.writeFileSync(path.join(dir, 'pkg', 'certs.py'), `from external_ca import where\n`);
       fs.writeFileSync(path.join(dir, 'pkg', 'utils.py'), `from . import certs\nCA = certs.where()\n`);
       const cg = CodeGraph.initSync(dir, { config: { include: ['pkg/**/*.py'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('pkg/certs.py')).toContain('pkg/utils.py');
       cg.destroy();
@@ -6286,7 +6286,7 @@ describe('Go cross-package composite literals (blast-radius recall)', () => {
       fs.writeFileSync(path.join(dir, 'render', 'xml.go'), `package render\n\ntype XML struct { Data any }\n`);
       fs.writeFileSync(path.join(dir, 'app.go'), `package main\n\nimport "example.com/proj/render"\n\nfunc handle() any { return render.XML{} }\n`);
       const cg = CodeGraph.initSync(dir, { config: { include: ['**/*.go'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('render/xml.go')).toContain('app.go');
       cg.destroy();
@@ -6306,7 +6306,7 @@ describe('Go cross-package composite literals (blast-radius recall)', () => {
       // exercises the var-initializer walking added for Go.
       fs.writeFileSync(path.join(dir, 'reg.go'), `package main\n\nimport "example.com/proj/render"\n\ntype R interface { Render() }\n\nvar registry = map[string]R{ "xml": render.XML{} }\n`);
       const cg = CodeGraph.initSync(dir, { config: { include: ['**/*.go'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('render/xml.go')).toContain('reg.go');
       cg.destroy();
@@ -6324,7 +6324,7 @@ describe('Go cross-package composite literals (blast-radius recall)', () => {
       // `(*Wrapped)` — without normalization it dropped on the floor.
       fs.writeFileSync(path.join(dir, 'use.go'), `package main\n\nfunc run(x *int) { _ = (*Wrapped)(x) }\n`);
       const cg = CodeGraph.initSync(dir, { config: { include: ['**/*.go'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('types.go')).toContain('use.go');
       cg.destroy();
@@ -6344,7 +6344,7 @@ describe('Go cross-package composite literals (blast-radius recall)', () => {
       // interface satisfaction + dispatch, json.go shows 0 dependents.
       fs.writeFileSync(path.join(dir, 'codec', 'json.go'), `package codec\n\ntype jsonApi struct{}\n\nfunc (j jsonApi) Marshal(v any) ([]byte, error) { return nil, nil }\n\nfunc init() { API = jsonApi{} }\n`);
       const cg = CodeGraph.initSync(dir, { config: { include: ['**/*.go'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('codec/json.go')).toContain('codec/api.go');
       cg.destroy();
@@ -6376,7 +6376,7 @@ describe('C# records (blast-radius recall)', () => {
         `using System.Collections.Generic;\nnamespace P;\npublic class User {\n    public IEnumerable<Box> Boxes { get; }\n    public Box Make() => new Box(1);\n}\n`
       );
       const cg = CodeGraph.initSync(dir, { config: { include: ['**/*.cs'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('types.cs')).toContain('use.cs');
       cg.destroy();
@@ -6407,7 +6407,7 @@ describe('Rust cross-module recall', () => {
     });
     try {
       const cg = CodeGraph.initSync(dir, { config: { include: ['src/**/*.rs'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('src/types.rs')).toContain('src/consumer.rs');
       cg.destroy();
@@ -6423,7 +6423,7 @@ describe('Rust cross-module recall', () => {
     });
     try {
       const cg = CodeGraph.initSync(dir, { config: { include: ['src/**/*.rs'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       // implements edge (Mine -> Render) makes types.rs a dependent of consumer.rs's struct.
       expect(cg.getFileDependents('src/types.rs')).toContain('src/consumer.rs');
@@ -6439,7 +6439,7 @@ describe('Rust cross-module recall', () => {
     });
     try {
       const cg = CodeGraph.initSync(dir, { config: { include: ['src/**/*.rs'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       // The re-export hub depends on the module it re-exports from.
       expect(cg.getFileDependents('src/api/widget.rs')).toContain('src/api/mod.rs');
@@ -6458,7 +6458,7 @@ describe('Rust cross-module recall', () => {
     });
     try {
       const cg = CodeGraph.initSync(dir, { config: { include: ['src/**/*.rs'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('src/fast.rs')).toContain('src/hub.rs');
       expect(cg.getFileDependents('src/slow.rs')).not.toContain('src/hub.rs');
@@ -6480,7 +6480,7 @@ describe('Java annotations (blast-radius recall)', () => {
         `package p;\n@MyAnno("c")\npublic class User {\n  @MyAnno("f") int field;\n  @MyAnno("m") void go() {}\n}\n`
       );
       const cg = CodeGraph.initSync(dir, { config: { include: ['**/*.java'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('p/MyAnno.java')).toContain('p/User.java');
       cg.destroy();
@@ -6499,7 +6499,7 @@ describe('Swift property wrappers / attributes (blast-radius recall)', () => {
       // their own nodes, so without the fix the wrapper type has no users.
       fs.writeFileSync(path.join(dir, 'Sources', 'M', 'Cmd.swift'), `public struct MyCommand {\n  @Argument var name: String\n  @Argument var count: Int\n}\n`);
       const cg = CodeGraph.initSync(dir, { config: { include: ['Sources/**/*.swift'], exclude: [] } });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       cg.resolveReferences();
       expect(cg.getFileDependents('Sources/M/Wrap.swift')).toContain('Sources/M/Cmd.swift');
       cg.destroy();

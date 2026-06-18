@@ -30,7 +30,7 @@ function usage() {
     'Each case starts from a readable TypeScript-produced active index, triggers',
     'an opt-in Rust indexing failure, then verifies the active index is still',
     'readable, no partial Rust index became active, the error includes a next',
-    'action, and default TypeScript indexing still works afterward.',
+    'action, and explicit TypeScript indexing still works afterward.',
   ].join('\n'));
 }
 
@@ -91,7 +91,7 @@ function makeProject(caseId) {
   if (init.status !== 0) {
     throw new Error(`failed to initialize baseline project for ${caseId}\n${init.stdout}\n${init.stderr}`);
   }
-  const index = runCli(project, ['index', project, '--force', '--quiet']);
+  const index = runCli(project, ['index', project, '--force', '--quiet', '--engine', 'typescript']);
   if (index.status !== 0) {
     throw new Error(`failed to create TypeScript baseline for ${caseId}\n${index.stdout}\n${index.stderr}`);
   }
@@ -117,7 +117,7 @@ function activeIndexHasAlpha(project) {
 }
 
 function defaultTypescriptIndexWorks(project) {
-  const result = runCli(project, ['index', project, '--force', '--quiet']);
+  const result = runCli(project, ['index', project, '--force', '--quiet', '--engine', 'typescript']);
   return result.status === 0 && activeIndexHasAlpha(project);
 }
 

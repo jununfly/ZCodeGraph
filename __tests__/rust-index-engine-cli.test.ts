@@ -665,7 +665,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('leaves the existing TypeScript index intact when the Rust binary is unavailable', async () => {
     let cg = CodeGraph.openSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     expect(cg.searchNodes('alpha').some((match) => match.node.name === 'alpha')).toBe(true);
     cg.close();
 
@@ -692,7 +692,7 @@ describe('zcodegraph index engine selection', () => {
   it('prints the rust-hybrid failure doctor hint when the Rust binary is unavailable', async () => {
     const cg = CodeGraph.openSync(tempDir);
     try {
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
     } finally {
       cg.close();
     }
@@ -1824,7 +1824,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('keeps the previous good index when the Rust writer cannot acquire the project lock', async () => {
     let cg = CodeGraph.openSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     expect(cg.searchNodes('alpha').some((match) => match.node.name === 'alpha')).toBe(true);
     cg.close();
 

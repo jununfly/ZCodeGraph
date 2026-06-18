@@ -102,7 +102,7 @@ describe('issue #238 — ToolHandler reuses the default instance (#2)', () => {
       path.join(dir, 'b.ts'),
       "import { helper } from './a';\nexport function main(): number { return helper(); }\n"
     );
-    cg = await CodeGraph.init(dir, { index: true });
+    cg = await CodeGraph.init(dir, { index: true, engine: 'typescript' });
     root = cg.getProjectRoot();
     handler = new ToolHandler(cg);
   });

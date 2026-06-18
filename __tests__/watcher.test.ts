@@ -404,7 +404,7 @@ describe('FileWatcher', () => {
       cg = CodeGraph.initSync(testDir, {
         config: { include: ['**/*.ts'], exclude: [] },
       });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
 
       expect(cg.isWatching()).toBe(false);
 
@@ -420,7 +420,7 @@ describe('FileWatcher', () => {
       cg = CodeGraph.initSync(testDir, {
         config: { include: ['**/*.ts'], exclude: [] },
       });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
 
       cg.watch({ debounceMs: 200, inertForTests: true });
       expect(cg.isWatching()).toBe(true);
@@ -437,7 +437,7 @@ describe('FileWatcher', () => {
       cg = CodeGraph.initSync(testDir, {
         config: { include: ['**/*.ts'], exclude: [] },
       });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
 
       const initialStats = cg.getStats();
       const initialNodes = initialStats.nodeCount;

@@ -154,7 +154,7 @@ describe('object-literal method resolution (end-to-end)', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const fns = cg.getNodesByKind('function');
     const fetchUser = fns.find((n) => n.name === 'fetchUser' && n.filePath.endsWith('store.ts'));

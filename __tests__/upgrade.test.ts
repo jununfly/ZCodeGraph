@@ -386,7 +386,7 @@ describe('index extraction-version stamp / isIndexStale', () => {
     // No index yet → not stale (nothing to refresh).
     expect(cg.isIndexStale()).toBe(false);
 
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     const info = cg.getIndexBuildInfo();
     expect(info.extractionVersion).toBe(EXTRACTION_VERSION);
     expect(typeof info.version).toBe('string');
@@ -397,7 +397,7 @@ describe('index extraction-version stamp / isIndexStale', () => {
   it('flags an index stamped by an older extraction version as stale', async () => {
     fs.writeFileSync(path.join(dir, 'a.ts'), 'export function hello() { return 1; }\n');
     const cg = await CodeGraph.init(dir, { index: false });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     // Simulate an index built by an older engine.
     (cg as unknown as { queries: { setMetadata(k: string, v: string): void } }).queries.setMetadata(

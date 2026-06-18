@@ -35,7 +35,7 @@ describe('Django end-to-end framework extraction', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     // Route node exists
     const routes = cg.getNodesByKind('route');
@@ -82,7 +82,7 @@ describe('Flask end-to-end framework extraction', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     // Both stacked @bp.route decorators are extracted (the second was previously
     // dropped because @login_required broke the "def must follow" assumption).
@@ -136,7 +136,7 @@ describe('Flutter end-to-end — setState→build synthesis', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const methods = cg.getNodesByKind('method');
     const increment = methods.find((n) => n.name === '_increment');
@@ -188,7 +188,7 @@ describe('C++ end-to-end — virtual override synthesis', () => {
       );
 
       cg = CodeGraph.initSync(tmpDir);
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
 
       const processing = cg
         .getNodesByKind('method')
@@ -242,7 +242,7 @@ describe('C++ end-to-end — virtual override synthesis', () => {
       );
 
       cg = CodeGraph.initSync(tmpDir);
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
 
       const detectProc = cg
         .getNodesByKind('method')
@@ -282,7 +282,7 @@ describe('C++ end-to-end — virtual override synthesis', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     // Two methods named Next: the base virtual (lower line) and the override.
     const nexts = cg
@@ -365,7 +365,7 @@ describe('Java end-to-end — field-injected bean trace (issue #389)', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const methods = cg.getNodesByKind('method');
     const find = (cls: string, name: string) =>
@@ -431,7 +431,7 @@ describe('Java end-to-end — field-injected bean trace (issue #389)', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const methods = cg.getNodesByKind('method');
     const getByIdJava = methods.find((m) => m.name === 'getById' && m.language === 'java');
@@ -508,7 +508,7 @@ describe('Java end-to-end — field-injected bean trace (issue #389)', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     // YAML/properties leaf keys: one constant node per dotted path.
     const cfgKeys = cg
@@ -572,7 +572,7 @@ describe('Java end-to-end — field-injected bean trace (issue #389)', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     // No method nodes — non-mapper XML produces no symbols (just file rows).
     expect(cg.getNodesByKind('method').filter((n) => n.language === 'xml').length).toBe(0);
     cg.close();
@@ -593,7 +593,7 @@ describe('Java end-to-end — field-injected bean trace (issue #389)', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const methods = cg.getNodesByKind('method');
     const go = methods.find((m) => m.name === 'go');
@@ -628,7 +628,7 @@ describe('JVM FQN imports — end-to-end', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const bar = cg.getNodesByKind('class').find((n) => n.qualifiedName === 'com.example::Bar');
     expect(bar, 'Bar should be extracted with package-qualified name').toBeDefined();
@@ -659,7 +659,7 @@ describe('JVM FQN imports — end-to-end', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const util = cg.getNodesByKind('function').find((n) => n.qualifiedName === 'com.example::util');
     expect(util, 'top-level util() should be extracted under com.example').toBeDefined();
@@ -680,7 +680,7 @@ describe('JVM FQN imports — end-to-end', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const javaBar = cg.getNodesByKind('class').find((n) => n.qualifiedName === 'com.example::JavaBar');
     expect(javaBar, 'JavaBar should be extracted under com.example regardless of language').toBeDefined();
@@ -712,7 +712,7 @@ describe('JVM FQN imports — end-to-end', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const alphaBar = cg.getNodesByKind('class').find((n) => n.qualifiedName === 'com.example.alpha::Bar');
     const betaBar = cg.getNodesByKind('class').find((n) => n.qualifiedName === 'com.example.beta::Bar');
@@ -768,7 +768,7 @@ describe('Java anonymous-class override synthesis — end-to-end', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     // The anon class is extracted and contains the override.
     const anonClass = cg
@@ -843,7 +843,7 @@ describe('Go gRPC stub→impl synthesis', () => {
     let cg: CodeGraph | undefined;
     try {
       cg = CodeGraph.initSync(tmpDir);
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
 
       const stubSend = cg
         .getNodesByKind('method')
@@ -886,7 +886,7 @@ describe('Go gRPC stub→impl synthesis', () => {
     let cg: CodeGraph | undefined;
     try {
       cg = CodeGraph.initSync(tmpDir);
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
 
       const stub = cg
         .getNodesByKind('struct')

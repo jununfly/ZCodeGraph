@@ -480,6 +480,7 @@ async function runSelectedIndex(
     try {
       if (options.force) cg.clear();
       return await cg.indexAll({
+        engine: 'typescript',
         ...(onProgress ? { onProgress } : {}),
         ...(options.verbose ? { verbose: true } : {}),
       });

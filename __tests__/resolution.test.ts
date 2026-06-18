@@ -858,7 +858,7 @@ function processDate(input: string): string {
       );
 
       // Initialize and index
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
 
       // Check that resolver detected React framework
       const frameworks = cg.getDetectedFrameworks();
@@ -891,7 +891,7 @@ function main(): void {
 }`
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
 
       // Run reference resolution
       const result = cg.resolveReferences();
@@ -920,7 +920,7 @@ def bootstrap():
 `
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
       cg.resolveReferences();
 
       const bootstrap = cg
@@ -978,7 +978,7 @@ func UsePkga() {
 `
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
 
       const usePkga = cg.getNodesByKind('function').filter((n) => n.name ==='UsePkga')[0];
       expect(usePkga).toBeDefined();
@@ -1023,7 +1023,7 @@ func UseAliased() {
 `
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
 
       const useAliased = cg.getNodesByKind('function').filter((n) => n.name ==='UseAliased')[0];
       expect(useAliased).toBeDefined();
@@ -1065,7 +1065,7 @@ def external_caller():
 `
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
 
       const caller = cg.getNodesByKind('function').filter((n) => n.name === 'caller')[0];
       expect(caller).toBeDefined();
@@ -1119,7 +1119,7 @@ def external_caller():
         'package other\n\ntype Box struct{ w int }\n'
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
 
       const methodsOf = (typeName: string, file: string): string[] => {
         const node = cg
@@ -1178,7 +1178,7 @@ export async function finaliseRecording(recorder: RecorderHandle) {
 `
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
 
       const handleStop = cg
         .getNodesByKind('method')
@@ -1245,7 +1245,7 @@ public class Handler {
 `
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
 
       const use = cg
         .getNodesByKind('method')
@@ -1290,7 +1290,7 @@ public class DataExporter
 `
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
 
       const sessionDto = cg
         .getNodesByKind('class')
@@ -1338,7 +1338,7 @@ public sealed class OrderService(IRepo repo, [FromKeyedServices("primary")] ICac
 `
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
 
       const svc = cg.getNodesByKind('class').find((n) => n.name === 'OrderService');
       expect(svc).toBeDefined();
@@ -1366,7 +1366,7 @@ func main() {
 `
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
 
       const mainFn = cg.getNodesByKind('function').filter((n) => n.name ==='main')[0];
       const calls = cg.getOutgoingEdges(mainFn!.id).filter((e) => e.kind === 'calls');
@@ -1469,7 +1469,7 @@ func main() {
         })
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
       cg.resolveReferences();
 
       // The two pickMe nodes live in different files. The aliased
@@ -1501,7 +1501,7 @@ func main() {
         `import { aFn } from './a';\nexport function bFn(): void { aFn(); }\n`
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
       // No tsconfig present — index should still complete and the
       // relative-import-based call edge should be created.
       const aFn = cg.getNodesByKind('function').find((n) => n.name === 'aFn');
@@ -1534,7 +1534,7 @@ func main() {
         `import { signIn } from './all';\nexport function go(): void { signIn(); }\n`
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
       cg.resolveReferences();
 
       const signInNode = cg
@@ -1563,7 +1563,7 @@ func main() {
         `import { login } from './index';\nexport function go(): void { login(); }\n`
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
       cg.resolveReferences();
 
       const signInNode = cg
@@ -1598,7 +1598,7 @@ func main() {
         `<script lang="ts">\n  import { Foo } from './lib';\n</script>\n\n<Foo />\n`
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
       cg.resolveReferences();
 
       const fooNode = cg
@@ -1633,7 +1633,7 @@ func main() {
         `import { helper } from './';\nexport function go2(): void { helper(); }\n`
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
       cg.resolveReferences();
 
       const helperNode = cg
@@ -1673,7 +1673,7 @@ func main() {
         `<script lang="ts">\n  import { Thing } from '@scope/ui/widgets';\n</script>\n\n<Thing />\n`
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
       cg.resolveReferences();
 
       const buttonNode = cg
@@ -1704,7 +1704,7 @@ func main() {
         `<script lang="ts">\nimport { run } from './';\nexport default { mounted() { run(); } };\n</script>\n<template><div/></template>\n`
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
       cg.resolveReferences();
 
       const runNode = cg
@@ -1735,7 +1735,7 @@ func main() {
         `<script setup lang="ts">\nimport { Thing } from './lib';\n</script>\n<template>\n  <Thing />\n</template>\n`
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
       cg.resolveReferences();
 
       const widgetNode = cg
@@ -2067,7 +2067,7 @@ func main() {
         );
 
         clearCppIncludeDirCache();
-        cg = await CodeGraph.init(tempProject, { index: true });
+        cg = await CodeGraph.init(tempProject, { index: true, engine: 'typescript' });
 
         // Sanity: file nodes exist for the header and the cpp.
         const allFiles = cg.getStats();

@@ -23,7 +23,7 @@ async function makeIndexedProject(source: string): Promise<string> {
   const project = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-phase10-validator-'));
   fs.writeFileSync(path.join(project, 'flow.ts'), source);
   const cg = CodeGraph.initSync(project);
-  await cg.indexAll({ force: true });
+  await cg.indexAll({ force: true, engine: 'typescript' });
   cg.close();
   return project;
 }

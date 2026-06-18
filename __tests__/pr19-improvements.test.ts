@@ -256,7 +256,7 @@ export function funcC(): void { console.log('c'); }
       config: { include: ['src/**/*.ts'], exclude: [] },
     });
 
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
 
     const functions = cg.getNodesByKind('function');
@@ -479,7 +479,7 @@ export function otherFunc(): void { myFunc(); }
       config: { include: ['src/**/*.ts'], exclude: [] },
     });
 
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     // resolveReferences internally calls warmCaches
     const result = cg.resolveReferences();
@@ -564,7 +564,7 @@ export function getValueFromCache(): number { return 2; }
       const cg = CodeGraph.initSync(tmpDir, {
         config: { include: ['src/**/*.ts'], exclude: [] },
       });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
 
       const handler = new ToolHandler(cg);
       const findSymbolMatches = (handler as any).findSymbolMatches.bind(handler);
@@ -598,7 +598,7 @@ export function handle(): void {}
       const cg = CodeGraph.initSync(tmpDir, {
         config: { include: ['src/**/*.ts'], exclude: [] },
       });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
 
       const handler = new ToolHandler(cg);
       const findSymbolMatches = (handler as any).findSymbolMatches.bind(handler);
@@ -627,7 +627,7 @@ export function handle(): void {}
       const cg = CodeGraph.initSync(tmpDir, {
         config: { include: ['src/**/*.ts'], exclude: [] },
       });
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
 
       const handler = new ToolHandler(cg);
       const findSymbolMatches = (handler as any).findSymbolMatches.bind(handler);

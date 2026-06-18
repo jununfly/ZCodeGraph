@@ -183,6 +183,8 @@ function indexWithMeasuredCli(project, engine, rustCore, CodeGraph) {
   const env = baseEnv(rustCore);
   if (engine === 'rust') {
     args.push('--engine', 'rust');
+  } else {
+    args.push('--engine', 'typescript');
   }
 
   const startedAt = Date.now();

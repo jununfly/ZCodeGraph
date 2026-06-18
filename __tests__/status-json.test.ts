@@ -69,7 +69,7 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
 
     fs.writeFileSync(path.join(tempDir, 'a.ts'), 'export const x = 1;\n');
     const before = Date.now();
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     const after = Date.now();
 
     const last = cg.getLastIndexedAt();
@@ -95,7 +95,7 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     fs.writeFileSync(path.join(tempDir, 'a.ts'), 'export const x = 1;\n');
     const before = Date.now();
     const cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     const after = Date.now();
     cg.close();
 

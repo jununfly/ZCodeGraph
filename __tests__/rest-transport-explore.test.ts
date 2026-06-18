@@ -159,7 +159,7 @@ public class TransportNoopAction extends TransportAction {
     cg = CodeGraph.initSync(testDir, {
       config: { include: ['**/*.java'], exclude: [] },
     });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     handler = new ToolHandler(cg);
   });
 

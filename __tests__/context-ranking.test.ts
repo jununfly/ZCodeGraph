@@ -74,7 +74,7 @@ export function downloadDataset(name: string): string { return name; }
     cg = CodeGraph.initSync(testDir, {
       config: { include: ['**/*.ts', '**/*.tsx'], exclude: [] },
     });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
   });
 
   afterEach(() => {
@@ -181,7 +181,7 @@ public class IndexerJobStats {}
     cg = CodeGraph.initSync(testDir, {
       config: { include: ['**/*.java'], exclude: [] },
     });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
   });
 
   afterEach(() => {
@@ -261,7 +261,7 @@ public class TrainedModelAssignmentRebalancer {
     cg = CodeGraph.initSync(testDir, {
       config: { include: ['**/*.java'], exclude: [] },
     });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
   });
 
   afterEach(() => {
@@ -355,7 +355,7 @@ public class TestEngine extends Engine {
     cg = CodeGraph.initSync(testDir, {
       config: { include: ['**/*.java'], exclude: [] },
     });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
   });
 
   afterEach(() => {

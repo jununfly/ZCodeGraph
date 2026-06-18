@@ -53,7 +53,7 @@ describe('config secret redaction (#383)', () => {
     );
 
     cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     handler = new ToolHandler(cg);
   });
 

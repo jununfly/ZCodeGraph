@@ -153,7 +153,7 @@ describe('Path Traversal Prevention', () => {
     cg = CodeGraph.initSync(testDir, {
       config: { include: ['**/*.ts'], exclude: [] },
     });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
   });
 
   afterEach(() => {
@@ -239,7 +239,7 @@ describe('Symlink escape prevention (#527)', () => {
 
     const cg = CodeGraph.initSync(root, { config: { include: ['**/*.ts'], exclude: [] } });
     try {
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       // Whether or not extraction followed the dir symlink, NO node may ever
       // yield the out-of-root content through getCode.
       for (const n of cg.getNodesByKind('function')) {
@@ -301,7 +301,7 @@ describe('MCP Input Validation', () => {
     cg = CodeGraph.initSync(testDir, {
       config: { include: ['**/*.ts'], exclude: [] },
     });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     handler = new ToolHandler(cg);
   });
 

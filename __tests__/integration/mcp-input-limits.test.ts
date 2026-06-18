@@ -30,7 +30,7 @@ describe('MCP input size limits', () => {
     cg = await CodeGraph.init(tempDir, {
       config: { include: ['**/*.ts'], exclude: [] },
     });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     handler = new ToolHandler(cg);
   });
 

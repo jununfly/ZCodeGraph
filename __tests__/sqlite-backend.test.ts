@@ -34,7 +34,7 @@ describe('DatabaseConnection — backend reporting', () => {
 
   it('CodeGraph.getBackend() delegates to the underlying DatabaseConnection', async () => {
     fs.writeFileSync(path.join(dir, 'x.ts'), `export function x(): void {}\n`);
-    const cg = await CodeGraph.init(dir, { index: true });
+    const cg = await CodeGraph.init(dir, { index: true, engine: 'typescript' });
     try {
       expect(cg.getBackend()).toBe('node-sqlite');
     } finally {

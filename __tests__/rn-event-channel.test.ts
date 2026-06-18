@@ -47,7 +47,7 @@ emitter.addListener('locationUpdate', onLocation);
     );
 
     const cg = await CodeGraph.init(dir, { silent: true });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const db = (cg as any).db.db;
     const rows = db
@@ -102,7 +102,7 @@ export function onMessage(listener: (m: any) => void) {
     );
 
     const cg = await CodeGraph.init(dir, { silent: true });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const db = (cg as any).db.db;
     const rows = db
@@ -144,7 +144,7 @@ export function onMessage(listener: (m: any) => void) {
       "emitter.addListener('myWrapperBatteryEvent', onBattery);\n");
 
     const cg = await CodeGraph.init(dir, { silent: true });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     const db = (cg as any).db.db;
     const rows = db.prepare(
       "SELECT s.name source_name, s.language sl, t.name target_name FROM edges e " +

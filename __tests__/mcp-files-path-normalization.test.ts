@@ -35,7 +35,7 @@ describe('zcodegraph_files path normalization', () => {
     cg = await CodeGraph.init(tempDir, {
       config: { include: ['**/*.ts'], exclude: [] },
     });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     handler = new ToolHandler(cg);
   });
 
@@ -104,7 +104,7 @@ describe('zcodegraph_files path normalization', () => {
   it('does not match sibling directories that share a prefix', async () => {
     fs.mkdirSync(path.join(tempDir, 'src-utils'), { recursive: true });
     fs.writeFileSync(path.join(tempDir, 'src-utils', 'helper.ts'), `export const h = 1;\n`);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     const output = await listed('src');
     expect(output).toContain('src/index.ts');

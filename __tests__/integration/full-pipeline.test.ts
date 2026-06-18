@@ -93,7 +93,7 @@ describe('Integration: full pipeline', () => {
 
     try {
       // ── indexAll ────────────────────────────────────────────────
-      const indexResult = await cg.indexAll();
+      const indexResult = await cg.indexAll({ engine: 'typescript' });
       // Synthetic project: MODULE_COUNT mod files + 1 index file.
       expect(indexResult.filesIndexed).toBeGreaterThanOrEqual(MODULE_COUNT);
 
@@ -200,7 +200,7 @@ describe('Integration: full pipeline', () => {
     });
 
     try {
-      const result = await cg.indexAll();
+      const result = await cg.indexAll({ engine: 'typescript' });
       // The two good files must still be indexed regardless of the
       // broken one. Tree-sitter is error-tolerant so it may still
       // extract a partial AST from broken.ts — but the test only
@@ -224,7 +224,7 @@ describe('Integration: full pipeline', () => {
     });
 
     try {
-      await cg.indexAll();
+      await cg.indexAll({ engine: 'typescript' });
       const statsBefore = cg.getStats();
 
       const first = await cg.sync();
@@ -255,7 +255,7 @@ describe('Integration: full pipeline', () => {
     });
 
     try {
-      const result = await cg.indexAll();
+      const result = await cg.indexAll({ engine: 'typescript' });
       const stats = cg.getStats();
 
       expect(result.success).toBe(true);

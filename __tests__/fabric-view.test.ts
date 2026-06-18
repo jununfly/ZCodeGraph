@@ -100,7 +100,7 @@ export function App() {
     );
 
     const cg = await CodeGraph.init(dir, { silent: true });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     const db = (cg as any).db.db;
 
     // 1. The Fabric component node exists.

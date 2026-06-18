@@ -86,7 +86,7 @@ describe.skipIf(!HAS_SQLITE)('matchesSymbol — module-qualified lookups (#173)'
     cg = CodeGraph.initSync(projectRoot, {
       config: { include: ['**/*.rs'], exclude: [] },
     });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     handler = new ToolHandler(cg);
     findSymbolMatches = (handler as any).findSymbolMatches.bind(handler);
     findAllSymbols = (handler as any).findAllSymbols.bind(handler);
@@ -189,7 +189,7 @@ describe.skipIf(!HAS_SQLITE)('matchesSymbol — dotted lookups (regression for #
     cg = CodeGraph.initSync(projectRoot, {
       config: { include: ['src/**/*.ts'], exclude: [] },
     });
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     handler = new ToolHandler(cg);
     findSymbolMatches = (handler as any).findSymbolMatches.bind(handler);
   });

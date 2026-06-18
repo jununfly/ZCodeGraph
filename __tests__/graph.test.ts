@@ -121,7 +121,7 @@ export { main };
       },
     });
 
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
     cg.resolveReferences();
   });
 

@@ -587,7 +587,7 @@ describe('Drupal end-to-end — route node linked to controller method', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll();
+    await cg.indexAll({ engine: 'typescript' });
 
     // Route node must exist
     const routes = cg.getNodesByKind('route');
