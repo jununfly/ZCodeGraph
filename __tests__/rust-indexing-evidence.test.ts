@@ -135,6 +135,67 @@ describe('Rust indexing evidence pipeline', () => {
     expect(markdown).toContain('Rust default rollout readiness is not claimed');
   });
 
+  it('documents the evidence contract and RSS unavailable reasons', () => {
+    const temp = makeTempDir('zcodegraph-rust-evidence-contract-');
+    tempDirs.push(temp);
+    const before = path.join(temp, 'before.json');
+    const after = path.join(temp, 'after.json');
+    const out = path.join(temp, 'comparison.md');
+    writeJson(
+      before,
+      artifact({
+        targets: [
+          target('zcodegraph', {
+            arms: {
+              ...target('zcodegraph').arms,
+              rust: {
+                ...target('zcodegraph').arms.rust,
+                execution: {
+                  ...target('zcodegraph').arms.rust.execution,
+                  peakRssBytes: null,
+                  peakRssUnavailableReason: 'rss sampler disabled in fixture',
+                },
+              },
+            },
+          }),
+        ],
+      }),
+    );
+    writeJson(
+      after,
+      artifact({
+        experimentId: 'fixture-after',
+        targets: [
+          target('zcodegraph', {
+            arms: {
+              ...target('zcodegraph').arms,
+              rust: {
+                ...target('zcodegraph').arms.rust,
+                execution: {
+                  ...target('zcodegraph').arms.rust.execution,
+                  peakRssBytes: null,
+                  peakRssUnavailableReason: 'rss sampler disabled in fixture',
+                },
+              },
+            },
+          }),
+        ],
+      }),
+    );
+
+    const result = spawnSync(process.execPath, [SCRIPT, '--before', before, '--after', after, '--out', out], {
+      cwd: REPO_ROOT,
+      encoding: 'utf-8',
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const markdown = fs.readFileSync(out, 'utf-8');
+    expect(markdown).toContain('## Evidence Contract');
+    expect(markdown).toContain('- Scope: local before/after artifact comparison; no GitHub or network side effects.');
+    expect(markdown).toContain('- RSS: records peak RSS bytes when available, otherwise records an unavailable reason.');
+    expect(markdown).toContain('| zcodegraph | n/a | n/a | n/a | rss sampler disabled in fixture | rss sampler disabled in fixture |');
+  });
+
   it('ranks the next candidate and documents excluded directions', () => {
     const temp = makeTempDir('zcodegraph-rust-evidence-ranking-');
     tempDirs.push(temp);

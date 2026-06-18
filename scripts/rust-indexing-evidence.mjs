@@ -116,6 +116,16 @@ function graphStatsParity(beforeTarget, afterTarget) {
   return stableJson(before) === stableJson(after) ? 'unchanged' : 'changed';
 }
 
+function rssUnavailableReason(execution) {
+  return (
+    execution?.peakRssUnavailableReason ??
+    execution?.rssUnavailableReason ??
+    execution?.peakRssBytesUnavailableReason ??
+    execution?.resourceUsage?.peakRssUnavailableReason ??
+    null
+  );
+}
+
 function rustCore(target) {
   return target?.arms?.rust?.execution?.indexProfile?.rustCore ?? {};
 }
@@ -150,6 +160,8 @@ function targetRows(beforeArtifact, afterArtifact) {
       rustWallDeltaPct: pct(beforeRust.elapsedMs, afterRust.elapsedMs),
       beforeRssBytes: beforeRust.peakRssBytes ?? null,
       afterRssBytes: afterRust.peakRssBytes ?? null,
+      beforeRssUnavailableReason: rssUnavailableReason(beforeRust),
+      afterRssUnavailableReason: rssUnavailableReason(afterRust),
       rustRssDeltaPct: pct(beforeRust.peakRssBytes, afterRust.peakRssBytes),
       beforeSqliteWriteMs: rustCore(beforeTarget).sqliteWriteMs ?? null,
       afterSqliteWriteMs: rustCore(afterTarget).sqliteWriteMs ?? null,
@@ -260,6 +272,15 @@ function comparisonMarkdown(beforeArtifact, afterArtifact, beforePath, afterPath
     '',
     'Rust default rollout readiness is not claimed by this comparison.',
     '',
+    '## Evidence Contract',
+    '',
+    '- Scope: local before/after artifact comparison; no GitHub or network side effects.',
+    '- Target status: required/stress classification, empty-corpus status, sufficiency, and Rust graphStats parity are reported per target.',
+    '- Wall time: compares Rust arm elapsed milliseconds only.',
+    '- RSS: records peak RSS bytes when available, otherwise records an unavailable reason.',
+    '- Profile buckets: Rust-owned buckets, TypeScript finalization total, and numeric finalization breakdown fields are reported separately.',
+    '- Rollout readiness: generated output never claims Rust default rollout readiness.',
+    '',
     '## Target Matrix',
     '',
     '| Target | Class | Required | Empty corpus | Sufficiency | Rust graphStats |',
@@ -275,9 +296,12 @@ function comparisonMarkdown(beforeArtifact, afterArtifact, beforePath, afterPath
         `| ${row.name} | ${fmt(row.beforeRustMs)} | ${fmt(row.afterRustMs)} | ${fmtPct(row.rustWallDeltaPct)} | ${fmt(row.beforeSqliteWriteMs)} | ${fmt(row.afterSqliteWriteMs)} | ${fmtPct(row.sqliteWriteDeltaPct)} |`,
     ),
     '',
-    '| Target | Before Rust RSS | After Rust RSS | Rust RSS delta |',
-    '|---|---:|---:|---:|',
-    ...rows.map((row) => `| ${row.name} | ${fmt(row.beforeRssBytes)} | ${fmt(row.afterRssBytes)} | ${fmtPct(row.rustRssDeltaPct)} |`),
+    '| Target | Before Rust RSS | After Rust RSS | Rust RSS delta | Before RSS unavailable reason | After RSS unavailable reason |',
+    '|---|---:|---:|---:|---|---|',
+    ...rows.map(
+      (row) =>
+        `| ${row.name} | ${fmt(row.beforeRssBytes)} | ${fmt(row.afterRssBytes)} | ${fmtPct(row.rustRssDeltaPct)} | ${fmt(row.beforeRssUnavailableReason)} | ${fmt(row.afterRssUnavailableReason)} |`,
+    ),
     '',
     '## Profile Buckets',
     '',
