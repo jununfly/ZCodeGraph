@@ -2040,17 +2040,29 @@ fn index_javascript_files(
                 .errors
                 .push(format!("{}: parse error", relative_path));
         } else {
-            extract_top_level_js_symbols(
-                parsed.root_node(),
-                content.as_bytes(),
-                &relative_path,
-                language,
-                &file_node_id,
-                &mut nodes,
-                &mut edges,
-                &mut unresolved_refs,
-                features,
-            )?;
+            if language.is_go() {
+                extract_go_symbols(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
+            } else {
+                extract_top_level_js_symbols(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    language,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                    features,
+                )?;
+            }
         }
         counts.profile.parse_extraction_ms += parse_started.elapsed().as_millis();
 
@@ -2280,6 +2292,7 @@ enum SourceLanguage {
     Jsx,
     TypeScript,
     Tsx,
+    Go,
 }
 
 impl SourceLanguage {
@@ -2289,6 +2302,7 @@ impl SourceLanguage {
             Some("jsx") => Some(Self::Jsx),
             Some("ts") => Some(Self::TypeScript),
             Some("tsx") => Some(Self::Tsx),
+            Some("go") => Some(Self::Go),
             _ => None,
         }
     }
@@ -2299,6 +2313,7 @@ impl SourceLanguage {
             Self::Jsx => "jsx",
             Self::TypeScript => "typescript",
             Self::Tsx => "tsx",
+            Self::Go => "go",
         }
     }
 
@@ -2307,11 +2322,16 @@ impl SourceLanguage {
             Self::JavaScript | Self::Jsx => tree_sitter_javascript::LANGUAGE.into(),
             Self::TypeScript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
             Self::Tsx => tree_sitter_typescript::LANGUAGE_TSX.into(),
+            Self::Go => tree_sitter_go::LANGUAGE.into(),
         }
     }
 
     fn has_jsx(self) -> bool {
         matches!(self, Self::Jsx | Self::Tsx)
+    }
+
+    fn is_go(self) -> bool {
+        matches!(self, Self::Go)
     }
 }
 
@@ -2330,7 +2350,9 @@ fn collect_supported_files(project_path: &Path) -> io::Result<Vec<PathBuf>> {
                     continue;
                 }
                 walk(&path, out)?;
-            } else if SourceLanguage::from_path(&path).is_some() {
+            } else if SourceLanguage::from_path(&path).is_some()
+                && !is_generated_go_file(&path)
+            {
                 out.push(path);
             }
         }
@@ -2341,6 +2363,21 @@ fn collect_supported_files(project_path: &Path) -> io::Result<Vec<PathBuf>> {
     walk(project_path, &mut files)?;
     files.sort();
     Ok(files)
+}
+
+fn is_generated_go_file(path: &Path) -> bool {
+    if SourceLanguage::from_path(path) != Some(SourceLanguage::Go) {
+        return false;
+    }
+    let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    file_name.ends_with(".pb.go")
+        || file_name.ends_with(".pulsar.go")
+        || file_name.ends_with("_grpc.pb.go")
+        || file_name.ends_with("_mock.go")
+        || file_name.ends_with("_mocks.go")
+        || (file_name.starts_with("mock_") && file_name.ends_with(".go"))
 }
 
 fn extract_top_level_js_symbols(
@@ -2368,6 +2405,458 @@ fn extract_top_level_js_symbols(
         features,
     )?;
     Ok(())
+}
+
+fn extract_go_symbols(
+    root: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut cursor = root.walk();
+    let source_text = std::str::from_utf8(source).unwrap_or("");
+    let group_prefixes = collect_go_gin_group_prefixes(source_text);
+    let variable_types = collect_go_variable_types(source_text);
+    visit_go_node(
+        &mut cursor,
+        source,
+        relative_path,
+        file_node_id,
+        file_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+        &group_prefixes,
+        &variable_types,
+    )?;
+    Ok(())
+}
+
+fn visit_go_node(
+    cursor: &mut TreeCursor,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    current_from_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+    group_prefixes: &HashMap<String, String>,
+    variable_types: &HashMap<String, String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let node = cursor.node();
+    let mut child_from_node_id: Cow<'_, str> = Cow::Borrowed(current_from_node_id);
+
+    if let Some((kind, name, name_node)) = extract_go_named_symbol(node, source)? {
+        let extracted = ExtractedNode::symbol(relative_path, kind, &name, node, "go");
+        let extracted_id = extracted.id.clone();
+        let contains_source = if matches!(kind, "field") && current_from_node_id != file_node_id {
+            current_from_node_id
+        } else {
+            file_node_id
+        };
+        edges.push(ExtractedEdge {
+            source: contains_source.to_string(),
+            target: extracted_id.clone(),
+            kind: "contains".to_string(),
+            line: extracted.start_line,
+            col: extracted.start_column,
+        });
+        nodes.push(extracted);
+        if matches!(kind, "module" | "struct" | "interface" | "function" | "method") {
+            child_from_node_id = Cow::Owned(extracted_id);
+        }
+
+        if kind == "field" && name_node.kind() == "field_identifier" {
+            return Ok(());
+        }
+    }
+
+    extract_go_gin_route(
+        node,
+        source,
+        relative_path,
+        file_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+        group_prefixes,
+        variable_types,
+    )?;
+    extract_go_statement_refs(node, source, relative_path, current_from_node_id, unresolved_refs)?;
+
+    if cursor.goto_first_child() {
+        loop {
+            visit_go_node(
+                cursor,
+                source,
+                relative_path,
+                file_node_id,
+                &child_from_node_id,
+                nodes,
+                edges,
+                unresolved_refs,
+                group_prefixes,
+                variable_types,
+            )?;
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+        cursor.goto_parent();
+    }
+
+    Ok(())
+}
+
+fn extract_go_gin_route(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+    group_prefixes: &HashMap<String, String>,
+    variable_types: &HashMap<String, String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "call_expression" {
+        return Ok(());
+    }
+    let call = node.utf8_text(source)?;
+    let Some(route) = parse_go_gin_route_call(call, group_prefixes, variable_types) else {
+        return Ok(());
+    };
+    let route_name = format!("{} {}", route.method, route.path);
+    let route_node = ExtractedNode::symbol(relative_path, "route", &route_name, node, "go");
+    let route_node_id = route_node.id.clone();
+    edges.push(ExtractedEdge {
+        source: file_node_id.to_string(),
+        target: route_node_id.clone(),
+        kind: "contains".to_string(),
+        line: route_node.start_line,
+        col: route_node.start_column,
+    });
+    nodes.push(route_node);
+    push_ref(
+        unresolved_refs,
+        &route_node_id,
+        &route.handler,
+        "references",
+        node,
+        relative_path,
+        SourceLanguage::Go,
+    );
+    Ok(())
+}
+
+struct GoGinRoute {
+    method: &'static str,
+    path: String,
+    handler: String,
+}
+
+fn parse_go_gin_route_call(
+    call: &str,
+    group_prefixes: &HashMap<String, String>,
+    variable_types: &HashMap<String, String>,
+) -> Option<GoGinRoute> {
+    const METHODS: [&str; 5] = ["GET", "POST", "PUT", "DELETE", "PATCH"];
+    for method in METHODS {
+        let needle = format!(".{method}(");
+        let Some(method_index) = call.find(&needle) else {
+            continue;
+        };
+        let receiver = call[..method_index].trim();
+        if receiver.is_empty() || !receiver.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        {
+            return None;
+        }
+        let args = &call[method_index + needle.len()..];
+        let (path, after_path) = parse_first_go_string(args)?;
+        let handler = parse_second_go_arg(after_path, variable_types)?;
+        let full_path = format_route_path(group_prefixes.get(receiver).map(String::as_str), &path);
+        return Some(GoGinRoute {
+            method,
+            path: full_path,
+            handler,
+        });
+    }
+    None
+}
+
+fn collect_go_gin_group_prefixes(source: &str) -> HashMap<String, String> {
+    let mut groups = HashMap::new();
+    for line in source.lines() {
+        let Some((left, right)) = line.split_once(":=") else {
+            continue;
+        };
+        let var_name = left.trim();
+        if var_name.is_empty() || !right.contains(".Group(") {
+            continue;
+        }
+        if let Some((prefix, _)) = parse_first_go_string(right.split_once(".Group(").map(|(_, args)| args).unwrap_or(right)) {
+            groups.insert(var_name.to_string(), prefix);
+        }
+    }
+    groups
+}
+
+fn collect_go_variable_types(source: &str) -> HashMap<String, String> {
+    let mut variables = HashMap::new();
+    for line in source.lines() {
+        let Some((left, right)) = line.split_once(":=") else {
+            continue;
+        };
+        let var_name = left.trim();
+        let right = right.trim_start();
+        let Some(rest) = right.strip_prefix('&') else {
+            continue;
+        };
+        let type_name: String = rest
+            .chars()
+            .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+            .collect();
+        if !var_name.is_empty() && !type_name.is_empty() {
+            variables.insert(var_name.to_string(), type_name);
+        }
+    }
+    variables
+}
+
+fn parse_first_go_string(input: &str) -> Option<(String, &str)> {
+    let bytes = input.as_bytes();
+    let start = bytes.iter().position(|ch| *ch == b'"')?;
+    let mut index = start + 1;
+    while index < bytes.len() {
+        match bytes[index] {
+            b'\\' => index += 2,
+            b'"' => {
+                return Some((input[start + 1..index].to_string(), &input[index + 1..]));
+            }
+            _ => index += 1,
+        }
+    }
+    None
+}
+
+fn parse_second_go_arg<'a>(
+    after_first_string: &'a str,
+    variable_types: &HashMap<String, String>,
+) -> Option<String> {
+    let after_comma = after_first_string.split_once(',')?.1.trim_start();
+    let raw: String = after_comma
+        .chars()
+        .take_while(|ch| !matches!(*ch, ',' | ')'))
+        .collect::<String>()
+        .trim()
+        .to_string();
+    if raw.is_empty() {
+        return None;
+    }
+    if let Some((receiver, method)) = raw.split_once('.') {
+        if let Some(type_name) = variable_types.get(receiver.trim()) {
+            return Some(format!("{}.{}", type_name, method.trim()));
+        }
+        return Some(method.trim().to_string());
+    }
+    Some(raw)
+}
+
+fn format_route_path(prefix: Option<&str>, path: &str) -> String {
+    let Some(prefix) = prefix else {
+        return path.to_string();
+    };
+    let prefix = prefix.trim_end_matches('/');
+    let path = path.trim_start_matches('/');
+    if prefix.is_empty() {
+        format!("/{path}")
+    } else if path.is_empty() {
+        prefix.to_string()
+    } else {
+        format!("{prefix}/{path}")
+    }
+}
+
+fn extract_go_statement_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "call_expression" {
+        return Ok(());
+    }
+    let Some(target_node) = node.child_by_field_name("function") else {
+        return Ok(());
+    };
+    let Some(reference_name) = go_call_reference_name(target_node, source)? else {
+        return Ok(());
+    };
+    push_ref(
+        unresolved_refs,
+        from_node_id,
+        &reference_name,
+        "calls",
+        target_node,
+        relative_path,
+        SourceLanguage::Go,
+    );
+    Ok(())
+}
+
+fn go_call_reference_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "identifier" => Ok(Some(node.utf8_text(source)?.to_string())),
+        "selector_expression" => {
+            let mut last_selector = None;
+            for child in node.named_children(&mut node.walk()) {
+                if matches!(child.kind(), "field_identifier" | "identifier") {
+                    last_selector = Some(child);
+                }
+            }
+            Ok(last_selector
+                .and_then(|child| child.utf8_text(source).ok().map(ToString::to_string)))
+        }
+        _ => Ok(None),
+    }
+}
+
+fn extract_go_named_symbol<'a>(
+    node: SyntaxNode<'a>,
+    source: &[u8],
+) -> Result<Option<(&'static str, String, SyntaxNode<'a>)>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "package_clause" => {
+            if let Some(name_node) = first_named_child_of_kind(node, "package_identifier") {
+                return Ok(Some((
+                    "module",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "function_declaration" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "function",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "method_declaration" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                let method = name_node.utf8_text(source)?;
+                let receiver = go_receiver_name(node, source)
+                    .map(|receiver| format!("{receiver}.{method}"))
+                    .unwrap_or_else(|| method.to_string());
+                return Ok(Some(("method", receiver, name_node)));
+            }
+        }
+        "type_spec" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                let type_node = node.child_by_field_name("type");
+                let kind = match type_node.map(|n| n.kind()) {
+                    Some("struct_type") => "struct",
+                    Some("interface_type") => "interface",
+                    _ => "type_alias",
+                };
+                return Ok(Some((
+                    kind,
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "type_alias" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "type_alias",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "field_declaration" => {
+            if let Some(name_node) = first_named_child_of_kind(node, "field_identifier") {
+                return Ok(Some((
+                    "field",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "const_spec" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "constant",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "var_spec" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "variable",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        _ => {}
+    }
+
+    Ok(None)
+}
+
+fn first_named_child_of_kind<'a>(node: SyntaxNode<'a>, kind: &str) -> Option<SyntaxNode<'a>> {
+    node.named_children(&mut node.walk())
+        .find(|child| child.kind() == kind)
+}
+
+fn go_receiver_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
+    let receiver = node.child_by_field_name("receiver")?;
+    for child in receiver.named_children(&mut receiver.walk()) {
+        if child.kind() == "parameter_declaration" {
+            for named in child.named_children(&mut child.walk()) {
+                if matches!(
+                    named.kind(),
+                    "type_identifier" | "qualified_type" | "pointer_type" | "generic_type"
+                ) {
+                    return go_type_name(named, source);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn go_type_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
+    match node.kind() {
+        "type_identifier" => node.utf8_text(source).ok().map(ToString::to_string),
+        "pointer_type" | "generic_type" => {
+            for child in node.named_children(&mut node.walk()) {
+                if let Some(name) = go_type_name(child, source) {
+                    return Some(name);
+                }
+            }
+            None
+        }
+        "qualified_type" => node
+            .named_children(&mut node.walk())
+            .last()
+            .and_then(|child| child.utf8_text(source).ok().map(ToString::to_string)),
+        _ => None,
+    }
 }
 
 fn visit_js_node(

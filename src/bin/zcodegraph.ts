@@ -501,7 +501,7 @@ async function runSelectedIndex(
       });
     });
     if (engine === 'rust-hybrid') {
-      cg.markRustHybridIndex(buildRustHybridMetadata());
+      cg.markRustHybridIndex(buildRustHybridMetadata(projectPath));
     }
     result.nodesCreated += finalized.nodesCreated;
     result.edgesCreated += finalized.edgesCreated;

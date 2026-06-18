@@ -333,20 +333,23 @@ describe('zcodegraph index engine selection', () => {
     expect(result.stderr).toContain('typescript, rust, rust-hybrid');
   });
 
-  it('fails fast for Go files under rust-hybrid Phase 1', () => {
-    const rustCore = writeFakeRustCore(tempDir);
+  it('indexes ordinary Go files under rust-hybrid', () => {
     fs.writeFileSync(path.join(tempDir, 'server.go'), 'package main\nfunc main() {}\n');
 
     const result = runCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
-    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
-    expect(result.stderr).toContain('Go is a rust-hybrid release blocker');
-    expect(result.stderr).toContain('--engine typescript');
-    const marker = JSON.parse(fs.readFileSync(fakeRustCoreMarker(tempDir), 'utf-8')) as { args: string[] };
-    expect(marker.args).not.toContain('index');
-  });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      expect(cg.getStats().filesByLanguage.go).toBe(1);
+      expect(cg.searchNodes('main').some((match) => match.node.kind === 'function' && match.node.language === 'go')).toBe(true);
+      expect(cg.getIndexBuildInfo()).toMatchObject({ engine: 'rust-hybrid' });
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
 
   it('fails fast for non-Rust-owned supported languages under rust-hybrid Phase 1', () => {
     const rustCore = writeFakeRustCore(tempDir);
@@ -363,17 +366,29 @@ describe('zcodegraph index engine selection', () => {
     expect(marker.args).not.toContain('index');
   });
 
-  it('does not fail fast on generated Go files under rust-hybrid Phase 1', () => {
-    const rustCore = writeFakeRustCore(tempDir);
+  it('counts generated Go files in rust-hybrid metadata', () => {
     fs.writeFileSync(path.join(tempDir, 'service.pb.go'), 'package main\n');
 
     const result = runCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
-    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(true);
-  });
+    const statusResult = runCli(tempDir, ['status', '--json']);
+    expect(statusResult.status).toBe(0);
+    const statusLine = statusResult.stdout.trim().split('\n').filter(Boolean).pop();
+    expect(statusLine).toBeDefined();
+    const status = JSON.parse(statusLine!) as {
+      index: {
+        hybrid: {
+          rustOwnedLanguages: string[];
+          skippedGeneratedByLanguage: Record<string, number>;
+        };
+      };
+    };
+    expect(status.index.hybrid.rustOwnedLanguages).toContain('go');
+    expect(status.index.hybrid.skippedGeneratedByLanguage.go).toBe(1);
+  }, 30_000);
 
   it('allows mixed-language projects through the TypeScript escape hatch', () => {
     const rustCore = writeFailingRustCore(tempDir);
@@ -545,6 +560,7 @@ describe('zcodegraph index engine selection', () => {
           rustOwnedLanguages: string[];
           fallbackState: string;
           fallbackMessage: string;
+          skippedGeneratedByLanguage: Record<string, number>;
         } | null;
       };
     };
@@ -552,8 +568,9 @@ describe('zcodegraph index engine selection', () => {
     expect(status.index.engine).toBe('rust-hybrid');
     expect(status.index.hybrid).toMatchObject({
       phase: 'phase-1-engine-contract',
-      rustOwnedLanguages: ['javascript', 'jsx', 'typescript', 'tsx'],
+      rustOwnedLanguages: ['javascript', 'jsx', 'typescript', 'tsx', 'go'],
       fallbackState: 'pending',
+      skippedGeneratedByLanguage: {},
     });
     expect(status.index.hybrid?.fallbackMessage).toContain('fallback writes');
   }, 30_000);
@@ -902,6 +919,190 @@ describe('zcodegraph index engine selection', () => {
       expect(stats.nodeCount).toBeGreaterThanOrEqual(3);
       expect(cg.searchNodes('beta').some((match) => match.node.name === 'beta')).toBe(true);
       expect(cg.searchNodes('Widget').some((match) => match.node.name === 'Widget')).toBe(true);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('indexes Go symbols through the Rust engine', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'server.go'),
+      [
+        'package main',
+        '',
+        'type User struct {',
+        '  Name string',
+        '}',
+        '',
+        'type Store interface {',
+        '  List() []User',
+        '}',
+        '',
+        'type Handler struct {',
+        '  store Store',
+        '}',
+        '',
+        'const DefaultLimit = 10',
+        'var cachedUsers []User',
+        '',
+        'type UserID = string',
+        '',
+        'func NewHandler(store Store) *Handler {',
+        '  return &Handler{store: store}',
+        '}',
+        '',
+        'func (h *Handler) ListUsers() []User {',
+        '  return h.store.List()',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      expect(cg.getStats().filesByLanguage.go).toBe(1);
+      const expectations = [
+        ['main', 'module'],
+        ['User', 'struct'],
+        ['Name', 'field'],
+        ['Store', 'interface'],
+        ['Handler', 'struct'],
+        ['store', 'field'],
+        ['DefaultLimit', 'constant'],
+        ['cachedUsers', 'variable'],
+        ['UserID', 'type_alias'],
+        ['NewHandler', 'function'],
+        ['Handler.ListUsers', 'method'],
+      ] as const;
+      for (const [name, kind] of expectations) {
+        expect(
+          cg.searchNodes(name).some((match) => match.node.name === name && match.node.kind === kind && match.node.language === 'go'),
+          `${name} (${kind}) should be indexed as Go`,
+        ).toBe(true);
+      }
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('resolves Go same-file and same-package direct calls through the Rust engine', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'handler.go'),
+      [
+        'package main',
+        '',
+        'type Handler struct {}',
+        '',
+        'func (h *Handler) ListUsers() []string {',
+        '  return loadUsers()',
+        '}',
+        '',
+        'func loadUsers() []string {',
+        '  return buildUsers()',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'store.go'),
+      [
+        'package main',
+        '',
+        'func buildUsers() []string {',
+        '  return []string{"ada"}',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const listUsers = cg.searchNodes('Handler.ListUsers').find((match) => match.node.kind === 'method')?.node;
+      const loadUsers = cg.searchNodes('loadUsers').find((match) => match.node.kind === 'function')?.node;
+      const buildUsers = cg.searchNodes('buildUsers').find((match) => match.node.kind === 'function')?.node;
+      expect(listUsers).toBeDefined();
+      expect(loadUsers).toBeDefined();
+      expect(buildUsers).toBeDefined();
+
+      const listCalls = cg.getOutgoingEdges(listUsers!.id).filter((edge) => edge.kind === 'calls');
+      const loadCalls = cg.getOutgoingEdges(loadUsers!.id).filter((edge) => edge.kind === 'calls');
+      expect(listCalls.some((edge) => edge.target === loadUsers!.id)).toBe(true);
+      expect(loadCalls.some((edge) => edge.target === buildUsers!.id)).toBe(true);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('links Gin direct routes to handlers and handler helpers under rust-hybrid', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'main.go'),
+      [
+        'package main',
+        '',
+        'import "github.com/gin-gonic/gin"',
+        '',
+        'type Controller struct {}',
+        '',
+        'func main() {',
+        '  r := gin.Default()',
+        '  r.GET("/health", healthHandler)',
+        '  api := r.Group("/api")',
+        '  controller := &Controller{}',
+        '  api.POST("/users", controller.CreateUser)',
+        '}',
+        '',
+        'func healthHandler(c *gin.Context) {',
+        '  writeHealth()',
+        '}',
+        '',
+        'func writeHealth() {}',
+        '',
+        'func (c *Controller) CreateUser(ctx *gin.Context) {',
+        '  saveUser()',
+        '}',
+        '',
+        'func saveUser() {}',
+      ].join('\n') + '\n',
+    );
+
+    const indexResult = runCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const routes = cg.getNodesByKind('route');
+      const healthRoute = routes.find((node) => node.name === 'GET /health');
+      const createUserRoute = routes.find((node) => node.name === 'POST /api/users');
+      const healthHandler = cg.searchNodes('healthHandler').find((match) => match.node.kind === 'function')?.node;
+      const writeHealth = cg.searchNodes('writeHealth').find((match) => match.node.kind === 'function')?.node;
+      const createUser = cg.searchNodes('Controller.CreateUser').find((match) => match.node.kind === 'method')?.node;
+      const saveUser = cg.searchNodes('saveUser').find((match) => match.node.kind === 'function')?.node;
+
+      expect(healthRoute).toBeDefined();
+      expect(createUserRoute).toBeDefined();
+      expect(healthHandler).toBeDefined();
+      expect(writeHealth).toBeDefined();
+      expect(createUser).toBeDefined();
+      expect(saveUser).toBeDefined();
+
+      const healthRouteEdges = cg.getOutgoingEdges(healthRoute!.id).filter((edge) => edge.kind === 'references');
+      const createUserRouteEdges = cg.getOutgoingEdges(createUserRoute!.id).filter((edge) => edge.kind === 'references');
+      const healthHandlerCalls = cg.getOutgoingEdges(healthHandler!.id).filter((edge) => edge.kind === 'calls');
+      const createUserCalls = cg.getOutgoingEdges(createUser!.id).filter((edge) => edge.kind === 'calls');
+
+      expect(healthRouteEdges.some((edge) => edge.target === healthHandler!.id)).toBe(true);
+      expect(createUserRouteEdges.some((edge) => edge.target === createUser!.id)).toBe(true);
+      expect(healthHandlerCalls.some((edge) => edge.target === writeHealth!.id)).toBe(true);
+      expect(createUserCalls.some((edge) => edge.target === saveUser!.id)).toBe(true);
     } finally {
       cg.close();
     }
