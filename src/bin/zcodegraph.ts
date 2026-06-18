@@ -31,8 +31,9 @@ import { getDatabasePath } from '../db';
 import { detectWorktreeIndexMismatch, worktreeMismatchWarning } from '../sync/worktree';
 import { createShimmerProgress } from '../ui/shimmer-progress';
 import { getGlyphs } from '../ui/glyphs';
-import { resolveIndexEngine } from '../indexing/engine-selection';
+import { IndexEngine, resolveIndexEngine } from '../indexing/engine-selection';
 import { getRustReadinessDiagnostics, runRustIndexer } from '../indexing/rust-indexer';
+import { assertRustHybridPhase1CanIndex, buildRustHybridMetadata } from '../indexing/rust-hybrid-contract';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
 import { relaunchWithWasmRuntimeFlagsIfNeeded } from '../extraction/wasm-runtime-flags';
@@ -446,6 +447,80 @@ function writeErrorLog(projectPath: string, errors: Array<{ message: string; fil
   fs.writeFileSync(logPath, lines.join('\n') + '\n');
 }
 
+async function runSelectedIndex(
+  projectPath: string,
+  engine: IndexEngine,
+  options: {
+    force?: boolean;
+    verbose?: boolean;
+    graphWorkProfile?: 'full' | 'matched-ts-js';
+    sqliteWriteMode?: 'disk' | 'final-flush' | 'memory-final-flush';
+    profile?: 'heap';
+  },
+  onProgress?: (progress: { phase: string; current: number; total: number; currentFile?: string }) => void,
+): Promise<IndexResult> {
+  if (engine === 'typescript') {
+    const { default: CodeGraph } = await loadCodeGraph();
+    const cg = await CodeGraph.open(projectPath);
+    try {
+      if (options.force) cg.clear();
+      return await cg.indexAll({
+        ...(onProgress ? { onProgress } : {}),
+        ...(options.verbose ? { verbose: true } : {}),
+      });
+    } finally {
+      cg.destroy();
+    }
+  }
+
+  if (engine === 'rust-hybrid') {
+    assertRustHybridPhase1CanIndex(projectPath);
+  }
+
+  const result = await runRustIndexer(projectPath, {
+    force: options.force,
+    verbose: options.verbose,
+    graphWorkProfile: options.graphWorkProfile,
+    sqliteWriteMode: options.sqliteWriteMode,
+    profiling: options.profile,
+    onProgress,
+  });
+  if (!result.success || result.filesIndexed === 0) {
+    return result;
+  }
+
+  const { default: CodeGraph } = await loadCodeGraph();
+  const cg = await CodeGraph.open(projectPath);
+  try {
+    const finalizationStarted = Date.now();
+    const finalized = await cg.finalizeRustIndex((current, total) => {
+      onProgress?.({
+        phase: 'resolving',
+        current,
+        total,
+      });
+    });
+    if (engine === 'rust-hybrid') {
+      cg.markRustHybridIndex(buildRustHybridMetadata());
+    }
+    result.nodesCreated += finalized.nodesCreated;
+    result.edgesCreated += finalized.edgesCreated;
+    result.profile = {
+      rustCore: result.profile,
+      finalize: finalized.profile,
+      typescriptFinalizationMs: Date.now() - finalizationStarted,
+    };
+  } finally {
+    cg.destroy();
+  }
+  writeIndexProfile(projectPath, result.profile ?? null);
+  return result;
+}
+
+function shouldShowRustDiagnostics(engine: IndexEngine | undefined): boolean {
+  return engine === 'rust' || engine === 'rust-hybrid';
+}
+
 // =============================================================================
 // Commands
 // =============================================================================
@@ -458,13 +533,18 @@ program
   .description('Initialize ZCodeGraph in a project directory and build the initial index')
   .option('-i, --index', 'Deprecated: indexing now runs by default; flag accepted for backward compatibility')
   .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
-  .action(async (pathArg: string | undefined, options: { index?: boolean; verbose?: boolean }) => {
+  .option('--engine <engine>', 'Index engine to use: typescript, rust, or rust-hybrid')
+  .action(async (pathArg: string | undefined, options: { index?: boolean; verbose?: boolean; engine?: string }) => {
     const projectPath = path.resolve(pathArg || process.cwd());
     const clack = await importESM('@clack/prompts');
+    let selectedEngine: IndexEngine | undefined;
 
     clack.intro('Initializing ZCodeGraph');
 
     try {
+      const engine = resolveIndexEngine(options.engine);
+      selectedEngine = engine;
+
       if (isInitialized(projectPath)) {
         clack.log.warn(`Already initialized in ${projectPath}`);
         clack.log.info('Use "zcodegraph index" to re-index or "zcodegraph sync" to update');
@@ -479,25 +559,25 @@ program
       const { default: CodeGraph } = await loadCodeGraph();
       const cg = await CodeGraph.init(projectPath, { index: false });
       clack.log.success(`Initialized in ${projectPath}`);
+      cg.destroy();
 
       // Indexing runs by default now. The legacy -i/--index flag is still
       // accepted (so existing muscle memory and scripts don't break) but is a
       // no-op — initializing always builds the initial index.
       let result: IndexResult;
       if (options.verbose) {
-        result = await cg.indexAll({
-          onProgress: createVerboseProgress(),
-          verbose: true,
-        });
+        result = await runSelectedIndex(projectPath, engine, { verbose: true }, createVerboseProgress());
       } else {
         process.stdout.write(`${colors.dim}${getGlyphs().rail}${colors.reset}\n`);
         const progress = createShimmerProgress();
-        result = await cg.indexAll({
-          onProgress: progress.onProgress,
-        });
+        result = await runSelectedIndex(projectPath, engine, {}, progress.onProgress);
         await progress.stop();
       }
       printIndexResult(clack, result, projectPath);
+
+      if (!result.success) {
+        process.exit(1);
+      }
 
       try {
         const { offerWatchFallback } = await import('../installer');
@@ -505,9 +585,19 @@ program
       } catch { /* non-fatal */ }
 
       clack.outro('Done');
-      cg.destroy();
     } catch (err) {
       clack.log.error(`Failed: ${err instanceof Error ? err.message : String(err)}`);
+      if (shouldShowRustDiagnostics(selectedEngine)) {
+        const diagnostics = getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null });
+        const activeIndexPreserved = fs.existsSync(getDatabasePath(projectPath));
+        console.error('Rust diagnostics:');
+        console.error(`  discovery source: ${diagnostics.core.discoverySource}`);
+        console.error(`  attempted command: ${diagnostics.core.attemptedCommand}`);
+        if (diagnostics.core.attemptedArgsPrefix.length > 0) {
+          console.error(`  attempted args prefix: ${diagnostics.core.attemptedArgsPrefix.join(' ')}`);
+        }
+        console.error(`  active index preserved: ${activeIndexPreserved ? 'yes' : 'no active index found'}`);
+      }
       process.exit(1);
     }
   });
@@ -575,13 +665,13 @@ program
   .option('-f, --force', 'Force full re-index even if already indexed')
   .option('-q, --quiet', 'Suppress progress output')
   .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
-  .option('--engine <engine>', 'Index engine to use: typescript or rust')
+  .option('--engine <engine>', 'Index engine to use: typescript, rust, or rust-hybrid')
   .option('--graph-work-profile <profile>', 'Rust graph work profile to use: full or matched-ts-js')
   .option('--sqlite-write-mode <mode>', 'Rust SQLite write mode: final-flush, disk, or memory-final-flush')
   .option('--profile <mode>', 'Rust index profiling mode to use: heap')
   .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string; graphWorkProfile?: string; sqliteWriteMode?: string; profile?: string }) => {
     const projectPath = resolveProjectPath(pathArg);
-    let selectedEngine: 'typescript' | 'rust' | undefined;
+    let selectedEngine: IndexEngine | undefined;
 
     try {
       const engine = resolveIndexEngine(options.engine);
@@ -589,43 +679,6 @@ program
       const sqliteWriteMode = resolveSqliteWriteMode(options.sqliteWriteMode);
       const indexProfile = resolveIndexProfile(options.profile);
       selectedEngine = engine;
-      const runRustIndexAndFinalize = async (onProgress?: (progress: { phase: string; current: number; total: number; currentFile?: string }) => void): Promise<IndexResult> => {
-        const result = await runRustIndexer(projectPath, {
-          force: options.force,
-          verbose: options.verbose,
-          graphWorkProfile,
-          sqliteWriteMode,
-          profiling: indexProfile,
-          onProgress,
-        });
-        if (!result.success || result.filesIndexed === 0) {
-          return result;
-        }
-
-        const { default: CodeGraph } = await loadCodeGraph();
-        const cg = await CodeGraph.open(projectPath);
-        try {
-          const finalizationStarted = Date.now();
-          const finalized = await cg.finalizeRustIndex((current, total) => {
-            onProgress?.({
-              phase: 'resolving',
-              current,
-              total,
-            });
-          });
-          result.nodesCreated += finalized.nodesCreated;
-          result.edgesCreated += finalized.edgesCreated;
-          result.profile = {
-            rustCore: result.profile,
-            finalize: finalized.profile,
-            typescriptFinalizationMs: Date.now() - finalizationStarted,
-          };
-        } finally {
-          cg.destroy();
-        }
-        writeIndexProfile(projectPath, result.profile ?? null);
-        return result;
-      };
 
       if (!isInitialized(projectPath)) {
         error(`CodeGraph not initialized in ${projectPath}`);
@@ -635,18 +688,13 @@ program
 
       if (options.quiet) {
         // Quiet mode: no UI, just run
-        const result = engine === 'rust'
-          ? await runRustIndexAndFinalize()
-          : await (async () => {
-              const { default: CodeGraph } = await loadCodeGraph();
-              const cg = await CodeGraph.open(projectPath);
-              try {
-                if (options.force) cg.clear();
-                return await cg.indexAll();
-              } finally {
-                cg.destroy();
-              }
-            })();
+        const result = await runSelectedIndex(projectPath, engine, {
+          force: options.force,
+          verbose: options.verbose,
+          graphWorkProfile,
+          sqliteWriteMode,
+          profile: indexProfile,
+        });
         if (!result.success) process.exit(1);
         return;
       }
@@ -656,35 +704,31 @@ program
 
       let result: IndexResult;
 
-      if (engine === 'rust') {
+      if (engine === 'rust' || engine === 'rust-hybrid') {
         if (options.force) {
           clack.log.info('Rust engine selected; force re-index requested');
         }
-        result = await runRustIndexAndFinalize(options.verbose ? createVerboseProgress() : undefined);
+        result = await runSelectedIndex(projectPath, engine, {
+          force: options.force,
+          verbose: options.verbose,
+          graphWorkProfile,
+          sqliteWriteMode,
+          profile: indexProfile,
+        }, options.verbose ? createVerboseProgress() : undefined);
       } else {
-        const { default: CodeGraph } = await loadCodeGraph();
-        const cg = await CodeGraph.open(projectPath);
-        try {
-          if (options.force) {
-            cg.clear();
-            clack.log.info('Cleared existing index');
-          }
-
-          if (options.verbose) {
-            result = await cg.indexAll({
-              onProgress: createVerboseProgress(),
-              verbose: true,
-            });
-          } else {
-            process.stdout.write(`${colors.dim}${getGlyphs().rail}${colors.reset}\n`);
-            const progress = createShimmerProgress();
-            result = await cg.indexAll({
-              onProgress: progress.onProgress,
-            });
-            await progress.stop();
-          }
-        } finally {
-          cg.destroy();
+        if (options.force) {
+          clack.log.info('Cleared existing index');
+        }
+        if (options.verbose) {
+          result = await runSelectedIndex(projectPath, engine, {
+            force: options.force,
+            verbose: true,
+          }, createVerboseProgress());
+        } else {
+          process.stdout.write(`${colors.dim}${getGlyphs().rail}${colors.reset}\n`);
+          const progress = createShimmerProgress();
+          result = await runSelectedIndex(projectPath, engine, { force: options.force }, progress.onProgress);
+          await progress.stop();
         }
       }
 
@@ -697,7 +741,7 @@ program
       clack.outro('Done');
     } catch (err) {
       error(`Failed to index: ${err instanceof Error ? err.message : String(err)}`);
-      if (selectedEngine === 'rust' || options.engine === 'rust' || process.env.ZCODEGRAPH_INDEX_ENGINE === 'rust') {
+      if (shouldShowRustDiagnostics(selectedEngine)) {
         const diagnostics = getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null });
         const activeIndexPreserved = fs.existsSync(getDatabasePath(projectPath));
         console.error('Rust diagnostics:');
@@ -851,6 +895,7 @@ program
           index: {
             engine: buildInfo.engine,
             engineVersion: buildInfo.engineVersion,
+            hybrid: buildInfo.hybrid,
             builtWithVersion: buildInfo.version,
             builtWithExtractionVersion: buildInfo.extractionVersion,
             currentExtractionVersion: EXTRACTION_VERSION,

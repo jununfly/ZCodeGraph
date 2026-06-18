@@ -136,13 +136,25 @@ describe('zcodegraph index engine selection', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('uses the TypeScript indexer by default', () => {
-    const rustCore = writeFailingRustCore(tempDir);
+  it('uses the rust-hybrid indexer by default', () => {
+    const rustCore = writeFakeRustCore(tempDir);
     const result = runCli(tempDir, ['index', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(true);
+    expect(result.stderr).not.toContain('Failed to index');
+  });
+
+  it('keeps the TypeScript indexer as an explicit escape hatch', () => {
+    const rustCore = writeFailingRustCore(tempDir);
+    const result = runCli(tempDir, ['index', '--engine', 'typescript', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(false);
     const cg = CodeGraph.openSync(tempDir);
     try {
       expect(cg.searchNodes('alpha').some((match) => match.node.name === 'alpha')).toBe(true);
@@ -233,6 +245,35 @@ describe('zcodegraph index engine selection', () => {
     expect(result.stderr).not.toContain('Failed to index');
   });
 
+  it('runs the Rust subprocess when rust-hybrid is selected by environment variable', () => {
+    const rustCore = writeFakeRustCore(tempDir);
+    const result = runCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_INDEX_ENGINE: 'rust-hybrid',
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status).toBe(0);
+    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(true);
+    expect(result.stderr).not.toContain('Failed to index');
+  });
+
+  it('uses TypeScript from the environment without invoking Rust core', () => {
+    const rustCore = writeFailingRustCore(tempDir);
+    const result = runCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_INDEX_ENGINE: 'typescript',
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(false);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      expect(cg.getIndexBuildInfo()).toMatchObject({ engine: 'typescript' });
+    } finally {
+      cg.close();
+    }
+  });
+
   it('runs the packaged Rust subprocess from a bundle layout without an env override', () => {
     const bundle = path.join(tempDir, 'bundle');
     const packagedDist = path.join(bundle, 'lib', 'dist');
@@ -289,6 +330,113 @@ describe('zcodegraph index engine selection', () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Unsupported index engine');
+    expect(result.stderr).toContain('typescript, rust, rust-hybrid');
+  });
+
+  it('fails fast for Go files under rust-hybrid Phase 1', () => {
+    const rustCore = writeFakeRustCore(tempDir);
+    fs.writeFileSync(path.join(tempDir, 'server.go'), 'package main\nfunc main() {}\n');
+
+    const result = runCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
+    expect(result.stderr).toContain('Go is a rust-hybrid release blocker');
+    expect(result.stderr).toContain('--engine typescript');
+    const marker = JSON.parse(fs.readFileSync(fakeRustCoreMarker(tempDir), 'utf-8')) as { args: string[] };
+    expect(marker.args).not.toContain('index');
+  });
+
+  it('fails fast for non-Rust-owned supported languages under rust-hybrid Phase 1', () => {
+    const rustCore = writeFakeRustCore(tempDir);
+    fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
+
+    const result = runCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
+    expect(result.stderr).toContain('TypeScript fallback writes are not implemented yet');
+    expect(result.stderr).toContain('ZCODEGRAPH_INDEX_ENGINE=typescript');
+    const marker = JSON.parse(fs.readFileSync(fakeRustCoreMarker(tempDir), 'utf-8')) as { args: string[] };
+    expect(marker.args).not.toContain('index');
+  });
+
+  it('does not fail fast on generated Go files under rust-hybrid Phase 1', () => {
+    const rustCore = writeFakeRustCore(tempDir);
+    fs.writeFileSync(path.join(tempDir, 'service.pb.go'), 'package main\n');
+
+    const result = runCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(true);
+  });
+
+  it('allows mixed-language projects through the TypeScript escape hatch', () => {
+    const rustCore = writeFailingRustCore(tempDir);
+    fs.writeFileSync(path.join(tempDir, 'server.go'), 'package main\nfunc main() {}\n');
+
+    const result = runCli(tempDir, ['index', '--engine', 'typescript', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(false);
+  }, 30_000);
+
+  it('uses rust-hybrid for init indexing by default', () => {
+    const initDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-hybrid-init-'));
+    try {
+      fs.writeFileSync(path.join(initDir, 'a.ts'), 'export const initValue = 1;\n');
+      const rustCore = writeFakeRustCore(initDir);
+
+      const result = runCli(initDir, ['init'], {
+        ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      });
+
+      expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+      expect(fs.existsSync(fakeRustCoreMarker(initDir))).toBe(true);
+    } finally {
+      fs.rmSync(initDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('allows init indexing to use the TypeScript escape hatch', () => {
+    const initDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-typescript-init-'));
+    try {
+      fs.writeFileSync(path.join(initDir, 'a.ts'), 'export const initValue = 1;\n');
+      const rustCore = writeFailingRustCore(initDir);
+
+      const result = runCli(initDir, ['init', '--engine', 'typescript'], {
+        ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      });
+
+      expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+      expect(fs.existsSync(fakeRustCoreMarker(initDir))).toBe(false);
+      const cg = CodeGraph.openSync(initDir);
+      try {
+        expect(cg.getIndexBuildInfo()).toMatchObject({ engine: 'typescript' });
+      } finally {
+        cg.close();
+      }
+    } finally {
+      fs.rmSync(initDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('does not require Rust core when init exits early for an already initialized project', () => {
+    const rustCore = writeFailingRustCore(tempDir);
+
+    const result = runCli(tempDir, ['init'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    expect(result.stdout).toContain('Already initialized');
+    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(false);
   });
 
   it('leaves the existing TypeScript index intact when the Rust binary is unavailable', async () => {
@@ -377,6 +525,37 @@ describe('zcodegraph index engine selection', () => {
     } finally {
       cg.close();
     }
+  }, 30_000);
+
+  it('writes rust-hybrid status metadata for a default rust-hybrid index', () => {
+    const indexResult = runCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const statusResult = runCli(tempDir, ['status', '--json']);
+    expect(statusResult.status).toBe(0);
+    const statusLine = statusResult.stdout.trim().split('\n').filter(Boolean).pop();
+    expect(statusLine).toBeDefined();
+    const status = JSON.parse(statusLine!) as {
+      index: {
+        engine: string | null;
+        hybrid: {
+          phase: string;
+          rustOwnedLanguages: string[];
+          fallbackState: string;
+          fallbackMessage: string;
+        } | null;
+      };
+    };
+
+    expect(status.index.engine).toBe('rust-hybrid');
+    expect(status.index.hybrid).toMatchObject({
+      phase: 'phase-1-engine-contract',
+      rustOwnedLanguages: ['javascript', 'jsx', 'typescript', 'tsx'],
+      fallbackState: 'pending',
+    });
+    expect(status.index.hybrid?.fallbackMessage).toContain('fallback writes');
   }, 30_000);
 
   it('resolves JS/TS relative and paths-alias imports as Rust-owned file-level edges', () => {

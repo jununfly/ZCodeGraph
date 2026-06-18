@@ -640,13 +640,33 @@ export class CodeGraph {
     extractionVersion: number | null;
     engine: string | null;
     engineVersion: string | null;
+    hybrid: unknown | null;
   } {
     const engine = this.queries.getMetadata('indexed_with_engine');
     const engineVersion = this.queries.getMetadata('indexed_with_engine_version');
     const version = this.queries.getMetadata('indexed_with_version');
     const ev = this.queries.getMetadata('indexed_with_extraction_version');
+    const hybridRaw = this.queries.getMetadata('indexed_with_hybrid_metadata');
     const parsed = ev != null ? parseInt(ev, 10) : NaN;
-    return { version, extractionVersion: Number.isFinite(parsed) ? parsed : null, engine, engineVersion };
+    let hybrid: unknown | null = null;
+    if (hybridRaw != null) {
+      try {
+        hybrid = JSON.parse(hybridRaw);
+      } catch {
+        hybrid = { error: 'Failed to parse rust-hybrid metadata' };
+      }
+    }
+    return { version, extractionVersion: Number.isFinite(parsed) ? parsed : null, engine, engineVersion, hybrid };
+  }
+
+  /**
+   * Stamp a Rust-built index with the Phase 1 hybrid contract. The CLI owns the
+   * temporary engine selection path; this only writes advisory metadata into the
+   * existing project_metadata table.
+   */
+  markRustHybridIndex(metadata: unknown): void {
+    this.queries.setMetadata('indexed_with_engine', 'rust-hybrid');
+    this.queries.setMetadata('indexed_with_hybrid_metadata', JSON.stringify(metadata));
   }
 
   /**

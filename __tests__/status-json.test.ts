@@ -87,7 +87,8 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     expect(typeof out.indexPath).toBe('string');
     expect(out.indexPath as string).toContain('.zcodegraph');
     expect(out.lastIndexed).toBeNull();
-    expect((out as { rust: { configuredEngine: { source: string } } }).rust.configuredEngine.source).toBe('default');
+    expect((out as { rust: { configuredEngine: { engine: string; source: string } } }).rust.configuredEngine)
+      .toMatchObject({ engine: 'rust-hybrid', source: 'default' });
   });
 
   it('status --json on an INDEXED project reports version + indexPath + a round-trippable lastIndexed', async () => {

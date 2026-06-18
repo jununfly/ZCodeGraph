@@ -68,7 +68,7 @@ describe('Rust core binary discovery', () => {
         { compiledFileDir },
       );
 
-      expect(diagnostics.configuredEngine).toMatchObject({ engine: 'typescript', source: 'default' });
+      expect(diagnostics.configuredEngine).toMatchObject({ engine: 'rust-hybrid', source: 'default' });
       expect(diagnostics.core).toMatchObject({
         available: true,
         discoverySource: 'packaged-binary',

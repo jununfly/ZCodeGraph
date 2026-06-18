@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getDatabasePath } from '../db';
 import { IndexProgress, IndexResult } from '../extraction';
+import { IndexEngine } from './engine-selection';
 
 interface RustIndexerOptions {
   force?: boolean;
@@ -21,7 +22,7 @@ export interface RustCoreCommand {
 
 export interface RustReadinessDiagnostics {
   configuredEngine: {
-    engine: 'typescript' | 'rust' | 'unavailable';
+    engine: IndexEngine | 'unavailable';
     source: 'default' | 'env' | 'unavailable';
     rawValue?: string;
     error?: string;
@@ -128,7 +129,7 @@ export function findRustCoreCommand(
 function configuredEngineDiagnostics(env: NodeJS.ProcessEnv = process.env): RustReadinessDiagnostics['configuredEngine'] {
   const raw = env.ZCODEGRAPH_INDEX_ENGINE;
   if (raw == null || raw.trim() === '') {
-    return { engine: 'typescript', source: 'default' };
+    return { engine: 'rust-hybrid', source: 'default' };
   }
   const normalized = raw.trim().toLowerCase();
   if (normalized === 'typescript' || normalized === 'ts') {
@@ -137,11 +138,14 @@ function configuredEngineDiagnostics(env: NodeJS.ProcessEnv = process.env): Rust
   if (normalized === 'rust') {
     return { engine: 'rust', source: 'env', rawValue: raw };
   }
+  if (normalized === 'rust-hybrid' || normalized === 'hybrid') {
+    return { engine: 'rust-hybrid', source: 'env', rawValue: raw };
+  }
   return {
     engine: 'unavailable',
     source: 'unavailable',
     rawValue: raw,
-    error: `Unsupported index engine "${normalized}". Supported engines: typescript, rust`,
+    error: `Unsupported index engine "${normalized}". Supported engines: typescript, rust, rust-hybrid`,
   };
 }
 
