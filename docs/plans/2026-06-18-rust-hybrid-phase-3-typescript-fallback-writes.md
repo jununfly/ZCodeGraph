@@ -9,6 +9,8 @@
 - Phase 2 decision: `docs/plans/2026-06-18-rust-hybrid-phase-2-decision.md`
 - Phase 2 Gin evidence: `docs/benchmarks/2026-06-18-rust-hybrid-phase-2-gin-smoke-evidence.md`
 - Phase 3 tracker: [#239](https://github.com/jununfly/ZCodeGraph/issues/239)
+- Phase 3 decision: `docs/plans/2026-06-18-rust-hybrid-phase-3-decision.md`
+- Phase 3 Gin evidence: `docs/benchmarks/2026-06-18-rust-hybrid-phase-3-gin-examples-smoke-evidence.md`
 - Post-release performance tracker: [#165](https://github.com/jununfly/ZCodeGraph/issues/165)
 
 ## Context

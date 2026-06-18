@@ -33,7 +33,7 @@ import { createShimmerProgress } from '../ui/shimmer-progress';
 import { getGlyphs } from '../ui/glyphs';
 import { IndexEngine, resolveIndexEngine } from '../indexing/engine-selection';
 import { getRustReadinessDiagnostics, runRustIndexer } from '../indexing/rust-indexer';
-import { assertRustHybridPhase1CanIndex, buildRustHybridMetadata } from '../indexing/rust-hybrid-contract';
+import { buildRustHybridMetadataFromPlan, planRustHybridAssignments } from '../indexing/rust-hybrid-contract';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
 import { relaunchWithWasmRuntimeFlagsIfNeeded } from '../extraction/wasm-runtime-flags';
@@ -310,6 +310,11 @@ function warn(message: string): void {
 
 type RustIndexProfile = {
   rustCore?: unknown;
+  typescriptFallbackAppend?: {
+    durationMs: number;
+    fallbackFileCount: number;
+    errorTaxonomy: Record<string, number>;
+  };
   finalize?: unknown;
   typescriptFinalizationMs?: number;
 };
@@ -356,6 +361,10 @@ function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexR
       clack.log.success(`Indexed ${formatNumber(result.filesIndexed)} files`);
     }
     clack.log.info(`${formatNumber(result.nodesCreated)} nodes, ${formatNumber(result.edgesCreated)} edges in ${formatDuration(result.durationMs)}`);
+    const fallbackAppend = (result.profile as RustIndexProfile | undefined)?.typescriptFallbackAppend;
+    if (fallbackAppend && fallbackAppend.fallbackFileCount > 0) {
+      clack.log.warn(`Rust-hybrid appended ${formatNumber(fallbackAppend.fallbackFileCount)} TypeScript fallback files`);
+    }
   } else if (hasErrors) {
     clack.log.error(`Indexing failed ${getGlyphs().dash} all ${formatNumber(result.filesErrored)} files had errors`);
   } else {
@@ -473,9 +482,7 @@ async function runSelectedIndex(
     }
   }
 
-  if (engine === 'rust-hybrid') {
-    assertRustHybridPhase1CanIndex(projectPath);
-  }
+  const hybridPlan = engine === 'rust-hybrid' ? planRustHybridAssignments(projectPath) : null;
 
   const result = await runRustIndexer(projectPath, {
     force: options.force,
@@ -492,6 +499,37 @@ async function runSelectedIndex(
   const { default: CodeGraph } = await loadCodeGraph();
   const cg = await CodeGraph.open(projectPath);
   try {
+    let fallbackResult: Awaited<ReturnType<typeof cg.indexFallbackFiles>> | null = null;
+    if (engine === 'rust-hybrid' && hybridPlan && hybridPlan.fallbackFiles.length > 0) {
+      fallbackResult = await cg.indexFallbackFiles(hybridPlan.fallbackFiles);
+      if (!fallbackResult.success) {
+        return {
+          success: false,
+          filesIndexed: result.filesIndexed + fallbackResult.filesIndexed,
+          filesSkipped: result.filesSkipped + fallbackResult.filesSkipped,
+          filesErrored: result.filesErrored + fallbackResult.filesErrored,
+          nodesCreated: result.nodesCreated + fallbackResult.nodesCreated,
+          edgesCreated: result.edgesCreated + fallbackResult.edgesCreated,
+          errors: fallbackResult.errors,
+          durationMs: result.durationMs + fallbackResult.durationMs,
+          profile: {
+            rustCore: result.profile,
+            typescriptFallbackAppend: {
+              durationMs: fallbackResult.durationMs,
+              fallbackFileCount: fallbackResult.fallbackFileCount,
+              errorTaxonomy: fallbackResult.errorTaxonomy,
+            },
+          },
+        };
+      }
+      result.filesIndexed += fallbackResult.filesIndexed;
+      result.filesSkipped += fallbackResult.filesSkipped;
+      result.filesErrored += fallbackResult.filesErrored;
+      result.nodesCreated += fallbackResult.nodesCreated;
+      result.edgesCreated += fallbackResult.edgesCreated;
+      result.errors.push(...fallbackResult.errors);
+    }
+
     const finalizationStarted = Date.now();
     const finalized = await cg.finalizeRustIndex((current, total) => {
       onProgress?.({
@@ -501,12 +539,19 @@ async function runSelectedIndex(
       });
     });
     if (engine === 'rust-hybrid') {
-      cg.markRustHybridIndex(buildRustHybridMetadata(projectPath));
+      cg.markRustHybridIndex(buildRustHybridMetadataFromPlan(hybridPlan ?? planRustHybridAssignments(projectPath)));
     }
     result.nodesCreated += finalized.nodesCreated;
     result.edgesCreated += finalized.edgesCreated;
     result.profile = {
       rustCore: result.profile,
+      ...(fallbackResult ? {
+        typescriptFallbackAppend: {
+          durationMs: fallbackResult.durationMs,
+          fallbackFileCount: fallbackResult.fallbackFileCount,
+          errorTaxonomy: fallbackResult.errorTaxonomy,
+        },
+      } : {}),
       finalize: finalized.profile,
       typescriptFinalizationMs: Date.now() - finalizationStarted,
     };

@@ -36,8 +36,10 @@ import {
   IndexProgress,
   IndexResult,
   SyncResult,
+  detectLanguage,
   extractFromSource,
   initGrammars,
+  loadGrammarsForLanguages,
 } from './extraction';
 import {
   ReferenceResolver,
@@ -446,11 +448,46 @@ export class CodeGraph {
         return { success: false, filesIndexed: 0, filesSkipped: 0, filesErrored: 0, nodesCreated: 0, edgesCreated: 0, errors: [{ message: 'Could not acquire file lock - another process may be indexing', severity: 'error' as const }], durationMs: 0 };
       }
       try {
+        await initGrammars();
+        const neededLanguages = [...new Set(filePaths.map((filePath) => detectLanguage(filePath)))];
+        if (neededLanguages.includes('c') && !neededLanguages.includes('cpp')) {
+          neededLanguages.push('cpp');
+        }
+        await loadGrammarsForLanguages(neededLanguages);
         return this.orchestrator.indexFiles(filePaths);
       } finally {
         this.fileLock.release();
       }
     });
+  }
+
+  /**
+   * Append TypeScript-owned fallback files into the currently open graph.
+   *
+   * @internal
+   *
+   * Internal rust-hybrid runtime hook: this deliberately indexes only the
+   * provided files, does not clear existing Rust-owned data, and does not run
+   * TypeScript finalization. The CLI runs finalization once after Rust + fallback
+   * writes have both completed.
+   */
+  async indexFallbackFiles(filePaths: string[]): Promise<IndexResult & {
+    fallbackFileCount: number;
+    errorTaxonomy: Record<string, number>;
+  }> {
+    const started = Date.now();
+    const result = await this.indexFiles(filePaths);
+    const errorTaxonomy: Record<string, number> = {};
+    for (const err of result.errors) {
+      const key = err.code ?? (err.severity === 'warning' ? 'warning' : 'unknown');
+      errorTaxonomy[key] = (errorTaxonomy[key] ?? 0) + 1;
+    }
+    return {
+      ...result,
+      fallbackFileCount: filePaths.length,
+      errorTaxonomy,
+      durationMs: Date.now() - started,
+    };
   }
 
   /**

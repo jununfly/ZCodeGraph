@@ -5,6 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { CodeGraph } from '../src';
 import { ToolHandler } from '../src/mcp/tools';
+import { planRustHybridAssignments } from '../src/indexing/rust-hybrid-contract';
 
 const BIN = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
 const RUST_CORE_BIN = path.resolve(
@@ -351,20 +352,85 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
-  it('fails fast for non-Rust-owned supported languages under rust-hybrid Phase 1', () => {
-    const rustCore = writeFakeRustCore(tempDir);
+  it('plans Rust-owned and TypeScript fallback files for rust-hybrid', () => {
+    fs.writeFileSync(path.join(tempDir, 'server.go'), 'package main\nfunc main() {}\n');
+    fs.writeFileSync(path.join(tempDir, 'routing.yml'), 'app:\n  path: /health\n');
+    fs.writeFileSync(path.join(tempDir, 'notes.txt'), 'not source\n');
+    fs.writeFileSync(path.join(tempDir, 'service.pb.go'), 'package main\n');
+
+    const plan = planRustHybridAssignments(tempDir);
+
+    expect(plan.rustOwnedFiles).toContain('a.ts');
+    expect(plan.rustOwnedFiles).toContain('server.go');
+    expect(plan.fallbackFiles).toContain('routing.yml');
+    expect(plan.unsupportedFiles).toEqual([]);
+    expect(plan.fallbackFiles).not.toContain('notes.txt');
+    expect(plan.engineByLanguage).toMatchObject({ typescript: 'rust', go: 'rust', yaml: 'typescript' });
+    expect(plan.engineByFileCount).toMatchObject({ rust: 2, typescript: 1 });
+    expect(plan.fallbackByLanguage).toMatchObject({ yaml: 1 });
+    expect(plan.fallbackFileCount).toBe(1);
+    expect(plan.skippedGeneratedByLanguage.go).toBe(1);
+    expect(plan.fallbackState).toBe('degraded');
+    expect(plan.fallbackReasonTaxonomy).toMatchObject({ 'language-level-typescript-fallback': 1 });
+    expect(plan.pendingFallbacks).toContain('rust-owned-parse-gap');
+  });
+
+  it('indexes non-Rust-owned supported languages through TypeScript fallback under rust-hybrid', () => {
     fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
 
     const result = runCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
-    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
-    expect(result.stderr).toContain('TypeScript fallback writes are not implemented yet');
-    expect(result.stderr).toContain('ZCODEGRAPH_INDEX_ENGINE=typescript');
-    const marker = JSON.parse(fs.readFileSync(fakeRustCoreMarker(tempDir), 'utf-8')) as { args: string[] };
-    expect(marker.args).not.toContain('index');
-  });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      expect(cg.getStats().filesByLanguage.python).toBe(1);
+      expect(cg.searchNodes('worker').some((match) => match.node.kind === 'function' && match.node.language === 'python')).toBe(true);
+      const buildInfo = cg.getIndexBuildInfo();
+      expect(buildInfo.engine).toBe('rust-hybrid');
+      expect(buildInfo.hybrid).toMatchObject({
+        fallbackState: 'degraded',
+        fallbackByLanguage: { python: 1 },
+        fallbackFileCount: 1,
+        pendingFallbacks: ['rust-owned-parse-gap'],
+      });
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('prints a concise fallback summary when rust-hybrid appends fallback files', () => {
+    fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
+
+    const result = runCli(tempDir, ['index'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    expect(result.stdout).toContain('TypeScript fallback files');
+  }, 30_000);
+
+  it('appends fallback files without clearing existing graph data or stamping TypeScript metadata', async () => {
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const initial = await cg.indexFiles(['a.ts']);
+      expect(initial.success, JSON.stringify(initial.errors, null, 2)).toBe(true);
+      expect(cg.searchNodes('alpha').some((match) => match.node.language === 'typescript')).toBe(true);
+
+      fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
+      const appended = await cg.indexFallbackFiles(['worker.py']);
+
+      expect(appended.success).toBe(true);
+      expect(appended.fallbackFileCount).toBe(1);
+      expect(appended.errorTaxonomy).toEqual({});
+      expect(cg.searchNodes('alpha').some((match) => match.node.language === 'typescript')).toBe(true);
+      expect(cg.searchNodes('worker').some((match) => match.node.language === 'python')).toBe(true);
+      expect(cg.getIndexBuildInfo().engine).not.toBe('typescript');
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
 
   it('counts generated Go files in rust-hybrid metadata', () => {
     fs.writeFileSync(path.join(tempDir, 'service.pb.go'), 'package main\n');
@@ -558,8 +624,14 @@ describe('zcodegraph index engine selection', () => {
         hybrid: {
           phase: string;
           rustOwnedLanguages: string[];
+          engineByLanguage: Record<string, string>;
+          engineByFileCount: Record<string, number>;
+          fallbackByLanguage: Record<string, number>;
+          fallbackFileCount: number;
           fallbackState: string;
           fallbackMessage: string;
+          fallbackReasonTaxonomy: Record<string, number>;
+          pendingFallbacks: string[];
           skippedGeneratedByLanguage: Record<string, number>;
         } | null;
       };
@@ -567,12 +639,18 @@ describe('zcodegraph index engine selection', () => {
 
     expect(status.index.engine).toBe('rust-hybrid');
     expect(status.index.hybrid).toMatchObject({
-      phase: 'phase-1-engine-contract',
+      phase: 'phase-3-typescript-fallback-writes',
       rustOwnedLanguages: ['javascript', 'jsx', 'typescript', 'tsx', 'go'],
-      fallbackState: 'pending',
+      engineByLanguage: { typescript: 'rust' },
+      engineByFileCount: { rust: 1 },
+      fallbackByLanguage: {},
+      fallbackFileCount: 0,
+      fallbackState: 'healthy',
+      fallbackReasonTaxonomy: {},
+      pendingFallbacks: ['rust-owned-parse-gap'],
       skippedGeneratedByLanguage: {},
     });
-    expect(status.index.hybrid?.fallbackMessage).toContain('fallback writes');
+    expect(status.index.hybrid?.fallbackMessage).toContain('No TypeScript fallback files');
   }, 30_000);
 
   it('resolves JS/TS relative and paths-alias imports as Rust-owned file-level edges', () => {
