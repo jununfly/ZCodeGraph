@@ -378,6 +378,25 @@ function isRestToTransportFlowQuery(query: string): boolean {
   return q.includes('rest') && q.includes('handler') && q.includes('transport') && q.includes('action');
 }
 
+const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'] as const;
+
+function extractHttpRouteLookups(query: string): string[] {
+  const routes: string[] = [];
+  const seen = new Set<string>();
+  const pattern = /\b(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\s+((?:\/[A-Za-z0-9._~!$&'()*+,;=:@%-]+)+)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(query)) !== null) {
+    const method = match[1]!.toUpperCase();
+    if (!(HTTP_METHODS as readonly string[]).includes(method)) continue;
+    const route = `${method} ${match[2]!}`;
+    const key = route.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    routes.push(route);
+  }
+  return routes.slice(0, 8);
+}
+
 function addNodeSeed(subgraph: { nodes: Map<string, Node> }, seedIds: Set<string>, node: Node | undefined): void {
   if (!node || isTestPath(node.filePath)) return;
   if (!subgraph.nodes.has(node.id)) subgraph.nodes.set(node.id, node);
@@ -387,6 +406,13 @@ function addNodeSeed(subgraph: { nodes: Map<string, Node> }, seedIds: Set<string
 function addContextNode(subgraph: { nodes: Map<string, Node> }, node: Node | undefined): void {
   if (!node || isTestPath(node.filePath)) return;
   if (!subgraph.nodes.has(node.id)) subgraph.nodes.set(node.id, node);
+}
+
+function addSubgraphEdge(subgraph: Subgraph, edge: Edge): void {
+  const exists = subgraph.edges.some((e) =>
+    e.source === edge.source && e.target === edge.target && e.kind === edge.kind
+  );
+  if (!exists) subgraph.edges.push(edge);
 }
 
 function nodesInFile(cg: CodeGraph, name: string, filePath: string): Node[] {
@@ -410,6 +436,40 @@ function scoreRestTransportPair(cg: CodeGraph, restAction: Node, transportAction
   if (!transportAction.filePath.includes('/plugin/')) score += 10;
   score -= restAction.name.length / 10;
   return score;
+}
+
+/**
+ * Route lookup questions often name the runtime route (`POST /upload`) rather
+ * than the handler symbol. Seed the matching route node and its direct
+ * route→handler edge so Explore can answer from the existing graph.
+ */
+export function seedHttpRouteLookups(cg: CodeGraph, query: string, subgraph: Subgraph): Set<string> {
+  const seedIds = new Set<string>();
+  const routeNames = extractHttpRouteLookups(query);
+  if (routeNames.length === 0) return seedIds;
+
+  for (const routeName of routeNames) {
+    const routeNodes = cg.searchNodes(routeName, { limit: 20, kinds: ['route'] })
+      .map((r) => r.node)
+      .filter((n) => n.kind === 'route' && n.name.toLowerCase() === routeName.toLowerCase() && !isTestPath(n.filePath));
+
+    for (const routeNode of routeNodes) {
+      addNodeSeed(subgraph, seedIds, routeNode);
+      const routeEdges = [
+        ...cg.getOutgoingEdges(routeNode.id),
+        ...cg.getIncomingEdges(routeNode.id),
+      ].filter((edge) => edge.kind === 'references' || edge.kind === 'calls');
+      for (const edge of routeEdges) {
+        const neighborId = edge.source === routeNode.id ? edge.target : edge.source;
+        const neighbor = cg.getNode(neighborId);
+        if (!neighbor || isTestPath(neighbor.filePath)) continue;
+        addContextNode(subgraph, neighbor);
+        addSubgraphEdge(subgraph, edge);
+      }
+    }
+  }
+
+  return seedIds;
 }
 
 /**
@@ -836,7 +896,9 @@ export async function plan(
   // the agent explicitly named is in the subgraph and its file is scored.
   const namedSeedIds = seedNamedSymbols(cg, query, subgraph);
   const restTransportSeedIds = seedRestTransportExemplar(cg, query, subgraph);
+  const routeLookupSeedIds = seedHttpRouteLookups(cg, query, subgraph);
   for (const id of restTransportSeedIds) namedSeedIds.add(id);
+  for (const id of routeLookupSeedIds) namedSeedIds.add(id);
 
   // Glue nodes: pull in callers/callees of Entry Nodes that live in
   // files the subgraph already surfaces.  This adds wiring without

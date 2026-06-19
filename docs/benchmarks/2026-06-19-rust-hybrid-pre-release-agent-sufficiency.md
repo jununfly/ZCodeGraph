@@ -2,7 +2,7 @@
 
 Date: 2026-06-19
 
-Related issues: #279, #280
+Related issues: #279, #280, #281
 
 ## Scope
 
@@ -47,8 +47,10 @@ That run produced 0 tokens and 0 tool calls and is excluded from the metrics bel
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
 | Excalidraw | How does updating an element re-render the canvas on screen? | WITH | 61s | 7 | 5 | 2 | 0 | $1.725 | 397,153 |
 | Excalidraw | same | WITHOUT | 222s | 54 | 0 | 22 | 31 | $2.048 | 164,854 |
-| Gin examples | How does a request reach the upload handler for POST `/upload`? | WITH | 29s | 5 | 1 | 3 | 1 | $0.838 | 165,808 |
-| Gin examples | same | WITHOUT | 26s | 4 | 0 | 1 | 3 | $0.710 | 149,810 |
+| Gin examples | How does a request reach the upload handler for POST `/upload`? | WITH, before #281 | 29s | 5 | 1 | 3 | 1 | $0.838 | 165,808 |
+| Gin examples | same | WITHOUT, before #281 | 26s | 4 | 0 | 1 | 3 | $0.710 | 149,810 |
+| Gin examples | same | WITH, after #281 | 20s | 1 | 1 | 0 | 0 | $0.454 | 79,753 |
+| Gin examples | same | WITHOUT, after #281 | 62s | 12 | 0 | 6 | 5 | $0.620 | 78,325 |
 | Gin examples | How are Gin routes registered and connected to handlers in the examples? | WITH | 24s | 1 | 1 | 0 | 0 | $0.398 | 80,261 |
 | Gin examples | same | WITHOUT | 78s | 28 | 0 | 23 | 4 | $0.663 | 81,139 |
 
@@ -62,17 +64,18 @@ Excalidraw still shows the expected value pattern for a hard TS/React flow quest
 
 This is not perfectly read-free; the model still read `StaticCanvas.tsx` twice after graph exploration.
 
-Go/Gin is mixed:
+Go/Gin after #281:
 
 - The broad route-registration question is a clean sufficiency win: one `zcodegraph_explore`, zero Read/Grep fallback.
-- The narrow `POST /upload` lookup did not benefit. The with-arm used one explore, then still used find/read; the without-arm solved it with fewer calls because the fixture is small and the target string is easy to grep.
+- The narrow `POST /upload` lookup became a clean sufficiency win after route-query hardening: one `zcodegraph_explore`, zero Read/Grep fallback.
+- This remains targeted release-readiness evidence, not a broad Go/Gin benchmark replacement.
 
 ## README Wording Decision
 
 README should not claim that current Go/Gin sufficiency is uniformly better. The accurate release-ready statement is:
 
 - TS/JS flow sufficiency remains strong on the hard Excalidraw path, though not read-free.
-- Go/Gin sufficiency is usable but prompt-dependent.
+- Go/Gin route lookup sufficiency is strong on the two targeted release-readiness prompts.
 - This was a targeted pre-release spot-check, not a full benchmark replacement.
 
 ## Raw Artifacts
@@ -91,6 +94,8 @@ Used runs:
 - `gin-q1-r1/run-headless-without.jsonl`
 - `gin-q2-r1/run-headless-with.jsonl`
 - `gin-q2-r1/run-headless-without.jsonl`
+- `/private/tmp/zcodegraph-issue-281-gin-upload-r1/run-headless-with.jsonl`
+- `/private/tmp/zcodegraph-issue-281-gin-upload-r1/run-headless-without.jsonl`
 
 Excluded failed connectivity run:
 

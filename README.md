@@ -119,10 +119,10 @@ Latest rust-hybrid pre-release spot-check (2026-06-19): the first-user default p
 | Repo | Prompt | WITH ZCodeGraph | WITHOUT ZCodeGraph | Result |
 |---|---|---:|---:|---|
 | Excalidraw · TypeScript/React | element update -> canvas repaint | 61s · 7 tools · 2 Read/Grep fallbacks | 222s · 54 tools · 53 Read/Grep fallbacks | strong exploration reduction; still 2 targeted reads |
-| Gin examples · Go | POST `/upload` handler path | 29s · 5 tools · 4 Read/Grep fallbacks | 26s · 4 tools · 4 Read/Grep fallbacks | no advantage on this narrow lookup |
+| Gin examples · Go | POST `/upload` handler path | 20s · 1 tool · 0 Read/Grep fallbacks | 62s · 12 tools · 11 Read/Grep fallbacks | clean route-lookup sufficiency win |
 | Gin examples · Go | route registration overview | 24s · 1 tool · 0 Read/Grep fallbacks | 78s · 28 tools · 27 Read/Grep fallbacks | clean sufficiency win |
 
-Takeaway: TS/JS flow sufficiency remains strong on the hard Excalidraw path, though not perfectly read-free. Go/Gin sufficiency is usable but prompt-dependent: broad route registration is answered directly from the graph, while a specific upload-handler lookup still falls back to reading the small source file. Raw logs and methodology are recorded in `docs/benchmarks/2026-06-19-rust-hybrid-pre-release-agent-sufficiency.md`.
+Takeaway: TS/JS flow sufficiency remains strong on the hard Excalidraw path, though not perfectly read-free. Go/Gin route sufficiency now covers both broad route registration and the concrete `POST /upload` handler lookup in these targeted release-readiness prompts. Raw logs and methodology are recorded in `docs/benchmarks/2026-06-19-rust-hybrid-pre-release-agent-sufficiency.md`.
 
 The stricter test is whether `zcodegraph_explore` gives enough evidence for an agent to stop reading files. On 2026-06-12, the current build was run against **18 flow-question prompts per arm**: 3 prompts each on ZCodeGraph itself, Excalidraw, and Django; 2 runs per prompt; WITH ZCodeGraph vs an empty MCP config. The prompts were precise symbol-bag flow questions, and every generic Read or grep/find Bash call was classified as fallback unless it was edit-prep or verification work. Full logs were captured under `/tmp/zcodegraph-sufficiency/` during the run.
 

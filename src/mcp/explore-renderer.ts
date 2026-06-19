@@ -68,6 +68,27 @@ export function render(
   // Blast radius (pre-computed by caller)
   if (blastRadius) lines.push(blastRadius);
 
+  const routeEdges = subgraph.edges.filter((edge) => {
+    if (edge.kind === 'contains') return false;
+    const sourceNode = subgraph.nodes.get(edge.source);
+    const targetNode = subgraph.nodes.get(edge.target);
+    return sourceNode?.kind === 'route' || targetNode?.kind === 'route';
+  });
+  if (routeEdges.length > 0) {
+    lines.push('### Route matches');
+    lines.push('');
+    for (const edge of routeEdges.slice(0, budget.maxEdgesPerRelationshipKind)) {
+      const sourceNode = subgraph.nodes.get(edge.source);
+      const targetNode = subgraph.nodes.get(edge.target);
+      if (!sourceNode || !targetNode) continue;
+      lines.push(`- ${sourceNode.name} → ${targetNode.name} (${edge.kind})`);
+    }
+    if (routeEdges.length > budget.maxEdgesPerRelationshipKind) {
+      lines.push(`- ... and ${routeEdges.length - budget.maxEdgesPerRelationshipKind} more`);
+    }
+    lines.push('');
+  }
+
   // Relationship map
   const significantEdges = subgraph.edges.filter(e =>
     e.kind !== 'contains',
