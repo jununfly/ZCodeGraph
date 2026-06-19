@@ -489,6 +489,38 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
+  it('reports recovered Rust-owned parse gaps consistently in CLI output and errors log', () => {
+    const rustCore = writeFakeRustCoreWithPerFileGap(tempDir, 'a.ts');
+
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    expect(result.stdout).toContain('recovered by fallback');
+    expect(result.stdout).not.toContain('could not be parsed');
+    expect(result.stdout).toContain('Fallback warning breakdown');
+    expect(result.stdout).toContain('Rust-owned files recovered by TypeScript fallback');
+
+    const errorsLog = fs.readFileSync(path.join(tempDir, '.zcodegraph', 'errors.log'), 'utf-8');
+    expect(errorsLog).toContain('0 files with errors');
+    expect(errorsLog).toContain('1 file with recovered fallback warnings');
+    expect(errorsLog).toContain('Recovered fallback warnings:');
+    expect(errorsLog).toContain('a.ts:1:1: fake Rust-owned parse gap [rust-owned-parse-gap]');
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const buildInfo = cg.getIndexBuildInfo();
+      expect(buildInfo.hybrid).toMatchObject({
+        fallbackState: 'degraded',
+        fallbackFileCount: 1,
+        fallbackReasonTaxonomy: { 'rust-owned-parse-gap': 1 },
+      });
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
   it('does not append fallback when a Rust-owned gap may have partial graph writes', () => {
     const rustCore = writeFakeRustCoreWithPartialWriteGap(tempDir, 'a.ts');
 

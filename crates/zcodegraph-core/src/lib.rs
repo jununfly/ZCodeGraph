@@ -2192,9 +2192,17 @@ struct TypeImportContext {
 fn looks_like_type_import_context(source: &str, start: usize) -> Option<TypeImportContext> {
     let prefix = &source[..start];
     let trimmed = prefix.trim_end();
-    if trimmed.ends_with("typeof") || trimmed.ends_with("readonly") {
+    if trimmed.ends_with("typeof") || trimmed.ends_with("readonly") || trimmed.ends_with("=>") {
         return Some(TypeImportContext {
             allows_bare_import_type_query: trimmed.ends_with("typeof"),
+        });
+    }
+    if trimmed.rsplit_once(|ch: char| !is_identifier_char(ch))
+        .map(|(_, token)| token == "as")
+        .unwrap_or(trimmed == "as")
+    {
+        return Some(TypeImportContext {
+            allows_bare_import_type_query: false,
         });
     }
     if trimmed
@@ -2290,6 +2298,10 @@ fn is_identifier_start(ch: u8) -> bool {
 
 fn is_identifier_continue(ch: u8) -> bool {
     is_identifier_start(ch) || ch.is_ascii_digit()
+}
+
+fn is_identifier_char(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '_' || ch == '$'
 }
 
 fn replace_with_identifier_placeholder(out: &mut [u8], start: usize, end: usize) {
@@ -3854,6 +3866,8 @@ mod tests {
     fn normalization_allocates_once_when_typescript_rewrites_are_needed() {
         let source = [
             "type TextEdit = readonly import('./private-to-property.ts').TextEdit[];",
+            "type Lookup = (name: string) => import('../src/types').Node[];",
+            "const graph = {} as unknown as import('../src/index').default;",
             "export type MemberStats = { abstract: Set<string>; concrete: Set<string> };",
             "export function commonLength(unique: Element[]): number { return unique.length; }",
             "",
@@ -4391,6 +4405,10 @@ mod tests {
                 "\tvoid runtimeModule;",
                 "\tvoid actual;",
                 "}",
+                "export function mockGraph(): import('../src/index').default {",
+                "\treturn {} as unknown as import('../src/index').default;",
+                "}",
+                "export type Lookup = (name: string) => import('../src/types').Node[];",
                 "",
             ]
             .join("\n"),

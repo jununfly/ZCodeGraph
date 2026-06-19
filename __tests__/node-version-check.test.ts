@@ -36,9 +36,9 @@ describe('buildNode25BlockBanner', () => {
   });
 
   it('links to issue #81 for the root-cause writeup', () => {
-    expect(buildNode25BlockBanner('25.7.0')).toContain(
-      'github.com/colbymchenry/codegraph/issues/81'
-    );
+    const banner = buildNode25BlockBanner('25.7.0');
+    expect(banner).toContain('github.com/jununfly/ZCodeGraph/issues/81');
+    expect(banner).not.toContain('github.com/colbymchenry/codegraph');
   });
 });
 

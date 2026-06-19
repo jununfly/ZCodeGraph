@@ -44,6 +44,9 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixes
 
+- `rust-hybrid` now handles TypeScript `import("...")` type queries used in `as` assertions and function-type returns, avoiding unnecessary TypeScript fallback on valid project files. (#282)
+- Degraded `rust-hybrid` runs now separate recovered fallback warnings from unrecovered parse errors in the CLI summary and error log, so users can tell when the graph is still usable. (#283)
+- Unsupported Node.js version warnings now point to the current ZCodeGraph repository instead of the historical project URL. (#285)
 - `zcodegraph_explore` now keeps self-query Flow sections on the named path for planner and indexing questions, avoiding fuzzy fallback matches that could show unrelated helper paths instead of the requested symbols. (#48)
 - `zcodegraph_explore` now seeds a concrete Java REST-to-transport action slice for broad flow questions, so a single answer includes route dispatch, handler preparation, local client execution, and transport action execution evidence instead of forcing repeated follow-up explores. (#47)
 - `zcodegraph_explore` now keeps polymorphic Java implementation families together when answering broad implementation questions, so Elasticsearch Engine queries include the base type, write-capable engines, read-only engines, and relevant plugin engines without pulling in test-only subclasses. (#46)

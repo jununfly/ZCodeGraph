@@ -233,6 +233,10 @@ function formatNumber(n: number): string {
   return n.toLocaleString();
 }
 
+function formatCount(n: number, singular: string, plural = `${singular}s`): string {
+  return `${formatNumber(n)} ${n === 1 ? singular : plural}`;
+}
+
 /**
  * Format duration in milliseconds to human readable
  */
@@ -332,16 +336,27 @@ type IndexResult = {
   filesErrored: number;
   nodesCreated: number;
   edgesCreated: number;
-  errors: Array<{ message: string; filePath?: string; severity: string; code?: string }>;
+  errors: Array<{ message: string; filePath?: string; severity: string; code?: string; line?: number; column?: number }>;
   durationMs: number;
   profile?: RustIndexProfile | Record<string, unknown>;
 };
+
+function countFatalIndexErrors(result: IndexResult): number {
+  return result.errors.filter((err) => err.severity === 'error').length;
+}
+
+function countRecoverableIndexWarnings(result: IndexResult): number {
+  return result.errors.filter((err) => err.severity !== 'error').length;
+}
 
 /**
  * Print indexing results using clack log methods
  */
 function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexResult, projectPath?: string): void {
   const hasErrors = result.filesErrored > 0;
+  const fatalErrorCount = countFatalIndexErrors(result);
+  const recoverableWarningCount = countRecoverableIndexWarnings(result);
+  const onlyRecoverableWarnings = hasErrors && fatalErrorCount === 0 && recoverableWarningCount > 0;
 
   // Surface non-file-level failures (e.g. lock-acquisition failure
   // when another indexer is running) before the file-count branches.
@@ -361,7 +376,9 @@ function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexR
   }
 
   if (result.filesIndexed > 0) {
-    if (hasErrors) {
+    if (onlyRecoverableWarnings) {
+      clack.log.success(`Indexed ${formatNumber(result.filesIndexed)} files (${formatCount(recoverableWarningCount, 'file')} recovered by fallback)`);
+    } else if (hasErrors) {
       clack.log.success(`Indexed ${formatNumber(result.filesIndexed)} files (${formatNumber(result.filesErrored)} could not be parsed)`);
     } else {
       clack.log.success(`Indexed ${formatNumber(result.filesIndexed)} files`);
@@ -379,10 +396,14 @@ function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexR
 
   if (hasErrors) {
     const errorsByCode = new Map<string, number>();
+    const warningsByCode = new Map<string, number>();
     for (const err of result.errors) {
       if (err.severity === 'error') {
         const code = err.code || 'unknown';
         errorsByCode.set(code, (errorsByCode.get(code) || 0) + 1);
+      } else {
+        const code = err.code || 'unknown';
+        warningsByCode.set(code, (warningsByCode.get(code) || 0) + 1);
       }
     }
 
@@ -395,10 +416,20 @@ function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexR
       parser_error: 'parser initialization failures',
     };
 
-    const breakdown = Array.from(errorsByCode)
+    const warningLabels: Record<string, string> = {
+      'rust-owned-parse-gap': 'Rust-owned files recovered by TypeScript fallback',
+      'rust-owned-extraction-gap': 'Rust-owned files recovered by TypeScript fallback',
+      'rust-owned-gap-with-partial-write-blocked': 'Rust-owned files with partial Rust writes not fallback-appended',
+    };
+
+    const errorBreakdown = Array.from(errorsByCode)
       .map(([code, count]) => `${formatNumber(count)} ${codeLabels[code] || code}`)
       .join('\n');
-    clack.note(breakdown, 'Error breakdown');
+    const warningBreakdown = Array.from(warningsByCode)
+      .map(([code, count]) => `${formatNumber(count)} ${warningLabels[code] || code}`)
+      .join('\n');
+    const breakdown = [errorBreakdown, warningBreakdown].filter(Boolean).join('\n');
+    clack.note(breakdown, onlyRecoverableWarnings ? 'Fallback warning breakdown' : 'Error breakdown');
 
     if (projectPath) {
       writeErrorLog(projectPath, result.errors);
@@ -419,33 +450,36 @@ function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexR
 /**
  * Write detailed error log to .zcodegraph/errors.log
  */
-function writeErrorLog(projectPath: string, errors: Array<{ message: string; filePath?: string; severity: string; code?: string }>): void {
+function writeErrorLog(projectPath: string, errors: Array<{ message: string; filePath?: string; severity: string; code?: string; line?: number; column?: number }>): void {
   const cgDir = path.join(projectPath, '.zcodegraph');
   if (!fs.existsSync(cgDir)) return;
 
   const logPath = path.join(cgDir, 'errors.log');
 
   // Group errors by file path
-  const errorsByFile = new Map<string, Array<{ message: string; code?: string }>>();
-  const noFileErrors: Array<{ message: string; code?: string }> = [];
+  const errorsByFile = new Map<string, Array<{ message: string; code?: string; line?: number; column?: number }>>();
+  const warningsByFile = new Map<string, Array<{ message: string; code?: string; line?: number; column?: number }>>();
+  const noFileErrors: Array<{ message: string; code?: string; severity: string }> = [];
 
   for (const err of errors) {
-    if (err.severity !== 'error') continue;
+    const isError = err.severity === 'error';
+    const target = isError ? errorsByFile : warningsByFile;
     if (err.filePath) {
-      let list = errorsByFile.get(err.filePath);
+      let list = target.get(err.filePath);
       if (!list) {
         list = [];
-        errorsByFile.set(err.filePath, list);
+        target.set(err.filePath, list);
       }
-      list.push({ message: err.message, code: err.code });
+      list.push({ message: err.message, code: err.code, line: err.line, column: err.column });
     } else {
-      noFileErrors.push({ message: err.message, code: err.code });
+      noFileErrors.push({ message: err.message, code: err.code, severity: err.severity });
     }
   }
 
   const lines: string[] = [
     `CodeGraph Error Log - ${new Date().toISOString()}`,
-    `${errorsByFile.size} files with errors`,
+    `${formatCount(errorsByFile.size, 'file')} with errors`,
+    `${formatCount(warningsByFile.size, 'file')} with recovered fallback warnings`,
     '',
   ];
 
@@ -455,8 +489,20 @@ function writeErrorLog(projectPath: string, errors: Array<{ message: string; fil
     }
   }
 
+  if (warningsByFile.size > 0) {
+    lines.push('Recovered fallback warnings:');
+    for (const [filePath, fileWarnings] of warningsByFile) {
+      for (const warning of fileWarnings) {
+        const location = warning.line ? `:${warning.line}${warning.column ? `:${warning.column}` : ''}` : '';
+        const code = warning.code ? ` [${warning.code}]` : '';
+        lines.push(`${filePath}${location}: ${warning.message}${code}`);
+      }
+    }
+  }
+
   for (const err of noFileErrors) {
-    lines.push(err.message);
+    const code = err.code ? ` [${err.code}]` : '';
+    lines.push(`${err.severity}: ${err.message}${code}`);
   }
 
   fs.writeFileSync(logPath, lines.join('\n') + '\n');
