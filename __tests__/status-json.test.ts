@@ -110,13 +110,12 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     expect(ms).toBeLessThanOrEqual(after + 1000);
   });
 
-  it('status --json reports local Rust readiness diagnostics for a missing env override', () => {
+  it('status --json reports local Rust readiness diagnostics for a missing Rust core override', () => {
     const cg = CodeGraph.initSync(tempDir);
     cg.close();
     const missingCore = path.join(tempDir, 'missing-zcodegraph-core');
 
     const out = runStatusJson(tempDir, {
-      ZCODEGRAPH_INDEX_ENGINE: 'rust',
       ZCODEGRAPH_RUST_CORE_BINARY: missingCore,
     }) as {
       rust: {
@@ -132,7 +131,7 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
       };
     };
 
-    expect(out.rust.configuredEngine).toMatchObject({ engine: 'rust', source: 'env' });
+    expect(out.rust.configuredEngine).toMatchObject({ engine: 'rust-hybrid', source: 'default' });
     expect(out.rust.core.available).toBe(false);
     expect(out.rust.core.discoverySource).toBe('env');
     expect(out.rust.core.attemptedCommand).toBe(missingCore);
@@ -143,13 +142,12 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     expect(out.rust.latestProfile).toBeNull();
   });
 
-  it('status --json reports env override Rust core readiness when the binary is executable', () => {
+  it('status --json reports Rust core binary override readiness when the binary is executable', () => {
     const cg = CodeGraph.initSync(tempDir);
     cg.close();
     const rustCore = writeFakeRustCore(tempDir);
 
     const out = runStatusJson(tempDir, {
-      ZCODEGRAPH_INDEX_ENGINE: 'rust',
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     }) as {
       rust: {
@@ -164,7 +162,7 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
       };
     };
 
-    expect(out.rust.configuredEngine).toMatchObject({ engine: 'rust', source: 'env' });
+    expect(out.rust.configuredEngine).toMatchObject({ engine: 'rust-hybrid', source: 'default' });
     expect(out.rust.core.available).toBe(true);
     expect(out.rust.core.discoverySource).toBe('env');
     expect(out.rust.core.attemptedCommand).toBe(rustCore);

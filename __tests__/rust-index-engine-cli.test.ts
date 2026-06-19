@@ -301,45 +301,17 @@ describe('zcodegraph index engine selection', () => {
     expect(marker.experimentId).toBe('cli-heap-profile');
   });
 
-  it('runs the Rust subprocess when selected by environment variable', () => {
+  it('rejects stale CLI engine selection from the environment', () => {
     const rustCore = writeFakeRustCore(tempDir);
-    const result = runCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_INDEX_ENGINE: 'rust',
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-    });
-
-    expect(result.status).toBe(0);
-    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(true);
-    expect(result.stderr).not.toContain('Failed to index');
-  });
-
-  it('runs the Rust subprocess when rust-hybrid is selected by environment variable', () => {
-    const rustCore = writeFakeRustCore(tempDir);
-    const result = runCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_INDEX_ENGINE: 'rust-hybrid',
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-    });
-
-    expect(result.status).toBe(0);
-    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(true);
-    expect(result.stderr).not.toContain('Failed to index');
-  });
-
-  it('uses TypeScript from the environment without invoking Rust core', () => {
-    const rustCore = writeFailingRustCore(tempDir);
     const result = runCli(tempDir, ['index', '--quiet'], {
       ZCODEGRAPH_INDEX_ENGINE: 'typescript',
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
-    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
+    expect(result.stderr).toContain('ZCODEGRAPH_INDEX_ENGINE is no longer supported');
+    expect(result.stderr).toContain('zcodegraph index --engine typescript');
     expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(false);
-    const cg = CodeGraph.openSync(tempDir);
-    try {
-      expect(cg.getIndexBuildInfo()).toMatchObject({ engine: 'typescript' });
-    } finally {
-      cg.close();
-    }
   });
 
   it('runs the packaged Rust subprocess from a bundle layout without an env override', () => {
@@ -623,6 +595,25 @@ describe('zcodegraph index engine selection', () => {
 
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
       expect(fs.existsSync(fakeRustCoreMarker(initDir))).toBe(true);
+    } finally {
+      fs.rmSync(initDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('does not accept the historical init --index flag', () => {
+    const initDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-hybrid-init-flag-'));
+    try {
+      fs.writeFileSync(path.join(initDir, 'a.ts'), 'export const initValue = 1;\n');
+      const rustCore = writeFakeRustCore(initDir);
+
+      const result = runCli(initDir, ['init', '-i'], {
+        ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      });
+
+      expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
+      expect(result.stderr).toContain('unknown option');
+      expect(result.stderr).toContain('-i');
+      expect(fs.existsSync(fakeRustCoreMarker(initDir))).toBe(false);
     } finally {
       fs.rmSync(initDir, { recursive: true, force: true });
     }

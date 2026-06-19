@@ -71,10 +71,10 @@ zcodegraph install
 
 ```bash
 cd your-project
-zcodegraph init -i
+zcodegraph init
 ```
 
-<sub>Builds the local `.zcodegraph/` knowledge graph for this project. ZCodeGraph uses its fastest supported local indexing path automatically, with per-file fallback when needed, so you don't have to choose an engine during setup. The `-i` flag is still accepted for existing scripts and muscle memory.</sub>
+<sub>Builds the local `.zcodegraph/` knowledge graph for this project. ZCodeGraph uses its fastest supported local indexing path automatically, with per-file fallback when needed, so you don't have to choose an engine during setup.</sub>
 
 ### Uninstall
 
@@ -113,6 +113,16 @@ Tested across **7 real-world open-source codebases** spanning 7 languages, compa
 ZCodeGraph cuts **tokens, tool calls, and wall-clock time on every repo** — across small, medium, and large codebases — and answers them with **near-zero file reads**, while the no-ZCodeGraph agent spends its budget on grep/find/Read discovery. `zcodegraph_explore` shows the answer in full — the mechanism plus the exact methods you asked about, even when they're buried in a multi-thousand-line file — while collapsing redundant interchangeable implementations to signatures, so the response is sized to the *answer* rather than the file count. **Cost stays flat-to-cheaper everywhere** — largest on the small repos (Alamofire, OkHttp), roughly break-even on the most response-heavy ones (Excalidraw, Tokio), where ZCodeGraph trades the no-ZCodeGraph agent's many small grep/read round-trips for a few large, cache-heavy tool responses.
 
 ### Flow-question sufficiency
+
+Latest rust-hybrid pre-release spot-check (2026-06-19): the first-user default path was re-indexed with `zcodegraph init` / `rust-hybrid`, then tested with Claude Code headless A/B against an empty MCP config. This was a targeted release-readiness check, not a replacement for the full median-of-4 benchmark below.
+
+| Repo | Prompt | WITH ZCodeGraph | WITHOUT ZCodeGraph | Result |
+|---|---|---:|---:|---|
+| Excalidraw · TypeScript/React | element update -> canvas repaint | 61s · 7 tools · 2 Read/Grep fallbacks | 222s · 54 tools · 53 Read/Grep fallbacks | strong exploration reduction; still 2 targeted reads |
+| Gin examples · Go | POST `/upload` handler path | 29s · 5 tools · 4 Read/Grep fallbacks | 26s · 4 tools · 4 Read/Grep fallbacks | no advantage on this narrow lookup |
+| Gin examples · Go | route registration overview | 24s · 1 tool · 0 Read/Grep fallbacks | 78s · 28 tools · 27 Read/Grep fallbacks | clean sufficiency win |
+
+Takeaway: TS/JS flow sufficiency remains strong on the hard Excalidraw path, though not perfectly read-free. Go/Gin sufficiency is usable but prompt-dependent: broad route registration is answered directly from the graph, while a specific upload-handler lookup still falls back to reading the small source file. Raw logs and methodology are recorded in `docs/benchmarks/2026-06-19-rust-hybrid-pre-release-agent-sufficiency.md`.
 
 The stricter test is whether `zcodegraph_explore` gives enough evidence for an agent to stop reading files. On 2026-06-12, the current build was run against **18 flow-question prompts per arm**: 3 prompts each on ZCodeGraph itself, Excalidraw, and Django; 2 runs per prompt; WITH ZCodeGraph vs an empty MCP config. The prompts were precise symbol-bag flow questions, and every generic Read or grep/find Bash call was classified as fallback unless it was edit-prep or verification work. Full logs were captured under `/tmp/zcodegraph-sufficiency/` during the run.
 
@@ -359,7 +369,7 @@ Restart your agent (Claude Code / Cursor / Codex CLI / opencode / Hermes Agent /
 
 ```bash
 cd your-project
-zcodegraph init -i
+zcodegraph init
 ```
 
 Builds the per-project knowledge graph index. ZCodeGraph uses Rust-backed indexing where supported and falls back file-by-file where needed, while your agent still reads one local graph. A single global `zcodegraph install` works in every project you open — no need to re-run the installer per project.
@@ -415,7 +425,7 @@ ZCodeGraph's MCP server delivers its usage guidance to your agent **automaticall
 - **Answer structural questions directly with ZCodeGraph** — it *is* the pre-built index, so a grep/read loop just repeats work it already did. Treat the returned source as already read.
 - **Pick the tool by intent:** `zcodegraph_explore` for almost anything — "how does X work", a flow/"how does X reach Y", or surveying an area (one call returns the relevant symbols' source grouped by file); `zcodegraph_search` to just locate a symbol; `zcodegraph_callers`/`zcodegraph_callees` to walk call flow; `zcodegraph_impact` before editing; `zcodegraph_node` for one specific symbol's full source (it returns every overload for an ambiguous name).
 - **Trust the results — don't re-verify with grep**, and check the staleness banner after edits.
-- If `.zcodegraph/` doesn't exist yet, offer to run `zcodegraph init -i`.
+- If `.zcodegraph/` doesn't exist yet, offer to run `zcodegraph init`.
 
 The exact text is `src/mcp/server-instructions.ts` — the single source of truth.
 
@@ -678,7 +688,7 @@ Framework routing is validated the same way, on a canonical app per framework: E
 
 ## Troubleshooting
 
-**"CodeGraph not initialized"** — Run `zcodegraph init -i` in your project directory first.
+**"CodeGraph not initialized"** — Run `zcodegraph init` in your project directory first.
 
 **Indexing is slow** — Check that `node_modules` and other large directories are excluded. Use `--quiet` to reduce output overhead.
 
@@ -693,7 +703,6 @@ zcodegraph doctor --engine rust-hybrid --bundle --last-failure
 
 ```bash
 zcodegraph index --engine typescript
-ZCODEGRAPH_INDEX_ENGINE=typescript zcodegraph index
 ```
 
 **MCP hits `database is locked`** — current builds shouldn't: CodeGraph bundles its own Node runtime and uses Node's built-in `node:sqlite` in WAL mode, where concurrent reads never block on a writer. If you still see it:

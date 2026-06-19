@@ -127,26 +127,8 @@ export function findRustCoreCommand(
 }
 
 function configuredEngineDiagnostics(env: NodeJS.ProcessEnv = process.env): RustReadinessDiagnostics['configuredEngine'] {
-  const raw = env.ZCODEGRAPH_INDEX_ENGINE;
-  if (raw == null || raw.trim() === '') {
-    return { engine: 'rust-hybrid', source: 'default' };
-  }
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === 'typescript' || normalized === 'ts') {
-    return { engine: 'typescript', source: 'env', rawValue: raw };
-  }
-  if (normalized === 'rust') {
-    return { engine: 'rust', source: 'env', rawValue: raw };
-  }
-  if (normalized === 'rust-hybrid' || normalized === 'hybrid') {
-    return { engine: 'rust-hybrid', source: 'env', rawValue: raw };
-  }
-  return {
-    engine: 'unavailable',
-    source: 'unavailable',
-    rawValue: raw,
-    error: `Unsupported index engine "${normalized}". Supported engines: typescript, rust, rust-hybrid`,
-  };
+  void env;
+  return { engine: 'rust-hybrid', source: 'default' };
 }
 
 function discoverRustCoreDiagnostics(

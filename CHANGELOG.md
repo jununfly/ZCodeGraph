@@ -13,7 +13,9 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - The public `Subgraph` type now exposes `entryNodes` instead of `roots`, matching the project terminology for Entry Nodes.
 - Database access interfaces now use Access Model names, so TypeScript users should import `AgentAccessModel`, `MaintenanceAccessModel`, `ResolutionAccessModel`, and `StatusAccessModel` from the new access-model module.
-- ZCodeGraph now uses a private `zcodegraph` namespace for new project indexes and MCP server configs: project data lives in `.zcodegraph/zcodegraph.db`, and installers write the MCP server key `zcodegraph`. Existing `.codegraph/` indexes are no longer opened as initialized projects; run `zcodegraph init -i` to build a fresh index in the new namespace.
+- ZCodeGraph now uses a private `zcodegraph` namespace for new project indexes and MCP server configs: project data lives in `.zcodegraph/zcodegraph.db`, and installers write the MCP server key `zcodegraph`. Existing `.codegraph/` indexes are no longer opened as initialized projects; run `zcodegraph init` to build a fresh index in the new namespace.
+- `zcodegraph init` is now the clean initialization command and always builds the initial index; the historical `-i` / `--index` flag has been removed.
+- Index engine selection now uses explicit `--engine` flags only; `ZCODEGRAPH_INDEX_ENGINE` is no longer supported and now points users to `zcodegraph index --engine typescript`.
 
 ### Security
 
@@ -23,6 +25,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### New Features
 
 - Programmatic SDK full indexing now uses the same `rust-hybrid` default as the CLI, while still offering explicit `typescript` and `rust` engine choices for compatibility and debugging. (#263)
+- The first-user `rust-hybrid` release path now has refreshed pre-release docs, troubleshooting, smoke evidence, and README-backed Agent Sufficiency validation for TypeScript/JavaScript and Go.
 - `rust-hybrid` indexing now safely falls back to the TypeScript indexer for individual Rust-owned files that hit a Rust parse gap, marks the run as degraded, and records privacy-preserving diagnostics for replayable bug reports. (#257)
 - The Rust indexing profiler now breaks reference resolution into database, name-matching, import, framework, and other timing buckets, so large-repo bottlenecks can be targeted with evidence. (#87)
 - The experimental Rust indexer now accepts more modern TypeScript syntax used in large VS Code sources, including import-type queries and contextual keyword identifiers. (#88)

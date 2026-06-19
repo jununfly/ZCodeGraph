@@ -61,7 +61,7 @@ Focused architecture-related suites are covered in the full run, including:
 Indexed ZCodeGraph itself using the built CLI:
 
 ```
-$ node dist/bin/zcodegraph.js init -i
+$ node dist/bin/zcodegraph.js init
 Indexed 252 files
 3,873 nodes, 16,104 edges in 1.3s
 ```

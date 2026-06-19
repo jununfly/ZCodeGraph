@@ -51,7 +51,7 @@ fi
 #    binary that serves it — different versions extract differently).
 echo "→ [3/4] wiping .zcodegraph and re-indexing with $ACTUAL"
 rm -rf "$REPO/.zcodegraph"
-( cd "$REPO" && zcodegraph init -i ) || { echo "indexing failed"; exit 1; }
+( cd "$REPO" && zcodegraph init ) || { echo "indexing failed"; exit 1; }
 
 # 4. Run the with/without A/B.
 echo "→ [4/4] running A/B harness (mode=$MODE)"

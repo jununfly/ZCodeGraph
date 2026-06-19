@@ -649,10 +649,9 @@ function printRustHybridFailureDoctorHint(): void {
 program
   .command('init [path]')
   .description('Initialize ZCodeGraph in a project directory and build the initial index')
-  .option('-i, --index', 'Deprecated: indexing now runs by default; flag accepted for backward compatibility')
   .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
   .option('--engine <engine>', 'Index engine to use: typescript, rust, or rust-hybrid')
-  .action(async (pathArg: string | undefined, options: { index?: boolean; verbose?: boolean; engine?: string }) => {
+  .action(async (pathArg: string | undefined, options: { verbose?: boolean; engine?: string }) => {
     const projectPath = path.resolve(pathArg || process.cwd());
     const clack = await importESM('@clack/prompts');
     let selectedEngine: IndexEngine | undefined;
@@ -680,9 +679,6 @@ program
       clack.log.success(`Initialized in ${projectPath}`);
       cg.destroy();
 
-      // Indexing runs by default now. The legacy -i/--index flag is still
-      // accepted (so existing muscle memory and scripts don't break) but is a
-      // no-op — initializing always builds the initial index.
       let result: IndexResult;
       if (options.verbose) {
         result = await runSelectedIndex(projectPath, engine, { verbose: true }, createVerboseProgress());

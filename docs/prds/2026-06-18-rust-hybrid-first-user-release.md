@@ -1,5 +1,20 @@
 # Rust-Hybrid First-User Release PRD
 
+## Superseding Note: 2026-06-19 Pre-Release API Polish
+
+Phase 8 remains valid for the evidence it collected under the then-current
+release boundary. Before the actual first-user release, the command surface was
+narrowed:
+
+- the primary setup command is now `zcodegraph init`, which builds the initial index;
+- historical `zcodegraph init -i` / `--index` support should be removed;
+- `ZCODEGRAPH_INDEX_ENGINE` should no longer select an engine;
+- engine overrides should use explicit CLI flags, such as `zcodegraph index --engine typescript`.
+
+The pre-release polish decision supersedes Phase 8 only for command shape,
+environment-based engine selection, README metric refresh, and the final
+release-candidate decision.
+
 ## Problem Statement
 
 ZCodeGraph is already useful for real development through its existing local indexing, MCP tools, and agent sufficiency behavior. The next product step is not another internal Rust performance slice. The next step is a first-user release that makes the faster Rust-owned indexing path usable by real external projects without forcing users to understand or choose indexing internals.
@@ -29,7 +44,7 @@ Introduce `rust-hybrid` as the first-user indexing strategy.
 For this release, `rust-hybrid` becomes the default strategy for the user-facing first-user release path:
 
 ```bash
-zcodegraph init -i
+zcodegraph init
 zcodegraph index
 ```
 
@@ -37,19 +52,17 @@ Both commands should use `rust-hybrid` by default in that release path. Users sh
 
 ```bash
 zcodegraph index --engine typescript
-ZCODEGRAPH_INDEX_ENGINE=typescript zcodegraph index
 ```
 
 Advanced users and maintainers can also select the strategy explicitly:
 
 ```bash
 zcodegraph index --engine rust-hybrid
-ZCODEGRAPH_INDEX_ENGINE=rust-hybrid zcodegraph index
 ```
 
 ## User Stories
 
-1. As a first user, I want `zcodegraph init -i` to index my project without asking me to choose an engine, so that setup stays simple.
+1. As a first user, I want `zcodegraph init` to index my project without asking me to choose an engine, so that setup stays simple.
 2. As a first user, I want ZCodeGraph to use its best available indexing path automatically, so that I focus on product usefulness rather than implementation internals.
 3. As an agent user, I want Explore answers after `rust-hybrid` indexing to remain sufficient, so that agents do not fall back to broad Read/Grep exploration.
 4. As a Go user, I want Go projects to be covered by Rust-owned indexing, so that Gin and Go service flows are useful in real codebases.
@@ -70,7 +83,7 @@ ZCODEGRAPH_INDEX_ENGINE=rust-hybrid zcodegraph index
 
 In the first-user release path, both full-index entry points default to `rust-hybrid`:
 
-- `zcodegraph init -i`
+- `zcodegraph init`
 - `zcodegraph index`
 
 The product documentation should keep the user mental model simple: ZCodeGraph indexes the project locally. The README main path should not make users choose between TypeScript and Rust.
@@ -85,11 +98,9 @@ Supported engine values:
 - `rust`: pure Rust opt-in/debug/validation path for maintainers.
 - `rust-hybrid`: first-user default strategy.
 
-The environment variable must support the same strategy:
-
-```bash
-ZCODEGRAPH_INDEX_ENGINE=rust-hybrid
-```
+Environment-based engine selection is not part of the first-user release
+surface. Use explicit `--engine` flags for troubleshooting and maintainer
+validation.
 
 ### File-level fallback
 
@@ -269,7 +280,7 @@ Existing `.zcodegraph` indexes should not be automatically rebuilt on package up
 
 New projects:
 
-- `zcodegraph init -i` uses `rust-hybrid` in the first-user release path.
+- `zcodegraph init` uses `rust-hybrid` in the first-user release path.
 
 Existing projects:
 
@@ -290,7 +301,7 @@ README should present the simple product path:
 
 ```bash
 zcodegraph install
-zcodegraph init -i
+zcodegraph init
 ```
 
 It should not teach users to choose an index engine in the primary path.
@@ -307,10 +318,10 @@ TypeScript-only escape hatch belongs in troubleshooting or advanced docs.
 
 ### Functional gates
 
-- `zcodegraph init -i` defaults to `rust-hybrid` in the first-user release path.
+- `zcodegraph init` defaults to `rust-hybrid` in the first-user release path.
 - `zcodegraph index` defaults to `rust-hybrid` in the first-user release path.
 - `--engine rust-hybrid` works.
-- `ZCODEGRAPH_INDEX_ENGINE=rust-hybrid` works.
+- stale `ZCODEGRAPH_INDEX_ENGINE` usage fails clearly and points to explicit `--engine`.
 - `--engine typescript` remains available.
 - Existing TypeScript default behavior is available as an escape hatch.
 - `rust-hybrid` writes one active graph readable by the existing TypeScript shell and MCP-compatible graph path.
@@ -347,9 +358,9 @@ TypeScript-only escape hatch belongs in troubleshooting or advanced docs.
 
 - Local build succeeds.
 - Release-like packaged CLI discovers the Rust core binary.
-- Release-like `zcodegraph init -i` path works.
+- Release-like `zcodegraph init` path works.
 - Release-like `zcodegraph index --engine rust-hybrid` path works.
-- Release-like env selection works.
+- Release-like stale env selection fails clearly.
 - Release-like status shows hybrid metadata.
 - Release-like doctor bundle generation works.
 - No actual `npm publish` is required by this PRD.
