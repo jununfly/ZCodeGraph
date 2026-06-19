@@ -1,7 +1,7 @@
 # Changelog
 
 All notable changes to CodeGraph are documented here. Each entry also ships as
-a [GitHub Release](https://github.com/colbymchenry/codegraph/releases) tagged
+a [GitHub Release](https://github.com/jununfly/ZCodeGraph/releases) tagged
 `vX.Y.Z`, which is where most people will look.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
@@ -354,18 +354,18 @@ Thanks @andreinknv for the substantive draft this release was based on.
 
 - Fixed the `codegraph` command failing with `permission denied` right after a fresh global install — the 0.7.5 package shipped the CLI without its executable bit, so your shell refused to run it. New installs work out of the box. If you're stuck on 0.7.5, upgrade to 0.7.6 or unblock yourself in place by making the installed binary executable with `chmod +x`.
 
-[0.9.7]: https://github.com/colbymchenry/codegraph/releases/tag/v0.9.7
-[0.9.6]: https://github.com/colbymchenry/codegraph/releases/tag/v0.9.6
-[0.9.5]: https://github.com/colbymchenry/codegraph/releases/tag/v0.9.5
-[0.9.4]: https://github.com/colbymchenry/codegraph/releases/tag/v0.9.4
-[0.9.3]: https://github.com/colbymchenry/codegraph/releases/tag/v0.9.3
-[0.9.2]: https://github.com/colbymchenry/codegraph/releases/tag/v0.9.2
-[0.9.1]: https://github.com/colbymchenry/codegraph/releases/tag/v0.9.1
-[0.9.0]: https://github.com/colbymchenry/codegraph/releases/tag/v0.9.0
-[0.8.0]: https://github.com/colbymchenry/codegraph/releases/tag/v0.8.0
-[0.7.10]: https://github.com/colbymchenry/codegraph/releases/tag/v0.7.10
-[0.7.9]: https://github.com/colbymchenry/codegraph/releases/tag/v0.7.9
-[0.7.7]: https://github.com/colbymchenry/codegraph/releases/tag/v0.7.7
-[0.7.6]: https://github.com/colbymchenry/codegraph/releases/tag/v0.7.6
-[0.9.8]: https://github.com/colbymchenry/codegraph/releases/tag/v0.9.8
-[0.9.9]: https://github.com/colbymchenry/codegraph/releases/tag/v0.9.9
+[0.9.7]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.7
+[0.9.6]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.6
+[0.9.5]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.5
+[0.9.4]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.4
+[0.9.3]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.3
+[0.9.2]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.2
+[0.9.1]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.1
+[0.9.0]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.0
+[0.8.0]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.8.0
+[0.7.10]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.7.10
+[0.7.9]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.7.9
+[0.7.7]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.7.7
+[0.7.6]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.7.6
+[0.9.8]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.8
+[0.9.9]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.9
