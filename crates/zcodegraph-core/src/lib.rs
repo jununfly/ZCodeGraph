@@ -2047,6 +2047,9 @@ fn index_javascript_files(
     let files = collect_supported_files(project_path)?;
     let mut counts = WriteCounts::default();
     counts.profile.source_scan_ms = scan_started.elapsed().as_millis();
+    let transaction_started = Instant::now();
+    let tx = conn.transaction()?;
+    counts.profile.sqlite_write_ms += transaction_started.elapsed().as_millis();
 
     for file_path in files {
         let parse_started = Instant::now();
@@ -2103,7 +2106,6 @@ fn index_javascript_files(
 
         let indexed_at = now_ms();
         let sqlite_write_started = Instant::now();
-        let tx = conn.transaction()?;
         insert_nodes(&tx, &nodes)?;
         insert_edges(&tx, &edges)?;
         insert_unresolved_refs(&tx, &unresolved_refs)?;
@@ -2116,13 +2118,16 @@ fn index_javascript_files(
             indexed_at,
             nodes.len() as i64,
         )?;
-        tx.commit()?;
         counts.profile.sqlite_write_ms += sqlite_write_started.elapsed().as_millis();
 
         counts.files_indexed += 1;
         counts.nodes_created += nodes.len() as u32;
         counts.edges_created += edges.len() as u32;
     }
+
+    let commit_started = Instant::now();
+    tx.commit()?;
+    counts.profile.sqlite_write_ms += commit_started.elapsed().as_millis();
 
     Ok(counts)
 }
@@ -4285,6 +4290,69 @@ mod tests {
             result.profile.parse_extraction_ms,
             max_expected_sqlite_ms
         );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_bulk_transaction_keeps_parse_gap_files_and_continues() {
+        let dir = temp_dir("bulk-parse-gap");
+        fs::write(
+            dir.join("good-before.ts"),
+            "export function stableSymbol() { return 1; }\n",
+        )
+        .unwrap();
+        fs::write(dir.join("bad.ts"), "export function broken( {\n").unwrap();
+        fs::write(
+            dir.join("good-after.ts"),
+            "export function laterSymbol() { return stableSymbol(); }\n",
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 3);
+        assert_eq!(result.files_errored, 1);
+        assert_eq!(result.errors.len(), 1);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let file_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM files", [], |row| row.get(0))
+            .unwrap();
+        let fts_count: i64 = conn
+            .query_row("SELECT count(*) FROM nodes_fts", [], |row| row.get(0))
+            .unwrap();
+        let node_count: i64 = conn
+            .query_row("SELECT count(*) FROM nodes", [], |row| row.get(0))
+            .unwrap();
+        let stable_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM nodes WHERE name = 'stableSymbol'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let later_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM nodes WHERE name = 'laterSymbol'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+
+        assert_eq!(file_count, 3);
+        assert_eq!(fts_count, node_count);
+        assert_eq!(stable_count, 1);
+        assert_eq!(later_count, 1);
         fs::remove_dir_all(dir).unwrap();
     }
 

@@ -44,6 +44,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixes
 
+- `rust-hybrid` indexing now writes Rust-extracted source facts in a single bulk transaction, reducing large-project indexing overhead without changing indexed results or fallback behavior. (#288)
 - `rust-hybrid` now handles TypeScript `import("...")` type queries used in `as` assertions and function-type returns, avoiding unnecessary TypeScript fallback on valid project files. (#282)
 - Degraded `rust-hybrid` runs now separate recovered fallback warnings from unrecovered parse errors in the CLI summary and error log, so users can tell when the graph is still usable. (#283)
 - Unsupported Node.js version warnings now point to the current ZCodeGraph repository instead of the historical project URL. (#285)
