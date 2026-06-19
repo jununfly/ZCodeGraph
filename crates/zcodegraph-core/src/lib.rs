@@ -2050,13 +2050,20 @@ fn index_javascript_files(
     let transaction_started = Instant::now();
     let tx = conn.transaction()?;
     counts.profile.sqlite_write_ms += transaction_started.elapsed().as_millis();
+    let mut parsers: HashMap<SourceLanguage, Parser> = HashMap::new();
 
     for file_path in files {
         let parse_started = Instant::now();
         let language = SourceLanguage::from_path(&file_path)
             .ok_or_else(|| format!("Unsupported source file: {}", file_path.display()))?;
-        let mut parser = Parser::new();
-        parser.set_language(&language.tree_sitter_language())?;
+        if !parsers.contains_key(&language) {
+            let mut parser = Parser::new();
+            parser.set_language(&language.tree_sitter_language())?;
+            parsers.insert(language, parser);
+        }
+        let parser = parsers
+            .get_mut(&language)
+            .expect("parser should be initialized for source language");
         let relative_path = relative_slash_path(project_path, &file_path)?;
         let content = fs::read_to_string(&file_path)?;
         let metadata = fs::metadata(&file_path)?;
@@ -2338,7 +2345,7 @@ fn is_member_receiver_position(bytes: &[u8], after_word: usize) -> bool {
     bytes.get(skip_ascii_whitespace(bytes, after_word)) == Some(&b'.')
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum SourceLanguage {
     JavaScript,
     Jsx,
@@ -4353,6 +4360,62 @@ mod tests {
         assert_eq!(fts_count, node_count);
         assert_eq!(stable_count, 1);
         assert_eq!(later_count, 1);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_extracts_mixed_languages_with_reused_parsers() {
+        let dir = temp_dir("mixed-language-parser-reuse");
+        fs::write(
+            dir.join("alpha.ts"),
+            "export function alpha() { return 1; }\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("view.tsx"),
+            "export function Widget() { return <div />; }\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("server.go"),
+            [
+                "package main",
+                "func handler() int { return 1 }",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 3);
+        assert_eq!(result.files_errored, 0);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let count_name = |name: &str| -> i64 {
+            conn.query_row("SELECT COUNT(*) FROM nodes WHERE name = ?1", [name], |row| {
+                row.get(0)
+            })
+            .unwrap()
+        };
+        assert_eq!(count_name("alpha"), 1);
+        assert_eq!(count_name("Widget"), 1);
+        assert_eq!(count_name("handler"), 1);
         fs::remove_dir_all(dir).unwrap();
     }
 
