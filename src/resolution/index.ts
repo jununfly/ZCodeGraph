@@ -27,6 +27,11 @@ import { logDebug } from '../errors';
 import type { ReExport } from './types';
 import { LRUCache } from './lru-cache';
 import {
+  CandidateProtocolProvider,
+  candidateProtocolEnabled,
+  type CandidateProtocolDiagnostics,
+} from './candidate-protocol';
+import {
   collectRustNameMatcherReference,
   compareNameMatcherCandidateReplayForRef,
   nameMatcherReplayAbEnabled,
@@ -312,6 +317,7 @@ export class ReferenceResolver {
   private nameCache: LRUCache<string, Node[]>; // name → nodes cache
   private lowerNameCache: LRUCache<string, Node[]>; // lower(name) → nodes cache
   private qualifiedNameCache: LRUCache<string, Node[]>; // qualified_name → nodes cache
+  private candidateProvider: CandidateProtocolProvider;
   private knownNames: Set<string> | null = null; // all known symbol names for fast pre-filtering
   private knownFiles: Set<string> | null = null;
   private cachesWarmed = false;
@@ -340,6 +346,22 @@ export class ReferenceResolver {
     this.nameCache = new LRUCache(limit);
     this.lowerNameCache = new LRUCache(limit);
     this.qualifiedNameCache = new LRUCache(limit);
+    this.candidateProvider = new CandidateProtocolProvider({
+      enabled: candidateProtocolEnabled(),
+      caches: {
+        fileNodes: this.nodeCache,
+        exactName: this.nameCache,
+        lowerName: this.lowerNameCache,
+        qualifiedName: this.qualifiedNameCache,
+      },
+      source: {
+        getNodesInFile: (filePath) => this.queries.getNodesByFile(filePath),
+        getNodesByName: (name) => this.queries.getNodesByName(name),
+        getNodesByLowerName: (lowerName) => this.queries.getNodesByLowerName(lowerName),
+        getNodesByQualifiedName: (qualifiedName) => this.queries.getNodesByQualifiedNameExact(qualifiedName),
+        getKnownNames: () => this.knownNames,
+      },
+    });
 
     this.context = this.createContext();
   }
@@ -421,6 +443,9 @@ export class ReferenceResolver {
   private createContext(): ResolutionContext {
     return {
       getNodesInFile: (filePath: string) => {
+        if (this.candidateProvider.isEnabled()) {
+          return this.candidateProvider.lookupNodes({ kind: 'FileNodes', filePath });
+        }
         if (!this.nodeCache.has(filePath)) {
           this.nodeCache.set(filePath, this.queries.getNodesByFile(filePath));
         }
@@ -428,6 +453,9 @@ export class ReferenceResolver {
       },
 
       getNodesByName: (name: string) => {
+        if (this.candidateProvider.isEnabled()) {
+          return this.candidateProvider.lookupNodes({ kind: 'ExactName', name });
+        }
         const cached = this.nameCache.get(name);
         if (cached !== undefined) return cached;
         const result = this.queries.getNodesByName(name);
@@ -436,6 +464,9 @@ export class ReferenceResolver {
       },
 
       getNodesByQualifiedName: (qualifiedName: string) => {
+        if (this.candidateProvider.isEnabled()) {
+          return this.candidateProvider.lookupNodes({ kind: 'QualifiedName', qualifiedName });
+        }
         const cached = this.qualifiedNameCache.get(qualifiedName);
         if (cached !== undefined) return cached;
         const result = this.queries.getNodesByQualifiedNameExact(qualifiedName);
@@ -507,6 +538,9 @@ export class ReferenceResolver {
       },
 
       getNodesByLowerName: (lowerName: string) => {
+        if (this.candidateProvider.isEnabled()) {
+          return this.candidateProvider.lookupNodes({ kind: 'LowerName', lowerName });
+        }
         const cached = this.lowerNameCache.get(lowerName);
         if (cached !== undefined) return cached;
         const result = this.queries.getNodesByLowerName(lowerName);
@@ -723,7 +757,10 @@ export class ReferenceResolver {
     if (!this.knownNames) return true; // no pre-filter available
 
     // Direct name match
-    if (this.knownNames.has(name)) return true;
+    const directPresence = this.candidateProvider.isEnabled()
+      ? this.candidateProvider.hasKnownName(name)
+      : this.knownNames.has(name);
+    if (directPresence) return true;
 
     // For qualified names like "obj.method" or "Class::method", check the parts
     const dotIdx = name.indexOf('.');
@@ -1007,25 +1044,41 @@ export class ReferenceResolver {
       ...this.context,
       getNodesInFile: (filePath: string) =>
         timeCandidateLookup(
-          this.nodeCache.has(filePath),
+          this.candidateProvider.isEnabled()
+            ? this.candidateProvider.hasCached({ kind: 'FileNodes', filePath })
+            : this.nodeCache.has(filePath),
           () => this.context.getNodesInFile(filePath),
         ),
       getNodesByName: (name: string) =>
         timeCandidateLookup(
-          this.nameCache.get(name) !== undefined,
+          this.candidateProvider.isEnabled()
+            ? this.candidateProvider.hasCached({ kind: 'ExactName', name })
+            : this.nameCache.get(name) !== undefined,
           () => this.context.getNodesByName(name),
         ),
       getNodesByQualifiedName: (qualifiedName: string) =>
         timeCandidateLookup(
-          this.qualifiedNameCache.get(qualifiedName) !== undefined,
+          this.candidateProvider.isEnabled()
+            ? this.candidateProvider.hasCached({ kind: 'QualifiedName', qualifiedName })
+            : this.qualifiedNameCache.get(qualifiedName) !== undefined,
           () => this.context.getNodesByQualifiedName(qualifiedName),
         ),
       getNodesByLowerName: (lowerName: string) =>
         timeCandidateLookup(
-          this.lowerNameCache.get(lowerName) !== undefined,
+          this.candidateProvider.isEnabled()
+            ? this.candidateProvider.hasCached({ kind: 'LowerName', lowerName })
+            : this.lowerNameCache.get(lowerName) !== undefined,
           () => this.context.getNodesByLowerName(lowerName),
         ),
     };
+  }
+
+  getCandidateProtocolDiagnostics(): CandidateProtocolDiagnostics {
+    return this.candidateProvider.snapshotDiagnostics();
+  }
+
+  resetCandidateProtocolDiagnostics(): void {
+    this.candidateProvider.resetDiagnostics();
   }
 
   /**
@@ -1136,7 +1189,11 @@ export class ReferenceResolver {
     unresolvedRefs: UnresolvedReference[],
     onProgress?: (current: number, total: number) => void
   ): ResolutionResult {
+    this.resetCandidateProtocolDiagnostics();
     const result = this.resolveAll(unresolvedRefs, onProgress);
+    if (result.stats.timings) {
+      result.stats.timings.candidateProtocol = this.getCandidateProtocolDiagnostics();
+    }
 
     // Create edges from resolved references
     const persistStarted = Date.now();
@@ -1176,6 +1233,7 @@ export class ReferenceResolver {
     batchSize: number = 5000
   ): Promise<ResolutionResult> {
     let processed = 0;
+    this.resetCandidateProtocolDiagnostics();
     const aggregateStats = {
       total: 0,
       resolved: 0,
@@ -1281,6 +1339,7 @@ export class ReferenceResolver {
     } catch {
       // synthesis is additive and optional; ignore failures
     }
+    aggregateStats.timings.candidateProtocol = this.getCandidateProtocolDiagnostics();
 
     return {
       resolved: [],

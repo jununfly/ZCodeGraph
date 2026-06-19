@@ -46,6 +46,7 @@ import {
   createResolver,
   ResolutionResult,
 } from './resolution';
+import type { CandidateProtocolDiagnostics } from './resolution/candidate-protocol';
 import { GraphTraverser, GraphQueryManager } from './graph';
 import { ContextBuilder, createContextBuilder } from './context';
 import { Mutex, FileLock } from './utils';
@@ -953,6 +954,7 @@ export class CodeGraph {
           replayConfidence: number | null;
           reason: string;
         }>;
+        candidateProtocol: CandidateProtocolDiagnostics;
         edgeMaterializationMs: number;
         edgeMaterializationDbMs: number;
         edgeWriteMs: number;
@@ -1050,6 +1052,34 @@ export class CodeGraph {
               replayConfidence: number | null;
               reason: string;
             }>,
+            candidateProtocol: {
+              enabled: true,
+              materializationMs: 0,
+              lookupMs: 0,
+              lookupCount: 0,
+              cacheHitCount: 0,
+              cacheMissCount: 0,
+              dbLookupCount: 0,
+              candidateCount: 0,
+              lookupShapeCounts: {
+                ExactName: 0,
+                LowerName: 0,
+                QualifiedName: 0,
+                FileNodes: 0,
+                KnownNamePresence: 0,
+              },
+              lookupShapeMs: {
+                ExactName: 0,
+                LowerName: 0,
+                QualifiedName: 0,
+                FileNodes: 0,
+                KnownNamePresence: 0,
+              },
+              equivalenceComparedCount: 0,
+              equivalenceMismatchCount: 0,
+              fallbackReasons: {},
+              disabledReason: null as string | null,
+            },
             edgeMaterializationMs: 0,
             edgeMaterializationDbMs: 0,
             edgeWriteMs: 0,
@@ -1178,6 +1208,7 @@ export class CodeGraph {
           candidateReplayMismatchRefs: resolutionTimings?.candidateReplayMismatchRefs ?? 0,
           candidateReplayMismatchReasons: resolutionTimings?.candidateReplayMismatchReasons ?? {},
           candidateReplayMismatchSamples: resolutionTimings?.candidateReplayMismatchSamples ?? [],
+          candidateProtocol: resolutionTimings?.candidateProtocol ?? profile.referenceResolutionBreakdown.candidateProtocol,
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
           edgeMaterializationDbMs: resolutionTimings?.edgeMaterializationDbMs ?? 0,
           edgeWriteMs: resolutionTimings?.edgeWriteMs ?? 0,

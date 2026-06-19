@@ -5,6 +5,7 @@
  */
 
 import { EdgeKind, Language, Node } from '../types';
+import type { CandidateProtocolDiagnostics } from './candidate-protocol';
 
 /**
  * An unresolved reference from extraction
@@ -117,6 +118,7 @@ export interface ResolutionResult {
         replayConfidence: number | null;
         reason: string;
       }>;
+      candidateProtocol?: CandidateProtocolDiagnostics;
       edgeMaterializationMs?: number;
       edgeMaterializationDbMs?: number;
       edgeWriteMs?: number;

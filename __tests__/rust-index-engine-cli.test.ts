@@ -936,6 +936,167 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
+  it('keeps exact-name resolved graph stable when candidate protocol is enabled or disabled', () => {
+    const makeProject = (): string => {
+      const dir = makeTempProject();
+      fs.writeFileSync(
+        path.join(dir, 'candidate-protocol.ts'),
+        [
+          'function protocolHelper() {',
+          '  return 1;',
+          '}',
+          '',
+          'export function protocolEntry() {',
+          '  return protocolHelper();',
+          '}',
+        ].join('\n') + '\n',
+      );
+      return dir;
+    };
+    const graphSummary = (dir: string, enabled: boolean): {
+      stats: { fileCount: number; nodeCount: number; edgeCount: number };
+      edges: Array<{ source: string; target: string; kind: string; resolvedBy: unknown }>;
+    } => {
+      const result = runCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+        ZCODEGRAPH_RUST_CORE_BINARY: writeFakeRustCoreWithPerFileGap(dir, 'candidate-protocol.ts'),
+        ZCODEGRAPH_CANDIDATE_PROTOCOL: enabled ? '1' : '0',
+      });
+      expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+      const cg = CodeGraph.openSync(dir);
+      try {
+        const entry = cg.searchNodes('protocolEntry').find((match) => match.node.kind === 'function')?.node;
+        expect(entry).toBeDefined();
+        const nodesById = new Map(cg.getNodesByKind('function').map((node) => [node.id, node.name]));
+        const stats = cg.getStats();
+        const edges = cg.getOutgoingEdges(entry!.id)
+          .filter((edge) => edge.kind === 'calls')
+          .map((edge) => ({
+            source: entry!.name,
+            target: nodesById.get(edge.target) ?? edge.target,
+            kind: edge.kind,
+            resolvedBy: edge.metadata?.resolvedBy,
+          }))
+          .sort((a, b) => `${a.source}:${a.target}:${a.kind}`.localeCompare(`${b.source}:${b.target}:${b.kind}`));
+        return {
+          stats: {
+            fileCount: stats.fileCount,
+            nodeCount: stats.nodeCount,
+            edgeCount: stats.edgeCount,
+          },
+          edges,
+        };
+      } finally {
+        cg.close();
+      }
+    };
+
+    const enabledDir = makeProject();
+    const disabledDir = makeProject();
+    try {
+      const enabledGraph = graphSummary(enabledDir, true);
+      const disabledGraph = graphSummary(disabledDir, false);
+      expect(enabledGraph.edges).toContainEqual({
+        source: 'protocolEntry',
+        target: 'protocolHelper',
+        kind: 'calls',
+        resolvedBy: 'exact-match',
+      });
+      expect(enabledGraph).toEqual(disabledGraph);
+    } finally {
+      fs.rmSync(enabledDir, { recursive: true, force: true });
+      fs.rmSync(disabledDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('writes candidate protocol diagnostics in rust-hybrid profile artifacts', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'candidate-profile.ts'),
+      [
+        'function profileHelper() {',
+        '  return 1;',
+        '}',
+        '',
+        'export function profileEntry() {',
+        '  return profileHelper();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'candidate-protocol-profile.json');
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: writeFakeRustCoreWithPerFileGap(tempDir, 'candidate-profile.ts'),
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          candidateLookupMs: number;
+          candidateLookupCacheHitMs: number;
+          nameMatcherCandidateLookupDbMs: number;
+          perReferenceDisambiguationMs: number;
+          databaseAccessMs: number;
+          refHydrationDbMs: number;
+          candidateProtocol: {
+            enabled: boolean;
+            materializationMs: number;
+            lookupMs: number;
+            lookupCount: number;
+            cacheHitCount: number;
+            cacheMissCount: number;
+            dbLookupCount: number;
+            candidateCount: number;
+            lookupShapeCounts: Record<string, number>;
+            lookupShapeMs: Record<string, number>;
+            equivalenceComparedCount: number;
+            equivalenceMismatchCount: number;
+            fallbackReasons: Record<string, number>;
+            disabledReason: string | null;
+          };
+        };
+      };
+    };
+
+    expect(profile.finalize.referenceResolutionBreakdown.candidateProtocol).toMatchObject({
+      enabled: true,
+      materializationMs: expect.any(Number),
+      lookupMs: expect.any(Number),
+      lookupCount: expect.any(Number),
+      cacheHitCount: expect.any(Number),
+      cacheMissCount: expect.any(Number),
+      dbLookupCount: expect.any(Number),
+      candidateCount: expect.any(Number),
+      lookupShapeCounts: expect.objectContaining({
+        ExactName: expect.any(Number),
+        LowerName: expect.any(Number),
+        QualifiedName: expect.any(Number),
+        FileNodes: expect.any(Number),
+        KnownNamePresence: expect.any(Number),
+      }),
+      lookupShapeMs: expect.objectContaining({
+        ExactName: expect.any(Number),
+        LowerName: expect.any(Number),
+        QualifiedName: expect.any(Number),
+        FileNodes: expect.any(Number),
+        KnownNamePresence: expect.any(Number),
+      }),
+      equivalenceComparedCount: expect.any(Number),
+      equivalenceMismatchCount: expect.any(Number),
+      fallbackReasons: expect.any(Object),
+      disabledReason: null,
+    });
+    expect(profile.finalize.referenceResolutionBreakdown.candidateProtocol.lookupCount).toBeGreaterThan(0);
+    expect(profile.finalize.referenceResolutionBreakdown.candidateLookupMs).toBeGreaterThanOrEqual(0);
+    expect(profile.finalize.referenceResolutionBreakdown.candidateLookupCacheHitMs).toBeGreaterThanOrEqual(0);
+    expect(profile.finalize.referenceResolutionBreakdown.nameMatcherCandidateLookupDbMs).toBeGreaterThanOrEqual(0);
+    expect(profile.finalize.referenceResolutionBreakdown.perReferenceDisambiguationMs).toBeGreaterThanOrEqual(0);
+    expect(profile.finalize.referenceResolutionBreakdown.databaseAccessMs).toBeGreaterThanOrEqual(
+      profile.finalize.referenceResolutionBreakdown.refHydrationDbMs,
+    );
+  }, 30_000);
+
   it('resolves direct ESM named imports to exported target-file symbols as Rust-owned edges', () => {
     fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
     fs.writeFileSync(
