@@ -6,6 +6,10 @@ Phase 22 built the local evidence pipeline for post-PRD Rust indexing optimizati
 
 No Rust default rollout readiness is claimed.
 
+Architecture record:
+
+- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
+
 ## Pipeline Artifacts
 
 - Plan: `docs/plans/2026-06-18-rust-indexing-core-phase-22-evidence-pipeline-and-optimization-loop.md`

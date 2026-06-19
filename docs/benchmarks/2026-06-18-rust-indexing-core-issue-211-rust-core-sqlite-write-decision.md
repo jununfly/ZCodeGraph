@@ -6,6 +6,11 @@ This issue tested one bounded implementation candidate from #210: reduce Rust-ow
 
 No Rust default rollout readiness is claimed.
 
+Architecture records:
+
+- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
+- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+
 ## Implementation
 
 The Rust core now suspends node FTS triggers during fresh bulk graph writes, writes the extracted graph, rebuilds `nodes_fts` once from the completed `nodes` table, and restores the triggers before the index is finalized.

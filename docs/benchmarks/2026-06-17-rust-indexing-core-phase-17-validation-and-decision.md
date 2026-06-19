@@ -6,6 +6,10 @@ Phase 17 made production `final-flush` the default SQLite write mode for explici
 
 This phase does not claim default rollout readiness.
 
+Architecture record:
+
+- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+
 ## Implementation Summary
 
 - Added production SQLite write mode: `final-flush`.

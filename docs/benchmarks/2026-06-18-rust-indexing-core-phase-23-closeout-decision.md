@@ -6,6 +6,10 @@ Phase 23 cleaned up the Rust indexing optimization evidence contract, classified
 
 No Rust default rollout readiness is claimed. #165 remains open.
 
+Architecture record:
+
+- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
+
 ## Evidence Contract Cleanup
 
 The evidence generator now emits an explicit `Evidence Contract` section in comparison output.

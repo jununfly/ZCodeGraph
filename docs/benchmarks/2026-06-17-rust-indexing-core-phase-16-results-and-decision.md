@@ -10,6 +10,10 @@ Phase 16 reassessed the Rust indexing architecture boundary before further Rust 
 
 This phase does not claim default Rust indexer readiness or full-profile rollout readiness.
 
+Architecture record:
+
+- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+
 ## Artifacts
 
 | Artifact | Path |

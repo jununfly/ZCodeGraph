@@ -6,6 +6,11 @@ Phase 18 segmented the full-profile end-to-end path and tried one bounded Rust S
 
 This phase does not claim default rollout readiness and does not close #165.
 
+Architecture records:
+
+- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
+- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+
 ## Candidate
 
 Candidate: `final-flush` staging database fast-write PRAGMAs.

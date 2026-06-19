@@ -13,6 +13,10 @@ Related trackers:
 - #165 post-release optimization tracker
 - #224 parse/extraction diagnostic track
 
+Architecture record:
+
+- `docs/zj-adr/ZJ-0002-rust-owned-finalization-reference-resolution.md`
+
 ## Purpose
 
 This artifact maps the current TypeScript-owned finalization/reference
@@ -378,4 +382,3 @@ The next ownership-classification discussion should start from this split:
 | Unresolved cleanup | TypeScript | Later or fallback slice |
 | Dynamic-dispatch synthesis | TypeScript | Later high-risk slice |
 | Diagnostics/profile/status contract | Mixed | Cross-cutting requirement |
-

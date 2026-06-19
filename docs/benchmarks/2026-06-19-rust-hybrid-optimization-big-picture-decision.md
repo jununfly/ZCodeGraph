@@ -4,6 +4,12 @@ Date: 2026-06-19
 
 Parent tracker: #165
 
+Architecture records:
+
+- `docs/zj-adr/ZJ-0002-rust-owned-finalization-reference-resolution.md`
+- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
+- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+
 Related issues:
 
 - #224 parse-extraction profiling candidate
