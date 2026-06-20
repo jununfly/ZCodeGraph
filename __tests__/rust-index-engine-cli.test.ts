@@ -906,6 +906,92 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
+  it('resolves JS/TS conventional aliases and workspace package imports as Rust-owned file-level edges', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'app'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'packages/ui/widgets'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'tools/logger'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'root', private: true, workspaces: ['packages/*'] }, null, 2) + '\n',
+    );
+    fs.writeFileSync(path.join(tempDir, 'pnpm-workspace.yaml'), "packages:\n  - 'tools/*'\n");
+    fs.writeFileSync(
+      path.join(tempDir, 'packages/ui/package.json'),
+      JSON.stringify({ name: '@scope/ui', version: '1.0.0' }, null, 2) + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'tools/logger/package.json'),
+      JSON.stringify({ name: '@tools/logger', version: '1.0.0' }, null, 2) + '\n',
+    );
+    fs.writeFileSync(path.join(tempDir, 'src/alias-target.ts'), 'export const aliasValue = 1;\n');
+    fs.writeFileSync(path.join(tempDir, 'app/service.ts'), 'export const serviceValue = 1;\n');
+    fs.writeFileSync(path.join(tempDir, 'packages/ui/widgets/index.ts'), 'export const widgetValue = 1;\n');
+    fs.writeFileSync(path.join(tempDir, 'tools/logger/index.ts'), 'export const loggerValue = 1;\n');
+    fs.writeFileSync(
+      path.join(tempDir, 'src/main.ts'),
+      [
+        'import { aliasValue } from "@/alias-target";',
+        'import { serviceValue } from "app/service";',
+        'import { widgetValue } from "@scope/ui/widgets";',
+        'import { loggerValue } from "@tools/logger";',
+        'export const total = aliasValue + serviceValue + widgetValue + loggerValue;',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'rust-import-parity-profile.json');
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      rustCore: {
+        importPathAliasResolvedRefs: number;
+        importPathAliasUnresolvedFallbackRefs: number;
+        importPathAliasResolvedBySource: {
+          conventionalAlias: number;
+          workspacePackage: number;
+        };
+        importPathAliasFallbackBySource: {
+          conventionalAlias: number;
+          workspacePackage: number;
+        };
+      };
+    };
+    expect(profile.rustCore.importPathAliasResolvedRefs).toBeGreaterThanOrEqual(4);
+    expect(profile.rustCore.importPathAliasUnresolvedFallbackRefs).toBe(0);
+    expect(profile.rustCore.importPathAliasResolvedBySource).toMatchObject({
+      conventionalAlias: 2,
+      workspacePackage: 2,
+    });
+    expect(profile.rustCore.importPathAliasFallbackBySource).toMatchObject({
+      conventionalAlias: 0,
+      workspacePackage: 0,
+    });
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const files = cg.getNodesByKind('file');
+      const mainFile = files.find((node) => node.filePath === 'src/main.ts');
+      const targets = new Set(
+        cg.getOutgoingEdges(mainFile!.id)
+          .filter((edge) => edge.kind === 'imports')
+          .map((edge) => files.find((node) => node.id === edge.target)?.filePath)
+          .filter(Boolean),
+      );
+      expect(targets).toEqual(new Set([
+        'app/service.ts',
+        'packages/ui/widgets/index.ts',
+        'src/alias-target.ts',
+        'tools/logger/index.ts',
+      ]));
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
   it('resolves same-file exact callable references as Rust-owned edges', () => {
     fs.writeFileSync(
       path.join(tempDir, 'local-calls.ts'),

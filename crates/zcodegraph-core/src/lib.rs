@@ -220,6 +220,14 @@ pub struct IndexProfile {
     pub import_path_alias_binding_fallback_refs: u32,
     pub import_path_alias_unsupported_fallback_refs: u32,
     pub import_path_alias_unresolved_fallback_refs: u32,
+    pub import_path_alias_relative_resolved_refs: u32,
+    pub import_path_alias_tsconfig_resolved_refs: u32,
+    pub import_path_alias_conventional_alias_resolved_refs: u32,
+    pub import_path_alias_workspace_resolved_refs: u32,
+    pub import_path_alias_relative_fallback_refs: u32,
+    pub import_path_alias_tsconfig_fallback_refs: u32,
+    pub import_path_alias_conventional_alias_fallback_refs: u32,
+    pub import_path_alias_workspace_fallback_refs: u32,
     pub local_exact_reference_resolution_ms: u128,
     pub local_exact_reference_resolved_refs: u32,
     pub local_exact_reference_fallback_refs: u32,
@@ -1248,6 +1256,20 @@ fn write_index_to_connection(
         import_stats.unsupported_fallback_refs;
     counts.profile.import_path_alias_unresolved_fallback_refs =
         import_stats.unresolved_fallback_refs;
+    counts.profile.import_path_alias_relative_resolved_refs = import_stats.relative_resolved_refs;
+    counts.profile.import_path_alias_tsconfig_resolved_refs = import_stats.tsconfig_resolved_refs;
+    counts
+        .profile
+        .import_path_alias_conventional_alias_resolved_refs =
+        import_stats.conventional_alias_resolved_refs;
+    counts.profile.import_path_alias_workspace_resolved_refs = import_stats.workspace_resolved_refs;
+    counts.profile.import_path_alias_relative_fallback_refs = import_stats.relative_fallback_refs;
+    counts.profile.import_path_alias_tsconfig_fallback_refs = import_stats.tsconfig_fallback_refs;
+    counts
+        .profile
+        .import_path_alias_conventional_alias_fallback_refs =
+        import_stats.conventional_alias_fallback_refs;
+    counts.profile.import_path_alias_workspace_fallback_refs = import_stats.workspace_fallback_refs;
     counts.edges_created += import_stats.edges_created;
     let esm_named_started = Instant::now();
     let esm_named_stats =
@@ -1274,6 +1296,14 @@ struct ImportResolutionStats {
     binding_fallback_refs: u32,
     unsupported_fallback_refs: u32,
     unresolved_fallback_refs: u32,
+    relative_resolved_refs: u32,
+    tsconfig_resolved_refs: u32,
+    conventional_alias_resolved_refs: u32,
+    workspace_resolved_refs: u32,
+    relative_fallback_refs: u32,
+    tsconfig_fallback_refs: u32,
+    conventional_alias_fallback_refs: u32,
+    workspace_fallback_refs: u32,
 }
 
 impl ImportResolutionStats {
@@ -1311,6 +1341,35 @@ struct EsmNamedImportExportStats {
 #[derive(Debug)]
 struct FileImportEdgeRow {
     target_file_path: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ImportTargetSourceKind {
+    Relative,
+    TsconfigPaths,
+    ConventionalAlias,
+    WorkspacePackage,
+}
+
+impl ImportResolutionStats {
+    fn record_resolved_source(&mut self, source: ImportTargetSourceKind) {
+        match source {
+            ImportTargetSourceKind::Relative => self.relative_resolved_refs += 1,
+            ImportTargetSourceKind::TsconfigPaths => self.tsconfig_resolved_refs += 1,
+            ImportTargetSourceKind::ConventionalAlias => self.conventional_alias_resolved_refs += 1,
+            ImportTargetSourceKind::WorkspacePackage => self.workspace_resolved_refs += 1,
+        }
+    }
+
+    fn record_unresolved_source(&mut self, source: ImportTargetSourceKind) {
+        self.unresolved_fallback_refs += 1;
+        match source {
+            ImportTargetSourceKind::Relative => self.relative_fallback_refs += 1,
+            ImportTargetSourceKind::TsconfigPaths => self.tsconfig_fallback_refs += 1,
+            ImportTargetSourceKind::ConventionalAlias => self.conventional_alias_fallback_refs += 1,
+            ImportTargetSourceKind::WorkspacePackage => self.workspace_fallback_refs += 1,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1352,11 +1411,34 @@ struct TsPathAliasTarget {
     suffix: String,
 }
 
+#[derive(Debug, Default)]
+struct WorkspacePackages {
+    by_name: HashMap<String, String>,
+}
+
+impl WorkspacePackages {
+    fn resolve_import<'a>(&'a self, specifier: &'a str) -> Option<PathBuf> {
+        let mut best: Option<&str> = None;
+        for name in self.by_name.keys() {
+            if specifier == name || specifier.starts_with(&format!("{}/", name)) {
+                if best.map_or(true, |current| name.len() > current.len()) {
+                    best = Some(name);
+                }
+            }
+        }
+        let best_name = best?;
+        let dir = self.by_name.get(best_name)?;
+        let subpath = &specifier[best_name.len()..];
+        Some(Path::new(dir).join(subpath.trim_start_matches('/')))
+    }
+}
+
 fn resolve_js_ts_file_imports(
     conn: &Connection,
     project_path: &Path,
 ) -> Result<ImportResolutionStats, Box<dyn std::error::Error>> {
     let aliases = load_ts_path_aliases(project_path);
+    let workspace_packages = load_workspace_packages(project_path);
     let refs = load_import_refs(conn)?;
     let mut stats = ImportResolutionStats::default();
     let mut resolved_ids = Vec::new();
@@ -1370,10 +1452,20 @@ fn resolve_js_ts_file_imports(
         }
 
         let specifier = reference.reference_name.as_str();
-        let target = if is_relative_import_specifier(specifier) {
-            resolve_relative_import(project_path, &reference.file_path, specifier)
+        let target = if let Some((source, target)) = resolve_import_target(
+            project_path,
+            &aliases,
+            &workspace_packages,
+            &reference.file_path,
+            specifier,
+        ) {
+            (source, target)
         } else if aliases.matches(specifier) {
-            resolve_alias_import(project_path, &aliases, specifier)
+            (ImportTargetSourceKind::TsconfigPaths, None)
+        } else if matches_conventional_alias(specifier).is_some() {
+            (ImportTargetSourceKind::ConventionalAlias, None)
+        } else if workspace_packages.resolve_import(specifier).is_some() {
+            (ImportTargetSourceKind::WorkspacePackage, None)
         } else if looks_like_imported_binding(specifier) {
             stats.binding_fallback_refs += 1;
             continue;
@@ -1382,12 +1474,12 @@ fn resolve_js_ts_file_imports(
             continue;
         };
 
-        let Some(target_file_path) = target else {
-            stats.unresolved_fallback_refs += 1;
+        let Some(target_file_path) = target.1 else {
+            stats.record_unresolved_source(target.0);
             continue;
         };
         let Some(target_node_id) = find_file_node_id(conn, &target_file_path)? else {
-            stats.unresolved_fallback_refs += 1;
+            stats.record_unresolved_source(target.0);
             continue;
         };
 
@@ -1395,6 +1487,7 @@ fn resolve_js_ts_file_imports(
             stats.edges_created += 1;
         }
         stats.resolved_refs += 1;
+        stats.record_resolved_source(target.0);
         resolved_ids.push(reference.id);
     }
 
@@ -1515,6 +1608,156 @@ fn split_alias_pattern(pattern: &str) -> Option<(String, String)> {
         Some((prefix, suffix)) => Some((prefix.to_string(), suffix.to_string())),
         None => Some((pattern.to_string(), String::new())),
     }
+}
+
+fn load_workspace_packages(project_path: &Path) -> WorkspacePackages {
+    let mut packages = WorkspacePackages::default();
+    for pattern in read_workspace_globs(project_path) {
+        for dir in expand_workspace_glob(project_path, &pattern) {
+            let package_json = project_path.join(&dir).join("package.json");
+            let Ok(content) = fs::read_to_string(package_json) else {
+                continue;
+            };
+            let Ok(parsed) = serde_json::from_str::<Value>(&content) else {
+                continue;
+            };
+            let Some(name) = parsed.get("name").and_then(Value::as_str) else {
+                continue;
+            };
+            if !name.is_empty() {
+                packages
+                    .by_name
+                    .entry(name.to_string())
+                    .or_insert_with(|| dir.clone());
+            }
+        }
+    }
+    packages
+}
+
+fn read_workspace_globs(project_path: &Path) -> Vec<String> {
+    let mut globs = Vec::new();
+    if let Ok(content) = fs::read_to_string(project_path.join("package.json")) {
+        if let Ok(parsed) = serde_json::from_str::<Value>(&content) {
+            if let Some(workspaces) = parsed.get("workspaces") {
+                if let Some(items) = workspaces.as_array() {
+                    globs.extend(items.iter().filter_map(Value::as_str).map(str::to_string));
+                } else if let Some(items) = workspaces.get("packages").and_then(Value::as_array) {
+                    globs.extend(items.iter().filter_map(Value::as_str).map(str::to_string));
+                }
+            }
+        }
+    }
+    if let Ok(content) = fs::read_to_string(project_path.join("pnpm-workspace.yaml")) {
+        globs.extend(parse_pnpm_workspace_packages(&content));
+    }
+    globs
+}
+
+fn parse_pnpm_workspace_packages(content: &str) -> Vec<String> {
+    let mut packages = Vec::new();
+    let mut in_packages = false;
+    for line in content.lines() {
+        if line.trim_start().starts_with("packages:") {
+            in_packages = true;
+            continue;
+        }
+        if !in_packages {
+            continue;
+        }
+        let trimmed = line.trim();
+        if let Some(item) = trimmed.strip_prefix("- ") {
+            packages.push(item.trim_matches('"').trim_matches('\'').to_string());
+            continue;
+        }
+        if !trimmed.is_empty() && !line.starts_with(char::is_whitespace) {
+            in_packages = false;
+        }
+    }
+    packages
+}
+
+fn expand_workspace_glob(project_path: &Path, pattern: &str) -> Vec<String> {
+    let normalized = pattern.replace('\\', "/").trim_end_matches('/').to_string();
+    let Some(star_index) = normalized.find('*') else {
+        return vec![normalized];
+    };
+    let base = normalized[..star_index].trim_end_matches('/');
+    let Ok(entries) = fs::read_dir(project_path.join(base)) else {
+        return Vec::new();
+    };
+    let mut dirs = Vec::new();
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if !file_type.is_dir() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') || name == "node_modules" {
+            continue;
+        }
+        dirs.push(if base.is_empty() {
+            name
+        } else {
+            format!("{}/{}", base, name)
+        });
+    }
+    dirs.sort();
+    dirs
+}
+
+fn resolve_import_target(
+    project_path: &Path,
+    aliases: &TsPathAliases,
+    workspace_packages: &WorkspacePackages,
+    from_file_path: &str,
+    specifier: &str,
+) -> Option<(ImportTargetSourceKind, Option<String>)> {
+    if is_relative_import_specifier(specifier) {
+        return Some((
+            ImportTargetSourceKind::Relative,
+            resolve_relative_import(project_path, from_file_path, specifier),
+        ));
+    }
+    if aliases.matches(specifier) {
+        return Some((
+            ImportTargetSourceKind::TsconfigPaths,
+            resolve_alias_import(project_path, aliases, specifier),
+        ));
+    }
+    if let Some(base) = resolve_conventional_alias(specifier) {
+        return Some((
+            ImportTargetSourceKind::ConventionalAlias,
+            resolve_import_candidate(project_path, &project_path.join(base)),
+        ));
+    }
+    if let Some(base) = workspace_packages.resolve_import(specifier) {
+        return Some((
+            ImportTargetSourceKind::WorkspacePackage,
+            resolve_import_candidate(project_path, &project_path.join(base)),
+        ));
+    }
+    None
+}
+
+fn resolve_conventional_alias(specifier: &str) -> Option<String> {
+    matches_conventional_alias(specifier)
+        .map(|(alias, replacement)| format!("{}{}", replacement, &specifier[alias.len()..]))
+}
+
+fn matches_conventional_alias(specifier: &str) -> Option<(&'static str, &'static str)> {
+    [
+        ("@/", "src/"),
+        ("~/", "src/"),
+        ("@src/", "src/"),
+        ("src/", "src/"),
+        ("@app/", "app/"),
+        ("app/", "app/"),
+    ]
+    .into_iter()
+    .find(|(alias, _)| specifier.starts_with(alias))
 }
 
 fn resolve_relative_import(
@@ -3776,7 +4019,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -3791,6 +4034,21 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.import_path_alias_resolution_ms,
         result.profile.import_path_alias_resolved_refs,
         result.profile.import_path_alias_fallback_refs,
+        result.profile.import_path_alias_binding_fallback_refs,
+        result.profile.import_path_alias_unsupported_fallback_refs,
+        result.profile.import_path_alias_unresolved_fallback_refs,
+        result.profile.import_path_alias_relative_resolved_refs,
+        result.profile.import_path_alias_tsconfig_resolved_refs,
+        result
+            .profile
+            .import_path_alias_conventional_alias_resolved_refs,
+        result.profile.import_path_alias_workspace_resolved_refs,
+        result.profile.import_path_alias_relative_fallback_refs,
+        result.profile.import_path_alias_tsconfig_fallback_refs,
+        result
+            .profile
+            .import_path_alias_conventional_alias_fallback_refs,
+        result.profile.import_path_alias_workspace_fallback_refs,
         result.profile.import_path_alias_binding_fallback_refs,
         result.profile.import_path_alias_unsupported_fallback_refs,
         result.profile.import_path_alias_unresolved_fallback_refs,
@@ -4298,7 +4556,7 @@ mod tests {
 
         assert_eq!(
             result_json(&result),
-            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
+            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"importPathAliasResolvedBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0},\"importPathAliasFallbackBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0,\"binding\":0,\"unsupported\":0,\"unresolved\":0},\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
         );
     }
 
@@ -4891,6 +5149,208 @@ mod tests {
             assert!(count_kind("class") >= 1);
             assert!(count_kind("method") >= 1);
         }
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_resolves_js_ts_alias_and_workspace_file_import_targets() {
+        let dir = temp_dir("file-import-target-parity");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::create_dir_all(dir.join("app")).unwrap();
+        fs::create_dir_all(dir.join("packages/ui/widgets")).unwrap();
+        fs::create_dir_all(dir.join("packages/data")).unwrap();
+        fs::create_dir_all(dir.join("tools/logger")).unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"compilerOptions":{"baseUrl":".","paths":{"@lib/*":["src/lib/*"]}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"root","private":true,"workspaces":["packages/*"]}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("pnpm-workspace.yaml"),
+            "packages:\n  - 'tools/*'\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/ui/package.json"),
+            r#"{"name":"@scope/ui","version":"1.0.0"}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/data/package.json"),
+            r#"{"name":"@scope/ui/data","version":"1.0.0"}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("tools/logger/package.json"),
+            r#"{"name":"@tools/logger","version":"1.0.0"}"#,
+        )
+        .unwrap();
+        fs::create_dir_all(dir.join("src/lib")).unwrap();
+        fs::write(dir.join("src/rel.ts"), "export const rel = 1;\n").unwrap();
+        fs::write(dir.join("src/lib/path.ts"), "export const pathValue = 1;\n").unwrap();
+        fs::write(dir.join("src/alias.ts"), "export const aliasValue = 1;\n").unwrap();
+        fs::write(
+            dir.join("app/service.ts"),
+            "export const serviceValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/ui/widgets/index.ts"),
+            "export const widgetValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/data/index.ts"),
+            "export const dataValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("tools/logger/index.ts"),
+            "export const loggerValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { rel } from './rel';",
+                "import { pathValue } from '@lib/path';",
+                "import { aliasValue } from '@/alias';",
+                "import { serviceValue } from 'app/service';",
+                "import { widgetValue } from '@scope/ui/widgets';",
+                "import { dataValue } from '@scope/ui/data';",
+                "import { loggerValue } from '@tools/logger';",
+                "export const total = rel + pathValue + aliasValue + serviceValue + widgetValue + dataValue + loggerValue;",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.profile.import_path_alias_resolved_refs, 7);
+        assert_eq!(result.profile.import_path_alias_relative_resolved_refs, 1);
+        assert_eq!(result.profile.import_path_alias_tsconfig_resolved_refs, 1);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_conventional_alias_resolved_refs,
+            2
+        );
+        assert_eq!(result.profile.import_path_alias_workspace_resolved_refs, 3);
+        assert_eq!(result.profile.import_path_alias_unresolved_fallback_refs, 0);
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let mut stmt = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap();
+        let targets = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            targets,
+            vec![
+                "app/service.ts",
+                "packages/data/index.ts",
+                "packages/ui/widgets/index.ts",
+                "src/alias.ts",
+                "src/lib/path.ts",
+                "src/rel.ts",
+                "tools/logger/index.ts",
+            ]
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_workspace_package_loader_handles_manifests_and_longest_match() {
+        let dir = temp_dir("workspace-package-loader");
+        assert!(load_workspace_packages(&dir).by_name.is_empty());
+        fs::write(dir.join("package.json"), "{not-json").unwrap();
+        assert!(load_workspace_packages(&dir).by_name.is_empty());
+
+        fs::create_dir_all(dir.join("packages/ui-core")).unwrap();
+        fs::create_dir_all(dir.join("packages/ui-core/button")).unwrap();
+        fs::create_dir_all(dir.join("apps/web")).unwrap();
+        fs::create_dir_all(dir.join("tools/logger")).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"workspaces":{"packages":["packages/*","apps/*"]}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("pnpm-workspace.yaml"),
+            "packages:\n  - 'tools/*'\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/ui-core/package.json"),
+            r#"{"name":"@scope/ui"}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/ui-core/button/package.json"),
+            r#"{"name":"@scope/ui/button"}"#,
+        )
+        .unwrap();
+        fs::write(dir.join("apps/web/package.json"), r#"{"name":"web"}"#).unwrap();
+        fs::write(
+            dir.join("tools/logger/package.json"),
+            r#"{"name":"@tools/logger"}"#,
+        )
+        .unwrap();
+
+        let packages = load_workspace_packages(&dir);
+
+        assert_eq!(
+            packages.by_name.get("@scope/ui").map(String::as_str),
+            Some("packages/ui-core")
+        );
+        assert_eq!(
+            packages.by_name.get("web").map(String::as_str),
+            Some("apps/web")
+        );
+        assert_eq!(
+            packages.by_name.get("@tools/logger").map(String::as_str),
+            Some("tools/logger")
+        );
+        assert_eq!(
+            packages.resolve_import("@scope/ui/button/icon"),
+            Some(PathBuf::from("packages/ui-core/button/icon"))
+        );
+
         fs::remove_dir_all(dir).unwrap();
     }
 
