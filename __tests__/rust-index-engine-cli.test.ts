@@ -31,10 +31,18 @@ const FINALIZATION_DIAGNOSTIC_BUCKETS = [
   'candidateReplayMismatchRefs',
   'edgeMaterializationMs',
   'edgeMaterializationDbMs',
+  'edgeEndpointValidationDbMs',
+  'edgeInsertCount',
   'edgeWriteMs',
   'edgeWriteDbMs',
   'unresolvedCleanupMs',
   'unresolvedCleanupDbMs',
+  'resolvedCleanupMs',
+  'resolvedCleanupDbMs',
+  'resolvedCleanupRowCount',
+  'intentionallyUnresolvedCleanupMs',
+  'intentionallyUnresolvedCleanupDbMs',
+  'intentionallyUnresolvedCleanupRowCount',
 ] as const;
 
 function makeTempProject(): string {

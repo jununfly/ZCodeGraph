@@ -1750,6 +1750,40 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
     deleteMany(uniqueRowids);
   }
 
+  deleteUnresolvedReferencesByRowIdRanges(rowids: number[]): void {
+    if (rowids.length === 0) return;
+    const uniqueRowids = [...new Set(rowids.filter((rowid) => Number.isInteger(rowid) && rowid > 0))]
+      .sort((a, b) => a - b);
+    if (uniqueRowids.length === 0) return;
+
+    const ranges: Array<{ start: number; end: number }> = [];
+    let start = uniqueRowids[0]!;
+    let end = start;
+    for (const rowid of uniqueRowids.slice(1)) {
+      if (rowid === end + 1) {
+        end = rowid;
+        continue;
+      }
+      ranges.push({ start, end });
+      start = rowid;
+      end = rowid;
+    }
+    ranges.push({ start, end });
+
+    const deleteSingle = this.db.prepare('DELETE FROM unresolved_refs WHERE rowid = ?');
+    const deleteRange = this.db.prepare('DELETE FROM unresolved_refs WHERE rowid BETWEEN ? AND ?');
+    const deleteMany = this.db.transaction((items: typeof ranges) => {
+      for (const range of items) {
+        if (range.start === range.end) {
+          deleteSingle.run(range.start);
+        } else {
+          deleteRange.run(range.start, range.end);
+        }
+      }
+    });
+    deleteMany(ranges);
+  }
+
   // ===========================================================================
   // Statistics
   // ===========================================================================

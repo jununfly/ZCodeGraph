@@ -218,6 +218,128 @@ describe('Resolution Module', () => {
     });
   });
 
+  describe('ReferenceResolver unresolved cleanup contract', () => {
+    function cleanupNode(id: string, name = id): Node {
+      return {
+        id,
+        kind: 'function',
+        name,
+        qualifiedName: name,
+        filePath: `${name}.ts`,
+        language: 'typescript',
+        startLine: 1,
+        endLine: 1,
+        startColumn: 0,
+        endColumn: 1,
+        updatedAt: Date.now(),
+      };
+    }
+
+    function withCleanupDb(run: (queries: QueryBuilder) => void | Promise<void>): Promise<void> | void {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-cleanup-contract-'));
+      const db = DatabaseConnection.initialize(path.join(dir, 'test.db'));
+      const queries = new QueryBuilder(db.getDb());
+      const finish = () => {
+        db.close();
+        fs.rmSync(dir, { recursive: true, force: true });
+      };
+      try {
+        const result = run(queries);
+        if (result && typeof (result as Promise<void>).then === 'function') {
+          return (result as Promise<void>).finally(finish);
+        }
+        finish();
+      } catch (error) {
+        finish();
+        throw error;
+      }
+    }
+
+    it('non-batched persistence deletes resolved refs and leaves unresolved refs in place', () => withCleanupDb((queries) => {
+      const source = cleanupNode('source', 'source');
+      const target = cleanupNode('target', 'target');
+      queries.insertNodes([source, target]);
+      queries.insertUnresolvedRefsBatch([
+        {
+          fromNodeId: source.id,
+          referenceName: 'target',
+          referenceKind: 'calls',
+          line: 1,
+          column: 1,
+          filePath: source.filePath,
+          language: 'typescript',
+        },
+        {
+          fromNodeId: source.id,
+          referenceName: 'missing',
+          referenceKind: 'calls',
+          line: 2,
+          column: 1,
+          filePath: source.filePath,
+          language: 'typescript',
+        },
+      ]);
+
+      const resolver = new ReferenceResolver(tempDir, queries);
+      const batch = queries.getUnresolvedReferencesBatch(0, 10);
+      const result = resolver.resolveAndPersist(batch);
+
+      expect(result.resolved).toHaveLength(1);
+      expect(result.unresolved).toHaveLength(1);
+      expect(queries.getUnresolvedReferences()).toMatchObject([
+        {
+          fromNodeId: source.id,
+          referenceName: 'missing',
+          referenceKind: 'calls',
+          line: 2,
+        },
+      ]);
+      expect(result.stats.timings).toMatchObject({
+        resolvedCleanupRowCount: 1,
+        intentionallyUnresolvedCleanupRowCount: 0,
+      });
+    }));
+
+    it('batched persistence cleans resolved and intentionally unresolved refs across rowid chunks', async () => {
+      await withCleanupDb(async (queries) => {
+        const source = cleanupNode('source', 'source');
+        const target = cleanupNode('target', 'target');
+        queries.insertNodes([source, target]);
+        queries.insertUnresolvedRefsBatch([
+          ...Array.from({ length: 505 }, (_, index) => ({
+            fromNodeId: source.id,
+            referenceName: 'target',
+            referenceKind: 'calls' as const,
+            line: index + 1,
+            column: 1,
+            filePath: source.filePath,
+            language: 'typescript' as const,
+          })),
+          {
+            fromNodeId: source.id,
+            referenceName: 'missing',
+            referenceKind: 'calls' as const,
+            line: 900,
+            column: 1,
+            filePath: source.filePath,
+            language: 'typescript' as const,
+          },
+        ]);
+
+        const resolver = new ReferenceResolver(tempDir, queries);
+        const result = await resolver.resolveAndPersistBatched(undefined, 600);
+
+        expect(result.stats.resolved).toBe(505);
+        expect(result.stats.unresolved).toBe(1);
+        expect(queries.getUnresolvedReferences()).toEqual([]);
+        expect(result.stats.timings).toMatchObject({
+          resolvedCleanupRowCount: 505,
+          intentionallyUnresolvedCleanupRowCount: 1,
+        });
+      });
+    });
+  });
+
   describe('Name Matcher', () => {
     it('should match exact name references', () => {
       // Create a mock context

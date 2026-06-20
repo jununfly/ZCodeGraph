@@ -84,10 +84,18 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     candidateReplayMismatchSamples: [],
     edgeMaterializationMs: 0,
     edgeMaterializationDbMs: 0,
+    edgeEndpointValidationDbMs: 0,
+    edgeInsertCount: 0,
     edgeWriteMs: 0,
     edgeWriteDbMs: 0,
     unresolvedCleanupMs: 0,
     unresolvedCleanupDbMs: 0,
+    resolvedCleanupMs: 0,
+    resolvedCleanupDbMs: 0,
+    resolvedCleanupRowCount: 0,
+    intentionallyUnresolvedCleanupMs: 0,
+    intentionallyUnresolvedCleanupDbMs: 0,
+    intentionallyUnresolvedCleanupRowCount: 0,
     otherResolutionMs: 0,
     dynamicDispatchSynthesisMs: 0,
   };
@@ -1207,11 +1215,15 @@ export class ReferenceResolver {
     addElapsed(result.stats.timings, 'databaseAccessMs', persistStarted);
     addElapsed(result.stats.timings, 'edgeMaterializationMs', persistStarted);
     addElapsed(result.stats.timings, 'edgeMaterializationDbMs', persistStarted);
+    addElapsed(result.stats.timings, 'edgeEndpointValidationDbMs', persistStarted);
 
     // Insert edges into database
     if (edges.length > 0) {
       const writeStarted = Date.now();
       this.queries.insertValidatedEdges(edges);
+      if (result.stats.timings) {
+        result.stats.timings.edgeInsertCount = (result.stats.timings.edgeInsertCount ?? 0) + edges.length;
+      }
       addElapsed(result.stats.timings, 'databaseAccessMs', writeStarted);
       addElapsed(result.stats.timings, 'edgeWriteMs', writeStarted);
       addElapsed(result.stats.timings, 'edgeWriteDbMs', writeStarted);
@@ -1221,9 +1233,15 @@ export class ReferenceResolver {
     if (result.resolved.length > 0) {
       const cleanupStarted = Date.now();
       this.deleteResolvedOriginals(result.resolved.map((r) => r.original));
+      if (result.stats.timings) {
+        result.stats.timings.resolvedCleanupRowCount =
+          (result.stats.timings.resolvedCleanupRowCount ?? 0) + result.resolved.length;
+      }
       addElapsed(result.stats.timings, 'databaseAccessMs', cleanupStarted);
       addElapsed(result.stats.timings, 'unresolvedCleanupMs', cleanupStarted);
       addElapsed(result.stats.timings, 'unresolvedCleanupDbMs', cleanupStarted);
+      addElapsed(result.stats.timings, 'resolvedCleanupMs', cleanupStarted);
+      addElapsed(result.stats.timings, 'resolvedCleanupDbMs', cleanupStarted);
     }
 
     return result;
@@ -1290,9 +1308,11 @@ export class ReferenceResolver {
       addElapsed(aggregateStats.timings, 'databaseAccessMs', persistStarted);
       addElapsed(aggregateStats.timings, 'edgeMaterializationMs', persistStarted);
       addElapsed(aggregateStats.timings, 'edgeMaterializationDbMs', persistStarted);
+      addElapsed(aggregateStats.timings, 'edgeEndpointValidationDbMs', persistStarted);
       if (edges.length > 0) {
         const writeStarted = Date.now();
         this.queries.insertValidatedEdges(edges);
+        aggregateStats.timings.edgeInsertCount = (aggregateStats.timings.edgeInsertCount ?? 0) + edges.length;
         addElapsed(aggregateStats.timings, 'databaseAccessMs', writeStarted);
         addElapsed(aggregateStats.timings, 'edgeWriteMs', writeStarted);
         addElapsed(aggregateStats.timings, 'edgeWriteDbMs', writeStarted);
@@ -1301,16 +1321,28 @@ export class ReferenceResolver {
       // Clean up every processed ref so it does not appear in the next batch.
       // Resolved and intentionally-unresolved refs are both terminal for this
       // pass, so delete them in one rowid batch instead of two transactions.
-      const processedRefs = [
-        ...result.resolved.map((r) => r.original),
-        ...result.unresolved,
-      ];
-      if (processedRefs.length > 0) {
+      const resolvedRefs = result.resolved.map((r) => r.original);
+      if (resolvedRefs.length > 0) {
         const cleanupStarted = Date.now();
-        this.deleteResolvedOriginals(processedRefs);
+      this.deleteResolvedOriginals(resolvedRefs, { preferRowIdRanges: true });
+        aggregateStats.timings.resolvedCleanupRowCount =
+          (aggregateStats.timings.resolvedCleanupRowCount ?? 0) + resolvedRefs.length;
         addElapsed(aggregateStats.timings, 'databaseAccessMs', cleanupStarted);
         addElapsed(aggregateStats.timings, 'unresolvedCleanupMs', cleanupStarted);
         addElapsed(aggregateStats.timings, 'unresolvedCleanupDbMs', cleanupStarted);
+        addElapsed(aggregateStats.timings, 'resolvedCleanupMs', cleanupStarted);
+        addElapsed(aggregateStats.timings, 'resolvedCleanupDbMs', cleanupStarted);
+      }
+      if (result.unresolved.length > 0) {
+        const cleanupStarted = Date.now();
+        this.deleteResolvedOriginals(result.unresolved);
+        aggregateStats.timings.intentionallyUnresolvedCleanupRowCount =
+          (aggregateStats.timings.intentionallyUnresolvedCleanupRowCount ?? 0) + result.unresolved.length;
+        addElapsed(aggregateStats.timings, 'databaseAccessMs', cleanupStarted);
+        addElapsed(aggregateStats.timings, 'unresolvedCleanupMs', cleanupStarted);
+        addElapsed(aggregateStats.timings, 'unresolvedCleanupDbMs', cleanupStarted);
+        addElapsed(aggregateStats.timings, 'intentionallyUnresolvedCleanupMs', cleanupStarted);
+        addElapsed(aggregateStats.timings, 'intentionallyUnresolvedCleanupDbMs', cleanupStarted);
       }
 
       // Aggregate stats
@@ -1354,9 +1386,13 @@ export class ReferenceResolver {
     };
   }
 
-  private deleteResolvedOriginals(refs: UnresolvedRef[]): void {
+  private deleteResolvedOriginals(refs: UnresolvedRef[], options: { preferRowIdRanges?: boolean } = {}): void {
     const rowids = refs.flatMap((ref) => ref.rowid === undefined ? [] : [ref.rowid]);
     if (rowids.length === refs.length) {
+      if (options.preferRowIdRanges) {
+        this.queries.deleteUnresolvedReferencesByRowIdRanges(rowids);
+        return;
+      }
       this.queries.deleteUnresolvedReferencesByRowIds(rowids);
       return;
     }

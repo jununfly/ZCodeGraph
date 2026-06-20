@@ -89,6 +89,9 @@ function makeBatchedQueries(nodes: Node[], unresolved: UnresolvedReference[]): Q
     deleteUnresolvedReferencesByRowIds: (rowids: number[]) => {
       queries.__unresolved = queries.__unresolved!.filter((item) => !rowids.includes(item.rowid!));
     },
+    deleteUnresolvedReferencesByRowIdRanges: (rowids: number[]) => {
+      queries.__unresolved = queries.__unresolved!.filter((item) => !rowids.includes(item.rowid!));
+    },
     deleteSpecificResolvedReferences: () => {
       queries.__unresolved = [];
     },

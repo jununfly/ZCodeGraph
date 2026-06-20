@@ -121,10 +121,18 @@ export interface ResolutionResult {
       candidateProtocol?: CandidateProtocolDiagnostics;
       edgeMaterializationMs?: number;
       edgeMaterializationDbMs?: number;
+      edgeEndpointValidationDbMs?: number;
+      edgeInsertCount?: number;
       edgeWriteMs?: number;
       edgeWriteDbMs?: number;
       unresolvedCleanupMs?: number;
       unresolvedCleanupDbMs?: number;
+      resolvedCleanupMs?: number;
+      resolvedCleanupDbMs?: number;
+      resolvedCleanupRowCount?: number;
+      intentionallyUnresolvedCleanupMs?: number;
+      intentionallyUnresolvedCleanupDbMs?: number;
+      intentionallyUnresolvedCleanupRowCount?: number;
       otherResolutionMs?: number;
       dynamicDispatchSynthesisMs?: number;
     };

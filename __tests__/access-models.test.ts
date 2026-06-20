@@ -169,6 +169,7 @@ describe('MaintenanceAccessModel interface', () => {
     expect(typeof model.deleteResolvedReferences).toBe('function');
     expect(typeof model.deleteSpecificResolvedReferences).toBe('function');
     expect(typeof model.deleteUnresolvedReferencesByRowIds).toBe('function');
+    expect(typeof model.deleteUnresolvedReferencesByRowIdRanges).toBe('function');
     expect(typeof model.setMetadata).toBe('function');
     expect(typeof model.clear).toBe('function');
   });
@@ -331,6 +332,33 @@ describe('MaintenanceAccessModel interface', () => {
         line: 2,
         column: 1,
       },
+    ]);
+  });
+
+  it('deletes unresolved-reference row ids by compact ranges without crossing gaps', () => {
+    const model: MaintenanceAccessModel & ResolutionAccessModel = qb;
+    model.insertNode(testNode('node-a'));
+    model.insertUnresolvedRefsBatch(Array.from({ length: 6 }, (_, index) => ({
+      fromNodeId: 'node-a',
+      referenceName: `target-${index + 1}`,
+      referenceKind: 'calls' as const,
+      line: index + 1,
+      column: 1,
+      filePath: 'a.ts',
+      language: 'typescript' as const,
+    })));
+
+    const batch = model.getUnresolvedReferencesBatch(0, 6);
+    model.deleteUnresolvedReferencesByRowIdRanges([
+      batch[0]!.rowid!,
+      batch[1]!.rowid!,
+      batch[3]!.rowid!,
+      batch[4]!.rowid!,
+    ]);
+
+    expect(model.getUnresolvedReferences().map((ref) => ref.referenceName)).toEqual([
+      'target-3',
+      'target-6',
     ]);
   });
 });

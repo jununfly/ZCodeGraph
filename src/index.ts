@@ -957,10 +957,18 @@ export class CodeGraph {
         candidateProtocol: CandidateProtocolDiagnostics;
         edgeMaterializationMs: number;
         edgeMaterializationDbMs: number;
+        edgeEndpointValidationDbMs: number;
+        edgeInsertCount: number;
         edgeWriteMs: number;
         edgeWriteDbMs: number;
         unresolvedCleanupMs: number;
         unresolvedCleanupDbMs: number;
+        resolvedCleanupMs: number;
+        resolvedCleanupDbMs: number;
+        resolvedCleanupRowCount: number;
+        intentionallyUnresolvedCleanupMs: number;
+        intentionallyUnresolvedCleanupDbMs: number;
+        intentionallyUnresolvedCleanupRowCount: number;
         otherResolutionMs: number;
       };
       dynamicDispatchSynthesisMs: number;
@@ -1113,10 +1121,18 @@ export class CodeGraph {
             } as CandidateProtocolDiagnostics,
             edgeMaterializationMs: 0,
             edgeMaterializationDbMs: 0,
+            edgeEndpointValidationDbMs: 0,
+            edgeInsertCount: 0,
             edgeWriteMs: 0,
             edgeWriteDbMs: 0,
             unresolvedCleanupMs: 0,
             unresolvedCleanupDbMs: 0,
+            resolvedCleanupMs: 0,
+            resolvedCleanupDbMs: 0,
+            resolvedCleanupRowCount: 0,
+            intentionallyUnresolvedCleanupMs: 0,
+            intentionallyUnresolvedCleanupDbMs: 0,
+            intentionallyUnresolvedCleanupRowCount: 0,
             otherResolutionMs: 0,
           },
           dynamicDispatchSynthesisMs: 0,
@@ -1242,10 +1258,18 @@ export class CodeGraph {
           candidateProtocol: resolutionTimings?.candidateProtocol ?? profile.referenceResolutionBreakdown.candidateProtocol,
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
           edgeMaterializationDbMs: resolutionTimings?.edgeMaterializationDbMs ?? 0,
+          edgeEndpointValidationDbMs: resolutionTimings?.edgeEndpointValidationDbMs ?? 0,
+          edgeInsertCount: resolutionTimings?.edgeInsertCount ?? 0,
           edgeWriteMs: resolutionTimings?.edgeWriteMs ?? 0,
           edgeWriteDbMs: resolutionTimings?.edgeWriteDbMs ?? 0,
           unresolvedCleanupMs: resolutionTimings?.unresolvedCleanupMs ?? 0,
           unresolvedCleanupDbMs: resolutionTimings?.unresolvedCleanupDbMs ?? 0,
+          resolvedCleanupMs: resolutionTimings?.resolvedCleanupMs ?? 0,
+          resolvedCleanupDbMs: resolutionTimings?.resolvedCleanupDbMs ?? 0,
+          resolvedCleanupRowCount: resolutionTimings?.resolvedCleanupRowCount ?? 0,
+          intentionallyUnresolvedCleanupMs: resolutionTimings?.intentionallyUnresolvedCleanupMs ?? 0,
+          intentionallyUnresolvedCleanupDbMs: resolutionTimings?.intentionallyUnresolvedCleanupDbMs ?? 0,
+          intentionallyUnresolvedCleanupRowCount: resolutionTimings?.intentionallyUnresolvedCleanupRowCount ?? 0,
           otherResolutionMs: resolutionTimings?.otherResolutionMs ?? 0,
         };
         profile.dynamicDispatchSynthesisMs = resolutionTimings?.dynamicDispatchSynthesisMs ?? 0;
