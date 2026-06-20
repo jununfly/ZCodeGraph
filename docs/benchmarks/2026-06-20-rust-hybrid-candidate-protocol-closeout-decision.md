@@ -101,9 +101,58 @@ The protocol slice did not change graph shape or fallback taxonomy on this targe
 
 Required corpus path: `/private/tmp/codegraph-corpus/vscode-sparse`.
 
-Outcome: `needs human setup`.
+Outcome: completed after human setup hydrated the sparse checkout.
 
-Reason: the path is not currently a Git checkout (`git -C /private/tmp/codegraph-corpus/vscode-sparse rev-parse --is-inside-work-tree` failed with `fatal: not a git repository`). Per issue #305, no new clone was attempted.
+Checkout:
+
+- Git commit: `4a6e32fc1f0`
+- Sparse paths: `src/vs/workbench`, `src/vs/platform`, `src/vs/base`
+- Hydrated JS/TS files under `src/vs`: 5,780
+
+Artifacts:
+
+- `docs/benchmarks/2026-06-20-candidate-protocol-after-vscode-sparse.profile.json`
+- `docs/benchmarks/2026-06-20-candidate-protocol-after-vscode-sparse.status.json`
+
+Command:
+
+```bash
+CODEGRAPH_ALLOW_UNSAFE_NODE=1 CODEGRAPH_NO_DAEMON=1 CODEGRAPH_NO_RELAUNCH=1 \
+  ZCODEGRAPH_CANDIDATE_PROTOCOL=1 ZCODEGRAPH_CANDIDATE_PROTOCOL_EQUIVALENCE=1 \
+  ZCODEGRAPH_INDEX_PROFILE_OUT=docs/benchmarks/2026-06-20-candidate-protocol-after-vscode-sparse.profile.json \
+  /usr/bin/time -l node dist/bin/zcodegraph.js index /private/tmp/codegraph-corpus/vscode-sparse --force --quiet --engine rust-hybrid
+```
+
+VS Code sparse profile summary:
+
+| Metric | Value |
+| --- | ---: |
+| Wall time | 215.78s |
+| Max RSS | 1,749,303,296 bytes |
+| Peak memory footprint | 2,998,885,984 bytes |
+| `fileCount` | 5,780 |
+| `nodeCount` | 326,830 |
+| `edgeCount` | 918,662 |
+| Hybrid fallback files | 290 |
+| Hybrid fallback state | degraded |
+| `finalize.fallbackTaxonomy.totalFallbacks` | 170,387 |
+| `candidateProtocol.lookupCount` | 1,609,764 |
+| `candidateProtocol.dbLookupCount` | 93,474 |
+| `candidateProtocol.cacheHitCount` | 768,746 |
+| `candidateProtocol.equivalenceComparedCount` | 1,609,764 |
+| `candidateProtocol.equivalenceMismatchCount` | 0 |
+| `candidateProtocol.candidateCount` | 255,322 |
+| `candidateLookupMs` | 78,958 |
+| `nameMatcherCandidateLookupDbMs` | 3,456 |
+| `databaseAccessMs` | 23,252 |
+| `perReferenceDisambiguationMs` | 19,246 |
+
+Interpretation:
+
+- The VS Code sparse evidence is now valid and replayable from the hydrated Git checkout.
+- Candidate protocol equivalence remained clean at large scale: 1,609,764 comparisons, 0 mismatches.
+- The run used equivalence double-read mode, so the wall-clock and lookup timing values are diagnostic overhead measurements, not a keep/no-go performance comparison.
+- The hybrid fallback state is degraded because 290 files still used TypeScript fallback; this does not invalidate the candidate protocol evidence because the protocol is intentionally over the unified graph after Rust writes and TypeScript fallback append.
 
 ## Closeout
 
