@@ -127,8 +127,10 @@ describe('candidate lookup/cache protocol', () => {
     ])).toEqual([
       { kind: 'ExactName', name: 'Other' },
       { kind: 'KnownNamePresence', name: 'Other' },
+      { kind: 'LowerName', lowerName: 'other' },
       { kind: 'ExactName', name: 'target' },
       { kind: 'KnownNamePresence', name: 'target' },
+      { kind: 'LowerName', lowerName: 'target' },
     ]);
   });
 
@@ -145,6 +147,7 @@ describe('candidate lookup/cache protocol', () => {
         results: [
           { kind: 'ExactName', name: 'target', candidateIds: ['target-id'] },
           { kind: 'KnownNamePresence', name: 'target', present: true },
+          { kind: 'LowerName', lowerName: 'target', candidateIds: ['target-id'] },
         ],
         diagnostics: {
           enabled: true,
@@ -152,8 +155,8 @@ describe('candidate lookup/cache protocol', () => {
           producerMs: 1,
           serializationMs: 1,
           subprocessMs: 1,
-          lookupCount: 2,
-          lookupShapeCounts: { ExactName: 1, LowerName: 0, QualifiedName: 0, FileNodes: 0, KnownNamePresence: 1 },
+          lookupCount: 3,
+          lookupShapeCounts: { ExactName: 1, LowerName: 1, QualifiedName: 0, FileNodes: 0, KnownNamePresence: 1 },
           comparedCount: 0,
           mismatchCount: 0,
           mismatchReasons: {},
@@ -191,8 +194,81 @@ describe('candidate lookup/cache protocol', () => {
       configured: true,
       source: 'local-config',
       active: true,
-      activeShapes: ['ExactName', 'KnownNamePresence'],
+      activeShapes: ['ExactName', 'KnownNamePresence', 'LowerName'],
       fallbackReason: null,
+    });
+  });
+
+  it('routes LowerName through an on-demand Rust producer lookup when the resolver asks for it', () => {
+    const target = node('target-id', { name: 'target' });
+    const lower = node('lower-id', { name: 'MixedCase' });
+    const producerLookups: string[] = [];
+    const provider = new CandidateProtocolProvider({
+      enabled: true,
+      compareWithBaseline: true,
+      indexPath: '/tmp/zcodegraph.db',
+      candidateProducerRouting: { enabled: true, source: 'local-config' },
+      rustProducerRunner: ({ lookups }) => {
+        producerLookups.push(...lookups.map((lookup) => lookup.kind === 'LowerName' ? `LowerName:${lookup.lowerName}` : lookup.kind));
+        return {
+          results: lookups.map((lookup) => {
+            if (lookup.kind === 'ExactName') return { kind: 'ExactName' as const, name: lookup.name, candidateIds: lookup.name === 'target' ? ['target-id'] : [] };
+            if (lookup.kind === 'KnownNamePresence') return { kind: 'KnownNamePresence' as const, name: lookup.name, present: lookup.name === 'target' };
+            if (lookup.kind === 'LowerName') return { kind: 'LowerName' as const, lowerName: lookup.lowerName, candidateIds: lookup.lowerName === 'mixedcase' ? ['lower-id'] : [] };
+            throw new Error(`unexpected lookup ${lookup.kind}`);
+          }),
+          diagnostics: {
+            enabled: true,
+            shadowMode: true,
+            producerMs: 1,
+            serializationMs: 1,
+            subprocessMs: 1,
+            lookupCount: lookups.length,
+            lookupShapeCounts: {
+              ExactName: lookups.filter((lookup) => lookup.kind === 'ExactName').length,
+              LowerName: lookups.filter((lookup) => lookup.kind === 'LowerName').length,
+              QualifiedName: 0,
+              FileNodes: 0,
+              KnownNamePresence: lookups.filter((lookup) => lookup.kind === 'KnownNamePresence').length,
+            },
+            comparedCount: 0,
+            mismatchCount: 0,
+            mismatchReasons: {},
+            mismatchSamples: [],
+            candidateCount: 1,
+            payloadBytes: 10,
+            disabledReason: null,
+            routing: {
+              configured: false,
+              source: 'missing-config',
+              active: false,
+              activeShapes: [],
+              fallbackReason: null,
+              mismatchCount: 0,
+              mismatchSamples: [],
+            },
+          },
+        };
+      },
+      caches: {
+        fileNodes: new LRUCache(100),
+        exactName: new LRUCache(100),
+        lowerName: new LRUCache(100),
+        qualifiedName: new LRUCache(100),
+      },
+      source: makeSource([target, lower]),
+    });
+
+    provider.prepareRustCandidateProducerRouting([{ referenceName: 'target' }]);
+
+    expect(provider.lookupNodes({ kind: 'LowerName', lowerName: 'mixedcase' }).map((item) => item.id)).toEqual(['lower-id']);
+    expect(provider.lookupNodes({ kind: 'LowerName', lowerName: 'mixedcase' }).map((item) => item.id)).toEqual(['lower-id']);
+    expect(producerLookups.filter((entry) => entry === 'LowerName:mixedcase')).toHaveLength(1);
+    expect(provider.snapshotDiagnostics().rustCandidateProducer.routing).toMatchObject({
+      active: true,
+      activeShapes: ['ExactName', 'KnownNamePresence', 'LowerName'],
+      onDemandLookupCount: 1,
+      onDemandCacheHitCount: 0,
     });
   });
 
@@ -207,6 +283,7 @@ describe('candidate lookup/cache protocol', () => {
         results: [
           { kind: 'ExactName', name: 'target', candidateIds: [] },
           { kind: 'KnownNamePresence', name: 'target', present: true },
+          { kind: 'LowerName', lowerName: 'target', candidateIds: ['target-id'] },
         ],
         diagnostics: {
           enabled: true,
@@ -214,8 +291,8 @@ describe('candidate lookup/cache protocol', () => {
           producerMs: 1,
           serializationMs: 1,
           subprocessMs: 1,
-          lookupCount: 2,
-          lookupShapeCounts: { ExactName: 1, LowerName: 0, QualifiedName: 0, FileNodes: 0, KnownNamePresence: 1 },
+          lookupCount: 3,
+          lookupShapeCounts: { ExactName: 1, LowerName: 1, QualifiedName: 0, FileNodes: 0, KnownNamePresence: 1 },
           comparedCount: 0,
           mismatchCount: 0,
           mismatchReasons: {},
@@ -250,6 +327,126 @@ describe('candidate lookup/cache protocol', () => {
       active: false,
       fallbackReason: 'candidate-id-mismatch',
       mismatchCount: 1,
+    });
+  });
+
+  it('fails closed to TypeScript baseline when on-demand LowerName output mismatches', () => {
+    const lower = node('lower-id', { name: 'MixedCase' });
+    const provider = new CandidateProtocolProvider({
+      enabled: true,
+      compareWithBaseline: true,
+      indexPath: '/tmp/zcodegraph.db',
+      candidateProducerRouting: { enabled: true, source: 'local-config' },
+      rustProducerRunner: ({ lookups }) => ({
+        results: lookups.map((lookup) => {
+          if (lookup.kind === 'ExactName') return { kind: 'ExactName' as const, name: lookup.name, candidateIds: [] };
+          if (lookup.kind === 'KnownNamePresence') return { kind: 'KnownNamePresence' as const, name: lookup.name, present: false };
+          if (lookup.kind === 'LowerName') return { kind: 'LowerName' as const, lowerName: lookup.lowerName, candidateIds: [] };
+          throw new Error(`unexpected lookup ${lookup.kind}`);
+        }),
+        diagnostics: {
+          enabled: true,
+          shadowMode: true,
+          producerMs: 1,
+          serializationMs: 1,
+          subprocessMs: 1,
+          lookupCount: lookups.length,
+          lookupShapeCounts: { ExactName: 0, LowerName: lookups.filter((lookup) => lookup.kind === 'LowerName').length, QualifiedName: 0, FileNodes: 0, KnownNamePresence: 0 },
+          comparedCount: 0,
+          mismatchCount: 0,
+          mismatchReasons: {},
+          mismatchSamples: [],
+          candidateCount: 0,
+          payloadBytes: 10,
+          disabledReason: null,
+          routing: {
+            configured: false,
+            source: 'missing-config',
+            active: false,
+            activeShapes: [],
+            fallbackReason: null,
+            mismatchCount: 0,
+            mismatchSamples: [],
+          },
+        },
+      }),
+      caches: {
+        fileNodes: new LRUCache(100),
+        exactName: new LRUCache(100),
+        lowerName: new LRUCache(100),
+        qualifiedName: new LRUCache(100),
+      },
+      source: makeSource([lower]),
+    });
+
+    provider.prepareRustCandidateProducerRouting([]);
+
+    expect(provider.lookupNodes({ kind: 'LowerName', lowerName: 'mixedcase' }).map((item) => item.id)).toEqual(['lower-id']);
+    expect(provider.snapshotDiagnostics().rustCandidateProducer.routing).toMatchObject({
+      active: false,
+      fallbackReason: 'candidate-id-mismatch',
+      mismatchCount: 1,
+      onDemandLookupCount: 1,
+    });
+  });
+
+  it('fails closed to TypeScript baseline when on-demand LowerName producer fails', () => {
+    const lower = node('lower-id', { name: 'MixedCase' });
+    const provider = new CandidateProtocolProvider({
+      enabled: true,
+      compareWithBaseline: true,
+      indexPath: '/tmp/zcodegraph.db',
+      candidateProducerRouting: { enabled: true, source: 'local-config' },
+      rustProducerRunner: ({ lookups }) => ({
+        results: lookups.some((lookup) => lookup.kind === 'LowerName')
+          ? []
+          : lookups.map((lookup) =>
+            lookup.kind === 'ExactName'
+              ? { kind: 'ExactName' as const, name: lookup.name, candidateIds: [] }
+              : { kind: 'KnownNamePresence' as const, name: lookup.name, present: false }
+          ),
+        diagnostics: {
+          enabled: true,
+          shadowMode: true,
+          producerMs: 1,
+          serializationMs: 1,
+          subprocessMs: 1,
+          lookupCount: lookups.length,
+          lookupShapeCounts: { ExactName: 0, LowerName: lookups.filter((lookup) => lookup.kind === 'LowerName').length, QualifiedName: 0, FileNodes: 0, KnownNamePresence: 0 },
+          comparedCount: 0,
+          mismatchCount: 0,
+          mismatchReasons: {},
+          mismatchSamples: [],
+          candidateCount: 0,
+          payloadBytes: 10,
+          disabledReason: lookups.some((lookup) => lookup.kind === 'LowerName') ? 'producer-subprocess-failed' : null,
+          routing: {
+            configured: false,
+            source: 'missing-config',
+            active: false,
+            activeShapes: [],
+            fallbackReason: null,
+            mismatchCount: 0,
+            mismatchSamples: [],
+          },
+        },
+      }),
+      caches: {
+        fileNodes: new LRUCache(100),
+        exactName: new LRUCache(100),
+        lowerName: new LRUCache(100),
+        qualifiedName: new LRUCache(100),
+      },
+      source: makeSource([lower]),
+    });
+
+    provider.prepareRustCandidateProducerRouting([]);
+
+    expect(provider.lookupNodes({ kind: 'LowerName', lowerName: 'mixedcase' }).map((item) => item.id)).toEqual(['lower-id']);
+    expect(provider.snapshotDiagnostics().rustCandidateProducer.routing).toMatchObject({
+      active: false,
+      fallbackReason: 'producer-subprocess-failed',
+      onDemandLookupCount: 1,
     });
   });
 });

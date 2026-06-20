@@ -50,6 +50,7 @@ export interface RustReadinessDiagnostics {
     candidateProducerRouting: {
       enabled: boolean;
       source: 'missing-config' | 'local-config' | 'invalid-local-config';
+      invalidReason?: string;
     };
   };
 }
@@ -261,6 +262,7 @@ export function getRustReadinessDiagnostics(
       candidateProducerRouting: {
         enabled: candidateProducerRouting.enabled,
         source: candidateProducerRouting.source,
+        invalidReason: candidateProducerRouting.invalidReason,
       },
     },
   };

@@ -1,0 +1,218 @@
+{
+  "rustCore": {
+    "sourceScanMs": 2,
+    "parseExtractionMs": 1158,
+    "sqliteWriteMs": 630,
+    "importPathAliasResolutionMs": 85,
+    "importPathAliasResolvedRefs": 653,
+    "importPathAliasFallbackRefs": 2524,
+    "importPathAliasBindingFallbackRefs": 2466,
+    "importPathAliasUnsupportedFallbackRefs": 49,
+    "importPathAliasUnresolvedFallbackRefs": 9,
+    "esmNamedImportExportResolutionMs": 431,
+    "esmNamedImportExportResolvedRefs": 3098,
+    "esmNamedImportExportFallbackRefs": 1519,
+    "esmOneHopReexportResolvedRefs": 287,
+    "localExactReferenceResolutionMs": 536,
+    "localExactReferenceResolvedRefs": 4038,
+    "localExactReferenceFallbackRefs": 31417,
+    "subprocessStartupHandoffMs": 3
+  },
+  "typescriptFallbackAppend": {
+    "durationMs": 136,
+    "fallbackFileCount": 5,
+    "errorTaxonomy": {}
+  },
+  "finalize": {
+    "frameworkPostExtractMs": 4,
+    "referenceResolutionMs": 10650,
+    "referenceResolutionBreakdown": {
+      "importResolutionMs": 57,
+      "nameMatchingMs": 9920,
+      "frameworkMatchingMs": 69,
+      "databaseAccessMs": 290,
+      "cacheWarmupDbMs": 3,
+      "refHydrationDbMs": 3,
+      "cacheWarmupMs": 6,
+      "unresolvedReadMs": 32,
+      "unresolvedReadDbMs": 32,
+      "candidateLookupMs": 9848,
+      "sharedCandidateLookupMs": 6,
+      "candidateLookupCacheHitMs": 9,
+      "nameMatcherCandidateLookupDbMs": 9840,
+      "perReferenceDisambiguationMs": 78,
+      "rustMatcherMs": 0,
+      "rustMatcherStartupMs": 0,
+      "rustMatcherSerializationMs": 0,
+      "rustMatcherEligibleRefs": 0,
+      "rustMatcherHandledRefs": 0,
+      "rustMatcherFallbackRefs": 0,
+      "rustMatcherSemanticMismatchRefs": 0,
+      "rustMatcherSemanticMismatchSamples": [],
+      "rustMatcherFallbackReasons": {},
+      "rustMatcherCandidateMaterializationMs": 0,
+      "rustMatcherSubprocessMs": 0,
+      "rustMatcherTsVerificationMs": 0,
+      "rustMatcherPayloadBytes": 0,
+      "rustMatcherUniqueCandidateFacts": 0,
+      "candidateReplayEligibleRefs": 0,
+      "candidateReplayComparedRefs": 0,
+      "candidateReplayEquivalentRefs": 0,
+      "candidateReplayMismatchRefs": 0,
+      "candidateReplayMismatchReasons": {},
+      "candidateReplayMismatchSamples": [],
+      "candidateProtocol": {
+        "enabled": true,
+        "materializationMs": 0,
+        "lookupMs": 9865,
+        "lookupCount": 75629,
+        "cacheHitCount": 34542,
+        "cacheMissCount": 2858,
+        "dbLookupCount": 1619,
+        "lookupShapeCounts": {
+          "ExactName": 26345,
+          "LowerName": 9610,
+          "QualifiedName": 959,
+          "FileNodes": 486,
+          "KnownNamePresence": 38229
+        },
+        "lookupShapeMs": {
+          "ExactName": 27,
+          "LowerName": 9816,
+          "QualifiedName": 2,
+          "FileNodes": 17,
+          "KnownNamePresence": 3
+        },
+        "equivalenceComparedCount": 0,
+        "equivalenceMismatchCount": 0,
+        "fallbackReasons": {},
+        "candidateCount": 10767,
+        "disabledReason": null,
+        "rustCandidateProducer": {
+          "enabled": true,
+          "shadowMode": true,
+          "producerMs": 5,
+          "serializationMs": 0,
+          "subprocessMs": 11,
+          "lookupCount": 1083,
+          "lookupShapeCounts": {
+            "ExactName": 361,
+            "LowerName": 361,
+            "QualifiedName": 0,
+            "FileNodes": 0,
+            "KnownNamePresence": 361
+          },
+          "comparedCount": 0,
+          "mismatchCount": 0,
+          "mismatchReasons": {},
+          "mismatchSamples": [],
+          "candidateCount": 2690,
+          "payloadBytes": 53309,
+          "disabledReason": null,
+          "routing": {
+            "configured": true,
+            "source": "default-rust-hybrid",
+            "active": true,
+            "activeShapes": [
+              "ExactName",
+              "KnownNamePresence",
+              "LowerName"
+            ],
+            "fallbackReason": null,
+            "mismatchCount": 0,
+            "mismatchSamples": [],
+            "onDemandLookupCount": 304,
+            "onDemandLookupShapeCounts": {
+              "ExactName": 0,
+              "LowerName": 304,
+              "QualifiedName": 0,
+              "FileNodes": 0,
+              "KnownNamePresence": 0
+            },
+            "onDemandCacheHitCount": 0
+          }
+        }
+      },
+      "edgeMaterializationMs": 13,
+      "edgeMaterializationDbMs": 13,
+      "edgeEndpointValidationDbMs": 13,
+      "edgeInsertCount": 11984,
+      "edgeInsertSerializationMs": 2,
+      "edgeInsertSerializedBytes": 1557892,
+      "edgeWriteMs": 95,
+      "edgeWriteDbMs": 95,
+      "unresolvedCleanupMs": 144,
+      "unresolvedCleanupDbMs": 144,
+      "resolvedCleanupMs": 94,
+      "resolvedCleanupDbMs": 94,
+      "resolvedCleanupRowCount": 11984,
+      "intentionallyUnresolvedCleanupMs": 50,
+      "intentionallyUnresolvedCleanupDbMs": 50,
+      "intentionallyUnresolvedCleanupRowCount": 25709,
+      "otherResolutionMs": 11
+    },
+    "dynamicDispatchSynthesisMs": 388,
+    "dbMaintenanceMs": 6,
+    "boundaryProtocol": {
+      "version": 1,
+      "productShell": "typescript",
+      "rustOwnedStages": [
+        "source-scan",
+        "parse-extraction",
+        "graph-write",
+        "import-path-alias-resolution",
+        "esm-named-import-export-resolution",
+        "esm-one-hop-reexport-resolution",
+        "local-exact-reference-resolution"
+      ]
+    },
+    "fallbackTaxonomy": {
+      "totalFallbacks": 1581,
+      "entries": [
+        {
+          "stage": "framework-post-extract",
+          "classification": "known-unsupported",
+          "reason": "typescript-finalization-not-yet-migrated",
+          "count": 1
+        },
+        {
+          "stage": "reference-resolution",
+          "classification": "known-unsupported",
+          "reason": "typescript-finalization-not-yet-migrated",
+          "count": 1
+        },
+        {
+          "stage": "dynamic-dispatch-synthesis",
+          "classification": "known-unsupported",
+          "reason": "typescript-finalization-not-yet-migrated",
+          "count": 1
+        },
+        {
+          "stage": "db-maintenance",
+          "classification": "known-unsupported",
+          "reason": "typescript-finalization-not-yet-migrated",
+          "count": 1
+        },
+        {
+          "stage": "reference-resolution",
+          "classification": "known-unsupported",
+          "reason": "binding-level-symbol-disambiguation-not-yet-rust-owned",
+          "count": 1519
+        },
+        {
+          "stage": "reference-resolution",
+          "classification": "known-unsupported",
+          "reason": "unsupported-import-form-not-yet-rust-owned",
+          "count": 44
+        },
+        {
+          "stage": "reference-resolution",
+          "classification": "known-unsupported",
+          "reason": "unresolved-file-level-import-target",
+          "count": 14
+        }
+      ]
+    }
+  },
+  "typescriptFinalizationMs": 11097
+}

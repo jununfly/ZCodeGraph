@@ -1128,6 +1128,10 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-candidate-producer-profile.json');
+    fs.writeFileSync(
+      path.join(tempDir, '.zcodegraph', 'config.json'),
+      JSON.stringify({ experimental: { rustCandidateProducerRouting: false } }, null, 2),
+    );
     const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
       ZCODEGRAPH_CANDIDATE_PROTOCOL: '1',
@@ -1257,7 +1261,7 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
-  it('keeps resolved graph stable when experimental Rust candidate producer routing is locally enabled or invalid', () => {
+  it('keeps resolved graph stable when Rust candidate producer routing is locally enabled or invalid', () => {
     const makeProject = (config: string | null, profileName: string): { dir: string; profileOut: string } => {
       const dir = makeTempProject();
       fs.writeFileSync(
@@ -1338,18 +1342,21 @@ describe('zcodegraph index engine selection', () => {
       }
     };
 
-    const disabled = makeProject(null, 'routing-disabled-profile.json');
     const enabled = makeProject(
       JSON.stringify({ experimental: { rustCandidateProducerRouting: true } }, null, 2),
       'routing-enabled-profile.json',
+    );
+    const disabled = makeProject(
+      JSON.stringify({ experimental: { rustCandidateProducerRouting: false } }, null, 2),
+      'routing-disabled-profile.json',
     );
     const invalid = makeProject(
       JSON.stringify({ experimental: { rustCandidateProducerRouting: 'yes' } }, null, 2),
       'routing-invalid-profile.json',
     );
     try {
-      const disabledGraph = graphSummary(disabled.dir, disabled.profileOut);
       const enabledGraph = graphSummary(enabled.dir, enabled.profileOut);
+      const disabledGraph = graphSummary(disabled.dir, disabled.profileOut);
       const invalidGraph = graphSummary(invalid.dir, invalid.profileOut);
 
       expect(enabledGraph.edges).toContainEqual({
@@ -1366,8 +1373,13 @@ describe('zcodegraph index engine selection', () => {
         configured: true,
         source: 'local-config',
         active: true,
-        activeShapes: ['ExactName', 'KnownNamePresence'],
+        activeShapes: ['ExactName', 'KnownNamePresence', 'LowerName'],
         fallbackReason: null,
+      });
+      expect(disabledGraph.routing).toMatchObject({
+        configured: false,
+        source: 'local-config',
+        active: false,
       });
       expect(invalidGraph.routing).toMatchObject({
         configured: false,
@@ -1376,8 +1388,8 @@ describe('zcodegraph index engine selection', () => {
         fallbackReason: 'invalid-local-config',
       });
     } finally {
-      fs.rmSync(disabled.dir, { recursive: true, force: true });
       fs.rmSync(enabled.dir, { recursive: true, force: true });
+      fs.rmSync(disabled.dir, { recursive: true, force: true });
       fs.rmSync(invalid.dir, { recursive: true, force: true });
     }
   }, 30_000);

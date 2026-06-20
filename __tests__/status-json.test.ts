@@ -172,11 +172,15 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
       JSON.stringify({ experimental: { rustCandidateProducerRouting: 'yes' } }, null, 2),
     );
     expect((runStatusJson(tempDir) as { rust: { experimental: { candidateProducerRouting: unknown } } }).rust.experimental.candidateProducerRouting)
-      .toEqual({ enabled: false, source: 'invalid-local-config' });
+      .toEqual({
+        enabled: false,
+        source: 'invalid-local-config',
+        invalidReason: 'rustCandidateProducerRouting-not-boolean',
+      });
 
     fs.writeFileSync(path.join(tempDir, '.zcodegraph', 'config.json'), '{');
     expect((runStatusJson(tempDir) as { rust: { experimental: { candidateProducerRouting: unknown } } }).rust.experimental.candidateProducerRouting)
-      .toEqual({ enabled: false, source: 'invalid-local-config' });
+      .toEqual({ enabled: false, source: 'invalid-local-config', invalidReason: 'invalid-json' });
   });
 
   it('status --json reports Rust core binary override readiness when the binary is executable', () => {

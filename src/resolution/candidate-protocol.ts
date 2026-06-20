@@ -88,12 +88,16 @@ interface CandidateProducerRoutingState {
   config: CandidateProducerRoutingConfig;
   active: boolean;
   exactIds: Map<string, string[]>;
+  lowerIds: Map<string, string[]>;
   knownPresence: Map<string, boolean>;
   nodesById: Map<string, Node>;
   fallbackReason: CandidateProducerRoutingFallbackReason | null;
   mismatchCount: number;
   mismatchSamples: RustCandidateProducerMismatch[];
   producerDiagnostics: RustCandidateProducerDiagnostics | null;
+  onDemandLookupCount: number;
+  onDemandLookupShapeCounts: Record<RustCandidateProducerLookup['kind'], number>;
+  onDemandCacheHitCount: number;
 }
 
 export function candidateProtocolEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -138,6 +142,7 @@ export function collectCandidateProducerRoutingLookups(refs: Array<{ referenceNa
   for (const name of [...names].sort()) {
     lookups.push({ kind: 'ExactName', name });
     lookups.push({ kind: 'KnownNamePresence', name });
+    lookups.push({ kind: 'LowerName', lowerName: name.toLowerCase() });
   }
   return lookups;
 }
@@ -204,6 +209,17 @@ export class CandidateProtocolProvider {
     this.diagnostics.cacheMissCount += 1;
     if (lookup.kind === 'ExactName' && this.routing.active) {
       const routed = this.lookupExactNameViaRustRouting(lookup.name);
+      if (routed) {
+        cache.set(key, routed);
+        for (const node of routed) {
+          this.candidateIds.add(toCandidateFact(node).id);
+        }
+        this.recordLookupMs(lookup.kind, started);
+        return routed;
+      }
+    }
+    if (lookup.kind === 'LowerName' && this.routing.active) {
+      const routed = this.lookupLowerNameViaRustRouting(lookup.lowerName);
       if (routed) {
         cache.set(key, routed);
         for (const node of routed) {
@@ -287,10 +303,13 @@ export class CandidateProtocolProvider {
     }
 
     const exactResults = new Map<string, string[]>();
+    const lowerResults = new Map<string, string[]>();
     const presenceResults = new Map<string, boolean>();
     for (const result of results) {
       if (result.kind === 'ExactName') {
         exactResults.set(result.name, result.candidateIds);
+      } else if (result.kind === 'LowerName') {
+        lowerResults.set(result.lowerName, result.candidateIds);
       } else if (result.kind === 'KnownNamePresence') {
         presenceResults.set(result.name, result.present);
       }
@@ -301,6 +320,16 @@ export class CandidateProtocolProvider {
         this.disableRouting('missing-rust-result', {
           kind: 'ExactName',
           key: lookup.name,
+          reason: 'missing-rust-result',
+          tsCandidateIds: [],
+          rustCandidateIds: [],
+        });
+        return;
+      }
+      if (lookup.kind === 'LowerName' && !lowerResults.has(lookup.lowerName)) {
+        this.disableRouting('missing-rust-result', {
+          kind: 'LowerName',
+          key: lookup.lowerName,
           reason: 'missing-rust-result',
           tsCandidateIds: [],
           rustCandidateIds: [],
@@ -319,7 +348,7 @@ export class CandidateProtocolProvider {
       }
     }
 
-    const ids = [...new Set([...exactResults.values()].flat())];
+    const ids = [...new Set([...exactResults.values()].flat().concat([...lowerResults.values()].flat()))];
     const nodesById = this.source.getNodesByIds(ids);
     for (const id of ids) {
       if (!nodesById.has(id)) {
@@ -336,6 +365,7 @@ export class CandidateProtocolProvider {
 
     this.routing.active = true;
     this.routing.exactIds = exactResults;
+    this.routing.lowerIds = lowerResults;
     this.routing.knownPresence = presenceResults;
     this.routing.nodesById = nodesById;
   }
@@ -367,24 +397,44 @@ export class CandidateProtocolProvider {
       config,
       active: false,
       exactIds: new Map(),
+      lowerIds: new Map(),
       knownPresence: new Map(),
       nodesById: new Map(),
       fallbackReason: config.source === 'invalid-local-config' ? 'invalid-local-config' : null,
       mismatchCount: 0,
       mismatchSamples: [],
       producerDiagnostics: null,
+      onDemandLookupCount: 0,
+      onDemandLookupShapeCounts: {
+        ExactName: 0,
+        LowerName: 0,
+        QualifiedName: 0,
+        FileNodes: 0,
+        KnownNamePresence: 0,
+      },
+      onDemandCacheHitCount: 0,
     };
   }
 
   private resetRouting(): void {
     this.routing.active = false;
     this.routing.exactIds.clear();
+    this.routing.lowerIds.clear();
     this.routing.knownPresence.clear();
     this.routing.nodesById.clear();
     this.routing.fallbackReason = this.routing.config.source === 'invalid-local-config' ? 'invalid-local-config' : null;
     this.routing.mismatchCount = 0;
     this.routing.mismatchSamples = [];
     this.routing.producerDiagnostics = null;
+    this.routing.onDemandLookupCount = 0;
+    this.routing.onDemandLookupShapeCounts = {
+      ExactName: 0,
+      LowerName: 0,
+      QualifiedName: 0,
+      FileNodes: 0,
+      KnownNamePresence: 0,
+    };
+    this.routing.onDemandCacheHitCount = 0;
   }
 
   private emptyDiagnostics(): Omit<CandidateProtocolDiagnostics, 'enabled' | 'candidateCount' | 'disabledReason' | 'rustCandidateProducer'> {
@@ -585,10 +635,13 @@ export class CandidateProtocolProvider {
         configured: this.routing.config.enabled,
         source: this.routing.config.source,
         active: this.routing.active,
-        activeShapes: this.routing.active ? ['ExactName', 'KnownNamePresence'] : [],
+        activeShapes: this.routing.active ? ['ExactName', 'KnownNamePresence', 'LowerName'] : [],
         fallbackReason: this.routing.fallbackReason,
         mismatchCount: this.routing.mismatchCount,
         mismatchSamples: this.routing.mismatchSamples,
+        onDemandLookupCount: this.routing.onDemandLookupCount,
+        onDemandLookupShapeCounts: this.routing.onDemandLookupShapeCounts,
+        onDemandCacheHitCount: this.routing.onDemandCacheHitCount,
         invalidConfigReason: this.routing.config.invalidReason,
       },
     };
@@ -632,6 +685,100 @@ export class CandidateProtocolProvider {
 
     this.compareNodeLookup({ kind: 'ExactName', name }, rustNodes);
     return rustNodes;
+  }
+
+  private lookupLowerNameViaRustRouting(lowerName: string): Node[] | null {
+    const rustIds = this.routing.lowerIds.get(lowerName) ?? this.runOnDemandLowerNameLookup(lowerName);
+    if (!rustIds) {
+      return null;
+    }
+
+    const rustNodes: Node[] = [];
+    for (const id of rustIds) {
+      const node = this.routing.nodesById.get(id);
+      if (!node) {
+        this.disableRouting('node-hydration-miss', {
+          kind: 'LowerName',
+          key: lowerName,
+          reason: 'missing-rust-result',
+          tsCandidateIds: this.readThrough({ kind: 'LowerName', lowerName }).map((item) => item.id),
+          rustCandidateIds: rustIds,
+        });
+        return null;
+      }
+      rustNodes.push(node);
+    }
+
+    const baseline = this.readThrough({ kind: 'LowerName', lowerName });
+    const baselineIds = baseline.map((node) => node.id);
+    this.lowerNameBaselines.set(lowerName, baselineIds);
+    if (!sameStringSet(baselineIds, rustIds)) {
+      this.disableRouting('candidate-id-mismatch', {
+        kind: 'LowerName',
+        key: lowerName,
+        reason: 'different-candidate-set',
+        tsCandidateIds: baselineIds,
+        rustCandidateIds: rustIds,
+      });
+      return null;
+    }
+
+    this.compareNodeLookup({ kind: 'LowerName', lowerName }, rustNodes);
+    return rustNodes;
+  }
+
+  private runOnDemandLowerNameLookup(lowerName: string): string[] | null {
+    if (this.routing.lowerIds.has(lowerName)) {
+      this.routing.onDemandCacheHitCount += 1;
+      return this.routing.lowerIds.get(lowerName)!;
+    }
+    if (!this.indexPath) {
+      this.disableRouting('missing-index-path');
+      return null;
+    }
+
+    this.routing.onDemandLookupCount += 1;
+    this.routing.onDemandLookupShapeCounts.LowerName += 1;
+    const { results, diagnostics } = this.rustProducerRunner({
+      indexPath: this.indexPath,
+      lookups: [{ kind: 'LowerName', lowerName }],
+    });
+    if (diagnostics.disabledReason) {
+      this.disableRouting(diagnostics.disabledReason as CandidateProducerRoutingFallbackReason);
+      return null;
+    }
+
+    const result = results.find((item): item is Extract<typeof item, { kind: 'LowerName' }> =>
+      item.kind === 'LowerName' && item.lowerName === lowerName
+    );
+    if (!result) {
+      this.disableRouting('missing-rust-result', {
+        kind: 'LowerName',
+        key: lowerName,
+        reason: 'missing-rust-result',
+        tsCandidateIds: this.readThrough({ kind: 'LowerName', lowerName }).map((item) => item.id),
+        rustCandidateIds: [],
+      });
+      return null;
+    }
+
+    const nodesById = this.source.getNodesByIds(result.candidateIds);
+    for (const id of result.candidateIds) {
+      const node = nodesById.get(id);
+      if (!node) {
+        this.disableRouting('node-hydration-miss', {
+          kind: 'LowerName',
+          key: lowerName,
+          reason: 'missing-rust-result',
+          tsCandidateIds: this.readThrough({ kind: 'LowerName', lowerName }).map((item) => item.id),
+          rustCandidateIds: result.candidateIds,
+        });
+        return null;
+      }
+      this.routing.nodesById.set(id, node);
+    }
+    this.routing.lowerIds.set(lowerName, result.candidateIds);
+    return result.candidateIds;
   }
 
   private disableRouting(reason: CandidateProducerRoutingFallbackReason, mismatch?: RustCandidateProducerMismatch): void {

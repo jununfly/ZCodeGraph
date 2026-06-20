@@ -27,10 +27,13 @@ export interface RustCandidateProducerDiagnostics {
     configured: boolean;
     source: 'missing-config' | 'local-config' | 'invalid-local-config';
     active: boolean;
-    activeShapes: Array<'ExactName' | 'KnownNamePresence'>;
+    activeShapes: Array<'ExactName' | 'KnownNamePresence' | 'LowerName'>;
     fallbackReason: string | null;
     mismatchCount: number;
     mismatchSamples: RustCandidateProducerMismatch[];
+    onDemandLookupCount?: number;
+    onDemandLookupShapeCounts?: Record<RustCandidateProducerLookup['kind'], number>;
+    onDemandCacheHitCount?: number;
     invalidConfigReason?: string;
   };
 }
@@ -103,6 +106,15 @@ export function emptyRustCandidateProducerDiagnostics(
       fallbackReason: null,
       mismatchCount: 0,
       mismatchSamples: [],
+      onDemandLookupCount: 0,
+      onDemandLookupShapeCounts: {
+        ExactName: 0,
+        LowerName: 0,
+        QualifiedName: 0,
+        FileNodes: 0,
+        KnownNamePresence: 0,
+      },
+      onDemandCacheHitCount: 0,
     },
   };
 }
