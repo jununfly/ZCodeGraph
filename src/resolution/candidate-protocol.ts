@@ -89,6 +89,8 @@ interface CandidateProducerRoutingState {
   active: boolean;
   exactIds: Map<string, string[]>;
   lowerIds: Map<string, string[]>;
+  qualifiedIds: Map<string, string[]>;
+  fileNodeIds: Map<string, string[]>;
   knownPresence: Map<string, boolean>;
   nodesById: Map<string, Node>;
   fallbackReason: CandidateProducerRoutingFallbackReason | null;
@@ -220,6 +222,28 @@ export class CandidateProtocolProvider {
     }
     if (lookup.kind === 'LowerName' && this.routing.active) {
       const routed = this.lookupLowerNameViaRustRouting(lookup.lowerName);
+      if (routed) {
+        cache.set(key, routed);
+        for (const node of routed) {
+          this.candidateIds.add(toCandidateFact(node).id);
+        }
+        this.recordLookupMs(lookup.kind, started);
+        return routed;
+      }
+    }
+    if (lookup.kind === 'QualifiedName' && this.routing.active) {
+      const routed = this.lookupQualifiedNameViaRustRouting(lookup.qualifiedName);
+      if (routed) {
+        cache.set(key, routed);
+        for (const node of routed) {
+          this.candidateIds.add(toCandidateFact(node).id);
+        }
+        this.recordLookupMs(lookup.kind, started);
+        return routed;
+      }
+    }
+    if (lookup.kind === 'FileNodes' && this.routing.active) {
+      const routed = this.lookupFileNodesViaRustRouting(lookup.filePath);
       if (routed) {
         cache.set(key, routed);
         for (const node of routed) {
@@ -366,6 +390,8 @@ export class CandidateProtocolProvider {
     this.routing.active = true;
     this.routing.exactIds = exactResults;
     this.routing.lowerIds = lowerResults;
+    this.routing.qualifiedIds = new Map();
+    this.routing.fileNodeIds = new Map();
     this.routing.knownPresence = presenceResults;
     this.routing.nodesById = nodesById;
   }
@@ -398,6 +424,8 @@ export class CandidateProtocolProvider {
       active: false,
       exactIds: new Map(),
       lowerIds: new Map(),
+      qualifiedIds: new Map(),
+      fileNodeIds: new Map(),
       knownPresence: new Map(),
       nodesById: new Map(),
       fallbackReason: config.source === 'invalid-local-config' ? 'invalid-local-config' : null,
@@ -420,6 +448,8 @@ export class CandidateProtocolProvider {
     this.routing.active = false;
     this.routing.exactIds.clear();
     this.routing.lowerIds.clear();
+    this.routing.qualifiedIds.clear();
+    this.routing.fileNodeIds.clear();
     this.routing.knownPresence.clear();
     this.routing.nodesById.clear();
     this.routing.fallbackReason = this.routing.config.source === 'invalid-local-config' ? 'invalid-local-config' : null;
@@ -635,7 +665,7 @@ export class CandidateProtocolProvider {
         configured: this.routing.config.enabled,
         source: this.routing.config.source,
         active: this.routing.active,
-        activeShapes: this.routing.active ? ['ExactName', 'KnownNamePresence', 'LowerName'] : [],
+        activeShapes: this.routing.active ? ['ExactName', 'KnownNamePresence', 'LowerName', 'QualifiedName', 'FileNodes'] : [],
         fallbackReason: this.routing.fallbackReason,
         mismatchCount: this.routing.mismatchCount,
         mismatchSamples: this.routing.mismatchSamples,
@@ -688,34 +718,37 @@ export class CandidateProtocolProvider {
   }
 
   private lookupLowerNameViaRustRouting(lowerName: string): Node[] | null {
-    const rustIds = this.routing.lowerIds.get(lowerName) ?? this.runOnDemandLowerNameLookup(lowerName);
+    return this.lookupNodeShapeViaRustRouting({ kind: 'LowerName', lowerName });
+  }
+
+  private lookupQualifiedNameViaRustRouting(qualifiedName: string): Node[] | null {
+    return this.lookupNodeShapeViaRustRouting({ kind: 'QualifiedName', qualifiedName });
+  }
+
+  private lookupFileNodesViaRustRouting(filePath: string): Node[] | null {
+    return this.lookupNodeShapeViaRustRouting({ kind: 'FileNodes', filePath });
+  }
+
+  private lookupNodeShapeViaRustRouting(
+    lookup: Extract<CandidateLookupShape, { kind: 'LowerName' | 'QualifiedName' | 'FileNodes' }>,
+  ): Node[] | null {
+    const rustIds = this.routedIdsFor(lookup) ?? this.runOnDemandNodeLookup(lookup);
     if (!rustIds) {
       return null;
     }
 
-    const rustNodes: Node[] = [];
-    for (const id of rustIds) {
-      const node = this.routing.nodesById.get(id);
-      if (!node) {
-        this.disableRouting('node-hydration-miss', {
-          kind: 'LowerName',
-          key: lowerName,
-          reason: 'missing-rust-result',
-          tsCandidateIds: this.readThrough({ kind: 'LowerName', lowerName }).map((item) => item.id),
-          rustCandidateIds: rustIds,
-        });
-        return null;
-      }
-      rustNodes.push(node);
+    const rustNodes = this.hydrateRoutedNodes(lookup, rustIds);
+    if (!rustNodes) {
+      return null;
     }
 
-    const baseline = this.readThrough({ kind: 'LowerName', lowerName });
+    const baseline = this.readThrough(lookup);
     const baselineIds = baseline.map((node) => node.id);
-    this.lowerNameBaselines.set(lowerName, baselineIds);
+    this.recordRustProducerNodeBaseline(lookup, baseline);
     if (!sameStringSet(baselineIds, rustIds)) {
       this.disableRouting('candidate-id-mismatch', {
-        kind: 'LowerName',
-        key: lowerName,
+        kind: lookup.kind,
+        key: this.keyFor(lookup),
         reason: 'different-candidate-set',
         tsCandidateIds: baselineIds,
         rustCandidateIds: rustIds,
@@ -723,14 +756,42 @@ export class CandidateProtocolProvider {
       return null;
     }
 
-    this.compareNodeLookup({ kind: 'LowerName', lowerName }, rustNodes);
+    this.compareNodeLookup(lookup, rustNodes);
     return rustNodes;
   }
 
-  private runOnDemandLowerNameLookup(lowerName: string): string[] | null {
-    if (this.routing.lowerIds.has(lowerName)) {
+  private routedIdsFor(
+    lookup: Extract<CandidateLookupShape, { kind: 'LowerName' | 'QualifiedName' | 'FileNodes' }>,
+  ): string[] | undefined {
+    if (lookup.kind === 'LowerName') {
+      return this.routing.lowerIds.get(lookup.lowerName);
+    }
+    if (lookup.kind === 'QualifiedName') {
+      return this.routing.qualifiedIds.get(lookup.qualifiedName);
+    }
+    return this.routing.fileNodeIds.get(lookup.filePath);
+  }
+
+  private cacheRoutedIds(
+    lookup: Extract<CandidateLookupShape, { kind: 'LowerName' | 'QualifiedName' | 'FileNodes' }>,
+    ids: string[],
+  ): void {
+    if (lookup.kind === 'LowerName') {
+      this.routing.lowerIds.set(lookup.lowerName, ids);
+    } else if (lookup.kind === 'QualifiedName') {
+      this.routing.qualifiedIds.set(lookup.qualifiedName, ids);
+    } else {
+      this.routing.fileNodeIds.set(lookup.filePath, ids);
+    }
+  }
+
+  private runOnDemandNodeLookup(
+    lookup: Extract<CandidateLookupShape, { kind: 'LowerName' | 'QualifiedName' | 'FileNodes' }>,
+  ): string[] | null {
+    const existing = this.routedIdsFor(lookup);
+    if (existing) {
       this.routing.onDemandCacheHitCount += 1;
-      return this.routing.lowerIds.get(lowerName)!;
+      return existing;
     }
     if (!this.indexPath) {
       this.disableRouting('missing-index-path');
@@ -738,25 +799,23 @@ export class CandidateProtocolProvider {
     }
 
     this.routing.onDemandLookupCount += 1;
-    this.routing.onDemandLookupShapeCounts.LowerName += 1;
+    this.routing.onDemandLookupShapeCounts[lookup.kind] += 1;
     const { results, diagnostics } = this.rustProducerRunner({
       indexPath: this.indexPath,
-      lookups: [{ kind: 'LowerName', lowerName }],
+      lookups: [lookup],
     });
     if (diagnostics.disabledReason) {
       this.disableRouting(diagnostics.disabledReason as CandidateProducerRoutingFallbackReason);
       return null;
     }
 
-    const result = results.find((item): item is Extract<typeof item, { kind: 'LowerName' }> =>
-      item.kind === 'LowerName' && item.lowerName === lowerName
-    );
+    const result = results.find((item) => this.matchesLookupResult(lookup, item));
     if (!result) {
       this.disableRouting('missing-rust-result', {
-        kind: 'LowerName',
-        key: lowerName,
+        kind: lookup.kind,
+        key: this.keyFor(lookup),
         reason: 'missing-rust-result',
-        tsCandidateIds: this.readThrough({ kind: 'LowerName', lowerName }).map((item) => item.id),
+        tsCandidateIds: this.readThrough(lookup).map((item) => item.id),
         rustCandidateIds: [],
       });
       return null;
@@ -767,18 +826,53 @@ export class CandidateProtocolProvider {
       const node = nodesById.get(id);
       if (!node) {
         this.disableRouting('node-hydration-miss', {
-          kind: 'LowerName',
-          key: lowerName,
+          kind: lookup.kind,
+          key: this.keyFor(lookup),
           reason: 'missing-rust-result',
-          tsCandidateIds: this.readThrough({ kind: 'LowerName', lowerName }).map((item) => item.id),
+          tsCandidateIds: this.readThrough(lookup).map((item) => item.id),
           rustCandidateIds: result.candidateIds,
         });
         return null;
       }
       this.routing.nodesById.set(id, node);
     }
-    this.routing.lowerIds.set(lowerName, result.candidateIds);
+    this.cacheRoutedIds(lookup, result.candidateIds);
     return result.candidateIds;
+  }
+
+  private hydrateRoutedNodes(
+    lookup: Extract<CandidateLookupShape, { kind: 'LowerName' | 'QualifiedName' | 'FileNodes' }>,
+    rustIds: string[],
+  ): Node[] | null {
+    const rustNodes: Node[] = [];
+    for (const id of rustIds) {
+      const node = this.routing.nodesById.get(id);
+      if (!node) {
+        this.disableRouting('node-hydration-miss', {
+          kind: lookup.kind,
+          key: this.keyFor(lookup),
+          reason: 'missing-rust-result',
+          tsCandidateIds: this.readThrough(lookup).map((item) => item.id),
+          rustCandidateIds: rustIds,
+        });
+        return null;
+      }
+      rustNodes.push(node);
+    }
+    return rustNodes;
+  }
+
+  private matchesLookupResult(
+    lookup: Extract<CandidateLookupShape, { kind: 'LowerName' | 'QualifiedName' | 'FileNodes' }>,
+    result: ReturnType<CandidateProducerRunner>['results'][number],
+  ): result is Extract<ReturnType<CandidateProducerRunner>['results'][number], { kind: 'LowerName' | 'QualifiedName' | 'FileNodes' }> {
+    if (lookup.kind === 'LowerName') {
+      return result.kind === 'LowerName' && result.lowerName === lookup.lowerName;
+    }
+    if (lookup.kind === 'QualifiedName') {
+      return result.kind === 'QualifiedName' && result.qualifiedName === lookup.qualifiedName;
+    }
+    return result.kind === 'FileNodes' && result.filePath === lookup.filePath;
   }
 
   private disableRouting(reason: CandidateProducerRoutingFallbackReason, mismatch?: RustCandidateProducerMismatch): void {

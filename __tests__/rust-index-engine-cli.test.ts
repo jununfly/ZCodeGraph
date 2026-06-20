@@ -1373,7 +1373,7 @@ describe('zcodegraph index engine selection', () => {
         configured: true,
         source: 'local-config',
         active: true,
-        activeShapes: ['ExactName', 'KnownNamePresence', 'LowerName'],
+        activeShapes: ['ExactName', 'KnownNamePresence', 'LowerName', 'QualifiedName', 'FileNodes'],
         fallbackReason: null,
       });
       expect(disabledGraph.routing).toMatchObject({

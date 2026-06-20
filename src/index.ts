@@ -1114,7 +1114,7 @@ export class CodeGraph {
                   configured: false,
                   source: 'missing-config' as const,
                   active: false,
-                  activeShapes: [] as Array<'ExactName' | 'KnownNamePresence' | 'LowerName'>,
+                  activeShapes: [] as Array<'ExactName' | 'KnownNamePresence' | 'LowerName' | 'QualifiedName' | 'FileNodes'>,
                   fallbackReason: null as string | null,
                   mismatchCount: 0,
                   mismatchSamples: [] as CandidateProtocolDiagnostics['rustCandidateProducer']['mismatchSamples'],

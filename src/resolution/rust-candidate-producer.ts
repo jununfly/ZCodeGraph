@@ -27,7 +27,7 @@ export interface RustCandidateProducerDiagnostics {
     configured: boolean;
     source: 'missing-config' | 'local-config' | 'invalid-local-config';
     active: boolean;
-    activeShapes: Array<'ExactName' | 'KnownNamePresence' | 'LowerName'>;
+    activeShapes: RustCandidateProducerLookup['kind'][];
     fallbackReason: string | null;
     mismatchCount: number;
     mismatchSamples: RustCandidateProducerMismatch[];
