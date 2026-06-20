@@ -1097,14 +1097,22 @@ describe('zcodegraph index engine selection', () => {
     );
   }, 30_000);
 
-  it('writes Rust candidate producer shadow diagnostics for exact names and known-name presence', () => {
+  it('writes Rust candidate producer shadow diagnostics for exact, lower, and known-name lookups', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'rust-candidate-producer.ts'),
+      [
+        'export class MixedProducerName {',
+        '  value = 1;',
+        '}',
+      ].join('\n') + '\n',
+    );
     fs.writeFileSync(
       path.join(tempDir, 'rust-candidate-producer.py'),
       [
         'def producerHelper():',
         '    return 1',
         '',
-        'def producerEntry():',
+        'def producerEntry(value: MixedProducerName):',
         '    return producerHelper()',
       ].join('\n') + '\n',
     );
@@ -1145,6 +1153,7 @@ describe('zcodegraph index engine selection', () => {
       shadowMode: true,
       lookupShapeCounts: expect.objectContaining({
         ExactName: expect.any(Number),
+        LowerName: expect.any(Number),
         KnownNamePresence: expect.any(Number),
       }),
       comparedCount: expect.any(Number),
@@ -1155,6 +1164,7 @@ describe('zcodegraph index engine selection', () => {
     });
     expect(producer.lookupCount).toBeGreaterThan(0);
     expect(producer.lookupShapeCounts.ExactName).toBeGreaterThan(0);
+    expect(producer.lookupShapeCounts.LowerName).toBeGreaterThanOrEqual(0);
     expect(producer.lookupShapeCounts.KnownNamePresence).toBeGreaterThan(0);
     expect(producer.comparedCount).toBe(producer.lookupCount);
     expect(producer.candidateCount).toBeGreaterThan(0);

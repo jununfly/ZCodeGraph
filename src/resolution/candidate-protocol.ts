@@ -106,6 +106,7 @@ export class CandidateProtocolProvider {
   private readonly source: CandidateProtocolSource;
   private readonly candidateIds = new Set<string>();
   private readonly exactNameBaselines = new Map<string, string[]>();
+  private readonly lowerNameBaselines = new Map<string, string[]>();
   private readonly knownNameBaselines = new Map<string, boolean>();
   private diagnostics: Omit<CandidateProtocolDiagnostics, 'enabled' | 'candidateCount' | 'disabledReason' | 'rustCandidateProducer'>;
 
@@ -176,6 +177,7 @@ export class CandidateProtocolProvider {
   resetDiagnostics(): void {
     this.candidateIds.clear();
     this.exactNameBaselines.clear();
+    this.lowerNameBaselines.clear();
     this.knownNameBaselines.clear();
     this.diagnostics = this.emptyDiagnostics();
   }
@@ -230,6 +232,9 @@ export class CandidateProtocolProvider {
     const lookups: RustCandidateProducerLookup[] = [
       ...this.exactNameBaselines.keys(),
     ].map((name) => ({ kind: 'ExactName' as const, name }));
+    for (const lowerName of this.lowerNameBaselines.keys()) {
+      lookups.push({ kind: 'LowerName', lowerName });
+    }
     for (const name of this.knownNameBaselines.keys()) {
       lookups.push({ kind: 'KnownNamePresence', name });
     }
@@ -239,10 +244,13 @@ export class CandidateProtocolProvider {
       lookups,
     });
     const exactResults = new Map<string, string[]>();
+    const lowerResults = new Map<string, string[]>();
     const presenceResults = new Map<string, boolean>();
     for (const result of results) {
       if (result.kind === 'ExactName') {
         exactResults.set(result.name, result.candidateIds);
+      } else if (result.kind === 'LowerName') {
+        lowerResults.set(result.lowerName, result.candidateIds);
       } else {
         presenceResults.set(result.name, result.present);
       }
@@ -263,6 +271,28 @@ export class CandidateProtocolProvider {
         this.recordRustProducerMismatch(diagnostics, {
           kind: 'ExactName',
           key: name,
+          reason: 'different-candidate-set',
+          tsCandidateIds,
+          rustCandidateIds,
+        });
+      }
+    }
+
+    for (const [lowerName, tsCandidateIds] of this.lowerNameBaselines) {
+      const rustCandidateIds = lowerResults.get(lowerName);
+      diagnostics.comparedCount += 1;
+      if (!rustCandidateIds) {
+        this.recordRustProducerMismatch(diagnostics, {
+          kind: 'LowerName',
+          key: lowerName,
+          reason: 'missing-rust-result',
+          tsCandidateIds,
+          rustCandidateIds: [],
+        });
+      } else if (!sameStringSet(tsCandidateIds, rustCandidateIds)) {
+        this.recordRustProducerMismatch(diagnostics, {
+          kind: 'LowerName',
+          key: lowerName,
           reason: 'different-candidate-set',
           tsCandidateIds,
           rustCandidateIds,
@@ -310,8 +340,11 @@ export class CandidateProtocolProvider {
     lookup: Exclude<CandidateLookupShape, { kind: 'KnownNamePresence' }>,
     nodes: Node[],
   ): void {
-    if (lookup.kind !== 'ExactName') return;
-    this.exactNameBaselines.set(lookup.name, nodes.map((node) => node.id));
+    if (lookup.kind === 'ExactName') {
+      this.exactNameBaselines.set(lookup.name, nodes.map((node) => node.id));
+    } else if (lookup.kind === 'LowerName') {
+      this.lowerNameBaselines.set(lookup.lowerName, nodes.map((node) => node.id));
+    }
   }
 
   private cacheFor(lookup: Exclude<CandidateLookupShape, { kind: 'KnownNamePresence' }>): LRUCache<string, Node[]> {

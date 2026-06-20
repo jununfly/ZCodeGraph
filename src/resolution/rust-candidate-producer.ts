@@ -3,6 +3,7 @@ import { findRustCoreCommand } from '../indexing/rust-indexer';
 
 export type RustCandidateProducerLookup =
   | { kind: 'ExactName'; name: string }
+  | { kind: 'LowerName'; lowerName: string }
   | { kind: 'KnownNamePresence'; name: string };
 
 export interface RustCandidateProducerDiagnostics {
@@ -34,6 +35,7 @@ export interface RustCandidateProducerMismatch {
 
 type RustCandidateProducerResult =
   | { kind: 'ExactName'; name: string; candidateIds: string[] }
+  | { kind: 'LowerName'; lowerName: string; candidateIds: string[] }
   | { kind: 'KnownNamePresence'; name: string; present: boolean };
 
 interface RustCandidateProducerResponse {
@@ -67,6 +69,7 @@ export function emptyRustCandidateProducerDiagnostics(
     lookupCount: 0,
     lookupShapeCounts: {
       ExactName: 0,
+      LowerName: 0,
       KnownNamePresence: 0,
     },
     comparedCount: 0,
@@ -89,6 +92,7 @@ export function runRustCandidateProducer(options: {
   const diagnostics = emptyRustCandidateProducerDiagnostics(true, null);
   diagnostics.lookupCount = options.lookups.length;
   diagnostics.lookupShapeCounts.ExactName = options.lookups.filter((lookup) => lookup.kind === 'ExactName').length;
+  diagnostics.lookupShapeCounts.LowerName = options.lookups.filter((lookup) => lookup.kind === 'LowerName').length;
   diagnostics.lookupShapeCounts.KnownNamePresence = options.lookups.filter((lookup) => lookup.kind === 'KnownNamePresence').length;
 
   if (options.lookups.length === 0) {

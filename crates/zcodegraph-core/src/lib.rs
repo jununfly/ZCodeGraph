@@ -372,9 +372,14 @@ struct CandidateProducerRequest {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "kind", rename_all = "PascalCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "PascalCase",
+    rename_all_fields = "camelCase"
+)]
 enum CandidateProducerLookup {
     ExactName { name: String },
+    LowerName { lower_name: String },
     KnownNamePresence { name: String },
 }
 
@@ -398,6 +403,10 @@ enum CandidateProducerResult {
         name: String,
         candidate_ids: Vec<String>,
     },
+    LowerName {
+        lower_name: String,
+        candidate_ids: Vec<String>,
+    },
     KnownNamePresence {
         name: String,
         present: bool,
@@ -410,6 +419,7 @@ struct CandidateProducerDiagnostics {
     producer_ms: u128,
     lookup_count: usize,
     exact_name_count: usize,
+    lower_name_count: usize,
     known_name_presence_count: usize,
     candidate_count: usize,
 }
@@ -433,6 +443,9 @@ pub fn candidate_producer_json(input: &str) -> Result<String, String> {
     let mut exact_stmt = conn
         .prepare("SELECT id FROM nodes WHERE name = ?1 ORDER BY rowid")
         .map_err(|err| format!("failed to prepare exact-name lookup: {}", err))?;
+    let mut lower_stmt = conn
+        .prepare("SELECT id FROM nodes WHERE lower(name) = ?1 ORDER BY rowid")
+        .map_err(|err| format!("failed to prepare lower-name lookup: {}", err))?;
     let mut presence_stmt = conn
         .prepare("SELECT 1 FROM nodes WHERE name = ?1 LIMIT 1")
         .map_err(|err| format!("failed to prepare known-name lookup: {}", err))?;
@@ -455,6 +468,19 @@ pub fn candidate_producer_json(input: &str) -> Result<String, String> {
                 diagnostics.candidate_count += candidate_ids.len();
                 results.push(CandidateProducerResult::ExactName {
                     name,
+                    candidate_ids,
+                });
+            }
+            CandidateProducerLookup::LowerName { lower_name } => {
+                diagnostics.lower_name_count += 1;
+                let candidate_ids = lower_stmt
+                    .query_map(params![lower_name], |row| row.get::<_, String>(0))
+                    .map_err(|err| format!("failed to query lower-name candidates: {}", err))?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(|err| format!("failed to read lower-name candidates: {}", err))?;
+                diagnostics.candidate_count += candidate_ids.len();
+                results.push(CandidateProducerResult::LowerName {
+                    lower_name,
                     candidate_ids,
                 });
             }
@@ -4043,6 +4069,61 @@ mod tests {
         );
         assert_eq!(response["results"][2]["present"], true);
         assert_eq!(response["results"][3]["present"], false);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn candidate_producer_returns_lower_name_candidates_from_sqlite() {
+        let dir = temp_dir("candidate-producer-lower-name");
+        let db_path = dir.join("zcodegraph.db");
+        let conn = Connection::open(&db_path).unwrap();
+        conn.execute_batch(SCHEMA_SQL).unwrap();
+        for (id, name, line) in [
+            ("node-mixed", "MixedCase", 1),
+            ("node-lower", "mixedcase", 2),
+            ("node-other", "OtherName", 3),
+        ] {
+            conn.execute(
+                "INSERT INTO nodes (
+                    id, kind, name, qualified_name, file_path, language,
+                    start_line, end_line, start_column, end_column, updated_at
+                ) VALUES (?1, 'function', ?2, ?3, ?4, 'typescript', ?5, ?5, 0, 1, 1)",
+                params![
+                    id,
+                    name,
+                    format!("src/case.ts::{}", name),
+                    "src/case.ts",
+                    line
+                ],
+            )
+            .unwrap();
+        }
+        drop(conn);
+
+        let request = serde_json::json!({
+            "version": 1,
+            "indexPath": db_path,
+            "lookups": [
+                { "kind": "LowerName", "lowerName": "mixedcase" },
+                { "kind": "LowerName", "lowerName": "missing" }
+            ]
+        });
+
+        let response: Value =
+            serde_json::from_str(&candidate_producer_json(&request.to_string()).unwrap()).unwrap();
+        assert_eq!(response["type"], "candidate_producer_result");
+        assert_eq!(response["diagnostics"]["lookupCount"], 2);
+        assert_eq!(response["diagnostics"]["lowerNameCount"], 2);
+        assert_eq!(response["diagnostics"]["candidateCount"], 2);
+        assert_eq!(
+            response["results"][0]["candidateIds"],
+            serde_json::json!(["node-mixed", "node-lower"])
+        );
+        assert_eq!(
+            response["results"][1]["candidateIds"],
+            serde_json::json!([])
+        );
 
         fs::remove_dir_all(dir).unwrap();
     }
