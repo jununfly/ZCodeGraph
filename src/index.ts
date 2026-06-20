@@ -959,6 +959,8 @@ export class CodeGraph {
         edgeMaterializationDbMs: number;
         edgeEndpointValidationDbMs: number;
         edgeInsertCount: number;
+        edgeInsertSerializationMs: number;
+        edgeInsertSerializedBytes: number;
         edgeWriteMs: number;
         edgeWriteDbMs: number;
         unresolvedCleanupMs: number;
@@ -1123,6 +1125,8 @@ export class CodeGraph {
             edgeMaterializationDbMs: 0,
             edgeEndpointValidationDbMs: 0,
             edgeInsertCount: 0,
+            edgeInsertSerializationMs: 0,
+            edgeInsertSerializedBytes: 0,
             edgeWriteMs: 0,
             edgeWriteDbMs: 0,
             unresolvedCleanupMs: 0,
@@ -1260,6 +1264,8 @@ export class CodeGraph {
           edgeMaterializationDbMs: resolutionTimings?.edgeMaterializationDbMs ?? 0,
           edgeEndpointValidationDbMs: resolutionTimings?.edgeEndpointValidationDbMs ?? 0,
           edgeInsertCount: resolutionTimings?.edgeInsertCount ?? 0,
+          edgeInsertSerializationMs: resolutionTimings?.edgeInsertSerializationMs ?? 0,
+          edgeInsertSerializedBytes: resolutionTimings?.edgeInsertSerializedBytes ?? 0,
           edgeWriteMs: resolutionTimings?.edgeWriteMs ?? 0,
           edgeWriteDbMs: resolutionTimings?.edgeWriteDbMs ?? 0,
           unresolvedCleanupMs: resolutionTimings?.unresolvedCleanupMs ?? 0,

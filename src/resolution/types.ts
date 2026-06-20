@@ -123,6 +123,8 @@ export interface ResolutionResult {
       edgeMaterializationDbMs?: number;
       edgeEndpointValidationDbMs?: number;
       edgeInsertCount?: number;
+      edgeInsertSerializationMs?: number;
+      edgeInsertSerializedBytes?: number;
       edgeWriteMs?: number;
       edgeWriteDbMs?: number;
       unresolvedCleanupMs?: number;

@@ -25,6 +25,11 @@ import type {
   SearchResult,
 } from '../types';
 
+export interface EdgeInsertDiagnostics {
+  serializationMs: number;
+  serializedBytes: number;
+}
+
 // ============================================================
 // AgentAccessModel — agent-serving queries
 // ============================================================
@@ -92,7 +97,7 @@ export interface MaintenanceAccessModel {
   // Edge writes
   insertEdge(edge: Edge): void;
   insertEdges(edges: Edge[]): void;
-  insertValidatedEdges(edges: Edge[]): void;
+  insertValidatedEdges(edges: Edge[]): EdgeInsertDiagnostics;
   deleteEdgesBySource(sourceId: string): void;
 
   // File writes

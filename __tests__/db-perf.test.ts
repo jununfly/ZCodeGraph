@@ -8,6 +8,8 @@
  *   3. `runMaintenance` runs `PRAGMA optimize` + `wal_checkpoint(PASSIVE)`
  *      after indexAll/sync without throwing.
  *   4. `insertEdges` validates endpoints from the DB, not stale node cache.
+ *   5. `insertValidatedEdges` preserves edge row shape while reporting
+ *      serialization diagnostics for finalization profiles.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -176,17 +178,23 @@ describe('insertEdges endpoint validation', () => {
   it('can insert a prevalidated edge batch without repeating endpoint validation', () => {
     q.insertNodes([makeNode('source'), makeNode('target')]);
 
-    q.insertValidatedEdges([
+    const diagnostics = q.insertValidatedEdges([
       {
         source: 'source',
         target: 'target',
         kind: 'references',
         line: 7,
         column: 3,
+        edgeOrigin: 'rust-finalization',
         metadata: { confidence: 1, resolvedBy: 'exact-match' },
       },
     ]);
 
+    expect(diagnostics).toEqual({
+      serializationMs: expect.any(Number),
+      serializedBytes: expect.any(Number),
+    });
+    expect(diagnostics.serializedBytes).toBeGreaterThan(0);
     expect(q.getOutgoingEdges('source')).toEqual([
       expect.objectContaining({
         source: 'source',
@@ -194,9 +202,14 @@ describe('insertEdges endpoint validation', () => {
         kind: 'references',
         line: 7,
         column: 3,
+        edgeOrigin: 'rust-finalization',
         metadata: { confidence: 1, resolvedBy: 'exact-match' },
       }),
     ]);
+  });
+
+  it('reports empty diagnostics for an empty prevalidated edge batch', () => {
+    expect(q.insertValidatedEdges([])).toEqual({ serializationMs: 0, serializedBytes: 0 });
   });
 });
 

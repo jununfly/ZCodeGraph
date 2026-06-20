@@ -86,6 +86,8 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     edgeMaterializationDbMs: 0,
     edgeEndpointValidationDbMs: 0,
     edgeInsertCount: 0,
+    edgeInsertSerializationMs: 0,
+    edgeInsertSerializedBytes: 0,
     edgeWriteMs: 0,
     edgeWriteDbMs: 0,
     unresolvedCleanupMs: 0,
@@ -1220,9 +1222,13 @@ export class ReferenceResolver {
     // Insert edges into database
     if (edges.length > 0) {
       const writeStarted = Date.now();
-      this.queries.insertValidatedEdges(edges);
+      const insertDiagnostics = this.queries.insertValidatedEdges(edges);
       if (result.stats.timings) {
         result.stats.timings.edgeInsertCount = (result.stats.timings.edgeInsertCount ?? 0) + edges.length;
+        result.stats.timings.edgeInsertSerializationMs =
+          (result.stats.timings.edgeInsertSerializationMs ?? 0) + insertDiagnostics.serializationMs;
+        result.stats.timings.edgeInsertSerializedBytes =
+          (result.stats.timings.edgeInsertSerializedBytes ?? 0) + insertDiagnostics.serializedBytes;
       }
       addElapsed(result.stats.timings, 'databaseAccessMs', writeStarted);
       addElapsed(result.stats.timings, 'edgeWriteMs', writeStarted);
@@ -1311,8 +1317,12 @@ export class ReferenceResolver {
       addElapsed(aggregateStats.timings, 'edgeEndpointValidationDbMs', persistStarted);
       if (edges.length > 0) {
         const writeStarted = Date.now();
-        this.queries.insertValidatedEdges(edges);
+        const insertDiagnostics = this.queries.insertValidatedEdges(edges);
         aggregateStats.timings.edgeInsertCount = (aggregateStats.timings.edgeInsertCount ?? 0) + edges.length;
+        aggregateStats.timings.edgeInsertSerializationMs =
+          (aggregateStats.timings.edgeInsertSerializationMs ?? 0) + insertDiagnostics.serializationMs;
+        aggregateStats.timings.edgeInsertSerializedBytes =
+          (aggregateStats.timings.edgeInsertSerializedBytes ?? 0) + insertDiagnostics.serializedBytes;
         addElapsed(aggregateStats.timings, 'databaseAccessMs', writeStarted);
         addElapsed(aggregateStats.timings, 'edgeWriteMs', writeStarted);
         addElapsed(aggregateStats.timings, 'edgeWriteDbMs', writeStarted);

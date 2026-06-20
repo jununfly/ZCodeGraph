@@ -23,6 +23,7 @@ import { parseQuery, boundedEditDistance } from '../search/query-parser';
 import { isGeneratedFile } from '../extraction/generated-detection';
 import type {
   AgentAccessModel,
+  EdgeInsertDiagnostics,
   MaintenanceAccessModel,
   ResolutionAccessModel,
   StatusAccessModel,
@@ -83,6 +84,16 @@ interface NodeRow {
 
 interface EdgeRow {
   id: number;
+  source: string;
+  target: string;
+  kind: string;
+  metadata: string | null;
+  line: number | null;
+  col: number | null;
+  edgeOrigin: string | null;
+}
+
+interface EdgeInsertRow {
   source: string;
   target: string;
   kind: string;
@@ -1302,14 +1313,52 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
    * Insert multiple edges whose endpoints have already been validated by the
    * caller against the current nodes table.
    */
-  insertValidatedEdges(edges: Edge[]): void {
-    if (edges.length === 0) return;
+  insertValidatedEdges(edges: Edge[]): EdgeInsertDiagnostics {
+    if (edges.length === 0) {
+      return { serializationMs: 0, serializedBytes: 0 };
+    }
 
+    const serializationStarted = Date.now();
+    const rows = edges.map((edge) => this.toEdgeInsertRow(edge));
+    const serializationMs = Math.max(0, Date.now() - serializationStarted);
+    const serializedBytes = rows.reduce((total, row) => total + this.estimateEdgeInsertRowBytes(row), 0);
+
+    if (!this.stmts.insertEdge) {
+      this.stmts.insertEdge = this.db.prepare(`
+        INSERT OR IGNORE INTO edges (source, target, kind, metadata, line, col, edgeOrigin)
+        VALUES (@source, @target, @kind, @metadata, @line, @col, @edgeOrigin)
+      `);
+    }
+    const insertEdge = this.stmts.insertEdge;
     this.db.transaction(() => {
-      for (const edge of edges) {
-        this.insertEdge(edge);
+      for (const row of rows) {
+        insertEdge.run(row);
       }
     })();
+
+    return { serializationMs, serializedBytes };
+  }
+
+  private toEdgeInsertRow(edge: Edge): EdgeInsertRow {
+    return {
+      source: edge.source,
+      target: edge.target,
+      kind: edge.kind,
+      metadata: edge.metadata ? JSON.stringify(edge.metadata) : null,
+      line: edge.line ?? null,
+      col: edge.column ?? null,
+      edgeOrigin: edge.edgeOrigin ?? null,
+    };
+  }
+
+  private estimateEdgeInsertRowBytes(row: EdgeInsertRow): number {
+    return (
+      Buffer.byteLength(row.source, 'utf8') +
+      Buffer.byteLength(row.target, 'utf8') +
+      Buffer.byteLength(row.kind, 'utf8') +
+      (row.metadata ? Buffer.byteLength(row.metadata, 'utf8') : 0) +
+      (row.edgeOrigin ? Buffer.byteLength(row.edgeOrigin, 'utf8') : 0)
+    );
   }
 
   /**

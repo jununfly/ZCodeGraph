@@ -33,6 +33,8 @@ const FINALIZATION_DIAGNOSTIC_BUCKETS = [
   'edgeMaterializationDbMs',
   'edgeEndpointValidationDbMs',
   'edgeInsertCount',
+  'edgeInsertSerializationMs',
+  'edgeInsertSerializedBytes',
   'edgeWriteMs',
   'edgeWriteDbMs',
   'unresolvedCleanupMs',
