@@ -1089,6 +1089,8 @@ export class CodeGraph {
                 lookupShapeCounts: {
                   ExactName: 0,
                   LowerName: 0,
+                  QualifiedName: 0,
+                  FileNodes: 0,
                   KnownNamePresence: 0,
                 },
                 comparedCount: 0,

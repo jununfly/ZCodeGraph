@@ -1,0 +1,187 @@
+{
+  "rustCore": {
+    "sourceScanMs": 26,
+    "parseExtractionMs": 22600,
+    "sqliteWriteMs": 26585,
+    "importPathAliasResolutionMs": 1595,
+    "importPathAliasResolvedRefs": 31,
+    "importPathAliasFallbackRefs": 170384,
+    "importPathAliasBindingFallbackRefs": 105920,
+    "importPathAliasUnsupportedFallbackRefs": 273,
+    "importPathAliasUnresolvedFallbackRefs": 64191,
+    "esmNamedImportExportResolutionMs": 2554,
+    "esmNamedImportExportResolvedRefs": 3,
+    "esmNamedImportExportFallbackRefs": 105919,
+    "esmOneHopReexportResolvedRefs": 0,
+    "localExactReferenceResolutionMs": 18472,
+    "localExactReferenceResolvedRefs": 89959,
+    "localExactReferenceFallbackRefs": 454139,
+    "subprocessStartupHandoffMs": 2
+  },
+  "typescriptFallbackAppend": {
+    "durationMs": 211,
+    "fallbackFileCount": 290,
+    "errorTaxonomy": {
+      "read_error": 286
+    }
+  },
+  "finalize": {
+    "frameworkPostExtractMs": 27,
+    "referenceResolutionMs": 50288,
+    "referenceResolutionBreakdown": {
+      "importResolutionMs": 5013,
+      "nameMatchingMs": 20525,
+      "frameworkMatchingMs": 18,
+      "databaseAccessMs": 21466,
+      "cacheWarmupDbMs": 204,
+      "refHydrationDbMs": 27,
+      "cacheWarmupMs": 231,
+      "unresolvedReadMs": 796,
+      "unresolvedReadDbMs": 796,
+      "candidateLookupMs": 2660,
+      "sharedCandidateLookupMs": 833,
+      "candidateLookupCacheHitMs": 479,
+      "nameMatcherCandidateLookupDbMs": 2196,
+      "perReferenceDisambiguationMs": 18696,
+      "rustMatcherMs": 0,
+      "rustMatcherStartupMs": 0,
+      "rustMatcherSerializationMs": 0,
+      "rustMatcherEligibleRefs": 0,
+      "rustMatcherHandledRefs": 0,
+      "rustMatcherFallbackRefs": 0,
+      "rustMatcherSemanticMismatchRefs": 0,
+      "rustMatcherSemanticMismatchSamples": [],
+      "rustMatcherFallbackReasons": {},
+      "rustMatcherCandidateMaterializationMs": 0,
+      "rustMatcherSubprocessMs": 0,
+      "rustMatcherTsVerificationMs": 0,
+      "rustMatcherPayloadBytes": 0,
+      "rustMatcherUniqueCandidateFacts": 0,
+      "candidateReplayEligibleRefs": 0,
+      "candidateReplayComparedRefs": 0,
+      "candidateReplayEquivalentRefs": 0,
+      "candidateReplayMismatchRefs": 0,
+      "candidateReplayMismatchReasons": {},
+      "candidateReplayMismatchSamples": [],
+      "candidateProtocol": {
+        "enabled": true,
+        "materializationMs": 0,
+        "lookupMs": 3099,
+        "lookupCount": 1609764,
+        "cacheHitCount": 768746,
+        "cacheMissCount": 93474,
+        "dbLookupCount": 93474,
+        "lookupShapeCounts": {
+          "ExactName": 760610,
+          "LowerName": 30869,
+          "QualifiedName": 69233,
+          "FileNodes": 1508,
+          "KnownNamePresence": 747544
+        },
+        "lookupShapeMs": {
+          "ExactName": 2415,
+          "LowerName": 82,
+          "QualifiedName": 74,
+          "FileNodes": 352,
+          "KnownNamePresence": 176
+        },
+        "equivalenceComparedCount": 0,
+        "equivalenceMismatchCount": 0,
+        "fallbackReasons": {},
+        "candidateCount": 255322,
+        "disabledReason": null,
+        "rustCandidateProducer": {
+          "enabled": true,
+          "shadowMode": true,
+          "producerMs": 783,
+          "serializationMs": 42,
+          "subprocessMs": 1506,
+          "lookupCount": 156348,
+          "lookupShapeCounts": {
+            "ExactName": 48500,
+            "LowerName": 4665,
+            "QualifiedName": 14784,
+            "FileNodes": 1298,
+            "KnownNamePresence": 87101
+          },
+          "comparedCount": 156348,
+          "mismatchCount": 0,
+          "mismatchReasons": {},
+          "mismatchSamples": [],
+          "candidateCount": 335953,
+          "payloadBytes": 14358208,
+          "disabledReason": null
+        }
+      },
+      "edgeMaterializationMs": 673,
+      "edgeMaterializationDbMs": 673,
+      "edgeWriteMs": 10811,
+      "edgeWriteDbMs": 10811,
+      "unresolvedCleanupMs": 8956,
+      "unresolvedCleanupDbMs": 8956,
+      "otherResolutionMs": 346
+    },
+    "dynamicDispatchSynthesisMs": 5832,
+    "dbMaintenanceMs": 55,
+    "boundaryProtocol": {
+      "version": 1,
+      "productShell": "typescript",
+      "rustOwnedStages": [
+        "source-scan",
+        "parse-extraction",
+        "graph-write",
+        "import-path-alias-resolution",
+        "esm-named-import-export-resolution",
+        "local-exact-reference-resolution"
+      ]
+    },
+    "fallbackTaxonomy": {
+      "totalFallbacks": 170387,
+      "entries": [
+        {
+          "stage": "framework-post-extract",
+          "classification": "known-unsupported",
+          "reason": "typescript-finalization-not-yet-migrated",
+          "count": 1
+        },
+        {
+          "stage": "reference-resolution",
+          "classification": "known-unsupported",
+          "reason": "typescript-finalization-not-yet-migrated",
+          "count": 1
+        },
+        {
+          "stage": "dynamic-dispatch-synthesis",
+          "classification": "known-unsupported",
+          "reason": "typescript-finalization-not-yet-migrated",
+          "count": 1
+        },
+        {
+          "stage": "db-maintenance",
+          "classification": "known-unsupported",
+          "reason": "typescript-finalization-not-yet-migrated",
+          "count": 1
+        },
+        {
+          "stage": "reference-resolution",
+          "classification": "known-unsupported",
+          "reason": "binding-level-symbol-disambiguation-not-yet-rust-owned",
+          "count": 105919
+        },
+        {
+          "stage": "reference-resolution",
+          "classification": "known-unsupported",
+          "reason": "unsupported-import-form-not-yet-rust-owned",
+          "count": 35
+        },
+        {
+          "stage": "reference-resolution",
+          "classification": "known-unsupported",
+          "reason": "unresolved-file-level-import-target",
+          "count": 64429
+        }
+      ]
+    }
+  },
+  "typescriptFinalizationMs": 57582
+}

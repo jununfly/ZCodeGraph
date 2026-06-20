@@ -1154,6 +1154,8 @@ describe('zcodegraph index engine selection', () => {
       lookupShapeCounts: expect.objectContaining({
         ExactName: expect.any(Number),
         LowerName: expect.any(Number),
+        QualifiedName: expect.any(Number),
+        FileNodes: expect.any(Number),
         KnownNamePresence: expect.any(Number),
       }),
       comparedCount: expect.any(Number),
@@ -1165,6 +1167,8 @@ describe('zcodegraph index engine selection', () => {
     expect(producer.lookupCount).toBeGreaterThan(0);
     expect(producer.lookupShapeCounts.ExactName).toBeGreaterThan(0);
     expect(producer.lookupShapeCounts.LowerName).toBeGreaterThanOrEqual(0);
+    expect(producer.lookupShapeCounts.QualifiedName).toBeGreaterThanOrEqual(0);
+    expect(producer.lookupShapeCounts.FileNodes).toBeGreaterThanOrEqual(0);
     expect(producer.lookupShapeCounts.KnownNamePresence).toBeGreaterThan(0);
     expect(producer.comparedCount).toBe(producer.lookupCount);
     expect(producer.candidateCount).toBeGreaterThan(0);

@@ -380,6 +380,8 @@ struct CandidateProducerRequest {
 enum CandidateProducerLookup {
     ExactName { name: String },
     LowerName { lower_name: String },
+    QualifiedName { qualified_name: String },
+    FileNodes { file_path: String },
     KnownNamePresence { name: String },
 }
 
@@ -407,6 +409,14 @@ enum CandidateProducerResult {
         lower_name: String,
         candidate_ids: Vec<String>,
     },
+    QualifiedName {
+        qualified_name: String,
+        candidate_ids: Vec<String>,
+    },
+    FileNodes {
+        file_path: String,
+        candidate_ids: Vec<String>,
+    },
     KnownNamePresence {
         name: String,
         present: bool,
@@ -420,6 +430,8 @@ struct CandidateProducerDiagnostics {
     lookup_count: usize,
     exact_name_count: usize,
     lower_name_count: usize,
+    qualified_name_count: usize,
+    file_nodes_count: usize,
     known_name_presence_count: usize,
     candidate_count: usize,
 }
@@ -446,6 +458,12 @@ pub fn candidate_producer_json(input: &str) -> Result<String, String> {
     let mut lower_stmt = conn
         .prepare("SELECT id FROM nodes WHERE lower(name) = ?1 ORDER BY rowid")
         .map_err(|err| format!("failed to prepare lower-name lookup: {}", err))?;
+    let mut qualified_stmt = conn
+        .prepare("SELECT id FROM nodes WHERE qualified_name = ?1 ORDER BY rowid")
+        .map_err(|err| format!("failed to prepare qualified-name lookup: {}", err))?;
+    let mut file_nodes_stmt = conn
+        .prepare("SELECT id FROM nodes WHERE file_path = ?1 ORDER BY rowid")
+        .map_err(|err| format!("failed to prepare file-nodes lookup: {}", err))?;
     let mut presence_stmt = conn
         .prepare("SELECT 1 FROM nodes WHERE name = ?1 LIMIT 1")
         .map_err(|err| format!("failed to prepare known-name lookup: {}", err))?;
@@ -481,6 +499,32 @@ pub fn candidate_producer_json(input: &str) -> Result<String, String> {
                 diagnostics.candidate_count += candidate_ids.len();
                 results.push(CandidateProducerResult::LowerName {
                     lower_name,
+                    candidate_ids,
+                });
+            }
+            CandidateProducerLookup::QualifiedName { qualified_name } => {
+                diagnostics.qualified_name_count += 1;
+                let candidate_ids = qualified_stmt
+                    .query_map(params![qualified_name], |row| row.get::<_, String>(0))
+                    .map_err(|err| format!("failed to query qualified-name candidates: {}", err))?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(|err| format!("failed to read qualified-name candidates: {}", err))?;
+                diagnostics.candidate_count += candidate_ids.len();
+                results.push(CandidateProducerResult::QualifiedName {
+                    qualified_name,
+                    candidate_ids,
+                });
+            }
+            CandidateProducerLookup::FileNodes { file_path } => {
+                diagnostics.file_nodes_count += 1;
+                let candidate_ids = file_nodes_stmt
+                    .query_map(params![file_path], |row| row.get::<_, String>(0))
+                    .map_err(|err| format!("failed to query file-nodes candidates: {}", err))?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(|err| format!("failed to read file-nodes candidates: {}", err))?;
+                diagnostics.candidate_count += candidate_ids.len();
+                results.push(CandidateProducerResult::FileNodes {
+                    file_path,
                     candidate_ids,
                 });
             }
@@ -4122,6 +4166,66 @@ mod tests {
         );
         assert_eq!(
             response["results"][1]["candidateIds"],
+            serde_json::json!([])
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn candidate_producer_returns_qualified_name_and_file_nodes_from_sqlite() {
+        let dir = temp_dir("candidate-producer-complete-shapes");
+        let db_path = dir.join("zcodegraph.db");
+        let conn = Connection::open(&db_path).unwrap();
+        conn.execute_batch(SCHEMA_SQL).unwrap();
+        for (id, name, qualified_name, file_path, line) in [
+            ("node-a", "leaf", "pkg::Type.leaf", "src/a.ts", 1),
+            ("node-b", "leafAlias", "pkg::Type.leaf", "src/b.ts", 2),
+            ("node-c", "helper", "pkg::helper", "src/a.ts", 3),
+        ] {
+            conn.execute(
+                "INSERT INTO nodes (
+                    id, kind, name, qualified_name, file_path, language,
+                    start_line, end_line, start_column, end_column, updated_at
+                ) VALUES (?1, 'function', ?2, ?3, ?4, 'typescript', ?5, ?5, 0, 1, 1)",
+                params![id, name, qualified_name, file_path, line],
+            )
+            .unwrap();
+        }
+        drop(conn);
+
+        let request = serde_json::json!({
+            "version": 1,
+            "indexPath": db_path,
+            "lookups": [
+                { "kind": "QualifiedName", "qualifiedName": "pkg::Type.leaf" },
+                { "kind": "QualifiedName", "qualifiedName": "pkg::missing" },
+                { "kind": "FileNodes", "filePath": "src/a.ts" },
+                { "kind": "FileNodes", "filePath": "src/missing.ts" }
+            ]
+        });
+
+        let response: Value =
+            serde_json::from_str(&candidate_producer_json(&request.to_string()).unwrap()).unwrap();
+        assert_eq!(response["type"], "candidate_producer_result");
+        assert_eq!(response["diagnostics"]["lookupCount"], 4);
+        assert_eq!(response["diagnostics"]["qualifiedNameCount"], 2);
+        assert_eq!(response["diagnostics"]["fileNodesCount"], 2);
+        assert_eq!(response["diagnostics"]["candidateCount"], 4);
+        assert_eq!(
+            response["results"][0]["candidateIds"],
+            serde_json::json!(["node-a", "node-b"])
+        );
+        assert_eq!(
+            response["results"][1]["candidateIds"],
+            serde_json::json!([])
+        );
+        assert_eq!(
+            response["results"][2]["candidateIds"],
+            serde_json::json!(["node-a", "node-c"])
+        );
+        assert_eq!(
+            response["results"][3]["candidateIds"],
             serde_json::json!([])
         );
 

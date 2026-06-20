@@ -107,6 +107,8 @@ export class CandidateProtocolProvider {
   private readonly candidateIds = new Set<string>();
   private readonly exactNameBaselines = new Map<string, string[]>();
   private readonly lowerNameBaselines = new Map<string, string[]>();
+  private readonly qualifiedNameBaselines = new Map<string, string[]>();
+  private readonly fileNodesBaselines = new Map<string, string[]>();
   private readonly knownNameBaselines = new Map<string, boolean>();
   private diagnostics: Omit<CandidateProtocolDiagnostics, 'enabled' | 'candidateCount' | 'disabledReason' | 'rustCandidateProducer'>;
 
@@ -178,6 +180,8 @@ export class CandidateProtocolProvider {
     this.candidateIds.clear();
     this.exactNameBaselines.clear();
     this.lowerNameBaselines.clear();
+    this.qualifiedNameBaselines.clear();
+    this.fileNodesBaselines.clear();
     this.knownNameBaselines.clear();
     this.diagnostics = this.emptyDiagnostics();
   }
@@ -235,6 +239,12 @@ export class CandidateProtocolProvider {
     for (const lowerName of this.lowerNameBaselines.keys()) {
       lookups.push({ kind: 'LowerName', lowerName });
     }
+    for (const qualifiedName of this.qualifiedNameBaselines.keys()) {
+      lookups.push({ kind: 'QualifiedName', qualifiedName });
+    }
+    for (const filePath of this.fileNodesBaselines.keys()) {
+      lookups.push({ kind: 'FileNodes', filePath });
+    }
     for (const name of this.knownNameBaselines.keys()) {
       lookups.push({ kind: 'KnownNamePresence', name });
     }
@@ -245,12 +255,18 @@ export class CandidateProtocolProvider {
     });
     const exactResults = new Map<string, string[]>();
     const lowerResults = new Map<string, string[]>();
+    const qualifiedResults = new Map<string, string[]>();
+    const fileResults = new Map<string, string[]>();
     const presenceResults = new Map<string, boolean>();
     for (const result of results) {
       if (result.kind === 'ExactName') {
         exactResults.set(result.name, result.candidateIds);
       } else if (result.kind === 'LowerName') {
         lowerResults.set(result.lowerName, result.candidateIds);
+      } else if (result.kind === 'QualifiedName') {
+        qualifiedResults.set(result.qualifiedName, result.candidateIds);
+      } else if (result.kind === 'FileNodes') {
+        fileResults.set(result.filePath, result.candidateIds);
       } else {
         presenceResults.set(result.name, result.present);
       }
@@ -293,6 +309,50 @@ export class CandidateProtocolProvider {
         this.recordRustProducerMismatch(diagnostics, {
           kind: 'LowerName',
           key: lowerName,
+          reason: 'different-candidate-set',
+          tsCandidateIds,
+          rustCandidateIds,
+        });
+      }
+    }
+
+    for (const [qualifiedName, tsCandidateIds] of this.qualifiedNameBaselines) {
+      const rustCandidateIds = qualifiedResults.get(qualifiedName);
+      diagnostics.comparedCount += 1;
+      if (!rustCandidateIds) {
+        this.recordRustProducerMismatch(diagnostics, {
+          kind: 'QualifiedName',
+          key: qualifiedName,
+          reason: 'missing-rust-result',
+          tsCandidateIds,
+          rustCandidateIds: [],
+        });
+      } else if (!sameStringSet(tsCandidateIds, rustCandidateIds)) {
+        this.recordRustProducerMismatch(diagnostics, {
+          kind: 'QualifiedName',
+          key: qualifiedName,
+          reason: 'different-candidate-set',
+          tsCandidateIds,
+          rustCandidateIds,
+        });
+      }
+    }
+
+    for (const [filePath, tsCandidateIds] of this.fileNodesBaselines) {
+      const rustCandidateIds = fileResults.get(filePath);
+      diagnostics.comparedCount += 1;
+      if (!rustCandidateIds) {
+        this.recordRustProducerMismatch(diagnostics, {
+          kind: 'FileNodes',
+          key: filePath,
+          reason: 'missing-rust-result',
+          tsCandidateIds,
+          rustCandidateIds: [],
+        });
+      } else if (!sameStringSet(tsCandidateIds, rustCandidateIds)) {
+        this.recordRustProducerMismatch(diagnostics, {
+          kind: 'FileNodes',
+          key: filePath,
           reason: 'different-candidate-set',
           tsCandidateIds,
           rustCandidateIds,
@@ -344,6 +404,10 @@ export class CandidateProtocolProvider {
       this.exactNameBaselines.set(lookup.name, nodes.map((node) => node.id));
     } else if (lookup.kind === 'LowerName') {
       this.lowerNameBaselines.set(lookup.lowerName, nodes.map((node) => node.id));
+    } else if (lookup.kind === 'QualifiedName') {
+      this.qualifiedNameBaselines.set(lookup.qualifiedName, nodes.map((node) => node.id));
+    } else if (lookup.kind === 'FileNodes') {
+      this.fileNodesBaselines.set(lookup.filePath, nodes.map((node) => node.id));
     }
   }
 
