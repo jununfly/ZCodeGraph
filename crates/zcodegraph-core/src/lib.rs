@@ -363,6 +363,122 @@ struct NameMatcherDiagnostics {
     rust_matcher_fallback_reasons: std::collections::BTreeMap<String, usize>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CandidateProducerRequest {
+    version: u8,
+    index_path: String,
+    lookups: Vec<CandidateProducerLookup>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "PascalCase")]
+enum CandidateProducerLookup {
+    ExactName { name: String },
+    KnownNamePresence { name: String },
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CandidateProducerResponse {
+    r#type: &'static str,
+    version: u8,
+    results: Vec<CandidateProducerResult>,
+    diagnostics: CandidateProducerDiagnostics,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "PascalCase",
+    rename_all_fields = "camelCase"
+)]
+enum CandidateProducerResult {
+    ExactName {
+        name: String,
+        candidate_ids: Vec<String>,
+    },
+    KnownNamePresence {
+        name: String,
+        present: bool,
+    },
+}
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CandidateProducerDiagnostics {
+    producer_ms: u128,
+    lookup_count: usize,
+    exact_name_count: usize,
+    known_name_presence_count: usize,
+    candidate_count: usize,
+}
+
+pub fn candidate_producer_json(input: &str) -> Result<String, String> {
+    let started = Instant::now();
+    let request: CandidateProducerRequest = serde_json::from_str(input)
+        .map_err(|err| format!("invalid produce-candidates request: {}", err))?;
+    if request.version != 1 {
+        return Err(format!(
+            "unsupported produce-candidates request version: {}",
+            request.version
+        ));
+    }
+
+    let conn = Connection::open(&request.index_path)
+        .map_err(|err| format!("failed to open candidate producer index: {}", err))?;
+    conn.pragma_update(None, "query_only", "ON")
+        .map_err(|err| format!("failed to configure candidate producer index: {}", err))?;
+
+    let mut exact_stmt = conn
+        .prepare("SELECT id FROM nodes WHERE name = ?1 ORDER BY rowid")
+        .map_err(|err| format!("failed to prepare exact-name lookup: {}", err))?;
+    let mut presence_stmt = conn
+        .prepare("SELECT 1 FROM nodes WHERE name = ?1 LIMIT 1")
+        .map_err(|err| format!("failed to prepare known-name lookup: {}", err))?;
+
+    let mut diagnostics = CandidateProducerDiagnostics {
+        lookup_count: request.lookups.len(),
+        ..CandidateProducerDiagnostics::default()
+    };
+    let mut results = Vec::with_capacity(request.lookups.len());
+
+    for lookup in request.lookups {
+        match lookup {
+            CandidateProducerLookup::ExactName { name } => {
+                diagnostics.exact_name_count += 1;
+                let candidate_ids = exact_stmt
+                    .query_map(params![name], |row| row.get::<_, String>(0))
+                    .map_err(|err| format!("failed to query exact-name candidates: {}", err))?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(|err| format!("failed to read exact-name candidates: {}", err))?;
+                diagnostics.candidate_count += candidate_ids.len();
+                results.push(CandidateProducerResult::ExactName {
+                    name,
+                    candidate_ids,
+                });
+            }
+            CandidateProducerLookup::KnownNamePresence { name } => {
+                diagnostics.known_name_presence_count += 1;
+                let present = presence_stmt
+                    .exists(params![name])
+                    .map_err(|err| format!("failed to query known-name presence: {}", err))?;
+                results.push(CandidateProducerResult::KnownNamePresence { name, present });
+            }
+        }
+    }
+
+    diagnostics.producer_ms = started.elapsed().as_millis();
+
+    serde_json::to_string(&CandidateProducerResponse {
+        r#type: "candidate_producer_result",
+        version: 1,
+        results,
+        diagnostics,
+    })
+    .map_err(|err| format!("failed to encode candidate producer response: {}", err))
+}
+
 pub fn match_name_json(input: &str) -> Result<String, String> {
     let started = Instant::now();
     let mut request: NameMatcherBatchRequest = serde_json::from_str(input)
@@ -2209,7 +2325,8 @@ fn looks_like_type_import_context(source: &str, start: usize) -> Option<TypeImpo
             allows_bare_import_type_query: trimmed.ends_with("typeof"),
         });
     }
-    if trimmed.rsplit_once(|ch: char| !is_identifier_char(ch))
+    if trimmed
+        .rsplit_once(|ch: char| !is_identifier_char(ch))
         .map(|(_, token)| token == "as")
         .unwrap_or(trimmed == "as")
     {
@@ -2409,9 +2526,7 @@ fn collect_supported_files(project_path: &Path) -> io::Result<Vec<PathBuf>> {
                     continue;
                 }
                 walk(&path, out)?;
-            } else if SourceLanguage::from_path(&path).is_some()
-                && !is_generated_go_file(&path)
-            {
+            } else if SourceLanguage::from_path(&path).is_some() && !is_generated_go_file(&path) {
                 out.push(path);
             }
         }
@@ -2525,7 +2640,10 @@ fn visit_go_node(
             col: extracted.start_column,
         });
         nodes.push(extracted);
-        if matches!(kind, "module" | "struct" | "interface" | "function" | "method") {
+        if matches!(
+            kind,
+            "module" | "struct" | "interface" | "function" | "method"
+        ) {
             child_from_node_id = Cow::Owned(extracted_id);
         }
 
@@ -2545,7 +2663,13 @@ fn visit_go_node(
         group_prefixes,
         variable_types,
     )?;
-    extract_go_statement_refs(node, source, relative_path, current_from_node_id, unresolved_refs)?;
+    extract_go_statement_refs(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        unresolved_refs,
+    )?;
 
     if cursor.goto_first_child() {
         loop {
@@ -2630,7 +2754,10 @@ fn parse_go_gin_route_call(
             continue;
         };
         let receiver = call[..method_index].trim();
-        if receiver.is_empty() || !receiver.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        if receiver.is_empty()
+            || !receiver
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
         {
             return None;
         }
@@ -2657,7 +2784,12 @@ fn collect_go_gin_group_prefixes(source: &str) -> HashMap<String, String> {
         if var_name.is_empty() || !right.contains(".Group(") {
             continue;
         }
-        if let Some((prefix, _)) = parse_first_go_string(right.split_once(".Group(").map(|(_, args)| args).unwrap_or(right)) {
+        if let Some((prefix, _)) = parse_first_go_string(
+            right
+                .split_once(".Group(")
+                .map(|(_, args)| args)
+                .unwrap_or(right),
+        ) {
             groups.insert(var_name.to_string(), prefix);
         }
     }
@@ -3860,6 +3992,62 @@ mod tests {
     }
 
     #[test]
+    fn candidate_producer_returns_exact_name_and_presence_from_sqlite() {
+        let dir = temp_dir("candidate-producer");
+        let db_path = dir.join("zcodegraph.db");
+        let conn = Connection::open(&db_path).unwrap();
+        conn.execute_batch(SCHEMA_SQL).unwrap();
+        conn.execute(
+            "INSERT INTO nodes (
+                id, kind, name, qualified_name, file_path, language,
+                start_line, end_line, start_column, end_column, updated_at
+            ) VALUES (?1, 'function', ?2, ?3, ?4, 'typescript', 1, 1, 0, 1, 1)",
+            params!["node-a", "shared", "src/a.ts::shared", "src/a.ts"],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO nodes (
+                id, kind, name, qualified_name, file_path, language,
+                start_line, end_line, start_column, end_column, updated_at
+            ) VALUES (?1, 'function', ?2, ?3, ?4, 'typescript', 2, 2, 0, 1, 1)",
+            params!["node-b", "shared", "src/b.ts::shared", "src/b.ts"],
+        )
+        .unwrap();
+        drop(conn);
+
+        let request = serde_json::json!({
+            "version": 1,
+            "indexPath": db_path,
+            "lookups": [
+                { "kind": "ExactName", "name": "shared" },
+                { "kind": "ExactName", "name": "missing" },
+                { "kind": "KnownNamePresence", "name": "shared" },
+                { "kind": "KnownNamePresence", "name": "missing" }
+            ]
+        });
+
+        let response: Value =
+            serde_json::from_str(&candidate_producer_json(&request.to_string()).unwrap()).unwrap();
+        assert_eq!(response["type"], "candidate_producer_result");
+        assert_eq!(response["diagnostics"]["lookupCount"], 4);
+        assert_eq!(response["diagnostics"]["exactNameCount"], 2);
+        assert_eq!(response["diagnostics"]["knownNamePresenceCount"], 2);
+        assert_eq!(response["diagnostics"]["candidateCount"], 2);
+        assert_eq!(
+            response["results"][0]["candidateIds"],
+            serde_json::json!(["node-a", "node-b"])
+        );
+        assert_eq!(
+            response["results"][1]["candidateIds"],
+            serde_json::json!([])
+        );
+        assert_eq!(response["results"][2]["present"], true);
+        assert_eq!(response["results"][3]["present"], false);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn normalization_borrows_sources_when_no_rewrite_is_needed() {
         let js = "export function alpha() { return 1; }\n";
         assert!(matches!(
@@ -4346,14 +4534,18 @@ mod tests {
             .query_row("SELECT count(*) FROM nodes", [], |row| row.get(0))
             .unwrap();
         let stable_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM nodes WHERE name = 'stableSymbol'", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT COUNT(*) FROM nodes WHERE name = 'stableSymbol'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         let later_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM nodes WHERE name = 'laterSymbol'", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT COUNT(*) FROM nodes WHERE name = 'laterSymbol'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
 
         assert_eq!(file_count, 3);
@@ -4378,12 +4570,7 @@ mod tests {
         .unwrap();
         fs::write(
             dir.join("server.go"),
-            [
-                "package main",
-                "func handler() int { return 1 }",
-                "",
-            ]
-            .join("\n"),
+            ["package main", "func handler() int { return 1 }", ""].join("\n"),
         )
         .unwrap();
 
@@ -4408,9 +4595,11 @@ mod tests {
         assert_eq!(result.files_errored, 0);
         let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
         let count_name = |name: &str| -> i64 {
-            conn.query_row("SELECT COUNT(*) FROM nodes WHERE name = ?1", [name], |row| {
-                row.get(0)
-            })
+            conn.query_row(
+                "SELECT COUNT(*) FROM nodes WHERE name = ?1",
+                [name],
+                |row| row.get(0),
+            )
             .unwrap()
         };
         assert_eq!(count_name("alpha"), 1);

@@ -1,5 +1,13 @@
 import { Node } from '../types';
 import { LRUCache } from './lru-cache';
+import {
+  emptyRustCandidateProducerDiagnostics,
+  runRustCandidateProducer,
+  rustCandidateProducerEnabled,
+  type RustCandidateProducerDiagnostics,
+  type RustCandidateProducerLookup,
+  type RustCandidateProducerMismatch,
+} from './rust-candidate-producer';
 
 export type CandidateLookupShape =
   | { kind: 'ExactName'; name: string }
@@ -41,6 +49,7 @@ export interface CandidateProtocolDiagnostics {
   equivalenceMismatchCount: number;
   fallbackReasons: Record<string, number>;
   disabledReason: string | null;
+  rustCandidateProducer: RustCandidateProducerDiagnostics;
 }
 
 interface CandidateProtocolCaches {
@@ -91,19 +100,27 @@ export function toCandidateFact(node: Node): CandidateFact {
 export class CandidateProtocolProvider {
   private readonly enabled: boolean;
   private readonly compareWithBaseline: boolean;
+  private readonly rustProducerEnabled: boolean;
+  private readonly indexPath: string | null;
   private readonly caches: CandidateProtocolCaches;
   private readonly source: CandidateProtocolSource;
   private readonly candidateIds = new Set<string>();
-  private diagnostics: Omit<CandidateProtocolDiagnostics, 'enabled' | 'candidateCount' | 'disabledReason'>;
+  private readonly exactNameBaselines = new Map<string, string[]>();
+  private readonly knownNameBaselines = new Map<string, boolean>();
+  private diagnostics: Omit<CandidateProtocolDiagnostics, 'enabled' | 'candidateCount' | 'disabledReason' | 'rustCandidateProducer'>;
 
   constructor(options: {
     enabled: boolean;
     compareWithBaseline?: boolean;
+    indexPath?: string | null;
+    rustProducerEnabled?: boolean;
     caches: CandidateProtocolCaches;
     source: CandidateProtocolSource;
   }) {
     this.enabled = options.enabled;
     this.compareWithBaseline = options.compareWithBaseline ?? candidateProtocolEquivalenceEnabled();
+    this.rustProducerEnabled = options.rustProducerEnabled ?? rustCandidateProducerEnabled();
+    this.indexPath = options.indexPath ?? null;
     this.caches = options.caches;
     this.source = options.source;
     this.diagnostics = this.emptyDiagnostics();
@@ -137,6 +154,7 @@ export class CandidateProtocolProvider {
     for (const node of result) {
       this.candidateIds.add(toCandidateFact(node).id);
     }
+    this.recordRustProducerNodeBaseline(lookup, result);
     this.compareNodeLookup(lookup, result);
     this.recordLookupMs(lookup.kind, started);
     return result;
@@ -147,6 +165,9 @@ export class CandidateProtocolProvider {
     this.recordLookup('KnownNamePresence');
     const knownNames = this.source.getKnownNames();
     const result = knownNames ? knownNames.has(name) : null;
+    if (result !== null) {
+      this.knownNameBaselines.set(name, result);
+    }
     this.compareKnownNamePresence(name, result);
     this.recordLookupMs('KnownNamePresence', started);
     return result;
@@ -154,19 +175,23 @@ export class CandidateProtocolProvider {
 
   resetDiagnostics(): void {
     this.candidateIds.clear();
+    this.exactNameBaselines.clear();
+    this.knownNameBaselines.clear();
     this.diagnostics = this.emptyDiagnostics();
   }
 
   snapshotDiagnostics(): CandidateProtocolDiagnostics {
+    const rustCandidateProducer = this.snapshotRustProducerDiagnostics();
     return {
       enabled: this.enabled,
       ...this.diagnostics,
       candidateCount: this.candidateIds.size,
       disabledReason: this.enabled ? null : 'disabled-by-env',
+      rustCandidateProducer,
     };
   }
 
-  private emptyDiagnostics(): Omit<CandidateProtocolDiagnostics, 'enabled' | 'candidateCount' | 'disabledReason'> {
+  private emptyDiagnostics(): Omit<CandidateProtocolDiagnostics, 'enabled' | 'candidateCount' | 'disabledReason' | 'rustCandidateProducer'> {
     return {
       materializationMs: 0,
       lookupMs: 0,
@@ -192,6 +217,101 @@ export class CandidateProtocolProvider {
       equivalenceMismatchCount: 0,
       fallbackReasons: {},
     };
+  }
+
+  private snapshotRustProducerDiagnostics(): RustCandidateProducerDiagnostics {
+    if (!this.rustProducerEnabled) {
+      return emptyRustCandidateProducerDiagnostics(false, 'disabled-by-env');
+    }
+    if (!this.indexPath) {
+      return emptyRustCandidateProducerDiagnostics(true, 'missing-index-path');
+    }
+
+    const lookups: RustCandidateProducerLookup[] = [
+      ...this.exactNameBaselines.keys(),
+    ].map((name) => ({ kind: 'ExactName' as const, name }));
+    for (const name of this.knownNameBaselines.keys()) {
+      lookups.push({ kind: 'KnownNamePresence', name });
+    }
+
+    const { results, diagnostics } = runRustCandidateProducer({
+      indexPath: this.indexPath,
+      lookups,
+    });
+    const exactResults = new Map<string, string[]>();
+    const presenceResults = new Map<string, boolean>();
+    for (const result of results) {
+      if (result.kind === 'ExactName') {
+        exactResults.set(result.name, result.candidateIds);
+      } else {
+        presenceResults.set(result.name, result.present);
+      }
+    }
+
+    for (const [name, tsCandidateIds] of this.exactNameBaselines) {
+      const rustCandidateIds = exactResults.get(name);
+      diagnostics.comparedCount += 1;
+      if (!rustCandidateIds) {
+        this.recordRustProducerMismatch(diagnostics, {
+          kind: 'ExactName',
+          key: name,
+          reason: 'missing-rust-result',
+          tsCandidateIds,
+          rustCandidateIds: [],
+        });
+      } else if (!sameStringSet(tsCandidateIds, rustCandidateIds)) {
+        this.recordRustProducerMismatch(diagnostics, {
+          kind: 'ExactName',
+          key: name,
+          reason: 'different-candidate-set',
+          tsCandidateIds,
+          rustCandidateIds,
+        });
+      }
+    }
+
+    for (const [name, tsPresent] of this.knownNameBaselines) {
+      const rustPresent = presenceResults.get(name);
+      diagnostics.comparedCount += 1;
+      if (rustPresent === undefined) {
+        this.recordRustProducerMismatch(diagnostics, {
+          kind: 'KnownNamePresence',
+          key: name,
+          reason: 'missing-rust-result',
+          tsPresent,
+          rustPresent: false,
+        });
+      } else if (rustPresent !== tsPresent) {
+        this.recordRustProducerMismatch(diagnostics, {
+          kind: 'KnownNamePresence',
+          key: name,
+          reason: 'different-presence',
+          tsPresent,
+          rustPresent,
+        });
+      }
+    }
+
+    return diagnostics;
+  }
+
+  private recordRustProducerMismatch(
+    diagnostics: RustCandidateProducerDiagnostics,
+    mismatch: RustCandidateProducerMismatch,
+  ): void {
+    diagnostics.mismatchCount += 1;
+    diagnostics.mismatchReasons[mismatch.reason] = (diagnostics.mismatchReasons[mismatch.reason] ?? 0) + 1;
+    if (diagnostics.mismatchSamples.length < 50) {
+      diagnostics.mismatchSamples.push(mismatch);
+    }
+  }
+
+  private recordRustProducerNodeBaseline(
+    lookup: Exclude<CandidateLookupShape, { kind: 'KnownNamePresence' }>,
+    nodes: Node[],
+  ): void {
+    if (lookup.kind !== 'ExactName') return;
+    this.exactNameBaselines.set(lookup.name, nodes.map((node) => node.id));
   }
 
   private cacheFor(lookup: Exclude<CandidateLookupShape, { kind: 'KnownNamePresence' }>): LRUCache<string, Node[]> {
@@ -269,4 +389,11 @@ function sameNodeIdSet(a: Node[], b: Node[]): boolean {
   const aIds = new Set(a.map((node) => node.id));
   if (aIds.size !== b.length) return false;
   return b.every((node) => aIds.has(node.id));
+}
+
+function sameStringSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const aSet = new Set(a);
+  if (aSet.size !== b.length) return false;
+  return b.every((value) => aSet.has(value));
 }

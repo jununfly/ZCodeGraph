@@ -3,8 +3,8 @@ use std::io::{self, Read};
 use std::process;
 
 use zcodegraph_core::{
-    error_json, match_name_json, progress_json, result_json, run_index, start_heap_profiler,
-    IndexRequest,
+    candidate_producer_json, error_json, match_name_json, progress_json, result_json, run_index,
+    start_heap_profiler, IndexRequest,
 };
 
 fn main() {
@@ -16,6 +16,21 @@ fn main() {
             process::exit(2);
         }
         match match_name_json(&input) {
+            Ok(output) => println!("{}", output),
+            Err(message) => {
+                eprintln!("{}", error_json(&message));
+                process::exit(2);
+            }
+        }
+        return;
+    }
+    if args.first().map(String::as_str) == Some("produce-candidates") {
+        let mut input = String::new();
+        if let Err(err) = io::stdin().read_to_string(&mut input) {
+            eprintln!("{}", error_json(&format!("failed to read stdin: {}", err)));
+            process::exit(2);
+        }
+        match candidate_producer_json(&input) {
             Ok(output) => println!("{}", output),
             Err(message) => {
                 eprintln!("{}", error_json(&message));

@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Node, UnresolvedReference, Edge } from '../types';
 import { QueryBuilder } from '../db/queries';
+import { getDatabasePath } from '../db';
 import {
   UnresolvedRef,
   ResolvedRef,
@@ -348,6 +349,7 @@ export class ReferenceResolver {
     this.qualifiedNameCache = new LRUCache(limit);
     this.candidateProvider = new CandidateProtocolProvider({
       enabled: candidateProtocolEnabled(),
+      indexPath: getDatabasePath(this.projectRoot),
       caches: {
         fileNodes: this.nodeCache,
         exactName: this.nameCache,

@@ -1097,6 +1097,142 @@ describe('zcodegraph index engine selection', () => {
     );
   }, 30_000);
 
+  it('writes Rust candidate producer shadow diagnostics for exact names and known-name presence', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'rust-candidate-producer.py'),
+      [
+        'def producerHelper():',
+        '    return 1',
+        '',
+        'def producerEntry():',
+        '    return producerHelper()',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'rust-candidate-producer-profile.json');
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCODEGRAPH_CANDIDATE_PROTOCOL: '1',
+      ZCODEGRAPH_RUST_CANDIDATE_PRODUCER: '1',
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          candidateProtocol: {
+            rustCandidateProducer: {
+              enabled: boolean;
+              shadowMode: boolean;
+              lookupCount: number;
+              lookupShapeCounts: Record<string, number>;
+              comparedCount: number;
+              mismatchCount: number;
+              mismatchReasons: Record<string, number>;
+              mismatchSamples: unknown[];
+              candidateCount: number;
+              payloadBytes: number;
+              disabledReason: string | null;
+            };
+          };
+        };
+      };
+    };
+    const producer = profile.finalize.referenceResolutionBreakdown.candidateProtocol.rustCandidateProducer;
+    expect(producer).toMatchObject({
+      enabled: true,
+      shadowMode: true,
+      lookupShapeCounts: expect.objectContaining({
+        ExactName: expect.any(Number),
+        KnownNamePresence: expect.any(Number),
+      }),
+      comparedCount: expect.any(Number),
+      mismatchCount: 0,
+      mismatchReasons: {},
+      mismatchSamples: [],
+      disabledReason: null,
+    });
+    expect(producer.lookupCount).toBeGreaterThan(0);
+    expect(producer.lookupShapeCounts.ExactName).toBeGreaterThan(0);
+    expect(producer.lookupShapeCounts.KnownNamePresence).toBeGreaterThan(0);
+    expect(producer.comparedCount).toBe(producer.lookupCount);
+    expect(producer.candidateCount).toBeGreaterThan(0);
+    expect(producer.payloadBytes).toBeGreaterThan(0);
+  }, 30_000);
+
+  it('keeps resolved graph stable when Rust candidate producer shadow mode is enabled', () => {
+    const makeProject = (): string => {
+      const dir = makeTempProject();
+      fs.writeFileSync(
+        path.join(dir, 'rust-candidate-producer-guard.py'),
+        [
+          'def producerGuardHelper():',
+          '    return 1',
+          '',
+          'def producerGuardEntry():',
+          '    return producerGuardHelper()',
+        ].join('\n') + '\n',
+      );
+      return dir;
+    };
+    const graphSummary = (dir: string, enabled: boolean): {
+      stats: { fileCount: number; nodeCount: number; edgeCount: number };
+      edges: Array<{ source: string; target: string; kind: string; resolvedBy: unknown }>;
+    } => {
+      const result = runCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCODEGRAPH_CANDIDATE_PROTOCOL: '1',
+        ZCODEGRAPH_RUST_CANDIDATE_PRODUCER: enabled ? '1' : '0',
+      });
+      expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+      const cg = CodeGraph.openSync(dir);
+      try {
+        const entry = cg.searchNodes('producerGuardEntry').find((match) => match.node.kind === 'function')?.node;
+        expect(entry).toBeDefined();
+        const nodesById = new Map(cg.getNodesByKind('function').map((node) => [node.id, node.name]));
+        const stats = cg.getStats();
+        const edges = cg.getOutgoingEdges(entry!.id)
+          .filter((edge) => edge.kind === 'calls')
+          .map((edge) => ({
+            source: entry!.name,
+            target: nodesById.get(edge.target) ?? edge.target,
+            kind: edge.kind,
+            resolvedBy: edge.metadata?.resolvedBy,
+          }))
+          .sort((a, b) => `${a.source}:${a.target}:${a.kind}`.localeCompare(`${b.source}:${b.target}:${b.kind}`));
+        return {
+          stats: {
+            fileCount: stats.fileCount,
+            nodeCount: stats.nodeCount,
+            edgeCount: stats.edgeCount,
+          },
+          edges,
+        };
+      } finally {
+        cg.close();
+      }
+    };
+
+    const enabledDir = makeProject();
+    const disabledDir = makeProject();
+    try {
+      const enabledGraph = graphSummary(enabledDir, true);
+      const disabledGraph = graphSummary(disabledDir, false);
+      expect(enabledGraph.edges).toContainEqual({
+        source: 'producerGuardEntry',
+        target: 'producerGuardHelper',
+        kind: 'calls',
+        resolvedBy: 'exact-match',
+      });
+      expect(enabledGraph).toEqual(disabledGraph);
+    } finally {
+      fs.rmSync(enabledDir, { recursive: true, force: true });
+      fs.rmSync(disabledDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('resolves direct ESM named imports to exported target-file symbols as Rust-owned edges', () => {
     fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
     fs.writeFileSync(
