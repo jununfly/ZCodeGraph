@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -17,6 +17,8 @@ static ALLOCATOR: dhat::Alloc = dhat::Alloc;
 const SCHEMA_SQL: &str = include_str!("../../../src/db/schema.sql");
 const CURRENT_SCHEMA_VERSION: i64 = 4;
 const EXTRACTION_VERSION: i64 = 1;
+const IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP: usize = 100;
+const IMPORT_FALLBACK_SAMPLE_TOTAL_CAP: usize = 2000;
 
 #[cfg(feature = "dhat")]
 pub type HeapProfilerGuard = dhat::Profiler;
@@ -209,7 +211,7 @@ pub struct IndexResult {
     pub errors: Vec<IndexError>,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct IndexProfile {
     pub source_scan_ms: u128,
     pub parse_extraction_ms: u128,
@@ -228,6 +230,9 @@ pub struct IndexProfile {
     pub import_path_alias_tsconfig_fallback_refs: u32,
     pub import_path_alias_conventional_alias_fallback_refs: u32,
     pub import_path_alias_workspace_fallback_refs: u32,
+    pub import_path_alias_fallback_sample_counts: BTreeMap<String, u32>,
+    pub import_path_alias_fallback_samples: Vec<ImportFallbackSample>,
+    pub import_path_alias_fallback_sample_cap: ImportFallbackSampleCap,
     pub local_exact_reference_resolution_ms: u128,
     pub local_exact_reference_resolved_refs: u32,
     pub local_exact_reference_fallback_refs: u32,
@@ -235,6 +240,34 @@ pub struct IndexProfile {
     pub esm_named_import_export_resolved_refs: u32,
     pub esm_named_import_export_fallback_refs: u32,
     pub esm_one_hop_reexport_resolved_refs: u32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ImportFallbackSample {
+    pub source_kind: String,
+    pub reason: String,
+    pub reference_name: String,
+    pub file_path: String,
+    pub language: String,
+    pub line: i64,
+    pub col: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportFallbackSampleCap {
+    pub per_bucket: usize,
+    pub total: usize,
+    pub truncated: bool,
+}
+
+impl Default for ImportFallbackSampleCap {
+    fn default() -> Self {
+        Self {
+            per_bucket: IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP,
+            total: IMPORT_FALLBACK_SAMPLE_TOTAL_CAP,
+            truncated: false,
+        }
+    }
 }
 
 pub fn run_index(request: &IndexRequest) -> IndexResult {
@@ -1270,6 +1303,13 @@ fn write_index_to_connection(
         .import_path_alias_conventional_alias_fallback_refs =
         import_stats.conventional_alias_fallback_refs;
     counts.profile.import_path_alias_workspace_fallback_refs = import_stats.workspace_fallback_refs;
+    counts.profile.import_path_alias_fallback_sample_counts = import_stats.fallback_sample_counts;
+    counts.profile.import_path_alias_fallback_samples = import_stats.fallback_samples;
+    counts.profile.import_path_alias_fallback_sample_cap = ImportFallbackSampleCap {
+        per_bucket: IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP,
+        total: IMPORT_FALLBACK_SAMPLE_TOTAL_CAP,
+        truncated: import_stats.fallback_samples_truncated,
+    };
     counts.edges_created += import_stats.edges_created;
     let esm_named_started = Instant::now();
     let esm_named_stats =
@@ -1304,11 +1344,51 @@ struct ImportResolutionStats {
     tsconfig_fallback_refs: u32,
     conventional_alias_fallback_refs: u32,
     workspace_fallback_refs: u32,
+    fallback_sample_counts: BTreeMap<String, u32>,
+    fallback_samples: Vec<ImportFallbackSample>,
+    fallback_bucket_sample_counts: HashMap<String, usize>,
+    fallback_samples_truncated: bool,
 }
 
 impl ImportResolutionStats {
     fn fallback_refs(&self) -> u32 {
         self.binding_fallback_refs + self.unsupported_fallback_refs + self.unresolved_fallback_refs
+    }
+
+    fn record_fallback_sample(
+        &mut self,
+        source_kind: &str,
+        reason: &str,
+        reference: &ImportRefRow,
+    ) {
+        let bucket = format!("{}/{}", source_kind, reason);
+        *self
+            .fallback_sample_counts
+            .entry(bucket.clone())
+            .or_insert(0) += 1;
+
+        let bucket_count = *self
+            .fallback_bucket_sample_counts
+            .get(&bucket)
+            .unwrap_or(&0);
+        if bucket_count >= IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP
+            || self.fallback_samples.len() >= IMPORT_FALLBACK_SAMPLE_TOTAL_CAP
+        {
+            self.fallback_samples_truncated = true;
+            return;
+        }
+
+        self.fallback_bucket_sample_counts
+            .insert(bucket, bucket_count + 1);
+        self.fallback_samples.push(ImportFallbackSample {
+            source_kind: source_kind.to_string(),
+            reason: reason.to_string(),
+            reference_name: reference.reference_name.clone(),
+            file_path: reference.file_path.clone(),
+            language: reference.language.clone(),
+            line: reference.line,
+            col: reference.col,
+        });
     }
 }
 
@@ -1368,6 +1448,26 @@ impl ImportResolutionStats {
             ImportTargetSourceKind::TsconfigPaths => self.tsconfig_fallback_refs += 1,
             ImportTargetSourceKind::ConventionalAlias => self.conventional_alias_fallback_refs += 1,
             ImportTargetSourceKind::WorkspacePackage => self.workspace_fallback_refs += 1,
+        }
+    }
+}
+
+impl ImportTargetSourceKind {
+    fn as_profile_source_kind(self) -> &'static str {
+        match self {
+            ImportTargetSourceKind::Relative => "relative",
+            ImportTargetSourceKind::TsconfigPaths => "tsconfigPaths",
+            ImportTargetSourceKind::ConventionalAlias => "conventionalAlias",
+            ImportTargetSourceKind::WorkspacePackage => "workspacePackage",
+        }
+    }
+
+    fn target_not_found_reason(self) -> &'static str {
+        match self {
+            ImportTargetSourceKind::Relative => "target-not-found",
+            ImportTargetSourceKind::TsconfigPaths => "tsconfig-path-target-not-found",
+            ImportTargetSourceKind::ConventionalAlias => "conventional-alias-target-not-found",
+            ImportTargetSourceKind::WorkspacePackage => "workspace-package-target-not-found",
         }
     }
 }
@@ -1468,18 +1568,34 @@ fn resolve_js_ts_file_imports(
             (ImportTargetSourceKind::WorkspacePackage, None)
         } else if looks_like_imported_binding(specifier) {
             stats.binding_fallback_refs += 1;
+            stats.record_fallback_sample(
+                "binding",
+                "binding-level-symbol-disambiguation",
+                &reference,
+            );
             continue;
         } else {
             stats.unsupported_fallback_refs += 1;
+            stats.record_fallback_sample("unsupported", "unsupported-import-form", &reference);
             continue;
         };
 
         let Some(target_file_path) = target.1 else {
             stats.record_unresolved_source(target.0);
+            stats.record_fallback_sample(
+                target.0.as_profile_source_kind(),
+                target.0.target_not_found_reason(),
+                &reference,
+            );
             continue;
         };
         let Some(target_node_id) = find_file_node_id(conn, &target_file_path)? else {
             stats.record_unresolved_source(target.0);
+            stats.record_fallback_sample(
+                target.0.as_profile_source_kind(),
+                "file-node-not-found",
+                &reference,
+            );
             continue;
         };
 
@@ -4019,7 +4135,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -4052,6 +4168,9 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.import_path_alias_binding_fallback_refs,
         result.profile.import_path_alias_unsupported_fallback_refs,
         result.profile.import_path_alias_unresolved_fallback_refs,
+        fallback_sample_counts_json(&result.profile.import_path_alias_fallback_sample_counts),
+        fallback_samples_json(&result.profile.import_path_alias_fallback_samples),
+        fallback_sample_cap_json(&result.profile.import_path_alias_fallback_sample_cap),
         result.profile.esm_named_import_export_resolution_ms,
         result.profile.esm_named_import_export_resolved_refs,
         result.profile.esm_named_import_export_fallback_refs,
@@ -4059,6 +4178,42 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.local_exact_reference_resolution_ms,
         result.profile.local_exact_reference_resolved_refs,
         result.profile.local_exact_reference_fallback_refs
+    )
+}
+
+fn fallback_sample_counts_json(counts: &BTreeMap<String, u32>) -> String {
+    let fields = counts
+        .iter()
+        .map(|(key, value)| format!("\"{}\":{}", escape_json(key), value))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("{{{}}}", fields)
+}
+
+fn fallback_samples_json(samples: &[ImportFallbackSample]) -> String {
+    let items = samples
+        .iter()
+        .map(|sample| {
+            format!(
+                "{{\"sourceKind\":\"{}\",\"reason\":\"{}\",\"referenceName\":\"{}\",\"filePath\":\"{}\",\"language\":\"{}\",\"line\":{},\"col\":{}}}",
+                escape_json(&sample.source_kind),
+                escape_json(&sample.reason),
+                escape_json(&sample.reference_name),
+                escape_json(&sample.file_path),
+                escape_json(&sample.language),
+                sample.line,
+                sample.col
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("[{}]", items)
+}
+
+fn fallback_sample_cap_json(cap: &ImportFallbackSampleCap) -> String {
+    format!(
+        "{{\"perBucket\":{},\"total\":{},\"truncated\":{}}}",
+        cap.per_bucket, cap.total, cap.truncated
     )
 }
 
@@ -4556,8 +4711,38 @@ mod tests {
 
         assert_eq!(
             result_json(&result),
-            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"importPathAliasResolvedBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0},\"importPathAliasFallbackBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0,\"binding\":0,\"unsupported\":0,\"unresolved\":0},\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
+            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"importPathAliasResolvedBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0},\"importPathAliasFallbackBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0,\"binding\":0,\"unsupported\":0,\"unresolved\":0},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":[],\"importPathAliasFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
         );
+    }
+
+    #[test]
+    fn caps_import_fallback_samples_but_keeps_full_counts() {
+        let mut stats = ImportResolutionStats::default();
+        let reference = ImportRefRow {
+            id: 1,
+            from_node_id: "from".to_string(),
+            reference_name: "./missing".to_string(),
+            line: 3,
+            col: 8,
+            file_path: "src/main.ts".to_string(),
+            language: "typescript".to_string(),
+        };
+
+        for _ in 0..(IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP + 1) {
+            stats.record_fallback_sample("relative", "target-not-found", &reference);
+        }
+
+        assert_eq!(
+            stats
+                .fallback_sample_counts
+                .get("relative/target-not-found"),
+            Some(&((IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP + 1) as u32))
+        );
+        assert_eq!(
+            stats.fallback_samples.len(),
+            IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP
+        );
+        assert!(stats.fallback_samples_truncated);
     }
 
     #[test]

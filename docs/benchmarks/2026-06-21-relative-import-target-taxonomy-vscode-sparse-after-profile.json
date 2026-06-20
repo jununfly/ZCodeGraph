@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-06-20T16:38:57.562Z",
+  "dbPath": "/private/tmp/codegraph-corpus/vscode-sparse/.zcodegraph/zcodegraph.db",
+  "dataSource": "unresolved_refs metadata only",
+  "rowsInspected": 0,
+  "totalRelativeUnresolvedImports": 0,
+  "ignoredRows": {
+    "nonImportReference": 0,
+    "unsupportedLanguage": 0,
+    "nonRelativeImport": 0
+  },
+  "categories": {},
+  "summary": {
+    "totalRelativeUnresolvedImports": 0,
+    "categories": {}
+  }
+}

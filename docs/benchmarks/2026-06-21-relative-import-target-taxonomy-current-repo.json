@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-06-20T16:26:14.713Z",
+  "dbPath": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/.zcodegraph/zcodegraph.db",
+  "dataSource": "unresolved_refs metadata only",
+  "rowsInspected": 1979,
+  "totalRelativeUnresolvedImports": 0,
+  "ignoredRows": {
+    "nonImportReference": 1905,
+    "unsupportedLanguage": 0,
+    "nonRelativeImport": 74
+  },
+  "categories": {},
+  "summary": {
+    "totalRelativeUnresolvedImports": 0,
+    "categories": {}
+  }
+}

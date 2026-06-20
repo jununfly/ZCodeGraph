@@ -992,6 +992,74 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
+  it('emits bounded Rust import fallback samples in the profile artifact', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'src/main.ts'),
+      [
+        'import missing from "./missing";',
+        'import styles from "./style.css";',
+        'export const total = missing + String(styles);',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'rust-import-fallback-samples-profile.json');
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      rustCore: {
+        importPathAliasFallbackSampleCounts: Record<string, number>;
+        importPathAliasFallbackSamples: Array<Record<string, unknown>>;
+        importPathAliasFallbackSampleCap: {
+          perBucket: number;
+          total: number;
+          truncated: boolean;
+        };
+      };
+    };
+
+    expect(profile.rustCore.importPathAliasFallbackSampleCounts).toMatchObject({
+      'relative/target-not-found': 2,
+    });
+    expect(profile.rustCore.importPathAliasFallbackSampleCap).toEqual({
+      perBucket: 100,
+      total: 2000,
+      truncated: false,
+    });
+    expect(profile.rustCore.importPathAliasFallbackSamples).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceKind: 'relative',
+          reason: 'target-not-found',
+          referenceName: './missing',
+          filePath: 'src/main.ts',
+          language: 'typescript',
+          line: expect.any(Number),
+          col: expect.any(Number),
+        }),
+        expect.objectContaining({
+          sourceKind: 'relative',
+          reason: 'target-not-found',
+          referenceName: './style.css',
+          filePath: 'src/main.ts',
+          language: 'typescript',
+          line: expect.any(Number),
+          col: expect.any(Number),
+        }),
+      ]),
+    );
+    for (const sample of profile.rustCore.importPathAliasFallbackSamples) {
+      expect(sample).not.toHaveProperty('source');
+      expect(sample).not.toHaveProperty('sourceContent');
+      expect(sample).not.toHaveProperty('sourceLine');
+      expect(sample).not.toHaveProperty('candidateCode');
+    }
+  }, 30_000);
+
   it('resolves same-file exact callable references as Rust-owned edges', () => {
     fs.writeFileSync(
       path.join(tempDir, 'local-calls.ts'),
