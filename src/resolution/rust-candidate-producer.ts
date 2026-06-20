@@ -23,6 +23,16 @@ export interface RustCandidateProducerDiagnostics {
   candidateCount: number;
   payloadBytes: number;
   disabledReason: string | null;
+  routing: {
+    configured: boolean;
+    source: 'missing-config' | 'local-config' | 'invalid-local-config';
+    active: boolean;
+    activeShapes: Array<'ExactName' | 'KnownNamePresence'>;
+    fallbackReason: string | null;
+    mismatchCount: number;
+    mismatchSamples: RustCandidateProducerMismatch[];
+    invalidConfigReason?: string;
+  };
 }
 
 export interface RustCandidateProducerMismatch {
@@ -35,7 +45,7 @@ export interface RustCandidateProducerMismatch {
   rustPresent?: boolean;
 }
 
-type RustCandidateProducerResult =
+export type RustCandidateProducerResult =
   | { kind: 'ExactName'; name: string; candidateIds: string[] }
   | { kind: 'LowerName'; lowerName: string; candidateIds: string[] }
   | { kind: 'QualifiedName'; qualifiedName: string; candidateIds: string[] }
@@ -85,6 +95,15 @@ export function emptyRustCandidateProducerDiagnostics(
     candidateCount: 0,
     payloadBytes: 0,
     disabledReason,
+    routing: {
+      configured: false,
+      source: 'missing-config',
+      active: false,
+      activeShapes: [],
+      fallbackReason: null,
+      mismatchCount: 0,
+      mismatchSamples: [],
+    },
   };
 }
 

@@ -1,4 +1,5 @@
 import { Node } from '../types';
+import type { CandidateProducerRoutingConfig } from '../indexing/experimental-local-config';
 import { LRUCache } from './lru-cache';
 import {
   emptyRustCandidateProducerDiagnostics,
@@ -64,7 +65,35 @@ interface CandidateProtocolSource {
   getNodesByName(name: string): Node[];
   getNodesByLowerName(lowerName: string): Node[];
   getNodesByQualifiedName(qualifiedName: string): Node[];
+  getNodesByIds(ids: readonly string[]): Map<string, Node>;
   getKnownNames(): Set<string> | null;
+}
+
+type CandidateProducerRoutingFallbackReason =
+  | 'invalid-local-config'
+  | 'missing-index-path'
+  | 'producer-subprocess-failed'
+  | 'rust-core-unavailable'
+  | 'serialization-error'
+  | 'invalid-producer-response'
+  | 'invalid-producer-json'
+  | 'missing-rust-result'
+  | 'candidate-id-mismatch'
+  | 'known-name-mismatch'
+  | 'node-hydration-miss';
+
+type CandidateProducerRunner = typeof runRustCandidateProducer;
+
+interface CandidateProducerRoutingState {
+  config: CandidateProducerRoutingConfig;
+  active: boolean;
+  exactIds: Map<string, string[]>;
+  knownPresence: Map<string, boolean>;
+  nodesById: Map<string, Node>;
+  fallbackReason: CandidateProducerRoutingFallbackReason | null;
+  mismatchCount: number;
+  mismatchSamples: RustCandidateProducerMismatch[];
+  producerDiagnostics: RustCandidateProducerDiagnostics | null;
 }
 
 export function candidateProtocolEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -97,10 +126,27 @@ export function toCandidateFact(node: Node): CandidateFact {
   };
 }
 
+export function collectCandidateProducerRoutingLookups(refs: Array<{ referenceName: string }>): RustCandidateProducerLookup[] {
+  const names = new Set<string>();
+  for (const ref of refs) {
+    const name = ref.referenceName.trim();
+    if (!isBareRoutingReferenceName(name)) continue;
+    names.add(name);
+  }
+
+  const lookups: RustCandidateProducerLookup[] = [];
+  for (const name of [...names].sort()) {
+    lookups.push({ kind: 'ExactName', name });
+    lookups.push({ kind: 'KnownNamePresence', name });
+  }
+  return lookups;
+}
+
 export class CandidateProtocolProvider {
   private readonly enabled: boolean;
   private readonly compareWithBaseline: boolean;
   private readonly rustProducerEnabled: boolean;
+  private readonly rustProducerRunner: CandidateProducerRunner;
   private readonly indexPath: string | null;
   private readonly caches: CandidateProtocolCaches;
   private readonly source: CandidateProtocolSource;
@@ -110,6 +156,7 @@ export class CandidateProtocolProvider {
   private readonly qualifiedNameBaselines = new Map<string, string[]>();
   private readonly fileNodesBaselines = new Map<string, string[]>();
   private readonly knownNameBaselines = new Map<string, boolean>();
+  private readonly routing: CandidateProducerRoutingState;
   private diagnostics: Omit<CandidateProtocolDiagnostics, 'enabled' | 'candidateCount' | 'disabledReason' | 'rustCandidateProducer'>;
 
   constructor(options: {
@@ -117,15 +164,19 @@ export class CandidateProtocolProvider {
     compareWithBaseline?: boolean;
     indexPath?: string | null;
     rustProducerEnabled?: boolean;
+    rustProducerRunner?: CandidateProducerRunner;
+    candidateProducerRouting?: CandidateProducerRoutingConfig;
     caches: CandidateProtocolCaches;
     source: CandidateProtocolSource;
   }) {
     this.enabled = options.enabled;
     this.compareWithBaseline = options.compareWithBaseline ?? candidateProtocolEquivalenceEnabled();
     this.rustProducerEnabled = options.rustProducerEnabled ?? rustCandidateProducerEnabled();
+    this.rustProducerRunner = options.rustProducerRunner ?? runRustCandidateProducer;
     this.indexPath = options.indexPath ?? null;
     this.caches = options.caches;
     this.source = options.source;
+    this.routing = this.emptyRoutingState(options.candidateProducerRouting ?? { enabled: false, source: 'missing-config' });
     this.diagnostics = this.emptyDiagnostics();
   }
 
@@ -151,6 +202,18 @@ export class CandidateProtocolProvider {
     }
 
     this.diagnostics.cacheMissCount += 1;
+    if (lookup.kind === 'ExactName' && this.routing.active) {
+      const routed = this.lookupExactNameViaRustRouting(lookup.name);
+      if (routed) {
+        cache.set(key, routed);
+        for (const node of routed) {
+          this.candidateIds.add(toCandidateFact(node).id);
+        }
+        this.recordLookupMs(lookup.kind, started);
+        return routed;
+      }
+    }
+
     this.diagnostics.dbLookupCount += 1;
     const result = this.readThrough(lookup);
     cache.set(key, result);
@@ -166,6 +229,29 @@ export class CandidateProtocolProvider {
   hasKnownName(name: string): boolean | null {
     const started = Date.now();
     this.recordLookup('KnownNamePresence');
+    if (this.routing.active && this.routing.knownPresence.has(name)) {
+      const result = this.routing.knownPresence.get(name)!;
+      const baseline = this.source.getKnownNames()?.has(name) ?? null;
+      if (baseline !== null) {
+        this.knownNameBaselines.set(name, baseline);
+      }
+      if (baseline !== result) {
+        this.disableRouting('known-name-mismatch', {
+          kind: 'KnownNamePresence',
+          key: name,
+          reason: 'different-presence',
+          tsPresent: baseline ?? false,
+          rustPresent: result,
+        });
+        this.compareKnownNamePresence(name, baseline);
+        this.recordLookupMs('KnownNamePresence', started);
+        return baseline;
+      }
+      this.compareKnownNamePresence(name, result);
+      this.recordLookupMs('KnownNamePresence', started);
+      return result;
+    }
+
     const knownNames = this.source.getKnownNames();
     const result = knownNames ? knownNames.has(name) : null;
     if (result !== null) {
@@ -176,6 +262,84 @@ export class CandidateProtocolProvider {
     return result;
   }
 
+  prepareRustCandidateProducerRouting(refs: Array<{ referenceName: string }>): void {
+    this.resetRouting();
+    if (!this.routing.config.enabled) {
+      if (this.routing.config.source === 'invalid-local-config') {
+        this.disableRouting('invalid-local-config');
+      }
+      return;
+    }
+    if (!this.indexPath) {
+      this.disableRouting('missing-index-path');
+      return;
+    }
+
+    const lookups = collectCandidateProducerRoutingLookups(refs);
+    const { results, diagnostics } = this.rustProducerRunner({
+      indexPath: this.indexPath,
+      lookups,
+    });
+    this.routing.producerDiagnostics = diagnostics;
+    if (diagnostics.disabledReason) {
+      this.disableRouting(diagnostics.disabledReason as CandidateProducerRoutingFallbackReason);
+      return;
+    }
+
+    const exactResults = new Map<string, string[]>();
+    const presenceResults = new Map<string, boolean>();
+    for (const result of results) {
+      if (result.kind === 'ExactName') {
+        exactResults.set(result.name, result.candidateIds);
+      } else if (result.kind === 'KnownNamePresence') {
+        presenceResults.set(result.name, result.present);
+      }
+    }
+
+    for (const lookup of lookups) {
+      if (lookup.kind === 'ExactName' && !exactResults.has(lookup.name)) {
+        this.disableRouting('missing-rust-result', {
+          kind: 'ExactName',
+          key: lookup.name,
+          reason: 'missing-rust-result',
+          tsCandidateIds: [],
+          rustCandidateIds: [],
+        });
+        return;
+      }
+      if (lookup.kind === 'KnownNamePresence' && !presenceResults.has(lookup.name)) {
+        this.disableRouting('missing-rust-result', {
+          kind: 'KnownNamePresence',
+          key: lookup.name,
+          reason: 'missing-rust-result',
+          tsPresent: false,
+          rustPresent: false,
+        });
+        return;
+      }
+    }
+
+    const ids = [...new Set([...exactResults.values()].flat())];
+    const nodesById = this.source.getNodesByIds(ids);
+    for (const id of ids) {
+      if (!nodesById.has(id)) {
+        this.disableRouting('node-hydration-miss', {
+          kind: 'ExactName',
+          key: id,
+          reason: 'missing-rust-result',
+          tsCandidateIds: [],
+          rustCandidateIds: [id],
+        });
+        return;
+      }
+    }
+
+    this.routing.active = true;
+    this.routing.exactIds = exactResults;
+    this.routing.knownPresence = presenceResults;
+    this.routing.nodesById = nodesById;
+  }
+
   resetDiagnostics(): void {
     this.candidateIds.clear();
     this.exactNameBaselines.clear();
@@ -183,6 +347,7 @@ export class CandidateProtocolProvider {
     this.qualifiedNameBaselines.clear();
     this.fileNodesBaselines.clear();
     this.knownNameBaselines.clear();
+    this.resetRouting();
     this.diagnostics = this.emptyDiagnostics();
   }
 
@@ -195,6 +360,31 @@ export class CandidateProtocolProvider {
       disabledReason: this.enabled ? null : 'disabled-by-env',
       rustCandidateProducer,
     };
+  }
+
+  private emptyRoutingState(config: CandidateProducerRoutingConfig): CandidateProducerRoutingState {
+    return {
+      config,
+      active: false,
+      exactIds: new Map(),
+      knownPresence: new Map(),
+      nodesById: new Map(),
+      fallbackReason: config.source === 'invalid-local-config' ? 'invalid-local-config' : null,
+      mismatchCount: 0,
+      mismatchSamples: [],
+      producerDiagnostics: null,
+    };
+  }
+
+  private resetRouting(): void {
+    this.routing.active = false;
+    this.routing.exactIds.clear();
+    this.routing.knownPresence.clear();
+    this.routing.nodesById.clear();
+    this.routing.fallbackReason = this.routing.config.source === 'invalid-local-config' ? 'invalid-local-config' : null;
+    this.routing.mismatchCount = 0;
+    this.routing.mismatchSamples = [];
+    this.routing.producerDiagnostics = null;
   }
 
   private emptyDiagnostics(): Omit<CandidateProtocolDiagnostics, 'enabled' | 'candidateCount' | 'disabledReason' | 'rustCandidateProducer'> {
@@ -226,11 +416,14 @@ export class CandidateProtocolProvider {
   }
 
   private snapshotRustProducerDiagnostics(): RustCandidateProducerDiagnostics {
+    if (this.routing.producerDiagnostics) {
+      return this.withRoutingDiagnostics(this.routing.producerDiagnostics);
+    }
     if (!this.rustProducerEnabled) {
-      return emptyRustCandidateProducerDiagnostics(false, 'disabled-by-env');
+      return this.withRoutingDiagnostics(emptyRustCandidateProducerDiagnostics(false, 'disabled-by-env'));
     }
     if (!this.indexPath) {
-      return emptyRustCandidateProducerDiagnostics(true, 'missing-index-path');
+      return this.withRoutingDiagnostics(emptyRustCandidateProducerDiagnostics(true, 'missing-index-path'));
     }
 
     const lookups: RustCandidateProducerLookup[] = [
@@ -249,7 +442,7 @@ export class CandidateProtocolProvider {
       lookups.push({ kind: 'KnownNamePresence', name });
     }
 
-    const { results, diagnostics } = runRustCandidateProducer({
+    const { results, diagnostics } = this.rustProducerRunner({
       indexPath: this.indexPath,
       lookups,
     });
@@ -382,7 +575,74 @@ export class CandidateProtocolProvider {
       }
     }
 
-    return diagnostics;
+    return this.withRoutingDiagnostics(diagnostics);
+  }
+
+  private withRoutingDiagnostics(diagnostics: RustCandidateProducerDiagnostics): RustCandidateProducerDiagnostics {
+    return {
+      ...diagnostics,
+      routing: {
+        configured: this.routing.config.enabled,
+        source: this.routing.config.source,
+        active: this.routing.active,
+        activeShapes: this.routing.active ? ['ExactName', 'KnownNamePresence'] : [],
+        fallbackReason: this.routing.fallbackReason,
+        mismatchCount: this.routing.mismatchCount,
+        mismatchSamples: this.routing.mismatchSamples,
+        invalidConfigReason: this.routing.config.invalidReason,
+      },
+    };
+  }
+
+  private lookupExactNameViaRustRouting(name: string): Node[] | null {
+    const rustIds = this.routing.exactIds.get(name);
+    if (!rustIds) {
+      return null;
+    }
+
+    const rustNodes: Node[] = [];
+    for (const id of rustIds) {
+      const node = this.routing.nodesById.get(id);
+      if (!node) {
+        this.disableRouting('node-hydration-miss', {
+          kind: 'ExactName',
+          key: name,
+          reason: 'missing-rust-result',
+          tsCandidateIds: this.readThrough({ kind: 'ExactName', name }).map((item) => item.id),
+          rustCandidateIds: rustIds,
+        });
+        return null;
+      }
+      rustNodes.push(node);
+    }
+
+    const baseline = this.readThrough({ kind: 'ExactName', name });
+    const baselineIds = baseline.map((node) => node.id);
+    this.exactNameBaselines.set(name, baselineIds);
+    if (!sameStringSet(baselineIds, rustIds)) {
+      this.disableRouting('candidate-id-mismatch', {
+        kind: 'ExactName',
+        key: name,
+        reason: 'different-candidate-set',
+        tsCandidateIds: baselineIds,
+        rustCandidateIds: rustIds,
+      });
+      return null;
+    }
+
+    this.compareNodeLookup({ kind: 'ExactName', name }, rustNodes);
+    return rustNodes;
+  }
+
+  private disableRouting(reason: CandidateProducerRoutingFallbackReason, mismatch?: RustCandidateProducerMismatch): void {
+    this.routing.active = false;
+    this.routing.fallbackReason = reason;
+    if (mismatch) {
+      this.routing.mismatchCount += 1;
+      if (this.routing.mismatchSamples.length < 20) {
+        this.routing.mismatchSamples.push(mismatch);
+      }
+    }
   }
 
   private recordRustProducerMismatch(
@@ -493,4 +753,12 @@ function sameStringSet(a: string[], b: string[]): boolean {
   const aSet = new Set(a);
   if (aSet.size !== b.length) return false;
   return b.every((value) => aSet.has(value));
+}
+
+function isBareRoutingReferenceName(name: string): boolean {
+  return name.length > 0
+    && !name.includes('.')
+    && !name.includes(':')
+    && !name.includes('/')
+    && !name.includes('\\');
 }

@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getDatabasePath } from '../db';
 import { IndexProgress, IndexResult } from '../extraction';
+import { loadCandidateProducerRoutingConfig } from './experimental-local-config';
 import { IndexEngine } from './engine-selection';
 
 interface RustIndexerOptions {
@@ -45,6 +46,12 @@ export interface RustReadinessDiagnostics {
     engineVersion: string | null;
   };
   latestProfile: unknown | null;
+  experimental: {
+    candidateProducerRouting: {
+      enabled: boolean;
+      source: 'missing-config' | 'local-config' | 'invalid-local-config';
+    };
+  };
 }
 
 interface RustCoreDiscoveryOptions {
@@ -238,6 +245,7 @@ export function getRustReadinessDiagnostics(
   options: RustCoreDiscoveryOptions = {},
 ): RustReadinessDiagnostics {
   const core = discoverRustCoreDiagnostics(env, options);
+  const candidateProducerRouting = loadCandidateProducerRoutingConfig(projectPath);
   return {
     configuredEngine: configuredEngineDiagnostics(env),
     core: {
@@ -249,6 +257,12 @@ export function getRustReadinessDiagnostics(
       engineVersion: buildInfo.engineVersion,
     },
     latestProfile: readLatestRustProfile(projectPath),
+    experimental: {
+      candidateProducerRouting: {
+        enabled: candidateProducerRouting.enabled,
+        source: candidateProducerRouting.source,
+      },
+    },
   };
 }
 

@@ -9,6 +9,7 @@ import * as path from 'path';
 import { Node, UnresolvedReference, Edge } from '../types';
 import { QueryBuilder } from '../db/queries';
 import { getDatabasePath } from '../db';
+import { loadCandidateProducerRoutingConfig } from '../indexing/experimental-local-config';
 import {
   UnresolvedRef,
   ResolvedRef,
@@ -361,8 +362,10 @@ export class ReferenceResolver {
         getNodesByName: (name) => this.queries.getNodesByName(name),
         getNodesByLowerName: (lowerName) => this.queries.getNodesByLowerName(lowerName),
         getNodesByQualifiedName: (qualifiedName) => this.queries.getNodesByQualifiedNameExact(qualifiedName),
+        getNodesByIds: (ids) => this.queries.getNodesByIds(ids),
         getKnownNames: () => this.knownNames,
       },
+      candidateProducerRouting: loadCandidateProducerRoutingConfig(this.projectRoot),
     });
 
     this.context = this.createContext();
@@ -651,6 +654,7 @@ export class ReferenceResolver {
 
     const total = refs.length;
     let lastReportedPercent = -1;
+    this.candidateProvider.prepareRustCandidateProducerRouting(refs);
     this.prewarmGroupedNameMatchingCandidates(refs, timings);
     this.precomputeRustNameMatcherDecisions(refs, timings);
 

@@ -1247,6 +1247,131 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
+  it('keeps resolved graph stable when experimental Rust candidate producer routing is locally enabled or invalid', () => {
+    const makeProject = (config: string | null, profileName: string): { dir: string; profileOut: string } => {
+      const dir = makeTempProject();
+      fs.writeFileSync(
+        path.join(dir, 'rust-candidate-routing.py'),
+        [
+          'def routingHelper():',
+          '    return 1',
+          '',
+          'def routingEntry():',
+          '    return routingHelper()',
+        ].join('\n') + '\n',
+      );
+      if (config !== null) {
+        fs.writeFileSync(path.join(dir, '.zcodegraph', 'config.json'), config);
+      }
+      return { dir, profileOut: path.join(dir, '.zcodegraph', profileName) };
+    };
+    const graphSummary = (dir: string, profileOut: string): {
+      stats: { fileCount: number; nodeCount: number; edgeCount: number };
+      edges: Array<{ source: string; target: string; kind: string; resolvedBy: unknown }>;
+      routing: {
+        configured: boolean;
+        source: string;
+        active: boolean;
+        activeShapes: string[];
+        fallbackReason: string | null;
+      };
+    } => {
+      const result = runCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+      });
+      expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+      const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+        finalize: {
+          referenceResolutionBreakdown: {
+            candidateProtocol: {
+              rustCandidateProducer: {
+                routing: {
+                  configured: boolean;
+                  source: string;
+                  active: boolean;
+                  activeShapes: string[];
+                  fallbackReason: string | null;
+                };
+              };
+            };
+          };
+        };
+      };
+      const cg = CodeGraph.openSync(dir);
+      try {
+        const entry = cg.searchNodes('routingEntry').find((match) => match.node.kind === 'function')?.node;
+        expect(entry).toBeDefined();
+        const nodesById = new Map(cg.getNodesByKind('function').map((node) => [node.id, node.name]));
+        const stats = cg.getStats();
+        const edges = cg.getOutgoingEdges(entry!.id)
+          .filter((edge) => edge.kind === 'calls')
+          .map((edge) => ({
+            source: entry!.name,
+            target: nodesById.get(edge.target) ?? edge.target,
+            kind: edge.kind,
+            resolvedBy: edge.metadata?.resolvedBy,
+          }))
+          .sort((a, b) => `${a.source}:${a.target}:${a.kind}`.localeCompare(`${b.source}:${b.target}:${b.kind}`));
+        return {
+          stats: {
+            fileCount: stats.fileCount,
+            nodeCount: stats.nodeCount,
+            edgeCount: stats.edgeCount,
+          },
+          edges,
+          routing: profile.finalize.referenceResolutionBreakdown.candidateProtocol.rustCandidateProducer.routing,
+        };
+      } finally {
+        cg.close();
+      }
+    };
+
+    const disabled = makeProject(null, 'routing-disabled-profile.json');
+    const enabled = makeProject(
+      JSON.stringify({ experimental: { rustCandidateProducerRouting: true } }, null, 2),
+      'routing-enabled-profile.json',
+    );
+    const invalid = makeProject(
+      JSON.stringify({ experimental: { rustCandidateProducerRouting: 'yes' } }, null, 2),
+      'routing-invalid-profile.json',
+    );
+    try {
+      const disabledGraph = graphSummary(disabled.dir, disabled.profileOut);
+      const enabledGraph = graphSummary(enabled.dir, enabled.profileOut);
+      const invalidGraph = graphSummary(invalid.dir, invalid.profileOut);
+
+      expect(enabledGraph.edges).toContainEqual({
+        source: 'routingEntry',
+        target: 'routingHelper',
+        kind: 'calls',
+        resolvedBy: 'exact-match',
+      });
+      expect(enabledGraph.stats).toEqual(disabledGraph.stats);
+      expect(enabledGraph.edges).toEqual(disabledGraph.edges);
+      expect(invalidGraph.stats).toEqual(disabledGraph.stats);
+      expect(invalidGraph.edges).toEqual(disabledGraph.edges);
+      expect(enabledGraph.routing).toMatchObject({
+        configured: true,
+        source: 'local-config',
+        active: true,
+        activeShapes: ['ExactName', 'KnownNamePresence'],
+        fallbackReason: null,
+      });
+      expect(invalidGraph.routing).toMatchObject({
+        configured: false,
+        source: 'invalid-local-config',
+        active: false,
+        fallbackReason: 'invalid-local-config',
+      });
+    } finally {
+      fs.rmSync(disabled.dir, { recursive: true, force: true });
+      fs.rmSync(enabled.dir, { recursive: true, force: true });
+      fs.rmSync(invalid.dir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('resolves direct ESM named imports to exported target-file symbols as Rust-owned edges', () => {
     fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
     fs.writeFileSync(

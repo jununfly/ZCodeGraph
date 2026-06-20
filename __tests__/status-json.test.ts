@@ -128,6 +128,9 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
         };
         lastIndex: { engine: string | null; engineVersion: string | null };
         latestProfile: unknown;
+        experimental: {
+          candidateProducerRouting: { enabled: boolean; source: string };
+        };
       };
     };
 
@@ -140,6 +143,40 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     expect(out.rust.lastIndex.engine).toBeNull();
     expect(out.rust.lastIndex.engineVersion).toBeNull();
     expect(out.rust.latestProfile).toBeNull();
+    expect(out.rust.experimental.candidateProducerRouting).toEqual({
+      enabled: false,
+      source: 'missing-config',
+    });
+  });
+
+  it('status --json reports experimental Rust candidate producer routing local config state', () => {
+    const cg = CodeGraph.initSync(tempDir);
+    cg.close();
+
+    fs.writeFileSync(
+      path.join(tempDir, '.zcodegraph', 'config.json'),
+      JSON.stringify({ experimental: { rustCandidateProducerRouting: true } }, null, 2),
+    );
+    expect((runStatusJson(tempDir) as { rust: { experimental: { candidateProducerRouting: unknown } } }).rust.experimental.candidateProducerRouting)
+      .toEqual({ enabled: true, source: 'local-config' });
+
+    fs.writeFileSync(
+      path.join(tempDir, '.zcodegraph', 'config.json'),
+      JSON.stringify({ experimental: { rustCandidateProducerRouting: false } }, null, 2),
+    );
+    expect((runStatusJson(tempDir) as { rust: { experimental: { candidateProducerRouting: unknown } } }).rust.experimental.candidateProducerRouting)
+      .toEqual({ enabled: false, source: 'local-config' });
+
+    fs.writeFileSync(
+      path.join(tempDir, '.zcodegraph', 'config.json'),
+      JSON.stringify({ experimental: { rustCandidateProducerRouting: 'yes' } }, null, 2),
+    );
+    expect((runStatusJson(tempDir) as { rust: { experimental: { candidateProducerRouting: unknown } } }).rust.experimental.candidateProducerRouting)
+      .toEqual({ enabled: false, source: 'invalid-local-config' });
+
+    fs.writeFileSync(path.join(tempDir, '.zcodegraph', 'config.json'), '{');
+    expect((runStatusJson(tempDir) as { rust: { experimental: { candidateProducerRouting: unknown } } }).rust.experimental.candidateProducerRouting)
+      .toEqual({ enabled: false, source: 'invalid-local-config' });
   });
 
   it('status --json reports Rust core binary override readiness when the binary is executable', () => {
