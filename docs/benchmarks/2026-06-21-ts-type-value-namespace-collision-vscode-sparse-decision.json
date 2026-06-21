@@ -1,0 +1,60 @@
+{
+  "generatedAt": "2026-06-21T11:10:00.000Z",
+  "taxonomyPath": "docs/benchmarks/2026-06-21-ts-type-value-namespace-collision-vscode-sparse-taxonomy.json",
+  "profilePath": "docs/benchmarks/2026-06-21-ts-overload-implementation-vscode-sparse.profile.json",
+  "dbPath": "/private/tmp/codegraph-corpus/vscode-sparse/.zcodegraph/zcodegraph.db",
+  "sourceRoot": "/private/tmp/codegraph-corpus/vscode-sparse",
+  "vscodeSparseCommit": "4a6e32fc1f0",
+  "sourceFilesRead": 23,
+  "resolverBehaviorChanged": false,
+  "performanceClaimed": false,
+  "observedTaxonomy": {
+    "rowsInspected": 100,
+    "subtypeCounts": {
+      "ambient-declaration-merge": 2,
+      "function-overload-signature": 17,
+      "value-token-plus-interface": 81
+    },
+    "largestSubtype": "value-token-plus-interface",
+    "collisionSubtypes": {
+      "value-token-plus-interface": {
+        "count": 81,
+        "recommendation": "candidate-for-next-routing-slice",
+        "syntaxSummary": {
+          "importForms": {
+            "named-value-import": 81
+          },
+          "usageContextHints": {
+            "decorator-token": 63,
+            "type-position": 7,
+            "unknown": 11
+          },
+          "candidateShapes": {
+            "constant-interface": 81
+          }
+        }
+      }
+    },
+    "resolvedEvidence": {
+      "overloadImplementationResolvedRefs": 3766
+    }
+  },
+  "semanticDecision": {
+    "value-token-plus-interface": "candidate-for-next-routing-slice",
+    "class-plus-interface": "no-go-keep-fallback",
+    "type-alias-plus-value": "no-go-keep-fallback",
+    "enum-or-namespace-plus-type": "no-go-keep-fallback",
+    "unknown-collision": "needs-more-metadata"
+  },
+  "nextRoutingSliceCandidate": {
+    "subtype": "value-token-plus-interface",
+    "requiredGuards": [
+      "candidate shape is exactly constant-interface",
+      "import form is named-value-import",
+      "target candidates are in the same resolved target file",
+      "edge target is the runtime value token candidate, not the interface candidate",
+      "type-only imports keep fallback",
+      "unknown context keeps fallback until usage metadata is sufficient"
+    ]
+  }
+}

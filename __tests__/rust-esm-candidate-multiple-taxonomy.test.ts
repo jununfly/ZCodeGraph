@@ -46,9 +46,30 @@ describe('Rust ESM direct export candidate-multiple taxonomy script', () => {
         ('over2', 'function', 'overloaded', 'overloaded', 'src/overload.ts', 'typescript', 2, 2),
         ('dup1', 'constant', 'Duplicated', 'Duplicated', 'src/dup.ts', 'typescript', 4, 4),
         ('dup2', 'constant', 'Duplicated', 'Duplicated', 'src/dup.ts', 'typescript', 4, 4),
-        ('unk1', 'type_alias', 'UnknownThing', 'UnknownThing', 'src/unknown.ts', 'typescript', 1, 1),
-        ('unk2', 'constant', 'UnknownThing', 'UnknownThing', 'src/unknown.ts', 'typescript', 4, 4);
+        ('token1', 'interface', 'ServiceToken', 'ServiceToken', 'src/token.ts', 'typescript', 1, 1),
+        ('token2', 'constant', 'ServiceToken', 'ServiceToken', 'src/token.ts', 'typescript', 3, 3),
+        ('type1', 'type_alias', 'TypeValueThing', 'TypeValueThing', 'src/type-value.ts', 'typescript', 1, 1),
+        ('type2', 'constant', 'TypeValueThing', 'TypeValueThing', 'src/type-value.ts', 'typescript', 4, 4),
+        ('enum1', 'interface', 'EnumThing', 'EnumThing', 'src/enum.ts', 'typescript', 1, 1),
+        ('enum2', 'enum', 'EnumThing', 'EnumThing', 'src/enum.ts', 'typescript', 4, 4);
     `);
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'src', 'main.ts'),
+      [
+        'import { MergedThing } from "./merged";',
+        'import { overloaded } from "./overload";',
+        'import { Duplicated } from "./dup";',
+        'import { ServiceToken } from "./token";',
+        'import type { TypeValueThing } from "./type-value";',
+        'import { EnumThing } from "./enum";',
+        'class Consumer {',
+        '  constructor(@ServiceToken service: unknown) {}',
+        '}',
+        'type Alias = TypeValueThing;',
+        'const enumValue = EnumThing.Value;',
+      ].join('\n') + '\n',
+    );
     fs.writeFileSync(
       profilePath,
       JSON.stringify({
@@ -121,6 +142,42 @@ describe('Rust ESM direct export candidate-multiple taxonomy script', () => {
               candidateCount: 2,
               resolvedByAttempt: 'direct-export',
             },
+            {
+              reason: 'direct-export-candidate-multiple',
+              referenceName: 'ServiceToken',
+              referenceKind: 'imports',
+              filePath: 'src/main.ts',
+              language: 'typescript',
+              line: 4,
+              col: 9,
+              targetFilePath: 'src/token.ts',
+              candidateCount: 2,
+              resolvedByAttempt: 'direct-export',
+            },
+            {
+              reason: 'direct-export-candidate-multiple',
+              referenceName: 'TypeValueThing',
+              referenceKind: 'imports',
+              filePath: 'src/main.ts',
+              language: 'typescript',
+              line: 5,
+              col: 14,
+              targetFilePath: 'src/type-value.ts',
+              candidateCount: 2,
+              resolvedByAttempt: 'direct-export',
+            },
+            {
+              reason: 'direct-export-candidate-multiple',
+              referenceName: 'EnumThing',
+              referenceKind: 'imports',
+              filePath: 'src/main.ts',
+              language: 'typescript',
+              line: 6,
+              col: 9,
+              targetFilePath: 'src/enum.ts',
+              candidateCount: 2,
+              resolvedByAttempt: 'direct-export',
+            },
           ],
         },
       }, null, 2),
@@ -136,6 +193,8 @@ describe('Rust ESM direct export candidate-multiple taxonomy script', () => {
         dbPath,
         '--out-dir',
         outDir,
+        '--source-root',
+        dir,
         '--prefix',
         'fixture-candidate-multiple-taxonomy',
       ],
@@ -151,21 +210,32 @@ describe('Rust ESM direct export candidate-multiple taxonomy script', () => {
         largestSubtype: string;
       };
     };
-    expect(parsed.summary.rowsInspected).toBe(4);
+    expect(parsed.summary.rowsInspected).toBe(7);
     expect(parsed.summary.subtypes).toMatchObject({
-      'interface-class-merge': 1,
+      'class-plus-interface': 1,
       'function-overload-signature': 1,
       'duplicate-extraction': 1,
-      'type-value-namespace-collision': 1,
+      'value-token-plus-interface': 1,
+      'type-alias-plus-value': 1,
+      'enum-or-namespace-plus-type': 1,
     });
-    expect(parsed.summary.largestSubtype).toBe('duplicate-extraction');
+    expect(parsed.summary.largestSubtype).toBe('class-plus-interface');
 
     const artifact = JSON.parse(fs.readFileSync(parsed.artifacts.json, 'utf-8')) as {
       databaseOpened: boolean;
       sourceFilesRead: number;
+      collisionSubtypes: Record<string, {
+        count: number;
+        recommendation: string;
+      }>;
       subtypes: Record<string, {
         count: number;
         decisionPosture: string;
+        syntaxSummary: {
+          importForms: Record<string, number>;
+          usageContextHints: Record<string, number>;
+          candidateShapes: Record<string, number>;
+        };
         examples: Array<Record<string, unknown>>;
       }>;
       boundedTieBreakCandidates: string[];
@@ -174,20 +244,45 @@ describe('Rust ESM direct export candidate-multiple taxonomy script', () => {
     };
     expect(artifact.resolvedEvidence.overloadImplementationResolvedRefs).toBe(3);
     expect(artifact.databaseOpened).toBe(true);
-    expect(artifact.sourceFilesRead).toBe(0);
+    expect(artifact.sourceFilesRead).toBe(1);
     expect(artifact.subtypes['duplicate-extraction'].decisionPosture).toBe('prerequisite-first');
-    expect(artifact.subtypes['interface-class-merge'].decisionPosture).toBe('no-go-keep-fallback');
+    expect(artifact.subtypes['class-plus-interface'].decisionPosture).toBe('no-go-keep-fallback');
     expect(artifact.boundedTieBreakCandidates).toContain('duplicate-extraction');
-    expect(artifact.noGoSubtypes).toContain('interface-class-merge');
-    expect(artifact.subtypes['interface-class-merge'].examples[0]).toMatchObject({
+    expect(artifact.noGoSubtypes).toContain('class-plus-interface');
+    expect(artifact.collisionSubtypes['value-token-plus-interface']).toMatchObject({
+      count: 1,
+      recommendation: 'candidate-for-next-routing-slice',
+    });
+    expect(artifact.collisionSubtypes['type-alias-plus-value']).toMatchObject({
+      count: 1,
+      recommendation: 'no-go-keep-fallback',
+    });
+    expect(artifact.subtypes['class-plus-interface'].examples[0]).toMatchObject({
       referenceName: 'MergedThing',
       targetFilePath: 'src/merged.ts',
       candidateKinds: ['interface', 'class'],
     });
-    expect(artifact.subtypes['interface-class-merge'].examples[0]).not.toHaveProperty('source');
-    expect(artifact.subtypes['interface-class-merge'].examples[0]).not.toHaveProperty('sourceLine');
-    expect(artifact.subtypes['interface-class-merge'].examples[0]).not.toHaveProperty('candidateSource');
-    expect(artifact.subtypes['interface-class-merge'].examples[0]).not.toHaveProperty('exportList');
+    expect(artifact.subtypes['class-plus-interface'].examples[0]).not.toHaveProperty('source');
+    expect(artifact.subtypes['class-plus-interface'].examples[0]).not.toHaveProperty('sourceLine');
+    expect(artifact.subtypes['class-plus-interface'].examples[0]).not.toHaveProperty('candidateSource');
+    expect(artifact.subtypes['class-plus-interface'].examples[0]).not.toHaveProperty('exportList');
+    expect(artifact.subtypes['value-token-plus-interface'].examples[0]).toMatchObject({
+      importForm: 'named-value-import',
+      usageContextHint: 'decorator-token',
+      candidateShape: 'constant-interface',
+      collisionRecommendation: 'candidate-for-next-routing-slice',
+    });
+    expect(artifact.subtypes['value-token-plus-interface'].syntaxSummary).toMatchObject({
+      importForms: { 'named-value-import': 1 },
+      usageContextHints: { 'decorator-token': 1 },
+      candidateShapes: { 'constant-interface': 1 },
+    });
+    expect(artifact.subtypes['type-alias-plus-value'].examples[0]).toMatchObject({
+      importForm: 'import-type',
+      usageContextHint: 'type-position',
+      candidateShape: 'type-alias-value',
+      collisionRecommendation: 'no-go-keep-fallback',
+    });
     expect(artifact.subtypes['function-overload-signature'].examples[0]).toMatchObject({
       candidateLineRanges: [
         {
@@ -211,7 +306,8 @@ describe('Rust ESM direct export candidate-multiple taxonomy script', () => {
 
     const markdown = fs.readFileSync(parsed.artifacts.markdown, 'utf-8');
     expect(markdown).toContain('# ESM Direct Export Candidate-Multiple Taxonomy');
-    expect(markdown).toContain('interface-class-merge');
+    expect(markdown).toContain('class-plus-interface');
+    expect(markdown).toContain('value-token-plus-interface');
     expect(markdown).toContain('Decision');
   });
 

@@ -9,10 +9,15 @@ const MULTIPLE_REASONS = new Set([
 ]);
 
 const TYPE_KINDS = new Set(['interface', 'type_alias']);
-const VALUE_KINDS = new Set(['function', 'class', 'constant', 'variable', 'enum']);
+const VALUE_KINDS = new Set(['function', 'class', 'constant', 'variable', 'enum', 'namespace']);
+const VALUE_TOKEN_KINDS = new Set(['constant', 'variable']);
 
 const DECISION_POSTURE = {
-  'interface-class-merge': 'no-go-keep-fallback',
+  'class-plus-interface': 'no-go-keep-fallback',
+  'value-token-plus-interface': 'needs-more-metadata',
+  'enum-or-namespace-plus-type': 'no-go-keep-fallback',
+  'type-alias-plus-value': 'no-go-keep-fallback',
+  'unknown-collision': 'no-go-keep-fallback',
   'function-overload-signature': 'prerequisite-first',
   'ambient-declaration-merge': 'prerequisite-first',
   'type-value-namespace-collision': 'no-go-keep-fallback',
@@ -26,23 +31,35 @@ const BOUNDED_TIE_BREAK_CANDIDATES = new Set([
 ]);
 
 const NO_GO_SUBTYPES = new Set([
-  'interface-class-merge',
+  'class-plus-interface',
+  'enum-or-namespace-plus-type',
+  'type-alias-plus-value',
+  'unknown-collision',
   'type-value-namespace-collision',
   'unknown-multiple',
 ]);
 
+const COLLISION_RECOMMENDATION = {
+  'value-token-plus-interface': 'candidate-for-next-routing-slice',
+  'class-plus-interface': 'no-go-keep-fallback',
+  'enum-or-namespace-plus-type': 'no-go-keep-fallback',
+  'type-alias-plus-value': 'no-go-keep-fallback',
+  'unknown-collision': 'needs-more-metadata',
+};
+
 function usage() {
   console.log([
-    'Usage: node scripts/rust-esm-candidate-multiple-taxonomy.mjs --profile <path> --db <path> [--out-dir <dir>] [--prefix <name>]',
+    'Usage: node scripts/rust-esm-candidate-multiple-taxonomy.mjs --profile <path> --db <path> [--source-root <dir>] [--out-dir <dir>] [--prefix <name>]',
     '',
     'Classifies Rust ESM direct export candidate-multiple fallbacks using profile samples and SQLite node metadata.',
-    'This diagnostic does not read source files and does not change resolver behavior.',
+    'This diagnostic may read bounded local syntax metadata but never writes source snippets to artifacts.',
   ].join('\n'));
 }
 
 function parseArgs(argv) {
   let profilePath = null;
   let dbPath = null;
+  let sourceRoot = null;
   let outDir = path.resolve('docs', 'benchmarks');
   let prefix = `${new Date().toISOString().slice(0, 10)}-esm-direct-export-candidate-multiple-taxonomy`;
 
@@ -55,6 +72,10 @@ function parseArgs(argv) {
     }
     if (arg === '--db') {
       dbPath = path.resolve(requiredValue(argv, ++i, '--db'));
+      continue;
+    }
+    if (arg === '--source-root') {
+      sourceRoot = path.resolve(requiredValue(argv, ++i, '--source-root'));
       continue;
     }
     if (arg === '--out-dir') {
@@ -70,7 +91,14 @@ function parseArgs(argv) {
 
   if (!profilePath) throw new Error('--profile is required');
   if (!dbPath) throw new Error('--db is required');
-  return { help: false, profilePath, dbPath, outDir, prefix };
+  return {
+    help: false,
+    profilePath,
+    dbPath,
+    sourceRoot: sourceRoot ?? inferSourceRootFromDbPath(dbPath),
+    outDir,
+    prefix,
+  };
 }
 
 function requiredValue(argv, index, flag) {
@@ -159,7 +187,7 @@ function loadCandidates(dbPath, row) {
     `FROM nodes`,
     `WHERE file_path = ${sqlString(row.targetFilePath)}`,
     `  AND name = ${sqlString(row.referenceName)}`,
-    `  AND kind IN ('function', 'class', 'interface', 'type_alias', 'constant', 'variable', 'enum')`,
+    `  AND kind IN ('function', 'class', 'interface', 'type_alias', 'constant', 'variable', 'enum', 'namespace')`,
     `ORDER BY start_line, end_line, kind, id;`,
   ].join('\n');
   const result = spawnSync('sqlite3', [dbPath], {
@@ -192,11 +220,17 @@ function classifyCandidates(candidates) {
   const kinds = new Set(candidates.map((candidate) => candidate.kind));
   const hasInterface = kinds.has('interface');
   const hasClass = kinds.has('class');
+  const hasEnumOrNamespace = kinds.has('enum') || kinds.has('namespace');
+  const hasTypeAlias = kinds.has('type_alias');
+  const hasValueToken = candidates.some((candidate) => VALUE_TOKEN_KINDS.has(candidate.kind));
   const hasType = candidates.some((candidate) => TYPE_KINDS.has(candidate.kind));
   const hasValue = candidates.some((candidate) => VALUE_KINDS.has(candidate.kind));
 
-  if (hasInterface && hasClass) return 'interface-class-merge';
-  if (hasType && hasValue) return 'type-value-namespace-collision';
+  if (hasInterface && hasClass) return 'class-plus-interface';
+  if (hasTypeAlias && hasValue) return 'type-alias-plus-value';
+  if (hasType && hasEnumOrNamespace) return 'enum-or-namespace-plus-type';
+  if (hasInterface && hasValueToken) return 'value-token-plus-interface';
+  if (hasType && hasValue) return 'unknown-collision';
   if (hasDuplicateLocation(candidates)) return 'duplicate-extraction';
   if (candidates.every((candidate) => candidate.kind === 'function')) {
     return 'function-overload-signature';
@@ -235,15 +269,25 @@ function candidateLineRanges(row, candidates) {
   }));
 }
 
-function addSubtype(subtypes, subtype, row, candidates) {
+function addSubtype(subtypes, subtype, row, candidates, syntaxMetadata) {
   const bucket = subtypes[subtype] ?? {
     count: 0,
     decisionPosture: DECISION_POSTURE[subtype] ?? 'no-go-keep-fallback',
     rawReasons: {},
+    syntaxSummary: {
+      importForms: {},
+      usageContextHints: {},
+      candidateShapes: {},
+    },
     examples: [],
   };
   bucket.count += 1;
   bucket.rawReasons[row.reason] = (bucket.rawReasons[row.reason] ?? 0) + 1;
+  if (syntaxMetadata) {
+    increment(bucket.syntaxSummary.importForms, syntaxMetadata.importForm);
+    increment(bucket.syntaxSummary.usageContextHints, syntaxMetadata.usageContextHint);
+    increment(bucket.syntaxSummary.candidateShapes, syntaxMetadata.candidateShape);
+  }
   if (bucket.examples.length < 10) {
     const example = {
       reason: row.reason,
@@ -259,19 +303,169 @@ function addSubtype(subtypes, subtype, row, candidates) {
       candidateKinds: candidateKinds(candidates),
       candidateLineRanges: candidateLineRanges(row, candidates),
     };
+    if (syntaxMetadata) {
+      example.importForm = syntaxMetadata.importForm;
+      example.usageContextHint = syntaxMetadata.usageContextHint;
+      example.candidateShape = syntaxMetadata.candidateShape;
+      example.collisionRecommendation = syntaxMetadata.collisionRecommendation;
+    }
     bucket.examples.push(example);
   }
   subtypes[subtype] = bucket;
+}
+
+function increment(target, key) {
+  target[key] = (target[key] ?? 0) + 1;
+}
+
+function inferSourceRootFromDbPath(dbPath) {
+  const normalized = path.resolve(dbPath);
+  if (path.basename(normalized) === 'zcodegraph.db' && path.basename(path.dirname(normalized)) === '.zcodegraph') {
+    return path.dirname(path.dirname(normalized));
+  }
+  return path.dirname(normalized);
+}
+
+function readSourceFile(sourceRoot, filePath, cache, readPaths) {
+  if (!sourceRoot || !filePath) return null;
+  const root = path.resolve(sourceRoot);
+  const fullPath = path.resolve(root, filePath);
+  if (fullPath !== root && !fullPath.startsWith(`${root}${path.sep}`)) {
+    return null;
+  }
+  if (cache.has(fullPath)) return cache.get(fullPath);
+  try {
+    const content = fs.readFileSync(fullPath, 'utf-8');
+    cache.set(fullPath, content);
+    readPaths.add(fullPath);
+    return content;
+  } catch {
+    cache.set(fullPath, null);
+    return null;
+  }
+}
+
+function buildSyntaxMetadata({ row, candidates, subtype, sourceRoot, sourceCache, sourceReadPaths }) {
+  if (!isCollisionSubtype(subtype)) return null;
+  const content = readSourceFile(sourceRoot, row.filePath, sourceCache, sourceReadPaths);
+  const importForm = inferImportForm(content, row.line, row.referenceName, row.reason);
+  const usageContextHint = inferUsageContextHint(content, row.referenceName);
+  const candidateShape = inferCandidateShape(candidates);
+  return {
+    importForm,
+    usageContextHint,
+    candidateShape,
+    collisionRecommendation: COLLISION_RECOMMENDATION[subtype] ?? 'needs-more-metadata',
+  };
+}
+
+function isCollisionSubtype(subtype) {
+  return Object.prototype.hasOwnProperty.call(COLLISION_RECOMMENDATION, subtype);
+}
+
+function inferImportForm(content, line, referenceName, reason) {
+  if (reason === 'same-file-export-specifier-candidate-multiple') return 'export-specifier';
+  const statement = statementAroundLine(content, line);
+  if (!statement) return 'unknown';
+  if (/^\s*import\s+type\b/.test(statement)) return 'import-type';
+  if (/^\s*export\s+type\s*\{/.test(statement) || /^\s*export\s*\{/.test(statement)) {
+    return 'export-specifier';
+  }
+  if (!/^\s*import\b/.test(statement)) return 'unknown';
+  const named = statement.match(/\{([\s\S]*?)\}/)?.[1] ?? '';
+  if (!named) return 'unknown';
+  const specifiers = named.split(',').map((part) => part.trim()).filter(Boolean);
+  const matching = specifiers.find((specifier) => specifierNameMatches(specifier, referenceName));
+  if (!matching) return specifiers.some((specifier) => specifier.startsWith('type '))
+    ? 'mixed-import'
+    : 'named-value-import';
+  if (matching.startsWith('type ')) return 'import-type';
+  if (specifiers.some((specifier) => specifier.startsWith('type '))) return 'mixed-import';
+  return 'named-value-import';
+}
+
+function specifierNameMatches(specifier, referenceName) {
+  const normalized = specifier.replace(/^type\s+/, '').trim();
+  const [left, right] = normalized.split(/\s+as\s+/);
+  return left === referenceName || right === referenceName;
+}
+
+function statementAroundLine(content, line) {
+  if (!content || !Number.isFinite(line) || line <= 0) return '';
+  const lines = content.split(/\r?\n/);
+  const start = Math.max(0, line - 1);
+  const collected = [];
+  for (let index = start; index < Math.min(lines.length, start + 8); index += 1) {
+    collected.push(lines[index]);
+    if (lines[index].includes(';')) break;
+  }
+  return collected.join('\n');
+}
+
+function inferUsageContextHint(content, referenceName) {
+  if (!content || !referenceName) return 'unknown';
+  const escaped = escapeRegExp(referenceName);
+  const nonImportLines = content
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*import\b/.test(line) && !/^\s*export\s+\{/.test(line));
+  if (nonImportLines.some((line) => new RegExp(`@${escaped}\\b`).test(line))) {
+    return 'decorator-token';
+  }
+  if (nonImportLines.some((line) => /constructor\s*\(/.test(line) && new RegExp(`\\b${escaped}\\b`).test(line))) {
+    return 'constructor-parameter';
+  }
+  if (nonImportLines.some((line) => isTypePositionLine(line, escaped))) {
+    return 'type-position';
+  }
+  if (nonImportLines.some((line) => isRuntimeExpressionLine(line, escaped))) {
+    return 'runtime-expression';
+  }
+  return 'unknown';
+}
+
+function isTypePositionLine(line, escapedName) {
+  return new RegExp(`(:|implements\\s+|extends\\s+|as\\s+|<)\\s*${escapedName}\\b`).test(line)
+    || new RegExp(`\\btype\\s+\\w+\\s*=.*\\b${escapedName}\\b`).test(line)
+    || new RegExp(`\\binterface\\s+\\w+\\s+extends\\s+${escapedName}\\b`).test(line);
+}
+
+function isRuntimeExpressionLine(line, escapedName) {
+  return new RegExp(`\\bnew\\s+${escapedName}\\b`).test(line)
+    || new RegExp(`\\b${escapedName}\\s*\\(`).test(line)
+    || new RegExp(`\\b${escapedName}\\s*\\.`).test(line)
+    || new RegExp(`=\\s*${escapedName}\\b`).test(line);
+}
+
+function inferCandidateShape(candidates) {
+  const kinds = new Set(candidates.map((candidate) => candidate.kind));
+  if (kinds.has('interface') && (kinds.has('constant') || kinds.has('variable'))) {
+    return 'constant-interface';
+  }
+  if (kinds.has('interface') && kinds.has('class')) return 'class-interface';
+  if ((kinds.has('enum') || kinds.has('namespace')) && [...kinds].some((kind) => TYPE_KINDS.has(kind))) {
+    return 'enum-type';
+  }
+  if (kinds.has('type_alias') && [...kinds].some((kind) => VALUE_KINDS.has(kind))) {
+    return 'type-alias-value';
+  }
+  return 'other';
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function buildTaxonomy({
   rows,
   profilePath,
   dbPath,
+  sourceRoot,
   sampleSourceUnavailableReason,
   overloadImplementationResolvedRefs,
 }) {
   const subtypes = {};
+  const sourceCache = new Map();
+  const sourceReadPaths = new Set();
   let databaseOpened = false;
   let databaseUnavailableReason;
 
@@ -292,7 +486,15 @@ function buildTaxonomy({
         databaseUnavailableReason = error instanceof Error ? error.message : String(error);
       }
     }
-    addSubtype(subtypes, subtype, row, candidates);
+    const syntaxMetadata = buildSyntaxMetadata({
+      row,
+      candidates,
+      subtype,
+      sourceRoot,
+      sourceCache,
+      sourceReadPaths,
+    });
+    addSubtype(subtypes, subtype, row, candidates, syntaxMetadata);
   }
 
   const sortedSubtypes = Object.fromEntries(
@@ -312,6 +514,17 @@ function buildTaxonomy({
   const noGoSubtypes = Object.entries(sortedSubtypes)
     .filter(([subtype]) => NO_GO_SUBTYPES.has(subtype))
     .map(([subtype]) => subtype);
+  const collisionSubtypes = Object.fromEntries(
+    Object.entries(sortedSubtypes)
+      .filter(([subtype]) => isCollisionSubtype(subtype))
+      .map(([subtype, bucket]) => [
+        subtype,
+        {
+          count: bucket.count,
+          recommendation: COLLISION_RECOMMENDATION[subtype] ?? 'needs-more-metadata',
+        },
+      ]),
+  );
   const prerequisiteFirstSubtypes = Object.entries(sortedSubtypes)
     .filter(([, bucket]) => bucket.decisionPosture === 'prerequisite-first')
     .map(([subtype]) => subtype);
@@ -320,8 +533,9 @@ function buildTaxonomy({
     generatedAt: new Date().toISOString(),
     profilePath,
     dbPath,
+    sourceRoot,
     dataSource: 'rustCore.esmNamedImportExportFallbackSamples',
-    sourceFilesRead: 0,
+    sourceFilesRead: sourceReadPaths.size,
     databaseOpened,
     resolvedEvidence: {
       overloadImplementationResolvedRefs,
@@ -331,6 +545,7 @@ function buildTaxonomy({
     rowsInspected: rows.length,
     subtypes: sortedSubtypes,
     largestSubtype,
+    collisionSubtypes,
     boundedTieBreakCandidates,
     prerequisiteFirstSubtypes,
     noGoSubtypes,
@@ -347,6 +562,7 @@ function buildTaxonomy({
       databaseUnavailableReason,
       subtypes: summarySubtypes,
       largestSubtype,
+      collisionSubtypes,
       boundedTieBreakCandidates,
       prerequisiteFirstSubtypes,
       noGoSubtypes,
@@ -369,6 +585,12 @@ function chooseRecommendedNextSlice(
   if (largestSubtype && BOUNDED_TIE_BREAK_CANDIDATES.has(largestSubtype)) {
     return `consider bounded tie-break for ${largestSubtype}`;
   }
+  if (largestSubtype && COLLISION_RECOMMENDATION[largestSubtype] === 'candidate-for-next-routing-slice') {
+    return `candidate for next routing slice: ${largestSubtype}`;
+  }
+  if (largestSubtype && COLLISION_RECOMMENDATION[largestSubtype]) {
+    return `collision semantic decision needed for ${largestSubtype}`;
+  }
   if (largestSubtype && prerequisiteFirstSubtypes.includes(largestSubtype)) {
     return `resolve prerequisite for ${largestSubtype} before tie-break`;
   }
@@ -390,7 +612,8 @@ function renderMarkdown(taxonomy) {
     '',
     `- Profile: \`${taxonomy.profilePath}\``,
     `- Database: \`${taxonomy.dbPath}\``,
-    '- Source files read: none',
+    `- Source root: \`${taxonomy.sourceRoot}\``,
+    `- Source files read for bounded syntax metadata: ${taxonomy.sourceFilesRead}`,
     `- Database opened: ${taxonomy.databaseOpened ? 'true' : 'false'}`,
     taxonomy.sampleSourceUnavailableReason
       ? `- Sample source unavailable: ${taxonomy.sampleSourceUnavailableReason}`
@@ -424,6 +647,18 @@ function renderMarkdown(taxonomy) {
     `- Prerequisite-first subtypes: ${taxonomy.prerequisiteFirstSubtypes.join(', ') || 'none'}`,
     `- No-go subtypes: ${taxonomy.noGoSubtypes.join(', ') || 'none'}`,
     '',
+    '## Collision Subtypes',
+    '',
+    '| Collision subtype | Count | Recommendation |',
+    '| --- | ---: | --- |',
+  );
+
+  for (const [subtype, bucket] of Object.entries(taxonomy.collisionSubtypes)) {
+    lines.push(`| ${subtype} | ${bucket.count} | ${bucket.recommendation} |`);
+  }
+
+  lines.push(
+    '',
     '## Examples',
     '',
   );
@@ -435,8 +670,11 @@ function renderMarkdown(taxonomy) {
       const kinds = example.candidateKinds?.length
         ? ` kinds=${example.candidateKinds.join('|')}`
         : '';
+      const syntax = example.importForm
+        ? ` import=${example.importForm} context=${example.usageContextHint} shape=${example.candidateShape}`
+        : '';
       lines.push(
-        `- \`${example.referenceName}\` from \`${example.filePath}\` (${example.language}:${example.line}:${example.col})${target}${kinds}`,
+        `- \`${example.referenceName}\` from \`${example.filePath}\` (${example.language}:${example.line}:${example.col})${target}${kinds}${syntax}`,
       );
     }
     lines.push('');
@@ -468,6 +706,7 @@ function main() {
     rows,
     profilePath: args.profilePath,
     dbPath: args.dbPath,
+    sourceRoot: args.sourceRoot,
     sampleSourceUnavailableReason: unavailableReason,
     overloadImplementationResolvedRefs,
   });
