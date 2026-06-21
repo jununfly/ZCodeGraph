@@ -7,9 +7,10 @@ function usage() {
   console.log([
     'Usage: node scripts/targeted-profile-evidence.mjs --out <path> [--cwd <dir>] -- <command> [args...]',
     '',
-    'Runs one targeted evidence command, samples process-tree RSS with ps,',
-    'and writes a JSON sidecar. RSS sampling failures are recorded in the',
-    'sidecar and do not turn a successful command into a failed run.',
+    'Runs one targeted evidence command, samples process-tree RSS with procfs',
+    'when available and ps as a fallback, then writes a JSON sidecar. RSS',
+    'sampling failures are recorded in the sidecar and do not turn a successful',
+    'command into a failed run.',
   ].join('\n'));
 }
 

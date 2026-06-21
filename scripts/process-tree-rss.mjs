@@ -1,8 +1,15 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 
 export function sampleProcessTreeRssBytes(rootPid, options = {}) {
   if (!Number.isFinite(rootPid)) {
     return { peakRssBytes: null, unavailableReason: 'process pid is unavailable' };
+  }
+
+  const procSample = sampleProcessTreeRssBytesFromProc(rootPid, options);
+  if (procSample.peakRssBytes != null || procSample.unavailableReason == null) {
+    return procSample;
   }
 
   const psCommand = options.psCommand ?? process.env.ZCODEGRAPH_RSS_PS_COMMAND ?? 'ps';
@@ -63,6 +70,73 @@ export function sampleProcessTreeRssBytes(rootPid, options = {}) {
   return totalKb > 0
     ? { peakRssBytes: totalKb * 1024, unavailableReason: null }
     : { peakRssBytes: null, unavailableReason: 'process tree RSS sample was zero' };
+}
+
+export function sampleProcessTreeRssBytesFromProc(rootPid, options = {}) {
+  const procRoot = options.procRoot ?? process.env.ZCODEGRAPH_RSS_PROC_ROOT ?? '/proc';
+  if (!Number.isFinite(rootPid)) {
+    return { peakRssBytes: null, unavailableReason: 'process pid is unavailable' };
+  }
+  if (!fs.existsSync(procRoot)) {
+    return { peakRssBytes: null, unavailableReason: `procfs RSS sampling unavailable: ${procRoot} not found` };
+  }
+
+  let entries;
+  try {
+    entries = fs.readdirSync(procRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && /^\d+$/.test(entry.name))
+      .map((entry) => Number(entry.name));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { peakRssBytes: null, unavailableReason: `procfs RSS sampling unavailable: ${message}` };
+  }
+
+  const rows = [];
+  for (const pid of entries) {
+    const row = readProcStatus(procRoot, pid);
+    if (row) rows.push(row);
+  }
+  if (rows.length === 0) {
+    return { peakRssBytes: null, unavailableReason: 'procfs RSS sample returned no process rows' };
+  }
+
+  const children = new Map();
+  for (const row of rows) {
+    const list = children.get(row.ppid) ?? [];
+    list.push(row.pid);
+    children.set(row.ppid, list);
+  }
+
+  const wanted = new Set([rootPid]);
+  const queue = [rootPid];
+  while (queue.length > 0) {
+    const pid = queue.shift();
+    for (const child of children.get(pid) ?? []) {
+      if (wanted.has(child)) continue;
+      wanted.add(child);
+      queue.push(child);
+    }
+  }
+
+  let totalKb = 0;
+  for (const row of rows) {
+    if (wanted.has(row.pid)) totalKb += row.rssKb;
+  }
+  return totalKb > 0
+    ? { peakRssBytes: totalKb * 1024, unavailableReason: null }
+    : { peakRssBytes: null, unavailableReason: 'procfs process tree RSS sample was zero' };
+}
+
+function readProcStatus(procRoot, pid) {
+  try {
+    const status = fs.readFileSync(path.join(procRoot, String(pid), 'status'), 'utf-8');
+    const ppid = Number(status.match(/^PPid:\s+(\d+)/m)?.[1]);
+    const rssKb = Number(status.match(/^VmRSS:\s+(\d+)\s+kB/m)?.[1] ?? 0);
+    if (!Number.isFinite(ppid) || !Number.isFinite(rssKb)) return null;
+    return { pid, ppid, rssKb };
+  } catch {
+    return null;
+  }
 }
 
 export function spawnMeasured(command, args, options = {}) {

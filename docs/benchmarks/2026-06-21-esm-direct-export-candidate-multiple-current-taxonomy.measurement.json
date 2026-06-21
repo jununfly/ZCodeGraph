@@ -1,0 +1,25 @@
+{
+  "command": {
+    "executable": "node",
+    "args": [
+      "scripts/rust-esm-candidate-multiple-taxonomy.mjs",
+      "--profile",
+      "docs/benchmarks/2026-06-21-esm-direct-export-burndown-current.profile.json",
+      "--db",
+      ".zcodegraph/zcodegraph.db",
+      "--out-dir",
+      "docs/benchmarks",
+      "--prefix",
+      "2026-06-21-esm-direct-export-candidate-multiple-current-taxonomy"
+    ],
+    "cwd": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph"
+  },
+  "status": "completed",
+  "exitCode": 0,
+  "signal": null,
+  "wallMs": 51,
+  "peakRssBytes": null,
+  "rssUnavailableReason": "RSS sampling unavailable: process-list access is sandboxed (spawnSync ps EPERM)",
+  "stdoutBytes": 619,
+  "stderrBytes": 0
+}

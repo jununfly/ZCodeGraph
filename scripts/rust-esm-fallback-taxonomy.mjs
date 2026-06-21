@@ -9,6 +9,8 @@ const REASON_GROUPS = {
   'target-file-content-unavailable': 'contentUnavailable',
   'direct-export-candidate-zero': 'directExportCandidateGap',
   'direct-export-candidate-multiple': 'directExportCandidateGap',
+  'same-file-export-specifier-candidate-zero': 'directExportCandidateGap',
+  'same-file-export-specifier-candidate-multiple': 'directExportCandidateGap',
   'reexport-specifier-target-not-found': 'reexportTargetGap',
   'reexport-leaf-content-unavailable': 'reexportTargetGap',
   'reexport-leaf-candidate-zero': 'reexportCandidateGap',

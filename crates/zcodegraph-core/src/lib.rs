@@ -270,6 +270,17 @@ pub struct EsmNamedFallbackSample {
     pub target_file_path: Option<String>,
     pub candidate_count: Option<usize>,
     pub resolved_by_attempt: Option<String>,
+    pub candidate_line_ranges: Option<Vec<CandidateDeclarationDiagnostic>>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CandidateDeclarationDiagnostic {
+    pub kind: String,
+    pub start_line: i64,
+    pub end_line: i64,
+    pub has_body: Option<bool>,
+    pub declaration_form: Option<String>,
+    pub metadata_source: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1470,6 +1481,7 @@ impl EsmNamedImportExportStats {
         target_file_path: Option<&str>,
         candidate_count: Option<usize>,
         resolved_by_attempt: Option<&str>,
+        candidate_line_ranges: Option<Vec<CandidateDeclarationDiagnostic>>,
     ) {
         self.fallback_refs += 1;
         *self
@@ -1498,6 +1510,7 @@ impl EsmNamedImportExportStats {
             target_file_path: target_file_path.map(str::to_string),
             candidate_count,
             resolved_by_attempt: resolved_by_attempt.map(str::to_string),
+            candidate_line_ranges,
         });
     }
 }
@@ -1561,6 +1574,8 @@ struct SymbolCandidateRow {
     id: String,
     kind: String,
     name: String,
+    start_line: i64,
+    end_line: i64,
     resolved_by: &'static str,
 }
 
@@ -2175,7 +2190,7 @@ fn resolve_esm_named_import_export_refs(
             reference.line,
             &mut file_content_cache,
         ) {
-            stats.record_fallback_sample("type-only-import", &reference, None, None, None);
+            stats.record_fallback_sample("type-only-import", &reference, None, None, None, None);
             continue;
         }
 
@@ -2192,7 +2207,7 @@ fn resolve_esm_named_import_export_refs(
             } else {
                 "import-edge-target-not-found"
             };
-            stats.record_fallback_sample(reason, &reference, None, None, None);
+            stats.record_fallback_sample(reason, &reference, None, None, None, None);
             continue;
         }
         if target_file_paths.len() > 1 {
@@ -2201,6 +2216,7 @@ fn resolve_esm_named_import_export_refs(
                 &reference,
                 None,
                 Some(target_file_paths.len()),
+                None,
                 None,
             );
             continue;
@@ -2217,6 +2233,7 @@ fn resolve_esm_named_import_export_refs(
                 "unsupported-import-shape",
                 &reference,
                 Some(&target_file_path),
+                None,
                 None,
                 None,
             );
@@ -2237,6 +2254,12 @@ fn resolve_esm_named_import_export_refs(
                 Some(&target_file_path),
                 Some(lookup.candidates.len()),
                 Some(lookup.resolved_by_attempt),
+                candidate_declaration_diagnostics(
+                    project_path,
+                    &target_file_path,
+                    &lookup.candidates,
+                    &mut file_content_cache,
+                ),
             );
             continue;
         }
@@ -2369,6 +2392,93 @@ fn cached_file_content<'a>(
     cache.get(file_path).map(String::as_str)
 }
 
+fn candidate_declaration_diagnostics(
+    project_path: &Path,
+    target_file_path: &str,
+    candidates: &[SymbolCandidateRow],
+    cache: &mut HashMap<String, String>,
+) -> Option<Vec<CandidateDeclarationDiagnostic>> {
+    if candidates.is_empty() {
+        return None;
+    }
+    let content = cached_file_content(project_path, target_file_path, cache);
+    Some(
+        candidates
+            .iter()
+            .map(|candidate| {
+                infer_candidate_declaration_diagnostic(target_file_path, content, candidate)
+            })
+            .collect(),
+    )
+}
+
+fn infer_candidate_declaration_diagnostic(
+    target_file_path: &str,
+    content: Option<&str>,
+    candidate: &SymbolCandidateRow,
+) -> CandidateDeclarationDiagnostic {
+    let mut diagnostic = CandidateDeclarationDiagnostic {
+        kind: candidate.kind.clone(),
+        start_line: candidate.start_line,
+        end_line: candidate.end_line,
+        has_body: None,
+        declaration_form: Some("unknown".to_string()),
+        metadata_source: "unavailable".to_string(),
+    };
+
+    if candidate.kind != "function" {
+        return diagnostic;
+    }
+
+    let Some(content) = content else {
+        return diagnostic;
+    };
+    diagnostic.metadata_source = "target-file-line-range-inference".to_string();
+    let Some(text) = line_range_text(content, candidate.start_line, candidate.end_line) else {
+        return diagnostic;
+    };
+    if text.contains('{') {
+        diagnostic.has_body = Some(true);
+        diagnostic.declaration_form = Some("implementation".to_string());
+        return diagnostic;
+    }
+    if target_file_path.ends_with(".d.ts")
+        || target_file_path.ends_with(".d.mts")
+        || target_file_path.ends_with(".d.cts")
+        || text.trim_end().ends_with(';')
+        || text.trim_start().starts_with("declare function ")
+    {
+        diagnostic.has_body = Some(false);
+        diagnostic.declaration_form = Some("signature".to_string());
+    }
+    diagnostic
+}
+
+fn line_range_text(content: &str, start_line: i64, end_line: i64) -> Option<String> {
+    if start_line <= 0 || end_line < start_line {
+        return None;
+    }
+    let start = start_line as usize;
+    let end = end_line as usize;
+    let lines = content
+        .lines()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            let line_number = index + 1;
+            if (start..=end).contains(&line_number) {
+                Some(line)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    if lines.is_empty() {
+        None
+    } else {
+        Some(lines.join("\n"))
+    }
+}
+
 fn find_import_edge_target_files(
     conn: &Connection,
     reference: &ImportRefRow,
@@ -2407,7 +2517,7 @@ fn find_exported_symbol_candidates(
     cache: &mut HashMap<String, String>,
 ) -> Result<ExportedSymbolCandidateLookup, Box<dyn std::error::Error>> {
     let mut stmt = conn.prepare(
-        "SELECT id, kind, name
+        "SELECT id, kind, name, start_line, end_line
          FROM nodes
          WHERE file_path = ?1
            AND name = ?2
@@ -2420,6 +2530,8 @@ fn find_exported_symbol_candidates(
                 id: row.get(0)?,
                 kind: row.get(1)?,
                 name: row.get(2)?,
+                start_line: row.get(3)?,
+                end_line: row.get(4)?,
                 resolved_by: "rust-esm-named-import-export",
             })
         })?
@@ -2449,6 +2561,39 @@ fn find_exported_symbol_candidates(
         });
     }
 
+    let mut stmt = conn.prepare(
+        "SELECT id, kind, name, start_line, end_line
+         FROM nodes
+         WHERE file_path = ?1
+           AND name = ?2
+           AND kind IN ('function', 'class', 'interface', 'type_alias', 'constant', 'variable', 'enum')
+         ORDER BY start_line",
+    )?;
+    let same_file_export_candidates = stmt
+        .query_map(params![target_file_path, name], |row| {
+            Ok(SymbolCandidateRow {
+                id: row.get(0)?,
+                kind: row.get(1)?,
+                name: row.get(2)?,
+                start_line: row.get(3)?,
+                end_line: row.get(4)?,
+                resolved_by: "rust-esm-named-import-export",
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    if same_file_export_specifier_declares_name(&content, name) {
+        let fallback_reason = if same_file_export_candidates.len() > 1 {
+            "same-file-export-specifier-candidate-multiple"
+        } else {
+            "same-file-export-specifier-candidate-zero"
+        };
+        return Ok(ExportedSymbolCandidateLookup {
+            candidates: same_file_export_candidates,
+            fallback_reason,
+            resolved_by_attempt: "same-file-export-specifier",
+        });
+    }
+
     find_one_hop_reexport_symbol_candidates(
         conn,
         project_path,
@@ -2461,17 +2606,79 @@ fn find_exported_symbol_candidates(
 }
 
 fn direct_export_declares_name(content: &str, kind: &str, name: &str) -> bool {
-    let needle = match kind {
-        "function" => format!("export function {}", name),
-        "class" => format!("export class {}", name),
-        "interface" => format!("export interface {}", name),
-        "type_alias" => format!("export type {}", name),
-        "constant" => format!("export const {}", name),
-        "variable" => format!("export let {}", name),
-        "enum" => format!("export enum {}", name),
-        _ => return false,
+    content.lines().any(|line| {
+        let Some(rest) = line.trim_start().strip_prefix("export ") else {
+            return false;
+        };
+        direct_export_line_declares_name(rest.trim_start(), kind, name)
+    })
+}
+
+fn direct_export_line_declares_name(rest: &str, kind: &str, name: &str) -> bool {
+    if rest.starts_with("default ") || rest.starts_with('{') || rest.contains(" from ") {
+        return false;
+    }
+
+    let mut tokens = rest.split_whitespace().peekable();
+    while matches!(
+        tokens.peek().copied(),
+        Some("declare" | "abstract" | "async" | "public" | "private" | "protected" | "readonly")
+    ) {
+        tokens.next();
+    }
+
+    let Some(keyword) = tokens.next() else {
+        return false;
     };
-    content.contains(&needle)
+    if !export_keyword_matches_kind(keyword, kind) {
+        return false;
+    }
+
+    let Some(raw_name) = tokens.next() else {
+        return false;
+    };
+    identifier_prefix(raw_name) == name
+}
+
+fn export_keyword_matches_kind(keyword: &str, kind: &str) -> bool {
+    match kind {
+        "function" => keyword == "function",
+        "class" => keyword == "class",
+        "interface" => keyword == "interface",
+        "type_alias" => keyword == "type",
+        "constant" => keyword == "const",
+        "variable" => matches!(keyword, "let" | "var"),
+        "enum" => keyword == "enum",
+        _ => false,
+    }
+}
+
+fn identifier_prefix(raw: &str) -> &str {
+    let end = raw
+        .char_indices()
+        .find(|(_, ch)| !is_identifier_char(*ch))
+        .map(|(index, _)| index)
+        .unwrap_or(raw.len());
+    &raw[..end]
+}
+
+fn same_file_export_specifier_declares_name(content: &str, name: &str) -> bool {
+    content.lines().any(|line| {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("export ") || trimmed.contains(" from ") {
+            return false;
+        }
+        let Some(open) = trimmed.find('{') else {
+            return false;
+        };
+        let Some(close_offset) = trimmed[open + 1..].find('}') else {
+            return false;
+        };
+        let close = open + 1 + close_offset;
+        trimmed[open + 1..close]
+            .split(',')
+            .any(|part| part.trim() == name)
+    })
 }
 
 fn find_one_hop_reexport_symbol_candidates(
@@ -2513,7 +2720,7 @@ fn find_one_hop_reexport_symbol_candidates(
     };
 
     let mut stmt = conn.prepare(
-        "SELECT id, kind, name
+        "SELECT id, kind, name, start_line, end_line
          FROM nodes
          WHERE file_path = ?1
            AND name = ?2
@@ -2526,6 +2733,8 @@ fn find_one_hop_reexport_symbol_candidates(
                 id: row.get(0)?,
                 kind: row.get(1)?,
                 name: row.get(2)?,
+                start_line: row.get(3)?,
+                end_line: row.get(4)?,
                 resolved_by: "rust-esm-one-hop-reexport",
             })
         })?
@@ -3864,17 +4073,21 @@ fn extract_named_symbol<'a>(
 ) -> Result<Option<(&'static str, SyntaxNode<'a>)>, Box<dyn std::error::Error>> {
     if matches!(
         node.kind(),
-        "function_declaration" | "class_declaration" | "enum_declaration"
+        "function_declaration"
+            | "function_signature"
+            | "class_declaration"
+            | "abstract_class_declaration"
+            | "enum_declaration"
     ) {
         if let Some(name_node) = node.child_by_field_name("name") {
             let name = name_node.utf8_text(source)?;
-            let kind = if node.kind() == "function_declaration"
+            let kind = if matches!(node.kind(), "function_declaration" | "function_signature")
                 && features.component_detection
                 && language.has_jsx()
                 && is_pascal_case(name)
             {
                 "component"
-            } else if node.kind() == "function_declaration" {
+            } else if matches!(node.kind(), "function_declaration" | "function_signature") {
                 "function"
             } else if node.kind() == "enum_declaration" {
                 "enum"
@@ -3882,6 +4095,14 @@ fn extract_named_symbol<'a>(
                 "class"
             };
             return Ok(Some((kind, name_node)));
+        }
+    }
+
+    if matches!(node.kind(), "ambient_declaration" | "declaration") {
+        for child in node.named_children(&mut node.walk()) {
+            if let Some(symbol) = extract_named_symbol(child, source, language, features)? {
+                return Ok(Some(symbol));
+            }
         }
     }
 
@@ -4561,6 +4782,41 @@ fn esm_named_fallback_samples_json(samples: &[EsmNamedFallbackSample]) -> String
                     escape_json(resolved_by_attempt)
                 ));
             }
+            if let Some(candidate_line_ranges) = &sample.candidate_line_ranges {
+                fields.push(format!(
+                    "\"candidateLineRanges\":{}",
+                    candidate_declaration_diagnostics_json(candidate_line_ranges)
+                ));
+            }
+            format!("{{{}}}", fields.join(","))
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("[{}]", items)
+}
+
+fn candidate_declaration_diagnostics_json(candidates: &[CandidateDeclarationDiagnostic]) -> String {
+    let items = candidates
+        .iter()
+        .map(|candidate| {
+            let mut fields = vec![
+                format!("\"kind\":\"{}\"", escape_json(&candidate.kind)),
+                format!("\"startLine\":{}", candidate.start_line),
+                format!("\"endLine\":{}", candidate.end_line),
+                format!(
+                    "\"metadataSource\":\"{}\"",
+                    escape_json(&candidate.metadata_source)
+                ),
+            ];
+            if let Some(has_body) = candidate.has_body {
+                fields.push(format!("\"hasBody\":{}", has_body));
+            }
+            if let Some(declaration_form) = &candidate.declaration_form {
+                fields.push(format!(
+                    "\"declarationForm\":\"{}\"",
+                    escape_json(declaration_form)
+                ));
+            }
             format!("{{{}}}", fields.join(","))
         })
         .collect::<Vec<_>>()
@@ -5074,6 +5330,51 @@ mod tests {
     }
 
     #[test]
+    fn result_json_emits_candidate_declaration_diagnostics() {
+        let result = IndexResult {
+            success: true,
+            files_indexed: 0,
+            files_skipped: 0,
+            files_errored: 0,
+            nodes_created: 0,
+            edges_created: 0,
+            duration_ms: 7,
+            profile: IndexProfile {
+                esm_named_import_export_fallback_samples: vec![EsmNamedFallbackSample {
+                    reason: "direct-export-candidate-multiple".to_string(),
+                    reference_name: "parseThing".to_string(),
+                    reference_kind: "imports".to_string(),
+                    file_path: "consumer.ts".to_string(),
+                    language: "typescript".to_string(),
+                    line: 1,
+                    col: 9,
+                    target_file_path: Some("api.ts".to_string()),
+                    candidate_count: Some(2),
+                    resolved_by_attempt: Some("direct-export".to_string()),
+                    candidate_line_ranges: Some(vec![CandidateDeclarationDiagnostic {
+                        kind: "function".to_string(),
+                        start_line: 1,
+                        end_line: 3,
+                        has_body: Some(true),
+                        declaration_form: Some("implementation".to_string()),
+                        metadata_source: "target-file-line-range-inference".to_string(),
+                    }]),
+                }],
+                ..IndexProfile::default()
+            },
+            errors: Vec::new(),
+        };
+
+        let json = result_json(&result);
+
+        assert!(json.contains("\"candidateLineRanges\":["));
+        assert!(json.contains("\"hasBody\":true"));
+        assert!(json.contains("\"declarationForm\":\"implementation\""));
+        assert!(json.contains("\"metadataSource\":\"target-file-line-range-inference\""));
+        assert!(!json.contains("return String"));
+    }
+
+    #[test]
     fn caps_import_fallback_samples_but_keeps_full_counts() {
         let mut stats = ImportResolutionStats::default();
         let reference = ImportRefRow {
@@ -5538,6 +5839,193 @@ mod tests {
         assert_eq!(fts_count, node_count);
         assert_eq!(stable_count, 1);
         assert_eq!(later_count, 1);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_profile_classifies_typescript_overload_implementation_candidates() {
+        let dir = temp_dir("ts-overload-implementation-metadata");
+        fs::write(
+            dir.join("api.ts"),
+            [
+                "export function parseThing(value: string): string;",
+                "export function parseThing(value: number): string;",
+                "export function parseThing(value: string | number) {",
+                "  return String(value);",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("consumer.ts"),
+            "import { parseThing } from './api';\nexport const result = parseThing('x');\n",
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let sample = result
+            .profile
+            .esm_named_import_export_fallback_samples
+            .iter()
+            .find(|sample| sample.reason == "direct-export-candidate-multiple")
+            .expect("expected overload candidate-multiple fallback sample");
+        let candidates = sample
+            .candidate_line_ranges
+            .as_ref()
+            .expect("candidate metadata should be attached to candidate-multiple samples");
+        assert_eq!(candidates.len(), 3);
+        assert_eq!(
+            candidates
+                .iter()
+                .map(|candidate| candidate.declaration_form.as_deref())
+                .collect::<Vec<_>>(),
+            vec![Some("signature"), Some("signature"), Some("implementation")]
+        );
+        assert_eq!(
+            candidates
+                .iter()
+                .map(|candidate| candidate.has_body)
+                .collect::<Vec<_>>(),
+            vec![Some(false), Some(false), Some(true)]
+        );
+        assert!(
+            candidates
+                .iter()
+                .all(|candidate| candidate.metadata_source == "target-file-line-range-inference")
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_profile_keeps_no_go_declaration_metadata_out_of_implementation() {
+        let dir = temp_dir("ts-overload-no-go-metadata");
+        fs::write(
+            dir.join("ambient.ts"),
+            [
+                "export declare function ambientOnly(value: string): string;",
+                "export declare function ambientOnly(value: number): string;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("types.d.ts"),
+            [
+                "export declare function declaredOnly(value: string): string;",
+                "export declare function declaredOnly(value: number): string;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("collision.ts"),
+            [
+                "export type Collided = { value: string };",
+                "export const Collided = { value: 'x' };",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("consumer.ts"),
+            [
+                "import { ambientOnly } from './ambient';",
+                "import { declaredOnly } from './types';",
+                "import { Collided } from './collision';",
+                "export const a = ambientOnly('x');",
+                "export const d = declaredOnly('x');",
+                "export const c = Collided;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let sample_for = |name: &str| {
+            result
+                .profile
+                .esm_named_import_export_fallback_samples
+                .iter()
+                .find(|sample| sample.reference_name == name)
+                .unwrap_or_else(|| panic!("expected fallback sample for {name}"))
+        };
+        for name in ["ambientOnly", "declaredOnly"] {
+            let sample = sample_for(name);
+            let candidates = sample
+                .candidate_line_ranges
+                .as_ref()
+                .expect("candidate diagnostics should be attached");
+            assert!(
+                candidates
+                    .iter()
+                    .all(|candidate| candidate.declaration_form.as_deref() == Some("signature")),
+                "{name} candidates should remain signatures: {candidates:?}"
+            );
+            assert!(
+                candidates
+                    .iter()
+                    .all(|candidate| candidate.has_body == Some(false)),
+                "{name} candidates should not have bodies: {candidates:?}"
+            );
+        }
+
+        let collision = sample_for("Collided");
+        let collision_candidates = collision
+            .candidate_line_ranges
+            .as_ref()
+            .expect("collision candidate diagnostics should be attached");
+        assert!(
+            collision_candidates
+                .iter()
+                .all(|candidate| candidate.declaration_form.as_deref() == Some("unknown")),
+            "type/value collision should not produce implementation metadata: {collision_candidates:?}"
+        );
+        assert!(
+            collision_candidates
+                .iter()
+                .all(|candidate| candidate.has_body.is_none()),
+            "type/value collision should not claim body metadata: {collision_candidates:?}"
+        );
+
         fs::remove_dir_all(dir).unwrap();
     }
 

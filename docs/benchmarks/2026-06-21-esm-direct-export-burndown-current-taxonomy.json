@@ -1,0 +1,526 @@
+{
+  "generatedAt": "2026-06-21T07:29:11.097Z",
+  "profilePath": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/docs/benchmarks/2026-06-21-esm-direct-export-burndown-current.profile.json",
+  "dataSource": "rustCore.esmNamedImportExportFallbackSamples",
+  "sourceFilesRead": 0,
+  "databaseOpened": false,
+  "rowsInspected": 356,
+  "countSource": "rustCore.esmNamedImportExportFallbackSampleCounts",
+  "reasons": {
+    "directExportCandidateGap": {
+      "count": 49,
+      "rawReasons": {
+        "direct-export-candidate-zero": 49
+      },
+      "examples": [
+        {
+          "reason": "direct-export-candidate-zero",
+          "referenceName": "drupalResolver",
+          "referenceKind": "imports",
+          "filePath": "__tests__/drupal.test.ts",
+          "language": "typescript",
+          "line": 14,
+          "col": 0,
+          "targetFilePath": "src/resolution/frameworks/drupal.ts",
+          "candidateCount": 0,
+          "resolvedByAttempt": "direct-export"
+        },
+        {
+          "reason": "direct-export-candidate-zero",
+          "referenceName": "fabricViewResolver",
+          "referenceKind": "imports",
+          "filePath": "__tests__/fabric-view.test.ts",
+          "language": "typescript",
+          "line": 6,
+          "col": 0,
+          "targetFilePath": "src/resolution/frameworks/fabric.ts",
+          "candidateCount": 0,
+          "resolvedByAttempt": "direct-export"
+        },
+        {
+          "reason": "direct-export-candidate-zero",
+          "referenceName": "expressResolver",
+          "referenceKind": "imports",
+          "filePath": "__tests__/frameworks.test.ts",
+          "language": "typescript",
+          "line": 224,
+          "col": 0,
+          "targetFilePath": "src/resolution/frameworks/express.ts",
+          "candidateCount": 0,
+          "resolvedByAttempt": "direct-export"
+        },
+        {
+          "reason": "direct-export-candidate-zero",
+          "referenceName": "nestjsResolver",
+          "referenceKind": "imports",
+          "filePath": "__tests__/frameworks.test.ts",
+          "language": "typescript",
+          "line": 250,
+          "col": 0,
+          "targetFilePath": "src/resolution/frameworks/nestjs.ts",
+          "candidateCount": 0,
+          "resolvedByAttempt": "direct-export"
+        },
+        {
+          "reason": "direct-export-candidate-zero",
+          "referenceName": "railsResolver",
+          "referenceKind": "imports",
+          "filePath": "__tests__/frameworks.test.ts",
+          "language": "typescript",
+          "line": 820,
+          "col": 0,
+          "targetFilePath": "src/resolution/frameworks/ruby.ts",
+          "candidateCount": 0,
+          "resolvedByAttempt": "direct-export"
+        },
+        {
+          "reason": "direct-export-candidate-zero",
+          "referenceName": "springResolver",
+          "referenceKind": "imports",
+          "filePath": "__tests__/frameworks.test.ts",
+          "language": "typescript",
+          "line": 837,
+          "col": 0,
+          "targetFilePath": "src/resolution/frameworks/java.ts",
+          "candidateCount": 0,
+          "resolvedByAttempt": "direct-export"
+        },
+        {
+          "reason": "direct-export-candidate-zero",
+          "referenceName": "playResolver",
+          "referenceKind": "imports",
+          "filePath": "__tests__/frameworks.test.ts",
+          "language": "typescript",
+          "line": 883,
+          "col": 0,
+          "targetFilePath": "src/resolution/frameworks/play.ts",
+          "candidateCount": 0,
+          "resolvedByAttempt": "direct-export"
+        },
+        {
+          "reason": "direct-export-candidate-zero",
+          "referenceName": "goResolver",
+          "referenceKind": "imports",
+          "filePath": "__tests__/frameworks.test.ts",
+          "language": "typescript",
+          "line": 922,
+          "col": 0,
+          "targetFilePath": "src/resolution/frameworks/go.ts",
+          "candidateCount": 0,
+          "resolvedByAttempt": "direct-export"
+        },
+        {
+          "reason": "direct-export-candidate-zero",
+          "referenceName": "rustResolver",
+          "referenceKind": "imports",
+          "filePath": "__tests__/frameworks.test.ts",
+          "language": "typescript",
+          "line": 947,
+          "col": 0,
+          "targetFilePath": "src/resolution/frameworks/rust.ts",
+          "candidateCount": 0,
+          "resolvedByAttempt": "direct-export"
+        },
+        {
+          "reason": "direct-export-candidate-zero",
+          "referenceName": "vaporResolver",
+          "referenceKind": "imports",
+          "filePath": "__tests__/frameworks.test.ts",
+          "language": "typescript",
+          "line": 1326,
+          "col": 0,
+          "targetFilePath": "src/resolution/frameworks/swift.ts",
+          "candidateCount": 0,
+          "resolvedByAttempt": "direct-export"
+        }
+      ]
+    },
+    "importEdgeTargetGap": {
+      "count": 7,
+      "rawReasons": {
+        "import-edge-target-not-found": 7
+      },
+      "examples": [
+        {
+          "reason": "import-edge-target-not-found",
+          "referenceName": "flaskResolver",
+          "referenceKind": "imports",
+          "filePath": "__tests__/frameworks.test.ts",
+          "language": "typescript",
+          "line": 100,
+          "col": 0
+        },
+        {
+          "reason": "import-edge-target-not-found",
+          "referenceName": "fastapiResolver",
+          "referenceKind": "imports",
+          "filePath": "__tests__/frameworks.test.ts",
+          "language": "typescript",
+          "line": 100,
+          "col": 0
+        },
+        {
+          "reason": "import-edge-target-not-found",
+          "referenceName": "DEFAULT_PARSE_TIMEOUT_MS",
+          "referenceKind": "imports",
+          "filePath": "src/extraction/parse-executor-worker.ts",
+          "language": "typescript",
+          "line": 20,
+          "col": 0
+        },
+        {
+          "reason": "import-edge-target-not-found",
+          "referenceName": "DEFAULT_WORKER_RECYCLE_INTERVAL",
+          "referenceKind": "imports",
+          "filePath": "src/extraction/parse-executor-worker.ts",
+          "language": "typescript",
+          "line": 20,
+          "col": 0
+        },
+        {
+          "reason": "import-edge-target-not-found",
+          "referenceName": "fs",
+          "referenceKind": "imports",
+          "filePath": "src/mcp/tools.ts",
+          "language": "typescript",
+          "line": 25,
+          "col": 0
+        },
+        {
+          "reason": "import-edge-target-not-found",
+          "referenceName": "existsSync",
+          "referenceKind": "imports",
+          "filePath": "src/mcp/tools.ts",
+          "language": "typescript",
+          "line": 25,
+          "col": 0
+        },
+        {
+          "reason": "import-edge-target-not-found",
+          "referenceName": "wrapFrameworkResolver",
+          "referenceKind": "imports",
+          "filePath": "src/resolution/frameworks/index.ts",
+          "language": "typescript",
+          "line": 14,
+          "col": 0
+        }
+      ]
+    },
+    "packageOrRuntimeBoundary": {
+      "count": 1233,
+      "rawReasons": {
+        "package-or-runtime-binding": 1233
+      },
+      "examples": [
+        {
+          "reason": "package-or-runtime-binding",
+          "referenceName": "vitest",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 16,
+          "col": 0
+        },
+        {
+          "reason": "package-or-runtime-binding",
+          "referenceName": "describe",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 16,
+          "col": 0
+        },
+        {
+          "reason": "package-or-runtime-binding",
+          "referenceName": "it",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 16,
+          "col": 0
+        },
+        {
+          "reason": "package-or-runtime-binding",
+          "referenceName": "expect",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 16,
+          "col": 0
+        },
+        {
+          "reason": "package-or-runtime-binding",
+          "referenceName": "beforeEach",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 16,
+          "col": 0
+        },
+        {
+          "reason": "package-or-runtime-binding",
+          "referenceName": "afterEach",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 16,
+          "col": 0
+        },
+        {
+          "reason": "package-or-runtime-binding",
+          "referenceName": "fs",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 17,
+          "col": 0
+        },
+        {
+          "reason": "package-or-runtime-binding",
+          "referenceName": "path",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 18,
+          "col": 0
+        },
+        {
+          "reason": "package-or-runtime-binding",
+          "referenceName": "os",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 19,
+          "col": 0
+        },
+        {
+          "reason": "package-or-runtime-binding",
+          "referenceName": "vitest",
+          "referenceKind": "imports",
+          "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+          "language": "typescript",
+          "line": 27,
+          "col": 0
+        }
+      ]
+    },
+    "typeOnlyBoundary": {
+      "count": 228,
+      "rawReasons": {
+        "type-only-import": 228
+      },
+      "examples": [
+        {
+          "reason": "type-only-import",
+          "referenceName": "AgentAccessModel",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 22,
+          "col": 0
+        },
+        {
+          "reason": "type-only-import",
+          "referenceName": "MaintenanceAccessModel",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 22,
+          "col": 0
+        },
+        {
+          "reason": "type-only-import",
+          "referenceName": "ResolutionAccessModel",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 22,
+          "col": 0
+        },
+        {
+          "reason": "type-only-import",
+          "referenceName": "StatusAccessModel",
+          "referenceKind": "imports",
+          "filePath": "__tests__/access-models.test.ts",
+          "language": "typescript",
+          "line": 22,
+          "col": 0
+        },
+        {
+          "reason": "type-only-import",
+          "referenceName": "QueryBuilder",
+          "referenceKind": "imports",
+          "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+          "language": "typescript",
+          "line": 3,
+          "col": 0
+        },
+        {
+          "reason": "type-only-import",
+          "referenceName": "ResolutionContext",
+          "referenceKind": "imports",
+          "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+          "language": "typescript",
+          "line": 4,
+          "col": 0
+        },
+        {
+          "reason": "type-only-import",
+          "referenceName": "RustCandidateProducerLookup",
+          "referenceKind": "imports",
+          "filePath": "__tests__/candidate-protocol.test.ts",
+          "language": "typescript",
+          "line": 8,
+          "col": 0
+        },
+        {
+          "reason": "type-only-import",
+          "referenceName": "CommandContext",
+          "referenceKind": "imports",
+          "filePath": "__tests__/command-context.test.ts",
+          "language": "typescript",
+          "line": 21,
+          "col": 0
+        },
+        {
+          "reason": "type-only-import",
+          "referenceName": "CommandOutput",
+          "referenceKind": "imports",
+          "filePath": "__tests__/command-context.test.ts",
+          "language": "typescript",
+          "line": 21,
+          "col": 0
+        },
+        {
+          "reason": "type-only-import",
+          "referenceName": "CommandError",
+          "referenceKind": "imports",
+          "filePath": "__tests__/command-context.test.ts",
+          "language": "typescript",
+          "line": 21,
+          "col": 0
+        }
+      ]
+    },
+    "unsupportedImportShape": {
+      "count": 329,
+      "rawReasons": {
+        "unsupported-import-shape": 329
+      },
+      "examples": [
+        {
+          "reason": "unsupported-import-shape",
+          "referenceName": "CandidateProtocolProvider",
+          "referenceKind": "imports",
+          "filePath": "__tests__/candidate-protocol.test.ts",
+          "language": "typescript",
+          "line": 2,
+          "col": 0,
+          "targetFilePath": "src/resolution/candidate-protocol.ts"
+        },
+        {
+          "reason": "unsupported-import-shape",
+          "referenceName": "collectCandidateProducerRoutingLookups",
+          "referenceKind": "imports",
+          "filePath": "__tests__/candidate-protocol.test.ts",
+          "language": "typescript",
+          "line": 2,
+          "col": 0,
+          "targetFilePath": "src/resolution/candidate-protocol.ts"
+        },
+        {
+          "reason": "unsupported-import-shape",
+          "referenceName": "createTestContext",
+          "referenceKind": "imports",
+          "filePath": "__tests__/command-context.test.ts",
+          "language": "typescript",
+          "line": 14,
+          "col": 0,
+          "targetFilePath": "src/cli/command-context.ts"
+        },
+        {
+          "reason": "unsupported-import-shape",
+          "referenceName": "createProcessContext",
+          "referenceKind": "imports",
+          "filePath": "__tests__/command-context.test.ts",
+          "language": "typescript",
+          "line": 14,
+          "col": 0,
+          "targetFilePath": "src/cli/command-context.ts"
+        },
+        {
+          "reason": "unsupported-import-shape",
+          "referenceName": "TestExit",
+          "referenceKind": "imports",
+          "filePath": "__tests__/command-context.test.ts",
+          "language": "typescript",
+          "line": 14,
+          "col": 0,
+          "targetFilePath": "src/cli/command-context.ts"
+        },
+        {
+          "reason": "unsupported-import-shape",
+          "referenceName": "writeCommandOutput",
+          "referenceKind": "imports",
+          "filePath": "__tests__/command-context.test.ts",
+          "language": "typescript",
+          "line": 14,
+          "col": 0,
+          "targetFilePath": "src/cli/command-context.ts"
+        },
+        {
+          "reason": "unsupported-import-shape",
+          "referenceName": "writeCommandErrors",
+          "referenceKind": "imports",
+          "filePath": "__tests__/command-context.test.ts",
+          "language": "typescript",
+          "line": 14,
+          "col": 0,
+          "targetFilePath": "src/cli/command-context.ts"
+        },
+        {
+          "reason": "unsupported-import-shape",
+          "referenceName": "resolveProjectPath",
+          "referenceKind": "imports",
+          "filePath": "__tests__/command-helpers.test.ts",
+          "language": "typescript",
+          "line": 11,
+          "col": 0,
+          "targetFilePath": "src/cli/command-helpers.ts"
+        },
+        {
+          "reason": "unsupported-import-shape",
+          "referenceName": "isProjectInitialized",
+          "referenceKind": "imports",
+          "filePath": "__tests__/command-helpers.test.ts",
+          "language": "typescript",
+          "line": 11,
+          "col": 0,
+          "targetFilePath": "src/cli/command-helpers.ts"
+        },
+        {
+          "reason": "unsupported-import-shape",
+          "referenceName": "requireInitialized",
+          "referenceKind": "imports",
+          "filePath": "__tests__/command-helpers.test.ts",
+          "language": "typescript",
+          "line": 11,
+          "col": 0,
+          "targetFilePath": "src/cli/command-helpers.ts"
+        }
+      ]
+    }
+  },
+  "candidateNextSlice": "investigate unsupported import shapes (329 reported)",
+  "summary": {
+    "rowsInspected": 356,
+    "reasons": {
+      "directExportCandidateGap": 49,
+      "importEdgeTargetGap": 7,
+      "packageOrRuntimeBoundary": 1233,
+      "typeOnlyBoundary": 228,
+      "unsupportedImportShape": 329
+    },
+    "candidateNextSlice": "investigate unsupported import shapes (329 reported)"
+  }
+}

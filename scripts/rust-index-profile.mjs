@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnMeasured } from './process-tree-rss.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
@@ -76,7 +77,8 @@ function usage() {
     '  engines.typescript.peakRssBytes',
     '  engines.rust.peakRssBytes',
     '  engines.<engine>.rssUnavailableReason',
-    '  RSS sampling may be unavailable when process-list access is sandboxed.',
+    '  RSS sampling uses procfs when available, falls back to ps, and records',
+    '  rssUnavailableReason when neither sampler is available.',
   ].join('\n'));
 }
 
@@ -188,7 +190,7 @@ function indexWithMeasuredCli(project, engine, rustCore, CodeGraph) {
   }
 
   const startedAt = Date.now();
-  return spawnMeasured(process.execPath, args, project, env).then((result) => {
+  return spawnMeasured(process.execPath, args, { cwd: project, env }).then((result) => {
     if (result.code !== 0) {
       throw new Error([
         `${process.execPath} ${args.join(' ')} failed in ${project}`,
@@ -203,106 +205,6 @@ function indexWithMeasuredCli(project, engine, rustCore, CodeGraph) {
       peakRssBytes: result.peakRssBytes,
       rssUnavailableReason: result.rssUnavailableReason,
     };
-  });
-}
-
-function sampleProcessTreeRssBytes(rootPid) {
-  if (!Number.isFinite(rootPid)) {
-    return { peakRssBytes: null, unavailableReason: 'process pid is unavailable' };
-  }
-  const result = spawnSync('ps', ['-axo', 'pid=,ppid=,rss='], { encoding: 'utf-8' });
-  if (result.error) {
-    const message = result.error instanceof Error ? result.error.message : String(result.error);
-    return {
-      peakRssBytes: null,
-      unavailableReason: /EPERM|operation not permitted/i.test(message)
-        ? `RSS sampling unavailable: process-list access is sandboxed (${message})`
-        : message,
-    };
-  }
-  if (result.status !== 0) {
-    const message = result.stderr?.trim() || '`ps -axo pid=,ppid=,rss=` failed';
-    return {
-      peakRssBytes: null,
-      unavailableReason: /EPERM|operation not permitted/i.test(message)
-        ? `RSS sampling unavailable: process-list access is sandboxed (${message})`
-        : message,
-    };
-  }
-
-  const rows = result.stdout.trim().split('\n').map((line) => {
-    const [pid, ppid, rssKb] = line.trim().split(/\s+/).map(Number);
-    return { pid, ppid, rssKb };
-  }).filter((row) => Number.isFinite(row.pid) && Number.isFinite(row.ppid) && Number.isFinite(row.rssKb));
-  if (rows.length === 0) {
-    return { peakRssBytes: null, unavailableReason: 'process RSS sample returned no rows' };
-  }
-
-  const children = new Map();
-  for (const row of rows) {
-    const list = children.get(row.ppid) ?? [];
-    list.push(row.pid);
-    children.set(row.ppid, list);
-  }
-
-  const wanted = new Set([rootPid]);
-  const queue = [rootPid];
-  while (queue.length > 0) {
-    const pid = queue.shift();
-    for (const child of children.get(pid) ?? []) {
-      if (wanted.has(child)) continue;
-      wanted.add(child);
-      queue.push(child);
-    }
-  }
-
-  let totalKb = 0;
-  for (const row of rows) {
-    if (wanted.has(row.pid)) totalKb += row.rssKb;
-  }
-  return totalKb > 0
-    ? { peakRssBytes: totalKb * 1024, unavailableReason: null }
-    : { peakRssBytes: null, unavailableReason: 'process tree RSS sample was zero' };
-}
-
-function spawnMeasured(command, args, cwd, env) {
-  return new Promise((resolve) => {
-    const child = spawn(command, args, {
-      cwd,
-      env: { ...process.env, ...env },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let peakRssBytes = 0;
-    let rssUnavailableReason = null;
-    const sample = () => {
-      const rss = sampleProcessTreeRssBytes(child.pid);
-      if (rss.peakRssBytes != null && rss.peakRssBytes > peakRssBytes) {
-        peakRssBytes = rss.peakRssBytes;
-        rssUnavailableReason = null;
-      } else if (peakRssBytes === 0 && rss.unavailableReason) {
-        rssUnavailableReason = rss.unavailableReason;
-      }
-    };
-    const timer = setInterval(sample, 50);
-    sample();
-
-    child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf-8'); });
-    child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf-8'); });
-    child.on('close', (code, signal) => {
-      sample();
-      clearInterval(timer);
-      resolve({
-        code,
-        signal,
-        stdout,
-        stderr,
-        peakRssBytes: peakRssBytes || null,
-        rssUnavailableReason: peakRssBytes > 0 ? null : (rssUnavailableReason ?? 'RSS sampling did not capture a live process tree'),
-      });
-    });
   });
 }
 

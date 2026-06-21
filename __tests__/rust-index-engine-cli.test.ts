@@ -1755,6 +1755,159 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
+  it('resolves declaration-style ESM named exports with TypeScript modifiers', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'target.ts'),
+      [
+        'export async function asyncHelper() {',
+        '  return 41;',
+        '}',
+        'export abstract class AbstractWorker {',
+        '  abstract run(): number;',
+        '}',
+        'export declare function declaredHelper(): number;',
+        'export const typedValue: number = 42;',
+        'export var mutableValue = 43;',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'main.ts'),
+      [
+        'import { asyncHelper, AbstractWorker, declaredHelper, typedValue, mutableValue } from "./target";',
+        'export function useDeclarationStyleExports() {',
+        '  asyncHelper();',
+        '  declaredHelper();',
+        '  return [AbstractWorker, typedValue, mutableValue];',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-declaration-style-profile.json');
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      rustCore: {
+        esmNamedImportExportFallbackSampleCounts?: Record<string, number>;
+      };
+    };
+    expect(profile.rustCore.esmNamedImportExportFallbackSampleCounts ?? {}).not.toHaveProperty(
+      'direct-export-candidate-zero',
+    );
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const mainFile = cg.searchNodes('main.ts').find((match) => match.node.kind === 'file')?.node;
+      expect(mainFile).toBeDefined();
+      const importEdges = cg.getOutgoingEdges(mainFile!.id).filter((edge) => edge.kind === 'imports');
+      for (const name of ['asyncHelper', 'AbstractWorker', 'declaredHelper', 'typedValue', 'mutableValue']) {
+        const target = cg.searchNodes(name).find((match) => match.node.filePath === 'src/target.ts')?.node;
+        expect(target, `${name} should be indexed`).toBeDefined();
+        expect(
+          importEdges.some((edge) => edge.target === target!.id && edge.edgeOrigin === 'rust-finalization'),
+          `${name} import should resolve to target symbol`,
+        ).toBe(true);
+      }
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('resolves same-file ESM export specifiers only for unique local bindings', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'target.ts'),
+      [
+        'function localOnlyHelper() {',
+        '  return 41;',
+        '}',
+        'export { localOnlyHelper };',
+        'interface AmbiguousThing { value: number; }',
+        'class AmbiguousThing {',
+        '  value = 1;',
+        '}',
+        'export { AmbiguousThing };',
+        'function AliasLocal() {',
+        '  return 42;',
+        '}',
+        'export { AliasLocal as AliasPublic };',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'main.ts'),
+      [
+        'import { localOnlyHelper, AmbiguousThing, AliasPublic } from "./target";',
+        'export function useSameFileExports() {',
+        '  localOnlyHelper();',
+        '  return [AmbiguousThing, AliasPublic];',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-same-file-export-profile.json');
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const mainFile = cg.searchNodes('main.ts').find((match) => match.node.kind === 'file')?.node;
+      const helper = cg.searchNodes('localOnlyHelper').find((match) => match.node.kind === 'function' && match.node.filePath === 'src/target.ts')?.node;
+      expect(mainFile).toBeDefined();
+      expect(helper).toBeDefined();
+
+      const importEdges = cg.getOutgoingEdges(mainFile!.id).filter((edge) => edge.kind === 'imports');
+      expect(importEdges.some((edge) => edge.target === helper!.id && edge.edgeOrigin === 'rust-finalization')).toBe(true);
+
+      const ambiguousTargets = cg.searchNodes('AmbiguousThing')
+        .filter((match) => match.node.filePath === 'src/target.ts')
+        .map((match) => match.node.id);
+      expect(ambiguousTargets.length).toBeGreaterThanOrEqual(2);
+      expect(
+        importEdges.some((edge) => ambiguousTargets.includes(edge.target) && edge.edgeOrigin === 'rust-finalization'),
+      ).toBe(false);
+
+      const aliasTarget = cg.searchNodes('AliasLocal').find((match) => match.node.filePath === 'src/target.ts')?.node;
+      expect(aliasTarget).toBeDefined();
+      expect(importEdges.some((edge) => edge.target === aliasTarget!.id && edge.edgeOrigin === 'rust-finalization')).toBe(false);
+    } finally {
+      cg.close();
+    }
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      rustCore: {
+        esmNamedImportExportFallbackSampleCounts: Record<string, number>;
+        esmNamedImportExportFallbackSamples: Array<Record<string, unknown>>;
+      };
+    };
+    expect(profile.rustCore.esmNamedImportExportFallbackSampleCounts).toMatchObject({
+      'same-file-export-specifier-candidate-multiple': 1,
+      'direct-export-candidate-zero': 1,
+    });
+    expect(profile.rustCore.esmNamedImportExportFallbackSamples).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          reason: 'same-file-export-specifier-candidate-multiple',
+          referenceName: 'AmbiguousThing',
+          candidateCount: 2,
+          resolvedByAttempt: 'same-file-export-specifier',
+        }),
+        expect.objectContaining({
+          reason: 'direct-export-candidate-zero',
+          referenceName: 'AliasPublic',
+          candidateCount: 0,
+          resolvedByAttempt: 'direct-export',
+        }),
+      ]),
+    );
+  }, 30_000);
+
   it('resolves one-hop ESM named re-exports to final leaf symbols as Rust-owned edges', () => {
     fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
     fs.writeFileSync(

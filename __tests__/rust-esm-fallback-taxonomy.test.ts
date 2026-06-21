@@ -57,6 +57,18 @@ describe('Rust ESM named fallback taxonomy script', () => {
               col: 9,
               targetFilePath: 'src/default-target.ts',
             },
+            {
+              reason: 'same-file-export-specifier-candidate-multiple',
+              referenceName: 'AmbiguousThing',
+              referenceKind: 'imports',
+              filePath: 'src/main.ts',
+              language: 'typescript',
+              line: 4,
+              col: 9,
+              targetFilePath: 'src/direct-target.ts',
+              candidateCount: 2,
+              resolvedByAttempt: 'same-file-export-specifier',
+            },
           ],
         },
       }, null, 2),
@@ -89,8 +101,8 @@ describe('Rust ESM named fallback taxonomy script', () => {
       };
     };
 
-    expect(parsed.summary.rowsInspected).toBe(3);
-    expect(parsed.summary.reasons.directExportCandidateGap).toBe(1);
+    expect(parsed.summary.rowsInspected).toBe(4);
+    expect(parsed.summary.reasons.directExportCandidateGap).toBe(2);
     expect(parsed.summary.reasons.packageOrRuntimeBoundary).toBe(1);
     expect(parsed.summary.reasons.unsupportedImportShape).toBe(1);
     expect(parsed.summary.candidateNextSlice).toContain('direct export candidate gaps');
@@ -102,8 +114,12 @@ describe('Rust ESM named fallback taxonomy script', () => {
       candidateNextSlice: string;
     };
     expect(artifact.dataSource).toBe('rustCore.esmNamedImportExportFallbackSamples');
-    expect(artifact.rowsInspected).toBe(3);
-    expect(artifact.reasons.directExportCandidateGap.count).toBe(1);
+    expect(artifact.rowsInspected).toBe(4);
+    expect(artifact.reasons.directExportCandidateGap.count).toBe(2);
+    expect(artifact.reasons.directExportCandidateGap.rawReasons).toMatchObject({
+      'direct-export-candidate-zero': 1,
+      'same-file-export-specifier-candidate-multiple': 1,
+    });
     expect(artifact.reasons.directExportCandidateGap.examples[0]).toMatchObject({
       referenceName: 'MissingExport',
       targetFilePath: 'src/target.ts',
