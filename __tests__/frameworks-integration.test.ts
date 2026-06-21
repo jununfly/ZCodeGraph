@@ -105,6 +105,78 @@ describe('Flask end-to-end framework extraction', () => {
   });
 });
 
+describe('NestJS end-to-end framework post-extract boundary', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  it('applies RouterModule prefixes before the final graph is consumed', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-nest-post-extract-'));
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({ dependencies: { '@nestjs/common': '10.0.0' } }));
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'src/app.module.ts'),
+      [
+        "import { Module } from '@nestjs/common';",
+        "import { RouterModule } from '@nestjs/core';",
+        "import { UsersModule } from './users.module';",
+        '',
+        '@Module({',
+        '  imports: [',
+        '    UsersModule,',
+        '    RouterModule.register([{ path: "admin", module: UsersModule }]),',
+        '  ],',
+        '})',
+        'export class AppModule {}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, 'src/users.module.ts'),
+      [
+        "import { Module } from '@nestjs/common';",
+        "import { UsersController } from './users.controller';",
+        '',
+        '@Module({ controllers: [UsersController] })',
+        'export class UsersModule {}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, 'src/users.controller.ts'),
+      [
+        "import { Controller, Get } from '@nestjs/common';",
+        '',
+        '@Controller("users")',
+        'export class UsersController {',
+        '  @Get(":id")',
+        '  findOne() { return "ok"; }',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const cg = CodeGraph.initSync(tmpDir);
+    try {
+      const result = await cg.indexAll({ engine: 'typescript' });
+      expect(result.success).toBe(true);
+
+      const routes = cg.getNodesByKind('route');
+      expect(routes.some((route) => route.name === 'GET /admin/users/:id')).toBe(true);
+      expect(routes.some((route) => route.name === 'GET /users/:id')).toBe(false);
+
+      const handler = cg.getNodesByKind('method').find((node) => node.name === 'findOne');
+      const route = routes.find((node) => node.name === 'GET /admin/users/:id');
+      expect(handler).toBeDefined();
+      expect(route).toBeDefined();
+      expect(cg.getOutgoingEdges(route!.id).some((edge) => (
+        edge.kind === 'references' && edge.target === handler!.id
+      ))).toBe(true);
+    } finally {
+      cg.close();
+    }
+  });
+});
+
 describe('Flutter end-to-end — setState→build synthesis', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
