@@ -240,6 +240,9 @@ pub struct IndexProfile {
     pub esm_named_import_export_resolved_refs: u32,
     pub esm_named_import_export_fallback_refs: u32,
     pub esm_one_hop_reexport_resolved_refs: u32,
+    pub esm_named_import_export_fallback_sample_counts: BTreeMap<String, u32>,
+    pub esm_named_import_export_fallback_samples: Vec<EsmNamedFallbackSample>,
+    pub esm_named_import_export_fallback_sample_cap: ImportFallbackSampleCap,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -253,6 +256,20 @@ pub struct ImportFallbackSample {
     pub col: i64,
     pub target_kind: Option<String>,
     pub target_extension: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct EsmNamedFallbackSample {
+    pub reason: String,
+    pub reference_name: String,
+    pub reference_kind: String,
+    pub file_path: String,
+    pub language: String,
+    pub line: i64,
+    pub col: i64,
+    pub target_file_path: Option<String>,
+    pub candidate_count: Option<usize>,
+    pub resolved_by_attempt: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1320,6 +1337,15 @@ fn write_index_to_connection(
     counts.profile.esm_named_import_export_resolved_refs = esm_named_stats.resolved_refs;
     counts.profile.esm_named_import_export_fallback_refs = esm_named_stats.fallback_refs;
     counts.profile.esm_one_hop_reexport_resolved_refs = esm_named_stats.reexport_resolved_refs;
+    counts
+        .profile
+        .esm_named_import_export_fallback_sample_counts = esm_named_stats.fallback_sample_counts;
+    counts.profile.esm_named_import_export_fallback_samples = esm_named_stats.fallback_samples;
+    counts.profile.esm_named_import_export_fallback_sample_cap = ImportFallbackSampleCap {
+        per_bucket: IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP,
+        total: IMPORT_FALLBACK_SAMPLE_TOTAL_CAP,
+        truncated: esm_named_stats.fallback_samples_truncated,
+    };
     counts.edges_created += esm_named_stats.edges_created;
     let local_reference_started = Instant::now();
     let local_reference_stats = resolve_same_file_exact_callable_refs(conn)?;
@@ -1430,6 +1456,50 @@ struct EsmNamedImportExportStats {
     edges_created: u32,
     fallback_refs: u32,
     reexport_resolved_refs: u32,
+    fallback_sample_counts: BTreeMap<String, u32>,
+    fallback_samples: Vec<EsmNamedFallbackSample>,
+    fallback_bucket_sample_counts: HashMap<String, usize>,
+    fallback_samples_truncated: bool,
+}
+
+impl EsmNamedImportExportStats {
+    fn record_fallback_sample(
+        &mut self,
+        reason: &str,
+        reference: &ImportRefRow,
+        target_file_path: Option<&str>,
+        candidate_count: Option<usize>,
+        resolved_by_attempt: Option<&str>,
+    ) {
+        self.fallback_refs += 1;
+        *self
+            .fallback_sample_counts
+            .entry(reason.to_string())
+            .or_insert(0) += 1;
+
+        let bucket_count = *self.fallback_bucket_sample_counts.get(reason).unwrap_or(&0);
+        if bucket_count >= IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP
+            || self.fallback_samples.len() >= IMPORT_FALLBACK_SAMPLE_TOTAL_CAP
+        {
+            self.fallback_samples_truncated = true;
+            return;
+        }
+
+        self.fallback_bucket_sample_counts
+            .insert(reason.to_string(), bucket_count + 1);
+        self.fallback_samples.push(EsmNamedFallbackSample {
+            reason: reason.to_string(),
+            reference_name: reference.reference_name.clone(),
+            reference_kind: "imports".to_string(),
+            file_path: reference.file_path.clone(),
+            language: reference.language.clone(),
+            line: reference.line,
+            col: reference.col,
+            target_file_path: target_file_path.map(str::to_string),
+            candidate_count,
+            resolved_by_attempt: resolved_by_attempt.map(str::to_string),
+        });
+    }
 }
 
 #[derive(Debug)]
@@ -1492,6 +1562,13 @@ struct SymbolCandidateRow {
     kind: String,
     name: String,
     resolved_by: &'static str,
+}
+
+#[derive(Debug)]
+struct ExportedSymbolCandidateLookup {
+    candidates: Vec<SymbolCandidateRow>,
+    fallback_reason: &'static str,
+    resolved_by_attempt: &'static str,
 }
 
 #[derive(Debug)]
@@ -2098,15 +2175,54 @@ fn resolve_esm_named_import_export_refs(
             reference.line,
             &mut file_content_cache,
         ) {
-            stats.fallback_refs += 1;
+            stats.record_fallback_sample("type-only-import", &reference, None, None, None);
             continue;
         }
 
-        let Some(target_file_path) = find_import_edge_target_file(conn, &reference)? else {
-            stats.fallback_refs += 1;
+        let target_file_paths = find_import_edge_target_files(conn, &reference)?;
+        if target_file_paths.is_empty() {
+            let reason = if is_package_or_runtime_import_line(
+                project_path,
+                &reference.file_path,
+                reference.line,
+                &aliases,
+                &mut file_content_cache,
+            ) {
+                "package-or-runtime-binding"
+            } else {
+                "import-edge-target-not-found"
+            };
+            stats.record_fallback_sample(reason, &reference, None, None, None);
             continue;
-        };
-        let candidates = find_exported_symbol_candidates(
+        }
+        if target_file_paths.len() > 1 {
+            stats.record_fallback_sample(
+                "import-edge-target-ambiguous",
+                &reference,
+                None,
+                Some(target_file_paths.len()),
+                None,
+            );
+            continue;
+        }
+        let target_file_path = target_file_paths[0].clone();
+        if !is_named_import_binding_line(
+            project_path,
+            &reference.file_path,
+            reference.line,
+            &reference.reference_name,
+            &mut file_content_cache,
+        ) {
+            stats.record_fallback_sample(
+                "unsupported-import-shape",
+                &reference,
+                Some(&target_file_path),
+                None,
+                None,
+            );
+            continue;
+        }
+        let lookup = find_exported_symbol_candidates(
             conn,
             project_path,
             &aliases,
@@ -2114,11 +2230,17 @@ fn resolve_esm_named_import_export_refs(
             &reference.reference_name,
             &mut file_content_cache,
         )?;
-        if candidates.len() != 1 {
-            stats.fallback_refs += 1;
+        if lookup.candidates.len() != 1 {
+            stats.record_fallback_sample(
+                lookup.fallback_reason,
+                &reference,
+                Some(&target_file_path),
+                Some(lookup.candidates.len()),
+                Some(lookup.resolved_by_attempt),
+            );
             continue;
         }
-        let target = &candidates[0];
+        let target = &lookup.candidates[0];
         let is_reexport = target.resolved_by == "rust-esm-one-hop-reexport";
 
         if insert_rust_import_symbol_edge(conn, &reference, &target.id, target.resolved_by)? {
@@ -2165,6 +2287,76 @@ fn is_type_only_import_line(
         .unwrap_or(false)
 }
 
+fn is_named_import_binding_line(
+    project_path: &Path,
+    file_path: &str,
+    line: i64,
+    reference_name: &str,
+    cache: &mut HashMap<String, String>,
+) -> bool {
+    let Some(line_text) = import_line_text(project_path, file_path, line, cache) else {
+        return false;
+    };
+    named_import_list_contains(line_text, reference_name)
+}
+
+fn is_package_or_runtime_import_line(
+    project_path: &Path,
+    file_path: &str,
+    line: i64,
+    aliases: &TsPathAliases,
+    cache: &mut HashMap<String, String>,
+) -> bool {
+    let Some(line_text) = import_line_text(project_path, file_path, line, cache) else {
+        return false;
+    };
+    let Some(specifier) = import_line_module_specifier(line_text) else {
+        return false;
+    };
+    !is_relative_import_specifier(&specifier)
+        && !aliases.matches(&specifier)
+        && matches_conventional_alias(&specifier).is_none()
+}
+
+fn import_line_text<'a>(
+    project_path: &Path,
+    file_path: &str,
+    line: i64,
+    cache: &'a mut HashMap<String, String>,
+) -> Option<&'a str> {
+    cached_file_content(project_path, file_path, cache)?
+        .lines()
+        .nth(line.saturating_sub(1) as usize)
+}
+
+fn named_import_list_contains(line_text: &str, reference_name: &str) -> bool {
+    let Some(open) = line_text.find('{') else {
+        return false;
+    };
+    let Some(close_offset) = line_text[open + 1..].find('}') else {
+        return false;
+    };
+    let close = open + 1 + close_offset;
+    line_text[open + 1..close].split(',').any(|part| {
+        let local = part.trim().split_whitespace().last().unwrap_or("").trim();
+        local == reference_name
+    })
+}
+
+fn import_line_module_specifier(line_text: &str) -> Option<String> {
+    let from_index = line_text.find(" from ")?;
+    let raw_specifier = line_text[from_index + " from ".len()..]
+        .trim()
+        .trim_end_matches(';')
+        .trim();
+    let specifier = trim_string_literal(raw_specifier);
+    if specifier.is_empty() {
+        None
+    } else {
+        Some(specifier.to_string())
+    }
+}
+
 fn cached_file_content<'a>(
     project_path: &Path,
     file_path: &str,
@@ -2177,10 +2369,10 @@ fn cached_file_content<'a>(
     cache.get(file_path).map(String::as_str)
 }
 
-fn find_import_edge_target_file(
+fn find_import_edge_target_files(
     conn: &Connection,
     reference: &ImportRefRow,
-) -> rusqlite::Result<Option<String>> {
+) -> rusqlite::Result<Vec<String>> {
     let mut stmt = conn.prepare(
         "SELECT target.file_path
          FROM edges e
@@ -2203,11 +2395,7 @@ fn find_import_edge_target_file(
             },
         )?
         .collect::<rusqlite::Result<Vec<_>>>()?;
-    if rows.len() == 1 {
-        Ok(Some(rows[0].target_file_path.clone()))
-    } else {
-        Ok(None)
-    }
+    Ok(rows.into_iter().map(|row| row.target_file_path).collect())
 }
 
 fn find_exported_symbol_candidates(
@@ -2217,7 +2405,7 @@ fn find_exported_symbol_candidates(
     target_file_path: &str,
     name: &str,
     cache: &mut HashMap<String, String>,
-) -> Result<Vec<SymbolCandidateRow>, Box<dyn std::error::Error>> {
+) -> Result<ExportedSymbolCandidateLookup, Box<dyn std::error::Error>> {
     let mut stmt = conn.prepare(
         "SELECT id, kind, name
          FROM nodes
@@ -2237,7 +2425,11 @@ fn find_exported_symbol_candidates(
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let Some(content) = cached_file_content(project_path, target_file_path, cache) else {
-        return Ok(Vec::new());
+        return Ok(ExportedSymbolCandidateLookup {
+            candidates: Vec::new(),
+            fallback_reason: "target-file-content-unavailable",
+            resolved_by_attempt: "direct-export",
+        });
     };
     let content = content.to_string();
     let direct = rows
@@ -2245,7 +2437,16 @@ fn find_exported_symbol_candidates(
         .filter(|candidate| direct_export_declares_name(&content, &candidate.kind, &candidate.name))
         .collect::<Vec<_>>();
     if !direct.is_empty() {
-        return Ok(direct);
+        let fallback_reason = if direct.len() > 1 {
+            "direct-export-candidate-multiple"
+        } else {
+            "direct-export-candidate-zero"
+        };
+        return Ok(ExportedSymbolCandidateLookup {
+            candidates: direct,
+            fallback_reason,
+            resolved_by_attempt: "direct-export",
+        });
     }
 
     find_one_hop_reexport_symbol_candidates(
@@ -2281,9 +2482,13 @@ fn find_one_hop_reexport_symbol_candidates(
     barrel_content: &str,
     name: &str,
     cache: &mut HashMap<String, String>,
-) -> Result<Vec<SymbolCandidateRow>, Box<dyn std::error::Error>> {
+) -> Result<ExportedSymbolCandidateLookup, Box<dyn std::error::Error>> {
     let Some(specifier) = direct_named_reexport_specifier(barrel_content, name) else {
-        return Ok(Vec::new());
+        return Ok(ExportedSymbolCandidateLookup {
+            candidates: Vec::new(),
+            fallback_reason: "direct-export-candidate-zero",
+            resolved_by_attempt: "direct-export",
+        });
     };
     let leaf_file_path = if is_relative_import_specifier(&specifier) {
         resolve_relative_import(project_path, barrel_file_path, &specifier)
@@ -2293,10 +2498,18 @@ fn find_one_hop_reexport_symbol_candidates(
         None
     };
     let Some(leaf_file_path) = leaf_file_path else {
-        return Ok(Vec::new());
+        return Ok(ExportedSymbolCandidateLookup {
+            candidates: Vec::new(),
+            fallback_reason: "reexport-specifier-target-not-found",
+            resolved_by_attempt: "one-hop-reexport",
+        });
     };
     let Some(leaf_content) = cached_file_content(project_path, &leaf_file_path, cache) else {
-        return Ok(Vec::new());
+        return Ok(ExportedSymbolCandidateLookup {
+            candidates: Vec::new(),
+            fallback_reason: "reexport-leaf-content-unavailable",
+            resolved_by_attempt: "one-hop-reexport",
+        });
     };
 
     let mut stmt = conn.prepare(
@@ -2318,12 +2531,22 @@ fn find_one_hop_reexport_symbol_candidates(
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
 
-    Ok(rows
+    let candidates = rows
         .into_iter()
         .filter(|candidate| {
             direct_export_declares_name(leaf_content, &candidate.kind, &candidate.name)
         })
-        .collect())
+        .collect::<Vec<_>>();
+    let fallback_reason = if candidates.len() > 1 {
+        "reexport-leaf-candidate-multiple"
+    } else {
+        "reexport-leaf-candidate-zero"
+    };
+    Ok(ExportedSymbolCandidateLookup {
+        candidates,
+        fallback_reason,
+        resolved_by_attempt: "one-hop-reexport",
+    })
 }
 
 fn direct_named_reexport_specifier(content: &str, name: &str) -> Option<String> {
@@ -4214,7 +4437,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -4254,6 +4477,9 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.esm_named_import_export_resolved_refs,
         result.profile.esm_named_import_export_fallback_refs,
         result.profile.esm_one_hop_reexport_resolved_refs,
+        fallback_sample_counts_json(&result.profile.esm_named_import_export_fallback_sample_counts),
+        esm_named_fallback_samples_json(&result.profile.esm_named_import_export_fallback_samples),
+        fallback_sample_cap_json(&result.profile.esm_named_import_export_fallback_sample_cap),
         result.profile.local_exact_reference_resolution_ms,
         result.profile.local_exact_reference_resolved_refs,
         result.profile.local_exact_reference_fallback_refs
@@ -4292,6 +4518,47 @@ fn fallback_samples_json(samples: &[ImportFallbackSample]) -> String {
                 fields.push(format!(
                     "\"targetExtension\":\"{}\"",
                     escape_json(target_extension)
+                ));
+            }
+            format!("{{{}}}", fields.join(","))
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("[{}]", items)
+}
+
+fn esm_named_fallback_samples_json(samples: &[EsmNamedFallbackSample]) -> String {
+    let items = samples
+        .iter()
+        .map(|sample| {
+            let mut fields = vec![
+                format!("\"reason\":\"{}\"", escape_json(&sample.reason)),
+                format!(
+                    "\"referenceName\":\"{}\"",
+                    escape_json(&sample.reference_name)
+                ),
+                format!(
+                    "\"referenceKind\":\"{}\"",
+                    escape_json(&sample.reference_kind)
+                ),
+                format!("\"filePath\":\"{}\"", escape_json(&sample.file_path)),
+                format!("\"language\":\"{}\"", escape_json(&sample.language)),
+                format!("\"line\":{}", sample.line),
+                format!("\"col\":{}", sample.col),
+            ];
+            if let Some(target_file_path) = &sample.target_file_path {
+                fields.push(format!(
+                    "\"targetFilePath\":\"{}\"",
+                    escape_json(target_file_path)
+                ));
+            }
+            if let Some(candidate_count) = sample.candidate_count {
+                fields.push(format!("\"candidateCount\":{}", candidate_count));
+            }
+            if let Some(resolved_by_attempt) = &sample.resolved_by_attempt {
+                fields.push(format!(
+                    "\"resolvedByAttempt\":\"{}\"",
+                    escape_json(resolved_by_attempt)
                 ));
             }
             format!("{{{}}}", fields.join(","))
@@ -4802,7 +5069,7 @@ mod tests {
 
         assert_eq!(
             result_json(&result),
-            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"importPathAliasResolvedBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0},\"importPathAliasFallbackBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0,\"binding\":0,\"unsupported\":0,\"unresolved\":0},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":[],\"importPathAliasFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
+            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"importPathAliasResolvedBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0},\"importPathAliasFallbackBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0,\"binding\":0,\"unsupported\":0,\"unresolved\":0},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":[],\"importPathAliasFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":[],\"esmNamedImportExportFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
         );
     }
 

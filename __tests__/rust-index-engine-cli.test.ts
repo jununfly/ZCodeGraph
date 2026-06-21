@@ -1859,6 +1859,138 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
+  it('emits bounded ESM named binding fallback samples in the profile artifact', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'src/types.ts'),
+      'export interface TypeOnlyThing { value: number; }\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src/direct-zero.ts'),
+      'export function otherName() { return 1; }\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src/direct-multiple.ts'),
+      [
+        'export interface DuplicateThing { value: number; }',
+        'export class DuplicateThing {',
+        '  value = 1;',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src/barrel-missing.ts'),
+      'export { MissingLeaf } from "./missing-leaf";\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src/barrel-zero.ts'),
+      'export { LeafMissing } from "./leaf-zero";\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src/leaf-zero.ts'),
+      'export function otherLeaf() { return 2; }\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src/main.ts'),
+      [
+        'import type { TypeOnlyThing } from "./types";',
+        'import { MissingExport } from "./direct-zero";',
+        'import { DuplicateThing } from "./direct-multiple";',
+        'import { MissingLeaf } from "./barrel-missing";',
+        'import { LeafMissing } from "./barrel-zero";',
+        'import { describe } from "vitest";',
+        'export const useFallbacks = [MissingExport, DuplicateThing, MissingLeaf, LeafMissing, describe];',
+        'export type UseTypeOnly = TypeOnlyThing;',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-fallback-profile.json');
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      rustCore: {
+        esmNamedImportExportFallbackRefs: number;
+        esmNamedImportExportFallbackSampleCounts: Record<string, number>;
+        esmNamedImportExportFallbackSamples: Array<Record<string, unknown>>;
+        esmNamedImportExportFallbackSampleCap: {
+          perBucket: number;
+          total: number;
+          truncated: boolean;
+        };
+      };
+    };
+
+    expect(profile.rustCore.esmNamedImportExportFallbackRefs).toBeGreaterThanOrEqual(7);
+    expect(profile.rustCore.esmNamedImportExportFallbackSampleCounts).toMatchObject({
+      'type-only-import': 1,
+      'direct-export-candidate-zero': 1,
+      'direct-export-candidate-multiple': 1,
+      'reexport-specifier-target-not-found': 1,
+      'reexport-leaf-candidate-zero': 1,
+      'package-or-runtime-binding': 2,
+    });
+    expect(profile.rustCore.esmNamedImportExportFallbackSampleCap).toEqual({
+      perBucket: 100,
+      total: 2000,
+      truncated: false,
+    });
+    expect(profile.rustCore.esmNamedImportExportFallbackSamples).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          reason: 'type-only-import',
+          referenceName: 'TypeOnlyThing',
+          referenceKind: 'imports',
+          filePath: 'src/main.ts',
+          language: 'typescript',
+        }),
+        expect.objectContaining({
+          reason: 'direct-export-candidate-zero',
+          referenceName: 'MissingExport',
+          targetFilePath: 'src/direct-zero.ts',
+          candidateCount: 0,
+          resolvedByAttempt: 'direct-export',
+        }),
+        expect.objectContaining({
+          reason: 'direct-export-candidate-multiple',
+          referenceName: 'DuplicateThing',
+          targetFilePath: 'src/direct-multiple.ts',
+          candidateCount: 2,
+          resolvedByAttempt: 'direct-export',
+        }),
+        expect.objectContaining({
+          reason: 'reexport-specifier-target-not-found',
+          referenceName: 'MissingLeaf',
+          targetFilePath: 'src/barrel-missing.ts',
+          candidateCount: 0,
+          resolvedByAttempt: 'one-hop-reexport',
+        }),
+        expect.objectContaining({
+          reason: 'reexport-leaf-candidate-zero',
+          referenceName: 'LeafMissing',
+          targetFilePath: 'src/barrel-zero.ts',
+          candidateCount: 0,
+          resolvedByAttempt: 'one-hop-reexport',
+        }),
+        expect.objectContaining({
+          reason: 'package-or-runtime-binding',
+          referenceName: 'describe',
+        }),
+      ]),
+    );
+    for (const sample of profile.rustCore.esmNamedImportExportFallbackSamples) {
+      expect(sample).not.toHaveProperty('source');
+      expect(sample).not.toHaveProperty('sourceContent');
+      expect(sample).not.toHaveProperty('sourceLine');
+      expect(sample).not.toHaveProperty('exportList');
+      expect(sample).not.toHaveProperty('candidateNames');
+      expect(sample).not.toHaveProperty('candidateSource');
+    }
+  }, 30_000);
+
   it('reports Rust index-engine metadata through MCP status', async () => {
     const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
