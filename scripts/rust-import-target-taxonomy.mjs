@@ -145,6 +145,8 @@ function loadProfileSamples(profilePath) {
       language: sample.language ?? 'unknown',
       source_kind: sample.sourceKind ?? 'unknown',
       reason: sample.reason ?? 'unknown',
+      target_kind: sample.targetKind ?? null,
+      target_extension: sample.targetExtension ?? null,
     })),
     unavailableReason: samples.length === 0
       ? 'rustCore.importPathAliasFallbackSamples is empty'
@@ -179,6 +181,10 @@ function extensionOfSpecifier(specifier) {
 }
 
 function classifyReference(row) {
+  if (row.target_kind === 'asset') return 'nonCodeAssetTarget';
+  if (row.target_kind === 'config') return 'nonCodeConfigTarget';
+  if (row.target_kind === 'source') return 'supportedSourceSpecifier';
+
   const raw = String(row.reference_name ?? '');
   if (raw.includes('${') || raw.includes('*')) return 'dynamicOrTemplateLike';
   if (raw.includes('\\') || raw.includes('//') || raw.includes('/./')) {

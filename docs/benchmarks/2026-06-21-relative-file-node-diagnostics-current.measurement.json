@@ -1,0 +1,23 @@
+{
+  "command": {
+    "executable": "/Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "args": [
+      "dist/bin/zcodegraph.js",
+      "index",
+      ".",
+      "--force",
+      "--quiet",
+      "--engine",
+      "rust-hybrid"
+    ],
+    "cwd": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph"
+  },
+  "status": "completed",
+  "exitCode": 0,
+  "signal": null,
+  "wallMs": 31339,
+  "peakRssBytes": null,
+  "rssUnavailableReason": "RSS sampling unavailable: process-list access is sandboxed (spawnSync ps EPERM)",
+  "stdoutBytes": 0,
+  "stderrBytes": 169
+}

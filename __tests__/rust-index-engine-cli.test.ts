@@ -1074,12 +1074,15 @@ describe('zcodegraph index engine selection', () => {
 
   it('emits bounded Rust import fallback samples in the profile artifact', () => {
     fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, 'src/style.css'), '.root { color: red; }\n');
+    fs.writeFileSync(path.join(tempDir, 'src/settings.json'), '{"enabled":true}\n');
     fs.writeFileSync(
       path.join(tempDir, 'src/main.ts'),
       [
         'import missing from "./missing";',
         'import styles from "./style.css";',
-        'export const total = missing + String(styles);',
+        'import settings from "./settings.json";',
+        'export const total = missing + String(styles) + String(settings.enabled);',
       ].join('\n') + '\n',
     );
 
@@ -1103,7 +1106,8 @@ describe('zcodegraph index engine selection', () => {
     };
 
     expect(profile.rustCore.importPathAliasFallbackSampleCounts).toMatchObject({
-      'relative/target-not-found': 2,
+      'relative/file-node-not-found': 2,
+      'relative/target-not-found': 1,
     });
     expect(profile.rustCore.importPathAliasFallbackSampleCap).toEqual({
       perBucket: 100,
@@ -1123,8 +1127,21 @@ describe('zcodegraph index engine selection', () => {
         }),
         expect.objectContaining({
           sourceKind: 'relative',
-          reason: 'target-not-found',
+          reason: 'file-node-not-found',
           referenceName: './style.css',
+          targetKind: 'asset',
+          targetExtension: '.css',
+          filePath: 'src/main.ts',
+          language: 'typescript',
+          line: expect.any(Number),
+          col: expect.any(Number),
+        }),
+        expect.objectContaining({
+          sourceKind: 'relative',
+          reason: 'file-node-not-found',
+          referenceName: './settings.json',
+          targetKind: 'config',
+          targetExtension: '.json',
           filePath: 'src/main.ts',
           language: 'typescript',
           line: expect.any(Number),
@@ -1137,6 +1154,20 @@ describe('zcodegraph index engine selection', () => {
       expect(sample).not.toHaveProperty('sourceContent');
       expect(sample).not.toHaveProperty('sourceLine');
       expect(sample).not.toHaveProperty('candidateCode');
+    }
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const files = cg.getNodesByKind('file');
+      const mainFile = files.find((node) => node.filePath === 'src/main.ts');
+      expect(mainFile).toBeDefined();
+      const importedTargets = cg.getOutgoingEdges(mainFile!.id)
+        .filter((edge) => edge.kind === 'imports')
+        .map((edge) => files.find((node) => node.id === edge.target)?.filePath)
+        .filter(Boolean);
+      expect(importedTargets).toEqual([]);
+    } finally {
+      cg.close();
     }
   }, 30_000);
 

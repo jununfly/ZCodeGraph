@@ -251,6 +251,8 @@ pub struct ImportFallbackSample {
     pub language: String,
     pub line: i64,
     pub col: i64,
+    pub target_kind: Option<String>,
+    pub target_extension: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1361,6 +1363,16 @@ impl ImportResolutionStats {
         reason: &str,
         reference: &ImportRefRow,
     ) {
+        self.record_fallback_sample_with_target(source_kind, reason, reference, None);
+    }
+
+    fn record_fallback_sample_with_target(
+        &mut self,
+        source_kind: &str,
+        reason: &str,
+        reference: &ImportRefRow,
+        target_file_path: Option<&str>,
+    ) {
         let bucket = format!("{}/{}", source_kind, reason);
         *self
             .fallback_sample_counts
@@ -1388,6 +1400,8 @@ impl ImportResolutionStats {
             language: reference.language.clone(),
             line: reference.line,
             col: reference.col,
+            target_kind: target_file_path.and_then(classify_import_target_kind),
+            target_extension: target_file_path.and_then(import_target_extension),
         });
     }
 }
@@ -1591,10 +1605,11 @@ fn resolve_js_ts_file_imports(
         };
         let Some(target_node_id) = find_file_node_id(conn, &target_file_path)? else {
             stats.record_unresolved_source(target.0);
-            stats.record_fallback_sample(
+            stats.record_fallback_sample_with_target(
                 target.0.as_profile_source_kind(),
                 "file-node-not-found",
                 &reference,
+                Some(&target_file_path),
             );
             continue;
         };
@@ -1964,6 +1979,37 @@ fn relative_js_source_fallback_extensions(base: &Path) -> Option<&'static [&'sta
         Some("cjs") => Some(&["cts", "ts", "tsx", "js"]),
         _ => None,
     }
+}
+
+fn classify_import_target_kind(file_path: &str) -> Option<String> {
+    let extension = import_target_extension(file_path)?;
+    let kind = match extension.as_str() {
+        ".ts" | ".tsx" | ".js" | ".jsx" | ".mts" | ".cts" | ".mjs" | ".cjs" => "source",
+        ".css" | ".scss" | ".sass" | ".less" | ".wasm" | ".svg" | ".png" | ".jpg" | ".jpeg"
+        | ".gif" | ".webp" | ".avif" | ".ico" | ".bmp" | ".mp3" | ".mp4" | ".wav" | ".woff"
+        | ".woff2" | ".ttf" | ".eot" => "asset",
+        ".json" | ".jsonc" | ".yaml" | ".yml" | ".toml" => "config",
+        _ => "unknown",
+    };
+    Some(kind.to_string())
+}
+
+fn import_target_extension(file_path: &str) -> Option<String> {
+    let path = file_path.split(['?', '#']).next().unwrap_or(file_path);
+    let file_name = Path::new(path).file_name()?.to_string_lossy();
+    if file_name.ends_with(".d.ts") {
+        return Some(".d.ts".to_string());
+    }
+    if file_name.ends_with(".d.mts") {
+        return Some(".d.mts".to_string());
+    }
+    if file_name.ends_with(".d.cts") {
+        return Some(".d.cts".to_string());
+    }
+    Path::new(path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| format!(".{}", extension))
 }
 
 fn canonical_relative_slash_path(project_path: &Path, path: &Path) -> Option<String> {
@@ -4227,16 +4273,28 @@ fn fallback_samples_json(samples: &[ImportFallbackSample]) -> String {
     let items = samples
         .iter()
         .map(|sample| {
-            format!(
-                "{{\"sourceKind\":\"{}\",\"reason\":\"{}\",\"referenceName\":\"{}\",\"filePath\":\"{}\",\"language\":\"{}\",\"line\":{},\"col\":{}}}",
-                escape_json(&sample.source_kind),
-                escape_json(&sample.reason),
-                escape_json(&sample.reference_name),
-                escape_json(&sample.file_path),
-                escape_json(&sample.language),
-                sample.line,
-                sample.col
-            )
+            let mut fields = vec![
+                format!("\"sourceKind\":\"{}\"", escape_json(&sample.source_kind)),
+                format!("\"reason\":\"{}\"", escape_json(&sample.reason)),
+                format!(
+                    "\"referenceName\":\"{}\"",
+                    escape_json(&sample.reference_name)
+                ),
+                format!("\"filePath\":\"{}\"", escape_json(&sample.file_path)),
+                format!("\"language\":\"{}\"", escape_json(&sample.language)),
+                format!("\"line\":{}", sample.line),
+                format!("\"col\":{}", sample.col),
+            ];
+            if let Some(target_kind) = &sample.target_kind {
+                fields.push(format!("\"targetKind\":\"{}\"", escape_json(target_kind)));
+            }
+            if let Some(target_extension) = &sample.target_extension {
+                fields.push(format!(
+                    "\"targetExtension\":\"{}\"",
+                    escape_json(target_extension)
+                ));
+            }
+            format!("{{{}}}", fields.join(","))
         })
         .collect::<Vec<_>>()
         .join(",");

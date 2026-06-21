@@ -136,11 +136,33 @@ describe('Rust import target taxonomy script', () => {
             },
             {
               sourceKind: 'relative',
+              reason: 'file-node-not-found',
+              referenceName: './style.css',
+              targetKind: 'asset',
+              targetExtension: '.css',
+              filePath: 'src/main.ts',
+              language: 'typescript',
+              line: 2,
+              col: 8,
+            },
+            {
+              sourceKind: 'relative',
+              reason: 'file-node-not-found',
+              referenceName: './settings.json',
+              targetKind: 'config',
+              targetExtension: '.json',
+              filePath: 'src/main.ts',
+              language: 'typescript',
+              line: 3,
+              col: 8,
+            },
+            {
+              sourceKind: 'relative',
               reason: 'target-not-found',
               referenceName: './asset.svg',
               filePath: 'src/main.ts',
               language: 'typescript',
-              line: 2,
+              line: 4,
               col: 8,
             },
           ],
@@ -173,8 +195,10 @@ describe('Rust import target taxonomy script', () => {
       };
     };
 
-    expect(parsed.summary.totalRelativeUnresolvedImports).toBe(2);
+    expect(parsed.summary.totalRelativeUnresolvedImports).toBe(4);
     expect(parsed.summary.categories.queryHashSupportedSource).toBe(1);
+    expect(parsed.summary.categories.nonCodeAssetTarget).toBe(1);
+    expect(parsed.summary.categories.nonCodeConfigTarget).toBe(1);
     expect(parsed.summary.categories.assetLikeTarget).toBe(1);
 
     const artifact = JSON.parse(
@@ -188,5 +212,8 @@ describe('Rust import target taxonomy script', () => {
     expect(artifact.dataSource).toBe('rustCore.importPathAliasFallbackSamples');
     expect(artifact.sampleSourceUnavailableReason).toBeUndefined();
     expect(artifact.categories.queryHashSupportedSource?.count).toBe(1);
+    expect(artifact.categories.nonCodeAssetTarget?.count).toBe(1);
+    expect(artifact.categories.nonCodeConfigTarget?.count).toBe(1);
+    expect(artifact.categories.assetLikeTarget?.count).toBe(1);
   });
 });
