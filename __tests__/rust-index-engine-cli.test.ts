@@ -992,6 +992,86 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
+  it('resolves only relative JS source specifiers to TypeScript source candidates', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'src/exact'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          baseUrl: '.',
+          paths: {
+            '@app/*': ['src/*'],
+          },
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(path.join(tempDir, 'src/only-ts.ts'), 'export const onlyTs = 1;\n');
+    fs.writeFileSync(path.join(tempDir, 'src/view.tsx'), 'export const view = 1;\n');
+    fs.writeFileSync(path.join(tempDir, 'src/module.ts'), 'export const moduleValue = 1;\n');
+    fs.writeFileSync(path.join(tempDir, 'src/common.ts'), 'export const commonValue = 1;\n');
+    fs.writeFileSync(path.join(tempDir, 'src/exact/literal.js'), 'export const literal = 1;\n');
+    fs.writeFileSync(path.join(tempDir, 'src/exact/literal.ts'), 'export const literal = 2;\n');
+    fs.writeFileSync(path.join(tempDir, 'src/alias-only.ts'), 'export const aliasOnly = 1;\n');
+    fs.writeFileSync(
+      path.join(tempDir, 'src/main.ts'),
+      [
+        'import { onlyTs } from "./only-ts.js";',
+        'import { view } from "./view.js";',
+        'import { moduleValue } from "./module.mjs";',
+        'import { commonValue } from "./common.cjs";',
+        'import { literal } from "./exact/literal.js";',
+        'import styles from "./style.css";',
+        'import { aliasOnly } from "@app/alias-only.js";',
+        'export const total = onlyTs + view + moduleValue + commonValue + literal + String(styles) + aliasOnly;',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'rust-relative-js-source-profile.json');
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      rustCore: {
+        importPathAliasResolvedBySource: { relative: number; tsconfigPaths: number };
+        importPathAliasFallbackSampleCounts: Record<string, number>;
+      };
+    };
+    expect(profile.rustCore.importPathAliasResolvedBySource.relative).toBe(5);
+    expect(profile.rustCore.importPathAliasResolvedBySource.tsconfigPaths).toBe(0);
+    expect(profile.rustCore.importPathAliasFallbackSampleCounts).toMatchObject({
+      'relative/target-not-found': 1,
+      'tsconfigPaths/tsconfig-path-target-not-found': 1,
+    });
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const files = cg.getNodesByKind('file');
+      const mainFile = files.find((node) => node.filePath === 'src/main.ts');
+      expect(mainFile).toBeDefined();
+      const targets = new Set(
+        cg.getOutgoingEdges(mainFile!.id)
+          .filter((edge) => edge.kind === 'imports')
+          .map((edge) => files.find((node) => node.id === edge.target)?.filePath)
+          .filter(Boolean),
+      );
+      expect(targets).toEqual(new Set([
+        'src/common.ts',
+        'src/exact/literal.js',
+        'src/module.ts',
+        'src/only-ts.ts',
+        'src/view.tsx',
+      ]));
+      expect(targets.has('src/exact/literal.ts')).toBe(false);
+      expect(targets.has('src/alias-only.ts')).toBe(false);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
   it('emits bounded Rust import fallback samples in the profile artifact', () => {
     fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
     fs.writeFileSync(

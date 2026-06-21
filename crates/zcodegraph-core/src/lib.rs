@@ -1885,7 +1885,7 @@ fn resolve_relative_import(
         .parent()
         .unwrap_or_else(|| Path::new(""));
     let base = project_path.join(from_dir).join(specifier);
-    resolve_import_candidate(project_path, &base)
+    resolve_relative_import_candidate(project_path, &base)
 }
 
 fn resolve_alias_import(
@@ -1918,6 +1918,15 @@ fn resolve_import_candidate(project_path: &Path, base: &Path) -> Option<String> 
     None
 }
 
+fn resolve_relative_import_candidate(project_path: &Path, base: &Path) -> Option<String> {
+    for candidate in relative_import_file_candidates(base) {
+        if candidate.is_file() {
+            return canonical_relative_slash_path(project_path, &candidate);
+        }
+    }
+    None
+}
+
 fn import_file_candidates(base: &Path) -> Vec<PathBuf> {
     let mut candidates = Vec::new();
     if base.extension().is_some() {
@@ -1931,6 +1940,30 @@ fn import_file_candidates(base: &Path) -> Vec<PathBuf> {
         candidates.push(base.join("index").with_extension(extension));
     }
     candidates
+}
+
+fn relative_import_file_candidates(base: &Path) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if base.extension().is_some() {
+        candidates.push(base.to_path_buf());
+        if let Some(extensions) = relative_js_source_fallback_extensions(base) {
+            for extension in extensions {
+                candidates.push(base.with_extension(extension));
+            }
+        }
+    } else {
+        candidates.extend(import_file_candidates(base));
+    }
+    candidates
+}
+
+fn relative_js_source_fallback_extensions(base: &Path) -> Option<&'static [&'static str]> {
+    match base.extension().and_then(|extension| extension.to_str()) {
+        Some("js") => Some(&["ts", "tsx", "mts", "cts", "jsx"]),
+        Some("mjs") => Some(&["mts", "ts", "tsx", "js"]),
+        Some("cjs") => Some(&["cts", "ts", "tsx", "js"]),
+        _ => None,
+    }
 }
 
 fn canonical_relative_slash_path(project_path: &Path, path: &Path) -> Option<String> {

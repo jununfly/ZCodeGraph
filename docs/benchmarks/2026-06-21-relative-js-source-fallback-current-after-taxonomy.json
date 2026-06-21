@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-06-20T17:39:52.628Z",
+  "profilePath": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/docs/benchmarks/2026-06-21-relative-js-source-fallback-current-after.profile.json",
+  "dataSource": "rustCore.importPathAliasFallbackSamples",
+  "rowsInspected": 150,
+  "totalRelativeUnresolvedImports": 1,
+  "ignoredRows": {
+    "nonImportReference": 0,
+    "unsupportedLanguage": 0,
+    "nonRelativeImport": 149
+  },
+  "categories": {
+    "assetLikeTarget": {
+      "count": 1,
+      "examples": [
+        {
+          "referenceName": "../package.json",
+          "filePath": "__tests__/installer-isolation.test.ts",
+          "language": "typescript",
+          "line": 5,
+          "col": 0
+        }
+      ]
+    }
+  },
+  "summary": {
+    "totalRelativeUnresolvedImports": 1,
+    "categories": {
+      "assetLikeTarget": 1
+    }
+  }
+}
