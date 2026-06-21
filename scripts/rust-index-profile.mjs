@@ -81,6 +81,7 @@ function usage() {
     '  parseAstExtractionMs',
     '  parseErrorHandlingMs',
     '  parseByLanguage',
+    '  parseAstWalker (artifact-only, non-stable)',
     '',
     'Memory evidence:',
     '  engines.typescript.peakRssBytes',
@@ -250,7 +251,10 @@ async function profileRepo(repo, rustCore, dist) {
 
     dist.CodeGraph.initSync(slice.path).close();
     const wallStarted = Date.now();
-    const rustResult = await dist.runRustIndexer(slice.path, { force: true });
+    const rustResult = await dist.runRustIndexer(slice.path, {
+      force: true,
+      parseWalkerDiagnostics: true,
+    });
     let typescriptFinalizationMs = 0;
     let finalizationSubphases = {
       frameworkPostExtractMs: 0,
@@ -322,6 +326,7 @@ async function profileRepo(repo, rustCore, dist) {
       parseAstExtractionMs: rustResult.profile?.parseAstExtractionMs ?? 0,
       parseErrorHandlingMs: rustResult.profile?.parseErrorHandlingMs ?? 0,
       parseByLanguage: rustResult.profile?.parseByLanguage ?? {},
+      parseAstWalker: rustResult.profile?.parseAstWalker ?? {},
       sqliteWriteMs: rustResult.profile?.sqliteWriteMs ?? 0,
       typescriptFinalizationMs,
       subprocessStartupHandoffMs: rustResult.profile?.subprocessStartupHandoffMs ?? 0,

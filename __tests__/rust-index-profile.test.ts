@@ -85,6 +85,7 @@ function writeFakeRustCore(dir: string): string {
       '    parseAstExtractionMs: 0.5,',
       '    parseErrorHandlingMs: 0.6,',
       '    parseByLanguage: { typescript: { files: 1, parseExtractionMs: 2, sourceReadMs: 0.1, normalizationMs: 0.2, parserSetupMs: 0.3, treeSitterMs: 0.4, astExtractionMs: 0.5, errorHandlingMs: 0.6 } },',
+      '    parseAstWalker: { function_declaration: { visits: 2, namedSymbolChecks: 2, statementRefChecks: 2, childTraversals: 4 } },',
       '    sqliteWriteMs: 3',
       '  }',
       '}) + "\\n");',
@@ -191,6 +192,12 @@ describe('Rust indexing profiler script', () => {
             astExtractionMs: number;
             errorHandlingMs: number;
           }>;
+          parseAstWalker: Record<string, {
+            visits: number;
+            namedSymbolChecks: number;
+            statementRefChecks: number;
+            childTraversals: number;
+          }>;
         };
         finalizationSubphases: Record<string, number>;
         referenceResolutionBreakdown: Record<string, number>;
@@ -230,6 +237,12 @@ describe('Rust indexing profiler script', () => {
       treeSitterMs: 0.4,
       astExtractionMs: 0.5,
       errorHandlingMs: 0.6,
+    });
+    expect(parsed.results[0]?.profile.parseAstWalker.function_declaration).toMatchObject({
+      visits: 2,
+      namedSymbolChecks: 2,
+      statementRefChecks: 2,
+      childTraversals: 4,
     });
     for (const phase of FINALIZATION_SUBPHASES) {
       expect(parsed.results[0]?.finalizationSubphases[phase]).toBeTypeOf('number');

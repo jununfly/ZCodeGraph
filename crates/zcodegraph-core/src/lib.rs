@@ -85,6 +85,7 @@ pub struct IndexRequest {
     pub verbose: bool,
     pub graph_work_profile: GraphWorkProfile,
     pub sqlite_write_mode: SqliteWriteMode,
+    pub parse_walker_diagnostics: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -225,6 +226,7 @@ pub struct IndexProfile {
     pub parse_ast_extraction_ms: u128,
     pub parse_error_handling_ms: u128,
     pub parse_by_language: BTreeMap<String, ParseLanguageProfile>,
+    pub parse_ast_walker: BTreeMap<String, ParseAstWalkerProfile>,
     pub sqlite_write_ms: u128,
     pub import_path_alias_resolution_ms: u128,
     pub import_path_alias_resolved_refs: u32,
@@ -254,6 +256,14 @@ pub struct IndexProfile {
     pub esm_named_import_export_fallback_sample_counts: BTreeMap<String, u32>,
     pub esm_named_import_export_fallback_samples: Vec<EsmNamedFallbackSample>,
     pub esm_named_import_export_fallback_sample_cap: ImportFallbackSampleCap,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ParseAstWalkerProfile {
+    pub visits: u32,
+    pub named_symbol_checks: u32,
+    pub statement_ref_checks: u32,
+    pub child_traversals: u32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1364,6 +1374,7 @@ fn write_index_to_connection(
         conn,
         Path::new(&request.project_path),
         request.graph_work_profile.features(),
+        request.parse_walker_diagnostics,
     )?;
     counts.profile.sqlite_write_ms += sqlite_setup_ms;
     let fts_rebuild_started = Instant::now();
@@ -3412,6 +3423,7 @@ fn index_javascript_files(
     conn: &mut Connection,
     project_path: &Path,
     features: GraphWorkFeatures,
+    parse_walker_diagnostics: bool,
 ) -> Result<WriteCounts, Box<dyn std::error::Error>> {
     let scan_started = Instant::now();
     let files = collect_supported_files(project_path)?;
@@ -3507,6 +3519,11 @@ fn index_javascript_files(
                     &mut nodes,
                     &mut edges,
                     &mut unresolved_refs,
+                    if parse_walker_diagnostics {
+                        Some(&mut counts.profile)
+                    } else {
+                        None
+                    },
                     features,
                 )?;
             }
@@ -3858,9 +3875,13 @@ fn extract_top_level_js_symbols(
     nodes: &mut Vec<ExtractedNode>,
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
+    profile: Option<&mut IndexProfile>,
     features: GraphWorkFeatures,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut cursor = root.walk();
+    let mut walker_profile = profile
+        .as_ref()
+        .map(|_| HashMap::<&'static str, ParseAstWalkerProfile>::new());
     visit_js_node(
         &mut cursor,
         source,
@@ -3871,9 +3892,29 @@ fn extract_top_level_js_symbols(
         nodes,
         edges,
         unresolved_refs,
+        walker_profile.as_mut(),
         features,
     )?;
+    if let (Some(profile), Some(walker_profile)) = (profile, walker_profile) {
+        merge_parse_ast_walker_profile(profile, walker_profile);
+    }
     Ok(())
+}
+
+fn merge_parse_ast_walker_profile(
+    profile: &mut IndexProfile,
+    walker_profile: HashMap<&'static str, ParseAstWalkerProfile>,
+) {
+    for (kind, incoming) in walker_profile {
+        let entry = profile
+            .parse_ast_walker
+            .entry(kind.to_string())
+            .or_default();
+        entry.visits += incoming.visits;
+        entry.named_symbol_checks += incoming.named_symbol_checks;
+        entry.statement_ref_checks += incoming.statement_ref_checks;
+        entry.child_traversals += incoming.child_traversals;
+    }
 }
 
 fn extract_go_symbols(
@@ -4355,11 +4396,25 @@ fn visit_js_node(
     nodes: &mut Vec<ExtractedNode>,
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
+    mut walker_profile: Option<&mut HashMap<&'static str, ParseAstWalkerProfile>>,
     features: GraphWorkFeatures,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let node = cursor.node();
+    let node_kind = node.kind();
+    if let Some(walker_profile) = walker_profile.as_deref_mut() {
+        walker_profile.entry(node_kind).or_default().visits += 1;
+    }
+    if !node.is_named() && node.child_count() == 0 {
+        return Ok(());
+    }
     let mut child_from_node_id: Cow<'_, str> = Cow::Borrowed(current_from_node_id);
 
+    if let Some(walker_profile) = walker_profile.as_deref_mut() {
+        walker_profile
+            .entry(node_kind)
+            .or_default()
+            .named_symbol_checks += 1;
+    }
     if let Some(symbol) = extract_named_symbol(node, source, language, features)? {
         let kind = symbol.kind;
         let extracted = ExtractedNode::symbol(
@@ -4395,11 +4450,18 @@ fn visit_js_node(
         language,
         current_from_node_id,
         unresolved_refs,
+        walker_profile.as_deref_mut(),
         features,
     )?;
 
     if cursor.goto_first_child() {
         loop {
+            if let Some(walker_profile) = walker_profile.as_deref_mut() {
+                walker_profile
+                    .entry(node_kind)
+                    .or_default()
+                    .child_traversals += 1;
+            }
             visit_js_node(
                 cursor,
                 source,
@@ -4410,6 +4472,7 @@ fn visit_js_node(
                 nodes,
                 edges,
                 unresolved_refs,
+                walker_profile.as_deref_mut(),
                 features,
             )?;
             if !cursor.goto_next_sibling() {
@@ -4579,8 +4642,15 @@ fn extract_statement_refs(
     language: SourceLanguage,
     from_node_id: &str,
     unresolved_refs: &mut Vec<UnresolvedRef>,
+    walker_profile: Option<&mut HashMap<&'static str, ParseAstWalkerProfile>>,
     features: GraphWorkFeatures,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(walker_profile) = walker_profile {
+        walker_profile
+            .entry(node.kind())
+            .or_default()
+            .statement_ref_checks += 1;
+    }
     match node.kind() {
         "import_statement" => {
             let statement = node.utf8_text(source)?;
@@ -5038,7 +5108,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -5056,6 +5126,7 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.parse_ast_extraction_ms,
         result.profile.parse_error_handling_ms,
         parse_by_language_json(&result.profile.parse_by_language),
+        parse_ast_walker_json(&result.profile.parse_ast_walker),
         result.profile.sqlite_write_ms,
         result.profile.import_path_alias_resolution_ms,
         result.profile.import_path_alias_resolved_refs,
@@ -5095,6 +5166,24 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.local_exact_reference_resolved_refs,
         result.profile.local_exact_reference_fallback_refs
     )
+}
+
+fn parse_ast_walker_json(profiles: &BTreeMap<String, ParseAstWalkerProfile>) -> String {
+    let fields = profiles
+        .iter()
+        .map(|(key, profile)| {
+            format!(
+                "\"{}\":{{\"visits\":{},\"namedSymbolChecks\":{},\"statementRefChecks\":{},\"childTraversals\":{}}}",
+                escape_json(key),
+                profile.visits,
+                profile.named_symbol_checks,
+                profile.statement_ref_checks,
+                profile.child_traversals
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("{{{}}}", fields)
 }
 
 fn fallback_sample_counts_json(counts: &BTreeMap<String, u32>) -> String {
@@ -5748,6 +5837,15 @@ mod tests {
                         error_handling_ms: 9,
                     },
                 )]),
+                parse_ast_walker: BTreeMap::from([(
+                    "function_declaration".to_string(),
+                    ParseAstWalkerProfile {
+                        visits: 2,
+                        named_symbol_checks: 2,
+                        statement_ref_checks: 2,
+                        child_traversals: 4,
+                    },
+                )]),
                 sqlite_write_ms: 3,
                 ..IndexProfile::default()
             },
@@ -5756,7 +5854,7 @@ mod tests {
 
         assert_eq!(
             result_json(&result),
-            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"parseSourceReadMs\":4,\"parseNormalizationMs\":5,\"parseParserSetupMs\":6,\"parseTreeSitterMs\":7,\"parseAstExtractionMs\":8,\"parseErrorHandlingMs\":9,\"parseByLanguage\":{\"typescript\":{\"files\":1,\"parseExtractionMs\":39,\"sourceReadMs\":4,\"normalizationMs\":5,\"parserSetupMs\":6,\"treeSitterMs\":7,\"astExtractionMs\":8,\"errorHandlingMs\":9}},\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"importPathAliasResolvedBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0},\"importPathAliasFallbackBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0,\"binding\":0,\"unsupported\":0,\"unresolved\":0},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":[],\"importPathAliasFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"esmNamedImportExportOverloadImplementationResolvedRefs\":0,\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":[],\"esmNamedImportExportFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
+            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"parseSourceReadMs\":4,\"parseNormalizationMs\":5,\"parseParserSetupMs\":6,\"parseTreeSitterMs\":7,\"parseAstExtractionMs\":8,\"parseErrorHandlingMs\":9,\"parseByLanguage\":{\"typescript\":{\"files\":1,\"parseExtractionMs\":39,\"sourceReadMs\":4,\"normalizationMs\":5,\"parserSetupMs\":6,\"treeSitterMs\":7,\"astExtractionMs\":8,\"errorHandlingMs\":9}},\"parseAstWalker\":{\"function_declaration\":{\"visits\":2,\"namedSymbolChecks\":2,\"statementRefChecks\":2,\"childTraversals\":4}},\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"importPathAliasResolvedBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0},\"importPathAliasFallbackBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0,\"binding\":0,\"unsupported\":0,\"unresolved\":0},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":[],\"importPathAliasFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"esmNamedImportExportOverloadImplementationResolvedRefs\":0,\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":[],\"esmNamedImportExportFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
         );
     }
 
@@ -6135,6 +6233,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -6179,6 +6278,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -6233,6 +6333,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -6274,6 +6375,119 @@ mod tests {
     }
 
     #[test]
+    fn rust_index_skips_anonymous_leaf_checks_without_losing_js_graph_facts() {
+        let dir = temp_dir("anonymous-leaf-walker");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(
+            dir.join("src").join("dep.tsx"),
+            [
+                "export function helper() { return 1; }",
+                "export function Button() { return <span />; }",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src").join("main.tsx"),
+            [
+                "import { helper, Button } from './dep';",
+                "export function App() {",
+                "  helper();",
+                "  return <Button />;",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: true,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 2);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        for name in ["helper", "Button", "App"] {
+            let count: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM nodes WHERE name = ?1",
+                    [name],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(count, 1, "expected one node named {name}");
+        }
+        let semantic_edges: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM edges WHERE kind IN ('imports', 'calls', 'references')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(
+            semantic_edges >= 3,
+            "expected import, call, and JSX graph facts to remain visible"
+        );
+        let anonymous_quote = result.profile.parse_ast_walker.get("'");
+        assert_eq!(
+            anonymous_quote.map(|profile| profile.named_symbol_checks),
+            Some(0)
+        );
+        assert_eq!(
+            anonymous_quote.map(|profile| profile.statement_ref_checks),
+            Some(0)
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_leaves_parse_walker_diagnostics_off_by_default() {
+        let dir = temp_dir("walker-diagnostics-off");
+        fs::write(
+            dir.join("main.ts"),
+            "export function alpha() { return beta(); }\nfunction beta() { return 1; }\n",
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert!(result.profile.parse_ast_walker.is_empty());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn rust_profile_classifies_typescript_overload_implementation_candidates() {
         let dir = temp_dir("ts-overload-implementation-metadata");
         fs::write(
@@ -6307,6 +6521,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -6366,6 +6581,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -6460,6 +6676,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -6545,6 +6762,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -6591,6 +6809,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -6635,6 +6854,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::MatchedTsJs,
             sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -6714,6 +6934,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -6931,6 +7152,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -7081,6 +7303,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -7116,6 +7339,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::MemoryFinalFlush,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -7168,6 +7392,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
         };
 
         let initial = run_index(&initial_request);
@@ -7223,6 +7448,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);
@@ -7272,6 +7498,7 @@ mod tests {
             verbose: false,
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
         };
 
         let result = run_index(&request);

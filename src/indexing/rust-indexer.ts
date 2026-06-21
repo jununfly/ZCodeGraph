@@ -11,6 +11,7 @@ interface RustIndexerOptions {
   verbose?: boolean;
   graphWorkProfile?: 'full' | 'matched-ts-js';
   sqliteWriteMode?: 'disk' | 'final-flush' | 'memory-final-flush';
+  parseWalkerDiagnostics?: boolean;
   profiling?: 'heap';
   onProgress?: (progress: IndexProgress) => void;
 }
@@ -324,6 +325,9 @@ export async function runRustIndexer(
   }
   if (options.sqliteWriteMode) {
     args.push('--sqlite-write-mode', options.sqliteWriteMode);
+  }
+  if (options.parseWalkerDiagnostics) {
+    args.push('--parse-walker-diagnostics');
   }
 
   return new Promise<IndexResult>((resolve, reject) => {
