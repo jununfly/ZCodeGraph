@@ -748,7 +748,27 @@ describe('zcodegraph index engine selection', () => {
     });
     expect(indexResult.status).toBe(0);
     const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
-      rustCore: { sourceScanMs: number; parseExtractionMs: number; sqliteWriteMs: number };
+      rustCore: {
+        sourceScanMs: number;
+        parseExtractionMs: number;
+        parseSourceReadMs: number;
+        parseNormalizationMs: number;
+        parseParserSetupMs: number;
+        parseTreeSitterMs: number;
+        parseAstExtractionMs: number;
+        parseErrorHandlingMs: number;
+        parseByLanguage: Record<string, {
+          files: number;
+          parseExtractionMs: number;
+          sourceReadMs: number;
+          normalizationMs: number;
+          parserSetupMs: number;
+          treeSitterMs: number;
+          astExtractionMs: number;
+          errorHandlingMs: number;
+        }>;
+        sqliteWriteMs: number;
+      };
       finalize: {
         referenceResolutionMs: number;
         dynamicDispatchSynthesisMs: number;
@@ -760,8 +780,32 @@ describe('zcodegraph index engine selection', () => {
     expect(profile.rustCore).toMatchObject({
       sourceScanMs: expect.any(Number),
       parseExtractionMs: expect.any(Number),
+      parseSourceReadMs: expect.any(Number),
+      parseNormalizationMs: expect.any(Number),
+      parseParserSetupMs: expect.any(Number),
+      parseTreeSitterMs: expect.any(Number),
+      parseAstExtractionMs: expect.any(Number),
+      parseErrorHandlingMs: expect.any(Number),
       sqliteWriteMs: expect.any(Number),
     });
+    expect(profile.rustCore.parseByLanguage.typescript).toMatchObject({
+      files: expect.any(Number),
+      parseExtractionMs: expect.any(Number),
+      sourceReadMs: expect.any(Number),
+      normalizationMs: expect.any(Number),
+      parserSetupMs: expect.any(Number),
+      treeSitterMs: expect.any(Number),
+      astExtractionMs: expect.any(Number),
+      errorHandlingMs: expect.any(Number),
+    });
+    expect(profile.rustCore.parseByLanguage.typescript.files).toBeGreaterThan(0);
+    const parseSubBucketTotal = profile.rustCore.parseSourceReadMs
+      + profile.rustCore.parseNormalizationMs
+      + profile.rustCore.parseParserSetupMs
+      + profile.rustCore.parseTreeSitterMs
+      + profile.rustCore.parseAstExtractionMs
+      + profile.rustCore.parseErrorHandlingMs;
+    expect(parseSubBucketTotal).toBeLessThanOrEqual(profile.rustCore.parseExtractionMs);
     expect(profile.finalize).toMatchObject({
       referenceResolutionMs: expect.any(Number),
       dynamicDispatchSynthesisMs: expect.any(Number),

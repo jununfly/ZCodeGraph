@@ -217,6 +217,13 @@ pub struct IndexResult {
 pub struct IndexProfile {
     pub source_scan_ms: u128,
     pub parse_extraction_ms: u128,
+    pub parse_source_read_ms: u128,
+    pub parse_normalization_ms: u128,
+    pub parse_parser_setup_ms: u128,
+    pub parse_tree_sitter_ms: u128,
+    pub parse_ast_extraction_ms: u128,
+    pub parse_error_handling_ms: u128,
+    pub parse_by_language: BTreeMap<String, ParseLanguageProfile>,
     pub sqlite_write_ms: u128,
     pub import_path_alias_resolution_ms: u128,
     pub import_path_alias_resolved_refs: u32,
@@ -246,6 +253,56 @@ pub struct IndexProfile {
     pub esm_named_import_export_fallback_sample_counts: BTreeMap<String, u32>,
     pub esm_named_import_export_fallback_samples: Vec<EsmNamedFallbackSample>,
     pub esm_named_import_export_fallback_sample_cap: ImportFallbackSampleCap,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ParseLanguageProfile {
+    pub files: u32,
+    pub parse_extraction_ms: u128,
+    pub source_read_ms: u128,
+    pub normalization_ms: u128,
+    pub parser_setup_ms: u128,
+    pub tree_sitter_ms: u128,
+    pub ast_extraction_ms: u128,
+    pub error_handling_ms: u128,
+}
+
+impl IndexProfile {
+    fn parse_language_entry(&mut self, language: &str) -> &mut ParseLanguageProfile {
+        self.parse_by_language
+            .entry(language.to_string())
+            .or_default()
+    }
+
+    fn add_parse_language_file(&mut self, language: &str, ms: u128) {
+        let entry = self.parse_language_entry(language);
+        entry.files += 1;
+        entry.parse_extraction_ms += ms;
+    }
+
+    fn add_parse_language_source_read(&mut self, language: &str, ms: u128) {
+        self.parse_language_entry(language).source_read_ms += ms;
+    }
+
+    fn add_parse_language_normalization(&mut self, language: &str, ms: u128) {
+        self.parse_language_entry(language).normalization_ms += ms;
+    }
+
+    fn add_parse_language_parser_setup(&mut self, language: &str, ms: u128) {
+        self.parse_language_entry(language).parser_setup_ms += ms;
+    }
+
+    fn add_parse_language_tree_sitter(&mut self, language: &str, ms: u128) {
+        self.parse_language_entry(language).tree_sitter_ms += ms;
+    }
+
+    fn add_parse_language_ast_extraction(&mut self, language: &str, ms: u128) {
+        self.parse_language_entry(language).ast_extraction_ms += ms;
+    }
+
+    fn add_parse_language_error_handling(&mut self, language: &str, ms: u128) {
+        self.parse_language_entry(language).error_handling_ms += ms;
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -3213,21 +3270,46 @@ fn index_javascript_files(
         let parse_started = Instant::now();
         let language = SourceLanguage::from_path(&file_path)
             .ok_or_else(|| format!("Unsupported source file: {}", file_path.display()))?;
+        let language_name = language.codegraph_name().to_string();
         if !parsers.contains_key(&language) {
+            let parser_setup_started = Instant::now();
             let mut parser = Parser::new();
             parser.set_language(&language.tree_sitter_language())?;
             parsers.insert(language, parser);
+            let elapsed = parser_setup_started.elapsed().as_millis();
+            counts.profile.parse_parser_setup_ms += elapsed;
+            counts
+                .profile
+                .add_parse_language_parser_setup(&language_name, elapsed);
         }
         let parser = parsers
             .get_mut(&language)
             .expect("parser should be initialized for source language");
         let relative_path = relative_slash_path(project_path, &file_path)?;
+        let source_read_started = Instant::now();
         let content = fs::read_to_string(&file_path)?;
         let metadata = fs::metadata(&file_path)?;
+        let source_read_ms = source_read_started.elapsed().as_millis();
+        counts.profile.parse_source_read_ms += source_read_ms;
+        counts
+            .profile
+            .add_parse_language_source_read(&language_name, source_read_ms);
+        let normalization_started = Instant::now();
         let parse_content = normalize_source_for_parser(&content, language);
+        let normalization_ms = normalization_started.elapsed().as_millis();
+        counts.profile.parse_normalization_ms += normalization_ms;
+        counts
+            .profile
+            .add_parse_language_normalization(&language_name, normalization_ms);
+        let tree_sitter_started = Instant::now();
         let parsed = parser
             .parse(parse_content.as_ref(), None)
             .ok_or_else(|| format!("Parser returned no tree for {}", relative_path))?;
+        let tree_sitter_ms = tree_sitter_started.elapsed().as_millis();
+        counts.profile.parse_tree_sitter_ms += tree_sitter_ms;
+        counts
+            .profile
+            .add_parse_language_tree_sitter(&language_name, tree_sitter_ms);
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
         let mut unresolved_refs = Vec::new();
@@ -3236,12 +3318,19 @@ fn index_javascript_files(
         nodes.push(file_node);
 
         if parsed.root_node().has_error() {
+            let error_started = Instant::now();
             counts.files_errored += 1;
             counts.errors.push(IndexError::rust_owned_parse_gap(
                 relative_path.clone(),
                 language.codegraph_name().to_string(),
             ));
+            let error_ms = error_started.elapsed().as_millis();
+            counts.profile.parse_error_handling_ms += error_ms;
+            counts
+                .profile
+                .add_parse_language_error_handling(&language_name, error_ms);
         } else {
+            let ast_started = Instant::now();
             if language.is_go() {
                 extract_go_symbols(
                     parsed.root_node(),
@@ -3265,8 +3354,17 @@ fn index_javascript_files(
                     features,
                 )?;
             }
+            let ast_ms = ast_started.elapsed().as_millis();
+            counts.profile.parse_ast_extraction_ms += ast_ms;
+            counts
+                .profile
+                .add_parse_language_ast_extraction(&language_name, ast_ms);
         }
-        counts.profile.parse_extraction_ms += parse_started.elapsed().as_millis();
+        let parse_file_ms = parse_started.elapsed().as_millis();
+        counts.profile.parse_extraction_ms += parse_file_ms;
+        counts
+            .profile
+            .add_parse_language_file(&language_name, parse_file_ms);
 
         let indexed_at = now_ms();
         let sqlite_write_started = Instant::now();
@@ -4759,7 +4857,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -4770,6 +4868,13 @@ pub fn result_json(result: &IndexResult) -> String {
         result.duration_ms,
         result.profile.source_scan_ms,
         result.profile.parse_extraction_ms,
+        result.profile.parse_source_read_ms,
+        result.profile.parse_normalization_ms,
+        result.profile.parse_parser_setup_ms,
+        result.profile.parse_tree_sitter_ms,
+        result.profile.parse_ast_extraction_ms,
+        result.profile.parse_error_handling_ms,
+        parse_by_language_json(&result.profile.parse_by_language),
         result.profile.sqlite_write_ms,
         result.profile.import_path_alias_resolution_ms,
         result.profile.import_path_alias_resolved_refs,
@@ -4815,6 +4920,28 @@ fn fallback_sample_counts_json(counts: &BTreeMap<String, u32>) -> String {
     let fields = counts
         .iter()
         .map(|(key, value)| format!("\"{}\":{}", escape_json(key), value))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("{{{}}}", fields)
+}
+
+fn parse_by_language_json(profiles: &BTreeMap<String, ParseLanguageProfile>) -> String {
+    let fields = profiles
+        .iter()
+        .map(|(language, profile)| {
+            format!(
+                "\"{}\":{{\"files\":{},\"parseExtractionMs\":{},\"sourceReadMs\":{},\"normalizationMs\":{},\"parserSetupMs\":{},\"treeSitterMs\":{},\"astExtractionMs\":{},\"errorHandlingMs\":{}}}",
+                escape_json(language),
+                profile.files,
+                profile.parse_extraction_ms,
+                profile.source_read_ms,
+                profile.normalization_ms,
+                profile.parser_setup_ms,
+                profile.tree_sitter_ms,
+                profile.ast_extraction_ms,
+                profile.error_handling_ms,
+            )
+        })
         .collect::<Vec<_>>()
         .join(",");
     format!("{{{}}}", fields)
@@ -5421,6 +5548,25 @@ mod tests {
             profile: IndexProfile {
                 source_scan_ms: 1,
                 parse_extraction_ms: 2,
+                parse_source_read_ms: 4,
+                parse_normalization_ms: 5,
+                parse_parser_setup_ms: 6,
+                parse_tree_sitter_ms: 7,
+                parse_ast_extraction_ms: 8,
+                parse_error_handling_ms: 9,
+                parse_by_language: BTreeMap::from([(
+                    "typescript".to_string(),
+                    ParseLanguageProfile {
+                        files: 1,
+                        parse_extraction_ms: 39,
+                        source_read_ms: 4,
+                        normalization_ms: 5,
+                        parser_setup_ms: 6,
+                        tree_sitter_ms: 7,
+                        ast_extraction_ms: 8,
+                        error_handling_ms: 9,
+                    },
+                )]),
                 sqlite_write_ms: 3,
                 ..IndexProfile::default()
             },
@@ -5429,7 +5575,7 @@ mod tests {
 
         assert_eq!(
             result_json(&result),
-            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"importPathAliasResolvedBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0},\"importPathAliasFallbackBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0,\"binding\":0,\"unsupported\":0,\"unresolved\":0},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":[],\"importPathAliasFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"esmNamedImportExportOverloadImplementationResolvedRefs\":0,\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":[],\"esmNamedImportExportFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
+            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"parseSourceReadMs\":4,\"parseNormalizationMs\":5,\"parseParserSetupMs\":6,\"parseTreeSitterMs\":7,\"parseAstExtractionMs\":8,\"parseErrorHandlingMs\":9,\"parseByLanguage\":{\"typescript\":{\"files\":1,\"parseExtractionMs\":39,\"sourceReadMs\":4,\"normalizationMs\":5,\"parserSetupMs\":6,\"treeSitterMs\":7,\"astExtractionMs\":8,\"errorHandlingMs\":9}},\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"importPathAliasResolvedBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0},\"importPathAliasFallbackBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0,\"binding\":0,\"unsupported\":0,\"unresolved\":0},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":[],\"importPathAliasFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"esmNamedImportExportOverloadImplementationResolvedRefs\":0,\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":[],\"esmNamedImportExportFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
         );
     }
 
@@ -5996,6 +6142,79 @@ mod tests {
             .esm_named_import_export_fallback_samples
             .iter()
             .all(|sample| sample.reference_name != "parseThing"));
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_profile_populates_parse_extraction_sub_buckets() {
+        let dir = temp_dir("parse-extraction-profile");
+        fs::write(
+            dir.join("main.ts"),
+            [
+                "type Lookup = (name: string) => import('./types').Node[];",
+                "export function alpha(value: string): string {",
+                "  return value;",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("helper.js"),
+            [
+                "export function beta(value) {",
+                "  return value + 1;",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 2);
+        assert!(result.profile.parse_extraction_ms <= result.duration_ms);
+        assert!(result.profile.parse_by_language.contains_key("typescript"));
+        assert!(result.profile.parse_by_language.contains_key("javascript"));
+        let total_files = result
+            .profile
+            .parse_by_language
+            .values()
+            .map(|profile| profile.files)
+            .sum::<u32>();
+        assert_eq!(total_files, 2);
+        let sub_bucket_total = result.profile.parse_source_read_ms
+            + result.profile.parse_normalization_ms
+            + result.profile.parse_parser_setup_ms
+            + result.profile.parse_tree_sitter_ms
+            + result.profile.parse_ast_extraction_ms
+            + result.profile.parse_error_handling_ms;
+        assert!(sub_bucket_total <= result.profile.parse_extraction_ms);
+        let language_parse_total = result
+            .profile
+            .parse_by_language
+            .values()
+            .map(|profile| profile.parse_extraction_ms)
+            .sum::<u128>();
+        assert_eq!(language_parse_total, result.profile.parse_extraction_ms);
 
         fs::remove_dir_all(dir).unwrap();
     }
