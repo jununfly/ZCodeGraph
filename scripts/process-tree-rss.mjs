@@ -140,6 +140,10 @@ function readProcStatus(procRoot, pid) {
 }
 
 export function spawnMeasured(command, args, options = {}) {
+  if (options.rssMode === 'command') {
+    return spawnMeasuredCommandRss(command, args, options);
+  }
+
   const cwd = options.cwd ?? process.cwd();
   const env = { ...process.env, ...(options.env ?? {}) };
   const sampleIntervalMs = options.sampleIntervalMs ?? 50;
@@ -186,4 +190,75 @@ export function spawnMeasured(command, args, options = {}) {
       });
     });
   });
+}
+
+function spawnMeasuredCommandRss(command, args, options = {}) {
+  const cwd = options.cwd ?? process.cwd();
+  const env = { ...process.env, ...(options.env ?? {}) };
+  const timeCommand = options.timeCommand ?? process.env.ZCODEGRAPH_RSS_TIME_COMMAND ?? (
+    process.platform === 'darwin' ? '/usr/bin/time' : null
+  );
+
+  if (!timeCommand) {
+    return Promise.resolve({
+      code: null,
+      signal: null,
+      stdout: '',
+      stderr: '',
+      wallMs: 0,
+      peakRssBytes: null,
+      rssUnavailableReason: 'command RSS sampling unavailable: no time-compatible command is configured',
+    });
+  }
+
+  return new Promise((resolve) => {
+    const startedAt = Date.now();
+    const timeArgs = process.platform === 'darwin' && timeCommand === '/usr/bin/time'
+      ? ['-l', command, ...args]
+      : [command, ...args];
+    const child = spawn(timeCommand, timeArgs, {
+      cwd,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf-8'); });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf-8'); });
+    child.on('error', (error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      resolve({
+        code: null,
+        signal: null,
+        stdout,
+        stderr,
+        wallMs: Date.now() - startedAt,
+        peakRssBytes: null,
+        rssUnavailableReason: `command RSS sampling unavailable: ${message}`,
+      });
+    });
+    child.on('close', (code, signal) => {
+      const peakRssBytes = parseCommandPeakRssBytes(stderr);
+      resolve({
+        code,
+        signal,
+        stdout,
+        stderr,
+        wallMs: Date.now() - startedAt,
+        peakRssBytes,
+        rssUnavailableReason: peakRssBytes == null
+          ? 'command RSS sampling did not report maximum resident set size'
+          : null,
+      });
+    });
+  });
+}
+
+export function parseCommandPeakRssBytes(stderr) {
+  const darwin = stderr.match(/^\s*(\d+)\s+maximum resident set size\s*$/m);
+  if (darwin) return Number(darwin[1]);
+  const gnuKb = stderr.match(/Maximum resident set size \(kbytes\):\s*(\d+)/);
+  if (gnuKb) return Number(gnuKb[1]) * 1024;
+  return null;
 }

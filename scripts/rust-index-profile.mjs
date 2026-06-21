@@ -73,12 +73,23 @@ function usage() {
     '  unresolvedCleanupDbMs',
     '  otherResolutionMs',
     '',
+    'Rust parse/extraction sub-buckets:',
+    '  parseSourceReadMs',
+    '  parseNormalizationMs',
+    '  parseParserSetupMs',
+    '  parseTreeSitterMs',
+    '  parseAstExtractionMs',
+    '  parseErrorHandlingMs',
+    '  parseByLanguage',
+    '',
     'Memory evidence:',
     '  engines.typescript.peakRssBytes',
     '  engines.rust.peakRssBytes',
     '  engines.<engine>.rssUnavailableReason',
-    '  RSS sampling uses procfs when available, falls back to ps, and records',
-    '  rssUnavailableReason when neither sampler is available.',
+    '  RSS sampling uses procfs when available, falls back to process-tree ps',
+    '  sampling on hosts without procfs, and records rssUnavailableReason when',
+    '  unavailable. process-tree-rss.mjs also exposes a command-level sampler',
+    '  for hosts where a time-compatible wrapper is allowed.',
   ].join('\n'));
 }
 
@@ -190,7 +201,11 @@ function indexWithMeasuredCli(project, engine, rustCore, CodeGraph) {
   }
 
   const startedAt = Date.now();
-  return spawnMeasured(process.execPath, args, { cwd: project, env }).then((result) => {
+  return spawnMeasured(process.execPath, args, {
+    cwd: project,
+    env,
+    rssMode: 'process-tree',
+  }).then((result) => {
     if (result.code !== 0) {
       throw new Error([
         `${process.execPath} ${args.join(' ')} failed in ${project}`,
@@ -300,6 +315,13 @@ async function profileRepo(repo, rustCore, dist) {
     const profile = {
       sourceScanMs: rustResult.profile?.sourceScanMs ?? 0,
       parseExtractionMs: rustResult.profile?.parseExtractionMs ?? 0,
+      parseSourceReadMs: rustResult.profile?.parseSourceReadMs ?? 0,
+      parseNormalizationMs: rustResult.profile?.parseNormalizationMs ?? 0,
+      parseParserSetupMs: rustResult.profile?.parseParserSetupMs ?? 0,
+      parseTreeSitterMs: rustResult.profile?.parseTreeSitterMs ?? 0,
+      parseAstExtractionMs: rustResult.profile?.parseAstExtractionMs ?? 0,
+      parseErrorHandlingMs: rustResult.profile?.parseErrorHandlingMs ?? 0,
+      parseByLanguage: rustResult.profile?.parseByLanguage ?? {},
       sqliteWriteMs: rustResult.profile?.sqliteWriteMs ?? 0,
       typescriptFinalizationMs,
       subprocessStartupHandoffMs: rustResult.profile?.subprocessStartupHandoffMs ?? 0,

@@ -56,6 +56,91 @@ describe('process-tree RSS sampler', () => {
     expect(result.peakRssBytes).toBeNull();
     expect(result.unavailableReason).toContain('RSS sampling unavailable');
   });
+
+  it('can measure a command peak RSS from a time-style wrapper without process-list access', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-time-rss-'));
+    tempDirs.push(dir);
+    const fakeTime = path.join(dir, process.platform === 'win32' ? 'fake-time.cjs' : 'fake-time');
+    fs.writeFileSync(
+      fakeTime,
+      [
+        '#!/usr/bin/env node',
+        'const { spawnSync } = require("child_process");',
+        'const [command, ...args] = process.argv.slice(2);',
+        'const result = spawnSync(command, args, { encoding: "utf-8" });',
+        'process.stdout.write(result.stdout || "");',
+        'process.stderr.write(result.stderr || "");',
+        'process.stderr.write("\\n12345  maximum resident set size\\n");',
+        'process.exit(result.status ?? 1);',
+        '',
+      ].join('\n'),
+    );
+    fs.chmodSync(fakeTime, 0o755);
+
+    const { spawnMeasured } = await import(MODULE) as {
+      spawnMeasured: (
+        command: string,
+        args: string[],
+        options?: {
+          rssMode?: 'process-tree' | 'command';
+          timeCommand?: string;
+          procRoot?: string;
+          psCommand?: string;
+        },
+      ) => Promise<{
+        code: number | null;
+        peakRssBytes: number | null;
+        rssUnavailableReason: string | null;
+      }>;
+    };
+
+    const result = await spawnMeasured(process.execPath, ['-e', 'process.stdout.write("ok")'], {
+      rssMode: 'command',
+      timeCommand: fakeTime,
+      procRoot: path.join(os.tmpdir(), 'zcodegraph-missing-proc-root'),
+      psCommand: 'zcodegraph-nonexistent-ps-for-test',
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.peakRssBytes).toBe(12345);
+    expect(result.rssUnavailableReason).toBeNull();
+  });
+
+  it('records a specific unavailable reason when command RSS wrapper cannot report peak RSS', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-time-rss-missing-'));
+    tempDirs.push(dir);
+    const fakeTime = path.join(dir, process.platform === 'win32' ? 'fake-time.cjs' : 'fake-time');
+    fs.writeFileSync(
+      fakeTime,
+      [
+        '#!/usr/bin/env node',
+        'const { spawnSync } = require("child_process");',
+        'const [command, ...args] = process.argv.slice(2);',
+        'const result = spawnSync(command, args, { encoding: "utf-8" });',
+        'process.stdout.write(result.stdout || "");',
+        'process.stderr.write(result.stderr || "");',
+        'process.exit(result.status ?? 1);',
+        '',
+      ].join('\n'),
+    );
+    fs.chmodSync(fakeTime, 0o755);
+
+    const { spawnMeasured } = await import(MODULE) as {
+      spawnMeasured: (
+        command: string,
+        args: string[],
+        options?: { rssMode?: 'process-tree' | 'command'; timeCommand?: string },
+      ) => Promise<{ peakRssBytes: number | null; rssUnavailableReason: string | null }>;
+    };
+
+    const result = await spawnMeasured(process.execPath, ['-e', '0'], {
+      rssMode: 'command',
+      timeCommand: fakeTime,
+    });
+
+    expect(result.peakRssBytes).toBeNull();
+    expect(result.rssUnavailableReason).toContain('command RSS sampling did not report maximum resident set size');
+  });
 });
 
 function writeStatus(procRoot: string, pid: number, ppid: number, rssKb: number) {

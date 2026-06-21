@@ -12,6 +12,12 @@ const BIN = path.join(REPO_ROOT, 'dist', 'bin', 'zcodegraph.js');
 const PHASE_NAMES = [
   'sourceScanMs',
   'parseExtractionMs',
+  'parseSourceReadMs',
+  'parseNormalizationMs',
+  'parseParserSetupMs',
+  'parseTreeSitterMs',
+  'parseAstExtractionMs',
+  'parseErrorHandlingMs',
   'sqliteWriteMs',
   'typescriptFinalizationMs',
   'subprocessStartupHandoffMs',
@@ -69,7 +75,18 @@ function writeFakeRustCore(dir: string): string {
       '  edgesCreated: 0,',
       '  errors: [],',
       '  durationMs: 4,',
-      '  profile: { sourceScanMs: 1, parseExtractionMs: 2, sqliteWriteMs: 3 }',
+      '  profile: {',
+      '    sourceScanMs: 1,',
+      '    parseExtractionMs: 2,',
+      '    parseSourceReadMs: 0.1,',
+      '    parseNormalizationMs: 0.2,',
+      '    parseParserSetupMs: 0.3,',
+      '    parseTreeSitterMs: 0.4,',
+      '    parseAstExtractionMs: 0.5,',
+      '    parseErrorHandlingMs: 0.6,',
+      '    parseByLanguage: { typescript: { files: 1, parseExtractionMs: 2, sourceReadMs: 0.1, normalizationMs: 0.2, parserSetupMs: 0.3, treeSitterMs: 0.4, astExtractionMs: 0.5, errorHandlingMs: 0.6 } },',
+      '    sqliteWriteMs: 3',
+      '  }',
       '}) + "\\n");',
     ].join('\n') + '\n',
   );
@@ -106,7 +123,7 @@ describe('Rust indexing profiler script', () => {
     expect(result.stdout).toContain('npm run build && cargo build --package zcodegraph-core');
     expect(result.stdout).toContain('--repo zcodegraph=.');
     expect(result.stdout).toContain('--repo excalidraw=');
-    expect(result.stdout).toContain('RSS sampling uses procfs when available, falls back to ps');
+    expect(result.stdout).toContain('RSS sampling uses procfs when available');
     for (const phase of PHASE_NAMES) {
       expect(result.stdout).toContain(phase);
     }
@@ -163,7 +180,18 @@ describe('Rust indexing profiler script', () => {
             rssUnavailableReason: string | null;
           };
         };
-        profile: Record<string, number>;
+        profile: Record<string, number> & {
+          parseByLanguage: Record<string, {
+            files: number;
+            parseExtractionMs: number;
+            sourceReadMs: number;
+            normalizationMs: number;
+            parserSetupMs: number;
+            treeSitterMs: number;
+            astExtractionMs: number;
+            errorHandlingMs: number;
+          }>;
+        };
         finalizationSubphases: Record<string, number>;
         referenceResolutionBreakdown: Record<string, number>;
         dominantFinalizationSubphase: string;
@@ -193,6 +221,16 @@ describe('Rust indexing profiler script', () => {
       expect(parsed.results[0]?.profile[phase]).toBeTypeOf('number');
       expect(parsed.results[0]?.profile[phase]).toBeGreaterThanOrEqual(0);
     }
+    expect(parsed.results[0]?.profile.parseByLanguage.typescript).toMatchObject({
+      files: 1,
+      parseExtractionMs: 2,
+      sourceReadMs: 0.1,
+      normalizationMs: 0.2,
+      parserSetupMs: 0.3,
+      treeSitterMs: 0.4,
+      astExtractionMs: 0.5,
+      errorHandlingMs: 0.6,
+    });
     for (const phase of FINALIZATION_SUBPHASES) {
       expect(parsed.results[0]?.finalizationSubphases[phase]).toBeTypeOf('number');
       expect(parsed.results[0]?.finalizationSubphases[phase]).toBeGreaterThanOrEqual(0);
