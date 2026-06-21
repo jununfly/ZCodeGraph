@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-06-21T14:41:45.452Z",
+  "profilePath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-profile-zcodegraph-rust-profile-uB52ia/.zcodegraph/value-token-interface-rust-profile.json",
+  "dbPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-profile-zcodegraph-rust-profile-uB52ia/.zcodegraph/zcodegraph.db",
+  "sourceRoot": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-profile-zcodegraph-rust-profile-uB52ia",
+  "dataSource": "rustCore.esmNamedImportExportFallbackSamples",
+  "sourceFilesRead": 0,
+  "databaseOpened": true,
+  "resolvedEvidence": {
+    "overloadImplementationResolvedRefs": 0
+  },
+  "sampleSourceUnavailableReason": "No direct export candidate-multiple samples found",
+  "rowsInspected": 0,
+  "subtypes": {},
+  "largestSubtype": null,
+  "collisionSubtypes": {},
+  "boundedTieBreakCandidates": [],
+  "prerequisiteFirstSubtypes": [],
+  "noGoSubtypes": [],
+  "recommendedNextSlice": "no samples available",
+  "summary": {
+    "rowsInspected": 0,
+    "sampleSourceUnavailableReason": "No direct export candidate-multiple samples found",
+    "subtypes": {},
+    "largestSubtype": null,
+    "collisionSubtypes": {},
+    "boundedTieBreakCandidates": [],
+    "prerequisiteFirstSubtypes": [],
+    "noGoSubtypes": [],
+    "resolvedEvidence": {
+      "overloadImplementationResolvedRefs": 0
+    }
+  }
+}

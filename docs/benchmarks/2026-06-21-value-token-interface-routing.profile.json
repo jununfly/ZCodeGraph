@@ -1,0 +1,100 @@
+{
+  "generatedAt": "2026-06-21T14:46:20.311Z",
+  "conclusion": "keep-with-caveat",
+  "scope": "deterministic CLI/profile/taxonomy evidence; no agent A/B",
+  "currentRepo": {
+    "sourcePath": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph",
+    "tempProjectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-profile-zcodegraph-rust-profile-uB52ia",
+    "profilePath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-profile-zcodegraph-rust-profile-uB52ia/.zcodegraph/value-token-interface-rust-profile.json",
+    "taxonomyJson": "docs/benchmarks/2026-06-21-value-token-interface-current-taxonomy.json",
+    "taxonomyMarkdown": "docs/benchmarks/2026-06-21-value-token-interface-current-taxonomy.md",
+    "graphStats": {
+      "files": 307,
+      "nodes": 15663,
+      "edges": 33436,
+      "valueTokenInterfaceEdges": 0
+    },
+    "rustCore": {
+      "esmNamedImportExportResolvedRefs": 2454,
+      "esmNamedImportExportFallbackRefs": 1884,
+      "esmNamedImportExportFallbackSampleCounts": {
+        "direct-export-candidate-zero": 49,
+        "import-edge-target-not-found": 7,
+        "package-or-runtime-binding": 1271,
+        "type-only-import": 228,
+        "unsupported-import-shape": 329
+      },
+      "esmNamedImportExportFallbackSampleCap": {
+        "perBucket": 100,
+        "total": 2000,
+        "truncated": true
+      },
+      "parseExtractionMs": 1296,
+      "sqliteWriteMs": 656,
+      "esmNamedImportExportResolutionMs": 411
+    },
+    "rssUnavailableReason": "not collected by direct CLI profile; full comparison profile RSS remains sandbox-limited via process-list access"
+  },
+  "vscodeSparse": {
+    "sourcePath": "/private/tmp/codegraph-corpus/vscode-sparse",
+    "sourceCommit": "4a6e32fc1f0",
+    "tempProjectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-profile-vscode-sparse-rust-profile-TxJ39s",
+    "profilePath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-profile-vscode-sparse-rust-profile-TxJ39s/.zcodegraph/value-token-interface-rust-profile.json",
+    "taxonomyJson": "docs/benchmarks/2026-06-21-value-token-interface-vscode-sparse-taxonomy.json",
+    "taxonomyMarkdown": "docs/benchmarks/2026-06-21-value-token-interface-vscode-sparse-taxonomy.md",
+    "graphStats": {
+      "files": 5780,
+      "nodes": 327425,
+      "edges": 905484,
+      "valueTokenInterfaceEdges": 10235
+    },
+    "rustCore": {
+      "esmNamedImportExportResolvedRefs": 135567,
+      "esmNamedImportExportFallbackRefs": 28909,
+      "esmNamedImportExportFallbackSampleCounts": {
+        "direct-export-candidate-multiple": 5254,
+        "direct-export-candidate-zero": 10864,
+        "import-edge-target-not-found": 5783,
+        "package-or-runtime-binding": 1965,
+        "reexport-leaf-candidate-multiple": 20,
+        "reexport-leaf-candidate-zero": 123,
+        "same-file-export-specifier-candidate-zero": 58,
+        "type-only-import": 2759,
+        "unsupported-import-shape": 2083
+      },
+      "esmNamedImportExportFallbackSampleCap": {
+        "perBucket": 100,
+        "total": 2000,
+        "truncated": true
+      },
+      "parseExtractionMs": 23184,
+      "sqliteWriteMs": 21481,
+      "esmNamedImportExportResolutionMs": 62881
+    },
+    "residualTaxonomySummary": {
+      "rowsInspected": 100,
+      "subtypes": {
+        "ambient-declaration-merge": 3,
+        "function-overload-signature": 17,
+        "value-token-plus-interface": 80
+      },
+      "largestSubtype": "value-token-plus-interface",
+      "collisionSubtypes": {
+        "value-token-plus-interface": {
+          "count": 80,
+          "recommendation": "candidate-for-next-routing-slice"
+        }
+      },
+      "boundedTieBreakCandidates": [],
+      "prerequisiteFirstSubtypes": [
+        "ambient-declaration-merge",
+        "function-overload-signature"
+      ],
+      "noGoSubtypes": [],
+      "resolvedEvidence": {
+        "overloadImplementationResolvedRefs": 3766
+      }
+    },
+    "rssUnavailableReason": "not collected by direct CLI profile; full comparison profile RSS remains sandbox-limited via process-list access"
+  }
+}

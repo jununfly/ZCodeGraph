@@ -21,6 +21,7 @@ const IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP: usize = 100;
 const IMPORT_FALLBACK_SAMPLE_TOTAL_CAP: usize = 2000;
 const ESM_OVERLOAD_IMPLEMENTATION_RESOLVED_BY: &str =
     "rust-esm-named-import-export-overload-implementation";
+const ESM_VALUE_TOKEN_INTERFACE_RESOLVED_BY: &str = "rust-esm-value-token-interface";
 
 #[cfg(feature = "dhat")]
 pub type HeapProfilerGuard = dhat::Profiler;
@@ -2287,6 +2288,13 @@ fn resolve_esm_named_import_export_refs(
             continue;
         }
         let target_file_path = target_file_paths[0].clone();
+        let is_named_value_import = is_named_value_import_binding_line(
+            project_path,
+            &reference.file_path,
+            reference.line,
+            &reference.reference_name,
+            &mut file_content_cache,
+        );
         if !is_named_import_binding_line(
             project_path,
             &reference.file_path,
@@ -2351,6 +2359,50 @@ fn resolve_esm_named_import_export_refs(
                         }
                         stats.resolved_refs += 1;
                         stats.overload_implementation_resolved_refs += 1;
+                        resolved_ids.push(usage.id);
+                    }
+                    continue;
+                }
+            }
+            if lookup.resolved_by_attempt == "direct-export" {
+                let usage_refs = load_imported_symbol_usage_refs(
+                    conn,
+                    &reference.file_path,
+                    &reference.reference_name,
+                )?;
+                let has_value_usage = !usage_refs.is_empty()
+                    || has_decorator_token_usage(
+                        project_path,
+                        &reference.file_path,
+                        &reference.reference_name,
+                        &mut file_content_cache,
+                    );
+                if let Some(target) = select_value_token_interface_candidate(
+                    &lookup.candidates,
+                    is_named_value_import,
+                    has_value_usage,
+                ) {
+                    if insert_rust_import_symbol_edge(
+                        conn,
+                        &reference,
+                        &target.id,
+                        ESM_VALUE_TOKEN_INTERFACE_RESOLVED_BY,
+                    )? {
+                        stats.edges_created += 1;
+                    }
+                    stats.resolved_refs += 1;
+                    resolved_ids.push(reference.id);
+
+                    for usage in usage_refs {
+                        if insert_rust_imported_symbol_usage_edge(
+                            conn,
+                            &usage,
+                            &target.id,
+                            ESM_VALUE_TOKEN_INTERFACE_RESOLVED_BY,
+                        )? {
+                            stats.edges_created += 1;
+                        }
+                        stats.resolved_refs += 1;
                         resolved_ids.push(usage.id);
                     }
                     continue;
@@ -2431,6 +2483,19 @@ fn is_named_import_binding_line(
     named_import_list_contains(line_text, reference_name)
 }
 
+fn is_named_value_import_binding_line(
+    project_path: &Path,
+    file_path: &str,
+    line: i64,
+    reference_name: &str,
+    cache: &mut HashMap<String, String>,
+) -> bool {
+    let Some(line_text) = import_line_text(project_path, file_path, line, cache) else {
+        return false;
+    };
+    named_value_import_list_contains(line_text, reference_name)
+}
+
 fn is_package_or_runtime_import_line(
     project_path: &Path,
     file_path: &str,
@@ -2474,6 +2539,36 @@ fn named_import_list_contains(line_text: &str, reference_name: &str) -> bool {
     })
 }
 
+fn named_value_import_list_contains(line_text: &str, reference_name: &str) -> bool {
+    let trimmed = line_text.trim_start();
+    if !trimmed.starts_with("import ") || trimmed.starts_with("import type ") {
+        return false;
+    }
+    let Some(open) = line_text.find('{') else {
+        return false;
+    };
+    let Some(close_offset) = line_text[open + 1..].find('}') else {
+        return false;
+    };
+    let close = open + 1 + close_offset;
+    let specifiers = line_text[open + 1..close]
+        .split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>();
+    if specifiers.is_empty() || specifiers.iter().any(|part| part.starts_with("type ")) {
+        return false;
+    }
+    specifiers.iter().any(|part| {
+        let normalized = part.trim_start_matches("type ").trim();
+        let (imported, local) = normalized
+            .split_once(" as ")
+            .map(|(left, right)| (left.trim(), right.trim()))
+            .unwrap_or((normalized, normalized));
+        imported == reference_name || local == reference_name
+    })
+}
+
 fn import_line_module_specifier(line_text: &str) -> Option<String> {
     let from_index = line_text.find(" from ")?;
     let raw_specifier = line_text[from_index + " from ".len()..]
@@ -2486,6 +2581,44 @@ fn import_line_module_specifier(line_text: &str) -> Option<String> {
     } else {
         Some(specifier.to_string())
     }
+}
+
+fn has_decorator_token_usage(
+    project_path: &Path,
+    file_path: &str,
+    reference_name: &str,
+    cache: &mut HashMap<String, String>,
+) -> bool {
+    let Some(content) = cached_file_content(project_path, file_path, cache) else {
+        return false;
+    };
+    let needle = format!("@{reference_name}");
+    content.lines().any(|line| {
+        let trimmed = line.trim_start();
+        !trimmed.starts_with("import ") && token_occurs_on_line(line, &needle)
+    })
+}
+
+fn token_occurs_on_line(line: &str, token: &str) -> bool {
+    let mut start = 0;
+    while let Some(offset) = line[start..].find(token) {
+        let index = start + offset;
+        let after = index + token.len();
+        let before_ok = index == 0
+            || line[..index]
+                .chars()
+                .last()
+                .is_none_or(|ch| !is_identifier_char(ch) && ch != '@');
+        let after_ok = line[after..]
+            .chars()
+            .next()
+            .is_none_or(|ch| !is_identifier_char(ch));
+        if before_ok && after_ok {
+            return true;
+        }
+        start = after;
+    }
+    false
 }
 
 fn cached_file_content<'a>(
@@ -2563,6 +2696,29 @@ fn select_unique_overload_implementation_candidate<'a>(
 
     if implementation_indexes.len() == 1 {
         candidates.get(implementation_indexes[0])
+    } else {
+        None
+    }
+}
+
+fn select_value_token_interface_candidate<'a>(
+    candidates: &'a [SymbolCandidateRow],
+    is_named_value_import: bool,
+    has_value_usage: bool,
+) -> Option<&'a SymbolCandidateRow> {
+    if !is_named_value_import || !has_value_usage || candidates.len() != 2 {
+        return None;
+    }
+    let constant = candidates
+        .iter()
+        .filter(|candidate| candidate.kind == "constant")
+        .collect::<Vec<_>>();
+    let interface = candidates
+        .iter()
+        .filter(|candidate| candidate.kind == "interface")
+        .collect::<Vec<_>>();
+    if constant.len() == 1 && interface.len() == 1 {
+        constant.first().copied()
     } else {
         None
     }
