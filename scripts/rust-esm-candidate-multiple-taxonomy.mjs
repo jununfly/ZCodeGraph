@@ -82,9 +82,13 @@ function requiredValue(argv, index, flag) {
 function loadMultipleSamples(profilePath) {
   const profile = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
   const samples = profile?.rustCore?.esmNamedImportExportFallbackSamples;
+  const overloadImplementationResolvedRefs = Number(
+    profile?.rustCore?.esmNamedImportExportOverloadImplementationResolvedRefs ?? 0,
+  );
   if (!Array.isArray(samples)) {
     return {
       rows: [],
+      overloadImplementationResolvedRefs,
       unavailableReason:
         'rustCore.esmNamedImportExportFallbackSamples is missing or not an array',
     };
@@ -108,6 +112,7 @@ function loadMultipleSamples(profilePath) {
     }));
   return {
     rows,
+    overloadImplementationResolvedRefs,
     unavailableReason: rows.length === 0
       ? 'No direct export candidate-multiple samples found'
       : null,
@@ -259,7 +264,13 @@ function addSubtype(subtypes, subtype, row, candidates) {
   subtypes[subtype] = bucket;
 }
 
-function buildTaxonomy({ rows, profilePath, dbPath, sampleSourceUnavailableReason }) {
+function buildTaxonomy({
+  rows,
+  profilePath,
+  dbPath,
+  sampleSourceUnavailableReason,
+  overloadImplementationResolvedRefs,
+}) {
   const subtypes = {};
   let databaseOpened = false;
   let databaseUnavailableReason;
@@ -312,6 +323,9 @@ function buildTaxonomy({ rows, profilePath, dbPath, sampleSourceUnavailableReaso
     dataSource: 'rustCore.esmNamedImportExportFallbackSamples',
     sourceFilesRead: 0,
     databaseOpened,
+    resolvedEvidence: {
+      overloadImplementationResolvedRefs,
+    },
     sampleSourceUnavailableReason: sampleSourceUnavailableReason ?? undefined,
     databaseUnavailableReason,
     rowsInspected: rows.length,
@@ -336,6 +350,9 @@ function buildTaxonomy({ rows, profilePath, dbPath, sampleSourceUnavailableReaso
       boundedTieBreakCandidates,
       prerequisiteFirstSubtypes,
       noGoSubtypes,
+      resolvedEvidence: {
+        overloadImplementationResolvedRefs,
+      },
     },
   };
 }
@@ -387,6 +404,7 @@ function renderMarkdown(taxonomy) {
     `- Rows inspected: ${taxonomy.rowsInspected}`,
     `- Largest subtype: ${taxonomy.largestSubtype ?? 'none'}`,
     `- Recommended next slice: ${taxonomy.recommendedNextSlice}`,
+    `- Overload implementation resolved refs: ${taxonomy.resolvedEvidence.overloadImplementationResolvedRefs}`,
     '',
     '## Subtypes',
     '',
@@ -445,12 +463,13 @@ function main() {
   if (!fs.existsSync(args.profilePath)) {
     throw new Error(`Profile not found: ${args.profilePath}`);
   }
-  const { rows, unavailableReason } = loadMultipleSamples(args.profilePath);
+  const { rows, unavailableReason, overloadImplementationResolvedRefs } = loadMultipleSamples(args.profilePath);
   const taxonomy = buildTaxonomy({
     rows,
     profilePath: args.profilePath,
     dbPath: args.dbPath,
     sampleSourceUnavailableReason: unavailableReason,
+    overloadImplementationResolvedRefs,
   });
   const artifacts = writeArtifacts(taxonomy, args.outDir, args.prefix);
   process.stdout.write(`${JSON.stringify({ artifacts, summary: taxonomy.summary }, null, 2)}\n`);

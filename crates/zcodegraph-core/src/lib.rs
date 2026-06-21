@@ -19,6 +19,8 @@ const CURRENT_SCHEMA_VERSION: i64 = 4;
 const EXTRACTION_VERSION: i64 = 1;
 const IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP: usize = 100;
 const IMPORT_FALLBACK_SAMPLE_TOTAL_CAP: usize = 2000;
+const ESM_OVERLOAD_IMPLEMENTATION_RESOLVED_BY: &str =
+    "rust-esm-named-import-export-overload-implementation";
 
 #[cfg(feature = "dhat")]
 pub type HeapProfilerGuard = dhat::Profiler;
@@ -240,6 +242,7 @@ pub struct IndexProfile {
     pub esm_named_import_export_resolved_refs: u32,
     pub esm_named_import_export_fallback_refs: u32,
     pub esm_one_hop_reexport_resolved_refs: u32,
+    pub esm_named_import_export_overload_implementation_resolved_refs: u32,
     pub esm_named_import_export_fallback_sample_counts: BTreeMap<String, u32>,
     pub esm_named_import_export_fallback_samples: Vec<EsmNamedFallbackSample>,
     pub esm_named_import_export_fallback_sample_cap: ImportFallbackSampleCap,
@@ -1350,6 +1353,10 @@ fn write_index_to_connection(
     counts.profile.esm_one_hop_reexport_resolved_refs = esm_named_stats.reexport_resolved_refs;
     counts
         .profile
+        .esm_named_import_export_overload_implementation_resolved_refs =
+        esm_named_stats.overload_implementation_resolved_refs;
+    counts
+        .profile
         .esm_named_import_export_fallback_sample_counts = esm_named_stats.fallback_sample_counts;
     counts.profile.esm_named_import_export_fallback_samples = esm_named_stats.fallback_samples;
     counts.profile.esm_named_import_export_fallback_sample_cap = ImportFallbackSampleCap {
@@ -1467,6 +1474,7 @@ struct EsmNamedImportExportStats {
     edges_created: u32,
     fallback_refs: u32,
     reexport_resolved_refs: u32,
+    overload_implementation_resolved_refs: u32,
     fallback_sample_counts: BTreeMap<String, u32>,
     fallback_samples: Vec<EsmNamedFallbackSample>,
     fallback_bucket_sample_counts: HashMap<String, usize>,
@@ -2248,6 +2256,49 @@ fn resolve_esm_named_import_export_refs(
             &mut file_content_cache,
         )?;
         if lookup.candidates.len() != 1 {
+            if matches!(
+                lookup.resolved_by_attempt,
+                "direct-export" | "same-file-export-specifier"
+            ) {
+                if let Some(target) = select_unique_overload_implementation_candidate(
+                    project_path,
+                    &target_file_path,
+                    &lookup.candidates,
+                    &mut file_content_cache,
+                ) {
+                    if insert_rust_import_symbol_edge(
+                        conn,
+                        &reference,
+                        &target.id,
+                        ESM_OVERLOAD_IMPLEMENTATION_RESOLVED_BY,
+                    )? {
+                        stats.edges_created += 1;
+                    }
+                    stats.resolved_refs += 1;
+                    stats.overload_implementation_resolved_refs += 1;
+                    resolved_ids.push(reference.id);
+
+                    let usage_refs = load_imported_symbol_usage_refs(
+                        conn,
+                        &reference.file_path,
+                        &reference.reference_name,
+                    )?;
+                    for usage in usage_refs {
+                        if insert_rust_imported_symbol_usage_edge(
+                            conn,
+                            &usage,
+                            &target.id,
+                            ESM_OVERLOAD_IMPLEMENTATION_RESOLVED_BY,
+                        )? {
+                            stats.edges_created += 1;
+                        }
+                        stats.resolved_refs += 1;
+                        stats.overload_implementation_resolved_refs += 1;
+                        resolved_ids.push(usage.id);
+                    }
+                    continue;
+                }
+            }
             stats.record_fallback_sample(
                 lookup.fallback_reason,
                 &reference,
@@ -2412,6 +2463,54 @@ fn candidate_declaration_diagnostics(
     )
 }
 
+fn select_unique_overload_implementation_candidate<'a>(
+    project_path: &Path,
+    target_file_path: &str,
+    candidates: &'a [SymbolCandidateRow],
+    cache: &mut HashMap<String, String>,
+) -> Option<&'a SymbolCandidateRow> {
+    if is_typescript_declaration_file(target_file_path)
+        || candidates.is_empty()
+        || !candidates
+            .iter()
+            .all(|candidate| candidate.kind == "function")
+    {
+        return None;
+    }
+    let diagnostics =
+        candidate_declaration_diagnostics(project_path, target_file_path, candidates, cache)?;
+    if diagnostics.len() != candidates.len()
+        || diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.metadata_source == "unavailable")
+        || diagnostics.iter().any(|diagnostic| {
+            diagnostic.declaration_form.as_deref().unwrap_or("unknown") == "unknown"
+        })
+    {
+        return None;
+    }
+
+    let implementation_indexes = diagnostics
+        .iter()
+        .enumerate()
+        .filter_map(|(index, diagnostic)| {
+            let is_implementation = diagnostic.has_body == Some(true)
+                || diagnostic.declaration_form.as_deref() == Some("implementation");
+            if is_implementation {
+                Some(index)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    if implementation_indexes.len() == 1 {
+        candidates.get(implementation_indexes[0])
+    } else {
+        None
+    }
+}
+
 fn infer_candidate_declaration_diagnostic(
     target_file_path: &str,
     content: Option<&str>,
@@ -2442,9 +2541,7 @@ fn infer_candidate_declaration_diagnostic(
         diagnostic.declaration_form = Some("implementation".to_string());
         return diagnostic;
     }
-    if target_file_path.ends_with(".d.ts")
-        || target_file_path.ends_with(".d.mts")
-        || target_file_path.ends_with(".d.cts")
+    if is_typescript_declaration_file(target_file_path)
         || text.trim_end().ends_with(';')
         || text.trim_start().starts_with("declare function ")
     {
@@ -2452,6 +2549,10 @@ fn infer_candidate_declaration_diagnostic(
         diagnostic.declaration_form = Some("signature".to_string());
     }
     diagnostic
+}
+
+fn is_typescript_declaration_file(file_path: &str) -> bool {
+    file_path.ends_with(".d.ts") || file_path.ends_with(".d.mts") || file_path.ends_with(".d.cts")
 }
 
 fn line_range_text(content: &str, start_line: i64, end_line: i64) -> Option<String> {
@@ -4658,7 +4759,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -4698,6 +4799,9 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.esm_named_import_export_resolved_refs,
         result.profile.esm_named_import_export_fallback_refs,
         result.profile.esm_one_hop_reexport_resolved_refs,
+        result
+            .profile
+            .esm_named_import_export_overload_implementation_resolved_refs,
         fallback_sample_counts_json(&result.profile.esm_named_import_export_fallback_sample_counts),
         esm_named_fallback_samples_json(&result.profile.esm_named_import_export_fallback_samples),
         fallback_sample_cap_json(&result.profile.esm_named_import_export_fallback_sample_cap),
@@ -5325,7 +5429,7 @@ mod tests {
 
         assert_eq!(
             result_json(&result),
-            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"importPathAliasResolvedBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0},\"importPathAliasFallbackBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0,\"binding\":0,\"unsupported\":0,\"unresolved\":0},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":[],\"importPathAliasFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":[],\"esmNamedImportExportFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
+            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"importPathAliasResolvedBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0},\"importPathAliasFallbackBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0,\"binding\":0,\"unsupported\":0,\"unresolved\":0},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":[],\"importPathAliasFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"esmNamedImportExportOverloadImplementationResolvedRefs\":0,\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":[],\"esmNamedImportExportFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
         );
     }
 
@@ -5881,36 +5985,17 @@ mod tests {
         let result = run_index(&request);
 
         assert!(result.success, "{:?}", result.errors);
-        let sample = result
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_overload_implementation_resolved_refs,
+            2
+        );
+        assert!(result
             .profile
             .esm_named_import_export_fallback_samples
             .iter()
-            .find(|sample| sample.reason == "direct-export-candidate-multiple")
-            .expect("expected overload candidate-multiple fallback sample");
-        let candidates = sample
-            .candidate_line_ranges
-            .as_ref()
-            .expect("candidate metadata should be attached to candidate-multiple samples");
-        assert_eq!(candidates.len(), 3);
-        assert_eq!(
-            candidates
-                .iter()
-                .map(|candidate| candidate.declaration_form.as_deref())
-                .collect::<Vec<_>>(),
-            vec![Some("signature"), Some("signature"), Some("implementation")]
-        );
-        assert_eq!(
-            candidates
-                .iter()
-                .map(|candidate| candidate.has_body)
-                .collect::<Vec<_>>(),
-            vec![Some(false), Some(false), Some(true)]
-        );
-        assert!(
-            candidates
-                .iter()
-                .all(|candidate| candidate.metadata_source == "target-file-line-range-inference")
-        );
+            .all(|sample| sample.reference_name != "parseThing"));
 
         fs::remove_dir_all(dir).unwrap();
     }

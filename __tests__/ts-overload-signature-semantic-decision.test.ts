@@ -26,6 +26,9 @@ describe('TypeScript overload/signature semantic decision script', () => {
       taxonomyPath,
       JSON.stringify({
         rowsInspected: 4,
+        resolvedEvidence: {
+          overloadImplementationResolvedRefs: 3,
+        },
         profilePath: '/tmp/profile.json',
         dbPath: '/tmp/zcodegraph.db',
         subtypes: {
@@ -100,7 +103,7 @@ describe('TypeScript overload/signature semantic decision script', () => {
     };
     expect(parsed.summary.metadataSufficiency).toBe('sufficient-when-exactly-one-implementation-marker-exists');
     expect(parsed.summary.recommendedNextSlice).toBe(
-      'implement a bounded candidate-multiple tie-break guarded by the safe prerequisites',
+      'keep guarded overload implementation routing enabled and investigate remaining candidate-multiple subtypes',
     );
     expect(parsed.summary.fixtureCoverage).toMatchObject({
       overloadSignaturesPlusOneImplementation: 1,
@@ -121,7 +124,9 @@ describe('TypeScript overload/signature semantic decision script', () => {
         safeTieBreakPrerequisites: string[];
       };
       parallelToolingFollowUp: { issue: number; relationship: string };
+      resolvedEvidence: { overloadImplementationResolvedRefs: number };
     };
+    expect(artifact.resolvedEvidence.overloadImplementationResolvedRefs).toBe(3);
     expect(artifact.sourceFilesRead).toBe(0);
     expect(artifact.resolverBehaviorChanged).toBe(false);
     expect(artifact.performanceClaimed).toBe(false);

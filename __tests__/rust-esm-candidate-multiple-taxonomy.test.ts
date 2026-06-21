@@ -53,6 +53,7 @@ describe('Rust ESM direct export candidate-multiple taxonomy script', () => {
       profilePath,
       JSON.stringify({
         rustCore: {
+          esmNamedImportExportOverloadImplementationResolvedRefs: 3,
           esmNamedImportExportFallbackSamples: [
             {
               reason: 'direct-export-candidate-multiple',
@@ -169,7 +170,9 @@ describe('Rust ESM direct export candidate-multiple taxonomy script', () => {
       }>;
       boundedTieBreakCandidates: string[];
       noGoSubtypes: string[];
+      resolvedEvidence: { overloadImplementationResolvedRefs: number };
     };
+    expect(artifact.resolvedEvidence.overloadImplementationResolvedRefs).toBe(3);
     expect(artifact.databaseOpened).toBe(true);
     expect(artifact.sourceFilesRead).toBe(0);
     expect(artifact.subtypes['duplicate-extraction'].decisionPosture).toBe('prerequisite-first');

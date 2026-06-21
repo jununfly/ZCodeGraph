@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2026-06-21T10:03:20.184Z",
+  "profilePath": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/docs/benchmarks/2026-06-21-ts-overload-implementation-current.profile.json",
+  "dbPath": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/.zcodegraph/zcodegraph.db",
+  "dataSource": "rustCore.esmNamedImportExportFallbackSamples",
+  "sourceFilesRead": 0,
+  "databaseOpened": true,
+  "resolvedEvidence": {
+    "overloadImplementationResolvedRefs": 0
+  },
+  "sampleSourceUnavailableReason": "No direct export candidate-multiple samples found",
+  "rowsInspected": 0,
+  "subtypes": {},
+  "largestSubtype": null,
+  "boundedTieBreakCandidates": [],
+  "prerequisiteFirstSubtypes": [],
+  "noGoSubtypes": [],
+  "recommendedNextSlice": "no samples available",
+  "summary": {
+    "rowsInspected": 0,
+    "sampleSourceUnavailableReason": "No direct export candidate-multiple samples found",
+    "subtypes": {},
+    "largestSubtype": null,
+    "boundedTieBreakCandidates": [],
+    "prerequisiteFirstSubtypes": [],
+    "noGoSubtypes": [],
+    "resolvedEvidence": {
+      "overloadImplementationResolvedRefs": 0
+    }
+  }
+}

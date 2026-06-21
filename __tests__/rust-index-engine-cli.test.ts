@@ -1908,6 +1908,140 @@ describe('zcodegraph index engine selection', () => {
     );
   }, 30_000);
 
+  it('resolves guarded TypeScript overload implementations and keeps no-go cases as fallback', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'direct.ts'),
+      [
+        'export function parseDirect(value: string): string;',
+        'export function parseDirect(value: number): string;',
+        'export function parseDirect(value: string | number) {',
+        '  return String(value);',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'same-file.ts'),
+      [
+        'function parseSameFile(value: string): string;',
+        'function parseSameFile(value: number): string;',
+        'function parseSameFile(value: string | number) {',
+        '  return String(value);',
+        '}',
+        'export { parseSameFile };',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'ambient.ts'),
+      [
+        'export declare function ambientOnly(value: string): string;',
+        'export declare function ambientOnly(value: number): string;',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'types.d.ts'),
+      [
+        'export declare function declaredOnly(value: string): string;',
+        'export declare function declaredOnly(value: number): string;',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'collision.ts'),
+      [
+        'export type Collided = { value: string };',
+        "export const Collided = { value: 'x' };",
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'main.ts'),
+      [
+        'import { parseDirect } from "./direct";',
+        'import { parseSameFile } from "./same-file";',
+        'import { ambientOnly } from "./ambient";',
+        'import { declaredOnly } from "./types";',
+        'import { Collided } from "./collision";',
+        'export function useOverloads() {',
+        "  return [parseDirect('x'), parseSameFile('x'), ambientOnly('x'), declaredOnly('x'), Collided];",
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-overload-implementation-profile.json');
+    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const mainFile = cg.searchNodes('main.ts').find((match) => match.node.kind === 'file')?.node;
+      const entry = cg.searchNodes('useOverloads').find((match) => match.node.kind === 'function')?.node;
+      const directImplementation = cg.searchNodes('parseDirect')
+        .find((match) => match.node.kind === 'function' && match.node.filePath === 'src/direct.ts' && match.node.startLine === 3)?.node;
+      const sameFileImplementation = cg.searchNodes('parseSameFile')
+        .find((match) => match.node.kind === 'function' && match.node.filePath === 'src/same-file.ts' && match.node.startLine === 3)?.node;
+      expect(mainFile).toBeDefined();
+      expect(entry).toBeDefined();
+      expect(directImplementation).toBeDefined();
+      expect(sameFileImplementation).toBeDefined();
+
+      const importEdges = cg.getOutgoingEdges(mainFile!.id).filter((edge) => edge.kind === 'imports');
+      expect(importEdges).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          target: directImplementation!.id,
+          edgeOrigin: 'rust-finalization',
+          metadata: expect.objectContaining({
+            resolvedBy: 'rust-esm-named-import-export-overload-implementation',
+          }),
+        }),
+        expect.objectContaining({
+          target: sameFileImplementation!.id,
+          edgeOrigin: 'rust-finalization',
+          metadata: expect.objectContaining({
+            resolvedBy: 'rust-esm-named-import-export-overload-implementation',
+          }),
+        }),
+      ]));
+
+      const calls = cg.getOutgoingEdges(entry!.id).filter((edge) => edge.kind === 'calls');
+      expect(calls).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          target: directImplementation!.id,
+          edgeOrigin: 'rust-finalization',
+          metadata: expect.objectContaining({
+            resolvedBy: 'rust-esm-named-import-export-overload-implementation',
+          }),
+        }),
+        expect.objectContaining({
+          target: sameFileImplementation!.id,
+          edgeOrigin: 'rust-finalization',
+          metadata: expect.objectContaining({
+            resolvedBy: 'rust-esm-named-import-export-overload-implementation',
+          }),
+        }),
+      ]));
+
+      for (const name of ['ambientOnly', 'declaredOnly', 'Collided']) {
+        const noGoTargets = cg.searchNodes(name).map((match) => match.node.id);
+        expect(importEdges.some((edge) => noGoTargets.includes(edge.target) && edge.edgeOrigin === 'rust-finalization')).toBe(false);
+      }
+    } finally {
+      cg.close();
+    }
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      rustCore: {
+        esmNamedImportExportOverloadImplementationResolvedRefs?: number;
+        esmNamedImportExportFallbackSampleCounts: Record<string, number>;
+      };
+    };
+    expect(profile.rustCore.esmNamedImportExportOverloadImplementationResolvedRefs).toBe(4);
+    expect(profile.rustCore.esmNamedImportExportFallbackSampleCounts).toMatchObject({
+      'direct-export-candidate-multiple': 3,
+    });
+  }, 30_000);
+
   it('resolves one-hop ESM named re-exports to final leaf symbols as Rust-owned edges', () => {
     fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
     fs.writeFileSync(

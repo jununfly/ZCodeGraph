@@ -125,6 +125,11 @@ function summarizeExamples(taxonomy) {
 function buildDecision({ taxonomy, taxonomyPath, vscodeSparseCommit, profilePath, dbPath }) {
   const fixtureSummary = summarizeExamples(taxonomy);
   const functionOverloadBucket = taxonomy?.subtypes?.['function-overload-signature'];
+  const overloadImplementationResolvedRefs = Number(
+    taxonomy?.resolvedEvidence?.overloadImplementationResolvedRefs
+    ?? taxonomy?.summary?.resolvedEvidence?.overloadImplementationResolvedRefs
+    ?? 0,
+  );
   const currentArtifactsHaveImplementationMetadata =
     fixtureSummary.overloadWithOneImplementation.length > 0
     || examplesFor(taxonomy, 'function-overload-signature').some((example) =>
@@ -158,6 +163,9 @@ function buildDecision({ taxonomy, taxonomyPath, vscodeSparseCommit, profilePath
         Object.entries(taxonomy?.subtypes ?? {}).map(([subtype, bucket]) => [subtype, bucket.count ?? 0]),
       ),
     },
+    resolvedEvidence: {
+      overloadImplementationResolvedRefs,
+    },
     semanticDecision: {
       importEdgeTarget:
         'runtime/value ESM named import edges should target the implementation declaration only when exactly one clear implementation declaration exists',
@@ -190,7 +198,9 @@ function buildDecision({ taxonomy, taxonomyPath, vscodeSparseCommit, profilePath
       typeValueNamespaceCollision: fixtureSummary.namespaceCollisionExamples.length,
       signatureOnlyMarkerSeen: fixtureSummary.hasSignatureOnlyFixture,
     },
-    recommendedNextSlice: metadataSufficiency === 'insufficient-missing-implementation-declaration-marker'
+    recommendedNextSlice: overloadImplementationResolvedRefs > 0
+      ? 'keep guarded overload implementation routing enabled and investigate remaining candidate-multiple subtypes'
+      : metadataSufficiency === 'insufficient-missing-implementation-declaration-marker'
       ? 'add implementation-declaration metadata before changing resolver behavior'
       : 'implement a bounded candidate-multiple tie-break guarded by the safe prerequisites',
   };
@@ -218,6 +228,7 @@ function renderMarkdown(decision) {
     `- Imported usage edge target: ${decision.semanticDecision.importedUsageEdgeTarget}.`,
     `- Overload signature rule: ${decision.semanticDecision.overloadSignatureRule}.`,
     `- Metadata sufficiency: ${decision.metadataSufficiency}.`,
+    `- Overload implementation resolved refs: ${decision.resolvedEvidence.overloadImplementationResolvedRefs}.`,
     `- Recommended next slice: ${decision.recommendedNextSlice}.`,
     '',
     '## No-Go Rules',
