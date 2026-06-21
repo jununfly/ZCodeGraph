@@ -4204,13 +4204,15 @@ fn visit_js_node(
     let node = cursor.node();
     let mut child_from_node_id: Cow<'_, str> = Cow::Borrowed(current_from_node_id);
 
-    if let Some((kind, name_node)) = extract_named_symbol(node, source, language, features)? {
-        let mut name = name_node.utf8_text(source)?.to_string();
-        if matches!(kind, "import" | "export") {
-            name = trim_string_literal(&name).to_string();
-        }
-        let extracted =
-            ExtractedNode::symbol(relative_path, kind, &name, node, language.codegraph_name());
+    if let Some(symbol) = extract_named_symbol(node, source, language, features)? {
+        let kind = symbol.kind;
+        let extracted = ExtractedNode::symbol(
+            relative_path,
+            kind,
+            &symbol.name,
+            node,
+            language.codegraph_name(),
+        );
         let extracted_id = extracted.id.clone();
         let contains_source = if current_from_node_id != file_node_id
             && matches!(kind, "method" | "field" | "property")
@@ -4264,12 +4266,17 @@ fn visit_js_node(
     Ok(())
 }
 
+struct JsSymbolCandidate {
+    kind: &'static str,
+    name: String,
+}
+
 fn extract_named_symbol<'a>(
     node: SyntaxNode<'a>,
     source: &[u8],
     language: SourceLanguage,
     features: GraphWorkFeatures,
-) -> Result<Option<(&'static str, SyntaxNode<'a>)>, Box<dyn std::error::Error>> {
+) -> Result<Option<JsSymbolCandidate>, Box<dyn std::error::Error>> {
     if matches!(
         node.kind(),
         "function_declaration"
@@ -4293,7 +4300,10 @@ fn extract_named_symbol<'a>(
             } else {
                 "class"
             };
-            return Ok(Some((kind, name_node)));
+            return Ok(Some(JsSymbolCandidate {
+                kind,
+                name: name.to_string(),
+            }));
         }
     }
 
@@ -4314,7 +4324,8 @@ fn extract_named_symbol<'a>(
             } else {
                 "export"
             };
-            return Ok(Some((kind, name_node)));
+            let name = trim_string_literal(name_node.utf8_text(source)?).to_string();
+            return Ok(Some(JsSymbolCandidate { kind, name }));
         }
     }
 
@@ -4335,7 +4346,10 @@ fn extract_named_symbol<'a>(
     };
     if let Some(kind) = kind {
         if let Some(name_node) = node.child_by_field_name("name") {
-            return Ok(Some((kind, name_node)));
+            return Ok(Some(JsSymbolCandidate {
+                kind,
+                name: name_node.utf8_text(source)?.to_string(),
+            }));
         }
     }
 
@@ -4349,15 +4363,24 @@ fn extract_named_symbol<'a>(
                 if let Some(name_node) = child.child_by_field_name("name") {
                     let name = name_node.utf8_text(source)?;
                     if features.component_detection && language.has_jsx() && is_pascal_case(name) {
-                        return Ok(Some(("component", name_node)));
+                        return Ok(Some(JsSymbolCandidate {
+                            kind: "component",
+                            name: name.to_string(),
+                        }));
                     }
                     if variable_declarator_has_function_value(child) {
-                        return Ok(Some(("function", name_node)));
+                        return Ok(Some(JsSymbolCandidate {
+                            kind: "function",
+                            name: name.to_string(),
+                        }));
                     }
                     if kind == "constant" && !features.constant_extraction {
                         return Ok(None);
                     }
-                    return Ok(Some((kind, name_node)));
+                    return Ok(Some(JsSymbolCandidate {
+                        kind,
+                        name: name.to_string(),
+                    }));
                 }
             }
         }
@@ -4404,6 +4427,7 @@ fn extract_statement_refs(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match node.kind() {
         "import_statement" => {
+            let statement = node.utf8_text(source)?;
             if let Some(module_node) = module_literal_node(node) {
                 let module = trim_string_literal(module_node.utf8_text(source)?).to_string();
                 push_ref(
@@ -4416,7 +4440,7 @@ fn extract_statement_refs(
                     language,
                 );
             }
-            for binding in import_export_binding_names(node.utf8_text(source)?) {
+            for binding in import_export_binding_names(statement) {
                 push_ref(
                     unresolved_refs,
                     from_node_id,
@@ -4429,6 +4453,7 @@ fn extract_statement_refs(
             }
         }
         "export_statement" if features.export_extraction => {
+            let statement = node.utf8_text(source)?;
             if let Some(module_node) = module_literal_node(node) {
                 let module = trim_string_literal(module_node.utf8_text(source)?).to_string();
                 push_ref(
@@ -4441,7 +4466,7 @@ fn extract_statement_refs(
                     language,
                 );
             }
-            for binding in import_export_binding_names(node.utf8_text(source)?) {
+            for binding in import_export_binding_names(statement) {
                 push_ref(
                     unresolved_refs,
                     from_node_id,
@@ -4494,7 +4519,7 @@ fn extract_statement_refs(
     Ok(())
 }
 
-fn import_export_binding_names(statement: &str) -> Vec<String> {
+fn import_export_binding_names(statement: &str) -> Vec<&str> {
     let Some(open) = statement.find('{') else {
         return Vec::new();
     };
@@ -4517,7 +4542,7 @@ fn import_export_binding_names(statement: &str) -> Vec<String> {
             if imported.is_empty() || imported == "type" {
                 return None;
             }
-            Some(imported.trim_start_matches("type ").to_string())
+            Some(imported.trim_start_matches("type "))
         })
         .collect()
 }
@@ -6484,6 +6509,179 @@ mod tests {
             assert!(count_kind("class") >= 1);
             assert!(count_kind("method") >= 1);
         }
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_preserves_js_ts_import_export_binding_refs_for_text_reuse() {
+        let dir = temp_dir("js-ts-import-export-text-reuse");
+        fs::write(
+            dir.join("source.ts"),
+            [
+                "export const alpha = 1;",
+                "export function beta() { return alpha; }",
+                "export class Widget {}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("barrel.ts"),
+            [
+                "export { alpha, beta as renamedBeta, type Widget } from './source';",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("consumer.ts"),
+            [
+                "import { alpha, beta as localBeta, type Widget } from './source';",
+                "export const total = alpha + localBeta();",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let node_count = |kind: &str, name: &str| -> i64 {
+            conn.query_row(
+                "SELECT COUNT(*) FROM nodes WHERE kind = ?1 AND name = ?2",
+                params![kind, name],
+                |row| row.get(0),
+            )
+            .unwrap()
+        };
+        assert_eq!(node_count("constant", "alpha"), 1);
+        assert_eq!(node_count("function", "beta"), 1);
+        assert_eq!(node_count("class", "Widget"), 1);
+        assert_eq!(node_count("constant", "total"), 1);
+
+        let mut unresolved_stmt = conn
+            .prepare(
+                "SELECT file_path, reference_kind, reference_name, language
+                 FROM unresolved_refs
+                 WHERE file_path IN ('barrel.ts', 'consumer.ts')
+                 ORDER BY file_path, reference_kind, reference_name",
+            )
+            .unwrap();
+        let unresolved_refs = unresolved_stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            unresolved_refs,
+            vec![
+                (
+                    "barrel.ts".to_string(),
+                    "exports".to_string(),
+                    "./source".to_string(),
+                    "typescript".to_string()
+                ),
+                (
+                    "barrel.ts".to_string(),
+                    "exports".to_string(),
+                    "Widget".to_string(),
+                    "typescript".to_string()
+                ),
+                (
+                    "barrel.ts".to_string(),
+                    "exports".to_string(),
+                    "alpha".to_string(),
+                    "typescript".to_string()
+                ),
+                (
+                    "barrel.ts".to_string(),
+                    "exports".to_string(),
+                    "beta".to_string(),
+                    "typescript".to_string()
+                ),
+                (
+                    "consumer.ts".to_string(),
+                    "calls".to_string(),
+                    "localBeta".to_string(),
+                    "typescript".to_string()
+                ),
+                (
+                    "consumer.ts".to_string(),
+                    "imports".to_string(),
+                    "beta".to_string(),
+                    "typescript".to_string()
+                ),
+            ]
+        );
+        let mut edge_stmt = conn
+            .prepare(
+                "SELECT target.kind, target.name, target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND source.file_path = 'consumer.ts'
+                 ORDER BY target.kind, target.name, target.file_path",
+            )
+            .unwrap();
+        let import_edges = edge_stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            import_edges,
+            vec![
+                (
+                    "class".to_string(),
+                    "Widget".to_string(),
+                    "source.ts".to_string()
+                ),
+                (
+                    "constant".to_string(),
+                    "alpha".to_string(),
+                    "source.ts".to_string()
+                ),
+                (
+                    "file".to_string(),
+                    "source.ts".to_string(),
+                    "source.ts".to_string()
+                ),
+            ]
+        );
+
         fs::remove_dir_all(dir).unwrap();
     }
 
