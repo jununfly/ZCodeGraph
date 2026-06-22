@@ -175,6 +175,7 @@ describe('Resolution Module', () => {
         },
         insertValidatedEdges: (edges: Edge[]) => {
           inserted.push(...edges);
+          return { serializationMs: 0, serializedBytes: 0 };
         },
         deleteSpecificResolvedReferences: () => undefined,
         deleteUnresolvedReferencesByRowIds: () => undefined,
@@ -326,6 +327,19 @@ describe('Resolution Module', () => {
           },
         ]);
 
+        const rowIdDeletes: number[][] = [];
+        const rowIdRangeDeletes: number[][] = [];
+        const deleteByRowIds = queries.deleteUnresolvedReferencesByRowIds.bind(queries);
+        const deleteByRowIdRanges = queries.deleteUnresolvedReferencesByRowIdRanges.bind(queries);
+        queries.deleteUnresolvedReferencesByRowIds = (rowids: number[]) => {
+          rowIdDeletes.push(rowids);
+          deleteByRowIds(rowids);
+        };
+        queries.deleteUnresolvedReferencesByRowIdRanges = (rowids: number[]) => {
+          rowIdRangeDeletes.push(rowids);
+          deleteByRowIdRanges(rowids);
+        };
+
         const resolver = new ReferenceResolver(tempDir, queries);
         const result = await resolver.resolveAndPersistBatched(undefined, 600);
 
@@ -336,6 +350,11 @@ describe('Resolution Module', () => {
           resolvedCleanupRowCount: 505,
           intentionallyUnresolvedCleanupRowCount: 1,
         });
+        expect(rowIdDeletes).toEqual([]);
+        expect(rowIdRangeDeletes).toEqual([
+          Array.from({ length: 505 }, (_, index) => index + 1),
+          [506],
+        ]);
       });
     });
   });

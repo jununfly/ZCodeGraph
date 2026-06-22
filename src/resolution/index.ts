@@ -1345,7 +1345,7 @@ export class ReferenceResolver {
       }
       if (result.unresolved.length > 0) {
         const cleanupStarted = Date.now();
-        this.deleteResolvedOriginals(result.unresolved);
+        this.deleteResolvedOriginals(result.unresolved, { preferRowIdRanges: true });
         aggregateStats.timings.intentionallyUnresolvedCleanupRowCount =
           (aggregateStats.timings.intentionallyUnresolvedCleanupRowCount ?? 0) + result.unresolved.length;
         addElapsed(aggregateStats.timings, 'databaseAccessMs', cleanupStarted);
