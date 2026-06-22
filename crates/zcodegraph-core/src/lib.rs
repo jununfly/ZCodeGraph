@@ -269,6 +269,7 @@ pub struct IndexProfile {
     pub module_resolution_shadow_parity_counts: BTreeMap<String, u32>,
     pub module_resolution_shadow_samples: Vec<ModuleResolutionDecisionRecord>,
     pub module_resolution_shadow_sample_cap: ImportFallbackSampleCap,
+    pub module_resolution_effective_mode_source: String,
     pub module_resolution_guarded_edge_write_attempted_refs: u32,
     pub module_resolution_guarded_edge_write_written_refs: u32,
     pub module_resolution_guarded_edge_write_skipped_refs: u32,
@@ -365,6 +366,7 @@ pub struct EsmNamedFallbackSample {
 #[serde(rename_all = "camelCase")]
 pub struct ModuleResolutionCompilerOptionsSummary {
     pub module_resolution: Option<String>,
+    pub module_resolution_source: Option<String>,
     pub module: Option<String>,
     pub base_url: Option<String>,
     pub paths: BTreeMap<String, Vec<String>>,
@@ -390,6 +392,7 @@ pub struct ModuleResolutionDecisionRecord {
     pub specifier: String,
     pub source_file: String,
     pub module_resolution_mode: String,
+    pub module_resolution_mode_source: String,
     pub resolved_kind: String,
     pub resolved_path: Option<String>,
     pub is_external_library_import: bool,
@@ -1447,6 +1450,8 @@ fn write_index_to_connection(
         total: IMPORT_FALLBACK_SAMPLE_TOTAL_CAP,
         truncated: module_resolution_shadow.samples_truncated,
     };
+    counts.profile.module_resolution_effective_mode_source =
+        module_resolution_shadow.effective_mode_source;
     let import_resolution_started = Instant::now();
     let import_stats = resolve_js_ts_file_imports(conn, Path::new(&request.project_path))?;
     counts.profile.import_path_alias_resolution_ms =
@@ -1594,6 +1599,7 @@ struct ModuleResolutionShadowDiagnostics {
     samples: Vec<ModuleResolutionDecisionRecord>,
     sample_bucket_counts: HashMap<String, usize>,
     samples_truncated: bool,
+    effective_mode_source: String,
 }
 
 impl ModuleResolutionShadowDiagnostics {
@@ -1887,9 +1893,10 @@ struct LocalRefRow {
 
 #[derive(Debug, Default)]
 struct TsPathAliases {
-    base_url: PathBuf,
     patterns: Vec<TsPathAliasPattern>,
     root_dirs: Vec<PathBuf>,
+    module_resolution_mode: String,
+    module_resolution_mode_source: String,
 }
 
 #[derive(Debug)]
@@ -1901,6 +1908,7 @@ struct TsPathAliasPattern {
 
 #[derive(Debug)]
 struct TsPathAliasTarget {
+    base_path: PathBuf,
     prefix: String,
     suffix: String,
 }
@@ -1960,9 +1968,15 @@ impl RepoLocalPackageNames {
         &self,
         from_file_path: &str,
         specifier: &str,
+        module_resolution_mode: &str,
     ) -> PackageImportsResolution {
         if !specifier.starts_with('#') {
             return PackageImportsResolution::NotPackageImport;
+        }
+        if module_resolution_mode == "classic" {
+            return PackageImportsResolution::Unsupported(
+                "moduleResolutionClassicPackageMapsUnsupported",
+            );
         }
         let Some(package) = self.nearest_package_for_file(from_file_path) else {
             return PackageImportsResolution::MissingPackageBoundary;
@@ -1970,7 +1984,7 @@ impl RepoLocalPackageNames {
         let Some(imports) = &package.imports else {
             return PackageImportsResolution::MissingImportsMap;
         };
-        match resolve_package_imports_map(imports, specifier) {
+        match resolve_package_imports_map(imports, specifier, module_resolution_mode) {
             PackageImportsMapResolution::Resolved(target) => {
                 let target = Path::new(&package.dir).join(target);
                 if !path_stays_within_package(&target, &package.dir) {
@@ -1990,7 +2004,11 @@ impl RepoLocalPackageNames {
         }
     }
 
-    fn resolve_import(&self, specifier: &str) -> PackageSelfNameResolution {
+    fn resolve_import(
+        &self,
+        specifier: &str,
+        module_resolution_mode: &str,
+    ) -> PackageSelfNameResolution {
         let Some(best_name) = self.best_name_match(specifier) else {
             return PackageSelfNameResolution::MissingPackageName;
         };
@@ -2004,7 +2022,12 @@ impl RepoLocalPackageNames {
         let subpath = specifier[best_name.len()..].trim_start_matches('/');
         let fallback_target = package_root_fallback_target(&package.dir, subpath);
         if let Some(exports) = &package.exports {
-            match resolve_simple_package_exports(exports, subpath) {
+            if module_resolution_mode == "classic" {
+                return PackageSelfNameResolution::UnsupportedExports(
+                    "moduleResolutionClassicPackageMapsUnsupported",
+                );
+            }
+            match resolve_simple_package_exports(exports, subpath, module_resolution_mode) {
                 PackageExportsResolution::Resolved(target) => {
                     return PackageSelfNameResolution::Matched {
                         target: Path::new(&package.dir).join(target),
@@ -2094,6 +2117,14 @@ enum PackageImportsMapResolution {
     Unsupported(&'static str),
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum RootDirsResolution {
+    Resolved(String),
+    TargetNotFound,
+    ConfigOutOfScope,
+    NotConfigured,
+}
+
 fn resolve_js_ts_file_imports(
     conn: &Connection,
     project_path: &Path,
@@ -2130,7 +2161,11 @@ fn resolve_js_ts_file_imports(
         } else if workspace_packages.resolve_import(specifier).is_some() {
             (ImportTargetSourceKind::WorkspacePackage, None, Vec::new())
         } else if specifier.starts_with('#') {
-            match package_self_names.resolve_package_import(&reference.file_path, specifier) {
+            match package_self_names.resolve_package_import(
+                &reference.file_path,
+                specifier,
+                &aliases.module_resolution_mode,
+            ) {
                 PackageImportsResolution::MissingPackageBoundary => (
                     ImportTargetSourceKind::PackageImports,
                     None,
@@ -2152,7 +2187,7 @@ fn resolve_js_ts_file_imports(
                 }
             }
         } else {
-            match package_self_names.resolve_import(specifier) {
+            match package_self_names.resolve_import(specifier, &aliases.module_resolution_mode) {
                 PackageSelfNameResolution::AmbiguousName => (
                     ImportTargetSourceKind::PackageSelfName,
                     None,
@@ -2247,13 +2282,13 @@ fn build_module_resolution_shadow_diagnostics(
     let aliases = load_ts_path_aliases(project_path);
     let workspace_packages = load_workspace_packages(project_path);
     let package_self_names = load_repo_local_package_names(project_path);
-    let compiler_options = load_module_resolution_compiler_options_summary(project_path);
-    let module_resolution_mode = compiler_options
-        .module_resolution
-        .clone()
-        .unwrap_or_else(|| "node10".to_string());
+    let module_resolution_mode = aliases.module_resolution_mode.clone();
+    let module_resolution_mode_source = aliases.module_resolution_mode_source.clone();
     let refs = load_import_refs(conn)?;
-    let mut diagnostics = ModuleResolutionShadowDiagnostics::default();
+    let mut diagnostics = ModuleResolutionShadowDiagnostics {
+        effective_mode_source: module_resolution_mode_source.clone(),
+        ..ModuleResolutionShadowDiagnostics::default()
+    };
     let mut file_content_cache = HashMap::new();
 
     for reference in refs {
@@ -2290,6 +2325,7 @@ fn build_module_resolution_shadow_diagnostics(
             specifier,
             source_file: reference.file_path,
             module_resolution_mode: module_resolution_mode.clone(),
+            module_resolution_mode_source: module_resolution_mode_source.clone(),
             resolved_kind,
             resolved_path,
             is_external_library_import: matches!(
@@ -2297,7 +2333,10 @@ fn build_module_resolution_shadow_diagnostics(
                 Some("node-runtime-builtin") | Some("package-or-runtime-import")
             ),
             failed_lookup_category,
-            condition_set: Vec::new(),
+            condition_set: package_condition_order(&module_resolution_mode)
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
             parity_status: "unknown".to_string(),
             fallback_reason,
         });
@@ -2314,7 +2353,7 @@ fn classify_module_resolution_shadow_decision(
     reference: &ImportRefRow,
     specifier: &str,
 ) -> (String, Option<String>, Option<String>, Option<String>) {
-    if let Some((source, target, _outcomes)) = resolve_import_target(
+    if let Some((source, target, outcomes)) = resolve_import_target(
         project_path,
         aliases,
         workspace_packages,
@@ -2329,7 +2368,13 @@ fn classify_module_resolution_shadow_decision(
         return (
             kind,
             None,
-            Some(source.target_not_found_reason().to_string()),
+            Some(
+                outcomes
+                    .first()
+                    .copied()
+                    .unwrap_or_else(|| source.target_not_found_reason())
+                    .to_string(),
+            ),
             Some("rust-shadow-could-not-resolve-file-target".to_string()),
         );
     }
@@ -2359,7 +2404,11 @@ fn classify_module_resolution_shadow_decision(
         );
     }
     if specifier.starts_with('#') {
-        return match package_self_names.resolve_package_import(&reference.file_path, specifier) {
+        return match package_self_names.resolve_package_import(
+            &reference.file_path,
+            specifier,
+            &aliases.module_resolution_mode,
+        ) {
             PackageImportsResolution::MissingPackageBoundary => (
                 "packageImports".to_string(),
                 None,
@@ -2387,7 +2436,7 @@ fn classify_module_resolution_shadow_decision(
             ),
         };
     }
-    match package_self_names.resolve_import(specifier) {
+    match package_self_names.resolve_import(specifier, &aliases.module_resolution_mode) {
         PackageSelfNameResolution::AmbiguousName => {
             return (
                 "packageSelfName".to_string(),
@@ -2563,38 +2612,136 @@ impl TsPathAliasPattern {
 }
 
 fn load_ts_path_aliases(project_path: &Path) -> TsPathAliases {
-    for config_name in ["tsconfig.json", "jsconfig.json"] {
-        let config_path = project_path.join(config_name);
-        let Ok(content) = fs::read_to_string(&config_path) else {
-            continue;
-        };
-        if let Some(aliases) = parse_ts_path_aliases(project_path, &content) {
-            return aliases;
-        }
-    }
-    TsPathAliases::default()
+    load_resolved_ts_config(project_path).aliases
 }
 
-fn load_module_resolution_compiler_options_summary(
+#[derive(Debug, Default)]
+struct ResolvedTsConfig {
+    aliases: TsPathAliases,
+}
+
+#[derive(Debug, Clone)]
+struct ConfigString {
+    value: String,
+    config_dir: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+struct ConfigPathTarget {
+    value: String,
+    config_dir: PathBuf,
+    base_url: String,
+}
+
+#[derive(Debug, Clone, Default)]
+struct MergedTsConfig {
+    module_resolution: Option<String>,
+    module: Option<String>,
+    base_url: Option<ConfigString>,
+    paths: Option<BTreeMap<String, Vec<ConfigPathTarget>>>,
+    root_dirs: Option<Vec<ConfigString>>,
+    allow_js: Option<bool>,
+    resolve_json_module: Option<bool>,
+}
+
+fn load_resolved_ts_config(project_path: &Path) -> ResolvedTsConfig {
+    for config_name in ["tsconfig.json", "jsconfig.json"] {
+        let config_path = project_path.join(config_name);
+        if let Some(merged) = load_merged_ts_config(project_path, &config_path) {
+            return resolved_ts_config_from_merged(project_path, merged);
+        }
+    }
+    resolved_ts_config_from_merged(project_path, MergedTsConfig::default())
+}
+
+fn load_merged_ts_config(project_path: &Path, config_path: &Path) -> Option<MergedTsConfig> {
+    let mut visiting = HashSet::new();
+    load_merged_ts_config_inner(project_path, config_path, &mut visiting, 0)
+}
+
+fn load_merged_ts_config_inner(
     project_path: &Path,
-) -> ModuleResolutionCompilerOptionsSummary {
-    for config_name in ["tsconfig.json", "jsconfig.json"] {
-        let config_path = project_path.join(config_name);
-        let Ok(content) = fs::read_to_string(&config_path) else {
-            continue;
-        };
-        if let Some(summary) = parse_module_resolution_compiler_options_summary(&content) {
-            return summary;
-        }
+    config_path: &Path,
+    visiting: &mut HashSet<PathBuf>,
+    depth: u8,
+) -> Option<MergedTsConfig> {
+    if depth > 8 {
+        return None;
     }
-    ModuleResolutionCompilerOptionsSummary::default()
+    let config_path = config_path.to_path_buf();
+    if !config_path.is_file() {
+        return None;
+    }
+    let visit_key = fs::canonicalize(&config_path).unwrap_or_else(|_| config_path.clone());
+    if !visiting.insert(visit_key.clone()) {
+        return None;
+    }
+
+    let content = fs::read_to_string(&config_path).ok()?;
+    let parsed: Value = serde_json::from_str(&content).ok()?;
+    let config_dir = config_path.parent().unwrap_or(project_path);
+    let mut merged = parsed
+        .get("extends")
+        .and_then(Value::as_str)
+        .and_then(|extends_value| {
+            resolve_repo_local_extends_path(project_path, config_dir, extends_value)
+        })
+        .and_then(|extends_path| {
+            load_merged_ts_config_inner(project_path, &extends_path, visiting, depth + 1)
+        })
+        .unwrap_or_default();
+
+    let current = parse_current_ts_config_options(config_dir, &parsed);
+    merge_ts_config_options(&mut merged, current);
+    visiting.remove(&visit_key);
+    Some(merged)
 }
 
-fn parse_module_resolution_compiler_options_summary(
-    content: &str,
-) -> Option<ModuleResolutionCompilerOptionsSummary> {
-    let parsed: Value = serde_json::from_str(content).ok()?;
-    let compiler_options = parsed.get("compilerOptions")?;
+fn resolve_repo_local_extends_path(
+    project_path: &Path,
+    config_dir: &Path,
+    extends_value: &str,
+) -> Option<PathBuf> {
+    let raw_path = Path::new(extends_value);
+    let base = if raw_path.is_absolute() {
+        raw_path.to_path_buf()
+    } else if extends_value.starts_with('.') {
+        config_dir.join(raw_path)
+    } else {
+        return None;
+    };
+    let project_root = fs::canonicalize(project_path).ok()?;
+    for candidate in extends_path_candidates(&base) {
+        let Ok(canonical_candidate) = fs::canonicalize(&candidate) else {
+            continue;
+        };
+        if canonical_candidate.starts_with(&project_root) && canonical_candidate.is_file() {
+            return Some(canonical_candidate);
+        }
+    }
+    None
+}
+
+fn extends_path_candidates(base: &Path) -> Vec<PathBuf> {
+    let mut candidates = vec![base.to_path_buf()];
+    if base.extension().and_then(|extension| extension.to_str()) != Some("json") {
+        candidates.push(PathBuf::from(format!("{}.json", base.to_string_lossy())));
+    }
+    if base.extension().is_none() {
+        candidates.push(base.join("tsconfig.json"));
+    }
+    candidates
+}
+
+fn parse_current_ts_config_options(config_dir: &Path, parsed: &Value) -> MergedTsConfig {
+    let Some(compiler_options) = parsed.get("compilerOptions") else {
+        return MergedTsConfig::default();
+    };
+    let local_base_url = compiler_options
+        .get("baseUrl")
+        .and_then(Value::as_str)
+        .unwrap_or(".")
+        .to_string();
     let paths = compiler_options
         .get("paths")
         .and_then(Value::as_object)
@@ -2607,27 +2754,35 @@ fn parse_module_resolution_compiler_options_summary(
                         .into_iter()
                         .flatten()
                         .filter_map(Value::as_str)
-                        .map(str::to_string)
+                        .map(|target| ConfigPathTarget {
+                            value: target.to_string(),
+                            config_dir: config_dir.to_path_buf(),
+                            base_url: local_base_url.clone(),
+                        })
                         .collect::<Vec<_>>();
                     (key.clone(), targets)
                 })
                 .collect::<BTreeMap<_, _>>()
-        })
-        .unwrap_or_default();
+        });
     let root_dirs = compiler_options
         .get("rootDirs")
         .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-        .map(str::to_string)
-        .collect::<Vec<_>>();
+        .map(|raw_root_dirs| {
+            raw_root_dirs
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|root_dir| ConfigString {
+                    value: root_dir.to_string(),
+                    config_dir: config_dir.to_path_buf(),
+                })
+                .collect::<Vec<_>>()
+        });
 
-    Some(ModuleResolutionCompilerOptionsSummary {
+    MergedTsConfig {
         module_resolution: compiler_options
             .get("moduleResolution")
             .and_then(Value::as_str)
-            .map(str::to_string),
+            .map(normalize_module_resolution_mode),
         module: compiler_options
             .get("module")
             .and_then(Value::as_str)
@@ -2635,61 +2790,119 @@ fn parse_module_resolution_compiler_options_summary(
         base_url: compiler_options
             .get("baseUrl")
             .and_then(Value::as_str)
-            .map(str::to_string),
+            .map(|base_url| ConfigString {
+                value: base_url.to_string(),
+                config_dir: config_dir.to_path_buf(),
+            }),
         paths,
         root_dirs,
         allow_js: compiler_options.get("allowJs").and_then(Value::as_bool),
         resolve_json_module: compiler_options
             .get("resolveJsonModule")
             .and_then(Value::as_bool),
-    })
+    }
 }
 
-fn parse_ts_path_aliases(project_path: &Path, content: &str) -> Option<TsPathAliases> {
-    let parsed: Value = serde_json::from_str(content).ok()?;
-    let compiler_options = parsed.get("compilerOptions")?;
-    let base_url = compiler_options
-        .get("baseUrl")
-        .and_then(Value::as_str)
-        .unwrap_or(".");
-    let paths = compiler_options.get("paths").and_then(Value::as_object);
-    let root_dirs = compiler_options
-        .get("rootDirs")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-        .map(|root_dir| project_path.join(root_dir))
-        .collect::<Vec<_>>();
-    let mut aliases = TsPathAliases {
-        base_url: project_path.join(base_url),
-        patterns: Vec::new(),
-        root_dirs,
-    };
-
-    for (alias, raw_targets) in paths.into_iter().flatten() {
-        let targets = raw_targets
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(Value::as_str)
-            .filter_map(split_alias_pattern)
-            .map(|(prefix, suffix)| TsPathAliasTarget { prefix, suffix })
-            .collect::<Vec<_>>();
-        if targets.is_empty() {
-            continue;
-        }
-        let Some((prefix, suffix)) = split_alias_pattern(alias) else {
-            continue;
-        };
-        aliases.patterns.push(TsPathAliasPattern {
-            prefix,
-            suffix,
-            targets,
-        });
+fn merge_ts_config_options(base: &mut MergedTsConfig, current: MergedTsConfig) {
+    if current.module_resolution.is_some() {
+        base.module_resolution = current.module_resolution;
     }
+    if current.module.is_some() {
+        base.module = current.module;
+    }
+    if current.base_url.is_some() {
+        base.base_url = current.base_url;
+    }
+    if current.paths.is_some() {
+        base.paths = current.paths;
+    }
+    if current.root_dirs.is_some() {
+        base.root_dirs = current.root_dirs;
+    }
+    if current.allow_js.is_some() {
+        base.allow_js = current.allow_js;
+    }
+    if current.resolve_json_module.is_some() {
+        base.resolve_json_module = current.resolve_json_module;
+    }
+}
 
-    Some(aliases)
+fn resolved_ts_config_from_merged(
+    _project_path: &Path,
+    merged: MergedTsConfig,
+) -> ResolvedTsConfig {
+    let module_resolution_source = if merged.module_resolution.is_some() {
+        "explicit"
+    } else {
+        "defaulted"
+    }
+    .to_string();
+    let module_resolution = merged
+        .module_resolution
+        .clone()
+        .unwrap_or_else(|| default_module_resolution_mode(merged.module.as_deref()));
+    let root_dirs = merged
+        .root_dirs
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|root_dir| root_dir.config_dir.join(root_dir.value))
+        .collect::<Vec<_>>();
+    let patterns = merged
+        .paths
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|(alias, raw_targets)| {
+            let targets = raw_targets
+                .into_iter()
+                .filter_map(|target| {
+                    let (prefix, suffix) = split_alias_pattern(&target.value)?;
+                    Some(TsPathAliasTarget {
+                        base_path: target.config_dir.join(target.base_url),
+                        prefix,
+                        suffix,
+                    })
+                })
+                .collect::<Vec<_>>();
+            if targets.is_empty() {
+                return None;
+            }
+            let (prefix, suffix) = split_alias_pattern(&alias)?;
+            Some(TsPathAliasPattern {
+                prefix,
+                suffix,
+                targets,
+            })
+        })
+        .collect::<Vec<_>>();
+    ResolvedTsConfig {
+        aliases: TsPathAliases {
+            patterns,
+            root_dirs,
+            module_resolution_mode: module_resolution.clone(),
+            module_resolution_mode_source: module_resolution_source.clone(),
+        },
+    }
+}
+
+fn normalize_module_resolution_mode(mode: &str) -> String {
+    match mode.to_ascii_lowercase().as_str() {
+        "node" | "node10" => "node10".to_string(),
+        "node16" => "node16".to_string(),
+        "nodenext" => "nodenext".to_string(),
+        "bundler" => "bundler".to_string(),
+        "classic" => "classic".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn default_module_resolution_mode(module: Option<&str>) -> String {
+    match module.map(|value| value.to_ascii_lowercase()) {
+        Some(value) if value == "node16" => "node16".to_string(),
+        Some(value) if value == "nodenext" => "nodenext".to_string(),
+        _ => "node10".to_string(),
+    }
 }
 
 fn split_alias_pattern(pattern: &str) -> Option<(String, String)> {
@@ -2810,16 +3023,31 @@ fn package_root_fallback_target(package_dir: &str, subpath: &str) -> PathBuf {
     }
 }
 
-fn resolve_simple_package_exports(exports: &Value, subpath: &str) -> PackageExportsResolution {
+fn resolve_simple_package_exports(
+    exports: &Value,
+    subpath: &str,
+    module_resolution_mode: &str,
+) -> PackageExportsResolution {
+    let condition_order = package_condition_order(module_resolution_mode);
     let export_key = if subpath.is_empty() {
         "."
     } else {
         return match export_key_for_subpath(subpath) {
-            Some(key) => resolve_package_exports_key(exports, &key),
+            Some(key) => resolve_package_exports_key(exports, &key, &condition_order),
             None => PackageExportsResolution::Unsupported("exportsUnsupported"),
         };
     };
-    resolve_package_exports_key(exports, export_key)
+    resolve_package_exports_key(exports, export_key, &condition_order)
+}
+
+fn package_condition_order(module_resolution_mode: &str) -> Vec<&'static str> {
+    match module_resolution_mode {
+        "bundler" => vec!["import", "types", "default"],
+        "node16" | "nodenext" => vec!["import", "types", "default"],
+        "node10" => vec!["import", "types", "default"],
+        "classic" => Vec::new(),
+        _ => vec!["import", "types", "default"],
+    }
 }
 
 fn export_key_for_subpath(subpath: &str) -> Option<String> {
@@ -2829,13 +3057,17 @@ fn export_key_for_subpath(subpath: &str) -> Option<String> {
     Some(format!("./{}", subpath.trim_start_matches('/')))
 }
 
-fn resolve_package_exports_key(exports: &Value, key: &str) -> PackageExportsResolution {
+fn resolve_package_exports_key(
+    exports: &Value,
+    key: &str,
+    condition_order: &[&'static str],
+) -> PackageExportsResolution {
     match exports {
         Value::String(target) if key == "." => validate_package_exports_target(target),
         Value::String(_) => PackageExportsResolution::Missing,
         Value::Object(entries) => match entries.get(key) {
-            Some(value) => resolve_package_exports_target_value(value),
-            None => resolve_package_exports_pattern(entries, key),
+            Some(value) => resolve_package_exports_target_value(value, condition_order),
+            None => resolve_package_exports_pattern(entries, key, condition_order),
         },
         _ => PackageExportsResolution::Unsupported("exportsUnsupported"),
     }
@@ -2844,6 +3076,7 @@ fn resolve_package_exports_key(exports: &Value, key: &str) -> PackageExportsReso
 fn resolve_package_exports_pattern(
     entries: &serde_json::Map<String, Value>,
     key: &str,
+    condition_order: &[&'static str],
 ) -> PackageExportsResolution {
     let mut best: Option<(&str, &Value, &str)> = None;
     for (pattern, value) in entries {
@@ -2859,7 +3092,7 @@ fn resolve_package_exports_pattern(
     let Some((_pattern, value, captured)) = best else {
         return PackageExportsResolution::Missing;
     };
-    resolve_package_exports_pattern_target_value(value, captured)
+    resolve_package_exports_pattern_target_value(value, captured, condition_order)
 }
 
 fn match_single_star_export_pattern<'a>(pattern: &str, key: &'a str) -> Option<&'a str> {
@@ -2887,11 +3120,12 @@ fn pattern_prefix_len(pattern: &str) -> usize {
 fn resolve_package_exports_pattern_target_value(
     value: &Value,
     captured: &str,
+    condition_order: &[&'static str],
 ) -> PackageExportsResolution {
     match value {
         Value::String(target) => resolve_package_exports_pattern_target(target, captured),
         Value::Object(conditions) => {
-            resolve_package_exports_pattern_condition_object(conditions, captured)
+            resolve_package_exports_pattern_condition_object(conditions, captured, condition_order)
         }
         Value::Null => PackageExportsResolution::Unsupported("exportsBlocked"),
         _ => PackageExportsResolution::Unsupported("exportsUnsupported"),
@@ -2901,22 +3135,39 @@ fn resolve_package_exports_pattern_target_value(
 fn resolve_package_exports_pattern_condition_object(
     conditions: &serde_json::Map<String, Value>,
     captured: &str,
+    condition_order: &[&'static str],
 ) -> PackageExportsResolution {
-    resolve_package_exports_pattern_condition_object_at_depth(conditions, captured, 1)
+    resolve_package_exports_pattern_condition_object_at_depth(
+        conditions,
+        captured,
+        condition_order,
+        1,
+    )
 }
 
 fn resolve_package_exports_pattern_condition_object_at_depth(
     conditions: &serde_json::Map<String, Value>,
     captured: &str,
+    condition_order: &[&'static str],
     depth: u8,
 ) -> PackageExportsResolution {
-    for condition in ["import", "types", "default"] {
-        if let Some(value) = conditions.get(condition) {
-            return resolve_package_exports_pattern_condition_value(value, captured, depth);
+    for condition in condition_order {
+        if let Some(value) = conditions.get(*condition) {
+            return resolve_package_exports_pattern_condition_value(
+                value,
+                captured,
+                condition_order,
+                depth,
+            );
         }
     }
     for value in conditions.values() {
-        let resolved = resolve_package_exports_pattern_condition_value(value, captured, depth);
+        let resolved = resolve_package_exports_pattern_condition_value(
+            value,
+            captured,
+            condition_order,
+            depth,
+        );
         if !matches!(
             resolved,
             PackageExportsResolution::Unsupported("exportsUnsupported")
@@ -2933,6 +3184,7 @@ fn resolve_package_exports_pattern_condition_object_at_depth(
 fn resolve_package_exports_pattern_condition_value(
     value: &Value,
     captured: &str,
+    condition_order: &[&'static str],
     depth: u8,
 ) -> PackageExportsResolution {
     match value {
@@ -2941,6 +3193,7 @@ fn resolve_package_exports_pattern_condition_value(
             resolve_package_exports_pattern_condition_object_at_depth(
                 conditions,
                 captured,
+                condition_order,
                 depth + 1,
             )
         }
@@ -2962,10 +3215,15 @@ fn resolve_package_exports_pattern_target(
     validate_package_exports_target(&target.replacen('*', captured, 1))
 }
 
-fn resolve_package_exports_target_value(value: &Value) -> PackageExportsResolution {
+fn resolve_package_exports_target_value(
+    value: &Value,
+    condition_order: &[&'static str],
+) -> PackageExportsResolution {
     match value {
         Value::String(target) => validate_package_exports_target(target),
-        Value::Object(conditions) => resolve_package_exports_condition_object(conditions),
+        Value::Object(conditions) => {
+            resolve_package_exports_condition_object(conditions, condition_order)
+        }
         Value::Null => PackageExportsResolution::Unsupported("exportsBlocked"),
         _ => PackageExportsResolution::Unsupported("exportsUnsupported"),
     }
@@ -2973,21 +3231,23 @@ fn resolve_package_exports_target_value(value: &Value) -> PackageExportsResoluti
 
 fn resolve_package_exports_condition_object(
     conditions: &serde_json::Map<String, Value>,
+    condition_order: &[&'static str],
 ) -> PackageExportsResolution {
-    resolve_package_exports_condition_object_at_depth(conditions, 1)
+    resolve_package_exports_condition_object_at_depth(conditions, condition_order, 1)
 }
 
 fn resolve_package_exports_condition_object_at_depth(
     conditions: &serde_json::Map<String, Value>,
+    condition_order: &[&'static str],
     depth: u8,
 ) -> PackageExportsResolution {
-    for condition in ["import", "types", "default"] {
-        if let Some(value) = conditions.get(condition) {
-            return resolve_package_exports_condition_value(value, depth);
+    for condition in condition_order {
+        if let Some(value) = conditions.get(*condition) {
+            return resolve_package_exports_condition_value(value, condition_order, depth);
         }
     }
     for value in conditions.values() {
-        let resolved = resolve_package_exports_condition_value(value, depth);
+        let resolved = resolve_package_exports_condition_value(value, condition_order, depth);
         if !matches!(
             resolved,
             PackageExportsResolution::Unsupported("exportsUnsupported")
@@ -3001,11 +3261,19 @@ fn resolve_package_exports_condition_object_at_depth(
     PackageExportsResolution::Unsupported("exportsUnsupported")
 }
 
-fn resolve_package_exports_condition_value(value: &Value, depth: u8) -> PackageExportsResolution {
+fn resolve_package_exports_condition_value(
+    value: &Value,
+    condition_order: &[&'static str],
+    depth: u8,
+) -> PackageExportsResolution {
     match value {
         Value::String(target) => validate_package_exports_target(target),
         Value::Object(conditions) if depth < 2 => {
-            resolve_package_exports_condition_object_at_depth(conditions, depth + 1)
+            resolve_package_exports_condition_object_at_depth(
+                conditions,
+                condition_order,
+                depth + 1,
+            )
         }
         Value::Null => PackageExportsResolution::Unsupported("exportsBlocked"),
         Value::Object(_) | Value::Array(_) => {
@@ -3034,14 +3302,19 @@ fn validate_package_exports_target(target: &str) -> PackageExportsResolution {
     PackageExportsResolution::Resolved(PathBuf::from(target.trim_start_matches("./")))
 }
 
-fn resolve_package_imports_map(imports: &Value, key: &str) -> PackageImportsMapResolution {
+fn resolve_package_imports_map(
+    imports: &Value,
+    key: &str,
+    module_resolution_mode: &str,
+) -> PackageImportsMapResolution {
+    let condition_order = package_condition_order(module_resolution_mode);
     if !key.starts_with('#') || key.contains('*') {
         return PackageImportsMapResolution::Unsupported("importsUnsupported");
     }
     match imports {
         Value::Object(entries) => match entries.get(key) {
-            Some(value) => resolve_package_imports_target_value(value),
-            None => resolve_package_imports_pattern(entries, key),
+            Some(value) => resolve_package_imports_target_value(value, &condition_order),
+            None => resolve_package_imports_pattern(entries, key, &condition_order),
         },
         _ => PackageImportsMapResolution::Unsupported("importsUnsupported"),
     }
@@ -3050,6 +3323,7 @@ fn resolve_package_imports_map(imports: &Value, key: &str) -> PackageImportsMapR
 fn resolve_package_imports_pattern(
     entries: &serde_json::Map<String, Value>,
     key: &str,
+    condition_order: &[&'static str],
 ) -> PackageImportsMapResolution {
     let mut best: Option<(&str, &Value, &str)> = None;
     for (pattern, value) in entries {
@@ -3065,7 +3339,7 @@ fn resolve_package_imports_pattern(
     let Some((_pattern, value, captured)) = best else {
         return PackageImportsMapResolution::Missing;
     };
-    resolve_package_imports_pattern_target_value(value, captured)
+    resolve_package_imports_pattern_target_value(value, captured, condition_order)
 }
 
 fn match_single_star_package_import_pattern<'a>(pattern: &str, key: &'a str) -> Option<&'a str> {
@@ -3087,11 +3361,12 @@ fn match_single_star_package_import_pattern<'a>(pattern: &str, key: &'a str) -> 
 fn resolve_package_imports_pattern_target_value(
     value: &Value,
     captured: &str,
+    condition_order: &[&'static str],
 ) -> PackageImportsMapResolution {
     match value {
         Value::String(target) => resolve_package_imports_pattern_target(target, captured),
         Value::Object(conditions) => {
-            resolve_package_imports_pattern_condition_object(conditions, captured)
+            resolve_package_imports_pattern_condition_object(conditions, captured, condition_order)
         }
         Value::Null => PackageImportsMapResolution::Unsupported("importsBlocked"),
         _ => PackageImportsMapResolution::Unsupported("importsUnsupported"),
@@ -3101,22 +3376,39 @@ fn resolve_package_imports_pattern_target_value(
 fn resolve_package_imports_pattern_condition_object(
     conditions: &serde_json::Map<String, Value>,
     captured: &str,
+    condition_order: &[&'static str],
 ) -> PackageImportsMapResolution {
-    resolve_package_imports_pattern_condition_object_at_depth(conditions, captured, 1)
+    resolve_package_imports_pattern_condition_object_at_depth(
+        conditions,
+        captured,
+        condition_order,
+        1,
+    )
 }
 
 fn resolve_package_imports_pattern_condition_object_at_depth(
     conditions: &serde_json::Map<String, Value>,
     captured: &str,
+    condition_order: &[&'static str],
     depth: u8,
 ) -> PackageImportsMapResolution {
-    for condition in ["import", "types", "default"] {
-        if let Some(value) = conditions.get(condition) {
-            return resolve_package_imports_pattern_condition_value(value, captured, depth);
+    for condition in condition_order {
+        if let Some(value) = conditions.get(*condition) {
+            return resolve_package_imports_pattern_condition_value(
+                value,
+                captured,
+                condition_order,
+                depth,
+            );
         }
     }
     for value in conditions.values() {
-        let resolved = resolve_package_imports_pattern_condition_value(value, captured, depth);
+        let resolved = resolve_package_imports_pattern_condition_value(
+            value,
+            captured,
+            condition_order,
+            depth,
+        );
         if !matches!(
             resolved,
             PackageImportsMapResolution::Unsupported("importsUnsupported")
@@ -3133,6 +3425,7 @@ fn resolve_package_imports_pattern_condition_object_at_depth(
 fn resolve_package_imports_pattern_condition_value(
     value: &Value,
     captured: &str,
+    condition_order: &[&'static str],
     depth: u8,
 ) -> PackageImportsMapResolution {
     match value {
@@ -3141,6 +3434,7 @@ fn resolve_package_imports_pattern_condition_value(
             resolve_package_imports_pattern_condition_object_at_depth(
                 conditions,
                 captured,
+                condition_order,
                 depth + 1,
             )
         }
@@ -3162,10 +3456,15 @@ fn resolve_package_imports_pattern_target(
     validate_package_imports_target(&target.replacen('*', captured, 1))
 }
 
-fn resolve_package_imports_target_value(value: &Value) -> PackageImportsMapResolution {
+fn resolve_package_imports_target_value(
+    value: &Value,
+    condition_order: &[&'static str],
+) -> PackageImportsMapResolution {
     match value {
         Value::String(target) => validate_package_imports_target(target),
-        Value::Object(conditions) => resolve_package_imports_condition_object(conditions),
+        Value::Object(conditions) => {
+            resolve_package_imports_condition_object(conditions, condition_order)
+        }
         Value::Null => PackageImportsMapResolution::Unsupported("importsBlocked"),
         _ => PackageImportsMapResolution::Unsupported("importsUnsupported"),
     }
@@ -3173,21 +3472,23 @@ fn resolve_package_imports_target_value(value: &Value) -> PackageImportsMapResol
 
 fn resolve_package_imports_condition_object(
     conditions: &serde_json::Map<String, Value>,
+    condition_order: &[&'static str],
 ) -> PackageImportsMapResolution {
-    resolve_package_imports_condition_object_at_depth(conditions, 1)
+    resolve_package_imports_condition_object_at_depth(conditions, condition_order, 1)
 }
 
 fn resolve_package_imports_condition_object_at_depth(
     conditions: &serde_json::Map<String, Value>,
+    condition_order: &[&'static str],
     depth: u8,
 ) -> PackageImportsMapResolution {
-    for condition in ["import", "types", "default"] {
-        if let Some(value) = conditions.get(condition) {
-            return resolve_package_imports_condition_value(value, depth);
+    for condition in condition_order {
+        if let Some(value) = conditions.get(*condition) {
+            return resolve_package_imports_condition_value(value, condition_order, depth);
         }
     }
     for value in conditions.values() {
-        let resolved = resolve_package_imports_condition_value(value, depth);
+        let resolved = resolve_package_imports_condition_value(value, condition_order, depth);
         if !matches!(
             resolved,
             PackageImportsMapResolution::Unsupported("importsUnsupported")
@@ -3203,12 +3504,17 @@ fn resolve_package_imports_condition_object_at_depth(
 
 fn resolve_package_imports_condition_value(
     value: &Value,
+    condition_order: &[&'static str],
     depth: u8,
 ) -> PackageImportsMapResolution {
     match value {
         Value::String(target) => validate_package_imports_target(target),
         Value::Object(conditions) if depth < 2 => {
-            resolve_package_imports_condition_object_at_depth(conditions, depth + 1)
+            resolve_package_imports_condition_object_at_depth(
+                conditions,
+                condition_order,
+                depth + 1,
+            )
         }
         Value::Null => PackageImportsMapResolution::Unsupported("importsBlocked"),
         Value::Object(_) | Value::Array(_) => {
@@ -3329,7 +3635,11 @@ fn resolve_import_target(
     specifier: &str,
 ) -> Option<(ImportTargetSourceKind, Option<String>, Vec<&'static str>)> {
     if specifier.starts_with('#') {
-        match package_self_names.resolve_package_import(from_file_path, specifier) {
+        match package_self_names.resolve_package_import(
+            from_file_path,
+            specifier,
+            &aliases.module_resolution_mode,
+        ) {
             PackageImportsResolution::Matched { target, outcomes } => {
                 let resolved = resolve_import_candidate(project_path, &project_path.join(target));
                 let outcomes = if resolved.is_some() {
@@ -3364,14 +3674,29 @@ fn resolve_import_target(
         if direct.is_some() {
             return Some((ImportTargetSourceKind::Relative, direct, Vec::new()));
         }
-        if let Some(root_dirs_target) =
-            resolve_root_dirs_relative_import(project_path, aliases, from_file_path, specifier)
-        {
-            return Some((
-                ImportTargetSourceKind::RootDirs,
-                Some(root_dirs_target),
-                Vec::new(),
-            ));
+        match resolve_root_dirs_relative_import(project_path, aliases, from_file_path, specifier) {
+            RootDirsResolution::Resolved(root_dirs_target) => {
+                return Some((
+                    ImportTargetSourceKind::RootDirs,
+                    Some(root_dirs_target),
+                    Vec::new(),
+                ));
+            }
+            RootDirsResolution::TargetNotFound => {
+                return Some((
+                    ImportTargetSourceKind::RootDirs,
+                    None,
+                    vec!["rootDirsTargetNotFound"],
+                ));
+            }
+            RootDirsResolution::ConfigOutOfScope => {
+                return Some((
+                    ImportTargetSourceKind::RootDirs,
+                    None,
+                    vec!["rootDirsConfigOutOfScope"],
+                ));
+            }
+            RootDirsResolution::NotConfigured => {}
         }
         return Some((ImportTargetSourceKind::Relative, None, Vec::new()));
     }
@@ -3396,7 +3721,7 @@ fn resolve_import_target(
             Vec::new(),
         ));
     }
-    match package_self_names.resolve_import(specifier) {
+    match package_self_names.resolve_import(specifier, &aliases.module_resolution_mode) {
         PackageSelfNameResolution::Matched { target, outcomes } => {
             let resolved = resolve_import_candidate(project_path, &project_path.join(target));
             let outcomes = if resolved.is_some() {
@@ -3456,15 +3781,18 @@ fn resolve_root_dirs_relative_import(
     aliases: &TsPathAliases,
     from_file_path: &str,
     specifier: &str,
-) -> Option<String> {
+) -> RootDirsResolution {
     if aliases.root_dirs.len() < 2 {
-        return None;
+        return RootDirsResolution::NotConfigured;
     }
     let from_dir = Path::new(from_file_path)
         .parent()
         .unwrap_or_else(|| Path::new(""));
     let absolute_from_dir = project_path.join(from_dir);
-    let canonical_from_dir = fs::canonicalize(&absolute_from_dir).ok()?;
+    let Ok(canonical_from_dir) = fs::canonicalize(&absolute_from_dir) else {
+        return RootDirsResolution::ConfigOutOfScope;
+    };
+    let mut source_is_in_root_dir = false;
 
     for root_dir in &aliases.root_dirs {
         let Ok(canonical_root_dir) = fs::canonicalize(root_dir) else {
@@ -3473,17 +3801,22 @@ fn resolve_root_dirs_relative_import(
         let Ok(virtual_from_dir) = canonical_from_dir.strip_prefix(&canonical_root_dir) else {
             continue;
         };
+        source_is_in_root_dir = true;
         for sibling_root_dir in &aliases.root_dirs {
             if sibling_root_dir == root_dir {
                 continue;
             }
             let sibling_base = sibling_root_dir.join(virtual_from_dir).join(specifier);
             if let Some(resolved) = resolve_relative_import_candidate(project_path, &sibling_base) {
-                return Some(resolved);
+                return RootDirsResolution::Resolved(resolved);
             }
         }
     }
-    None
+    if source_is_in_root_dir {
+        RootDirsResolution::TargetNotFound
+    } else {
+        RootDirsResolution::ConfigOutOfScope
+    }
 }
 
 fn resolve_alias_import(
@@ -3496,8 +3829,8 @@ fn resolve_alias_import(
             continue;
         };
         for target in &pattern.targets {
-            let candidate = aliases
-                .base_url
+            let candidate = target
+                .base_path
                 .join(format!("{}{}{}", target.prefix, capture, target.suffix));
             if let Some(resolved) = resolve_import_candidate(project_path, &candidate) {
                 return Some(resolved);
@@ -6556,7 +6889,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -6631,6 +6964,7 @@ pub fn result_json(result: &IndexResult) -> String {
         fallback_sample_counts_json(&result.profile.module_resolution_shadow_parity_counts),
         module_resolution_shadow_samples_json(&result.profile.module_resolution_shadow_samples),
         fallback_sample_cap_json(&result.profile.module_resolution_shadow_sample_cap),
+        escape_json(&result.profile.module_resolution_effective_mode_source),
         result
             .profile
             .module_resolution_guarded_edge_write_attempted_refs,
@@ -7374,6 +7708,7 @@ mod tests {
                     specifier: "./dep".to_string(),
                     source_file: "src/main.ts".to_string(),
                     module_resolution_mode: "bundler".to_string(),
+                    module_resolution_mode_source: "explicit".to_string(),
                     resolved_kind: "relative".to_string(),
                     resolved_path: Some("src/dep.ts".to_string()),
                     is_external_library_import: false,
@@ -9143,6 +9478,313 @@ mod tests {
     }
 
     #[test]
+    fn rust_loads_repo_local_extends_with_declaring_config_path_basis() {
+        let dir = temp_dir("repo-local-config-extends-path-basis");
+        fs::create_dir_all(dir.join("config/src/lib")).unwrap();
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(
+            dir.join("config/tsconfig.base.json"),
+            r#"{"compilerOptions":{"module":"NodeNext","baseUrl":".","paths":{"@lib/*":["src/lib/*"]}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"extends":"./config/tsconfig.base","compilerOptions":{"allowJs":true}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("config/src/lib/value.ts"),
+            "export const value = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { value } from '@lib/value';",
+                "export const total = value;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.profile.import_path_alias_tsconfig_resolved_refs, 1);
+        assert_eq!(
+            result.profile.module_resolution_effective_mode_source,
+            "defaulted"
+        );
+        assert!(result
+            .profile
+            .module_resolution_shadow_samples
+            .iter()
+            .any(|sample| {
+                sample.specifier == "@lib/value"
+                    && sample.module_resolution_mode == "nodenext"
+                    && sample.module_resolution_mode_source == "defaulted"
+                    && sample.resolved_path.as_deref() == Some("config/src/lib/value.ts")
+            }));
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let target = conn
+            .query_row(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap();
+        assert_eq!(target, "config/src/lib/value.ts");
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_config_extends_child_overrides_paths_and_explicit_mode() {
+        let dir = temp_dir("repo-local-config-extends-child-override");
+        fs::create_dir_all(dir.join("base-src/lib")).unwrap();
+        fs::create_dir_all(dir.join("src/lib")).unwrap();
+        fs::write(
+            dir.join("tsconfig.base.json"),
+            r#"{"compilerOptions":{"moduleResolution":"node10","baseUrl":".","paths":{"@lib/*":["base-src/lib/*"]}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"extends":"./tsconfig.base.json","compilerOptions":{"moduleResolution":"bundler","paths":{"@lib/*":["src/lib/*"]}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("base-src/lib/value.ts"),
+            "export const value = 0;\n",
+        )
+        .unwrap();
+        fs::write(dir.join("src/lib/value.ts"), "export const value = 1;\n").unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { value } from '@lib/value';",
+                "export const total = value;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.profile.import_path_alias_tsconfig_resolved_refs, 1);
+        assert_eq!(
+            result.profile.module_resolution_effective_mode_source,
+            "explicit"
+        );
+        assert!(result
+            .profile
+            .module_resolution_shadow_samples
+            .iter()
+            .any(|sample| {
+                sample.specifier == "@lib/value"
+                    && sample.module_resolution_mode == "bundler"
+                    && sample.module_resolution_mode_source == "explicit"
+                    && sample.resolved_path.as_deref() == Some("src/lib/value.ts")
+            }));
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let target = conn
+            .query_row(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap();
+        assert_eq!(target, "src/lib/value.ts");
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_config_extends_unsupported_package_and_cycles_fail_closed() {
+        let dir = temp_dir("repo-local-config-extends-unsupported-and-cycle");
+        fs::create_dir_all(dir.join("src/lib")).unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"extends":"@tsconfig/node20/tsconfig.json","compilerOptions":{"paths":{"@direct/*":["src/lib/*"]}}}"#,
+        )
+        .unwrap();
+        fs::write(dir.join("cycle.json"), r#"{"extends":"./cycle"}"#).unwrap();
+        fs::write(dir.join("src/lib/value.ts"), "export const value = 1;\n").unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { value } from '@direct/value';",
+                "import { missing } from '@pkg-extends-only/value';",
+                "export const total = value;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.profile.import_path_alias_tsconfig_resolved_refs, 1);
+        assert!(result
+            .profile
+            .import_path_alias_fallback_sample_counts
+            .contains_key("unsupported/unsupported-import-form"));
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_module_resolution_classic_fails_closed_for_package_maps() {
+        let dir = temp_dir("module-resolution-classic-package-maps");
+        fs::create_dir_all(dir.join("src/features")).unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"compilerOptions":{"moduleResolution":"classic"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"@fixture/app","private":true,"exports":{"./feature":"./src/features/feature.ts"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/features/feature.ts"),
+            "export const featureValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { featureValue } from '@fixture/app/feature';",
+                "export const total = featureValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("moduleResolutionClassicPackageMapsUnsupported"),
+            Some(&1)
+        );
+        assert!(result
+            .profile
+            .module_resolution_shadow_samples
+            .iter()
+            .any(|sample| {
+                sample.specifier == "@fixture/app/feature"
+                    && sample.module_resolution_mode == "classic"
+                    && sample.condition_set.is_empty()
+                    && sample.failed_lookup_category.as_deref()
+                        == Some("moduleResolutionClassicPackageMapsUnsupported")
+            }));
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let count = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap();
+        assert_eq!(count, 0);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn rust_resolves_root_dirs_relative_import_targets_across_sibling_roots() {
         let dir = temp_dir("root-dirs-relative-import-target");
         fs::create_dir_all(dir.join("src")).unwrap();
@@ -9204,6 +9846,146 @@ mod tests {
             )
             .unwrap();
         assert_eq!(target, "src/shared.ts");
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_resolves_inherited_root_dirs_with_declaring_config_path_basis() {
+        let dir = temp_dir("inherited-root-dirs-relative-import-target");
+        fs::create_dir_all(dir.join("config/src")).unwrap();
+        fs::create_dir_all(dir.join("config/generated")).unwrap();
+        fs::write(
+            dir.join("config/tsconfig.base.json"),
+            r#"{"compilerOptions":{"rootDirs":["src","generated"]}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"extends":"./config/tsconfig.base.json"}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("config/src/shared.ts"),
+            "export const shared = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("config/generated/consumer.ts"),
+            [
+                "import { shared } from './shared';",
+                "export const total = shared;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.profile.import_path_alias_root_dirs_resolved_refs, 1);
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let target = conn
+            .query_row(
+                "SELECT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'config/generated/consumer.ts'
+                   AND source.kind = 'file'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap();
+        assert_eq!(target, "config/src/shared.ts");
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_root_dirs_reports_target_not_found_and_config_out_of_scope() {
+        let dir = temp_dir("root-dirs-relative-import-taxonomy");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::create_dir_all(dir.join("generated")).unwrap();
+        fs::create_dir_all(dir.join("outside")).unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"compilerOptions":{"rootDirs":["src","generated"]}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("generated/consumer.ts"),
+            [
+                "import { missing } from './missing';",
+                "export const total = 1;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("outside/consumer.ts"),
+            [
+                "import { missing } from './missing';",
+                "export const total = 1;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.profile.import_path_alias_root_dirs_fallback_refs, 2);
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_guarded_edge_write_skipped_counts
+                .get("rootDirsTargetNotFound"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_guarded_edge_write_skipped_counts
+                .get("rootDirsConfigOutOfScope"),
+            Some(&1)
+        );
 
         fs::remove_dir_all(dir).unwrap();
     }

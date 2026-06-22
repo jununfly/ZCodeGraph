@@ -59,12 +59,12 @@ shadow-only diagnostics in Rust core:
 │  │  ├─ [x] 1-1-2. compilerOptions summary: moduleResolution/module/baseUrl/paths/rootDirs/allowJs/resolveJsonModule
 │  │  ├─ [x] 1-1-3. decision record: TS-style resolution decision
 │  │  └─ [x] 1-1-4. shadow-only profile diagnostics
-│  ├─ [-] 1-2. Config interpretation
+│  ├─ [x] 1-2. Config interpretation
 │  │  ├─ [x] 1-2-1. tsconfig/jsconfig discovery
-│  │  ├─ [ ] 1-2-2. extends/default handling
-│  │  ├─ [ ] 1-2-3. moduleResolution modes
+│  │  ├─ [x] 1-2-2. extends/default handling
+│  │  ├─ [x] 1-2-3. moduleResolution modes
 │  │  ├─ [x] 1-2-4. baseUrl/paths
-│  │  └─ [-] 1-2-5. rootDirs
+│  │  └─ [x] 1-2-5. rootDirs
 │  ├─ [x] 1-3. Repo-local package resolution
 │  │  ├─ [x] 1-3-1. package self-name imports
 │  │  ├─ [x] 1-3-2. workspace package imports
