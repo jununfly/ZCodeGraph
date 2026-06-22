@@ -26,6 +26,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `rust-hybrid` indexing now understands repo-local TypeScript config inheritance for module resolution, including inherited paths aliases, rootDirs, and safer package-map behavior for classic module resolution. (#447, #448, #449)
 - `rust-hybrid` indexing now follows repo-local package `exports` and `imports` condition order more closely, including `types`, CommonJS `require`, and configured custom conditions. (#451, #452, #453)
+- `rust-hybrid` indexing now resolves extensionless repo-local imports through modern TypeScript source extensions such as `.mts` and `.cts`, while keeping config/data files out of graph-edge candidates. (#455, #456, #457)
 - `rust-hybrid` indexing now resolves explicit JavaScript runtime extensions to matching TypeScript source files, so imports like `./thing.js` can link to `thing.ts` or `thing.tsx` when that is how the project is authored. (#446)
 - Programmatic SDK full indexing now uses the same `rust-hybrid` default as the CLI, while still offering explicit `typescript` and `rust` engine choices for compatibility and debugging. (#263)
 - `zcodegraph_explore` now handles Gin-style `METHOD /path` route questions more directly, surfacing the matched route and handler in one response for first-user Go projects. (#281)

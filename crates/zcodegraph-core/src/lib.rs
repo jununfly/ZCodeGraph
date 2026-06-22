@@ -4226,15 +4226,19 @@ fn import_file_candidates(base: &Path) -> Vec<PathBuf> {
     if base.extension().is_some() {
         candidates.extend(explicit_runtime_extension_pair_candidates(base));
     } else {
-        for extension in ["ts", "tsx", "d.ts", "js", "jsx"] {
+        for extension in EXTENSIONLESS_FILE_TARGET_EXTENSIONS {
             candidates.push(base.with_extension(extension));
         }
     }
-    for extension in ["ts", "tsx", "js", "jsx"] {
+    for extension in EXTENSIONLESS_FILE_TARGET_EXTENSIONS {
         candidates.push(base.join("index").with_extension(extension));
     }
     candidates
 }
+
+const EXTENSIONLESS_FILE_TARGET_EXTENSIONS: &[&str] = &[
+    "ts", "tsx", "mts", "cts", "d.ts", "d.mts", "d.cts", "js", "jsx", "mjs", "cjs",
+];
 
 fn relative_import_file_candidates(base: &Path) -> Vec<PathBuf> {
     let mut candidates = Vec::new();
@@ -9794,6 +9798,341 @@ mod tests {
                 "src/view.tsx",
             ]
         );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_resolves_extensionless_mts_cts_and_directory_index_targets() {
+        let dir = temp_dir("extensionless-mts-cts-index-targets");
+        fs::create_dir_all(dir.join("src/feature")).unwrap();
+        fs::create_dir_all(dir.join("src/common")).unwrap();
+        fs::write(
+            dir.join("src/module.mts"),
+            "export const moduleValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/common.cts"),
+            "export const commonValue = 2;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/feature/index.mts"),
+            "export const featureValue = 3;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/common/index.cts"),
+            "export const nestedCommonValue = 4;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { moduleValue } from './module';",
+                "import { commonValue } from './common';",
+                "import { featureValue } from './feature';",
+                "export const total = moduleValue + commonValue + featureValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            targets,
+            vec!["src/common.cts", "src/feature/index.mts", "src/module.mts"]
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_prefers_extensionless_source_candidate_order_before_js_family() {
+        let dir = temp_dir("extensionless-source-candidate-priority");
+        fs::create_dir_all(dir.join("src/ordered")).unwrap();
+        fs::write(dir.join("src/ordered.ts"), "export const ordered = 1;\n").unwrap();
+        fs::write(dir.join("src/ordered.tsx"), "export const ordered = 2;\n").unwrap();
+        fs::write(dir.join("src/ordered.mts"), "export const ordered = 3;\n").unwrap();
+        fs::write(dir.join("src/ordered.cts"), "export const ordered = 4;\n").unwrap();
+        fs::write(
+            dir.join("src/ordered.d.ts"),
+            "export declare const ordered: number;\n",
+        )
+        .unwrap();
+        fs::write(dir.join("src/ordered.js"), "export const ordered = 8;\n").unwrap();
+        fs::write(
+            dir.join("src/ordered/index.ts"),
+            "export const orderedIndex = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/ordered/index.mts"),
+            "export const orderedIndex = 3;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/ordered/index.js"),
+            "export const orderedIndex = 8;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { ordered } from './ordered';",
+                "import { orderedIndex } from './ordered';",
+                "export const total = ordered + orderedIndex;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(targets, vec!["src/ordered.ts"]);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_shares_extensionless_file_targets_across_repo_local_resolver_paths() {
+        let dir = temp_dir("extensionless-shared-repo-local-paths");
+        fs::create_dir_all(dir.join("src/lib")).unwrap();
+        fs::create_dir_all(dir.join("packages/pkg")).unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"compilerOptions":{"baseUrl":".","paths":{"@lib/*":["src/lib/*"]}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r##"{"name":"@fixture/app","private":true,"workspaces":["packages/*"],"exports":{"./feature":"./src/feature"},"imports":{"#internal":"./src/internal"}}"##,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/pkg/package.json"),
+            r#"{"name":"@fixture/pkg","private":true}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/lib/alias.mts"),
+            "export const aliasValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/pkg/tool.cts"),
+            "export const workspaceValue = 2;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/feature.mts"),
+            "export const featureValue = 3;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/internal.cts"),
+            "export const internalValue = 4;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { aliasValue } from '@lib/alias';",
+                "import { workspaceValue } from '@fixture/pkg/tool';",
+                "import { featureValue } from '@fixture/app/feature';",
+                "import { internalValue } from '#internal';",
+                "export const total = aliasValue + workspaceValue + featureValue + internalValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.profile.import_path_alias_tsconfig_resolved_refs, 1);
+        assert_eq!(result.profile.import_path_alias_workspace_resolved_refs, 1);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_resolved_refs,
+            1
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_imports_resolved_refs,
+            1
+        );
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            targets,
+            vec![
+                "packages/pkg/tool.cts",
+                "src/feature.mts",
+                "src/internal.cts",
+                "src/lib/alias.mts",
+            ]
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_does_not_expand_extensionless_config_data_targets_into_graph_edges() {
+        let dir = temp_dir("extensionless-config-data-no-edge");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(dir.join("src/config.json"), r#"{"enabled":true}"#).unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import config from './config';",
+                "export const enabled = Boolean(config);",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.profile.import_path_alias_relative_resolved_refs, 0);
+        assert_eq!(result.profile.import_path_alias_relative_fallback_refs, 1);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let count = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap();
+        assert_eq!(count, 0);
 
         fs::remove_dir_all(dir).unwrap();
     }
