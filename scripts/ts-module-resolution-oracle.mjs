@@ -210,7 +210,9 @@ function resolveWithTypeScript(projectRoot, sourceFile, specifier, options) {
   const repoLocal = isInside(projectRoot, resolvedPath) && !resolvedPath.includes(`${path.sep}node_modules${path.sep}`);
   const bare = isBareSpecifier(specifier);
   let tsResolvedKind = 'relative-or-alias';
-  if (repoLocal && bare && matchesTsPathsAlias(options, specifier)) {
+  if (repoLocal && specifier.startsWith('#')) {
+    tsResolvedKind = 'repo-local-package-import';
+  } else if (repoLocal && bare && matchesTsPathsAlias(options, specifier)) {
     tsResolvedKind = 'repo-local-paths-alias';
   } else if (repoLocal && bare) {
     tsResolvedKind = isPackageSubpath(specifier, readRootPackageName(projectRoot))
@@ -224,11 +226,21 @@ function resolveWithTypeScript(projectRoot, sourceFile, specifier, options) {
       : 'third-party-package';
   }
 
+  const packageExportsSlice = repoLocal && bare
+    ? packageExportsRecommendedSlice(projectRoot, specifier)
+    : null;
+  const packageImportsSlice = repoLocal && specifier.startsWith('#')
+    ? packageImportsRecommendedSlice(projectRoot, sourceFile, specifier)
+    : null;
   return {
     tsResolvedKind,
     tsResolvedPath: toRepoRelativeOrExternal(projectRoot, resolvedPath),
     repoLocal,
     isExternalLibraryImport: Boolean(resolved.isExternalLibraryImport),
+    packageExportsCovered: Boolean(packageExportsSlice),
+    packageExportsRecommendedSlice: packageExportsSlice,
+    packageImportsCovered: Boolean(packageImportsSlice),
+    packageImportsRecommendedSlice: packageImportsSlice,
   };
 }
 
@@ -285,6 +297,93 @@ function readRootPackageName(projectRoot) {
   }
 }
 
+function readRootPackageJson(projectRoot) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function readNearestPackageJson(projectRoot, sourceFile) {
+  let dir = path.dirname(path.join(projectRoot, sourceFile));
+  const root = path.resolve(projectRoot);
+  while (isInside(root, dir)) {
+    try {
+      const packagePath = path.join(dir, 'package.json');
+      return JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
+    } catch {
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+  return null;
+}
+
+function packageExportsRecommendedSlice(projectRoot, specifier) {
+  const pkg = readRootPackageJson(projectRoot);
+  const packageName = typeof pkg?.name === 'string' ? pkg.name : null;
+  if (!packageName || !pkg || !Object.prototype.hasOwnProperty.call(pkg, 'exports')) return null;
+  if (specifier !== packageName && !specifier.startsWith(`${packageName}/`)) return null;
+  const subpath = specifier === packageName ? '' : specifier.slice(packageName.length + 1);
+  const exportKey = subpath ? `./${subpath}` : '.';
+  const exportsValue = pkg.exports;
+  if (typeof exportsValue === 'string') {
+    return exportKey === '.' ? 'simple exports string/object repo-local target slice' : null;
+  }
+  if (!exportsValue || typeof exportsValue !== 'object' || Array.isArray(exportsValue)) return null;
+  if (Object.prototype.hasOwnProperty.call(exportsValue, exportKey)) {
+    return hasNestedExportCondition(exportsValue[exportKey])
+      ? 'pattern/nested exports repo-local completion slice'
+      : 'simple exports string/object repo-local target slice';
+  }
+  for (const pattern of Object.keys(exportsValue)) {
+    if (matchesSingleStarExportPattern(pattern, exportKey)) {
+      return 'pattern/nested exports repo-local completion slice';
+    }
+  }
+  return null;
+}
+
+function matchesSingleStarExportPattern(pattern, key) {
+  const firstStar = pattern.indexOf('*');
+  if (firstStar === -1 || firstStar !== pattern.lastIndexOf('*')) return false;
+  const prefix = pattern.slice(0, firstStar);
+  const suffix = pattern.slice(firstStar + 1);
+  return prefix.startsWith('./') && key.startsWith(prefix) && key.endsWith(suffix);
+}
+
+function hasNestedExportCondition(value, depth = 0) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  if (depth > 0) return true;
+  return Object.values(value).some((child) => hasNestedExportCondition(child, depth + 1));
+}
+
+function packageImportsRecommendedSlice(projectRoot, sourceFile, specifier) {
+  const pkg = readNearestPackageJson(projectRoot, sourceFile);
+  if (!pkg || !Object.prototype.hasOwnProperty.call(pkg, 'imports')) return null;
+  const importsValue = pkg.imports;
+  if (!importsValue || typeof importsValue !== 'object' || Array.isArray(importsValue)) return null;
+  if (Object.prototype.hasOwnProperty.call(importsValue, specifier)) {
+    return 'package imports "#" repo-local slice';
+  }
+  for (const pattern of Object.keys(importsValue)) {
+    if (matchesSingleStarPackageImportPattern(pattern, specifier)) {
+      return 'package imports "#" repo-local slice';
+    }
+  }
+  return null;
+}
+
+function matchesSingleStarPackageImportPattern(pattern, key) {
+  const firstStar = pattern.indexOf('*');
+  if (firstStar === -1 || firstStar !== pattern.lastIndexOf('*')) return false;
+  const prefix = pattern.slice(0, firstStar);
+  const suffix = pattern.slice(firstStar + 1);
+  return prefix.startsWith('#') && key.startsWith(prefix) && key.endsWith(suffix);
+}
+
 function deltaBucketFor(row, resolved) {
   if (!row.importSpecifier) return row.specifierUnavailableReason;
   if (resolved.tsResolvedKind === 'node-runtime-builtin') return 'ts-runtime-builtin-boundary';
@@ -319,8 +418,12 @@ function recommendedSliceFor(row) {
     case 'ts-resolves-repo-local-paths-alias':
       return 'paths/rootDirs parity slice + oracle taxonomy correction';
     case 'ts-resolves-repo-local-rust-fallback':
-      return row.tsResolvedKind === 'repo-local-package-subpath'
-        ? 'package exports/imports repo-local file target'
+      return row.packageImportsRecommendedSlice
+        ? row.packageImportsRecommendedSlice
+        : row.packageExportsRecommendedSlice
+        ? row.packageExportsRecommendedSlice
+        : row.tsResolvedKind === 'repo-local-package' || row.tsResolvedKind === 'repo-local-package-subpath'
+        ? 'package.json name repo-local self/subpath slice'
         : 'repo-local package/self-name resolution';
     case 'ts-runtime-builtin-boundary':
       return 'Node/runtime builtin boundary taxonomy';

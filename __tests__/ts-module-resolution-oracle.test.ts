@@ -110,7 +110,7 @@ describe('TypeScript moduleResolution oracle script', () => {
     expect(parsed.summary.deltaBuckets['ts-resolves-third-party-boundary']).toBe(2);
     expect(parsed.summary.deltaBuckets['ts-resolves-repo-local-rust-fallback']).toBe(2);
     expect(parsed.summary.deltaBuckets['ts-unresolved-package-runtime']).toBe(1);
-    expect(parsed.summary.recommendedSliceGoals).toContain('repo-local package/self-name resolution');
+    expect(parsed.summary.recommendedSliceGoals).toContain('simple exports string/object repo-local target slice');
     expect(parsed.summary.recommendedSliceGoals).toContain('third-party package subpath boundary taxonomy');
 
     const artifact = JSON.parse(fs.readFileSync(parsed.artifacts.json, 'utf-8')) as {
@@ -148,12 +148,16 @@ describe('TypeScript moduleResolution oracle script', () => {
         tsResolvedKind: 'repo-local-package',
         repoLocal: true,
         deltaBucket: 'ts-resolves-repo-local-rust-fallback',
+        packageExportsCovered: true,
+        recommendedSlice: 'simple exports string/object repo-local target slice',
       }),
       expect.objectContaining({
         importSpecifier: '@fixture/app/feature',
         tsResolvedKind: 'repo-local-package-subpath',
         repoLocal: true,
         deltaBucket: 'ts-resolves-repo-local-rust-fallback',
+        packageExportsCovered: true,
+        recommendedSlice: 'simple exports string/object repo-local target slice',
       }),
     ]));
     for (const row of artifact.rows) {
@@ -306,6 +310,8 @@ describe('TypeScript moduleResolution oracle script', () => {
         name: '@fixture/app',
         exports: {
           '.': './src/index.ts',
+          './src/features/tool': './src/features/tool.ts',
+          './pattern/*': './src/pattern/*.ts',
         },
       }, null, 2) + '\n',
     );
@@ -323,10 +329,16 @@ describe('TypeScript moduleResolution oracle script', () => {
         },
       }, null, 2) + '\n',
     );
+    fs.mkdirSync(path.join(dir, 'src', 'features'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'src', 'pattern'), { recursive: true });
     fs.writeFileSync(path.join(dir, 'src', 'index.ts'), 'export const appValue = 1;\n');
+    fs.writeFileSync(path.join(dir, 'src', 'features', 'tool.ts'), 'export const toolValue = 3;\n');
+    fs.writeFileSync(path.join(dir, 'src', 'pattern', 'item.ts'), 'export const patternValue = 4;\n');
     fs.writeFileSync(path.join(dir, 'src', 'virtual-lib.ts'), 'export const virtualValue = 2;\n');
     fs.writeFileSync(path.join(dir, 'src', 'main.ts'), [
       'import { appValue } from "@fixture/app";',
+      'import { toolValue } from "@fixture/app/src/features/tool";',
+      'import { patternValue } from "@fixture/app/pattern/item";',
       'import { virtualValue } from "virtual-lib";',
     ].join('\n') + '\n');
 
@@ -337,6 +349,8 @@ describe('TypeScript moduleResolution oracle script', () => {
         rustCore: {
           moduleResolutionShadowSamples: [
             shadowSample('@fixture/app', 'packageOrRuntime', null),
+            shadowSample('@fixture/app/src/features/tool', 'packageOrRuntime', null),
+            shadowSample('@fixture/app/pattern/item', 'packageOrRuntime', null),
             shadowSample('virtual-lib', 'tsconfigPaths', 'src/virtual-lib.ts'),
           ],
         },
@@ -371,7 +385,18 @@ describe('TypeScript moduleResolution oracle script', () => {
       expect.objectContaining({
         importSpecifier: '@fixture/app',
         tsResolvedKind: 'repo-local-package',
-        recommendedSlice: 'repo-local package/self-name resolution',
+        recommendedSlice: 'simple exports string/object repo-local target slice',
+      }),
+      expect.objectContaining({
+        importSpecifier: '@fixture/app/src/features/tool',
+        tsResolvedKind: 'repo-local-package-subpath',
+        recommendedSlice: 'simple exports string/object repo-local target slice',
+      }),
+      expect.objectContaining({
+        importSpecifier: '@fixture/app/pattern/item',
+        tsResolvedKind: 'repo-local-package-subpath',
+        packageExportsRecommendedSlice: 'pattern/nested exports repo-local completion slice',
+        recommendedSlice: 'pattern/nested exports repo-local completion slice',
       }),
       expect.objectContaining({
         importSpecifier: 'virtual-lib',
@@ -380,8 +405,128 @@ describe('TypeScript moduleResolution oracle script', () => {
         recommendedSlice: 'paths/rootDirs parity slice + oracle taxonomy correction',
       }),
     ]));
-    expect(artifact.summary.recommendedSlices['repo-local package/self-name resolution']).toBe(1);
+    expect(artifact.summary.recommendedSlices['simple exports string/object repo-local target slice']).toBe(2);
+    expect(artifact.summary.recommendedSlices['pattern/nested exports repo-local completion slice']).toBe(1);
     expect(artifact.summary.recommendedSlices['paths/rootDirs parity slice + oracle taxonomy correction']).toBe(1);
+  });
+
+  it('classifies package imports hash specifiers as the package imports slice', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-ts-package-imports-taxonomy-'));
+    tempDirs.push(dir);
+    fs.mkdirSync(path.join(dir, 'packages', 'app', 'src', 'internal', 'features'), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({
+        name: 'root',
+        private: true,
+        imports: {
+          '#internal': './src/root-internal.ts',
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(
+      path.join(dir, 'packages', 'app', 'package.json'),
+      JSON.stringify({
+        name: '@fixture/app',
+        private: true,
+        imports: {
+          '#internal': './src/internal/index.ts',
+          '#feature/*': './src/internal/features/*.ts',
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(
+      path.join(dir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'NodeNext',
+          moduleResolution: 'NodeNext',
+          target: 'ES2022',
+          allowImportingTsExtensions: true,
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(path.join(dir, 'packages', 'app', 'src', 'internal', 'index.ts'), 'export const internalValue = 1;\n');
+    fs.writeFileSync(path.join(dir, 'packages', 'app', 'src', 'internal', 'features', 'tool.ts'), 'export const featureValue = 2;\n');
+    fs.writeFileSync(path.join(dir, 'packages', 'app', 'src', 'main.ts'), [
+      'import { internalValue } from "#internal";',
+      'import { featureValue } from "#feature/tool";',
+    ].join('\n') + '\n');
+
+    const profilePath = path.join(dir, 'profile.json');
+    fs.writeFileSync(
+      profilePath,
+      JSON.stringify({
+        rustCore: {
+          moduleResolutionShadowSamples: [
+            {
+              specifier: '#internal',
+              sourceFile: 'packages/app/src/main.ts',
+              moduleResolutionMode: 'nodeNext',
+              resolvedKind: 'packageOrRuntime',
+              resolvedPath: null,
+              isExternalLibraryImport: true,
+              failedLookupCategory: 'package-or-runtime-import',
+              conditionSet: [],
+              parityStatus: 'unknown',
+              fallbackReason: 'rust-shadow-does-not-expand-package-imports',
+            },
+            {
+              specifier: '#feature/tool',
+              sourceFile: 'packages/app/src/main.ts',
+              moduleResolutionMode: 'nodeNext',
+              resolvedKind: 'packageOrRuntime',
+              resolvedPath: null,
+              isExternalLibraryImport: true,
+              failedLookupCategory: 'package-or-runtime-import',
+              conditionSet: [],
+              parityStatus: 'unknown',
+              fallbackReason: 'rust-shadow-does-not-expand-package-imports',
+            },
+          ],
+        },
+      }, null, 2),
+    );
+
+    const outDir = path.join(dir, 'artifacts');
+    const result = spawnSync(
+      process.execPath,
+      [
+        SCRIPT,
+        '--project',
+        dir,
+        '--profile',
+        profilePath,
+        '--out-dir',
+        outDir,
+        '--prefix',
+        'fixture-ts-package-imports-taxonomy',
+      ],
+      { cwd: REPO_ROOT, encoding: 'utf-8' },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const parsed = JSON.parse(result.stdout) as { artifacts: { json: string } };
+    const artifact = JSON.parse(fs.readFileSync(parsed.artifacts.json, 'utf-8')) as {
+      rows: Array<Record<string, unknown>>;
+      summary: { recommendedSlices: Record<string, number> };
+    };
+
+    expect(artifact.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        importSpecifier: '#internal',
+        tsResolvedKind: 'repo-local-package-import',
+        packageImportsRecommendedSlice: 'package imports "#" repo-local slice',
+        recommendedSlice: 'package imports "#" repo-local slice',
+      }),
+      expect.objectContaining({
+        importSpecifier: '#feature/tool',
+        tsResolvedKind: 'repo-local-package-import',
+        packageImportsRecommendedSlice: 'package imports "#" repo-local slice',
+        recommendedSlice: 'package imports "#" repo-local slice',
+      }),
+    ]));
+    expect(artifact.summary.recommendedSlices['package imports "#" repo-local slice']).toBe(2);
   });
 });
 

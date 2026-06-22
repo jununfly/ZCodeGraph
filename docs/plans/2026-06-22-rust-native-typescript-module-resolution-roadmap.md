@@ -53,70 +53,73 @@ shadow-only diagnostics in Rust core:
 
 ```text
 [-] Rust-native TypeScript moduleResolution
-├─ [-] Main subtree: repo-local graph sufficiency path
-│  ├─ [x] Resolver architecture and protocol
-│  │  ├─ [x] Rust request type: specifier + source file + language + import kind
-│  │  ├─ [x] compilerOptions summary: moduleResolution/module/baseUrl/paths/rootDirs/allowJs/resolveJsonModule
-│  │  ├─ [x] decision record: TS-style resolution decision
-│  │  └─ [x] shadow-only profile diagnostics
-│  ├─ [ ] Config interpretation
-│  │  ├─ [x] tsconfig/jsconfig discovery
-│  │  ├─ [ ] extends/default handling
-│  │  ├─ [ ] moduleResolution modes
-│  │  ├─ [x] baseUrl/paths
-│  │  └─ [ ] rootDirs
-│  ├─ [ ] Repo-local package resolution
-│  │  ├─ [ ] package self-name imports
-│  │  ├─ [x] workspace package imports
-│  │  ├─ [ ] package subpath imports landing in repo source
-│  │  └─ [x] package boundary no-go when target is external
-│  ├─ [ ] Package exports/imports for repo-local targets
-│  │  ├─ [ ] exports "." and subpath entries
-│  │  ├─ [ ] imports "#" entries
-│  │  ├─ [ ] condition set handling for repo-local source
-│  │  └─ [x] no node_modules graph expansion by default
-│  ├─ [ ] File target semantics
-│  │  ├─ [x] extension substitution
-│  │  ├─ [ ] .ts/.tsx/.js/.jsx/.mts/.cts/.d.ts pairing
-│  │  ├─ [x] directory/index lookup
-│  │  └─ [ ] declaration/runtime target relationship
-│  ├─ [-] Parity confidence
-│  │  ├─ [x] TS compiler API oracle fixtures
-│  │  ├─ [x] Rust decision record comparison
-│  │  ├─ [x] mismatch/no-oracle taxonomy
-│  │  └─ [-] current repo + VS Code sparse diagnostics
-│  └─ [ ] Guarded graph writing
-│     ├─ [ ] file-level imports edges
-│     ├─ [ ] ESM named symbol edges
-│     ├─ [ ] one-hop re-export edges
-│     └─ [ ] rollback/no-go when parity is weak
+├─ [-] 1. Main subtree: repo-local graph sufficiency path
+│  ├─ [x] 1-1. Resolver architecture and protocol
+│  │  ├─ [x] 1-1-1. Rust request type: specifier + source file + language + import kind
+│  │  ├─ [x] 1-1-2. compilerOptions summary: moduleResolution/module/baseUrl/paths/rootDirs/allowJs/resolveJsonModule
+│  │  ├─ [x] 1-1-3. decision record: TS-style resolution decision
+│  │  └─ [x] 1-1-4. shadow-only profile diagnostics
+│  ├─ [-] 1-2. Config interpretation
+│  │  ├─ [x] 1-2-1. tsconfig/jsconfig discovery
+│  │  ├─ [ ] 1-2-2. extends/default handling
+│  │  ├─ [ ] 1-2-3. moduleResolution modes
+│  │  ├─ [x] 1-2-4. baseUrl/paths
+│  │  └─ [-] 1-2-5. rootDirs
+│  ├─ [x] 1-3. Repo-local package resolution
+│  │  ├─ [x] 1-3-1. package self-name imports
+│  │  ├─ [x] 1-3-2. workspace package imports
+│  │  ├─ [x] 1-3-3. package subpath imports landing in repo source
+│  │  └─ [x] 1-3-4. package boundary no-go when target is external
+│  ├─ [-] 1-4. Package exports/imports for repo-local targets
+│  │  ├─ [x] 1-4-1. exports "." and subpath entries
+│  │  ├─ [x] 1-4-2. imports "#" entries
+│  │  ├─ [-] 1-4-3. condition set handling for repo-local source
+│  │  └─ [x] 1-4-4. no node_modules graph expansion by default
+│  ├─ [ ] 1-5. File target semantics
+│  │  ├─ [x] 1-5-1. extension substitution
+│  │  ├─ [ ] 1-5-2. .ts/.tsx/.js/.jsx/.mts/.cts/.d.ts pairing
+│  │  ├─ [x] 1-5-3. directory/index lookup
+│  │  └─ [ ] 1-5-4. declaration/runtime target relationship
+│  ├─ [-] 1-6. Parity confidence
+│  │  ├─ [x] 1-6-1. TS compiler API oracle fixtures
+│  │  ├─ [x] 1-6-2. Rust decision record comparison
+│  │  ├─ [x] 1-6-3. mismatch/no-oracle taxonomy
+│  │  └─ [-] 1-6-4. current repo + VS Code sparse diagnostics
+│  └─ [ ] 1-7. Guarded graph writing
+│     ├─ [ ] 1-7-1. file-level imports edges
+│     ├─ [ ] 1-7-2. ESM named symbol edges
+│     ├─ [ ] 1-7-3. one-hop re-export edges
+│     └─ [ ] 1-7-4. rollback/no-go when parity is weak
 │
-├─ [ ] Explore subtree: semantic frontier
-│  ├─ [ ] full node_modules graph expansion
-│  ├─ [ ] third-party package symbol indexing
-│  ├─ [ ] typesVersions
-│  ├─ [ ] Classic and Node10 legacy exactness
-│  ├─ [ ] symlink/preserveSymlinks/pnpm virtual store behavior
-│  ├─ [ ] custom loaders and bundler plugins
-│  ├─ [ ] JSON/CSS/assets/custom non-code modules
-│  ├─ [ ] type-only vs runtime target divergence
-│  └─ [ ] package manager specific edge cases
+├─ [ ] 2. Explore subtree: semantic frontier
+│  ├─ [ ] 2-1. full node_modules graph expansion
+│  ├─ [ ] 2-2. third-party package symbol indexing
+│  ├─ [ ] 2-3. typesVersions
+│  ├─ [ ] 2-4. Classic and Node10 legacy exactness
+│  ├─ [ ] 2-5. symlink/preserveSymlinks/pnpm virtual store behavior
+│  ├─ [ ] 2-6. custom loaders and bundler plugins
+│  ├─ [ ] 2-7. JSON/CSS/assets/custom non-code modules
+│  ├─ [ ] 2-8. type-only vs runtime target divergence
+│  └─ [ ] 2-9. package manager specific edge cases
 │
-└─ [-] Exploit slices: bounded implementation work
-   ├─ [x] shadow-only diagnostics skeleton
-   ├─ [x] TS oracle parity harness
-   ├─ [x] profile diagnostics integration
-   ├─ [x] paths/rootDirs parity slice
-   ├─ [ ] package self-name repo-local slice
-   │  └─ [x] paths/rootDirs parity slice + oracle taxonomy correction
-   ├─ [x] workspace package repo-local slice
-   ├─ [ ] package exports repo-local slice
-   ├─ [ ] package imports "#" repo-local slice
-   ├─ [x] extension substitution slice
-   ├─ [x] directory/index lookup slice
-   ├─ [x] Node builtin boundary taxonomy slice
-   ├─ [x] package external-boundary no-go taxonomy slice
-   └─ [ ] guarded edge-write slice
+└─ [-] 3. Exploit slices: bounded implementation work
+   ├─ [x] 3-1. shadow-only diagnostics skeleton
+   ├─ [x] 3-2. TS oracle parity harness
+   ├─ [x] 3-3. profile diagnostics integration
+   ├─ [x] 3-4. paths/rootDirs parity slice
+   ├─ [x] 3-5. package self-name repo-local slice
+   │  ├─ [x] 3-5-1. paths/rootDirs parity slice + oracle taxonomy correction
+   │  └─ [x] 3-5-2. package.json name repo-local self/subpath slice
+   ├─ [x] 3-6. workspace package repo-local slice
+   ├─ [x] 3-7. package exports repo-local slice
+   │  ├─ [x] 3-7-1. simple exports string/object repo-local target slice
+   │  └─ [x] 3-7-2. pattern/nested exports repo-local completion slice
+   ├─ [x] 3-8. package imports "#" repo-local slice
+   ├─ [x] 3-9. extension substitution slice
+   ├─ [x] 3-10. directory/index lookup slice
+   ├─ [x] 3-11. Node builtin boundary taxonomy slice
+   ├─ [x] 3-12. package external-boundary no-go taxonomy slice
+   └─ [ ] 3-13. guarded edge-write slice
 ```
 
 ## Route Discipline

@@ -239,11 +239,17 @@ pub struct IndexProfile {
     pub import_path_alias_conventional_alias_resolved_refs: u32,
     pub import_path_alias_workspace_resolved_refs: u32,
     pub import_path_alias_root_dirs_resolved_refs: u32,
+    pub import_path_alias_package_self_name_resolved_refs: u32,
+    pub import_path_alias_package_imports_resolved_refs: u32,
     pub import_path_alias_relative_fallback_refs: u32,
     pub import_path_alias_tsconfig_fallback_refs: u32,
     pub import_path_alias_conventional_alias_fallback_refs: u32,
     pub import_path_alias_workspace_fallback_refs: u32,
     pub import_path_alias_root_dirs_fallback_refs: u32,
+    pub import_path_alias_package_self_name_fallback_refs: u32,
+    pub import_path_alias_package_imports_fallback_refs: u32,
+    pub import_path_alias_package_self_name_outcome_counts: BTreeMap<String, u32>,
+    pub import_path_alias_package_imports_outcome_counts: BTreeMap<String, u32>,
     pub import_path_alias_fallback_sample_counts: BTreeMap<String, u32>,
     pub import_path_alias_fallback_samples: Vec<ImportFallbackSample>,
     pub import_path_alias_fallback_sample_cap: ImportFallbackSampleCap,
@@ -1456,6 +1462,14 @@ fn write_index_to_connection(
         import_stats.conventional_alias_resolved_refs;
     counts.profile.import_path_alias_workspace_resolved_refs = import_stats.workspace_resolved_refs;
     counts.profile.import_path_alias_root_dirs_resolved_refs = import_stats.root_dirs_resolved_refs;
+    counts
+        .profile
+        .import_path_alias_package_self_name_resolved_refs =
+        import_stats.package_self_name_resolved_refs;
+    counts
+        .profile
+        .import_path_alias_package_imports_resolved_refs =
+        import_stats.package_imports_resolved_refs;
     counts.profile.import_path_alias_relative_fallback_refs = import_stats.relative_fallback_refs;
     counts.profile.import_path_alias_tsconfig_fallback_refs = import_stats.tsconfig_fallback_refs;
     counts
@@ -1464,6 +1478,22 @@ fn write_index_to_connection(
         import_stats.conventional_alias_fallback_refs;
     counts.profile.import_path_alias_workspace_fallback_refs = import_stats.workspace_fallback_refs;
     counts.profile.import_path_alias_root_dirs_fallback_refs = import_stats.root_dirs_fallback_refs;
+    counts
+        .profile
+        .import_path_alias_package_self_name_fallback_refs =
+        import_stats.package_self_name_fallback_refs;
+    counts
+        .profile
+        .import_path_alias_package_imports_fallback_refs =
+        import_stats.package_imports_fallback_refs;
+    counts
+        .profile
+        .import_path_alias_package_self_name_outcome_counts =
+        import_stats.package_self_name_outcome_counts;
+    counts
+        .profile
+        .import_path_alias_package_imports_outcome_counts =
+        import_stats.package_imports_outcome_counts;
     counts.profile.import_path_alias_fallback_sample_counts = import_stats.fallback_sample_counts;
     counts.profile.import_path_alias_fallback_samples = import_stats.fallback_samples;
     counts.profile.import_path_alias_fallback_sample_cap = ImportFallbackSampleCap {
@@ -1515,11 +1545,17 @@ struct ImportResolutionStats {
     conventional_alias_resolved_refs: u32,
     workspace_resolved_refs: u32,
     root_dirs_resolved_refs: u32,
+    package_self_name_resolved_refs: u32,
+    package_imports_resolved_refs: u32,
     relative_fallback_refs: u32,
     tsconfig_fallback_refs: u32,
     conventional_alias_fallback_refs: u32,
     workspace_fallback_refs: u32,
     root_dirs_fallback_refs: u32,
+    package_self_name_fallback_refs: u32,
+    package_imports_fallback_refs: u32,
+    package_self_name_outcome_counts: BTreeMap<String, u32>,
+    package_imports_outcome_counts: BTreeMap<String, u32>,
     fallback_sample_counts: BTreeMap<String, u32>,
     fallback_samples: Vec<ImportFallbackSample>,
     fallback_bucket_sample_counts: HashMap<String, usize>,
@@ -1703,9 +1739,25 @@ enum ImportTargetSourceKind {
     ConventionalAlias,
     WorkspacePackage,
     RootDirs,
+    PackageSelfName,
+    PackageImports,
 }
 
 impl ImportResolutionStats {
+    fn record_package_self_name_outcome(&mut self, outcome: &'static str) {
+        *self
+            .package_self_name_outcome_counts
+            .entry(outcome.to_string())
+            .or_insert(0) += 1;
+    }
+
+    fn record_package_imports_outcome(&mut self, outcome: &'static str) {
+        *self
+            .package_imports_outcome_counts
+            .entry(outcome.to_string())
+            .or_insert(0) += 1;
+    }
+
     fn record_resolved_source(&mut self, source: ImportTargetSourceKind) {
         match source {
             ImportTargetSourceKind::Relative => self.relative_resolved_refs += 1,
@@ -1713,6 +1765,8 @@ impl ImportResolutionStats {
             ImportTargetSourceKind::ConventionalAlias => self.conventional_alias_resolved_refs += 1,
             ImportTargetSourceKind::WorkspacePackage => self.workspace_resolved_refs += 1,
             ImportTargetSourceKind::RootDirs => self.root_dirs_resolved_refs += 1,
+            ImportTargetSourceKind::PackageSelfName => self.package_self_name_resolved_refs += 1,
+            ImportTargetSourceKind::PackageImports => self.package_imports_resolved_refs += 1,
         }
     }
 
@@ -1724,6 +1778,8 @@ impl ImportResolutionStats {
             ImportTargetSourceKind::ConventionalAlias => self.conventional_alias_fallback_refs += 1,
             ImportTargetSourceKind::WorkspacePackage => self.workspace_fallback_refs += 1,
             ImportTargetSourceKind::RootDirs => self.root_dirs_fallback_refs += 1,
+            ImportTargetSourceKind::PackageSelfName => self.package_self_name_fallback_refs += 1,
+            ImportTargetSourceKind::PackageImports => self.package_imports_fallback_refs += 1,
         }
     }
 }
@@ -1736,6 +1792,8 @@ impl ImportTargetSourceKind {
             ImportTargetSourceKind::ConventionalAlias => "conventionalAlias",
             ImportTargetSourceKind::WorkspacePackage => "workspacePackage",
             ImportTargetSourceKind::RootDirs => "rootDirs",
+            ImportTargetSourceKind::PackageSelfName => "packageSelfName",
+            ImportTargetSourceKind::PackageImports => "packageImports",
         }
     }
 
@@ -1746,6 +1804,8 @@ impl ImportTargetSourceKind {
             ImportTargetSourceKind::ConventionalAlias => "conventional-alias-target-not-found",
             ImportTargetSourceKind::WorkspacePackage => "workspace-package-target-not-found",
             ImportTargetSourceKind::RootDirs => "root-dirs-target-not-found",
+            ImportTargetSourceKind::PackageSelfName => "missingTarget",
+            ImportTargetSourceKind::PackageImports => "importsMissingTarget",
         }
     }
 }
@@ -1804,6 +1864,19 @@ struct WorkspacePackages {
     by_name: HashMap<String, String>,
 }
 
+#[derive(Debug, Default)]
+struct RepoLocalPackageNames {
+    by_name: HashMap<String, Vec<RepoLocalPackage>>,
+    packages: Vec<RepoLocalPackage>,
+}
+
+#[derive(Debug, Clone)]
+struct RepoLocalPackage {
+    dir: String,
+    exports: Option<Value>,
+    imports: Option<Value>,
+}
+
 impl WorkspacePackages {
     fn resolve_import<'a>(&'a self, specifier: &'a str) -> Option<PathBuf> {
         let mut best: Option<&str> = None;
@@ -1821,12 +1894,167 @@ impl WorkspacePackages {
     }
 }
 
+impl RepoLocalPackageNames {
+    fn nearest_package_for_file(&self, file_path: &str) -> Option<&RepoLocalPackage> {
+        let mut best: Option<&RepoLocalPackage> = None;
+        for package in &self.packages {
+            if package.dir.is_empty()
+                || file_path == package.dir
+                || file_path.starts_with(&format!("{}/", package.dir))
+            {
+                if best.map_or(true, |current| package.dir.len() > current.dir.len()) {
+                    best = Some(package);
+                }
+            }
+        }
+        best
+    }
+
+    fn resolve_package_import(
+        &self,
+        from_file_path: &str,
+        specifier: &str,
+    ) -> PackageImportsResolution {
+        if !specifier.starts_with('#') {
+            return PackageImportsResolution::NotPackageImport;
+        }
+        let Some(package) = self.nearest_package_for_file(from_file_path) else {
+            return PackageImportsResolution::MissingPackageBoundary;
+        };
+        let Some(imports) = &package.imports else {
+            return PackageImportsResolution::MissingImportsMap;
+        };
+        match resolve_package_imports_map(imports, specifier) {
+            PackageImportsMapResolution::Resolved(target) => {
+                let target = Path::new(&package.dir).join(target);
+                if !path_stays_within_package(&target, &package.dir) {
+                    return PackageImportsResolution::Unsupported("importsTargetEscapesPackage");
+                }
+                PackageImportsResolution::Matched {
+                    target,
+                    outcomes: vec!["importsResolved"],
+                }
+            }
+            PackageImportsMapResolution::Missing => {
+                PackageImportsResolution::Unsupported("importsMissing")
+            }
+            PackageImportsMapResolution::Unsupported(reason) => {
+                PackageImportsResolution::Unsupported(reason)
+            }
+        }
+    }
+
+    fn resolve_import(&self, specifier: &str) -> PackageSelfNameResolution {
+        let Some(best_name) = self.best_name_match(specifier) else {
+            return PackageSelfNameResolution::MissingPackageName;
+        };
+        let Some(packages) = self.by_name.get(best_name) else {
+            return PackageSelfNameResolution::MissingPackageName;
+        };
+        if packages.len() != 1 {
+            return PackageSelfNameResolution::AmbiguousName;
+        }
+        let package = &packages[0];
+        let subpath = specifier[best_name.len()..].trim_start_matches('/');
+        let fallback_target = package_root_fallback_target(&package.dir, subpath);
+        if let Some(exports) = &package.exports {
+            match resolve_simple_package_exports(exports, subpath) {
+                PackageExportsResolution::Resolved(target) => {
+                    return PackageSelfNameResolution::Matched {
+                        target: Path::new(&package.dir).join(target),
+                        outcomes: vec!["exportsResolved"],
+                    };
+                }
+                PackageExportsResolution::Missing => {
+                    return PackageSelfNameResolution::Matched {
+                        target: fallback_target,
+                        outcomes: vec!["exportsMissing", "rootFallbackResolved"],
+                    };
+                }
+                PackageExportsResolution::Unsupported(reason) => {
+                    return PackageSelfNameResolution::UnsupportedExports(reason);
+                }
+            }
+        }
+
+        PackageSelfNameResolution::Matched {
+            target: fallback_target,
+            outcomes: vec![if subpath.is_empty() {
+                "resolvedRootIndex"
+            } else {
+                "resolvedSubpath"
+            }],
+        }
+    }
+
+    fn best_name_match<'a>(&'a self, specifier: &str) -> Option<&'a str> {
+        let mut best: Option<&str> = None;
+        for name in self.by_name.keys() {
+            if specifier == name || specifier.starts_with(&format!("{}/", name)) {
+                if best.map_or(true, |current| name.len() > current.len()) {
+                    best = Some(name);
+                }
+            }
+        }
+        best
+    }
+
+    fn shares_known_scope(&self, specifier: &str) -> bool {
+        let Some((scope, _rest)) = specifier.strip_prefix('@').and_then(|s| s.split_once('/'))
+        else {
+            return false;
+        };
+        let expected_prefix = format!("@{}/", scope);
+        self.by_name
+            .keys()
+            .any(|name| name.starts_with(&expected_prefix))
+    }
+}
+
+#[derive(Debug)]
+enum PackageSelfNameResolution {
+    Matched {
+        target: PathBuf,
+        outcomes: Vec<&'static str>,
+    },
+    AmbiguousName,
+    MissingPackageName,
+    UnsupportedExports(&'static str),
+}
+
+#[derive(Debug)]
+enum PackageImportsResolution {
+    Matched {
+        target: PathBuf,
+        outcomes: Vec<&'static str>,
+    },
+    MissingPackageBoundary,
+    MissingImportsMap,
+    NotPackageImport,
+    Unsupported(&'static str),
+}
+
+#[derive(Debug)]
+enum PackageExportsResolution {
+    Resolved(PathBuf),
+    Missing,
+    Unsupported(&'static str),
+}
+
+#[derive(Debug)]
+enum PackageImportsMapResolution {
+    Resolved(PathBuf),
+    Missing,
+    Unsupported(&'static str),
+}
+
 fn resolve_js_ts_file_imports(
     conn: &Connection,
     project_path: &Path,
 ) -> Result<ImportResolutionStats, Box<dyn std::error::Error>> {
     let aliases = load_ts_path_aliases(project_path);
     let workspace_packages = load_workspace_packages(project_path);
+    let package_self_names = load_repo_local_package_names(project_path);
     let refs = load_import_refs(conn)?;
     let mut stats = ImportResolutionStats::default();
     let mut resolved_ids = Vec::new();
@@ -1840,41 +2068,107 @@ fn resolve_js_ts_file_imports(
         }
 
         let specifier = reference.reference_name.as_str();
-        let target = if let Some((source, target)) = resolve_import_target(
+        let target = if let Some((source, target, outcomes)) = resolve_import_target(
             project_path,
             &aliases,
             &workspace_packages,
+            &package_self_names,
             &reference.file_path,
             specifier,
         ) {
-            (source, target)
+            (source, target, outcomes)
         } else if aliases.matches(specifier) {
-            (ImportTargetSourceKind::TsconfigPaths, None)
+            (ImportTargetSourceKind::TsconfigPaths, None, Vec::new())
         } else if matches_conventional_alias(specifier).is_some() {
-            (ImportTargetSourceKind::ConventionalAlias, None)
+            (ImportTargetSourceKind::ConventionalAlias, None, Vec::new())
         } else if workspace_packages.resolve_import(specifier).is_some() {
-            (ImportTargetSourceKind::WorkspacePackage, None)
-        } else if looks_like_imported_binding(specifier) {
-            stats.binding_fallback_refs += 1;
-            stats.record_fallback_sample(
-                "binding",
-                "binding-level-symbol-disambiguation",
-                &reference,
-            );
-            continue;
+            (ImportTargetSourceKind::WorkspacePackage, None, Vec::new())
+        } else if specifier.starts_with('#') {
+            match package_self_names.resolve_package_import(&reference.file_path, specifier) {
+                PackageImportsResolution::MissingPackageBoundary => (
+                    ImportTargetSourceKind::PackageImports,
+                    None,
+                    vec!["importsMissingPackageBoundary"],
+                ),
+                PackageImportsResolution::MissingImportsMap => (
+                    ImportTargetSourceKind::PackageImports,
+                    None,
+                    vec!["importsMissingMap"],
+                ),
+                PackageImportsResolution::Unsupported(reason) => {
+                    (ImportTargetSourceKind::PackageImports, None, vec![reason])
+                }
+                PackageImportsResolution::NotPackageImport => {
+                    unreachable!("specifier starts with #")
+                }
+                PackageImportsResolution::Matched { .. } => {
+                    unreachable!("package imports matches are returned by resolve_import_target")
+                }
+            }
         } else {
-            stats.unsupported_fallback_refs += 1;
-            stats.record_fallback_sample("unsupported", "unsupported-import-form", &reference);
-            continue;
+            match package_self_names.resolve_import(specifier) {
+                PackageSelfNameResolution::AmbiguousName => (
+                    ImportTargetSourceKind::PackageSelfName,
+                    None,
+                    vec!["ambiguousName"],
+                ),
+                PackageSelfNameResolution::UnsupportedExports(reason) => {
+                    (ImportTargetSourceKind::PackageSelfName, None, vec![reason])
+                }
+                PackageSelfNameResolution::MissingPackageName
+                    if looks_like_imported_binding(specifier) =>
+                {
+                    stats.binding_fallback_refs += 1;
+                    stats.record_fallback_sample(
+                        "binding",
+                        "binding-level-symbol-disambiguation",
+                        &reference,
+                    );
+                    continue;
+                }
+                PackageSelfNameResolution::MissingPackageName
+                    if package_self_names.shares_known_scope(specifier) =>
+                {
+                    (
+                        ImportTargetSourceKind::PackageSelfName,
+                        None,
+                        vec!["missingPackageName"],
+                    )
+                }
+                PackageSelfNameResolution::MissingPackageName => {
+                    stats.unsupported_fallback_refs += 1;
+                    stats.record_fallback_sample(
+                        "unsupported",
+                        "unsupported-import-form",
+                        &reference,
+                    );
+                    continue;
+                }
+                PackageSelfNameResolution::Matched { .. } => {
+                    unreachable!("package self-name matches are returned by resolve_import_target")
+                }
+            }
         };
+
+        if target.0 == ImportTargetSourceKind::PackageSelfName {
+            for outcome in &target.2 {
+                stats.record_package_self_name_outcome(outcome);
+            }
+        }
+        if target.0 == ImportTargetSourceKind::PackageImports {
+            for outcome in &target.2 {
+                stats.record_package_imports_outcome(outcome);
+            }
+        }
 
         let Some(target_file_path) = target.1 else {
             stats.record_unresolved_source(target.0);
-            stats.record_fallback_sample(
-                target.0.as_profile_source_kind(),
-                target.0.target_not_found_reason(),
-                &reference,
-            );
+            let reason = target
+                .2
+                .first()
+                .copied()
+                .unwrap_or_else(|| target.0.target_not_found_reason());
+            stats.record_fallback_sample(target.0.as_profile_source_kind(), reason, &reference);
             continue;
         };
         let Some(target_node_id) = find_file_node_id(conn, &target_file_path)? else {
@@ -1906,6 +2200,7 @@ fn build_module_resolution_shadow_diagnostics(
 ) -> Result<ModuleResolutionShadowDiagnostics, Box<dyn std::error::Error>> {
     let aliases = load_ts_path_aliases(project_path);
     let workspace_packages = load_workspace_packages(project_path);
+    let package_self_names = load_repo_local_package_names(project_path);
     let compiler_options = load_module_resolution_compiler_options_summary(project_path);
     let module_resolution_mode = compiler_options
         .module_resolution
@@ -1940,6 +2235,7 @@ fn build_module_resolution_shadow_diagnostics(
                 project_path,
                 &aliases,
                 &workspace_packages,
+                &package_self_names,
                 &reference,
                 &specifier,
             );
@@ -1968,13 +2264,15 @@ fn classify_module_resolution_shadow_decision(
     project_path: &Path,
     aliases: &TsPathAliases,
     workspace_packages: &WorkspacePackages,
+    package_self_names: &RepoLocalPackageNames,
     reference: &ImportRefRow,
     specifier: &str,
 ) -> (String, Option<String>, Option<String>, Option<String>) {
-    if let Some((source, target)) = resolve_import_target(
+    if let Some((source, target, _outcomes)) = resolve_import_target(
         project_path,
         aliases,
         workspace_packages,
+        package_self_names,
         &reference.file_path,
         specifier,
     ) {
@@ -2013,6 +2311,65 @@ fn classify_module_resolution_shadow_decision(
             Some("workspace-package-target-not-found".to_string()),
             Some("rust-shadow-could-not-resolve-workspace-package-target".to_string()),
         );
+    }
+    if specifier.starts_with('#') {
+        return match package_self_names.resolve_package_import(&reference.file_path, specifier) {
+            PackageImportsResolution::MissingPackageBoundary => (
+                "packageImports".to_string(),
+                None,
+                Some("importsMissingPackageBoundary".to_string()),
+                Some("rust-shadow-missing-package-boundary-for-package-import".to_string()),
+            ),
+            PackageImportsResolution::MissingImportsMap => (
+                "packageImports".to_string(),
+                None,
+                Some("importsMissingMap".to_string()),
+                Some("rust-shadow-missing-package-imports-map".to_string()),
+            ),
+            PackageImportsResolution::Unsupported(reason) => (
+                "packageImports".to_string(),
+                None,
+                Some(reason.to_string()),
+                Some("rust-shadow-unsupported-package-imports".to_string()),
+            ),
+            PackageImportsResolution::Matched { .. }
+            | PackageImportsResolution::NotPackageImport => (
+                "packageImports".to_string(),
+                None,
+                Some("importsMissingTarget".to_string()),
+                Some("rust-shadow-could-not-resolve-package-import-target".to_string()),
+            ),
+        };
+    }
+    match package_self_names.resolve_import(specifier) {
+        PackageSelfNameResolution::AmbiguousName => {
+            return (
+                "packageSelfName".to_string(),
+                None,
+                Some("ambiguousName".to_string()),
+                Some("rust-shadow-ambiguous-package-self-name".to_string()),
+            );
+        }
+        PackageSelfNameResolution::UnsupportedExports(reason) => {
+            return (
+                "packageSelfName".to_string(),
+                None,
+                Some(reason.to_string()),
+                Some("rust-shadow-unsupported-package-exports".to_string()),
+            );
+        }
+        PackageSelfNameResolution::MissingPackageName
+            if package_self_names.shares_known_scope(specifier) =>
+        {
+            return (
+                "packageSelfName".to_string(),
+                None,
+                Some("missingPackageName".to_string()),
+                Some("rust-shadow-missing-package-self-name".to_string()),
+            );
+        }
+        PackageSelfNameResolution::MissingPackageName
+        | PackageSelfNameResolution::Matched { .. } => {}
     }
     if is_node_runtime_builtin(specifier) {
         return (
@@ -2321,6 +2678,529 @@ fn load_workspace_packages(project_path: &Path) -> WorkspacePackages {
     packages
 }
 
+fn load_repo_local_package_names(project_path: &Path) -> RepoLocalPackageNames {
+    let mut packages = RepoLocalPackageNames::default();
+    collect_repo_local_package_names(project_path, project_path, &mut packages);
+    for packages_for_name in packages.by_name.values_mut() {
+        packages_for_name.sort_by(|left, right| left.dir.cmp(&right.dir));
+        packages_for_name.dedup_by(|left, right| left.dir == right.dir);
+    }
+    packages
+        .packages
+        .sort_by(|left, right| left.dir.cmp(&right.dir));
+    packages
+        .packages
+        .dedup_by(|left, right| left.dir == right.dir);
+    packages
+}
+
+fn collect_repo_local_package_names(
+    project_path: &Path,
+    dir: &Path,
+    packages: &mut RepoLocalPackageNames,
+) {
+    let Ok(relative_dir) = dir.strip_prefix(project_path) else {
+        return;
+    };
+    if is_ignored_repo_local_package_dir(relative_dir) {
+        return;
+    }
+
+    let package_json = dir.join("package.json");
+    if let Ok(content) = fs::read_to_string(&package_json) {
+        if let Ok(parsed) = serde_json::from_str::<Value>(&content) {
+            if let Some(name) = parsed.get("name").and_then(Value::as_str) {
+                if !name.is_empty() {
+                    let rel = normalize_path(relative_dir);
+                    let package = RepoLocalPackage {
+                        dir: rel.clone(),
+                        exports: parsed.get("exports").cloned(),
+                        imports: parsed.get("imports").cloned(),
+                    };
+                    packages
+                        .by_name
+                        .entry(name.to_string())
+                        .or_default()
+                        .push(package.clone());
+                    packages.packages.push(package);
+                }
+            }
+        }
+    }
+
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if !file_type.is_dir() {
+            continue;
+        }
+        collect_repo_local_package_names(project_path, &entry.path(), packages);
+    }
+}
+
+fn is_ignored_repo_local_package_dir(relative_dir: &Path) -> bool {
+    relative_dir.components().any(|component| {
+        let name = component.as_os_str().to_string_lossy();
+        matches!(
+            name.as_ref(),
+            ".git" | ".zcodegraph" | "node_modules" | "vendor" | "generated"
+        )
+    })
+}
+
+fn normalize_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+fn package_root_fallback_target(package_dir: &str, subpath: &str) -> PathBuf {
+    if subpath.is_empty() {
+        Path::new(package_dir).join("index")
+    } else {
+        Path::new(package_dir).join(subpath)
+    }
+}
+
+fn resolve_simple_package_exports(exports: &Value, subpath: &str) -> PackageExportsResolution {
+    let export_key = if subpath.is_empty() {
+        "."
+    } else {
+        return match export_key_for_subpath(subpath) {
+            Some(key) => resolve_package_exports_key(exports, &key),
+            None => PackageExportsResolution::Unsupported("exportsUnsupported"),
+        };
+    };
+    resolve_package_exports_key(exports, export_key)
+}
+
+fn export_key_for_subpath(subpath: &str) -> Option<String> {
+    if subpath.is_empty() || subpath.contains('*') {
+        return None;
+    }
+    Some(format!("./{}", subpath.trim_start_matches('/')))
+}
+
+fn resolve_package_exports_key(exports: &Value, key: &str) -> PackageExportsResolution {
+    match exports {
+        Value::String(target) if key == "." => validate_package_exports_target(target),
+        Value::String(_) => PackageExportsResolution::Missing,
+        Value::Object(entries) => match entries.get(key) {
+            Some(value) => resolve_package_exports_target_value(value),
+            None => resolve_package_exports_pattern(entries, key),
+        },
+        _ => PackageExportsResolution::Unsupported("exportsUnsupported"),
+    }
+}
+
+fn resolve_package_exports_pattern(
+    entries: &serde_json::Map<String, Value>,
+    key: &str,
+) -> PackageExportsResolution {
+    let mut best: Option<(&str, &Value, &str)> = None;
+    for (pattern, value) in entries {
+        let Some(captured) = match_single_star_export_pattern(pattern, key) else {
+            continue;
+        };
+        if best.map_or(true, |(current, _, _)| {
+            pattern_prefix_len(pattern) > pattern_prefix_len(current)
+        }) {
+            best = Some((pattern.as_str(), value, captured));
+        }
+    }
+    let Some((_pattern, value, captured)) = best else {
+        return PackageExportsResolution::Missing;
+    };
+    resolve_package_exports_pattern_target_value(value, captured)
+}
+
+fn match_single_star_export_pattern<'a>(pattern: &str, key: &'a str) -> Option<&'a str> {
+    if pattern.matches('*').count() != 1 {
+        return None;
+    }
+    let (prefix, suffix) = pattern.split_once('*')?;
+    if !prefix.starts_with("./") || !key.starts_with(prefix) || !key.ends_with(suffix) {
+        return None;
+    }
+    let start = prefix.len();
+    let end = key.len().saturating_sub(suffix.len());
+    if start > end {
+        return None;
+    }
+    Some(&key[start..end])
+}
+
+fn pattern_prefix_len(pattern: &str) -> usize {
+    pattern
+        .split_once('*')
+        .map_or(0, |(prefix, _)| prefix.len())
+}
+
+fn resolve_package_exports_pattern_target_value(
+    value: &Value,
+    captured: &str,
+) -> PackageExportsResolution {
+    match value {
+        Value::String(target) => resolve_package_exports_pattern_target(target, captured),
+        Value::Object(conditions) => {
+            resolve_package_exports_pattern_condition_object(conditions, captured)
+        }
+        Value::Null => PackageExportsResolution::Unsupported("exportsBlocked"),
+        _ => PackageExportsResolution::Unsupported("exportsUnsupported"),
+    }
+}
+
+fn resolve_package_exports_pattern_condition_object(
+    conditions: &serde_json::Map<String, Value>,
+    captured: &str,
+) -> PackageExportsResolution {
+    resolve_package_exports_pattern_condition_object_at_depth(conditions, captured, 1)
+}
+
+fn resolve_package_exports_pattern_condition_object_at_depth(
+    conditions: &serde_json::Map<String, Value>,
+    captured: &str,
+    depth: u8,
+) -> PackageExportsResolution {
+    for condition in ["import", "types", "default"] {
+        if let Some(value) = conditions.get(condition) {
+            return resolve_package_exports_pattern_condition_value(value, captured, depth);
+        }
+    }
+    for value in conditions.values() {
+        let resolved = resolve_package_exports_pattern_condition_value(value, captured, depth);
+        if !matches!(
+            resolved,
+            PackageExportsResolution::Unsupported("exportsUnsupported")
+        ) {
+            return resolved;
+        }
+        if matches!(value, Value::Object(_) | Value::Array(_)) {
+            return resolved;
+        }
+    }
+    PackageExportsResolution::Unsupported("exportsUnsupported")
+}
+
+fn resolve_package_exports_pattern_condition_value(
+    value: &Value,
+    captured: &str,
+    depth: u8,
+) -> PackageExportsResolution {
+    match value {
+        Value::String(target) => resolve_package_exports_pattern_target(target, captured),
+        Value::Object(conditions) if depth < 2 => {
+            resolve_package_exports_pattern_condition_object_at_depth(
+                conditions,
+                captured,
+                depth + 1,
+            )
+        }
+        Value::Null => PackageExportsResolution::Unsupported("exportsBlocked"),
+        Value::Object(_) | Value::Array(_) => {
+            PackageExportsResolution::Unsupported("exportsUnsupported")
+        }
+        _ => PackageExportsResolution::Unsupported("exportsUnsupported"),
+    }
+}
+
+fn resolve_package_exports_pattern_target(
+    target: &str,
+    captured: &str,
+) -> PackageExportsResolution {
+    if target.matches('*').count() != 1 {
+        return PackageExportsResolution::Unsupported("exportsUnsupported");
+    }
+    validate_package_exports_target(&target.replacen('*', captured, 1))
+}
+
+fn resolve_package_exports_target_value(value: &Value) -> PackageExportsResolution {
+    match value {
+        Value::String(target) => validate_package_exports_target(target),
+        Value::Object(conditions) => resolve_package_exports_condition_object(conditions),
+        Value::Null => PackageExportsResolution::Unsupported("exportsBlocked"),
+        _ => PackageExportsResolution::Unsupported("exportsUnsupported"),
+    }
+}
+
+fn resolve_package_exports_condition_object(
+    conditions: &serde_json::Map<String, Value>,
+) -> PackageExportsResolution {
+    resolve_package_exports_condition_object_at_depth(conditions, 1)
+}
+
+fn resolve_package_exports_condition_object_at_depth(
+    conditions: &serde_json::Map<String, Value>,
+    depth: u8,
+) -> PackageExportsResolution {
+    for condition in ["import", "types", "default"] {
+        if let Some(value) = conditions.get(condition) {
+            return resolve_package_exports_condition_value(value, depth);
+        }
+    }
+    for value in conditions.values() {
+        let resolved = resolve_package_exports_condition_value(value, depth);
+        if !matches!(
+            resolved,
+            PackageExportsResolution::Unsupported("exportsUnsupported")
+        ) {
+            return resolved;
+        }
+        if matches!(value, Value::Object(_) | Value::Array(_)) {
+            return resolved;
+        }
+    }
+    PackageExportsResolution::Unsupported("exportsUnsupported")
+}
+
+fn resolve_package_exports_condition_value(value: &Value, depth: u8) -> PackageExportsResolution {
+    match value {
+        Value::String(target) => validate_package_exports_target(target),
+        Value::Object(conditions) if depth < 2 => {
+            resolve_package_exports_condition_object_at_depth(conditions, depth + 1)
+        }
+        Value::Null => PackageExportsResolution::Unsupported("exportsBlocked"),
+        Value::Object(_) | Value::Array(_) => {
+            PackageExportsResolution::Unsupported("exportsUnsupported")
+        }
+        _ => PackageExportsResolution::Unsupported("exportsUnsupported"),
+    }
+}
+
+fn validate_package_exports_target(target: &str) -> PackageExportsResolution {
+    if target.starts_with("../") || target.starts_with('/') {
+        return PackageExportsResolution::Unsupported("exportsTargetEscapesRepo");
+    }
+    if !target.starts_with("./") || target.contains('*') {
+        return PackageExportsResolution::Unsupported("exportsUnsupported");
+    }
+    let normalized = Path::new(target).components().collect::<Vec<_>>();
+    if normalized.iter().any(|component| {
+        matches!(
+            component,
+            std::path::Component::ParentDir | std::path::Component::RootDir
+        )
+    }) {
+        return PackageExportsResolution::Unsupported("exportsTargetEscapesRepo");
+    }
+    PackageExportsResolution::Resolved(PathBuf::from(target.trim_start_matches("./")))
+}
+
+fn resolve_package_imports_map(imports: &Value, key: &str) -> PackageImportsMapResolution {
+    if !key.starts_with('#') || key.contains('*') {
+        return PackageImportsMapResolution::Unsupported("importsUnsupported");
+    }
+    match imports {
+        Value::Object(entries) => match entries.get(key) {
+            Some(value) => resolve_package_imports_target_value(value),
+            None => resolve_package_imports_pattern(entries, key),
+        },
+        _ => PackageImportsMapResolution::Unsupported("importsUnsupported"),
+    }
+}
+
+fn resolve_package_imports_pattern(
+    entries: &serde_json::Map<String, Value>,
+    key: &str,
+) -> PackageImportsMapResolution {
+    let mut best: Option<(&str, &Value, &str)> = None;
+    for (pattern, value) in entries {
+        let Some(captured) = match_single_star_package_import_pattern(pattern, key) else {
+            continue;
+        };
+        if best.map_or(true, |(current, _, _)| {
+            pattern_prefix_len(pattern) > pattern_prefix_len(current)
+        }) {
+            best = Some((pattern.as_str(), value, captured));
+        }
+    }
+    let Some((_pattern, value, captured)) = best else {
+        return PackageImportsMapResolution::Missing;
+    };
+    resolve_package_imports_pattern_target_value(value, captured)
+}
+
+fn match_single_star_package_import_pattern<'a>(pattern: &str, key: &'a str) -> Option<&'a str> {
+    if pattern.matches('*').count() != 1 {
+        return None;
+    }
+    let (prefix, suffix) = pattern.split_once('*')?;
+    if !prefix.starts_with('#') || !key.starts_with(prefix) || !key.ends_with(suffix) {
+        return None;
+    }
+    let start = prefix.len();
+    let end = key.len().saturating_sub(suffix.len());
+    if start > end {
+        return None;
+    }
+    Some(&key[start..end])
+}
+
+fn resolve_package_imports_pattern_target_value(
+    value: &Value,
+    captured: &str,
+) -> PackageImportsMapResolution {
+    match value {
+        Value::String(target) => resolve_package_imports_pattern_target(target, captured),
+        Value::Object(conditions) => {
+            resolve_package_imports_pattern_condition_object(conditions, captured)
+        }
+        Value::Null => PackageImportsMapResolution::Unsupported("importsBlocked"),
+        _ => PackageImportsMapResolution::Unsupported("importsUnsupported"),
+    }
+}
+
+fn resolve_package_imports_pattern_condition_object(
+    conditions: &serde_json::Map<String, Value>,
+    captured: &str,
+) -> PackageImportsMapResolution {
+    resolve_package_imports_pattern_condition_object_at_depth(conditions, captured, 1)
+}
+
+fn resolve_package_imports_pattern_condition_object_at_depth(
+    conditions: &serde_json::Map<String, Value>,
+    captured: &str,
+    depth: u8,
+) -> PackageImportsMapResolution {
+    for condition in ["import", "types", "default"] {
+        if let Some(value) = conditions.get(condition) {
+            return resolve_package_imports_pattern_condition_value(value, captured, depth);
+        }
+    }
+    for value in conditions.values() {
+        let resolved = resolve_package_imports_pattern_condition_value(value, captured, depth);
+        if !matches!(
+            resolved,
+            PackageImportsMapResolution::Unsupported("importsUnsupported")
+        ) {
+            return resolved;
+        }
+        if matches!(value, Value::Object(_) | Value::Array(_)) {
+            return resolved;
+        }
+    }
+    PackageImportsMapResolution::Unsupported("importsUnsupported")
+}
+
+fn resolve_package_imports_pattern_condition_value(
+    value: &Value,
+    captured: &str,
+    depth: u8,
+) -> PackageImportsMapResolution {
+    match value {
+        Value::String(target) => resolve_package_imports_pattern_target(target, captured),
+        Value::Object(conditions) if depth < 2 => {
+            resolve_package_imports_pattern_condition_object_at_depth(
+                conditions,
+                captured,
+                depth + 1,
+            )
+        }
+        Value::Null => PackageImportsMapResolution::Unsupported("importsBlocked"),
+        Value::Object(_) | Value::Array(_) => {
+            PackageImportsMapResolution::Unsupported("importsUnsupported")
+        }
+        _ => PackageImportsMapResolution::Unsupported("importsUnsupported"),
+    }
+}
+
+fn resolve_package_imports_pattern_target(
+    target: &str,
+    captured: &str,
+) -> PackageImportsMapResolution {
+    if target.matches('*').count() != 1 {
+        return PackageImportsMapResolution::Unsupported("importsUnsupported");
+    }
+    validate_package_imports_target(&target.replacen('*', captured, 1))
+}
+
+fn resolve_package_imports_target_value(value: &Value) -> PackageImportsMapResolution {
+    match value {
+        Value::String(target) => validate_package_imports_target(target),
+        Value::Object(conditions) => resolve_package_imports_condition_object(conditions),
+        Value::Null => PackageImportsMapResolution::Unsupported("importsBlocked"),
+        _ => PackageImportsMapResolution::Unsupported("importsUnsupported"),
+    }
+}
+
+fn resolve_package_imports_condition_object(
+    conditions: &serde_json::Map<String, Value>,
+) -> PackageImportsMapResolution {
+    resolve_package_imports_condition_object_at_depth(conditions, 1)
+}
+
+fn resolve_package_imports_condition_object_at_depth(
+    conditions: &serde_json::Map<String, Value>,
+    depth: u8,
+) -> PackageImportsMapResolution {
+    for condition in ["import", "types", "default"] {
+        if let Some(value) = conditions.get(condition) {
+            return resolve_package_imports_condition_value(value, depth);
+        }
+    }
+    for value in conditions.values() {
+        let resolved = resolve_package_imports_condition_value(value, depth);
+        if !matches!(
+            resolved,
+            PackageImportsMapResolution::Unsupported("importsUnsupported")
+        ) {
+            return resolved;
+        }
+        if matches!(value, Value::Object(_) | Value::Array(_)) {
+            return resolved;
+        }
+    }
+    PackageImportsMapResolution::Unsupported("importsUnsupported")
+}
+
+fn resolve_package_imports_condition_value(
+    value: &Value,
+    depth: u8,
+) -> PackageImportsMapResolution {
+    match value {
+        Value::String(target) => validate_package_imports_target(target),
+        Value::Object(conditions) if depth < 2 => {
+            resolve_package_imports_condition_object_at_depth(conditions, depth + 1)
+        }
+        Value::Null => PackageImportsMapResolution::Unsupported("importsBlocked"),
+        Value::Object(_) | Value::Array(_) => {
+            PackageImportsMapResolution::Unsupported("importsUnsupported")
+        }
+        _ => PackageImportsMapResolution::Unsupported("importsUnsupported"),
+    }
+}
+
+fn validate_package_imports_target(target: &str) -> PackageImportsMapResolution {
+    if target.starts_with('/') {
+        return PackageImportsMapResolution::Unsupported("importsTargetEscapesRepo");
+    }
+    if target.starts_with("../") {
+        return PackageImportsMapResolution::Unsupported("importsTargetEscapesPackage");
+    }
+    if !target.starts_with("./") || target.contains('*') {
+        return PackageImportsMapResolution::Unsupported("importsUnsupported");
+    }
+    let normalized = Path::new(target).components().collect::<Vec<_>>();
+    if normalized.iter().any(|component| {
+        matches!(
+            component,
+            std::path::Component::ParentDir | std::path::Component::RootDir
+        )
+    }) {
+        return PackageImportsMapResolution::Unsupported("importsTargetEscapesPackage");
+    }
+    PackageImportsMapResolution::Resolved(PathBuf::from(target.trim_start_matches("./")))
+}
+
+fn path_stays_within_package(target: &Path, package_dir: &str) -> bool {
+    let normalized = normalize_path(target);
+    package_dir.is_empty()
+        || normalized == package_dir
+        || normalized.starts_with(&format!("{}/", package_dir))
+}
+
 fn read_workspace_globs(project_path: &Path) -> Vec<String> {
     let mut globs = Vec::new();
     if let Ok(content) = fs::read_to_string(project_path.join("package.json")) {
@@ -2398,38 +3278,99 @@ fn resolve_import_target(
     project_path: &Path,
     aliases: &TsPathAliases,
     workspace_packages: &WorkspacePackages,
+    package_self_names: &RepoLocalPackageNames,
     from_file_path: &str,
     specifier: &str,
-) -> Option<(ImportTargetSourceKind, Option<String>)> {
+) -> Option<(ImportTargetSourceKind, Option<String>, Vec<&'static str>)> {
+    if specifier.starts_with('#') {
+        match package_self_names.resolve_package_import(from_file_path, specifier) {
+            PackageImportsResolution::Matched { target, outcomes } => {
+                let resolved = resolve_import_candidate(project_path, &project_path.join(target));
+                let outcomes = if resolved.is_some() {
+                    outcomes
+                } else {
+                    vec!["importsMissingTarget"]
+                };
+                return Some((ImportTargetSourceKind::PackageImports, resolved, outcomes));
+            }
+            PackageImportsResolution::MissingPackageBoundary => {
+                return Some((
+                    ImportTargetSourceKind::PackageImports,
+                    None,
+                    vec!["importsMissingPackageBoundary"],
+                ));
+            }
+            PackageImportsResolution::MissingImportsMap => {
+                return Some((
+                    ImportTargetSourceKind::PackageImports,
+                    None,
+                    vec!["importsMissingMap"],
+                ));
+            }
+            PackageImportsResolution::Unsupported(reason) => {
+                return Some((ImportTargetSourceKind::PackageImports, None, vec![reason]));
+            }
+            PackageImportsResolution::NotPackageImport => {}
+        }
+    }
     if is_relative_import_specifier(specifier) {
         let direct = resolve_relative_import(project_path, from_file_path, specifier);
         if direct.is_some() {
-            return Some((ImportTargetSourceKind::Relative, direct));
+            return Some((ImportTargetSourceKind::Relative, direct, Vec::new()));
         }
         if let Some(root_dirs_target) =
             resolve_root_dirs_relative_import(project_path, aliases, from_file_path, specifier)
         {
-            return Some((ImportTargetSourceKind::RootDirs, Some(root_dirs_target)));
+            return Some((
+                ImportTargetSourceKind::RootDirs,
+                Some(root_dirs_target),
+                Vec::new(),
+            ));
         }
-        return Some((ImportTargetSourceKind::Relative, None));
+        return Some((ImportTargetSourceKind::Relative, None, Vec::new()));
     }
     if aliases.matches(specifier) {
         return Some((
             ImportTargetSourceKind::TsconfigPaths,
             resolve_alias_import(project_path, aliases, specifier),
+            Vec::new(),
         ));
     }
     if let Some(base) = resolve_conventional_alias(specifier) {
         return Some((
             ImportTargetSourceKind::ConventionalAlias,
             resolve_import_candidate(project_path, &project_path.join(base)),
+            Vec::new(),
         ));
     }
     if let Some(base) = workspace_packages.resolve_import(specifier) {
         return Some((
             ImportTargetSourceKind::WorkspacePackage,
             resolve_import_candidate(project_path, &project_path.join(base)),
+            Vec::new(),
         ));
+    }
+    match package_self_names.resolve_import(specifier) {
+        PackageSelfNameResolution::Matched { target, outcomes } => {
+            let resolved = resolve_import_candidate(project_path, &project_path.join(target));
+            let outcomes = if resolved.is_some() {
+                outcomes
+            } else {
+                vec!["missingTarget"]
+            };
+            return Some((ImportTargetSourceKind::PackageSelfName, resolved, outcomes));
+        }
+        PackageSelfNameResolution::AmbiguousName => {
+            return Some((
+                ImportTargetSourceKind::PackageSelfName,
+                None,
+                vec!["ambiguousName"],
+            ));
+        }
+        PackageSelfNameResolution::UnsupportedExports(reason) => {
+            return Some((ImportTargetSourceKind::PackageSelfName, None, vec![reason]));
+        }
+        PackageSelfNameResolution::MissingPackageName => {}
     }
     None
 }
@@ -5535,7 +6476,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -5568,6 +6509,8 @@ pub fn result_json(result: &IndexResult) -> String {
             .import_path_alias_conventional_alias_resolved_refs,
         result.profile.import_path_alias_workspace_resolved_refs,
         result.profile.import_path_alias_root_dirs_resolved_refs,
+        result.profile.import_path_alias_package_self_name_resolved_refs,
+        result.profile.import_path_alias_package_imports_resolved_refs,
         result.profile.import_path_alias_relative_fallback_refs,
         result.profile.import_path_alias_tsconfig_fallback_refs,
         result
@@ -5575,9 +6518,21 @@ pub fn result_json(result: &IndexResult) -> String {
             .import_path_alias_conventional_alias_fallback_refs,
         result.profile.import_path_alias_workspace_fallback_refs,
         result.profile.import_path_alias_root_dirs_fallback_refs,
+        result.profile.import_path_alias_package_self_name_fallback_refs,
+        result.profile.import_path_alias_package_imports_fallback_refs,
         result.profile.import_path_alias_binding_fallback_refs,
         result.profile.import_path_alias_unsupported_fallback_refs,
         result.profile.import_path_alias_unresolved_fallback_refs,
+        fallback_sample_counts_json(
+            &result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+        ),
+        fallback_sample_counts_json(
+            &result
+                .profile
+                .import_path_alias_package_imports_outcome_counts
+        ),
         fallback_sample_counts_json(&result.profile.import_path_alias_fallback_sample_counts),
         fallback_samples_json(&result.profile.import_path_alias_fallback_samples),
         fallback_sample_cap_json(&result.profile.import_path_alias_fallback_sample_cap),
@@ -7863,6 +8818,1059 @@ mod tests {
             )
             .unwrap();
         assert_eq!(target, "src/shared.ts");
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_resolves_package_self_name_root_and_subpath_import_targets() {
+        let dir = temp_dir("package-self-name-import-target");
+        fs::create_dir_all(dir.join("src/features")).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"@fixture/app","private":true}"#,
+        )
+        .unwrap();
+        fs::write(dir.join("index.ts"), "export const rootValue = 1;\n").unwrap();
+        fs::write(
+            dir.join("src/features/tool.ts"),
+            "export const toolValue = 2;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { rootValue } from '@fixture/app';",
+                "import { toolValue } from '@fixture/app/src/features/tool';",
+                "export const total = rootValue + toolValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_resolved_refs,
+            2
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("resolvedRootIndex"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("resolvedSubpath"),
+            Some(&1)
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let mut stmt = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap();
+        let targets = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(targets, vec!["index.ts", "src/features/tool.ts"]);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_resolves_simple_package_exports_for_self_name_import_targets() {
+        let dir = temp_dir("package-exports-import-target");
+        fs::create_dir_all(dir.join("src/features")).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"@fixture/app","private":true,"exports":{".":"./src/public.ts","./feature":"./src/features/public.ts"}}"#,
+        )
+        .unwrap();
+        fs::write(dir.join("index.ts"), "export const oldRoot = 0;\n").unwrap();
+        fs::write(dir.join("feature.ts"), "export const oldFeature = 0;\n").unwrap();
+        fs::write(dir.join("src/public.ts"), "export const rootValue = 1;\n").unwrap();
+        fs::write(
+            dir.join("src/features/public.ts"),
+            "export const featureValue = 2;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { rootValue } from '@fixture/app';",
+                "import { featureValue } from '@fixture/app/feature';",
+                "export const total = rootValue + featureValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_resolved_refs,
+            2
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("exportsResolved"),
+            Some(&2)
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(targets, vec!["src/features/public.ts", "src/public.ts"]);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_resolves_package_exports_condition_objects_and_declaration_targets() {
+        let dir = temp_dir("package-exports-condition-target");
+        fs::create_dir_all(dir.join("types")).unwrap();
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"@fixture/app","private":true,"exports":{".":{"types":"./types/index.d.ts","default":"./src/runtime.ts"},"./runtime":{"default":"./src/runtime.ts"}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("types/index.d.ts"),
+            "export declare const typeValue: number;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/runtime.ts"),
+            "export const runtimeValue = 2;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { typeValue } from '@fixture/app';",
+                "import { runtimeValue } from '@fixture/app/runtime';",
+                "export const total = typeValue + runtimeValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("exportsResolved"),
+            Some(&2)
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(targets, vec!["src/runtime.ts", "types/index.d.ts"]);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_package_exports_missing_keys_fallback_but_unsupported_shapes_fail_closed() {
+        let dir = temp_dir("package-exports-fallback-and-unsupported");
+        fs::create_dir_all(dir.join("packages/fallback/src")).unwrap();
+        fs::create_dir_all(dir.join("packages/array")).unwrap();
+        fs::create_dir_all(dir.join("packages/pattern/src")).unwrap();
+        fs::create_dir_all(dir.join("packages/escape")).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"root","private":true}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/fallback/package.json"),
+            r#"{"name":"@fixture/fallback","exports":{".":"./src/index.ts"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/array/package.json"),
+            r#"{"name":"@fixture/array","exports":["./index.ts"]}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/pattern/package.json"),
+            r#"{"name":"@fixture/pattern","exports":{"./*":"./src/*.ts"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/escape/package.json"),
+            r#"{"name":"@fixture/escape","exports":"../outside.ts"}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/fallback/missing.ts"),
+            "export const fallbackValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/array/index.ts"),
+            "export const arrayValue = 2;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/pattern/src/foo.ts"),
+            "export const patternValue = 3;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/escape/index.ts"),
+            "export const escapeValue = 4;\n",
+        )
+        .unwrap();
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { fallbackValue } from '@fixture/fallback/missing';",
+                "import { arrayValue } from '@fixture/array';",
+                "import { patternValue } from '@fixture/pattern/foo';",
+                "import { escapeValue } from '@fixture/escape';",
+                "export const total = fallbackValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_resolved_refs,
+            2
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_fallback_refs,
+            2
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("exportsMissing"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("rootFallbackResolved"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("exportsUnsupported"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("exportsTargetEscapesRepo"),
+            Some(&1)
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            targets,
+            vec![
+                "packages/fallback/missing.ts",
+                "packages/pattern/src/foo.ts"
+            ]
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_resolves_package_exports_patterns_with_specificity_priority() {
+        let dir = temp_dir("package-exports-pattern-priority");
+        fs::create_dir_all(dir.join("src/features")).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"@fixture/app","private":true,"exports":{"./foo":"./src/exact-foo.ts","./*":"./src/*.ts","./features/*":"./src/features/*.ts"}}"#,
+        )
+        .unwrap();
+        fs::write(dir.join("src/exact-foo.ts"), "export const fooValue = 1;\n").unwrap();
+        fs::write(dir.join("src/bar.ts"), "export const barValue = 2;\n").unwrap();
+        fs::write(
+            dir.join("src/features/a.ts"),
+            "export const featureValue = 3;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { fooValue } from '@fixture/app/foo';",
+                "import { barValue } from '@fixture/app/bar';",
+                "import { featureValue } from '@fixture/app/features/a';",
+                "export const total = fooValue + barValue + featureValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_resolved_refs,
+            3
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("exportsResolved"),
+            Some(&3)
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            targets,
+            vec!["src/bar.ts", "src/exact-foo.ts", "src/features/a.ts"]
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_resolves_package_exports_nested_conditions_up_to_two_levels() {
+        let dir = temp_dir("package-exports-nested-conditions");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::create_dir_all(dir.join("types")).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"@fixture/app","private":true,"exports":{".":{"import":{"types":"./types/index.d.ts","default":"./src/index.ts"}},"./feature":{"default":{"default":"./src/feature.ts"}}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("types/index.d.ts"),
+            "export declare const typeValue: number;\n",
+        )
+        .unwrap();
+        fs::write(dir.join("src/index.ts"), "export const runtimeValue = 1;\n").unwrap();
+        fs::write(
+            dir.join("src/feature.ts"),
+            "export const featureValue = 2;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { typeValue } from '@fixture/app';",
+                "import { featureValue } from '@fixture/app/feature';",
+                "export const total = typeValue + featureValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("exportsResolved"),
+            Some(&2)
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(targets, vec!["src/feature.ts", "types/index.d.ts"]);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_package_exports_blocked_overdeep_and_array_shapes_fail_closed() {
+        let dir = temp_dir("package-exports-blocked-overdeep-array");
+        fs::create_dir_all(dir.join("packages/blocked/internal")).unwrap();
+        fs::create_dir_all(dir.join("packages/deep/src")).unwrap();
+        fs::create_dir_all(dir.join("packages/array")).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"root","private":true}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/blocked/package.json"),
+            r#"{"name":"@fixture/blocked","exports":{"./internal/*":null}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/deep/package.json"),
+            r#"{"name":"@fixture/deep","exports":{".":{"import":{"default":{"default":"./src/index.ts"}}}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/array/package.json"),
+            r#"{"name":"@fixture/array","exports":["./index.ts"]}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/blocked/internal/foo.ts"),
+            "export const blockedValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/deep/src/index.ts"),
+            "export const deepValue = 2;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/array/index.ts"),
+            "export const arrayValue = 3;\n",
+        )
+        .unwrap();
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { blockedValue } from '@fixture/blocked/internal/foo';",
+                "import { deepValue } from '@fixture/deep';",
+                "import { arrayValue } from '@fixture/array';",
+                "export const total = 0;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_resolved_refs,
+            0
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_fallback_refs,
+            3
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("exportsBlocked"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("exportsUnsupported"),
+            Some(&2)
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let count = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap();
+        assert_eq!(count, 0);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_resolves_package_imports_from_nearest_package_boundary() {
+        let dir = temp_dir("package-imports-boundary");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::create_dir_all(dir.join("packages/app/src/internal/features")).unwrap();
+        fs::create_dir_all(dir.join("packages/app/types")).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r##"{"name":"root","private":true,"imports":{"#internal":"./src/root-internal.ts"}}"##,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/app/package.json"),
+            r##"{"name":"@fixture/app","private":true,"imports":{"#internal":"./src/internal/index.ts","#feature/*":"./src/internal/features/*.ts","#typed":{"import":{"types":"./types/typed.d.ts","default":"./src/internal/typed.ts"}}}}"##,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/root-internal.ts"),
+            "export const rootInternal = 0;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/app/src/internal/index.ts"),
+            "export const internalValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/app/src/internal/features/tool.ts"),
+            "export const featureValue = 2;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/app/types/typed.d.ts"),
+            "export declare const typedValue: number;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/app/src/internal/typed.ts"),
+            "export const runtimeTypedValue = 3;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/app/src/main.ts"),
+            [
+                "import { internalValue } from '#internal';",
+                "import { featureValue } from '#feature/tool';",
+                "import { typedValue } from '#typed';",
+                "export const total = internalValue + featureValue + typedValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_imports_resolved_refs,
+            3
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_imports_outcome_counts
+                .get("importsResolved"),
+            Some(&3)
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'packages/app/src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            targets,
+            vec![
+                "packages/app/src/internal/features/tool.ts",
+                "packages/app/src/internal/index.ts",
+                "packages/app/types/typed.d.ts"
+            ]
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_package_imports_fail_closed_for_blocked_unsupported_and_escaping_targets() {
+        let dir = temp_dir("package-imports-fail-closed");
+        fs::create_dir_all(dir.join("packages/app/src")).unwrap();
+        fs::create_dir_all(dir.join("packages/shared/src")).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"root","private":true}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/app/package.json"),
+            r##"{"name":"@fixture/app","private":true,"imports":{"#blocked":null,"#array":["./src/array.ts"],"#missing":"./src/missing.ts","#escape":"../shared/src/index.ts"}}"##,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/app/src/array.ts"),
+            "export const arrayValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/shared/src/index.ts"),
+            "export const sharedValue = 2;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/app/src/main.ts"),
+            [
+                "import { blockedValue } from '#blocked';",
+                "import { arrayValue } from '#array';",
+                "import { missingValue } from '#missing';",
+                "import { sharedValue } from '#escape';",
+                "export const total = 0;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_imports_resolved_refs,
+            0
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_imports_fallback_refs,
+            4
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_imports_outcome_counts
+                .get("importsBlocked"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_imports_outcome_counts
+                .get("importsUnsupported"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_imports_outcome_counts
+                .get("importsMissingTarget"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_imports_outcome_counts
+                .get("importsTargetEscapesPackage"),
+            Some(&1)
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let count = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'packages/app/src/main.ts'
+                   AND source.kind = 'file'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap();
+        assert_eq!(count, 0);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_package_self_name_failures_are_diagnostic_only() {
+        let dir = temp_dir("package-self-name-failures");
+        fs::create_dir_all(dir.join("packages/one")).unwrap();
+        fs::create_dir_all(dir.join("packages/two")).unwrap();
+        fs::create_dir_all(dir.join("src/lib")).unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"compilerOptions":{"baseUrl":".","paths":{"virtual-lib":["src/lib/virtual.ts"]}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/one/package.json"),
+            r#"{"name":"@fixture/dup"}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("packages/two/package.json"),
+            r#"{"name":"@fixture/dup"}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"@fixture/root","private":true}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/lib/virtual.ts"),
+            "export const virtualValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { dupValue } from '@fixture/dup';",
+                "import { missingValue } from '@fixture/root/missing';",
+                "import { missingPackageValue } from '@fixture/missing';",
+                "import { virtualValue } from 'virtual-lib';",
+                "export const total = virtualValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.profile.import_path_alias_tsconfig_resolved_refs, 1);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_fallback_refs,
+            3
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("ambiguousName"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("missingTarget"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("missingPackageName"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("resolvedRootIndex"),
+            None
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(targets, vec!["src/lib/virtual.ts"]);
 
         fs::remove_dir_all(dir).unwrap();
     }
