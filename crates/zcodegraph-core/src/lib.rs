@@ -267,6 +267,8 @@ pub struct IndexProfile {
     pub module_resolution_shadow_decision_refs: u32,
     pub module_resolution_shadow_decision_counts: BTreeMap<String, u32>,
     pub module_resolution_shadow_parity_counts: BTreeMap<String, u32>,
+    pub module_resolution_declaration_target_relationship_counts: BTreeMap<String, u32>,
+    pub module_resolution_declaration_runtime_pairing_decision_counts: BTreeMap<String, u32>,
     pub module_resolution_shadow_samples: Vec<ModuleResolutionDecisionRecord>,
     pub module_resolution_shadow_sample_cap: ImportFallbackSampleCap,
     pub module_resolution_effective_mode_source: String,
@@ -274,6 +276,10 @@ pub struct IndexProfile {
     pub module_resolution_guarded_edge_write_written_refs: u32,
     pub module_resolution_guarded_edge_write_skipped_refs: u32,
     pub module_resolution_guarded_edge_write_skipped_counts: BTreeMap<String, u32>,
+    pub module_resolution_declaration_runtime_edge_write_attempted_refs: u32,
+    pub module_resolution_declaration_runtime_edge_write_written_refs: u32,
+    pub module_resolution_declaration_runtime_edge_write_skipped_refs: u32,
+    pub module_resolution_declaration_runtime_edge_write_skipped_counts: BTreeMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -402,6 +408,29 @@ pub struct ModuleResolutionDecisionRecord {
     pub matched_condition: Option<String>,
     pub parity_status: String,
     pub fallback_reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub declaration_target_relationship: Option<DeclarationTargetRelationshipDiagnostic>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeclarationTargetRelationshipDiagnostic {
+    pub target_kind: String,
+    pub runtime_sibling_status: String,
+    pub runtime_sibling_candidates: Vec<String>,
+    pub candidate_count: usize,
+    pub truncated: bool,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub pairing_decision: Option<DeclarationRuntimePairingDecision>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeclarationRuntimePairingDecision {
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub runtime_target: Option<String>,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1446,6 +1475,14 @@ fn write_index_to_connection(
     counts.profile.module_resolution_shadow_decision_counts =
         module_resolution_shadow.decision_counts;
     counts.profile.module_resolution_shadow_parity_counts = module_resolution_shadow.parity_counts;
+    counts
+        .profile
+        .module_resolution_declaration_target_relationship_counts =
+        module_resolution_shadow.declaration_target_relationship_counts;
+    counts
+        .profile
+        .module_resolution_declaration_runtime_pairing_decision_counts =
+        module_resolution_shadow.declaration_runtime_pairing_decision_counts;
     counts.profile.module_resolution_shadow_samples = module_resolution_shadow.samples;
     counts.profile.module_resolution_shadow_sample_cap = ImportFallbackSampleCap {
         per_bucket: IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP,
@@ -1528,6 +1565,22 @@ fn write_index_to_connection(
         .profile
         .module_resolution_guarded_edge_write_skipped_counts =
         import_stats.guarded_edge_write_skipped_counts;
+    counts
+        .profile
+        .module_resolution_declaration_runtime_edge_write_attempted_refs =
+        import_stats.declaration_runtime_edge_write_attempted_refs;
+    counts
+        .profile
+        .module_resolution_declaration_runtime_edge_write_written_refs =
+        import_stats.declaration_runtime_edge_write_written_refs;
+    counts
+        .profile
+        .module_resolution_declaration_runtime_edge_write_skipped_refs =
+        import_stats.declaration_runtime_edge_write_skipped_refs;
+    counts
+        .profile
+        .module_resolution_declaration_runtime_edge_write_skipped_counts =
+        import_stats.declaration_runtime_edge_write_skipped_counts;
     counts.edges_created += import_stats.edges_created;
     let esm_named_started = Instant::now();
     let esm_named_stats =
@@ -1591,6 +1644,10 @@ struct ImportResolutionStats {
     guarded_edge_write_written_refs: u32,
     guarded_edge_write_skipped_refs: u32,
     guarded_edge_write_skipped_counts: BTreeMap<String, u32>,
+    declaration_runtime_edge_write_attempted_refs: u32,
+    declaration_runtime_edge_write_written_refs: u32,
+    declaration_runtime_edge_write_skipped_refs: u32,
+    declaration_runtime_edge_write_skipped_counts: BTreeMap<String, u32>,
 }
 
 #[derive(Debug, Default)]
@@ -1598,6 +1655,8 @@ struct ModuleResolutionShadowDiagnostics {
     decision_refs: u32,
     decision_counts: BTreeMap<String, u32>,
     parity_counts: BTreeMap<String, u32>,
+    declaration_target_relationship_counts: BTreeMap<String, u32>,
+    declaration_runtime_pairing_decision_counts: BTreeMap<String, u32>,
     samples: Vec<ModuleResolutionDecisionRecord>,
     sample_bucket_counts: HashMap<String, usize>,
     samples_truncated: bool,
@@ -1615,6 +1674,18 @@ impl ModuleResolutionShadowDiagnostics {
             .parity_counts
             .entry(decision.parity_status.clone())
             .or_insert(0) += 1;
+        if let Some(relationship) = &decision.declaration_target_relationship {
+            *self
+                .declaration_target_relationship_counts
+                .entry(relationship.runtime_sibling_status.clone())
+                .or_insert(0) += 1;
+            if let Some(pairing_decision) = &relationship.pairing_decision {
+                *self
+                    .declaration_runtime_pairing_decision_counts
+                    .entry(pairing_decision.status.clone())
+                    .or_insert(0) += 1;
+            }
+        }
 
         let bucket_count = *self
             .sample_bucket_counts
@@ -1643,6 +1714,22 @@ impl ImportResolutionStats {
                 self.guarded_edge_write_skipped_refs += 1;
                 *self
                     .guarded_edge_write_skipped_counts
+                    .entry((*reason).to_string())
+                    .or_insert(0) += 1;
+            }
+        }
+    }
+
+    fn record_declaration_runtime_edge_write(&mut self, decision: &DeclarationRuntimeEdgeWrite) {
+        self.declaration_runtime_edge_write_attempted_refs += 1;
+        match decision {
+            DeclarationRuntimeEdgeWrite::Rewrite { .. } => {
+                self.declaration_runtime_edge_write_written_refs += 1;
+            }
+            DeclarationRuntimeEdgeWrite::KeepDeclaration { reason } => {
+                self.declaration_runtime_edge_write_skipped_refs += 1;
+                *self
+                    .declaration_runtime_edge_write_skipped_counts
                     .entry((*reason).to_string())
                     .or_insert(0) += 1;
             }
@@ -1795,6 +1882,12 @@ enum ImportTargetSourceKind {
 enum GuardedModuleResolutionEdgeWrite {
     Write { target_node_id: String },
     Skip { reason: &'static str },
+}
+
+#[derive(Debug)]
+enum DeclarationRuntimeEdgeWrite {
+    Rewrite { runtime_target_file_path: String },
+    KeepDeclaration { reason: &'static str },
 }
 
 impl ImportResolutionStats {
@@ -2367,10 +2460,27 @@ fn resolve_js_ts_file_imports(
         }
 
         let target_file_path = target.1.clone();
+        let effective_target_file_path = if let Some(declaration_runtime_decision) =
+            declaration_runtime_edge_write_decision(
+                conn,
+                project_path,
+                &reference.file_path,
+                target_file_path.as_deref(),
+            )? {
+            stats.record_declaration_runtime_edge_write(&declaration_runtime_decision);
+            match declaration_runtime_decision {
+                DeclarationRuntimeEdgeWrite::Rewrite {
+                    runtime_target_file_path,
+                } => Some(runtime_target_file_path),
+                DeclarationRuntimeEdgeWrite::KeepDeclaration { .. } => target_file_path.clone(),
+            }
+        } else {
+            target_file_path.clone()
+        };
         let guard_decision = guarded_module_resolution_edge_write_decision(
             conn,
             target.0,
-            target_file_path.clone(),
+            effective_target_file_path.clone(),
             &target.2,
         )?;
         stats.record_guarded_edge_write(&guard_decision);
@@ -2389,7 +2499,7 @@ fn resolve_js_ts_file_imports(
                     target.0.as_profile_source_kind(),
                     reason,
                     &reference,
-                    target_file_path.as_deref(),
+                    effective_target_file_path.as_deref(),
                 );
             }
         }
@@ -2474,6 +2584,11 @@ fn build_module_resolution_shadow_diagnostics(
             &specifier,
             &condition_context,
         );
+        let declaration_target_relationship = declaration_target_relationship_diagnostic(
+            project_path,
+            &reference.file_path,
+            decision.resolved_path.as_deref(),
+        );
 
         diagnostics.record(ModuleResolutionDecisionRecord {
             specifier,
@@ -2481,6 +2596,7 @@ fn build_module_resolution_shadow_diagnostics(
             module_resolution_mode: module_resolution_mode.clone(),
             module_resolution_mode_source: module_resolution_mode_source.clone(),
             resolved_kind: decision.resolved_kind,
+            declaration_target_relationship,
             resolved_path: decision.resolved_path,
             is_external_library_import: matches!(
                 decision.failed_lookup_category.as_deref(),
@@ -4941,6 +5057,245 @@ fn is_typescript_declaration_file(file_path: &str) -> bool {
     file_path.ends_with(".d.ts") || file_path.ends_with(".d.mts") || file_path.ends_with(".d.cts")
 }
 
+const DECLARATION_RUNTIME_SIBLING_SAMPLE_CAP: usize = 5;
+
+fn declaration_target_relationship_diagnostic(
+    project_path: &Path,
+    source_file: &str,
+    resolved_path: Option<&str>,
+) -> Option<DeclarationTargetRelationshipDiagnostic> {
+    let resolved_path = resolved_path?;
+    if !is_typescript_declaration_file(resolved_path) {
+        return None;
+    }
+    let path = Path::new(resolved_path);
+    if path.is_absolute()
+        || path
+            .components()
+            .any(|component| component.as_os_str() == "node_modules")
+    {
+        return Some(DeclarationTargetRelationshipDiagnostic {
+            target_kind: "declaration".to_string(),
+            runtime_sibling_status: "skippedExternalOrPackageBoundary".to_string(),
+            runtime_sibling_candidates: Vec::new(),
+            candidate_count: 0,
+            truncated: false,
+            pairing_decision: Some(DeclarationRuntimePairingDecision {
+                status: "blockedExternalOrPackageBoundary".to_string(),
+                runtime_target: None,
+                reason: "external-or-package-boundary".to_string(),
+            }),
+        });
+    }
+
+    let candidates = declaration_runtime_sibling_candidates(project_path, resolved_path);
+    let status = match candidates.len() {
+        0 => "noRuntimeSibling",
+        1 => "singleRuntimeSibling",
+        _ => "multipleRuntimeSiblings",
+    };
+    let truncated = candidates.len() > DECLARATION_RUNTIME_SIBLING_SAMPLE_CAP;
+    let candidate_count = candidates.len();
+    let pairing_decision = declaration_runtime_pairing_decision(
+        project_path,
+        source_file,
+        resolved_path,
+        status,
+        &candidates,
+    );
+    Some(DeclarationTargetRelationshipDiagnostic {
+        target_kind: "declaration".to_string(),
+        runtime_sibling_status: status.to_string(),
+        runtime_sibling_candidates: candidates
+            .into_iter()
+            .take(DECLARATION_RUNTIME_SIBLING_SAMPLE_CAP)
+            .collect(),
+        candidate_count,
+        truncated,
+        pairing_decision,
+    })
+}
+
+fn declaration_runtime_pairing_decision(
+    project_path: &Path,
+    source_file: &str,
+    declaration_path: &str,
+    runtime_sibling_status: &str,
+    runtime_sibling_candidates: &[String],
+) -> Option<DeclarationRuntimePairingDecision> {
+    match runtime_sibling_status {
+        "noRuntimeSibling" => Some(DeclarationRuntimePairingDecision {
+            status: "blockedNoRuntimeSibling".to_string(),
+            runtime_target: None,
+            reason: "no-runtime-sibling".to_string(),
+        }),
+        "multipleRuntimeSiblings" => Some(DeclarationRuntimePairingDecision {
+            status: "blockedMultipleRuntimeSiblings".to_string(),
+            runtime_target: None,
+            reason: "multiple-runtime-siblings".to_string(),
+        }),
+        "singleRuntimeSibling" => {
+            let Some(runtime_target) = runtime_sibling_candidates.first() else {
+                return Some(DeclarationRuntimePairingDecision {
+                    status: "blockedUnsupportedDeclarationShape".to_string(),
+                    runtime_target: None,
+                    reason: "unsupported-declaration-shape".to_string(),
+                });
+            };
+            if same_runtime_pairing_package_boundary(
+                project_path,
+                source_file,
+                declaration_path,
+                runtime_target,
+            ) {
+                Some(DeclarationRuntimePairingDecision {
+                    status: "eligibleSingleRuntimeSibling".to_string(),
+                    runtime_target: Some(runtime_target.clone()),
+                    reason: "same-package-single-runtime-sibling".to_string(),
+                })
+            } else {
+                Some(DeclarationRuntimePairingDecision {
+                    status: "blockedExternalOrPackageBoundary".to_string(),
+                    runtime_target: None,
+                    reason: "external-or-package-boundary".to_string(),
+                })
+            }
+        }
+        "skippedExternalOrPackageBoundary" => Some(DeclarationRuntimePairingDecision {
+            status: "blockedExternalOrPackageBoundary".to_string(),
+            runtime_target: None,
+            reason: "external-or-package-boundary".to_string(),
+        }),
+        _ => Some(DeclarationRuntimePairingDecision {
+            status: "blockedUnsupportedDeclarationShape".to_string(),
+            runtime_target: None,
+            reason: "unsupported-declaration-shape".to_string(),
+        }),
+    }
+}
+
+fn declaration_runtime_edge_write_decision(
+    conn: &Connection,
+    project_path: &Path,
+    source_file: &str,
+    target_file_path: Option<&str>,
+) -> rusqlite::Result<Option<DeclarationRuntimeEdgeWrite>> {
+    let Some(target_file_path) = target_file_path else {
+        return Ok(None);
+    };
+    let Some(relationship) = declaration_target_relationship_diagnostic(
+        project_path,
+        source_file,
+        Some(target_file_path),
+    ) else {
+        return Ok(None);
+    };
+    if find_file_node_id(conn, target_file_path)?.is_none() {
+        return Ok(Some(DeclarationRuntimeEdgeWrite::KeepDeclaration {
+            reason: "declaration-file-node-missing",
+        }));
+    }
+    let Some(pairing_decision) = relationship.pairing_decision else {
+        return Ok(Some(DeclarationRuntimeEdgeWrite::KeepDeclaration {
+            reason: "unsupported-declaration-shape",
+        }));
+    };
+    if pairing_decision.status != "eligibleSingleRuntimeSibling" {
+        return Ok(Some(DeclarationRuntimeEdgeWrite::KeepDeclaration {
+            reason: "pairing-not-eligible",
+        }));
+    }
+    let Some(runtime_target_file_path) = pairing_decision.runtime_target else {
+        return Ok(Some(DeclarationRuntimeEdgeWrite::KeepDeclaration {
+            reason: "unsupported-declaration-shape",
+        }));
+    };
+    if find_file_node_id(conn, &runtime_target_file_path)?.is_none() {
+        return Ok(Some(DeclarationRuntimeEdgeWrite::KeepDeclaration {
+            reason: "runtime-file-node-missing",
+        }));
+    }
+    Ok(Some(DeclarationRuntimeEdgeWrite::Rewrite {
+        runtime_target_file_path,
+    }))
+}
+
+fn same_runtime_pairing_package_boundary(
+    project_path: &Path,
+    source_file: &str,
+    declaration_path: &str,
+    runtime_target: &str,
+) -> bool {
+    let source_boundary = nearest_package_boundary(project_path, source_file);
+    let declaration_boundary = nearest_package_boundary(project_path, declaration_path);
+    let runtime_boundary = nearest_package_boundary(project_path, runtime_target);
+    source_boundary == declaration_boundary && declaration_boundary == runtime_boundary
+}
+
+fn nearest_package_boundary(project_path: &Path, relative_file_path: &str) -> String {
+    let path = Path::new(relative_file_path);
+    if path.is_absolute() {
+        return "__external__".to_string();
+    }
+    let mut current = path.parent().unwrap_or_else(|| Path::new(""));
+    loop {
+        if project_path.join(current).join("package.json").is_file() {
+            return local_slash_path(current);
+        }
+        let Some(parent) = current.parent() else {
+            return String::new();
+        };
+        current = parent;
+    }
+}
+
+fn declaration_runtime_sibling_candidates(project_path: &Path, resolved_path: &str) -> Vec<String> {
+    let path = Path::new(resolved_path);
+    let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+        return Vec::new();
+    };
+    let Some(base_name) = declaration_runtime_base_name(file_name) else {
+        return Vec::new();
+    };
+    let parent = path.parent().unwrap_or_else(|| Path::new(""));
+    let extensions = declaration_runtime_sibling_extensions(file_name);
+    let mut seen = HashSet::new();
+    let mut candidates = Vec::new();
+    for extension in extensions {
+        let candidate = parent.join(format!("{}{}", base_name, extension));
+        let candidate_slash = local_slash_path(&candidate);
+        if !seen.insert(candidate_slash.clone()) {
+            continue;
+        }
+        if project_path.join(&candidate).is_file() {
+            candidates.push(candidate_slash);
+        }
+    }
+    candidates
+}
+
+fn local_slash_path(path: &Path) -> String {
+    path.to_string_lossy()
+        .replace(std::path::MAIN_SEPARATOR, "/")
+}
+
+fn declaration_runtime_base_name(file_name: &str) -> Option<&str> {
+    file_name
+        .strip_suffix(".d.mts")
+        .or_else(|| file_name.strip_suffix(".d.cts"))
+        .or_else(|| file_name.strip_suffix(".d.ts"))
+}
+
+fn declaration_runtime_sibling_extensions(file_name: &str) -> &'static [&'static str] {
+    if file_name.ends_with(".d.mts") {
+        &[".mts", ".mjs", ".ts", ".tsx", ".js", ".jsx"]
+    } else if file_name.ends_with(".d.cts") {
+        &[".cts", ".cjs", ".ts", ".tsx", ".js", ".jsx"]
+    } else {
+        &[".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]
+    }
+}
+
 fn line_range_text(content: &str, start_line: i64, end_line: i64) -> Option<String> {
     if start_line <= 0 || end_line < start_line {
         return None;
@@ -7289,7 +7644,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -7362,6 +7717,16 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.module_resolution_shadow_decision_refs,
         fallback_sample_counts_json(&result.profile.module_resolution_shadow_decision_counts),
         fallback_sample_counts_json(&result.profile.module_resolution_shadow_parity_counts),
+        fallback_sample_counts_json(
+            &result
+                .profile
+                .module_resolution_declaration_target_relationship_counts
+        ),
+        fallback_sample_counts_json(
+            &result
+                .profile
+                .module_resolution_declaration_runtime_pairing_decision_counts
+        ),
         module_resolution_shadow_samples_json(&result.profile.module_resolution_shadow_samples),
         fallback_sample_cap_json(&result.profile.module_resolution_shadow_sample_cap),
         escape_json(&result.profile.module_resolution_effective_mode_source),
@@ -7374,6 +7739,20 @@ pub fn result_json(result: &IndexResult) -> String {
             &result
                 .profile
                 .module_resolution_guarded_edge_write_skipped_counts
+        ),
+        result
+            .profile
+            .module_resolution_declaration_runtime_edge_write_attempted_refs,
+        result
+            .profile
+            .module_resolution_declaration_runtime_edge_write_written_refs,
+        result
+            .profile
+            .module_resolution_declaration_runtime_edge_write_skipped_refs,
+        fallback_sample_counts_json(
+            &result
+                .profile
+                .module_resolution_declaration_runtime_edge_write_skipped_counts
         ),
         result.profile.local_exact_reference_resolution_ms,
         result.profile.local_exact_reference_resolved_refs,
@@ -8104,6 +8483,14 @@ mod tests {
                     "unknown".to_string(),
                     1,
                 )]),
+                module_resolution_declaration_target_relationship_counts: BTreeMap::from([(
+                    "singleRuntimeSibling".to_string(),
+                    1,
+                )]),
+                module_resolution_declaration_runtime_pairing_decision_counts: BTreeMap::from([(
+                    "eligibleSingleRuntimeSibling".to_string(),
+                    1,
+                )]),
                 module_resolution_shadow_samples: vec![ModuleResolutionDecisionRecord {
                     specifier: "./dep".to_string(),
                     source_file: "src/main.ts".to_string(),
@@ -8117,6 +8504,20 @@ mod tests {
                     matched_condition: None,
                     parity_status: "unknown".to_string(),
                     fallback_reason: None,
+                    declaration_target_relationship: Some(
+                        DeclarationTargetRelationshipDiagnostic {
+                            target_kind: "declaration".to_string(),
+                            runtime_sibling_status: "singleRuntimeSibling".to_string(),
+                            runtime_sibling_candidates: vec!["src/dep.ts".to_string()],
+                            candidate_count: 1,
+                            truncated: false,
+                            pairing_decision: Some(DeclarationRuntimePairingDecision {
+                                status: "eligibleSingleRuntimeSibling".to_string(),
+                                runtime_target: Some("src/dep.ts".to_string()),
+                                reason: "same-package-single-runtime-sibling".to_string(),
+                            }),
+                        },
+                    ),
                 }],
                 module_resolution_guarded_edge_write_attempted_refs: 3,
                 module_resolution_guarded_edge_write_written_refs: 2,
@@ -8143,11 +8544,41 @@ mod tests {
             1
         );
         assert_eq!(
+            json["profile"]["moduleResolutionDeclarationTargetRelationshipCounts"]
+                ["singleRuntimeSibling"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionDeclarationRuntimePairingDecisionCounts"]
+                ["eligibleSingleRuntimeSibling"],
+            1
+        );
+        assert_eq!(
             json["profile"]["moduleResolutionShadowSamples"][0]["specifier"],
             "./dep"
         );
         assert_eq!(
             json["profile"]["moduleResolutionShadowSamples"][0]["resolvedPath"],
+            "src/dep.ts"
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionShadowSamples"][0]["declarationTargetRelationship"]
+                ["targetKind"],
+            "declaration"
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionShadowSamples"][0]["declarationTargetRelationship"]
+                ["runtimeSiblingStatus"],
+            "singleRuntimeSibling"
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionShadowSamples"][0]["declarationTargetRelationship"]
+                ["runtimeSiblingCandidates"][0],
+            "src/dep.ts"
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionShadowSamples"][0]["declarationTargetRelationship"]
+                ["pairingDecision"]["runtimeTarget"],
             "src/dep.ts"
         );
         assert_eq!(
@@ -8256,6 +8687,338 @@ mod tests {
         assert_eq!(rust_shadow_edges, 0);
 
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_emits_declaration_target_relationship_diagnostics() {
+        let dir = temp_dir("declaration-target-relationship-profile");
+        fs::write(dir.join("package.json"), r#"{"name":"root"}"#).unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"compilerOptions":{"moduleResolution":"bundler"}}"#,
+        )
+        .unwrap();
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::create_dir_all(dir.join("src").join("nested")).unwrap();
+        fs::write(
+            dir.join("src").join("nested").join("package.json"),
+            r#"{"name":"nested"}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src").join("no.d.ts"),
+            "export declare const no: number;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src").join("single.d.mts"),
+            "export declare const single: number;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src").join("single.mts"),
+            "export const single = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src").join("nested").join("cross.d.ts"),
+            "export declare const cross: number;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src").join("nested").join("cross.ts"),
+            "export const cross = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src").join("multi.d.cts"),
+            "export declare const multi: number;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src").join("multi.cts"),
+            "export const multi = 1;\n",
+        )
+        .unwrap();
+        fs::write(dir.join("src").join("multi.cjs"), "exports.multi = 1;\n").unwrap();
+        fs::write(
+            dir.join("src").join("main.ts"),
+            [
+                "import './no.d.ts';",
+                "import './single.d.mts';",
+                "import './multi.d.cts';",
+                "import './nested/cross.d.ts';",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_target_relationship_counts
+                .get("noRuntimeSibling"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_target_relationship_counts
+                .get("singleRuntimeSibling"),
+            Some(&2)
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_target_relationship_counts
+                .get("multipleRuntimeSiblings"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_runtime_pairing_decision_counts
+                .get("eligibleSingleRuntimeSibling"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_runtime_pairing_decision_counts
+                .get("blockedNoRuntimeSibling"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_runtime_pairing_decision_counts
+                .get("blockedMultipleRuntimeSiblings"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_runtime_pairing_decision_counts
+                .get("blockedExternalOrPackageBoundary"),
+            Some(&1)
+        );
+
+        let relationships = result
+            .profile
+            .module_resolution_shadow_samples
+            .iter()
+            .filter_map(|sample| {
+                sample
+                    .declaration_target_relationship
+                    .as_ref()
+                    .map(|relationship| {
+                        (
+                            sample.resolved_path.as_deref().unwrap_or_default(),
+                            relationship,
+                        )
+                    })
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(relationships.len(), 4);
+        assert!(relationships.iter().any(|(path, relationship)| {
+            *path == "src/no.d.ts"
+                && relationship.runtime_sibling_status == "noRuntimeSibling"
+                && relationship.runtime_sibling_candidates.is_empty()
+                && relationship
+                    .pairing_decision
+                    .as_ref()
+                    .is_some_and(|decision| {
+                        decision.status == "blockedNoRuntimeSibling"
+                            && decision.runtime_target.is_none()
+                    })
+        }));
+        assert!(relationships.iter().any(|(path, relationship)| {
+            *path == "src/single.d.mts"
+                && relationship.runtime_sibling_status == "singleRuntimeSibling"
+                && relationship.runtime_sibling_candidates == vec!["src/single.mts"]
+                && relationship
+                    .pairing_decision
+                    .as_ref()
+                    .is_some_and(|decision| {
+                        decision.status == "eligibleSingleRuntimeSibling"
+                            && decision.runtime_target.as_deref() == Some("src/single.mts")
+                    })
+        }));
+        assert!(relationships.iter().any(|(path, relationship)| {
+            *path == "src/multi.d.cts"
+                && relationship.runtime_sibling_status == "multipleRuntimeSiblings"
+                && relationship.candidate_count == 2
+                && relationship
+                    .runtime_sibling_candidates
+                    .contains(&"src/multi.cts".to_string())
+                && relationship
+                    .runtime_sibling_candidates
+                    .contains(&"src/multi.cjs".to_string())
+                && relationship
+                    .pairing_decision
+                    .as_ref()
+                    .is_some_and(|decision| {
+                        decision.status == "blockedMultipleRuntimeSiblings"
+                            && decision.runtime_target.is_none()
+                    })
+        }));
+        assert!(relationships.iter().any(|(path, relationship)| {
+            *path == "src/nested/cross.d.ts"
+                && relationship.runtime_sibling_status == "singleRuntimeSibling"
+                && relationship
+                    .pairing_decision
+                    .as_ref()
+                    .is_some_and(|decision| {
+                        decision.status == "blockedExternalOrPackageBoundary"
+                            && decision.runtime_target.is_none()
+                    })
+        }));
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_runtime_edge_write_attempted_refs,
+            4
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_runtime_edge_write_written_refs,
+            1
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_runtime_edge_write_skipped_refs,
+            3
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_runtime_edge_write_skipped_counts
+                .get("pairing-not-eligible"),
+            Some(&3)
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            targets,
+            vec![
+                "src/multi.d.cts",
+                "src/nested/cross.d.ts",
+                "src/no.d.ts",
+                "src/single.mts",
+            ]
+        );
+
+        let json: serde_json::Value = serde_json::from_str(&result_json(&result)).unwrap();
+        assert_eq!(
+            json["profile"]["moduleResolutionDeclarationTargetRelationshipCounts"]
+                ["multipleRuntimeSiblings"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionDeclarationRuntimePairingDecisionCounts"]
+                ["eligibleSingleRuntimeSibling"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs"],
+            1
+        );
+        assert!(json["profile"]["moduleResolutionShadowSamples"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(
+                |sample| sample["declarationTargetRelationship"]["pairingDecision"]["status"]
+                    == "eligibleSingleRuntimeSibling"
+            ));
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn declaration_runtime_edge_write_fails_closed_when_runtime_file_node_is_missing() {
+        let dir = temp_dir("declaration-runtime-missing-runtime-node");
+        fs::write(dir.join("package.json"), r#"{"name":"root"}"#).unwrap();
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(dir.join("src").join("main.ts"), "import './api.d.ts';\n").unwrap();
+        fs::write(
+            dir.join("src").join("api.d.ts"),
+            "export declare const api: number;\n",
+        )
+        .unwrap();
+        fs::write(dir.join("src").join("api.ts"), "export const api = 1;\n").unwrap();
+
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(SCHEMA_SQL).unwrap();
+        insert_file_node(&conn, "file:src/main.ts", "src/main.ts");
+        insert_file_node(&conn, "file:src/api.d.ts", "src/api.d.ts");
+
+        let decision = declaration_runtime_edge_write_decision(
+            &conn,
+            &dir,
+            "src/main.ts",
+            Some("src/api.d.ts"),
+        )
+        .unwrap()
+        .unwrap();
+        match decision {
+            DeclarationRuntimeEdgeWrite::KeepDeclaration { reason } => {
+                assert_eq!(reason, "runtime-file-node-missing");
+            }
+            DeclarationRuntimeEdgeWrite::Rewrite { .. } => {
+                panic!("missing runtime file node must fail closed");
+            }
+        }
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    fn insert_file_node(conn: &Connection, id: &str, file_path: &str) {
+        conn.execute(
+            "INSERT INTO nodes (
+                id, kind, name, qualified_name, file_path, language,
+                start_line, end_line, start_column, end_column, updated_at
+            ) VALUES (?1, 'file', ?2, ?2, ?2, 'typescript', 1, 1, 0, 0, 1)",
+            params![id, file_path],
+        )
+        .unwrap();
     }
 
     #[test]

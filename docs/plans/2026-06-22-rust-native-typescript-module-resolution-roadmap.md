@@ -75,13 +75,17 @@ shadow-only diagnostics in Rust core:
 │  │  ├─ [x] 1-4-2. imports "#" entries
 │  │  ├─ [x] 1-4-3. condition set handling for repo-local source
 │  │  └─ [x] 1-4-4. no node_modules graph expansion by default
-│  ├─ [-] 1-5. File target semantics
+│  ├─ [x] 1-5. File target semantics (bounded repo-local file-target solution;
+│  │  excludes explore-subtree semantics)
 │  │  ├─ [x] 1-5-1. extension substitution
 │  │  ├─ [x] 1-5-2. extension pairing
 │  │  │  ├─ [x] 1-5-2-1. explicit JS runtime extension -> TS source pairing
 │  │  │  └─ [x] 1-5-2-2. extensionless candidate order + mts/cts inclusion
 │  │  ├─ [x] 1-5-3. directory/index lookup
-│  │  └─ [ ] 1-5-4. declaration/runtime target relationship
+│  │  └─ [x] 1-5-4. declaration/runtime target relationship
+│  │     ├─ [x] 1-5-4-1. declaration target relationship diagnostics
+│  │     ├─ [x] 1-5-4-2. safe runtime sibling pairing decision contract
+│  │     └─ [x] 1-5-4-3. guarded runtime sibling graph write
 │  ├─ [-] 1-6. Parity confidence
 │  │  ├─ [x] 1-6-1. TS compiler API oracle fixtures
 │  │  ├─ [x] 1-6-2. Rust decision record comparison
@@ -102,7 +106,9 @@ shadow-only diagnostics in Rust core:
 │  ├─ [ ] 2-6. custom loaders and bundler plugins
 │  ├─ [ ] 2-7. JSON/CSS/assets/custom non-code modules
 │  ├─ [ ] 2-8. type-only vs runtime target divergence
-│  └─ [ ] 2-9. package manager specific edge cases
+│  ├─ [ ] 2-9. package manager specific edge cases
+│  └─ [ ] 2-10. advanced declaration/runtime semantics beyond repo-local
+│     same-basename pairing
 │
 └─ [x] 3. Exploit slices: bounded implementation work
    ├─ [x] 3-1. shadow-only diagnostics skeleton
