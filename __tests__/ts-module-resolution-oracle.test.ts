@@ -167,6 +167,134 @@ describe('TypeScript moduleResolution oracle script', () => {
     expect(markdown).toContain('# TypeScript Module Resolution Oracle');
     expect(markdown).toContain('ts-resolves-repo-local-rust-fallback');
   });
+
+  it('compares Rust moduleResolution shadow samples against the TypeScript oracle', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-ts-shadow-oracle-'));
+    tempDirs.push(dir);
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'NodeNext',
+          moduleResolution: 'NodeNext',
+          target: 'ES2022',
+          allowImportingTsExtensions: true,
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(path.join(dir, 'src', 'dep.ts'), 'export const dep = 1;\n');
+    fs.writeFileSync(path.join(dir, 'src', 'main.ts'), [
+      'import { dep } from "./dep";',
+      'import fs from "node:fs";',
+      'import missing from "missing-pkg";',
+    ].join('\n') + '\n');
+
+    const profilePath = path.join(dir, 'profile.json');
+    fs.writeFileSync(
+      profilePath,
+      JSON.stringify({
+        rustCore: {
+          moduleResolutionShadowSamples: [
+            {
+              specifier: './dep',
+              sourceFile: 'src/main.ts',
+              moduleResolutionMode: 'nodeNext',
+              resolvedKind: 'relative',
+              resolvedPath: 'src/dep.ts',
+              isExternalLibraryImport: false,
+              failedLookupCategory: null,
+              conditionSet: [],
+              parityStatus: 'unknown',
+              fallbackReason: null,
+            },
+            {
+              specifier: 'node:fs',
+              sourceFile: 'src/main.ts',
+              moduleResolutionMode: 'nodeNext',
+              resolvedKind: 'nodeRuntimeBuiltin',
+              resolvedPath: null,
+              isExternalLibraryImport: true,
+              failedLookupCategory: 'node-runtime-builtin',
+              conditionSet: [],
+              parityStatus: 'unknown',
+              fallbackReason: null,
+            },
+            {
+              specifier: 'missing-pkg',
+              sourceFile: 'src/main.ts',
+              moduleResolutionMode: 'nodeNext',
+              resolvedKind: 'packageOrRuntime',
+              resolvedPath: null,
+              isExternalLibraryImport: true,
+              failedLookupCategory: 'package-or-runtime-import',
+              conditionSet: [],
+              parityStatus: 'unknown',
+              fallbackReason: 'rust-shadow-does-not-expand-node-modules',
+            },
+          ],
+        },
+      }, null, 2),
+    );
+
+    const outDir = path.join(dir, 'artifacts');
+    const result = spawnSync(
+      process.execPath,
+      [
+        SCRIPT,
+        '--project',
+        dir,
+        '--profile',
+        profilePath,
+        '--out-dir',
+        outDir,
+        '--prefix',
+        'fixture-ts-shadow-oracle',
+      ],
+      { cwd: REPO_ROOT, encoding: 'utf-8' },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const parsed = JSON.parse(result.stdout) as {
+      artifacts: { json: string; markdown: string };
+      summary: {
+        rowsInspected: number;
+        parityStatuses: Record<string, number>;
+      };
+    };
+    expect(parsed.summary.rowsInspected).toBe(3);
+    expect(parsed.summary.parityStatuses.match).toBe(2);
+    expect(parsed.summary.parityStatuses.mismatch).toBe(1);
+
+    const artifact = JSON.parse(fs.readFileSync(parsed.artifacts.json, 'utf-8')) as {
+      dataSource: string;
+      rows: Array<Record<string, unknown>>;
+      summary: { parityStatuses: Record<string, number> };
+    };
+    expect(artifact.dataSource).toBe('rustCore.moduleResolutionShadowSamples');
+    expect(artifact.summary.parityStatuses.match).toBe(2);
+    expect(artifact.summary.parityStatuses.mismatch).toBe(1);
+    expect(artifact.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        importSpecifier: './dep',
+        rustResolvedKind: 'relative',
+        parityStatus: 'match',
+      }),
+      expect.objectContaining({
+        importSpecifier: 'node:fs',
+        rustResolvedKind: 'nodeRuntimeBuiltin',
+        parityStatus: 'match',
+      }),
+      expect.objectContaining({
+        importSpecifier: 'missing-pkg',
+        rustResolvedKind: 'packageOrRuntime',
+        parityStatus: 'mismatch',
+      }),
+    ]));
+    const markdown = fs.readFileSync(parsed.artifacts.markdown, 'utf-8');
+    expect(markdown).toContain('### Parity Statuses');
+    expect(markdown).toContain('`match`');
+  });
 });
 
 function rustSample(referenceName: string, line: number) {

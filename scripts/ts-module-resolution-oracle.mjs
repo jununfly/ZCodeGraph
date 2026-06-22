@@ -64,17 +64,45 @@ function requiredValue(argv, index, flag) {
 
 function loadSamples(profilePath) {
   const profile = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
+  const shadowSamples = profile?.rustCore?.moduleResolutionShadowSamples
+    ?? profile?.profile?.moduleResolutionShadowSamples
+    ?? profile?.moduleResolutionShadowSamples;
+  if (Array.isArray(shadowSamples)) {
+    return {
+      rows: shadowSamples.map((sample) => ({
+        sampleSource: 'moduleResolutionShadowSamples',
+        rustCurrentReason: String(sample.fallbackReason ?? sample.failedLookupCategory ?? 'none'),
+        referenceName: String(sample.specifier ?? ''),
+        referenceKind: 'imports',
+        filePath: String(sample.sourceFile ?? ''),
+        language: String(sample.language ?? 'typescript'),
+        line: Number.isFinite(sample.line) ? sample.line : 0,
+        col: Number.isFinite(sample.col) ? sample.col : 0,
+        rustCurrentTarget: typeof sample.resolvedPath === 'string' ? sample.resolvedPath : null,
+        rustResolvedKind: String(sample.resolvedKind ?? 'unknown'),
+        rustParityStatus: String(sample.parityStatus ?? 'unknown'),
+        importSpecifier: typeof sample.specifier === 'string' ? sample.specifier : null,
+      })),
+      unavailableReason: shadowSamples.length === 0
+        ? 'rustCore.moduleResolutionShadowSamples is empty'
+        : null,
+      dataSource: 'rustCore.moduleResolutionShadowSamples',
+    };
+  }
+
   const samples = profile?.rustCore?.esmNamedImportExportFallbackSamples;
   if (!Array.isArray(samples)) {
     return {
       rows: [],
       unavailableReason: 'rustCore.esmNamedImportExportFallbackSamples is missing or not an array',
+      dataSource: 'rustCore.esmNamedImportExportFallbackSamples filtered to package/runtime reasons',
     };
   }
   return {
     rows: samples
       .filter((sample) => PACKAGE_RUNTIME_REASONS.has(String(sample.reason ?? '')))
       .map((sample) => ({
+        sampleSource: 'esmNamedImportExportFallbackSamples',
         rustCurrentReason: String(sample.reason ?? 'unknown'),
         referenceName: String(sample.referenceName ?? ''),
         referenceKind: String(sample.referenceKind ?? ''),
@@ -83,10 +111,14 @@ function loadSamples(profilePath) {
         line: Number.isFinite(sample.line) ? sample.line : 0,
         col: Number.isFinite(sample.col) ? sample.col : 0,
         rustCurrentTarget: typeof sample.targetFilePath === 'string' ? sample.targetFilePath : null,
+        rustResolvedKind: 'packageOrRuntime',
+        rustParityStatus: 'unknown',
+        importSpecifier: null,
       })),
     unavailableReason: samples.length === 0
       ? 'rustCore.esmNamedImportExportFallbackSamples is empty'
       : null,
+    dataSource: 'rustCore.esmNamedImportExportFallbackSamples filtered to package/runtime reasons',
   };
 }
 
@@ -246,6 +278,25 @@ function deltaBucketFor(row, resolved) {
   return 'ts-resolution-other';
 }
 
+function parityStatusFor(row, resolved) {
+  if (!row.importSpecifier) return 'no-oracle';
+  if (resolved.tsResolvedKind === 'unresolved') {
+    return row.rustResolvedKind === 'unresolved' ? 'match' : 'mismatch';
+  }
+  if (resolved.tsResolvedKind === 'node-runtime-builtin') {
+    return row.rustResolvedKind === 'nodeRuntimeBuiltin' ? 'match' : 'mismatch';
+  }
+  if (resolved.repoLocal) {
+    return normalizePath(row.rustCurrentTarget ?? '') === normalizePath(resolved.tsResolvedPath ?? '')
+      ? 'match'
+      : 'mismatch';
+  }
+  if (resolved.tsResolvedKind.startsWith('third-party')) {
+    return row.rustResolvedKind === 'packageOrRuntime' ? 'match' : 'mismatch';
+  }
+  return 'unknown';
+}
+
 function recommendedSliceFor(row) {
   switch (row.deltaBucket) {
     case 'ts-resolves-repo-local-rust-fallback':
@@ -268,7 +319,9 @@ function buildRows(projectRoot, profilePath) {
   const config = compilerOptionsForProject(projectRoot);
   const rows = [];
   for (const sample of source.rows) {
-    const specifier = moduleSpecifierFromSourceLine(projectRoot, sample.filePath, sample.line);
+    const specifier = sample.importSpecifier
+      ? { importSpecifier: sample.importSpecifier, unavailableReason: null }
+      : moduleSpecifierFromSourceLine(projectRoot, sample.filePath, sample.line);
     const base = {
       filePath: sample.filePath,
       language: sample.language,
@@ -279,6 +332,8 @@ function buildRows(projectRoot, profilePath) {
       importSpecifier: specifier.importSpecifier,
       rustCurrentReason: sample.rustCurrentReason,
       rustCurrentTarget: sample.rustCurrentTarget,
+      rustResolvedKind: sample.rustResolvedKind,
+      rustParityStatus: sample.rustParityStatus,
       specifierUnavailableReason: specifier.unavailableReason,
     };
     const resolved = specifier.importSpecifier
@@ -294,12 +349,14 @@ function buildRows(projectRoot, profilePath) {
       ...resolved,
     };
     row.deltaBucket = deltaBucketFor(row, resolved);
+    row.parityStatus = parityStatusFor(row, resolved);
     row.recommendedSlice = recommendedSliceFor(row);
     rows.push(row);
   }
   return {
     rows,
     sampleSourceUnavailableReason: source.unavailableReason,
+    dataSource: source.dataSource,
     tsconfigPath: config.configPath ? normalizePath(path.relative(projectRoot, config.configPath)) : null,
     tsconfigReadError: config.configReadError ?? null,
   };
@@ -308,10 +365,12 @@ function buildRows(projectRoot, profilePath) {
 function summarize(rows, sampleSourceUnavailableReason) {
   const deltaBuckets = {};
   const resolvedKinds = {};
+  const parityStatuses = {};
   const recommendedSlices = {};
   for (const row of rows) {
     deltaBuckets[row.deltaBucket] = (deltaBuckets[row.deltaBucket] ?? 0) + 1;
     resolvedKinds[row.tsResolvedKind] = (resolvedKinds[row.tsResolvedKind] ?? 0) + 1;
+    parityStatuses[row.parityStatus] = (parityStatuses[row.parityStatus] ?? 0) + 1;
     recommendedSlices[row.recommendedSlice] = (recommendedSlices[row.recommendedSlice] ?? 0) + 1;
   }
   const recommendedSliceGoals = Object.keys(recommendedSlices).sort((a, b) => {
@@ -328,6 +387,7 @@ function summarize(rows, sampleSourceUnavailableReason) {
     sampleSourceUnavailableReason,
     deltaBuckets,
     resolvedKinds,
+    parityStatuses,
     recommendedSlices,
     recommendedSliceGoals,
     recommendedTotalSliceCount: recommendedSliceGoals.length + 1, // include closeout
@@ -341,7 +401,7 @@ function buildArtifact(args) {
     generatedAt: new Date().toISOString(),
     projectRoot: displayPath(args.projectRoot),
     profilePath: displayPath(args.profilePath),
-    dataSource: 'rustCore.esmNamedImportExportFallbackSamples filtered to package/runtime reasons',
+    dataSource: built.dataSource,
     productionRuntimeBehaviorChanged: false,
     typescriptRuntimeDependencyAdded: false,
     sourceContentIncluded: false,
@@ -392,16 +452,25 @@ function renderMarkdown(artifact) {
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([bucket, count]) => `| \`${bucket}\` | ${count} |`),
     '',
+    '### Parity Statuses',
+    '',
+    '| Status | Count |',
+    '| --- | ---: |',
+    ...Object.entries(artifact.summary.parityStatuses)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([status, count]) => `| \`${status}\` | ${count} |`),
+    '',
     '### Recommended Slice Goals',
     '',
     ...artifact.summary.recommendedSliceGoals.map((goal) => `- ${goal}`),
     '',
     '## Examples',
     '',
-    '| Delta | Specifier | TS kind | TS path | File |',
-    '| --- | --- | --- | --- | --- |',
+    '| Delta | Parity | Specifier | TS kind | TS path | File |',
+    '| --- | --- | --- | --- | --- | --- |',
     ...artifact.rows.slice(0, 20).map((row) => [
       `\`${row.deltaBucket}\``,
+      `\`${row.parityStatus}\``,
       `\`${row.importSpecifier ?? 'unavailable'}\``,
       `\`${row.tsResolvedKind}\``,
       row.tsResolvedPath ? `\`${row.tsResolvedPath}\`` : '',

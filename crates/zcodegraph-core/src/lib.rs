@@ -256,6 +256,11 @@ pub struct IndexProfile {
     pub esm_named_import_export_fallback_sample_counts: BTreeMap<String, u32>,
     pub esm_named_import_export_fallback_samples: Vec<EsmNamedFallbackSample>,
     pub esm_named_import_export_fallback_sample_cap: ImportFallbackSampleCap,
+    pub module_resolution_shadow_decision_refs: u32,
+    pub module_resolution_shadow_decision_counts: BTreeMap<String, u32>,
+    pub module_resolution_shadow_parity_counts: BTreeMap<String, u32>,
+    pub module_resolution_shadow_samples: Vec<ModuleResolutionDecisionRecord>,
+    pub module_resolution_shadow_sample_cap: ImportFallbackSampleCap,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -342,6 +347,44 @@ pub struct EsmNamedFallbackSample {
     pub candidate_count: Option<usize>,
     pub resolved_by_attempt: Option<String>,
     pub candidate_line_ranges: Option<Vec<CandidateDeclarationDiagnostic>>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModuleResolutionCompilerOptionsSummary {
+    pub module_resolution: Option<String>,
+    pub module: Option<String>,
+    pub base_url: Option<String>,
+    pub paths: BTreeMap<String, Vec<String>>,
+    pub root_dirs: Vec<String>,
+    pub allow_js: Option<bool>,
+    pub resolve_json_module: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModuleResolutionRequest {
+    pub specifier: String,
+    pub source_file: String,
+    pub language: String,
+    pub import_kind: String,
+    pub nearest_config_path: Option<String>,
+    pub compiler_options: ModuleResolutionCompilerOptionsSummary,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModuleResolutionDecisionRecord {
+    pub specifier: String,
+    pub source_file: String,
+    pub module_resolution_mode: String,
+    pub resolved_kind: String,
+    pub resolved_path: Option<String>,
+    pub is_external_library_import: bool,
+    pub failed_lookup_category: Option<String>,
+    pub condition_set: Vec<String>,
+    pub parity_status: String,
+    pub fallback_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1380,6 +1423,18 @@ fn write_index_to_connection(
     let fts_rebuild_started = Instant::now();
     rebuild_node_fts_after_bulk_write(conn)?;
     counts.profile.sqlite_write_ms += fts_rebuild_started.elapsed().as_millis();
+    let module_resolution_shadow =
+        build_module_resolution_shadow_diagnostics(conn, Path::new(&request.project_path))?;
+    counts.profile.module_resolution_shadow_decision_refs = module_resolution_shadow.decision_refs;
+    counts.profile.module_resolution_shadow_decision_counts =
+        module_resolution_shadow.decision_counts;
+    counts.profile.module_resolution_shadow_parity_counts = module_resolution_shadow.parity_counts;
+    counts.profile.module_resolution_shadow_samples = module_resolution_shadow.samples;
+    counts.profile.module_resolution_shadow_sample_cap = ImportFallbackSampleCap {
+        per_bucket: IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP,
+        total: IMPORT_FALLBACK_SAMPLE_TOTAL_CAP,
+        truncated: module_resolution_shadow.samples_truncated,
+    };
     let import_resolution_started = Instant::now();
     let import_stats = resolve_js_ts_file_imports(conn, Path::new(&request.project_path))?;
     counts.profile.import_path_alias_resolution_ms =
@@ -1463,6 +1518,44 @@ struct ImportResolutionStats {
     fallback_samples: Vec<ImportFallbackSample>,
     fallback_bucket_sample_counts: HashMap<String, usize>,
     fallback_samples_truncated: bool,
+}
+
+#[derive(Debug, Default)]
+struct ModuleResolutionShadowDiagnostics {
+    decision_refs: u32,
+    decision_counts: BTreeMap<String, u32>,
+    parity_counts: BTreeMap<String, u32>,
+    samples: Vec<ModuleResolutionDecisionRecord>,
+    sample_bucket_counts: HashMap<String, usize>,
+    samples_truncated: bool,
+}
+
+impl ModuleResolutionShadowDiagnostics {
+    fn record(&mut self, decision: ModuleResolutionDecisionRecord) {
+        self.decision_refs += 1;
+        *self
+            .decision_counts
+            .entry(decision.resolved_kind.clone())
+            .or_insert(0) += 1;
+        *self
+            .parity_counts
+            .entry(decision.parity_status.clone())
+            .or_insert(0) += 1;
+
+        let bucket_count = *self
+            .sample_bucket_counts
+            .get(&decision.resolved_kind)
+            .unwrap_or(&0);
+        if bucket_count >= IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP
+            || self.samples.len() >= IMPORT_FALLBACK_SAMPLE_TOTAL_CAP
+        {
+            self.samples_truncated = true;
+            return;
+        }
+        self.sample_bucket_counts
+            .insert(decision.resolved_kind.clone(), bucket_count + 1);
+        self.samples.push(decision);
+    }
 }
 
 impl ImportResolutionStats {
@@ -1795,6 +1888,153 @@ fn resolve_js_ts_file_imports(
     Ok(stats)
 }
 
+fn build_module_resolution_shadow_diagnostics(
+    conn: &Connection,
+    project_path: &Path,
+) -> Result<ModuleResolutionShadowDiagnostics, Box<dyn std::error::Error>> {
+    let aliases = load_ts_path_aliases(project_path);
+    let workspace_packages = load_workspace_packages(project_path);
+    let compiler_options = load_module_resolution_compiler_options_summary(project_path);
+    let module_resolution_mode = compiler_options
+        .module_resolution
+        .clone()
+        .unwrap_or_else(|| "node10".to_string());
+    let refs = load_import_refs(conn)?;
+    let mut diagnostics = ModuleResolutionShadowDiagnostics::default();
+    let mut file_content_cache = HashMap::new();
+
+    for reference in refs {
+        if !matches!(
+            reference.language.as_str(),
+            "javascript" | "jsx" | "typescript" | "tsx"
+        ) {
+            continue;
+        }
+
+        let line_specifier = import_line_text(
+            project_path,
+            &reference.file_path,
+            reference.line,
+            &mut file_content_cache,
+        )
+        .and_then(import_line_module_specifier);
+        if line_specifier.is_none() && looks_like_imported_binding(&reference.reference_name) {
+            continue;
+        }
+        let specifier = line_specifier.unwrap_or_else(|| reference.reference_name.clone());
+
+        let (resolved_kind, resolved_path, failed_lookup_category, fallback_reason) =
+            classify_module_resolution_shadow_decision(
+                project_path,
+                &aliases,
+                &workspace_packages,
+                &reference,
+                &specifier,
+            );
+
+        diagnostics.record(ModuleResolutionDecisionRecord {
+            specifier,
+            source_file: reference.file_path,
+            module_resolution_mode: module_resolution_mode.clone(),
+            resolved_kind,
+            resolved_path,
+            is_external_library_import: matches!(
+                failed_lookup_category.as_deref(),
+                Some("node-runtime-builtin") | Some("package-or-runtime-import")
+            ),
+            failed_lookup_category,
+            condition_set: Vec::new(),
+            parity_status: "unknown".to_string(),
+            fallback_reason,
+        });
+    }
+
+    Ok(diagnostics)
+}
+
+fn classify_module_resolution_shadow_decision(
+    project_path: &Path,
+    aliases: &TsPathAliases,
+    workspace_packages: &WorkspacePackages,
+    reference: &ImportRefRow,
+    specifier: &str,
+) -> (String, Option<String>, Option<String>, Option<String>) {
+    if let Some((source, target)) = resolve_import_target(
+        project_path,
+        aliases,
+        workspace_packages,
+        &reference.file_path,
+        specifier,
+    ) {
+        let kind = source.as_profile_source_kind().to_string();
+        if let Some(target_path) = target {
+            return (kind, Some(target_path), None, None);
+        }
+        return (
+            kind,
+            None,
+            Some(source.target_not_found_reason().to_string()),
+            Some("rust-shadow-could-not-resolve-file-target".to_string()),
+        );
+    }
+
+    if aliases.matches(specifier) {
+        return (
+            "tsconfigPaths".to_string(),
+            None,
+            Some("tsconfig-path-target-not-found".to_string()),
+            Some("rust-shadow-could-not-resolve-tsconfig-path-target".to_string()),
+        );
+    }
+    if matches_conventional_alias(specifier).is_some() {
+        return (
+            "conventionalAlias".to_string(),
+            None,
+            Some("conventional-alias-target-not-found".to_string()),
+            Some("rust-shadow-could-not-resolve-conventional-alias-target".to_string()),
+        );
+    }
+    if workspace_packages.resolve_import(specifier).is_some() {
+        return (
+            "workspacePackage".to_string(),
+            None,
+            Some("workspace-package-target-not-found".to_string()),
+            Some("rust-shadow-could-not-resolve-workspace-package-target".to_string()),
+        );
+    }
+    if is_node_runtime_builtin(specifier) {
+        return (
+            "nodeRuntimeBuiltin".to_string(),
+            None,
+            Some("node-runtime-builtin".to_string()),
+            None,
+        );
+    }
+    if is_package_like_specifier(specifier) {
+        return (
+            "packageOrRuntime".to_string(),
+            None,
+            Some("package-or-runtime-import".to_string()),
+            Some("rust-shadow-does-not-expand-node-modules".to_string()),
+        );
+    }
+    if looks_like_imported_binding(specifier) {
+        return (
+            "binding".to_string(),
+            None,
+            Some("binding-level-symbol-disambiguation".to_string()),
+            Some("rust-shadow-observed-binding-reference-not-module-specifier".to_string()),
+        );
+    }
+
+    (
+        "unsupported".to_string(),
+        None,
+        Some("unsupported-import-form".to_string()),
+        Some("rust-shadow-unsupported-import-form".to_string()),
+    )
+}
+
 fn load_import_refs(conn: &Connection) -> rusqlite::Result<Vec<ImportRefRow>> {
     let mut stmt = conn.prepare(
         "SELECT id, from_node_id, reference_name, line, col, file_path, language
@@ -1830,6 +2070,61 @@ fn looks_like_imported_binding(specifier: &str) -> bool {
         && chars.all(|ch| ch == '_' || ch == '$' || ch.is_ascii_alphanumeric())
 }
 
+fn is_package_like_specifier(specifier: &str) -> bool {
+    !specifier.is_empty()
+        && !is_relative_import_specifier(specifier)
+        && !specifier.starts_with('/')
+        && !specifier.contains('\\')
+}
+
+fn is_node_runtime_builtin(specifier: &str) -> bool {
+    let bare = specifier.strip_prefix("node:").unwrap_or(specifier);
+    matches!(
+        bare,
+        "assert"
+            | "async_hooks"
+            | "buffer"
+            | "child_process"
+            | "cluster"
+            | "console"
+            | "constants"
+            | "crypto"
+            | "dgram"
+            | "diagnostics_channel"
+            | "dns"
+            | "domain"
+            | "events"
+            | "fs"
+            | "http"
+            | "http2"
+            | "https"
+            | "inspector"
+            | "module"
+            | "net"
+            | "os"
+            | "path"
+            | "perf_hooks"
+            | "process"
+            | "punycode"
+            | "querystring"
+            | "readline"
+            | "repl"
+            | "stream"
+            | "string_decoder"
+            | "timers"
+            | "tls"
+            | "trace_events"
+            | "tty"
+            | "url"
+            | "util"
+            | "v8"
+            | "vm"
+            | "wasi"
+            | "worker_threads"
+            | "zlib"
+    )
+}
+
 impl TsPathAliases {
     fn matches(&self, specifier: &str) -> bool {
         self.patterns
@@ -1863,6 +2158,76 @@ fn load_ts_path_aliases(project_path: &Path) -> TsPathAliases {
         }
     }
     TsPathAliases::default()
+}
+
+fn load_module_resolution_compiler_options_summary(
+    project_path: &Path,
+) -> ModuleResolutionCompilerOptionsSummary {
+    for config_name in ["tsconfig.json", "jsconfig.json"] {
+        let config_path = project_path.join(config_name);
+        let Ok(content) = fs::read_to_string(&config_path) else {
+            continue;
+        };
+        if let Some(summary) = parse_module_resolution_compiler_options_summary(&content) {
+            return summary;
+        }
+    }
+    ModuleResolutionCompilerOptionsSummary::default()
+}
+
+fn parse_module_resolution_compiler_options_summary(
+    content: &str,
+) -> Option<ModuleResolutionCompilerOptionsSummary> {
+    let parsed: Value = serde_json::from_str(content).ok()?;
+    let compiler_options = parsed.get("compilerOptions")?;
+    let paths = compiler_options
+        .get("paths")
+        .and_then(Value::as_object)
+        .map(|raw_paths| {
+            raw_paths
+                .iter()
+                .map(|(key, raw_targets)| {
+                    let targets = raw_targets
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(Value::as_str)
+                        .map(str::to_string)
+                        .collect::<Vec<_>>();
+                    (key.clone(), targets)
+                })
+                .collect::<BTreeMap<_, _>>()
+        })
+        .unwrap_or_default();
+    let root_dirs = compiler_options
+        .get("rootDirs")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+
+    Some(ModuleResolutionCompilerOptionsSummary {
+        module_resolution: compiler_options
+            .get("moduleResolution")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        module: compiler_options
+            .get("module")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        base_url: compiler_options
+            .get("baseUrl")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        paths,
+        root_dirs,
+        allow_js: compiler_options.get("allowJs").and_then(Value::as_bool),
+        resolve_json_module: compiler_options
+            .get("resolveJsonModule")
+            .and_then(Value::as_bool),
+    })
 }
 
 fn parse_ts_path_aliases(project_path: &Path, content: &str) -> Option<TsPathAliases> {
@@ -5108,7 +5473,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -5162,6 +5527,11 @@ pub fn result_json(result: &IndexResult) -> String {
         fallback_sample_counts_json(&result.profile.esm_named_import_export_fallback_sample_counts),
         esm_named_fallback_samples_json(&result.profile.esm_named_import_export_fallback_samples),
         fallback_sample_cap_json(&result.profile.esm_named_import_export_fallback_sample_cap),
+        result.profile.module_resolution_shadow_decision_refs,
+        fallback_sample_counts_json(&result.profile.module_resolution_shadow_decision_counts),
+        fallback_sample_counts_json(&result.profile.module_resolution_shadow_parity_counts),
+        module_resolution_shadow_samples_json(&result.profile.module_resolution_shadow_samples),
+        fallback_sample_cap_json(&result.profile.module_resolution_shadow_sample_cap),
         result.profile.local_exact_reference_resolution_ms,
         result.profile.local_exact_reference_resolved_refs,
         result.profile.local_exact_reference_fallback_refs
@@ -5294,6 +5664,10 @@ fn esm_named_fallback_samples_json(samples: &[EsmNamedFallbackSample]) -> String
         .collect::<Vec<_>>()
         .join(",");
     format!("[{}]", items)
+}
+
+fn module_resolution_shadow_samples_json(samples: &[ModuleResolutionDecisionRecord]) -> String {
+    serde_json::to_string(samples).unwrap_or_else(|_| "[]".to_string())
 }
 
 fn candidate_declaration_diagnostics_json(candidates: &[CandidateDeclarationDiagnostic]) -> String {
@@ -5852,10 +6226,168 @@ mod tests {
             errors: Vec::new(),
         };
 
+        let json: serde_json::Value = serde_json::from_str(&result_json(&result)).unwrap();
+        assert_eq!(json["type"], "result");
+        assert_eq!(json["profile"]["parseByLanguage"]["typescript"]["files"], 1);
         assert_eq!(
-            result_json(&result),
-            "{\"type\":\"result\",\"success\":true,\"filesIndexed\":0,\"filesSkipped\":0,\"filesErrored\":0,\"nodesCreated\":0,\"edgesCreated\":0,\"errors\":[],\"durationMs\":7,\"profile\":{\"sourceScanMs\":1,\"parseExtractionMs\":2,\"parseSourceReadMs\":4,\"parseNormalizationMs\":5,\"parseParserSetupMs\":6,\"parseTreeSitterMs\":7,\"parseAstExtractionMs\":8,\"parseErrorHandlingMs\":9,\"parseByLanguage\":{\"typescript\":{\"files\":1,\"parseExtractionMs\":39,\"sourceReadMs\":4,\"normalizationMs\":5,\"parserSetupMs\":6,\"treeSitterMs\":7,\"astExtractionMs\":8,\"errorHandlingMs\":9}},\"parseAstWalker\":{\"function_declaration\":{\"visits\":2,\"namedSymbolChecks\":2,\"statementRefChecks\":2,\"childTraversals\":4}},\"sqliteWriteMs\":3,\"importPathAliasResolutionMs\":0,\"importPathAliasResolvedRefs\":0,\"importPathAliasFallbackRefs\":0,\"importPathAliasBindingFallbackRefs\":0,\"importPathAliasUnsupportedFallbackRefs\":0,\"importPathAliasUnresolvedFallbackRefs\":0,\"importPathAliasResolvedBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0},\"importPathAliasFallbackBySource\":{\"relative\":0,\"tsconfigPaths\":0,\"conventionalAlias\":0,\"workspacePackage\":0,\"binding\":0,\"unsupported\":0,\"unresolved\":0},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":[],\"importPathAliasFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"esmNamedImportExportResolutionMs\":0,\"esmNamedImportExportResolvedRefs\":0,\"esmNamedImportExportFallbackRefs\":0,\"esmOneHopReexportResolvedRefs\":0,\"esmNamedImportExportOverloadImplementationResolvedRefs\":0,\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":[],\"esmNamedImportExportFallbackSampleCap\":{\"perBucket\":100,\"total\":2000,\"truncated\":false},\"localExactReferenceResolutionMs\":0,\"localExactReferenceResolvedRefs\":0,\"localExactReferenceFallbackRefs\":0}}"
+            json["profile"]["parseAstWalker"]["function_declaration"]["visits"],
+            2
         );
+        assert_eq!(json["profile"]["sqliteWriteMs"], 3);
+        assert_eq!(json["profile"]["moduleResolutionShadowDecisionRefs"], 0);
+        assert_eq!(
+            json["profile"]["moduleResolutionShadowSampleCap"]["perBucket"],
+            IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP
+        );
+    }
+
+    #[test]
+    fn result_json_emits_module_resolution_shadow_diagnostics() {
+        let result = IndexResult {
+            success: true,
+            files_indexed: 0,
+            files_skipped: 0,
+            files_errored: 0,
+            nodes_created: 0,
+            edges_created: 0,
+            duration_ms: 7,
+            profile: IndexProfile {
+                module_resolution_shadow_decision_refs: 1,
+                module_resolution_shadow_decision_counts: BTreeMap::from([(
+                    "relative".to_string(),
+                    1,
+                )]),
+                module_resolution_shadow_parity_counts: BTreeMap::from([(
+                    "unknown".to_string(),
+                    1,
+                )]),
+                module_resolution_shadow_samples: vec![ModuleResolutionDecisionRecord {
+                    specifier: "./dep".to_string(),
+                    source_file: "src/main.ts".to_string(),
+                    module_resolution_mode: "bundler".to_string(),
+                    resolved_kind: "relative".to_string(),
+                    resolved_path: Some("src/dep.ts".to_string()),
+                    is_external_library_import: false,
+                    failed_lookup_category: None,
+                    condition_set: vec!["import".to_string()],
+                    parity_status: "unknown".to_string(),
+                    fallback_reason: None,
+                }],
+                ..IndexProfile::default()
+            },
+            errors: Vec::new(),
+        };
+
+        let output = result_json(&result);
+        let json: serde_json::Value = serde_json::from_str(&output).unwrap();
+
+        assert_eq!(json["profile"]["moduleResolutionShadowDecisionRefs"], 1);
+        assert_eq!(
+            json["profile"]["moduleResolutionShadowDecisionCounts"]["relative"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionShadowParityCounts"]["unknown"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionShadowSamples"][0]["specifier"],
+            "./dep"
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionShadowSamples"][0]["resolvedPath"],
+            "src/dep.ts"
+        );
+        assert!(!output.contains("const secret"));
+    }
+
+    #[test]
+    fn rust_index_emits_module_resolution_shadow_profile_without_changing_graph_contract() {
+        let dir = temp_dir("module-resolution-shadow-profile");
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"compilerOptions":{"moduleResolution":"bundler","baseUrl":".","paths":{"@/*":["src/*"]}}}"#,
+        )
+        .unwrap();
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(dir.join("src").join("dep.ts"), "export const dep = 1;\n").unwrap();
+        fs::write(
+            dir.join("src").join("main.ts"),
+            [
+                "import { dep } from './dep';",
+                "import fs from 'node:fs';",
+                "import lodash from 'lodash';",
+                "export const total = dep + lodash.size([fs]);",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert!(result.profile.module_resolution_shadow_decision_refs >= 3);
+        assert!(
+            result
+                .profile
+                .module_resolution_shadow_decision_counts
+                .get("relative")
+                .copied()
+                .unwrap_or(0)
+                >= 1
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_shadow_decision_counts
+                .get("nodeRuntimeBuiltin"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_shadow_decision_counts
+                .get("packageOrRuntime"),
+            Some(&1)
+        );
+        assert!(result
+            .profile
+            .module_resolution_shadow_samples
+            .iter()
+            .any(|sample| sample.module_resolution_mode == "bundler"));
+        assert!(result
+            .profile
+            .module_resolution_shadow_samples
+            .iter()
+            .all(|sample| sample.parity_status == "unknown"));
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let rust_shadow_edges = conn
+            .query_row(
+                "SELECT COUNT(*) FROM edges WHERE edgeOrigin = 'rust-module-resolution-shadow'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap();
+        assert_eq!(rust_shadow_edges, 0);
+
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

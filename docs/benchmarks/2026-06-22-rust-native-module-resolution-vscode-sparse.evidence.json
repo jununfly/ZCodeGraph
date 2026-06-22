@@ -1,0 +1,21 @@
+{
+  "command": {
+    "executable": "node",
+    "args": [
+      "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
+      "index",
+      "/private/tmp/codegraph-corpus/vscode-sparse",
+      "--force",
+      "--quiet",
+      "--engine",
+      "rust-hybrid"
+    ],
+    "cwd": "/private/tmp/codegraph-corpus/vscode-sparse"
+  },
+  "status": "unavailable",
+  "exitCode": 130,
+  "signal": "SIGINT",
+  "wallMsLowerBound": 300000,
+  "unavailableReason": "Bounded VS Code sparse smoke was manually interrupted after exceeding the local evidence window without producing a profile artifact.",
+  "rssUnavailableReason": "RSS sampling unavailable because the bounded run did not complete and write its sidecar artifact."
+}
