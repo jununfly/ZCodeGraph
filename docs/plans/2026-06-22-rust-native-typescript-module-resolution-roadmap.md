@@ -93,7 +93,9 @@ shadow-only diagnostics in Rust core:
 │  │  └─ [-] 1-6-4. current repo + VS Code sparse diagnostics
 │  └─ [-] 1-7. Guarded graph writing
 │     ├─ [x] 1-7-1. file-level imports edges
-│     ├─ [ ] 1-7-2. ESM named symbol edges
+│     ├─ [-] 1-7-2. ESM named symbol edges
+│     │  ├─ [x] 1-7-2-1. direct named import guarded write
+│     │  └─ [ ] 1-7-2-2. direct named export guarded write (#463)
 │     ├─ [ ] 1-7-3. one-hop re-export edges
 │     └─ [-] 1-7-4. rollback/no-go when parity is weak
 │

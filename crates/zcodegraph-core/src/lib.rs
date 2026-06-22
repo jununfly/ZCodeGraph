@@ -264,6 +264,12 @@ pub struct IndexProfile {
     pub esm_named_import_export_fallback_sample_counts: BTreeMap<String, u32>,
     pub esm_named_import_export_fallback_samples: Vec<EsmNamedFallbackSample>,
     pub esm_named_import_export_fallback_sample_cap: ImportFallbackSampleCap,
+    pub esm_named_import_export_edge_write_attempted_refs: u32,
+    pub esm_named_import_export_edge_write_written_refs: u32,
+    pub esm_named_import_export_edge_write_skipped_refs: u32,
+    pub esm_named_import_export_edge_write_skipped_counts: BTreeMap<String, u32>,
+    pub esm_named_import_export_edge_write_skipped_samples: Vec<EsmNamedFallbackSample>,
+    pub esm_named_import_export_edge_write_skipped_sample_cap: ImportFallbackSampleCap,
     pub module_resolution_shadow_decision_refs: u32,
     pub module_resolution_shadow_decision_counts: BTreeMap<String, u32>,
     pub module_resolution_shadow_parity_counts: BTreeMap<String, u32>,
@@ -363,6 +369,7 @@ pub struct EsmNamedFallbackSample {
     pub line: i64,
     pub col: i64,
     pub target_file_path: Option<String>,
+    pub candidate_kind: Option<String>,
     pub candidate_count: Option<usize>,
     pub resolved_by_attempt: Option<String>,
     pub candidate_line_ranges: Option<Vec<CandidateDeclarationDiagnostic>>,
@@ -1602,6 +1609,31 @@ fn write_index_to_connection(
         total: IMPORT_FALLBACK_SAMPLE_TOTAL_CAP,
         truncated: esm_named_stats.fallback_samples_truncated,
     };
+    counts
+        .profile
+        .esm_named_import_export_edge_write_attempted_refs =
+        esm_named_stats.edge_write_attempted_refs;
+    counts
+        .profile
+        .esm_named_import_export_edge_write_written_refs = esm_named_stats.edge_write_written_refs;
+    counts
+        .profile
+        .esm_named_import_export_edge_write_skipped_refs = esm_named_stats.edge_write_skipped_refs;
+    counts
+        .profile
+        .esm_named_import_export_edge_write_skipped_counts =
+        esm_named_stats.edge_write_skipped_counts;
+    counts
+        .profile
+        .esm_named_import_export_edge_write_skipped_samples =
+        esm_named_stats.edge_write_skipped_samples;
+    counts
+        .profile
+        .esm_named_import_export_edge_write_skipped_sample_cap = ImportFallbackSampleCap {
+        per_bucket: IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP,
+        total: IMPORT_FALLBACK_SAMPLE_TOTAL_CAP,
+        truncated: esm_named_stats.edge_write_skipped_samples_truncated,
+    };
     counts.edges_created += esm_named_stats.edges_created;
     let local_reference_started = Instant::now();
     let local_reference_stats = resolve_same_file_exact_callable_refs(conn)?;
@@ -1818,6 +1850,13 @@ struct EsmNamedImportExportStats {
     fallback_samples: Vec<EsmNamedFallbackSample>,
     fallback_bucket_sample_counts: HashMap<String, usize>,
     fallback_samples_truncated: bool,
+    edge_write_attempted_refs: u32,
+    edge_write_written_refs: u32,
+    edge_write_skipped_refs: u32,
+    edge_write_skipped_counts: BTreeMap<String, u32>,
+    edge_write_skipped_samples: Vec<EsmNamedFallbackSample>,
+    edge_write_skipped_bucket_sample_counts: HashMap<String, usize>,
+    edge_write_skipped_samples_truncated: bool,
 }
 
 impl EsmNamedImportExportStats {
@@ -1855,10 +1894,62 @@ impl EsmNamedImportExportStats {
             line: reference.line,
             col: reference.col,
             target_file_path: target_file_path.map(str::to_string),
+            candidate_kind: None,
             candidate_count,
             resolved_by_attempt: resolved_by_attempt.map(str::to_string),
             candidate_line_ranges,
         });
+    }
+
+    fn record_edge_write_decision(
+        &mut self,
+        decision: &GuardedEsmNamedSymbolEdgeWrite,
+        reference: &ImportRefRow,
+        target_file_path: Option<&str>,
+        candidate_kind: Option<&str>,
+        candidate_count: Option<usize>,
+    ) {
+        self.edge_write_attempted_refs += 1;
+        match decision {
+            GuardedEsmNamedSymbolEdgeWrite::Write => {
+                self.edge_write_written_refs += 1;
+            }
+            GuardedEsmNamedSymbolEdgeWrite::Skip { reason } => {
+                self.edge_write_skipped_refs += 1;
+                *self
+                    .edge_write_skipped_counts
+                    .entry((*reason).to_string())
+                    .or_insert(0) += 1;
+
+                let bucket_count = *self
+                    .edge_write_skipped_bucket_sample_counts
+                    .get(*reason)
+                    .unwrap_or(&0);
+                if bucket_count >= IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP
+                    || self.edge_write_skipped_samples.len() >= IMPORT_FALLBACK_SAMPLE_TOTAL_CAP
+                {
+                    self.edge_write_skipped_samples_truncated = true;
+                    return;
+                }
+                self.edge_write_skipped_bucket_sample_counts
+                    .insert((*reason).to_string(), bucket_count + 1);
+                self.edge_write_skipped_samples
+                    .push(EsmNamedFallbackSample {
+                        reason: (*reason).to_string(),
+                        reference_name: reference.reference_name.clone(),
+                        reference_kind: "imports".to_string(),
+                        file_path: reference.file_path.clone(),
+                        language: reference.language.clone(),
+                        line: reference.line,
+                        col: reference.col,
+                        target_file_path: target_file_path.map(str::to_string),
+                        candidate_kind: candidate_kind.map(str::to_string),
+                        candidate_count,
+                        resolved_by_attempt: None,
+                        candidate_line_ranges: None,
+                    });
+            }
+        }
     }
 }
 
@@ -1888,6 +1979,12 @@ enum GuardedModuleResolutionEdgeWrite {
 enum DeclarationRuntimeEdgeWrite {
     Rewrite { runtime_target_file_path: String },
     KeepDeclaration { reason: &'static str },
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum GuardedEsmNamedSymbolEdgeWrite {
+    Write,
+    Skip { reason: &'static str },
 }
 
 impl ImportResolutionStats {
@@ -4600,12 +4697,18 @@ fn resolve_esm_named_import_export_refs(
                     &lookup.candidates,
                     &mut file_content_cache,
                 ) {
-                    if insert_rust_import_symbol_edge(
+                    let Some(edge_created) = write_guarded_esm_named_import_symbol_edge(
                         conn,
+                        &mut stats,
                         &reference,
-                        &target.id,
+                        &target_file_path,
+                        target,
                         ESM_OVERLOAD_IMPLEMENTATION_RESOLVED_BY,
-                    )? {
+                    )?
+                    else {
+                        continue;
+                    };
+                    if edge_created {
                         stats.edges_created += 1;
                     }
                     stats.resolved_refs += 1;
@@ -4651,12 +4754,18 @@ fn resolve_esm_named_import_export_refs(
                     is_named_value_import,
                     has_value_usage,
                 ) {
-                    if insert_rust_import_symbol_edge(
+                    let Some(edge_created) = write_guarded_esm_named_import_symbol_edge(
                         conn,
+                        &mut stats,
                         &reference,
-                        &target.id,
+                        &target_file_path,
+                        target,
                         ESM_VALUE_TOKEN_INTERFACE_RESOLVED_BY,
-                    )? {
+                    )?
+                    else {
+                        continue;
+                    };
+                    if edge_created {
                         stats.edges_created += 1;
                     }
                     stats.resolved_refs += 1;
@@ -4695,7 +4804,23 @@ fn resolve_esm_named_import_export_refs(
         let target = &lookup.candidates[0];
         let is_reexport = target.resolved_by == "rust-esm-one-hop-reexport";
 
-        if insert_rust_import_symbol_edge(conn, &reference, &target.id, target.resolved_by)? {
+        if !is_reexport {
+            let Some(edge_created) = write_guarded_esm_named_import_symbol_edge(
+                conn,
+                &mut stats,
+                &reference,
+                &target_file_path,
+                target,
+                target.resolved_by,
+            )?
+            else {
+                continue;
+            };
+            if edge_created {
+                stats.edges_created += 1;
+            }
+        } else if insert_rust_import_symbol_edge(conn, &reference, &target.id, target.resolved_by)?
+        {
             stats.edges_created += 1;
         }
         stats.resolved_refs += 1;
@@ -5677,6 +5802,74 @@ fn insert_rust_import_symbol_edge(
         reference.line,
         reference.col,
     )
+}
+
+fn guarded_esm_named_symbol_edge_write_decision(
+    conn: &Connection,
+    target_node_id: &str,
+    target_file_path: &str,
+    candidate_kind: &str,
+) -> rusqlite::Result<GuardedEsmNamedSymbolEdgeWrite> {
+    let mut stmt = conn.prepare("SELECT kind, file_path FROM nodes WHERE id = ?1 LIMIT 1")?;
+    let mut rows = stmt.query(params![target_node_id])?;
+    let Some(row) = rows.next()? else {
+        return Ok(GuardedEsmNamedSymbolEdgeWrite::Skip {
+            reason: "target-node-missing",
+        });
+    };
+    let node_kind: String = row.get(0)?;
+    let node_file_path: String = row.get(1)?;
+    if node_file_path != target_file_path {
+        return Ok(GuardedEsmNamedSymbolEdgeWrite::Skip {
+            reason: "target-file-mismatch",
+        });
+    }
+    if node_kind != candidate_kind {
+        return Ok(GuardedEsmNamedSymbolEdgeWrite::Skip {
+            reason: "unsupported-candidate-shape",
+        });
+    }
+    if !matches!(
+        node_kind.as_str(),
+        "function" | "class" | "interface" | "type_alias" | "constant" | "variable" | "enum"
+    ) {
+        return Ok(GuardedEsmNamedSymbolEdgeWrite::Skip {
+            reason: "unsupported-candidate-shape",
+        });
+    }
+    Ok(GuardedEsmNamedSymbolEdgeWrite::Write)
+}
+
+fn write_guarded_esm_named_import_symbol_edge(
+    conn: &Connection,
+    stats: &mut EsmNamedImportExportStats,
+    reference: &ImportRefRow,
+    target_file_path: &str,
+    target: &SymbolCandidateRow,
+    resolved_by: &str,
+) -> rusqlite::Result<Option<bool>> {
+    let decision = guarded_esm_named_symbol_edge_write_decision(
+        conn,
+        &target.id,
+        target_file_path,
+        &target.kind,
+    )?;
+    stats.record_edge_write_decision(
+        &decision,
+        reference,
+        Some(target_file_path),
+        Some(&target.kind),
+        Some(1),
+    );
+    match decision {
+        GuardedEsmNamedSymbolEdgeWrite::Write => Ok(Some(insert_rust_import_symbol_edge(
+            conn,
+            reference,
+            &target.id,
+            resolved_by,
+        )?)),
+        GuardedEsmNamedSymbolEdgeWrite::Skip { .. } => Ok(None),
+    }
 }
 
 fn insert_rust_imported_symbol_usage_edge(
@@ -7644,7 +7837,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -7714,6 +7907,30 @@ pub fn result_json(result: &IndexResult) -> String {
         fallback_sample_counts_json(&result.profile.esm_named_import_export_fallback_sample_counts),
         esm_named_fallback_samples_json(&result.profile.esm_named_import_export_fallback_samples),
         fallback_sample_cap_json(&result.profile.esm_named_import_export_fallback_sample_cap),
+        result
+            .profile
+            .esm_named_import_export_edge_write_attempted_refs,
+        result
+            .profile
+            .esm_named_import_export_edge_write_written_refs,
+        result
+            .profile
+            .esm_named_import_export_edge_write_skipped_refs,
+        fallback_sample_counts_json(
+            &result
+                .profile
+                .esm_named_import_export_edge_write_skipped_counts
+        ),
+        esm_named_fallback_samples_json(
+            &result
+                .profile
+                .esm_named_import_export_edge_write_skipped_samples
+        ),
+        fallback_sample_cap_json(
+            &result
+                .profile
+                .esm_named_import_export_edge_write_skipped_sample_cap
+        ),
         result.profile.module_resolution_shadow_decision_refs,
         fallback_sample_counts_json(&result.profile.module_resolution_shadow_decision_counts),
         fallback_sample_counts_json(&result.profile.module_resolution_shadow_parity_counts),
@@ -7864,6 +8081,12 @@ fn esm_named_fallback_samples_json(samples: &[EsmNamedFallbackSample]) -> String
                 fields.push(format!(
                     "\"targetFilePath\":\"{}\"",
                     escape_json(target_file_path)
+                ));
+            }
+            if let Some(candidate_kind) = &sample.candidate_kind {
+                fields.push(format!(
+                    "\"candidateKind\":\"{}\"",
+                    escape_json(candidate_kind)
                 ));
             }
             if let Some(candidate_count) = sample.candidate_count {
@@ -8443,6 +8666,32 @@ mod tests {
                     },
                 )]),
                 sqlite_write_ms: 3,
+                esm_named_import_export_edge_write_attempted_refs: 3,
+                esm_named_import_export_edge_write_written_refs: 2,
+                esm_named_import_export_edge_write_skipped_refs: 1,
+                esm_named_import_export_edge_write_skipped_counts: BTreeMap::from([(
+                    "target-file-mismatch".to_string(),
+                    1,
+                )]),
+                esm_named_import_export_edge_write_skipped_samples: vec![EsmNamedFallbackSample {
+                    reason: "target-file-mismatch".to_string(),
+                    reference_name: "alpha".to_string(),
+                    reference_kind: "imports".to_string(),
+                    file_path: "consumer.ts".to_string(),
+                    language: "typescript".to_string(),
+                    line: 1,
+                    col: 9,
+                    target_file_path: Some("source.ts".to_string()),
+                    candidate_kind: Some("constant".to_string()),
+                    candidate_count: Some(1),
+                    resolved_by_attempt: None,
+                    candidate_line_ranges: None,
+                }],
+                esm_named_import_export_edge_write_skipped_sample_cap: ImportFallbackSampleCap {
+                    per_bucket: IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP,
+                    total: IMPORT_FALLBACK_SAMPLE_TOTAL_CAP,
+                    truncated: true,
+                },
                 ..IndexProfile::default()
             },
             errors: Vec::new(),
@@ -8460,6 +8709,30 @@ mod tests {
         assert_eq!(
             json["profile"]["moduleResolutionShadowSampleCap"]["perBucket"],
             IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP
+        );
+        assert_eq!(
+            json["profile"]["esmNamedImportExportEdgeWriteAttemptedRefs"],
+            3
+        );
+        assert_eq!(
+            json["profile"]["esmNamedImportExportEdgeWriteWrittenRefs"],
+            2
+        );
+        assert_eq!(
+            json["profile"]["esmNamedImportExportEdgeWriteSkippedRefs"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["esmNamedImportExportEdgeWriteSkippedCounts"]["target-file-mismatch"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["esmNamedImportExportEdgeWriteSkippedSamples"][0]["candidateKind"],
+            "constant"
+        );
+        assert_eq!(
+            json["profile"]["esmNamedImportExportEdgeWriteSkippedSampleCap"]["truncated"],
+            true
         );
     }
 
@@ -9010,6 +9283,132 @@ mod tests {
         fs::remove_dir_all(dir).unwrap();
     }
 
+    #[test]
+    fn guarded_esm_named_symbol_edge_write_fails_closed_for_weak_targets() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(SCHEMA_SQL).unwrap();
+        insert_symbol_node(
+            &conn,
+            "function:alpha",
+            "function",
+            "alpha",
+            "src/source.ts",
+        );
+        insert_symbol_node(&conn, "route:alpha", "route", "alpha", "src/source.ts");
+
+        assert_eq!(
+            guarded_esm_named_symbol_edge_write_decision(
+                &conn,
+                "function:missing",
+                "src/source.ts",
+                "function",
+            )
+            .unwrap(),
+            GuardedEsmNamedSymbolEdgeWrite::Skip {
+                reason: "target-node-missing"
+            }
+        );
+        assert_eq!(
+            guarded_esm_named_symbol_edge_write_decision(
+                &conn,
+                "function:alpha",
+                "src/other.ts",
+                "function",
+            )
+            .unwrap(),
+            GuardedEsmNamedSymbolEdgeWrite::Skip {
+                reason: "target-file-mismatch"
+            }
+        );
+        assert_eq!(
+            guarded_esm_named_symbol_edge_write_decision(
+                &conn,
+                "function:alpha",
+                "src/source.ts",
+                "class",
+            )
+            .unwrap(),
+            GuardedEsmNamedSymbolEdgeWrite::Skip {
+                reason: "unsupported-candidate-shape"
+            }
+        );
+        assert_eq!(
+            guarded_esm_named_symbol_edge_write_decision(
+                &conn,
+                "route:alpha",
+                "src/source.ts",
+                "route",
+            )
+            .unwrap(),
+            GuardedEsmNamedSymbolEdgeWrite::Skip {
+                reason: "unsupported-candidate-shape"
+            }
+        );
+    }
+
+    #[test]
+    fn guarded_esm_named_import_symbol_edge_skip_records_diagnostics_without_writing() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(SCHEMA_SQL).unwrap();
+        insert_symbol_node(
+            &conn,
+            "function:alpha",
+            "function",
+            "alpha",
+            "src/source.ts",
+        );
+        let reference = ImportRefRow {
+            id: 7,
+            from_node_id: "import:consumer-alpha".to_string(),
+            reference_name: "alpha".to_string(),
+            line: 1,
+            col: 9,
+            file_path: "src/consumer.ts".to_string(),
+            language: "typescript".to_string(),
+        };
+        let target = SymbolCandidateRow {
+            id: "function:alpha".to_string(),
+            kind: "function".to_string(),
+            name: "alpha".to_string(),
+            start_line: 1,
+            end_line: 1,
+            resolved_by: "rust-esm-named-import-export",
+        };
+        let mut stats = EsmNamedImportExportStats::default();
+
+        let edge_created = write_guarded_esm_named_import_symbol_edge(
+            &conn,
+            &mut stats,
+            &reference,
+            "src/other.ts",
+            &target,
+            "rust-esm-named-import-export",
+        )
+        .unwrap();
+
+        assert_eq!(edge_created, None);
+        assert_eq!(stats.edge_write_attempted_refs, 1);
+        assert_eq!(stats.edge_write_written_refs, 0);
+        assert_eq!(stats.edge_write_skipped_refs, 1);
+        assert_eq!(
+            stats.edge_write_skipped_counts,
+            BTreeMap::from([("target-file-mismatch".to_string(), 1)])
+        );
+        assert_eq!(stats.edge_write_skipped_samples.len(), 1);
+        assert_eq!(
+            stats.edge_write_skipped_samples[0].candidate_kind,
+            Some("function".to_string())
+        );
+        assert_eq!(
+            stats.edge_write_skipped_samples[0].target_file_path,
+            Some("src/other.ts".to_string())
+        );
+        let edge_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM edges", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(edge_count, 0);
+    }
+
     fn insert_file_node(conn: &Connection, id: &str, file_path: &str) {
         conn.execute(
             "INSERT INTO nodes (
@@ -9017,6 +9416,17 @@ mod tests {
                 start_line, end_line, start_column, end_column, updated_at
             ) VALUES (?1, 'file', ?2, ?2, ?2, 'typescript', 1, 1, 0, 0, 1)",
             params![id, file_path],
+        )
+        .unwrap();
+    }
+
+    fn insert_symbol_node(conn: &Connection, id: &str, kind: &str, name: &str, file_path: &str) {
+        conn.execute(
+            "INSERT INTO nodes (
+                id, kind, name, qualified_name, file_path, language,
+                start_line, end_line, start_column, end_column, updated_at
+            ) VALUES (?1, ?2, ?3, ?3, ?4, 'typescript', 1, 1, 0, 0, 1)",
+            params![id, kind, name, file_path],
         )
         .unwrap();
     }
@@ -9041,6 +9451,7 @@ mod tests {
                     line: 1,
                     col: 9,
                     target_file_path: Some("api.ts".to_string()),
+                    candidate_kind: None,
                     candidate_count: Some(2),
                     resolved_by_attempt: Some("direct-export".to_string()),
                     candidate_line_ranges: Some(vec![CandidateDeclarationDiagnostic {
@@ -10220,6 +10631,24 @@ mod tests {
                     "source.ts".to_string()
                 ),
             ]
+        );
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_attempted_refs,
+            2
+        );
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_written_refs,
+            2
+        );
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_skipped_refs,
+            0
         );
 
         fs::remove_dir_all(dir).unwrap();
