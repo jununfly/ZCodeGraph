@@ -85,11 +85,11 @@ shadow-only diagnostics in Rust core:
 │  │  ├─ [x] 1-6-2. Rust decision record comparison
 │  │  ├─ [x] 1-6-3. mismatch/no-oracle taxonomy
 │  │  └─ [-] 1-6-4. current repo + VS Code sparse diagnostics
-│  └─ [ ] 1-7. Guarded graph writing
-│     ├─ [ ] 1-7-1. file-level imports edges
+│  └─ [-] 1-7. Guarded graph writing
+│     ├─ [x] 1-7-1. file-level imports edges
 │     ├─ [ ] 1-7-2. ESM named symbol edges
 │     ├─ [ ] 1-7-3. one-hop re-export edges
-│     └─ [ ] 1-7-4. rollback/no-go when parity is weak
+│     └─ [-] 1-7-4. rollback/no-go when parity is weak
 │
 ├─ [ ] 2. Explore subtree: semantic frontier
 │  ├─ [ ] 2-1. full node_modules graph expansion
@@ -102,7 +102,7 @@ shadow-only diagnostics in Rust core:
 │  ├─ [ ] 2-8. type-only vs runtime target divergence
 │  └─ [ ] 2-9. package manager specific edge cases
 │
-└─ [-] 3. Exploit slices: bounded implementation work
+└─ [x] 3. Exploit slices: bounded implementation work
    ├─ [x] 3-1. shadow-only diagnostics skeleton
    ├─ [x] 3-2. TS oracle parity harness
    ├─ [x] 3-3. profile diagnostics integration
@@ -119,7 +119,7 @@ shadow-only diagnostics in Rust core:
    ├─ [x] 3-10. directory/index lookup slice
    ├─ [x] 3-11. Node builtin boundary taxonomy slice
    ├─ [x] 3-12. package external-boundary no-go taxonomy slice
-   └─ [ ] 3-13. guarded edge-write slice
+   └─ [x] 3-13. guarded edge-write slice
 ```
 
 ## Route Discipline

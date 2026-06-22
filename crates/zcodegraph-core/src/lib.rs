@@ -269,6 +269,10 @@ pub struct IndexProfile {
     pub module_resolution_shadow_parity_counts: BTreeMap<String, u32>,
     pub module_resolution_shadow_samples: Vec<ModuleResolutionDecisionRecord>,
     pub module_resolution_shadow_sample_cap: ImportFallbackSampleCap,
+    pub module_resolution_guarded_edge_write_attempted_refs: u32,
+    pub module_resolution_guarded_edge_write_written_refs: u32,
+    pub module_resolution_guarded_edge_write_skipped_refs: u32,
+    pub module_resolution_guarded_edge_write_skipped_counts: BTreeMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1501,6 +1505,22 @@ fn write_index_to_connection(
         total: IMPORT_FALLBACK_SAMPLE_TOTAL_CAP,
         truncated: import_stats.fallback_samples_truncated,
     };
+    counts
+        .profile
+        .module_resolution_guarded_edge_write_attempted_refs =
+        import_stats.guarded_edge_write_attempted_refs;
+    counts
+        .profile
+        .module_resolution_guarded_edge_write_written_refs =
+        import_stats.guarded_edge_write_written_refs;
+    counts
+        .profile
+        .module_resolution_guarded_edge_write_skipped_refs =
+        import_stats.guarded_edge_write_skipped_refs;
+    counts
+        .profile
+        .module_resolution_guarded_edge_write_skipped_counts =
+        import_stats.guarded_edge_write_skipped_counts;
     counts.edges_created += import_stats.edges_created;
     let esm_named_started = Instant::now();
     let esm_named_stats =
@@ -1560,6 +1580,10 @@ struct ImportResolutionStats {
     fallback_samples: Vec<ImportFallbackSample>,
     fallback_bucket_sample_counts: HashMap<String, usize>,
     fallback_samples_truncated: bool,
+    guarded_edge_write_attempted_refs: u32,
+    guarded_edge_write_written_refs: u32,
+    guarded_edge_write_skipped_refs: u32,
+    guarded_edge_write_skipped_counts: BTreeMap<String, u32>,
 }
 
 #[derive(Debug, Default)]
@@ -1601,6 +1625,22 @@ impl ModuleResolutionShadowDiagnostics {
 }
 
 impl ImportResolutionStats {
+    fn record_guarded_edge_write(&mut self, decision: &GuardedModuleResolutionEdgeWrite) {
+        self.guarded_edge_write_attempted_refs += 1;
+        match decision {
+            GuardedModuleResolutionEdgeWrite::Write { .. } => {
+                self.guarded_edge_write_written_refs += 1;
+            }
+            GuardedModuleResolutionEdgeWrite::Skip { reason } => {
+                self.guarded_edge_write_skipped_refs += 1;
+                *self
+                    .guarded_edge_write_skipped_counts
+                    .entry((*reason).to_string())
+                    .or_insert(0) += 1;
+            }
+        }
+    }
+
     fn fallback_refs(&self) -> u32 {
         self.binding_fallback_refs + self.unsupported_fallback_refs + self.unresolved_fallback_refs
     }
@@ -1741,6 +1781,12 @@ enum ImportTargetSourceKind {
     RootDirs,
     PackageSelfName,
     PackageImports,
+}
+
+#[derive(Debug)]
+enum GuardedModuleResolutionEdgeWrite {
+    Write { target_node_id: String },
+    Skip { reason: &'static str },
 }
 
 impl ImportResolutionStats {
@@ -2161,33 +2207,33 @@ fn resolve_js_ts_file_imports(
             }
         }
 
-        let Some(target_file_path) = target.1 else {
-            stats.record_unresolved_source(target.0);
-            let reason = target
-                .2
-                .first()
-                .copied()
-                .unwrap_or_else(|| target.0.target_not_found_reason());
-            stats.record_fallback_sample(target.0.as_profile_source_kind(), reason, &reference);
-            continue;
-        };
-        let Some(target_node_id) = find_file_node_id(conn, &target_file_path)? else {
-            stats.record_unresolved_source(target.0);
-            stats.record_fallback_sample_with_target(
-                target.0.as_profile_source_kind(),
-                "file-node-not-found",
-                &reference,
-                Some(&target_file_path),
-            );
-            continue;
-        };
-
-        if insert_rust_import_edge(conn, &reference, &target_node_id)? {
-            stats.edges_created += 1;
+        let target_file_path = target.1.clone();
+        let guard_decision = guarded_module_resolution_edge_write_decision(
+            conn,
+            target.0,
+            target_file_path.clone(),
+            &target.2,
+        )?;
+        stats.record_guarded_edge_write(&guard_decision);
+        match guard_decision {
+            GuardedModuleResolutionEdgeWrite::Write { target_node_id } => {
+                if insert_rust_import_edge(conn, &reference, &target_node_id)? {
+                    stats.edges_created += 1;
+                }
+                stats.resolved_refs += 1;
+                stats.record_resolved_source(target.0);
+                resolved_ids.push(reference.id);
+            }
+            GuardedModuleResolutionEdgeWrite::Skip { reason } => {
+                stats.record_unresolved_source(target.0);
+                stats.record_fallback_sample_with_target(
+                    target.0.as_profile_source_kind(),
+                    reason,
+                    &reference,
+                    target_file_path.as_deref(),
+                );
+            }
         }
-        stats.resolved_refs += 1;
-        stats.record_resolved_source(target.0);
-        resolved_ids.push(reference.id);
     }
 
     delete_resolved_import_refs(conn, &resolved_ids)?;
@@ -3571,6 +3617,28 @@ fn find_file_node_id(conn: &Connection, file_path: &str) -> rusqlite::Result<Opt
     } else {
         Ok(None)
     }
+}
+
+fn guarded_module_resolution_edge_write_decision(
+    conn: &Connection,
+    source: ImportTargetSourceKind,
+    target_file_path: Option<String>,
+    outcomes: &[&'static str],
+) -> rusqlite::Result<GuardedModuleResolutionEdgeWrite> {
+    let Some(target_file_path) = target_file_path else {
+        return Ok(GuardedModuleResolutionEdgeWrite::Skip {
+            reason: outcomes
+                .first()
+                .copied()
+                .unwrap_or_else(|| source.target_not_found_reason()),
+        });
+    };
+    let Some(target_node_id) = find_file_node_id(conn, &target_file_path)? else {
+        return Ok(GuardedModuleResolutionEdgeWrite::Skip {
+            reason: "file-node-not-found",
+        });
+    };
+    Ok(GuardedModuleResolutionEdgeWrite::Write { target_node_id })
 }
 
 fn insert_rust_import_edge(
@@ -6476,7 +6544,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -6551,6 +6619,16 @@ pub fn result_json(result: &IndexResult) -> String {
         fallback_sample_counts_json(&result.profile.module_resolution_shadow_parity_counts),
         module_resolution_shadow_samples_json(&result.profile.module_resolution_shadow_samples),
         fallback_sample_cap_json(&result.profile.module_resolution_shadow_sample_cap),
+        result
+            .profile
+            .module_resolution_guarded_edge_write_attempted_refs,
+        result.profile.module_resolution_guarded_edge_write_written_refs,
+        result.profile.module_resolution_guarded_edge_write_skipped_refs,
+        fallback_sample_counts_json(
+            &result
+                .profile
+                .module_resolution_guarded_edge_write_skipped_counts
+        ),
         result.profile.local_exact_reference_resolution_ms,
         result.profile.local_exact_reference_resolved_refs,
         result.profile.local_exact_reference_fallback_refs
@@ -7292,6 +7370,13 @@ mod tests {
                     parity_status: "unknown".to_string(),
                     fallback_reason: None,
                 }],
+                module_resolution_guarded_edge_write_attempted_refs: 3,
+                module_resolution_guarded_edge_write_written_refs: 2,
+                module_resolution_guarded_edge_write_skipped_refs: 1,
+                module_resolution_guarded_edge_write_skipped_counts: BTreeMap::from([(
+                    "file-node-not-found".to_string(),
+                    1,
+                )]),
                 ..IndexProfile::default()
             },
             errors: Vec::new(),
@@ -7316,6 +7401,22 @@ mod tests {
         assert_eq!(
             json["profile"]["moduleResolutionShadowSamples"][0]["resolvedPath"],
             "src/dep.ts"
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionGuardedEdgeWriteAttemptedRefs"],
+            3
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionGuardedEdgeWriteWrittenRefs"],
+            2
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionGuardedEdgeWriteSkippedRefs"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionGuardedEdgeWriteSkippedCounts"]["file-node-not-found"],
+            1
         );
         assert!(!output.contains("const secret"));
     }
@@ -8752,6 +8853,104 @@ mod tests {
                 "tools/logger/index.ts",
             ]
         );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_guarded_file_import_edge_writes_record_write_and_skip_decisions() {
+        let dir = temp_dir("guarded-file-import-edge-writes");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"compilerOptions":{"baseUrl":".","paths":{"@missing/*":["src/missing/*"],"@ghost":["src/ghost.txt"]}}}"#,
+        )
+        .unwrap();
+        fs::write(dir.join("src/dep.ts"), "export const dep = 1;\n").unwrap();
+        fs::write(dir.join("src/ghost.txt"), "not indexed as a code file\n").unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { dep } from './dep';",
+                "import { missing } from '@missing/value';",
+                "import { ghost } from '@ghost';",
+                "export const total = dep;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_guarded_edge_write_attempted_refs,
+            3
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_guarded_edge_write_written_refs,
+            1
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_guarded_edge_write_skipped_refs,
+            2
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_guarded_edge_write_skipped_counts
+                .get("tsconfig-path-target-not-found"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_guarded_edge_write_skipped_counts
+                .get("file-node-not-found"),
+            Some(&1)
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(targets, vec!["src/dep.ts"]);
 
         fs::remove_dir_all(dir).unwrap();
     }
