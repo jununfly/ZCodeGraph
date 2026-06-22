@@ -75,9 +75,11 @@ shadow-only diagnostics in Rust core:
 │  │  ├─ [x] 1-4-2. imports "#" entries
 │  │  ├─ [-] 1-4-3. condition set handling for repo-local source
 │  │  └─ [x] 1-4-4. no node_modules graph expansion by default
-│  ├─ [ ] 1-5. File target semantics
+│  ├─ [-] 1-5. File target semantics
 │  │  ├─ [x] 1-5-1. extension substitution
-│  │  ├─ [ ] 1-5-2. .ts/.tsx/.js/.jsx/.mts/.cts/.d.ts pairing
+│  │  ├─ [-] 1-5-2. extension pairing
+│  │  │  ├─ [x] 1-5-2-1. explicit JS runtime extension -> TS source pairing
+│  │  │  └─ [ ] 1-5-2-2. extensionless candidate order + mts/cts inclusion
 │  │  ├─ [x] 1-5-3. directory/index lookup
 │  │  └─ [ ] 1-5-4. declaration/runtime target relationship
 │  ├─ [-] 1-6. Parity confidence

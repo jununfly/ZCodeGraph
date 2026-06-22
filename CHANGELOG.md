@@ -24,6 +24,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New Features
 
+- `rust-hybrid` indexing now resolves explicit JavaScript runtime extensions to matching TypeScript source files, so imports like `./thing.js` can link to `thing.ts` or `thing.tsx` when that is how the project is authored. (#446)
 - Programmatic SDK full indexing now uses the same `rust-hybrid` default as the CLI, while still offering explicit `typescript` and `rust` engine choices for compatibility and debugging. (#263)
 - `zcodegraph_explore` now handles Gin-style `METHOD /path` route questions more directly, surfacing the matched route and handler in one response for first-user Go projects. (#281)
 - The first-user `rust-hybrid` release path now has refreshed pre-release docs, troubleshooting, smoke evidence, and README-backed Agent Sufficiency validation for TypeScript/JavaScript and Go.

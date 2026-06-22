@@ -3528,7 +3528,7 @@ fn resolve_relative_import_candidate(project_path: &Path, base: &Path) -> Option
 fn import_file_candidates(base: &Path) -> Vec<PathBuf> {
     let mut candidates = Vec::new();
     if base.extension().is_some() {
-        candidates.push(base.to_path_buf());
+        candidates.extend(explicit_runtime_extension_pair_candidates(base));
     } else {
         for extension in ["ts", "tsx", "d.ts", "js", "jsx"] {
             candidates.push(base.with_extension(extension));
@@ -3543,23 +3543,29 @@ fn import_file_candidates(base: &Path) -> Vec<PathBuf> {
 fn relative_import_file_candidates(base: &Path) -> Vec<PathBuf> {
     let mut candidates = Vec::new();
     if base.extension().is_some() {
-        candidates.push(base.to_path_buf());
-        if let Some(extensions) = relative_js_source_fallback_extensions(base) {
-            for extension in extensions {
-                candidates.push(base.with_extension(extension));
-            }
-        }
+        candidates.extend(explicit_runtime_extension_pair_candidates(base));
     } else {
         candidates.extend(import_file_candidates(base));
     }
     candidates
 }
 
-fn relative_js_source_fallback_extensions(base: &Path) -> Option<&'static [&'static str]> {
+fn explicit_runtime_extension_pair_candidates(base: &Path) -> Vec<PathBuf> {
+    let Some(extensions) = explicit_runtime_extension_pair_extensions(base) else {
+        return vec![base.to_path_buf()];
+    };
+    extensions
+        .iter()
+        .map(|extension| base.with_extension(extension))
+        .collect()
+}
+
+fn explicit_runtime_extension_pair_extensions(base: &Path) -> Option<&'static [&'static str]> {
     match base.extension().and_then(|extension| extension.to_str()) {
-        Some("js") => Some(&["ts", "tsx", "mts", "cts", "jsx"]),
-        Some("mjs") => Some(&["mts", "ts", "tsx", "js"]),
-        Some("cjs") => Some(&["cts", "ts", "tsx", "js"]),
+        Some("js") => Some(&["ts", "tsx", "js"]),
+        Some("jsx") => Some(&["tsx", "jsx"]),
+        Some("mjs") => Some(&["mts", "mjs"]),
+        Some("cjs") => Some(&["cts", "cjs"]),
         _ => None,
     }
 }
@@ -5216,6 +5222,8 @@ enum SourceLanguage {
     Jsx,
     TypeScript,
     Tsx,
+    Mts,
+    Cts,
     Go,
 }
 
@@ -5226,6 +5234,8 @@ impl SourceLanguage {
             Some("jsx") => Some(Self::Jsx),
             Some("ts") => Some(Self::TypeScript),
             Some("tsx") => Some(Self::Tsx),
+            Some("mts") => Some(Self::Mts),
+            Some("cts") => Some(Self::Cts),
             Some("go") => Some(Self::Go),
             _ => None,
         }
@@ -5235,7 +5245,7 @@ impl SourceLanguage {
         match self {
             Self::JavaScript => "javascript",
             Self::Jsx => "jsx",
-            Self::TypeScript => "typescript",
+            Self::TypeScript | Self::Mts | Self::Cts => "typescript",
             Self::Tsx => "tsx",
             Self::Go => "go",
         }
@@ -5244,7 +5254,9 @@ impl SourceLanguage {
     fn tree_sitter_language(self) -> tree_sitter::Language {
         match self {
             Self::JavaScript | Self::Jsx => tree_sitter_javascript::LANGUAGE.into(),
-            Self::TypeScript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+            Self::TypeScript | Self::Mts | Self::Cts => {
+                tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()
+            }
             Self::Tsx => tree_sitter_typescript::LANGUAGE_TSX.into(),
             Self::Go => tree_sitter_go::LANGUAGE.into(),
         }
@@ -8951,6 +8963,181 @@ mod tests {
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
         assert_eq!(targets, vec!["src/dep.ts"]);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_pairs_explicit_js_runtime_extensions_to_ts_source_targets() {
+        let dir = temp_dir("explicit-js-runtime-extension-pairing");
+        fs::create_dir_all(dir.join("src/lib")).unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"compilerOptions":{"baseUrl":".","paths":{"@lib/*":["src/lib/*"]}}}"#,
+        )
+        .unwrap();
+        fs::write(dir.join("src/dep.ts"), "export const dep = 1;\n").unwrap();
+        fs::write(dir.join("src/dep.js"), "export const dep = 0;\n").unwrap();
+        fs::write(dir.join("src/view.tsx"), "export const view = 2;\n").unwrap();
+        fs::write(
+            dir.join("src/module.mts"),
+            "export const moduleValue = 3;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/common.cts"),
+            "export const commonValue = 4;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/lib/alias.ts"),
+            "export const aliasValue = 5;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/lib/runtime.js"),
+            "export const runtimeValue = 6;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { dep } from './dep.js';",
+                "import { view } from './view.jsx';",
+                "import { moduleValue } from './module.mjs';",
+                "import { commonValue } from './common.cjs';",
+                "import { aliasValue } from '@lib/alias.js';",
+                "import { runtimeValue } from '@lib/runtime.js';",
+                "export const total = dep + view + moduleValue + commonValue + aliasValue + runtimeValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let targets = conn
+            .prepare(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'
+                 ORDER BY target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            targets,
+            vec![
+                "src/common.cts",
+                "src/dep.ts",
+                "src/lib/alias.ts",
+                "src/lib/runtime.js",
+                "src/module.mts",
+                "src/view.tsx",
+            ]
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_pairs_explicit_js_runtime_extensions_from_package_map_targets() {
+        let dir = temp_dir("explicit-js-runtime-extension-package-map-pairing");
+        fs::create_dir_all(dir.join("src/features")).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"@fixture/app","private":true,"exports":{"./feature":"./src/features/feature.js"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/features/feature.ts"),
+            "export const featureValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/features/feature.js"),
+            "export const featureValue = 0;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import { featureValue } from '@fixture/app/feature';",
+                "export const total = featureValue;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .import_path_alias_package_self_name_outcome_counts
+                .get("exportsResolved"),
+            Some(&1)
+        );
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let target = conn
+            .query_row(
+                "SELECT DISTINCT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap();
+        assert_eq!(target, "src/features/feature.ts");
 
         fs::remove_dir_all(dir).unwrap();
     }
