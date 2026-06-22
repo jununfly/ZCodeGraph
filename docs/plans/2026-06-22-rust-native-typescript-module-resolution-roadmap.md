@@ -70,10 +70,10 @@ shadow-only diagnostics in Rust core:
 │  │  ├─ [x] 1-3-2. workspace package imports
 │  │  ├─ [x] 1-3-3. package subpath imports landing in repo source
 │  │  └─ [x] 1-3-4. package boundary no-go when target is external
-│  ├─ [-] 1-4. Package exports/imports for repo-local targets
+│  ├─ [x] 1-4. Package exports/imports for repo-local targets
 │  │  ├─ [x] 1-4-1. exports "." and subpath entries
 │  │  ├─ [x] 1-4-2. imports "#" entries
-│  │  ├─ [-] 1-4-3. condition set handling for repo-local source
+│  │  ├─ [x] 1-4-3. condition set handling for repo-local source
 │  │  └─ [x] 1-4-4. no node_modules graph expansion by default
 │  ├─ [-] 1-5. File target semantics
 │  │  ├─ [x] 1-5-1. extension substitution
