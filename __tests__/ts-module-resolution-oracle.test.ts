@@ -295,6 +295,94 @@ describe('TypeScript moduleResolution oracle script', () => {
     expect(markdown).toContain('### Parity Statuses');
     expect(markdown).toContain('`match`');
   });
+
+  it('keeps paths alias taxonomy separate from package self-name taxonomy', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-ts-paths-taxonomy-'));
+    tempDirs.push(dir);
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({
+        name: '@fixture/app',
+        exports: {
+          '.': './src/index.ts',
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(
+      path.join(dir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'NodeNext',
+          moduleResolution: 'NodeNext',
+          target: 'ES2022',
+          baseUrl: '.',
+          paths: {
+            'virtual-lib': ['./src/virtual-lib.ts'],
+          },
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(path.join(dir, 'src', 'index.ts'), 'export const appValue = 1;\n');
+    fs.writeFileSync(path.join(dir, 'src', 'virtual-lib.ts'), 'export const virtualValue = 2;\n');
+    fs.writeFileSync(path.join(dir, 'src', 'main.ts'), [
+      'import { appValue } from "@fixture/app";',
+      'import { virtualValue } from "virtual-lib";',
+    ].join('\n') + '\n');
+
+    const profilePath = path.join(dir, 'profile.json');
+    fs.writeFileSync(
+      profilePath,
+      JSON.stringify({
+        rustCore: {
+          moduleResolutionShadowSamples: [
+            shadowSample('@fixture/app', 'packageOrRuntime', null),
+            shadowSample('virtual-lib', 'tsconfigPaths', 'src/virtual-lib.ts'),
+          ],
+        },
+      }, null, 2),
+    );
+
+    const outDir = path.join(dir, 'artifacts');
+    const result = spawnSync(
+      process.execPath,
+      [
+        SCRIPT,
+        '--project',
+        dir,
+        '--profile',
+        profilePath,
+        '--out-dir',
+        outDir,
+        '--prefix',
+        'fixture-ts-paths-taxonomy',
+      ],
+      { cwd: REPO_ROOT, encoding: 'utf-8' },
+    );
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const parsed = JSON.parse(result.stdout) as { artifacts: { json: string } };
+    const artifact = JSON.parse(fs.readFileSync(parsed.artifacts.json, 'utf-8')) as {
+      rows: Array<Record<string, unknown>>;
+      summary: { recommendedSlices: Record<string, number> };
+    };
+
+    expect(artifact.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        importSpecifier: '@fixture/app',
+        tsResolvedKind: 'repo-local-package',
+        recommendedSlice: 'repo-local package/self-name resolution',
+      }),
+      expect.objectContaining({
+        importSpecifier: 'virtual-lib',
+        deltaBucket: 'ts-resolves-repo-local-paths-alias',
+        tsResolvedKind: 'repo-local-paths-alias',
+        recommendedSlice: 'paths/rootDirs parity slice + oracle taxonomy correction',
+      }),
+    ]));
+    expect(artifact.summary.recommendedSlices['repo-local package/self-name resolution']).toBe(1);
+    expect(artifact.summary.recommendedSlices['paths/rootDirs parity slice + oracle taxonomy correction']).toBe(1);
+  });
 });
 
 function rustSample(referenceName: string, line: number) {
@@ -306,5 +394,20 @@ function rustSample(referenceName: string, line: number) {
     language: 'typescript',
     line,
     col: 0,
+  };
+}
+
+function shadowSample(specifier: string, resolvedKind: string, resolvedPath: string | null) {
+  return {
+    specifier,
+    sourceFile: 'src/main.ts',
+    moduleResolutionMode: 'nodeNext',
+    resolvedKind,
+    resolvedPath,
+    isExternalLibraryImport: resolvedPath === null,
+    failedLookupCategory: resolvedPath === null ? 'package-or-runtime-import' : null,
+    conditionSet: [],
+    parityStatus: 'unknown',
+    fallbackReason: resolvedPath === null ? 'rust-shadow-does-not-expand-node-modules' : null,
   };
 }

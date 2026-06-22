@@ -210,7 +210,9 @@ function resolveWithTypeScript(projectRoot, sourceFile, specifier, options) {
   const repoLocal = isInside(projectRoot, resolvedPath) && !resolvedPath.includes(`${path.sep}node_modules${path.sep}`);
   const bare = isBareSpecifier(specifier);
   let tsResolvedKind = 'relative-or-alias';
-  if (repoLocal && bare) {
+  if (repoLocal && bare && matchesTsPathsAlias(options, specifier)) {
+    tsResolvedKind = 'repo-local-paths-alias';
+  } else if (repoLocal && bare) {
     tsResolvedKind = isPackageSubpath(specifier, readRootPackageName(projectRoot))
       ? 'repo-local-package-subpath'
       : 'repo-local-package';
@@ -260,6 +262,20 @@ function isPackageSubpath(specifier, packageName) {
   return Boolean(packageName && specifier.startsWith(`${packageName}/`));
 }
 
+function matchesTsPathsAlias(options, specifier) {
+  const paths = options?.paths;
+  if (!paths || typeof paths !== 'object') return false;
+  return Object.keys(paths).some((pattern) => matchesTsPathPattern(pattern, specifier));
+}
+
+function matchesTsPathPattern(pattern, specifier) {
+  const starIndex = pattern.indexOf('*');
+  if (starIndex === -1) return pattern === specifier;
+  const prefix = pattern.slice(0, starIndex);
+  const suffix = pattern.slice(starIndex + 1);
+  return specifier.startsWith(prefix) && specifier.endsWith(suffix);
+}
+
 function readRootPackageName(projectRoot) {
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf-8'));
@@ -272,6 +288,7 @@ function readRootPackageName(projectRoot) {
 function deltaBucketFor(row, resolved) {
   if (!row.importSpecifier) return row.specifierUnavailableReason;
   if (resolved.tsResolvedKind === 'node-runtime-builtin') return 'ts-runtime-builtin-boundary';
+  if (resolved.tsResolvedKind === 'repo-local-paths-alias') return 'ts-resolves-repo-local-paths-alias';
   if (resolved.repoLocal) return 'ts-resolves-repo-local-rust-fallback';
   if (resolved.tsResolvedKind.startsWith('third-party')) return 'ts-resolves-third-party-boundary';
   if (resolved.tsResolvedKind === 'unresolved') return 'ts-unresolved-package-runtime';
@@ -299,6 +316,8 @@ function parityStatusFor(row, resolved) {
 
 function recommendedSliceFor(row) {
   switch (row.deltaBucket) {
+    case 'ts-resolves-repo-local-paths-alias':
+      return 'paths/rootDirs parity slice + oracle taxonomy correction';
     case 'ts-resolves-repo-local-rust-fallback':
       return row.tsResolvedKind === 'repo-local-package-subpath'
         ? 'package exports/imports repo-local file target'
@@ -376,9 +395,10 @@ function summarize(rows, sampleSourceUnavailableReason) {
   const recommendedSliceGoals = Object.keys(recommendedSlices).sort((a, b) => {
     const priority = (value) => {
       if (value === 'repo-local package/self-name resolution') return 0;
-      if (value === 'package exports/imports repo-local file target') return 1;
-      if (value.includes('boundary taxonomy')) return 2;
-      return 3;
+      if (value === 'paths/rootDirs parity slice + oracle taxonomy correction') return 1;
+      if (value === 'package exports/imports repo-local file target') return 2;
+      if (value.includes('boundary taxonomy')) return 3;
+      return 4;
     };
     return priority(a) - priority(b) || recommendedSlices[b] - recommendedSlices[a];
   });

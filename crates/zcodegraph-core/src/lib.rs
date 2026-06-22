@@ -238,10 +238,12 @@ pub struct IndexProfile {
     pub import_path_alias_tsconfig_resolved_refs: u32,
     pub import_path_alias_conventional_alias_resolved_refs: u32,
     pub import_path_alias_workspace_resolved_refs: u32,
+    pub import_path_alias_root_dirs_resolved_refs: u32,
     pub import_path_alias_relative_fallback_refs: u32,
     pub import_path_alias_tsconfig_fallback_refs: u32,
     pub import_path_alias_conventional_alias_fallback_refs: u32,
     pub import_path_alias_workspace_fallback_refs: u32,
+    pub import_path_alias_root_dirs_fallback_refs: u32,
     pub import_path_alias_fallback_sample_counts: BTreeMap<String, u32>,
     pub import_path_alias_fallback_samples: Vec<ImportFallbackSample>,
     pub import_path_alias_fallback_sample_cap: ImportFallbackSampleCap,
@@ -1453,6 +1455,7 @@ fn write_index_to_connection(
         .import_path_alias_conventional_alias_resolved_refs =
         import_stats.conventional_alias_resolved_refs;
     counts.profile.import_path_alias_workspace_resolved_refs = import_stats.workspace_resolved_refs;
+    counts.profile.import_path_alias_root_dirs_resolved_refs = import_stats.root_dirs_resolved_refs;
     counts.profile.import_path_alias_relative_fallback_refs = import_stats.relative_fallback_refs;
     counts.profile.import_path_alias_tsconfig_fallback_refs = import_stats.tsconfig_fallback_refs;
     counts
@@ -1460,6 +1463,7 @@ fn write_index_to_connection(
         .import_path_alias_conventional_alias_fallback_refs =
         import_stats.conventional_alias_fallback_refs;
     counts.profile.import_path_alias_workspace_fallback_refs = import_stats.workspace_fallback_refs;
+    counts.profile.import_path_alias_root_dirs_fallback_refs = import_stats.root_dirs_fallback_refs;
     counts.profile.import_path_alias_fallback_sample_counts = import_stats.fallback_sample_counts;
     counts.profile.import_path_alias_fallback_samples = import_stats.fallback_samples;
     counts.profile.import_path_alias_fallback_sample_cap = ImportFallbackSampleCap {
@@ -1510,10 +1514,12 @@ struct ImportResolutionStats {
     tsconfig_resolved_refs: u32,
     conventional_alias_resolved_refs: u32,
     workspace_resolved_refs: u32,
+    root_dirs_resolved_refs: u32,
     relative_fallback_refs: u32,
     tsconfig_fallback_refs: u32,
     conventional_alias_fallback_refs: u32,
     workspace_fallback_refs: u32,
+    root_dirs_fallback_refs: u32,
     fallback_sample_counts: BTreeMap<String, u32>,
     fallback_samples: Vec<ImportFallbackSample>,
     fallback_bucket_sample_counts: HashMap<String, usize>,
@@ -1696,6 +1702,7 @@ enum ImportTargetSourceKind {
     TsconfigPaths,
     ConventionalAlias,
     WorkspacePackage,
+    RootDirs,
 }
 
 impl ImportResolutionStats {
@@ -1705,6 +1712,7 @@ impl ImportResolutionStats {
             ImportTargetSourceKind::TsconfigPaths => self.tsconfig_resolved_refs += 1,
             ImportTargetSourceKind::ConventionalAlias => self.conventional_alias_resolved_refs += 1,
             ImportTargetSourceKind::WorkspacePackage => self.workspace_resolved_refs += 1,
+            ImportTargetSourceKind::RootDirs => self.root_dirs_resolved_refs += 1,
         }
     }
 
@@ -1715,6 +1723,7 @@ impl ImportResolutionStats {
             ImportTargetSourceKind::TsconfigPaths => self.tsconfig_fallback_refs += 1,
             ImportTargetSourceKind::ConventionalAlias => self.conventional_alias_fallback_refs += 1,
             ImportTargetSourceKind::WorkspacePackage => self.workspace_fallback_refs += 1,
+            ImportTargetSourceKind::RootDirs => self.root_dirs_fallback_refs += 1,
         }
     }
 }
@@ -1726,6 +1735,7 @@ impl ImportTargetSourceKind {
             ImportTargetSourceKind::TsconfigPaths => "tsconfigPaths",
             ImportTargetSourceKind::ConventionalAlias => "conventionalAlias",
             ImportTargetSourceKind::WorkspacePackage => "workspacePackage",
+            ImportTargetSourceKind::RootDirs => "rootDirs",
         }
     }
 
@@ -1735,6 +1745,7 @@ impl ImportTargetSourceKind {
             ImportTargetSourceKind::TsconfigPaths => "tsconfig-path-target-not-found",
             ImportTargetSourceKind::ConventionalAlias => "conventional-alias-target-not-found",
             ImportTargetSourceKind::WorkspacePackage => "workspace-package-target-not-found",
+            ImportTargetSourceKind::RootDirs => "root-dirs-target-not-found",
         }
     }
 }
@@ -1772,6 +1783,7 @@ struct LocalRefRow {
 struct TsPathAliases {
     base_url: PathBuf,
     patterns: Vec<TsPathAliasPattern>,
+    root_dirs: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -2237,13 +2249,22 @@ fn parse_ts_path_aliases(project_path: &Path, content: &str) -> Option<TsPathAli
         .get("baseUrl")
         .and_then(Value::as_str)
         .unwrap_or(".");
-    let paths = compiler_options.get("paths")?.as_object()?;
+    let paths = compiler_options.get("paths").and_then(Value::as_object);
+    let root_dirs = compiler_options
+        .get("rootDirs")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(|root_dir| project_path.join(root_dir))
+        .collect::<Vec<_>>();
     let mut aliases = TsPathAliases {
         base_url: project_path.join(base_url),
         patterns: Vec::new(),
+        root_dirs,
     };
 
-    for (alias, raw_targets) in paths {
+    for (alias, raw_targets) in paths.into_iter().flatten() {
         let targets = raw_targets
             .as_array()
             .into_iter()
@@ -2381,10 +2402,16 @@ fn resolve_import_target(
     specifier: &str,
 ) -> Option<(ImportTargetSourceKind, Option<String>)> {
     if is_relative_import_specifier(specifier) {
-        return Some((
-            ImportTargetSourceKind::Relative,
-            resolve_relative_import(project_path, from_file_path, specifier),
-        ));
+        let direct = resolve_relative_import(project_path, from_file_path, specifier);
+        if direct.is_some() {
+            return Some((ImportTargetSourceKind::Relative, direct));
+        }
+        if let Some(root_dirs_target) =
+            resolve_root_dirs_relative_import(project_path, aliases, from_file_path, specifier)
+        {
+            return Some((ImportTargetSourceKind::RootDirs, Some(root_dirs_target)));
+        }
+        return Some((ImportTargetSourceKind::Relative, None));
     }
     if aliases.matches(specifier) {
         return Some((
@@ -2435,6 +2462,41 @@ fn resolve_relative_import(
         .unwrap_or_else(|| Path::new(""));
     let base = project_path.join(from_dir).join(specifier);
     resolve_relative_import_candidate(project_path, &base)
+}
+
+fn resolve_root_dirs_relative_import(
+    project_path: &Path,
+    aliases: &TsPathAliases,
+    from_file_path: &str,
+    specifier: &str,
+) -> Option<String> {
+    if aliases.root_dirs.len() < 2 {
+        return None;
+    }
+    let from_dir = Path::new(from_file_path)
+        .parent()
+        .unwrap_or_else(|| Path::new(""));
+    let absolute_from_dir = project_path.join(from_dir);
+    let canonical_from_dir = fs::canonicalize(&absolute_from_dir).ok()?;
+
+    for root_dir in &aliases.root_dirs {
+        let Ok(canonical_root_dir) = fs::canonicalize(root_dir) else {
+            continue;
+        };
+        let Ok(virtual_from_dir) = canonical_from_dir.strip_prefix(&canonical_root_dir) else {
+            continue;
+        };
+        for sibling_root_dir in &aliases.root_dirs {
+            if sibling_root_dir == root_dir {
+                continue;
+            }
+            let sibling_base = sibling_root_dir.join(virtual_from_dir).join(specifier);
+            if let Some(resolved) = resolve_relative_import_candidate(project_path, &sibling_base) {
+                return Some(resolved);
+            }
+        }
+    }
+    None
 }
 
 fn resolve_alias_import(
@@ -5473,7 +5535,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -5505,12 +5567,14 @@ pub fn result_json(result: &IndexResult) -> String {
             .profile
             .import_path_alias_conventional_alias_resolved_refs,
         result.profile.import_path_alias_workspace_resolved_refs,
+        result.profile.import_path_alias_root_dirs_resolved_refs,
         result.profile.import_path_alias_relative_fallback_refs,
         result.profile.import_path_alias_tsconfig_fallback_refs,
         result
             .profile
             .import_path_alias_conventional_alias_fallback_refs,
         result.profile.import_path_alias_workspace_fallback_refs,
+        result.profile.import_path_alias_root_dirs_fallback_refs,
         result.profile.import_path_alias_binding_fallback_refs,
         result.profile.import_path_alias_unsupported_fallback_refs,
         result.profile.import_path_alias_unresolved_fallback_refs,
@@ -7733,6 +7797,72 @@ mod tests {
                 "tools/logger/index.ts",
             ]
         );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_resolves_root_dirs_relative_import_targets_across_sibling_roots() {
+        let dir = temp_dir("root-dirs-relative-import-target");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::create_dir_all(dir.join("generated")).unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"compilerOptions":{"rootDirs":["src","generated"]}}"#,
+        )
+        .unwrap();
+        fs::write(dir.join("src/shared.ts"), "export const shared = 1;\n").unwrap();
+        fs::write(
+            dir.join("generated/consumer.ts"),
+            [
+                "import { shared } from './shared';",
+                "export const total = shared;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.profile.import_path_alias_root_dirs_resolved_refs, 1);
+        assert!(result
+            .profile
+            .module_resolution_shadow_decision_counts
+            .contains_key("rootDirs"));
+
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let target = conn
+            .query_row(
+                "SELECT target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'generated/consumer.ts'
+                   AND source.kind = 'file'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap();
+        assert_eq!(target, "src/shared.ts");
 
         fs::remove_dir_all(dir).unwrap();
     }
