@@ -5,7 +5,7 @@ Date: 2026-06-22
 ## Parent
 
 - Optimization tracker: #165
-- Plan: `docs/plans/2026-06-22-rust-hybrid-finalization-tail-implementation-sequence.md`
+- Plan: `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - Issues: #416, #417, #418, #419
 - Boundary:
   `docs/benchmarks/2026-06-21-edge-write-cleanup-ownership-boundary.md`
@@ -29,7 +29,7 @@ classified them as unresolved for this pass.
 Rejected first candidates:
 
 - Edge write batching was already covered by
-  `docs/benchmarks/2026-06-20-rust-hybrid-finalization-edge-write-bulk-insert-closeout-decision.md`.
+  `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`.
 - Resolved cleanup rowid-range mechanics already exists on the batched resolved
   cleanup path.
 - Semantic target selection, framework post-extract migration, and

@@ -5,7 +5,7 @@ Date: 2026-06-21
 ## Scope
 
 This closeout covers the bounded TypeScript overload implementation tie-break
-from `docs/plans/2026-06-21-rust-hybrid-ts-overload-implementation-tie-break.md`.
+from `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`.
 
 The change is production routing for Rust ESM named import/export resolution,
 default enabled only when a candidate-multiple set has exactly one safe

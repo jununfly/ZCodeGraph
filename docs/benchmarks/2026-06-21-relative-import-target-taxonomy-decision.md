@@ -18,7 +18,7 @@ category exists.
 ## Artifacts
 
 - Plan:
-  `docs/plans/2026-06-21-rust-hybrid-relative-import-target-taxonomy-and-burndown.md`
+  `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - VS Code sparse taxonomy before profile rerun:
   `docs/benchmarks/2026-06-21-relative-import-target-taxonomy-vscode-sparse.json`
 - VS Code sparse taxonomy after profile rerun:

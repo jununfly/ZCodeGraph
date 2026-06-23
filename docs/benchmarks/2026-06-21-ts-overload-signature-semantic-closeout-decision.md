@@ -5,7 +5,7 @@ Date: 2026-06-21
 ## Inputs
 
 - Plan:
-  `docs/plans/2026-06-21-rust-hybrid-ts-overload-signature-semantic-decision.md`
+  `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - Semantic decision artifact:
   `docs/benchmarks/2026-06-21-ts-overload-signature-semantic-decision.md`
 - Semantic decision JSON:

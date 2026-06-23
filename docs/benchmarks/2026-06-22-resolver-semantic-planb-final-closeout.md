@@ -6,7 +6,7 @@ Date: 2026-06-22
 
 - Optimization tracker: #165
 - QualifiedName plan:
-  `docs/plans/2026-06-22-rust-hybrid-qualifiedname-routing-semantic-residual-audit.md`
+  `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - QualifiedName closeout:
   `docs/benchmarks/2026-06-22-qualifiedname-routing-residual-closeout-decision.md`
 - FileNodes audit:
@@ -61,7 +61,7 @@ Boundary rule:
 
 | Residual | State | Evidence |
 | --- | --- | --- |
-| Complete local-config candidate producer routing boundary | keep | `docs/benchmarks/2026-06-20-rust-hybrid-complete-candidate-producer-routing-boundary-closeout-decision.md` |
+| Complete local-config candidate producer routing boundary | keep | `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md` |
 | `QualifiedName` candidate-producer on-demand routing | keep | `docs/benchmarks/2026-06-22-qualifiedname-routing-residual-closeout-decision.md` |
 | `LowerName` local-config routing | keep-with-caveat | Mechanism is safe behind local config; default-on was no-go due candidate lookup cost. |
 

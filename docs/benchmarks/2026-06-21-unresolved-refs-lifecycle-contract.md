@@ -4,7 +4,7 @@ Date: 2026-06-21
 
 ## Parent
 
-- Plan: `docs/plans/2026-06-21-rust-hybrid-finalization-tail-boundary-plan.md`
+- Plan: `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - Issue: #410
 - Ownership matrix:
   `docs/benchmarks/2026-06-21-finalization-tail-ownership-matrix.md`

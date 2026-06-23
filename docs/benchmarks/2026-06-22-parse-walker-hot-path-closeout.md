@@ -5,7 +5,7 @@ Date: 2026-06-22
 ## Parent
 
 - Plan:
-  `docs/plans/2026-06-22-rust-hybrid-parse-extraction-walker-hot-path-plan.md`
+  `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - Issues: #412, #413, #414, #415
 - Optimization tracker: #165
 - Parse/extraction diagnostic track: #224

@@ -17,7 +17,7 @@
       "name": "zcodegraph",
       "sourcePath": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph",
       "commit": "78d2799",
-      "profileSource": "docs/plans/2026-06-13-rust-indexing-core-phase-2-packaging-ci-performance.md#66",
+      "profileSource": "docs/plans/2026-06-24-rust-indexing-core-consolidated-plans.md",
       "phase1CopiedFiles": 314,
       "tempProjectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-profile-zcodegraph-rust-profile-zYRBXV",
       "engines": {
@@ -395,7 +395,7 @@
       "name": "vscode-sparse",
       "sourcePath": "/private/tmp/codegraph-corpus/vscode-sparse",
       "commit": "4a6e32fc1f0",
-      "profileSource": "docs/plans/2026-06-13-rust-indexing-core-phase-2-packaging-ci-performance.md#66",
+      "profileSource": "docs/plans/2026-06-24-rust-indexing-core-consolidated-plans.md",
       "phase1CopiedFiles": 5790,
       "tempProjectPath": "/var/folders/bk/25klw83n5wn38lj2m3wbr9fc0000gn/T/zcodegraph-rust-profile-vscode-sparse-rust-profile-013QUT",
       "engines": {

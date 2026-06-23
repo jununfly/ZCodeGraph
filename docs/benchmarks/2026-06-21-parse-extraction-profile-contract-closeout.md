@@ -6,7 +6,7 @@ Date: 2026-06-21
 
 This closes Plan 1 for #224:
 
-- Plan: `docs/plans/2026-06-21-rust-hybrid-parse-extraction-profile-contract.md`
+- Plan: `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - Issues: #390, #391, #392, #393
 
 This plan only adds parse/extraction diagnostics. It does not optimize

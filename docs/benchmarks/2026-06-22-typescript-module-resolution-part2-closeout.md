@@ -8,7 +8,7 @@ Date: 2026-06-22
 - Part 2 tracker: #430
 - Optimization tracker: #165
 - Plan:
-  `docs/plans/2026-06-22-rust-hybrid-import-file-resolver-completion-part2-typescript-module-resolution.md`
+  `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 
 ## Decision
 

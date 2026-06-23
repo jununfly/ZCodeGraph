@@ -9,7 +9,7 @@ Date: 2026-06-22
 - Previous Part 2 closeout:
   `docs/benchmarks/2026-06-22-typescript-module-resolution-part2-closeout.md`
 - Previous oracle plan:
-  `docs/plans/2026-06-22-rust-hybrid-import-file-resolver-completion-part2-typescript-module-resolution.md`
+  `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - Current roadmap closeout:
   `docs/benchmarks/2026-06-23-rust-native-typescript-module-resolution-roadmap-mapping-closeout.md`
 

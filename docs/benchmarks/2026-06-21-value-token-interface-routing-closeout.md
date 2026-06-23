@@ -4,7 +4,7 @@ Date: 2026-06-21
 
 ## Parent
 
-- Plan: `docs/plans/2026-06-21-rust-hybrid-value-token-interface-routing.md`
+- Plan: `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - Issues: #403, #404, #405, #406
 - Tracker: #165
 - Predecessor decision:

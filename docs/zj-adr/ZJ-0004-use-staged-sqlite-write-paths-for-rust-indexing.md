@@ -13,11 +13,11 @@ had to be preserved.
 
 Supporting evidence:
 
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-results-and-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md`
-- `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-optimization-big-picture-decision.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 
 ## Decision
 

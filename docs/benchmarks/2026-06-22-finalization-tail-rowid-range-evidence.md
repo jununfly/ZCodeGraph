@@ -5,7 +5,7 @@ Date: 2026-06-22
 ## Parent
 
 - Optimization tracker: #165
-- Plan: `docs/plans/2026-06-22-rust-hybrid-finalization-tail-implementation-sequence.md`
+- Plan: `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - Candidate selection:
   `docs/benchmarks/2026-06-22-finalization-tail-plan-a-candidate-selection.md`
 - Issues: #416, #417, #418, #419

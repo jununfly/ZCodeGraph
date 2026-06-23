@@ -20,7 +20,7 @@ behavior, README metrics, graph semantics, or release positioning.
 ## Artifacts
 
 - Plan:
-  `docs/plans/2026-06-21-rust-hybrid-parse-ast-extraction-bounded-optimization.md`
+  `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - Baseline profile:
   `docs/benchmarks/2026-06-21-parse-extraction-evidence.profile.json`
 - Baseline summary:

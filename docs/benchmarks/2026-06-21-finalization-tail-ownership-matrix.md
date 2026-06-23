@@ -4,12 +4,12 @@ Date: 2026-06-21
 
 ## Parent
 
-- Plan: `docs/plans/2026-06-21-rust-hybrid-finalization-tail-boundary-plan.md`
+- Plan: `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - Issue: #407
 - Optimization tracker: #165
 - ADR: `docs/zj-adr/ZJ-0002-rust-owned-finalization-reference-resolution.md`
 - Current-state map:
-  `docs/benchmarks/2026-06-20-rust-hybrid-finalization-architecture-map.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 
 ## Decision
 

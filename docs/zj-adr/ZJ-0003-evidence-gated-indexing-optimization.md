@@ -15,9 +15,9 @@ production optimization paths.
 
 Supporting evidence:
 
-- `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-decision.md`
-- `docs/benchmarks/2026-06-18-rust-indexing-core-phase-23-closeout-decision.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-optimization-big-picture-decision.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 - #165 post-release optimization tracker
 - #301 historical benchmark decision ADR cleanup
 

@@ -7,7 +7,7 @@ Date: 2026-06-22
 - Optimization tracker: #165
 - Issue: #429
 - Plan:
-  `docs/plans/2026-06-22-rust-hybrid-import-file-resolver-completion-part1.md`
+  `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 
 ## Decision
 

@@ -16,9 +16,9 @@ TypeScript product shell.
 
 Supporting evidence:
 
-- `docs/benchmarks/2026-06-19-rust-hybrid-optimization-big-picture-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-finalization-architecture-map.md`
-- `docs/plans/2026-06-20-rust-hybrid-resolver-migration-decision-plan.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - #296 resolver migration decision plan
 - #301 historical benchmark decision ADR migration cleanup
 

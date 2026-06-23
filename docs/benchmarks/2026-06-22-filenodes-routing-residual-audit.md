@@ -6,7 +6,7 @@ Date: 2026-06-22
 
 - Optimization tracker: #165
 - PlanB-1 plan:
-  `docs/plans/2026-06-22-rust-hybrid-qualifiedname-routing-semantic-residual-audit.md`
+  `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - QualifiedName evidence:
   `docs/benchmarks/2026-06-22-qualifiedname-routing-residual-evidence.md`
 - Residual map:
