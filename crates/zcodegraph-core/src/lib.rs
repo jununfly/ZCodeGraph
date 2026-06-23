@@ -272,6 +272,7 @@ pub struct IndexProfile {
     pub esm_named_import_export_edge_write_skipped_sample_cap: ImportFallbackSampleCap,
     pub module_resolution_shadow_decision_refs: u32,
     pub module_resolution_shadow_decision_counts: BTreeMap<String, u32>,
+    pub module_resolution_semantic_boundary_counts: BTreeMap<String, u32>,
     pub module_resolution_shadow_parity_counts: BTreeMap<String, u32>,
     pub module_resolution_declaration_target_relationship_counts: BTreeMap<String, u32>,
     pub module_resolution_declaration_runtime_pairing_decision_counts: BTreeMap<String, u32>,
@@ -1481,6 +1482,8 @@ fn write_index_to_connection(
     counts.profile.module_resolution_shadow_decision_refs = module_resolution_shadow.decision_refs;
     counts.profile.module_resolution_shadow_decision_counts =
         module_resolution_shadow.decision_counts;
+    counts.profile.module_resolution_semantic_boundary_counts =
+        module_resolution_shadow.semantic_boundary_counts;
     counts.profile.module_resolution_shadow_parity_counts = module_resolution_shadow.parity_counts;
     counts
         .profile
@@ -1686,6 +1689,7 @@ struct ImportResolutionStats {
 struct ModuleResolutionShadowDiagnostics {
     decision_refs: u32,
     decision_counts: BTreeMap<String, u32>,
+    semantic_boundary_counts: BTreeMap<String, u32>,
     parity_counts: BTreeMap<String, u32>,
     declaration_target_relationship_counts: BTreeMap<String, u32>,
     declaration_runtime_pairing_decision_counts: BTreeMap<String, u32>,
@@ -1701,6 +1705,11 @@ impl ModuleResolutionShadowDiagnostics {
         *self
             .decision_counts
             .entry(decision.resolved_kind.clone())
+            .or_insert(0) += 1;
+        let semantic_boundary = module_resolution_semantic_boundary(&decision);
+        *self
+            .semantic_boundary_counts
+            .entry(semantic_boundary.to_string())
             .or_insert(0) += 1;
         *self
             .parity_counts
@@ -1733,6 +1742,35 @@ impl ModuleResolutionShadowDiagnostics {
             .insert(decision.resolved_kind.clone(), bucket_count + 1);
         self.samples.push(decision);
     }
+}
+
+fn module_resolution_semantic_boundary(decision: &ModuleResolutionDecisionRecord) -> &'static str {
+    if is_non_code_module_specifier(&decision.specifier) {
+        return "non-code-module-boundary";
+    }
+    match decision.failed_lookup_category.as_deref() {
+        Some("node-runtime-builtin") => "runtime-builtin-boundary",
+        Some("package-or-runtime-import") => "external-package-boundary",
+        Some("moduleResolutionClassicPackageMapsUnsupported") => {
+            "legacy-module-resolution-boundary"
+        }
+        Some("unsupported-import-form") => "unsupported-import-form-boundary",
+        _ if decision.resolved_path.is_some() => "repo-local-source",
+        _ if decision.resolved_kind == "binding" => "binding-boundary",
+        _ => "unclassified-boundary",
+    }
+}
+
+fn is_non_code_module_specifier(specifier: &str) -> bool {
+    const NON_CODE_EXTENSIONS: [&str; 13] = [
+        ".css", ".scss", ".sass", ".less", ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp",
+        ".avif", ".ico", ".wasm",
+    ];
+    let without_query = specifier.split(['?', '#']).next().unwrap_or(specifier);
+    let lower = without_query.to_ascii_lowercase();
+    NON_CODE_EXTENSIONS
+        .iter()
+        .any(|extension| lower.ends_with(extension))
 }
 
 impl ImportResolutionStats {
@@ -2138,6 +2176,7 @@ struct TsPathAliases {
     module_resolution_mode: String,
     module_resolution_mode_source: String,
     custom_conditions: Vec<String>,
+    resolve_json_module: bool,
 }
 
 #[derive(Debug)]
@@ -2584,6 +2623,7 @@ fn resolve_js_ts_file_imports(
         };
         let guard_decision = guarded_module_resolution_edge_write_decision(
             conn,
+            project_path,
             target.0,
             effective_target_file_path.clone(),
             &target.2,
@@ -3411,6 +3451,7 @@ fn resolved_ts_config_from_merged(
             module_resolution_mode: module_resolution.clone(),
             module_resolution_mode_source: module_resolution_source.clone(),
             custom_conditions: merged.custom_conditions.clone().unwrap_or_default(),
+            resolve_json_module: merged.resolve_json_module.unwrap_or(false),
         },
     }
 }
@@ -4235,7 +4276,8 @@ fn resolve_import_target(
                 condition_set,
                 matched_condition,
             } => {
-                let resolved = resolve_import_candidate(project_path, &project_path.join(target));
+                let resolved =
+                    resolve_import_candidate(project_path, aliases, &project_path.join(target));
                 let outcomes = if resolved.is_some() {
                     outcomes
                 } else {
@@ -4274,7 +4316,7 @@ fn resolve_import_target(
         }
     }
     if is_relative_import_specifier(specifier) {
-        let direct = resolve_relative_import(project_path, from_file_path, specifier);
+        let direct = resolve_relative_import(project_path, aliases, from_file_path, specifier);
         if direct.is_some() {
             return Some(ImportTargetResolution::new(
                 ImportTargetSourceKind::Relative,
@@ -4322,14 +4364,14 @@ fn resolve_import_target(
     if let Some(base) = resolve_conventional_alias(specifier) {
         return Some(ImportTargetResolution::new(
             ImportTargetSourceKind::ConventionalAlias,
-            resolve_import_candidate(project_path, &project_path.join(base)),
+            resolve_import_candidate(project_path, aliases, &project_path.join(base)),
             Vec::new(),
         ));
     }
     if let Some(base) = workspace_packages.resolve_import(specifier) {
         return Some(ImportTargetResolution::new(
             ImportTargetSourceKind::WorkspacePackage,
-            resolve_import_candidate(project_path, &project_path.join(base)),
+            resolve_import_candidate(project_path, aliases, &project_path.join(base)),
             Vec::new(),
         ));
     }
@@ -4344,7 +4386,8 @@ fn resolve_import_target(
             condition_set,
             matched_condition,
         } => {
-            let resolved = resolve_import_candidate(project_path, &project_path.join(target));
+            let resolved =
+                resolve_import_candidate(project_path, aliases, &project_path.join(target));
             let outcomes = if resolved.is_some() {
                 outcomes
             } else {
@@ -4397,6 +4440,7 @@ fn matches_conventional_alias(specifier: &str) -> Option<(&'static str, &'static
 
 fn resolve_relative_import(
     project_path: &Path,
+    aliases: &TsPathAliases,
     from_file_path: &str,
     specifier: &str,
 ) -> Option<String> {
@@ -4404,7 +4448,7 @@ fn resolve_relative_import(
         .parent()
         .unwrap_or_else(|| Path::new(""));
     let base = project_path.join(from_dir).join(specifier);
-    resolve_relative_import_candidate(project_path, &base)
+    resolve_relative_import_candidate(project_path, aliases, &base)
 }
 
 fn resolve_root_dirs_relative_import(
@@ -4438,7 +4482,9 @@ fn resolve_root_dirs_relative_import(
                 continue;
             }
             let sibling_base = sibling_root_dir.join(virtual_from_dir).join(specifier);
-            if let Some(resolved) = resolve_relative_import_candidate(project_path, &sibling_base) {
+            if let Some(resolved) =
+                resolve_relative_import_candidate(project_path, aliases, &sibling_base)
+            {
                 return RootDirsResolution::Resolved(resolved);
             }
         }
@@ -4463,7 +4509,7 @@ fn resolve_alias_import(
             let candidate = target
                 .base_path
                 .join(format!("{}{}{}", target.prefix, capture, target.suffix));
-            if let Some(resolved) = resolve_import_candidate(project_path, &candidate) {
+            if let Some(resolved) = resolve_import_candidate(project_path, aliases, &candidate) {
                 return Some(resolved);
             }
         }
@@ -4471,8 +4517,12 @@ fn resolve_alias_import(
     None
 }
 
-fn resolve_import_candidate(project_path: &Path, base: &Path) -> Option<String> {
-    for candidate in import_file_candidates(base) {
+fn resolve_import_candidate(
+    project_path: &Path,
+    aliases: &TsPathAliases,
+    base: &Path,
+) -> Option<String> {
+    for candidate in import_file_candidates(base, aliases.resolve_json_module) {
         if candidate.is_file() {
             return canonical_relative_slash_path(project_path, &candidate);
         }
@@ -4480,8 +4530,12 @@ fn resolve_import_candidate(project_path: &Path, base: &Path) -> Option<String> 
     None
 }
 
-fn resolve_relative_import_candidate(project_path: &Path, base: &Path) -> Option<String> {
-    for candidate in relative_import_file_candidates(base) {
+fn resolve_relative_import_candidate(
+    project_path: &Path,
+    aliases: &TsPathAliases,
+    base: &Path,
+) -> Option<String> {
+    for candidate in relative_import_file_candidates(base, aliases.resolve_json_module) {
         if candidate.is_file() {
             return canonical_relative_slash_path(project_path, &candidate);
         }
@@ -4489,7 +4543,7 @@ fn resolve_relative_import_candidate(project_path: &Path, base: &Path) -> Option
     None
 }
 
-fn import_file_candidates(base: &Path) -> Vec<PathBuf> {
+fn import_file_candidates(base: &Path, include_json: bool) -> Vec<PathBuf> {
     let mut candidates = Vec::new();
     if base.extension().is_some() {
         candidates.extend(explicit_runtime_extension_pair_candidates(base));
@@ -4497,9 +4551,15 @@ fn import_file_candidates(base: &Path) -> Vec<PathBuf> {
         for extension in EXTENSIONLESS_FILE_TARGET_EXTENSIONS {
             candidates.push(base.with_extension(extension));
         }
+        if include_json {
+            candidates.push(base.with_extension("json"));
+        }
     }
     for extension in EXTENSIONLESS_FILE_TARGET_EXTENSIONS {
         candidates.push(base.join("index").with_extension(extension));
+    }
+    if include_json {
+        candidates.push(base.join("index").with_extension("json"));
     }
     candidates
 }
@@ -4508,12 +4568,16 @@ const EXTENSIONLESS_FILE_TARGET_EXTENSIONS: &[&str] = &[
     "ts", "tsx", "mts", "cts", "d.ts", "d.mts", "d.cts", "js", "jsx", "mjs", "cjs",
 ];
 
-fn relative_import_file_candidates(base: &Path) -> Vec<PathBuf> {
+fn relative_import_file_candidates(base: &Path, include_json: bool) -> Vec<PathBuf> {
     let mut candidates = Vec::new();
     if base.extension().is_some() {
         candidates.extend(explicit_runtime_extension_pair_candidates(base));
+        if include_json && base.extension().and_then(|extension| extension.to_str()) == Some("json")
+        {
+            candidates.push(base.to_path_buf());
+        }
     } else {
-        candidates.extend(import_file_candidates(base));
+        candidates.extend(import_file_candidates(base, include_json));
     }
     candidates
 }
@@ -4595,6 +4659,7 @@ fn find_file_node_id(conn: &Connection, file_path: &str) -> rusqlite::Result<Opt
 
 fn guarded_module_resolution_edge_write_decision(
     conn: &Connection,
+    project_path: &Path,
     source: ImportTargetSourceKind,
     target_file_path: Option<String>,
     outcomes: &[&'static str],
@@ -4607,12 +4672,45 @@ fn guarded_module_resolution_edge_write_decision(
                 .unwrap_or_else(|| source.target_not_found_reason()),
         });
     };
+    ensure_json_import_target_file_node(conn, project_path, &target_file_path)?;
     let Some(target_node_id) = find_file_node_id(conn, &target_file_path)? else {
         return Ok(GuardedModuleResolutionEdgeWrite::Skip {
             reason: "file-node-not-found",
         });
     };
     Ok(GuardedModuleResolutionEdgeWrite::Write { target_node_id })
+}
+
+fn ensure_json_import_target_file_node(
+    conn: &Connection,
+    project_path: &Path,
+    target_file_path: &str,
+) -> rusqlite::Result<()> {
+    if import_target_extension(target_file_path).as_deref() != Some(".json") {
+        return Ok(());
+    }
+    if find_file_node_id(conn, target_file_path)?.is_some() {
+        return Ok(());
+    }
+    let absolute_path = project_path.join(target_file_path);
+    let Ok(content) = fs::read_to_string(&absolute_path) else {
+        return Ok(());
+    };
+    let Ok(metadata) = fs::metadata(&absolute_path) else {
+        return Ok(());
+    };
+    let file_node = ExtractedNode::file(target_file_path, &content, "json");
+    insert_nodes(conn, &[file_node])?;
+    upsert_file(
+        conn,
+        target_file_path,
+        &content,
+        &metadata,
+        "json",
+        now_ms(),
+        1,
+    )?;
+    Ok(())
 }
 
 fn insert_rust_import_edge(
@@ -5283,12 +5381,12 @@ fn resolve_direct_named_export_target(
     let line_text = import_line_text(project_path, &reference.file_path, reference.line, cache)?;
     let specifier = import_line_module_specifier(line_text)?;
     let target_file_path = if is_relative_import_specifier(&specifier) {
-        resolve_relative_import(project_path, &reference.file_path, &specifier)
+        resolve_relative_import(project_path, aliases, &reference.file_path, &specifier)
     } else if aliases.matches(&specifier) {
         resolve_alias_import(project_path, aliases, &specifier)
     } else {
         let conventional = resolve_conventional_alias(&specifier)?;
-        resolve_import_candidate(project_path, &project_path.join(conventional))
+        resolve_import_candidate(project_path, aliases, &project_path.join(conventional))
     }?;
     let export_node_id = find_export_node_id(conn, &reference.file_path, &specifier).ok()??;
     Some(DirectNamedExportTarget {
@@ -6265,7 +6363,7 @@ fn find_one_hop_reexport_symbol_candidates(
         });
     };
     let leaf_file_path = if is_relative_import_specifier(&specifier) {
-        resolve_relative_import(project_path, barrel_file_path, &specifier)
+        resolve_relative_import(project_path, aliases, barrel_file_path, &specifier)
     } else if aliases.matches(&specifier) {
         resolve_alias_import(project_path, aliases, &specifier)
     } else {
@@ -8470,7 +8568,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -8566,6 +8664,7 @@ pub fn result_json(result: &IndexResult) -> String {
         ),
         result.profile.module_resolution_shadow_decision_refs,
         fallback_sample_counts_json(&result.profile.module_resolution_shadow_decision_counts),
+        fallback_sample_counts_json(&result.profile.module_resolution_semantic_boundary_counts),
         fallback_sample_counts_json(&result.profile.module_resolution_shadow_parity_counts),
         fallback_sample_counts_json(
             &result
@@ -9385,6 +9484,10 @@ mod tests {
                     "relative".to_string(),
                     1,
                 )]),
+                module_resolution_semantic_boundary_counts: BTreeMap::from([(
+                    "repo-local-source".to_string(),
+                    1,
+                )]),
                 module_resolution_shadow_parity_counts: BTreeMap::from([(
                     "unknown".to_string(),
                     1,
@@ -9443,6 +9546,10 @@ mod tests {
         assert_eq!(json["profile"]["moduleResolutionShadowDecisionRefs"], 1);
         assert_eq!(
             json["profile"]["moduleResolutionShadowDecisionCounts"]["relative"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["moduleResolutionSemanticBoundaryCounts"]["repo-local-source"],
             1
         );
         assert_eq!(
@@ -9571,6 +9678,33 @@ mod tests {
                 .profile
                 .module_resolution_shadow_decision_counts
                 .get("packageOrRuntime")
+                .copied()
+                .unwrap_or(0)
+                >= 1
+        );
+        assert!(
+            result
+                .profile
+                .module_resolution_semantic_boundary_counts
+                .get("repo-local-source")
+                .copied()
+                .unwrap_or(0)
+                >= 1
+        );
+        assert!(
+            result
+                .profile
+                .module_resolution_semantic_boundary_counts
+                .get("runtime-builtin-boundary")
+                .copied()
+                .unwrap_or(0)
+                >= 1
+        );
+        assert!(
+            result
+                .profile
+                .module_resolution_semantic_boundary_counts
+                .get("external-package-boundary")
                 .copied()
                 .unwrap_or(0)
                 >= 1
@@ -12696,6 +12830,90 @@ mod tests {
             )
             .unwrap();
         assert_eq!(count, 0);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_resolves_json_module_imports_to_file_level_dependency_edges_when_enabled() {
+        let dir = temp_dir("resolve-json-module-file-edge");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(
+            dir.join("tsconfig.json"),
+            r#"{"compilerOptions":{"module":"NodeNext","moduleResolution":"NodeNext","resolveJsonModule":true}}"#,
+        )
+        .unwrap();
+        fs::write(dir.join("src/config.json"), r#"{"enabled":true}"#).unwrap();
+        fs::write(
+            dir.join("src/main.ts"),
+            [
+                "import config from './config';",
+                "export const enabled = Boolean(config);",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.profile.import_path_alias_relative_resolved_refs, 1);
+        assert_eq!(result.profile.import_path_alias_relative_fallback_refs, 0);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let target = conn
+            .query_row(
+                "SELECT DISTINCT target.kind, target.name, target.file_path, e.edgeOrigin
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND e.edgeOrigin = 'rust-finalization'
+                   AND source.file_path = 'src/main.ts'
+                   AND source.kind = 'file'",
+                [],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                    ))
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            target,
+            (
+                "file".to_string(),
+                "src/config.json".to_string(),
+                "src/config.json".to_string(),
+                "rust-finalization".to_string(),
+            )
+        );
+        let json_files: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM files WHERE path = 'src/config.json' AND language = 'json'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(json_files, 1);
 
         fs::remove_dir_all(dir).unwrap();
     }

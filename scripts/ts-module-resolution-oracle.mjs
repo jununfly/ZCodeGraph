@@ -82,6 +82,11 @@ function loadSamples(profilePath) {
         rustResolvedKind: String(sample.resolvedKind ?? 'unknown'),
         rustParityStatus: String(sample.parityStatus ?? 'unknown'),
         importSpecifier: typeof sample.specifier === 'string' ? sample.specifier : null,
+        importKind: typeof sample.importKind === 'string' ? sample.importKind : null,
+        declarationTargetRelationship: typeof sample.declarationTargetRelationship === 'string'
+          ? sample.declarationTargetRelationship
+          : null,
+        runtimeTargetPath: typeof sample.runtimeTargetPath === 'string' ? sample.runtimeTargetPath : null,
       })),
       unavailableReason: shadowSamples.length === 0
         ? 'rustCore.moduleResolutionShadowSamples is empty'
@@ -114,6 +119,11 @@ function loadSamples(profilePath) {
         rustResolvedKind: 'packageOrRuntime',
         rustParityStatus: 'unknown',
         importSpecifier: null,
+        importKind: typeof sample.importKind === 'string' ? sample.importKind : null,
+        declarationTargetRelationship: typeof sample.declarationTargetRelationship === 'string'
+          ? sample.declarationTargetRelationship
+          : null,
+        runtimeTargetPath: typeof sample.runtimeTargetPath === 'string' ? sample.runtimeTargetPath : null,
       })),
     unavailableReason: samples.length === 0
       ? 'rustCore.esmNamedImportExportFallbackSamples is empty'
@@ -232,6 +242,7 @@ function resolveWithTypeScript(projectRoot, sourceFile, specifier, options) {
   const packageImportsSlice = repoLocal && specifier.startsWith('#')
     ? packageImportsRecommendedSlice(projectRoot, sourceFile, specifier)
     : null;
+  const resolvedPackageInfo = packageInfoForResolvedPath(projectRoot, resolvedPath);
   return {
     tsResolvedKind,
     tsResolvedPath: toRepoRelativeOrExternal(projectRoot, resolvedPath),
@@ -241,6 +252,9 @@ function resolveWithTypeScript(projectRoot, sourceFile, specifier, options) {
     packageExportsRecommendedSlice: packageExportsSlice,
     packageImportsCovered: Boolean(packageImportsSlice),
     packageImportsRecommendedSlice: packageImportsSlice,
+    resolvedPackageHasTypesVersions: resolvedPackageInfo.hasTypesVersions,
+    resolvedPathTraversesSymlink: pathTraversesSymlink(projectRoot, resolvedPath),
+    preserveSymlinks: Boolean(options.preserveSymlinks),
   };
 }
 
@@ -319,6 +333,42 @@ function readNearestPackageJson(projectRoot, sourceFile) {
     }
   }
   return null;
+}
+
+function packageInfoForResolvedPath(projectRoot, resolvedPath) {
+  let dir = path.dirname(path.resolve(resolvedPath));
+  const root = path.resolve(projectRoot);
+  while (isInside(root, dir)) {
+    const packagePath = path.join(dir, 'package.json');
+    try {
+      const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
+      return {
+        hasTypesVersions: Boolean(pkg && typeof pkg === 'object' && Object.prototype.hasOwnProperty.call(pkg, 'typesVersions')),
+      };
+    } catch {
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+  return { hasTypesVersions: false };
+}
+
+function pathTraversesSymlink(projectRoot, resolvedPath) {
+  const root = path.resolve(projectRoot);
+  const relative = path.relative(root, path.resolve(resolvedPath));
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return false;
+  const parts = relative.split(path.sep).filter(Boolean);
+  let current = root;
+  for (const part of parts) {
+    current = path.join(current, part);
+    try {
+      if (fs.lstatSync(current).isSymbolicLink()) return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 
 function packageExportsRecommendedSlice(projectRoot, specifier) {
@@ -414,6 +464,9 @@ function parityStatusFor(row, resolved) {
 }
 
 function recommendedSliceFor(row) {
+  if (isJsonModuleRow(row)) {
+    return 'JSON resolveJsonModule file-level dependency slice';
+  }
   switch (row.deltaBucket) {
     case 'ts-resolves-repo-local-paths-alias':
       return 'paths/rootDirs parity slice + oracle taxonomy correction';
@@ -436,6 +489,52 @@ function recommendedSliceFor(row) {
   }
 }
 
+function semanticBoundaryFor(row) {
+  if (isJsonModuleRow(row)) return 'json-module-boundary';
+  if (isNonCodeModuleSpecifier(row.importSpecifier)) return 'non-code-module-boundary';
+  switch (row.deltaBucket) {
+    case 'ts-runtime-builtin-boundary':
+      return 'runtime-builtin-boundary';
+    case 'ts-resolves-third-party-boundary':
+    case 'ts-unresolved-package-runtime':
+      return 'external-package-boundary';
+    case 'ts-resolves-repo-local-paths-alias':
+    case 'ts-resolves-repo-local-rust-fallback':
+      return 'repo-local-source';
+    default:
+      return 'unclassified-boundary';
+  }
+}
+
+function isJsonModuleRow(row) {
+  return isJsonModuleSpecifier(row.importSpecifier) || isJsonModuleSpecifier(row.tsResolvedPath);
+}
+
+function isJsonModuleSpecifier(value) {
+  if (typeof value !== 'string') return false;
+  return value.split(/[?#]/)[0].toLowerCase().endsWith('.json');
+}
+
+function isNonCodeModuleSpecifier(specifier) {
+  if (typeof specifier !== 'string') return false;
+  const withoutQuery = specifier.split(/[?#]/)[0].toLowerCase();
+  return [
+    '.css',
+    '.scss',
+    '.sass',
+    '.less',
+    '.svg',
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.webp',
+    '.avif',
+    '.ico',
+    '.wasm',
+  ].some((extension) => withoutQuery.endsWith(extension));
+}
+
 function buildRows(projectRoot, profilePath) {
   const source = loadSamples(profilePath);
   const config = compilerOptionsForProject(projectRoot);
@@ -456,6 +555,9 @@ function buildRows(projectRoot, profilePath) {
       rustCurrentTarget: sample.rustCurrentTarget,
       rustResolvedKind: sample.rustResolvedKind,
       rustParityStatus: sample.rustParityStatus,
+      importKind: sample.importKind,
+      declarationTargetRelationship: sample.declarationTargetRelationship,
+      runtimeTargetPath: sample.runtimeTargetPath,
       specifierUnavailableReason: specifier.unavailableReason,
     };
     const resolved = specifier.importSpecifier
@@ -473,6 +575,10 @@ function buildRows(projectRoot, profilePath) {
     row.deltaBucket = deltaBucketFor(row, resolved);
     row.parityStatus = parityStatusFor(row, resolved);
     row.recommendedSlice = recommendedSliceFor(row);
+    row.semanticBoundary = semanticBoundaryFor(row);
+    row.researchFrontiers = researchFrontiersFor(row);
+    row.researchFrontier = row.researchFrontiers[0] ?? null;
+    row.researchDecision = researchDecisionFor(row.researchFrontiers);
     rows.push(row);
   }
   return {
@@ -484,16 +590,49 @@ function buildRows(projectRoot, profilePath) {
   };
 }
 
+function researchFrontiersFor(row) {
+  const frontiers = [];
+  if (row.resolvedPackageHasTypesVersions) {
+    frontiers.push('typesVersions');
+  }
+  if (row.preserveSymlinks && row.resolvedPathTraversesSymlink) {
+    frontiers.push('symlink-preserve-symlinks');
+  }
+  if (row.declarationTargetRelationship || row.runtimeTargetPath) {
+    frontiers.push('declaration-runtime-pairing');
+  }
+  if (row.importKind === 'type') {
+    frontiers.push('type-only-runtime-divergence');
+  }
+  return frontiers;
+}
+
+function researchDecisionFor(frontiers) {
+  if (!frontiers.length) return 'not-research-frontier';
+  if (frontiers.some((frontier) => frontier === 'type-only-runtime-divergence') && frontiers.length === 1) {
+    return 'defer/no-go';
+  }
+  return 'keep-research';
+}
+
 function summarize(rows, sampleSourceUnavailableReason) {
   const deltaBuckets = {};
   const resolvedKinds = {};
   const parityStatuses = {};
   const recommendedSlices = {};
+  const semanticBoundaries = {};
+  const researchFrontiers = {};
+  const researchDecisions = {};
   for (const row of rows) {
     deltaBuckets[row.deltaBucket] = (deltaBuckets[row.deltaBucket] ?? 0) + 1;
     resolvedKinds[row.tsResolvedKind] = (resolvedKinds[row.tsResolvedKind] ?? 0) + 1;
     parityStatuses[row.parityStatus] = (parityStatuses[row.parityStatus] ?? 0) + 1;
     recommendedSlices[row.recommendedSlice] = (recommendedSlices[row.recommendedSlice] ?? 0) + 1;
+    semanticBoundaries[row.semanticBoundary] = (semanticBoundaries[row.semanticBoundary] ?? 0) + 1;
+    for (const frontier of row.researchFrontiers ?? []) {
+      researchFrontiers[frontier] = (researchFrontiers[frontier] ?? 0) + 1;
+    }
+    researchDecisions[row.researchDecision] = (researchDecisions[row.researchDecision] ?? 0) + 1;
   }
   const recommendedSliceGoals = Object.keys(recommendedSlices).sort((a, b) => {
     const priority = (value) => {
@@ -510,8 +649,11 @@ function summarize(rows, sampleSourceUnavailableReason) {
     sampleSourceUnavailableReason,
     deltaBuckets,
     resolvedKinds,
+    semanticBoundaries,
     parityStatuses,
     recommendedSlices,
+    researchFrontiers,
+    researchDecisions,
     recommendedSliceGoals,
     recommendedTotalSliceCount: recommendedSliceGoals.length + 1, // include closeout
   };
@@ -574,6 +716,30 @@ function renderMarkdown(artifact) {
     ...Object.entries(artifact.summary.deltaBuckets)
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([bucket, count]) => `| \`${bucket}\` | ${count} |`),
+    '',
+    '### Semantic Boundaries',
+    '',
+    '| Boundary | Count |',
+    '| --- | ---: |',
+    ...Object.entries(artifact.summary.semanticBoundaries)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([boundary, count]) => `| \`${boundary}\` | ${count} |`),
+    '',
+    '### Research Frontiers',
+    '',
+    '| Frontier | Count |',
+    '| --- | ---: |',
+    ...Object.entries(artifact.summary.researchFrontiers)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([frontier, count]) => `| \`${frontier}\` | ${count} |`),
+    '',
+    '### Research Decisions',
+    '',
+    '| Decision | Count |',
+    '| --- | ---: |',
+    ...Object.entries(artifact.summary.researchDecisions)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([decision, count]) => `| \`${decision}\` | ${count} |`),
     '',
     '### Parity Statuses',
     '',
