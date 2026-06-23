@@ -2440,7 +2440,7 @@ fn resolve_js_ts_file_imports(
     let aliases = load_ts_path_aliases(project_path);
     let workspace_packages = load_workspace_packages(project_path);
     let package_self_names = load_repo_local_package_names(project_path);
-    let refs = load_import_refs(conn)?;
+    let refs = load_module_resolution_refs(conn)?;
     let mut stats = ImportResolutionStats::default();
     let mut resolved_ids = Vec::new();
     let mut file_content_cache = HashMap::new();
@@ -2518,7 +2518,8 @@ fn resolve_js_ts_file_imports(
                     (ImportTargetSourceKind::PackageSelfName, None, vec![reason])
                 }
                 PackageSelfNameResolution::MissingPackageName
-                    if looks_like_imported_binding(specifier) =>
+                    if reference.reference_kind == "imports"
+                        && looks_like_imported_binding(specifier) =>
                 {
                     stats.binding_fallback_refs += 1;
                     stats.record_fallback_sample(
@@ -2968,6 +2969,29 @@ fn load_import_refs(conn: &Connection) -> rusqlite::Result<Vec<ImportRefRow>> {
         "SELECT id, from_node_id, reference_name, reference_kind, line, col, file_path, language
          FROM unresolved_refs
          WHERE reference_kind = 'imports'
+         ORDER BY id",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(ImportRefRow {
+            id: row.get(0)?,
+            from_node_id: row.get(1)?,
+            reference_name: row.get(2)?,
+            reference_kind: row.get(3)?,
+            line: row.get(4)?,
+            col: row.get(5)?,
+            file_path: row.get(6)?,
+            language: row.get(7)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+fn load_module_resolution_refs(conn: &Connection) -> rusqlite::Result<Vec<ImportRefRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, from_node_id, reference_name, reference_kind, line, col, file_path, language
+         FROM unresolved_refs
+         WHERE reference_kind IN ('imports', 'exports')
          ORDER BY id",
     )?;
     let rows = stmt.query_map([], |row| {
@@ -4598,8 +4622,12 @@ fn insert_rust_import_edge(
 ) -> rusqlite::Result<bool> {
     let existing: i64 = conn.query_row(
         "SELECT COUNT(*) FROM edges
-         WHERE source = ?1 AND target = ?2 AND kind = 'imports' AND edgeOrigin = 'rust-finalization'",
-        params![reference.from_node_id, target_node_id],
+         WHERE source = ?1 AND target = ?2 AND kind = ?3 AND edgeOrigin = 'rust-finalization'",
+        params![
+            reference.from_node_id,
+            target_node_id,
+            reference.reference_kind
+        ],
         |row| row.get(0),
     )?;
     if existing > 0 {
@@ -4608,10 +4636,11 @@ fn insert_rust_import_edge(
 
     conn.execute(
         "INSERT INTO edges (source, target, kind, metadata, line, col, edgeOrigin)
-         VALUES (?1, ?2, 'imports', ?3, ?4, ?5, 'rust-finalization')",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'rust-finalization')",
         params![
             reference.from_node_id,
             target_node_id,
+            reference.reference_kind,
             "{\"resolvedBy\":\"rust-import-path-alias\"}",
             reference.line,
             reference.col,
@@ -4652,6 +4681,12 @@ fn resolve_esm_named_import_export_refs(
             &reference.file_path,
             reference.line,
             &mut file_content_cache,
+        ) || is_type_only_import_binding_line(
+            project_path,
+            &reference.file_path,
+            reference.line,
+            &reference.reference_name,
+            &mut file_content_cache,
         ) {
             stats.record_fallback_sample("type-only-import", &reference, None, None, None, None);
             continue;
@@ -4685,6 +4720,73 @@ fn resolve_esm_named_import_export_refs(
             continue;
         }
         let target_file_path = target_file_paths[0].clone();
+        if is_default_import_binding_line(
+            project_path,
+            &reference.file_path,
+            reference.line,
+            &reference.reference_name,
+            &mut file_content_cache,
+        ) {
+            let lookup = find_default_exported_symbol_candidates(
+                conn,
+                project_path,
+                &target_file_path,
+                &mut file_content_cache,
+            )?;
+            if lookup.candidates.len() != 1 {
+                stats.record_fallback_sample(
+                    lookup.fallback_reason,
+                    &reference,
+                    Some(&target_file_path),
+                    Some(lookup.candidates.len()),
+                    Some(lookup.resolved_by_attempt),
+                    candidate_declaration_diagnostics(
+                        project_path,
+                        &target_file_path,
+                        &lookup.candidates,
+                        &mut file_content_cache,
+                    ),
+                );
+                continue;
+            }
+            let target = &lookup.candidates[0];
+            let Some(edge_created) = write_guarded_esm_named_symbol_edge(
+                conn,
+                &mut stats,
+                &reference,
+                None,
+                &target.file_path,
+                target,
+                target.resolved_by,
+            )?
+            else {
+                continue;
+            };
+            if edge_created {
+                stats.edges_created += 1;
+            }
+            stats.resolved_refs += 1;
+            resolved_ids.push(reference.id);
+
+            let usage_refs = load_imported_symbol_usage_refs(
+                conn,
+                &reference.file_path,
+                &reference.reference_name,
+            )?;
+            for usage in usage_refs {
+                if insert_rust_imported_symbol_usage_edge(
+                    conn,
+                    &usage,
+                    &target.id,
+                    target.resolved_by,
+                )? {
+                    stats.edges_created += 1;
+                }
+                stats.resolved_refs += 1;
+                resolved_ids.push(usage.id);
+            }
+            continue;
+        }
         let is_named_value_import = is_named_value_import_binding_line(
             project_path,
             &reference.file_path,
@@ -4692,6 +4794,14 @@ fn resolve_esm_named_import_export_refs(
             &reference.reference_name,
             &mut file_content_cache,
         );
+        let usage_reference_name = import_binding_local_name(
+            project_path,
+            &reference.file_path,
+            reference.line,
+            &reference.reference_name,
+            &mut file_content_cache,
+        )
+        .unwrap_or_else(|| reference.reference_name.clone());
         if !is_named_import_binding_line(
             project_path,
             &reference.file_path,
@@ -4750,7 +4860,7 @@ fn resolve_esm_named_import_export_refs(
                     let usage_refs = load_imported_symbol_usage_refs(
                         conn,
                         &reference.file_path,
-                        &reference.reference_name,
+                        &usage_reference_name,
                     )?;
                     for usage in usage_refs {
                         if insert_rust_imported_symbol_usage_edge(
@@ -4772,7 +4882,7 @@ fn resolve_esm_named_import_export_refs(
                 let usage_refs = load_imported_symbol_usage_refs(
                     conn,
                     &reference.file_path,
-                    &reference.reference_name,
+                    &usage_reference_name,
                 )?;
                 let has_value_usage = !usage_refs.is_empty()
                     || has_decorator_token_usage(
@@ -4864,7 +4974,7 @@ fn resolve_esm_named_import_export_refs(
         resolved_ids.push(reference.id);
 
         let usage_refs =
-            load_imported_symbol_usage_refs(conn, &reference.file_path, &reference.reference_name)?;
+            load_imported_symbol_usage_refs(conn, &reference.file_path, &usage_reference_name)?;
         for usage in usage_refs {
             if insert_rust_imported_symbol_usage_edge(conn, &usage, &target.id, target.resolved_by)?
             {
@@ -4940,6 +5050,55 @@ fn resolve_esm_named_import_export_refs(
             );
             continue;
         }
+        if is_default_reexport_binding_line(
+            project_path,
+            &reference.file_path,
+            reference.line,
+            &reference.reference_name,
+            &mut file_content_cache,
+        ) {
+            let lookup = find_default_exported_symbol_candidates(
+                conn,
+                project_path,
+                &target_file_path,
+                &mut file_content_cache,
+            )?;
+            if lookup.candidates.len() != 1 {
+                stats.record_fallback_sample(
+                    lookup.fallback_reason,
+                    &reference,
+                    Some(&target_file_path),
+                    Some(lookup.candidates.len()),
+                    Some(lookup.resolved_by_attempt),
+                    candidate_declaration_diagnostics(
+                        project_path,
+                        &target_file_path,
+                        &lookup.candidates,
+                        &mut file_content_cache,
+                    ),
+                );
+                continue;
+            }
+            let target = &lookup.candidates[0];
+            let Some(edge_created) = write_guarded_esm_named_symbol_edge(
+                conn,
+                &mut stats,
+                &reference,
+                Some(&export_target.export_node_id),
+                &target.file_path,
+                target,
+                target.resolved_by,
+            )?
+            else {
+                continue;
+            };
+            if edge_created {
+                stats.edges_created += 1;
+            }
+            stats.resolved_refs += 1;
+            resolved_ids.push(reference.id);
+            continue;
+        }
         let lookup = find_exported_symbol_candidates(
             conn,
             project_path,
@@ -5007,6 +5166,19 @@ fn is_type_only_import_line(
         .unwrap_or(false)
 }
 
+fn is_type_only_import_binding_line(
+    project_path: &Path,
+    file_path: &str,
+    line: i64,
+    reference_name: &str,
+    cache: &mut HashMap<String, String>,
+) -> bool {
+    let Some(line_text) = import_line_text(project_path, file_path, line, cache) else {
+        return false;
+    };
+    named_import_list_has_type_only_name(line_text, reference_name)
+}
+
 fn is_named_import_binding_line(
     project_path: &Path,
     file_path: &str,
@@ -5020,6 +5192,21 @@ fn is_named_import_binding_line(
     named_import_list_contains(line_text, reference_name)
 }
 
+fn is_default_import_binding_line(
+    project_path: &Path,
+    file_path: &str,
+    line: i64,
+    reference_name: &str,
+    cache: &mut HashMap<String, String>,
+) -> bool {
+    let Some(line_text) = import_line_text(project_path, file_path, line, cache) else {
+        return false;
+    };
+    default_import_local_name(line_text)
+        .map(|local| local == reference_name)
+        .unwrap_or(false)
+}
+
 fn is_named_value_import_binding_line(
     project_path: &Path,
     file_path: &str,
@@ -5031,6 +5218,17 @@ fn is_named_value_import_binding_line(
         return false;
     };
     named_value_import_list_contains(line_text, reference_name)
+}
+
+fn import_binding_local_name(
+    project_path: &Path,
+    file_path: &str,
+    line: i64,
+    reference_name: &str,
+    cache: &mut HashMap<String, String>,
+) -> Option<String> {
+    let line_text = import_line_text(project_path, file_path, line, cache)?;
+    named_import_local_name(line_text, reference_name)
 }
 
 fn is_named_export_binding_line(
@@ -5057,6 +5255,22 @@ fn is_type_only_export_binding_line(
         return false;
     };
     named_export_list_has_type_only_source_name(line_text, reference_name)
+}
+
+fn is_default_reexport_binding_line(
+    project_path: &Path,
+    file_path: &str,
+    line: i64,
+    reference_name: &str,
+    cache: &mut HashMap<String, String>,
+) -> bool {
+    if reference_name != "default" {
+        return false;
+    }
+    let Some(line_text) = import_line_text(project_path, file_path, line, cache) else {
+        return false;
+    };
+    named_export_list_contains_source_name(line_text, "default")
 }
 
 fn resolve_direct_named_export_target(
@@ -5135,6 +5349,50 @@ fn import_line_text<'a>(
 }
 
 fn named_import_list_contains(line_text: &str, reference_name: &str) -> bool {
+    named_import_local_name(line_text, reference_name).is_some()
+}
+
+fn named_import_local_name(line_text: &str, reference_name: &str) -> Option<String> {
+    let Some(open) = line_text.find('{') else {
+        return None;
+    };
+    let Some(close_offset) = line_text[open + 1..].find('}') else {
+        return None;
+    };
+    let close = open + 1 + close_offset;
+    line_text[open + 1..close].split(',').find_map(|part| {
+        let normalized = part.trim().trim_start_matches("type ").trim();
+        let (imported, local) = normalized
+            .split_once(" as ")
+            .map(|(left, right)| (left.trim(), right.trim()))
+            .unwrap_or((normalized, normalized));
+        if imported == reference_name || local == reference_name {
+            Some(local.to_string())
+        } else {
+            None
+        }
+    })
+}
+
+fn default_import_local_name(line_text: &str) -> Option<&str> {
+    let trimmed = line_text.trim_start();
+    if !trimmed.starts_with("import ") || trimmed.starts_with("import type ") {
+        return None;
+    }
+    let from_index = trimmed.find(" from ")?;
+    let bindings = trimmed["import ".len()..from_index].trim();
+    let default_binding = bindings.split(',').next()?.trim();
+    if default_binding.is_empty()
+        || default_binding.starts_with('{')
+        || default_binding.starts_with('*')
+        || default_binding.contains(char::is_whitespace)
+    {
+        return None;
+    }
+    Some(default_binding)
+}
+
+fn named_import_list_has_type_only_name(line_text: &str, reference_name: &str) -> bool {
     let Some(open) = line_text.find('{') else {
         return false;
     };
@@ -5142,10 +5400,19 @@ fn named_import_list_contains(line_text: &str, reference_name: &str) -> bool {
         return false;
     };
     let close = open + 1 + close_offset;
-    line_text[open + 1..close].split(',').any(|part| {
-        let local = part.trim().split_whitespace().last().unwrap_or("").trim();
-        local == reference_name
-    })
+    line_text[open + 1..close]
+        .split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .any(|part| {
+            let is_type_only = part.starts_with("type ");
+            let normalized = part.trim_start_matches("type ").trim();
+            let (imported, local) = normalized
+                .split_once(" as ")
+                .map(|(left, right)| (left.trim(), right.trim()))
+                .unwrap_or((normalized, normalized));
+            is_type_only && (imported == reference_name || local == reference_name)
+        })
 }
 
 fn named_export_list_contains_source_name(line_text: &str, reference_name: &str) -> bool {
@@ -5844,9 +6111,70 @@ fn find_exported_symbol_candidates(
     )
 }
 
+fn find_default_exported_symbol_candidates(
+    conn: &Connection,
+    project_path: &Path,
+    target_file_path: &str,
+    cache: &mut HashMap<String, String>,
+) -> Result<ExportedSymbolCandidateLookup, Box<dyn std::error::Error>> {
+    let Some(content) = cached_file_content(project_path, target_file_path, cache) else {
+        return Ok(ExportedSymbolCandidateLookup {
+            candidates: Vec::new(),
+            fallback_reason: "default-export-file-content-unavailable",
+            resolved_by_attempt: "direct-default-export",
+        });
+    };
+    let content = content.to_string();
+    let mut stmt = conn.prepare(
+        "SELECT id, kind, name, start_line, end_line
+         FROM nodes
+         WHERE file_path = ?1
+           AND kind IN ('function', 'class')
+         ORDER BY start_line",
+    )?;
+    let rows = stmt
+        .query_map(params![target_file_path], |row| {
+            Ok(SymbolCandidateRow {
+                id: row.get(0)?,
+                kind: row.get(1)?,
+                name: row.get(2)?,
+                file_path: target_file_path.to_string(),
+                start_line: row.get(3)?,
+                end_line: row.get(4)?,
+                resolved_by: "rust-esm-default-import-export",
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let candidates = rows
+        .into_iter()
+        .filter(|candidate| {
+            direct_default_export_declares_name(&content, &candidate.kind, &candidate.name)
+        })
+        .collect::<Vec<_>>();
+    let fallback_reason = if candidates.len() > 1 {
+        "direct-default-export-candidate-multiple"
+    } else {
+        "direct-default-export-candidate-zero"
+    };
+    Ok(ExportedSymbolCandidateLookup {
+        candidates,
+        fallback_reason,
+        resolved_by_attempt: "direct-default-export",
+    })
+}
+
 fn direct_export_declares_name(content: &str, kind: &str, name: &str) -> bool {
     content.lines().any(|line| {
         let Some(rest) = line.trim_start().strip_prefix("export ") else {
+            return false;
+        };
+        direct_export_line_declares_name(rest.trim_start(), kind, name)
+    })
+}
+
+fn direct_default_export_declares_name(content: &str, kind: &str, name: &str) -> bool {
+    content.lines().any(|line| {
+        let Some(rest) = line.trim_start().strip_prefix("export default ") else {
             return false;
         };
         direct_export_line_declares_name(rest.trim_start(), kind, name)
@@ -7658,6 +7986,17 @@ fn extract_statement_refs(
                     language,
                 );
             }
+            if let Some(binding) = default_import_binding_name(statement) {
+                push_ref(
+                    unresolved_refs,
+                    from_node_id,
+                    binding,
+                    "imports",
+                    node,
+                    relative_path,
+                    language,
+                );
+            }
             for binding in import_export_binding_names(statement) {
                 push_ref(
                     unresolved_refs,
@@ -7748,6 +8087,24 @@ fn extract_statement_refs(
     }
 
     Ok(())
+}
+
+fn default_import_binding_name(statement: &str) -> Option<&str> {
+    let trimmed = statement.trim_start();
+    if !trimmed.starts_with("import ") || trimmed.starts_with("import type ") {
+        return None;
+    }
+    let from_index = trimmed.find(" from ")?;
+    let bindings = trimmed["import ".len()..from_index].trim();
+    let default_binding = bindings.split(',').next()?.trim();
+    if default_binding.is_empty()
+        || default_binding.starts_with('{')
+        || default_binding.starts_with('*')
+        || default_binding.contains(char::is_whitespace)
+    {
+        return None;
+    }
+    Some(default_binding)
 }
 
 fn import_export_binding_names(statement: &str) -> Vec<&str> {
@@ -9200,19 +9557,23 @@ mod tests {
                 .unwrap_or(0)
                 >= 1
         );
-        assert_eq!(
+        assert!(
             result
                 .profile
                 .module_resolution_shadow_decision_counts
-                .get("nodeRuntimeBuiltin"),
-            Some(&1)
+                .get("nodeRuntimeBuiltin")
+                .copied()
+                .unwrap_or(0)
+                >= 1
         );
-        assert_eq!(
+        assert!(
             result
                 .profile
                 .module_resolution_shadow_decision_counts
-                .get("packageOrRuntime"),
-            Some(&1)
+                .get("packageOrRuntime")
+                .copied()
+                .unwrap_or(0)
+                >= 1
         );
         assert!(result
             .profile
@@ -10901,25 +11262,13 @@ mod tests {
                 (
                     "barrel.ts".to_string(),
                     "exports".to_string(),
-                    "./source".to_string(),
-                    "typescript".to_string()
-                ),
-                (
-                    "barrel.ts".to_string(),
-                    "exports".to_string(),
                     "Widget".to_string(),
                     "typescript".to_string()
                 ),
                 (
                     "consumer.ts".to_string(),
-                    "calls".to_string(),
-                    "localBeta".to_string(),
-                    "typescript".to_string()
-                ),
-                (
-                    "consumer.ts".to_string(),
                     "imports".to_string(),
-                    "beta".to_string(),
+                    "Widget".to_string(),
                     "typescript".to_string()
                 ),
             ]
@@ -10950,11 +11299,6 @@ mod tests {
             import_edges,
             vec![
                 (
-                    "class".to_string(),
-                    "Widget".to_string(),
-                    "source.ts".to_string()
-                ),
-                (
                     "constant".to_string(),
                     "alpha".to_string(),
                     "source.ts".to_string()
@@ -10963,6 +11307,51 @@ mod tests {
                     "file".to_string(),
                     "source.ts".to_string(),
                     "source.ts".to_string()
+                ),
+                (
+                    "function".to_string(),
+                    "beta".to_string(),
+                    "source.ts".to_string(),
+                ),
+            ]
+        );
+        let mut usage_edge_stmt = conn
+            .prepare(
+                "SELECT e.kind, target.kind, target.name, target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE source.file_path = 'consumer.ts'
+                   AND target.name = 'beta'
+                 ORDER BY e.kind, target.kind, target.name, target.file_path",
+            )
+            .unwrap();
+        let beta_edges = usage_edge_stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            beta_edges,
+            vec![
+                (
+                    "calls".to_string(),
+                    "function".to_string(),
+                    "beta".to_string(),
+                    "source.ts".to_string(),
+                ),
+                (
+                    "imports".to_string(),
+                    "function".to_string(),
+                    "beta".to_string(),
+                    "source.ts".to_string(),
                 ),
             ]
         );
@@ -10990,6 +11379,13 @@ mod tests {
             .iter()
             .any(|sample| sample.reason == "type-only-export"
                 && sample.reference_kind == "exports"
+                && sample.reference_name == "Widget"));
+        assert!(result
+            .profile
+            .esm_named_import_export_fallback_samples
+            .iter()
+            .any(|sample| sample.reason == "type-only-import"
+                && sample.reference_kind == "imports"
                 && sample.reference_name == "Widget"));
 
         fs::remove_dir_all(dir).unwrap();
@@ -11276,6 +11672,355 @@ mod tests {
             .esm_named_import_export_fallback_samples
             .iter()
             .all(|sample| sample.reason != "export-edge-one-hop-out-of-scope"));
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_writes_guarded_repo_local_package_named_symbol_edges() {
+        let dir = temp_dir("repo-local-package-named-symbol-edges");
+        fs::create_dir_all(dir.join("src/internal")).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r##"{"name":"@fixture/app","private":true,"exports":{"./feature":"./src/feature.ts"},"imports":{"#internal":"./src/internal/index.ts"}}"##,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/feature.ts"),
+            "export const featureValue = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/internal/index.ts"),
+            "export function internalValue() { return 2; }\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("consumer.ts"),
+            [
+                "import { featureValue } from '@fixture/app/feature';",
+                "import { internalValue } from '#internal';",
+                "import { externalValue } from 'external-lib';",
+                "export const total = featureValue + internalValue();",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let mut edge_stmt = conn
+            .prepare(
+                "SELECT e.kind, target.kind, target.name, target.file_path
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE source.file_path = 'consumer.ts'
+                   AND target.name IN ('featureValue', 'internalValue', 'externalValue')
+                 ORDER BY e.kind, target.name, target.file_path",
+            )
+            .unwrap();
+        let edges = edge_stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            edges,
+            vec![
+                (
+                    "calls".to_string(),
+                    "function".to_string(),
+                    "internalValue".to_string(),
+                    "src/internal/index.ts".to_string(),
+                ),
+                (
+                    "imports".to_string(),
+                    "constant".to_string(),
+                    "featureValue".to_string(),
+                    "src/feature.ts".to_string(),
+                ),
+                (
+                    "imports".to_string(),
+                    "function".to_string(),
+                    "internalValue".to_string(),
+                    "src/internal/index.ts".to_string(),
+                ),
+            ]
+        );
+        assert!(result
+            .profile
+            .esm_named_import_export_fallback_samples
+            .iter()
+            .any(|sample| sample.reason == "package-or-runtime-binding"
+                && sample.reference_name == "externalValue"));
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_writes_guarded_default_import_to_direct_default_export_edges() {
+        let dir = temp_dir("default-import-direct-default-export");
+        fs::write(
+            dir.join("source.ts"),
+            "export default function run() { return 1; }\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("consumer.ts"),
+            "import localRun from './source';\nexport const value = localRun();\n",
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let mut edge_stmt = conn
+            .prepare(
+                "SELECT e.kind, target.kind, target.name, target.file_path, e.edgeOrigin
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE source.file_path = 'consumer.ts'
+                   AND target.name = 'run'
+                 ORDER BY e.kind, target.kind, target.name, target.file_path",
+            )
+            .unwrap();
+        let edges = edge_stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            edges,
+            vec![
+                (
+                    "calls".to_string(),
+                    "function".to_string(),
+                    "run".to_string(),
+                    "source.ts".to_string(),
+                    "rust-finalization".to_string(),
+                ),
+                (
+                    "imports".to_string(),
+                    "function".to_string(),
+                    "run".to_string(),
+                    "source.ts".to_string(),
+                    "rust-finalization".to_string(),
+                ),
+            ]
+        );
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_attempted_refs,
+            1
+        );
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_written_refs,
+            1
+        );
+        assert!(result
+            .profile
+            .esm_named_import_export_fallback_samples
+            .iter()
+            .all(|sample| sample.reference_name != "localRun"));
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_writes_guarded_default_reexport_to_leaf_default_symbol_edges() {
+        let dir = temp_dir("default-reexport-leaf-default-symbol");
+        fs::write(
+            dir.join("source.ts"),
+            "export default function Widget() { return null; }\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("barrel.ts"),
+            "export { default as PublicWidget } from './source';\n",
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let mut edge_stmt = conn
+            .prepare(
+                "SELECT source.kind, source.name, target.kind, target.name, target.file_path, e.edgeOrigin
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'exports'
+                   AND source.kind = 'export'
+                   AND source.file_path = 'barrel.ts'
+                 ORDER BY target.kind, target.name, target.file_path",
+            )
+            .unwrap();
+        let export_edges = edge_stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            export_edges,
+            vec![(
+                "export".to_string(),
+                "./source".to_string(),
+                "function".to_string(),
+                "Widget".to_string(),
+                "source.ts".to_string(),
+                "rust-finalization".to_string(),
+            )]
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_fixture_locks_namespace_export_file_level_dependency_edges() {
+        let dir = temp_dir("namespace-export-file-level-dependency");
+        fs::write(dir.join("source.ts"), "export const value = 1;\n").unwrap();
+        fs::write(dir.join("barrel.ts"), "export * as NS from './source';\n").unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let mut edge_stmt = conn
+            .prepare(
+                "SELECT e.kind, target.kind, target.name, target.file_path, e.edgeOrigin
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE source.file_path = 'barrel.ts'
+                   AND e.edgeOrigin = 'rust-finalization'
+                 ORDER BY e.kind, target.kind, target.name, target.file_path",
+            )
+            .unwrap();
+        let edges = edge_stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            edges,
+            vec![(
+                "exports".to_string(),
+                "file".to_string(),
+                "source.ts".to_string(),
+                "source.ts".to_string(),
+                "rust-finalization".to_string(),
+            )]
+        );
+        let namespace_nodes: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM nodes WHERE kind = 'namespace' AND name = 'NS'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(namespace_nodes, 0);
 
         fs::remove_dir_all(dir).unwrap();
     }

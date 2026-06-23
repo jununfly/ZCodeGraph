@@ -93,13 +93,25 @@ shadow-only diagnostics in Rust core:
 │  │  └─ [-] 1-6-4. current repo + VS Code sparse diagnostics
 │  └─ [-] 1-7. Guarded graph writing
 │     ├─ [x] 1-7-1. file-level imports edges
-│     ├─ [x] 1-7-2. ESM named symbol edges (bounded direct named import/export)
+│     ├─ [x] 1-7-2. ESM named symbol edges (bounded repo-local value graph semantics)
 │     │  ├─ [x] 1-7-2-1. direct named import guarded write
 │     │  ├─ [x] 1-7-2-2. direct named export guarded write (#463)
-│     │  ├─ [ ] 1-7-2-3. exported alias surface semantics
-│     │  ├─ [ ] 1-7-2-4. type-only import/export semantic policy
-│     │  ├─ [ ] 1-7-2-5. default and namespace import/export symbol edges
-│     │  └─ [ ] 1-7-2-6. package/runtime named symbol edge semantics
+│     │  ├─ [x] 1-7-2-3. exported alias surface semantics
+│     │  │  ├─ [x] 1-7-2-3-1. import local alias usage edge (#464)
+│     │  │  └─ [x] 1-7-2-3-2. export alias surface modeling decision (#465)
+│     │  ├─ [x] 1-7-2-4. type-only import/export semantic policy
+│     │  │  ├─ [x] 1-7-2-4-1. type-only no-value-edge policy (#466)
+│     │  │  └─ [ ] 1-7-2-4-2. future type graph semantics, if promoted later
+│     │  ├─ [x] 1-7-2-5. default and namespace import/export symbol edges
+│     │  │  ├─ [x] 1-7-2-5-1. default import to direct default export (#468)
+│     │  │  ├─ [x] 1-7-2-5-2. default re-export surface semantics (#467)
+│     │  │  ├─ [x] 1-7-2-5-3. default re-export implementation (#473)
+│     │  │  ├─ [x] 1-7-2-5-4. namespace import module/file dependency policy (#470)
+│     │  │  ├─ [x] 1-7-2-5-5. namespace export/re-export surface semantics (#469)
+│     │  │  └─ [x] 1-7-2-5-6. namespace export file-level dependency fixture (#474)
+│     │  └─ [x] 1-7-2-6. package/runtime named symbol edge semantics
+│     │     ├─ [x] 1-7-2-6-1. repo-local package-resolved named symbol edges (#472)
+│     │     └─ [x] 1-7-2-6-2. node_modules/third-party package indexing boundary (#471)
 │     ├─ [x] 1-7-3. one-hop re-export edges (bounded repo-local named re-export)
 │     │  ├─ [x] 1-7-3-1. import-through-barrel guarded write
 │     │  ├─ [x] 1-7-3-2. export-through-barrel guarded write
