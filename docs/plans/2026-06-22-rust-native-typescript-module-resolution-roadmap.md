@@ -93,10 +93,21 @@ shadow-only diagnostics in Rust core:
 │  │  └─ [-] 1-6-4. current repo + VS Code sparse diagnostics
 │  └─ [-] 1-7. Guarded graph writing
 │     ├─ [x] 1-7-1. file-level imports edges
-│     ├─ [-] 1-7-2. ESM named symbol edges
+│     ├─ [x] 1-7-2. ESM named symbol edges (bounded direct named import/export)
 │     │  ├─ [x] 1-7-2-1. direct named import guarded write
-│     │  └─ [ ] 1-7-2-2. direct named export guarded write (#463)
-│     ├─ [ ] 1-7-3. one-hop re-export edges
+│     │  ├─ [x] 1-7-2-2. direct named export guarded write (#463)
+│     │  ├─ [ ] 1-7-2-3. exported alias surface semantics
+│     │  ├─ [ ] 1-7-2-4. type-only import/export semantic policy
+│     │  ├─ [ ] 1-7-2-5. default and namespace import/export symbol edges
+│     │  └─ [ ] 1-7-2-6. package/runtime named symbol edge semantics
+│     ├─ [x] 1-7-3. one-hop re-export edges (bounded repo-local named re-export)
+│     │  ├─ [x] 1-7-3-1. import-through-barrel guarded write
+│     │  ├─ [x] 1-7-3-2. export-through-barrel guarded write
+│     │  ├─ [ ] 1-7-3-3. export star re-export semantics
+│     │  ├─ [ ] 1-7-3-4. default re-export semantics
+│     │  ├─ [ ] 1-7-3-5. namespace re-export semantics
+│     │  ├─ [ ] 1-7-3-6. package/node_modules re-export semantics
+│     │  └─ [ ] 1-7-3-7. multi-hop re-export semantics
 │     └─ [-] 1-7-4. rollback/no-go when parity is weak
 │
 ├─ [ ] 2. Explore subtree: semantic frontier

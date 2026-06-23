@@ -1826,6 +1826,7 @@ struct ImportRefRow {
     id: i64,
     from_node_id: String,
     reference_name: String,
+    reference_kind: String,
     line: i64,
     col: i64,
     file_path: String,
@@ -1888,7 +1889,7 @@ impl EsmNamedImportExportStats {
         self.fallback_samples.push(EsmNamedFallbackSample {
             reason: reason.to_string(),
             reference_name: reference.reference_name.clone(),
-            reference_kind: "imports".to_string(),
+            reference_kind: reference.reference_kind.clone(),
             file_path: reference.file_path.clone(),
             language: reference.language.clone(),
             line: reference.line,
@@ -1937,7 +1938,7 @@ impl EsmNamedImportExportStats {
                     .push(EsmNamedFallbackSample {
                         reason: (*reason).to_string(),
                         reference_name: reference.reference_name.clone(),
-                        reference_kind: "imports".to_string(),
+                        reference_kind: reference.reference_kind.clone(),
                         file_path: reference.file_path.clone(),
                         language: reference.language.clone(),
                         line: reference.line,
@@ -1955,6 +1956,11 @@ impl EsmNamedImportExportStats {
 
 #[derive(Debug)]
 struct FileImportEdgeRow {
+    target_file_path: String,
+}
+
+struct DirectNamedExportTarget {
+    export_node_id: String,
     target_file_path: String,
 }
 
@@ -2059,6 +2065,7 @@ struct SymbolCandidateRow {
     id: String,
     kind: String,
     name: String,
+    file_path: String,
     start_line: i64,
     end_line: i64,
     resolved_by: &'static str,
@@ -2958,7 +2965,7 @@ fn classify_module_resolution_shadow_decision(
 
 fn load_import_refs(conn: &Connection) -> rusqlite::Result<Vec<ImportRefRow>> {
     let mut stmt = conn.prepare(
-        "SELECT id, from_node_id, reference_name, line, col, file_path, language
+        "SELECT id, from_node_id, reference_name, reference_kind, line, col, file_path, language
          FROM unresolved_refs
          WHERE reference_kind = 'imports'
          ORDER BY id",
@@ -2968,10 +2975,34 @@ fn load_import_refs(conn: &Connection) -> rusqlite::Result<Vec<ImportRefRow>> {
             id: row.get(0)?,
             from_node_id: row.get(1)?,
             reference_name: row.get(2)?,
-            line: row.get(3)?,
-            col: row.get(4)?,
-            file_path: row.get(5)?,
-            language: row.get(6)?,
+            reference_kind: row.get(3)?,
+            line: row.get(4)?,
+            col: row.get(5)?,
+            file_path: row.get(6)?,
+            language: row.get(7)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+fn load_export_refs(conn: &Connection) -> rusqlite::Result<Vec<ImportRefRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, from_node_id, reference_name, reference_kind, line, col, file_path, language
+         FROM unresolved_refs
+         WHERE reference_kind = 'exports'
+         ORDER BY id",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(ImportRefRow {
+            id: row.get(0)?,
+            from_node_id: row.get(1)?,
+            reference_name: row.get(2)?,
+            reference_kind: row.get(3)?,
+            line: row.get(4)?,
+            col: row.get(5)?,
+            file_path: row.get(6)?,
+            language: row.get(7)?,
         })
     })?;
 
@@ -4697,10 +4728,11 @@ fn resolve_esm_named_import_export_refs(
                     &lookup.candidates,
                     &mut file_content_cache,
                 ) {
-                    let Some(edge_created) = write_guarded_esm_named_import_symbol_edge(
+                    let Some(edge_created) = write_guarded_esm_named_symbol_edge(
                         conn,
                         &mut stats,
                         &reference,
+                        None,
                         &target_file_path,
                         target,
                         ESM_OVERLOAD_IMPLEMENTATION_RESOLVED_BY,
@@ -4754,10 +4786,11 @@ fn resolve_esm_named_import_export_refs(
                     is_named_value_import,
                     has_value_usage,
                 ) {
-                    let Some(edge_created) = write_guarded_esm_named_import_symbol_edge(
+                    let Some(edge_created) = write_guarded_esm_named_symbol_edge(
                         conn,
                         &mut stats,
                         &reference,
+                        None,
                         &target_file_path,
                         target,
                         ESM_VALUE_TOKEN_INTERFACE_RESOLVED_BY,
@@ -4804,23 +4837,24 @@ fn resolve_esm_named_import_export_refs(
         let target = &lookup.candidates[0];
         let is_reexport = target.resolved_by == "rust-esm-one-hop-reexport";
 
-        if !is_reexport {
-            let Some(edge_created) = write_guarded_esm_named_import_symbol_edge(
-                conn,
-                &mut stats,
-                &reference,
-                &target_file_path,
-                target,
-                target.resolved_by,
-            )?
-            else {
-                continue;
-            };
-            if edge_created {
-                stats.edges_created += 1;
-            }
-        } else if insert_rust_import_symbol_edge(conn, &reference, &target.id, target.resolved_by)?
-        {
+        let guarded_target_file_path = if is_reexport {
+            target.file_path.as_str()
+        } else {
+            &target_file_path
+        };
+        let Some(edge_created) = write_guarded_esm_named_symbol_edge(
+            conn,
+            &mut stats,
+            &reference,
+            None,
+            guarded_target_file_path,
+            target,
+            target.resolved_by,
+        )?
+        else {
+            continue;
+        };
+        if edge_created {
             stats.edges_created += 1;
         }
         stats.resolved_refs += 1;
@@ -4842,6 +4876,115 @@ fn resolve_esm_named_import_export_refs(
             }
             resolved_ids.push(usage.id);
         }
+    }
+
+    let export_binding_refs = load_export_refs(conn)?
+        .into_iter()
+        .filter(|reference| {
+            matches!(
+                reference.language.as_str(),
+                "javascript" | "jsx" | "typescript" | "tsx"
+            ) && looks_like_imported_binding(&reference.reference_name)
+        })
+        .collect::<Vec<_>>();
+    for reference in export_binding_refs {
+        let Some(export_target) = resolve_direct_named_export_target(
+            project_path,
+            conn,
+            &aliases,
+            &reference,
+            &mut file_content_cache,
+        ) else {
+            stats.record_fallback_sample(
+                "export-target-file-not-found",
+                &reference,
+                None,
+                None,
+                None,
+                None,
+            );
+            continue;
+        };
+        let target_file_path = export_target.target_file_path;
+        if !is_named_export_binding_line(
+            project_path,
+            &reference.file_path,
+            reference.line,
+            &reference.reference_name,
+            &mut file_content_cache,
+        ) {
+            stats.record_fallback_sample(
+                "unsupported-export-shape",
+                &reference,
+                Some(&target_file_path),
+                None,
+                None,
+                None,
+            );
+            continue;
+        }
+        if is_type_only_export_binding_line(
+            project_path,
+            &reference.file_path,
+            reference.line,
+            &reference.reference_name,
+            &mut file_content_cache,
+        ) {
+            stats.record_fallback_sample(
+                "type-only-export",
+                &reference,
+                Some(&target_file_path),
+                None,
+                None,
+                None,
+            );
+            continue;
+        }
+        let lookup = find_exported_symbol_candidates(
+            conn,
+            project_path,
+            &aliases,
+            &target_file_path,
+            &reference.reference_name,
+            &mut file_content_cache,
+        )?;
+        if lookup.candidates.len() != 1 {
+            stats.record_fallback_sample(
+                lookup.fallback_reason,
+                &reference,
+                Some(&target_file_path),
+                Some(lookup.candidates.len()),
+                Some(lookup.resolved_by_attempt),
+                candidate_declaration_diagnostics(
+                    project_path,
+                    &target_file_path,
+                    &lookup.candidates,
+                    &mut file_content_cache,
+                ),
+            );
+            continue;
+        }
+        let target = &lookup.candidates[0];
+        let Some(edge_created) = write_guarded_esm_named_symbol_edge(
+            conn,
+            &mut stats,
+            &reference,
+            Some(&export_target.export_node_id),
+            &target.file_path,
+            target,
+            target.resolved_by,
+        )?
+        else {
+            continue;
+        };
+        if edge_created {
+            stats.edges_created += 1;
+        }
+        stats.resolved_refs += 1;
+        if target.resolved_by == "rust-esm-one-hop-reexport" {
+            stats.reexport_resolved_refs += 1;
+        }
+        resolved_ids.push(reference.id);
     }
 
     delete_resolved_import_refs(conn, &resolved_ids)?;
@@ -4890,6 +5033,78 @@ fn is_named_value_import_binding_line(
     named_value_import_list_contains(line_text, reference_name)
 }
 
+fn is_named_export_binding_line(
+    project_path: &Path,
+    file_path: &str,
+    line: i64,
+    reference_name: &str,
+    cache: &mut HashMap<String, String>,
+) -> bool {
+    let Some(line_text) = import_line_text(project_path, file_path, line, cache) else {
+        return false;
+    };
+    named_export_list_contains_source_name(line_text, reference_name)
+}
+
+fn is_type_only_export_binding_line(
+    project_path: &Path,
+    file_path: &str,
+    line: i64,
+    reference_name: &str,
+    cache: &mut HashMap<String, String>,
+) -> bool {
+    let Some(line_text) = import_line_text(project_path, file_path, line, cache) else {
+        return false;
+    };
+    named_export_list_has_type_only_source_name(line_text, reference_name)
+}
+
+fn resolve_direct_named_export_target(
+    project_path: &Path,
+    conn: &Connection,
+    aliases: &TsPathAliases,
+    reference: &ImportRefRow,
+    cache: &mut HashMap<String, String>,
+) -> Option<DirectNamedExportTarget> {
+    let line_text = import_line_text(project_path, &reference.file_path, reference.line, cache)?;
+    let specifier = import_line_module_specifier(line_text)?;
+    let target_file_path = if is_relative_import_specifier(&specifier) {
+        resolve_relative_import(project_path, &reference.file_path, &specifier)
+    } else if aliases.matches(&specifier) {
+        resolve_alias_import(project_path, aliases, &specifier)
+    } else {
+        let conventional = resolve_conventional_alias(&specifier)?;
+        resolve_import_candidate(project_path, &project_path.join(conventional))
+    }?;
+    let export_node_id = find_export_node_id(conn, &reference.file_path, &specifier).ok()??;
+    Some(DirectNamedExportTarget {
+        export_node_id,
+        target_file_path,
+    })
+}
+
+fn find_export_node_id(
+    conn: &Connection,
+    file_path: &str,
+    specifier: &str,
+) -> rusqlite::Result<Option<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT id
+         FROM nodes
+         WHERE kind = 'export'
+           AND file_path = ?1
+           AND name = ?2
+         ORDER BY start_line
+         LIMIT 1",
+    )?;
+    let mut rows = stmt.query(params![file_path, specifier])?;
+    if let Some(row) = rows.next()? {
+        Ok(Some(row.get(0)?))
+    } else {
+        Ok(None)
+    }
+}
+
 fn is_package_or_runtime_import_line(
     project_path: &Path,
     file_path: &str,
@@ -4931,6 +5146,61 @@ fn named_import_list_contains(line_text: &str, reference_name: &str) -> bool {
         let local = part.trim().split_whitespace().last().unwrap_or("").trim();
         local == reference_name
     })
+}
+
+fn named_export_list_contains_source_name(line_text: &str, reference_name: &str) -> bool {
+    let trimmed = line_text.trim_start();
+    if !trimmed.starts_with("export ") || !trimmed.contains(" from ") {
+        return false;
+    }
+    let Some(open) = line_text.find('{') else {
+        return false;
+    };
+    let Some(close_offset) = line_text[open + 1..].find('}') else {
+        return false;
+    };
+    let close = open + 1 + close_offset;
+    line_text[open + 1..close]
+        .split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .any(|part| {
+            let normalized = part.trim_start_matches("type ").trim();
+            let source_name = normalized
+                .split_once(" as ")
+                .map(|(left, _)| left)
+                .unwrap_or(normalized)
+                .trim();
+            source_name == reference_name
+        })
+}
+
+fn named_export_list_has_type_only_source_name(line_text: &str, reference_name: &str) -> bool {
+    let trimmed = line_text.trim_start();
+    if !trimmed.starts_with("export ") || !trimmed.contains(" from ") {
+        return false;
+    }
+    let Some(open) = line_text.find('{') else {
+        return false;
+    };
+    let Some(close_offset) = line_text[open + 1..].find('}') else {
+        return false;
+    };
+    let close = open + 1 + close_offset;
+    line_text[open + 1..close]
+        .split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .any(|part| {
+            let is_type_only = part.starts_with("type ");
+            let normalized = part.trim_start_matches("type ").trim();
+            let source_name = normalized
+                .split_once(" as ")
+                .map(|(left, _)| left)
+                .unwrap_or(normalized)
+                .trim();
+            is_type_only && source_name == reference_name
+        })
 }
 
 fn named_value_import_list_contains(line_text: &str, reference_name: &str) -> bool {
@@ -5497,6 +5767,7 @@ fn find_exported_symbol_candidates(
                 id: row.get(0)?,
                 kind: row.get(1)?,
                 name: row.get(2)?,
+                file_path: target_file_path.to_string(),
                 start_line: row.get(3)?,
                 end_line: row.get(4)?,
                 resolved_by: "rust-esm-named-import-export",
@@ -5542,6 +5813,7 @@ fn find_exported_symbol_candidates(
                 id: row.get(0)?,
                 kind: row.get(1)?,
                 name: row.get(2)?,
+                file_path: target_file_path.to_string(),
                 start_line: row.get(3)?,
                 end_line: row.get(4)?,
                 resolved_by: "rust-esm-named-import-export",
@@ -5700,6 +5972,7 @@ fn find_one_hop_reexport_symbol_candidates(
                 id: row.get(0)?,
                 kind: row.get(1)?,
                 name: row.get(2)?,
+                file_path: leaf_file_path.clone(),
                 start_line: row.get(3)?,
                 end_line: row.get(4)?,
                 resolved_by: "rust-esm-one-hop-reexport",
@@ -5786,8 +6059,9 @@ fn load_imported_symbol_usage_refs(
     rows.collect()
 }
 
-fn insert_rust_import_symbol_edge(
+fn insert_rust_esm_named_symbol_edge(
     conn: &Connection,
+    source_node_id: &str,
     reference: &ImportRefRow,
     target_node_id: &str,
     resolved_by: &str,
@@ -5795,9 +6069,9 @@ fn insert_rust_import_symbol_edge(
     let metadata = format!("{{\"resolvedBy\":\"{}\"}}", resolved_by);
     insert_rust_finalization_edge(
         conn,
-        &reference.from_node_id,
+        source_node_id,
         target_node_id,
-        "imports",
+        &reference.reference_kind,
         &metadata,
         reference.line,
         reference.col,
@@ -5840,10 +6114,11 @@ fn guarded_esm_named_symbol_edge_write_decision(
     Ok(GuardedEsmNamedSymbolEdgeWrite::Write)
 }
 
-fn write_guarded_esm_named_import_symbol_edge(
+fn write_guarded_esm_named_symbol_edge(
     conn: &Connection,
     stats: &mut EsmNamedImportExportStats,
     reference: &ImportRefRow,
+    source_node_id_override: Option<&str>,
     target_file_path: &str,
     target: &SymbolCandidateRow,
     resolved_by: &str,
@@ -5862,8 +6137,9 @@ fn write_guarded_esm_named_import_symbol_edge(
         Some(1),
     );
     match decision {
-        GuardedEsmNamedSymbolEdgeWrite::Write => Ok(Some(insert_rust_import_symbol_edge(
+        GuardedEsmNamedSymbolEdgeWrite::Write => Ok(Some(insert_rust_esm_named_symbol_edge(
             conn,
+            source_node_id_override.unwrap_or(&reference.from_node_id),
             reference,
             &target.id,
             resolved_by,
@@ -9361,6 +9637,7 @@ mod tests {
             id: 7,
             from_node_id: "import:consumer-alpha".to_string(),
             reference_name: "alpha".to_string(),
+            reference_kind: "imports".to_string(),
             line: 1,
             col: 9,
             file_path: "src/consumer.ts".to_string(),
@@ -9370,16 +9647,18 @@ mod tests {
             id: "function:alpha".to_string(),
             kind: "function".to_string(),
             name: "alpha".to_string(),
+            file_path: "src/source.ts".to_string(),
             start_line: 1,
             end_line: 1,
             resolved_by: "rust-esm-named-import-export",
         };
         let mut stats = EsmNamedImportExportStats::default();
 
-        let edge_created = write_guarded_esm_named_import_symbol_edge(
+        let edge_created = write_guarded_esm_named_symbol_edge(
             &conn,
             &mut stats,
             &reference,
+            None,
             "src/other.ts",
             &target,
             "rust-esm-named-import-export",
@@ -9398,6 +9677,72 @@ mod tests {
         assert_eq!(
             stats.edge_write_skipped_samples[0].candidate_kind,
             Some("function".to_string())
+        );
+        assert_eq!(
+            stats.edge_write_skipped_samples[0].target_file_path,
+            Some("src/other.ts".to_string())
+        );
+        let edge_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM edges", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(edge_count, 0);
+    }
+
+    #[test]
+    fn guarded_esm_named_export_symbol_edge_skip_records_exports_diagnostics() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(SCHEMA_SQL).unwrap();
+        insert_symbol_node(
+            &conn,
+            "export:source",
+            "export",
+            "./source",
+            "src/barrel.ts",
+        );
+        insert_symbol_node(&conn, "function:foo", "function", "foo", "src/source.ts");
+        let reference = ImportRefRow {
+            id: 8,
+            from_node_id: "file:src/barrel.ts".to_string(),
+            reference_name: "foo".to_string(),
+            reference_kind: "exports".to_string(),
+            line: 1,
+            col: 0,
+            file_path: "src/barrel.ts".to_string(),
+            language: "typescript".to_string(),
+        };
+        let target = SymbolCandidateRow {
+            id: "function:foo".to_string(),
+            kind: "function".to_string(),
+            name: "foo".to_string(),
+            file_path: "src/source.ts".to_string(),
+            start_line: 1,
+            end_line: 1,
+            resolved_by: "rust-esm-named-import-export",
+        };
+        let mut stats = EsmNamedImportExportStats::default();
+
+        let edge_created = write_guarded_esm_named_symbol_edge(
+            &conn,
+            &mut stats,
+            &reference,
+            Some("export:source"),
+            "src/other.ts",
+            &target,
+            "rust-esm-named-import-export",
+        )
+        .unwrap();
+
+        assert_eq!(edge_created, None);
+        assert_eq!(stats.edge_write_attempted_refs, 1);
+        assert_eq!(stats.edge_write_written_refs, 0);
+        assert_eq!(stats.edge_write_skipped_refs, 1);
+        assert_eq!(
+            stats.edge_write_skipped_counts,
+            BTreeMap::from([("target-file-mismatch".to_string(), 1)])
+        );
+        assert_eq!(
+            stats.edge_write_skipped_samples[0].reference_kind,
+            "exports"
         );
         assert_eq!(
             stats.edge_write_skipped_samples[0].target_file_path,
@@ -9484,6 +9829,7 @@ mod tests {
             id: 1,
             from_node_id: "from".to_string(),
             reference_name: "./missing".to_string(),
+            reference_kind: "imports".to_string(),
             line: 3,
             col: 8,
             file_path: "src/main.ts".to_string(),
@@ -10565,18 +10911,6 @@ mod tests {
                     "typescript".to_string()
                 ),
                 (
-                    "barrel.ts".to_string(),
-                    "exports".to_string(),
-                    "alpha".to_string(),
-                    "typescript".to_string()
-                ),
-                (
-                    "barrel.ts".to_string(),
-                    "exports".to_string(),
-                    "beta".to_string(),
-                    "typescript".to_string()
-                ),
-                (
                     "consumer.ts".to_string(),
                     "calls".to_string(),
                     "localBeta".to_string(),
@@ -10636,6 +10970,115 @@ mod tests {
             result
                 .profile
                 .esm_named_import_export_edge_write_attempted_refs,
+            4
+        );
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_written_refs,
+            4
+        );
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_skipped_refs,
+            0
+        );
+        assert!(result
+            .profile
+            .esm_named_import_export_fallback_samples
+            .iter()
+            .any(|sample| sample.reason == "type-only-export"
+                && sample.reference_kind == "exports"
+                && sample.reference_name == "Widget"));
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_writes_guarded_direct_named_export_symbol_edges() {
+        let dir = temp_dir("direct-named-export-symbol-edges");
+        fs::write(
+            dir.join("source.ts"),
+            ["export const foo = 1;", "export class Bar {}", ""].join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("barrel.ts"),
+            "export { foo as publicFoo, Bar } from './source';\n",
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let mut edge_stmt = conn
+            .prepare(
+                "SELECT source.kind, source.name, target.kind, target.name, target.file_path, e.edgeOrigin
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'exports'
+                   AND source.kind = 'export'
+                   AND source.file_path = 'barrel.ts'
+                 ORDER BY target.kind, target.name",
+            )
+            .unwrap();
+        let export_edges = edge_stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            export_edges,
+            vec![
+                (
+                    "export".to_string(),
+                    "./source".to_string(),
+                    "class".to_string(),
+                    "Bar".to_string(),
+                    "source.ts".to_string(),
+                    "rust-finalization".to_string(),
+                ),
+                (
+                    "export".to_string(),
+                    "./source".to_string(),
+                    "constant".to_string(),
+                    "foo".to_string(),
+                    "source.ts".to_string(),
+                    "rust-finalization".to_string(),
+                ),
+            ]
+        );
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_attempted_refs,
             2
         );
         assert_eq!(
@@ -10650,6 +11093,189 @@ mod tests {
                 .esm_named_import_export_edge_write_skipped_refs,
             0
         );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_writes_guarded_import_through_one_hop_reexport_edges() {
+        let dir = temp_dir("one-hop-reexport-import-symbol-edges");
+        fs::write(dir.join("leaf.ts"), "export const foo = 1;\n").unwrap();
+        fs::write(dir.join("barrel.ts"), "export { foo } from './leaf';\n").unwrap();
+        fs::write(
+            dir.join("consumer.ts"),
+            "import { foo } from './barrel';\nexport const value = foo;\n",
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let mut edge_stmt = conn
+            .prepare(
+                "SELECT source.kind, source.file_path, target.kind, target.name, target.file_path, e.edgeOrigin
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'imports'
+                   AND source.file_path = 'consumer.ts'
+                   AND target.name = 'foo'
+                 ORDER BY target.file_path",
+            )
+            .unwrap();
+        let import_edges = edge_stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            import_edges,
+            vec![(
+                "file".to_string(),
+                "consumer.ts".to_string(),
+                "constant".to_string(),
+                "foo".to_string(),
+                "leaf.ts".to_string(),
+                "rust-finalization".to_string(),
+            )]
+        );
+        assert_eq!(result.profile.esm_one_hop_reexport_resolved_refs, 1);
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_attempted_refs,
+            2
+        );
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_written_refs,
+            2
+        );
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_skipped_refs,
+            0
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_index_writes_guarded_export_through_one_hop_reexport_edges() {
+        let dir = temp_dir("one-hop-reexport-export-symbol-edges");
+        fs::write(dir.join("leaf.ts"), "export const foo = 1;\n").unwrap();
+        fs::write(dir.join("middle.ts"), "export { foo } from './leaf';\n").unwrap();
+        fs::write(dir.join("barrel.ts"), "export { foo } from './middle';\n").unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
+        let mut edge_stmt = conn
+            .prepare(
+                "SELECT source.kind, source.name, source.file_path, target.kind, target.name, target.file_path, e.edgeOrigin
+                 FROM edges e
+                 JOIN nodes source ON source.id = e.source
+                 JOIN nodes target ON target.id = e.target
+                 WHERE e.kind = 'exports'
+                   AND source.kind = 'export'
+                   AND source.file_path = 'barrel.ts'
+                 ORDER BY target.file_path, target.name",
+            )
+            .unwrap();
+        let export_edges = edge_stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                    row.get::<_, String>(6)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            export_edges,
+            vec![(
+                "export".to_string(),
+                "./middle".to_string(),
+                "barrel.ts".to_string(),
+                "constant".to_string(),
+                "foo".to_string(),
+                "leaf.ts".to_string(),
+                "rust-finalization".to_string(),
+            )]
+        );
+        assert_eq!(result.profile.esm_one_hop_reexport_resolved_refs, 1);
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_attempted_refs,
+            2
+        );
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_written_refs,
+            2
+        );
+        assert_eq!(
+            result
+                .profile
+                .esm_named_import_export_edge_write_skipped_refs,
+            0
+        );
+        assert!(result
+            .profile
+            .esm_named_import_export_fallback_samples
+            .iter()
+            .all(|sample| sample.reason != "export-edge-one-hop-out-of-scope"));
 
         fs::remove_dir_all(dir).unwrap();
     }
