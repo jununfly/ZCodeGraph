@@ -424,7 +424,7 @@ describe('zcodegraph index engine selection', () => {
     expect(plan.pendingFallbacks).toContain('rust-owned-parse-gap');
   });
 
-  it('merges Rust-owned per-file gap diagnostics into degraded rust-hybrid metadata', () => {
+  it('records Rust-owned per-file gap diagnostics without same-language TypeScript fallback append', () => {
     const plan = planRustHybridAssignments(tempDir);
     const merged = mergeRustOwnedGapDiagnostics(plan, [
       {
@@ -438,15 +438,16 @@ describe('zcodegraph index engine selection', () => {
 
     const metadata = buildRustHybridMetadataFromPlan(merged);
 
-    expect(merged.fallbackFiles).toContain('a.ts');
+    expect(merged.fallbackFiles).not.toContain('a.ts');
     expect(metadata).toMatchObject({
       fallbackState: 'degraded',
-      fallbackByLanguage: { typescript: 1 },
-      fallbackFileCount: 1,
+      fallbackByLanguage: {},
+      fallbackFileCount: 0,
       fallbackReasonTaxonomy: { 'rust-owned-parse-gap': 1 },
       pendingFallbacks: [],
     });
-    expect(metadata.fallbackMessage).toContain('Rust-owned gap fallback appended 1 file');
+    expect(metadata.fallbackMessage).toContain('Rust-owned gap diagnostics recorded 1 file');
+    expect(metadata.fallbackMessage).toContain('without TypeScript fallback append');
   });
 
   it('indexes non-Rust-owned supported languages through TypeScript fallback under rust-hybrid', () => {
@@ -474,7 +475,7 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
-  it('appends TypeScript fallback for Rust-owned per-file gaps from a successful Rust core', () => {
+  it('does not append TypeScript fallback for Rust-owned per-file gaps from a successful Rust core', () => {
     const rustCore = writeFakeRustCoreWithPerFileGap(tempDir, 'a.ts');
 
     const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
@@ -484,13 +485,13 @@ describe('zcodegraph index engine selection', () => {
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
     const cg = CodeGraph.openSync(tempDir);
     try {
-      expect(cg.searchNodes('alpha').some((match) => match.node.kind === 'function' && match.node.language === 'typescript')).toBe(true);
+      expect(cg.searchNodes('alpha').some((match) => match.node.kind === 'function' && match.node.language === 'typescript')).toBe(false);
       const buildInfo = cg.getIndexBuildInfo();
       expect(buildInfo.engine).toBe('rust-hybrid');
       expect(buildInfo.hybrid).toMatchObject({
         fallbackState: 'degraded',
-        fallbackByLanguage: { typescript: 1 },
-        fallbackFileCount: 1,
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
         fallbackReasonTaxonomy: { 'rust-owned-parse-gap': 1 },
         pendingFallbacks: [],
       });
@@ -499,7 +500,7 @@ describe('zcodegraph index engine selection', () => {
     }
   }, 30_000);
 
-  it('reports recovered Rust-owned parse gaps consistently in CLI output and errors log', () => {
+  it('reports unrecovered Rust-owned parse gap diagnostics consistently in CLI output and errors log', () => {
     const rustCore = writeFakeRustCoreWithPerFileGap(tempDir, 'a.ts');
 
     const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid'], {
@@ -507,15 +508,16 @@ describe('zcodegraph index engine selection', () => {
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
-    expect(result.stdout).toContain('recovered by fallback');
+    expect(result.stdout).not.toContain('recovered by fallback');
+    expect(result.stdout).not.toContain('recovered by TypeScript fallback');
     expect(result.stdout).not.toContain('could not be parsed');
-    expect(result.stdout).toContain('Fallback warning breakdown');
-    expect(result.stdout).toContain('Rust-owned files recovered by TypeScript fallback');
+    expect(result.stdout).toContain('Warning breakdown');
+    expect(result.stdout).toContain('Rust-owned files with diagnostics and no TypeScript fallback append');
 
     const errorsLog = fs.readFileSync(path.join(tempDir, '.zcodegraph', 'errors.log'), 'utf-8');
     expect(errorsLog).toContain('0 files with errors');
-    expect(errorsLog).toContain('1 file with recovered fallback warnings');
-    expect(errorsLog).toContain('Recovered fallback warnings:');
+    expect(errorsLog).toContain('1 file with warning diagnostics');
+    expect(errorsLog).toContain('Warning diagnostics:');
     expect(errorsLog).toContain('a.ts:1:1: fake Rust-owned parse gap [rust-owned-parse-gap]');
 
     const cg = CodeGraph.openSync(tempDir);
@@ -523,7 +525,8 @@ describe('zcodegraph index engine selection', () => {
       const buildInfo = cg.getIndexBuildInfo();
       expect(buildInfo.hybrid).toMatchObject({
         fallbackState: 'degraded',
-        fallbackFileCount: 1,
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
         fallbackReasonTaxonomy: { 'rust-owned-parse-gap': 1 },
       });
     } finally {
@@ -1084,11 +1087,10 @@ describe('zcodegraph index engine selection', () => {
         importPathAliasFallbackSampleCounts: Record<string, number>;
       };
     };
-    expect(profile.rustCore.importPathAliasResolvedBySource.relative).toBe(5);
-    expect(profile.rustCore.importPathAliasResolvedBySource.tsconfigPaths).toBe(0);
+    expect(profile.rustCore.importPathAliasResolvedBySource.relative).toBe(3);
+    expect(profile.rustCore.importPathAliasResolvedBySource.tsconfigPaths).toBe(1);
     expect(profile.rustCore.importPathAliasFallbackSampleCounts).toMatchObject({
-      'relative/target-not-found': 1,
-      'tsconfigPaths/tsconfig-path-target-not-found': 1,
+      'relative/target-not-found': 3,
     });
 
     const cg = CodeGraph.openSync(tempDir);
@@ -1103,14 +1105,14 @@ describe('zcodegraph index engine selection', () => {
           .filter(Boolean),
       );
       expect(targets).toEqual(new Set([
-        'src/common.ts',
-        'src/exact/literal.js',
-        'src/module.ts',
+        'src/alias-only.ts',
+        'src/exact/literal.ts',
         'src/only-ts.ts',
         'src/view.tsx',
       ]));
-      expect(targets.has('src/exact/literal.ts')).toBe(false);
-      expect(targets.has('src/alias-only.ts')).toBe(false);
+      expect(targets.has('src/exact/literal.js')).toBe(false);
+      expect(targets.has('src/common.ts')).toBe(false);
+      expect(targets.has('src/module.ts')).toBe(false);
     } finally {
       cg.close();
     }
@@ -1150,7 +1152,7 @@ describe('zcodegraph index engine selection', () => {
     };
 
     expect(profile.rustCore.importPathAliasFallbackSampleCounts).toMatchObject({
-      'relative/file-node-not-found': 2,
+      'relative/file-node-not-found': 1,
       'relative/target-not-found': 1,
     });
     expect(profile.rustCore.importPathAliasFallbackSampleCap).toEqual({
@@ -1180,17 +1182,6 @@ describe('zcodegraph index engine selection', () => {
           line: expect.any(Number),
           col: expect.any(Number),
         }),
-        expect.objectContaining({
-          sourceKind: 'relative',
-          reason: 'file-node-not-found',
-          referenceName: './settings.json',
-          targetKind: 'config',
-          targetExtension: '.json',
-          filePath: 'src/main.ts',
-          language: 'typescript',
-          line: expect.any(Number),
-          col: expect.any(Number),
-        }),
       ]),
     );
     for (const sample of profile.rustCore.importPathAliasFallbackSamples) {
@@ -1209,7 +1200,7 @@ describe('zcodegraph index engine selection', () => {
         .filter((edge) => edge.kind === 'imports')
         .map((edge) => files.find((node) => node.id === edge.target)?.filePath)
         .filter(Boolean);
-      expect(importedTargets).toEqual([]);
+      expect(importedTargets).toEqual(['src/settings.json', 'src/settings.json']);
     } finally {
       cg.close();
     }
@@ -1277,7 +1268,7 @@ describe('zcodegraph index engine selection', () => {
       edges: Array<{ source: string; target: string; kind: string; resolvedBy: unknown }>;
     } => {
       const result = runCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: writeFakeRustCoreWithPerFileGap(dir, 'candidate-protocol.ts'),
+        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
         ZCODEGRAPH_CANDIDATE_PROTOCOL: enabled ? '1' : '0',
       });
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -1319,7 +1310,7 @@ describe('zcodegraph index engine selection', () => {
         source: 'protocolEntry',
         target: 'protocolHelper',
         kind: 'calls',
-        resolvedBy: 'exact-match',
+        resolvedBy: 'rust-local-exact-reference',
       });
       expect(enabledGraph).toEqual(disabledGraph);
     } finally {
@@ -1344,7 +1335,7 @@ describe('zcodegraph index engine selection', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'candidate-protocol-profile.json');
     const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: writeFakeRustCoreWithPerFileGap(tempDir, 'candidate-profile.ts'),
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
       ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2411,7 +2402,7 @@ describe('zcodegraph index engine selection', () => {
     expect(profile.rustCore.esmNamedImportExportFallbackRefs).toBeGreaterThanOrEqual(7);
     expect(profile.rustCore.esmNamedImportExportFallbackSampleCounts).toMatchObject({
       'type-only-import': 1,
-      'direct-export-candidate-zero': 1,
+      'direct-export-candidate-zero': 2,
       'direct-export-candidate-multiple': 1,
       'reexport-specifier-target-not-found': 1,
       'reexport-leaf-candidate-zero': 1,

@@ -54,6 +54,7 @@ export function buildRustHybridMetadata(projectPath: string): RustHybridMetadata
 }
 
 export function buildRustHybridMetadataFromPlan(plan: RustHybridAssignmentPlan): RustHybridMetadata {
+  const hasFallbackDiagnostics = Object.keys(plan.fallbackReasonTaxonomy).length > 0;
   return {
     phase: RUST_HYBRID_PHASE,
     rustOwnedLanguages: [...RUST_HYBRID_RUST_OWNED_LANGUAGES],
@@ -62,7 +63,7 @@ export function buildRustHybridMetadataFromPlan(plan: RustHybridAssignmentPlan):
     fallbackByLanguage: plan.fallbackByLanguage,
     fallbackFileCount: plan.fallbackFileCount,
     fallbackState: plan.fallbackState,
-    fallbackMessage: plan.fallbackFileCount > 0
+    fallbackMessage: plan.fallbackFileCount > 0 || hasFallbackDiagnostics
       ? fallbackMessage(plan)
       : 'No TypeScript fallback files were needed for this rust-hybrid index.',
     fallbackReasonTaxonomy: plan.fallbackReasonTaxonomy,
@@ -81,7 +82,7 @@ function fallbackMessage(plan: RustHybridAssignmentPlan): string {
     messages.push(`TypeScript fallback appended ${languageLevelCount} non-Rust-owned supported file(s).`);
   }
   if (rustOwnedGapCount > 0) {
-    messages.push(`Rust-owned gap fallback appended ${rustOwnedGapCount} file(s).`);
+    messages.push(`Rust-owned gap diagnostics recorded ${rustOwnedGapCount} file(s) without TypeScript fallback append.`);
   }
   return messages.length > 0
     ? messages.join(' ')
@@ -114,8 +115,6 @@ export function mergeRustOwnedGapDiagnostics(
     if (!isRustHybridOwnedLanguage(language)) continue;
 
     if (diagnostic.writtenByRust === false && diagnostic.code !== 'rust-owned-gap-with-partial-write-blocked') {
-      fallbackFiles.push(diagnostic.filePath);
-      increment(fallbackByLanguage, language);
       increment(fallbackReasonTaxonomy, diagnostic.code);
       continue;
     }

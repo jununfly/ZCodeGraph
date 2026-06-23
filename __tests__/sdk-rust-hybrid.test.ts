@@ -222,7 +222,7 @@ describe('SDK rust-hybrid full-index alignment', () => {
     }
   }, 30_000);
 
-  it('appends Rust-owned per-file parse gaps through SDK rust-hybrid', async () => {
+  it('records Rust-owned per-file parse gaps through SDK rust-hybrid without same-language TypeScript fallback', async () => {
     const dir = makeProject('rust-owned-gap');
     tempDirs.push(dir);
     fs.writeFileSync(path.join(dir, 'broken.ts'), 'export function broken( {\n');
@@ -236,8 +236,8 @@ describe('SDK rust-hybrid full-index alignment', () => {
       expect(result.success).toBe(true);
       expect(cg.getIndexBuildInfo().hybrid).toMatchObject({
         fallbackState: 'degraded',
-        fallbackByLanguage: { typescript: 1 },
-        fallbackFileCount: 1,
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
         fallbackReasonTaxonomy: { 'rust-owned-parse-gap': 1 },
         pendingFallbacks: [],
       });

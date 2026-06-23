@@ -377,7 +377,7 @@ function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexR
 
   if (result.filesIndexed > 0) {
     if (onlyRecoverableWarnings) {
-      clack.log.success(`Indexed ${formatNumber(result.filesIndexed)} files (${formatCount(recoverableWarningCount, 'file')} recovered by fallback)`);
+      clack.log.success(`Indexed ${formatNumber(result.filesIndexed)} files (${formatCount(recoverableWarningCount, 'warning diagnostic')})`);
     } else if (hasErrors) {
       clack.log.success(`Indexed ${formatNumber(result.filesIndexed)} files (${formatNumber(result.filesErrored)} could not be parsed)`);
     } else {
@@ -417,8 +417,8 @@ function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexR
     };
 
     const warningLabels: Record<string, string> = {
-      'rust-owned-parse-gap': 'Rust-owned files recovered by TypeScript fallback',
-      'rust-owned-extraction-gap': 'Rust-owned files recovered by TypeScript fallback',
+      'rust-owned-parse-gap': 'Rust-owned files with diagnostics and no TypeScript fallback append',
+      'rust-owned-extraction-gap': 'Rust-owned files with diagnostics and no TypeScript fallback append',
       'rust-owned-gap-with-partial-write-blocked': 'Rust-owned files with partial Rust writes not fallback-appended',
     };
 
@@ -429,7 +429,7 @@ function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexR
       .map(([code, count]) => `${formatNumber(count)} ${warningLabels[code] || code}`)
       .join('\n');
     const breakdown = [errorBreakdown, warningBreakdown].filter(Boolean).join('\n');
-    clack.note(breakdown, onlyRecoverableWarnings ? 'Fallback warning breakdown' : 'Error breakdown');
+    clack.note(breakdown, onlyRecoverableWarnings ? 'Warning breakdown' : 'Error breakdown');
 
     if (projectPath) {
       writeErrorLog(projectPath, result.errors);
@@ -479,7 +479,7 @@ function writeErrorLog(projectPath: string, errors: Array<{ message: string; fil
   const lines: string[] = [
     `CodeGraph Error Log - ${new Date().toISOString()}`,
     `${formatCount(errorsByFile.size, 'file')} with errors`,
-    `${formatCount(warningsByFile.size, 'file')} with recovered fallback warnings`,
+    `${formatCount(warningsByFile.size, 'file')} with warning diagnostics`,
     '',
   ];
 
@@ -490,7 +490,7 @@ function writeErrorLog(projectPath: string, errors: Array<{ message: string; fil
   }
 
   if (warningsByFile.size > 0) {
-    lines.push('Recovered fallback warnings:');
+    lines.push('Warning diagnostics:');
     for (const [filePath, fileWarnings] of warningsByFile) {
       for (const warning of fileWarnings) {
         const location = warning.line ? `:${warning.line}${warning.column ? `:${warning.column}` : ''}` : '';
