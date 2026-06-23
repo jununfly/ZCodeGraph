@@ -10,6 +10,8 @@ Date: 2026-06-22
   `docs/benchmarks/2026-06-22-typescript-module-resolution-part2-closeout.md`
 - Previous oracle plan:
   `docs/plans/2026-06-22-rust-hybrid-import-file-resolver-completion-part2-typescript-module-resolution.md`
+- Current roadmap closeout:
+  `docs/benchmarks/2026-06-23-rust-native-typescript-module-resolution-roadmap-mapping-closeout.md`
 
 ## Read This First
 
@@ -52,8 +54,8 @@ shadow-only diagnostics in Rust core:
 ## Roadmap Tree
 
 ```text
-[-] Rust-native TypeScript moduleResolution
-├─ [-] 1. Main subtree: repo-local graph sufficiency path
+[ ] Rust-native TypeScript moduleResolution
+├─ [x] 1. Main subtree: repo-local graph sufficiency path
 │  ├─ [x] 1-1. Resolver architecture and protocol
 │  │  ├─ [x] 1-1-1. Rust request type: specifier + source file + language + import kind
 │  │  ├─ [x] 1-1-2. compilerOptions summary: moduleResolution/module/baseUrl/paths/rootDirs/allowJs/resolveJsonModule
@@ -86,12 +88,15 @@ shadow-only diagnostics in Rust core:
 │  │     ├─ [x] 1-5-4-1. declaration target relationship diagnostics
 │  │     ├─ [x] 1-5-4-2. safe runtime sibling pairing decision contract
 │  │     └─ [x] 1-5-4-3. guarded runtime sibling graph write
-│  ├─ [-] 1-6. Parity confidence
+│  ├─ [x] 1-6. Parity confidence
 │  │  ├─ [x] 1-6-1. TS compiler API oracle fixtures
 │  │  ├─ [x] 1-6-2. Rust decision record comparison
 │  │  ├─ [x] 1-6-3. mismatch/no-oracle taxonomy
-│  │  └─ [-] 1-6-4. current repo + VS Code sparse diagnostics
-│  └─ [-] 1-7. Guarded graph writing
+│  │  └─ [x] 1-6-4. current repo + VS Code sparse diagnostics
+│  │     recorded; VS Code sparse profile has bounded-run unavailable reason
+│  └─ [x] 1-7. Guarded graph writing
+│     bounded repo-local guarded writes complete; semantic-frontier gaps
+│     stay deferred
 │     ├─ [x] 1-7-1. file-level imports edges
 │     ├─ [x] 1-7-2. ESM named symbol edges (bounded repo-local value graph semantics)
 │     │  ├─ [x] 1-7-2-1. direct named import guarded write
@@ -120,9 +125,11 @@ shadow-only diagnostics in Rust core:
 │     │  ├─ [ ] 1-7-3-5. namespace re-export semantics
 │     │  ├─ [ ] 1-7-3-6. package/node_modules re-export semantics
 │     │  └─ [ ] 1-7-3-7. multi-hop re-export semantics
-│     └─ [-] 1-7-4. rollback/no-go when parity is weak
+│     └─ [x] 1-7-4. rollback/no-go when parity is weak
+│        keep bounded guarded writes; defer weak parity semantic-frontier gaps
 │
 ├─ [ ] 2. Explore subtree: semantic frontier
+│  deferred todolist, not current implementation queue
 │  ├─ [ ] 2-1. full node_modules graph expansion
 │  ├─ [ ] 2-2. third-party package symbol indexing
 │  ├─ [ ] 2-3. typesVersions
