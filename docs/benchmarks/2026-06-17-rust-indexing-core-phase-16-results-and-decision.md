@@ -19,13 +19,7 @@ Architecture record:
 | Artifact | Path |
 |---|---|
 | Plan | `docs/plans/2026-06-17-rust-indexing-core-phase-16-architecture-reassessment.md` |
-| Disk baseline manifest | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-architecture-reassessment-baseline.experiment.json` |
-| Disk baseline raw | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-architecture-reassessment-baseline.raw.json` |
-| Disk baseline summary | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-architecture-reassessment-baseline-summary.md` |
-| SQLite candidate manifest | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-sqlite-memory-final-flush-candidate.experiment.json` |
-| SQLite candidate raw | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-sqlite-memory-final-flush-candidate.raw.json` |
-| SQLite candidate summary | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-sqlite-memory-final-flush-candidate-summary.md` |
-| Reduced smoke | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-sqlite-memory-final-flush-reduced-smoke.json` |
+| Consolidated cleanup evidence | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md` |
 
 ## Implementation
 

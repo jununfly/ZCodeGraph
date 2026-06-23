@@ -29,18 +29,7 @@ No SQLite schema change was made. No resolver/finalization optimization was impl
 | Artifact | Path |
 |---|---|
 | Plan | `docs/plans/2026-06-17-rust-indexing-core-phase-18-full-profile-bottleneck-ab.md` |
-| Reduced before manifest | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-reduced-sqlite-before.experiment.json` |
-| Reduced before raw | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-reduced-sqlite-before.raw.json` |
-| Reduced before summary | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-reduced-sqlite-before-summary.md` |
-| Reduced after manifest | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-reduced-sqlite-after.experiment.json` |
-| Reduced after raw | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-reduced-sqlite-after.raw.json` |
-| Reduced after summary | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-reduced-sqlite-after-summary.md` |
-| Required after manifest | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-required-sqlite-after.experiment.json` |
-| Required after raw | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-required-sqlite-after.raw.json` |
-| Required after summary | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-required-sqlite-after-summary.md` |
-| VS Code after manifest | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-vscode-sqlite-after.experiment.json` |
-| VS Code after raw | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-vscode-sqlite-after.raw.json` |
-| VS Code after summary | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-vscode-sqlite-after-summary.md` |
+| Consolidated cleanup evidence | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md` |
 
 ## Validation
 

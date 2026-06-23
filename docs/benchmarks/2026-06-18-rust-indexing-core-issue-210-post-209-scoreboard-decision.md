@@ -15,9 +15,7 @@ No Rust default rollout readiness is claimed.
 
 ## Scoreboard Run
 
-- Manifest: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-210-post-209-scoreboard.experiment.json`
-- Raw artifact: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-210-post-209-scoreboard.raw.json`
-- Generated summary: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-210-post-209-scoreboard-summary.md`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
 - Node: `v22.21.1`
 - Rust core: `target/debug/zcodegraph-core`
 - SQLite write mode: `final-flush`

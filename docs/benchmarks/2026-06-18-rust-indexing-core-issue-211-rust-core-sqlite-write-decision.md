@@ -37,10 +37,8 @@ The regression test also verifies that the final `nodes_fts` row count equals th
 
 ## Final After Scoreboard
 
-- Manifest: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-after.experiment.json`
-- Raw artifact: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-after.raw.json`
-- Generated summary: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-after-summary.md`
-- Before artifact: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-210-post-209-scoreboard.raw.json`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
+- Before artifact: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-210-post-209-scoreboard-decision.md`
 
 | Target | Sufficiency | Rust graphStats | Before sqliteWriteMs | After sqliteWriteMs | Delta | Before Rust ms | After Rust ms | Rust wall delta |
 |---|---|---|---:|---:|---:|---:|---:|---:|

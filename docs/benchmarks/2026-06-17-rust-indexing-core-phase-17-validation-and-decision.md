@@ -26,12 +26,7 @@ The production `final-flush` path currently uses the existing temp on-disk SQLit
 | Artifact | Path |
 |---|---|
 | Plan | `docs/plans/2026-06-17-rust-indexing-core-phase-17-production-final-flush-scoreboard.md` |
-| Matched profile manifest | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-scoreboard-matched-ts-js.experiment.json` |
-| Matched profile raw | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-scoreboard-matched-ts-js.raw.json` |
-| Matched profile summary | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-scoreboard-matched-ts-js-summary.md` |
-| Full profile manifest | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-scoreboard-full.experiment.json` |
-| Full profile raw | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-scoreboard-full.raw.json` |
-| Full profile summary | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-scoreboard-full-summary.md` |
+| Consolidated cleanup evidence | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md` |
 
 ## Test And Smoke Results
 

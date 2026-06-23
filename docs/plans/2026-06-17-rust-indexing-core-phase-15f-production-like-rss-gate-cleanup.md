@@ -38,12 +38,12 @@ The bounded second candidate changes the `visit_js_node` traversal path so the c
 
 ## Validation Artifacts
 
-| Run | Raw artifact | Summary artifact |
-|---|---|---|
-| Baseline | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-15f-production-like-vscode-baseline.raw.json` | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-15f-production-like-vscode-baseline-summary.md` |
-| Lazy normalization after-smoke | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-15f-lazy-normalization-vscode-after.raw.json` | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-15f-lazy-normalization-vscode-after-summary.md` |
-| Borrowed-ID after-smoke | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-15f-borrowed-id-vscode-after.raw.json` | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-15f-borrowed-id-vscode-after-summary.md` |
-| Reduced smoke | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-15f-lazy-normalization-reduced-smoke.json` | n/a |
+| Run | Evidence |
+|---|---|
+| Baseline | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-15e-15f-rss-evidence-cleanup.md` |
+| Lazy normalization after-smoke | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-15e-15f-rss-evidence-cleanup.md` |
+| Borrowed-ID after-smoke | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-15e-15f-rss-evidence-cleanup.md` |
+| Reduced smoke | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-15e-15f-rss-evidence-cleanup.md` |
 
 ## Production-Like VS Code Results
 

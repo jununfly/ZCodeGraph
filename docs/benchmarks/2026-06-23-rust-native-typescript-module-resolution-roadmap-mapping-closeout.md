@@ -119,7 +119,7 @@ The current VS Code sparse bounded profile evidence for this roadmap has an
 unavailable reason recorded in:
 
 ```text
-docs/benchmarks/2026-06-22-rust-native-module-resolution-vscode-sparse.evidence.json
+docs/benchmarks/2026-06-23-rust-native-module-resolution-oracle-profile-cleanup.md
 ```
 
 ## Tracker Guidance
@@ -147,4 +147,3 @@ Goal:
   round;
 - keep `node_modules`, package-manager, loader, and type-graph expansion out of
   production code until each has a clear product reason and verification route.
-

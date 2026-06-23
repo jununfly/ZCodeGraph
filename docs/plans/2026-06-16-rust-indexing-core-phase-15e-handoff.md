@@ -115,8 +115,7 @@ Open or update #165 with the decision. Do NOT close #165 until the full-profile 
 | Phase 14 plan | `docs/plans/2026-06-15-rust-indexing-core-phase-14-experiment-infrastructure.md` |
 | Phase 15E plan | `docs/plans/2026-06-16-rust-indexing-core-phase-15e-rss-gate.md` |
 | Phase 15E handoff (this file) | `docs/plans/2026-06-16-rust-indexing-core-phase-15e-handoff.md` |
-| VS Code stress rerun3 baseline | `docs/benchmarks/2026-06-16-rust-indexing-core-phase-15d-vscode-matched-work-stress-rerun3.raw.json` |
-| Required full-profile rerun5 | `docs/benchmarks/2026-06-16-rust-indexing-core-phase-14-required-only-rerun5.raw.json` |
+| Phase 14/15 historical evidence | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-14-15-experiment-artifact-cleanup.md` |
 | Experiment runner | `scripts/rust-indexing-experiment.mjs` |
 | Rust core | `crates/zcodegraph-core/src/lib.rs` (82KB, ~2100 lines) |
 | Rust entrypoint | `crates/zcodegraph-core/src/main.rs` |

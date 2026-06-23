@@ -19,16 +19,11 @@ only. It does not change production indexing behavior and does not move
 
 ## Artifacts
 
-Current repo:
+Generated oracle artifacts were absorbed into:
 
-- `docs/benchmarks/2026-06-22-ts-module-resolution-oracle-current.json`
-- `docs/benchmarks/2026-06-22-ts-module-resolution-oracle-current.md`
+- `docs/benchmarks/2026-06-23-rust-native-module-resolution-oracle-profile-cleanup.md`
 
-VS Code sparse:
-
-- `docs/benchmarks/2026-06-22-ts-module-resolution-oracle-vscode-sparse.json`
-- `docs/benchmarks/2026-06-22-ts-module-resolution-oracle-vscode-sparse.md`
-- Corpus: `/private/tmp/codegraph-corpus/vscode-sparse`
+VS Code sparse corpus: `/private/tmp/codegraph-corpus/vscode-sparse`
 
 No automatic clone was attempted.
 

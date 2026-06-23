@@ -9,7 +9,8 @@ Depends on:
 - [Phase 14 Experiment Infrastructure Plan](2026-06-15-rust-indexing-core-phase-14-experiment-infrastructure.md)
 - [Phase 15 Controlled Performance Gate Plan](2026-06-15-rust-indexing-core-phase-15-controlled-performance-gate.md) (to be authored)
 - GitHub tracker: #165 (Phase 15: Controlled performance gate interpretation), #49 (parent PRD)
-- Phase 14/15 rerun artifacts: `docs/benchmarks/2026-06-16-rust-indexing-core-phase-15d-vscode-matched-work-stress-rerun3.raw.json`
+- Phase 14/15 consolidated historical evidence:
+  `docs/benchmarks/2026-06-23-rust-indexing-core-phase-14-15-experiment-artifact-cleanup.md`
 
 ## Goal
 
@@ -231,8 +232,8 @@ required-target (`zcodegraph` + `excalidraw`) full-profile gate.
 ## Cross-References
 
 - Parent PRD: `docs/prds/2026-06-12-rust-indexing-core-vertical-slice.md`
-- Stress evidence: `docs/benchmarks/2026-06-16-rust-indexing-core-phase-15d-vscode-matched-work-stress-rerun3.raw.json`
-- Required full-profile gate (open): `docs/benchmarks/2026-06-16-rust-indexing-core-phase-14-required-only-rerun5.raw.json`
+- Phase 14/15 historical stress and required-target evidence:
+  `docs/benchmarks/2026-06-23-rust-indexing-core-phase-14-15-experiment-artifact-cleanup.md`
 - Parent tracking issues: #49 (PRD), #165 (Phase 15 controlled gate interpretation)
 
 ## Decision
@@ -242,14 +243,8 @@ Classification: `continue-with-batching-only`.
 Phase 15E produced reusable heap profiling and a durable VS Code matched-work
 stress rerun4 artifact:
 
-- Raw artifact:
-  `docs/benchmarks/2026-06-16-rust-indexing-core-phase-15e-vscode-matched-work-stress-rerun4.raw.json`
-- Decision summary draft:
-  `docs/benchmarks/2026-06-16-rust-indexing-core-phase-15e-vscode-matched-work-stress-rerun4-decision-summary-draft.md`
-- Heap report:
-  `docs/benchmarks/phase-15e-rerun4/dhat-heap.json`
-- Heap summary:
-  `docs/benchmarks/phase-15e-rerun4/dhat-summary.html`
+- Consolidated RSS evidence:
+  `docs/benchmarks/2026-06-23-rust-indexing-core-phase-15e-15f-rss-evidence-cleanup.md`
 
 Compared with Phase 15D rerun3, the VS Code matched-work stress RSS trend moved
 from Rust `+20.08%` versus TypeScript to Rust `-21.41%` versus TypeScript.

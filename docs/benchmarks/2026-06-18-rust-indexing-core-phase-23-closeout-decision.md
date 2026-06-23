@@ -27,9 +27,9 @@ The RSS table now includes unavailable-reason columns instead of only rendering 
 
 ## Inventory Classification
 
-Inventory artifact:
+Inventory details were absorbed into:
 
-- `docs/benchmarks/2026-06-18-rust-indexing-core-phase-23-experiment-inventory.md`
+- `docs/benchmarks/2026-06-23-rust-indexing-core-phase-22-23-evidence-pipeline-cleanup.md`
 
 Classification summary:
 
@@ -69,13 +69,12 @@ Commands run:
 
 Targeted smoke/profile artifacts generated from existing Phase 22 evidence:
 
-- `docs/benchmarks/2026-06-18-rust-indexing-core-phase-23-targeted-evidence-smoke-comparison.md`
-- `docs/benchmarks/2026-06-18-rust-indexing-core-phase-23-targeted-evidence-smoke-decision-draft.md`
+- `docs/benchmarks/2026-06-23-rust-indexing-core-phase-22-23-evidence-pipeline-cleanup.md`
 
 Smoke source artifacts:
 
-- Before: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-after.raw.json`
-- After: `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-issue-216-local-exact-after.raw.json`
+- Before: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md`
+- After: `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-decision.md`
 
 Smoke result:
 

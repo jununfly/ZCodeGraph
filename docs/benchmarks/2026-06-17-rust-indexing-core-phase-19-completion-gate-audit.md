@@ -24,11 +24,8 @@ The deeper post-PRD optimization gate remains separate: Rust should become at le
 | PRD | `docs/prds/2026-06-12-rust-indexing-core-vertical-slice.md` |
 | Phase 19 plan | `docs/plans/2026-06-17-rust-indexing-core-phase-19-prd-completion-gate.md` |
 | Phase 17 decision | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md` |
-| Phase 17 full raw | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-scoreboard-full.raw.json` |
-| Phase 17 full summary | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-scoreboard-full-summary.md` |
-| Phase 18 required raw | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-required-sqlite-after.raw.json` |
-| Phase 18 required summary | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-required-sqlite-after-summary.md` |
 | Phase 18 decision | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md` |
+| Phase 16-18 consolidated process evidence | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md` |
 
 ## Required Target Audit
 

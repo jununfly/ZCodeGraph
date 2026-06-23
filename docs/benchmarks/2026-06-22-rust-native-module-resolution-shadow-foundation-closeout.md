@@ -61,13 +61,9 @@ Default graph behavior did not change:
 
 ## Current Repo Evidence
 
-Artifacts:
+Generated profile, evidence, status, and oracle artifacts were absorbed into:
 
-- `docs/benchmarks/2026-06-22-rust-native-module-resolution-current.profile.json`
-- `docs/benchmarks/2026-06-22-rust-native-module-resolution-current.evidence.json`
-- `docs/benchmarks/2026-06-22-rust-native-module-resolution-current.status.json`
-- `docs/benchmarks/2026-06-22-rust-native-module-resolution-current-oracle.json`
-- `docs/benchmarks/2026-06-22-rust-native-module-resolution-current-oracle.md`
+- `docs/benchmarks/2026-06-23-rust-native-module-resolution-oracle-profile-cleanup.md`
 
 Rust profile summary:
 
@@ -103,10 +99,9 @@ Status:
 
 ## VS Code Sparse Evidence
 
-Artifacts:
+Generated evidence and status artifacts were absorbed into:
 
-- `docs/benchmarks/2026-06-22-rust-native-module-resolution-vscode-sparse.evidence.json`
-- `docs/benchmarks/2026-06-22-rust-native-module-resolution-vscode-sparse.status.json`
+- `docs/benchmarks/2026-06-23-rust-native-module-resolution-oracle-profile-cleanup.md`
 
 The checkout existed at:
 
@@ -135,20 +130,8 @@ cargo build -p zcodegraph-core
 
 Targeted profile/status:
 
-```bash
-CODEGRAPH_ALLOW_UNSAFE_NODE=1 CODEGRAPH_NO_DAEMON=1 CODEGRAPH_NO_RELAUNCH=1 \
-ZCODEGRAPH_RUST_CORE_BINARY=target/debug/zcodegraph-core \
-ZCODEGRAPH_INDEX_PROFILE_OUT=docs/benchmarks/2026-06-22-rust-native-module-resolution-current.profile.json \
-node scripts/targeted-profile-evidence.mjs \
-  --out docs/benchmarks/2026-06-22-rust-native-module-resolution-current.evidence.json \
-  --cwd . -- node dist/bin/zcodegraph.js index . --force --quiet --engine rust-hybrid
-
-node scripts/ts-module-resolution-oracle.mjs \
-  --project . \
-  --profile docs/benchmarks/2026-06-22-rust-native-module-resolution-current.profile.json \
-  --out-dir docs/benchmarks \
-  --prefix 2026-06-22-rust-native-module-resolution-current-oracle
-```
+Targeted profile/status commands are represented by the consolidated cleanup
+artifact above.
 
 ## Lessons
 

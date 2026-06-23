@@ -201,6 +201,78 @@ Edge Origin explains provenance; EdgeKind explains the relationship type.
 
 **Related terms:** EdgeKind, Synthesizer.
 
+### Evidence Artifact
+
+**Definition:** A replayable or inspectable file that records benchmark, smoke,
+profile, oracle, taxonomy, or closeout evidence for a specific decision.
+
+**Use when:** Discussing what data supports a decision, whether a benchmark can
+be audited later, or whether a raw/process file can be removed after its useful
+facts are consolidated.
+
+**Not:** A durable architecture decision. Evidence can support an ADR, but it
+does not replace the ADR's explanation of the decision and trade-off.
+
+**Related terms:** Decision Artifact, Roadmap, Agent Sufficiency.
+
+### Decision Artifact
+
+**Definition:** A durable summary that states what was decided, why, what scope
+is complete, and what remains deferred. It may cite Evidence Artifacts, but it
+must stand on its own for future agent navigation.
+
+**Use when:** Closing an issue, phase, plan, or roadmap branch; replacing a
+series of process files with a single reusable conclusion; or deciding whether
+a future agent can proceed without rereading raw experiments.
+
+**Not:** A temporary draft, raw profile, rerun log, or generated experiment
+summary.
+
+**Related terms:** Evidence Artifact, Roadmap, Semantic Frontier.
+
+### Roadmap
+
+**Definition:** The shared navigation map for a multi-step architecture effort:
+numbered nodes, progress state, mode, and node-level decisions.
+
+**Use when:** Coordinating long-running work across agents and human decisions,
+tracking which branch is mainline vs deferred, or deciding where the next slice
+should attach.
+
+**Not:** A static plan document. A Roadmap is updated as the work learns new
+boundaries.
+
+**Related terms:** Bounded Slice, Semantic Frontier, Decision Artifact.
+
+### Bounded Slice
+
+**Definition:** A deliberately scoped piece of implementation or validation
+work that can be tested, closed, and reasoned about without claiming the full
+semantic space is solved.
+
+**Use when:** Splitting resolver migration, graph-writing, language coverage,
+or performance work into safe units.
+
+**Not:** A workaround or partial truth. A Bounded Slice must say exactly what it
+does and what it leaves out.
+
+**Related terms:** Roadmap, Semantic Frontier, Evidence Artifact.
+
+### Semantic Frontier
+
+**Definition:** A known area where correct behavior depends on broader
+language, package, runtime, or product semantics that are not yet part of the
+current bounded route.
+
+**Use when:** Classifying `node_modules`, third-party package indexing,
+package-manager layouts, custom loaders, type-graph semantics, or multi-hop
+module-resolution behavior that should not be smuggled into a smaller slice.
+
+**Not:** A bug backlog. A Semantic Frontier item becomes implementation work
+only after it is promoted into a Bounded Slice or a new Roadmap branch.
+
+**Related terms:** Roadmap, Bounded Slice, Decision Artifact.
+
 ### Polymorphic Family
 
 **Definition:** A supertype and all its subtype implementors, treated as a unit

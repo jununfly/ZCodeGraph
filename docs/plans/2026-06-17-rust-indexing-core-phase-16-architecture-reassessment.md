@@ -108,8 +108,8 @@ VS Code sparse checkout should continue using the previously fixed corpus shape 
 
 - Main comparison profile: `matched-ts-js`.
 - Full-profile rollout readiness is out of scope.
-- Locked baseline manifest: `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-architecture-reassessment-baseline.experiment.json`.
-- SQLite candidate manifest: `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-sqlite-memory-final-flush-candidate.experiment.json`.
+- Locked baseline and SQLite candidate evidence:
+  `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md`.
 - Experimental SQLite write mode field: `rust.sqliteWriteMode`.
 - Supported SQLite write modes: `disk`, `memory-final-flush`.
 - Each key candidate requires one completed production-like smoke on the relevant targets.

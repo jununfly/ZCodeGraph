@@ -12,10 +12,8 @@ The post-PRD optimization gate remains open. This record does not claim Rust def
 
 ## Artifacts
 
-- Manifest: `docs/benchmarks/2026-06-17-rust-indexing-core-issue-205-vscode-finalization-profile.experiment.json`
-- Raw artifact: `docs/benchmarks/2026-06-17-rust-indexing-core-issue-205-vscode-finalization-profile.raw.json`
-- Generated summary: `docs/benchmarks/2026-06-17-rust-indexing-core-issue-205-vscode-finalization-profile-summary.md`
-- Historical comparison profile: `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-vscode-sqlite-after.raw.json`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
+- Historical Phase 18 comparison: `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md`
 
 ## Run Context
 

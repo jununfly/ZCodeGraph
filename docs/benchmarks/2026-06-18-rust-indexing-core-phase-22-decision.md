@@ -15,8 +15,7 @@ Architecture record:
 - Plan: `docs/plans/2026-06-18-rust-indexing-core-phase-22-evidence-pipeline-and-optimization-loop.md`
 - Evidence tool: `scripts/rust-indexing-evidence.mjs`
 - Tool tests: `__tests__/rust-indexing-evidence.test.ts`
-- #210 -> #211 comparison: `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-issue-213-215-comparison.md`
-- #210 -> #211 decision draft: `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-issue-213-215-decision-draft.md`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-phase-22-23-evidence-pipeline-cleanup.md`
 
 The evidence tool is local-only. It does not call GitHub, update issues, close issues, edit labels, or require network access.
 
@@ -48,13 +47,9 @@ The reduced fixture shows the target bucket moving in the intended direction wit
 
 ## Final After Scoreboard
 
-- Manifest: `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-issue-216-local-exact-after.experiment.json`
-- Raw artifact: `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-issue-216-local-exact-after.raw.json`
-- Generated summary: `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-issue-216-local-exact-after-summary.md`
-- Comparison: `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-issue-216-local-exact-comparison.md`
-- Generated decision draft: `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-issue-216-local-exact-decision-draft.md`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-phase-22-23-evidence-pipeline-cleanup.md`
 
-Comparison baseline: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-after.raw.json`.
+Comparison baseline: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md`.
 
 | Target | Sufficiency | Rust graphStats | Before localExactMs | After localExactMs | Delta | Before Rust ms | After Rust ms | Rust wall delta |
 |---|---|---|---:|---:|---:|---:|---:|---:|

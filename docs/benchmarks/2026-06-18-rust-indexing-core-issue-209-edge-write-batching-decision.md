@@ -21,16 +21,8 @@ The post-PRD optimization gate remains open. This record does not claim Rust def
 
 ## Artifacts
 
-- Required before manifest: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-required-edge-write-before.experiment.json`
-- Required before raw: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-required-edge-write-before.raw.json`
-- Required before summary: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-required-edge-write-before-summary.md`
-- Required after manifest: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-required-edge-write-after.experiment.json`
-- Required after raw: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-required-edge-write-after.raw.json`
-- Required after summary: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-required-edge-write-after-summary.md`
-- VS Code after manifest: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-vscode-edge-write-after.experiment.json`
-- VS Code after raw: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-vscode-edge-write-after.raw.json`
-- VS Code after summary: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-vscode-edge-write-after-summary.md`
-- Prior VS Code comparison: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-206-finalization-diagnostics.raw.json`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
+- Prior VS Code comparison: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-206-finalization-diagnostics-decision.md`
 
 ## Validation
 
@@ -39,8 +31,7 @@ Commands run:
 - `npm run build`
 - `npx vitest run __tests__/db-perf.test.ts __tests__/resolution.test.ts -t "prevalidated|edge materialization|insertEdges endpoint validation"`
 - `npx vitest run __tests__/db-perf.test.ts __tests__/resolution.test.ts __tests__/rust-name-matcher.test.ts __tests__/rust-index-profile.test.ts __tests__/rust-index-engine-cli.test.ts`
-- `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-indexing-experiment.mjs --experiment docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-required-edge-write-after.experiment.json --out docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-required-edge-write-after.raw.json --summary-out docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-required-edge-write-after-summary.md`
-- `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-indexing-experiment.mjs --experiment docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-vscode-edge-write-after.experiment.json --out docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-vscode-edge-write-after.raw.json --summary-out docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-vscode-edge-write-after-summary.md`
+- Generated experiment commands are represented by the consolidated cleanup artifact above.
 
 Focused tests passed. The broader focused suite passed: 5 files, 118 tests.
 

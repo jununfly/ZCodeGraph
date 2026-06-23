@@ -15,29 +15,15 @@ This candidate:
 
 ## Artifacts
 
-| Artifact | Path |
-|---|---|
-| Reduced before manifest | `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-reduced-cleanup-before.experiment.json` |
-| Reduced before raw | `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-reduced-cleanup-before.raw.json` |
-| Reduced before summary | `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-reduced-cleanup-before-summary.md` |
-| Reduced after manifest | `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-reduced-cleanup-after.experiment.json` |
-| Reduced after raw | `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-reduced-cleanup-after.raw.json` |
-| Reduced after summary | `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-reduced-cleanup-after-summary.md` |
-| Required before manifest | `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-required-cleanup-before.experiment.json` |
-| Required before raw | `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-required-cleanup-before.raw.json` |
-| Required before summary | `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-required-cleanup-before-summary.md` |
-| Required after manifest | `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-required-cleanup-after.experiment.json` |
-| Required after raw | `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-required-cleanup-after.raw.json` |
-| Required after summary | `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-required-cleanup-after-summary.md` |
+Generated manifests, raw experiment output, and generated summaries were absorbed into:
+
+- `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
 
 Validation commands:
 
 - `npm run build`
 - `npx vitest run __tests__/resolution.test.ts`
-- `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-indexing-experiment.mjs --experiment docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-reduced-cleanup-before.experiment.json --out docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-reduced-cleanup-before.raw.json --summary-out docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-reduced-cleanup-before-summary.md`
-- `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-indexing-experiment.mjs --experiment docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-reduced-cleanup-after.experiment.json --out docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-reduced-cleanup-after.raw.json --summary-out docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-reduced-cleanup-after-summary.md`
-- `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-indexing-experiment.mjs --experiment docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-required-cleanup-before.experiment.json --out docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-required-cleanup-before.raw.json --summary-out docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-required-cleanup-before-summary.md`
-- `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-indexing-experiment.mjs --experiment docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-required-cleanup-after.experiment.json --out docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-required-cleanup-after.raw.json --summary-out docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-required-cleanup-after-summary.md`
+- Reduced and required target experiment commands are represented by the consolidated cleanup artifact above.
 
 ## Segment Evidence
 
