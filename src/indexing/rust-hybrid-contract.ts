@@ -3,7 +3,7 @@ import { isGeneratedFile } from '../extraction/generated-detection';
 import { scanDirectory } from '../extraction';
 
 export const RUST_HYBRID_PHASE = 'phase-6-rust-owned-per-file-gap-fallback';
-export const RUST_HYBRID_RUST_OWNED_LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx', 'go'] as const;
+export const RUST_HYBRID_RUST_OWNED_LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'python'] as const;
 export type RustHybridFallbackState = 'healthy' | 'degraded' | 'pending';
 export type RustOwnedGapCode =
   | 'rust-owned-parse-gap'
@@ -29,6 +29,8 @@ export interface RustHybridAssignmentPlan {
   engineByFileCount: Record<string, number>;
   fallbackByLanguage: Record<string, number>;
   fallbackFileCount: number;
+  missingFallbackByLanguage: Record<string, number>;
+  missingFallbackFileCount: number;
   skippedGeneratedByLanguage: Record<string, number>;
   fallbackState: RustHybridFallbackState;
   fallbackReasonTaxonomy: Record<string, number>;
@@ -42,6 +44,8 @@ export interface RustHybridMetadata {
   engineByFileCount: Record<string, number>;
   fallbackByLanguage: Record<string, number>;
   fallbackFileCount: number;
+  missingFallbackByLanguage: Record<string, number>;
+  missingFallbackFileCount: number;
   fallbackState: RustHybridFallbackState;
   fallbackMessage: string;
   fallbackReasonTaxonomy: Record<string, number>;
@@ -62,6 +66,8 @@ export function buildRustHybridMetadataFromPlan(plan: RustHybridAssignmentPlan):
     engineByFileCount: plan.engineByFileCount,
     fallbackByLanguage: plan.fallbackByLanguage,
     fallbackFileCount: plan.fallbackFileCount,
+    missingFallbackByLanguage: plan.missingFallbackByLanguage,
+    missingFallbackFileCount: plan.missingFallbackFileCount,
     fallbackState: plan.fallbackState,
     fallbackMessage: plan.fallbackFileCount > 0 || hasFallbackDiagnostics
       ? fallbackMessage(plan)
@@ -83,6 +89,9 @@ function fallbackMessage(plan: RustHybridAssignmentPlan): string {
   }
   if (rustOwnedGapCount > 0) {
     messages.push(`Rust-owned gap diagnostics recorded ${rustOwnedGapCount} file(s) without TypeScript fallback append.`);
+  }
+  if (plan.missingFallbackFileCount > 0) {
+    messages.push(`Sparse checkout omitted ${plan.missingFallbackFileCount} planned TypeScript fallback file(s).`);
   }
   return messages.length > 0
     ? messages.join(' ')
@@ -140,6 +149,37 @@ export function mergeRustOwnedGapDiagnostics(
   };
 }
 
+export function mergeMissingFallbackDiagnostics(
+  plan: RustHybridAssignmentPlan,
+  diagnostics: {
+    missingFallbackByLanguage?: Record<string, number>;
+    missingFallbackFileCount?: number;
+  },
+): RustHybridAssignmentPlan {
+  const missingFallbackFileCount = diagnostics.missingFallbackFileCount ?? 0;
+  if (missingFallbackFileCount <= 0) return plan;
+
+  const missingFallbackByLanguage = {
+    ...plan.missingFallbackByLanguage,
+  };
+  for (const [language, count] of Object.entries(diagnostics.missingFallbackByLanguage ?? {})) {
+    missingFallbackByLanguage[language] = (missingFallbackByLanguage[language] ?? 0) + count;
+  }
+
+  const fallbackReasonTaxonomy = {
+    ...plan.fallbackReasonTaxonomy,
+    'language-level-fallback-missing-file': (plan.fallbackReasonTaxonomy['language-level-fallback-missing-file'] ?? 0) + missingFallbackFileCount,
+  };
+
+  return {
+    ...plan,
+    missingFallbackByLanguage,
+    missingFallbackFileCount: plan.missingFallbackFileCount + missingFallbackFileCount,
+    fallbackState: 'degraded',
+    fallbackReasonTaxonomy,
+  };
+}
+
 export function planRustHybridAssignments(projectPath: string): RustHybridAssignmentPlan {
   const rustOwnedFiles: string[] = [];
   const fallbackFiles: string[] = [];
@@ -181,6 +221,8 @@ export function planRustHybridAssignments(projectPath: string): RustHybridAssign
     engineByFileCount,
     fallbackByLanguage,
     fallbackFileCount: fallbackFiles.length,
+    missingFallbackByLanguage: {},
+    missingFallbackFileCount: 0,
     skippedGeneratedByLanguage,
     fallbackState: fallbackFiles.length > 0 ? 'degraded' : 'healthy',
     fallbackReasonTaxonomy: fallbackFiles.length > 0 ? { 'language-level-typescript-fallback': fallbackFiles.length } : {},

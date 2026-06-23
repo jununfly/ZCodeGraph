@@ -193,8 +193,8 @@ describe('SDK rust-hybrid full-index alignment', () => {
     }
   }, 30_000);
 
-  it('appends language-level TypeScript fallback files through SDK rust-hybrid', async () => {
-    const dir = makeProject('language-fallback');
+  it('indexes Python through SDK rust-hybrid as a Rust-owned language', async () => {
+    const dir = makeProject('python-rust-owned');
     tempDirs.push(dir);
     fs.writeFileSync(path.join(dir, 'worker.py'), 'def worker():\n    return 1\n');
     const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
@@ -207,8 +207,38 @@ describe('SDK rust-hybrid full-index alignment', () => {
       expect(result.success).toBe(true);
       expect(cg.searchNodes('worker').some((match) => match.node.language === 'python')).toBe(true);
       expect(cg.getIndexBuildInfo().hybrid).toMatchObject({
+        rustOwnedLanguages: expect.arrayContaining(['python']),
+        engineByLanguage: { python: 'rust' },
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
+        fallbackReasonTaxonomy: {},
+      });
+    } finally {
+      if (previousRustCore == null) {
+        delete process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+      } else {
+        process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
+      }
+      cg.close();
+    }
+  }, 30_000);
+
+  it('appends language-level TypeScript fallback files through SDK rust-hybrid', async () => {
+    const dir = makeProject('language-fallback');
+    tempDirs.push(dir);
+    fs.writeFileSync(path.join(dir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
+    const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+    process.env.ZCODEGRAPH_RUST_CORE_BINARY = RUST_CORE_BIN;
+
+    const cg = await CodeGraph.init(dir, { index: false });
+    try {
+      const result = await cg.indexAll();
+
+      expect(result.success).toBe(true);
+      expect(cg.searchNodes('worker').some((match) => match.node.language === 'rust')).toBe(true);
+      expect(cg.getIndexBuildInfo().hybrid).toMatchObject({
         fallbackState: 'degraded',
-        fallbackByLanguage: { python: 1 },
+        fallbackByLanguage: { rust: 1 },
         fallbackFileCount: 1,
         fallbackReasonTaxonomy: { 'language-level-typescript-fallback': 1 },
       });
@@ -218,6 +248,35 @@ describe('SDK rust-hybrid full-index alignment', () => {
       } else {
         process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
       }
+      cg.close();
+    }
+  }, 30_000);
+
+  it('treats missing language-level fallback files as degraded diagnostics without weakening ordinary file indexing', async () => {
+    const dir = makeProject('missing-language-fallback');
+    tempDirs.push(dir);
+    fs.writeFileSync(path.join(dir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
+
+    const cg = await CodeGraph.init(dir, { index: false });
+    try {
+      await expect(cg.indexFiles(['worker.rs'])).resolves.toMatchObject({
+        success: true,
+      });
+      await expect(cg.indexFiles(['missing.rs'])).resolves.toMatchObject({
+        success: false,
+      });
+
+      const result = await cg.indexFallbackFiles(['worker.rs', 'missing.rs']);
+
+      expect(result.success).toBe(true);
+      expect(result.fallbackFileCount).toBe(2);
+      expect(result.errorTaxonomy).toMatchObject({
+        'language-level-fallback-missing-file': 1,
+      });
+      expect(result.missingFallbackFileCount).toBe(1);
+      expect(result.missingFallbackByLanguage).toEqual({ rust: 1 });
+      expect(cg.searchNodes('worker').some((match) => match.node.language === 'rust')).toBe(true);
+    } finally {
       cg.close();
     }
   }, 30_000);

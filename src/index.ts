@@ -6,6 +6,7 @@
  */
 
 import * as path from 'path';
+import * as fs from 'fs';
 import {
   Node,
   Edge,
@@ -57,6 +58,7 @@ import { IndexEngine } from './indexing/engine-selection';
 import { runRustIndexer } from './indexing/rust-indexer';
 import {
   buildRustHybridMetadataFromPlan,
+  mergeMissingFallbackDiagnostics,
   mergeRustOwnedGapDiagnostics,
   planRustHybridAssignments,
   RustOwnedPerFileGapDiagnostic,
@@ -472,12 +474,15 @@ export class CodeGraph {
         try {
           let fallbackResult: Awaited<ReturnType<typeof cg.indexFallbackFiles>> | null = null;
           const hybridPlan = engine === 'rust-hybrid' ? planRustHybridAssignments(this.projectRoot) : null;
-          const runtimeHybridPlan = engine === 'rust-hybrid' && hybridPlan
+          let runtimeHybridPlan = engine === 'rust-hybrid' && hybridPlan
             ? mergeRustOwnedGapDiagnostics(hybridPlan, result.errors as RustOwnedPerFileGapDiagnostic[])
             : hybridPlan;
 
           if (engine === 'rust-hybrid' && runtimeHybridPlan && runtimeHybridPlan.fallbackFiles.length > 0) {
             fallbackResult = await cg.indexFallbackFiles(runtimeHybridPlan.fallbackFiles);
+            if (fallbackResult.missingFallbackFileCount > 0) {
+              runtimeHybridPlan = mergeMissingFallbackDiagnostics(runtimeHybridPlan, fallbackResult);
+            }
             if (!fallbackResult.success) {
               return {
                 success: false,
@@ -493,6 +498,8 @@ export class CodeGraph {
                   typescriptFallbackAppend: {
                     durationMs: fallbackResult.durationMs,
                     fallbackFileCount: fallbackResult.fallbackFileCount,
+                    missingFallbackFileCount: fallbackResult.missingFallbackFileCount,
+                    missingFallbackByLanguage: fallbackResult.missingFallbackByLanguage,
                     errorTaxonomy: fallbackResult.errorTaxonomy,
                   },
                 },
@@ -525,6 +532,8 @@ export class CodeGraph {
               typescriptFallbackAppend: {
                 durationMs: fallbackResult.durationMs,
                 fallbackFileCount: fallbackResult.fallbackFileCount,
+                missingFallbackFileCount: fallbackResult.missingFallbackFileCount,
+                missingFallbackByLanguage: fallbackResult.missingFallbackByLanguage,
                 errorTaxonomy: fallbackResult.errorTaxonomy,
               },
             } : {}),
@@ -601,18 +610,57 @@ export class CodeGraph {
    */
   async indexFallbackFiles(filePaths: string[]): Promise<IndexResult & {
     fallbackFileCount: number;
+    missingFallbackFileCount: number;
+    missingFallbackByLanguage: Record<string, number>;
     errorTaxonomy: Record<string, number>;
   }> {
     const started = Date.now();
-    const result = await this.indexFiles(filePaths);
+    const existingFilePaths: string[] = [];
+    const missingFallbackByLanguage: Record<string, number> = {};
+    const missingErrors = [];
+
+    for (const filePath of filePaths) {
+      const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(this.projectRoot, filePath);
+      if (fs.existsSync(absolutePath)) {
+        existingFilePaths.push(filePath);
+        continue;
+      }
+
+      const language = detectLanguage(filePath);
+      missingFallbackByLanguage[language] = (missingFallbackByLanguage[language] ?? 0) + 1;
+      missingErrors.push({
+        message: `Planned TypeScript fallback file is missing: ${filePath}`,
+        filePath,
+        severity: 'warning' as const,
+        code: 'language-level-fallback-missing-file',
+      });
+    }
+
+    const result = existingFilePaths.length > 0
+      ? await this.indexFiles(existingFilePaths)
+      : {
+        success: true,
+        filesIndexed: 0,
+        filesSkipped: 0,
+        filesErrored: 0,
+        nodesCreated: 0,
+        edgesCreated: 0,
+        errors: [],
+        durationMs: 0,
+      };
     const errorTaxonomy: Record<string, number> = {};
-    for (const err of result.errors) {
+    const errors = [...result.errors, ...missingErrors];
+    for (const err of errors) {
       const key = err.code ?? (err.severity === 'warning' ? 'warning' : 'unknown');
       errorTaxonomy[key] = (errorTaxonomy[key] ?? 0) + 1;
     }
     return {
       ...result,
+      filesErrored: result.filesErrored + missingErrors.length,
+      errors,
       fallbackFileCount: filePaths.length,
+      missingFallbackFileCount: missingErrors.length,
+      missingFallbackByLanguage,
       errorTaxonomy,
       durationMs: Date.now() - started,
     };

@@ -24,6 +24,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New Features
 
+- `rust-hybrid` indexing now owns baseline Python extraction by default, so ordinary Python files are indexed by the Rust path instead of being appended through same-language TypeScript fallback. (#485, #486, #487)
 - `rust-hybrid` indexing now understands repo-local TypeScript config inheritance for module resolution, including inherited paths aliases, rootDirs, and safer package-map behavior for classic module resolution. (#447, #448, #449)
 - `rust-hybrid` indexing now follows repo-local package `exports` and `imports` condition order more closely, including `types`, CommonJS `require`, and configured custom conditions. (#451, #452, #453)
 - `rust-hybrid` indexing now resolves extensionless repo-local imports through modern TypeScript source extensions such as `.mts` and `.cts`, while keeping config/data files out of graph-edge candidates. (#455, #456, #457)
@@ -48,6 +49,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixes
 
+- `rust-hybrid` indexing now completes sparse-checkout projects when a planned non-Rust-owned fallback file is missing, and reports the missing fallback coverage as degraded diagnostics instead of failing the whole run. (#482, #483, #484)
 - `rust-hybrid` indexing now reuses Rust parser instances by source language during extraction, reducing repeated parser setup work without changing indexed results or fallback behavior. (#292)
 - `rust-hybrid` indexing now writes Rust-extracted source facts in a single bulk transaction, reducing large-project indexing overhead without changing indexed results or fallback behavior. (#288)
 - `rust-hybrid` now handles TypeScript `import("...")` type queries used in `as` assertions and function-type returns, avoiding unnecessary TypeScript fallback on valid project files. (#282)

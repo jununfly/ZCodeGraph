@@ -35,6 +35,7 @@ import { IndexEngine, resolveIndexEngine } from '../indexing/engine-selection';
 import { getRustReadinessDiagnostics, runRustIndexer } from '../indexing/rust-indexer';
 import {
   buildRustHybridMetadataFromPlan,
+  mergeMissingFallbackDiagnostics,
   mergeRustOwnedGapDiagnostics,
   planRustHybridAssignments,
   RustOwnedPerFileGapDiagnostic,
@@ -323,6 +324,8 @@ type RustIndexProfile = {
   typescriptFallbackAppend?: {
     durationMs: number;
     fallbackFileCount: number;
+    missingFallbackFileCount?: number;
+    missingFallbackByLanguage?: Record<string, number>;
     errorTaxonomy: Record<string, number>;
   };
   finalize?: unknown;
@@ -553,11 +556,14 @@ async function runSelectedIndex(
   const cg = await CodeGraph.open(projectPath);
   try {
     let fallbackResult: Awaited<ReturnType<typeof cg.indexFallbackFiles>> | null = null;
-    const runtimeHybridPlan = engine === 'rust-hybrid' && hybridPlan
+    let runtimeHybridPlan = engine === 'rust-hybrid' && hybridPlan
       ? mergeRustOwnedGapDiagnostics(hybridPlan, result.errors as RustOwnedPerFileGapDiagnostic[])
       : hybridPlan;
     if (engine === 'rust-hybrid' && runtimeHybridPlan && runtimeHybridPlan.fallbackFiles.length > 0) {
       fallbackResult = await cg.indexFallbackFiles(runtimeHybridPlan.fallbackFiles);
+      if (fallbackResult.missingFallbackFileCount > 0) {
+        runtimeHybridPlan = mergeMissingFallbackDiagnostics(runtimeHybridPlan, fallbackResult);
+      }
       if (!fallbackResult.success) {
         return {
           success: false,
@@ -573,6 +579,8 @@ async function runSelectedIndex(
             typescriptFallbackAppend: {
               durationMs: fallbackResult.durationMs,
               fallbackFileCount: fallbackResult.fallbackFileCount,
+              missingFallbackFileCount: fallbackResult.missingFallbackFileCount,
+              missingFallbackByLanguage: fallbackResult.missingFallbackByLanguage,
               errorTaxonomy: fallbackResult.errorTaxonomy,
             },
           },
@@ -605,6 +613,8 @@ async function runSelectedIndex(
         typescriptFallbackAppend: {
           durationMs: fallbackResult.durationMs,
           fallbackFileCount: fallbackResult.fallbackFileCount,
+          missingFallbackFileCount: fallbackResult.missingFallbackFileCount,
+          missingFallbackByLanguage: fallbackResult.missingFallbackByLanguage,
           errorTaxonomy: fallbackResult.errorTaxonomy,
         },
       } : {}),

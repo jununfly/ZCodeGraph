@@ -5,7 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { CodeGraph } from '../src';
 import { ToolHandler } from '../src/mcp/tools';
-import { buildRustHybridMetadataFromPlan, mergeRustOwnedGapDiagnostics, planRustHybridAssignments } from '../src/indexing/rust-hybrid-contract';
+import { buildRustHybridMetadataFromPlan, mergeMissingFallbackDiagnostics, mergeRustOwnedGapDiagnostics, planRustHybridAssignments } from '../src/indexing/rust-hybrid-contract';
 
 const BIN = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
 const RUST_CORE_BIN = path.resolve(
@@ -403,6 +403,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('plans Rust-owned and TypeScript fallback files for rust-hybrid', () => {
     fs.writeFileSync(path.join(tempDir, 'server.go'), 'package main\nfunc main() {}\n');
+    fs.writeFileSync(path.join(tempDir, 'service.py'), 'def service():\n    return 1\n');
     fs.writeFileSync(path.join(tempDir, 'routing.yml'), 'app:\n  path: /health\n');
     fs.writeFileSync(path.join(tempDir, 'notes.txt'), 'not source\n');
     fs.writeFileSync(path.join(tempDir, 'service.pb.go'), 'package main\n');
@@ -411,13 +412,16 @@ describe('zcodegraph index engine selection', () => {
 
     expect(plan.rustOwnedFiles).toContain('a.ts');
     expect(plan.rustOwnedFiles).toContain('server.go');
+    expect(plan.rustOwnedFiles).toContain('service.py');
     expect(plan.fallbackFiles).toContain('routing.yml');
     expect(plan.unsupportedFiles).toEqual([]);
     expect(plan.fallbackFiles).not.toContain('notes.txt');
-    expect(plan.engineByLanguage).toMatchObject({ typescript: 'rust', go: 'rust', yaml: 'typescript' });
-    expect(plan.engineByFileCount).toMatchObject({ rust: 2, typescript: 1 });
+    expect(plan.engineByLanguage).toMatchObject({ typescript: 'rust', go: 'rust', python: 'rust', yaml: 'typescript' });
+    expect(plan.engineByFileCount).toMatchObject({ rust: 3, typescript: 1 });
     expect(plan.fallbackByLanguage).toMatchObject({ yaml: 1 });
     expect(plan.fallbackFileCount).toBe(1);
+    expect(plan.missingFallbackByLanguage).toEqual({});
+    expect(plan.missingFallbackFileCount).toBe(0);
     expect(plan.skippedGeneratedByLanguage.go).toBe(1);
     expect(plan.fallbackState).toBe('degraded');
     expect(plan.fallbackReasonTaxonomy).toMatchObject({ 'language-level-typescript-fallback': 1 });
@@ -450,7 +454,31 @@ describe('zcodegraph index engine selection', () => {
     expect(metadata.fallbackMessage).toContain('without TypeScript fallback append');
   });
 
-  it('indexes non-Rust-owned supported languages through TypeScript fallback under rust-hybrid', () => {
+  it('records sparse-missing fallback diagnostics in rust-hybrid metadata', () => {
+    fs.writeFileSync(path.join(tempDir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
+    const plan = planRustHybridAssignments(tempDir);
+    const merged = mergeMissingFallbackDiagnostics(plan, {
+      missingFallbackFileCount: 1,
+      missingFallbackByLanguage: { rust: 1 },
+    });
+
+    const metadata = buildRustHybridMetadataFromPlan(merged);
+
+    expect(metadata).toMatchObject({
+      fallbackState: 'degraded',
+      fallbackByLanguage: { rust: 1 },
+      fallbackFileCount: 1,
+      fallbackReasonTaxonomy: {
+        'language-level-typescript-fallback': 1,
+        'language-level-fallback-missing-file': 1,
+      },
+      missingFallbackFileCount: 1,
+      missingFallbackByLanguage: { rust: 1 },
+    });
+    expect(metadata.fallbackMessage).toContain('Sparse checkout omitted 1 planned TypeScript fallback file');
+  });
+
+  it('indexes Python as Rust-owned under rust-hybrid', () => {
     fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
 
     const result = runCli(tempDir, ['index', '--quiet'], {
@@ -465,9 +493,11 @@ describe('zcodegraph index engine selection', () => {
       const buildInfo = cg.getIndexBuildInfo();
       expect(buildInfo.engine).toBe('rust-hybrid');
       expect(buildInfo.hybrid).toMatchObject({
-        fallbackState: 'degraded',
-        fallbackByLanguage: { python: 1 },
-        fallbackFileCount: 1,
+        rustOwnedLanguages: expect.arrayContaining(['python']),
+        engineByLanguage: { python: 'rust' },
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
+        fallbackReasonTaxonomy: {},
         pendingFallbacks: ['rust-owned-parse-gap'],
       });
     } finally {
@@ -559,7 +589,7 @@ describe('zcodegraph index engine selection', () => {
   }, 30_000);
 
   it('prints a concise fallback summary when rust-hybrid appends fallback files', () => {
-    fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
+    fs.writeFileSync(path.join(tempDir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
 
     const result = runCli(tempDir, ['index'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
@@ -578,14 +608,14 @@ describe('zcodegraph index engine selection', () => {
       expect(initial.success, JSON.stringify(initial.errors, null, 2)).toBe(true);
       expect(cg.searchNodes('alpha').some((match) => match.node.language === 'typescript')).toBe(true);
 
-      fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
-      const appended = await cg.indexFallbackFiles(['worker.py']);
+      fs.writeFileSync(path.join(tempDir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
+      const appended = await cg.indexFallbackFiles(['worker.rs']);
 
       expect(appended.success).toBe(true);
       expect(appended.fallbackFileCount).toBe(1);
       expect(appended.errorTaxonomy).toEqual({});
       expect(cg.searchNodes('alpha').some((match) => match.node.language === 'typescript')).toBe(true);
-      expect(cg.searchNodes('worker').some((match) => match.node.language === 'python')).toBe(true);
+      expect(cg.searchNodes('worker').some((match) => match.node.language === 'rust')).toBe(true);
       expect(cg.getIndexBuildInfo().engine).not.toBe('typescript');
     } finally {
       cg.close();
@@ -881,7 +911,7 @@ describe('zcodegraph index engine selection', () => {
     expect(status.index.engine).toBe('rust-hybrid');
     expect(status.index.hybrid).toMatchObject({
       phase: 'phase-6-rust-owned-per-file-gap-fallback',
-      rustOwnedLanguages: ['javascript', 'jsx', 'typescript', 'tsx', 'go'],
+      rustOwnedLanguages: ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'python'],
       engineByLanguage: { typescript: 'rust' },
       engineByFileCount: { rust: 1 },
       fallbackByLanguage: {},
@@ -1417,13 +1447,21 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
     fs.writeFileSync(
-      path.join(tempDir, 'rust-candidate-producer.py'),
+      path.join(tempDir, 'rust-candidate-producer-helper.ts'),
       [
-        'def producerHelper():',
-        '    return 1',
+        'export function producerHelper(): number {',
+        '  return 1;',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'rust-candidate-producer-calls.ts'),
+      [
+        'type MixedProducerAlias = MixedProducerName;',
         '',
-        'def producerEntry(value: MixedProducerName):',
-        '    return producerHelper()',
+        'export function producerEntry(value: MixedProducerName): number {',
+        '  return producerHelper();',
+        '}',
       ].join('\n') + '\n',
     );
 
@@ -1493,13 +1531,19 @@ describe('zcodegraph index engine selection', () => {
     const makeProject = (): string => {
       const dir = makeTempProject();
       fs.writeFileSync(
-        path.join(dir, 'rust-candidate-producer-guard.py'),
+        path.join(dir, 'rust-candidate-producer-guard-helper.ts'),
         [
-          'def producerGuardHelper():',
-          '    return 1',
-          '',
-          'def producerGuardEntry():',
-          '    return producerGuardHelper()',
+          'export function producerGuardHelper(): number {',
+          '  return 1;',
+          '}',
+        ].join('\n') + '\n',
+      );
+      fs.writeFileSync(
+        path.join(dir, 'rust-candidate-producer-guard.ts'),
+        [
+          'export function producerGuardEntry(): number {',
+          '  return producerGuardHelper();',
+          '}',
         ].join('\n') + '\n',
       );
       return dir;
@@ -1565,13 +1609,19 @@ describe('zcodegraph index engine selection', () => {
     const makeProject = (config: string | null, profileName: string): { dir: string; profileOut: string } => {
       const dir = makeTempProject();
       fs.writeFileSync(
-        path.join(dir, 'rust-candidate-routing.py'),
+        path.join(dir, 'rust-candidate-routing-helper.ts'),
         [
-          'def routingHelper():',
-          '    return 1',
-          '',
-          'def routingEntry():',
-          '    return routingHelper()',
+          'export function routingHelper(): number {',
+          '  return 1;',
+          '}',
+        ].join('\n') + '\n',
+      );
+      fs.writeFileSync(
+        path.join(dir, 'rust-candidate-routing.ts'),
+        [
+          'export function routingEntry(): number {',
+          '  return routingHelper();',
+          '}',
         ].join('\n') + '\n',
       );
       if (config !== null) {

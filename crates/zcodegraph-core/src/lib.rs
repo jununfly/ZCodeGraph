@@ -6921,6 +6921,16 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                 )?;
+            } else if language.is_python() {
+                extract_python_symbols(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else {
                 extract_top_level_js_symbols(
                     parsed.root_node(),
@@ -7195,6 +7205,7 @@ enum SourceLanguage {
     Mts,
     Cts,
     Go,
+    Python,
 }
 
 impl SourceLanguage {
@@ -7207,6 +7218,7 @@ impl SourceLanguage {
             Some("mts") => Some(Self::Mts),
             Some("cts") => Some(Self::Cts),
             Some("go") => Some(Self::Go),
+            Some("py") | Some("pyw") => Some(Self::Python),
             _ => None,
         }
     }
@@ -7218,6 +7230,7 @@ impl SourceLanguage {
             Self::TypeScript | Self::Mts | Self::Cts => "typescript",
             Self::Tsx => "tsx",
             Self::Go => "go",
+            Self::Python => "python",
         }
     }
 
@@ -7229,6 +7242,7 @@ impl SourceLanguage {
             }
             Self::Tsx => tree_sitter_typescript::LANGUAGE_TSX.into(),
             Self::Go => tree_sitter_go::LANGUAGE.into(),
+            Self::Python => tree_sitter_python::LANGUAGE.into(),
         }
     }
 
@@ -7238,6 +7252,10 @@ impl SourceLanguage {
 
     fn is_go(self) -> bool {
         matches!(self, Self::Go)
+    }
+
+    fn is_python(self) -> bool {
+        matches!(self, Self::Python)
     }
 }
 
@@ -7802,6 +7820,221 @@ fn go_type_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
             .and_then(|child| child.utf8_text(source).ok().map(ToString::to_string)),
         _ => None,
     }
+}
+
+fn extract_python_symbols(
+    root: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let module_name = Path::new(relative_path)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or(relative_path);
+    let module_node = ExtractedNode::symbol(relative_path, "module", module_name, root, "python");
+    let module_node_id = module_node.id.clone();
+    edges.push(ExtractedEdge {
+        source: file_node_id.to_string(),
+        target: module_node_id.clone(),
+        kind: "contains".to_string(),
+        line: module_node.start_line,
+        col: module_node.start_column,
+    });
+    nodes.push(module_node);
+
+    let mut cursor = root.walk();
+    visit_python_node(
+        &mut cursor,
+        source,
+        relative_path,
+        file_node_id,
+        &module_node_id,
+        None,
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
+    Ok(())
+}
+
+fn visit_python_node(
+    cursor: &mut TreeCursor,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    current_from_node_id: &str,
+    current_class_name: Option<&str>,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let node = cursor.node();
+    let mut child_from_node_id: Cow<'_, str> = Cow::Borrowed(current_from_node_id);
+    let mut child_class_name: Option<String> = current_class_name.map(ToString::to_string);
+
+    if let Some((kind, name, name_node)) =
+        extract_python_named_symbol(node, source, current_class_name)?
+    {
+        let extracted = ExtractedNode::symbol(relative_path, kind, &name, node, "python");
+        let extracted_id = extracted.id.clone();
+        let contains_source = if matches!(kind, "method") {
+            current_from_node_id
+        } else {
+            file_node_id
+        };
+        edges.push(ExtractedEdge {
+            source: contains_source.to_string(),
+            target: extracted_id.clone(),
+            kind: "contains".to_string(),
+            line: extracted.start_line,
+            col: extracted.start_column,
+        });
+        nodes.push(extracted);
+
+        if kind == "class" {
+            child_from_node_id = Cow::Owned(extracted_id);
+            child_class_name = Some(name_node.utf8_text(source)?.to_string());
+        } else if kind == "function" || kind == "method" {
+            child_from_node_id = Cow::Owned(extracted_id);
+        }
+    }
+
+    extract_python_imports(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
+
+    if cursor.goto_first_child() {
+        loop {
+            visit_python_node(
+                cursor,
+                source,
+                relative_path,
+                file_node_id,
+                &child_from_node_id,
+                child_class_name.as_deref(),
+                nodes,
+                edges,
+                unresolved_refs,
+            )?;
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+        cursor.goto_parent();
+    }
+
+    Ok(())
+}
+
+fn extract_python_named_symbol<'a>(
+    node: SyntaxNode<'a>,
+    source: &[u8],
+    current_class_name: Option<&str>,
+) -> Result<Option<(&'static str, String, SyntaxNode<'a>)>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "class_definition" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "class",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "function_definition" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                let function_name = name_node.utf8_text(source)?;
+                if let Some(class_name) = current_class_name {
+                    return Ok(Some((
+                        "method",
+                        format!("{class_name}.{function_name}"),
+                        name_node,
+                    )));
+                }
+                return Ok(Some(("function", function_name.to_string(), name_node)));
+            }
+        }
+        _ => {}
+    }
+    Ok(None)
+}
+
+fn extract_python_imports(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !matches!(node.kind(), "import_statement" | "import_from_statement") {
+        return Ok(());
+    }
+
+    for module in python_import_modules(node.utf8_text(source)?) {
+        let import_node = ExtractedNode::symbol(relative_path, "import", &module, node, "python");
+        let import_node_id = import_node.id.clone();
+        edges.push(ExtractedEdge {
+            source: from_node_id.to_string(),
+            target: import_node_id,
+            kind: "contains".to_string(),
+            line: import_node.start_line,
+            col: import_node.start_column,
+        });
+        nodes.push(import_node);
+        push_ref(
+            unresolved_refs,
+            from_node_id,
+            &module,
+            "imports",
+            node,
+            relative_path,
+            SourceLanguage::Python,
+        );
+    }
+
+    Ok(())
+}
+
+fn python_import_modules(statement: &str) -> Vec<String> {
+    let statement = statement.trim();
+    if let Some(rest) = statement.strip_prefix("import ") {
+        return rest
+            .split(',')
+            .filter_map(|part| {
+                let module = part
+                    .trim()
+                    .split_once(" as ")
+                    .map(|(left, _)| left)
+                    .unwrap_or_else(|| part.trim())
+                    .trim();
+                (!module.is_empty()).then(|| module.to_string())
+            })
+            .collect();
+    }
+
+    if let Some(rest) = statement.strip_prefix("from ") {
+        let module = rest
+            .split_once(" import ")
+            .map(|(module, _)| module.trim())
+            .unwrap_or("");
+        if !module.is_empty() {
+            return vec![module.to_string()];
+        }
+    }
+
+    Vec::new()
 }
 
 fn visit_js_node(
@@ -9137,6 +9370,100 @@ mod tests {
             .unwrap();
         assert_eq!(journal_mode.to_lowercase(), "wal");
         assert_eq!(synchronous, 1);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn indexes_minimal_python_symbols_and_imports() {
+        let dir = temp_dir("python-baseline");
+        fs::write(
+            dir.join("service.py"),
+            [
+                "import os",
+                "from package.worker import helper",
+                "",
+                "class Service:",
+                "    def handle(self):",
+                "        return helper()",
+                "",
+                "def top_level():",
+                "    return os.getcwd()",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        let mut conn = Connection::open(dir.join("zcodegraph.db")).unwrap();
+        conn.execute_batch(SCHEMA_SQL).unwrap();
+
+        let counts = index_javascript_files(
+            &mut conn,
+            &dir,
+            GraphWorkProfile::MatchedTsJs.features(),
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(counts.files_indexed, 1);
+        assert_eq!(counts.files_errored, 0);
+
+        let mut stmt = conn
+            .prepare("SELECT kind, name, language FROM nodes WHERE file_path = 'service.py'")
+            .unwrap();
+        let nodes = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+
+        assert!(nodes.contains(&(
+            "file".to_string(),
+            "service.py".to_string(),
+            "python".to_string()
+        )));
+        assert!(nodes.contains(&(
+            "class".to_string(),
+            "Service".to_string(),
+            "python".to_string()
+        )));
+        assert!(nodes.contains(&(
+            "method".to_string(),
+            "Service.handle".to_string(),
+            "python".to_string()
+        )));
+        assert!(nodes.contains(&(
+            "function".to_string(),
+            "top_level".to_string(),
+            "python".to_string()
+        )));
+        assert!(nodes.contains(&("import".to_string(), "os".to_string(), "python".to_string())));
+        assert!(nodes.contains(&(
+            "import".to_string(),
+            "package.worker".to_string(),
+            "python".to_string()
+        )));
+
+        let import_refs: Vec<String> = conn
+            .prepare(
+                "SELECT reference_name FROM unresolved_refs
+                 WHERE file_path = 'service.py' AND reference_kind = 'imports'
+                 ORDER BY reference_name",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(import_refs, vec!["os", "package.worker"]);
+
+        drop(stmt);
+        drop(conn);
         fs::remove_dir_all(dir).unwrap();
     }
 
