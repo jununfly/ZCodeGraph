@@ -1457,6 +1457,14 @@ describe('zcodegraph index engine selection', () => {
               batchUnavailableCount: number;
               batchUnavailableReason: string | null;
             };
+            factsProtocol: {
+              shapes: Record<string, {
+                ownership: string;
+                status: string;
+                defaultRoute: string;
+                semanticBoundary: string;
+              }>;
+            };
             equivalenceComparedCount: number;
             equivalenceMismatchCount: number;
             fallbackReasons: Record<string, number>;
@@ -1502,6 +1510,28 @@ describe('zcodegraph index engine selection', () => {
         batchUnavailableCount: expect.any(Number),
         batchUnavailableReason: null,
       }),
+      factsProtocol: {
+        shapes: {
+          LowerName: {
+            ownership: 'protocol-owned',
+            status: 'candidate-for-bounded-exploit',
+            defaultRoute: 'typescript-baseline-with-optional-rust-routing',
+            semanticBoundary: 'candidate-set-only',
+          },
+          QualifiedName: {
+            ownership: 'protocol-owned',
+            status: 'partial-keep-with-taxonomy',
+            defaultRoute: 'typescript-baseline-with-dotted-rust-routing',
+            semanticBoundary: 'candidate-set-only',
+          },
+          FileNodes: {
+            ownership: 'protocol-owned',
+            status: 'keep-with-caveat',
+            defaultRoute: 'run-scoped-batch-then-typescript-fallback',
+            semanticBoundary: 'candidate-set-only',
+          },
+        },
+      },
       equivalenceComparedCount: expect.any(Number),
       equivalenceMismatchCount: expect.any(Number),
       fallbackReasons: expect.any(Object),

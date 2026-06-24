@@ -1,0 +1,329 @@
+{
+  "title": "Rust-Hybrid Indexing Completion And Performance Roadmap",
+  "description": "Rebuild the roadmap around Rust-owned indexing/finalization ownership migration, with performance as evidence and guardrail.",
+  "version": 1,
+  "nodes": {
+    "1": {
+      "id": "1",
+      "label": "Rust-Hybrid Indexing Completion And Performance Roadmap",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": null,
+      "children": [
+        "1-1",
+        "1-2",
+        "1-3",
+        "1-4",
+        "1-5",
+        "1-6",
+        "1-7"
+      ],
+      "decisions": [
+        {
+          "q": "Root goal",
+          "answer": "Complete Rust-owned indexing/finalization roadmap reconstruction and make performance optimization serve that ownership migration mainline.",
+          "note": "Chosen over continuing a narrow performance-candidate queue."
+        },
+        {
+          "q": "Tree trunk",
+          "answer": "Use ownership migration as the trunk; use end-to-end indexing path inside each ownership area; use user outcome as guardrails.",
+          "note": "This avoids letting performance grow into a separate maze."
+        }
+      ],
+      "notes": ""
+    },
+    "1-1": {
+      "id": "1-1",
+      "label": "Current fact base and evidence archive",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-1-1",
+        "1-1-2"
+      ],
+      "decisions": [],
+      "notes": "Completed by consolidating facts from the previous performance roadmaps and benchmark closeouts."
+    },
+    "1-2": {
+      "id": "1-2",
+      "label": "Rust-owned indexing completion boundary",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-2-1",
+        "1-2-2"
+      ],
+      "decisions": [
+        {
+          "q": "Ownership target",
+          "answer": "For JS, JSX, TS, TSX, MTS, CTS, and Go, indexing plus resolver plus finalization should become as Rust-owned as practical.",
+          "note": "TypeScript remains product shell, fallback orchestration, non-Rust-owned language support, and explicitly unmigrated semantic guardrails."
+        }
+      ],
+      "notes": "Boundary direction recorded: supported JS/TS variants and Go should become as Rust-owned as practical; TS remains product shell and fallback/guardrail owner."
+    },
+    "1-3": {
+      "id": "1-3",
+      "label": "Resolver finalization ownership frontier",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [
+        "1-3-1",
+        "1-3-2",
+        "1-3-3"
+      ],
+      "decisions": [
+        {
+          "q": "First exploit frontier",
+          "answer": "Prioritize resolver/finalization ownership frontier.",
+          "note": "VS Code sparse evidence points to finalization/reference-resolution tail after Rust core extraction/write and fallback append."
+        }
+      ],
+      "notes": ""
+    },
+    "1-4": {
+      "id": "1-4",
+      "label": "Performance evidence lanes under ownership migration",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-4-1",
+        "1-4-2"
+      ],
+      "decisions": [
+        {
+          "q": "Performance role",
+          "answer": "Performance is a validation dimension under ownership migration, not an independent steering tree.",
+          "note": "Each slice records trend evidence; bounded performance exploit opens only when it supports ownership progress or user usability."
+        }
+      ],
+      "notes": "Performance trend evidence belongs under ownership slices; do not let performance become an independent steering tree."
+    },
+    "1-5": {
+      "id": "1-5",
+      "label": "Agent Sufficiency and graph semantics guardrails",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-5-1",
+        "1-5-2"
+      ],
+      "decisions": [],
+      "notes": "Guardrails apply when graph semantics, Explore output, language coverage, or user-facing sufficiency claims change."
+    },
+    "1-6": {
+      "id": "1-6",
+      "label": "No-go defer and research archive",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-6-1",
+        "1-6-2"
+      ],
+      "decisions": [
+        {
+          "q": "Archive policy",
+          "answer": "Keep no-go, defer, and research routes as explicit roadmap subtrees.",
+          "note": "Prevents future agents from re-entering already tested failure modes."
+        }
+      ],
+      "notes": "Archive no-go/defer/research branches directly in the roadmap so future agents do not repeat prior dead ends."
+    },
+    "1-7": {
+      "id": "1-7",
+      "label": "Execution rules and first-stage closeout",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [
+        "1-7-1",
+        "1-7-2"
+      ],
+      "decisions": [
+        {
+          "q": "First stage scope",
+          "answer": "Build the map only; do not split implementation issues in this stage.",
+          "note": "The point of this stage is to return to the start and rebuild navigation from accumulated facts."
+        }
+      ],
+      "notes": ""
+    },
+    "1-1-1": {
+      "id": "1-1-1",
+      "label": "Validated facts from completed performance roadmaps",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-2": {
+      "id": "1-1-2",
+      "label": "Evidence documents retained as source material",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-1": {
+      "id": "1-2-1",
+      "label": "Rust-owned supported language target set",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-2": {
+      "id": "1-2-2",
+      "label": "TypeScript shell and fallback ownership boundary",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-1": {
+      "id": "1-3-1",
+      "label": "Facts protocol first slice for LowerName QualifiedName FileNodes",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "First slice layer",
+          "answer": "Start at the facts input layer by making Rust-produced facts a stable protocol boundary.",
+          "note": "Do not start by changing final reference disambiguation semantics."
+        },
+        {
+          "q": "First facts protocol shapes",
+          "answer": "Cover LowerName, QualifiedName, and FileNodes with explicit keep, no-go, or diagnostic-only status.",
+          "note": "Use prior evidence instead of redefining the full resolver input surface in one step."
+        },
+        {
+          "q": "First implementation result",
+          "answer": "Expose factsProtocol diagnostics for LowerName, QualifiedName, and FileNodes in rust-hybrid profile artifacts.",
+          "note": "No resolver semantics or graph output changed; this is a protocol-status diagnostic slice."
+        }
+      ],
+      "notes": "Completed first narrow slice: profile artifacts now expose factsProtocol shape status for LowerName, QualifiedName, and FileNodes. This establishes candidate-set-only protocol ownership diagnostics without changing final reference disambiguation semantics or graph output."
+    },
+    "1-3-2": {
+      "id": "1-3-2",
+      "label": "Reference disambiguation semantic migration slices",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "Next recommended frontier after facts protocol status: plan reference disambiguation semantic migration slices while preserving per-reference semantics until explicitly changed by architecture decision."
+    },
+    "1-3-3": {
+      "id": "1-3-3",
+      "label": "Finalization cleanup and edge write ownership slices",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-1": {
+      "id": "1-4-1",
+      "label": "Baseline trend recording for every ownership slice",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-2": {
+      "id": "1-4-2",
+      "label": "Bounded performance exploit only when ownership progress needs it",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-1": {
+      "id": "1-5-1",
+      "label": "Graph parity fallback taxonomy and RSS evidence",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-2": {
+      "id": "1-5-2",
+      "label": "Agent Sufficiency trigger conditions",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-6-1": {
+      "id": "1-6-1",
+      "label": "Default no-go and diagnostic-only routes",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-6-2": {
+      "id": "1-6-2",
+      "label": "Research and oracle-needed routes",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-7-1": {
+      "id": "1-7-1",
+      "label": "First stage builds map only",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-7",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed in this stage: plan plus roadmap JSON/MD only; no implementation issues created."
+    },
+    "1-7-2": {
+      "id": "1-7-2",
+      "label": "Next stage opens facts protocol implementation issues",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-7",
+      "children": [],
+      "decisions": [],
+      "notes": "Superseded by direct execution of 1-3-1 in this turn; no GitHub issues were opened for the first slice. Future slices can return to issue splitting when the roadmap branch needs parallel tracking."
+    }
+  },
+  "metadata": {
+    "created": "2026-06-24 23:51:01",
+    "updated": "2026-06-24 23:59:32",
+    "md_file": "docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md"
+  }
+}

@@ -24,6 +24,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New Features
 
+- `rust-hybrid` profile output now labels the LowerName, QualifiedName, and FileNodes candidate-fact protocol shapes with their ownership status and semantic boundary, making resolver migration work easier to audit without changing indexed results. (#520)
 - `rust-hybrid` indexing now owns baseline Python extraction by default, so ordinary Python files are indexed by the Rust path instead of being appended through same-language TypeScript fallback. (#485, #486, #487)
 - `rust-hybrid` indexing now understands repo-local TypeScript config inheritance for module resolution, including inherited paths aliases, rootDirs, and safer package-map behavior for classic module resolution. (#447, #448, #449)
 - `rust-hybrid` indexing now follows repo-local package `exports` and `imports` condition order more closely, including `types`, CommonJS `require`, and configured custom conditions. (#451, #452, #453)

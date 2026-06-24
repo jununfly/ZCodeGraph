@@ -59,11 +59,32 @@ export interface CandidateProtocolDiagnostics {
     batchUnavailableCount: number;
     batchUnavailableReason: string | null;
   };
+  factsProtocol: CandidateFactsProtocolDiagnostics;
   equivalenceComparedCount: number;
   equivalenceMismatchCount: number;
   fallbackReasons: Record<string, number>;
   disabledReason: string | null;
   rustCandidateProducer: RustCandidateProducerDiagnostics;
+}
+
+type CandidateFactsProtocolShapeStatus =
+  | 'candidate-for-bounded-exploit'
+  | 'partial-keep-with-taxonomy'
+  | 'keep-with-caveat';
+
+interface CandidateFactsProtocolShapeDiagnostic {
+  ownership: 'protocol-owned';
+  status: CandidateFactsProtocolShapeStatus;
+  defaultRoute: string;
+  semanticBoundary: 'candidate-set-only';
+}
+
+export interface CandidateFactsProtocolDiagnostics {
+  shapes: {
+    LowerName: CandidateFactsProtocolShapeDiagnostic;
+    QualifiedName: CandidateFactsProtocolShapeDiagnostic;
+    FileNodes: CandidateFactsProtocolShapeDiagnostic;
+  };
 }
 
 interface CandidateProtocolCaches {
@@ -625,6 +646,28 @@ export class CandidateProtocolProvider {
         batchMissCount: 0,
         batchUnavailableCount: 0,
         batchUnavailableReason: null,
+      },
+      factsProtocol: {
+        shapes: {
+          LowerName: {
+            ownership: 'protocol-owned',
+            status: 'candidate-for-bounded-exploit',
+            defaultRoute: 'typescript-baseline-with-optional-rust-routing',
+            semanticBoundary: 'candidate-set-only',
+          },
+          QualifiedName: {
+            ownership: 'protocol-owned',
+            status: 'partial-keep-with-taxonomy',
+            defaultRoute: 'typescript-baseline-with-dotted-rust-routing',
+            semanticBoundary: 'candidate-set-only',
+          },
+          FileNodes: {
+            ownership: 'protocol-owned',
+            status: 'keep-with-caveat',
+            defaultRoute: 'run-scoped-batch-then-typescript-fallback',
+            semanticBoundary: 'candidate-set-only',
+          },
+        },
       },
       equivalenceComparedCount: 0,
       equivalenceMismatchCount: 0,
