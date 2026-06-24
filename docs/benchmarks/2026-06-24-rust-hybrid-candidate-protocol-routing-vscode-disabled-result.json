@@ -1,0 +1,307 @@
+{
+  "baseline": "baseline-indexing-performance-v1",
+  "generatedAt": "2026-06-24T14:06:19.339Z",
+  "zcodegraphCommit": "40a58b9",
+  "command": {
+    "executable": "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+    "args": [
+      "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/scripts/rust-hybrid-baseline.mjs",
+      "--out",
+      "docs/benchmarks/2026-06-24-rust-hybrid-candidate-protocol-routing-vscode-disabled-result.json",
+      "--repo",
+      "vscode-sparse=/private/tmp/codegraph-corpus/vscode-sparse",
+      "--runs",
+      "1",
+      "--timeout-ms",
+      "300000"
+    ],
+    "cwd": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph"
+  },
+  "toolchain": {
+    "node": "v26.0.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M5",
+    "cpuCount": 10,
+    "totalMemoryBytes": 17179869184,
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)"
+  },
+  "resultClassification": "baseline-frozen",
+  "thresholds": {
+    "candidateSignalPct": 5,
+    "planLevelClaimPct": 10
+  },
+  "results": [
+    {
+      "name": "vscode-sparse",
+      "path": "/private/tmp/codegraph-corpus/vscode-sparse",
+      "commit": "4a6e32fc1f0",
+      "status": "completed",
+      "requestedRuns": 1,
+      "completedRuns": 1,
+      "runs": [
+        {
+          "run": 1,
+          "command": {
+            "executable": "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+            "args": [
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
+              "index",
+              "/private/tmp/codegraph-corpus/vscode-sparse",
+              "--engine",
+              "rust-hybrid",
+              "--force",
+              "--profile-out",
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/docs/benchmarks/tmp-2026-06-24-rust-hybrid-candidate-protocol-routing-vscode-disabled-result/vscode-sparse-run1.profile.json",
+              "--quiet"
+            ],
+            "cwd": "/private/tmp/codegraph-corpus/vscode-sparse"
+          },
+          "status": "completed",
+          "exitCode": 1,
+          "signal": null,
+          "wallMs": 210933,
+          "peakRssBytes": null,
+          "rssSource": null,
+          "rssUnavailableKind": "command-wrapper-no-rss",
+          "rssUnavailableReason": "command RSS sampling did not report maximum resident set size",
+          "profilePath": "docs/benchmarks/tmp-2026-06-24-rust-hybrid-candidate-protocol-routing-vscode-disabled-result/vscode-sparse-run1.profile.json",
+          "profileSummary": {
+            "complete": true,
+            "lastCheckpoint": {
+              "name": "profile.completed",
+              "state": "completed",
+              "elapsedMs": 210696
+            },
+            "checkpointCount": 15,
+            "rustCore": {
+              "sourceScanMs": 26,
+              "parseExtractionMs": 21779,
+              "sqliteWriteMs": 23452,
+              "subprocessStartupHandoffMs": 3
+            },
+            "finalize": {
+              "frameworkPostExtractMs": 28,
+              "referenceResolutionMs": 35934,
+              "dynamicDispatchSynthesisMs": 6003,
+              "dbMaintenanceMs": 81
+            },
+            "referenceResolutionBreakdown": {
+              "importResolutionMs": 2821,
+              "nameMatchingMs": 15591,
+              "frameworkMatchingMs": 14,
+              "databaseAccessMs": 16608,
+              "edgeWriteMs": 7566,
+              "unresolvedCleanupMs": 7927,
+              "resolvedCleanupMs": 5448
+            },
+            "typescriptFallbackAppend": {
+              "durationMs": 1,
+              "fallbackFileCount": 213,
+              "missingFallbackFileCount": 213,
+              "missingFallbackByLanguage": {
+                "yaml": 37,
+                "rust": 81,
+                "csharp": 16,
+                "cpp": 22,
+                "xml": 35,
+                "java": 7,
+                "ruby": 5,
+                "php": 3,
+                "c": 1,
+                "razor": 1,
+                "dart": 1,
+                "lua": 1,
+                "objc": 2,
+                "swift": 1
+              },
+              "errorTaxonomy": {
+                "language-level-fallback-missing-file": 213
+              }
+            },
+            "typescriptFinalizationMs": 43105,
+            "fallbackTaxonomy": {
+              "totalFallbacks": 35871,
+              "entries": [
+                {
+                  "stage": "framework-post-extract",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "dynamic-dispatch-synthesis",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "db-maintenance",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "binding-level-symbol-disambiguation-not-yet-rust-owned",
+                  "count": 30413
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "unsupported-import-form-not-yet-rust-owned",
+                  "count": 35
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "unresolved-file-level-import-target",
+                  "count": 5419
+                }
+              ]
+            }
+          },
+          "graphStats": {
+            "available": true,
+            "fileCount": 5780,
+            "nodeCount": 327425,
+            "edgeCount": 906683,
+            "dbSizeBytes": 743432192,
+            "nodesByKind": {
+              "class": 7313,
+              "constant": 117561,
+              "enum": 1095,
+              "export": 766,
+              "field": 26704,
+              "file": 5780,
+              "function": 21760,
+              "import": 66009,
+              "interface": 7807,
+              "method": 55516,
+              "type_alias": 2813,
+              "variable": 14301
+            },
+            "languages": [
+              "javascript",
+              "typescript"
+            ],
+            "index": {
+              "engine": "rust-hybrid",
+              "engineVersion": "0.1.0",
+              "hybrid": {
+                "phase": "phase-6-rust-owned-per-file-gap-fallback",
+                "rustOwnedLanguages": [
+                  "javascript",
+                  "jsx",
+                  "typescript",
+                  "tsx",
+                  "go",
+                  "python"
+                ],
+                "engineByLanguage": {
+                  "yaml": "typescript",
+                  "typescript": "rust",
+                  "javascript": "rust",
+                  "rust": "typescript",
+                  "tsx": "rust",
+                  "python": "rust",
+                  "csharp": "typescript",
+                  "cpp": "typescript",
+                  "xml": "typescript",
+                  "go": "rust",
+                  "java": "typescript",
+                  "ruby": "typescript",
+                  "php": "typescript",
+                  "c": "typescript",
+                  "razor": "typescript",
+                  "dart": "typescript",
+                  "jsx": "rust",
+                  "lua": "typescript",
+                  "objc": "typescript",
+                  "swift": "typescript"
+                },
+                "engineByFileCount": {
+                  "typescript": 213,
+                  "rust": 11411
+                },
+                "fallbackByLanguage": {
+                  "yaml": 37,
+                  "rust": 81,
+                  "csharp": 16,
+                  "cpp": 22,
+                  "xml": 35,
+                  "java": 7,
+                  "ruby": 5,
+                  "php": 3,
+                  "c": 1,
+                  "razor": 1,
+                  "dart": 1,
+                  "lua": 1,
+                  "objc": 2,
+                  "swift": 1
+                },
+                "fallbackFileCount": 213,
+                "missingFallbackByLanguage": {
+                  "yaml": 37,
+                  "rust": 81,
+                  "csharp": 16,
+                  "cpp": 22,
+                  "xml": 35,
+                  "java": 7,
+                  "ruby": 5,
+                  "php": 3,
+                  "c": 1,
+                  "razor": 1,
+                  "dart": 1,
+                  "lua": 1,
+                  "objc": 2,
+                  "swift": 1
+                },
+                "missingFallbackFileCount": 213,
+                "fallbackState": "degraded",
+                "fallbackMessage": "TypeScript fallback appended 213 non-Rust-owned supported file(s). Rust-owned gap diagnostics recorded 4 file(s) without TypeScript fallback append. Sparse checkout omitted 213 planned TypeScript fallback file(s).",
+                "fallbackReasonTaxonomy": {
+                  "language-level-typescript-fallback": 213,
+                  "rust-owned-parse-gap": 4,
+                  "language-level-fallback-missing-file": 213
+                },
+                "pendingFallbacks": [],
+                "skippedGeneratedByLanguage": {
+                  "typescript": 1
+                }
+              },
+              "builtWithVersion": "0.1.0",
+              "builtWithExtractionVersion": 1,
+              "currentExtractionVersion": 1,
+              "reindexRecommended": false
+            }
+          },
+          "stdoutBytes": 0,
+          "stderrBytes": 914
+        }
+      ],
+      "summary": {
+        "medianWallMs": 210933,
+        "wallMsVariance": 0,
+        "medianPeakRssBytes": null,
+        "peakRssBytesVariance": 0,
+        "rssSources": [],
+        "rssUnavailableKinds": [
+          "command-wrapper-no-rss"
+        ],
+        "rssUnavailableReasons": [
+          "command RSS sampling did not report maximum resident set size"
+        ]
+      }
+    }
+  ]
+}
