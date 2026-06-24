@@ -7,11 +7,11 @@ Date: 2026-06-22
 - Optimization tracker: #165
 - Import/file resolver Part 2 tracker: #430
 - Previous Part 2 closeout:
-  `docs/benchmarks/2026-06-22-typescript-module-resolution-part2-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
 - Previous oracle plan:
   `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - Current roadmap closeout:
-  `docs/benchmarks/2026-06-23-rust-native-typescript-module-resolution-roadmap-mapping-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
 
 ## Read This First
 

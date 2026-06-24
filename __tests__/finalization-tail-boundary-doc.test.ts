@@ -5,32 +5,26 @@ import * as path from 'path';
 const REPO_ROOT = path.resolve(__dirname, '..');
 const OWNERSHIP_DOC = path.join(
   REPO_ROOT,
-  'docs/benchmarks/2026-06-21-finalization-tail-ownership-matrix.md',
+  'docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md',
 );
 const FRAMEWORK_POST_EXTRACT_DOC = path.join(
   REPO_ROOT,
-  'docs/benchmarks/2026-06-21-framework-post-extract-boundary-contract.md',
+  'docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md',
 );
 const EDGE_WRITE_CLEANUP_DOC = path.join(
   REPO_ROOT,
-  'docs/benchmarks/2026-06-21-edge-write-cleanup-ownership-boundary.md',
+  'docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md',
 );
 const UNRESOLVED_LIFECYCLE_DOC = path.join(
   REPO_ROOT,
-  'docs/benchmarks/2026-06-21-unresolved-refs-lifecycle-contract.md',
+  'docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md',
 );
 const CLOSEOUT_DOC = path.join(
   REPO_ROOT,
-  'docs/benchmarks/2026-06-21-finalization-tail-boundary-closeout.md',
+  'docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md',
 );
-const PLAN_DOC = path.join(
-  REPO_ROOT,
-  'docs/plans/2026-06-21-rust-hybrid-finalization-tail-boundary-plan.md',
-);
-
 describe('Finalization tail boundary plan artifacts', () => {
   it('records the ownership matrix and public diagnostic contract', () => {
-    expect(fs.existsSync(PLAN_DOC)).toBe(true);
     expect(fs.existsSync(OWNERSHIP_DOC)).toBe(true);
 
     const doc = fs.readFileSync(OWNERSHIP_DOC, 'utf8');

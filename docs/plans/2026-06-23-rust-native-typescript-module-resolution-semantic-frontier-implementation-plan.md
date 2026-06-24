@@ -16,7 +16,7 @@ Parent context:
 - Optimization tracker: #165
 - Import/file resolver Part 2 tracker: #430
 - Prior roadmap closeout:
-  `docs/benchmarks/2026-06-23-rust-native-typescript-module-resolution-roadmap-mapping-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
 
 ## Decision
 

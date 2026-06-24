@@ -5779,9 +5779,9 @@ Date: 2026-06-21
 - ESM named fallback diagnostics map:
   `docs/plans/2026-06-21-rust-hybrid-esm-named-binding-fallback-diagnostics-map.md`
 - ESM named fallback closeout:
-  `docs/benchmarks/2026-06-21-esm-named-binding-fallback-diagnostics-map-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 - This plan closeout:
-  `docs/benchmarks/2026-06-21-esm-direct-export-candidate-gap-burndown-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ## Context
 
@@ -5953,9 +5953,9 @@ Date: 2026-06-21
 - Direct export candidate gap burndown:
   `docs/plans/2026-06-21-rust-hybrid-esm-direct-export-candidate-gap-burndown.md`
 - Direct export candidate gap burndown closeout:
-  `docs/benchmarks/2026-06-21-esm-direct-export-candidate-gap-burndown-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 - This plan closeout:
-  `docs/benchmarks/2026-06-21-esm-direct-export-candidate-multiple-taxonomy-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ## Context
 
@@ -6110,7 +6110,7 @@ Date: 2026-06-21
 - Resolver migration tracker: #296
 - Optimization tracker: #165
 - Relative file-node diagnostics cleanup:
-  `docs/benchmarks/2026-06-21-relative-file-node-diagnostics-cleanup-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ## Context
 
@@ -6309,7 +6309,7 @@ Date: 2026-06-21
 - Architecture/performance PRD:
   `docs/prds/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
 - PRD closeout:
-  `docs/benchmarks/2026-06-21-rust-hybrid-architecture-performance-prd-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 - Resolver migration decision plan:
   `docs/plans/2026-06-20-rust-hybrid-resolver-migration-decision-plan.md`
 - Architecture map:
@@ -6319,7 +6319,7 @@ Date: 2026-06-21
 - Previous #165 successor plan:
   `docs/plans/2026-06-21-rust-hybrid-value-token-interface-routing.md`
 - Previous closeout:
-  `docs/benchmarks/2026-06-21-value-token-interface-routing-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ## Context
 
@@ -6381,7 +6381,7 @@ Out of scope:
 Default evidence source:
 
 - `docs/benchmarks/2026-06-20-rust-hybrid-finalization-architecture-map.md`
-- `docs/benchmarks/2026-06-21-rust-hybrid-architecture-performance-prd-closeout.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 - 2026-06-21 fallback/taxonomy closeouts under `docs/benchmarks/`
 - latest #165 tracker comments
 
@@ -6573,7 +6573,7 @@ Date: 2026-06-21
 - Prior relative import target taxonomy plan:
   `docs/plans/2026-06-21-rust-hybrid-relative-import-target-taxonomy-and-burndown.md`
 - Prior no-go closeout:
-  `docs/benchmarks/2026-06-21-relative-import-target-burndown-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ## Context
 
@@ -6764,9 +6764,9 @@ Date: 2026-06-21
 - Completed diagnostic: #224
 - Plan 3 issue: #398
 - Plan 2 closeout:
-  `docs/benchmarks/2026-06-21-parse-extraction-evidence-decision-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md`
 - Plan 2 evidence summary:
-  `docs/benchmarks/2026-06-21-parse-extraction-evidence.summary.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md`
 
 ## Context
 
@@ -6872,7 +6872,7 @@ Date: 2026-06-21
 - Plan 1 profile contract:
   `docs/plans/2026-06-21-rust-hybrid-parse-extraction-profile-contract.md`
 - Plan 1 closeout:
-  `docs/benchmarks/2026-06-21-parse-extraction-profile-contract-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md`
 
 ## Context
 
@@ -7097,7 +7097,7 @@ Date: 2026-06-21
 - Resolver migration tracker: #296
 - Optimization tracker: #165
 - Relative JS source specifier burndown closeout:
-  `docs/benchmarks/2026-06-21-relative-js-source-specifier-burndown-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ## Context
 
@@ -7405,7 +7405,7 @@ Date: 2026-06-21
 - Import fallback profile samples plan:
   `docs/plans/2026-06-21-rust-hybrid-import-fallback-profile-samples.md`
 - Import fallback profile samples closeout:
-  `docs/benchmarks/2026-06-21-import-fallback-profile-samples-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ## Context
 
@@ -7565,9 +7565,9 @@ Date: 2026-06-21
 - Resolver migration tracker: #296
 - Optimization tracker: #165
 - TypeScript overload/signature semantic decision:
-  `docs/benchmarks/2026-06-21-ts-overload-signature-semantic-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 - TypeScript overload/signature closeout:
-  `docs/benchmarks/2026-06-21-ts-overload-signature-semantic-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ## Context
 
@@ -7682,7 +7682,7 @@ Date: 2026-06-21
 - Resolver migration tracker: #296
 - Optimization tracker: #165
 - Implementation-declaration metadata closeout:
-  `docs/benchmarks/2026-06-21-ts-implementation-declaration-metadata-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ## Context
 
@@ -7798,7 +7798,7 @@ Date: 2026-06-21
 - Direct export candidate-multiple taxonomy:
   `docs/plans/2026-06-21-rust-hybrid-esm-direct-export-candidate-multiple-taxonomy.md`
 - Direct export candidate-multiple closeout:
-  `docs/benchmarks/2026-06-21-esm-direct-export-candidate-multiple-taxonomy-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 - Parallel tooling follow-up: #375
 
 ## Context
@@ -7919,7 +7919,7 @@ Date: 2026-06-21
 - Resolver migration tracker: #296
 - Optimization tracker: #165
 - Previous closeout:
-  `docs/benchmarks/2026-06-21-ts-overload-implementation-tie-break-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ## Context
 
@@ -8057,9 +8057,9 @@ Date: 2026-06-21
 - Architecture/performance PRD:
   `docs/prds/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
 - PRD closeout:
-  `docs/benchmarks/2026-06-21-rust-hybrid-architecture-performance-prd-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 - Semantic predecessor:
-  `docs/benchmarks/2026-06-21-ts-type-value-namespace-collision-semantic-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ## Context
 
@@ -8181,15 +8181,15 @@ Date: 2026-06-22
 
 - Optimization tracker: #165
 - Consolidated decision:
-  `docs/benchmarks/2026-06-22-rust-hybrid-architecture-performance-consolidated-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 - Finalization tail boundary closeout:
-  `docs/benchmarks/2026-06-21-finalization-tail-boundary-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md`
 - Ownership matrix:
-  `docs/benchmarks/2026-06-21-finalization-tail-ownership-matrix.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md`
 - Edge write and cleanup boundary:
-  `docs/benchmarks/2026-06-21-edge-write-cleanup-ownership-boundary.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md`
 - Unresolved refs lifecycle contract:
-  `docs/benchmarks/2026-06-21-unresolved-refs-lifecycle-contract.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md`
 
 ## Route Map
 
@@ -8430,9 +8430,9 @@ Date: 2026-06-22
 
 - Optimization tracker: #165
 - PlanB final closeout:
-  `docs/benchmarks/2026-06-22-resolver-semantic-planb-final-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 - FileNodes handoff:
-  `docs/benchmarks/2026-06-22-filenodes-routing-residual-audit.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 - Prior file/import target plans:
   - `docs/plans/2026-06-20-rust-hybrid-js-ts-file-import-target-parity.md`
   - `docs/plans/2026-06-21-rust-hybrid-relative-import-target-taxonomy-and-burndown.md`
@@ -8676,7 +8676,7 @@ Date: 2026-06-22
 - Part 1 plan:
   `docs/plans/2026-06-22-rust-hybrid-import-file-resolver-completion-part1.md`
 - Part 1 closeout:
-  `docs/benchmarks/2026-06-22-import-file-resolver-completion-part1-final-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ## Route
 
@@ -8961,11 +8961,11 @@ Date: 2026-06-22
   `docs/prds/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
 - Parse/extraction diagnostic track: #224
 - #224 Plan 2 closeout:
-  `docs/benchmarks/2026-06-21-parse-extraction-evidence-decision-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md`
 - Previous bounded parse optimization closeout:
-  `docs/benchmarks/2026-06-21-parse-ast-extraction-optimization-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md`
 - Finalization tail boundary closeout:
-  `docs/benchmarks/2026-06-21-finalization-tail-boundary-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md`
 
 ## Context
 
@@ -9208,9 +9208,9 @@ Date: 2026-06-22
 
 - Optimization tracker: #165
 - Prior route decision:
-  `docs/benchmarks/2026-06-22-rust-hybrid-architecture-performance-consolidated-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 - Plan A closeout:
-  `docs/benchmarks/2026-06-22-finalization-tail-plan-a-closeout-decision.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md`
 - Candidate producer routing boundary:
   `docs/benchmarks/2026-06-20-rust-hybrid-complete-candidate-producer-routing-boundary-closeout-decision.md`
 

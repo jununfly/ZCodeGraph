@@ -8,7 +8,7 @@ Date: 2026-06-23
 - TypeScript module resolution roadmap:
   `docs/plans/2026-06-22-rust-native-typescript-module-resolution-roadmap.md`
 - Guarded file-level import edge closeout:
-  `docs/benchmarks/2026-06-22-guarded-edge-write-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md`
 - Roadmap node:
   `1-7-2. ESM named symbol edges`
 

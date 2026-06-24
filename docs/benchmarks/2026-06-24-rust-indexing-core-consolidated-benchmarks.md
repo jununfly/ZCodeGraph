@@ -93,11 +93,11 @@ This file mechanically consolidates the previous `*-rust-indexing-core-*` files 
 - `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md`
 - `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-decision.md`
 - `docs/benchmarks/2026-06-18-rust-indexing-core-phase-23-closeout-decision.md`
-- `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
-- `docs/benchmarks/2026-06-23-rust-indexing-core-phase-14-15-experiment-artifact-cleanup.md`
-- `docs/benchmarks/2026-06-23-rust-indexing-core-phase-15e-15f-rss-evidence-cleanup.md`
-- `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md`
-- `docs/benchmarks/2026-06-23-rust-indexing-core-phase-22-23-evidence-pipeline-cleanup.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 ## Consolidated Contents
 
@@ -12376,7 +12376,7 @@ This candidate:
 
 Generated manifests, raw experiment output, and generated summaries were absorbed into:
 
-- `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 Validation commands:
 
@@ -12453,8 +12453,8 @@ The post-PRD optimization gate remains open. This record does not claim Rust def
 
 ## Artifacts
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
-- Historical Phase 18 comparison: `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- Historical Phase 18 comparison: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 ## Run Context
 
@@ -12587,7 +12587,7 @@ Architecture record:
 | Artifact | Path |
 |---|---|
 | Plan | `docs/plans/2026-06-17-rust-indexing-core-phase-16-architecture-reassessment.md` |
-| Consolidated cleanup evidence | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md` |
+| Consolidated cleanup evidence | `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
 
 ## Implementation
 
@@ -12708,7 +12708,7 @@ The production `final-flush` path currently uses the existing temp on-disk SQLit
 | Artifact | Path |
 |---|---|
 | Plan | `docs/plans/2026-06-17-rust-indexing-core-phase-17-production-final-flush-scoreboard.md` |
-| Consolidated cleanup evidence | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md` |
+| Consolidated cleanup evidence | `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
 
 ## Test And Smoke Results
 
@@ -12830,7 +12830,7 @@ No SQLite schema change was made. No resolver/finalization optimization was impl
 | Artifact | Path |
 |---|---|
 | Plan | `docs/plans/2026-06-17-rust-indexing-core-phase-18-full-profile-bottleneck-ab.md` |
-| Consolidated cleanup evidence | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md` |
+| Consolidated cleanup evidence | `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
 
 ## Validation
 
@@ -12951,7 +12951,7 @@ The deeper post-PRD optimization gate remains separate: Rust should become at le
 | Phase 19 plan | `docs/plans/2026-06-17-rust-indexing-core-phase-19-prd-completion-gate.md` |
 | Phase 17 decision | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md` |
 | Phase 18 decision | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md` |
-| Phase 16-18 consolidated process evidence | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md` |
+| Phase 16-18 consolidated process evidence | `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
 
 ## Required Target Audit
 
@@ -14832,7 +14832,7 @@ The post-PRD optimization gate remains open. This record does not claim Rust def
 
 ## Artifacts
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 - Prior comparison: `docs/benchmarks/2026-06-17-rust-indexing-core-issue-205-vscode-finalization-profile-selection.md`
 
 ## Run Context
@@ -15105,7 +15105,7 @@ The post-PRD optimization gate remains open. This record does not claim Rust def
 
 ## Artifacts
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 - Prior comparison: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-206-finalization-diagnostics-decision.md`
 
 ## Run Context
@@ -15223,7 +15223,7 @@ The post-PRD optimization gate remains open. This record does not claim Rust def
 
 ## Artifacts
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 - Prior VS Code comparison: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-206-finalization-diagnostics-decision.md`
 
 ## Validation
@@ -15325,7 +15325,7 @@ No Rust default rollout readiness is claimed.
 
 ## Scoreboard Run
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 - Node: `v22.21.1`
 - Rust core: `target/debug/zcodegraph-core`
 - SQLite write mode: `final-flush`
@@ -15425,7 +15425,7 @@ The regression test also verifies that the final `nodes_fts` row count equals th
 
 ## Final After Scoreboard
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 - Before artifact: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-210-post-209-scoreboard-decision.md`
 
 | Target | Sufficiency | Rust graphStats | Before sqliteWriteMs | After sqliteWriteMs | Delta | Before Rust ms | After Rust ms | Rust wall delta |
@@ -15477,7 +15477,7 @@ Architecture record:
 - Plan: `docs/plans/2026-06-18-rust-indexing-core-phase-22-evidence-pipeline-and-optimization-loop.md`
 - Evidence tool: `scripts/rust-indexing-evidence.mjs`
 - Tool tests: `__tests__/rust-indexing-evidence.test.ts`
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-phase-22-23-evidence-pipeline-cleanup.md`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 The evidence tool is local-only. It does not call GitHub, update issues, close issues, edit labels, or require network access.
 
@@ -15509,7 +15509,7 @@ The reduced fixture shows the target bucket moving in the intended direction wit
 
 ## Final After Scoreboard
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-23-rust-indexing-core-phase-22-23-evidence-pipeline-cleanup.md`
+- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 Comparison baseline: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md`.
 
@@ -15599,7 +15599,7 @@ The RSS table now includes unavailable-reason columns instead of only rendering 
 
 Inventory details were absorbed into:
 
-- `docs/benchmarks/2026-06-23-rust-indexing-core-phase-22-23-evidence-pipeline-cleanup.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 Classification summary:
 
@@ -15639,7 +15639,7 @@ Commands run:
 
 Targeted smoke/profile artifacts generated from existing Phase 22 evidence:
 
-- `docs/benchmarks/2026-06-23-rust-indexing-core-phase-22-23-evidence-pipeline-cleanup.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 Smoke source artifacts:
 
@@ -15685,7 +15685,7 @@ The next issue should be diagnostic/profiling first, not a bounded optimization 
 - #165 remains open.
 - Rust default rollout readiness is not claimed.
 
-## 88. `docs/benchmarks/2026-06-23-rust-indexing-core-issue-optimization-evidence-cleanup.md`
+## 88. `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 # Rust Indexing Core Issue-Level Optimization Evidence Cleanup
 
@@ -15734,7 +15734,7 @@ This cleanup does not delete the durable issue decision documents themselves.
 It only removes generated process evidence whose reusable facts are captured in
 those decision documents and in the ADRs above.
 
-## 89. `docs/benchmarks/2026-06-23-rust-indexing-core-phase-14-15-experiment-artifact-cleanup.md`
+## 89. `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 # Rust Indexing Core Phase 14/15 Experiment Artifact Cleanup
 
@@ -15866,7 +15866,7 @@ Recommended next clusters:
    Keep current resolver-roadmap evidence until the semantic-frontier decision
    pack decides what is still live.
 
-## 90. `docs/benchmarks/2026-06-23-rust-indexing-core-phase-15e-15f-rss-evidence-cleanup.md`
+## 90. `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 # Rust Indexing Core Phase 15E/15F RSS Evidence Cleanup
 
@@ -15960,7 +15960,7 @@ This cleanup only removes local process evidence for the old RSS-gate
 investigation. It does not remove the profiling implementation, tests, scripts,
 or later architecture/performance decision artifacts.
 
-## 91. `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md`
+## 91. `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 # Rust Indexing Core Phase 16-18 SQLite And Scoreboard Evidence Cleanup
 
@@ -16043,7 +16043,7 @@ This cleanup does not remove the durable decision artifacts, plans, ADRs, or
 later optimization evidence. It only removes generated files whose reusable
 facts are already summarized above and in the kept decision artifacts.
 
-## 92. `docs/benchmarks/2026-06-23-rust-indexing-core-phase-22-23-evidence-pipeline-cleanup.md`
+## 92. `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 # Rust Indexing Core Phase 22/23 Evidence Pipeline Cleanup
 

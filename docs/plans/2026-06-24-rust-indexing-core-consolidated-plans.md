@@ -3138,7 +3138,7 @@ Open or update #165 with the decision. Do NOT close #165 until the full-profile 
 | Phase 14 plan | `docs/plans/2026-06-15-rust-indexing-core-phase-14-experiment-infrastructure.md` |
 | Phase 15E plan | `docs/plans/2026-06-16-rust-indexing-core-phase-15e-rss-gate.md` |
 | Phase 15E handoff (this file) | `docs/plans/2026-06-16-rust-indexing-core-phase-15e-handoff.md` |
-| Phase 14/15 historical evidence | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-14-15-experiment-artifact-cleanup.md` |
+| Phase 14/15 historical evidence | `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
 | Experiment runner | `scripts/rust-indexing-experiment.mjs` |
 | Rust core | `crates/zcodegraph-core/src/lib.rs` (82KB, ~2100 lines) |
 | Rust entrypoint | `crates/zcodegraph-core/src/main.rs` |
@@ -3200,7 +3200,7 @@ Depends on:
 - [Phase 15 Controlled Performance Gate Plan](2026-06-15-rust-indexing-core-phase-15-controlled-performance-gate.md) (to be authored)
 - GitHub tracker: #165 (Phase 15: Controlled performance gate interpretation), #49 (parent PRD)
 - Phase 14/15 consolidated historical evidence:
-  `docs/benchmarks/2026-06-23-rust-indexing-core-phase-14-15-experiment-artifact-cleanup.md`
+  `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 ## Goal
 
@@ -3423,7 +3423,7 @@ required-target (`zcodegraph` + `excalidraw`) full-profile gate.
 
 - Parent PRD: `docs/prds/2026-06-12-rust-indexing-core-vertical-slice.md`
 - Phase 14/15 historical stress and required-target evidence:
-  `docs/benchmarks/2026-06-23-rust-indexing-core-phase-14-15-experiment-artifact-cleanup.md`
+  `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 - Parent tracking issues: #49 (PRD), #165 (Phase 15 controlled gate interpretation)
 
 ## Decision
@@ -3434,7 +3434,7 @@ Phase 15E produced reusable heap profiling and a durable VS Code matched-work
 stress rerun4 artifact:
 
 - Consolidated RSS evidence:
-  `docs/benchmarks/2026-06-23-rust-indexing-core-phase-15e-15f-rss-evidence-cleanup.md`
+  `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 Compared with Phase 15D rerun3, the VS Code matched-work stress RSS trend moved
 from Rust `+20.08%` versus TypeScript to Rust `-21.41%` versus TypeScript.
@@ -3494,10 +3494,10 @@ The bounded second candidate changes the `visit_js_node` traversal path so the c
 
 | Run | Evidence |
 |---|---|
-| Baseline | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-15e-15f-rss-evidence-cleanup.md` |
-| Lazy normalization after-smoke | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-15e-15f-rss-evidence-cleanup.md` |
-| Borrowed-ID after-smoke | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-15e-15f-rss-evidence-cleanup.md` |
-| Reduced smoke | `docs/benchmarks/2026-06-23-rust-indexing-core-phase-15e-15f-rss-evidence-cleanup.md` |
+| Baseline | `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
+| Lazy normalization after-smoke | `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
+| Borrowed-ID after-smoke | `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
+| Reduced smoke | `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
 
 ## Production-Like VS Code Results
 
@@ -3654,7 +3654,7 @@ VS Code sparse checkout should continue using the previously fixed corpus shape 
 - Main comparison profile: `matched-ts-js`.
 - Full-profile rollout readiness is out of scope.
 - Locked baseline and SQLite candidate evidence:
-  `docs/benchmarks/2026-06-23-rust-indexing-core-phase-16-18-sqlite-scoreboard-cleanup.md`.
+  `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`.
 - Experimental SQLite write mode field: `rust.sqliteWriteMode`.
 - Supported SQLite write modes: `disk`, `memory-final-flush`.
 - Each key candidate requires one completed production-like smoke on the relevant targets.

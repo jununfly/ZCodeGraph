@@ -47,8 +47,8 @@ This file mechanically consolidates the previous `*-rust-hybrid-*` files in this
 - `docs/benchmarks/2026-06-20-rust-hybrid-rust-candidate-producer-closeout-decision.md`
 - `docs/benchmarks/2026-06-20-rust-hybrid-rust-candidate-producer-complete-shape-coverage-closeout-decision.md`
 - `docs/benchmarks/2026-06-20-rust-hybrid-rust-candidate-producer-lowername-closeout-decision.md`
-- `docs/benchmarks/2026-06-21-rust-hybrid-architecture-performance-prd-closeout.md`
-- `docs/benchmarks/2026-06-22-rust-hybrid-architecture-performance-consolidated-decision.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 
 ## Consolidated Contents
 
@@ -6272,7 +6272,7 @@ Continue resolver migration in shadow-only slices. The next implementation
 slice should still avoid main-path routing unless a separate decision explicitly
 accepts that risk.
 
-## 42. `docs/benchmarks/2026-06-21-rust-hybrid-architecture-performance-prd-closeout.md`
+## 42. `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 
 # Rust-Hybrid Architecture/Performance PRD Closeout
 
@@ -6334,14 +6334,14 @@ work exceeded that requirement with multiple bounded slices, including:
 The latest production routing slice resolved guarded TypeScript overload
 implementation candidates and recorded deterministic evidence:
 
-- `docs/benchmarks/2026-06-21-ts-overload-implementation-tie-break-closeout-decision.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ### Final Semantic Decision Slice
 
 The final #295 slice classified the remaining dominant
 type/value/namespace-collision fallback class:
 
-- `docs/benchmarks/2026-06-21-ts-type-value-namespace-collision-semantic-closeout-decision.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 VS Code sparse evidence at commit `4a6e32fc1f0` shows the capped remaining
 collision samples are dominated by `value-token-plus-interface`:
@@ -6388,7 +6388,7 @@ The PRD produced deterministic profile/taxonomy evidence and production
 learning, including no-go boundaries and successor candidates. It did not run a
 full scoreboard or agent A/B campaign for the closeout.
 
-## 43. `docs/benchmarks/2026-06-22-rust-hybrid-architecture-performance-consolidated-decision.md`
+## 43. `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 
 # Rust-Hybrid Architecture Performance Consolidated Decision
 
@@ -6400,14 +6400,14 @@ Date: 2026-06-22
 - Parse/extraction diagnostic track: #224
 - Architecture/performance PRD: #295
 - Resolver semantic closeouts:
-  - `docs/benchmarks/2026-06-21-ts-overload-signature-semantic-closeout-decision.md`
-  - `docs/benchmarks/2026-06-21-ts-overload-implementation-tie-break-closeout-decision.md`
-  - `docs/benchmarks/2026-06-21-ts-type-value-namespace-collision-semantic-closeout-decision.md`
-  - `docs/benchmarks/2026-06-21-value-token-interface-routing-closeout.md`
+  - `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+  - `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+  - `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+  - `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 - Finalization tail closeout:
-  `docs/benchmarks/2026-06-21-finalization-tail-boundary-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md`
 - Parse/extraction closeout:
-  `docs/benchmarks/2026-06-22-parse-walker-hot-path-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md`
 
 ## Decision
 

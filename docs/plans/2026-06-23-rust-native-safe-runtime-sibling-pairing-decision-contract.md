@@ -11,7 +11,7 @@ Date: 2026-06-23
 - Previous diagnostics slice:
   `docs/plans/2026-06-22-rust-native-declaration-target-relationship-diagnostics.md`
 - Previous diagnostics closeout:
-  `docs/benchmarks/2026-06-22-declaration-target-relationship-diagnostics-closeout.md`
+  `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
 - Roadmap node:
   `1-5-4-2. safe runtime sibling pairing decision contract`
 
