@@ -223,12 +223,38 @@
     "1-3-2": {
       "id": "1-3-2",
       "label": "Reference disambiguation semantic migration slices",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3",
       "children": [],
-      "decisions": [],
-      "notes": "Next recommended frontier after facts protocol status: plan reference disambiguation semantic migration slices while preserving per-reference semantics until explicitly changed by architecture decision."
+      "decisions": [
+        {
+          "q": "Second slice target",
+          "answer": "Use shadow/double-read semantic replay before moving any reference disambiguation decision to the main path.",
+          "note": "Rust/protocol may produce replay decisions for selected references, but TypeScript remains final owner of graph output in this slice."
+        },
+        {
+          "q": "Replay reference class",
+          "answer": "Start with direct ESM named import/export binding replay.",
+          "note": "Cover import { foo } from repo-local relative or path-alias targets to exported foo; exclude default, namespace, type-only, barrel chains, package resolution, and fuzzy/name-matching ranking."
+        },
+        {
+          "q": "Replay evidence location",
+          "answer": "Record semantic replay evidence in profile artifact diagnostics.",
+          "note": "Use a semanticReplay diagnostic bucket; do not write SQLite debug tables and do not create durable benchmark artifacts for every process run."
+        },
+        {
+          "q": "Replay mismatch taxonomy",
+          "answer": "Use a medium taxonomy for direct named import/export replay.",
+          "note": "Include import-target-unresolved, export-symbol-missing, multiple-export-candidates, ts-unresolved-rust-resolved, ts-resolved-rust-unresolved, different-target-node, and different-resolution-method. Keep unsupported syntax families out of this slice."
+        },
+        {
+          "q": "Tracking issue",
+          "answer": "Track implementation in #521.",
+          "note": "Issue covers semanticReplay profile diagnostics for direct named ESM import/export shadow replay."
+        }
+      ],
+      "notes": "Completed by #521. Implemented semanticReplay profile diagnostics for direct named ESM import shadow replay, including equivalent replay counts and fallback taxonomy for unresolved export symbols. TypeScript remains final graph-output owner; replay does not write SQLite state."
     },
     "1-3-3": {
       "id": "1-3-3",
@@ -323,7 +349,7 @@
   },
   "metadata": {
     "created": "2026-06-24 23:51:01",
-    "updated": "2026-06-24 23:59:32",
+    "updated": "2026-06-25 00:49:16",
     "md_file": "docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md"
   }
 }

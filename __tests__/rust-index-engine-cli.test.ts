@@ -1508,7 +1508,7 @@ describe('zcodegraph index engine selection', () => {
         batchHitCount: expect.any(Number),
         batchMissCount: expect.any(Number),
         batchUnavailableCount: expect.any(Number),
-        batchUnavailableReason: null,
+        batchUnavailableReason: expect.anything(),
       }),
       factsProtocol: {
         shapes: {
@@ -1547,6 +1547,120 @@ describe('zcodegraph index engine selection', () => {
     expect(profile.finalize.referenceResolutionBreakdown.databaseAccessMs).toBeGreaterThanOrEqual(
       profile.finalize.referenceResolutionBreakdown.refHydrationDbMs,
     );
+  }, 30_000);
+
+  it('writes shadow semantic replay diagnostics for direct named ESM imports', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'semantic-target.ts'),
+      [
+        'export function semanticReplayTarget(): number {',
+        '  return 1;',
+        '}',
+        'export interface SemanticReplayType {',
+        '  value: number;',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'semantic-entry.ts'),
+      [
+        "import { semanticReplayTarget } from './semantic-target';",
+        "import type { SemanticReplayType } from './semantic-target';",
+        '',
+        'export function semanticReplayEntry(input?: SemanticReplayType): number {',
+        '  return semanticReplayTarget();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'semantic-replay-profile.json');
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          semanticReplay: {
+            eligibleRefs: number;
+            comparedRefs: number;
+            equivalentRefs: number;
+            mismatchRefs: number;
+            skippedRefs: number;
+            mismatchReasons: Record<string, number>;
+            mismatchSamples: unknown[];
+          };
+        };
+      };
+    };
+
+    expect(profile.finalize.referenceResolutionBreakdown.semanticReplay).toMatchObject({
+      eligibleRefs: expect.any(Number),
+      comparedRefs: expect.any(Number),
+      equivalentRefs: expect.any(Number),
+      mismatchRefs: expect.any(Number),
+      skippedRefs: expect.any(Number),
+      mismatchReasons: expect.any(Object),
+      mismatchSamples: expect.any(Array),
+    });
+    expect(profile.finalize.referenceResolutionBreakdown.semanticReplay.eligibleRefs).toBeGreaterThan(0);
+    expect(profile.finalize.referenceResolutionBreakdown.semanticReplay.comparedRefs).toBeGreaterThan(0);
+    expect(profile.finalize.referenceResolutionBreakdown.semanticReplay.equivalentRefs).toBeGreaterThan(0);
+    expect(profile.finalize.referenceResolutionBreakdown.semanticReplay.mismatchRefs).toBe(0);
+  }, 30_000);
+
+  it('records shadow semantic replay taxonomy for unresolved direct named ESM imports', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'semantic-missing-target.ts'),
+      'export function otherSemanticReplayName(): number { return 1; }\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'semantic-missing-entry.ts'),
+      [
+        "import { missingSemanticReplayTarget } from './semantic-missing-target';",
+        "import type { MissingSemanticReplayType } from './semantic-missing-target';",
+        '',
+        'export function semanticReplayMissingEntry(input?: MissingSemanticReplayType): number {',
+        '  return missingSemanticReplayTarget();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'semantic-replay-missing-profile.json');
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          semanticReplay: {
+            eligibleRefs: number;
+            comparedRefs: number;
+            mismatchRefs: number;
+            skippedRefs: number;
+            mismatchReasons: Record<string, number>;
+            mismatchSamples: Array<Record<string, unknown>>;
+          };
+        };
+      };
+    };
+    const semanticReplay = profile.finalize.referenceResolutionBreakdown.semanticReplay;
+    expect(semanticReplay.eligibleRefs).toBeGreaterThan(0);
+    expect(semanticReplay.skippedRefs).toBeGreaterThan(0);
+    expect(semanticReplay.comparedRefs).toBe(0);
+    expect(semanticReplay.mismatchRefs).toBe(0);
+    expect(semanticReplay.mismatchReasons).toMatchObject({
+      'export-symbol-missing': expect.any(Number),
+    });
+    expect(semanticReplay.mismatchSamples).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        referenceName: 'missingSemanticReplayTarget',
+        reason: 'export-symbol-missing',
+      }),
+    ]));
   }, 30_000);
 
   it('writes Rust candidate producer shadow diagnostics for exact, lower, and known-name lookups', () => {

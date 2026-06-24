@@ -1237,6 +1237,110 @@ export function resolveViaImport(
   return null;
 }
 
+export type DirectNamedImportReplayReason =
+  | 'import-target-unresolved'
+  | 'export-symbol-missing'
+  | 'multiple-export-candidates'
+  | 'ts-unresolved-rust-resolved'
+  | 'ts-resolved-rust-unresolved'
+  | 'different-target-node'
+  | 'different-resolution-method';
+
+export interface DirectNamedImportReplayResult {
+  replay: ResolvedRef | null;
+  reason: DirectNamedImportReplayReason | null;
+}
+
+export function replayDirectNamedImportResolution(
+  ref: UnresolvedRef,
+  context: ResolutionContext,
+): DirectNamedImportReplayResult | null {
+  if (!isJsTsLanguage(ref.language)) return null;
+  if (isTypeOnlyImportRef(ref, context)) return null;
+
+  const imports = context.getImportMappings(ref.filePath, ref.language);
+  const directNamed = imports.filter((imp) =>
+    !imp.isDefault &&
+    !imp.isNamespace &&
+    imp.localName === ref.referenceName &&
+    !imp.source.startsWith('#')
+  );
+  if (directNamed.length === 0) return null;
+  return replayDirectNamedImportMappingResolution(ref, directNamed[0]!, context);
+}
+
+export function replayDirectNamedImportMappingResolution(
+  ref: UnresolvedRef,
+  mapping: ImportMapping,
+  context: ResolutionContext,
+): DirectNamedImportReplayResult | null {
+  if (!isJsTsLanguage(ref.language)) return null;
+  if (isTypeOnlyImportRef(ref, context)) return null;
+  if (
+    mapping.isDefault ||
+    mapping.isNamespace ||
+    mapping.localName !== ref.referenceName ||
+    mapping.source.startsWith('#')
+  ) {
+    return null;
+  }
+
+  const resolvedPath = resolveImportPath(mapping.source, ref.filePath, ref.language, context);
+  if (!resolvedPath) {
+    return { replay: null, reason: 'import-target-unresolved' };
+  }
+
+  const candidates = context.getNodesInFile(resolvedPath).filter((node) =>
+    node.name === mapping.exportedName &&
+    node.kind !== 'file' &&
+    node.kind !== 'import' &&
+    node.kind !== 'export'
+  );
+  if (candidates.length === 0) {
+    return { replay: null, reason: 'export-symbol-missing' };
+  }
+  if (candidates.length > 1) {
+    return { replay: null, reason: 'multiple-export-candidates' };
+  }
+
+  return {
+    replay: {
+      original: ref,
+      targetNodeId: candidates[0]!.id,
+      confidence: 0.9,
+      resolvedBy: 'import',
+    },
+    reason: null,
+  };
+}
+
+function isJsTsLanguage(language: UnresolvedRef['language']): boolean {
+  return language === 'typescript' ||
+    language === 'tsx' ||
+    language === 'javascript' ||
+    language === 'jsx';
+}
+
+function isTypeOnlyImportRef(ref: UnresolvedRef, context: ResolutionContext): boolean {
+  const content = context.readFile(ref.filePath);
+  const lineText = content?.split(/\r?\n/)[ref.line - 1]?.trimStart();
+  if (!lineText?.startsWith('import ')) return false;
+  if (lineText.startsWith('import type ')) return true;
+  const open = lineText.indexOf('{');
+  const close = lineText.indexOf('}', open + 1);
+  if (open < 0 || close < 0) return false;
+  return lineText
+    .slice(open + 1, close)
+    .split(',')
+    .map((part) => part.trim())
+    .some((part) => {
+      if (!part.startsWith('type ')) return false;
+      const normalized = part.slice('type '.length).trim();
+      const [imported, local = imported] = normalized.split(/\s+as\s+/).map((value) => value.trim());
+      return imported === ref.referenceName || local === ref.referenceName;
+    });
+}
+
 /**
  * Resolve a Python qualified reference whose receiver is an imported MODULE:
  * `certs.where()` after `from . import certs`, `mod.func()` after `import mod`

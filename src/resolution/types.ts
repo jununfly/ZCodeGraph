@@ -119,6 +119,25 @@ export interface ResolutionResult {
         replayConfidence: number | null;
         reason: string;
       }>;
+      semanticReplay?: {
+        eligibleRefs: number;
+        comparedRefs: number;
+        equivalentRefs: number;
+        mismatchRefs: number;
+        skippedRefs: number;
+        mismatchReasons: Record<string, number>;
+        mismatchSamples: Array<{
+          referenceName: string;
+          referenceKind: string;
+          filePath: string;
+          language: string;
+          baselineTargetNodeId: string | null;
+          baselineResolvedBy: string | null;
+          replayTargetNodeId: string | null;
+          replayResolvedBy: string | null;
+          reason: string;
+        }>;
+      };
       candidateProtocol?: CandidateProtocolDiagnostics;
       edgeMaterializationMs?: number;
       edgeMaterializationDbMs?: number;

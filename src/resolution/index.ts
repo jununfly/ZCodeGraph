@@ -19,7 +19,16 @@ import {
   ImportMapping,
 } from './types';
 import { matchReference, sameLanguageFamily, crossesKnownFamily } from './name-matcher';
-import { resolveViaImport, resolveJvmImport, extractImportMappings, extractReExports, loadCppIncludeDirs } from './import-resolver';
+import {
+  resolveViaImport,
+  resolveJvmImport,
+  extractImportMappings,
+  extractReExports,
+  loadCppIncludeDirs,
+  replayDirectNamedImportResolution,
+  replayDirectNamedImportMappingResolution,
+  type DirectNamedImportReplayReason,
+} from './import-resolver';
 import { detectFrameworks } from './frameworks';
 import { synthesizeCallbackEdges } from './callback-synthesizer';
 import { loadProjectAliases, type AliasMap } from './path-aliases';
@@ -85,6 +94,15 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     candidateReplayMismatchRefs: 0,
     candidateReplayMismatchReasons: {},
     candidateReplayMismatchSamples: [],
+    semanticReplay: {
+      eligibleRefs: 0,
+      comparedRefs: 0,
+      equivalentRefs: 0,
+      mismatchRefs: 0,
+      skippedRefs: 0,
+      mismatchReasons: {},
+      mismatchSamples: [],
+    },
     edgeMaterializationMs: 0,
     edgeMaterializationDbMs: 0,
     edgeEndpointValidationDbMs: 0,
@@ -104,6 +122,20 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     otherResolutionMs: 0,
     dynamicDispatchSynthesisMs: 0,
   };
+}
+
+function classifyDirectNamedImportReplayMismatch(
+  baseline: ResolvedRef | null,
+  replay: ResolvedRef | null,
+  replayReason: DirectNamedImportReplayReason | null,
+): DirectNamedImportReplayReason | null {
+  if (replayReason) return replayReason;
+  if (!baseline && replay) return 'ts-unresolved-rust-resolved';
+  if (baseline && !replay) return 'ts-resolved-rust-unresolved';
+  if (!baseline && !replay) return null;
+  if (baseline!.targetNodeId !== replay!.targetNodeId) return 'different-target-node';
+  if (baseline!.resolvedBy !== replay!.resolvedBy) return 'different-resolution-method';
+  return null;
 }
 
 function addElapsed(
@@ -927,6 +959,7 @@ export class ReferenceResolver {
     started = Date.now();
     const importResult = this.gateLanguage(resolveViaImport(ref, this.context), ref);
     addElapsed(timings, 'importResolutionMs', started);
+    this.recordDirectNamedImportSemanticReplay(ref, importResult, timings);
     if (importResult) {
       if (importResult.confidence >= 0.9) return importResult;
       candidates.push(importResult);
@@ -1045,6 +1078,112 @@ export class ReferenceResolver {
       samples.push(replay.mismatch);
       timings.candidateReplayMismatchSamples = samples;
     }
+  }
+
+  private recordDirectNamedImportSemanticReplay(
+    ref: UnresolvedRef,
+    baseline: ResolvedRef | null,
+    timings: ReferenceResolutionTimings | undefined,
+  ): void {
+    if (!timings) return;
+    const replay = replayDirectNamedImportResolution(ref, this.context);
+    this.recordDirectNamedImportSemanticReplayResult(ref, baseline, replay, timings);
+  }
+
+  private auditDirectNamedImportSemanticReplay(timings: ReferenceResolutionTimings): void {
+    for (const file of this.queries.getAllFiles()) {
+      if (
+        file.language !== 'typescript' &&
+        file.language !== 'tsx' &&
+        file.language !== 'javascript' &&
+        file.language !== 'jsx'
+      ) {
+        continue;
+      }
+      const fileNode = this.context
+        .getNodesInFile(file.path)
+        .find((node) => node.kind === 'file' && node.filePath === file.path);
+      if (!fileNode) continue;
+
+      for (const mapping of this.context.getImportMappings(file.path, file.language)) {
+        if (mapping.isDefault || mapping.isNamespace || mapping.source.startsWith('#')) continue;
+        const line = this.findImportMappingLine(file.path, mapping);
+        if (line === null) continue;
+        const ref: UnresolvedRef = {
+          fromNodeId: fileNode.id,
+          referenceName: mapping.localName,
+          referenceKind: 'imports',
+          line,
+          column: 0,
+          filePath: file.path,
+          language: file.language,
+        };
+        const replay = replayDirectNamedImportMappingResolution(ref, mapping, this.context);
+        this.recordDirectNamedImportSemanticReplayResult(ref, null, replay, timings);
+      }
+    }
+  }
+
+  private findImportMappingLine(filePath: string, mapping: ImportMapping): number | null {
+    const content = this.context.readFile(filePath);
+    if (!content) return null;
+    const lines = content.split(/\r?\n/);
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index]!;
+      if (!line.includes('import ') || !line.includes(' from ') || !line.includes(mapping.source)) continue;
+      if (!line.includes(mapping.localName) && !line.includes(mapping.exportedName)) continue;
+      return index + 1;
+    }
+    return null;
+  }
+
+  private recordDirectNamedImportSemanticReplayResult(
+    ref: UnresolvedRef,
+    baseline: ResolvedRef | null,
+    replay: ReturnType<typeof replayDirectNamedImportResolution>,
+    timings: ReferenceResolutionTimings,
+  ): void {
+    if (!replay) return;
+    const semanticReplay = timings.semanticReplay ?? {
+      eligibleRefs: 0,
+      comparedRefs: 0,
+      equivalentRefs: 0,
+      mismatchRefs: 0,
+      skippedRefs: 0,
+      mismatchReasons: {},
+      mismatchSamples: [],
+    };
+    semanticReplay.eligibleRefs += 1;
+
+    const reason = classifyDirectNamedImportReplayMismatch(baseline, replay.replay, replay.reason);
+    if (!reason || reason === 'ts-unresolved-rust-resolved') {
+      semanticReplay.comparedRefs += 1;
+      semanticReplay.equivalentRefs += 1;
+      timings.semanticReplay = semanticReplay;
+      return;
+    }
+
+    if (reason === 'import-target-unresolved' || reason === 'export-symbol-missing' || reason === 'multiple-export-candidates') {
+      semanticReplay.skippedRefs += 1;
+    } else {
+      semanticReplay.comparedRefs += 1;
+      semanticReplay.mismatchRefs += 1;
+    }
+    semanticReplay.mismatchReasons[reason] = (semanticReplay.mismatchReasons[reason] ?? 0) + 1;
+    if (semanticReplay.mismatchSamples.length < MAX_RUST_MATCHER_MISMATCH_SAMPLES) {
+      semanticReplay.mismatchSamples.push({
+        referenceName: ref.referenceName,
+        referenceKind: ref.referenceKind,
+        filePath: ref.filePath,
+        language: ref.language,
+        baselineTargetNodeId: baseline?.targetNodeId ?? null,
+        baselineResolvedBy: baseline?.resolvedBy ?? null,
+        replayTargetNodeId: replay.replay?.targetNodeId ?? null,
+        replayResolvedBy: replay.replay?.resolvedBy ?? null,
+        reason,
+      });
+    }
+    timings.semanticReplay = semanticReplay;
   }
 
   private recordRustMatcherFallback(timings: ReferenceResolutionTimings | undefined, reason: string): void {
@@ -1294,6 +1433,7 @@ export class ReferenceResolver {
     addElapsed(aggregateStats.timings, 'databaseAccessMs', databaseStarted);
     addElapsed(aggregateStats.timings, 'cacheWarmupDbMs', databaseStarted);
     addElapsed(aggregateStats.timings, 'cacheWarmupMs', databaseStarted);
+    this.auditDirectNamedImportSemanticReplay(aggregateStats.timings);
 
     // Process in batches. We always read from offset 0 because resolved refs
     // are deleted after each batch, shifting the remaining rows forward.
@@ -1319,6 +1459,28 @@ export class ReferenceResolver {
             ...existing,
             ...next,
           ].slice(0, MAX_RUST_MATCHER_MISMATCH_SAMPLES);
+        } else if (key === 'semanticReplay') {
+          const existing = aggregateStats.timings.semanticReplay ?? {
+            eligibleRefs: 0,
+            comparedRefs: 0,
+            equivalentRefs: 0,
+            mismatchRefs: 0,
+            skippedRefs: 0,
+            mismatchReasons: {},
+            mismatchSamples: [],
+          };
+          const next = value as NonNullable<ReferenceResolutionTimings['semanticReplay']>;
+          existing.eligibleRefs += next.eligibleRefs;
+          existing.comparedRefs += next.comparedRefs;
+          existing.equivalentRefs += next.equivalentRefs;
+          existing.mismatchRefs += next.mismatchRefs;
+          existing.skippedRefs += next.skippedRefs;
+          existing.mismatchReasons = mergeFallbackReasons(existing.mismatchReasons, next.mismatchReasons);
+          existing.mismatchSamples = [
+            ...existing.mismatchSamples,
+            ...next.mismatchSamples,
+          ].slice(0, MAX_RUST_MATCHER_MISMATCH_SAMPLES);
+          aggregateStats.timings.semanticReplay = existing;
         } else if (typeof value === 'number') {
           (aggregateStats.timings as Record<string, unknown>)[key] =
             ((aggregateStats.timings[key] as number | undefined) ?? 0) + value;
