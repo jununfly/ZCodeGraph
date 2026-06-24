@@ -10,9 +10,11 @@
 <!-- ROADMAP_SECTION_START -->
 <!-- ROADMAP_SECTION_START -->
 <!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 01:25:00
+> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 01:47:52
 
 [~][X+] 1. Rust-Hybrid Indexing Completion And Performance Roadmap
 ├── [x][X+] 1-1. Current fact base and evidence archive
@@ -21,7 +23,7 @@
 ├── [x][X+] 1-2. Rust-owned indexing completion boundary
 │   ├── [x][X+] 1-2-1. Rust-owned supported language target set
 │   └── [x][X+] 1-2-2. TypeScript shell and fallback ownership boundary
-├── [ ][Y+] 1-3. Resolver finalization ownership frontier
+├── [~][Y+] 1-3. Resolver finalization ownership frontier
 │   ├── [x][Y+] 1-3-1. Facts protocol first slice for LowerName QualifiedName FileNodes
 │   ├── [x][X+] 1-3-2. Reference disambiguation semantic migration slices
 │   └── [~][Y+] 1-3-3. Finalization cleanup and edge write ownership slices
@@ -38,10 +40,3 @@
     ├── [x][Y+] 1-7-1. First stage builds map only
     └── [x][Y+] 1-7-2. Next stage opens facts protocol implementation issues
 <!-- ROADMAP_SECTION_END -->
-
-### 当前施工：1-3-3-1. Guarded direct named import usage edge-write slice
-
-Tracked by #522, #523, and #524. Scope: guarded main-path rust-finalization usage edges for direct named value imports, with guardedEdgeWrite profile diagnostics and closeout evidence. Parent 1-3-3 remains open for cleanup and broader edge-write ownership slices.
-
-**决策：**
-- Q: Published issues → Use #522, #523, and #524 (#522 implements guarded edge-write; #523 adds diagnostics and skip taxonomy coverage; #524 performs closeout and roadmap evidence updates.)

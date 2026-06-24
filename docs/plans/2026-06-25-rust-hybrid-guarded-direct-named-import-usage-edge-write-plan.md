@@ -2,7 +2,7 @@
 
 Date: 2026-06-25
 
-Status: ready-for-agent
+Status: completed
 
 Parent roadmap:
 
@@ -144,3 +144,34 @@ Not required:
 - Agent Sufficiency A/B;
 - VS Code sparse or other real-repo smoke;
 - full scoreboard.
+
+## Closeout Evidence
+
+Completed issues:
+
+- #522 implemented and verified the guarded direct named import usage edge-write
+  slice. Direct named value ESM import usages now surface guarded
+  `rust-finalization` usage edges when Rust core resolves the unique repo-local
+  target.
+- #523 added the public finalization profile bucket
+  `finalize.referenceResolutionBreakdown.guardedEdgeWrite`, including
+  `eligibleRefs`, `attemptedRefs`, `writtenEdges`, `skippedRefs`,
+  `skipReasons`, `skipSamples`, and `edgeKindCounts`.
+- #524 updated this closeout evidence and the roadmap node. Parent node
+  `1-3-3` remains open for cleanup and broader edge-write ownership slices.
+
+Implementation notes:
+
+- The public `guardedEdgeWrite` bucket is derived from Rust core ESM named
+  import/export resolution and guarded edge-write profile fields.
+- Rust core internal reasons are normalized to the public medium-grained
+  taxonomy for this slice. For example, `direct-export-candidate-zero` is
+  reported as `export-symbol-missing`.
+- This slice did not add default import, namespace import, type-only import,
+  barrel, package-resolution, LowerName/FileNodes routing, cleanup ownership,
+  Agent Sufficiency A/B, or real-repo smoke scope.
+
+Verification run:
+
+- `npm run build`
+- `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "guarded"`

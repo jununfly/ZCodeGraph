@@ -1663,6 +1663,134 @@ describe('zcodegraph index engine selection', () => {
     ]));
   }, 30_000);
 
+  it('writes guarded Rust finalization diagnostics and usage edges for direct named ESM imports', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'guarded-target.ts'),
+      [
+        'export function guardedUsageTarget(): number {',
+        '  return 1;',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'guarded-entry.ts'),
+      [
+        "import { guardedUsageTarget } from './guarded-target';",
+        '',
+        'export function guardedUsageEntry(): number {',
+        '  return guardedUsageTarget();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'guarded-edge-write-profile.json');
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const entry = cg.searchNodes('guardedUsageEntry').find((match) => match.node.kind === 'function')?.node;
+      const target = cg.searchNodes('guardedUsageTarget').find((match) => match.node.kind === 'function')?.node;
+      expect(entry).toBeDefined();
+      expect(target).toBeDefined();
+
+      const guardedUsageEdges = cg
+        .getOutgoingEdges(entry!.id, ['calls'], 'rust-finalization')
+        .filter((edge) => edge.target === target!.id);
+      expect(guardedUsageEdges).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'calls',
+          edgeOrigin: 'rust-finalization',
+          metadata: expect.objectContaining({
+            resolvedBy: 'rust-esm-named-import-export',
+          }),
+        }),
+      ]));
+    } finally {
+      cg.close();
+    }
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          guardedEdgeWrite: {
+            eligibleRefs: number;
+            attemptedRefs: number;
+            writtenEdges: number;
+            skippedRefs: number;
+            skipReasons: Record<string, number>;
+            skipSamples: unknown[];
+            edgeKindCounts: Record<string, number>;
+          };
+        };
+      };
+    };
+
+    expect(profile.finalize.referenceResolutionBreakdown.guardedEdgeWrite).toMatchObject({
+      eligibleRefs: expect.any(Number),
+      attemptedRefs: expect.any(Number),
+      writtenEdges: expect.any(Number),
+      skippedRefs: expect.any(Number),
+      skipReasons: expect.any(Object),
+      skipSamples: expect.any(Array),
+      edgeKindCounts: expect.any(Object),
+    });
+    expect(profile.finalize.referenceResolutionBreakdown.guardedEdgeWrite.eligibleRefs).toBeGreaterThan(0);
+    expect(profile.finalize.referenceResolutionBreakdown.guardedEdgeWrite.attemptedRefs).toBeGreaterThan(0);
+    expect(profile.finalize.referenceResolutionBreakdown.guardedEdgeWrite.writtenEdges).toBeGreaterThan(0);
+    expect(profile.finalize.referenceResolutionBreakdown.guardedEdgeWrite.edgeKindCounts.calls).toBeGreaterThan(0);
+  }, 30_000);
+
+  it('records guarded edge-write skip taxonomy for unresolved direct named ESM imports', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'guarded-missing-target.ts'),
+      'export function otherGuardedName(): number { return 1; }\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'guarded-missing-entry.ts'),
+      [
+        "import { missingGuardedTarget } from './guarded-missing-target';",
+        '',
+        'export function guardedMissingEntry(): number {',
+        '  return missingGuardedTarget();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'guarded-edge-write-missing-profile.json');
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          guardedEdgeWrite: {
+            eligibleRefs: number;
+            skippedRefs: number;
+            skipReasons: Record<string, number>;
+            skipSamples: Array<Record<string, unknown>>;
+          };
+        };
+      };
+    };
+    const guardedEdgeWrite = profile.finalize.referenceResolutionBreakdown.guardedEdgeWrite;
+    expect(guardedEdgeWrite.eligibleRefs).toBeGreaterThan(0);
+    expect(guardedEdgeWrite.skippedRefs).toBeGreaterThan(0);
+    expect(guardedEdgeWrite.skipReasons).toMatchObject({
+      'export-symbol-missing': expect.any(Number),
+    });
+    expect(guardedEdgeWrite.skipSamples).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        referenceName: 'missingGuardedTarget',
+        reason: 'export-symbol-missing',
+      }),
+    ]));
+  }, 30_000);
+
   it('writes Rust candidate producer shadow diagnostics for exact, lower, and known-name lookups', () => {
     fs.writeFileSync(
       path.join(tempDir, 'rust-candidate-producer.ts'),

@@ -681,7 +681,7 @@ async function runSelectedIndex(
       });
     }, (checkpointName) => {
       profileWriter?.checkpoint(checkpointName);
-    });
+    }, rustCoreProfile);
     profileWriter?.checkpoint('finalization.completed');
     if (engine === 'rust-hybrid') {
       cg.markRustHybridIndex(buildRustHybridMetadataFromPlan(runtimeHybridPlan ?? planRustHybridAssignments(projectPath)));

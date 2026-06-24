@@ -64,6 +64,89 @@ import {
   RustOwnedPerFileGapDiagnostic,
 } from './indexing/rust-hybrid-contract';
 
+type RustCoreProfileLike = {
+  esmNamedImportExportResolvedRefs?: number;
+  esmNamedImportExportFallbackRefs?: number;
+  esmNamedImportExportFallbackSampleCounts?: Record<string, number>;
+  esmNamedImportExportFallbackSamples?: Array<Record<string, unknown>>;
+  esmNamedImportExportEdgeWriteAttemptedRefs?: number;
+  esmNamedImportExportEdgeWriteWrittenRefs?: number;
+  esmNamedImportExportEdgeWriteSkippedRefs?: number;
+  esmNamedImportExportEdgeWriteSkippedCounts?: Record<string, number>;
+  esmNamedImportExportEdgeWriteSkippedSamples?: Array<Record<string, unknown>>;
+};
+
+type GuardedEdgeWriteDiagnostics = {
+  eligibleRefs: number;
+  attemptedRefs: number;
+  writtenEdges: number;
+  skippedRefs: number;
+  skipReasons: Record<string, number>;
+  skipSamples: Array<Record<string, unknown>>;
+  edgeKindCounts: Record<string, number>;
+};
+
+function rustCoreProfileLike(profile: unknown): RustCoreProfileLike {
+  return profile && typeof profile === 'object' ? profile as RustCoreProfileLike : {};
+}
+
+function guardedEdgeWritePublicReason(reason: string): string {
+  if (reason === 'direct-export-candidate-zero') return 'export-symbol-missing';
+  if (reason === 'direct-export-candidate-many') return 'multiple-export-candidates';
+  if (reason === 'target-file-not-found') return 'import-target-unresolved';
+  return reason;
+}
+
+function mergeGuardedEdgeWriteReasons(reasons: Record<string, number>, next: Record<string, number>): void {
+  for (const [reason, count] of Object.entries(next)) {
+    const publicReason = guardedEdgeWritePublicReason(reason);
+    reasons[publicReason] = (reasons[publicReason] ?? 0) + count;
+  }
+}
+
+function guardedEdgeWriteSample(sample: Record<string, unknown>): Record<string, unknown> {
+  const reason = typeof sample.reason === 'string'
+    ? guardedEdgeWritePublicReason(sample.reason)
+    : sample.reason;
+  return {
+    ...sample,
+    reason,
+    referenceName: sample.referenceName ?? sample.reference_name,
+    referenceKind: sample.referenceKind ?? sample.reference_kind,
+    filePath: sample.filePath ?? sample.file_path,
+    targetFilePath: sample.targetFilePath ?? sample.target_file_path,
+    candidateKind: sample.candidateKind ?? sample.candidate_kind,
+    candidateCount: sample.candidateCount ?? sample.candidate_count,
+    resolvedByAttempt: sample.resolvedByAttempt ?? sample.resolved_by_attempt,
+  };
+}
+
+function guardedEdgeWriteDiagnosticsFromRustCore(profile: unknown): GuardedEdgeWriteDiagnostics {
+  const rustProfile = rustCoreProfileLike(profile);
+  const fallbackReasons = rustProfile.esmNamedImportExportFallbackSampleCounts ?? {};
+  const edgeWriteSkipReasons = rustProfile.esmNamedImportExportEdgeWriteSkippedCounts ?? {};
+  const skipReasons: Record<string, number> = {};
+  mergeGuardedEdgeWriteReasons(skipReasons, fallbackReasons);
+  mergeGuardedEdgeWriteReasons(skipReasons, edgeWriteSkipReasons);
+  const fallbackSamples = rustProfile.esmNamedImportExportFallbackSamples ?? [];
+  const edgeWriteSkipSamples = rustProfile.esmNamedImportExportEdgeWriteSkippedSamples ?? [];
+  const attemptedRefs = rustProfile.esmNamedImportExportEdgeWriteAttemptedRefs ?? 0;
+  const writtenEdges = rustProfile.esmNamedImportExportEdgeWriteWrittenRefs ?? 0;
+  const resolutionFallbackRefs = rustProfile.esmNamedImportExportFallbackRefs ?? 0;
+  const edgeWriteSkippedRefs = rustProfile.esmNamedImportExportEdgeWriteSkippedRefs ?? 0;
+  return {
+    eligibleRefs: (rustProfile.esmNamedImportExportResolvedRefs ?? 0) + resolutionFallbackRefs,
+    attemptedRefs,
+    writtenEdges,
+    skippedRefs: resolutionFallbackRefs + edgeWriteSkippedRefs,
+    skipReasons,
+    skipSamples: [...fallbackSamples, ...edgeWriteSkipSamples].map(guardedEdgeWriteSample).slice(0, 20),
+    edgeKindCounts: {
+      calls: writtenEdges,
+    },
+  };
+}
+
 // Re-export types for consumers
 export * from './types';
 // Storage building blocks for embedded/SDK consumers that drive the graph
@@ -514,13 +597,17 @@ export class CodeGraph {
           }
 
           const finalizationStarted = Date.now();
-          const finalized = await cg.finalizeRustIndex((current, total) => {
-            options.onProgress?.({
-              phase: 'resolving',
-              current,
-              total,
-            });
-          });
+          const finalized = await cg.finalizeRustIndex(
+            (current, total) => {
+              options.onProgress?.({
+                phase: 'resolving',
+                current,
+                total,
+              });
+            },
+            undefined,
+            result.profile,
+          );
           if (engine === 'rust-hybrid') {
             cg.markRustHybridIndex(buildRustHybridMetadataFromPlan(runtimeHybridPlan ?? planRustHybridAssignments(this.projectRoot)));
           }
@@ -940,6 +1027,7 @@ export class CodeGraph {
   async finalizeRustIndex(
     onProgress?: (current: number, total: number) => void,
     onCheckpoint?: (name: string) => void,
+    rustCoreProfile?: unknown,
   ): Promise<{
     nodesCreated: number;
     edgesCreated: number;
@@ -1025,6 +1113,7 @@ export class CodeGraph {
             reason: string;
           }>;
         };
+        guardedEdgeWrite: GuardedEdgeWriteDiagnostics;
         candidateProtocol: CandidateProtocolDiagnostics;
         edgeMaterializationMs: number;
         edgeMaterializationDbMs: number;
@@ -1153,6 +1242,7 @@ export class CodeGraph {
                 reason: string;
               }>,
             },
+            guardedEdgeWrite: guardedEdgeWriteDiagnosticsFromRustCore(rustCoreProfile),
             candidateProtocol: {
               enabled: true,
               materializationMs: 0,
@@ -1401,6 +1491,7 @@ export class CodeGraph {
           candidateReplayMismatchReasons: resolutionTimings?.candidateReplayMismatchReasons ?? {},
           candidateReplayMismatchSamples: resolutionTimings?.candidateReplayMismatchSamples ?? [],
           semanticReplay: resolutionTimings?.semanticReplay ?? profile.referenceResolutionBreakdown.semanticReplay,
+          guardedEdgeWrite: profile.referenceResolutionBreakdown.guardedEdgeWrite,
           candidateProtocol: resolutionTimings?.candidateProtocol ?? profile.referenceResolutionBreakdown.candidateProtocol,
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
           edgeMaterializationDbMs: resolutionTimings?.edgeMaterializationDbMs ?? 0,
