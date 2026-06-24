@@ -259,12 +259,65 @@
     "1-3-3": {
       "id": "1-3-3",
       "label": "Finalization cleanup and edge write ownership slices",
-      "status": "pending",
-      "mode": "explore",
+      "status": "in_progress",
+      "mode": "exploit",
       "parent": "1-3",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-3-3-1"
+      ],
+      "decisions": [
+        {
+          "q": "Third slice main target",
+          "answer": "Guarded edge-write ownership slice",
+          "note": "Prefer moving validated resolver/protocol decisions toward guarded edge-write ownership before cleanup ownership. Keep the slice narrow: no broad resolver semantic expansion, no package/default/namespace/re-export scope expansion by default."
+        },
+        {
+          "q": "Guarded edge-write target",
+          "answer": "Direct named import file/symbol edge write",
+          "note": "Reuse the semanticReplay evidence area from #521. Start from direct named value imports with unique repo-local targets; defer LowerName and FileNodes/module-resolution edge-write routing to later slices."
+        },
+        {
+          "q": "Edge kind for guarded write",
+          "answer": "Only imported symbol usage edges",
+          "note": "This slice should prove one per-reference semantic edge path for direct named imports. Do not include file-level binding dependency edges in this slice; keep those for module/file dependency ownership work."
+        },
+        {
+          "q": "Execution mode",
+          "answer": "Direct main-path write with fail-closed guards",
+          "note": "Do not add another shadow-only middle state. Write only when direct named value import usage has a unique repo-local target and passes endpoint/duplicate guards; all unsupported or ambiguous cases skip with taxonomy."
+        },
+        {
+          "q": "Allowed graph output change",
+          "answer": "Allow guarded additive rust-finalization usage edges with target parity",
+          "note": "Do not replace existing TypeScript-owned edges in this slice. Graph output may gain rust-finalization usage edges when target parity is preserved or when the edge was previously missing; duplicate-safe behavior is required."
+        },
+        {
+          "q": "Guarded edge-write skip taxonomy",
+          "answer": "Use medium-grained taxonomy",
+          "note": "Track unsupported-import-shape, type-only-import, import-target-unresolved, export-symbol-missing, multiple-export-candidates, usage-ref-missing, endpoint-invalid, duplicate-equivalent-edge, and non-repo-local-target. Avoid ultra-fine moduleResolution taxonomy in this slice."
+        },
+        {
+          "q": "Profile diagnostics location",
+          "answer": "Add finalize.referenceResolutionBreakdown.guardedEdgeWrite",
+          "note": "Keep guardedEdgeWrite beside semanticReplay. Include eligibleRefs, attemptedRefs, writtenEdges, skippedRefs, skipReasons, skipSamples, and edgeKindCounts so replay and guarded-write migration evidence are readable together."
+        },
+        {
+          "q": "Verification scope",
+          "answer": "Use deterministic CLI/profile and graph parity tests only",
+          "note": "Cover written direct named value import usage edges, skipped unsupported forms, duplicate-safe behavior, guardedEdgeWrite profile fields, and targeted rust-hybrid CLI tests. Do not run Agent Sufficiency A/B or real-repo smoke for this narrow slice."
+        },
+        {
+          "q": "Slice output",
+          "answer": "Write a narrow plan and publish 2-3 implementation issues",
+          "note": "The plan should preserve the grilled boundaries. Issues should cover guarded direct named import usage edge write/profile diagnostics, skip taxonomy and duplicate-safe parity coverage, and closeout roadmap/decision evidence if needed."
+        },
+        {
+          "q": "Closeout status for 1-3-3",
+          "answer": "Do not mark 1-3-3 completed after this slice; create a child sub-node",
+          "note": "This slice only covers guarded direct named import usage edge-write. Finalization cleanup and broader edge-write ownership remain under 1-3-3 for later slices."
+        }
+      ],
+      "notes": "Third slice starts with a narrow guarded edge-write ownership slice. Cleanup remains a follow-up closeout concern unless this slice exposes a direct blocker."
     },
     "1-4-1": {
       "id": "1-4-1",
@@ -345,11 +398,27 @@
       "children": [],
       "decisions": [],
       "notes": "Superseded by direct execution of 1-3-1 in this turn; no GitHub issues were opened for the first slice. Future slices can return to issue splitting when the roadmap branch needs parallel tracking."
+    },
+    "1-3-3-1": {
+      "id": "1-3-3-1",
+      "label": "Guarded direct named import usage edge-write slice",
+      "status": "in_progress",
+      "mode": "exploit",
+      "parent": "1-3-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Published issues",
+          "answer": "Use #522, #523, and #524",
+          "note": "#522 implements guarded edge-write; #523 adds diagnostics and skip taxonomy coverage; #524 performs closeout and roadmap evidence updates."
+        }
+      ],
+      "notes": "Tracked by #522, #523, and #524. Scope: guarded main-path rust-finalization usage edges for direct named value imports, with guardedEdgeWrite profile diagnostics and closeout evidence. Parent 1-3-3 remains open for cleanup and broader edge-write ownership slices."
     }
   },
   "metadata": {
     "created": "2026-06-24 23:51:01",
-    "updated": "2026-06-25 00:49:16",
+    "updated": "2026-06-25 01:25:00",
     "md_file": "docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md"
   }
 }

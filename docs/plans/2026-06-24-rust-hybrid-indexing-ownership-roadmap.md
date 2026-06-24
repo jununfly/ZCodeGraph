@@ -1,7 +1,18 @@
 <!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
+<!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 00:49:16
+> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 01:25:00
 
 [~][X+] 1. Rust-Hybrid Indexing Completion And Performance Roadmap
 ├── [x][X+] 1-1. Current fact base and evidence archive
@@ -13,7 +24,7 @@
 ├── [ ][Y+] 1-3. Resolver finalization ownership frontier
 │   ├── [x][Y+] 1-3-1. Facts protocol first slice for LowerName QualifiedName FileNodes
 │   ├── [x][X+] 1-3-2. Reference disambiguation semantic migration slices
-│   └── [ ][X+] 1-3-3. Finalization cleanup and edge write ownership slices
+│   └── [~][Y+] 1-3-3. Finalization cleanup and edge write ownership slices
 ├── [ ][X+] 1-4. Performance evidence lanes under ownership migration
 │   ├── [ ][X+] 1-4-1. Baseline trend recording for every ownership slice
 │   └── [ ][Y+] 1-4-2. Bounded performance exploit only when ownership progress needs it
@@ -27,3 +38,10 @@
     ├── [x][Y+] 1-7-1. First stage builds map only
     └── [x][Y+] 1-7-2. Next stage opens facts protocol implementation issues
 <!-- ROADMAP_SECTION_END -->
+
+### 当前施工：1-3-3-1. Guarded direct named import usage edge-write slice
+
+Tracked by #522, #523, and #524. Scope: guarded main-path rust-finalization usage edges for direct named value imports, with guardedEdgeWrite profile diagnostics and closeout evidence. Parent 1-3-3 remains open for cleanup and broader edge-write ownership slices.
+
+**决策：**
+- Q: Published issues → Use #522, #523, and #524 (#522 implements guarded edge-write; #523 adds diagnostics and skip taxonomy coverage; #524 performs closeout and roadmap evidence updates.)
