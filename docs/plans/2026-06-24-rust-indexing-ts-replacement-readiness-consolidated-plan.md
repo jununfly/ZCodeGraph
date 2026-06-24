@@ -280,7 +280,8 @@ and deleted:
 - `docs/plans/2026-06-23-rust-indexing-ts-replacement-readiness-roadmap.md`
 - `docs/plans/2026-06-23-remove-same-language-typescript-fallback-for-rust-owned-languages.md`
 - `docs/plans/2026-06-24-rust-owned-gap-diagnostics-audit-after-ts-fallback-removal.md`
-- `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
+- sparse-missing fallback robustness plan, now represented by
+  `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - `docs/plans/2026-06-24-rust-owned-python-extraction-baseline-v1.md`
 - `docs/benchmarks/2026-06-23-remove-same-language-typescript-fallback-closeout.md`
 - `docs/benchmarks/2026-06-24-rust-owned-gap-audit-current.md`

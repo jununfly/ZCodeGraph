@@ -17,10 +17,9 @@ TypeScript product shell.
 Supporting evidence:
 
 - `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 - `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - #296 resolver migration decision plan
-- #301 historical benchmark decision ADR migration cleanup
+- `docs/benchmarks/2026-06-24-current-state-decision-pack.md`
 
 ## Decision
 
@@ -80,4 +79,3 @@ equivalence and replay evidence are strong enough.
 Rejected. Most benchmark documents are experiment evidence, not durable
 architecture decisions. #301 tracks a separate cleanup to promote only
 architecture-level benchmark decisions into ADRs and update references.
-

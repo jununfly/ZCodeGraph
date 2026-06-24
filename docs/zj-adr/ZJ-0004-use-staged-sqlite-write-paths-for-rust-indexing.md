@@ -14,10 +14,8 @@ had to be preserved.
 Supporting evidence:
 
 - `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 - `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-current-state-decision-pack.md`
 
 ## Decision
 
@@ -58,4 +56,3 @@ reason about.
 Rejected. It was useful as an experiment, but the production path should remain
 failure-safe and evidence-driven rather than adopting the highest-variance
 prototype by default.
-

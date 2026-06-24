@@ -16,10 +16,9 @@ production optimization paths.
 Supporting evidence:
 
 - `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 - `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-current-state-decision-pack.md`
 - #165 post-release optimization tracker
-- #301 historical benchmark decision ADR cleanup
 
 ## Decision
 
@@ -59,4 +58,3 @@ skip RSS or graphStats context, or continue patching the wrong bucket.
 
 Rejected. Direct GitHub operations are part of the maintainer/agent workflow,
 not the local performance-evidence contract.
-
