@@ -668,6 +668,7 @@ export class ReferenceResolver {
 
     const total = refs.length;
     let lastReportedPercent = -1;
+    this.candidateProvider.prepareFileNodesBatch(refs.map((ref) => ref.filePath));
     this.candidateProvider.prepareRustCandidateProducerRouting(refs);
     this.prewarmGroupedNameMatchingCandidates(refs, timings);
     this.precomputeRustNameMatcherDecisions(refs, timings);

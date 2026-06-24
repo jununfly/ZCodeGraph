@@ -195,6 +195,39 @@ Removed process artifacts:
 3. SQLite/write-path bucket review. Only proceed if a fresh baseline makes it a
    top bucket and the candidate stays within the existing write-path boundary.
 
+Follow-up:
+
+The first next-candidate queue item was covered by a narrow run-scoped
+`FileNodes` batch materialization slice tracked by #517, #518, and #519. The
+follow-up closed as `keep-with-caveat`.
+
+The slice kept the run-scoped `FileNodes` batch materialization contract and
+diagnostics because it preserves graph semantics, removes per-key Rust producer
+on-demand lookup from this candidate shape, and makes `FileNodes` lookup
+behavior explainable.
+
+It did not close the broader reference-resolution tail performance problem:
+
+- current repository profile completed with `FileNodes.lookupMs=10`,
+  `batchMaterializationMs=44`, and RSS unavailable as
+  `command-wrapper-no-rss`;
+- VS Code sparse profile was complete but the wrapper run timed out;
+- VS Code sparse recorded `FileNodes.lookupMs=327`,
+  `batchMaterializationMs=903`, and graphStats
+  `5780 files / 327425 nodes / 906683 edges`;
+- VS Code sparse batch hit rate was low (`20 / 1516` requested lookups), with
+  `1278` batch misses and `1278` fallback lookups;
+- routing diagnostics stayed disabled for the smoke:
+  `configured=false`, `active=false`, and `onDemandLookupCount=0`.
+
+Conclusion:
+
+Keep the contract and diagnostics, but do not expand `FileNodes` batch
+materialization by default. Future work should explore `QualifiedName` or
+`LowerName` only if a design can plausibly produce higher hit rate, otherwise
+return to a fresh baseline before selecting the next parse/extraction or
+SQLite/write-path candidate.
+
 ## Closeout
 
 This roadmap should be considered completed as an evidence-first optimization

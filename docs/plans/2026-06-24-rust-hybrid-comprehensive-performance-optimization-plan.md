@@ -275,6 +275,37 @@ Next-candidate queue:
 3. SQLite/write-path bucket review only if a fresh baseline makes it a top
    bucket and stays within the existing write-path boundary.
 
+Follow-up:
+
+The first next-candidate queue item was covered by a narrow run-scoped
+`FileNodes` batch materialization slice tracked by #517, #518, and #519. The
+follow-up closed as `keep-with-caveat`.
+
+The slice kept the run-scoped `FileNodes` batch materialization contract and
+diagnostics because they preserve graph semantics, avoid per-key Rust producer
+on-demand lookup for this candidate shape, and make `FileNodes` lookup behavior
+explainable.
+
+It was not a broad performance win:
+
+- current repository profile completed with `FileNodes.lookupMs=10` and
+  `batchMaterializationMs=44`;
+- VS Code sparse profile was complete but the wrapper run timed out;
+- VS Code sparse recorded `FileNodes.lookupMs=327`, close to the previous
+  routing-disabled comparison and far better than the #515 routing-enabled
+  failure signal;
+- VS Code sparse batch hit rate was low (`20 / 1516`), so this slice should
+  not be expanded by default.
+
+The next queue after this follow-up is:
+
+1. Explore `QualifiedName` or `LowerName` materialization only if a design can
+   plausibly produce higher hit rate than the `FileNodes` slice.
+2. Revisit parse/extraction only after a fresh baseline makes it a top bounded
+   candidate.
+3. Revisit SQLite/write-path only after a fresh baseline makes it a top bounded
+   candidate within the existing write-path boundary.
+
 ## Out Of Scope
 
 - New user-facing features.

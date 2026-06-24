@@ -52,6 +52,12 @@ export interface CandidateProtocolDiagnostics {
     missedCount: number;
     fallbackCount: number;
     lookupMs: number;
+    batchMaterializationMs: number;
+    batchMaterializedCount: number;
+    batchHitCount: number;
+    batchMissCount: number;
+    batchUnavailableCount: number;
+    batchUnavailableReason: string | null;
   };
   equivalenceComparedCount: number;
   equivalenceMismatchCount: number;
@@ -187,6 +193,8 @@ export class CandidateProtocolProvider {
   private readonly qualifiedNameBaselines = new Map<string, string[]>();
   private readonly fileNodesBaselines = new Map<string, string[]>();
   private readonly knownNameBaselines = new Map<string, boolean>();
+  private readonly fileNodesBatch = new Map<string, Node[]>();
+  private fileNodesBatchPrepared = false;
   private readonly routing: CandidateProducerRoutingState;
   private diagnostics: Omit<CandidateProtocolDiagnostics, 'enabled' | 'candidateCount' | 'disabledReason' | 'rustCandidateProducer'>;
 
@@ -219,6 +227,25 @@ export class CandidateProtocolProvider {
     return this.cacheFor(lookup).has(this.keyFor(lookup));
   }
 
+  prepareFileNodesBatch(filePaths: Iterable<string>): void {
+    const started = Date.now();
+    this.fileNodesBatch.clear();
+    this.fileNodesBatchPrepared = true;
+    const uniqueFilePaths = [...new Set([...filePaths].map((filePath) => filePath.trim()).filter(Boolean))].sort();
+    for (const filePath of uniqueFilePaths) {
+      const nodes = this.source.getNodesInFile(filePath);
+      this.fileNodesBatch.set(filePath, nodes);
+      for (const node of nodes) {
+        this.candidateIds.add(toCandidateFact(node).id);
+      }
+      this.recordRustProducerNodeBaseline({ kind: 'FileNodes', filePath }, nodes);
+    }
+    const elapsed = Math.max(0, Date.now() - started);
+    this.diagnostics.materializationMs += elapsed;
+    this.diagnostics.fileNodesLookup.batchMaterializationMs += elapsed;
+    this.diagnostics.fileNodesLookup.batchMaterializedCount += uniqueFilePaths.length;
+  }
+
   lookupNodes(lookup: Exclude<CandidateLookupShape, { kind: 'KnownNamePresence' }>): Node[] {
     const started = Date.now();
     this.recordLookup(lookup.kind);
@@ -240,6 +267,26 @@ export class CandidateProtocolProvider {
     }
 
     this.diagnostics.cacheMissCount += 1;
+    if (lookup.kind === 'FileNodes' && this.fileNodesBatchPrepared) {
+      const batchResult = this.fileNodesBatch.get(lookup.filePath);
+      if (batchResult !== undefined) {
+        cache.set(key, batchResult);
+        for (const node of batchResult) {
+          this.candidateIds.add(toCandidateFact(node).id);
+        }
+        this.compareNodeLookup(lookup, batchResult);
+        this.diagnostics.fileNodesLookup.batchHitCount += 1;
+        this.diagnostics.fileNodesLookup.reusedCount += 1;
+        this.recordLookupMs(lookup.kind, started);
+        this.recordFileNodesLookupMs(started);
+        return batchResult;
+      }
+      this.diagnostics.fileNodesLookup.batchMissCount += 1;
+      this.diagnostics.fileNodesLookup.fallbackCount += 1;
+    } else if (lookup.kind === 'FileNodes') {
+      this.diagnostics.fileNodesLookup.batchUnavailableCount += 1;
+      this.diagnostics.fileNodesLookup.batchUnavailableReason ??= 'not-prepared';
+    }
     if (lookup.kind === 'ExactName' && this.routing.active) {
       const routed = this.lookupExactNameViaRustRouting(lookup.name);
       if (routed) {
@@ -476,6 +523,8 @@ export class CandidateProtocolProvider {
     this.qualifiedNameBaselines.clear();
     this.fileNodesBaselines.clear();
     this.knownNameBaselines.clear();
+    this.fileNodesBatch.clear();
+    this.fileNodesBatchPrepared = false;
     this.resetRouting();
     this.diagnostics = this.emptyDiagnostics();
   }
@@ -570,6 +619,12 @@ export class CandidateProtocolProvider {
         missedCount: 0,
         fallbackCount: 0,
         lookupMs: 0,
+        batchMaterializationMs: 0,
+        batchMaterializedCount: 0,
+        batchHitCount: 0,
+        batchMissCount: 0,
+        batchUnavailableCount: 0,
+        batchUnavailableReason: null,
       },
       equivalenceComparedCount: 0,
       equivalenceMismatchCount: 0,

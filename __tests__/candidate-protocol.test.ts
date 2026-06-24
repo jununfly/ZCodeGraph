@@ -180,7 +180,7 @@ describe('candidate lookup/cache protocol', () => {
     const fallback = node('fallback-id', { name: 'fallback' });
     const provider = new CandidateProtocolProvider({
       enabled: true,
-      compareWithBaseline: true,
+      compareWithBaseline: false,
       indexPath: '/tmp/zcodegraph.db',
       rustProducerEnabled: false,
       candidateProducerRouting: { enabled: true, source: 'local-config' },
@@ -256,7 +256,7 @@ describe('candidate lookup/cache protocol', () => {
     const producerLookups: string[] = [];
     const provider = new CandidateProtocolProvider({
       enabled: true,
-      compareWithBaseline: true,
+      compareWithBaseline: false,
       indexPath: '/tmp/zcodegraph.db',
       candidateProducerRouting: { enabled: true, source: 'local-config' },
       rustProducerRunner: ({ lookups }) => {
@@ -410,6 +410,52 @@ describe('candidate lookup/cache protocol', () => {
       onDemandLookupShapeCounts: {
         FileNodes: 0,
       },
+    });
+  });
+
+  it('serves FileNodes from run-scoped batch materialization and falls back on misses', () => {
+    const fileNode = node('file-node-id', {
+      name: 'fileLeaf',
+      qualifiedName: 'src/c.ts::fileLeaf',
+      filePath: 'src/c.ts',
+    });
+    const fallbackNode = node('fallback-node-id', {
+      name: 'fallbackLeaf',
+      qualifiedName: 'src/fallback.ts::fallbackLeaf',
+      filePath: 'src/fallback.ts',
+    });
+    const provider = new CandidateProtocolProvider({
+      enabled: true,
+      compareWithBaseline: false,
+      caches: {
+        fileNodes: new LRUCache(100),
+        exactName: new LRUCache(100),
+        lowerName: new LRUCache(100),
+        qualifiedName: new LRUCache(100),
+      },
+      source: {
+        ...makeSource([fileNode, fallbackNode]),
+        getNodesInFile: (filePath: string) => {
+          return [fileNode, fallbackNode].filter((item) => item.filePath === filePath);
+        },
+      },
+    });
+
+    provider.prepareFileNodesBatch(['src/c.ts']);
+
+    expect(provider.lookupNodes({ kind: 'FileNodes', filePath: 'src/c.ts' }).map((item) => item.id)).toEqual([
+      'file-node-id',
+    ]);
+    expect(provider.lookupNodes({ kind: 'FileNodes', filePath: 'src/fallback.ts' }).map((item) => item.id)).toEqual([
+      'fallback-node-id',
+    ]);
+
+    expect(provider.snapshotDiagnostics().fileNodesLookup).toMatchObject({
+      requestedCount: 2,
+      batchMaterializedCount: 1,
+      batchHitCount: 1,
+      batchMissCount: 1,
+      fallbackCount: 1,
     });
   });
 

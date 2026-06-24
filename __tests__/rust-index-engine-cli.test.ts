@@ -1450,6 +1450,12 @@ describe('zcodegraph index engine selection', () => {
               missedCount: number;
               fallbackCount: number;
               lookupMs: number;
+              batchMaterializationMs: number;
+              batchMaterializedCount: number;
+              batchHitCount: number;
+              batchMissCount: number;
+              batchUnavailableCount: number;
+              batchUnavailableReason: string | null;
             };
             equivalenceComparedCount: number;
             equivalenceMismatchCount: number;
@@ -1489,6 +1495,12 @@ describe('zcodegraph index engine selection', () => {
         missedCount: expect.any(Number),
         fallbackCount: expect.any(Number),
         lookupMs: expect.any(Number),
+        batchMaterializationMs: expect.any(Number),
+        batchMaterializedCount: expect.any(Number),
+        batchHitCount: expect.any(Number),
+        batchMissCount: expect.any(Number),
+        batchUnavailableCount: expect.any(Number),
+        batchUnavailableReason: null,
       }),
       equivalenceComparedCount: expect.any(Number),
       equivalenceMismatchCount: expect.any(Number),
