@@ -269,7 +269,7 @@ export function compareNameMatcherCandidateReplayForRef(
   };
 }
 
-function createCandidateSetResolutionContext(
+export function createCandidateSetResolutionContext(
   entry: RustNameMatcherReference,
   baseline: ResolutionContext,
 ): ResolutionContext {

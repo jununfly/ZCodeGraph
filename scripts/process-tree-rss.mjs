@@ -4,12 +4,12 @@ import { spawn, spawnSync } from 'node:child_process';
 
 export function sampleProcessTreeRssBytes(rootPid, options = {}) {
   if (!Number.isFinite(rootPid)) {
-    return { peakRssBytes: null, unavailableReason: 'process pid is unavailable' };
+    return { peakRssBytes: null, unavailableKind: 'process-ended-before-sample', unavailableReason: 'process pid is unavailable' };
   }
 
   const procSample = sampleProcessTreeRssBytesFromProc(rootPid, options);
   if (procSample.peakRssBytes != null || procSample.unavailableReason == null) {
-    return procSample;
+    return { ...procSample, source: procSample.peakRssBytes != null ? 'procfs' : null };
   }
 
   const psCommand = options.psCommand ?? process.env.ZCODEGRAPH_RSS_PS_COMMAND ?? 'ps';
@@ -18,6 +18,7 @@ export function sampleProcessTreeRssBytes(rootPid, options = {}) {
     const message = result.error instanceof Error ? result.error.message : String(result.error);
     return {
       peakRssBytes: null,
+      unavailableKind: /EPERM|operation not permitted/i.test(message) ? 'process-list-sandboxed' : 'unknown',
       unavailableReason: /EPERM|operation not permitted/i.test(message)
         ? `RSS sampling unavailable: process-list access is sandboxed (${message})`
         : `RSS sampling unavailable: ${message}`,
@@ -27,6 +28,7 @@ export function sampleProcessTreeRssBytes(rootPid, options = {}) {
     const message = result.stderr?.trim() || '`ps -axo pid=,ppid=,rss=` failed';
     return {
       peakRssBytes: null,
+      unavailableKind: /EPERM|operation not permitted/i.test(message) ? 'process-list-sandboxed' : 'unknown',
       unavailableReason: /EPERM|operation not permitted/i.test(message)
         ? `RSS sampling unavailable: process-list access is sandboxed (${message})`
         : `RSS sampling unavailable: ${message}`,
@@ -42,7 +44,7 @@ export function sampleProcessTreeRssBytes(rootPid, options = {}) {
     Number.isFinite(row.rssKb)
   ));
   if (rows.length === 0) {
-    return { peakRssBytes: null, unavailableReason: 'process RSS sample returned no rows' };
+    return { peakRssBytes: null, unavailableKind: 'process-ended-before-sample', unavailableReason: 'process RSS sample returned no rows' };
   }
 
   const children = new Map();
@@ -68,17 +70,17 @@ export function sampleProcessTreeRssBytes(rootPid, options = {}) {
     if (wanted.has(row.pid)) totalKb += row.rssKb;
   }
   return totalKb > 0
-    ? { peakRssBytes: totalKb * 1024, unavailableReason: null }
-    : { peakRssBytes: null, unavailableReason: 'process tree RSS sample was zero' };
+    ? { peakRssBytes: totalKb * 1024, source: 'process-tree', unavailableKind: null, unavailableReason: null }
+    : { peakRssBytes: null, unavailableKind: 'process-ended-before-sample', unavailableReason: 'process tree RSS sample was zero' };
 }
 
 export function sampleProcessTreeRssBytesFromProc(rootPid, options = {}) {
   const procRoot = options.procRoot ?? process.env.ZCODEGRAPH_RSS_PROC_ROOT ?? '/proc';
   if (!Number.isFinite(rootPid)) {
-    return { peakRssBytes: null, unavailableReason: 'process pid is unavailable' };
+    return { peakRssBytes: null, unavailableKind: 'process-ended-before-sample', unavailableReason: 'process pid is unavailable' };
   }
   if (!fs.existsSync(procRoot)) {
-    return { peakRssBytes: null, unavailableReason: `procfs RSS sampling unavailable: ${procRoot} not found` };
+    return { peakRssBytes: null, unavailableKind: 'procfs-unavailable', unavailableReason: `procfs RSS sampling unavailable: ${procRoot} not found` };
   }
 
   let entries;
@@ -88,7 +90,7 @@ export function sampleProcessTreeRssBytesFromProc(rootPid, options = {}) {
       .map((entry) => Number(entry.name));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { peakRssBytes: null, unavailableReason: `procfs RSS sampling unavailable: ${message}` };
+    return { peakRssBytes: null, unavailableKind: 'procfs-unavailable', unavailableReason: `procfs RSS sampling unavailable: ${message}` };
   }
 
   const rows = [];
@@ -97,7 +99,7 @@ export function sampleProcessTreeRssBytesFromProc(rootPid, options = {}) {
     if (row) rows.push(row);
   }
   if (rows.length === 0) {
-    return { peakRssBytes: null, unavailableReason: 'procfs RSS sample returned no process rows' };
+    return { peakRssBytes: null, unavailableKind: 'process-ended-before-sample', unavailableReason: 'procfs RSS sample returned no process rows' };
   }
 
   const children = new Map();
@@ -123,8 +125,8 @@ export function sampleProcessTreeRssBytesFromProc(rootPid, options = {}) {
     if (wanted.has(row.pid)) totalKb += row.rssKb;
   }
   return totalKb > 0
-    ? { peakRssBytes: totalKb * 1024, unavailableReason: null }
-    : { peakRssBytes: null, unavailableReason: 'procfs process tree RSS sample was zero' };
+    ? { peakRssBytes: totalKb * 1024, source: 'procfs', unavailableKind: null, unavailableReason: null }
+    : { peakRssBytes: null, unavailableKind: 'process-ended-before-sample', unavailableReason: 'procfs process tree RSS sample was zero' };
 }
 
 function readProcStatus(procRoot, pid) {
@@ -147,6 +149,7 @@ export function spawnMeasured(command, args, options = {}) {
   const cwd = options.cwd ?? process.cwd();
   const env = { ...process.env, ...(options.env ?? {}) };
   const sampleIntervalMs = options.sampleIntervalMs ?? 50;
+  const timeoutMs = options.timeoutMs ?? null;
 
   return new Promise((resolve) => {
     const startedAt = Date.now();
@@ -168,8 +171,22 @@ export function spawnMeasured(command, args, options = {}) {
       } else if (peakRssBytes === 0 && rss.unavailableReason) {
         rssUnavailableReason = rss.unavailableReason;
       }
+      options.onSample?.({
+        elapsedMs: Date.now() - startedAt,
+        stdout,
+        stderr,
+        peakRssBytes: peakRssBytes || null,
+        rssSource: peakRssBytes > 0 ? 'process-tree' : null,
+        rssUnavailableKind: peakRssBytes > 0 ? null : (rss.unavailableKind ?? null),
+        rssUnavailableReason: peakRssBytes > 0 ? null : rssUnavailableReason,
+      });
     };
     const timer = setInterval(sample, sampleIntervalMs);
+    let timedOut = false;
+    const timeout = timeoutMs == null ? null : setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+    }, timeoutMs);
     sample();
 
     child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf-8'); });
@@ -177,13 +194,17 @@ export function spawnMeasured(command, args, options = {}) {
     child.on('close', (code, signal) => {
       sample();
       clearInterval(timer);
+      if (timeout) clearTimeout(timeout);
       resolve({
         code,
         signal,
+        timedOut,
         stdout,
         stderr,
         wallMs: Date.now() - startedAt,
         peakRssBytes: peakRssBytes || null,
+        rssSource: peakRssBytes > 0 ? 'process-tree' : null,
+        rssUnavailableKind: peakRssBytes > 0 ? null : 'process-ended-before-sample',
         rssUnavailableReason: peakRssBytes > 0
           ? null
           : (rssUnavailableReason ?? 'RSS sampling did not capture a live process tree'),
@@ -207,12 +228,15 @@ function spawnMeasuredCommandRss(command, args, options = {}) {
       stderr: '',
       wallMs: 0,
       peakRssBytes: null,
+      rssSource: null,
+      rssUnavailableKind: 'command-wrapper-unavailable',
       rssUnavailableReason: 'command RSS sampling unavailable: no time-compatible command is configured',
     });
   }
 
   return new Promise((resolve) => {
     const startedAt = Date.now();
+    const timeoutMs = options.timeoutMs ?? null;
     const timeArgs = process.platform === 'darwin' && timeCommand === '/usr/bin/time'
       ? ['-l', command, ...args]
       : [command, ...args];
@@ -224,29 +248,42 @@ function spawnMeasuredCommandRss(command, args, options = {}) {
 
     let stdout = '';
     let stderr = '';
+    let timedOut = false;
+    const timeout = timeoutMs == null ? null : setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+    }, timeoutMs);
     child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf-8'); });
     child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf-8'); });
     child.on('error', (error) => {
+      if (timeout) clearTimeout(timeout);
       const message = error instanceof Error ? error.message : String(error);
       resolve({
         code: null,
         signal: null,
+        timedOut,
         stdout,
         stderr,
         wallMs: Date.now() - startedAt,
         peakRssBytes: null,
+        rssSource: null,
+        rssUnavailableKind: 'command-wrapper-unavailable',
         rssUnavailableReason: `command RSS sampling unavailable: ${message}`,
       });
     });
     child.on('close', (code, signal) => {
+      if (timeout) clearTimeout(timeout);
       const peakRssBytes = parseCommandPeakRssBytes(stderr);
       resolve({
         code,
         signal,
+        timedOut,
         stdout,
         stderr,
         wallMs: Date.now() - startedAt,
         peakRssBytes,
+        rssSource: peakRssBytes == null ? null : 'command',
+        rssUnavailableKind: peakRssBytes == null ? 'command-wrapper-no-rss' : null,
         rssUnavailableReason: peakRssBytes == null
           ? 'command RSS sampling did not report maximum resident set size'
           : null,

@@ -49,6 +49,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixes
 
+- `rust-hybrid` indexing now batches more candidate lookups during reference resolution, reducing default indexing time on TypeScript-heavy projects without changing indexed results or fallback behavior. (#491)
 - `rust-hybrid` indexing now completes sparse-checkout projects when a planned non-Rust-owned fallback file is missing, and reports the missing fallback coverage as degraded diagnostics instead of failing the whole run. (#482, #483, #484)
 - `rust-hybrid` indexing now reuses Rust parser instances by source language during extraction, reducing repeated parser setup work without changing indexed results or fallback behavior. (#292)
 - `rust-hybrid` indexing now writes Rust-extracted source facts in a single bulk transaction, reducing large-project indexing overhead without changing indexed results or fallback behavior. (#288)

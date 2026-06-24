@@ -85,7 +85,7 @@ function makeBatchedQueries(nodes: Node[], unresolved: UnresolvedReference[]): Q
       ids.map((id) => [id, nodes.find((item) => item.id === id)?.kind ?? 'function']),
     ),
     insertEdges: () => undefined,
-    insertValidatedEdges: () => undefined,
+    insertValidatedEdges: () => ({ inserted: 0, serializationMs: 0, serializedBytes: 0 }),
     deleteUnresolvedReferencesByRowIds: (rowids: number[]) => {
       queries.__unresolved = queries.__unresolved!.filter((item) => !rowids.includes(item.rowid!));
     },
@@ -346,6 +346,7 @@ describe('guarded Rust name matcher', () => {
     expect(result.resolved[0]?.targetNodeId).toBe(target.id);
     expect(result.stats.timings?.rustMatcherEligibleRefs).toBe(1);
     expect(result.stats.timings?.rustMatcherHandledRefs).toBe(1);
+    expect(result.stats.timings?.rustMatcherTsVerificationReusedCandidateRefs).toBe(1);
   });
 
   it('deduplicates candidate facts into a batch-level payload table', () => {

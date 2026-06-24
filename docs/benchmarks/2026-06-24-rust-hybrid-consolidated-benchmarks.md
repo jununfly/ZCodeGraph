@@ -2555,9 +2555,9 @@ Updated current user-facing guidance in:
 - `src/sync/worktree.ts`
 - `scripts/add-lang/bench.sh`
 - `scripts/agent-eval/audit.sh`
-- `docs/design/dynamic-dispatch-coverage-playbook.md`
-- `docs/design/callback-edge-synthesis.md`
-- `docs/design/architecture-roadmap-validation.md`
+- `docs/designs/dynamic-dispatch-coverage-playbook.md`
+- `docs/designs/callback-edge-synthesis.md`
+- `docs/designs/architecture-roadmap-validation.md`
 - `docs/SEARCH_QUALITY_LOOP.md`
 - `docs/prds/2026-06-18-rust-hybrid-first-user-release.md`
 - `CHANGELOG.md`

@@ -838,7 +838,7 @@ Acceptance:
 - Deterministic probe shows route to handler linkage.
 - Deterministic probe shows handler to same-package helper/service direct call when the fixture contains one.
 - Record known gaps and no-go behavior.
-- Update `docs/design/dynamic-dispatch-coverage-playbook.md` or write a linked Go/Gin evidence document.
+- Update `docs/designs/dynamic-dispatch-coverage-playbook.md` or write a linked Go/Gin evidence document.
 - Write a Phase 2 decision artifact.
 - Explicitly state that first-user release readiness is not claimed.
 

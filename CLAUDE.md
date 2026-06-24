@@ -137,9 +137,9 @@ For each **language × framework**, validate on **small, medium, and large** rea
 1. **Pick the canonical flow** for the framework ("how does X reach Y": state→render, request→handler→view, query→SQL, action→reducer→store…).
 2. **Deterministic probes** (`scripts/agent-eval/probe-{node,explore}.mjs` against the built `dist/`): `zcodegraph_explore` with the flow's symbol names connects from→to end-to-end with no break (its Flow section shows the path); **no node explosion** (`select count(*) from nodes` stable before/after re-index); synthesized-edge **precision** spot-check (`select … where provenance='heuristic'`).
 3. **Agent A/B** (`scripts/agent-eval/run-all.sh <repo> "<Q>"`): with vs without codegraph, **≥2 runs/arm** (run-to-run variance is large — never conclude from n=1). Record **duration, total tool calls, Read, Grep**. Optional forced-Read-0 sufficiency proof via the block-read hook (`scripts/agent-eval/hook-settings.json`).
-4. **Pass bar:** a normal flow question reaches **~0 Read/Grep within the repo's explore-call budget**, runs **faster** than without-ZCodeGraph, and shows **no regression on a control repo**. Record the numbers in `docs/design/dynamic-dispatch-coverage-playbook.md` (the coverage matrix).
+4. **Pass bar:** a normal flow question reaches **~0 Read/Grep within the repo's explore-call budget**, runs **faster** than without-ZCodeGraph, and shows **no regression on a control repo**. Record the numbers in `docs/designs/dynamic-dispatch-coverage-playbook.md` (the coverage matrix).
 
-Full playbook + per-mechanism design: `docs/design/dynamic-dispatch-coverage-playbook.md` and `docs/design/callback-edge-synthesis.md`.
+Full playbook + per-mechanism design: `docs/designs/dynamic-dispatch-coverage-playbook.md` and `docs/designs/callback-edge-synthesis.md`.
 
 ### Worked example — Excalidraw (TS/React, medium, 643 files)
 

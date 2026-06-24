@@ -7,7 +7,7 @@ This document turns the architecture review candidates into a shared design lang
 Durable sources:
 
 - `ZJ-CONTEXT.md`
-- `docs/design/adaptive-explore-sizing.md`
+- `docs/designs/adaptive-explore-sizing.md`
 - `docs/benchmarks/call-sequence-analysis.md`
 - `docs/benchmarks/answer-directly-vs-explore-agent.md`
 
@@ -118,7 +118,7 @@ Tests: `__tests__/explore-planner.test.ts` (133 tests),
 `__tests__/explore-renderer.test.ts` (4 tests),
 `__tests__/explore-types.test.ts` (10 tests). All 147 pass.
 
-Design docs updated: see `docs/design/adaptive-explore-sizing.md#current-code`.
+Design docs updated: see `docs/designs/adaptive-explore-sizing.md#current-code`.
 
 ## Read/Grep Fallback boundary
 
@@ -170,7 +170,7 @@ Relationship to Candidate 1:
 - Candidate 2 improves graph evidence availability.
 - Candidate 1 decides whether that evidence becomes useful answer evidence.
 
-Design docs: see `docs/design/dynamic-dispatch-coverage-playbook.md`.
+Design docs: see `docs/designs/dynamic-dispatch-coverage-playbook.md`.
 
 ### Candidate 3: Index pipeline Module ✅ COMPLETED (2026-06-10)
 

@@ -6,7 +6,7 @@ Validate the current `zcodegraph_explore` Agent Sufficiency for flow questions.
 
 This is an effectiveness evaluation, not an architecture-completion check. The
 architecture seams are already validated in
-`docs/design/architecture-roadmap-validation.md`; this plan measures whether the
+`docs/designs/architecture-roadmap-validation.md`; this plan measures whether the
 current Explore Answer is sufficient enough that agents stop using generic
 Read/Grep to recover expected flow evidence.
 

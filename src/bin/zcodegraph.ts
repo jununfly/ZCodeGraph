@@ -64,13 +64,72 @@ function resolveSqliteWriteMode(raw: string | undefined): 'disk' | 'final-flush'
   throw new Error(`Unsupported SQLite write mode "${raw}". Supported modes: disk, final-flush, memory-final-flush`);
 }
 
-function writeIndexProfile(projectPath: string, profile: unknown): void {
-  const profileOut = process.env.ZCODEGRAPH_INDEX_PROFILE_OUT;
-  if (!profileOut) return;
+type ProfileCheckpointState = 'started' | 'completed';
 
-  const resolvedProfileOut = path.resolve(projectPath, profileOut);
-  fs.mkdirSync(path.dirname(resolvedProfileOut), { recursive: true });
-  fs.writeFileSync(resolvedProfileOut, `${JSON.stringify(profile, null, 2)}\n`);
+type ProfileCheckpoint = {
+  name: string;
+  state: ProfileCheckpointState;
+  elapsedMs: number;
+};
+
+type ProfileArtifact = Record<string, unknown> & {
+  complete: boolean;
+  checkpoints: ProfileCheckpoint[];
+};
+
+class IndexProfileWriter {
+  private readonly resolvedProfileOut: string;
+  private readonly startedAt = Date.now();
+  private readonly checkpoints: ProfileCheckpoint[] = [];
+  private profile: Record<string, unknown> = {};
+
+  constructor(projectPath: string, profileOut: string) {
+    this.resolvedProfileOut = path.resolve(projectPath, profileOut);
+  }
+
+  checkpoint(name: string): void {
+    this.addCheckpoint(name);
+    this.write(false);
+  }
+
+  merge(profile: unknown): void {
+    if (profile && typeof profile === 'object' && !Array.isArray(profile)) {
+      this.profile = { ...this.profile, ...(profile as Record<string, unknown>) };
+    }
+    this.write(false);
+  }
+
+  complete(profile: unknown): ProfileArtifact {
+    if (profile && typeof profile === 'object' && !Array.isArray(profile)) {
+      this.profile = { ...this.profile, ...(profile as Record<string, unknown>) };
+    }
+    this.addCheckpoint('profile.completed');
+    return this.write(true);
+  }
+
+  private addCheckpoint(name: string): void {
+    const suffix = name.endsWith('.completed') ? 'completed' : 'started';
+    this.checkpoints.push({
+      name,
+      state: suffix,
+      elapsedMs: Date.now() - this.startedAt,
+    });
+  }
+
+  private write(complete: boolean): ProfileArtifact {
+    const artifact: ProfileArtifact = {
+      complete,
+      checkpoints: this.checkpoints,
+      ...this.profile,
+    };
+    fs.mkdirSync(path.dirname(this.resolvedProfileOut), { recursive: true });
+    fs.writeFileSync(this.resolvedProfileOut, `${JSON.stringify(artifact, null, 2)}\n`);
+    return artifact;
+  }
+}
+
+function createIndexProfileWriter(projectPath: string, profileOut: string | undefined): IndexProfileWriter | undefined {
+  return profileOut ? new IndexProfileWriter(projectPath, profileOut) : undefined;
 }
 
 // Lazy-load heavy modules (CodeGraph, runInstaller) to keep CLI startup fast.
@@ -520,6 +579,7 @@ async function runSelectedIndex(
     graphWorkProfile?: 'full' | 'matched-ts-js';
     sqliteWriteMode?: 'disk' | 'final-flush' | 'memory-final-flush';
     profile?: 'heap';
+    profileOut?: string;
   },
   onProgress?: (progress: { phase: string; current: number; total: number; currentFile?: string }) => void,
 ): Promise<IndexResult> {
@@ -538,8 +598,10 @@ async function runSelectedIndex(
     }
   }
 
+  const profileWriter = createIndexProfileWriter(projectPath, options.profileOut);
   const hybridPlan = engine === 'rust-hybrid' ? planRustHybridAssignments(projectPath) : null;
 
+  profileWriter?.checkpoint('rustCore.started');
   const result = await runRustIndexer(projectPath, {
     force: options.force,
     verbose: options.verbose,
@@ -548,6 +610,10 @@ async function runSelectedIndex(
     profiling: options.profile,
     onProgress,
   });
+  const mutableResult = result as IndexResult;
+  const rustCoreProfile = result.profile;
+  profileWriter?.checkpoint('rustCore.completed');
+  profileWriter?.merge({ rustCore: rustCoreProfile });
   if (!result.success || result.filesIndexed === 0) {
     return result;
   }
@@ -560,22 +626,33 @@ async function runSelectedIndex(
       ? mergeRustOwnedGapDiagnostics(hybridPlan, result.errors as RustOwnedPerFileGapDiagnostic[])
       : hybridPlan;
     if (engine === 'rust-hybrid' && runtimeHybridPlan && runtimeHybridPlan.fallbackFiles.length > 0) {
+      profileWriter?.checkpoint('typescriptFallbackAppend.started');
       fallbackResult = await cg.indexFallbackFiles(runtimeHybridPlan.fallbackFiles);
+      profileWriter?.checkpoint('typescriptFallbackAppend.completed');
+      profileWriter?.merge({
+        typescriptFallbackAppend: {
+          durationMs: fallbackResult.durationMs,
+          fallbackFileCount: fallbackResult.fallbackFileCount,
+          missingFallbackFileCount: fallbackResult.missingFallbackFileCount,
+          missingFallbackByLanguage: fallbackResult.missingFallbackByLanguage,
+          errorTaxonomy: fallbackResult.errorTaxonomy,
+        },
+      });
       if (fallbackResult.missingFallbackFileCount > 0) {
         runtimeHybridPlan = mergeMissingFallbackDiagnostics(runtimeHybridPlan, fallbackResult);
       }
       if (!fallbackResult.success) {
         return {
           success: false,
-          filesIndexed: result.filesIndexed + fallbackResult.filesIndexed,
-          filesSkipped: result.filesSkipped + fallbackResult.filesSkipped,
-          filesErrored: result.filesErrored + fallbackResult.filesErrored,
-          nodesCreated: result.nodesCreated + fallbackResult.nodesCreated,
-          edgesCreated: result.edgesCreated + fallbackResult.edgesCreated,
+          filesIndexed: mutableResult.filesIndexed + fallbackResult.filesIndexed,
+          filesSkipped: mutableResult.filesSkipped + fallbackResult.filesSkipped,
+          filesErrored: mutableResult.filesErrored + fallbackResult.filesErrored,
+          nodesCreated: mutableResult.nodesCreated + fallbackResult.nodesCreated,
+          edgesCreated: mutableResult.edgesCreated + fallbackResult.edgesCreated,
           errors: fallbackResult.errors,
-          durationMs: result.durationMs + fallbackResult.durationMs,
+          durationMs: mutableResult.durationMs + fallbackResult.durationMs,
           profile: {
-            rustCore: result.profile,
+            rustCore: rustCoreProfile,
             typescriptFallbackAppend: {
               durationMs: fallbackResult.durationMs,
               fallbackFileCount: fallbackResult.fallbackFileCount,
@@ -586,29 +663,33 @@ async function runSelectedIndex(
           },
         };
       }
-      result.filesIndexed += fallbackResult.filesIndexed;
-      result.filesSkipped += fallbackResult.filesSkipped;
-      result.filesErrored += fallbackResult.filesErrored;
-      result.nodesCreated += fallbackResult.nodesCreated;
-      result.edgesCreated += fallbackResult.edgesCreated;
-      result.errors.push(...fallbackResult.errors);
+      mutableResult.filesIndexed += fallbackResult.filesIndexed;
+      mutableResult.filesSkipped += fallbackResult.filesSkipped;
+      mutableResult.filesErrored += fallbackResult.filesErrored;
+      mutableResult.nodesCreated += fallbackResult.nodesCreated;
+      mutableResult.edgesCreated += fallbackResult.edgesCreated;
+      mutableResult.errors.push(...fallbackResult.errors);
     }
 
     const finalizationStarted = Date.now();
+    profileWriter?.checkpoint('finalization.started');
     const finalized = await cg.finalizeRustIndex((current, total) => {
       onProgress?.({
         phase: 'resolving',
         current,
         total,
       });
+    }, (checkpointName) => {
+      profileWriter?.checkpoint(checkpointName);
     });
+    profileWriter?.checkpoint('finalization.completed');
     if (engine === 'rust-hybrid') {
       cg.markRustHybridIndex(buildRustHybridMetadataFromPlan(runtimeHybridPlan ?? planRustHybridAssignments(projectPath)));
     }
-    result.nodesCreated += finalized.nodesCreated;
-    result.edgesCreated += finalized.edgesCreated;
-    result.profile = {
-      rustCore: result.profile,
+    mutableResult.nodesCreated += finalized.nodesCreated;
+    mutableResult.edgesCreated += finalized.edgesCreated;
+    mutableResult.profile = {
+      rustCore: rustCoreProfile,
       ...(fallbackResult ? {
         typescriptFallbackAppend: {
           durationMs: fallbackResult.durationMs,
@@ -621,11 +702,14 @@ async function runSelectedIndex(
       finalize: finalized.profile,
       typescriptFinalizationMs: Date.now() - finalizationStarted,
     };
+    profileWriter?.merge(mutableResult.profile);
   } finally {
     cg.destroy();
   }
-  writeIndexProfile(projectPath, result.profile ?? null);
-  return result;
+  if (profileWriter) {
+    mutableResult.profile = profileWriter.complete(mutableResult.profile ?? null);
+  }
+  return mutableResult;
 }
 
 function shouldShowRustDiagnostics(engine: IndexEngine | undefined): boolean {
@@ -848,7 +932,8 @@ program
   .option('--graph-work-profile <profile>', 'Rust graph work profile to use: full or matched-ts-js')
   .option('--sqlite-write-mode <mode>', 'Rust SQLite write mode: final-flush, disk, or memory-final-flush')
   .option('--profile <mode>', 'Rust index profiling mode to use: heap')
-  .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string; graphWorkProfile?: string; sqliteWriteMode?: string; profile?: string }) => {
+  .option('--profile-out <path>', 'Write Rust index profile artifact to path')
+  .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string; graphWorkProfile?: string; sqliteWriteMode?: string; profile?: string; profileOut?: string }) => {
     const projectPath = resolveProjectPath(pathArg);
     let selectedEngine: IndexEngine | undefined;
     const commandStartedAt = Date.now();
@@ -859,6 +944,9 @@ program
       const sqliteWriteMode = resolveSqliteWriteMode(options.sqliteWriteMode);
       const indexProfile = resolveIndexProfile(options.profile);
       selectedEngine = engine;
+      if (options.profileOut && engine === 'typescript') {
+        throw new Error('--profile-out is only supported for rust and rust-hybrid index engines');
+      }
 
       if (!isInitialized(projectPath)) {
         error(`CodeGraph not initialized in ${projectPath}`);
@@ -874,6 +962,7 @@ program
           graphWorkProfile,
           sqliteWriteMode,
           profile: indexProfile,
+          profileOut: options.profileOut,
         });
         recordRustHybridRun(projectPath, engine, 'index', commandStartedAt, result);
         if (!result.success) process.exit(1);
@@ -895,6 +984,7 @@ program
           graphWorkProfile,
           sqliteWriteMode,
           profile: indexProfile,
+          profileOut: options.profileOut,
         }, options.verbose ? createVerboseProgress() : undefined);
       } else {
         if (options.force) {

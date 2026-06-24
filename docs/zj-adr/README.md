@@ -1,7 +1,8 @@
 # ZJ ADR Index
 
 Durable architecture decisions live here. Benchmark evidence, raw profiles,
-smoke results, and A/B closeouts remain in `docs/benchmarks/`.
+smoke results, and A/B closeouts stay out of ADRs unless they produce a
+long-lived decision that meets the ADR bar.
 
 ## Accepted ADRs
 
@@ -19,14 +20,18 @@ smoke results, and A/B closeouts remain in `docs/benchmarks/`.
 
 ## Supporting Evidence
 
-Use `docs/benchmarks/` for:
+Use `docs/benchmarks/` for durable benchmark artifacts:
 
-- raw experiment artifacts;
-- generated summaries;
-- before/after A/B records;
-- smoke evidence;
-- current-state maps;
-- issue or phase closeout decisions.
+- `baseline-*` files that define a repeatable standard and method;
+- `*-result.*` files that record one complete run against a baseline;
+- `tmp-*` files for temporary implementation-time measurements and
+  issue-scoped keep/no-go notes that are not expected to outlive their tracker.
 
 Promote a benchmark decision into an ADR only when it is hard to reverse,
 surprising without context, and the result of a real trade-off.
+
+Process-only artifacts that are useful only as issue or plan evidence should
+prefer the lifecycle and scope of that issue, plan, or tracker. Once their useful
+facts are absorbed by an ADR, PRD, roadmap, plan, or baseline/result artifact,
+they should be consolidated and deleted rather than becoming a parallel source
+of truth.

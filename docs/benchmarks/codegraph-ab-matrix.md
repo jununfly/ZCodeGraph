@@ -37,7 +37,7 @@ when the whole flow fits in one or two files) — but reads still drop.
 - **reads saved** = without-reads − with-reads.
 - One run per arm (a **snapshot** — run-to-run variance is real; treat ±1–2 reads and ±10s as
   noise, look at the pattern across cells). 2-runs/arm headline numbers for several of these flows
-  live in `docs/design/dynamic-dispatch-coverage-playbook.md` §7.
+  live in `docs/designs/dynamic-dispatch-coverage-playbook.md` §7.
 
 ## Results
 

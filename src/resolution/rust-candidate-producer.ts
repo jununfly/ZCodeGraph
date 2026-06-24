@@ -34,6 +34,7 @@ export interface RustCandidateProducerDiagnostics {
     onDemandLookupCount?: number;
     onDemandLookupShapeCounts?: Record<RustCandidateProducerLookup['kind'], number>;
     onDemandCacheHitCount?: number;
+    qualifiedNameOnDemandSourceShapeCounts?: Record<string, number>;
     invalidConfigReason?: string;
   };
 }
@@ -115,6 +116,7 @@ export function emptyRustCandidateProducerDiagnostics(
         KnownNamePresence: 0,
       },
       onDemandCacheHitCount: 0,
+      qualifiedNameOnDemandSourceShapeCounts: {},
     },
   };
 }

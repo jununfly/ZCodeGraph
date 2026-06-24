@@ -6465,7 +6465,7 @@ Next recommended plan: bounded Rust graph-pipeline prototype, starting with the
 - `docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-vscode-profile.raw.json`
 - `docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-vscode-sufficiency.raw.json`
 - `docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-issue105-vscode-sufficiency-node24.raw.json`
-- `docs/design/2026-06-14-rust-end-to-end-graph-pipeline-feasibility.md`
+- `docs/designs/2026-06-14-rust-end-to-end-graph-pipeline-feasibility.md`
 
 ## Final Large-Target Profile
 

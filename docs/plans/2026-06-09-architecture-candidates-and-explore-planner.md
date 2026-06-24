@@ -1,6 +1,6 @@
 # Architecture Candidates Phasing & Explore Answer Planner — Design & Implementation Plan
 
-> **Status: Phase 1–4 ALL COMPLETED** (2026-06-10). This document is preserved as historical record of the design decisions and implementation tasks. See `docs/design/architecture-roadmap.md` for current status.
+> **Status: Phase 1–4 ALL COMPLETED** (2026-06-10). This document is preserved as historical record of the design decisions and implementation tasks. See `docs/designs/architecture-roadmap.md` for current status.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task.
 
@@ -8,7 +8,7 @@
 
 **Architecture:** Extract a testable `ExplorePlan` intermediate structure from the monolithic `handleExplore()` in `src/mcp/tools.ts`. Keep MCP as a thin adapter; move Evidence Scope, Output Budget, and Evidence Value policy behind a planner seam. The formatted Markdown answer becomes a renderer over the plan.
 
-**Domain language reference:** `ZJ-CONTEXT.md` (Agent Sufficiency, Explore Answer, Evidence Scope, Output Budget, Evidence Value, Read/Grep Fallback). Design vocabulary: `docs/design/architecture-roadmap.md`. ADR: `docs/zj-adr/ZJ-0001-agent-sufficiency-as-architecture-north-star.md`.
+**Domain language reference:** `ZJ-CONTEXT.md` (Agent Sufficiency, Explore Answer, Evidence Scope, Output Budget, Evidence Value, Read/Grep Fallback). Design vocabulary: `docs/designs/architecture-roadmap.md`. ADR: `docs/zj-adr/ZJ-0001-agent-sufficiency-as-architecture-north-star.md`.
 
 **Tech Stack:** TypeScript, vitest. No new dependencies.
 
@@ -16,7 +16,7 @@
 
 ## Phase 0 — Candidate Partitioning
 
-The 7 candidates are intentionally ordered in `docs/design/architecture-roadmap.md` by recommendation strength. Execution should follow the same priority:
+The 7 candidates are intentionally ordered in `docs/designs/architecture-roadmap.md` by recommendation strength. Execution should follow the same priority:
 
 ### Phase 1: Candidate 1 — Explore Answer Planner Seam ✅ COMPLETED (2026-06-10)
 
@@ -26,7 +26,7 @@ The 7 candidates are intentionally ordered in `docs/design/architecture-roadmap.
 
 **Dependencies:** None.
 
-**Result:** See Candidate 1 section in `docs/design/architecture-roadmap.md`.
+**Result:** See Candidate 1 section in `docs/designs/architecture-roadmap.md`.
 
 ### Phase 2: Candidate 2 — Dynamic Dispatch Synthesizer Registry / Seam ✅ COMPLETED (2026-06-10)
 
@@ -611,8 +611,8 @@ git commit -m "refactor(explore): remove ported planning logic from handleExplor
 ### Task 9: Update design docs ✅ COMPLETED
 
 **Files:**
-- Modify: `docs/design/adaptive-explore-sizing.md`
-- Modify: `docs/design/architecture-roadmap.md`
+- Modify: `docs/designs/adaptive-explore-sizing.md`
+- Modify: `docs/designs/architecture-roadmap.md`
 
 **Step 1 — Update adaptive-explore-sizing.md**
 
@@ -628,7 +628,7 @@ git commit -m "refactor(explore): remove ported planning logic from handleExplor
 **Step 3 — Commit**
 
 ```bash
-git add docs/design/adaptive-explore-sizing.md docs/design/architecture-roadmap.md
+git add docs/designs/adaptive-explore-sizing.md docs/designs/architecture-roadmap.md
 git commit -m "docs: update design docs after Explore planner extraction"
 ```
 

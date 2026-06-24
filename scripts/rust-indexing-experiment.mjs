@@ -966,7 +966,7 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
       }
       env.ZCODEGRAPH_RUST_CORE_BINARY = rustCoreInfo.path;
       indexProfileFile = path.join(arm.sourceCopy.path, '.zcodegraph', 'rust-index-profile.json');
-      env.ZCODEGRAPH_INDEX_PROFILE_OUT = indexProfileFile;
+      args.push('--profile-out', indexProfileFile);
       if (profiling.heap) {
         env.ZCODEGRAPH_PROFILING = 'heap';
         env.ZCODEGRAPH_EXPERIMENT_ID = experimentId;

@@ -98,6 +98,7 @@ export interface ResolutionResult {
       rustMatcherCandidateMaterializationMs?: number;
       rustMatcherSubprocessMs?: number;
       rustMatcherTsVerificationMs?: number;
+      rustMatcherTsVerificationReusedCandidateRefs?: number;
       rustMatcherPayloadBytes?: number;
       rustMatcherUniqueCandidateFacts?: number;
       candidateReplayEligibleRefs?: number;

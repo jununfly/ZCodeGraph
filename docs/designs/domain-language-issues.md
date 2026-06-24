@@ -30,7 +30,7 @@ Domain Language 校对确认正式术语为 **"Explore Answer"**。代码注释�
 
 - `src/mcp/tools.ts`
 - `src/mcp/explore-types.ts`
-- `docs/design/adaptive-explore-sizing.md`
+- `docs/designs/adaptive-explore-sizing.md`
 
 ### 范围
 
@@ -192,7 +192,7 @@ Breaking change——`QueryBuilder` 实现这四个接口，所有引用已迁�
 
 ### 范围
 
-仅更新 `docs/design/adaptive-explore-sizing.md` 和代码注释中的用词。
+仅更新 `docs/designs/adaptive-explore-sizing.md` 和代码注释中的用词。
 `renderMode` 字段名保留，待后续 issue 追踪重命名。
 
 ---

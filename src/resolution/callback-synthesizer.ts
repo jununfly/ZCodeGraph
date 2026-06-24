@@ -19,7 +19,7 @@
  * named callbacks only; field channels paired by file+field; EventEmitter
  * channels capped by event fan-out (generic names like 'error' skipped — they
  * need receiver-type matching, deferred to Phase 3). All synthesized edges are
- * tagged `edgeOrigin:'heuristic'`. See docs/design/callback-edge-synthesis.md.
+ * tagged `edgeOrigin:'heuristic'`. See docs/designs/callback-edge-synthesis.md.
  */
 import type { Edge, Language, Node, NodeKind } from '../types';
 import type { QueryBuilder } from '../db/queries';

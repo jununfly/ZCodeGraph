@@ -88,6 +88,6 @@ To establish the true Agent Sufficiency baseline:
    npm run eval -- /path/to/target
    ```
 
-3. **Run agent A/B sessions** (with/without ZCodeGraph) on representative tasks and classify Read/Grep calls per the Fallback boundary definition in `docs/design/architecture-roadmap.md`.
+3. **Run agent A/B sessions** (with/without ZCodeGraph) on representative tasks and classify Read/Grep calls per the Fallback boundary definition in `docs/designs/architecture-roadmap.md`.
 
 4. **Record results here** as the pre-policy-improvement baseline.

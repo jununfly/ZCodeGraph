@@ -17,7 +17,7 @@ import { isLanguageSupported } from './grammars';
  *  - `<MyComponent .../>` (Blazor only)   → the component class (.razor or `.cs : ComponentBase`)
  *  - `<Grid TItem="CatalogItem">`         → the generic type argument
  *
- * Risk mitigations (see docs/design/template-markup-parser.md):
+ * Risk mitigations (see docs/designs/template-markup-parser.md):
  *  - Only PascalCase (`[A-Z]`-initial) tags are treated as components — HTML
  *    elements are lowercase, so they never match. Known Blazor framework
  *    components are skipped (they aren't in-repo, so a ref would just dangle).

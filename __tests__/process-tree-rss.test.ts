@@ -36,6 +36,8 @@ describe('process-tree RSS sampler', () => {
 
     expect(result).toEqual({
       peakRssBytes: (10 + 20 + 30) * 1024,
+      source: 'procfs',
+      unavailableKind: null,
       unavailableReason: null,
     });
   });
@@ -90,6 +92,8 @@ describe('process-tree RSS sampler', () => {
       ) => Promise<{
         code: number | null;
         peakRssBytes: number | null;
+        rssSource: string | null;
+        rssUnavailableKind: string | null;
         rssUnavailableReason: string | null;
       }>;
     };
@@ -103,6 +107,8 @@ describe('process-tree RSS sampler', () => {
 
     expect(result.code).toBe(0);
     expect(result.peakRssBytes).toBe(12345);
+    expect(result.rssSource).toBe('command');
+    expect(result.rssUnavailableKind).toBeNull();
     expect(result.rssUnavailableReason).toBeNull();
   });
 
@@ -130,7 +136,7 @@ describe('process-tree RSS sampler', () => {
         command: string,
         args: string[],
         options?: { rssMode?: 'process-tree' | 'command'; timeCommand?: string },
-      ) => Promise<{ peakRssBytes: number | null; rssUnavailableReason: string | null }>;
+      ) => Promise<{ peakRssBytes: number | null; rssUnavailableKind: string | null; rssUnavailableReason: string | null }>;
     };
 
     const result = await spawnMeasured(process.execPath, ['-e', '0'], {
@@ -139,7 +145,40 @@ describe('process-tree RSS sampler', () => {
     });
 
     expect(result.peakRssBytes).toBeNull();
+    expect(result.rssUnavailableKind).toBe('command-wrapper-no-rss');
     expect(result.rssUnavailableReason).toContain('command RSS sampling did not report maximum resident set size');
+  });
+
+  it('classifies process-list sandbox failures with a machine-readable kind', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-ps-eperm-'));
+    tempDirs.push(dir);
+    const fakePs = path.join(dir, process.platform === 'win32' ? 'fake-ps.cjs' : 'fake-ps');
+    fs.writeFileSync(
+      fakePs,
+      [
+        '#!/usr/bin/env node',
+        'process.stderr.write("ps: Operation not permitted\\n");',
+        'process.exit(1);',
+        '',
+      ].join('\n'),
+    );
+    fs.chmodSync(fakePs, 0o755);
+
+    const { sampleProcessTreeRssBytes } = await import(MODULE) as {
+      sampleProcessTreeRssBytes: (
+        pid: number,
+        options?: { procRoot?: string; psCommand?: string },
+      ) => { peakRssBytes: number | null; unavailableKind: string | null; unavailableReason: string | null };
+    };
+
+    const result = sampleProcessTreeRssBytes(100, {
+      procRoot: path.join(os.tmpdir(), 'zcodegraph-missing-proc-root'),
+      psCommand: fakePs,
+    });
+
+    expect(result.peakRssBytes).toBeNull();
+    expect(result.unavailableKind).toBe('process-list-sandboxed');
+    expect(result.unavailableReason).toContain('process-list access is sandboxed');
   });
 });
 

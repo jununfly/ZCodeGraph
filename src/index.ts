@@ -937,7 +937,10 @@ export class CodeGraph {
    * deliberately only runs framework finalization, reference resolution, dynamic
    * edge synthesis, and maintenance so the index remains marked as Rust-built.
    */
-  async finalizeRustIndex(onProgress?: (current: number, total: number) => void): Promise<{
+  async finalizeRustIndex(
+    onProgress?: (current: number, total: number) => void,
+    onCheckpoint?: (name: string) => void,
+  ): Promise<{
     nodesCreated: number;
     edgesCreated: number;
     profile: {
@@ -982,6 +985,7 @@ export class CodeGraph {
         rustMatcherCandidateMaterializationMs: number;
         rustMatcherSubprocessMs: number;
         rustMatcherTsVerificationMs: number;
+        rustMatcherTsVerificationReusedCandidateRefs: number;
         rustMatcherPayloadBytes: number;
         rustMatcherUniqueCandidateFacts: number;
         candidateReplayEligibleRefs: number;
@@ -1090,6 +1094,7 @@ export class CodeGraph {
             rustMatcherCandidateMaterializationMs: 0,
             rustMatcherSubprocessMs: 0,
             rustMatcherTsVerificationMs: 0,
+            rustMatcherTsVerificationReusedCandidateRefs: 0,
             rustMatcherPayloadBytes: 0,
             rustMatcherUniqueCandidateFacts: 0,
             candidateReplayEligibleRefs: 0,
@@ -1132,6 +1137,13 @@ export class CodeGraph {
                 QualifiedName: 0,
                 FileNodes: 0,
                 KnownNamePresence: 0,
+              },
+              fileNodesLookup: {
+                requestedCount: 0,
+                reusedCount: 0,
+                missedCount: 0,
+                fallbackCount: 0,
+                lookupMs: 0,
               },
               equivalenceComparedCount: 0,
               equivalenceMismatchCount: 0,
@@ -1273,13 +1285,17 @@ export class CodeGraph {
         profile.fallbackTaxonomy.entries.push(...additionalFallbackEntries);
         profile.fallbackTaxonomy.totalFallbacks += additionalFallbackEntries.reduce((sum, entry) => sum + entry.count, 0);
         const frameworkStarted = Date.now();
+        onCheckpoint?.('finalization.frameworkPostExtract.started');
         this.resolver.initialize();
         this.resolver.runPostExtract();
         profile.frameworkPostExtractMs = Date.now() - frameworkStarted;
+        onCheckpoint?.('finalization.frameworkPostExtract.completed');
 
         const resolutionStarted = Date.now();
+        onCheckpoint?.('finalization.referenceResolution.started');
         const resolution = await this.resolveReferencesBatched(onProgress);
         const resolutionTotalMs = Date.now() - resolutionStarted;
+        onCheckpoint?.('finalization.referenceResolution.completed');
         const resolutionTimings = resolution.stats.timings;
         profile.referenceResolutionBreakdown = {
           importResolutionMs: resolutionTimings?.importResolutionMs ?? 0,
@@ -1308,6 +1324,8 @@ export class CodeGraph {
           rustMatcherCandidateMaterializationMs: resolutionTimings?.rustMatcherCandidateMaterializationMs ?? 0,
           rustMatcherSubprocessMs: resolutionTimings?.rustMatcherSubprocessMs ?? 0,
           rustMatcherTsVerificationMs: resolutionTimings?.rustMatcherTsVerificationMs ?? 0,
+          rustMatcherTsVerificationReusedCandidateRefs:
+            resolutionTimings?.rustMatcherTsVerificationReusedCandidateRefs ?? 0,
           rustMatcherPayloadBytes: resolutionTimings?.rustMatcherPayloadBytes ?? 0,
           rustMatcherUniqueCandidateFacts: resolutionTimings?.rustMatcherUniqueCandidateFacts ?? 0,
           candidateReplayEligibleRefs: resolutionTimings?.candidateReplayEligibleRefs ?? 0,
@@ -1336,11 +1354,15 @@ export class CodeGraph {
           otherResolutionMs: resolutionTimings?.otherResolutionMs ?? 0,
         };
         profile.dynamicDispatchSynthesisMs = resolutionTimings?.dynamicDispatchSynthesisMs ?? 0;
+        onCheckpoint?.('finalization.dynamicDispatchSynthesis.started');
+        onCheckpoint?.('finalization.dynamicDispatchSynthesis.completed');
         profile.referenceResolutionMs = Math.max(0, resolutionTotalMs - profile.dynamicDispatchSynthesisMs);
 
         const maintenanceStarted = Date.now();
+        onCheckpoint?.('finalization.dbMaintenance.started');
         this.db.runMaintenance();
         profile.dbMaintenanceMs = Date.now() - maintenanceStarted;
+        onCheckpoint?.('finalization.dbMaintenance.completed');
 
         const after = this.queries.getNodeAndEdgeCount();
         return {

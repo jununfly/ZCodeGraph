@@ -46,6 +46,13 @@ export interface CandidateProtocolDiagnostics {
   candidateCount: number;
   lookupShapeCounts: Record<CandidateLookupShape['kind'], number>;
   lookupShapeMs: Record<CandidateLookupShape['kind'], number>;
+  fileNodesLookup: {
+    requestedCount: number;
+    reusedCount: number;
+    missedCount: number;
+    fallbackCount: number;
+    lookupMs: number;
+  };
   equivalenceComparedCount: number;
   equivalenceMismatchCount: number;
   fallbackReasons: Record<string, number>;
@@ -100,6 +107,7 @@ interface CandidateProducerRoutingState {
   onDemandLookupCount: number;
   onDemandLookupShapeCounts: Record<RustCandidateProducerLookup['kind'], number>;
   onDemandCacheHitCount: number;
+  qualifiedNameOnDemandSourceShapeCounts: Record<string, number>;
 }
 
 export function candidateProtocolEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -132,12 +140,20 @@ export function toCandidateFact(node: Node): CandidateFact {
   };
 }
 
-export function collectCandidateProducerRoutingLookups(refs: Array<{ referenceName: string }>): RustCandidateProducerLookup[] {
+export function collectCandidateProducerRoutingLookups(refs: Array<{ referenceName: string; filePath?: string }>): RustCandidateProducerLookup[] {
   const names = new Set<string>();
+  const qualifiedNames = new Set<string>();
+  const filePaths = new Set<string>();
   for (const ref of refs) {
     const name = ref.referenceName.trim();
-    if (!isBareRoutingReferenceName(name)) continue;
-    names.add(name);
+    if (isBareRoutingReferenceName(name)) {
+      names.add(name);
+    } else if (isQualifiedRoutingReferenceName(name)) {
+      qualifiedNames.add(name);
+    }
+    if (ref.filePath?.trim()) {
+      filePaths.add(ref.filePath.trim());
+    }
   }
 
   const lookups: RustCandidateProducerLookup[] = [];
@@ -145,6 +161,14 @@ export function collectCandidateProducerRoutingLookups(refs: Array<{ referenceNa
     lookups.push({ kind: 'ExactName', name });
     lookups.push({ kind: 'KnownNamePresence', name });
     lookups.push({ kind: 'LowerName', lowerName: name.toLowerCase() });
+    lookups.push({ kind: 'QualifiedName', qualifiedName: name });
+  }
+  for (const qualifiedName of [...qualifiedNames].sort()) {
+    lookups.push({ kind: 'LowerName', lowerName: qualifiedName.toLowerCase() });
+    lookups.push({ kind: 'QualifiedName', qualifiedName });
+  }
+  for (const filePath of [...filePaths].sort()) {
+    lookups.push({ kind: 'FileNodes', filePath });
   }
   return lookups;
 }
@@ -198,6 +222,9 @@ export class CandidateProtocolProvider {
   lookupNodes(lookup: Exclude<CandidateLookupShape, { kind: 'KnownNamePresence' }>): Node[] {
     const started = Date.now();
     this.recordLookup(lookup.kind);
+    if (lookup.kind === 'FileNodes') {
+      this.diagnostics.fileNodesLookup.requestedCount += 1;
+    }
     const cache = this.cacheFor(lookup);
     const key = this.keyFor(lookup);
     const cached = cache.get(key);
@@ -205,6 +232,10 @@ export class CandidateProtocolProvider {
       this.diagnostics.cacheHitCount += 1;
       this.compareNodeLookup(lookup, cached);
       this.recordLookupMs(lookup.kind, started);
+      if (lookup.kind === 'FileNodes') {
+        this.diagnostics.fileNodesLookup.reusedCount += 1;
+        this.recordFileNodesLookupMs(started);
+      }
       return cached;
     }
 
@@ -250,8 +281,11 @@ export class CandidateProtocolProvider {
           this.candidateIds.add(toCandidateFact(node).id);
         }
         this.recordLookupMs(lookup.kind, started);
+        this.diagnostics.fileNodesLookup.reusedCount += 1;
+        this.recordFileNodesLookupMs(started);
         return routed;
       }
+      this.diagnostics.fileNodesLookup.fallbackCount += 1;
     }
 
     this.diagnostics.dbLookupCount += 1;
@@ -263,6 +297,10 @@ export class CandidateProtocolProvider {
     this.recordRustProducerNodeBaseline(lookup, result);
     this.compareNodeLookup(lookup, result);
     this.recordLookupMs(lookup.kind, started);
+    if (lookup.kind === 'FileNodes') {
+      this.diagnostics.fileNodesLookup.missedCount += 1;
+      this.recordFileNodesLookupMs(started);
+    }
     return result;
   }
 
@@ -302,7 +340,7 @@ export class CandidateProtocolProvider {
     return result;
   }
 
-  prepareRustCandidateProducerRouting(refs: Array<{ referenceName: string }>): void {
+  prepareRustCandidateProducerRouting(refs: Array<{ referenceName: string; filePath?: string }>): void {
     this.resetRouting();
     if (!this.routing.config.enabled) {
       if (this.routing.config.source === 'invalid-local-config') {
@@ -328,12 +366,18 @@ export class CandidateProtocolProvider {
 
     const exactResults = new Map<string, string[]>();
     const lowerResults = new Map<string, string[]>();
+    const qualifiedResults = new Map<string, string[]>();
+    const fileResults = new Map<string, string[]>();
     const presenceResults = new Map<string, boolean>();
     for (const result of results) {
       if (result.kind === 'ExactName') {
         exactResults.set(result.name, result.candidateIds);
       } else if (result.kind === 'LowerName') {
         lowerResults.set(result.lowerName, result.candidateIds);
+      } else if (result.kind === 'QualifiedName' && classifyQualifiedNameOnDemandSourceShape(result.qualifiedName) === 'dotted-reference') {
+        qualifiedResults.set(result.qualifiedName, result.candidateIds);
+      } else if (result.kind === 'FileNodes') {
+        fileResults.set(result.filePath, result.candidateIds);
       } else if (result.kind === 'KnownNamePresence') {
         presenceResults.set(result.name, result.present);
       }
@@ -360,6 +404,20 @@ export class CandidateProtocolProvider {
         });
         return;
       }
+      if (
+        lookup.kind === 'QualifiedName' &&
+        classifyQualifiedNameOnDemandSourceShape(lookup.qualifiedName) === 'dotted-reference' &&
+        !qualifiedResults.has(lookup.qualifiedName)
+      ) {
+        this.disableRouting('missing-rust-result', {
+          kind: 'QualifiedName',
+          key: lookup.qualifiedName,
+          reason: 'missing-rust-result',
+          tsCandidateIds: [],
+          rustCandidateIds: [],
+        });
+        return;
+      }
       if (lookup.kind === 'KnownNamePresence' && !presenceResults.has(lookup.name)) {
         this.disableRouting('missing-rust-result', {
           kind: 'KnownNamePresence',
@@ -370,9 +428,24 @@ export class CandidateProtocolProvider {
         });
         return;
       }
+      if (lookup.kind === 'FileNodes' && !fileResults.has(lookup.filePath)) {
+        this.disableRouting('missing-rust-result', {
+          kind: 'FileNodes',
+          key: lookup.filePath,
+          reason: 'missing-rust-result',
+          tsCandidateIds: [],
+          rustCandidateIds: [],
+        });
+        return;
+      }
     }
 
-    const ids = [...new Set([...exactResults.values()].flat().concat([...lowerResults.values()].flat()))];
+    const ids = [...new Set([
+      ...exactResults.values(),
+      ...lowerResults.values(),
+      ...qualifiedResults.values(),
+      ...fileResults.values(),
+    ].flat())];
     const nodesById = this.source.getNodesByIds(ids);
     for (const id of ids) {
       if (!nodesById.has(id)) {
@@ -390,8 +463,8 @@ export class CandidateProtocolProvider {
     this.routing.active = true;
     this.routing.exactIds = exactResults;
     this.routing.lowerIds = lowerResults;
-    this.routing.qualifiedIds = new Map();
-    this.routing.fileNodeIds = new Map();
+    this.routing.qualifiedIds = qualifiedResults;
+    this.routing.fileNodeIds = fileResults;
     this.routing.knownPresence = presenceResults;
     this.routing.nodesById = nodesById;
   }
@@ -441,6 +514,7 @@ export class CandidateProtocolProvider {
         KnownNamePresence: 0,
       },
       onDemandCacheHitCount: 0,
+      qualifiedNameOnDemandSourceShapeCounts: {},
     };
   }
 
@@ -465,6 +539,7 @@ export class CandidateProtocolProvider {
       KnownNamePresence: 0,
     };
     this.routing.onDemandCacheHitCount = 0;
+    this.routing.qualifiedNameOnDemandSourceShapeCounts = {};
   }
 
   private emptyDiagnostics(): Omit<CandidateProtocolDiagnostics, 'enabled' | 'candidateCount' | 'disabledReason' | 'rustCandidateProducer'> {
@@ -488,6 +563,13 @@ export class CandidateProtocolProvider {
         QualifiedName: 0,
         FileNodes: 0,
         KnownNamePresence: 0,
+      },
+      fileNodesLookup: {
+        requestedCount: 0,
+        reusedCount: 0,
+        missedCount: 0,
+        fallbackCount: 0,
+        lookupMs: 0,
       },
       equivalenceComparedCount: 0,
       equivalenceMismatchCount: 0,
@@ -672,6 +754,7 @@ export class CandidateProtocolProvider {
         onDemandLookupCount: this.routing.onDemandLookupCount,
         onDemandLookupShapeCounts: this.routing.onDemandLookupShapeCounts,
         onDemandCacheHitCount: this.routing.onDemandCacheHitCount,
+        qualifiedNameOnDemandSourceShapeCounts: this.routing.qualifiedNameOnDemandSourceShapeCounts,
         invalidConfigReason: this.routing.config.invalidReason,
       },
     };
@@ -800,6 +883,11 @@ export class CandidateProtocolProvider {
 
     this.routing.onDemandLookupCount += 1;
     this.routing.onDemandLookupShapeCounts[lookup.kind] += 1;
+    if (lookup.kind === 'QualifiedName') {
+      const sourceShape = classifyQualifiedNameOnDemandSourceShape(lookup.qualifiedName);
+      this.routing.qualifiedNameOnDemandSourceShapeCounts[sourceShape] =
+        (this.routing.qualifiedNameOnDemandSourceShapeCounts[sourceShape] ?? 0) + 1;
+    }
     const { results, diagnostics } = this.rustProducerRunner({
       indexPath: this.indexPath,
       lookups: [lookup],
@@ -980,6 +1068,10 @@ export class CandidateProtocolProvider {
     this.diagnostics.lookupMs += elapsed;
     this.diagnostics.lookupShapeMs[kind] += elapsed;
   }
+
+  private recordFileNodesLookupMs(started: number): void {
+    this.diagnostics.fileNodesLookup.lookupMs += Math.max(0, Date.now() - started);
+  }
 }
 
 function sameNodeIdSet(a: Node[], b: Node[]): boolean {
@@ -1002,4 +1094,21 @@ function isBareRoutingReferenceName(name: string): boolean {
     && !name.includes(':')
     && !name.includes('/')
     && !name.includes('\\');
+}
+
+function isQualifiedRoutingReferenceName(name: string): boolean {
+  return name.length > 0
+    && (name.includes('.') || name.includes('::'))
+    && !name.includes('/')
+    && !name.includes('\\');
+}
+
+function classifyQualifiedNameOnDemandSourceShape(qualifiedName: string): string {
+  if (!qualifiedName) return 'unknown';
+  if (qualifiedName.includes('/') || qualifiedName.includes('\\')) {
+    return 'external-or-path-like-excluded';
+  }
+  if (qualifiedName.includes('::')) return 'colon-qualified-reference';
+  if (qualifiedName.includes('.')) return 'dotted-reference';
+  return 'bare-name-qualified-check';
 }

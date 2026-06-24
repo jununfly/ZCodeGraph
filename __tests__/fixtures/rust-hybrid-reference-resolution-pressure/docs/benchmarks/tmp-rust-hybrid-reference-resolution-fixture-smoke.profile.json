@@ -1,0 +1,4297 @@
+{
+  "complete": true,
+  "checkpoints": [
+    {
+      "name": "rustCore.started",
+      "state": "started",
+      "elapsedMs": 35
+    },
+    {
+      "name": "rustCore.completed",
+      "state": "completed",
+      "elapsedMs": 414
+    },
+    {
+      "name": "finalization.started",
+      "state": "started",
+      "elapsedMs": 422
+    },
+    {
+      "name": "finalization.frameworkPostExtract.started",
+      "state": "started",
+      "elapsedMs": 424
+    },
+    {
+      "name": "finalization.frameworkPostExtract.completed",
+      "state": "completed",
+      "elapsedMs": 426
+    },
+    {
+      "name": "finalization.referenceResolution.started",
+      "state": "started",
+      "elapsedMs": 426
+    },
+    {
+      "name": "finalization.referenceResolution.completed",
+      "state": "completed",
+      "elapsedMs": 460
+    },
+    {
+      "name": "finalization.dynamicDispatchSynthesis.started",
+      "state": "started",
+      "elapsedMs": 461
+    },
+    {
+      "name": "finalization.dynamicDispatchSynthesis.completed",
+      "state": "completed",
+      "elapsedMs": 461
+    },
+    {
+      "name": "finalization.dbMaintenance.started",
+      "state": "started",
+      "elapsedMs": 461
+    },
+    {
+      "name": "finalization.dbMaintenance.completed",
+      "state": "completed",
+      "elapsedMs": 465
+    },
+    {
+      "name": "finalization.completed",
+      "state": "completed",
+      "elapsedMs": 465
+    },
+    {
+      "name": "profile.completed",
+      "state": "completed",
+      "elapsedMs": 466
+    }
+  ],
+  "rustCore": {
+    "sourceScanMs": 0,
+    "parseExtractionMs": 2,
+    "parseSourceReadMs": 0,
+    "parseNormalizationMs": 0,
+    "parseParserSetupMs": 0,
+    "parseTreeSitterMs": 0,
+    "parseAstExtractionMs": 1,
+    "parseErrorHandlingMs": 0,
+    "parseByLanguage": {
+      "typescript": {
+        "files": 62,
+        "parseExtractionMs": 2,
+        "sourceReadMs": 0,
+        "normalizationMs": 0,
+        "parserSetupMs": 0,
+        "treeSitterMs": 0,
+        "astExtractionMs": 1,
+        "errorHandlingMs": 0
+      }
+    },
+    "parseAstWalker": {},
+    "sqliteWriteMs": 5,
+    "importPathAliasResolutionMs": 25,
+    "importPathAliasResolvedRefs": 180,
+    "importPathAliasFallbackRefs": 1341,
+    "importPathAliasBindingFallbackRefs": 1260,
+    "importPathAliasUnsupportedFallbackRefs": 81,
+    "importPathAliasUnresolvedFallbackRefs": 0,
+    "importPathAliasResolvedBySource": {
+      "relative": 180,
+      "tsconfigPaths": 0,
+      "conventionalAlias": 0,
+      "workspacePackage": 0,
+      "rootDirs": 0,
+      "packageSelfName": 0,
+      "packageImports": 0
+    },
+    "importPathAliasFallbackBySource": {
+      "relative": 0,
+      "tsconfigPaths": 0,
+      "conventionalAlias": 0,
+      "workspacePackage": 0,
+      "rootDirs": 0,
+      "packageSelfName": 0,
+      "packageImports": 0,
+      "binding": 1260,
+      "unsupported": 81,
+      "unresolved": 0
+    },
+    "importPathAliasPackageSelfNameOutcomeCounts": {},
+    "importPathAliasPackageImportsOutcomeCounts": {},
+    "importPathAliasFallbackSampleCounts": {
+      "binding/binding-level-symbol-disambiguation": 1260,
+      "unsupported/unsupported-import-form": 81
+    },
+    "importPathAliasFallbackSamples": [
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule000",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule001",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule002",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 3,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule003",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule004",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 5,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule005",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 6,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule006",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 7,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule007",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 8,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule008",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 9,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule009",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 10,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule010",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 11,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule011",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 12,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule012",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 13,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule013",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 14,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule014",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 15,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule015",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 16,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule016",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 17,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule017",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 18,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule018",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 19,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule019",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 20,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule020",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 21,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule021",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 22,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule022",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 23,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule023",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 24,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule024",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 25,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule025",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 26,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule026",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 27,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule027",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 28,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule028",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 29,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule029",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 30,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule030",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 31,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule031",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 32,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule032",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 33,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule033",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 34,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule034",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 35,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule035",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 36,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule036",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 37,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule037",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 38,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule038",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 39,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule039",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 40,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule040",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 41,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule041",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 42,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule042",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 43,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule043",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 44,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule044",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 45,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule045",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 46,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule046",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 47,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule047",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 48,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule048",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 49,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule049",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 50,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule050",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 51,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule051",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 52,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule052",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 53,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule053",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 54,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule054",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 55,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule055",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 56,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule056",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 57,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule057",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 58,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule058",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 59,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "runModule059",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 60,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = 0;\n  total += runModule000(0);\n  total += runModule001(1);\n  total += runModule002(2);\n  total += runModule003(3);\n  total += runModule004(4);\n  total += runModule005(5);\n  total += runModule006(6);\n  total += runModule007(7);\n  total += runModule008(8);\n  total += runModule009(9);\n  total += runModule010(10);\n  total += runModule011(11);\n  total += runModule012(12);\n  total += runModule013(13);\n  total += runModule014(14);\n  total += runModule015(15);\n  total += runModule016(16);\n  total += runModule017(17);\n  total += runModule018(18);\n  total += runModule019(19);\n  total += runModule020(20);\n  total += runModule021(21);\n  total += runModule022(22);\n  total += runModule023(23);\n  total += runModule024(24);\n  total += runModule025(25);\n  total += runModule026(26);\n  total += runModule027(27);\n  total += runModule028(28);\n  total += runModule029(29);\n  total += runModule030(30);\n  total += runModule031(31);\n  total += runModule032(32);\n  total += runModule033(33);\n  total += runModule034(34);\n  total += runModule035(35);\n  total += runModule036(36);\n  total += runModule037(37);\n  total += runModule038(38);\n  total += runModule039(39);\n  total += runModule040(40);\n  total += runModule041(41);\n  total += runModule042(42);\n  total += runModule043(43);\n  total += runModule044(44);\n  total += runModule045(45);\n  total += runModule046(46);\n  total += runModule047(47);\n  total += runModule048(48);\n  total += runModule049(49);\n  total += runModule050(50);\n  total += runModule051(51);\n  total += runModule052(52);\n  total += runModule053(53);\n  total += runModule054(54);\n  total += runModule055(55);\n  total += runModule056(56);\n  total += runModule057(57);\n  total += runModule058(58);\n  total += runModule059(59);\n  return total;",
+        "filePath": "src/index.ts",
+        "language": "typescript",
+        "line": 62,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper0",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper1",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper2",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper3",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper4",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper5",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper6",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper7",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper8",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper9",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass0",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass1",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass2",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass3",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass4",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass5",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass6",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass7",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass8",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass9",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper0",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper1",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper2",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper3",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper4",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper5",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper6",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper7",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper8",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "sharedHelper9",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass0",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass1",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass2",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass3",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass4",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass5",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass6",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass7",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass8",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "binding",
+        "reason": "binding-level-symbol-disambiguation",
+        "referenceName": "SharedClass9",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-002.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-003.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-004.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-005.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-006.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-007.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-008.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-009.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-010.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-011.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-012.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-013.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-014.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-015.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-016.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-017.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-018.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-019.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-020.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-021.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-022.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-023.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-024.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-025.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-026.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-027.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-028.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-029.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-030.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-031.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-032.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-033.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-034.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-035.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-036.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-037.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-038.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-039.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-040.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-041.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-042.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-043.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-044.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-045.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-046.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-047.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-048.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-049.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-050.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-051.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-052.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-053.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-054.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-055.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-056.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-057.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-058.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "let total = seed;\n  total += sharedHelper0(seed + 0);\n  total += new SharedClass0().value0();\n  total += sharedHelper1(seed + 1);\n  total += new SharedClass1().value1();\n  total += sharedHelper2(seed + 2);\n  total += new SharedClass2().value2();\n  total += sharedHelper3(seed + 3);\n  total += new SharedClass3().value3();\n  total += sharedHelper4(seed + 4);\n  total += new SharedClass4().value4();\n  total += sharedHelper5(seed + 5);\n  total += new SharedClass5().value5();\n  total += sharedHelper6(seed + 6);\n  total += new SharedClass6().value6();\n  total += sharedHelper7(seed + 7);\n  total += new SharedClass7().value7();\n  total += sharedHelper8(seed + 8);\n  total += new SharedClass8().value8();\n  total += sharedHelper9(seed + 9);\n  total += new SharedClass9().value9();\n  return total;",
+        "filePath": "src/module-059.ts",
+        "language": "typescript",
+        "line": 4,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "return value + 0;",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 1,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "value0(): number {\n    return sharedHelper0(0);",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 5,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "return value + 1;",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 11,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "value1(): number {\n    return sharedHelper1(1);",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 15,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "return value + 2;",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 21,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "value2(): number {\n    return sharedHelper2(2);",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 25,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "return value + 3;",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 31,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "value3(): number {\n    return sharedHelper3(3);",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 35,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "return value + 4;",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 41,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "value4(): number {\n    return sharedHelper4(4);",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 45,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "return value + 5;",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 51,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "value5(): number {\n    return sharedHelper5(5);",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 55,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "return value + 6;",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 61,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "value6(): number {\n    return sharedHelper6(6);",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 65,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "return value + 7;",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 71,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "value7(): number {\n    return sharedHelper7(7);",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 75,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "return value + 8;",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 81,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "value8(): number {\n    return sharedHelper8(8);",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 85,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "return value + 9;",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 91,
+        "col": 0
+      },
+      {
+        "sourceKind": "unsupported",
+        "reason": "unsupported-import-form",
+        "referenceName": "value9(): number {\n    return sharedHelper9(9);",
+        "filePath": "src/shared.ts",
+        "language": "typescript",
+        "line": 95,
+        "col": 0
+      }
+    ],
+    "importPathAliasFallbackSampleCap": {
+      "perBucket": 100,
+      "total": 2000,
+      "truncated": true
+    },
+    "esmNamedImportExportResolutionMs": 191,
+    "esmNamedImportExportResolvedRefs": 1320,
+    "esmNamedImportExportFallbackRefs": 600,
+    "esmOneHopReexportResolvedRefs": 0,
+    "esmNamedImportExportOverloadImplementationResolvedRefs": 0,
+    "esmNamedImportExportFallbackSampleCounts": {
+      "import-edge-target-not-found": 600
+    },
+    "esmNamedImportExportFallbackSamples": [
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass0",
+        "referenceKind": "imports",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass1",
+        "referenceKind": "imports",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass2",
+        "referenceKind": "imports",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass3",
+        "referenceKind": "imports",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass4",
+        "referenceKind": "imports",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass5",
+        "referenceKind": "imports",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass6",
+        "referenceKind": "imports",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass7",
+        "referenceKind": "imports",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass8",
+        "referenceKind": "imports",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass9",
+        "referenceKind": "imports",
+        "filePath": "src/module-000.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass0",
+        "referenceKind": "imports",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass1",
+        "referenceKind": "imports",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass2",
+        "referenceKind": "imports",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass3",
+        "referenceKind": "imports",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass4",
+        "referenceKind": "imports",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass5",
+        "referenceKind": "imports",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass6",
+        "referenceKind": "imports",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass7",
+        "referenceKind": "imports",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass8",
+        "referenceKind": "imports",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass9",
+        "referenceKind": "imports",
+        "filePath": "src/module-001.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass0",
+        "referenceKind": "imports",
+        "filePath": "src/module-002.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass1",
+        "referenceKind": "imports",
+        "filePath": "src/module-002.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass2",
+        "referenceKind": "imports",
+        "filePath": "src/module-002.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass3",
+        "referenceKind": "imports",
+        "filePath": "src/module-002.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass4",
+        "referenceKind": "imports",
+        "filePath": "src/module-002.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass5",
+        "referenceKind": "imports",
+        "filePath": "src/module-002.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass6",
+        "referenceKind": "imports",
+        "filePath": "src/module-002.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass7",
+        "referenceKind": "imports",
+        "filePath": "src/module-002.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass8",
+        "referenceKind": "imports",
+        "filePath": "src/module-002.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass9",
+        "referenceKind": "imports",
+        "filePath": "src/module-002.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass0",
+        "referenceKind": "imports",
+        "filePath": "src/module-003.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass1",
+        "referenceKind": "imports",
+        "filePath": "src/module-003.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass2",
+        "referenceKind": "imports",
+        "filePath": "src/module-003.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass3",
+        "referenceKind": "imports",
+        "filePath": "src/module-003.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass4",
+        "referenceKind": "imports",
+        "filePath": "src/module-003.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass5",
+        "referenceKind": "imports",
+        "filePath": "src/module-003.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass6",
+        "referenceKind": "imports",
+        "filePath": "src/module-003.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass7",
+        "referenceKind": "imports",
+        "filePath": "src/module-003.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass8",
+        "referenceKind": "imports",
+        "filePath": "src/module-003.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass9",
+        "referenceKind": "imports",
+        "filePath": "src/module-003.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass0",
+        "referenceKind": "imports",
+        "filePath": "src/module-004.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass1",
+        "referenceKind": "imports",
+        "filePath": "src/module-004.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass2",
+        "referenceKind": "imports",
+        "filePath": "src/module-004.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass3",
+        "referenceKind": "imports",
+        "filePath": "src/module-004.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass4",
+        "referenceKind": "imports",
+        "filePath": "src/module-004.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass5",
+        "referenceKind": "imports",
+        "filePath": "src/module-004.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass6",
+        "referenceKind": "imports",
+        "filePath": "src/module-004.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass7",
+        "referenceKind": "imports",
+        "filePath": "src/module-004.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass8",
+        "referenceKind": "imports",
+        "filePath": "src/module-004.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass9",
+        "referenceKind": "imports",
+        "filePath": "src/module-004.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass0",
+        "referenceKind": "imports",
+        "filePath": "src/module-005.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass1",
+        "referenceKind": "imports",
+        "filePath": "src/module-005.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass2",
+        "referenceKind": "imports",
+        "filePath": "src/module-005.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass3",
+        "referenceKind": "imports",
+        "filePath": "src/module-005.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass4",
+        "referenceKind": "imports",
+        "filePath": "src/module-005.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass5",
+        "referenceKind": "imports",
+        "filePath": "src/module-005.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass6",
+        "referenceKind": "imports",
+        "filePath": "src/module-005.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass7",
+        "referenceKind": "imports",
+        "filePath": "src/module-005.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass8",
+        "referenceKind": "imports",
+        "filePath": "src/module-005.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass9",
+        "referenceKind": "imports",
+        "filePath": "src/module-005.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass0",
+        "referenceKind": "imports",
+        "filePath": "src/module-006.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass1",
+        "referenceKind": "imports",
+        "filePath": "src/module-006.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass2",
+        "referenceKind": "imports",
+        "filePath": "src/module-006.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass3",
+        "referenceKind": "imports",
+        "filePath": "src/module-006.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass4",
+        "referenceKind": "imports",
+        "filePath": "src/module-006.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass5",
+        "referenceKind": "imports",
+        "filePath": "src/module-006.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass6",
+        "referenceKind": "imports",
+        "filePath": "src/module-006.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass7",
+        "referenceKind": "imports",
+        "filePath": "src/module-006.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass8",
+        "referenceKind": "imports",
+        "filePath": "src/module-006.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass9",
+        "referenceKind": "imports",
+        "filePath": "src/module-006.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass0",
+        "referenceKind": "imports",
+        "filePath": "src/module-007.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass1",
+        "referenceKind": "imports",
+        "filePath": "src/module-007.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass2",
+        "referenceKind": "imports",
+        "filePath": "src/module-007.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass3",
+        "referenceKind": "imports",
+        "filePath": "src/module-007.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass4",
+        "referenceKind": "imports",
+        "filePath": "src/module-007.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass5",
+        "referenceKind": "imports",
+        "filePath": "src/module-007.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass6",
+        "referenceKind": "imports",
+        "filePath": "src/module-007.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass7",
+        "referenceKind": "imports",
+        "filePath": "src/module-007.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass8",
+        "referenceKind": "imports",
+        "filePath": "src/module-007.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass9",
+        "referenceKind": "imports",
+        "filePath": "src/module-007.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass0",
+        "referenceKind": "imports",
+        "filePath": "src/module-008.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass1",
+        "referenceKind": "imports",
+        "filePath": "src/module-008.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass2",
+        "referenceKind": "imports",
+        "filePath": "src/module-008.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass3",
+        "referenceKind": "imports",
+        "filePath": "src/module-008.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass4",
+        "referenceKind": "imports",
+        "filePath": "src/module-008.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass5",
+        "referenceKind": "imports",
+        "filePath": "src/module-008.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass6",
+        "referenceKind": "imports",
+        "filePath": "src/module-008.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass7",
+        "referenceKind": "imports",
+        "filePath": "src/module-008.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass8",
+        "referenceKind": "imports",
+        "filePath": "src/module-008.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass9",
+        "referenceKind": "imports",
+        "filePath": "src/module-008.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass0",
+        "referenceKind": "imports",
+        "filePath": "src/module-009.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass1",
+        "referenceKind": "imports",
+        "filePath": "src/module-009.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass2",
+        "referenceKind": "imports",
+        "filePath": "src/module-009.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass3",
+        "referenceKind": "imports",
+        "filePath": "src/module-009.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass4",
+        "referenceKind": "imports",
+        "filePath": "src/module-009.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass5",
+        "referenceKind": "imports",
+        "filePath": "src/module-009.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass6",
+        "referenceKind": "imports",
+        "filePath": "src/module-009.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass7",
+        "referenceKind": "imports",
+        "filePath": "src/module-009.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass8",
+        "referenceKind": "imports",
+        "filePath": "src/module-009.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      },
+      {
+        "reason": "import-edge-target-not-found",
+        "referenceName": "SharedClass9",
+        "referenceKind": "imports",
+        "filePath": "src/module-009.ts",
+        "language": "typescript",
+        "line": 2,
+        "col": 0
+      }
+    ],
+    "esmNamedImportExportFallbackSampleCap": {
+      "perBucket": 100,
+      "total": 2000,
+      "truncated": true
+    },
+    "esmNamedImportExportEdgeWriteAttemptedRefs": 660,
+    "esmNamedImportExportEdgeWriteWrittenRefs": 660,
+    "esmNamedImportExportEdgeWriteSkippedRefs": 0,
+    "esmNamedImportExportEdgeWriteSkippedCounts": {},
+    "esmNamedImportExportEdgeWriteSkippedSamples": [],
+    "esmNamedImportExportEdgeWriteSkippedSampleCap": {
+      "perBucket": 100,
+      "total": 2000,
+      "truncated": false
+    },
+    "moduleResolutionShadowDecisionRefs": 1440,
+    "moduleResolutionShadowDecisionCounts": {
+      "relative": 1440
+    },
+    "moduleResolutionSemanticBoundaryCounts": {
+      "repo-local-source": 1440
+    },
+    "moduleResolutionShadowParityCounts": {
+      "unknown": 1440
+    },
+    "moduleResolutionDeclarationTargetRelationshipCounts": {},
+    "moduleResolutionDeclarationRuntimePairingDecisionCounts": {},
+    "moduleResolutionShadowSamples": [
+      {
+        "specifier": "./module-000",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-000.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-000",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-000.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-001",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-001.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-001",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-001.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-002",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-002.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-002",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-002.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-003",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-003.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-003",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-003.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-004",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-004.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-004",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-004.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-005",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-005.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-005",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-005.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-006",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-006.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-006",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-006.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-007",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-007.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-007",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-007.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-008",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-008.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-008",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-008.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-009",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-009.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-009",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-009.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-010",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-010.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-010",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-010.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-011",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-011.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-011",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-011.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-012",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-012.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-012",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-012.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-013",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-013.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-013",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-013.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-014",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-014.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-014",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-014.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-015",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-015.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-015",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-015.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-016",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-016.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-016",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-016.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-017",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-017.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-017",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-017.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-018",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-018.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-018",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-018.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-019",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-019.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-019",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-019.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-020",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-020.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-020",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-020.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-021",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-021.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-021",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-021.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-022",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-022.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-022",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-022.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-023",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-023.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-023",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-023.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-024",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-024.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-024",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-024.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-025",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-025.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-025",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-025.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-026",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-026.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-026",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-026.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-027",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-027.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-027",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-027.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-028",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-028.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-028",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-028.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-029",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-029.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-029",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-029.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-030",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-030.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-030",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-030.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-031",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-031.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-031",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-031.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-032",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-032.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-032",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-032.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-033",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-033.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-033",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-033.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-034",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-034.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-034",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-034.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-035",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-035.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-035",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-035.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-036",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-036.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-036",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-036.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-037",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-037.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-037",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-037.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-038",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-038.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-038",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-038.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-039",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-039.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-039",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-039.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-040",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-040.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-040",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-040.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-041",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-041.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-041",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-041.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-042",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-042.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-042",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-042.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-043",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-043.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-043",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-043.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-044",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-044.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-044",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-044.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-045",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-045.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-045",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-045.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-046",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-046.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-046",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-046.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-047",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-047.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-047",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-047.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-048",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-048.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-048",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-048.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-049",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-049.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      },
+      {
+        "specifier": "./module-049",
+        "sourceFile": "src/index.ts",
+        "moduleResolutionMode": "bundler",
+        "moduleResolutionModeSource": "explicit",
+        "resolvedKind": "relative",
+        "resolvedPath": "src/module-049.ts",
+        "isExternalLibraryImport": false,
+        "failedLookupCategory": null,
+        "conditionSet": [],
+        "matchedCondition": null,
+        "parityStatus": "unknown",
+        "fallbackReason": null
+      }
+    ],
+    "moduleResolutionShadowSampleCap": {
+      "perBucket": 100,
+      "total": 2000,
+      "truncated": true
+    },
+    "moduleResolutionEffectiveModeSource": "explicit",
+    "moduleResolutionGuardedEdgeWriteAttemptedRefs": 180,
+    "moduleResolutionGuardedEdgeWriteWrittenRefs": 180,
+    "moduleResolutionGuardedEdgeWriteSkippedRefs": 0,
+    "moduleResolutionGuardedEdgeWriteSkippedCounts": {},
+    "moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs": 0,
+    "moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs": 0,
+    "moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs": 0,
+    "moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts": {},
+    "localExactReferenceResolutionMs": 21,
+    "localExactReferenceResolvedRefs": 70,
+    "localExactReferenceFallbackRefs": 1200,
+    "subprocessStartupHandoffMs": 3
+  },
+  "finalize": {
+    "frameworkPostExtractMs": 2,
+    "referenceResolutionMs": 32,
+    "referenceResolutionBreakdown": {
+      "importResolutionMs": 11,
+      "nameMatchingMs": 1,
+      "frameworkMatchingMs": 0,
+      "databaseAccessMs": 15,
+      "cacheWarmupDbMs": 0,
+      "refHydrationDbMs": 0,
+      "cacheWarmupMs": 0,
+      "unresolvedReadMs": 2,
+      "unresolvedReadDbMs": 2,
+      "candidateLookupMs": 1,
+      "sharedCandidateLookupMs": 1,
+      "candidateLookupCacheHitMs": 0,
+      "nameMatcherCandidateLookupDbMs": 1,
+      "perReferenceDisambiguationMs": 1,
+      "rustMatcherMs": 0,
+      "rustMatcherStartupMs": 0,
+      "rustMatcherSerializationMs": 0,
+      "rustMatcherEligibleRefs": 0,
+      "rustMatcherHandledRefs": 0,
+      "rustMatcherFallbackRefs": 0,
+      "rustMatcherSemanticMismatchRefs": 0,
+      "rustMatcherSemanticMismatchSamples": [],
+      "rustMatcherFallbackReasons": {},
+      "rustMatcherCandidateMaterializationMs": 0,
+      "rustMatcherSubprocessMs": 0,
+      "rustMatcherTsVerificationMs": 0,
+      "rustMatcherTsVerificationReusedCandidateRefs": 0,
+      "rustMatcherPayloadBytes": 0,
+      "rustMatcherUniqueCandidateFacts": 0,
+      "candidateReplayEligibleRefs": 0,
+      "candidateReplayComparedRefs": 0,
+      "candidateReplayEquivalentRefs": 0,
+      "candidateReplayMismatchRefs": 0,
+      "candidateReplayMismatchReasons": {},
+      "candidateReplayMismatchSamples": [],
+      "candidateProtocol": {
+        "enabled": true,
+        "materializationMs": 0,
+        "lookupMs": 1,
+        "lookupCount": 4942,
+        "cacheHitCount": 3009,
+        "cacheMissCount": 21,
+        "dbLookupCount": 21,
+        "lookupShapeCounts": {
+          "ExactName": 1830,
+          "LowerName": 0,
+          "QualifiedName": 0,
+          "FileNodes": 1200,
+          "KnownNamePresence": 1912
+        },
+        "lookupShapeMs": {
+          "ExactName": 1,
+          "LowerName": 0,
+          "QualifiedName": 0,
+          "FileNodes": 0,
+          "KnownNamePresence": 0
+        },
+        "equivalenceComparedCount": 0,
+        "equivalenceMismatchCount": 0,
+        "fallbackReasons": {},
+        "candidateCount": 31,
+        "disabledReason": null,
+        "rustCandidateProducer": {
+          "enabled": false,
+          "shadowMode": true,
+          "producerMs": 0,
+          "serializationMs": 0,
+          "subprocessMs": 0,
+          "lookupCount": 0,
+          "lookupShapeCounts": {
+            "ExactName": 0,
+            "LowerName": 0,
+            "QualifiedName": 0,
+            "FileNodes": 0,
+            "KnownNamePresence": 0
+          },
+          "comparedCount": 0,
+          "mismatchCount": 0,
+          "mismatchReasons": {},
+          "mismatchSamples": [],
+          "candidateCount": 0,
+          "payloadBytes": 0,
+          "disabledReason": "disabled-by-env",
+          "routing": {
+            "configured": false,
+            "source": "missing-config",
+            "active": false,
+            "activeShapes": [],
+            "fallbackReason": null,
+            "mismatchCount": 0,
+            "mismatchSamples": [],
+            "onDemandLookupCount": 0,
+            "onDemandLookupShapeCounts": {
+              "ExactName": 0,
+              "LowerName": 0,
+              "QualifiedName": 0,
+              "FileNodes": 0,
+              "KnownNamePresence": 0
+            },
+            "onDemandCacheHitCount": 0,
+            "qualifiedNameOnDemandSourceShapeCounts": {}
+          }
+        }
+      },
+      "edgeMaterializationMs": 1,
+      "edgeMaterializationDbMs": 1,
+      "edgeEndpointValidationDbMs": 1,
+      "edgeInsertCount": 1800,
+      "edgeInsertSerializationMs": 1,
+      "edgeInsertSerializedBytes": 235800,
+      "edgeWriteMs": 8,
+      "edgeWriteDbMs": 8,
+      "unresolvedCleanupMs": 4,
+      "unresolvedCleanupDbMs": 4,
+      "resolvedCleanupMs": 3,
+      "resolvedCleanupDbMs": 3,
+      "resolvedCleanupRowCount": 1800,
+      "intentionallyUnresolvedCleanupMs": 1,
+      "intentionallyUnresolvedCleanupDbMs": 1,
+      "intentionallyUnresolvedCleanupRowCount": 81,
+      "otherResolutionMs": 0
+    },
+    "dynamicDispatchSynthesisMs": 2,
+    "dbMaintenanceMs": 3,
+    "boundaryProtocol": {
+      "version": 1,
+      "productShell": "typescript",
+      "rustOwnedStages": [
+        "source-scan",
+        "parse-extraction",
+        "graph-write",
+        "import-path-alias-resolution",
+        "esm-named-import-export-resolution",
+        "local-exact-reference-resolution"
+      ]
+    },
+    "fallbackTaxonomy": {
+      "totalFallbacks": 604,
+      "entries": [
+        {
+          "stage": "framework-post-extract",
+          "classification": "known-unsupported",
+          "reason": "typescript-finalization-not-yet-migrated",
+          "count": 1
+        },
+        {
+          "stage": "reference-resolution",
+          "classification": "known-unsupported",
+          "reason": "typescript-finalization-not-yet-migrated",
+          "count": 1
+        },
+        {
+          "stage": "dynamic-dispatch-synthesis",
+          "classification": "known-unsupported",
+          "reason": "typescript-finalization-not-yet-migrated",
+          "count": 1
+        },
+        {
+          "stage": "db-maintenance",
+          "classification": "known-unsupported",
+          "reason": "typescript-finalization-not-yet-migrated",
+          "count": 1
+        },
+        {
+          "stage": "reference-resolution",
+          "classification": "known-unsupported",
+          "reason": "binding-level-symbol-disambiguation-not-yet-rust-owned",
+          "count": 600
+        }
+      ]
+    }
+  },
+  "typescriptFinalizationMs": 43
+}

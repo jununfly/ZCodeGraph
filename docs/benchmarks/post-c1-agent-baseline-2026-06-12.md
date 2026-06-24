@@ -12,7 +12,7 @@ without falling back to generic Read/Grep-style tools.
 Related design context:
 
 - `docs/plans/2026-06-09-architecture-candidates-and-explore-planner.md`
-- `docs/design/architecture-roadmap.md`
+- `docs/designs/architecture-roadmap.md`
 - `docs/benchmarks/explore-sufficiency-2026-06-11.md`
 
 Issue date: #35 was opened on 2026-06-11. This run was taken on 2026-06-12
@@ -183,7 +183,7 @@ Read/Grep displacement:
 
 ## Fallback Classification
 
-Classification follows `docs/design/architecture-roadmap.md`.
+Classification follows `docs/designs/architecture-roadmap.md`.
 
 | Prompt | Arm | Raw generic reads/searches | Fallback reads/searches | Classification |
 |---|---|---:|---:|---|

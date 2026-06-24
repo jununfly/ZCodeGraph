@@ -36,12 +36,14 @@ import {
 import {
   collectRustNameMatcherReference,
   compareNameMatcherCandidateReplayForRef,
+  createCandidateSetResolutionContext,
   nameMatcherReplayAbEnabled,
   runRustNameMatcherBatch,
   rustNameMatcherEnabled,
   rustNameMatcherKey,
   rustNameMatcherStrict,
   type RustNameMatcherDecision,
+  type RustNameMatcherReference,
 } from './rust-name-matcher';
 
 type ReferenceResolutionTimings = NonNullable<ResolutionResult['stats']['timings']>;
@@ -74,6 +76,7 @@ function emptyReferenceResolutionTimings(): ReferenceResolutionTimings {
     rustMatcherCandidateMaterializationMs: 0,
     rustMatcherSubprocessMs: 0,
     rustMatcherTsVerificationMs: 0,
+    rustMatcherTsVerificationReusedCandidateRefs: 0,
     rustMatcherPayloadBytes: 0,
     rustMatcherUniqueCandidateFacts: 0,
     candidateReplayEligibleRefs: 0,
@@ -342,6 +345,7 @@ export class ReferenceResolver {
   // Monorepo workspace member packages. Same lazy/immutable convention.
   private workspacePackages: WorkspacePackages | null | undefined = undefined;
   private rustNameMatcherDecisions: Map<string, RustNameMatcherDecision> | null = null;
+  private rustNameMatcherCandidates: Map<string, RustNameMatcherReference> | null = null;
 
   constructor(projectRoot: string, queries: QueryBuilder) {
     this.projectRoot = projectRoot;
@@ -737,20 +741,24 @@ export class ReferenceResolver {
 
   private precomputeRustNameMatcherDecisions(refs: UnresolvedRef[], timings: ReferenceResolutionTimings): void {
     this.rustNameMatcherDecisions = null;
+    this.rustNameMatcherCandidates = null;
     if (!rustNameMatcherEnabled()) return;
 
     const candidateMaterializationStarted = Date.now();
     const candidates = [];
+    const candidatesByKey = new Map<string, RustNameMatcherReference>();
     for (const ref of refs) {
       const candidate = collectRustNameMatcherReference(ref, this.createNameMatchingTimingContext(timings));
       if (candidate) {
         candidates.push(candidate);
+        candidatesByKey.set(candidate.key, candidate);
       }
     }
     addElapsed(timings, 'rustMatcherCandidateMaterializationMs', candidateMaterializationStarted);
 
     const result = runRustNameMatcherBatch(candidates);
     this.rustNameMatcherDecisions = result.decisions;
+    this.rustNameMatcherCandidates = candidatesByKey;
     timings.rustMatcherMs = (timings.rustMatcherMs ?? 0) + result.diagnostics.rustMatcherMs;
     timings.rustMatcherStartupMs = (timings.rustMatcherStartupMs ?? 0) + result.diagnostics.rustMatcherStartupMs;
     timings.rustMatcherSerializationMs = (timings.rustMatcherSerializationMs ?? 0) + result.diagnostics.rustMatcherSerializationMs;
@@ -956,7 +964,15 @@ export class ReferenceResolver {
     }
 
     const tsVerificationStarted = Date.now();
-    const tsResult = this.gateLanguage(matchReference(ref, context), ref);
+    const materializedCandidate = this.rustNameMatcherCandidates?.get(rustNameMatcherKey(ref));
+    const tsContext = materializedCandidate
+      ? createCandidateSetResolutionContext(materializedCandidate, context)
+      : context;
+    if (materializedCandidate && timings) {
+      timings.rustMatcherTsVerificationReusedCandidateRefs =
+        (timings.rustMatcherTsVerificationReusedCandidateRefs ?? 0) + 1;
+    }
+    const tsResult = this.gateLanguage(matchReference(ref, tsContext), ref);
     addElapsed(timings, 'rustMatcherTsVerificationMs', tsVerificationStarted);
     this.recordCandidateReplayAb(ref, context, tsResult, timings);
     if (!rustDecision.targetNodeId || !rustDecision.resolvedBy) {
@@ -1379,7 +1395,7 @@ export class ReferenceResolver {
     // Dynamic-edge synthesis: now that all base `calls` edges are persisted,
     // synthesize observer/callback dispatch edges (dispatcher → registered
     // callbacks) that static parsing leaves out. Best-effort — never fail the
-    // index on it. See docs/design/callback-edge-synthesis.md.
+    // index on it. See docs/designs/callback-edge-synthesis.md.
     try {
       const synthesisStarted = Date.now();
       aggregateStats.byMethod['callback-synthesis'] = synthesizeCallbackEdges(this.queries, this.context);

@@ -2371,7 +2371,7 @@ Phase 12 fails if the only result remains `unsupported-runtime` after a Node 22 
 
 ## Results Document
 
-Write a Phase 12 results-and-decision document under `docs/benchmarks` or `docs/design`.
+Write a Phase 12 results-and-decision document under `docs/benchmarks` or `docs/designs`.
 
 It must include:
 
@@ -4980,7 +4980,7 @@ Blocked by: 23.1
 
 Validation:
 
-- inventory document committed under `docs/benchmarks/` or `docs/design/`,
+- inventory document committed under `docs/benchmarks/` or `docs/designs/`,
 - inventory references the relevant issue/artifact numbers,
 - #185 remains untouched unless packaging/CLI/status/release/npm smoke paths are actually touched.
 

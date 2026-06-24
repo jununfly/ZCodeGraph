@@ -163,9 +163,15 @@ describe('candidate lookup/cache protocol', () => {
       { kind: 'ExactName', name: 'Other' },
       { kind: 'KnownNamePresence', name: 'Other' },
       { kind: 'LowerName', lowerName: 'other' },
+      { kind: 'QualifiedName', qualifiedName: 'Other' },
       { kind: 'ExactName', name: 'target' },
       { kind: 'KnownNamePresence', name: 'target' },
       { kind: 'LowerName', lowerName: 'target' },
+      { kind: 'QualifiedName', qualifiedName: 'target' },
+      { kind: 'LowerName', lowerName: 'crate::module::leaf' },
+      { kind: 'QualifiedName', qualifiedName: 'crate::module::leaf' },
+      { kind: 'LowerName', lowerName: 'obj.method' },
+      { kind: 'QualifiedName', qualifiedName: 'obj.method' },
     ]);
   });
 
@@ -340,6 +346,183 @@ describe('candidate lookup/cache protocol', () => {
         KnownNamePresence: 0,
       },
       onDemandCacheHitCount: 0,
+      qualifiedNameOnDemandSourceShapeCounts: {
+        'colon-qualified-reference': 1,
+      },
+    });
+  });
+
+  it('prebatches FileNodes routing lookups from unresolved reference file paths with diagnostics', () => {
+    const fileNode = node('file-node-id', {
+      name: 'fileLeaf',
+      qualifiedName: 'src/c.ts::fileLeaf',
+      filePath: 'src/c.ts',
+    });
+    const producerLookups: string[] = [];
+    const provider = new CandidateProtocolProvider({
+      enabled: true,
+      compareWithBaseline: true,
+      indexPath: '/tmp/zcodegraph.db',
+      candidateProducerRouting: { enabled: true, source: 'local-config' },
+      rustProducerRunner: ({ lookups }) => {
+        producerLookups.push(...lookups.map((lookup) => {
+          if (lookup.kind === 'FileNodes') return `FileNodes:${lookup.filePath}`;
+          return lookup.kind;
+        }));
+        return {
+          results: lookups.map((lookup) => {
+            if (lookup.kind === 'ExactName') return { kind: 'ExactName' as const, name: lookup.name, candidateIds: [] };
+            if (lookup.kind === 'KnownNamePresence') return { kind: 'KnownNamePresence' as const, name: lookup.name, present: false };
+            if (lookup.kind === 'LowerName') return { kind: 'LowerName' as const, lowerName: lookup.lowerName, candidateIds: [] };
+            if (lookup.kind === 'QualifiedName') return { kind: 'QualifiedName' as const, qualifiedName: lookup.qualifiedName, candidateIds: [] };
+            return { kind: 'FileNodes' as const, filePath: lookup.filePath, candidateIds: lookup.filePath === 'src/c.ts' ? ['file-node-id'] : [] };
+          }),
+          diagnostics: rustProducerDiagnostics(lookups),
+        };
+      },
+      caches: {
+        fileNodes: new LRUCache(100),
+        exactName: new LRUCache(100),
+        lowerName: new LRUCache(100),
+        qualifiedName: new LRUCache(100),
+      },
+      source: makeSource([fileNode]),
+    });
+
+    provider.prepareRustCandidateProducerRouting([
+      { referenceName: 'missing', filePath: 'src/c.ts' },
+      { referenceName: 'missingAgain', filePath: 'src/c.ts' },
+    ]);
+
+    expect(provider.lookupNodes({ kind: 'FileNodes', filePath: 'src/c.ts' }).map((item) => item.id)).toEqual([
+      'file-node-id',
+    ]);
+    expect(producerLookups.filter((entry) => entry === 'FileNodes:src/c.ts')).toHaveLength(1);
+
+    const diagnostics = provider.snapshotDiagnostics();
+    expect(diagnostics.fileNodesLookup).toMatchObject({
+      requestedCount: 1,
+      reusedCount: 1,
+      missedCount: 0,
+      fallbackCount: 0,
+    });
+    expect(diagnostics.rustCandidateProducer.routing).toMatchObject({
+      onDemandLookupShapeCounts: {
+        FileNodes: 0,
+      },
+    });
+  });
+
+  it('classifies residual QualifiedName on-demand lookups by source shape', () => {
+    const provider = new CandidateProtocolProvider({
+      enabled: true,
+      compareWithBaseline: true,
+      indexPath: '/tmp/zcodegraph.db',
+      candidateProducerRouting: { enabled: true, source: 'local-config' },
+      rustProducerRunner: ({ lookups }) => ({
+        results: lookups.map((lookup) => {
+          if (lookup.kind === 'ExactName') return { kind: 'ExactName' as const, name: lookup.name, candidateIds: [] };
+          if (lookup.kind === 'KnownNamePresence') return { kind: 'KnownNamePresence' as const, name: lookup.name, present: false };
+          if (lookup.kind === 'LowerName') return { kind: 'LowerName' as const, lowerName: lookup.lowerName, candidateIds: [] };
+          if (lookup.kind === 'QualifiedName') return { kind: 'QualifiedName' as const, qualifiedName: lookup.qualifiedName, candidateIds: [] };
+          return { kind: 'FileNodes' as const, filePath: lookup.filePath, candidateIds: [] };
+        }),
+        diagnostics: rustProducerDiagnostics(lookups),
+      }),
+      caches: {
+        fileNodes: new LRUCache(100),
+        exactName: new LRUCache(100),
+        lowerName: new LRUCache(100),
+        qualifiedName: new LRUCache(100),
+      },
+      source: makeSource([]),
+    });
+
+    provider.prepareRustCandidateProducerRouting([]);
+    provider.lookupNodes({ kind: 'QualifiedName', qualifiedName: 'Widget' });
+    provider.lookupNodes({ kind: 'QualifiedName', qualifiedName: 'obj.method' });
+    provider.lookupNodes({ kind: 'QualifiedName', qualifiedName: 'crate::module::leaf' });
+    provider.lookupNodes({ kind: 'QualifiedName', qualifiedName: 'src/module.ts::helper' });
+    provider.lookupNodes({ kind: 'QualifiedName', qualifiedName: '' });
+
+    expect(provider.snapshotDiagnostics().rustCandidateProducer.routing.qualifiedNameOnDemandSourceShapeCounts)
+      .toEqual({
+        'bare-name-qualified-check': 1,
+        'dotted-reference': 1,
+        'colon-qualified-reference': 1,
+        'external-or-path-like-excluded': 1,
+        unknown: 1,
+      });
+  });
+
+  it('prebatches dotted QualifiedName routing results while leaving colon-qualified lookups on demand', () => {
+    const dotted = node('dotted-id', {
+      name: 'method',
+      qualifiedName: 'obj.method',
+      filePath: 'src/dotted.ts',
+    });
+    const colon = node('colon-id', {
+      name: 'leaf',
+      qualifiedName: 'crate::module::leaf',
+      filePath: 'src/colon.ts',
+    });
+    const producerLookups: string[] = [];
+    const provider = new CandidateProtocolProvider({
+      enabled: true,
+      compareWithBaseline: true,
+      indexPath: '/tmp/zcodegraph.db',
+      candidateProducerRouting: { enabled: true, source: 'local-config' },
+      rustProducerRunner: ({ lookups }) => {
+        producerLookups.push(...lookups.map((lookup) => {
+          if (lookup.kind === 'QualifiedName') return `QualifiedName:${lookup.qualifiedName}`;
+          if (lookup.kind === 'LowerName') return `LowerName:${lookup.lowerName}`;
+          return lookup.kind;
+        }));
+        return {
+          results: lookups.map((lookup) => {
+            if (lookup.kind === 'ExactName') return { kind: 'ExactName' as const, name: lookup.name, candidateIds: [] };
+            if (lookup.kind === 'KnownNamePresence') return { kind: 'KnownNamePresence' as const, name: lookup.name, present: false };
+            if (lookup.kind === 'LowerName') return { kind: 'LowerName' as const, lowerName: lookup.lowerName, candidateIds: [] };
+            if (lookup.kind === 'QualifiedName') {
+              return {
+                kind: 'QualifiedName' as const,
+                qualifiedName: lookup.qualifiedName,
+                candidateIds: lookup.qualifiedName === 'obj.method' ? ['dotted-id'] : ['colon-id'],
+              };
+            }
+            return { kind: 'FileNodes' as const, filePath: lookup.filePath, candidateIds: [] };
+          }),
+          diagnostics: rustProducerDiagnostics(lookups),
+        };
+      },
+      caches: {
+        fileNodes: new LRUCache(100),
+        exactName: new LRUCache(100),
+        lowerName: new LRUCache(100),
+        qualifiedName: new LRUCache(100),
+      },
+      source: makeSource([dotted, colon]),
+    });
+
+    provider.prepareRustCandidateProducerRouting([
+      { referenceName: 'obj.method' },
+      { referenceName: 'crate::module::leaf' },
+    ]);
+
+    expect(producerLookups).toContain('QualifiedName:obj.method');
+    expect(producerLookups).toContain('QualifiedName:crate::module::leaf');
+    expect(provider.lookupNodes({ kind: 'QualifiedName', qualifiedName: 'obj.method' }).map((item) => item.id))
+      .toEqual(['dotted-id']);
+    expect(provider.lookupNodes({ kind: 'QualifiedName', qualifiedName: 'crate::module::leaf' }).map((item) => item.id))
+      .toEqual(['colon-id']);
+    expect(provider.snapshotDiagnostics().rustCandidateProducer.routing).toMatchObject({
+      active: true,
+      onDemandLookupShapeCounts: {
+        QualifiedName: 1,
+      },
+      qualifiedNameOnDemandSourceShapeCounts: {
+        'colon-qualified-reference': 1,
+      },
     });
   });
 
