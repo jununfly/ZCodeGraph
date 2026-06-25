@@ -306,7 +306,6 @@ function moduleEdgeWriteDiagnosticsFromRustCore(profile: unknown): ModuleEdgeWri
       'packageImports',
       'packageExports',
       'defaultImports',
-      'namespaceImports',
       'typeOnlyImports',
       'symbolUsageEdges',
       'declarationRuntimeRewrite',

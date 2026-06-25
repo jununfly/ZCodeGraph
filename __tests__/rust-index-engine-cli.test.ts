@@ -2052,15 +2052,77 @@ describe('zcodegraph index engine selection', () => {
         'packageImports',
         'packageExports',
         'defaultImports',
-        'namespaceImports',
         'symbolUsageEdges',
         'declarationRuntimeRewrite',
       ]),
     });
+    expect(moduleEdgeWrite.excludedSources).not.toContain('namespaceImports');
     expect(moduleEdgeWrite.eligibleRefs).toBeGreaterThanOrEqual(2);
     expect(moduleEdgeWrite.attemptedRefs).toBeGreaterThanOrEqual(2);
     expect(moduleEdgeWrite.writtenEdges).toBeGreaterThanOrEqual(2);
     expect(moduleEdgeWrite.edgeKindCounts.imports).toBeGreaterThanOrEqual(2);
+  }, 30_000);
+
+  it('writes namespace import module dependencies as Rust-owned file dependency edges', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, 'src', 'source.ts'), 'export const SOME_CONST = 42;\n');
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'main.ts'),
+      [
+        "import * as NS from './source';",
+        'export const value = NS.SOME_CONST;',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'namespace-import-edge-profile.json');
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const mainFile = cg.searchNodes('main.ts').find((match) => match.node.kind === 'file')?.node;
+      const sourceFile = cg.searchNodes('source.ts').find((match) => match.node.kind === 'file')?.node;
+      const sourceSymbol = cg.searchNodes('SOME_CONST').find((match) => match.node.filePath === 'src/source.ts')?.node;
+      expect(mainFile).toBeDefined();
+      expect(sourceFile).toBeDefined();
+      expect(sourceSymbol).toBeDefined();
+
+      const importEdges = cg
+        .getOutgoingEdges(mainFile!.id)
+        .filter((edge) => edge.kind === 'imports' && edge.edgeOrigin === 'rust-finalization');
+      expect(importEdges).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          target: sourceFile!.id,
+          edgeOrigin: 'rust-finalization',
+          metadata: expect.objectContaining({
+            resolvedBy: 'rust-import-path-alias',
+          }),
+        }),
+      ]));
+      expect(importEdges.some((edge) => edge.target === sourceSymbol!.id)).toBe(false);
+    } finally {
+      cg.close();
+    }
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          moduleEdgeWrite: {
+            attemptedRefs: number;
+            writtenEdges: number;
+            edgeKindCounts: Record<string, number>;
+            excludedSources: string[];
+          };
+        };
+      };
+    };
+    const moduleEdgeWrite = profile.finalize.referenceResolutionBreakdown.moduleEdgeWrite;
+    expect(moduleEdgeWrite.attemptedRefs).toBeGreaterThanOrEqual(1);
+    expect(moduleEdgeWrite.writtenEdges).toBeGreaterThanOrEqual(1);
+    expect(moduleEdgeWrite.edgeKindCounts.imports).toBeGreaterThanOrEqual(1);
+    expect(moduleEdgeWrite.excludedSources).not.toContain('namespaceImports');
   }, 30_000);
 
   it('reports fail-closed module edge-write skip taxonomy without writing missing target imports', () => {
@@ -2150,6 +2212,55 @@ describe('zcodegraph index engine selection', () => {
     expect(moduleEdgeWrite.skippedRefs).toBeGreaterThanOrEqual(2);
     expect(moduleEdgeWrite.skipReasons['tsconfig-path-target-not-found']).toBeGreaterThanOrEqual(1);
     expect(moduleEdgeWrite.skipReasons['file-node-not-found']).toBeGreaterThanOrEqual(1);
+  }, 30_000);
+
+  it('reports namespace import fail-closed taxonomy without writing unsafe file edges', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'main.ts'),
+      [
+        "import * as MissingNS from './missing';",
+        'export const value = MissingNS.SOME_CONST;',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'namespace-import-fail-closed-profile.json');
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const mainFile = cg.searchNodes('main.ts').find((match) => match.node.kind === 'file')?.node;
+      expect(mainFile).toBeDefined();
+      const importEdges = cg
+        .getOutgoingEdges(mainFile!.id)
+        .filter((edge) => edge.kind === 'imports' && edge.edgeOrigin === 'rust-finalization');
+      expect(importEdges).toEqual([]);
+    } finally {
+      cg.close();
+    }
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          moduleEdgeWrite: {
+            attemptedRefs: number;
+            writtenEdges: number;
+            skippedRefs: number;
+            skipReasons: Record<string, number>;
+            excludedSources: string[];
+          };
+        };
+      };
+    };
+    const moduleEdgeWrite = profile.finalize.referenceResolutionBreakdown.moduleEdgeWrite;
+    expect(moduleEdgeWrite.attemptedRefs).toBeGreaterThanOrEqual(1);
+    expect(moduleEdgeWrite.writtenEdges).toBe(0);
+    expect(moduleEdgeWrite.skippedRefs).toBeGreaterThanOrEqual(1);
+    expect(moduleEdgeWrite.skipReasons['target-not-found']).toBeGreaterThanOrEqual(1);
+    expect(moduleEdgeWrite.excludedSources).not.toContain('namespaceImports');
   }, 30_000);
 
   it('reports declaration/runtime module edge-write diagnostics in the public profile', () => {
