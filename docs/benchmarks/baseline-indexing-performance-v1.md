@@ -75,6 +75,85 @@ progress when a complete profile artifact is not written. They should use
 elapsed time, graphStats, profile artifact existence/stat data, stdout/stderr
 byte counts or tails, and RSS or unavailable reason.
 
+## Ownership Slice Trend Recording
+
+Every ownership migration slice that changes the default `rust-hybrid`
+indexing path should record a lightweight performance trend, even when the
+slice is not intended as a performance optimization. The goal is trend evidence,
+not plan-level benchmark proof.
+
+An ownership slice closeout should record:
+
+- roadmap node and issue identity;
+- ZCodeGraph git commit;
+- targeted corpus or fixture identity;
+- command invocation;
+- wall time;
+- peak RSS or `rssUnavailableReason`;
+- profile bucket summary;
+- graphStats;
+- fallback taxonomy;
+- whether the `baseline-agent-sufficiency-v1` Trigger Matrix requires Agent
+  Sufficiency evidence;
+- final classification.
+
+Use targeted fixture/profile evidence by default. Keep temporary profiles,
+intermediate measurements, and process evidence with the issue or plan closeout.
+Only durable result/decision artifact records that need long-term reference
+belong in `docs/benchmarks/`.
+
+Upgrade to real repo smoke when any of these triggers apply:
+
+- the change affects the default `rust-hybrid` full-index path broadly;
+- the change modifies resolver/finalization/edge-write fan-out or cleanup behavior
+  in a way that can move many graph rows;
+- targeted fixture/profile evidence shows wall time, RSS, or phase-bucket
+  movement that is material but not explained;
+- graphStats or fallback taxonomy is `changed-unexpected`, `unavailable`, or
+  `needs-human-review`;
+- the slice supports README, release, user-visible usability, or roadmap
+  closeout claims.
+
+## Bounded Optimization Protocol
+
+Bounded optimization is allowed only when evidence shows that performance work
+supports ownership migration or first-user usability. Do not optimize every
+slow-looking bucket by default.
+
+Enter bounded optimization when at least one trigger applies:
+
+- ownership progress blocker: a slice is functionally correct, but wall time,
+  RSS, or a phase bucket blocks expanding ownership safely;
+- trend signal: targeted fixture/profile evidence shows a material movement
+  that points to a bounded candidate;
+- user usability risk: the default `rust-hybrid` path creates a speed or
+  resource risk for first-user workflows, and the candidate is narrow.
+
+Run one bounded candidate by default. If that candidate is no-go, one second candidate
+may be attempted in the same effort only when it is independently scoped and
+measured. Do not mix unrelated optimization directions in one issue.
+
+Classify the result as one of:
+
+- `keep`: at least one key metric shows a credible improvement trend while
+  graphStats, fallback taxonomy, and Agent Sufficiency trigger requirements
+  remain acceptable;
+- `no-go`: no credible improvement appears, or the improvement creates an
+  unacceptable semantic or guardrail risk;
+- `diagnostic-only`: the attempt does not produce a kept optimization but does
+  identify a bottleneck, prerequisite, or next bounded candidate;
+- `needs-human-review`: evidence is complete, but accepting the tradeoff
+  depends on product judgment.
+
+A bounded optimization does not need to reach the 10% plan-level success threshold.
+Trend evidence is valid when it is clearly measured and its graph/semantic
+guardrails are reported.
+
+Keep temporary profiles, intermediate measurements, and process evidence with
+the issue or plan closeout. Checked-in temporary files must use a `tmp-` prefix.
+Only a durable result/decision artifact that should remain useful after the
+issue closes belongs in `docs/benchmarks/`.
+
 ## Threshold Interpretation
 
 Use two thresholds:

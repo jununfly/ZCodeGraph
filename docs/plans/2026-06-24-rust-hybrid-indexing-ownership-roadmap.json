@@ -87,8 +87,8 @@
     "1-4": {
       "id": "1-4",
       "label": "Performance evidence lanes under ownership migration",
-      "status": "pending",
-      "mode": "explore",
+      "status": "completed",
+      "mode": "exploit",
       "parent": "1",
       "children": [
         "1-4-1",
@@ -99,9 +99,14 @@
           "q": "Performance role",
           "answer": "Performance is a validation dimension under ownership migration, not an independent steering tree.",
           "note": "Each slice records trend evidence; bounded performance exploit opens only when it supports ownership progress or user usability."
+        },
+        {
+          "q": "第12刀主攻哪棵子树？",
+          "answer": "A. Performance evidence lanes under ownership migration",
+          "note": "Resolver/finalization ownership 和 graph semantics guardrails 已完成；第12刀优先钉住 ownership slice 的性能证据记录与 bounded optimization 触发规则，避免后续性能工作脱离地图。"
         }
       ],
-      "notes": "Performance trend evidence belongs under ownership slices; do not let performance become an independent steering tree."
+      "notes": "第12刀施工中：定义 ownership migration 下的 performance evidence lanes 与 bounded optimization 触发规则。"
     },
     "1-5": {
       "id": "1-5",
@@ -334,22 +339,109 @@
     "1-4-1": {
       "id": "1-4-1",
       "label": "Baseline trend recording for every ownership slice",
-      "status": "pending",
-      "mode": "explore",
+      "status": "completed",
+      "mode": "exploit",
       "parent": "1-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "第12刀先做 evidence lane 还是 bounded optimization？",
+          "answer": "A. 先做 baseline trend recording for every ownership slice",
+          "note": "先定义每个 ownership slice 必须记录的性能趋势字段、证据位置、targeted smoke/profile 门槛；bounded optimization 留给标准完成后的后续节点。"
+        },
+        {
+          "q": "1-4-1 的产物形态是什么？",
+          "answer": "A. 长期 baseline 标准文件 + deterministic doc contract test",
+          "note": "新增或更新可长期复用的 ownership performance trend baseline，锁定每个 ownership slice closeout 的趋势字段与证据位置；用轻量测试防止关键条款漂移。"
+        },
+        {
+          "q": "ownership performance trend baseline 放在哪里？",
+          "answer": "B. 扩展 baseline-indexing-performance-v1.md",
+          "note": "保持 indexing performance 标准入口单一；在现有 baseline 中新增 ownership slice trend recording 章节，避免拆出平行 baseline 后让后续 agent 不知道该引用哪个标准。"
+        },
+        {
+          "q": "ownership slice trend recording 的最低字段是什么？",
+          "answer": "A. 轻量但完整字段",
+          "note": "每个 ownership slice closeout 至少记录 roadmap node/issue、commit、targeted corpus or fixture、command、wall time、RSS 或 unavailable reason、profile bucket summary、graphStats、fallback taxonomy、是否触发 Agent Sufficiency、final classification。"
+        },
+        {
+          "q": "ownership slice 性能证据应该存在哪里？",
+          "answer": "A. 标准进 docs/benchmarks，过程 evidence 默认留在 issue/plan",
+          "note": "baseline-indexing-performance-v1.md 存长期标准；每个 slice 的临时 profile/tmp run/process evidence 默认随 issue 或 plan closeout 保存；只有 durable result/decision artifact 才进入 docs/benchmarks。"
+        },
+        {
+          "q": "每个 ownership slice closeout 是否必须跑真实大 repo？",
+          "answer": "B. 默认 targeted fixture/profile，按触发条件升级真实 repo smoke",
+          "note": "默认使用 deterministic fixture 与 targeted profile；只有高风险、用户可见、图语义大范围移动、性能结果需要外推，或 closeout 明确需要时才跑 current-repo/VS Code sparse 等真实 repo smoke。"
+        },
+        {
+          "q": "什么情况下 ownership slice 必须升级真实 repo smoke？",
+          "answer": "A. 采用 5 个触发器",
+          "note": "触发器：影响默认 rust-hybrid 全索引主路径；改动 resolver/finalization/edge-write fan-out 或 cleanup 行为；targeted fixture 显示 wall time/RSS/phase bucket 明显移动但原因不清；graphStats 或 fallback taxonomy 为 changed-unexpected/unavailable/needs-human-review；要做用户可见、README、release 或 roadmap closeout 的性能/可用性判断。"
+        },
+        {
+          "q": "第12刀如何落地？",
+          "answer": "A. 直接实现文档 + 测试 + roadmap closeout",
+          "note": "范围是扩展 baseline-indexing-performance-v1.md 的 ownership slice trend recording 条款，并用 deterministic doc contract test 锁住；不新建 issue，避免流程成本超过标准契约本身。"
+        },
+        {
+          "q": "1-4-1 closeout 结果是什么？",
+          "answer": "completed: ownership slice trend recording contract added to baseline-indexing-performance-v1",
+          "note": "新增 Ownership Slice Trend Recording 章节，规定轻量完整字段、过程证据位置、真实 repo smoke 升级触发器；doc contract test 覆盖该长期标准。验证：npx vitest run __tests__/graph-semantics-guardrail-doc.test.ts。"
+        }
+      ],
+      "notes": "Completed ownership slice trend recording contract in baseline-indexing-performance-v1. Verification: npx vitest run __tests__/graph-semantics-guardrail-doc.test.ts."
     },
     "1-4-2": {
       "id": "1-4-2",
       "label": "Bounded performance exploit only when ownership progress needs it",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "第13刀主攻哪一块？",
+          "answer": "A. Bounded performance exploit only when ownership progress needs it",
+          "note": "第12刀已完成 1-4-1 trend recording contract；第13刀继续完成 1-4-2，定义何时允许或要求 bounded A/B optimization、候选选择、success/no-go 口径。"
+        },
+        {
+          "q": "1-4-2 是否直接尝试一个性能优化？",
+          "answer": "A. 不直接优化，先定义 bounded optimization trigger/execution protocol",
+          "note": "这一刀只完成协议：何时触发、如何选候选、最多尝试几个、如何判 keep/no-go、如何记录 evidence；具体优化后续按协议开 issue。"
+        },
+        {
+          "q": "bounded optimization protocol 写在哪里？",
+          "answer": "A. baseline-indexing-performance-v1.md",
+          "note": "与 1-4-1 ownership trend recording 保持同一个 performance baseline 入口，新增 Bounded Optimization Protocol 章节，定义何时从趋势记录升级为 bounded A/B optimization。"
+        },
+        {
+          "q": "什么情况下允许或要求做 bounded optimization？",
+          "answer": "A. 三类触发器：ownership progress blocker、trend signal、user usability risk",
+          "note": "不是每个慢点都优化。只有性能/资源阻碍 ownership 扩大、targeted evidence 给出明显趋势信号、或默认 rust-hybrid 主路径存在首批用户可用性风险，并且能指向 bounded candidate 时才进入 optimization。"
+        },
+        {
+          "q": "bounded optimization 一次最多允许试几个候选？",
+          "answer": "A. 默认 1 个候选，最多追加 1 个 bounded 第二候选",
+          "note": "每个候选必须独立归因。若第一个 no-go，可追加一个第二候选；禁止在同一 issue 混多个优化方向，避免 DB/parser/resolver/SQLite/profile 等因素纠缠。"
+        },
+        {
+          "q": "bounded optimization 的成功/保留门槛怎么判？",
+          "answer": "A. keep/no-go/diagnostic-only/needs-human-review 四态",
+          "note": "以趋势证据为主，不要求每次达到 10% plan-level success；keep 必须有可信改善趋势且语义 guardrail 不失败；no-go/diagnostic-only/needs-human-review 都是有效完成状态。"
+        },
+        {
+          "q": "bounded optimization evidence 如何保存？",
+          "answer": "A. 过程 evidence 跟 issue/plan，durable result/decision 才入 docs/benchmarks",
+          "note": "临时 profile/tmp run/process evidence 默认保存在 issue/plan 生命周期内；入仓库的 tmp 文件必须 tmp- 前缀；只有值得长期参考的 decision/result artifact 进入 docs/benchmarks。"
+        },
+        {
+          "q": "1-4-2 closeout 结果是什么？",
+          "answer": "completed: bounded optimization protocol added to baseline-indexing-performance-v1",
+          "note": "新增 Bounded Optimization Protocol 章节，规定触发器、候选上限、四态 keep/no-go/diagnostic-only/needs-human-review 判定、evidence 生命周期；doc contract test 覆盖该协议。验证：npx vitest run __tests__/graph-semantics-guardrail-doc.test.ts。"
+        }
+      ],
+      "notes": "Completed bounded optimization protocol in baseline-indexing-performance-v1. Verification: npx vitest run __tests__/graph-semantics-guardrail-doc.test.ts."
     },
     "1-5-1": {
       "id": "1-5-1",
@@ -856,7 +948,7 @@
   },
   "metadata": {
     "created": "2026-06-24 23:51:01",
-    "updated": "2026-06-25 17:38:34",
+    "updated": "2026-06-25 18:21:36",
     "md_file": "docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md"
   }
 }

@@ -4,6 +4,10 @@ import * as path from 'path';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const GUARDRAIL_DOC = path.join(REPO_ROOT, 'docs/benchmarks/graph-semantics-guardrail-v1.md');
+const INDEXING_PERFORMANCE_DOC = path.join(
+  REPO_ROOT,
+  'docs/benchmarks/baseline-indexing-performance-v1.md',
+);
 
 describe('Graph semantics guardrail documentation', () => {
   it('defines the hard evidence contract for graph-semantic closeouts', () => {
@@ -83,5 +87,71 @@ describe('Graph semantics guardrail documentation', () => {
     expect(agentDoc).toMatch(/product-sensitive interpretation/i);
     expect(graphDoc).toContain('baseline-agent-sufficiency-v1');
     expect(graphDoc).toContain('Trigger Matrix');
+  });
+
+  it('locks the ownership slice performance trend recording contract', () => {
+    const doc = fs.readFileSync(INDEXING_PERFORMANCE_DOC, 'utf8');
+
+    expect(doc).toContain('## Ownership Slice Trend Recording');
+    for (const requiredTerm of [
+      'roadmap node',
+      'issue',
+      'ZCodeGraph git commit',
+      'targeted corpus or fixture',
+      'command invocation',
+      'wall time',
+      'peak RSS',
+      'rssUnavailableReason',
+      'profile bucket summary',
+      'graphStats',
+      'fallback taxonomy',
+      'Agent Sufficiency',
+      'final classification',
+      'targeted fixture/profile',
+      'real repo smoke',
+      'durable result/decision artifact',
+      'issue or plan closeout',
+    ]) {
+      expect(doc).toContain(requiredTerm);
+    }
+
+    for (const trigger of [
+      'default `rust-hybrid` full-index path',
+      'resolver/finalization/edge-write fan-out',
+      'cleanup behavior',
+      'changed-unexpected',
+      'needs-human-review',
+      'README',
+      'release',
+    ]) {
+      expect(doc).toContain(trigger);
+    }
+  });
+
+  it('locks the bounded optimization protocol contract', () => {
+    const doc = fs.readFileSync(INDEXING_PERFORMANCE_DOC, 'utf8');
+
+    expect(doc).toContain('## Bounded Optimization Protocol');
+    for (const requiredTerm of [
+      'ownership progress blocker',
+      'trend signal',
+      'user usability risk',
+      'bounded candidate',
+      'second candidate',
+      'keep',
+      'no-go',
+      'diagnostic-only',
+      'needs-human-review',
+      'graphStats',
+      'fallback taxonomy',
+      'Agent Sufficiency',
+      'durable result/decision artifact',
+      'tmp-',
+    ]) {
+      expect(doc).toContain(requiredTerm);
+    }
+
+    expect(doc).toContain('Do not mix unrelated optimization directions');
+    expect(doc).toContain('does not need to reach the 10% plan-level success threshold');
   });
 });
