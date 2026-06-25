@@ -638,6 +638,87 @@
       "status": "pending",
       "mode": "explore",
       "parent": "1-3-3-2-2-2-2",
+      "children": [
+        "1-3-3-2-2-2-2-2-1",
+        "1-3-3-2-2-2-2-2-2",
+        "1-3-3-2-2-2-2-2-3"
+      ],
+      "decisions": [
+        {
+          "q": "第八刀主目标选哪一块？",
+          "answer": "A. package imports #foo repo-local file-level edge-write ownership",
+          "note": "保持在 module/file dependency edge-write ownership 主线；default/namespace 属于 binding-level symbol semantics，后续单独拆。"
+        },
+        {
+          "q": "package imports #foo 的解析范围做到哪里？",
+          "answer": "A. nearest package boundary imports map only，direct key / pattern / condition object，repo-local file target",
+          "note": "这刀只接 Rust core 已支持并已解析出的 package imports repo-local file target；不新增 external package resolution，不混入 default/namespace binding semantics。"
+        },
+        {
+          "q": "package imports edge-write diagnostics 如何暴露？",
+          "answer": "A. 在 moduleEdgeWrite 下新增 packageImports 子桶，对齐 packageSelfName 字段",
+          "note": "保持 module/file dependency edge-write diagnostics 的单一入口；不新开 top-level bucket。"
+        },
+        {
+          "q": "package imports edge-write rollout 怎么做？",
+          "answer": "A. 直接 main-path guarded write，fail-closed skip",
+          "note": "Rust core 已解析到 repo-local file target 时写 imports edge；无法高置信解析时不回退同语言 TS fallback，只记录 skip taxonomy。"
+        },
+        {
+          "q": "package imports 解析到 .d.ts target 时怎么处理？",
+          "answer": "A. 复用 declaration/runtime rewrite，唯一 runtime sibling 才写",
+          "note": "package imports 不另造 declaration/runtime 语义；唯一 runtime sibling 才写到 runtime file，失败计入 fail-closed taxonomy。"
+        },
+        {
+          "q": "第八刀验证门槛是什么？",
+          "answer": "A. deterministic CLI graph/profile tests only",
+          "note": "覆盖 direct key happy path、pattern/condition object/.d.ts runtime rewrite、fail-closed taxonomy；不跑 VS Code sparse、Agent A/B 或完整 scoreboard。"
+        },
+        {
+          "q": "宽父节点如何避免 package imports/default/namespace 误判完成？",
+          "answer": "A. 拆 3 个 sub-node，package imports 本刀完成，其余 pending",
+          "note": "保留父节点原语义；本刀只完成 package imports # repo-local file-level edge-write ownership，default import 和 namespace import 继续作为独立待办。"
+        }
+      ],
+      "notes": ""
+    },
+    "1-3-3-2-2-2-2-2-1": {
+      "id": "1-3-3-2-2-2-2-2-1",
+      "label": "Package imports # repo-local file-level edge-write ownership",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-3-3-2-2-2-2-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "第八刀拆成几个 implementation issues？",
+          "answer": "A. 3 issues：diagnostics / happy-path edge-write / fail-closed+closeout",
+          "note": "顺序为 moduleEdgeWrite.packageImports diagnostics contract、package imports direct/pattern/condition repo-local edge-write、fail-closed taxonomy + declaration/runtime reuse closeout。"
+        },
+        {
+          "q": "第八刀 implementation issues 发布了吗？",
+          "answer": "已发布 #537, #538, #539",
+          "note": "#537 diagnostics；#538 package imports repo-local file-level edge-write；#539 fail-closed taxonomy + declaration/runtime closeout。"
+        }
+      ],
+      "notes": "Completed by #537-#539. Implemented public moduleEdgeWrite.packageImports diagnostics and deterministic CLI graph/profile coverage for direct key, pattern/condition object, fail-closed taxonomy, and declaration/runtime rewrite reuse. Default and namespace sibling nodes remain pending."
+    },
+    "1-3-3-2-2-2-2-2-2": {
+      "id": "1-3-3-2-2-2-2-2-2",
+      "label": "Default import edge-write ownership",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3-3-2-2-2-2-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-3-2-2-2-2-2-3": {
+      "id": "1-3-3-2-2-2-2-2-3",
+      "label": "Namespace import edge-write ownership",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3-3-2-2-2-2-2",
       "children": [],
       "decisions": [],
       "notes": ""
@@ -645,7 +726,7 @@
   },
   "metadata": {
     "created": "2026-06-24 23:51:01",
-    "updated": "2026-06-25 14:03:51",
+    "updated": "2026-06-25 15:02:30",
     "md_file": "docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md"
   }
 }

@@ -1,18 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
-<!-- ROADMAP_SECTION_START -->
-<!-- ROADMAP_SECTION_START -->
-<!-- ROADMAP_SECTION_START -->
-<!-- ROADMAP_SECTION_START -->
-<!-- ROADMAP_SECTION_START -->
-<!-- ROADMAP_SECTION_START -->
-<!-- ROADMAP_SECTION_START -->
-<!-- ROADMAP_SECTION_START -->
-<!-- ROADMAP_SECTION_START -->
-<!-- ROADMAP_SECTION_START -->
-<!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 14:03:51
+> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 15:02:30
 
 [~][X+] 1. Rust-Hybrid Indexing Completion And Performance Roadmap
 ├── [x][X+] 1-1. Current fact base and evidence archive
@@ -38,3 +27,9 @@
     ├── [x][Y+] 1-7-1. First stage builds map only
     └── [x][Y+] 1-7-2. Next stage opens facts protocol implementation issues
 <!-- ROADMAP_SECTION_END -->
+
+### 当前施工：1-3-3-2-2-2-2-2-1. Package imports # repo-local file-level edge-write ownership
+
+**决策：**
+- Q: 第八刀拆成几个 implementation issues？ → A. 3 issues：diagnostics / happy-path edge-write / fail-closed+closeout (顺序为 moduleEdgeWrite.packageImports diagnostics contract、package imports direct/pattern/condition repo-local edge-write、fail-closed taxonomy + declaration/runtime reuse closeout。)
+- Q: 第八刀 implementation issues 发布了吗？ → 已发布 #537, #538, #539 (#537 diagnostics；#538 package imports repo-local file-level edge-write；#539 fail-closed taxonomy + declaration/runtime closeout。)

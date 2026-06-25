@@ -85,6 +85,9 @@ type RustCoreProfileLike = {
   importPathAliasPackageSelfNameResolvedRefs?: number;
   importPathAliasPackageSelfNameFallbackRefs?: number;
   importPathAliasPackageSelfNameOutcomeCounts?: Record<string, number>;
+  importPathAliasPackageImportsResolvedRefs?: number;
+  importPathAliasPackageImportsFallbackRefs?: number;
+  importPathAliasPackageImportsOutcomeCounts?: Record<string, number>;
 };
 
 type GuardedEdgeWriteDiagnostics = {
@@ -118,6 +121,15 @@ type ModuleEdgeWriteDiagnostics = {
   packageSelfName: {
     mode: 'repo-local-file-targets-only';
     eligibleRefs: number;
+    writtenEdges: number;
+    skippedRefs: number;
+    skipReasons: Record<string, number>;
+    outcomeCounts: Record<string, number>;
+  };
+  packageImports: {
+    mode: 'repo-local-file-targets-only';
+    eligibleRefs: number;
+    attemptedRefs: number;
     writtenEdges: number;
     skippedRefs: number;
     skipReasons: Record<string, number>;
@@ -209,6 +221,19 @@ function packageSelfNameOutcomeIsResolved(reason: string): boolean {
   return reason.startsWith('resolved') || reason === 'exportsResolved';
 }
 
+function packageImportsSkipReasons(outcomeCounts: Record<string, number>): Record<string, number> {
+  const skipReasons: Record<string, number> = {};
+  for (const [reason, count] of Object.entries(outcomeCounts)) {
+    if (packageImportsOutcomeIsResolved(reason)) continue;
+    skipReasons[reason] = count;
+  }
+  return skipReasons;
+}
+
+function packageImportsOutcomeIsResolved(reason: string): boolean {
+  return reason === 'importsResolved';
+}
+
 function sumPackageSelfNameOutcomes(
   outcomeCounts: Record<string, number>,
   predicate: (reason: string) => boolean,
@@ -232,6 +257,13 @@ function moduleEdgeWriteDiagnosticsFromRustCore(profile: unknown): ModuleEdgeWri
   const packageSelfNameFallbackRefs =
     rustProfile.importPathAliasPackageSelfNameFallbackRefs
     ?? sumPackageSelfNameOutcomes(packageSelfNameOutcomeCounts, (reason) => !packageSelfNameOutcomeIsResolved(reason));
+  const packageImportsOutcomeCounts = rustProfile.importPathAliasPackageImportsOutcomeCounts ?? {};
+  const packageImportsResolvedRefs =
+    rustProfile.importPathAliasPackageImportsResolvedRefs
+    ?? sumPackageSelfNameOutcomes(packageImportsOutcomeCounts, packageImportsOutcomeIsResolved);
+  const packageImportsFallbackRefs =
+    rustProfile.importPathAliasPackageImportsFallbackRefs
+    ?? sumPackageSelfNameOutcomes(packageImportsOutcomeCounts, (reason) => !packageImportsOutcomeIsResolved(reason));
   return {
     owner: 'rust-core',
     mode: 'guarded-file-imports',
@@ -257,6 +289,15 @@ function moduleEdgeWriteDiagnosticsFromRustCore(profile: unknown): ModuleEdgeWri
       skippedRefs: packageSelfNameFallbackRefs,
       skipReasons: packageSelfNameSkipReasons(packageSelfNameOutcomeCounts),
       outcomeCounts: packageSelfNameOutcomeCounts,
+    },
+    packageImports: {
+      mode: 'repo-local-file-targets-only',
+      eligibleRefs: packageImportsResolvedRefs + packageImportsFallbackRefs,
+      attemptedRefs: packageImportsResolvedRefs + packageImportsFallbackRefs,
+      writtenEdges: packageImportsResolvedRefs,
+      skippedRefs: packageImportsFallbackRefs,
+      skipReasons: packageImportsSkipReasons(packageImportsOutcomeCounts),
+      outcomeCounts: packageImportsOutcomeCounts,
     },
     supportedSources: ['relative', 'tsconfigPaths'],
     excludedSources: [
