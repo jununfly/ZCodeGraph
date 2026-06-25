@@ -1743,6 +1743,105 @@ describe('zcodegraph index engine selection', () => {
     expect(profile.finalize.referenceResolutionBreakdown.guardedEdgeWrite.edgeKindCounts.calls).toBeGreaterThan(0);
   }, 30_000);
 
+  it('writes guarded Rust finalization edges for direct default function and class imports', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'default-function.ts'),
+      'export default function runDefault(): number { return 1; }\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'default-class.ts'),
+      'export default class DefaultWidget { value(): number { return 2; } }\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'default-entry.ts'),
+      [
+        "import localRun from './default-function';",
+        "import LocalWidget from './default-class';",
+        '',
+        'export function defaultEntry(): number {',
+        '  const widget: LocalWidget | null = null;',
+        '  return localRun() + (widget ? widget.value() : 0);',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'guarded-default-edge-write-profile.json');
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const entryFunction = cg.searchNodes('defaultEntry').find((match) => match.node.kind === 'function')?.node;
+      const entryFile = cg.searchNodes('default-entry.ts').find((match) => match.node.kind === 'file')?.node;
+      const functionFile = cg.searchNodes('default-function.ts').find((match) => match.node.kind === 'file')?.node;
+      const classFile = cg.searchNodes('default-class.ts').find((match) => match.node.kind === 'file')?.node;
+      const defaultFunction = cg.searchNodes('runDefault').find((match) => match.node.kind === 'function')?.node;
+      const defaultClass = cg.searchNodes('DefaultWidget').find((match) => match.node.kind === 'class')?.node;
+      expect(entryFunction).toBeDefined();
+      expect(entryFile).toBeDefined();
+      expect(functionFile).toBeDefined();
+      expect(classFile).toBeDefined();
+      expect(defaultFunction).toBeDefined();
+      expect(defaultClass).toBeDefined();
+
+      const usageEdges = cg.getOutgoingEdges(entryFunction!.id, undefined, 'rust-finalization');
+      expect(usageEdges).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'calls',
+          target: defaultFunction!.id,
+          edgeOrigin: 'rust-finalization',
+          metadata: expect.objectContaining({
+            resolvedBy: 'rust-esm-default-import-export',
+          }),
+        }),
+      ]));
+      const classImportEdges = cg.getOutgoingEdges(entryFile!.id, ['imports'], 'rust-finalization');
+      expect(classImportEdges).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          target: defaultClass!.id,
+          edgeOrigin: 'rust-finalization',
+          metadata: expect.objectContaining({
+            resolvedBy: 'rust-esm-default-import-export',
+          }),
+        }),
+      ]));
+
+      const fileImportEdges = cg.getOutgoingEdges(entryFile!.id, ['imports'], 'rust-finalization');
+      expect(fileImportEdges).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          target: functionFile!.id,
+          edgeOrigin: 'rust-finalization',
+        }),
+        expect.objectContaining({
+          target: classFile!.id,
+          edgeOrigin: 'rust-finalization',
+        }),
+      ]));
+    } finally {
+      cg.close();
+    }
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          guardedEdgeWrite: {
+            eligibleRefs: number;
+            attemptedRefs: number;
+            writtenEdges: number;
+            edgeKindCounts: Record<string, number>;
+          };
+        };
+      };
+    };
+    const guardedEdgeWrite = profile.finalize.referenceResolutionBreakdown.guardedEdgeWrite;
+    expect(guardedEdgeWrite.eligibleRefs).toBeGreaterThanOrEqual(2);
+    expect(guardedEdgeWrite.attemptedRefs).toBeGreaterThanOrEqual(2);
+    expect(guardedEdgeWrite.writtenEdges).toBeGreaterThanOrEqual(2);
+    expect(guardedEdgeWrite.edgeKindCounts.calls).toBeGreaterThanOrEqual(1);
+  }, 30_000);
+
   it('records guarded edge-write skip taxonomy for unresolved direct named ESM imports', () => {
     fs.writeFileSync(
       path.join(tempDir, 'guarded-missing-target.ts'),
@@ -1787,6 +1886,72 @@ describe('zcodegraph index engine selection', () => {
       expect.objectContaining({
         referenceName: 'missingGuardedTarget',
         reason: 'export-symbol-missing',
+      }),
+    ]));
+  }, 30_000);
+
+  it('records default import fail-closed taxonomy for unsupported default export forms', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'default-expression-target.ts'),
+      [
+        'const expressionDefault = () => 1;',
+        'export default expressionDefault;',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'default-expression-entry.ts'),
+      [
+        "import expressionLocal from './default-expression-target';",
+        '',
+        'export function defaultExpressionEntry(): number {',
+        '  return expressionLocal();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'guarded-default-skip-profile.json');
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const entryFunction = cg.searchNodes('defaultExpressionEntry').find((match) => match.node.kind === 'function')?.node;
+      const expressionDefault = cg.searchNodes('expressionDefault')
+        .find((match) => match.node.filePath === 'default-expression-target.ts')?.node;
+      expect(entryFunction).toBeDefined();
+      expect(expressionDefault).toBeDefined();
+
+      const rustEdges = cg.getOutgoingEdges(entryFunction!.id, undefined, 'rust-finalization');
+      expect(rustEdges.some((edge) => edge.target === expressionDefault!.id)).toBe(false);
+    } finally {
+      cg.close();
+    }
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          guardedEdgeWrite: {
+            eligibleRefs: number;
+            skippedRefs: number;
+            skipReasons: Record<string, number>;
+            skipSamples: Array<Record<string, unknown>>;
+          };
+        };
+      };
+    };
+    const guardedEdgeWrite = profile.finalize.referenceResolutionBreakdown.guardedEdgeWrite;
+    expect(guardedEdgeWrite.eligibleRefs).toBeGreaterThan(0);
+    expect(guardedEdgeWrite.skippedRefs).toBeGreaterThan(0);
+    expect(guardedEdgeWrite.skipReasons).toMatchObject({
+      'direct-default-export-candidate-zero': expect.any(Number),
+    });
+    expect(guardedEdgeWrite.skipSamples).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        referenceName: 'expressionLocal',
+        reason: 'direct-default-export-candidate-zero',
+        resolvedByAttempt: 'direct-default-export',
       }),
     ]));
   }, 30_000);

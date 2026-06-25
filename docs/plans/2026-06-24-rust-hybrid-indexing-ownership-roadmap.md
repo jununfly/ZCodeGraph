@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 15:02:30
+> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 15:56:10
 
 [~][X+] 1. Rust-Hybrid Indexing Completion And Performance Roadmap
 ├── [x][X+] 1-1. Current fact base and evidence archive
