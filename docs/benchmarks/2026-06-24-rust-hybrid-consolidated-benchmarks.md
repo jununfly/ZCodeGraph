@@ -4,6 +4,109 @@ Date: 2026-06-24
 
 This file mechanically consolidates the previous `*-rust-hybrid-*` files in this directory. The original per-phase/process files were removed after consolidation so this file is the single archive entry point for this historical workstream.
 
+## 2026-06-25 Lifecycle Cleanup Addendum
+
+This addendum absorbs later rust-hybrid process evidence after the
+`Rust-Hybrid Indexing Completion And Performance Roadmap` closeout.
+
+Cleanup rule:
+
+- this file is the total benchmark/evidence entry point for rust-hybrid
+  first-user and performance routing decisions;
+- long-lived theme evidence remains separate when it is a useful knowledge
+  entry point:
+  - `docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md`
+  - `docs/benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md`
+  - `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+- raw result JSON, profile directories, generated experiment summaries, and
+  issue-scoped closeout files are deleted once their durable facts are absorbed
+  here or in the theme evidence files;
+- baseline standards such as `baseline-indexing-performance-v1.md` remain
+  separate because they define reusable measurement contracts rather than
+  process evidence.
+
+### Candidate Protocol And Comprehensive Performance Evidence
+
+Candidate protocol routing, shape diagnostics, comprehensive performance
+baseline, and comprehensive closeout artifacts were process evidence. Their
+durable conclusion is:
+
+- candidate protocol/routing diagnostics were useful for selecting bounded
+  optimization targets but are not a standalone architecture decision;
+- comprehensive performance evidence should be read through the later ownership
+  roadmap and first-user performance closeout rather than as a current source
+  of truth;
+- performance optimization remains evidence-gated and should not become a
+  parallel roadmap forest.
+
+Absorbed files:
+
+- `docs/benchmarks/2026-06-24-rust-hybrid-candidate-protocol-routing-ab-result.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-candidate-protocol-routing-result.json`
+- `docs/benchmarks/2026-06-24-rust-hybrid-candidate-protocol-routing-vscode-disabled-result.json`
+- `docs/benchmarks/2026-06-24-rust-hybrid-candidate-protocol-shape-diagnostics-decision.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-comprehensive-performance-baseline-result.json`
+- `docs/benchmarks/2026-06-24-rust-hybrid-comprehensive-performance-baseline-result.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-comprehensive-performance-closeout-decision.md`
+
+### First-User Performance Closeout
+
+The first-user performance execution subtree closed as `yellow`.
+
+Durable conclusion:
+
+- the subtree can close and should not keep spawning ad hoc performance
+  optimization nodes;
+- current-repo evidence has 3-run diagnostic and after-optimization coverage;
+- the cleanup/edge-write bounded implementation is classified `keep`, but it is
+  a narrow round-trip reduction rather than a broad performance win;
+- graphStats and fallback taxonomy stayed stable enough for this closeout;
+- RSS remained unavailable with an explicit unavailable reason;
+- VS Code sparse and Excalidraw were `needs-human-setup` because their
+  configured paths were not valid Git checkouts for the runner;
+- next route is ownership/mainline work, with performance retained as a
+  guardrail and bounded exploit lane only when a measured bottleneck appears.
+
+Key current-repo medians:
+
+| Metric | Before | After | Classification |
+| --- | ---: | ---: | --- |
+| wall time | `7684 ms` | `7639 ms` | stable / slight improvement |
+| unresolved cleanup | `215 ms` | `196 ms` | improved |
+| edge write | `138 ms` | `89 ms` | improved, not solely attributed |
+| fallback taxonomy total | `2645` | `2645` | stable |
+| edge count | `40600` | `40600` | stable |
+
+Absorbed files and directories:
+
+- `docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-baseline-closeout-decision.md`
+- `docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-baseline-result.json`
+- `docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-candidate-routing-closeout-decision.md`
+- `docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-closeout-decision.md`
+- `docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-diagnostic-closeout-decision.md`
+- `docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-diagnostic-result.json`
+- `docs/benchmarks/2026-06-25-rust-hybrid-cleanup-edge-write-optimization-closeout-decision.md`
+- `docs/benchmarks/2026-06-25-rust-hybrid-cleanup-edge-write-optimization-result.json`
+- `docs/benchmarks/tmp-2026-06-25-rust-hybrid-first-user-performance-baseline-result/`
+- `docs/benchmarks/tmp-2026-06-25-rust-hybrid-first-user-performance-diagnostic-result/`
+- `docs/benchmarks/tmp-2026-06-25-rust-hybrid-cleanup-edge-write-optimization-result/`
+
+### Research And Diagnostic Contracts
+
+Research/oracle-needed route closeout and tail diagnostic bucket contract
+artifacts were absorbed as lifecycle decisions:
+
+- research/oracle routes stay deferred or `needs-oracle/research` unless a
+  future roadmap explicitly promotes them;
+- diagnostic bucket contracts remain useful as profile-field expectations, but
+  the current durable reference is this consolidated benchmark entry plus the
+  relevant baseline standards.
+
+Absorbed files:
+
+- `docs/benchmarks/2026-06-25-rust-hybrid-research-oracle-needed-routes-closeout-decision.md`
+- `docs/benchmarks/2026-06-25-rust-hybrid-tail-diagnostic-bucket-contract.md`
+
 ## Source Files
 
 - `docs/benchmarks/2026-06-18-rust-hybrid-phase-2-gin-smoke-evidence.md`

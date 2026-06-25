@@ -4,6 +4,65 @@ Date: 2026-06-24
 
 This file mechanically consolidates the previous `*-rust-hybrid-*` files in this directory. The original per-phase/process files were removed after consolidation so this file is the single archive entry point for this historical workstream.
 
+## 2026-06-25 Lifecycle Cleanup Addendum
+
+This addendum absorbs the later rust-hybrid roadmap/process plans and makes
+this file the only long-lived `docs/plans/` entry point for the rust-hybrid
+workstream.
+
+Cleanup rule:
+
+- durable planning decisions remain here;
+- evidence/result decisions remain in
+  `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`;
+- roadmap JSON/MD files were used as navigation tools and are not retained as
+  long-lived artifacts;
+- per-slice plans are removed once their durable boundary, issue sequence, and
+  closeout implication are summarized here.
+
+Absorbed roadmap scope:
+
+- `Rust-Hybrid Indexing Completion And Performance Roadmap`
+- rust-owned indexing completion boundary;
+- resolver finalization ownership frontier;
+- performance evidence lanes under ownership migration;
+- Agent Sufficiency and graph semantics guardrails;
+- no-go, defer, and research archive;
+- first-user performance optimization execution.
+
+Durable routing decisions:
+
+- Rust-hybrid work should return to the ownership/mainline roadmap after the
+  first-user performance subtree. Performance remains a guardrail and bounded
+  exploit lane only when a specific ownership slice exposes a measured
+  bottleneck.
+- Plans-side long-lived documentation is consolidated here. Additional
+  per-slice plan files should be temporary unless they become a new durable PRD,
+  ADR, or consolidated plan.
+- Benchmark/process artifacts follow ZJ-0005: useful facts are absorbed into
+  durable decision artifacts, while raw profiles, generated experiment
+  summaries, rerun logs, and temporary process files are deleted after their
+  active decision closes.
+
+Later per-slice plans absorbed by this addendum:
+
+- `docs/plans/2026-06-24-rust-hybrid-comprehensive-performance-optimization-plan.md`
+- `docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap-plan.md`
+- `docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.json`
+- `docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md`
+- `docs/plans/2026-06-24-rust-hybrid-performance-optimization-consolidated-plan.md`
+- `docs/plans/2026-06-25-rust-hybrid-declaration-runtime-edge-write-ownership-plan.md`
+- `docs/plans/2026-06-25-rust-hybrid-direct-named-import-semantic-replay-plan.md`
+- `docs/plans/2026-06-25-rust-hybrid-finalization-cleanup-ownership-contract-plan.md`
+- `docs/plans/2026-06-25-rust-hybrid-first-user-performance-baseline-evidence-plan.md`
+- `docs/plans/2026-06-25-rust-hybrid-first-user-performance-candidate-routing-plan.md`
+- `docs/plans/2026-06-25-rust-hybrid-first-user-performance-diagnostic-execution-plan.md`
+- `docs/plans/2026-06-25-rust-hybrid-guarded-direct-named-import-usage-edge-write-plan.md`
+- `docs/plans/2026-06-25-rust-hybrid-module-edge-write-ownership-contract-plan.md`
+- `docs/plans/2026-06-25-rust-hybrid-package-imports-edge-write-ownership-plan.md`
+- `docs/plans/2026-06-25-rust-hybrid-package-self-name-edge-write-ownership-plan.md`
+- `docs/plans/2026-06-25-rust-hybrid-reference-resolution-cleanup-edge-write-optimization-plan.md`
+
 ## Source Files
 
 - `docs/plans/2026-06-18-rust-hybrid-phase-1-decision.md`
