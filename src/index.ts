@@ -78,6 +78,10 @@ type RustCoreProfileLike = {
   moduleResolutionGuardedEdgeWriteWrittenRefs?: number;
   moduleResolutionGuardedEdgeWriteSkippedRefs?: number;
   moduleResolutionGuardedEdgeWriteSkippedCounts?: Record<string, number>;
+  moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs?: number;
+  moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs?: number;
+  moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs?: number;
+  moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts?: Record<string, number>;
 };
 
 type GuardedEdgeWriteDiagnostics = {
@@ -101,6 +105,13 @@ type ModuleEdgeWriteDiagnostics = {
   edgeKindCounts: Record<string, number>;
   supportedSources: Array<'relative' | 'tsconfigPaths'>;
   excludedSources: string[];
+  declarationRuntime: {
+    mode: 'single-runtime-sibling-only';
+    eligibleRefs: number;
+    rewrittenEdges: number;
+    skippedRefs: number;
+    skipReasons: Record<string, number>;
+  };
 };
 
 type CleanupOwnershipDiagnostics = {
@@ -189,6 +200,13 @@ function moduleEdgeWriteDiagnosticsFromRustCore(profile: unknown): ModuleEdgeWri
     skipReasons: rustProfile.moduleResolutionGuardedEdgeWriteSkippedCounts ?? {},
     edgeKindCounts: {
       imports: writtenEdges,
+    },
+    declarationRuntime: {
+      mode: 'single-runtime-sibling-only',
+      eligibleRefs: rustProfile.moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs ?? 0,
+      rewrittenEdges: rustProfile.moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs ?? 0,
+      skippedRefs: rustProfile.moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs ?? 0,
+      skipReasons: rustProfile.moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts ?? {},
     },
     supportedSources: ['relative', 'tsconfigPaths'],
     excludedSources: [

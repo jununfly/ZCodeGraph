@@ -5962,7 +5962,7 @@ fn declaration_runtime_edge_write_decision(
     };
     if pairing_decision.status != "eligibleSingleRuntimeSibling" {
         return Ok(Some(DeclarationRuntimeEdgeWrite::KeepDeclaration {
-            reason: "pairing-not-eligible",
+            reason: declaration_runtime_edge_write_skip_reason(&pairing_decision),
         }));
     }
     let Some(runtime_target_file_path) = pairing_decision.runtime_target else {
@@ -5978,6 +5978,18 @@ fn declaration_runtime_edge_write_decision(
     Ok(Some(DeclarationRuntimeEdgeWrite::Rewrite {
         runtime_target_file_path,
     }))
+}
+
+fn declaration_runtime_edge_write_skip_reason(
+    pairing_decision: &DeclarationRuntimePairingDecision,
+) -> &'static str {
+    match pairing_decision.reason.as_str() {
+        "no-runtime-sibling" => "no-runtime-sibling",
+        "multiple-runtime-siblings" => "multiple-runtime-siblings",
+        "external-or-package-boundary" => "external-or-package-boundary",
+        "unsupported-declaration-shape" => "unsupported-declaration-shape",
+        _ => "pairing-not-eligible",
+    }
 }
 
 fn same_runtime_pairing_package_boundary(
@@ -10284,8 +10296,22 @@ mod tests {
             result
                 .profile
                 .module_resolution_declaration_runtime_edge_write_skipped_counts
-                .get("pairing-not-eligible"),
-            Some(&3)
+                .get("no-runtime-sibling"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_runtime_edge_write_skipped_counts
+                .get("multiple-runtime-siblings"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .module_resolution_declaration_runtime_edge_write_skipped_counts
+                .get("external-or-package-boundary"),
+            Some(&1)
         );
 
         let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
