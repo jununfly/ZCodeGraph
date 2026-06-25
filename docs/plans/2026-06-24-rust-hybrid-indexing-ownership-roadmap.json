@@ -419,17 +419,66 @@
     "1-3-3-2": {
       "id": "1-3-3-2",
       "label": "Remaining cleanup and broader edge-write ownership slices",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-3-3",
+      "children": [
+        "1-3-3-2-1",
+        "1-3-3-2-2"
+      ],
+      "decisions": [
+        {
+          "q": "Fourth slice main target",
+          "answer": "Finalization cleanup ownership slice",
+          "note": "Prefer cleanup ownership before broader edge-write expansion so unresolved_refs deletion/retention semantics are explicit before more graph output is routed through Rust-owned paths."
+        },
+        {
+          "q": "Cleanup ownership execution mode",
+          "answer": "Contract and diagnostics first",
+          "note": "Do not migrate cleanup into Rust core in this slice. First define and verify the TypeScript finalization cleanup contract: Rust core may clean refs it owns during Rust-owned resolution, while TypeScript finalization owns terminal cleanup for its resolved and intentionally-unresolved batch decisions."
+        },
+        {
+          "q": "Cleanup ownership verification boundary",
+          "answer": "Public CLI profile plus DB-observable contract tests",
+          "note": "Use deterministic rust-hybrid fixtures through zcodegraph index --profile-out, then assert finalization cleanup profile fields and unresolved_refs terminal cleanup behavior. Do not require VS Code sparse smoke or Agent Sufficiency evidence for this narrow slice."
+        },
+        {
+          "q": "Cleanup ownership profile shape",
+          "answer": "Add narrow cleanupOwnership bucket",
+          "note": "Expose finalize.referenceResolutionBreakdown.cleanupOwnership as contract diagnostics. It should summarize owner/mode, resolved terminal refs, intentionally-unresolved terminal refs, retained refs, rustCorePrecleanedRefs when reliably known or null otherwise, and notes. Do not expand into per-source taxonomy in this slice."
+        },
+        {
+          "q": "Fourth slice delivery shape",
+          "answer": "Write narrow plan document and publish 2-3 issues",
+          "note": "Keep this as a contract-only finalization cleanup ownership slice. Publish small issues for cleanupOwnership diagnostics, deterministic CLI/DB contract tests, and closeout/roadmap evidence."
+        }
+      ],
+      "notes": "Cleanup ownership contract slice completed by #525, #526, and #527. cleanupOwnership profile diagnostics and deterministic CLI/DB contract tests landed; cleanup was not migrated into Rust core. Broader edge-write ownership remains tracked by child 1-3-3-2-2."
+    },
+    "1-3-3-2-1": {
+      "id": "1-3-3-2-1",
+      "label": "Finalization cleanup ownership contract diagnostics",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-3-3-2",
       "children": [],
       "decisions": [],
-      "notes": "Placeholder follow-up to keep parent 1-3-3 open after #522-#524. Covers cleanup ownership and broader edge-write ownership slices that were explicitly out of scope for 1-3-3-1."
+      "notes": "Completed by #525, #526, and #527. Added cleanupOwnership profile diagnostics and deterministic CLI/DB contract coverage. No cleanup behavior was migrated into Rust core."
+    },
+    "1-3-3-2-2": {
+      "id": "1-3-3-2-2",
+      "label": "Broader edge-write ownership follow-up slices",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-3-3-2",
+      "children": [],
+      "decisions": [],
+      "notes": "Future work placeholder. Broader edge-write ownership was deliberately not completed by the cleanup ownership contract slice."
     }
   },
   "metadata": {
     "created": "2026-06-24 23:51:01",
-    "updated": "2026-06-25 01:47:52",
+    "updated": "2026-06-25 02:12:46",
     "md_file": "docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md"
   }
 }

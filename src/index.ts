@@ -86,6 +86,16 @@ type GuardedEdgeWriteDiagnostics = {
   edgeKindCounts: Record<string, number>;
 };
 
+type CleanupOwnershipDiagnostics = {
+  owner: 'typescript-finalization';
+  mode: 'contract-only';
+  resolvedTerminalRefs: number;
+  intentionallyUnresolvedTerminalRefs: number;
+  retainedRefs: number;
+  rustCorePrecleanedRefs: number | null;
+  notes: string[];
+};
+
 function rustCoreProfileLike(profile: unknown): RustCoreProfileLike {
   return profile && typeof profile === 'object' ? profile as RustCoreProfileLike : {};
 }
@@ -144,6 +154,25 @@ function guardedEdgeWriteDiagnosticsFromRustCore(profile: unknown): GuardedEdgeW
     edgeKindCounts: {
       calls: writtenEdges,
     },
+  };
+}
+
+function cleanupOwnershipDiagnostics(input: {
+  resolvedTerminalRefs?: number;
+  intentionallyUnresolvedTerminalRefs?: number;
+  retainedRefs?: number;
+} = {}): CleanupOwnershipDiagnostics {
+  return {
+    owner: 'typescript-finalization',
+    mode: 'contract-only',
+    resolvedTerminalRefs: input.resolvedTerminalRefs ?? 0,
+    intentionallyUnresolvedTerminalRefs: input.intentionallyUnresolvedTerminalRefs ?? 0,
+    retainedRefs: input.retainedRefs ?? 0,
+    rustCorePrecleanedRefs: null,
+    notes: [
+      'This contract reports TypeScript finalization terminal cleanup and does not migrate cleanup into Rust core.',
+      'Rust core may pre-clean references it owns, but this bucket reports null unless a reliable public count exists.',
+    ],
   };
 }
 
@@ -1114,6 +1143,7 @@ export class CodeGraph {
           }>;
         };
         guardedEdgeWrite: GuardedEdgeWriteDiagnostics;
+        cleanupOwnership: CleanupOwnershipDiagnostics;
         candidateProtocol: CandidateProtocolDiagnostics;
         edgeMaterializationMs: number;
         edgeMaterializationDbMs: number;
@@ -1243,6 +1273,7 @@ export class CodeGraph {
               }>,
             },
             guardedEdgeWrite: guardedEdgeWriteDiagnosticsFromRustCore(rustCoreProfile),
+            cleanupOwnership: cleanupOwnershipDiagnostics(),
             candidateProtocol: {
               enabled: true,
               materializationMs: 0,
@@ -1492,6 +1523,11 @@ export class CodeGraph {
           candidateReplayMismatchSamples: resolutionTimings?.candidateReplayMismatchSamples ?? [],
           semanticReplay: resolutionTimings?.semanticReplay ?? profile.referenceResolutionBreakdown.semanticReplay,
           guardedEdgeWrite: profile.referenceResolutionBreakdown.guardedEdgeWrite,
+          cleanupOwnership: cleanupOwnershipDiagnostics({
+            resolvedTerminalRefs: resolutionTimings?.resolvedCleanupRowCount ?? 0,
+            intentionallyUnresolvedTerminalRefs: resolutionTimings?.intentionallyUnresolvedCleanupRowCount ?? 0,
+            retainedRefs: this.queries.getUnresolvedReferencesCount(),
+          }),
           candidateProtocol: resolutionTimings?.candidateProtocol ?? profile.referenceResolutionBreakdown.candidateProtocol,
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
           edgeMaterializationDbMs: resolutionTimings?.edgeMaterializationDbMs ?? 0,
