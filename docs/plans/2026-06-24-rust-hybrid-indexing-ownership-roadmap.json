@@ -576,9 +576,68 @@
     "1-3-3-2-2-2-2": {
       "id": "1-3-3-2-2-2-2",
       "label": "Future package/default/namespace edge-write ownership",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1-3-3-2-2-2",
+      "children": [
+        "1-3-3-2-2-2-2-1",
+        "1-3-3-2-2-2-2-2"
+      ],
+      "decisions": [
+        {
+          "q": "Seventh slice main target",
+          "answer": "Package self-name / package exports repo-local file-level edge-write",
+          "note": "Continue the module/file dependency ownership line after relative/paths alias and declaration/runtime slices. Prefer repo-local package self-name and package exports file targets before package imports or default/namespace binding-level semantics."
+        },
+        {
+          "q": "Package self-name edge-write scope",
+          "answer": "Repo-local package self-name root plus direct subpath/export target only",
+          "note": "Cover package name imports that resolve to repo-local file targets. Keep package imports (#foo), external/node_modules packages, default/namespace binding semantics, and broad package exports/imports semantics out of this slice."
+        },
+        {
+          "q": "Package exports condition object scope",
+          "answer": "Include Rust-core-resolved single repo-local file targets only",
+          "note": "Allow package exports condition objects when existing Rust core resolution produces one repo-local file target. Reuse declaration/runtime rewrite when the resolved target is a declaration file. Do not broaden into full TypeScript or Node package exports parity."
+        },
+        {
+          "q": "Package self-name diagnostics shape",
+          "answer": "Reuse moduleEdgeWrite.packageSelfName",
+          "note": "Expose package self-name edge-write as a child bucket of moduleEdgeWrite, not as a new top-level profile sibling. Existing raw importPathAliasPackageSelfName outcome fields remain resolution diagnostics, while this bucket describes edge-write ownership."
+        },
+        {
+          "q": "Package self-name rollout mode",
+          "answer": "Direct main-path write for Rust-resolved repo-local file targets, fail-closed otherwise",
+          "note": "Do not use shadow-only or local config for this narrow slice. If existing Rust core package self-name/package exports resolution produces a repo-local file target, guarded edge-write may write the rust-finalization imports edge; uncertain outcomes remain skip taxonomy."
+        },
+        {
+          "q": "Package self-name verification scope",
+          "answer": "Three deterministic CLI graph/profile tests",
+          "note": "Cover package self-name root happy path, package exports condition object with declaration/runtime reuse, and one fail-closed unsupported/escaping/missing target taxonomy case. Do not require VS Code sparse smoke, Agent Sufficiency A/B, full scoreboard, or release smoke."
+        },
+        {
+          "q": "Seventh slice issue breakdown",
+          "answer": "Three issues: packageSelfName diagnostics, happy-path edge-write, exports/fail-closed closeout",
+          "note": "Keep the slice independently grabbable: one issue for moduleEdgeWrite.packageSelfName diagnostics, one for package self-name root/direct target edge-write coverage, and one for package exports condition object plus fail-closed taxonomy and roadmap/plan closeout."
+        }
+      ],
+      "notes": "Seventh slice planned and published. Scope: repo-local package self-name root/direct target, existing Rust-core-resolved package exports condition object targets, declaration/runtime reuse, moduleEdgeWrite.packageSelfName diagnostics, deterministic happy-path plus fail-closed tests. Plan: docs/plans/2026-06-25-rust-hybrid-package-self-name-edge-write-ownership-plan.md. Tracking issues: #534 diagnostics contract; #535 package self-name root/direct target edge-write coverage; #536 package exports condition object and fail-closed closeout."
+    },
+    "1-3-3-2-2-2-2-1": {
+      "id": "1-3-3-2-2-2-2-1",
+      "label": "Package self-name edge-write ownership slice",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-3-3-2-2-2-2",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #534-#536. Public profile exposes moduleEdgeWrite.packageSelfName. Deterministic rust-hybrid CLI tests cover repo-local package self-name root edge-write, package exports condition object with declaration/runtime rewrite reuse, and unsupported/blocked exports fail-closed taxonomy. Out of scope remains package imports (#foo), external/node_modules, default/namespace, type-only, symbol usage edges, rootDirs, and full package parity."
+    },
+    "1-3-3-2-2-2-2-2": {
+      "id": "1-3-3-2-2-2-2-2",
+      "label": "Future package imports default namespace edge-write ownership",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3-3-2-2-2-2",
       "children": [],
       "decisions": [],
       "notes": ""
@@ -586,7 +645,7 @@
   },
   "metadata": {
     "created": "2026-06-24 23:51:01",
-    "updated": "2026-06-25 12:17:33",
+    "updated": "2026-06-25 14:03:51",
     "md_file": "docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md"
   }
 }
