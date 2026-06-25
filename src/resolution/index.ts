@@ -1091,6 +1091,7 @@ export class ReferenceResolver {
   }
 
   private auditDirectNamedImportSemanticReplay(timings: ReferenceResolutionTimings): void {
+    if (typeof this.queries.getAllFiles !== 'function') return;
     for (const file of this.queries.getAllFiles()) {
       if (
         file.language !== 'typescript' &&

@@ -1,0 +1,197 @@
+{
+  "title": "ZCodeGraph 0.10.0 Release Readiness Roadmap",
+  "description": "Roadmap for preparing a formal 0.10.0 release after rust-hybrid and documentation lifecycle cleanup.",
+  "version": 1,
+  "nodes": {
+    "1": {
+      "id": "1",
+      "label": "ZCodeGraph 0.10.0 Release Readiness Roadmap",
+      "status": "completed",
+      "mode": "explore",
+      "parent": null,
+      "children": [
+        "1-1",
+        "1-2",
+        "1-3",
+        "1-4"
+      ],
+      "decisions": [
+        {
+          "q": "正式版本目标是什么？",
+          "answer": "A. 0.10.0",
+          "note": "Unreleased 已包含 breaking changes：.zcodegraph namespace、移除 init -i、移除 ZCODEGRAPH_INDEX_ENGINE 等。0.10.0 比 0.9.11 更符合用户心智和 release notes 边界。"
+        },
+        {
+          "q": "0.10.0 release readiness 怎么执行？",
+          "answer": "A. 拆 4 个 issues，然后按顺序执行",
+          "note": "Issue sequence: 1) README full refresh and language support matrix; 2) release snapshot evidence; 3) release-critical local validation; 4) release notes and go/no-go handoff. README refresh now includes usage, features, release snapshot, language ownership status, and replayable issue feedback."
+        }
+      ],
+      "notes": ""
+    },
+    "1-1": {
+      "id": "1-1",
+      "label": "Release scope and version boundary",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "0.10.0 版本 bump 现在做吗？",
+          "answer": "A. 暂不 bump；readiness 通过后再由用户明确下令",
+          "note": "遵守 release 规则：Codex 不主动 bump version。当前先完成 release-critical validation 和 docs audit；通过后用户再明确要求将 package.json bump 到 0.10.0，Release workflow 会同步 lockfile 并 promote changelog。"
+        }
+      ],
+      "notes": "Release scope boundary complete: no package.json version bump in this readiness pass; maintainer can explicitly request 0.10.0 bump after reviewing go/no-go handoff."
+    },
+    "1-2": {
+      "id": "1-2",
+      "label": "Pre-release validation gates",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-2-1",
+        "1-2-2"
+      ],
+      "decisions": [
+        {
+          "q": "0.10.0 发布门槛级别是什么？",
+          "answer": "A. Release readiness，只修 release blocker",
+          "note": "本轮目标是能正式发布 0.10.0，不做新 feature、不做新性能优化。必跑 build/test/package smoke/install-init-doctor-status 主路径；必查 CHANGELOG/README/breaking changes；只有发现会导致用户安装、初始化、索引、doctor 或 status 主路径失败的问题才改 production code。"
+        },
+        {
+          "q": "pre-release validation 范围是什么？",
+          "answer": "A. 本地 release-critical matrix，不跑完整跨平台发布矩阵",
+          "note": "包含 npm test/build、本地 packaged smoke、install/uninstall/init/status/doctor 主路径、rust-hybrid default smoke、doctor bundle smoke、README/CHANGELOG/package metadata audit。不包含 publish、GitHub Release workflow dry run、全平台 bundle matrix、Windows/Linux VM，除非本地发现平台敏感 blocker。"
+        }
+      ],
+      "notes": ""
+    },
+    "1-3": {
+      "id": "1-3",
+      "label": "Release notes and user-facing docs",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-3-1"
+      ],
+      "decisions": [
+        {
+          "q": "CHANGELOG / README 处理策略是什么？",
+          "answer": "A. CHANGELOG 必须 release-note audit；README 只修 blocker 或明显过期主路径",
+          "note": "CHANGELOG 的 Unreleased 要能直接作为 0.10.0 release notes，尤其 breaking changes 要清楚。README 不做大改版，只检查安装、初始化、默认 engine、doctor/status、支持语言/claims 是否与当前行为冲突；未重新验证的 benchmark/claim 数字不主动刷新。"
+        },
+        {
+          "q": "README 处理策略是否仍是只修 blocker？",
+          "answer": "否。README 要做一次完整更新，作为 0.10.0 正式发布主文档",
+          "note": "用户明确要求 README 覆盖：项目中如何使用、功能清单、各项指标现状测试摸底、Rust indexing 与 TS indexing 对不同语言的支持状态、问题反馈提交方式。该决策覆盖先前的 README-only-blocker 策略。"
+        },
+        {
+          "q": "README 指标现状摸底强度是什么？",
+          "answer": "A. Release snapshot，不做完整 benchmark campaign",
+          "note": "跑 0.10.0 release snapshot：当前 repo rust-hybrid index/profile/status/doctor，至少一个 TS/JS 项目，至少一个 Go/Gin 项目；Agent Sufficiency 用已有 baseline 或 targeted smoke，不做多轮 A/B。README 放摘要和链接，完整结果进 docs/benchmarks；记录 wall time、RSS 或 unavailable reason、graphStats、fallback taxonomy、语言覆盖状态。"
+        },
+        {
+          "q": "README 语言支持状态用什么口径？",
+          "answer": "A. 四态 ownership table：Rust-owned / TS-indexed / Hybrid fallback / Not covered",
+          "note": "README 不写简单 supported/unsupported，而是区分 rust-hybrid default behavior、Rust-owned status、TS indexer status 和 known limits。避免用户把语言支持误解成全 Rust-owned。完整矩阵可放 docs，README 放用户可理解摘要。"
+        },
+        {
+          "q": "README 的问题反馈机制是什么？",
+          "answer": "A. doctor bundle + 最小复现信息，默认不收源码",
+          "note": "README 指导用户运行 zcodegraph doctor --engine rust-hybrid --bundle --last-run，并提交 bundle、status --json、执行命令、stdout/stderr、平台/Node/语言/包管理器、公开最小复现或隐私安全 metadata。默认不要贴私有源码；源码片段只留给未来显式 include-source-slice 机制。"
+        },
+        {
+          "q": "README 功能介绍按什么结构组织？",
+          "answer": "A. 按用户工作流组织",
+          "note": "README 主体按 What ZCodeGraph does、Quick start、Use in a project、Agent capabilities、Indexing engines and language coverage、Current release snapshot、Troubleshooting/useful bug reports、Known limits 组织；不按内部架构模块组织。"
+        }
+      ],
+      "notes": ""
+    },
+    "1-4": {
+      "id": "1-4",
+      "label": "Release workflow handoff",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-4-1"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-1": {
+      "id": "1-3-1",
+      "label": "README full refresh and language support matrix",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "README full refresh issue 发布了吗？",
+          "answer": "#562",
+          "note": "GitHub issue: https://github.com/jununfly/ZCodeGraph/issues/562. Labels: enhancement, ready-for-agent. Blocked by #560 for release snapshot metrics."
+        }
+      ],
+      "notes": "Completed by #562. README now covers usage, capabilities, 0.10.0 snapshot, four-state language ownership, troubleshooting, and replayable issue feedback."
+    },
+    "1-2-1": {
+      "id": "1-2-1",
+      "label": "Release snapshot evidence",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Release snapshot evidence issue 发布了吗？",
+          "answer": "#560",
+          "note": "GitHub issue: https://github.com/jununfly/ZCodeGraph/issues/560. Labels: enhancement, ready-for-agent. No blockers."
+        }
+      ],
+      "notes": "Completed by #560. Durable artifacts: docs/benchmarks/2026-06-25-zcodegraph-0-10-0-release-snapshot.md and docs/benchmarks/2026-06-25-zcodegraph-0-10-0-release-snapshot-result.json. Current repo measured; external corpora recorded as needs-human-setup because directories were not Git checkouts."
+    },
+    "1-2-2": {
+      "id": "1-2-2",
+      "label": "Release-critical local validation",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Release-critical local validation issue 发布了吗？",
+          "answer": "#561",
+          "note": "GitHub issue: https://github.com/jununfly/ZCodeGraph/issues/561. Labels: enhancement, ready-for-agent. No blockers."
+        }
+      ],
+      "notes": "Completed by #561. npm test, npm run build, targeted packaged smoke, temp HOME install/uninstall, and temp project init/index/status/doctor smoke passed."
+    },
+    "1-4-1": {
+      "id": "1-4-1",
+      "label": "Release notes and go/no-go handoff",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Release notes and go/no-go handoff issue 发布了吗？",
+          "answer": "#563",
+          "note": "GitHub issue: https://github.com/jununfly/ZCodeGraph/issues/563. Labels: enhancement, ready-for-agent. Blocked by #560, #561, and #562."
+        }
+      ],
+      "notes": "Completed by #563. Go/no-go handoff: docs/plans/2026-06-25-zcodegraph-0-10-0-release-go-no-go.md. Do not bump package.json until maintainer explicitly requests 0.10.0 release."
+    }
+  },
+  "metadata": {
+    "created": "2026-06-25 22:37:29",
+    "updated": "2026-06-26 00:23:36",
+    "md_file": "docs/plans/2026-06-25-zcodegraph-0-10-0-release-readiness-roadmap.md"
+  }
+}

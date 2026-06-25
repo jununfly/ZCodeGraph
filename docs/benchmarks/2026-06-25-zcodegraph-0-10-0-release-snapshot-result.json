@@ -1,0 +1,3601 @@
+{
+  "baseline": "baseline-indexing-performance-v1",
+  "generatedAt": "2026-06-25T16:10:39.363Z",
+  "zcodegraphCommit": "9bdf50e",
+  "command": {
+    "executable": "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+    "args": [
+      "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/scripts/rust-hybrid-baseline.mjs",
+      "--out",
+      "docs/benchmarks/2026-06-25-zcodegraph-0-10-0-release-snapshot-result.json",
+      "--repo",
+      "current-repo=.",
+      "--runs",
+      "3",
+      "--repo",
+      "ts-js-zustand=/private/tmp/codegraph-corpus/zustand",
+      "--repo",
+      "go-gin=/private/tmp/codegraph-corpus/gin-examples",
+      "--repo",
+      "ts-react-excalidraw=/private/tmp/codegraph-corpus/excalidraw",
+      "--timeout-ms",
+      "600000"
+    ],
+    "cwd": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph"
+  },
+  "toolchain": {
+    "node": "v26.0.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M5",
+    "cpuCount": 10,
+    "totalMemoryBytes": 17179869184,
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)"
+  },
+  "resultClassification": "baseline-partial-needs-human-setup",
+  "thresholds": {
+    "candidateSignalPct": 5,
+    "planLevelClaimPct": 10
+  },
+  "results": [
+    {
+      "name": "current-repo",
+      "path": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph",
+      "commit": "9bdf50e",
+      "status": "completed",
+      "requestedRuns": 3,
+      "completedRuns": 3,
+      "runs": [
+        {
+          "run": 1,
+          "command": {
+            "executable": "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+            "args": [
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
+              "index",
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph",
+              "--engine",
+              "rust-hybrid",
+              "--force",
+              "--profile-out",
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/docs/benchmarks/tmp-2026-06-25-zcodegraph-0-10-0-release-snapshot-result/current-repo-run1.profile.json",
+              "--quiet"
+            ],
+            "cwd": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph"
+          },
+          "status": "completed",
+          "exitCode": 1,
+          "signal": null,
+          "wallMs": 7586,
+          "peakRssBytes": null,
+          "rssSource": null,
+          "rssUnavailableKind": "command-wrapper-no-rss",
+          "rssUnavailableReason": "command RSS sampling did not report maximum resident set size",
+          "profilePath": "docs/benchmarks/tmp-2026-06-25-zcodegraph-0-10-0-release-snapshot-result/current-repo-run1.profile.json",
+          "profileSummary": {
+            "complete": true,
+            "lastCheckpoint": {
+              "name": "profile.completed",
+              "state": "completed",
+              "elapsedMs": 7492
+            },
+            "checkpointCount": 15,
+            "rustCore": {
+              "sourceScanMs": 1,
+              "parseExtractionMs": 1202,
+              "sqliteWriteMs": 700,
+              "subprocessStartupHandoffMs": 4
+            },
+            "finalize": {
+              "frameworkPostExtractMs": 6,
+              "referenceResolutionMs": 2178,
+              "dynamicDispatchSynthesisMs": 580,
+              "dbMaintenanceMs": 4
+            },
+            "referenceResolutionBreakdown": {
+              "importResolutionMs": 61,
+              "nameMatchingMs": 107,
+              "frameworkMatchingMs": 69,
+              "databaseAccessMs": 353,
+              "edgeWriteMs": 98,
+              "unresolvedCleanupMs": 186,
+              "resolvedCleanupMs": 186
+            },
+            "tailDiagnostics": {
+              "typescriptFinalization": {
+                "typescriptFinalizationMs": 2832,
+                "frameworkPostExtractMs": 6,
+                "referenceResolutionMs": 2178,
+                "dynamicDispatchSynthesisMs": 580,
+                "dbMaintenanceMs": 4
+              },
+              "referenceResolutionLookupCache": {
+                "candidateLookupMs": 46,
+                "sharedCandidateLookupMs": 9,
+                "candidateLookupCacheHitMs": 23,
+                "nameMatcherCandidateLookupDbMs": 26,
+                "perReferenceDisambiguationMs": 70,
+                "candidateProtocol": {
+                  "enabled": true,
+                  "materializationMs": 44,
+                  "lookupMs": 90,
+                  "lookupCount": 107333,
+                  "cacheHitCount": 55852,
+                  "cacheMissCount": 3863,
+                  "dbLookupCount": 3862,
+                  "lookupShapeCounts": {
+                    "ExactName": 39071,
+                    "LowerName": 11466,
+                    "QualifiedName": 2488,
+                    "FileNodes": 6690,
+                    "KnownNamePresence": 47618
+                  },
+                  "lookupShapeMs": {
+                    "ExactName": 35,
+                    "LowerName": 5,
+                    "QualifiedName": 4,
+                    "FileNodes": 39,
+                    "KnownNamePresence": 7
+                  },
+                  "fileNodesLookup": {
+                    "requestedCount": 6690,
+                    "reusedCount": 6340,
+                    "missedCount": 350,
+                    "fallbackCount": 1,
+                    "lookupMs": 39,
+                    "batchMaterializationMs": 44,
+                    "batchMaterializedCount": 354,
+                    "batchHitCount": 1,
+                    "batchMissCount": 1,
+                    "batchUnavailableCount": 349,
+                    "batchUnavailableReason": "not-prepared"
+                  },
+                  "factsProtocol": {
+                    "shapes": {
+                      "LowerName": {
+                        "ownership": "protocol-owned",
+                        "status": "candidate-for-bounded-exploit",
+                        "defaultRoute": "typescript-baseline-with-optional-rust-routing",
+                        "semanticBoundary": "candidate-set-only"
+                      },
+                      "QualifiedName": {
+                        "ownership": "protocol-owned",
+                        "status": "partial-keep-with-taxonomy",
+                        "defaultRoute": "typescript-baseline-with-dotted-rust-routing",
+                        "semanticBoundary": "candidate-set-only"
+                      },
+                      "FileNodes": {
+                        "ownership": "protocol-owned",
+                        "status": "keep-with-caveat",
+                        "defaultRoute": "run-scoped-batch-then-typescript-fallback",
+                        "semanticBoundary": "candidate-set-only"
+                      }
+                    }
+                  },
+                  "equivalenceComparedCount": 0,
+                  "equivalenceMismatchCount": 0,
+                  "fallbackReasons": {},
+                  "candidateCount": 16978,
+                  "disabledReason": null,
+                  "rustCandidateProducer": {
+                    "enabled": false,
+                    "shadowMode": true,
+                    "producerMs": 0,
+                    "serializationMs": 0,
+                    "subprocessMs": 0,
+                    "lookupCount": 0,
+                    "lookupShapeCounts": {
+                      "ExactName": 0,
+                      "LowerName": 0,
+                      "QualifiedName": 0,
+                      "FileNodes": 0,
+                      "KnownNamePresence": 0
+                    },
+                    "comparedCount": 0,
+                    "mismatchCount": 0,
+                    "mismatchReasons": {},
+                    "mismatchSamples": [],
+                    "candidateCount": 0,
+                    "payloadBytes": 0,
+                    "disabledReason": "disabled-by-env",
+                    "routing": {
+                      "configured": false,
+                      "source": "missing-config",
+                      "active": false,
+                      "activeShapes": [],
+                      "fallbackReason": null,
+                      "mismatchCount": 0,
+                      "mismatchSamples": [],
+                      "onDemandLookupCount": 0,
+                      "onDemandLookupShapeCounts": {
+                        "ExactName": 0,
+                        "LowerName": 0,
+                        "QualifiedName": 0,
+                        "FileNodes": 0,
+                        "KnownNamePresence": 0
+                      },
+                      "onDemandCacheHitCount": 0,
+                      "qualifiedNameOnDemandSourceShapeCounts": {}
+                    }
+                  }
+                }
+              },
+              "referenceResolutionDatabaseHydration": {
+                "databaseAccessMs": 353,
+                "cacheWarmupDbMs": 3,
+                "refHydrationDbMs": 3,
+                "unresolvedReadDbMs": 48,
+                "edgeMaterializationDbMs": 15,
+                "edgeEndpointValidationDbMs": 15
+              },
+              "edgeWriteCleanup": {
+                "edgeMaterializationMs": 15,
+                "edgeWriteMs": 98,
+                "edgeWriteDbMs": 98,
+                "edgeInsertCount": 16184,
+                "unresolvedCleanupMs": 186,
+                "unresolvedCleanupDbMs": 186,
+                "resolvedCleanupMs": 186,
+                "resolvedCleanupDbMs": 186,
+                "resolvedCleanupRowCount": 16184,
+                "intentionallyUnresolvedCleanupMs": 186,
+                "intentionallyUnresolvedCleanupDbMs": 186,
+                "intentionallyUnresolvedCleanupRowCount": 30450,
+                "cleanupOwnership": {
+                  "owner": "typescript-finalization",
+                  "mode": "contract-only",
+                  "resolvedTerminalRefs": 16184,
+                  "intentionallyUnresolvedTerminalRefs": 30450,
+                  "retainedRefs": 0,
+                  "rustCorePrecleanedRefs": null,
+                  "notes": [
+                    "This contract reports TypeScript finalization terminal cleanup and does not migrate cleanup into Rust core.",
+                    "Rust core may pre-clean references it owns, but this bucket reports null unless a reliable public count exists."
+                  ]
+                },
+                "guardedEdgeWrite": {
+                  "eligibleRefs": 6363,
+                  "attemptedRefs": 1371,
+                  "writtenEdges": 1371,
+                  "skippedRefs": 2515,
+                  "skipReasons": {
+                    "direct-default-export-candidate-zero": 24,
+                    "export-symbol-missing": 65,
+                    "export-target-file-not-found": 69,
+                    "import-edge-target-not-found": 607,
+                    "package-or-runtime-binding": 1181,
+                    "type-only-import": 232,
+                    "unsupported-import-shape": 337
+                  },
+                  "skipSamples": [
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "vitest",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "afterEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "fs",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 17,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "path",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 18,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "os",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 19,
+                      "col": 0
+                    },
+                    {
+                      "reason": "type-only-import",
+                      "referenceName": "AgentAccessModel",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 22,
+                      "col": 0
+                    },
+                    {
+                      "reason": "type-only-import",
+                      "referenceName": "MaintenanceAccessModel",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 22,
+                      "col": 0
+                    },
+                    {
+                      "reason": "type-only-import",
+                      "referenceName": "ResolutionAccessModel",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 22,
+                      "col": 0
+                    },
+                    {
+                      "reason": "type-only-import",
+                      "referenceName": "StatusAccessModel",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 22,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "vitest",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "beforeAll",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "afterAll",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    }
+                  ],
+                  "edgeKindCounts": {
+                    "calls": 1371
+                  }
+                },
+                "moduleEdgeWrite": {
+                  "owner": "rust-core",
+                  "mode": "guarded-file-imports",
+                  "eligibleRefs": 897,
+                  "attemptedRefs": 897,
+                  "writtenEdges": 897,
+                  "skippedRefs": 0,
+                  "skipReasons": {},
+                  "edgeKindCounts": {
+                    "imports": 897
+                  },
+                  "declarationRuntime": {
+                    "mode": "single-runtime-sibling-only",
+                    "eligibleRefs": 17,
+                    "rewrittenEdges": 0,
+                    "skippedRefs": 17,
+                    "skipReasons": {
+                      "no-runtime-sibling": 17
+                    }
+                  },
+                  "packageSelfName": {
+                    "mode": "repo-local-file-targets-only",
+                    "eligibleRefs": 0,
+                    "writtenEdges": 0,
+                    "skippedRefs": 0,
+                    "skipReasons": {},
+                    "outcomeCounts": {}
+                  },
+                  "packageImports": {
+                    "mode": "repo-local-file-targets-only",
+                    "eligibleRefs": 0,
+                    "attemptedRefs": 0,
+                    "writtenEdges": 0,
+                    "skippedRefs": 0,
+                    "skipReasons": {},
+                    "outcomeCounts": {}
+                  },
+                  "supportedSources": [
+                    "relative",
+                    "tsconfigPaths"
+                  ],
+                  "excludedSources": [
+                    "rootDirs",
+                    "packageSelfName",
+                    "packageImports",
+                    "packageExports",
+                    "defaultImports",
+                    "typeOnlyImports",
+                    "symbolUsageEdges",
+                    "declarationRuntimeRewrite"
+                  ]
+                }
+              },
+              "semanticReplayMatcherSafety": {
+                "candidateReplayEligibleRefs": 0,
+                "candidateReplayComparedRefs": 0,
+                "candidateReplayEquivalentRefs": 0,
+                "candidateReplayMismatchRefs": 0,
+                "rustMatcherEligibleRefs": 0,
+                "rustMatcherHandledRefs": 0,
+                "rustMatcherFallbackRefs": 0,
+                "rustMatcherSemanticMismatchRefs": 0,
+                "semanticReplay": {
+                  "eligibleRefs": 13748,
+                  "comparedRefs": 3957,
+                  "equivalentRefs": 3957,
+                  "mismatchRefs": 0,
+                  "skippedRefs": 9791,
+                  "mismatchReasons": {
+                    "import-target-unresolved": 9750,
+                    "export-symbol-missing": 39,
+                    "multiple-export-candidates": 2
+                  },
+                  "mismatchSamples": [
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "afterEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeAll",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "afterAll",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "LoggingInterceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Formatter",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "JsonCodec",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "readFileSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "resolve",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "execFileSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "spawnSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "spawnSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "execFileSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "afterEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "vi",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    }
+                  ]
+                },
+                "rustMatcherFallbackReasons": {}
+              }
+            },
+            "typescriptFallbackAppend": {
+              "durationMs": 249,
+              "fallbackFileCount": 5,
+              "missingFallbackFileCount": 0,
+              "missingFallbackByLanguage": {},
+              "errorTaxonomy": {}
+            },
+            "typescriptFinalizationMs": 2832,
+            "fallbackTaxonomy": {
+              "totalFallbacks": 2489,
+              "entries": [
+                {
+                  "stage": "framework-post-extract",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "dynamic-dispatch-synthesis",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "db-maintenance",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "binding-level-symbol-disambiguation-not-yet-rust-owned",
+                  "count": 2430
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "unsupported-import-form-not-yet-rust-owned",
+                  "count": 50
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "unresolved-file-level-import-target",
+                  "count": 5
+                }
+              ]
+            }
+          },
+          "graphStats": {
+            "available": true,
+            "fileCount": 354,
+            "nodeCount": 16978,
+            "edgeCount": 40207,
+            "dbSizeBytes": 34770944,
+            "nodesByKind": {
+              "class": 72,
+              "constant": 9233,
+              "enum": 14,
+              "enum_member": 55,
+              "export": 51,
+              "field": 256,
+              "file": 351,
+              "function": 3179,
+              "import": 1437,
+              "interface": 187,
+              "method": 848,
+              "struct": 60,
+              "type_alias": 59,
+              "variable": 1176
+            },
+            "languages": [
+              "javascript",
+              "json",
+              "rust",
+              "typescript",
+              "yaml"
+            ],
+            "index": {
+              "engine": "rust-hybrid",
+              "engineVersion": "0.1.0",
+              "hybrid": {
+                "phase": "phase-6-rust-owned-per-file-gap-fallback",
+                "rustOwnedLanguages": [
+                  "javascript",
+                  "jsx",
+                  "typescript",
+                  "tsx",
+                  "go",
+                  "python"
+                ],
+                "engineByLanguage": {
+                  "yaml": "typescript",
+                  "typescript": "rust",
+                  "rust": "typescript",
+                  "javascript": "rust"
+                },
+                "engineByFileCount": {
+                  "typescript": 5,
+                  "rust": 414
+                },
+                "fallbackByLanguage": {
+                  "yaml": 3,
+                  "rust": 2
+                },
+                "fallbackFileCount": 5,
+                "missingFallbackByLanguage": {},
+                "missingFallbackFileCount": 0,
+                "fallbackState": "degraded",
+                "fallbackMessage": "TypeScript fallback appended 5 non-Rust-owned supported file(s).",
+                "fallbackReasonTaxonomy": {
+                  "language-level-typescript-fallback": 5
+                },
+                "pendingFallbacks": [
+                  "rust-owned-parse-gap"
+                ],
+                "skippedGeneratedByLanguage": {}
+              },
+              "builtWithVersion": "0.1.0",
+              "builtWithExtractionVersion": 1,
+              "currentExtractionVersion": 1,
+              "reindexRecommended": false
+            }
+          },
+          "stdoutBytes": 0,
+          "stderrBytes": 914
+        },
+        {
+          "run": 2,
+          "command": {
+            "executable": "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+            "args": [
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
+              "index",
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph",
+              "--engine",
+              "rust-hybrid",
+              "--force",
+              "--profile-out",
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/docs/benchmarks/tmp-2026-06-25-zcodegraph-0-10-0-release-snapshot-result/current-repo-run2.profile.json",
+              "--quiet"
+            ],
+            "cwd": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph"
+          },
+          "status": "completed",
+          "exitCode": 1,
+          "signal": null,
+          "wallMs": 7607,
+          "peakRssBytes": null,
+          "rssSource": null,
+          "rssUnavailableKind": "command-wrapper-no-rss",
+          "rssUnavailableReason": "command RSS sampling did not report maximum resident set size",
+          "profilePath": "docs/benchmarks/tmp-2026-06-25-zcodegraph-0-10-0-release-snapshot-result/current-repo-run2.profile.json",
+          "profileSummary": {
+            "complete": true,
+            "lastCheckpoint": {
+              "name": "profile.completed",
+              "state": "completed",
+              "elapsedMs": 7507
+            },
+            "checkpointCount": 15,
+            "rustCore": {
+              "sourceScanMs": 1,
+              "parseExtractionMs": 1217,
+              "sqliteWriteMs": 704,
+              "subprocessStartupHandoffMs": 4
+            },
+            "finalize": {
+              "frameworkPostExtractMs": 5,
+              "referenceResolutionMs": 2162,
+              "dynamicDispatchSynthesisMs": 578,
+              "dbMaintenanceMs": 4
+            },
+            "referenceResolutionBreakdown": {
+              "importResolutionMs": 79,
+              "nameMatchingMs": 97,
+              "frameworkMatchingMs": 72,
+              "databaseAccessMs": 350,
+              "edgeWriteMs": 95,
+              "unresolvedCleanupMs": 186,
+              "resolvedCleanupMs": 186
+            },
+            "tailDiagnostics": {
+              "typescriptFinalization": {
+                "typescriptFinalizationMs": 2814,
+                "frameworkPostExtractMs": 5,
+                "referenceResolutionMs": 2162,
+                "dynamicDispatchSynthesisMs": 578,
+                "dbMaintenanceMs": 4
+              },
+              "referenceResolutionLookupCache": {
+                "candidateLookupMs": 47,
+                "sharedCandidateLookupMs": 7,
+                "candidateLookupCacheHitMs": 22,
+                "nameMatcherCandidateLookupDbMs": 25,
+                "perReferenceDisambiguationMs": 57,
+                "candidateProtocol": {
+                  "enabled": true,
+                  "materializationMs": 45,
+                  "lookupMs": 90,
+                  "lookupCount": 107333,
+                  "cacheHitCount": 55852,
+                  "cacheMissCount": 3863,
+                  "dbLookupCount": 3862,
+                  "lookupShapeCounts": {
+                    "ExactName": 39071,
+                    "LowerName": 11466,
+                    "QualifiedName": 2488,
+                    "FileNodes": 6690,
+                    "KnownNamePresence": 47618
+                  },
+                  "lookupShapeMs": {
+                    "ExactName": 41,
+                    "LowerName": 6,
+                    "QualifiedName": 2,
+                    "FileNodes": 36,
+                    "KnownNamePresence": 5
+                  },
+                  "fileNodesLookup": {
+                    "requestedCount": 6690,
+                    "reusedCount": 6340,
+                    "missedCount": 350,
+                    "fallbackCount": 1,
+                    "lookupMs": 36,
+                    "batchMaterializationMs": 45,
+                    "batchMaterializedCount": 354,
+                    "batchHitCount": 1,
+                    "batchMissCount": 1,
+                    "batchUnavailableCount": 349,
+                    "batchUnavailableReason": "not-prepared"
+                  },
+                  "factsProtocol": {
+                    "shapes": {
+                      "LowerName": {
+                        "ownership": "protocol-owned",
+                        "status": "candidate-for-bounded-exploit",
+                        "defaultRoute": "typescript-baseline-with-optional-rust-routing",
+                        "semanticBoundary": "candidate-set-only"
+                      },
+                      "QualifiedName": {
+                        "ownership": "protocol-owned",
+                        "status": "partial-keep-with-taxonomy",
+                        "defaultRoute": "typescript-baseline-with-dotted-rust-routing",
+                        "semanticBoundary": "candidate-set-only"
+                      },
+                      "FileNodes": {
+                        "ownership": "protocol-owned",
+                        "status": "keep-with-caveat",
+                        "defaultRoute": "run-scoped-batch-then-typescript-fallback",
+                        "semanticBoundary": "candidate-set-only"
+                      }
+                    }
+                  },
+                  "equivalenceComparedCount": 0,
+                  "equivalenceMismatchCount": 0,
+                  "fallbackReasons": {},
+                  "candidateCount": 16978,
+                  "disabledReason": null,
+                  "rustCandidateProducer": {
+                    "enabled": false,
+                    "shadowMode": true,
+                    "producerMs": 0,
+                    "serializationMs": 0,
+                    "subprocessMs": 0,
+                    "lookupCount": 0,
+                    "lookupShapeCounts": {
+                      "ExactName": 0,
+                      "LowerName": 0,
+                      "QualifiedName": 0,
+                      "FileNodes": 0,
+                      "KnownNamePresence": 0
+                    },
+                    "comparedCount": 0,
+                    "mismatchCount": 0,
+                    "mismatchReasons": {},
+                    "mismatchSamples": [],
+                    "candidateCount": 0,
+                    "payloadBytes": 0,
+                    "disabledReason": "disabled-by-env",
+                    "routing": {
+                      "configured": false,
+                      "source": "missing-config",
+                      "active": false,
+                      "activeShapes": [],
+                      "fallbackReason": null,
+                      "mismatchCount": 0,
+                      "mismatchSamples": [],
+                      "onDemandLookupCount": 0,
+                      "onDemandLookupShapeCounts": {
+                        "ExactName": 0,
+                        "LowerName": 0,
+                        "QualifiedName": 0,
+                        "FileNodes": 0,
+                        "KnownNamePresence": 0
+                      },
+                      "onDemandCacheHitCount": 0,
+                      "qualifiedNameOnDemandSourceShapeCounts": {}
+                    }
+                  }
+                }
+              },
+              "referenceResolutionDatabaseHydration": {
+                "databaseAccessMs": 350,
+                "cacheWarmupDbMs": 3,
+                "refHydrationDbMs": 3,
+                "unresolvedReadDbMs": 45,
+                "edgeMaterializationDbMs": 18,
+                "edgeEndpointValidationDbMs": 18
+              },
+              "edgeWriteCleanup": {
+                "edgeMaterializationMs": 18,
+                "edgeWriteMs": 95,
+                "edgeWriteDbMs": 95,
+                "edgeInsertCount": 16184,
+                "unresolvedCleanupMs": 186,
+                "unresolvedCleanupDbMs": 186,
+                "resolvedCleanupMs": 186,
+                "resolvedCleanupDbMs": 186,
+                "resolvedCleanupRowCount": 16184,
+                "intentionallyUnresolvedCleanupMs": 186,
+                "intentionallyUnresolvedCleanupDbMs": 186,
+                "intentionallyUnresolvedCleanupRowCount": 30450,
+                "cleanupOwnership": {
+                  "owner": "typescript-finalization",
+                  "mode": "contract-only",
+                  "resolvedTerminalRefs": 16184,
+                  "intentionallyUnresolvedTerminalRefs": 30450,
+                  "retainedRefs": 0,
+                  "rustCorePrecleanedRefs": null,
+                  "notes": [
+                    "This contract reports TypeScript finalization terminal cleanup and does not migrate cleanup into Rust core.",
+                    "Rust core may pre-clean references it owns, but this bucket reports null unless a reliable public count exists."
+                  ]
+                },
+                "guardedEdgeWrite": {
+                  "eligibleRefs": 6363,
+                  "attemptedRefs": 1371,
+                  "writtenEdges": 1371,
+                  "skippedRefs": 2515,
+                  "skipReasons": {
+                    "direct-default-export-candidate-zero": 24,
+                    "export-symbol-missing": 65,
+                    "export-target-file-not-found": 69,
+                    "import-edge-target-not-found": 607,
+                    "package-or-runtime-binding": 1181,
+                    "type-only-import": 232,
+                    "unsupported-import-shape": 337
+                  },
+                  "skipSamples": [
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "vitest",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "afterEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "fs",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 17,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "path",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 18,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "os",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 19,
+                      "col": 0
+                    },
+                    {
+                      "reason": "type-only-import",
+                      "referenceName": "AgentAccessModel",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 22,
+                      "col": 0
+                    },
+                    {
+                      "reason": "type-only-import",
+                      "referenceName": "MaintenanceAccessModel",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 22,
+                      "col": 0
+                    },
+                    {
+                      "reason": "type-only-import",
+                      "referenceName": "ResolutionAccessModel",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 22,
+                      "col": 0
+                    },
+                    {
+                      "reason": "type-only-import",
+                      "referenceName": "StatusAccessModel",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 22,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "vitest",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "beforeAll",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "afterAll",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    }
+                  ],
+                  "edgeKindCounts": {
+                    "calls": 1371
+                  }
+                },
+                "moduleEdgeWrite": {
+                  "owner": "rust-core",
+                  "mode": "guarded-file-imports",
+                  "eligibleRefs": 897,
+                  "attemptedRefs": 897,
+                  "writtenEdges": 897,
+                  "skippedRefs": 0,
+                  "skipReasons": {},
+                  "edgeKindCounts": {
+                    "imports": 897
+                  },
+                  "declarationRuntime": {
+                    "mode": "single-runtime-sibling-only",
+                    "eligibleRefs": 17,
+                    "rewrittenEdges": 0,
+                    "skippedRefs": 17,
+                    "skipReasons": {
+                      "no-runtime-sibling": 17
+                    }
+                  },
+                  "packageSelfName": {
+                    "mode": "repo-local-file-targets-only",
+                    "eligibleRefs": 0,
+                    "writtenEdges": 0,
+                    "skippedRefs": 0,
+                    "skipReasons": {},
+                    "outcomeCounts": {}
+                  },
+                  "packageImports": {
+                    "mode": "repo-local-file-targets-only",
+                    "eligibleRefs": 0,
+                    "attemptedRefs": 0,
+                    "writtenEdges": 0,
+                    "skippedRefs": 0,
+                    "skipReasons": {},
+                    "outcomeCounts": {}
+                  },
+                  "supportedSources": [
+                    "relative",
+                    "tsconfigPaths"
+                  ],
+                  "excludedSources": [
+                    "rootDirs",
+                    "packageSelfName",
+                    "packageImports",
+                    "packageExports",
+                    "defaultImports",
+                    "typeOnlyImports",
+                    "symbolUsageEdges",
+                    "declarationRuntimeRewrite"
+                  ]
+                }
+              },
+              "semanticReplayMatcherSafety": {
+                "candidateReplayEligibleRefs": 0,
+                "candidateReplayComparedRefs": 0,
+                "candidateReplayEquivalentRefs": 0,
+                "candidateReplayMismatchRefs": 0,
+                "rustMatcherEligibleRefs": 0,
+                "rustMatcherHandledRefs": 0,
+                "rustMatcherFallbackRefs": 0,
+                "rustMatcherSemanticMismatchRefs": 0,
+                "semanticReplay": {
+                  "eligibleRefs": 13748,
+                  "comparedRefs": 3957,
+                  "equivalentRefs": 3957,
+                  "mismatchRefs": 0,
+                  "skippedRefs": 9791,
+                  "mismatchReasons": {
+                    "import-target-unresolved": 9750,
+                    "export-symbol-missing": 39,
+                    "multiple-export-candidates": 2
+                  },
+                  "mismatchSamples": [
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "afterEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeAll",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "afterAll",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "LoggingInterceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Formatter",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "JsonCodec",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "readFileSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "resolve",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "execFileSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "spawnSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "spawnSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "execFileSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "afterEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "vi",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    }
+                  ]
+                },
+                "rustMatcherFallbackReasons": {}
+              }
+            },
+            "typescriptFallbackAppend": {
+              "durationMs": 240,
+              "fallbackFileCount": 5,
+              "missingFallbackFileCount": 0,
+              "missingFallbackByLanguage": {},
+              "errorTaxonomy": {}
+            },
+            "typescriptFinalizationMs": 2814,
+            "fallbackTaxonomy": {
+              "totalFallbacks": 2489,
+              "entries": [
+                {
+                  "stage": "framework-post-extract",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "dynamic-dispatch-synthesis",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "db-maintenance",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "binding-level-symbol-disambiguation-not-yet-rust-owned",
+                  "count": 2430
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "unsupported-import-form-not-yet-rust-owned",
+                  "count": 50
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "unresolved-file-level-import-target",
+                  "count": 5
+                }
+              ]
+            }
+          },
+          "graphStats": {
+            "available": true,
+            "fileCount": 354,
+            "nodeCount": 16978,
+            "edgeCount": 40207,
+            "dbSizeBytes": 34770944,
+            "nodesByKind": {
+              "class": 72,
+              "constant": 9233,
+              "enum": 14,
+              "enum_member": 55,
+              "export": 51,
+              "field": 256,
+              "file": 351,
+              "function": 3179,
+              "import": 1437,
+              "interface": 187,
+              "method": 848,
+              "struct": 60,
+              "type_alias": 59,
+              "variable": 1176
+            },
+            "languages": [
+              "javascript",
+              "json",
+              "rust",
+              "typescript",
+              "yaml"
+            ],
+            "index": {
+              "engine": "rust-hybrid",
+              "engineVersion": "0.1.0",
+              "hybrid": {
+                "phase": "phase-6-rust-owned-per-file-gap-fallback",
+                "rustOwnedLanguages": [
+                  "javascript",
+                  "jsx",
+                  "typescript",
+                  "tsx",
+                  "go",
+                  "python"
+                ],
+                "engineByLanguage": {
+                  "yaml": "typescript",
+                  "typescript": "rust",
+                  "rust": "typescript",
+                  "javascript": "rust"
+                },
+                "engineByFileCount": {
+                  "typescript": 5,
+                  "rust": 414
+                },
+                "fallbackByLanguage": {
+                  "yaml": 3,
+                  "rust": 2
+                },
+                "fallbackFileCount": 5,
+                "missingFallbackByLanguage": {},
+                "missingFallbackFileCount": 0,
+                "fallbackState": "degraded",
+                "fallbackMessage": "TypeScript fallback appended 5 non-Rust-owned supported file(s).",
+                "fallbackReasonTaxonomy": {
+                  "language-level-typescript-fallback": 5
+                },
+                "pendingFallbacks": [
+                  "rust-owned-parse-gap"
+                ],
+                "skippedGeneratedByLanguage": {}
+              },
+              "builtWithVersion": "0.1.0",
+              "builtWithExtractionVersion": 1,
+              "currentExtractionVersion": 1,
+              "reindexRecommended": false
+            }
+          },
+          "stdoutBytes": 0,
+          "stderrBytes": 914
+        },
+        {
+          "run": 3,
+          "command": {
+            "executable": "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+            "args": [
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/dist/bin/zcodegraph.js",
+              "index",
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph",
+              "--engine",
+              "rust-hybrid",
+              "--force",
+              "--profile-out",
+              "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/docs/benchmarks/tmp-2026-06-25-zcodegraph-0-10-0-release-snapshot-result/current-repo-run3.profile.json",
+              "--quiet"
+            ],
+            "cwd": "/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph"
+          },
+          "status": "completed",
+          "exitCode": 1,
+          "signal": null,
+          "wallMs": 7731,
+          "peakRssBytes": null,
+          "rssSource": null,
+          "rssUnavailableKind": "command-wrapper-no-rss",
+          "rssUnavailableReason": "command RSS sampling did not report maximum resident set size",
+          "profilePath": "docs/benchmarks/tmp-2026-06-25-zcodegraph-0-10-0-release-snapshot-result/current-repo-run3.profile.json",
+          "profileSummary": {
+            "complete": true,
+            "lastCheckpoint": {
+              "name": "profile.completed",
+              "state": "completed",
+              "elapsedMs": 7599
+            },
+            "checkpointCount": 15,
+            "rustCore": {
+              "sourceScanMs": 2,
+              "parseExtractionMs": 1260,
+              "sqliteWriteMs": 742,
+              "subprocessStartupHandoffMs": 4
+            },
+            "finalize": {
+              "frameworkPostExtractMs": 6,
+              "referenceResolutionMs": 2198,
+              "dynamicDispatchSynthesisMs": 576,
+              "dbMaintenanceMs": 3
+            },
+            "referenceResolutionBreakdown": {
+              "importResolutionMs": 77,
+              "nameMatchingMs": 102,
+              "frameworkMatchingMs": 60,
+              "databaseAccessMs": 352,
+              "edgeWriteMs": 98,
+              "unresolvedCleanupMs": 186,
+              "resolvedCleanupMs": 186
+            },
+            "tailDiagnostics": {
+              "typescriptFinalization": {
+                "typescriptFinalizationMs": 2847,
+                "frameworkPostExtractMs": 6,
+                "referenceResolutionMs": 2198,
+                "dynamicDispatchSynthesisMs": 576,
+                "dbMaintenanceMs": 3
+              },
+              "referenceResolutionLookupCache": {
+                "candidateLookupMs": 41,
+                "sharedCandidateLookupMs": 7,
+                "candidateLookupCacheHitMs": 25,
+                "nameMatcherCandidateLookupDbMs": 20,
+                "perReferenceDisambiguationMs": 68,
+                "candidateProtocol": {
+                  "enabled": true,
+                  "materializationMs": 42,
+                  "lookupMs": 88,
+                  "lookupCount": 107333,
+                  "cacheHitCount": 55852,
+                  "cacheMissCount": 3863,
+                  "dbLookupCount": 3862,
+                  "lookupShapeCounts": {
+                    "ExactName": 39071,
+                    "LowerName": 11466,
+                    "QualifiedName": 2488,
+                    "FileNodes": 6690,
+                    "KnownNamePresence": 47618
+                  },
+                  "lookupShapeMs": {
+                    "ExactName": 30,
+                    "LowerName": 3,
+                    "QualifiedName": 3,
+                    "FileNodes": 44,
+                    "KnownNamePresence": 8
+                  },
+                  "fileNodesLookup": {
+                    "requestedCount": 6690,
+                    "reusedCount": 6340,
+                    "missedCount": 350,
+                    "fallbackCount": 1,
+                    "lookupMs": 45,
+                    "batchMaterializationMs": 42,
+                    "batchMaterializedCount": 354,
+                    "batchHitCount": 1,
+                    "batchMissCount": 1,
+                    "batchUnavailableCount": 349,
+                    "batchUnavailableReason": "not-prepared"
+                  },
+                  "factsProtocol": {
+                    "shapes": {
+                      "LowerName": {
+                        "ownership": "protocol-owned",
+                        "status": "candidate-for-bounded-exploit",
+                        "defaultRoute": "typescript-baseline-with-optional-rust-routing",
+                        "semanticBoundary": "candidate-set-only"
+                      },
+                      "QualifiedName": {
+                        "ownership": "protocol-owned",
+                        "status": "partial-keep-with-taxonomy",
+                        "defaultRoute": "typescript-baseline-with-dotted-rust-routing",
+                        "semanticBoundary": "candidate-set-only"
+                      },
+                      "FileNodes": {
+                        "ownership": "protocol-owned",
+                        "status": "keep-with-caveat",
+                        "defaultRoute": "run-scoped-batch-then-typescript-fallback",
+                        "semanticBoundary": "candidate-set-only"
+                      }
+                    }
+                  },
+                  "equivalenceComparedCount": 0,
+                  "equivalenceMismatchCount": 0,
+                  "fallbackReasons": {},
+                  "candidateCount": 16978,
+                  "disabledReason": null,
+                  "rustCandidateProducer": {
+                    "enabled": false,
+                    "shadowMode": true,
+                    "producerMs": 0,
+                    "serializationMs": 0,
+                    "subprocessMs": 0,
+                    "lookupCount": 0,
+                    "lookupShapeCounts": {
+                      "ExactName": 0,
+                      "LowerName": 0,
+                      "QualifiedName": 0,
+                      "FileNodes": 0,
+                      "KnownNamePresence": 0
+                    },
+                    "comparedCount": 0,
+                    "mismatchCount": 0,
+                    "mismatchReasons": {},
+                    "mismatchSamples": [],
+                    "candidateCount": 0,
+                    "payloadBytes": 0,
+                    "disabledReason": "disabled-by-env",
+                    "routing": {
+                      "configured": false,
+                      "source": "missing-config",
+                      "active": false,
+                      "activeShapes": [],
+                      "fallbackReason": null,
+                      "mismatchCount": 0,
+                      "mismatchSamples": [],
+                      "onDemandLookupCount": 0,
+                      "onDemandLookupShapeCounts": {
+                        "ExactName": 0,
+                        "LowerName": 0,
+                        "QualifiedName": 0,
+                        "FileNodes": 0,
+                        "KnownNamePresence": 0
+                      },
+                      "onDemandCacheHitCount": 0,
+                      "qualifiedNameOnDemandSourceShapeCounts": {}
+                    }
+                  }
+                }
+              },
+              "referenceResolutionDatabaseHydration": {
+                "databaseAccessMs": 352,
+                "cacheWarmupDbMs": 4,
+                "refHydrationDbMs": 6,
+                "unresolvedReadDbMs": 42,
+                "edgeMaterializationDbMs": 16,
+                "edgeEndpointValidationDbMs": 16
+              },
+              "edgeWriteCleanup": {
+                "edgeMaterializationMs": 16,
+                "edgeWriteMs": 98,
+                "edgeWriteDbMs": 98,
+                "edgeInsertCount": 16184,
+                "unresolvedCleanupMs": 186,
+                "unresolvedCleanupDbMs": 186,
+                "resolvedCleanupMs": 186,
+                "resolvedCleanupDbMs": 186,
+                "resolvedCleanupRowCount": 16184,
+                "intentionallyUnresolvedCleanupMs": 186,
+                "intentionallyUnresolvedCleanupDbMs": 186,
+                "intentionallyUnresolvedCleanupRowCount": 30450,
+                "cleanupOwnership": {
+                  "owner": "typescript-finalization",
+                  "mode": "contract-only",
+                  "resolvedTerminalRefs": 16184,
+                  "intentionallyUnresolvedTerminalRefs": 30450,
+                  "retainedRefs": 0,
+                  "rustCorePrecleanedRefs": null,
+                  "notes": [
+                    "This contract reports TypeScript finalization terminal cleanup and does not migrate cleanup into Rust core.",
+                    "Rust core may pre-clean references it owns, but this bucket reports null unless a reliable public count exists."
+                  ]
+                },
+                "guardedEdgeWrite": {
+                  "eligibleRefs": 6363,
+                  "attemptedRefs": 1371,
+                  "writtenEdges": 1371,
+                  "skippedRefs": 2515,
+                  "skipReasons": {
+                    "direct-default-export-candidate-zero": 24,
+                    "export-symbol-missing": 65,
+                    "export-target-file-not-found": 69,
+                    "import-edge-target-not-found": 607,
+                    "package-or-runtime-binding": 1181,
+                    "type-only-import": 232,
+                    "unsupported-import-shape": 337
+                  },
+                  "skipSamples": [
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "vitest",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "afterEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 16,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "fs",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 17,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "path",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 18,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "os",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 19,
+                      "col": 0
+                    },
+                    {
+                      "reason": "type-only-import",
+                      "referenceName": "AgentAccessModel",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 22,
+                      "col": 0
+                    },
+                    {
+                      "reason": "type-only-import",
+                      "referenceName": "MaintenanceAccessModel",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 22,
+                      "col": 0
+                    },
+                    {
+                      "reason": "type-only-import",
+                      "referenceName": "ResolutionAccessModel",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 22,
+                      "col": 0
+                    },
+                    {
+                      "reason": "type-only-import",
+                      "referenceName": "StatusAccessModel",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "line": 22,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "vitest",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "beforeAll",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "afterAll",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    },
+                    {
+                      "reason": "package-or-runtime-binding",
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "line": 27,
+                      "col": 0
+                    }
+                  ],
+                  "edgeKindCounts": {
+                    "calls": 1371
+                  }
+                },
+                "moduleEdgeWrite": {
+                  "owner": "rust-core",
+                  "mode": "guarded-file-imports",
+                  "eligibleRefs": 897,
+                  "attemptedRefs": 897,
+                  "writtenEdges": 897,
+                  "skippedRefs": 0,
+                  "skipReasons": {},
+                  "edgeKindCounts": {
+                    "imports": 897
+                  },
+                  "declarationRuntime": {
+                    "mode": "single-runtime-sibling-only",
+                    "eligibleRefs": 17,
+                    "rewrittenEdges": 0,
+                    "skippedRefs": 17,
+                    "skipReasons": {
+                      "no-runtime-sibling": 17
+                    }
+                  },
+                  "packageSelfName": {
+                    "mode": "repo-local-file-targets-only",
+                    "eligibleRefs": 0,
+                    "writtenEdges": 0,
+                    "skippedRefs": 0,
+                    "skipReasons": {},
+                    "outcomeCounts": {}
+                  },
+                  "packageImports": {
+                    "mode": "repo-local-file-targets-only",
+                    "eligibleRefs": 0,
+                    "attemptedRefs": 0,
+                    "writtenEdges": 0,
+                    "skippedRefs": 0,
+                    "skipReasons": {},
+                    "outcomeCounts": {}
+                  },
+                  "supportedSources": [
+                    "relative",
+                    "tsconfigPaths"
+                  ],
+                  "excludedSources": [
+                    "rootDirs",
+                    "packageSelfName",
+                    "packageImports",
+                    "packageExports",
+                    "defaultImports",
+                    "typeOnlyImports",
+                    "symbolUsageEdges",
+                    "declarationRuntimeRewrite"
+                  ]
+                }
+              },
+              "semanticReplayMatcherSafety": {
+                "candidateReplayEligibleRefs": 0,
+                "candidateReplayComparedRefs": 0,
+                "candidateReplayEquivalentRefs": 0,
+                "candidateReplayMismatchRefs": 0,
+                "rustMatcherEligibleRefs": 0,
+                "rustMatcherHandledRefs": 0,
+                "rustMatcherFallbackRefs": 0,
+                "rustMatcherSemanticMismatchRefs": 0,
+                "semanticReplay": {
+                  "eligibleRefs": 13748,
+                  "comparedRefs": 3957,
+                  "equivalentRefs": 3957,
+                  "mismatchRefs": 0,
+                  "skippedRefs": 9791,
+                  "mismatchReasons": {
+                    "import-target-unresolved": 9750,
+                    "export-symbol-missing": 39,
+                    "multiple-export-candidates": 2
+                  },
+                  "mismatchSamples": [
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "afterEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/access-models.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeAll",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "afterAll",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "LoggingInterceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Formatter",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "JsonCodec",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "Interceptor",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "readFileSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "resolve",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "execFileSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "spawnSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "spawnSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "execFileSync",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "afterEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "describe",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "it",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "expect",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "beforeEach",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    },
+                    {
+                      "referenceName": "vi",
+                      "referenceKind": "imports",
+                      "filePath": "__tests__/command-context.test.ts",
+                      "language": "typescript",
+                      "baselineTargetNodeId": null,
+                      "baselineResolvedBy": null,
+                      "replayTargetNodeId": null,
+                      "replayResolvedBy": null,
+                      "reason": "import-target-unresolved"
+                    }
+                  ]
+                },
+                "rustMatcherFallbackReasons": {}
+              }
+            },
+            "typescriptFallbackAppend": {
+              "durationMs": 245,
+              "fallbackFileCount": 5,
+              "missingFallbackFileCount": 0,
+              "missingFallbackByLanguage": {},
+              "errorTaxonomy": {}
+            },
+            "typescriptFinalizationMs": 2847,
+            "fallbackTaxonomy": {
+              "totalFallbacks": 2489,
+              "entries": [
+                {
+                  "stage": "framework-post-extract",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "dynamic-dispatch-synthesis",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "db-maintenance",
+                  "classification": "known-unsupported",
+                  "reason": "typescript-finalization-not-yet-migrated",
+                  "count": 1
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "binding-level-symbol-disambiguation-not-yet-rust-owned",
+                  "count": 2430
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "unsupported-import-form-not-yet-rust-owned",
+                  "count": 50
+                },
+                {
+                  "stage": "reference-resolution",
+                  "classification": "known-unsupported",
+                  "reason": "unresolved-file-level-import-target",
+                  "count": 5
+                }
+              ]
+            }
+          },
+          "graphStats": {
+            "available": true,
+            "fileCount": 354,
+            "nodeCount": 16978,
+            "edgeCount": 40207,
+            "dbSizeBytes": 34770944,
+            "nodesByKind": {
+              "class": 72,
+              "constant": 9233,
+              "enum": 14,
+              "enum_member": 55,
+              "export": 51,
+              "field": 256,
+              "file": 351,
+              "function": 3179,
+              "import": 1437,
+              "interface": 187,
+              "method": 848,
+              "struct": 60,
+              "type_alias": 59,
+              "variable": 1176
+            },
+            "languages": [
+              "javascript",
+              "json",
+              "rust",
+              "typescript",
+              "yaml"
+            ],
+            "index": {
+              "engine": "rust-hybrid",
+              "engineVersion": "0.1.0",
+              "hybrid": {
+                "phase": "phase-6-rust-owned-per-file-gap-fallback",
+                "rustOwnedLanguages": [
+                  "javascript",
+                  "jsx",
+                  "typescript",
+                  "tsx",
+                  "go",
+                  "python"
+                ],
+                "engineByLanguage": {
+                  "yaml": "typescript",
+                  "typescript": "rust",
+                  "rust": "typescript",
+                  "javascript": "rust"
+                },
+                "engineByFileCount": {
+                  "typescript": 5,
+                  "rust": 414
+                },
+                "fallbackByLanguage": {
+                  "yaml": 3,
+                  "rust": 2
+                },
+                "fallbackFileCount": 5,
+                "missingFallbackByLanguage": {},
+                "missingFallbackFileCount": 0,
+                "fallbackState": "degraded",
+                "fallbackMessage": "TypeScript fallback appended 5 non-Rust-owned supported file(s).",
+                "fallbackReasonTaxonomy": {
+                  "language-level-typescript-fallback": 5
+                },
+                "pendingFallbacks": [
+                  "rust-owned-parse-gap"
+                ],
+                "skippedGeneratedByLanguage": {}
+              },
+              "builtWithVersion": "0.1.0",
+              "builtWithExtractionVersion": 1,
+              "currentExtractionVersion": 1,
+              "reindexRecommended": false
+            }
+          },
+          "stdoutBytes": 0,
+          "stderrBytes": 914
+        }
+      ],
+      "summary": {
+        "medianWallMs": 7607,
+        "wallMsVariance": 4093.555555555556,
+        "medianPeakRssBytes": null,
+        "peakRssBytesVariance": 0,
+        "rssSources": [],
+        "rssUnavailableKinds": [
+          "command-wrapper-no-rss"
+        ],
+        "rssUnavailableReasons": [
+          "command RSS sampling did not report maximum resident set size"
+        ]
+      }
+    },
+    {
+      "name": "ts-js-zustand",
+      "path": "/private/tmp/codegraph-corpus/zustand",
+      "status": "needs-human-setup",
+      "unavailableReason": "corpus path is not a valid Git checkout",
+      "requestedRuns": 1,
+      "runs": []
+    },
+    {
+      "name": "go-gin",
+      "path": "/private/tmp/codegraph-corpus/gin-examples",
+      "status": "needs-human-setup",
+      "unavailableReason": "corpus path is not a valid Git checkout",
+      "requestedRuns": 1,
+      "runs": []
+    },
+    {
+      "name": "ts-react-excalidraw",
+      "path": "/private/tmp/codegraph-corpus/excalidraw",
+      "status": "needs-human-setup",
+      "unavailableReason": "corpus path is not a valid Git checkout",
+      "requestedRuns": 1,
+      "runs": []
+    }
+  ]
+}

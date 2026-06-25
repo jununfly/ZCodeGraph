@@ -10,11 +10,15 @@ const INDEXING_PERFORMANCE_DOC = path.join(
 );
 const RESEARCH_ORACLE_CLOSEOUT_DOC = path.join(
   REPO_ROOT,
-  'docs/benchmarks/2026-06-25-rust-hybrid-research-oracle-needed-routes-closeout-decision.md',
+  'docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md',
 );
 const OWNERSHIP_ROADMAP_DOC = path.join(
   REPO_ROOT,
-  'docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md',
+  'docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md',
+);
+const RESOLVER_SEMANTIC_RESIDUALS_DOC = path.join(
+  REPO_ROOT,
+  'docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md',
 );
 
 describe('Graph semantics guardrail documentation', () => {
@@ -168,37 +172,26 @@ describe('Graph semantics guardrail documentation', () => {
 
     const doc = fs.readFileSync(RESEARCH_ORACLE_CLOSEOUT_DOC, 'utf8');
     const roadmap = fs.readFileSync(OWNERSHIP_ROADMAP_DOC, 'utf8');
+    const resolverResiduals = fs.readFileSync(RESOLVER_SEMANTIC_RESIDUALS_DOC, 'utf8');
 
-    expect(doc).toContain('# Rust-Hybrid Research And Oracle-Needed Routes Closeout Decision');
     for (const requiredTerm of [
-      '1-6-2. Research and oracle-needed routes',
-      'defer/no-go taxonomy',
       'needs-oracle/research',
-      'future explicit product switch',
-      'node_modules',
-      'third-party package graph expansion',
-      'package manager edge cases',
-      'typesVersions',
-      'symlink',
-      'preserveSymlinks',
-      'pnpm virtual store',
-      'type-only versus runtime target divergence',
-      'separate type graph',
-      'advanced declaration/runtime semantics',
-      'CSS/assets/custom non-code modules',
-      'package/runtime/builtin imports',
-      'deterministic oracle fixture',
-      'Agent Sufficiency',
-      'user usability value',
-      'bounded exploit slice',
-      'graph semantics guardrail',
-      'product or architecture decision',
+      'research/oracle routes stay deferred',
+      'future roadmap explicitly promotes them',
     ]) {
       expect(doc).toContain(requiredTerm);
     }
 
-    expect(doc).toContain('not an implementation queue');
-    expect(roadmap).toContain('[x][X+] 1. Rust-Hybrid Indexing Completion And Performance Roadmap');
-    expect(roadmap).toContain('[x][X+] 1-6-2. Research and oracle-needed routes');
+    for (const requiredTerm of [
+      'node_modules',
+      'type graph',
+      'bounded exploit lane',
+      'third-party package',
+      'package/runtime/builtin',
+    ]) {
+      expect(`${doc}\n${roadmap}\n${resolverResiduals}`).toContain(requiredTerm);
+    }
+    expect(roadmap).toContain('Rust Hybrid Consolidated Plans');
+    expect(roadmap).toContain('no-go, defer, and research archive');
   });
 });

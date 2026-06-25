@@ -1601,21 +1601,28 @@ describe('Rust indexing formal experiment runner', () => {
   it('accepts the canonical manifest and writes a complete decision summary draft', () => {
     const temp = makeTempDir('zcodegraph-rust-experiment-summary-');
     tempDirs.push(temp);
+    const manifest = path.join(temp, 'canonical.experiment.json');
     const out = path.join(temp, 'artifact.json');
     const summaryOut = path.join(temp, 'summary.md');
-    const canonical = path.join(REPO_ROOT, 'docs', 'benchmarks', 'rust-indexing-core-phase-14.experiment.json');
+    writeJson(
+      manifest,
+      canonicalManifest({
+        targets: ['zcodegraph', 'excalidraw', 'vscode'].map((name) => ({
+          name,
+          pathFallback: path.join(temp, `missing-${name}`),
+          targetClass: 'required',
+          requiredForDecision: true,
+          promptIds: [`${name}-smoke`],
+        })),
+      }),
+    );
 
     const result = spawnSync(
       process.execPath,
-      [SCRIPT, '--experiment', canonical, '--out', out, '--summary-out', summaryOut],
+      [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut],
       {
         cwd: REPO_ROOT,
         encoding: 'utf-8',
-        env: {
-          ...process.env,
-          ZCODEGRAPH_CORPUS_EXCALIDRAW: path.join(temp, 'missing-excalidraw'),
-          ZCODEGRAPH_CORPUS_VSCODE: path.join(temp, 'missing-vscode'),
-        },
       },
     );
 

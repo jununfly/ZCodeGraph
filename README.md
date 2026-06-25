@@ -72,9 +72,21 @@ zcodegraph install
 ```bash
 cd your-project
 zcodegraph init
+zcodegraph status
 ```
 
 <sub>Builds the local `.zcodegraph/` knowledge graph for this project. ZCodeGraph uses its fastest supported local indexing path automatically, with per-file fallback when needed, so you don't have to choose an engine during setup.</sub>
+
+If indexing reports fallback, degraded status, or a failure, create a local
+diagnostic bundle before opening an issue:
+
+```bash
+zcodegraph doctor --engine rust-hybrid --bundle --last-run
+```
+
+After `zcodegraph install` and `zcodegraph init`, restart your agent and ask
+normal code questions. The MCP server exposes the graph automatically; you do
+not need to paste code or teach the agent a new workflow.
 
 ### Uninstall
 
@@ -111,6 +123,24 @@ Tested across **7 real-world open-source codebases** spanning 7 languages, compa
 | **Alamofire** | Swift · ~110 | 40% cheaper | 64% fewer | 33% faster | 58% fewer |
 
 ZCodeGraph cuts **tokens, tool calls, and wall-clock time on every repo** — across small, medium, and large codebases — and answers them with **near-zero file reads**, while the no-ZCodeGraph agent spends its budget on grep/find/Read discovery. `zcodegraph_explore` shows the answer in full — the mechanism plus the exact methods you asked about, even when they're buried in a multi-thousand-line file — while collapsing redundant interchangeable implementations to signatures, so the response is sized to the *answer* rather than the file count. **Cost stays flat-to-cheaper everywhere** — largest on the small repos (Alamofire, OkHttp), roughly break-even on the most response-heavy ones (Excalidraw, Tokio), where ZCodeGraph trades the no-ZCodeGraph agent's many small grep/read round-trips for a few large, cache-heavy tool responses.
+
+### 0.10.0 release snapshot
+
+The 0.10.0 release-readiness snapshot is intentionally narrower than the full
+benchmark table above. It validates the current default `rust-hybrid` indexing
+path and records caveats rather than making a new broad performance claim.
+
+| Target | Result |
+|---|---|
+| Current ZCodeGraph repo | 3/3 `rust-hybrid` profile runs completed; median wall time 7607 ms; graph stats available with 354 files, 16978 nodes, and 40207 edges. |
+| RSS | Not available from the local command wrapper; the snapshot records `command RSS sampling did not report maximum resident set size`. |
+| Hybrid fallback | Current repo is degraded by 5 non-Rust-owned fallback files (`yaml: 3`, `rust: 2`), which is expected under the current ownership boundary. |
+| TypeScript/JavaScript representative corpus | `needs-human-setup`: `/private/tmp/codegraph-corpus/zustand` was not a Git checkout during the snapshot. |
+| Go/Gin representative corpus | `needs-human-setup`: `/private/tmp/codegraph-corpus/gin-examples` was not a Git checkout during the snapshot. |
+
+Evidence:
+`docs/benchmarks/2026-06-25-zcodegraph-0-10-0-release-snapshot.md` and
+`docs/benchmarks/2026-06-25-zcodegraph-0-10-0-release-snapshot-result.json`.
 
 ### Flow-question sufficiency
 
@@ -631,6 +661,24 @@ is written):
 
 ## Supported Languages
 
+### Indexing engine ownership
+
+The default user path is `rust-hybrid`: Rust owns the supported fast path where
+it can, and ZCodeGraph records fallback or unsupported coverage explicitly.
+Users normally do not need to choose an engine. For debugging, the mature
+TypeScript indexer remains available as an explicit command:
+
+```bash
+zcodegraph index --engine typescript
+```
+
+| State | Meaning | Current languages / files |
+|---|---|---|
+| Rust-owned | Indexed by the Rust core on the default `rust-hybrid` path. | JavaScript, JSX, TypeScript, TSX, Go, Python. |
+| TS-indexed | Indexed by the TypeScript indexer as the mature multi-language path. | Java, C#, PHP, Ruby, C, C++, Objective-C, Swift, Kotlin, Scala, Dart, Svelte, Vue, Liquid, Pascal/Delphi, Lua, Luau, and other supported non-Rust-owned sources. |
+| Hybrid fallback | `rust-hybrid` uses TypeScript fallback for a file or language and reports it in status/doctor. | Expected for non-Rust-owned supported files, and for Rust-owned parse gaps when recoverable. |
+| Not covered | Not indexed as source symbols/edges. | Unsupported extensions, ignored paths, default-excluded dependency/build/cache directories, and files over the size limit. |
+
 | Language | Extension | Status |
 |----------|-----------|--------|
 | TypeScript | `.ts`, `.tsx` | Full support |
@@ -690,6 +738,9 @@ Framework routing is validated the same way, on a canonical app per framework: E
 
 **"CodeGraph not initialized"** — Run `zcodegraph init` in your project directory first.
 
+**Check index health** — Use `zcodegraph status` for a human-readable summary,
+or `zcodegraph status --json` when reporting a bug or scripting a check.
+
 **Indexing is slow** — Check that `node_modules` and other large directories are excluded. Use `--quiet` to reduce output overhead.
 
 **Indexing completed with fallback or failed** — Run a local diagnostic bundle and attach it to your issue. Bundles do not include source code by default:
@@ -698,6 +749,21 @@ Framework routing is validated the same way, on a canonical app per framework: E
 zcodegraph doctor --engine rust-hybrid --bundle --last-run
 zcodegraph doctor --engine rust-hybrid --bundle --last-failure
 ```
+
+Good issue reports are replayable and privacy-conscious. Include:
+
+- the diagnostic bundle above;
+- `zcodegraph status --json`;
+- the exact command you ran;
+- stdout/stderr;
+- OS, architecture, install method, and Node version if you are embedding the
+  library instead of using the bundled CLI;
+- languages, package manager, and monorepo/workspace shape;
+- a minimal public reproduction when possible.
+
+Do not paste private source code by default. The standard doctor bundle records
+metadata such as hashed file paths, extensions, languages, sizes, error
+taxonomy, line/column, and Git blob hashes; it does not include source slices.
 
 **Need the mature TypeScript indexer while reporting a Rust-backed indexing issue** — Use the escape hatch for the next full index:
 

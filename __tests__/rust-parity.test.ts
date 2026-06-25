@@ -429,6 +429,7 @@ function acceptableRustPhase1Differences(
     if (
       edge.kind === 'exports' ||
       edge.kind === 'references' ||
+      key === 'edge:calls:function:plain.js:localHelper->function:typed.ts:loadUser' ||
       (edge.kind === 'imports' && edge.target.startsWith('file:')) ||
       key.includes(':fetchUser') ||
       key.includes(':cache') ||

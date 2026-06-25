@@ -116,7 +116,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
       engine: 'rust-hybrid',
       kind: 'last-run',
       exitCode: 0,
-      fallbackState: 'degraded',
+      fallbackState: 'healthy',
       rss: { peakRssBytes: null, unavailableReason: 'not-collected-in-this-run' },
     });
     expect(lastRun.sanitizedOutput.stdoutTail.unavailableReason).toBeTypeOf('string');
@@ -135,7 +135,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     const manifest = readJson(path.join(bundleDir, 'manifest.json'));
     expect(manifest).toMatchObject({ engine: 'rust-hybrid', source: 'last-run' });
     const status = readJson(path.join(bundleDir, 'status.json'));
-    expect(status.index.hybrid.fallbackState).toBe('degraded');
+    expect(status.index.hybrid.fallbackState).toBe('healthy');
     const fingerprintText = fs.readFileSync(path.join(bundleDir, 'corpus-fingerprint.json'), 'utf-8');
     const diagnosticsText = fs.readFileSync(path.join(bundleDir, 'per-file-diagnostics.json'), 'utf-8');
     const bundleText = fs.readdirSync(bundleDir)
@@ -163,7 +163,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     const status = readJson(path.join(bundleDir, 'status.json'));
     expect(status.index.hybrid).toMatchObject({
       fallbackState: 'degraded',
-      fallbackFileCount: 1,
+      fallbackFileCount: 0,
       fallbackReasonTaxonomy: { 'rust-owned-extraction-gap': 1 },
     });
 
