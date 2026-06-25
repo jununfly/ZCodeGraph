@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 21:19:05
+> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 21:55:31
 
 [~][X+] 1. Rust-Hybrid Indexing Completion And Performance Roadmap
 ├── [x][X+] 1-1. Current fact base and evidence archive
@@ -30,8 +30,83 @@
     ├── [x][X+] 1-8-1. Fact base and targeted baseline evidence
     ├── [x][X+] 1-8-2. Candidate selection and bounded optimization routing
     ├── [x][Y+] 1-8-3. Bounded optimization execution
-    └── [ ][X+] 1-8-4. Guardrail and first-user performance closeout
+    ├── [ ][X+] 1-8-4. Guardrail and first-user performance closeout
+    └── [x][Y+] 1-8-5. Reference-resolution cleanup / edge-write bounded optimization
 <!-- ROADMAP_SECTION_END -->
+
+### 当前施工：1-8-5. Reference-resolution cleanup / edge-write bounded optimization
+
+第19刀目标：reference-resolution cleanup / edge-write bounded optimization。唯一假设：减少 terminal unresolved-ref cleanup 和 edge-write work 的重复 DB round trips，不改变 graph semantics。Plan: docs/plans/2026-06-25-rust-hybrid-reference-resolution-cleanup-edge-write-optimization-plan.md.
+
+**决策：**
+- Q: 第19刀应该挂在哪个 roadmap 位置？ → A. 在 1-8 下新增 1-8-5 Reference-resolution cleanup / edge-write bounded optimization (1-8-3 已完成 diagnostic-only execution；1-8-4 是整体 guardrail/closeout，不承载新的实现工作。第19刀作为独立 bounded optimization slice，目标是尝试 reference-resolution cleanup / edge-write path。)
+- Q: 第19刀的优化候选边界要多窄？ → B. cleanup + edge-write cluster 一起作为候选，但只允许一个共同 bottleneck 假设 (候选覆盖 unresolved/resolved/intentionally-unresolved cleanup 与 edge insert/write path，但必须服务同一个 bounded hypothesis；不纳入 broader database access、candidate lookup/cache、dynamic dispatch 或 semantic disambiguation。)
+- Q: 第19刀的共同 bottleneck 假设选哪个？ → A. 减少 cleanup/edge-write 的重复 DB round trips (假设 terminal refs cleanup 和 edge insert/write path 存在可批量化或可复用的 DB work；优化目标是减少 DB round trips，不改变哪些 edge/ref 被写入或清理。验证看 edgeWriteDbMs、unresolvedCleanupDbMs、resolvedCleanupDbMs、intentionallyUnresolvedCleanupDbMs，同时 graphStats/fallback taxonomy 必须稳定。)
+- Q: 第19刀允许改哪些代码面？ → A. 允许改 reference-resolution finalization/query helper，但禁止 schema/语义变化 (可以改批量 SQL helper、transaction 包裹、prepared statement 复用、runner/test/docs；不改 schema，不改 edge/ref 分类，不改 fallback taxonomy，不改 resolver semantic target selection。)
+- Q: 第19刀是否需要先写 plan 文档？ → A. 先写窄 plan 文档，再发 issues (这是首次允许动 production helper 的 performance slice；plan 必须固定 cleanup + edge-write cluster、唯一假设是减少重复 DB round trips、允许改 finalization/query helper、禁止 schema/语义变化、验证指标和 no-go，避免 AFK agent 扩大到 DB/schema 或 resolver semantics。)
+- Q: 第19刀的验证门槛怎么写？ → A. current-repo before/after 3 runs；真实 repo 有效才跑；graphStats/fallback taxonomy 必须 stable (成功不要求 10%；至少一个 cleanup/edge-write 子桶要有可信改善趋势，或明确 no-go。必须记录 RSS 或 unavailable reason。真实 repo 缺失或无效时记录 needs-human-setup，不阻塞 current-repo evidence。)
+- Q: 第19刀拆几个 issues？ → A. 3 个：plan/contract -> bounded implementation -> evidence closeout (Issue 1 写窄 plan 并锁定 contract；Issue 2 实现一个 bounded optimization candidate，带 unit/integration tests；Issue 3 跑 before/after baseline，写 keep/no-go closeout，更新 roadmap。)
+- Q: 第19刀 plan 是否已写入仓库？ → 已写入 docs/plans/2026-06-25-rust-hybrid-reference-resolution-cleanup-edge-write-optimization-plan.md (Plan 固定唯一假设：减少 terminal unresolved-ref cleanup 和 edge-write work 的重复 DB round trips，不改变 graph semantics；拆 3 个 issues：plan/contract、bounded implementation、evidence closeout。)
+- Q: 1-8-5 optimization issues 发布了吗？ → 已发布 #557, #558, #559 (#557 lock cleanup/edge-write optimization plan and contract；#558 implement one cleanup and edge-write DB round-trip optimization，blocked by #557；#559 measure and close out cleanup and edge-write optimization，blocked by #558。三者均标记 enhancement + ready-for-agent。)
+
+### 当前施工：1-8-5. Reference-resolution cleanup / edge-write bounded optimization
+
+第19刀目标：reference-resolution cleanup / edge-write bounded optimization。唯一假设：减少 terminal unresolved-ref cleanup 和 edge-write work 的重复 DB round trips，不改变 graph semantics。Plan: docs/plans/2026-06-25-rust-hybrid-reference-resolution-cleanup-edge-write-optimization-plan.md.
+
+**决策：**
+- Q: 第19刀应该挂在哪个 roadmap 位置？ → A. 在 1-8 下新增 1-8-5 Reference-resolution cleanup / edge-write bounded optimization (1-8-3 已完成 diagnostic-only execution；1-8-4 是整体 guardrail/closeout，不承载新的实现工作。第19刀作为独立 bounded optimization slice，目标是尝试 reference-resolution cleanup / edge-write path。)
+- Q: 第19刀的优化候选边界要多窄？ → B. cleanup + edge-write cluster 一起作为候选，但只允许一个共同 bottleneck 假设 (候选覆盖 unresolved/resolved/intentionally-unresolved cleanup 与 edge insert/write path，但必须服务同一个 bounded hypothesis；不纳入 broader database access、candidate lookup/cache、dynamic dispatch 或 semantic disambiguation。)
+- Q: 第19刀的共同 bottleneck 假设选哪个？ → A. 减少 cleanup/edge-write 的重复 DB round trips (假设 terminal refs cleanup 和 edge insert/write path 存在可批量化或可复用的 DB work；优化目标是减少 DB round trips，不改变哪些 edge/ref 被写入或清理。验证看 edgeWriteDbMs、unresolvedCleanupDbMs、resolvedCleanupDbMs、intentionallyUnresolvedCleanupDbMs，同时 graphStats/fallback taxonomy 必须稳定。)
+- Q: 第19刀允许改哪些代码面？ → A. 允许改 reference-resolution finalization/query helper，但禁止 schema/语义变化 (可以改批量 SQL helper、transaction 包裹、prepared statement 复用、runner/test/docs；不改 schema，不改 edge/ref 分类，不改 fallback taxonomy，不改 resolver semantic target selection。)
+- Q: 第19刀是否需要先写 plan 文档？ → A. 先写窄 plan 文档，再发 issues (这是首次允许动 production helper 的 performance slice；plan 必须固定 cleanup + edge-write cluster、唯一假设是减少重复 DB round trips、允许改 finalization/query helper、禁止 schema/语义变化、验证指标和 no-go，避免 AFK agent 扩大到 DB/schema 或 resolver semantics。)
+- Q: 第19刀的验证门槛怎么写？ → A. current-repo before/after 3 runs；真实 repo 有效才跑；graphStats/fallback taxonomy 必须 stable (成功不要求 10%；至少一个 cleanup/edge-write 子桶要有可信改善趋势，或明确 no-go。必须记录 RSS 或 unavailable reason。真实 repo 缺失或无效时记录 needs-human-setup，不阻塞 current-repo evidence。)
+- Q: 第19刀拆几个 issues？ → A. 3 个：plan/contract -> bounded implementation -> evidence closeout (Issue 1 写窄 plan 并锁定 contract；Issue 2 实现一个 bounded optimization candidate，带 unit/integration tests；Issue 3 跑 before/after baseline，写 keep/no-go closeout，更新 roadmap。)
+- Q: 第19刀 plan 是否已写入仓库？ → 已写入 docs/plans/2026-06-25-rust-hybrid-reference-resolution-cleanup-edge-write-optimization-plan.md (Plan 固定唯一假设：减少 terminal unresolved-ref cleanup 和 edge-write work 的重复 DB round trips，不改变 graph semantics；拆 3 个 issues：plan/contract、bounded implementation、evidence closeout。)
+
+### 当前施工：1-8-5. Reference-resolution cleanup / edge-write bounded optimization
+
+**决策：**
+- Q: 第19刀应该挂在哪个 roadmap 位置？ → A. 在 1-8 下新增 1-8-5 Reference-resolution cleanup / edge-write bounded optimization (1-8-3 已完成 diagnostic-only execution；1-8-4 是整体 guardrail/closeout，不承载新的实现工作。第19刀作为独立 bounded optimization slice，目标是尝试 reference-resolution cleanup / edge-write path。)
+- Q: 第19刀的优化候选边界要多窄？ → B. cleanup + edge-write cluster 一起作为候选，但只允许一个共同 bottleneck 假设 (候选覆盖 unresolved/resolved/intentionally-unresolved cleanup 与 edge insert/write path，但必须服务同一个 bounded hypothesis；不纳入 broader database access、candidate lookup/cache、dynamic dispatch 或 semantic disambiguation。)
+- Q: 第19刀的共同 bottleneck 假设选哪个？ → A. 减少 cleanup/edge-write 的重复 DB round trips (假设 terminal refs cleanup 和 edge insert/write path 存在可批量化或可复用的 DB work；优化目标是减少 DB round trips，不改变哪些 edge/ref 被写入或清理。验证看 edgeWriteDbMs、unresolvedCleanupDbMs、resolvedCleanupDbMs、intentionallyUnresolvedCleanupDbMs，同时 graphStats/fallback taxonomy 必须稳定。)
+- Q: 第19刀允许改哪些代码面？ → A. 允许改 reference-resolution finalization/query helper，但禁止 schema/语义变化 (可以改批量 SQL helper、transaction 包裹、prepared statement 复用、runner/test/docs；不改 schema，不改 edge/ref 分类，不改 fallback taxonomy，不改 resolver semantic target selection。)
+- Q: 第19刀是否需要先写 plan 文档？ → A. 先写窄 plan 文档，再发 issues (这是首次允许动 production helper 的 performance slice；plan 必须固定 cleanup + edge-write cluster、唯一假设是减少重复 DB round trips、允许改 finalization/query helper、禁止 schema/语义变化、验证指标和 no-go，避免 AFK agent 扩大到 DB/schema 或 resolver semantics。)
+- Q: 第19刀的验证门槛怎么写？ → A. current-repo before/after 3 runs；真实 repo 有效才跑；graphStats/fallback taxonomy 必须 stable (成功不要求 10%；至少一个 cleanup/edge-write 子桶要有可信改善趋势，或明确 no-go。必须记录 RSS 或 unavailable reason。真实 repo 缺失或无效时记录 needs-human-setup，不阻塞 current-repo evidence。)
+
+### 当前施工：1-8-5. Reference-resolution cleanup / edge-write bounded optimization
+
+**决策：**
+- Q: 第19刀应该挂在哪个 roadmap 位置？ → A. 在 1-8 下新增 1-8-5 Reference-resolution cleanup / edge-write bounded optimization (1-8-3 已完成 diagnostic-only execution；1-8-4 是整体 guardrail/closeout，不承载新的实现工作。第19刀作为独立 bounded optimization slice，目标是尝试 reference-resolution cleanup / edge-write path。)
+- Q: 第19刀的优化候选边界要多窄？ → B. cleanup + edge-write cluster 一起作为候选，但只允许一个共同 bottleneck 假设 (候选覆盖 unresolved/resolved/intentionally-unresolved cleanup 与 edge insert/write path，但必须服务同一个 bounded hypothesis；不纳入 broader database access、candidate lookup/cache、dynamic dispatch 或 semantic disambiguation。)
+- Q: 第19刀的共同 bottleneck 假设选哪个？ → A. 减少 cleanup/edge-write 的重复 DB round trips (假设 terminal refs cleanup 和 edge insert/write path 存在可批量化或可复用的 DB work；优化目标是减少 DB round trips，不改变哪些 edge/ref 被写入或清理。验证看 edgeWriteDbMs、unresolvedCleanupDbMs、resolvedCleanupDbMs、intentionallyUnresolvedCleanupDbMs，同时 graphStats/fallback taxonomy 必须稳定。)
+- Q: 第19刀允许改哪些代码面？ → A. 允许改 reference-resolution finalization/query helper，但禁止 schema/语义变化 (可以改批量 SQL helper、transaction 包裹、prepared statement 复用、runner/test/docs；不改 schema，不改 edge/ref 分类，不改 fallback taxonomy，不改 resolver semantic target selection。)
+- Q: 第19刀是否需要先写 plan 文档？ → A. 先写窄 plan 文档，再发 issues (这是首次允许动 production helper 的 performance slice；plan 必须固定 cleanup + edge-write cluster、唯一假设是减少重复 DB round trips、允许改 finalization/query helper、禁止 schema/语义变化、验证指标和 no-go，避免 AFK agent 扩大到 DB/schema 或 resolver semantics。)
+
+### 当前施工：1-8-5. Reference-resolution cleanup / edge-write bounded optimization
+
+**决策：**
+- Q: 第19刀应该挂在哪个 roadmap 位置？ → A. 在 1-8 下新增 1-8-5 Reference-resolution cleanup / edge-write bounded optimization (1-8-3 已完成 diagnostic-only execution；1-8-4 是整体 guardrail/closeout，不承载新的实现工作。第19刀作为独立 bounded optimization slice，目标是尝试 reference-resolution cleanup / edge-write path。)
+- Q: 第19刀的优化候选边界要多窄？ → B. cleanup + edge-write cluster 一起作为候选，但只允许一个共同 bottleneck 假设 (候选覆盖 unresolved/resolved/intentionally-unresolved cleanup 与 edge insert/write path，但必须服务同一个 bounded hypothesis；不纳入 broader database access、candidate lookup/cache、dynamic dispatch 或 semantic disambiguation。)
+- Q: 第19刀的共同 bottleneck 假设选哪个？ → A. 减少 cleanup/edge-write 的重复 DB round trips (假设 terminal refs cleanup 和 edge insert/write path 存在可批量化或可复用的 DB work；优化目标是减少 DB round trips，不改变哪些 edge/ref 被写入或清理。验证看 edgeWriteDbMs、unresolvedCleanupDbMs、resolvedCleanupDbMs、intentionallyUnresolvedCleanupDbMs，同时 graphStats/fallback taxonomy 必须稳定。)
+- Q: 第19刀允许改哪些代码面？ → A. 允许改 reference-resolution finalization/query helper，但禁止 schema/语义变化 (可以改批量 SQL helper、transaction 包裹、prepared statement 复用、runner/test/docs；不改 schema，不改 edge/ref 分类，不改 fallback taxonomy，不改 resolver semantic target selection。)
+
+### 当前施工：1-8-5. Reference-resolution cleanup / edge-write bounded optimization
+
+**决策：**
+- Q: 第19刀应该挂在哪个 roadmap 位置？ → A. 在 1-8 下新增 1-8-5 Reference-resolution cleanup / edge-write bounded optimization (1-8-3 已完成 diagnostic-only execution；1-8-4 是整体 guardrail/closeout，不承载新的实现工作。第19刀作为独立 bounded optimization slice，目标是尝试 reference-resolution cleanup / edge-write path。)
+- Q: 第19刀的优化候选边界要多窄？ → B. cleanup + edge-write cluster 一起作为候选，但只允许一个共同 bottleneck 假设 (候选覆盖 unresolved/resolved/intentionally-unresolved cleanup 与 edge insert/write path，但必须服务同一个 bounded hypothesis；不纳入 broader database access、candidate lookup/cache、dynamic dispatch 或 semantic disambiguation。)
+- Q: 第19刀的共同 bottleneck 假设选哪个？ → A. 减少 cleanup/edge-write 的重复 DB round trips (假设 terminal refs cleanup 和 edge insert/write path 存在可批量化或可复用的 DB work；优化目标是减少 DB round trips，不改变哪些 edge/ref 被写入或清理。验证看 edgeWriteDbMs、unresolvedCleanupDbMs、resolvedCleanupDbMs、intentionallyUnresolvedCleanupDbMs，同时 graphStats/fallback taxonomy 必须稳定。)
+
+### 当前施工：1-8-5. Reference-resolution cleanup / edge-write bounded optimization
+
+**决策：**
+- Q: 第19刀应该挂在哪个 roadmap 位置？ → A. 在 1-8 下新增 1-8-5 Reference-resolution cleanup / edge-write bounded optimization (1-8-3 已完成 diagnostic-only execution；1-8-4 是整体 guardrail/closeout，不承载新的实现工作。第19刀作为独立 bounded optimization slice，目标是尝试 reference-resolution cleanup / edge-write path。)
+- Q: 第19刀的优化候选边界要多窄？ → B. cleanup + edge-write cluster 一起作为候选，但只允许一个共同 bottleneck 假设 (候选覆盖 unresolved/resolved/intentionally-unresolved cleanup 与 edge insert/write path，但必须服务同一个 bounded hypothesis；不纳入 broader database access、candidate lookup/cache、dynamic dispatch 或 semantic disambiguation。)
+
+### 当前施工：1-8-5. Reference-resolution cleanup / edge-write bounded optimization
+
+**决策：**
+- Q: 第19刀应该挂在哪个 roadmap 位置？ → A. 在 1-8 下新增 1-8-5 Reference-resolution cleanup / edge-write bounded optimization (1-8-3 已完成 diagnostic-only execution；1-8-4 是整体 guardrail/closeout，不承载新的实现工作。第19刀作为独立 bounded optimization slice，目标是尝试 reference-resolution cleanup / edge-write path。)
 
 ### 当前施工：1-8-3. Bounded optimization execution
 

@@ -352,8 +352,7 @@ describe('Resolution Module', () => {
         });
         expect(rowIdDeletes).toEqual([]);
         expect(rowIdRangeDeletes).toEqual([
-          Array.from({ length: 505 }, (_, index) => index + 1),
-          [506],
+          Array.from({ length: 506 }, (_, index) => index + 1),
         ]);
       });
     });

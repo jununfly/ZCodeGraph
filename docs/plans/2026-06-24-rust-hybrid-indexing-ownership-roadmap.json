@@ -1012,7 +1012,8 @@
         "1-8-1",
         "1-8-2",
         "1-8-3",
-        "1-8-4"
+        "1-8-4",
+        "1-8-5"
       ],
       "decisions": [
         {
@@ -1220,11 +1221,77 @@
       "children": [],
       "decisions": [],
       "notes": ""
+    },
+    "1-8-5": {
+      "id": "1-8-5",
+      "label": "Reference-resolution cleanup / edge-write bounded optimization",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-8",
+      "children": [],
+      "decisions": [
+        {
+          "q": "第19刀应该挂在哪个 roadmap 位置？",
+          "answer": "A. 在 1-8 下新增 1-8-5 Reference-resolution cleanup / edge-write bounded optimization",
+          "note": "1-8-3 已完成 diagnostic-only execution；1-8-4 是整体 guardrail/closeout，不承载新的实现工作。第19刀作为独立 bounded optimization slice，目标是尝试 reference-resolution cleanup / edge-write path。"
+        },
+        {
+          "q": "第19刀的优化候选边界要多窄？",
+          "answer": "B. cleanup + edge-write cluster 一起作为候选，但只允许一个共同 bottleneck 假设",
+          "note": "候选覆盖 unresolved/resolved/intentionally-unresolved cleanup 与 edge insert/write path，但必须服务同一个 bounded hypothesis；不纳入 broader database access、candidate lookup/cache、dynamic dispatch 或 semantic disambiguation。"
+        },
+        {
+          "q": "第19刀的共同 bottleneck 假设选哪个？",
+          "answer": "A. 减少 cleanup/edge-write 的重复 DB round trips",
+          "note": "假设 terminal refs cleanup 和 edge insert/write path 存在可批量化或可复用的 DB work；优化目标是减少 DB round trips，不改变哪些 edge/ref 被写入或清理。验证看 edgeWriteDbMs、unresolvedCleanupDbMs、resolvedCleanupDbMs、intentionallyUnresolvedCleanupDbMs，同时 graphStats/fallback taxonomy 必须稳定。"
+        },
+        {
+          "q": "第19刀允许改哪些代码面？",
+          "answer": "A. 允许改 reference-resolution finalization/query helper，但禁止 schema/语义变化",
+          "note": "可以改批量 SQL helper、transaction 包裹、prepared statement 复用、runner/test/docs；不改 schema，不改 edge/ref 分类，不改 fallback taxonomy，不改 resolver semantic target selection。"
+        },
+        {
+          "q": "第19刀是否需要先写 plan 文档？",
+          "answer": "A. 先写窄 plan 文档，再发 issues",
+          "note": "这是首次允许动 production helper 的 performance slice；plan 必须固定 cleanup + edge-write cluster、唯一假设是减少重复 DB round trips、允许改 finalization/query helper、禁止 schema/语义变化、验证指标和 no-go，避免 AFK agent 扩大到 DB/schema 或 resolver semantics。"
+        },
+        {
+          "q": "第19刀的验证门槛怎么写？",
+          "answer": "A. current-repo before/after 3 runs；真实 repo 有效才跑；graphStats/fallback taxonomy 必须 stable",
+          "note": "成功不要求 10%；至少一个 cleanup/edge-write 子桶要有可信改善趋势，或明确 no-go。必须记录 RSS 或 unavailable reason。真实 repo 缺失或无效时记录 needs-human-setup，不阻塞 current-repo evidence。"
+        },
+        {
+          "q": "第19刀拆几个 issues？",
+          "answer": "A. 3 个：plan/contract -> bounded implementation -> evidence closeout",
+          "note": "Issue 1 写窄 plan 并锁定 contract；Issue 2 实现一个 bounded optimization candidate，带 unit/integration tests；Issue 3 跑 before/after baseline，写 keep/no-go closeout，更新 roadmap。"
+        },
+        {
+          "q": "第19刀 plan 是否已写入仓库？",
+          "answer": "已写入 docs/plans/2026-06-25-rust-hybrid-reference-resolution-cleanup-edge-write-optimization-plan.md",
+          "note": "Plan 固定唯一假设：减少 terminal unresolved-ref cleanup 和 edge-write work 的重复 DB round trips，不改变 graph semantics；拆 3 个 issues：plan/contract、bounded implementation、evidence closeout。"
+        },
+        {
+          "q": "1-8-5 optimization issues 发布了吗？",
+          "answer": "已发布 #557, #558, #559",
+          "note": "#557 lock cleanup/edge-write optimization plan and contract；#558 implement one cleanup and edge-write DB round-trip optimization，blocked by #557；#559 measure and close out cleanup and edge-write optimization，blocked by #558。三者均标记 enhancement + ready-for-agent。"
+        },
+        {
+          "q": "1-8-5 implementation closeout classification?",
+          "answer": "keep",
+          "note": "Implemented one bounded terminal cleanup DB round-trip reduction in resolveAndPersistBatched: mixed resolved + intentionally unresolved terminal refs now use one rowid-range cleanup call. Current-repo 3-run evidence shows unresolved cleanup median 215ms -> 196ms, wall median 7684ms -> 7639ms, edge count and fallback taxonomy stable. Resolved/intentionally-unresolved sub-buckets now share combined cleanup attribution, so no broader performance claim."
+        },
+        {
+          "q": "1-8-5 closeout artifact where?",
+          "answer": "docs/benchmarks/2026-06-25-rust-hybrid-cleanup-edge-write-optimization-closeout-decision.md",
+          "note": "Result artifact: docs/benchmarks/2026-06-25-rust-hybrid-cleanup-edge-write-optimization-result.json. VS Code sparse and Excalidraw were recorded as needs-human-setup because git rev-parse failed; the agent did not reclone."
+        }
+      ],
+      "notes": "Completed #557-#559. Plan: docs/plans/2026-06-25-rust-hybrid-reference-resolution-cleanup-edge-write-optimization-plan.md. Closeout: docs/benchmarks/2026-06-25-rust-hybrid-cleanup-edge-write-optimization-closeout-decision.md. Classification: keep, bounded cleanup round-trip reduction; no broad performance claim."
     }
   },
   "metadata": {
     "created": "2026-06-24 23:51:01",
-    "updated": "2026-06-25 21:19:05",
+    "updated": "2026-06-25 21:55:31",
     "md_file": "docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md"
   }
 }

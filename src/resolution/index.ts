@@ -1511,27 +1511,26 @@ export class ReferenceResolver {
       // Resolved and intentionally-unresolved refs are both terminal for this
       // pass, so delete them in one rowid batch instead of two transactions.
       const resolvedRefs = result.resolved.map((r) => r.original);
-      if (resolvedRefs.length > 0) {
+      const intentionallyUnresolvedRefs = result.unresolved;
+      const terminalRefs = [...resolvedRefs, ...intentionallyUnresolvedRefs];
+      if (terminalRefs.length > 0) {
         const cleanupStarted = Date.now();
-      this.deleteResolvedOriginals(resolvedRefs, { preferRowIdRanges: true });
-        aggregateStats.timings.resolvedCleanupRowCount =
-          (aggregateStats.timings.resolvedCleanupRowCount ?? 0) + resolvedRefs.length;
+        this.deleteResolvedOriginals(terminalRefs, { preferRowIdRanges: true });
         addElapsed(aggregateStats.timings, 'databaseAccessMs', cleanupStarted);
         addElapsed(aggregateStats.timings, 'unresolvedCleanupMs', cleanupStarted);
         addElapsed(aggregateStats.timings, 'unresolvedCleanupDbMs', cleanupStarted);
-        addElapsed(aggregateStats.timings, 'resolvedCleanupMs', cleanupStarted);
-        addElapsed(aggregateStats.timings, 'resolvedCleanupDbMs', cleanupStarted);
-      }
-      if (result.unresolved.length > 0) {
-        const cleanupStarted = Date.now();
-        this.deleteResolvedOriginals(result.unresolved, { preferRowIdRanges: true });
-        aggregateStats.timings.intentionallyUnresolvedCleanupRowCount =
-          (aggregateStats.timings.intentionallyUnresolvedCleanupRowCount ?? 0) + result.unresolved.length;
-        addElapsed(aggregateStats.timings, 'databaseAccessMs', cleanupStarted);
-        addElapsed(aggregateStats.timings, 'unresolvedCleanupMs', cleanupStarted);
-        addElapsed(aggregateStats.timings, 'unresolvedCleanupDbMs', cleanupStarted);
-        addElapsed(aggregateStats.timings, 'intentionallyUnresolvedCleanupMs', cleanupStarted);
-        addElapsed(aggregateStats.timings, 'intentionallyUnresolvedCleanupDbMs', cleanupStarted);
+        if (resolvedRefs.length > 0) {
+          aggregateStats.timings.resolvedCleanupRowCount =
+            (aggregateStats.timings.resolvedCleanupRowCount ?? 0) + resolvedRefs.length;
+          addElapsed(aggregateStats.timings, 'resolvedCleanupMs', cleanupStarted);
+          addElapsed(aggregateStats.timings, 'resolvedCleanupDbMs', cleanupStarted);
+        }
+        if (intentionallyUnresolvedRefs.length > 0) {
+          aggregateStats.timings.intentionallyUnresolvedCleanupRowCount =
+            (aggregateStats.timings.intentionallyUnresolvedCleanupRowCount ?? 0) + intentionallyUnresolvedRefs.length;
+          addElapsed(aggregateStats.timings, 'intentionallyUnresolvedCleanupMs', cleanupStarted);
+          addElapsed(aggregateStats.timings, 'intentionallyUnresolvedCleanupDbMs', cleanupStarted);
+        }
       }
 
       // Aggregate stats
