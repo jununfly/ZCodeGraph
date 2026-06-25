@@ -164,6 +164,68 @@ function summarizeProfile(profile) {
       'unresolvedCleanupMs',
       'resolvedCleanupMs',
     ]),
+    tailDiagnostics: {
+      typescriptFinalization: {
+        typescriptFinalizationMs: numberOrNull(profile?.typescriptFinalizationMs),
+        ...pickNumbers(finalize, [
+          'frameworkPostExtractMs',
+          'referenceResolutionMs',
+          'dynamicDispatchSynthesisMs',
+          'dbMaintenanceMs',
+        ]),
+      },
+      referenceResolutionLookupCache: {
+        ...pickNumbers(ref, [
+          'candidateLookupMs',
+          'sharedCandidateLookupMs',
+          'candidateLookupCacheHitMs',
+          'nameMatcherCandidateLookupDbMs',
+          'perReferenceDisambiguationMs',
+        ]),
+        candidateProtocol: objectOrNull(ref?.candidateProtocol),
+      },
+      referenceResolutionDatabaseHydration: pickNumbers(ref, [
+        'databaseAccessMs',
+        'cacheWarmupDbMs',
+        'refHydrationDbMs',
+        'unresolvedReadDbMs',
+        'edgeMaterializationDbMs',
+        'edgeEndpointValidationDbMs',
+      ]),
+      edgeWriteCleanup: {
+        ...pickNumbers(ref, [
+          'edgeMaterializationMs',
+          'edgeWriteMs',
+          'edgeWriteDbMs',
+          'edgeInsertCount',
+          'unresolvedCleanupMs',
+          'unresolvedCleanupDbMs',
+          'resolvedCleanupMs',
+          'resolvedCleanupDbMs',
+          'resolvedCleanupRowCount',
+          'intentionallyUnresolvedCleanupMs',
+          'intentionallyUnresolvedCleanupDbMs',
+          'intentionallyUnresolvedCleanupRowCount',
+        ]),
+        cleanupOwnership: objectOrNull(ref?.cleanupOwnership),
+        guardedEdgeWrite: objectOrNull(ref?.guardedEdgeWrite),
+        moduleEdgeWrite: objectOrNull(ref?.moduleEdgeWrite),
+      },
+      semanticReplayMatcherSafety: {
+        ...pickNumbers(ref, [
+          'candidateReplayEligibleRefs',
+          'candidateReplayComparedRefs',
+          'candidateReplayEquivalentRefs',
+          'candidateReplayMismatchRefs',
+          'rustMatcherEligibleRefs',
+          'rustMatcherHandledRefs',
+          'rustMatcherFallbackRefs',
+          'rustMatcherSemanticMismatchRefs',
+        ]),
+        semanticReplay: objectOrNull(ref?.semanticReplay),
+        rustMatcherFallbackReasons: objectOrNull(ref?.rustMatcherFallbackReasons),
+      },
+    },
     typescriptFallbackAppend: profile?.typescriptFallbackAppend ?? null,
     typescriptFinalizationMs: numberOrNull(profile?.typescriptFinalizationMs),
     fallbackTaxonomy: finalize?.fallbackTaxonomy ?? null,
@@ -176,6 +238,10 @@ function pickNumbers(source, keys) {
 
 function numberOrNull(value) {
   return Number.isFinite(value) ? value : null;
+}
+
+function objectOrNull(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : null;
 }
 
 function statusGraphStats(bin, projectPath) {

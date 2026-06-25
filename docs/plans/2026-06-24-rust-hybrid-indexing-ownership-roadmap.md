@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 20:50:14
+> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 21:19:05
 
 [~][X+] 1. Rust-Hybrid Indexing Completion And Performance Roadmap
 ├── [x][X+] 1-1. Current fact base and evidence archive
@@ -29,9 +29,79 @@
 └── [~][Y+] 1-8. First-user performance optimization execution
     ├── [x][X+] 1-8-1. Fact base and targeted baseline evidence
     ├── [x][X+] 1-8-2. Candidate selection and bounded optimization routing
-    ├── [ ][Y+] 1-8-3. Bounded optimization execution
+    ├── [x][Y+] 1-8-3. Bounded optimization execution
     └── [ ][X+] 1-8-4. Guardrail and first-user performance closeout
 <!-- ROADMAP_SECTION_END -->
+
+### 当前施工：1-8-3. Bounded optimization execution
+
+第18刀进入 diagnostic-first execution：实现 tail diagnostic bucket exposure，重跑 targeted current-repo profile/baseline，再选择一个 bounded optimization candidate 或记录 no-go；本刀不直接做性能优化。Plan: docs/plans/2026-06-25-rust-hybrid-first-user-performance-diagnostic-execution-plan.md.
+
+**决策：**
+- Q: 第18刀的边界是否落在 diagnostic-first execution？ → A. 是，只做 tail diagnostic bucket exposure + targeted rerun + candidate/no-go classification (第18刀可改 runner/profile summary 或必要 profile diagnostics，但不做真正性能优化；目标是把第17刀选出的路线变成可执行 evidence。)
+- Q: 第18刀允许改哪些代码面？ → A. 只改 benchmark runner / profile artifact summary / tests / docs，不改 resolver/indexer 语义 (Profile artifact 已经有 candidateProtocol、candidateLookupMs、edgeWriteDbMs、cleanupOwnership 等深字段；第18刀优先让 baseline runner summary 更完整地暴露这些字段，不改 production resolver/indexer pipeline。)
+- Q: 第18刀的 rerun 范围怎么定？ → A. current-repo 3 runs；VS Code sparse / Excalidraw 有效时各 1 run，否则 needs-human-setup (与 1-8-1 baseline scope 对齐。第18刀需要支撑 candidate/no-go classification，current-repo 单次 smoke 不够稳；real corpora 不能由 agent 自动 clone，缺失或无效时继续记录 needs-human-setup。)
+- Q: 第18刀的成功分类怎么定义？ → A. diagnostic-only 成功：必须产出可行动的第一优化候选或明确 no-go (不要求 wall time 改善；要求新增 summary 能解释 tail，并在 rerun 后选出 exactly one candidate，或说明证据仍不足并 no-go。)
+- Q: 第18刀要拆几个 issues？ → A. 3 个：runner summary contract -> targeted rerun -> diagnostic closeout (Issue 1 扩展 baseline runner summary/test，让 tail diagnostic fields 进入 result summary；Issue 2 跑 targeted baseline rerun，产出新 result/profile artifacts；Issue 3 写 diagnostic closeout，选择一个 bounded optimization candidate 或 no-go，并完成 1-8-3。)
+- Q: 第18刀 plan 是否已写入仓库？ → 已写入 docs/plans/2026-06-25-rust-hybrid-first-user-performance-diagnostic-execution-plan.md (Plan 定义 diagnostic-first execution：baseline runner tail diagnostic summary、targeted diagnostic rerun、diagnostic closeout and candidate/no-go classification。允许改 runner/profile summary/tests/docs，不改 resolver/indexer semantics。)
+- Q: 1-8-3 diagnostic execution issues 发布了吗？ → 已发布 #554, #555, #556 (#554 baseline runner tail diagnostic summary；#555 targeted diagnostic baseline rerun，blocked by #554；#556 diagnostic closeout and next optimization candidate decision，blocked by #555。三者均标记 enhancement + ready-for-agent。)
+
+### 当前施工：1-8-3. Bounded optimization execution
+
+第18刀进入 diagnostic-first execution：实现 tail diagnostic bucket exposure，重跑 targeted current-repo profile/baseline，再选择一个 bounded optimization candidate 或记录 no-go；本刀不直接做性能优化。Plan: docs/plans/2026-06-25-rust-hybrid-first-user-performance-diagnostic-execution-plan.md.
+
+**决策：**
+- Q: 第18刀的边界是否落在 diagnostic-first execution？ → A. 是，只做 tail diagnostic bucket exposure + targeted rerun + candidate/no-go classification (第18刀可改 runner/profile summary 或必要 profile diagnostics，但不做真正性能优化；目标是把第17刀选出的路线变成可执行 evidence。)
+- Q: 第18刀允许改哪些代码面？ → A. 只改 benchmark runner / profile artifact summary / tests / docs，不改 resolver/indexer 语义 (Profile artifact 已经有 candidateProtocol、candidateLookupMs、edgeWriteDbMs、cleanupOwnership 等深字段；第18刀优先让 baseline runner summary 更完整地暴露这些字段，不改 production resolver/indexer pipeline。)
+- Q: 第18刀的 rerun 范围怎么定？ → A. current-repo 3 runs；VS Code sparse / Excalidraw 有效时各 1 run，否则 needs-human-setup (与 1-8-1 baseline scope 对齐。第18刀需要支撑 candidate/no-go classification，current-repo 单次 smoke 不够稳；real corpora 不能由 agent 自动 clone，缺失或无效时继续记录 needs-human-setup。)
+- Q: 第18刀的成功分类怎么定义？ → A. diagnostic-only 成功：必须产出可行动的第一优化候选或明确 no-go (不要求 wall time 改善；要求新增 summary 能解释 tail，并在 rerun 后选出 exactly one candidate，或说明证据仍不足并 no-go。)
+- Q: 第18刀要拆几个 issues？ → A. 3 个：runner summary contract -> targeted rerun -> diagnostic closeout (Issue 1 扩展 baseline runner summary/test，让 tail diagnostic fields 进入 result summary；Issue 2 跑 targeted baseline rerun，产出新 result/profile artifacts；Issue 3 写 diagnostic closeout，选择一个 bounded optimization candidate 或 no-go，并完成 1-8-3。)
+- Q: 第18刀 plan 是否已写入仓库？ → 已写入 docs/plans/2026-06-25-rust-hybrid-first-user-performance-diagnostic-execution-plan.md (Plan 定义 diagnostic-first execution：baseline runner tail diagnostic summary、targeted diagnostic rerun、diagnostic closeout and candidate/no-go classification。允许改 runner/profile summary/tests/docs，不改 resolver/indexer semantics。)
+
+### 当前施工：1-8-3. Bounded optimization execution
+
+第18刀进入 diagnostic-first execution：实现 tail diagnostic bucket exposure，重跑 targeted current-repo profile/baseline，再选择一个 bounded optimization candidate 或记录 no-go；本刀不直接做性能优化。
+
+**决策：**
+- Q: 第18刀的边界是否落在 diagnostic-first execution？ → A. 是，只做 tail diagnostic bucket exposure + targeted rerun + candidate/no-go classification (第18刀可改 runner/profile summary 或必要 profile diagnostics，但不做真正性能优化；目标是把第17刀选出的路线变成可执行 evidence。)
+- Q: 第18刀允许改哪些代码面？ → A. 只改 benchmark runner / profile artifact summary / tests / docs，不改 resolver/indexer 语义 (Profile artifact 已经有 candidateProtocol、candidateLookupMs、edgeWriteDbMs、cleanupOwnership 等深字段；第18刀优先让 baseline runner summary 更完整地暴露这些字段，不改 production resolver/indexer pipeline。)
+- Q: 第18刀的 rerun 范围怎么定？ → A. current-repo 3 runs；VS Code sparse / Excalidraw 有效时各 1 run，否则 needs-human-setup (与 1-8-1 baseline scope 对齐。第18刀需要支撑 candidate/no-go classification，current-repo 单次 smoke 不够稳；real corpora 不能由 agent 自动 clone，缺失或无效时继续记录 needs-human-setup。)
+- Q: 第18刀的成功分类怎么定义？ → A. diagnostic-only 成功：必须产出可行动的第一优化候选或明确 no-go (不要求 wall time 改善；要求新增 summary 能解释 tail，并在 rerun 后选出 exactly one candidate，或说明证据仍不足并 no-go。)
+- Q: 第18刀要拆几个 issues？ → A. 3 个：runner summary contract -> targeted rerun -> diagnostic closeout (Issue 1 扩展 baseline runner summary/test，让 tail diagnostic fields 进入 result summary；Issue 2 跑 targeted baseline rerun，产出新 result/profile artifacts；Issue 3 写 diagnostic closeout，选择一个 bounded optimization candidate 或 no-go，并完成 1-8-3。)
+
+### 当前施工：1-8-3. Bounded optimization execution
+
+第18刀进入 diagnostic-first execution：实现 tail diagnostic bucket exposure，重跑 targeted current-repo profile/baseline，再选择一个 bounded optimization candidate 或记录 no-go；本刀不直接做性能优化。
+
+**决策：**
+- Q: 第18刀的边界是否落在 diagnostic-first execution？ → A. 是，只做 tail diagnostic bucket exposure + targeted rerun + candidate/no-go classification (第18刀可改 runner/profile summary 或必要 profile diagnostics，但不做真正性能优化；目标是把第17刀选出的路线变成可执行 evidence。)
+- Q: 第18刀允许改哪些代码面？ → A. 只改 benchmark runner / profile artifact summary / tests / docs，不改 resolver/indexer 语义 (Profile artifact 已经有 candidateProtocol、candidateLookupMs、edgeWriteDbMs、cleanupOwnership 等深字段；第18刀优先让 baseline runner summary 更完整地暴露这些字段，不改 production resolver/indexer pipeline。)
+- Q: 第18刀的 rerun 范围怎么定？ → A. current-repo 3 runs；VS Code sparse / Excalidraw 有效时各 1 run，否则 needs-human-setup (与 1-8-1 baseline scope 对齐。第18刀需要支撑 candidate/no-go classification，current-repo 单次 smoke 不够稳；real corpora 不能由 agent 自动 clone，缺失或无效时继续记录 needs-human-setup。)
+- Q: 第18刀的成功分类怎么定义？ → A. diagnostic-only 成功：必须产出可行动的第一优化候选或明确 no-go (不要求 wall time 改善；要求新增 summary 能解释 tail，并在 rerun 后选出 exactly one candidate，或说明证据仍不足并 no-go。)
+
+### 当前施工：1-8-3. Bounded optimization execution
+
+第18刀进入 diagnostic-first execution：实现 tail diagnostic bucket exposure，重跑 targeted current-repo profile/baseline，再选择一个 bounded optimization candidate 或记录 no-go；本刀不直接做性能优化。
+
+**决策：**
+- Q: 第18刀的边界是否落在 diagnostic-first execution？ → A. 是，只做 tail diagnostic bucket exposure + targeted rerun + candidate/no-go classification (第18刀可改 runner/profile summary 或必要 profile diagnostics，但不做真正性能优化；目标是把第17刀选出的路线变成可执行 evidence。)
+- Q: 第18刀允许改哪些代码面？ → A. 只改 benchmark runner / profile artifact summary / tests / docs，不改 resolver/indexer 语义 (Profile artifact 已经有 candidateProtocol、candidateLookupMs、edgeWriteDbMs、cleanupOwnership 等深字段；第18刀优先让 baseline runner summary 更完整地暴露这些字段，不改 production resolver/indexer pipeline。)
+- Q: 第18刀的 rerun 范围怎么定？ → A. current-repo 3 runs；VS Code sparse / Excalidraw 有效时各 1 run，否则 needs-human-setup (与 1-8-1 baseline scope 对齐。第18刀需要支撑 candidate/no-go classification，current-repo 单次 smoke 不够稳；real corpora 不能由 agent 自动 clone，缺失或无效时继续记录 needs-human-setup。)
+
+### 当前施工：1-8-3. Bounded optimization execution
+
+第18刀进入 diagnostic-first execution：实现 tail diagnostic bucket exposure，重跑 targeted current-repo profile/baseline，再选择一个 bounded optimization candidate 或记录 no-go；本刀不直接做性能优化。
+
+**决策：**
+- Q: 第18刀的边界是否落在 diagnostic-first execution？ → A. 是，只做 tail diagnostic bucket exposure + targeted rerun + candidate/no-go classification (第18刀可改 runner/profile summary 或必要 profile diagnostics，但不做真正性能优化；目标是把第17刀选出的路线变成可执行 evidence。)
+- Q: 第18刀允许改哪些代码面？ → A. 只改 benchmark runner / profile artifact summary / tests / docs，不改 resolver/indexer 语义 (Profile artifact 已经有 candidateProtocol、candidateLookupMs、edgeWriteDbMs、cleanupOwnership 等深字段；第18刀优先让 baseline runner summary 更完整地暴露这些字段，不改 production resolver/indexer pipeline。)
+
+### 当前施工：1-8-3. Bounded optimization execution
+
+第18刀进入 diagnostic-first execution：实现 tail diagnostic bucket exposure，重跑 targeted current-repo profile/baseline，再选择一个 bounded optimization candidate 或记录 no-go；本刀不直接做性能优化。
+
+**决策：**
+- Q: 第18刀的边界是否落在 diagnostic-first execution？ → A. 是，只做 tail diagnostic bucket exposure + targeted rerun + candidate/no-go classification (第18刀可改 runner/profile summary 或必要 profile diagnostics，但不做真正性能优化；目标是把第17刀选出的路线变成可执行 evidence。)
 
 ### 当前施工：1-8-2. Candidate selection and bounded optimization routing
 

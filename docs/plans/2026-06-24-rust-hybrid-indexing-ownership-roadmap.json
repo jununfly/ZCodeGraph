@@ -1158,12 +1158,58 @@
     "1-8-3": {
       "id": "1-8-3",
       "label": "Bounded optimization execution",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-8",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "第18刀的边界是否落在 diagnostic-first execution？",
+          "answer": "A. 是，只做 tail diagnostic bucket exposure + targeted rerun + candidate/no-go classification",
+          "note": "第18刀可改 runner/profile summary 或必要 profile diagnostics，但不做真正性能优化；目标是把第17刀选出的路线变成可执行 evidence。"
+        },
+        {
+          "q": "第18刀允许改哪些代码面？",
+          "answer": "A. 只改 benchmark runner / profile artifact summary / tests / docs，不改 resolver/indexer 语义",
+          "note": "Profile artifact 已经有 candidateProtocol、candidateLookupMs、edgeWriteDbMs、cleanupOwnership 等深字段；第18刀优先让 baseline runner summary 更完整地暴露这些字段，不改 production resolver/indexer pipeline。"
+        },
+        {
+          "q": "第18刀的 rerun 范围怎么定？",
+          "answer": "A. current-repo 3 runs；VS Code sparse / Excalidraw 有效时各 1 run，否则 needs-human-setup",
+          "note": "与 1-8-1 baseline scope 对齐。第18刀需要支撑 candidate/no-go classification，current-repo 单次 smoke 不够稳；real corpora 不能由 agent 自动 clone，缺失或无效时继续记录 needs-human-setup。"
+        },
+        {
+          "q": "第18刀的成功分类怎么定义？",
+          "answer": "A. diagnostic-only 成功：必须产出可行动的第一优化候选或明确 no-go",
+          "note": "不要求 wall time 改善；要求新增 summary 能解释 tail，并在 rerun 后选出 exactly one candidate，或说明证据仍不足并 no-go。"
+        },
+        {
+          "q": "第18刀要拆几个 issues？",
+          "answer": "A. 3 个：runner summary contract -> targeted rerun -> diagnostic closeout",
+          "note": "Issue 1 扩展 baseline runner summary/test，让 tail diagnostic fields 进入 result summary；Issue 2 跑 targeted baseline rerun，产出新 result/profile artifacts；Issue 3 写 diagnostic closeout，选择一个 bounded optimization candidate 或 no-go，并完成 1-8-3。"
+        },
+        {
+          "q": "第18刀 plan 是否已写入仓库？",
+          "answer": "已写入 docs/plans/2026-06-25-rust-hybrid-first-user-performance-diagnostic-execution-plan.md",
+          "note": "Plan 定义 diagnostic-first execution：baseline runner tail diagnostic summary、targeted diagnostic rerun、diagnostic closeout and candidate/no-go classification。允许改 runner/profile summary/tests/docs，不改 resolver/indexer semantics。"
+        },
+        {
+          "q": "1-8-3 diagnostic execution issues 发布了吗？",
+          "answer": "已发布 #554, #555, #556",
+          "note": "#554 baseline runner tail diagnostic summary；#555 targeted diagnostic baseline rerun，blocked by #554；#556 diagnostic closeout and next optimization candidate decision，blocked by #555。三者均标记 enhancement + ready-for-agent。"
+        },
+        {
+          "q": "1-8-3 diagnostic execution issues 完成了吗？",
+          "answer": "已完成 #554, #555, #556",
+          "note": "#554 扩展 baseline runner summary 的 tailDiagnostics 并补 deterministic tests；#555 跑 targeted diagnostic baseline，current-repo 3 runs completed，VS Code sparse/Excalidraw 继续 needs-human-setup；#556 写入 docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-diagnostic-closeout-decision.md。"
+        },
+        {
+          "q": "下一 bounded optimization candidate 是什么？",
+          "answer": "reference-resolution cleanup / edge-write path",
+          "note": "诊断结果显示 TypeScript finalization median 2909 ms、referenceResolution median 2222 ms。ref-resolution 子桶中 databaseAccessMs 单项最大 422 ms，但 cleanup + edge-write cluster 更适合 bounded optimization：unresolved cleanup 215 ms、edge write 138 ms、resolved cleanup 114 ms、intentionally unresolved cleanup 101 ms，且有 graph parity / cleanup ownership guardrails。"
+        }
+      ],
+      "notes": "Completed as diagnostic-only execution by #554-#556. Runner summary now exposes tailDiagnostics; targeted diagnostic baseline completed current-repo 3 runs and recorded VS Code sparse/Excalidraw as needs-human-setup. Closeout: docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-diagnostic-closeout-decision.md. Next bounded optimization candidate: reference-resolution cleanup / edge-write path."
     },
     "1-8-4": {
       "id": "1-8-4",
@@ -1178,7 +1224,7 @@
   },
   "metadata": {
     "created": "2026-06-24 23:51:01",
-    "updated": "2026-06-25 20:50:14",
+    "updated": "2026-06-25 21:19:05",
     "md_file": "docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md"
   }
 }

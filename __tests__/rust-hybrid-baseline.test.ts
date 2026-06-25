@@ -54,7 +54,22 @@ describe('rust-hybrid baseline runner', () => {
       '    rustCore: { sourceScanMs: 1, parseExtractionMs: 2, sqliteWriteMs: 3, subprocessStartupHandoffMs: 4 },',
       '    finalize: {',
       '      frameworkPostExtractMs: 5, referenceResolutionMs: 6, dynamicDispatchSynthesisMs: 7, dbMaintenanceMs: 8,',
-      '      referenceResolutionBreakdown: { importResolutionMs: 1, nameMatchingMs: 2, frameworkMatchingMs: 3, databaseAccessMs: 4, edgeWriteMs: 5, unresolvedCleanupMs: 6, resolvedCleanupMs: 7 },',
+      '      referenceResolutionBreakdown: {',
+      '        importResolutionMs: 1, nameMatchingMs: 2, frameworkMatchingMs: 3, databaseAccessMs: 4,',
+      '        cacheWarmupDbMs: 10, refHydrationDbMs: 11, unresolvedReadDbMs: 12,',
+      '        candidateLookupMs: 13, sharedCandidateLookupMs: 14, candidateLookupCacheHitMs: 15,',
+      '        nameMatcherCandidateLookupDbMs: 16, perReferenceDisambiguationMs: 17,',
+      '        edgeMaterializationMs: 18, edgeMaterializationDbMs: 19, edgeEndpointValidationDbMs: 20,',
+      '        edgeWriteMs: 5, edgeWriteDbMs: 21, edgeInsertCount: 22,',
+      '        unresolvedCleanupMs: 6, unresolvedCleanupDbMs: 23, resolvedCleanupMs: 7, resolvedCleanupDbMs: 24, resolvedCleanupRowCount: 25,',
+      '        intentionallyUnresolvedCleanupMs: 26, intentionallyUnresolvedCleanupDbMs: 27, intentionallyUnresolvedCleanupRowCount: 28,',
+      '        candidateReplayEligibleRefs: 29, candidateReplayComparedRefs: 30, candidateReplayEquivalentRefs: 31, candidateReplayMismatchRefs: 32,',
+      '        rustMatcherEligibleRefs: 33, rustMatcherHandledRefs: 34, rustMatcherFallbackRefs: 35, rustMatcherSemanticMismatchRefs: 36,',
+      '        rustMatcherFallbackReasons: { unsupported: 1 },',
+      '        candidateProtocol: { enabled: true, lookupMs: 37, lookupCount: 38, lookupShapeCounts: { ExactName: 1 } },',
+      '        cleanupOwnership: { retainedRefs: 39 }, guardedEdgeWrite: { attemptedRefs: 40 }, moduleEdgeWrite: { writtenEdges: 41 },',
+      '        semanticReplay: { eligibleRefs: 42, comparedRefs: 43, equivalentRefs: 44, mismatchRefs: 0 }',
+      '      },',
       '      fallbackTaxonomy: { totalFallbacks: 1, entries: [{ stage: "reference", classification: "known-unsupported", reason: "fixture", count: 1 }]}',
       '    },',
       '    typescriptFinalizationMs: 9',
@@ -113,7 +128,18 @@ describe('rust-hybrid baseline runner', () => {
           rssUnavailableKind: string | null;
           rssUnavailableReason: string | null;
           graphStats: { available: boolean; fileCount: number; nodeCount: number; edgeCount: number };
-          profileSummary: { complete: boolean; lastCheckpoint: { name: string }; fallbackTaxonomy: { totalFallbacks: number } };
+          profileSummary: {
+            complete: boolean;
+            lastCheckpoint: { name: string };
+            fallbackTaxonomy: { totalFallbacks: number };
+            tailDiagnostics: {
+              typescriptFinalization: { typescriptFinalizationMs: number; referenceResolutionMs: number };
+              referenceResolutionLookupCache: { candidateLookupMs: number; candidateProtocol: { lookupMs: number } };
+              referenceResolutionDatabaseHydration: { refHydrationDbMs: number };
+              edgeWriteCleanup: { edgeWriteDbMs: number; cleanupOwnership: { retainedRefs: number } };
+              semanticReplayMatcherSafety: { rustMatcherEligibleRefs: number; semanticReplay: { eligibleRefs: number } };
+            };
+          };
         }>;
         summary: { medianWallMs: number; wallMsVariance: number };
       }>;
@@ -147,6 +173,60 @@ describe('rust-hybrid baseline runner', () => {
       complete: true,
       lastCheckpoint: { name: 'profile.completed' },
       fallbackTaxonomy: { totalFallbacks: 1 },
+      tailDiagnostics: {
+        typescriptFinalization: {
+          typescriptFinalizationMs: 9,
+          frameworkPostExtractMs: 5,
+          referenceResolutionMs: 6,
+          dynamicDispatchSynthesisMs: 7,
+          dbMaintenanceMs: 8,
+        },
+        referenceResolutionLookupCache: {
+          candidateLookupMs: 13,
+          sharedCandidateLookupMs: 14,
+          candidateLookupCacheHitMs: 15,
+          nameMatcherCandidateLookupDbMs: 16,
+          perReferenceDisambiguationMs: 17,
+          candidateProtocol: { enabled: true, lookupMs: 37, lookupCount: 38 },
+        },
+        referenceResolutionDatabaseHydration: {
+          databaseAccessMs: 4,
+          cacheWarmupDbMs: 10,
+          refHydrationDbMs: 11,
+          unresolvedReadDbMs: 12,
+          edgeMaterializationDbMs: 19,
+          edgeEndpointValidationDbMs: 20,
+        },
+        edgeWriteCleanup: {
+          edgeMaterializationMs: 18,
+          edgeWriteMs: 5,
+          edgeWriteDbMs: 21,
+          edgeInsertCount: 22,
+          unresolvedCleanupMs: 6,
+          unresolvedCleanupDbMs: 23,
+          resolvedCleanupMs: 7,
+          resolvedCleanupDbMs: 24,
+          resolvedCleanupRowCount: 25,
+          intentionallyUnresolvedCleanupMs: 26,
+          intentionallyUnresolvedCleanupDbMs: 27,
+          intentionallyUnresolvedCleanupRowCount: 28,
+          cleanupOwnership: { retainedRefs: 39 },
+          guardedEdgeWrite: { attemptedRefs: 40 },
+          moduleEdgeWrite: { writtenEdges: 41 },
+        },
+        semanticReplayMatcherSafety: {
+          candidateReplayEligibleRefs: 29,
+          candidateReplayComparedRefs: 30,
+          candidateReplayEquivalentRefs: 31,
+          candidateReplayMismatchRefs: 32,
+          rustMatcherEligibleRefs: 33,
+          rustMatcherHandledRefs: 34,
+          rustMatcherFallbackRefs: 35,
+          rustMatcherSemanticMismatchRefs: 36,
+          rustMatcherFallbackReasons: { unsupported: 1 },
+          semanticReplay: { eligibleRefs: 42, comparedRefs: 43 },
+        },
+      },
     });
   });
 
@@ -376,7 +456,19 @@ describe('rust-hybrid baseline runner', () => {
       results: Array<{
         status: string;
         completedRuns: number;
-        runs: Array<{ status: string; peakRssBytes: number | null; rssUnavailableKind: string | null; rssUnavailableReason: string | null }>;
+        runs: Array<{
+          status: string;
+          peakRssBytes: number | null;
+          rssUnavailableKind: string | null;
+          rssUnavailableReason: string | null;
+          profileSummary: {
+            tailDiagnostics: {
+              referenceResolutionLookupCache: { candidateProtocol: null };
+              edgeWriteCleanup: { cleanupOwnership: null; guardedEdgeWrite: null; moduleEdgeWrite: null };
+              semanticReplayMatcherSafety: { semanticReplay: null; rustMatcherFallbackReasons: null };
+            };
+          };
+        }>;
       }>;
     };
     expect(artifact.resultClassification).toBe('baseline-frozen');
@@ -386,6 +478,13 @@ describe('rust-hybrid baseline runner', () => {
       peakRssBytes: null,
       rssUnavailableKind: 'command-wrapper-no-rss',
       rssUnavailableReason: 'command RSS sampling did not report maximum resident set size',
+      profileSummary: {
+        tailDiagnostics: {
+          referenceResolutionLookupCache: { candidateProtocol: null },
+          edgeWriteCleanup: { cleanupOwnership: null, guardedEdgeWrite: null, moduleEdgeWrite: null },
+          semanticReplayMatcherSafety: { semanticReplay: null, rustMatcherFallbackReasons: null },
+        },
+      },
     });
   });
 
