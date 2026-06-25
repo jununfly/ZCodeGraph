@@ -1791,6 +1791,202 @@ describe('zcodegraph index engine selection', () => {
     ]));
   }, 30_000);
 
+  it('reports Rust-owned module edge-write diagnostics for relative and paths-alias file imports', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          baseUrl: '.',
+          paths: {
+            '@app/*': ['src/*'],
+          },
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'helper.ts'),
+      'export const helperValue = 1;\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'relative-entry.ts'),
+      'import "./helper";\nexport const relativeEntry = helperValue;\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'alias-entry.ts'),
+      'import "@app/helper";\nexport const aliasEntry = 1;\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'module-edge-write-profile.json');
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const relativeFile = cg.searchNodes('relative-entry.ts').find((match) => match.node.kind === 'file')?.node;
+      const aliasFile = cg.searchNodes('alias-entry.ts').find((match) => match.node.kind === 'file')?.node;
+      const helperFile = cg.searchNodes('helper.ts').find((match) => match.node.kind === 'file')?.node;
+      expect(relativeFile).toBeDefined();
+      expect(aliasFile).toBeDefined();
+      expect(helperFile).toBeDefined();
+
+      const relativeImports = cg.getOutgoingEdges(relativeFile!.id, ['imports'], 'rust-finalization');
+      const aliasImports = cg.getOutgoingEdges(aliasFile!.id, ['imports'], 'rust-finalization');
+      expect(relativeImports).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          target: helperFile!.id,
+          edgeOrigin: 'rust-finalization',
+        }),
+      ]));
+      expect(aliasImports).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          target: helperFile!.id,
+          edgeOrigin: 'rust-finalization',
+        }),
+      ]));
+    } finally {
+      cg.close();
+    }
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          moduleEdgeWrite: {
+            owner: string;
+            mode: string;
+            eligibleRefs: number;
+            attemptedRefs: number;
+            writtenEdges: number;
+            skippedRefs: number;
+            skipReasons: Record<string, number>;
+            edgeKindCounts: Record<string, number>;
+            supportedSources: string[];
+            excludedSources: string[];
+          };
+        };
+      };
+    };
+    const moduleEdgeWrite = profile.finalize.referenceResolutionBreakdown.moduleEdgeWrite;
+    expect(moduleEdgeWrite).toMatchObject({
+      owner: 'rust-core',
+      mode: 'guarded-file-imports',
+      eligibleRefs: expect.any(Number),
+      attemptedRefs: expect.any(Number),
+      writtenEdges: expect.any(Number),
+      skippedRefs: expect.any(Number),
+      skipReasons: expect.any(Object),
+      edgeKindCounts: expect.objectContaining({
+        imports: expect.any(Number),
+      }),
+      supportedSources: ['relative', 'tsconfigPaths'],
+      excludedSources: expect.arrayContaining([
+        'rootDirs',
+        'packageSelfName',
+        'packageImports',
+        'packageExports',
+        'defaultImports',
+        'namespaceImports',
+        'symbolUsageEdges',
+        'declarationRuntimeRewrite',
+      ]),
+    });
+    expect(moduleEdgeWrite.eligibleRefs).toBeGreaterThanOrEqual(2);
+    expect(moduleEdgeWrite.attemptedRefs).toBeGreaterThanOrEqual(2);
+    expect(moduleEdgeWrite.writtenEdges).toBeGreaterThanOrEqual(2);
+    expect(moduleEdgeWrite.edgeKindCounts.imports).toBeGreaterThanOrEqual(2);
+  }, 30_000);
+
+  it('reports fail-closed module edge-write skip taxonomy without writing missing target imports', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          baseUrl: '.',
+          paths: {
+            '@missing/*': ['src/missing/*'],
+            '@ghost': ['src/ghost.txt'],
+          },
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(path.join(tempDir, 'src', 'dep.ts'), 'export const dep = 1;\n');
+    fs.writeFileSync(path.join(tempDir, 'src', 'ghost.txt'), 'not indexed as code\n');
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'main.ts'),
+      [
+        "import { dep } from './dep';",
+        "import { missing } from '@missing/value';",
+        "import { ghost } from '@ghost';",
+        'export const total = dep;',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'module-edge-write-skip-profile.json');
+    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const mainFile = cg.searchNodes('main.ts').find((match) => match.node.kind === 'file')?.node;
+      const depFile = cg.searchNodes('dep.ts').find((match) => match.node.kind === 'file')?.node;
+      const depSymbol = cg.searchNodes('dep').find((match) => match.node.filePath === 'src/dep.ts')?.node;
+      expect(mainFile).toBeDefined();
+      expect(depFile).toBeDefined();
+      expect(depSymbol).toBeDefined();
+
+      const importEdges = cg
+        .getOutgoingEdges(mainFile!.id)
+        .filter((edge) => edge.kind === 'imports' && edge.edgeOrigin === 'rust-finalization');
+      expect(importEdges).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          target: depFile!.id,
+          edgeOrigin: 'rust-finalization',
+        }),
+      ]));
+      const allowedTargets = new Set([depFile!.id, depSymbol!.id]);
+      expect(importEdges.every((edge) => allowedTargets.has(edge.target))).toBe(true);
+    } finally {
+      cg.close();
+    }
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          moduleEdgeWrite: {
+            attemptedRefs: number;
+            writtenEdges: number;
+            skippedRefs: number;
+            skipReasons: Record<string, number>;
+            edgeKindCounts: Record<string, number>;
+          };
+        };
+      };
+    };
+    const moduleEdgeWrite = profile.finalize.referenceResolutionBreakdown.moduleEdgeWrite;
+    expect(moduleEdgeWrite).toMatchObject({
+      attemptedRefs: expect.any(Number),
+      writtenEdges: expect.any(Number),
+      skippedRefs: expect.any(Number),
+      skipReasons: {
+        'tsconfig-path-target-not-found': expect.any(Number),
+        'file-node-not-found': expect.any(Number),
+      },
+      edgeKindCounts: {
+        imports: expect.any(Number),
+      },
+    });
+    expect(moduleEdgeWrite.attemptedRefs).toBeGreaterThanOrEqual(3);
+    expect(moduleEdgeWrite.writtenEdges).toBe(1);
+    expect(moduleEdgeWrite.skippedRefs).toBeGreaterThanOrEqual(2);
+    expect(moduleEdgeWrite.skipReasons['tsconfig-path-target-not-found']).toBeGreaterThanOrEqual(1);
+    expect(moduleEdgeWrite.skipReasons['file-node-not-found']).toBeGreaterThanOrEqual(1);
+  }, 30_000);
+
   it('reports finalization cleanup ownership as a public contract diagnostic', () => {
     fs.writeFileSync(
       path.join(tempDir, 'cleanup_contract.rb'),

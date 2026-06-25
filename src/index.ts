@@ -74,6 +74,10 @@ type RustCoreProfileLike = {
   esmNamedImportExportEdgeWriteSkippedRefs?: number;
   esmNamedImportExportEdgeWriteSkippedCounts?: Record<string, number>;
   esmNamedImportExportEdgeWriteSkippedSamples?: Array<Record<string, unknown>>;
+  moduleResolutionGuardedEdgeWriteAttemptedRefs?: number;
+  moduleResolutionGuardedEdgeWriteWrittenRefs?: number;
+  moduleResolutionGuardedEdgeWriteSkippedRefs?: number;
+  moduleResolutionGuardedEdgeWriteSkippedCounts?: Record<string, number>;
 };
 
 type GuardedEdgeWriteDiagnostics = {
@@ -84,6 +88,19 @@ type GuardedEdgeWriteDiagnostics = {
   skipReasons: Record<string, number>;
   skipSamples: Array<Record<string, unknown>>;
   edgeKindCounts: Record<string, number>;
+};
+
+type ModuleEdgeWriteDiagnostics = {
+  owner: 'rust-core';
+  mode: 'guarded-file-imports';
+  eligibleRefs: number;
+  attemptedRefs: number;
+  writtenEdges: number;
+  skippedRefs: number;
+  skipReasons: Record<string, number>;
+  edgeKindCounts: Record<string, number>;
+  supportedSources: Array<'relative' | 'tsconfigPaths'>;
+  excludedSources: string[];
 };
 
 type CleanupOwnershipDiagnostics = {
@@ -154,6 +171,37 @@ function guardedEdgeWriteDiagnosticsFromRustCore(profile: unknown): GuardedEdgeW
     edgeKindCounts: {
       calls: writtenEdges,
     },
+  };
+}
+
+function moduleEdgeWriteDiagnosticsFromRustCore(profile: unknown): ModuleEdgeWriteDiagnostics {
+  const rustProfile = rustCoreProfileLike(profile);
+  const attemptedRefs = rustProfile.moduleResolutionGuardedEdgeWriteAttemptedRefs ?? 0;
+  const writtenEdges = rustProfile.moduleResolutionGuardedEdgeWriteWrittenRefs ?? 0;
+  const skippedRefs = rustProfile.moduleResolutionGuardedEdgeWriteSkippedRefs ?? 0;
+  return {
+    owner: 'rust-core',
+    mode: 'guarded-file-imports',
+    eligibleRefs: attemptedRefs,
+    attemptedRefs,
+    writtenEdges,
+    skippedRefs,
+    skipReasons: rustProfile.moduleResolutionGuardedEdgeWriteSkippedCounts ?? {},
+    edgeKindCounts: {
+      imports: writtenEdges,
+    },
+    supportedSources: ['relative', 'tsconfigPaths'],
+    excludedSources: [
+      'rootDirs',
+      'packageSelfName',
+      'packageImports',
+      'packageExports',
+      'defaultImports',
+      'namespaceImports',
+      'typeOnlyImports',
+      'symbolUsageEdges',
+      'declarationRuntimeRewrite',
+    ],
   };
 }
 
@@ -1143,6 +1191,7 @@ export class CodeGraph {
           }>;
         };
         guardedEdgeWrite: GuardedEdgeWriteDiagnostics;
+        moduleEdgeWrite: ModuleEdgeWriteDiagnostics;
         cleanupOwnership: CleanupOwnershipDiagnostics;
         candidateProtocol: CandidateProtocolDiagnostics;
         edgeMaterializationMs: number;
@@ -1273,6 +1322,7 @@ export class CodeGraph {
               }>,
             },
             guardedEdgeWrite: guardedEdgeWriteDiagnosticsFromRustCore(rustCoreProfile),
+            moduleEdgeWrite: moduleEdgeWriteDiagnosticsFromRustCore(rustCoreProfile),
             cleanupOwnership: cleanupOwnershipDiagnostics(),
             candidateProtocol: {
               enabled: true,
@@ -1523,6 +1573,7 @@ export class CodeGraph {
           candidateReplayMismatchSamples: resolutionTimings?.candidateReplayMismatchSamples ?? [],
           semanticReplay: resolutionTimings?.semanticReplay ?? profile.referenceResolutionBreakdown.semanticReplay,
           guardedEdgeWrite: profile.referenceResolutionBreakdown.guardedEdgeWrite,
+          moduleEdgeWrite: profile.referenceResolutionBreakdown.moduleEdgeWrite,
           cleanupOwnership: cleanupOwnershipDiagnostics({
             resolvedTerminalRefs: resolutionTimings?.resolvedCleanupRowCount ?? 0,
             intentionallyUnresolvedTerminalRefs: resolutionTimings?.intentionallyUnresolvedCleanupRowCount ?? 0,
