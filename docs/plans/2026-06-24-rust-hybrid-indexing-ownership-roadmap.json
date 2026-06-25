@@ -6,7 +6,7 @@
     "1": {
       "id": "1",
       "label": "Rust-Hybrid Indexing Completion And Performance Roadmap",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": null,
       "children": [
@@ -28,6 +28,16 @@
           "q": "Tree trunk",
           "answer": "Use ownership migration as the trunk; use end-to-end indexing path inside each ownership area; use user outcome as guardrails.",
           "note": "This avoids letting performance grow into a separate maze."
+        },
+        {
+          "q": "第15刀是否先做当前 roadmap 最终收尾？",
+          "answer": "A. 先做最终收尾",
+          "note": "当前 roadmap root 已完成，但第14刀 closeout artifact、doc contract test 和 roadmap 更新还未提交；第15刀先验证、提交/push，并决定是否需要 issue/closeout 记录，再开启下一张地图。"
+        },
+        {
+          "q": "最终收尾是否创建 GitHub issue？",
+          "answer": "B. 不创建 issue，直接验证、提交、push",
+          "note": "这是 closeout bookkeeping，不是新的 implementation slice；避免给 tracker 增加流程性噪音。"
         }
       ],
       "notes": ""
@@ -135,7 +145,7 @@
     "1-6": {
       "id": "1-6",
       "label": "No-go defer and research archive",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -513,12 +523,58 @@
     "1-6-2": {
       "id": "1-6-2",
       "label": "Research and oracle-needed routes",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-6",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "第14刀主攻哪一块？",
+          "answer": "A. Research and oracle-needed routes",
+          "note": "当前 roadmap 只剩 1-6-2 未完成；第14刀收口 research/oracle-needed 路线，明确哪些暂不进主线、哪些需要 oracle/research、未来如何重新打开。"
+        },
+        {
+          "q": "1-6-2 的收口产物是什么？",
+          "answer": "A. Roadmap closeout + durable decision artifact",
+          "note": "1-6-2 不是 implementation slice；用 durable decision artifact 归档 needs-oracle/research 路线、暂不进主线理由、未来 reopen 条件，同时在 roadmap 标记完成。"
+        },
+        {
+          "q": "1-6-2 durable decision artifact 放在哪里？",
+          "answer": "A. docs/benchmarks closeout decision artifact",
+          "note": "文件建议为 docs/benchmarks/2026-06-25-rust-hybrid-research-oracle-needed-routes-closeout-decision.md；它是当前 roadmap 的执行决策归档，不是 ADR 或下一轮 plan。"
+        },
+        {
+          "q": "1-6-2 decision artifact 覆盖哪些 route？",
+          "answer": "A. 覆盖当前 roadmap 明确留给 research/oracle 的路线",
+          "note": "覆盖 node_modules/third-party graph expansion、package manager edge cases、typesVersions、symlink/preserveSymlinks/pnpm virtual store、type-only vs runtime divergence、advanced declaration/runtime semantics、CSS/assets/custom non-code modules、package/runtime/builtin imports product switch。不要重新打开全部历史 TypeScript moduleResolution 边界。"
+        },
+        {
+          "q": "research/oracle routes 使用哪些分类？",
+          "answer": "A. defer/no-go taxonomy、needs-oracle/research、future explicit product switch",
+          "note": "defer/no-go taxonomy 表示当前不实现但保留诊断分类；needs-oracle/research 表示未来必须先有 oracle fixtures/research evidence；future explicit product switch 表示只有产品明确要求并设计显式开关时才重开。"
+        },
+        {
+          "q": "future reopen 条件是什么？",
+          "answer": "A. oracle + sufficiency/user value + bounded slice + guardrail + product/architecture decision",
+          "note": "重开 research/oracle route 必须有 deterministic oracle fixture 或真实 repo evidence、Agent Sufficiency 或用户可用性价值、可拆 bounded exploit slice、graph semantics/performance guardrail；涉及 package/node_modules/type graph 时还必须先有显式产品或架构决策。"
+        },
+        {
+          "q": "1-6-2 closeout artifact 是否需要 deterministic doc contract test？",
+          "answer": "A. 需要",
+          "note": "新增或扩展 doc test，锁住 closeout artifact 存在、三类分类、关键 research/oracle routes、future reopen 条件、roadmap root closeout。"
+        },
+        {
+          "q": "第14刀是否直接实现，不发 issue？",
+          "answer": "A. 直接实现文档 + doc test + roadmap closeout",
+          "note": "这是 research/oracle route closeout，不是 implementation work；直接产出 durable decision artifact、doc contract test 和 roadmap closeout，避免把暂不进主线的 route 误变成待实现队列。"
+        },
+        {
+          "q": "1-6-2 closeout 结果是什么？",
+          "answer": "completed: research/oracle-needed routes archived as closeout decision",
+          "note": "已新增 docs/benchmarks/2026-06-25-rust-hybrid-research-oracle-needed-routes-closeout-decision.md，归档 defer/no-go taxonomy、needs-oracle/research、future explicit product switch routes 和 future reopen 条件；这些不是当前 implementation queue。"
+        }
+      ],
+      "notes": "Completed by docs/benchmarks/2026-06-25-rust-hybrid-research-oracle-needed-routes-closeout-decision.md. Routes are archived as research/no-go/product-switch boundaries, not implementation queue."
     },
     "1-7-1": {
       "id": "1-7-1",
@@ -948,7 +1004,7 @@
   },
   "metadata": {
     "created": "2026-06-24 23:51:01",
-    "updated": "2026-06-25 18:21:36",
+    "updated": "2026-06-25 19:33:28",
     "md_file": "docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md"
   }
 }

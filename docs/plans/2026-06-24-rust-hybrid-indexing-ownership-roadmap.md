@@ -1,9 +1,9 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 18:21:36
+> 数据文件: `2026-06-24-rust-hybrid-indexing-ownership-roadmap.json` | 最后更新: 2026-06-25 19:33:28
 
-[~][X+] 1. Rust-Hybrid Indexing Completion And Performance Roadmap
+[x][X+] 1. Rust-Hybrid Indexing Completion And Performance Roadmap
 ├── [x][X+] 1-1. Current fact base and evidence archive
 │   ├── [x][X+] 1-1-1. Validated facts from completed performance roadmaps
 │   └── [x][X+] 1-1-2. Evidence documents retained as source material
@@ -20,9 +20,9 @@
 ├── [x][X+] 1-5. Agent Sufficiency and graph semantics guardrails
 │   ├── [x][Y+] 1-5-1. Graph parity fallback taxonomy and RSS evidence
 │   └── [x][Y+] 1-5-2. Agent Sufficiency trigger conditions
-├── [~][X+] 1-6. No-go defer and research archive
+├── [x][X+] 1-6. No-go defer and research archive
 │   ├── [x][X+] 1-6-1. Default no-go and diagnostic-only routes
-│   └── [ ][X+] 1-6-2. Research and oracle-needed routes
+│   └── [x][X+] 1-6-2. Research and oracle-needed routes
 └── [x][Y+] 1-7. Execution rules and first-stage closeout
     ├── [x][Y+] 1-7-1. First stage builds map only
     └── [x][Y+] 1-7-2. Next stage opens facts protocol implementation issues
