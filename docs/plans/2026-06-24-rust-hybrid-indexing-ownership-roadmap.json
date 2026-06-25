@@ -6,7 +6,7 @@
     "1": {
       "id": "1",
       "label": "Rust-Hybrid Indexing Completion And Performance Roadmap",
-      "status": "completed",
+      "status": "in_progress",
       "mode": "explore",
       "parent": null,
       "children": [
@@ -16,7 +16,8 @@
         "1-4",
         "1-5",
         "1-6",
-        "1-7"
+        "1-7",
+        "1-8"
       ],
       "decisions": [
         {
@@ -1000,11 +1001,184 @@
         }
       ],
       "notes": "Completed by #542/#543. Scope: repo-local namespace import whole-module/file-level dependency backstop only; no NS.member symbol resolution. Verification: npx vitest run __tests__/rust-index-engine-cli.test.ts."
+    },
+    "1-8": {
+      "id": "1-8",
+      "label": "First-user performance optimization execution",
+      "status": "in_progress",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [
+        "1-8-1",
+        "1-8-2",
+        "1-8-3",
+        "1-8-4"
+      ],
+      "decisions": [
+        {
+          "q": "第16刀是否扩展原 roadmap 而不是新建地图？",
+          "answer": "是，在原 roadmap 下新增 1-8 First-user performance optimization execution",
+          "note": "保留 ownership、guardrail、performance evidence、research/no-go archive 的全貌；性能优化执行作为原 roadmap 的后续子树，不再另开独立 roadmap。"
+        },
+        {
+          "q": "性能优化执行子树怎么分？",
+          "answer": "Fact base/baseline → candidate selection → bounded optimization execution → guardrail/first-user closeout",
+          "note": "按结果导向执行链路组织，而不是按技术层或单指标拆分；复用 baseline-indexing-performance-v1、graph-semantics-guardrail-v1、baseline-agent-sufficiency-v1 和 bounded optimization protocol。"
+        }
+      ],
+      "notes": ""
+    },
+    "1-8-1": {
+      "id": "1-8-1",
+      "label": "Fact base and targeted baseline evidence",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-8",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Fact base 阶段 baseline 要跑多重？",
+          "answer": "Targeted baseline: current-repo 3 runs, real repo smoke if available",
+          "note": "current-repo 必跑 3 runs；vscode-sparse/Excalidraw 若存在且是 Git checkout 则各跑 1 run；缺失不 clone，记录 needs-human-setup；必须记录 RSS 或 unavailable reason、profile buckets、graphStats、fallback taxonomy。"
+        },
+        {
+          "q": "第16刀是否只做 1-8-1 plan + issues？",
+          "answer": "A. 是，只做 Fact base and targeted baseline evidence",
+          "note": "性能候选必须从 baseline 事实里选；本刀只写窄 plan 并发布 targeted baseline evidence issues，不提前 issue 化 candidate selection 或 bounded optimization execution。"
+        },
+        {
+          "q": "1-8-1 plan 文档放在哪里？",
+          "answer": "A. docs/plans/2026-06-25-rust-hybrid-first-user-performance-baseline-evidence-plan.md",
+          "note": "这是 first-user performance roadmap 下 baseline evidence 的执行 plan；plan 放 docs/plans，后续实际 baseline result/decision 才进入 docs/benchmarks。"
+        },
+        {
+          "q": "1-8-1 拆几个 issues？",
+          "answer": "A. 3 issues: runner contract / targeted baseline execution / baseline closeout decision",
+          "note": "Issue 1 锁 baseline runner 输出字段；Issue 2 执行 current-repo 3 runs 与可用真实 repo smoke；Issue 3 写 durable result/decision 并提供下一阶段 candidate routing input，不提前选择优化候选。"
+        },
+        {
+          "q": "runner contract issue 是否允许改 production code/scripts？",
+          "answer": "A. 允许改 benchmark runner/tests/docs，不默认改 indexing production code",
+          "note": "1-8-1 是 baseline evidence 阶段；可以补 scripts/rust-hybrid-baseline.mjs、测试和文档字段契约，但不顺手改 indexer/resolver/DB 等被测生产路径。"
+        },
+        {
+          "q": "targeted baseline 是否允许 agent 自己 clone 缺失真实 repo？",
+          "answer": "A. 不允许 clone，缺失记录 needs-human-setup",
+          "note": "复用 /private/tmp/codegraph-corpus/vscode-sparse 和 /private/tmp/codegraph-corpus/excalidraw；不存在或不是 Git checkout 时记录 needs-human-setup，不自动改变环境。"
+        },
+        {
+          "q": "baseline closeout 是否直接选最终优化候选？",
+          "answer": "B. 不直接选最终候选，只输出 candidate routing input + 推荐 shortlist",
+          "note": "1-8-2 才是 Candidate selection；1-8-1 closeout 只提供 phase bucket 排名、wall/RSS 趋势、graph/fallback 状态、可疑瓶颈和推荐 shortlist。"
+        },
+        {
+          "q": "1-8-1 plan 是否已写入仓库？",
+          "answer": "已写入 docs/plans/2026-06-25-rust-hybrid-first-user-performance-baseline-evidence-plan.md",
+          "note": "Plan 定义 targeted baseline scope、non-goals、3-issue breakdown：runner contract、targeted baseline execution、baseline closeout and candidate routing input。"
+        },
+        {
+          "q": "1-8-1 implementation issues 发布了吗？",
+          "answer": "已发布 #548, #549, #550",
+          "note": "#548 baseline runner contract；#549 targeted first-user baseline execution，blocked by #548；#550 baseline closeout and candidate routing input，blocked by #549。"
+        },
+        {
+          "q": "1-8-1 closeout result?",
+          "answer": "Completed with partial baseline evidence",
+          "note": "#548-#550 complete. current-repo completed 3 runs, median wall 7847 ms. VS Code sparse and Excalidraw are needs-human-setup because configured paths are not valid Git checkouts. Candidate routing input is recorded in docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-baseline-closeout-decision.md; final candidate selection is deferred to 1-8-2."
+        }
+      ],
+      "notes": "Completed by #548-#550. Baseline result classification: baseline-partial-needs-human-setup. current-repo completed 3 runs with median wall 7847 ms; VS Code sparse and Excalidraw recorded as needs-human-setup because configured corpus paths were not valid Git checkouts. Closeout decision: docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-baseline-closeout-decision.md."
+    },
+    "1-8-2": {
+      "id": "1-8-2",
+      "label": "Candidate selection and bounded optimization routing",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-8",
+      "children": [],
+      "decisions": [
+        {
+          "q": "第17刀的产物边界是什么？",
+          "answer": "A. 只做 candidate selection / routing，不做实现",
+          "note": "产物是窄 plan/decision artifact：基于 1-8-1 baseline 事实，选出进入 1-8-3 的 bounded optimization candidate，定义验证门槛、no-go 条件、guardrail、issue 拆法；implementation 留给 1-8-3。"
+        },
+        {
+          "q": "候选选择的主排序标准是什么？",
+          "answer": "A. 按最大 wall-time bucket + 可验证边界排序",
+          "note": "候选不能只看耗时最大，也不能只看实现容易；进入 1-8-3 的候选必须同时具备可观测 bucket、bounded A/B 方法、graph parity guardrail、sufficiency guardrail 或明确 unavailable reason。"
+        },
+        {
+          "q": "第一候选应该是哪一类？",
+          "answer": "A. TypeScript finalization / reference-resolution tail，先做诊断拆桶 + bounded routing",
+          "note": "这是当前最大 wall-time bucket：TypeScript finalization median 2900 ms，reference resolution median 2210 ms，且 fallback taxonomy 集中在 reference-resolution。第17刀只把 tail 拆成可验证候选，不直接承诺迁移实现。"
+        },
+        {
+          "q": "第17刀要不要产出新的 plan 文档？",
+          "answer": "A. 要，写一个窄 plan：1-8-2 candidate selection and bounded optimization routing",
+          "note": "Plan 只记录候选排序依据、第一候选选择、需要补的诊断字段、1-8-3 的 bounded issue 拆法、验证门槛和 no-go；不写 1-8-3 implementation plan。"
+        },
+        {
+          "q": "TS finalization/reference-resolution tail 要怎么拆成 1-8-3 的候选？",
+          "answer": "A. 先补 tail diagnostic buckets，再决定 bounded optimization",
+          "note": "当前最大 bucket 过粗。1-8-3 的第一步应补公开 profile diagnostics：拆 TypeScript finalization 子段与 reference-resolution candidate lookup/cache/edge write/cleanup 等子段；诊断字段只服务于候选选择和 bounded A/B，不扩成长期 API 承诺。"
+        },
+        {
+          "q": "第17刀的 issue 拆法应该是什么粒度？",
+          "answer": "A. 发 3 个 issues：plan / diagnostic-contract / routing-closeout",
+          "note": "Issue 1 写 1-8-2 candidate routing plan；Issue 2 定义 tail diagnostic bucket contract，不实现 production optimization；Issue 3 写 1-8-3 candidate shortlist、validation/no-go routing closeout。"
+        },
+        {
+          "q": "第17刀 plan 的验证门槛怎么写？",
+          "answer": "A. 只要求文档 / roadmap / issue contract 可验证，不跑新的 benchmark",
+          "note": "第17刀不实现、不补 production code，也不改变 profile 输出；验证门槛是 plan 存在、roadmap decisions 完整、3 个 issues 发布且依赖清楚、下一刀 diagnostic/optimization 边界明确。新的 profile rerun 留给 1-8-3 diagnostic implementation 后。"
+        },
+        {
+          "q": "第17刀 plan 是否已写入仓库？",
+          "answer": "已写入 docs/plans/2026-06-25-rust-hybrid-first-user-performance-candidate-routing-plan.md",
+          "note": "Plan 选择 TypeScript finalization / reference-resolution tail -> diagnostic buckets -> bounded optimization routing；拆 3 个 issues：candidate routing plan、tail diagnostic bucket contract、candidate shortlist and 1-8-3 routing closeout。"
+        },
+        {
+          "q": "1-8-2 implementation issues 发布了吗？",
+          "answer": "已发布 #551, #552, #553",
+          "note": "#551 candidate routing plan；#552 tail diagnostic bucket contract，blocked by #551；#553 first-user performance candidate shortlist and 1-8-3 routing closeout，blocked by #552。三者均标记 enhancement + ready-for-agent。"
+        },
+        {
+          "q": "tail diagnostic bucket contract 是否已完成？",
+          "answer": "已完成 #552",
+          "note": "Contract 写入 docs/benchmarks/2026-06-25-rust-hybrid-tail-diagnostic-bucket-contract.md。它定义 TypeScript finalization tail、reference-resolution lookup/cache、DB/hydration、edge write/cleanup、semantic replay/matcher safety 的 profile diagnostics，并明确 durable vs issue-scoped evidence 与 guardrails。"
+        },
+        {
+          "q": "1-8-3 routing closeout 是否已完成？",
+          "answer": "已完成 #553",
+          "note": "Closeout 写入 docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-candidate-routing-closeout-decision.md。1-8-3 第一入口为 diagnostic-first：实现 tail diagnostic bucket exposure，重跑 targeted current-repo profile，再选择一个 bounded optimization candidate 或记录 no-go。"
+        }
+      ],
+      "notes": "Completed by #551-#553. Plan: docs/plans/2026-06-25-rust-hybrid-first-user-performance-candidate-routing-plan.md. Diagnostic contract: docs/benchmarks/2026-06-25-rust-hybrid-tail-diagnostic-bucket-contract.md. Closeout: docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-candidate-routing-closeout-decision.md. Next 1-8-3 route is diagnostic-first tail bucket exposure, then targeted current-repo profile rerun and candidate/no-go selection."
+    },
+    "1-8-3": {
+      "id": "1-8-3",
+      "label": "Bounded optimization execution",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-8",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-8-4": {
+      "id": "1-8-4",
+      "label": "Guardrail and first-user performance closeout",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-8",
+      "children": [],
+      "decisions": [],
+      "notes": ""
     }
   },
   "metadata": {
     "created": "2026-06-24 23:51:01",
-    "updated": "2026-06-25 19:33:28",
+    "updated": "2026-06-25 20:50:14",
     "md_file": "docs/plans/2026-06-24-rust-hybrid-indexing-ownership-roadmap.md"
   }
 }
