@@ -13,6 +13,7 @@
  *   zcodegraph index [path]       Index all files in the project
  *   zcodegraph sync [path]        Sync changes since last index
  *   zcodegraph status [path]      Show index status
+ *   zcodegraph doctor [path]      Create a local diagnostic bundle
  *   zcodegraph query <search>     Search for symbols
  *   zcodegraph files [options]    Show project file structure
  *   zcodegraph context <task>     Build context for a task
