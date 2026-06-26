@@ -99,13 +99,29 @@
       "mode": "exploit",
       "parent": "1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Is npm package visibility and install success a v0.10.0 release blocker?",
+          "answer": "Yes",
+          "note": "README's first user path is npm install -g @jununfly/zcodegraph; registry 404 or failed install blocks handing this release to users."
+        },
+        {
+          "q": "How should the npm/GitHub release blocker be resolved?",
+          "answer": "Trigger the GitHub Actions Release workflow; do not manually npm publish or hand-build the GitHub Release.",
+          "note": "The workflow owns bundle construction, changelog promotion, GitHub Release assets, npm shim/platform packages, and registry verification. Manual publish risks shipping the wrong package shape."
+        },
+        {
+          "q": "Should package-lock.json be synced to 0.10.0 before triggering Release workflow?",
+          "answer": "Yes",
+          "note": "Pre-syncing lockfile avoids an extra auto-generated workflow commit and keeps package.json, package-lock.json, main, and v0.10.0 release boundary aligned before manual workflow dispatch."
+        }
+      ],
       "notes": "Validation passed: npm run build, npm test, git diff --check, and README legacy metric/needs-human-setup scan. Commit/push/tag retarget follows."
     }
   },
   "metadata": {
     "created": "2026-06-26 01:05:46",
-    "updated": "2026-06-26 11:59:10",
+    "updated": "2026-06-26 12:14:48",
     "md_file": "docs/plans/2026-06-26-zcodegraph-0-10-0-readme-metrics-refresh-roadmap.md"
   }
 }
