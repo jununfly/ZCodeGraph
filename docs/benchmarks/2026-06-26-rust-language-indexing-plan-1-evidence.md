@@ -57,6 +57,46 @@ language-level TypeScript fallback.
 
 ## Smoke Evidence
 
+### Real Rust repository smoke: mini-redis
+
+Corpus:
+
+- `/private/tmp/codegraph-corpus/mini-redis`
+- Git remote: `git@github.com:tokio-rs/mini-redis.git`
+- Rust source files: 28
+
+Command:
+
+```bash
+CODEGRAPH_ALLOW_UNSAFE_NODE=1 node dist/bin/zcodegraph.js init /private/tmp/codegraph-corpus/mini-redis --engine rust-hybrid
+CODEGRAPH_ALLOW_UNSAFE_NODE=1 node dist/bin/zcodegraph.js status /private/tmp/codegraph-corpus/mini-redis --json
+CODEGRAPH_ALLOW_UNSAFE_NODE=1 node dist/bin/zcodegraph.js doctor /private/tmp/codegraph-corpus/mini-redis --engine rust-hybrid --bundle --last-run
+```
+
+Result:
+
+- Init command completed successfully; `/usr/bin/time -l` returned non-zero only
+  because sandbox RSS sampling could not read `sysctl kern.clockrate`.
+- Terminal rerun wall time: 0.42 seconds.
+- Terminal rerun max RSS: 136,888,320 bytes (130.5 MiB).
+- Last-run elapsed time: 227 ms.
+- Index result duration: 60 ms.
+- Files indexed: 29.
+- Rust-owned files: 28.
+- TypeScript fallback files: 1 YAML file.
+- Graph counts: 353 nodes, 539 edges.
+- Rust profile: 28 Rust files, 23 ms parse extraction, 8 ms tree-sitter parse,
+  5 ms AST extraction, 0 parse errors.
+- Hybrid ownership: `rustOwnedLanguages` includes `rust`;
+  `engineByLanguage.rust = "rust"`; `engineByFileCount.rust = 28`.
+- Fallback taxonomy: `language-level-typescript-fallback: 1`.
+- Doctor bundle: created successfully from `--last-run`.
+
+This is the primary Plan 1 real Rust repository smoke. The run is `degraded`
+only because the repository includes one non-Rust-owned YAML file that uses
+language-level TypeScript fallback; Rust files themselves are Rust-owned and
+parsed without Rust-owned parse gaps.
+
 ### Small mixed Rust project smoke
 
 Command:
@@ -106,8 +146,19 @@ Conclusion:
 
 ## RSS
 
-RSS was captured for the successful small mixed Rust project smoke from a normal
-macOS Terminal run:
+RSS was captured for mini-redis from a normal macOS Terminal run:
+
+```text
+0.42 real
+0.28 user
+0.08 sys
+136888320 maximum resident set size
+32035088 peak memory footprint
+```
+
+The mini-redis max RSS value is `136,888,320` bytes (`130.5 MiB`).
+
+RSS was also captured for the earlier small mixed Rust project smoke:
 
 ```text
 5.99 real
@@ -117,7 +168,7 @@ macOS Terminal run:
 32198904 peak memory footprint
 ```
 
-The max RSS value is `280,182,784` bytes (`267.2 MiB`).
+The small mixed project max RSS value is `280,182,784` bytes (`267.2 MiB`).
 
 Earlier Codex sandbox attempts could not sample RSS.
 
