@@ -288,6 +288,8 @@ pub struct IndexProfile {
     pub module_resolution_declaration_runtime_edge_write_skipped_refs: u32,
     pub module_resolution_declaration_runtime_edge_write_skipped_counts: BTreeMap<String, u32>,
     pub rust_trait_impl_taxonomy_counts: BTreeMap<String, u32>,
+    pub rust_cargo_workspace_taxonomy_counts: BTreeMap<String, u32>,
+    pub rust_cargo_workspace_crate_candidate_counts: BTreeMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -6863,6 +6865,10 @@ fn index_javascript_files(
     let files = collect_supported_files(project_path)?;
     let mut counts = WriteCounts::default();
     counts.profile.source_scan_ms = scan_started.elapsed().as_millis();
+    let cargo_workspace_diagnostics = build_cargo_workspace_diagnostics(
+        project_path,
+        &mut counts.profile.rust_cargo_workspace_taxonomy_counts,
+    );
     let transaction_started = Instant::now();
     let tx = conn.transaction()?;
     counts.profile.sqlite_write_ms += transaction_started.elapsed().as_millis();
@@ -6896,6 +6902,18 @@ fn index_javascript_files(
         counts
             .profile
             .add_parse_language_source_read(&language_name, source_read_ms);
+        if language.is_rust() {
+            record_rust_file_cargo_ownership(
+                &cargo_workspace_diagnostics,
+                &relative_path,
+                &mut counts.profile.rust_cargo_workspace_taxonomy_counts,
+            );
+            classify_rust_crate_candidates(
+                &cargo_workspace_diagnostics,
+                &content,
+                &mut counts.profile.rust_cargo_workspace_crate_candidate_counts,
+            );
+        }
         let normalization_started = Instant::now();
         let parse_content = normalize_source_for_parser(&content, language);
         let normalization_ms = normalization_started.elapsed().as_millis();
@@ -7353,6 +7371,369 @@ fn is_generated_go_file(path: &Path) -> bool {
         || file_name.ends_with("_mock.go")
         || file_name.ends_with("_mocks.go")
         || (file_name.starts_with("mock_") && file_name.ends_with(".go"))
+}
+
+#[derive(Debug, Clone, Default)]
+struct CargoWorkspaceDiagnostics {
+    packages: Vec<CargoPackageDiagnostic>,
+    package_by_dir: HashMap<String, usize>,
+    package_by_name: HashMap<String, usize>,
+    local_dependency_names: HashSet<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct CargoPackageDiagnostic {
+    dir: String,
+    lib_roots: HashSet<String>,
+    bin_roots: HashSet<String>,
+    local_dependencies: HashSet<String>,
+    registry_dependencies: HashSet<String>,
+}
+
+impl CargoWorkspaceDiagnostics {
+    fn package_for_file(&self, relative_path: &str) -> Option<&CargoPackageDiagnostic> {
+        let mut best: Option<&CargoPackageDiagnostic> = None;
+        for package in &self.packages {
+            let owns = package.dir.is_empty()
+                || relative_path == package.dir
+                || relative_path.starts_with(&(package.dir.clone() + "/"));
+            if !owns {
+                continue;
+            }
+            if best
+                .as_ref()
+                .is_none_or(|current| package.dir.len() > current.dir.len())
+            {
+                best = Some(package);
+            }
+        }
+        best
+    }
+
+    fn is_crate_root(&self, package: &CargoPackageDiagnostic, relative_path: &str) -> bool {
+        package.lib_roots.contains(relative_path) || package.bin_roots.contains(relative_path)
+    }
+}
+
+fn build_cargo_workspace_diagnostics(
+    project_path: &Path,
+    counts: &mut BTreeMap<String, u32>,
+) -> CargoWorkspaceDiagnostics {
+    let mut diagnostics = CargoWorkspaceDiagnostics::default();
+    let root_manifest = project_path.join("Cargo.toml");
+    let root_content = fs::read_to_string(&root_manifest).ok();
+    let workspace_members = root_content
+        .as_deref()
+        .map(parse_workspace_members)
+        .unwrap_or_default();
+    if !workspace_members.is_empty() {
+        increment_count(counts, "cargo-workspace-detected");
+        for _ in &workspace_members {
+            increment_count(counts, "cargo-workspace-member-detected");
+        }
+    }
+
+    let mut manifest_dirs = Vec::new();
+    if root_manifest.exists()
+        && root_content
+            .as_deref()
+            .is_some_and(|content| parse_package_name(content).is_some())
+    {
+        manifest_dirs.push(String::new());
+    }
+    for member in workspace_members {
+        manifest_dirs.push(member);
+    }
+    manifest_dirs.sort();
+    manifest_dirs.dedup();
+
+    for manifest_dir in manifest_dirs {
+        let manifest_path = if manifest_dir.is_empty() {
+            root_manifest.clone()
+        } else {
+            project_path.join(&manifest_dir).join("Cargo.toml")
+        };
+        let Ok(content) = fs::read_to_string(&manifest_path) else {
+            continue;
+        };
+        let Some(name) = parse_package_name(&content) else {
+            continue;
+        };
+        increment_count(counts, "cargo-package-detected");
+        let mut package = CargoPackageDiagnostic {
+            dir: manifest_dir.clone(),
+            ..CargoPackageDiagnostic::default()
+        };
+        for root in parse_lib_roots(&content, &manifest_dir) {
+            package.lib_roots.insert(root);
+            increment_count(counts, "cargo-lib-root-detected");
+        }
+        if package.lib_roots.is_empty() {
+            let default_lib = join_relative(&manifest_dir, "src/lib.rs");
+            if project_path.join(&default_lib).exists() {
+                package.lib_roots.insert(default_lib);
+                increment_count(counts, "cargo-lib-root-detected");
+            }
+        }
+        for root in parse_bin_roots(&content, &manifest_dir) {
+            package.bin_roots.insert(root);
+            increment_count(counts, "cargo-bin-root-detected");
+        }
+        let default_main = join_relative(&manifest_dir, "src/main.rs");
+        if project_path.join(&default_main).exists() && package.bin_roots.insert(default_main) {
+            increment_count(counts, "cargo-bin-root-detected");
+        }
+        for dependency in parse_dependencies(&content) {
+            if dependency.is_path {
+                package.local_dependencies.insert(dependency.name.clone());
+                diagnostics
+                    .local_dependency_names
+                    .insert(dependency.name.clone());
+                increment_count(counts, "cargo-local-path-dependency-detected");
+            } else {
+                package
+                    .registry_dependencies
+                    .insert(dependency.name.clone());
+                increment_count(counts, "registry-dependency-deferred");
+            }
+        }
+        if content.contains("[features]") {
+            increment_count(counts, "feature-resolution-deferred");
+        }
+        if content.contains("cfg(") || content.contains("target.") || content.contains("[target.") {
+            increment_count(counts, "cfg-target-selection-deferred");
+            increment_count(counts, "target-specific-dependency-deferred");
+        }
+        if content.contains("proc-macro = true") {
+            increment_count(counts, "proc-macro-deferred");
+        }
+        let package_index = diagnostics.packages.len();
+        diagnostics.package_by_name.insert(name, package_index);
+        diagnostics
+            .package_by_dir
+            .insert(manifest_dir, package_index);
+        diagnostics.packages.push(package);
+    }
+
+    if project_path.join("build.rs").exists() {
+        increment_count(counts, "build-rs-deferred");
+    }
+
+    diagnostics
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CargoDependencyDiagnostic {
+    name: String,
+    is_path: bool,
+}
+
+fn parse_package_name(content: &str) -> Option<String> {
+    let mut section = "";
+    for line in content.lines() {
+        let trimmed = strip_toml_comment(line).trim();
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            section = trimmed.trim_matches(&['[', ']'][..]).trim();
+            continue;
+        }
+        if section == "package" {
+            if let Some(value) = parse_toml_string_assignment(trimmed, "name") {
+                return Some(value);
+            }
+        }
+    }
+    None
+}
+
+fn parse_workspace_members(content: &str) -> Vec<String> {
+    let mut section = "";
+    for line in content.lines() {
+        let trimmed = strip_toml_comment(line).trim();
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            section = trimmed.trim_matches(&['[', ']'][..]).trim();
+            continue;
+        }
+        if section == "workspace" && trimmed.starts_with("members") {
+            return parse_toml_string_array(trimmed)
+                .into_iter()
+                .map(|item| item.trim_matches('/').replace('\\', "/"))
+                .filter(|item| !item.is_empty())
+                .collect();
+        }
+    }
+    Vec::new()
+}
+
+fn parse_lib_roots(content: &str, package_dir: &str) -> Vec<String> {
+    parse_section_paths(content, "lib", package_dir)
+}
+
+fn parse_bin_roots(content: &str, package_dir: &str) -> Vec<String> {
+    parse_section_paths(content, "bin", package_dir)
+}
+
+fn parse_section_paths(content: &str, target_section: &str, package_dir: &str) -> Vec<String> {
+    let mut roots = Vec::new();
+    let mut section = "";
+    for line in content.lines() {
+        let trimmed = strip_toml_comment(line).trim();
+        if trimmed.starts_with("[[") && trimmed.ends_with("]]") {
+            section = trimmed.trim_matches(&['[', ']'][..]).trim();
+            continue;
+        }
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            section = trimmed.trim_matches(&['[', ']'][..]).trim();
+            continue;
+        }
+        if section == target_section {
+            if let Some(value) = parse_toml_string_assignment(trimmed, "path") {
+                roots.push(join_relative(package_dir, &value));
+            }
+        }
+    }
+    roots
+}
+
+fn parse_dependencies(content: &str) -> Vec<CargoDependencyDiagnostic> {
+    let mut dependencies = Vec::new();
+    let mut section = "";
+    for line in content.lines() {
+        let trimmed = strip_toml_comment(line).trim();
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            section = trimmed.trim_matches(&['[', ']'][..]).trim();
+            continue;
+        }
+        if !matches!(
+            section,
+            "dependencies" | "dev-dependencies" | "build-dependencies"
+        ) {
+            continue;
+        }
+        let Some((name, value)) = trimmed.split_once('=') else {
+            continue;
+        };
+        let name = name.trim();
+        if name.is_empty() {
+            continue;
+        }
+        dependencies.push(CargoDependencyDiagnostic {
+            name: name.to_string(),
+            is_path: value.contains("path"),
+        });
+    }
+    dependencies
+}
+
+fn strip_toml_comment(line: &str) -> &str {
+    line.split_once('#')
+        .map(|(before, _)| before)
+        .unwrap_or(line)
+}
+
+fn parse_toml_string_assignment(line: &str, key: &str) -> Option<String> {
+    let (left, right) = line.split_once('=')?;
+    if left.trim() != key {
+        return None;
+    }
+    parse_first_toml_string(right)
+}
+
+fn parse_toml_string_array(line: &str) -> Vec<String> {
+    let Some((_, right)) = line.split_once('=') else {
+        return Vec::new();
+    };
+    let Some(open) = right.find('[') else {
+        return Vec::new();
+    };
+    let Some(close) = right.rfind(']') else {
+        return Vec::new();
+    };
+    right[open + 1..close]
+        .split(',')
+        .filter_map(parse_first_toml_string)
+        .collect()
+}
+
+fn parse_first_toml_string(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    let quote = trimmed.chars().next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+    let rest = &trimmed[quote.len_utf8()..];
+    let end = rest.find(quote)?;
+    Some(rest[..end].replace('\\', "/"))
+}
+
+fn join_relative(base: &str, child: &str) -> String {
+    let child = child
+        .replace('\\', "/")
+        .trim_start_matches("./")
+        .to_string();
+    if base.is_empty() {
+        child
+    } else {
+        format!("{}/{}", base.trim_matches('/'), child).replace("//", "/")
+    }
+}
+
+fn record_rust_file_cargo_ownership(
+    diagnostics: &CargoWorkspaceDiagnostics,
+    relative_path: &str,
+    counts: &mut BTreeMap<String, u32>,
+) {
+    let Some(package) = diagnostics.package_for_file(relative_path) else {
+        increment_count(counts, "unresolved-crate-candidate");
+        return;
+    };
+    increment_count(counts, "rust-file-owned-by-package");
+    if diagnostics.is_crate_root(package, relative_path) {
+        increment_count(counts, "rust-file-owned-by-crate-root");
+    }
+}
+
+fn classify_rust_crate_candidates(
+    diagnostics: &CargoWorkspaceDiagnostics,
+    source: &str,
+    counts: &mut BTreeMap<String, u32>,
+) {
+    for prefix in rust_use_crate_prefixes(source) {
+        if matches!(prefix.as_str(), "crate" | "self" | "super") {
+            continue;
+        }
+        if diagnostics.local_dependency_names.contains(&prefix)
+            || diagnostics.package_by_name.contains_key(&prefix)
+        {
+            increment_count(counts, "workspace-local-crate-candidate");
+        } else if diagnostics
+            .packages
+            .iter()
+            .any(|package| package.registry_dependencies.contains(&prefix))
+        {
+            increment_count(counts, "external-dependency-candidate");
+        } else {
+            increment_count(counts, "unresolved-crate-candidate");
+        }
+    }
+}
+
+fn rust_use_crate_prefixes(source: &str) -> Vec<String> {
+    let mut prefixes = Vec::new();
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        let Some(rest) = trimmed.strip_prefix("use ") else {
+            continue;
+        };
+        let prefix = rest
+            .trim_start()
+            .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+            .next()
+            .unwrap_or("");
+        if !prefix.is_empty() {
+            prefixes.push(prefix.to_string());
+        }
+    }
+    prefixes
 }
 
 fn extract_top_level_js_symbols(
@@ -9826,7 +10207,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -9963,7 +10344,14 @@ pub fn result_json(result: &IndexResult) -> String {
         ),
         result.profile.local_exact_reference_resolution_ms,
         result.profile.local_exact_reference_resolved_refs,
-        result.profile.local_exact_reference_fallback_refs
+        result.profile.local_exact_reference_fallback_refs,
+        fallback_sample_counts_json(&result.profile.rust_trait_impl_taxonomy_counts),
+        fallback_sample_counts_json(&result.profile.rust_cargo_workspace_taxonomy_counts),
+        fallback_sample_counts_json(
+            &result
+                .profile
+                .rust_cargo_workspace_crate_candidate_counts
+        )
     )
 }
 
@@ -10929,6 +11317,153 @@ mod tests {
         assert_eq!(counts.get("where-clause-deferred"), Some(&1));
         assert_eq!(counts.get("blanket-impl-deferred"), Some(&1));
         assert_eq!(counts.get("cross-crate-trait-deferred"), Some(&1));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_classifies_cargo_workspace_package_metadata_taxonomy() {
+        let dir = temp_dir("rust-cargo-workspace-taxonomy");
+        fs::create_dir_all(dir.join("crates/app/src")).unwrap();
+        fs::create_dir_all(dir.join("crates/core/src/bin")).unwrap();
+        fs::write(
+            dir.join("Cargo.toml"),
+            [
+                "[workspace]",
+                "members = [\"crates/app\", \"crates/core\"]",
+                "",
+                "[workspace.dependencies]",
+                "serde = \"1\"",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("crates/app/Cargo.toml"),
+            [
+                "[package]",
+                "name = \"app-crate\"",
+                "version = \"0.1.0\"",
+                "",
+                "[dependencies]",
+                "core_crate = { path = \"../core\" }",
+                "serde = \"1\"",
+                "",
+                "[features]",
+                "default = []",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("crates/core/Cargo.toml"),
+            [
+                "[package]",
+                "name = \"core_crate\"",
+                "version = \"0.1.0\"",
+                "",
+                "[lib]",
+                "path = \"src/lib.rs\"",
+                "",
+                "[[bin]]",
+                "name = \"core-tool\"",
+                "path = \"src/bin/tool.rs\"",
+                "",
+                "[build-dependencies]",
+                "quote = \"1\"",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("crates/app/src/main.rs"),
+            [
+                "use core_crate::Service;",
+                "use serde::Serialize;",
+                "fn main() {}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(dir.join("crates/core/src/lib.rs"), "pub struct Service;\n").unwrap();
+        fs::write(dir.join("crates/core/src/bin/tool.rs"), "fn main() {}\n").unwrap();
+        fs::write(dir.join("build.rs"), "fn main() {}\n").unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let taxonomy = &result.profile.rust_cargo_workspace_taxonomy_counts;
+        assert_eq!(taxonomy.get("cargo-workspace-detected"), Some(&1));
+        assert_eq!(taxonomy.get("cargo-workspace-member-detected"), Some(&2));
+        assert_eq!(taxonomy.get("cargo-package-detected"), Some(&2));
+        assert_eq!(taxonomy.get("cargo-lib-root-detected"), Some(&1));
+        assert_eq!(taxonomy.get("cargo-bin-root-detected"), Some(&2));
+        assert_eq!(
+            taxonomy.get("cargo-local-path-dependency-detected"),
+            Some(&1)
+        );
+        assert_eq!(taxonomy.get("registry-dependency-deferred"), Some(&2));
+        assert_eq!(taxonomy.get("feature-resolution-deferred"), Some(&1));
+        assert_eq!(taxonomy.get("build-rs-deferred"), Some(&1));
+        assert_eq!(taxonomy.get("rust-file-owned-by-package"), Some(&3));
+        assert_eq!(taxonomy.get("rust-file-owned-by-crate-root"), Some(&3));
+        assert_eq!(
+            result
+                .profile
+                .rust_cargo_workspace_crate_candidate_counts
+                .get("workspace-local-crate-candidate"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .rust_cargo_workspace_crate_candidate_counts
+                .get("external-dependency-candidate"),
+            Some(&1)
+        );
+        let json: Value = serde_json::from_str(&result_json(&result)).unwrap();
+        assert_eq!(
+            json["profile"]["rustCargoWorkspaceTaxonomyCounts"]["cargo-workspace-detected"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["rustCargoWorkspaceCrateCandidateCounts"]
+                ["workspace-local-crate-candidate"],
+            1
+        );
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let cross_package_edges: i64 = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 JOIN nodes target ON target.id = edges.target
+                 WHERE source.file_path LIKE 'crates/app/%'
+                   AND target.file_path LIKE 'crates/core/%'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(cross_package_edges, 0);
         fs::remove_dir_all(dir).unwrap();
     }
 

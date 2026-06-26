@@ -336,12 +336,48 @@
     "1-4-4": {
       "id": "1-4-4",
       "label": "Cargo workspace package and feature taxonomy frontier",
-      "status": "pending",
-      "mode": "explore",
+      "status": "completed",
+      "mode": "exploit",
       "parent": "1-4",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-4-4-1",
+        "1-4-4-2",
+        "1-4-4-3",
+        "1-4-4-4"
+      ],
+      "decisions": [
+        {
+          "q": "What is the fourth Rust semantic graph slice?",
+          "answer": "Prioritize Cargo workspace package and feature taxonomy frontier before macro coverage or Rust web framework route wiring.",
+          "note": "Chosen because repo-local modules and trait/impl structure are now connected, and real Rust projects need package/workspace boundaries before framework route wiring can be reliable."
+        },
+        {
+          "q": "Should Plan 4 be taxonomy-only or include bounded implementation?",
+          "answer": "Use taxonomy plus bounded package/workspace discovery. Parse Cargo.toml package metadata, lib/bin roots, workspace members, and local path dependencies; classify workspace-local crate candidates without attempting a full Cargo resolver.",
+          "note": "Do not implement feature resolution, cfg target selection, build.rs, proc macros, registry dependency resolution, semver dependency graph, or target-specific dependency exactness."
+        },
+        {
+          "q": "Should Plan 4 write graph edges?",
+          "answer": "Do not write cross-package graph edges in Plan 4. Produce package/workspace diagnostics and bounded taxonomy only: file ownership, crate roots, workspace-local candidates, external dependency candidates, unresolved candidates, and deferred feature/cfg/build.rs/proc-macro cases.",
+          "note": "This avoids false cross-crate edges before feature/cfg and full Cargo resolution are designed."
+        },
+        {
+          "q": "What validation corpus should Plan 4 use?",
+          "answer": "Use a synthetic Cargo workspace fixture plus mini-redis smoke. If the fixture is insufficient, add one reasonably sized real GitHub Rust workspace repo as optional validation, but do not let external corpus setup block the Plan 4 mainline.",
+          "note": "mini-redis remains the stable no-regression smoke; the synthetic fixture covers workspace members and local path dependencies deterministically."
+        },
+        {
+          "q": "Plan 4 should be split into how many implementation issues?",
+          "answer": "Split into 4 issues: Cargo.toml package/workspace metadata taxonomy; Rust file package/crate-root ownership diagnostics; workspace-local crate candidate taxonomy for use crate_name::...; synthetic workspace + mini-redis smoke + optional real repo evidence + closeout.",
+          "note": "This keeps optional real-repo validation non-blocking while preserving clear diagnostic boundaries."
+        },
+        {
+          "q": "Where should the Plan 4 artifact live?",
+          "answer": "Write a narrow repository plan document and keep the roadmap updated.",
+          "note": "Use a dedicated plan document because this slice has explicit non-goals and must not drift into full Cargo resolver implementation."
+        }
+      ],
+      "notes": "Plan 4 complete. Evidence: docs/benchmarks/2026-06-27-rust-language-indexing-plan-4-evidence.md"
     },
     "1-4-5": {
       "id": "1-4-5",
@@ -532,11 +568,51 @@
       "children": [],
       "decisions": [],
       "notes": "Implemented in #577: mini-redis smoke and Plan 3 evidence recorded."
+    },
+    "1-4-4-1": {
+      "id": "1-4-4-1",
+      "label": "Cargo.toml package and workspace metadata taxonomy",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-4",
+      "children": [],
+      "decisions": [],
+      "notes": "Published issue: #578. Implemented in Plan 4; evidence: docs/benchmarks/2026-06-27-rust-language-indexing-plan-4-evidence.md"
+    },
+    "1-4-4-2": {
+      "id": "1-4-4-2",
+      "label": "Rust file package and crate-root ownership diagnostics",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-4",
+      "children": [],
+      "decisions": [],
+      "notes": "Published issue: #579. Implemented in Plan 4; evidence: docs/benchmarks/2026-06-27-rust-language-indexing-plan-4-evidence.md"
+    },
+    "1-4-4-3": {
+      "id": "1-4-4-3",
+      "label": "Workspace-local crate candidate taxonomy",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-4",
+      "children": [],
+      "decisions": [],
+      "notes": "Published issue: #580. Implemented in Plan 4; evidence: docs/benchmarks/2026-06-27-rust-language-indexing-plan-4-evidence.md"
+    },
+    "1-4-4-4": {
+      "id": "1-4-4-4",
+      "label": "Cargo workspace smoke, optional real repo evidence, and closeout",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-4",
+      "children": [],
+      "decisions": [],
+      "notes": "Published issue: #581. Evidence recorded: docs/benchmarks/2026-06-27-rust-language-indexing-plan-4-evidence.md"
     }
   },
   "metadata": {
     "created": "2026-06-26 17:05:43",
-    "updated": "2026-06-26 23:47:50",
+    "updated": "2026-06-27 00:47:47",
     "md_file": "docs/plans/2026-06-26-rust-language-indexing-roadmap.md"
   }
 }

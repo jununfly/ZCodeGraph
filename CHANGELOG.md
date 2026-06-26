@@ -9,6 +9,10 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### New Features
+
+- Rust indexing now reports Cargo package and workspace diagnostics, including crate roots, local path dependencies, and deferred Cargo resolver areas, without writing unsafe cross-package graph edges. (#578, #579, #580, #581)
+
 ### Fixes
 
 - Rust files now use the default `rust-hybrid` Rust-owned indexing path for baseline structural symbols, while deeper Rust-specific semantics remain tracked separately.

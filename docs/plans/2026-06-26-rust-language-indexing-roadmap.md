@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-26-rust-language-indexing-roadmap.json` | 最后更新: 2026-06-26 23:47:50
+> 数据文件: `2026-06-26-rust-language-indexing-roadmap.json` | 最后更新: 2026-06-27 00:47:47
 
 [~][X+] 1. Rust Language Indexing Support
 ├── [x][X+] 1-1. Rust language support baseline and taxonomy
@@ -27,6 +27,6 @@
     ├── [x][Y+] 1-4-1. Rust repo-local module path resolution slice
     ├── [x][Y+] 1-4-2. Rust trait definition to impl relationship frontier
     ├── [ ][X+] 1-4-3. Rust macro coverage taxonomy frontier
-    ├── [ ][X+] 1-4-4. Cargo workspace package and feature taxonomy frontier
+    ├── [x][Y+] 1-4-4. Cargo workspace package and feature taxonomy frontier
     └── [ ][X+] 1-4-5. Rust web framework route wiring candidates
 <!-- ROADMAP_SECTION_END -->
