@@ -280,12 +280,48 @@
     "1-4-2": {
       "id": "1-4-2",
       "label": "Rust trait definition to impl relationship frontier",
-      "status": "pending",
-      "mode": "explore",
+      "status": "completed",
+      "mode": "exploit",
       "parent": "1-4",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-4-2-1",
+        "1-4-2-2",
+        "1-4-2-3",
+        "1-4-2-4"
+      ],
+      "decisions": [
+        {
+          "q": "What is the third Rust semantic graph slice?",
+          "answer": "Prioritize Rust trait definition to impl relationship frontier before macro, Cargo workspace, or web framework route slices.",
+          "note": "Chosen because repo-local module paths are now connected, and trait/impl structure is the next highest-leverage Rust sufficiency gap."
+        },
+        {
+          "q": "Should Plan 3 be taxonomy-only or include implementation?",
+          "answer": "Use taxonomy plus one bounded exploit slice: record Rust trait/impl forms and write only high-confidence structural edges. Do not implement dynamic trait dispatch, generic bound resolution, blanket impls, where-clause exactness, macro-expanded impls, or cross-crate trait resolution.",
+          "note": "This keeps Plan 3 useful without pretending to solve full Rust trait semantics."
+        },
+        {
+          "q": "Which graph edge kinds should Rust trait/impl use?",
+          "answer": "Reuse existing edge kinds:  for Type -> Trait, existing  for trait/method containment, and bounded  from impl method to trait method declaration when the match is unique. Do not add new EdgeKind values in this slice.",
+          "note": "Avoids public schema expansion while still giving agents structural Rust trait/impl context."
+        },
+        {
+          "q": "Correction: which graph edge kinds should Rust trait/impl use?",
+          "answer": "Reuse existing edge kinds: implements for Type -> Trait, contains for trait/method containment, and bounded references from impl method to trait method declaration when the match is unique. Do not add new EdgeKind values in this slice.",
+          "note": "Corrects the previous shell-escaped decision text where edge kind names were accidentally stripped."
+        },
+        {
+          "q": "What validation corpus should Plan 3 use?",
+          "answer": "Use deterministic synthetic fixtures for exact trait/impl graph behavior, and mini-redis as the real repo smoke. If mini-redis has limited trait/impl coverage, record that honestly instead of switching corpora mid-slice.",
+          "note": "Keeps behavior verification precise while still guarding the real Rust repo path."
+        },
+        {
+          "q": "How should Plan 3 be split into issues?",
+          "answer": "Split into 4 issues: trait/impl extraction taxonomy; Type implements Trait structural edge; impl method to trait method declaration bounded references; mini-redis smoke, evidence, and roadmap closeout.",
+          "note": "Keeps implementation vertical and avoids mixing taxonomy, structural edges, and evidence in one issue."
+        }
+      ],
+      "notes": "Plan 3 trait/impl relationship frontier completed."
     },
     "1-4-3": {
       "id": "1-4-3",
@@ -456,11 +492,51 @@
       "children": [],
       "decisions": [],
       "notes": "Implemented in #573: mini-redis smoke recorded in Plan 2 evidence."
+    },
+    "1-4-2-1": {
+      "id": "1-4-2-1",
+      "label": "Rust trait and impl extraction taxonomy",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented in #574: Rust trait/impl taxonomy is recorded in Rust core profile counts."
+    },
+    "1-4-2-2": {
+      "id": "1-4-2-2",
+      "label": "Rust Type implements Trait structural edge",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented in #575: unique same-file Type -> Trait implements edges are written for bounded trait impls."
+    },
+    "1-4-2-3": {
+      "id": "1-4-2-3",
+      "label": "Rust impl method to trait method declaration bounded reference",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented in #576: unique impl methods reference matching trait method declarations."
+    },
+    "1-4-2-4": {
+      "id": "1-4-2-4",
+      "label": "Rust trait impl mini-redis smoke and evidence",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented in #577: mini-redis smoke and Plan 3 evidence recorded."
     }
   },
   "metadata": {
     "created": "2026-06-26 17:05:43",
-    "updated": "2026-06-26 22:54:53",
+    "updated": "2026-06-26 23:47:50",
     "md_file": "docs/plans/2026-06-26-rust-language-indexing-roadmap.md"
   }
 }

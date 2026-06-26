@@ -287,6 +287,7 @@ pub struct IndexProfile {
     pub module_resolution_declaration_runtime_edge_write_written_refs: u32,
     pub module_resolution_declaration_runtime_edge_write_skipped_refs: u32,
     pub module_resolution_declaration_runtime_edge_write_skipped_counts: BTreeMap<String, u32>,
+    pub rust_trait_impl_taxonomy_counts: BTreeMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -6914,6 +6915,7 @@ fn index_javascript_files(
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
         let mut unresolved_refs = Vec::new();
+        let mut rust_trait_impl_facts = Vec::new();
         let file_node = ExtractedNode::file(&relative_path, &content, language.codegraph_name());
         let file_node_id = file_node.id.clone();
         nodes.push(file_node);
@@ -6962,6 +6964,8 @@ fn index_javascript_files(
                     &mut nodes,
                     &mut edges,
                     &mut unresolved_refs,
+                    &mut counts.profile.rust_trait_impl_taxonomy_counts,
+                    &mut rust_trait_impl_facts,
                 )?;
             } else {
                 extract_top_level_js_symbols(
@@ -6995,6 +6999,7 @@ fn index_javascript_files(
 
         let indexed_at = now_ms();
         let sqlite_write_started = Instant::now();
+        add_rust_trait_impl_edges(&nodes, &mut edges, &rust_trait_impl_facts);
         insert_nodes(&tx, &nodes)?;
         insert_edges(&tx, &edges)?;
         insert_unresolved_refs(&tx, &unresolved_refs)?;
@@ -8094,6 +8099,8 @@ fn extract_rust_symbols(
     nodes: &mut Vec<ExtractedNode>,
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
+    rust_trait_impl_taxonomy_counts: &mut BTreeMap<String, u32>,
+    rust_trait_impl_facts: &mut Vec<RustTraitImplFact>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut cursor = root.walk();
     visit_rust_node(
@@ -8107,6 +8114,8 @@ fn extract_rust_symbols(
         nodes,
         edges,
         unresolved_refs,
+        rust_trait_impl_taxonomy_counts,
+        rust_trait_impl_facts,
     )?;
     Ok(())
 }
@@ -8122,10 +8131,20 @@ fn visit_rust_node(
     nodes: &mut Vec<ExtractedNode>,
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
+    rust_trait_impl_taxonomy_counts: &mut BTreeMap<String, u32>,
+    rust_trait_impl_facts: &mut Vec<RustTraitImplFact>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let node = cursor.node();
     let mut child_from_node_id: Cow<'_, str> = Cow::Borrowed(current_from_node_id);
     let mut child_container_name: Option<String> = current_container_name.map(ToString::to_string);
+
+    record_rust_trait_impl_taxonomy(
+        node,
+        source,
+        current_container_name,
+        rust_trait_impl_taxonomy_counts,
+    );
+    record_rust_trait_impl_fact(node, source, relative_path, rust_trait_impl_facts);
 
     if let Some((kind, name, name_node)) =
         extract_rust_named_symbol(node, source, current_container_name)?
@@ -8196,6 +8215,8 @@ fn visit_rust_node(
                 nodes,
                 edges,
                 unresolved_refs,
+                rust_trait_impl_taxonomy_counts,
+                rust_trait_impl_facts,
             )?;
             if !cursor.goto_next_sibling() {
                 break;
@@ -8278,6 +8299,211 @@ fn extract_rust_named_symbol<'a>(
     }
 
     Ok(None)
+}
+
+fn record_rust_trait_impl_taxonomy(
+    node: SyntaxNode,
+    source: &[u8],
+    current_container_name: Option<&str>,
+    counts: &mut BTreeMap<String, u32>,
+) {
+    match node.kind() {
+        "trait_item" => increment_count(counts, "trait-definition"),
+        "impl_item" => {
+            let Ok(text) = node.utf8_text(source) else {
+                return;
+            };
+            if text.contains(" for ") {
+                increment_count(counts, "trait-impl");
+            } else {
+                increment_count(counts, "inherent-impl");
+            }
+            if rust_impl_is_cross_crate_trait(text) {
+                increment_count(counts, "cross-crate-trait-deferred");
+            }
+            if rust_impl_has_type_parameters(node) {
+                increment_count(counts, "generic-impl-deferred");
+            }
+            if rust_impl_is_blanket_impl(text) {
+                increment_count(counts, "blanket-impl-deferred");
+            }
+            if text.contains(" where ") {
+                increment_count(counts, "where-clause-deferred");
+            }
+            if text.contains("#[") {
+                increment_count(counts, "cfg-impl-deferred");
+            }
+        }
+        "function_signature_item" if current_container_name.is_some() => {
+            increment_count(counts, "trait-method-declaration");
+        }
+        "function_item" if current_container_name.is_some() => {
+            increment_count(counts, "impl-method");
+        }
+        _ => {}
+    }
+}
+
+fn record_rust_trait_impl_fact(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    facts: &mut Vec<RustTraitImplFact>,
+) {
+    if node.kind() != "impl_item" {
+        return;
+    }
+    let Ok(text) = node.utf8_text(source) else {
+        return;
+    };
+    let Some((trait_name, type_name)) = rust_trait_impl_names(text) else {
+        return;
+    };
+    let start = node.start_position();
+    facts.push(RustTraitImplFact {
+        file_path: relative_path.to_string(),
+        trait_name,
+        type_name,
+        line: (start.row + 1) as i64,
+        col: start.column as i64,
+    });
+}
+
+fn rust_trait_impl_names(text: &str) -> Option<(String, String)> {
+    let header = text.split_once('{').map(|(header, _)| header)?.trim();
+    let header = header.strip_prefix("impl")?.trim();
+    let header = strip_leading_rust_generics(header).trim();
+    let (trait_part, type_part) = header.split_once(" for ")?;
+    let trait_name = rust_last_path_part(trait_part)?;
+    let type_name = rust_last_path_part(
+        type_part
+            .split_once(" where ")
+            .map(|(left, _)| left)
+            .unwrap_or(type_part),
+    )?;
+    Some((trait_name, type_name))
+}
+
+fn rust_impl_is_cross_crate_trait(text: &str) -> bool {
+    let Some(header) = text.split_once('{').map(|(header, _)| header.trim()) else {
+        return false;
+    };
+    let Some(header) = header.strip_prefix("impl").map(str::trim) else {
+        return false;
+    };
+    let header = strip_leading_rust_generics(header).trim();
+    let Some((trait_part, _)) = header.split_once(" for ") else {
+        return false;
+    };
+    trait_part.contains("::")
+        && !trait_part.trim().starts_with("crate::")
+        && !trait_part.trim().starts_with("self::")
+        && !trait_part.trim().starts_with("super::")
+}
+
+fn rust_impl_is_blanket_impl(text: &str) -> bool {
+    let Some(header) = text.split_once('{').map(|(header, _)| header.trim()) else {
+        return false;
+    };
+    let Some(header) = header.strip_prefix("impl").map(str::trim) else {
+        return false;
+    };
+    let generic_params = rust_leading_generic_param_names(header);
+    if generic_params.is_empty() {
+        return false;
+    }
+    let header_without_generics = strip_leading_rust_generics(header);
+    let Some((_, type_part)) = header_without_generics.split_once(" for ") else {
+        return false;
+    };
+    let Some(type_name) = rust_last_path_part(
+        type_part
+            .split_once(" where ")
+            .map(|(left, _)| left)
+            .unwrap_or(type_part),
+    ) else {
+        return false;
+    };
+    generic_params.contains(&type_name)
+}
+
+fn rust_leading_generic_param_names(value: &str) -> HashSet<String> {
+    let trimmed = value.trim_start();
+    if !trimmed.starts_with('<') {
+        return HashSet::new();
+    }
+    let mut depth = 0_i32;
+    let mut end = None;
+    for (index, ch) in trimmed.char_indices() {
+        match ch {
+            '<' => depth += 1,
+            '>' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = Some(index);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let Some(end) = end else {
+        return HashSet::new();
+    };
+    trimmed[1..end]
+        .split(',')
+        .filter_map(|param| {
+            param
+                .trim()
+                .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+                .find(|part| !part.is_empty())
+                .map(ToString::to_string)
+        })
+        .collect()
+}
+
+fn strip_leading_rust_generics(value: &str) -> &str {
+    let trimmed = value.trim_start();
+    if !trimmed.starts_with('<') {
+        return trimmed;
+    }
+    let mut depth = 0_i32;
+    for (index, ch) in trimmed.char_indices() {
+        match ch {
+            '<' => depth += 1,
+            '>' => {
+                depth -= 1;
+                if depth == 0 {
+                    return trimmed[index + 1..].trim_start();
+                }
+            }
+            _ => {}
+        }
+    }
+    trimmed
+}
+
+fn rust_last_path_part(value: &str) -> Option<String> {
+    let cleaned = value
+        .trim()
+        .trim_start_matches('&')
+        .trim_start_matches("mut ")
+        .trim();
+    let part = cleaned
+        .split("::")
+        .last()?
+        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+        .find(|part| !part.is_empty())?;
+    Some(part.to_string())
+}
+
+fn rust_impl_has_type_parameters(node: SyntaxNode) -> bool {
+    node.named_children(&mut node.walk())
+        .any(|child| child.kind() == "type_parameters")
+}
+
+fn increment_count(counts: &mut BTreeMap<String, u32>, key: &str) {
+    *counts.entry(key.to_string()).or_default() += 1;
 }
 
 fn extract_rust_imports(
@@ -9321,6 +9547,15 @@ struct ExtractedEdge {
 }
 
 #[derive(Debug)]
+struct RustTraitImplFact {
+    file_path: String,
+    trait_name: String,
+    type_name: String,
+    line: i64,
+    col: i64,
+}
+
+#[derive(Debug)]
 struct UnresolvedRef {
     from_node_id: String,
     reference_name: String,
@@ -9329,6 +9564,106 @@ struct UnresolvedRef {
     col: i64,
     file_path: String,
     language: String,
+}
+
+fn add_rust_trait_impl_edges(
+    nodes: &[ExtractedNode],
+    edges: &mut Vec<ExtractedEdge>,
+    facts: &[RustTraitImplFact],
+) {
+    let mut existing = edges
+        .iter()
+        .map(|edge| (edge.source.clone(), edge.target.clone(), edge.kind.clone()))
+        .collect::<HashSet<_>>();
+
+    for fact in facts {
+        let type_candidates = nodes
+            .iter()
+            .filter(|node| {
+                node.file_path == fact.file_path
+                    && node.name == fact.type_name
+                    && matches!(node.kind.as_str(), "struct" | "enum" | "type_alias")
+            })
+            .collect::<Vec<_>>();
+        let trait_candidates = nodes
+            .iter()
+            .filter(|node| {
+                node.file_path == fact.file_path
+                    && node.name == fact.trait_name
+                    && node.kind == "trait"
+            })
+            .collect::<Vec<_>>();
+        if type_candidates.len() != 1 || trait_candidates.len() != 1 {
+            continue;
+        }
+        let source = type_candidates[0].id.clone();
+        let target = trait_candidates[0].id.clone();
+        let key = (source.clone(), target.clone(), "implements".to_string());
+        if existing.insert(key) {
+            edges.push(ExtractedEdge {
+                source,
+                target,
+                kind: "implements".to_string(),
+                line: fact.line,
+                col: fact.col,
+            });
+        }
+
+        add_rust_trait_method_reference_edges(nodes, edges, fact, &mut existing);
+    }
+}
+
+fn add_rust_trait_method_reference_edges(
+    nodes: &[ExtractedNode],
+    edges: &mut Vec<ExtractedEdge>,
+    fact: &RustTraitImplFact,
+    existing: &mut HashSet<(String, String, String)>,
+) {
+    let impl_prefix = format!("{}.", fact.type_name);
+    let trait_prefix = format!("{}.", fact.trait_name);
+    let impl_methods = nodes
+        .iter()
+        .filter(|node| {
+            node.file_path == fact.file_path
+                && node.kind == "method"
+                && node.name.starts_with(&impl_prefix)
+        })
+        .collect::<Vec<_>>();
+
+    for impl_method in impl_methods {
+        let Some(method_name) = rust_method_leaf_name(&impl_method.name) else {
+            continue;
+        };
+        let trait_method_name = format!("{}.{method_name}", fact.trait_name);
+        let trait_method_candidates = nodes
+            .iter()
+            .filter(|node| {
+                node.file_path == fact.file_path
+                    && node.kind == "method"
+                    && node.name == trait_method_name
+                    && node.name.starts_with(&trait_prefix)
+            })
+            .collect::<Vec<_>>();
+        if trait_method_candidates.len() != 1 {
+            continue;
+        }
+        let source = impl_method.id.clone();
+        let target = trait_method_candidates[0].id.clone();
+        let key = (source.clone(), target.clone(), "references".to_string());
+        if existing.insert(key) {
+            edges.push(ExtractedEdge {
+                source,
+                target,
+                kind: "references".to_string(),
+                line: impl_method.start_line,
+                col: impl_method.start_column,
+            });
+        }
+    }
+}
+
+fn rust_method_leaf_name(name: &str) -> Option<&str> {
+    name.rsplit_once('.').map(|(_, leaf)| leaf)
 }
 
 fn insert_nodes(conn: &Connection, nodes: &[ExtractedNode]) -> rusqlite::Result<()> {
@@ -10527,6 +10862,200 @@ mod tests {
                         && target_kind == "struct"
                 }),
             "{edges:?}"
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_classifies_trait_and_impl_taxonomy() {
+        let dir = temp_dir("rust-trait-impl-taxonomy");
+        fs::write(
+            dir.join("lib.rs"),
+            [
+                "pub trait Worker {",
+                "    fn run(&self);",
+                "}",
+                "pub struct Service;",
+                "pub struct ExternalService;",
+                "impl Service {",
+                "    pub fn new() -> Self { Service }",
+                "}",
+                "impl Worker for Service {",
+                "    fn run(&self) {}",
+                "}",
+                "impl<T> Worker for Vec<T> {",
+                "    fn run(&self) {}",
+                "}",
+                "impl Worker for Service where Service: Send {",
+                "    fn run(&self) {}",
+                "}",
+                "impl<T> Worker for T {",
+                "    fn run(&self) {}",
+                "}",
+                "impl std::fmt::Display for ExternalService {",
+                "    fn fmt(&self) {}",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let counts = &result.profile.rust_trait_impl_taxonomy_counts;
+        assert_eq!(counts.get("trait-definition"), Some(&1));
+        assert_eq!(counts.get("trait-method-declaration"), Some(&1));
+        assert_eq!(counts.get("inherent-impl"), Some(&1));
+        assert_eq!(counts.get("trait-impl"), Some(&5));
+        assert_eq!(counts.get("impl-method"), Some(&6));
+        assert_eq!(counts.get("generic-impl-deferred"), Some(&2));
+        assert_eq!(counts.get("where-clause-deferred"), Some(&1));
+        assert_eq!(counts.get("blanket-impl-deferred"), Some(&1));
+        assert_eq!(counts.get("cross-crate-trait-deferred"), Some(&1));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_writes_type_implements_trait_edge_for_unique_same_file_impl() {
+        let dir = temp_dir("rust-trait-impl-edge");
+        fs::write(
+            dir.join("lib.rs"),
+            [
+                "pub trait Worker {",
+                "    fn run(&self);",
+                "}",
+                "pub struct Service;",
+                "impl Worker for Service {",
+                "    fn run(&self) {}",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(&request.index_path).unwrap();
+        let implements = conn
+            .prepare(
+                "SELECT source.name, target.name
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 JOIN nodes target ON target.id = edges.target
+                 WHERE edges.kind = 'implements'
+                 ORDER BY source.name, target.name",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+
+        assert_eq!(
+            implements,
+            vec![("Service".to_string(), "Worker".to_string())]
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_references_trait_method_declaration_from_unique_impl_method() {
+        let dir = temp_dir("rust-trait-method-reference");
+        fs::write(
+            dir.join("lib.rs"),
+            [
+                "pub trait Worker {",
+                "    fn run(&self);",
+                "}",
+                "pub struct Service;",
+                "impl Service {",
+                "    fn helper(&self) {}",
+                "}",
+                "impl Worker for Service {",
+                "    fn run(&self) {}",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(&request.index_path).unwrap();
+        let references = conn
+            .prepare(
+                "SELECT source.name, target.name
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 JOIN nodes target ON target.id = edges.target
+                 WHERE edges.kind = 'references'
+                 ORDER BY source.name, target.name",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+
+        assert!(references.contains(&("Service.run".to_string(), "Worker.run".to_string())));
+        assert!(
+            !references.contains(&("Service.helper".to_string(), "Worker.run".to_string())),
+            "{references:?}"
         );
         fs::remove_dir_all(dir).unwrap();
     }
