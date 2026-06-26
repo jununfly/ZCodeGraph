@@ -84,6 +84,23 @@ diagnostic bundle before opening an issue:
 zcodegraph doctor --engine rust-hybrid --bundle --last-run
 ```
 
+If that command is not found, or if `--engine`, `--bundle`, or `--last-run`
+are reported as unknown, first confirm that your shell is running the ZCodeGraph
+CLI you just installed:
+
+```bash
+command -v zcodegraph        # macOS / Linux
+where.exe zcodegraph         # Windows PowerShell
+zcodegraph --version
+zcodegraph doctor --help
+```
+
+The expected 0.10.x CLI lists `doctor [options] [path]` in `zcodegraph --help`
+and lists `--engine`, `--bundle`, `--last-run`, and `--last-failure` in
+`zcodegraph doctor --help`. If your shell shows a different command, open a new
+terminal or reinstall/upgrade ZCodeGraph so your PATH points at the current
+`zcodegraph` binary.
+
 After `zcodegraph install` and `zcodegraph init`, restart your agent and ask
 normal code questions. The MCP server exposes the graph automatically; you do
 not need to paste code or teach the agent a new workflow.
@@ -573,8 +590,14 @@ is written):
 
 ### Indexing engine ownership
 
-The default user path is `rust-hybrid`: Rust owns the supported fast path where
-it can, and ZCodeGraph records fallback or unsupported coverage explicitly.
+The default user path is `rust-hybrid`: ZCodeGraph uses a Rust-backed indexing
+core for the languages it currently owns, then appends the mature TypeScript
+indexer for the rest of the supported source set. Here **Rust-owned** describes
+the implementation path, not the Rust programming language. ZCodeGraph can index
+`.rs` files structurally, but it does not yet provide a full Rust compiler-style
+semantic model for macros, lifetimes, trait coherence, or Cargo feature
+resolution.
+
 Users normally do not need to choose an engine. For debugging, the mature
 TypeScript indexer remains available as an explicit command:
 
@@ -585,7 +608,7 @@ zcodegraph index --engine typescript
 | State | Meaning | Current languages / files |
 |---|---|---|
 | Rust-owned | Indexed by the Rust core on the default `rust-hybrid` path. | JavaScript, JSX, TypeScript, TSX, Go, Python. |
-| TS-indexed | Indexed by the TypeScript indexer as the mature multi-language path. | Java, C#, PHP, Ruby, C, C++, Objective-C, Swift, Kotlin, Scala, Dart, Svelte, Vue, Liquid, Pascal/Delphi, Lua, Luau, and other supported non-Rust-owned sources. |
+| TS-indexed | Indexed by the TypeScript indexer as the mature multi-language path. | Rust, Java, C#, PHP, Ruby, C, C++, Objective-C, Swift, Kotlin, Scala, Dart, Svelte, Vue, Liquid, Pascal/Delphi, Lua, Luau, and other supported non-Rust-owned sources. |
 | Hybrid fallback | `rust-hybrid` uses TypeScript fallback for a file or language and reports it in status/doctor. | Expected for non-Rust-owned supported files, and for Rust-owned parse gaps when recoverable. |
 | Not covered | Not indexed as source symbols/edges. | Unsupported extensions, ignored paths, default-excluded dependency/build/cache directories, and files over the size limit. |
 
@@ -595,7 +618,7 @@ zcodegraph index --engine typescript
 | JavaScript | `.js`, `.jsx`, `.mjs` | Full support |
 | Python | `.py` | Full support |
 | Go | `.go` | Full support |
-| Rust | `.rs` | Full support |
+| Rust | `.rs` | Structural indexing support; full Rust-specific semantic analysis is planned separately |
 | Java | `.java` | Full support |
 | C# | `.cs` | Full support |
 | PHP | `.php` | Full support |
@@ -639,10 +662,23 @@ zcodegraph doctor --engine rust-hybrid --bundle --last-run
 zcodegraph doctor --engine rust-hybrid --bundle --last-failure
 ```
 
+If `doctor` or one of those flags is missing, capture command-resolution
+evidence before filing the issue:
+
+```bash
+command -v zcodegraph        # macOS / Linux
+where.exe zcodegraph         # Windows PowerShell
+zcodegraph --version
+zcodegraph --help
+zcodegraph doctor --help
+```
+
 Good issue reports are replayable and privacy-conscious. Include:
 
 - the diagnostic bundle above;
 - `zcodegraph status --json`;
+- the command-resolution output above if `doctor` is missing or a flag is
+  unknown;
 - the exact command you ran;
 - stdout/stderr;
 - OS, architecture, install method, and Node version if you are embedding the

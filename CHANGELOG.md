@@ -9,6 +9,10 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixes
+
+- Troubleshooting now tells users how to verify which `zcodegraph` binary their shell is running when `doctor` or its diagnostic flags appear to be missing.
+- The README now distinguishes the `rust-hybrid` indexing engine from Rust language semantic support, so `.rs` coverage is described as structural indexing while deeper Rust-specific analysis is tracked separately.
 
 ## [0.10.0] - 2026-06-26
 
