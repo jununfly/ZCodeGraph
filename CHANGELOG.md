@@ -9,6 +9,9 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+
+## [0.10.0] - 2026-06-26
+
 ### Breaking Changes
 
 - The public `Subgraph` type now exposes `entryNodes` instead of `roots`, matching the project terminology for Entry Nodes.
@@ -383,3 +386,4 @@ Thanks @andreinknv for the substantive draft this release was based on.
 [0.7.6]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.7.6
 [0.9.8]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.8
 [0.9.9]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.9
+[0.10.0]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.10.0
