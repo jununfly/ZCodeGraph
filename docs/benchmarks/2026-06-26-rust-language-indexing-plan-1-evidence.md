@@ -70,6 +70,8 @@ CODEGRAPH_ALLOW_UNSAFE_NODE=1 node dist/bin/zcodegraph.js doctor /private/tmp/zc
 Result:
 
 - Index command: passed.
+- Wall time: 5.99 seconds.
+- Max RSS: 280,182,784 bytes (267.2 MiB).
 - Profile artifact: `complete: true`.
 - Rust parse profile: 2 Rust files, 47 ms parse extraction, 0 parse errors.
 - Status graph counts: 314 files, 15,695 nodes, 33,544 edges.
@@ -104,7 +106,20 @@ Conclusion:
 
 ## RSS
 
-RSS was unavailable in this sandboxed run.
+RSS was captured for the successful small mixed Rust project smoke from a normal
+macOS Terminal run:
+
+```text
+5.99 real
+5.28 user
+0.58 sys
+280182784 maximum resident set size
+32198904 peak memory footprint
+```
+
+The max RSS value is `280,182,784` bytes (`267.2 MiB`).
+
+Earlier Codex sandbox attempts could not sample RSS.
 
 Unavailable reason:
 
