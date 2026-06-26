@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-26-rust-language-indexing-roadmap.json` | 最后更新: 2026-06-26 19:31:42
+> 数据文件: `2026-06-26-rust-language-indexing-roadmap.json` | 最后更新: 2026-06-26 22:54:53
 
 [~][X+] 1. Rust Language Indexing Support
 ├── [x][X+] 1-1. Rust language support baseline and taxonomy
@@ -24,14 +24,9 @@
 │   ├── [x][Y+] 1-3-5. Rust status and doctor evidence surface
 │   └── [x][Y+] 1-3-6. Rust language support release evidence artifact
 └── [ ][X+] 1-4. Rust semantic graph slices
-    ├── [ ][Y+] 1-4-1. Rust repo-local module path resolution slice
+    ├── [x][Y+] 1-4-1. Rust repo-local module path resolution slice
     ├── [ ][X+] 1-4-2. Rust trait definition to impl relationship frontier
     ├── [ ][X+] 1-4-3. Rust macro coverage taxonomy frontier
     ├── [ ][X+] 1-4-4. Cargo workspace package and feature taxonomy frontier
     └── [ ][X+] 1-4-5. Rust web framework route wiring candidates
 <!-- ROADMAP_SECTION_END -->
-
-### 当前施工：1-1. Rust language support baseline and taxonomy
-
-**决策：**
-- Q: What is the current Rust language indexing boundary? → Current .rs support is Rust-owned baseline structural indexing through rust-hybrid. Full Rust semantic graph work remains explicitly tracked under 1-4. (This supersedes the initial pre-Plan-1 audit where .rs still used the mature TypeScript indexer path.)

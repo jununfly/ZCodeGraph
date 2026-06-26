@@ -229,12 +229,53 @@
     "1-4-1": {
       "id": "1-4-1",
       "label": "Rust repo-local module path resolution slice",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-4",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-4-1-1",
+        "1-4-1-2",
+        "1-4-1-3",
+        "1-4-1-4"
+      ],
+      "decisions": [
+        {
+          "q": "What is Plan 2's target slice?",
+          "answer": "Implement Rust repo-local module path resolution for crate/self/super/mod/sibling module paths, bounded to local files and symbols. Exclude Cargo package/dependency resolution, feature cfg, macro expansion, and trait dispatch.",
+          "note": ""
+        },
+        {
+          "q": "What graph edge boundary should Plan 2 use?",
+          "answer": "Prefer file-level dependency edges for Rust repo-local module paths. Add symbol-level references/calls only when the target symbol is high-confidence and unique; otherwise record taxonomy rather than guessing.",
+          "note": ""
+        },
+        {
+          "q": "Which Rust path forms are in Plan 2?",
+          "answer": "Support repo-local module basics: mod/pub mod declarations, crate/self/super use paths, sibling qualified call/type refs, foo.rs and foo/mod.rs targets, and src/lib.rs or src/main.rs crate roots. Defer pub use re-export chains, glob imports, alias imports, external crates, #[path] modules, and cfg-specific variants.",
+          "note": ""
+        },
+        {
+          "q": "Which corpus validates Plan 2?",
+          "answer": "Use mini-redis as the primary real Rust repository smoke, with compact synthetic fixtures for exact boundary tests. Defer larger Rust corpora such as ripgrep or hyper until module path semantics are stable.",
+          "note": ""
+        },
+        {
+          "q": "What validation gate completes Plan 2?",
+          "answer": "Require deterministic graph tests plus a mini-redis smoke and deterministic explore probe. Do not run stochastic agent A/B. Evidence must include graph counts, fallback/deferred taxonomy, status/doctor/profile signal, and RSS or unavailable reason.",
+          "note": ""
+        },
+        {
+          "q": "Where should Plan 2 implementation live?",
+          "answer": "Keep Rust repo-local module resolution Rust-owned: collect module identities, mod declarations, use paths, and qualified refs in Rust core, then resolve/write file-level edges and taxonomy inside Rust-owned extraction/finalization. Do not route .rs same-language semantics back through the TypeScript resolver.",
+          "note": ""
+        },
+        {
+          "q": "How should Plan 2 be split into issues?",
+          "answer": "Split into 4 issues: module identity/mod declaration target mapping; crate/self/super use path file-level dependencies; sibling qualified refs with file-level plus unique symbol edges; mini-redis smoke, deterministic explore probe, and evidence/status taxonomy.",
+          "note": ""
+        }
+      ],
+      "notes": "Plan 2 repo-local module path resolution slice completed."
     },
     "1-4-2": {
       "id": "1-4-2",
@@ -375,11 +416,51 @@
       "children": [],
       "decisions": [],
       "notes": ""
+    },
+    "1-4-1-1": {
+      "id": "1-4-1-1",
+      "label": "Rust module identity and mod declaration target mapping",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented in #570: mod declarations resolve to repo-local foo.rs/foo/mod.rs file targets."
+    },
+    "1-4-1-2": {
+      "id": "1-4-1-2",
+      "label": "Rust crate self super use path file-level dependencies",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented in #571: crate/self/super use paths resolve to repo-local file dependencies."
+    },
+    "1-4-1-3": {
+      "id": "1-4-1-3",
+      "label": "Rust sibling qualified refs file-level and unique symbol edges",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented in #572: sibling qualified refs write file edges and unique symbol edges in deterministic fixtures."
+    },
+    "1-4-1-4": {
+      "id": "1-4-1-4",
+      "label": "Rust module path mini-redis smoke and evidence",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented in #573: mini-redis smoke recorded in Plan 2 evidence."
     }
   },
   "metadata": {
     "created": "2026-06-26 17:05:43",
-    "updated": "2026-06-26 19:31:42",
+    "updated": "2026-06-26 22:54:53",
     "md_file": "docs/plans/2026-06-26-rust-language-indexing-roadmap.md"
   }
 }

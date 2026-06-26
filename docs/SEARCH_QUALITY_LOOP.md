@@ -10,7 +10,7 @@ A language is NOT verified until an LLM can reliably use CodeGraph's MCP tools t
 
 ```bash
 npm run build
-rm -rf <codebase_path>/.codegraph
+rm -rf <codebase_path>/.zcodegraph
 node dist/bin/zcodegraph.js init -v <codebase_path>
 ```
 
@@ -20,18 +20,18 @@ The `-iv` flag gives verbose output showing extraction progress, node/edge count
 
 ```bash
 # Verify nodes were extracted with proper qualified names
-sqlite3 <codebase_path>/.codegraph/codegraph.db \
+sqlite3 <codebase_path>/.zcodegraph/zcodegraph.db \
   "SELECT name, kind, qualified_name FROM nodes WHERE kind = 'method' LIMIT 10;"
 
 # GOOD: file.go::StructName::method_name  (owner type present)
 # BAD:  file.go::file.go::method_name     (owner type missing — needs getReceiverType)
 
 # Check edge counts
-sqlite3 <codebase_path>/.codegraph/codegraph.db \
+sqlite3 <codebase_path>/.zcodegraph/zcodegraph.db \
   "SELECT kind, COUNT(*) FROM edges GROUP BY kind ORDER BY COUNT(*) DESC;"
 
 # Check node kind distribution
-sqlite3 <codebase_path>/.codegraph/codegraph.db \
+sqlite3 <codebase_path>/.zcodegraph/zcodegraph.db \
   "SELECT kind, COUNT(*) FROM nodes GROUP BY kind ORDER BY COUNT(*) DESC;"
 ```
 
@@ -303,7 +303,7 @@ test().catch(console.error);
 ```
 
 ```bash
-sqlite3 <codebase_path>/.codegraph/codegraph.db "
+sqlite3 <codebase_path>/.zcodegraph/zcodegraph.db "
   SELECT kind, COUNT(*) as cnt FROM edges GROUP BY kind ORDER BY cnt DESC;
 "
 ```
@@ -321,7 +321,7 @@ sqlite3 <codebase_path>/.codegraph/codegraph.db "
 Verify all expected node kinds are being extracted.
 
 ```bash
-sqlite3 <codebase_path>/.codegraph/codegraph.db "
+sqlite3 <codebase_path>/.zcodegraph/zcodegraph.db "
   SELECT kind, COUNT(*) as cnt FROM nodes GROUP BY kind ORDER BY cnt DESC;
 "
 ```
@@ -469,7 +469,7 @@ test().catch(console.error);
 
 ```bash
 npm run build
-rm -rf <codebase_path>/.codegraph
+rm -rf <codebase_path>/.zcodegraph
 node dist/bin/zcodegraph.js init -v <codebase_path>
 # Re-run the failing tests from above
 ```

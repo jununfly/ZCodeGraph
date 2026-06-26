@@ -1125,6 +1125,7 @@ program
             version: packageJson.version,
             projectPath,
             indexPath: getCodeGraphDir(projectPath),
+            databasePath: getDatabasePath(projectPath),
             lastIndexed: null,
             rust: getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null }),
           }));
@@ -1155,6 +1156,7 @@ program
           version: packageJson.version,
           projectPath,
           indexPath: getCodeGraphDir(projectPath),
+          databasePath: getDatabasePath(projectPath),
           lastIndexed: lastIndexedMs != null ? new Date(lastIndexedMs).toISOString() : null,
           fileCount: stats.fileCount,
           nodeCount: stats.nodeCount,

@@ -1,7 +1,7 @@
 /**
  * Tests for the CI/scripting fields `zcodegraph status --json` exposes (issue
- * #329): the `version`, `indexPath`, and `lastIndexed` fields, plus the
- * matching `CodeGraph.getLastIndexedAt()` library method.
+ * #329): the `version`, `indexPath`, `databasePath`, and `lastIndexed` fields,
+ * plus the matching `CodeGraph.getLastIndexedAt()` library method.
  *
  * The CLI itself is exercised end-to-end against the built binary so the JSON
  * field names survive future refactors of the underlying plumbing.
@@ -80,18 +80,19 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     cg.close();
   });
 
-  it('status --json on an UNINITIALIZED project reports version + indexPath + lastIndexed:null', () => {
+  it('status --json on an UNINITIALIZED project reports version + indexPath + databasePath + lastIndexed:null', () => {
     const out = runStatusJson(tempDir);
     expect(out.initialized).toBe(false);
     expect(out.version).toBe(PKG_VERSION);
     expect(typeof out.indexPath).toBe('string');
     expect(out.indexPath as string).toContain('.zcodegraph');
+    expect(out.databasePath).toBe(path.join(fs.realpathSync(tempDir), '.zcodegraph', 'zcodegraph.db'));
     expect(out.lastIndexed).toBeNull();
     expect((out as { rust: { configuredEngine: { engine: string; source: string } } }).rust.configuredEngine)
       .toMatchObject({ engine: 'rust-hybrid', source: 'default' });
   });
 
-  it('status --json on an INDEXED project reports version + indexPath + a round-trippable lastIndexed', async () => {
+  it('status --json on an INDEXED project reports version + indexPath + databasePath + a round-trippable lastIndexed', async () => {
     fs.writeFileSync(path.join(tempDir, 'a.ts'), 'export const x = 1;\n');
     const before = Date.now();
     const cg = CodeGraph.initSync(tempDir);
@@ -103,6 +104,7 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     expect(out.initialized).toBe(true);
     expect(out.version).toBe(PKG_VERSION);
     expect(out.indexPath as string).toContain('.zcodegraph');
+    expect(out.databasePath).toBe(path.join(fs.realpathSync(tempDir), '.zcodegraph', 'zcodegraph.db'));
     expect(typeof out.lastIndexed).toBe('string');
     // ISO string that round-trips back into the index window.
     const ms = Date.parse(out.lastIndexed as string);

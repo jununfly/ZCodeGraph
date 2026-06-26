@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 use tree_sitter::{Node as SyntaxNode, Parser, TreeCursor};
 
@@ -4718,6 +4718,15 @@ fn insert_rust_import_edge(
     reference: &ImportRefRow,
     target_node_id: &str,
 ) -> rusqlite::Result<bool> {
+    insert_rust_import_edge_with_reason(conn, reference, target_node_id, "rust-import-path-alias")
+}
+
+fn insert_rust_import_edge_with_reason(
+    conn: &Connection,
+    reference: &ImportRefRow,
+    target_node_id: &str,
+    resolved_by: &str,
+) -> rusqlite::Result<bool> {
     let existing: i64 = conn.query_row(
         "SELECT COUNT(*) FROM edges
          WHERE source = ?1 AND target = ?2 AND kind = ?3 AND edgeOrigin = 'rust-finalization'",
@@ -4739,7 +4748,7 @@ fn insert_rust_import_edge(
             reference.from_node_id,
             target_node_id,
             reference.reference_kind,
-            "{\"resolvedBy\":\"rust-import-path-alias\"}",
+            format!("{{\"resolvedBy\":\"{}\"}}", resolved_by),
             reference.line,
             reference.col,
         ],
@@ -6947,6 +6956,7 @@ fn index_javascript_files(
                 extract_rust_symbols(
                     parsed.root_node(),
                     content.as_bytes(),
+                    project_path,
                     &relative_path,
                     &file_node_id,
                     &mut nodes,
@@ -7003,6 +7013,14 @@ fn index_javascript_files(
         counts.nodes_created += nodes.len() as u32;
         counts.edges_created += edges.len() as u32;
     }
+
+    let rust_module_edges_started = Instant::now();
+    let rust_module_edges_created = resolve_rust_module_file_imports(&tx, project_path)?;
+    counts.edges_created += rust_module_edges_created;
+    let rust_scoped_symbol_edges_created = resolve_rust_scoped_symbol_refs(&tx, project_path)?;
+    counts.edges_created += rust_scoped_symbol_edges_created;
+    counts.profile.import_path_alias_resolution_ms +=
+        rust_module_edges_started.elapsed().as_millis();
 
     let commit_started = Instant::now();
     tx.commit()?;
@@ -8070,6 +8088,7 @@ fn python_import_modules(statement: &str) -> Vec<String> {
 fn extract_rust_symbols(
     root: SyntaxNode,
     source: &[u8],
+    project_path: &Path,
     relative_path: &str,
     file_node_id: &str,
     nodes: &mut Vec<ExtractedNode>,
@@ -8080,6 +8099,7 @@ fn extract_rust_symbols(
     visit_rust_node(
         &mut cursor,
         source,
+        project_path,
         relative_path,
         file_node_id,
         file_node_id,
@@ -8094,6 +8114,7 @@ fn extract_rust_symbols(
 fn visit_rust_node(
     cursor: &mut TreeCursor,
     source: &[u8],
+    project_path: &Path,
     relative_path: &str,
     file_node_id: &str,
     current_from_node_id: &str,
@@ -8140,6 +8161,7 @@ fn visit_rust_node(
         node,
         source,
         relative_path,
+        file_node_id,
         current_from_node_id,
         nodes,
         edges,
@@ -8152,12 +8174,21 @@ fn visit_rust_node(
         current_from_node_id,
         unresolved_refs,
     )?;
+    extract_rust_scoped_module_refs(
+        node,
+        source,
+        relative_path,
+        file_node_id,
+        current_from_node_id,
+        unresolved_refs,
+    )?;
 
     if cursor.goto_first_child() {
         loop {
             visit_rust_node(
                 cursor,
                 source,
+                project_path,
                 relative_path,
                 file_node_id,
                 &child_from_node_id,
@@ -8253,31 +8284,32 @@ fn extract_rust_imports(
     node: SyntaxNode,
     source: &[u8],
     relative_path: &str,
+    file_node_id: &str,
     from_node_id: &str,
     nodes: &mut Vec<ExtractedNode>,
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if node.kind() != "use_declaration" {
-        return Ok(());
-    }
-
-    let Some(module) = rust_use_root_module(node.utf8_text(source)?) else {
+    let Some(module) = rust_module_reference_name(node, source)? else {
         return Ok(());
     };
-    let import_node = ExtractedNode::symbol(relative_path, "import", &module, node, "rust");
+    let import_node_name = rust_import_node_name(&module);
+    let import_node =
+        ExtractedNode::symbol(relative_path, "import", &import_node_name, node, "rust");
     let import_node_id = import_node.id.clone();
+    let import_line = import_node.start_line;
+    let import_col = import_node.start_column;
     edges.push(ExtractedEdge {
         source: from_node_id.to_string(),
         target: import_node_id,
         kind: "contains".to_string(),
-        line: import_node.start_line,
-        col: import_node.start_column,
+        line: import_line,
+        col: import_col,
     });
     nodes.push(import_node);
     push_ref(
         unresolved_refs,
-        from_node_id,
+        file_node_id,
         &module,
         "imports",
         node,
@@ -8288,14 +8320,297 @@ fn extract_rust_imports(
     Ok(())
 }
 
-fn rust_use_root_module(statement: &str) -> Option<String> {
+fn rust_import_node_name(reference_name: &str) -> String {
+    rust_path_parts(reference_name)
+        .first()
+        .map(|part| (*part).to_string())
+        .unwrap_or_else(|| reference_name.to_string())
+}
+
+fn rust_module_reference_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "use_declaration" => Ok(rust_use_module_path(node.utf8_text(source)?)),
+        "mod_item" => Ok(node
+            .child_by_field_name("name")
+            .and_then(|name| name.utf8_text(source).ok().map(ToString::to_string))),
+        _ => Ok(None),
+    }
+}
+
+fn rust_use_module_path(statement: &str) -> Option<String> {
     let rest = statement.trim().strip_prefix("use ")?;
-    let root: String = rest
-        .trim_start()
-        .chars()
-        .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
-        .collect();
-    (!root.is_empty()).then_some(root)
+    let path = rest
+        .trim()
+        .trim_end_matches(';')
+        .split_once(" as ")
+        .map(|(path, _)| path)
+        .unwrap_or(rest)
+        .trim();
+    if path.contains('{') || path.contains('*') {
+        return None;
+    }
+    let parts = rust_path_parts(path);
+    (!parts.is_empty()).then(|| parts.join("::"))
+}
+
+fn rust_path_parts(path: &str) -> Vec<&str> {
+    path.split("::")
+        .map(str::trim)
+        .filter(|part| {
+            !part.is_empty()
+                && part
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        })
+        .collect()
+}
+
+#[derive(Debug)]
+struct RustModuleResolution {
+    file_path: String,
+    module_part_count: usize,
+}
+
+fn rust_resolve_module_reference(
+    project_path: &Path,
+    relative_path: &str,
+    reference_name: &str,
+) -> Option<RustModuleResolution> {
+    let parts = rust_path_parts(reference_name);
+    if parts.is_empty() {
+        return None;
+    }
+
+    let (base_dir, module_parts): (PathBuf, &[&str]) = match parts.as_slice() {
+        ["crate", rest @ ..] => (rust_crate_root_dir(project_path), rest),
+        ["self", rest @ ..] => (rust_module_base_dir(relative_path), rest),
+        ["super", rest @ ..] => {
+            let mut base = rust_module_base_dir(relative_path);
+            base.pop();
+            (base, rest)
+        }
+        [_, ..] => (rust_module_base_dir(relative_path), parts.as_slice()),
+        [] => return None,
+    };
+    if module_parts.is_empty() {
+        return None;
+    }
+
+    for len in (1..=module_parts.len()).rev() {
+        let module_path = module_parts[..len]
+            .iter()
+            .fold(PathBuf::new(), |mut path, part| {
+                path.push(part);
+                path
+            });
+        for candidate in [
+            base_dir.join(module_path.with_extension("rs")),
+            base_dir.join(&module_path).join("mod.rs"),
+        ] {
+            let candidate = normalize_slash_path(&candidate);
+            if project_path.join(&candidate).is_file() {
+                return Some(RustModuleResolution {
+                    file_path: candidate,
+                    module_part_count: len,
+                });
+            }
+        }
+    }
+    None
+}
+
+fn rust_crate_root_dir(project_path: &Path) -> PathBuf {
+    for root in ["src/lib.rs", "src/main.rs"] {
+        if project_path.join(root).is_file() {
+            return PathBuf::from("src");
+        }
+    }
+    PathBuf::new()
+}
+
+fn rust_module_base_dir(relative_path: &str) -> PathBuf {
+    let path = Path::new(relative_path);
+    let dir = path.parent().unwrap_or_else(|| Path::new(""));
+    match path.file_name().and_then(|name| name.to_str()) {
+        Some("lib.rs") | Some("main.rs") | Some("mod.rs") => dir.to_path_buf(),
+        Some(file_name) if file_name.ends_with(".rs") => {
+            dir.join(file_name.trim_end_matches(".rs"))
+        }
+        _ => dir.to_path_buf(),
+    }
+}
+
+fn normalize_slash_path(path: &Path) -> String {
+    path.components()
+        .filter_map(|component| match component {
+            Component::Normal(part) => Some(part.to_string_lossy().to_string()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn resolve_rust_module_file_imports(
+    conn: &Connection,
+    project_path: &Path,
+) -> Result<u32, Box<dyn std::error::Error>> {
+    let refs = load_import_refs(conn)?;
+    let mut edges_created = 0;
+
+    for reference in refs {
+        if reference.language != "rust" {
+            continue;
+        }
+        let Some(target) = rust_resolve_module_reference(
+            project_path,
+            &reference.file_path,
+            &reference.reference_name,
+        ) else {
+            continue;
+        };
+        let Some(target_node_id) = file_node_id_for_path(conn, &target.file_path)? else {
+            continue;
+        };
+        if insert_rust_import_edge_with_reason(
+            conn,
+            &reference,
+            &target_node_id,
+            "rust-module-path",
+        )? {
+            edges_created += 1;
+        }
+    }
+
+    Ok(edges_created)
+}
+
+fn resolve_rust_scoped_symbol_refs(
+    conn: &Connection,
+    project_path: &Path,
+) -> Result<u32, Box<dyn std::error::Error>> {
+    let refs = load_rust_scoped_symbol_refs(conn)?;
+    let mut edges_created = 0;
+    let mut resolved_ids = Vec::new();
+    let mut existing_edges = load_rust_finalization_edge_keys(conn)?;
+
+    for reference in refs {
+        let Some(target) = rust_resolve_module_reference(
+            project_path,
+            &reference.file_path,
+            &reference.reference_name,
+        ) else {
+            continue;
+        };
+        let Some(symbol_name) = rust_symbol_name_after_module_prefix(
+            &reference.reference_name,
+            target.module_part_count,
+        ) else {
+            continue;
+        };
+        let candidates = find_unique_rust_symbol_in_file(
+            conn,
+            &target.file_path,
+            &symbol_name,
+            &reference.reference_kind,
+        )?;
+        if candidates.len() != 1 {
+            continue;
+        }
+        if insert_rust_local_reference_edge(conn, &reference, &candidates[0], &mut existing_edges)?
+        {
+            edges_created += 1;
+        }
+        resolved_ids.push(reference.id);
+    }
+
+    delete_resolved_import_refs(conn, &resolved_ids)?;
+    Ok(edges_created)
+}
+
+fn load_rust_scoped_symbol_refs(conn: &Connection) -> rusqlite::Result<Vec<LocalRefRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, from_node_id, reference_name, reference_kind, line, col, file_path, language
+         FROM unresolved_refs
+         WHERE language = 'rust'
+           AND reference_kind IN ('calls', 'references')
+           AND reference_name LIKE '%::%'
+         ORDER BY id",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(LocalRefRow {
+            id: row.get(0)?,
+            from_node_id: row.get(1)?,
+            reference_name: row.get(2)?,
+            reference_kind: row.get(3)?,
+            line: row.get(4)?,
+            col: row.get(5)?,
+            file_path: row.get(6)?,
+            language: row.get(7)?,
+        })
+    })?;
+    rows.collect()
+}
+
+fn rust_symbol_name_after_module_prefix(
+    reference_name: &str,
+    module_part_count: usize,
+) -> Option<String> {
+    let parts = rust_path_parts(reference_name);
+    let prefix_offset = match parts.first().copied() {
+        Some("crate" | "self" | "super") => 1,
+        Some(_) => 0,
+        None => return None,
+    };
+    let symbol_index = prefix_offset + module_part_count;
+    parts.get(symbol_index).map(|symbol| (*symbol).to_string())
+}
+
+fn find_unique_rust_symbol_in_file(
+    conn: &Connection,
+    file_path: &str,
+    symbol_name: &str,
+    reference_kind: &str,
+) -> rusqlite::Result<Vec<String>> {
+    let kinds = if reference_kind == "calls" {
+        vec!["function", "method"]
+    } else {
+        vec![
+            "struct",
+            "enum",
+            "trait",
+            "type_alias",
+            "constant",
+            "variable",
+            "function",
+            "method",
+        ]
+    };
+    let placeholders = kinds.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!(
+        "SELECT id FROM nodes
+         WHERE file_path = ?1 AND name = ?2 AND kind IN ({})
+         ORDER BY start_line",
+        placeholders
+    );
+    let mut params: Vec<&dyn rusqlite::ToSql> = vec![&file_path, &symbol_name];
+    for kind in &kinds {
+        params.push(kind);
+    }
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(params.as_slice(), |row| row.get::<_, String>(0))?;
+    rows.collect()
+}
+
+fn file_node_id_for_path(conn: &Connection, file_path: &str) -> rusqlite::Result<Option<String>> {
+    let mut stmt = conn.prepare("SELECT id FROM nodes WHERE kind = 'file' AND file_path = ?1")?;
+    let mut rows = stmt.query(params![file_path])?;
+    Ok(match rows.next()? {
+        Some(row) => Some(row.get(0)?),
+        None => None,
+    })
 }
 
 fn extract_rust_statement_refs(
@@ -8326,13 +8641,64 @@ fn extract_rust_statement_refs(
     Ok(())
 }
 
+fn extract_rust_scoped_module_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    from_node_id: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let reference_kind = match node.kind() {
+        "scoped_identifier" => "imports",
+        "scoped_type_identifier" => "references",
+        _ => return Ok(()),
+    };
+    let reference_name = node.utf8_text(source)?.trim();
+    if !reference_name.contains("::") {
+        return Ok(());
+    }
+    if rust_path_parts(reference_name).len() < 2 {
+        return Ok(());
+    }
+    if reference_kind == "references" {
+        push_ref(
+            unresolved_refs,
+            from_node_id,
+            reference_name,
+            "references",
+            node,
+            relative_path,
+            SourceLanguage::Rust,
+        );
+    }
+    push_ref(
+        unresolved_refs,
+        file_node_id,
+        reference_name,
+        "imports",
+        node,
+        relative_path,
+        SourceLanguage::Rust,
+    );
+    Ok(())
+}
+
 fn rust_call_reference_name(
     node: SyntaxNode,
     source: &[u8],
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     match node.kind() {
         "identifier" => Ok(Some(node.utf8_text(source)?.to_string())),
-        "scoped_identifier" => Ok(Some(node.utf8_text(source)?.replace("::", "."))),
+        "scoped_identifier" => {
+            let reference_name = node.utf8_text(source)?;
+            let first_part = rust_path_parts(reference_name).first().copied();
+            if first_part.is_some_and(is_pascal_case) {
+                Ok(Some(reference_name.replace("::", ".")))
+            } else {
+                Ok(Some(reference_name.to_string()))
+            }
+        }
         "field_expression" => {
             let property = node
                 .child_by_field_name("field")
@@ -9928,9 +10294,240 @@ mod tests {
             .unwrap()
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
-        assert!(refs.contains(&("imports".to_string(), "std".to_string())));
+        assert!(refs.contains(&("imports".to_string(), "std::sync".to_string())));
         assert!(refs.contains(&("calls".to_string(), "helper".to_string())));
         assert!(refs.contains(&("calls".to_string(), "Service.new".to_string())));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_resolves_mod_declarations_to_repo_local_module_files() {
+        let dir = temp_dir("rust-mod-targets");
+        let src = dir.join("src");
+        fs::create_dir_all(src.join("nested")).unwrap();
+        fs::write(
+            src.join("lib.rs"),
+            ["mod cmd;", "pub mod nested;", "mod missing;", ""].join("\n"),
+        )
+        .unwrap();
+        fs::write(src.join("cmd.rs"), "pub fn run() {}\n").unwrap();
+        fs::write(src.join("nested").join("mod.rs"), "pub fn run() {}\n").unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(&request.index_path).unwrap();
+        let imports = conn
+            .prepare(
+                "SELECT source.file_path, target.file_path
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 JOIN nodes target ON target.id = edges.target
+                 WHERE edges.kind = 'imports'
+                 ORDER BY source.file_path, target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+
+        assert!(imports.contains(&("src/lib.rs".to_string(), "src/cmd.rs".to_string())));
+        assert!(imports.contains(&("src/lib.rs".to_string(), "src/nested/mod.rs".to_string())));
+        assert!(
+            !imports.iter().any(|(_, target)| target.contains("missing")),
+            "{imports:?}"
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_resolves_crate_self_and_super_use_paths_to_repo_local_files() {
+        let dir = temp_dir("rust-use-targets");
+        let src = dir.join("src");
+        fs::create_dir_all(src.join("nested")).unwrap();
+        fs::write(
+            src.join("lib.rs"),
+            [
+                "mod cmd;",
+                "mod nested;",
+                "use crate::cmd::Get;",
+                "use self::nested::Thing;",
+                "use crate::missing::Nope;",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(src.join("cmd.rs"), "pub struct Get;\n").unwrap();
+        fs::write(
+            src.join("nested").join("mod.rs"),
+            ["use super::cmd::Get;", "pub struct Thing;", ""].join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(&request.index_path).unwrap();
+        let imports = conn
+            .prepare(
+                "SELECT source.file_path, target.file_path
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 JOIN nodes target ON target.id = edges.target
+                 WHERE edges.kind = 'imports'
+                 ORDER BY source.file_path, target.file_path",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+
+        assert!(imports.contains(&("src/lib.rs".to_string(), "src/cmd.rs".to_string())));
+        assert!(imports.contains(&("src/lib.rs".to_string(), "src/nested/mod.rs".to_string())));
+        assert!(imports.contains(&("src/nested/mod.rs".to_string(), "src/cmd.rs".to_string())));
+        assert!(
+            !imports.iter().any(|(_, target)| target.contains("missing")),
+            "{imports:?}"
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_resolves_sibling_qualified_refs_to_file_and_unique_symbol_edges() {
+        let dir = temp_dir("rust-qualified-targets");
+        let src = dir.join("src");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(
+            src.join("lib.rs"),
+            [
+                "mod helper;",
+                "pub fn entry() {",
+                "    helper::run();",
+                "    let _value: helper::Thing;",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            src.join("helper.rs"),
+            ["pub fn run() {}", "pub struct Thing;", ""].join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(&request.index_path).unwrap();
+        let edges = conn
+            .prepare(
+                "SELECT source.file_path, source.name, edges.kind, target.file_path, target.name, target.kind
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 JOIN nodes target ON target.id = edges.target
+                 WHERE source.file_path = 'src/lib.rs'
+                 ORDER BY edges.kind, target.file_path, target.name",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+
+        assert!(
+            edges
+                .iter()
+                .any(|(_, _, edge_kind, target_file, _, target_kind)| {
+                    edge_kind == "imports"
+                        && target_file == "src/helper.rs"
+                        && target_kind == "file"
+                }),
+            "{edges:?}"
+        );
+        assert!(
+            edges
+                .iter()
+                .any(|(_, _, edge_kind, target_file, target_name, target_kind)| {
+                    edge_kind == "calls"
+                        && target_file == "src/helper.rs"
+                        && target_name == "run"
+                        && target_kind == "function"
+                }),
+            "{edges:?}"
+        );
+        assert!(
+            edges
+                .iter()
+                .any(|(_, _, edge_kind, target_file, target_name, target_kind)| {
+                    edge_kind == "references"
+                        && target_file == "src/helper.rs"
+                        && target_name == "Thing"
+                        && target_kind == "struct"
+                }),
+            "{edges:?}"
+        );
         fs::remove_dir_all(dir).unwrap();
     }
 

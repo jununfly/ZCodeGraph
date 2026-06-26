@@ -25,7 +25,7 @@ describe('Rust ESM direct export candidate-multiple taxonomy script', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-esm-multiple-taxonomy-'));
     tempDirs.push(dir);
     const profilePath = path.join(dir, 'profile.json');
-    const dbPath = path.join(dir, 'codegraph.db');
+    const dbPath = path.join(dir, 'zcodegraph.db');
     const outDir = path.join(dir, 'artifacts');
 
     sqlite(dbPath, `
