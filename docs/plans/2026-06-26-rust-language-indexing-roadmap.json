@@ -326,12 +326,53 @@
     "1-4-3": {
       "id": "1-4-3",
       "label": "Rust macro coverage taxonomy frontier",
-      "status": "pending",
-      "mode": "explore",
+      "status": "completed",
+      "mode": "exploit",
       "parent": "1-4",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-4-3-1",
+        "1-4-3-2",
+        "1-4-3-3",
+        "1-4-3-4"
+      ],
+      "decisions": [
+        {
+          "q": "What is the fifth Rust semantic graph slice?",
+          "answer": "Prioritize Rust macro coverage taxonomy frontier before Rust web framework route wiring candidates.",
+          "note": "Chosen because Rust route wiring often depends on macro and attribute forms; taxonomy first prevents later route slices from guessing unsupported macro-expanded semantics."
+        },
+        {
+          "q": "Should Plan 5 be taxonomy-only or include bounded implementation?",
+          "answer": "Use taxonomy plus bounded extraction guardrail. Record Rust macro taxonomy and explicitly classify supported/deferred macro-related forms without expanding macros or guessing semantic edges.",
+          "note": "macro_rules! definitions, function-like macro invocations, derive attributes, attribute macros, cfg_attr, proc macros, and macro-generated impl/route shapes should become visible taxonomy. The extractor must fail closed around macro-expanded semantics."
+        },
+        {
+          "q": "Should Plan 5 write graph nodes or edges?",
+          "answer": "Do not write new graph nodes or edges in Plan 5. Write profile taxonomy and diagnostics only.",
+          "note": "Avoid adding a macro NodeKind or guessed macro invocation edges. Macro resolution and expansion are too broad for this slice; diagnostics-only keeps later route wiring honest."
+        },
+        {
+          "q": "What is the minimum macro taxonomy coverage set for Plan 5?",
+          "answer": "Cover six core macro-related shapes: macro_rules! definitions; function-like macro invocations; derive attributes; attribute macros; cfg/cfg_attr attributes; macro-affected semantic regions around impl/trait/mod/route-like functions as deferred taxonomy.",
+          "note": "This is enough to support later Rust web framework route wiring without entering compiler-grade macro expansion."
+        },
+        {
+          "q": "What validation corpus should Plan 5 use?",
+          "answer": "Use a deterministic synthetic macro fixture, mini-redis smoke, and one optional reasonably sized macro-rich Rust repo if local setup is available.",
+          "note": "The third repo should not block the mainline. Prefer a macro-focused or broadly used repo such as dtolnay/async-trait or BurntSushi/ripgrep over a heavy route-framework repo, so Plan 5 stays macro taxonomy rather than route wiring."
+        },
+        {
+          "q": "How should Plan 5 be split into issues?",
+          "answer": "Split into 4 issues: Rust macro syntax taxonomy extraction; macro-affected semantic region guardrail; profile/result JSON diagnostics surface; synthetic plus mini-redis plus optional macro-rich repo evidence and closeout.",
+          "note": "This keeps syntax taxonomy, fail-closed semantic guardrails, diagnostics surface, and evidence separate without making optional corpus setup a blocker."
+        },
+        {
+          "q": "Should Plan 5 be written as a repository plan document now?",
+          "answer": "Write a narrow repository plan document for Plan 5 before publishing issues.",
+          "note": "Macro semantics are slippery; the plan must pin non-goals including no macro expansion, no macro graph nodes or edges, no new NodeKind, and no route wiring."
+        }
+      ],
+      "notes": "Plan 5 complete. Evidence: docs/benchmarks/2026-06-27-rust-language-indexing-plan-5-evidence.md"
     },
     "1-4-4": {
       "id": "1-4-4",
@@ -608,11 +649,51 @@
       "children": [],
       "decisions": [],
       "notes": "Published issue: #581. Evidence recorded: docs/benchmarks/2026-06-27-rust-language-indexing-plan-4-evidence.md"
+    },
+    "1-4-3-1": {
+      "id": "1-4-3-1",
+      "label": "Rust macro syntax taxonomy extraction",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-3",
+      "children": [],
+      "decisions": [],
+      "notes": "Published issue: #582. Implemented in Plan 5; evidence: docs/benchmarks/2026-06-27-rust-language-indexing-plan-5-evidence.md"
+    },
+    "1-4-3-2": {
+      "id": "1-4-3-2",
+      "label": "Macro-affected semantic region guardrail",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-3",
+      "children": [],
+      "decisions": [],
+      "notes": "Published issue: #583. Implemented in Plan 5; evidence: docs/benchmarks/2026-06-27-rust-language-indexing-plan-5-evidence.md"
+    },
+    "1-4-3-3": {
+      "id": "1-4-3-3",
+      "label": "Rust macro diagnostics profile and result JSON surface",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-3",
+      "children": [],
+      "decisions": [],
+      "notes": "Published issue: #584. Implemented in Plan 5; evidence: docs/benchmarks/2026-06-27-rust-language-indexing-plan-5-evidence.md"
+    },
+    "1-4-3-4": {
+      "id": "1-4-3-4",
+      "label": "Rust macro taxonomy smoke, optional repo evidence, and closeout",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-3",
+      "children": [],
+      "decisions": [],
+      "notes": "Published issue: #585. Evidence recorded: docs/benchmarks/2026-06-27-rust-language-indexing-plan-5-evidence.md"
     }
   },
   "metadata": {
     "created": "2026-06-26 17:05:43",
-    "updated": "2026-06-27 00:47:47",
+    "updated": "2026-06-27 01:24:30",
     "md_file": "docs/plans/2026-06-26-rust-language-indexing-roadmap.md"
   }
 }

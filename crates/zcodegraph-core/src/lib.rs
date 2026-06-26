@@ -290,6 +290,7 @@ pub struct IndexProfile {
     pub rust_trait_impl_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_cargo_workspace_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_cargo_workspace_crate_candidate_counts: BTreeMap<String, u32>,
+    pub rust_macro_taxonomy_counts: BTreeMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -6983,6 +6984,7 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                     &mut counts.profile.rust_trait_impl_taxonomy_counts,
+                    &mut counts.profile.rust_macro_taxonomy_counts,
                     &mut rust_trait_impl_facts,
                 )?;
             } else {
@@ -8481,8 +8483,10 @@ fn extract_rust_symbols(
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
     rust_trait_impl_taxonomy_counts: &mut BTreeMap<String, u32>,
+    rust_macro_taxonomy_counts: &mut BTreeMap<String, u32>,
     rust_trait_impl_facts: &mut Vec<RustTraitImplFact>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    record_rust_macro_taxonomy(source, rust_macro_taxonomy_counts);
     let mut cursor = root.walk();
     visit_rust_node(
         &mut cursor,
@@ -8723,6 +8727,132 @@ fn record_rust_trait_impl_taxonomy(
         }
         _ => {}
     }
+}
+
+fn record_rust_macro_taxonomy(source: &[u8], counts: &mut BTreeMap<String, u32>) {
+    let Ok(text) = std::str::from_utf8(source) else {
+        return;
+    };
+    let mut pending_attributes: Vec<String> = Vec::new();
+
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        if trimmed.starts_with("macro_rules!") {
+            increment_count(counts, "macro-rules-definition");
+            continue;
+        }
+
+        if trimmed.starts_with("#[") {
+            record_rust_attribute_macro_taxonomy(trimmed, counts);
+            pending_attributes.push(trimmed.to_string());
+            continue;
+        }
+
+        let invocation_count = count_rust_function_like_macro_invocations(trimmed);
+        for _ in 0..invocation_count {
+            increment_count(counts, "function-like-macro-invocation");
+            increment_count(counts, "macro-generated-semantics-deferred");
+        }
+
+        if !pending_attributes.is_empty() {
+            record_rust_macro_affected_region(trimmed, &pending_attributes, counts);
+            pending_attributes.clear();
+        }
+    }
+}
+
+fn record_rust_attribute_macro_taxonomy(attribute: &str, counts: &mut BTreeMap<String, u32>) {
+    if attribute.starts_with("#[derive") {
+        increment_count(counts, "derive-attribute");
+        return;
+    }
+    if attribute.starts_with("#[cfg_attr") {
+        increment_count(counts, "cfg-attr-attribute");
+        return;
+    }
+    if attribute.starts_with("#[cfg") {
+        increment_count(counts, "cfg-attribute");
+        return;
+    }
+
+    increment_count(counts, "attribute-macro");
+    increment_count(counts, "proc-macro-deferred");
+    increment_count(counts, "macro-generated-semantics-deferred");
+}
+
+fn record_rust_macro_affected_region(
+    item: &str,
+    attributes: &[String],
+    counts: &mut BTreeMap<String, u32>,
+) {
+    if item_starts_with_rust_keyword(item, "impl") {
+        increment_count(counts, "macro-affected-impl-deferred");
+    } else if item_starts_with_rust_keyword(item, "trait")
+        || item_starts_with_rust_keyword(item, "pub trait")
+    {
+        increment_count(counts, "macro-affected-trait-deferred");
+    } else if item_starts_with_rust_keyword(item, "mod")
+        || item_starts_with_rust_keyword(item, "pub mod")
+    {
+        increment_count(counts, "macro-affected-mod-deferred");
+    } else if is_rust_function_item_line(item)
+        && attributes
+            .iter()
+            .any(|attr| is_route_like_rust_attribute(attr))
+    {
+        increment_count(counts, "macro-affected-route-like-function-deferred");
+    }
+}
+
+fn item_starts_with_rust_keyword(item: &str, keyword: &str) -> bool {
+    item == keyword
+        || item.strip_prefix(keyword).is_some_and(|rest| {
+            rest.chars()
+                .next()
+                .is_some_and(|ch| ch.is_whitespace() || ch == '{')
+        })
+}
+
+fn is_rust_function_item_line(item: &str) -> bool {
+    item_starts_with_rust_keyword(item, "fn")
+        || item_starts_with_rust_keyword(item, "pub fn")
+        || item_starts_with_rust_keyword(item, "async fn")
+        || item_starts_with_rust_keyword(item, "pub async fn")
+}
+
+fn is_route_like_rust_attribute(attribute: &str) -> bool {
+    let lowered = attribute.to_ascii_lowercase();
+    ["get", "post", "put", "patch", "delete", "route"]
+        .iter()
+        .any(|name| lowered.starts_with(&format!("#[{name}(")))
+}
+
+fn count_rust_function_like_macro_invocations(line: &str) -> u32 {
+    let bytes = line.as_bytes();
+    let mut count = 0;
+    let mut index = 0;
+    while let Some(relative_bang) = bytes[index..].iter().position(|byte| *byte == b'!') {
+        let bang = index + relative_bang;
+        let mut start = bang;
+        while start > 0 {
+            let previous = bytes[start - 1];
+            if previous.is_ascii_alphanumeric() || matches!(previous, b'_' | b':') {
+                start -= 1;
+            } else {
+                break;
+            }
+        }
+        let name = &line[start..bang];
+        if !name.is_empty() && name != "macro_rules" {
+            count += 1;
+        }
+        index = bang + 1;
+    }
+    count
 }
 
 fn record_rust_trait_impl_fact(
@@ -10207,7 +10337,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustMacroTaxonomyCounts\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -10351,7 +10481,8 @@ pub fn result_json(result: &IndexResult) -> String {
             &result
                 .profile
                 .rust_cargo_workspace_crate_candidate_counts
-        )
+        ),
+        fallback_sample_counts_json(&result.profile.rust_macro_taxonomy_counts)
     )
 }
 
@@ -11464,6 +11595,106 @@ mod tests {
             )
             .unwrap();
         assert_eq!(cross_package_edges, 0);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_classifies_macro_taxonomy_without_writing_macro_graph_edges() {
+        let dir = temp_dir("rust-macro-taxonomy");
+        fs::write(
+            dir.join("lib.rs"),
+            [
+                "macro_rules! make_handler {",
+                "    () => {};",
+                "}",
+                "",
+                "#[derive(Debug, Clone)]",
+                "pub struct Service;",
+                "",
+                "#[async_trait]",
+                "pub trait Handler {",
+                "    fn handle(&self);",
+                "}",
+                "",
+                "#[cfg(feature = \"server\")]",
+                "mod server;",
+                "",
+                "#[cfg_attr(feature = \"server\", tokio::main)]",
+                "pub fn main_entry() {",
+                "    println!(\"hello\");",
+                "    make_handler!();",
+                "    let _items = vec![1, 2, 3];",
+                "}",
+                "",
+                "#[get(\"/health\")]",
+                "pub fn health() {}",
+                "",
+                "#[instrument]",
+                "impl Service {",
+                "    pub fn run(&self) {}",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let taxonomy = &result.profile.rust_macro_taxonomy_counts;
+        assert_eq!(taxonomy.get("macro-rules-definition"), Some(&1));
+        assert_eq!(taxonomy.get("function-like-macro-invocation"), Some(&3));
+        assert_eq!(taxonomy.get("derive-attribute"), Some(&1));
+        assert_eq!(taxonomy.get("attribute-macro"), Some(&3));
+        assert_eq!(taxonomy.get("cfg-attribute"), Some(&1));
+        assert_eq!(taxonomy.get("cfg-attr-attribute"), Some(&1));
+        assert_eq!(taxonomy.get("macro-affected-impl-deferred"), Some(&1));
+        assert_eq!(taxonomy.get("macro-affected-trait-deferred"), Some(&1));
+        assert_eq!(taxonomy.get("macro-affected-mod-deferred"), Some(&1));
+        assert_eq!(
+            taxonomy.get("macro-affected-route-like-function-deferred"),
+            Some(&1)
+        );
+        assert_eq!(taxonomy.get("proc-macro-deferred"), Some(&3));
+        assert_eq!(taxonomy.get("macro-generated-semantics-deferred"), Some(&6));
+
+        let json: Value = serde_json::from_str(&result_json(&result)).unwrap();
+        assert_eq!(
+            json["profile"]["rustMacroTaxonomyCounts"]["macro-rules-definition"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["rustMacroTaxonomyCounts"]["function-like-macro-invocation"],
+            3
+        );
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let macro_named_nodes: i64 = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM nodes
+                 WHERE name IN ('make_handler', 'println', 'vec', 'derive', 'get', 'instrument', 'async_trait')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(macro_named_nodes, 0);
         fs::remove_dir_all(dir).unwrap();
     }
 

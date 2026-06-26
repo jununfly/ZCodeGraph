@@ -11,6 +11,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New Features
 
+- Rust indexing now reports macro-related diagnostics for Rust projects, making macro definitions, invocations, attributes, and deferred macro-expanded semantics visible without adding unsafe graph edges. (#582, #583, #584, #585)
 - Rust indexing now reports Cargo package and workspace diagnostics, including crate roots, local path dependencies, and deferred Cargo resolver areas, without writing unsafe cross-package graph edges. (#578, #579, #580, #581)
 
 ### Fixes
