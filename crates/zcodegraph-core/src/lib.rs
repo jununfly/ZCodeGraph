@@ -291,6 +291,7 @@ pub struct IndexProfile {
     pub rust_cargo_workspace_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_cargo_workspace_crate_candidate_counts: BTreeMap<String, u32>,
     pub rust_macro_taxonomy_counts: BTreeMap<String, u32>,
+    pub rust_axum_route_taxonomy_counts: BTreeMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -6985,6 +6986,7 @@ fn index_javascript_files(
                     &mut unresolved_refs,
                     &mut counts.profile.rust_trait_impl_taxonomy_counts,
                     &mut counts.profile.rust_macro_taxonomy_counts,
+                    &mut counts.profile.rust_axum_route_taxonomy_counts,
                     &mut rust_trait_impl_facts,
                 )?;
             } else {
@@ -7044,6 +7046,11 @@ fn index_javascript_files(
     counts.edges_created += rust_module_edges_created;
     let rust_scoped_symbol_edges_created = resolve_rust_scoped_symbol_refs(&tx, project_path)?;
     counts.edges_created += rust_scoped_symbol_edges_created;
+    let rust_axum_route_edges_created = resolve_rust_axum_route_handler_refs(
+        &tx,
+        &mut counts.profile.rust_axum_route_taxonomy_counts,
+    )?;
+    counts.edges_created += rust_axum_route_edges_created;
     counts.profile.import_path_alias_resolution_ms +=
         rust_module_edges_started.elapsed().as_millis();
 
@@ -8484,9 +8491,19 @@ fn extract_rust_symbols(
     unresolved_refs: &mut Vec<UnresolvedRef>,
     rust_trait_impl_taxonomy_counts: &mut BTreeMap<String, u32>,
     rust_macro_taxonomy_counts: &mut BTreeMap<String, u32>,
+    rust_axum_route_taxonomy_counts: &mut BTreeMap<String, u32>,
     rust_trait_impl_facts: &mut Vec<RustTraitImplFact>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     record_rust_macro_taxonomy(source, rust_macro_taxonomy_counts);
+    extract_rust_axum_routes(
+        source,
+        relative_path,
+        file_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+        rust_axum_route_taxonomy_counts,
+    )?;
     let mut cursor = root.walk();
     visit_rust_node(
         &mut cursor,
@@ -8611,6 +8628,293 @@ fn visit_rust_node(
     }
 
     Ok(())
+}
+
+fn extract_rust_axum_routes(
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+    counts: &mut BTreeMap<String, u32>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let source_text = std::str::from_utf8(source).unwrap_or("");
+    let mut search_start = 0;
+    while let Some(offset) = source_text[search_start..].find(".route") {
+        let route_start = search_start + offset;
+        search_start = route_start + ".route".len();
+        let Some((args_start, args_end)) = rust_call_args_span(source_text, search_start) else {
+            increment_count(counts, "axum-route-unsupported-deferred");
+            continue;
+        };
+        increment_count(counts, "axum-route-call-detected");
+        let args = &source_text[args_start..args_end];
+        let Some((path, method_expr)) = parse_rust_axum_route_args(args, counts) else {
+            continue;
+        };
+        let line_col = line_col_for_index(source_text, route_start);
+        for wrapper in parse_rust_axum_method_wrappers(method_expr, counts) {
+            let route_name = format!("{} {}", wrapper.method, path);
+            let route_node = ExtractedNode::manual_symbol(
+                relative_path,
+                "route",
+                &route_name,
+                "rust",
+                line_col.0,
+                line_col.0,
+                line_col.1,
+                line_col.1,
+            );
+            let route_node_id = route_node.id.clone();
+            edges.push(ExtractedEdge {
+                source: file_node_id.to_string(),
+                target: route_node_id.clone(),
+                kind: "contains".to_string(),
+                line: route_node.start_line,
+                col: route_node.start_column,
+            });
+            nodes.push(route_node);
+            if let Some(handler) = wrapper.handler {
+                push_manual_ref(
+                    unresolved_refs,
+                    &route_node_id,
+                    &handler,
+                    "references",
+                    line_col.0,
+                    line_col.1,
+                    relative_path,
+                    SourceLanguage::Rust,
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+struct RustAxumMethodWrapper {
+    method: &'static str,
+    handler: Option<String>,
+}
+
+fn parse_rust_axum_route_args<'a>(
+    args: &'a str,
+    counts: &mut BTreeMap<String, u32>,
+) -> Option<(String, &'a str)> {
+    let trimmed = args.trim_start();
+    let Some((path, after_path)) = parse_rust_string_literal(trimmed) else {
+        increment_count(counts, "axum-route-dynamic-path-deferred");
+        return None;
+    };
+    let after_path = after_path.trim_start();
+    let Some(method_expr) = after_path.strip_prefix(',') else {
+        increment_count(counts, "axum-route-unsupported-deferred");
+        return None;
+    };
+    increment_count(counts, "axum-route-static-path");
+    Some((path, method_expr))
+}
+
+fn parse_rust_axum_method_wrappers(
+    method_expr: &str,
+    counts: &mut BTreeMap<String, u32>,
+) -> Vec<RustAxumMethodWrapper> {
+    const METHODS: [(&str, &str); 8] = [
+        ("get", "GET"),
+        ("post", "POST"),
+        ("put", "PUT"),
+        ("delete", "DELETE"),
+        ("patch", "PATCH"),
+        ("head", "HEAD"),
+        ("options", "OPTIONS"),
+        ("trace", "TRACE"),
+    ];
+    let mut wrappers = Vec::new();
+    let mut index = 0;
+    while index < method_expr.len() {
+        let Some((method_name, upper, name_start, name_end)) =
+            next_rust_axum_method_name(method_expr, index, &METHODS)
+        else {
+            break;
+        };
+        let after_name = skip_ascii_whitespace_str(method_expr, name_end);
+        if !method_expr[after_name..].starts_with('(') {
+            index = name_end;
+            continue;
+        }
+        let Some(close_index) = find_matching_delimiter(method_expr, after_name, b'(', b')') else {
+            increment_count(counts, "axum-route-unsupported-deferred");
+            break;
+        };
+        increment_count(counts, "axum-route-method-wrapper-detected");
+        let arg = method_expr[after_name + 1..close_index].trim();
+        let handler = parse_rust_axum_handler_identifier(arg);
+        if handler.is_none() {
+            increment_count(counts, "axum-route-handler-unsupported-deferred");
+        }
+        wrappers.push(RustAxumMethodWrapper {
+            method: upper,
+            handler,
+        });
+        index = name_start + method_name.len();
+    }
+    if wrappers.is_empty() {
+        increment_count(counts, "axum-route-method-wrapper-missing-deferred");
+    }
+    wrappers
+}
+
+fn next_rust_axum_method_name<'a>(
+    input: &'a str,
+    start: usize,
+    methods: &[(&'static str, &'static str)],
+) -> Option<(&'static str, &'static str, usize, usize)> {
+    let bytes = input.as_bytes();
+    let mut index = start;
+    while index < bytes.len() {
+        let ch = bytes[index] as char;
+        if rust_identifier_start(ch) {
+            let name_start = index;
+            index += 1;
+            while index < bytes.len() && rust_identifier_char(bytes[index] as char) {
+                index += 1;
+            }
+            let name = &input[name_start..index];
+            if let Some((method, upper)) = methods.iter().find(|(method, _)| *method == name) {
+                return Some((method, upper, name_start, index));
+            }
+            continue;
+        }
+        index += 1;
+    }
+    None
+}
+
+fn parse_rust_axum_handler_identifier(arg: &str) -> Option<String> {
+    if arg.is_empty()
+        || arg.starts_with('|')
+        || arg.starts_with("async ")
+        || arg.contains("||")
+        || arg.contains('{')
+    {
+        return None;
+    }
+    let first_arg = arg.split(',').next()?.trim();
+    if first_arg.is_empty() || first_arg.contains('(') || first_arg.contains('<') {
+        return None;
+    }
+    let handler = first_arg
+        .split("::")
+        .filter(|part| !part.is_empty())
+        .last()?
+        .trim();
+    if handler.chars().next().is_some_and(rust_identifier_start)
+        && handler.chars().all(rust_identifier_char)
+    {
+        Some(handler.to_string())
+    } else {
+        None
+    }
+}
+
+fn rust_identifier_start(ch: char) -> bool {
+    ch.is_ascii_alphabetic() || ch == '_'
+}
+
+fn rust_identifier_char(ch: char) -> bool {
+    rust_identifier_start(ch) || ch.is_ascii_digit()
+}
+
+fn parse_rust_string_literal(input: &str) -> Option<(String, &str)> {
+    let bytes = input.as_bytes();
+    if bytes.first().copied() != Some(b'"') {
+        return None;
+    }
+    let mut index = 1;
+    while index < bytes.len() {
+        match bytes[index] {
+            b'\\' => index += 2,
+            b'"' => return Some((input[1..index].to_string(), &input[index + 1..])),
+            _ => index += 1,
+        }
+    }
+    None
+}
+
+fn rust_call_args_span(source: &str, after_name: usize) -> Option<(usize, usize)> {
+    let open = skip_ascii_whitespace_str(source, after_name);
+    if !source[open..].starts_with('(') {
+        return None;
+    }
+    let close = find_matching_delimiter(source, open, b'(', b')')?;
+    Some((open + 1, close))
+}
+
+fn find_matching_delimiter(
+    source: &str,
+    open_index: usize,
+    open_delim: u8,
+    close_delim: u8,
+) -> Option<usize> {
+    let bytes = source.as_bytes();
+    if bytes.get(open_index).copied() != Some(open_delim) {
+        return None;
+    }
+    let mut depth = 0usize;
+    let mut index = open_index;
+    let mut in_string = false;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if in_string {
+            match byte {
+                b'\\' => index += 2,
+                b'"' => {
+                    in_string = false;
+                    index += 1;
+                }
+                _ => index += 1,
+            }
+            continue;
+        }
+        if byte == b'"' {
+            in_string = true;
+            index += 1;
+            continue;
+        }
+        if byte == open_delim {
+            depth += 1;
+        } else if byte == close_delim {
+            depth -= 1;
+            if depth == 0 {
+                return Some(index);
+            }
+        }
+        index += 1;
+    }
+    None
+}
+
+fn skip_ascii_whitespace_str(input: &str, start: usize) -> usize {
+    let bytes = input.as_bytes();
+    let mut index = start;
+    while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+        index += 1;
+    }
+    index
+}
+
+fn line_col_for_index(source: &str, byte_index: usize) -> (i64, i64) {
+    let mut line = 1i64;
+    let mut col = 0i64;
+    for byte in source[..byte_index.min(source.len())].bytes() {
+        if byte == b'\n' {
+            line += 1;
+            col = 0;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
 }
 
 fn extract_rust_named_symbol<'a>(
@@ -9265,6 +9569,93 @@ fn resolve_rust_scoped_symbol_refs(
 
     delete_resolved_import_refs(conn, &resolved_ids)?;
     Ok(edges_created)
+}
+
+fn resolve_rust_axum_route_handler_refs(
+    conn: &Connection,
+    counts: &mut BTreeMap<String, u32>,
+) -> Result<u32, Box<dyn std::error::Error>> {
+    let refs = load_rust_axum_route_handler_refs(conn)?;
+    let mut edges_created = 0;
+    let mut resolved_ids = Vec::new();
+    let mut existing_edges = load_rust_finalization_edge_keys(conn)?;
+
+    for reference in refs {
+        let candidates = find_repo_local_rust_handler_candidates(conn, &reference.reference_name)?;
+        match candidates.len() {
+            1 => {
+                increment_count(counts, "axum-route-handler-candidate-unique");
+                if insert_rust_local_reference_edge(
+                    conn,
+                    &reference,
+                    &candidates[0],
+                    &mut existing_edges,
+                )? {
+                    increment_count(counts, "axum-route-handler-edge-written");
+                    edges_created += 1;
+                }
+                resolved_ids.push(reference.id);
+            }
+            0 => {
+                increment_count(counts, "axum-route-handler-candidate-missing-deferred");
+            }
+            _ => {
+                increment_count(counts, "axum-route-handler-candidate-ambiguous-deferred");
+            }
+        }
+    }
+
+    delete_resolved_import_refs(conn, &resolved_ids)?;
+    Ok(edges_created)
+}
+
+fn load_rust_axum_route_handler_refs(conn: &Connection) -> rusqlite::Result<Vec<LocalRefRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT unresolved_refs.id,
+                unresolved_refs.from_node_id,
+                unresolved_refs.reference_name,
+                unresolved_refs.reference_kind,
+                unresolved_refs.line,
+                unresolved_refs.col,
+                unresolved_refs.file_path,
+                unresolved_refs.language
+         FROM unresolved_refs
+         JOIN nodes source ON source.id = unresolved_refs.from_node_id
+         WHERE unresolved_refs.language = 'rust'
+           AND unresolved_refs.reference_kind = 'references'
+           AND source.kind = 'route'
+           AND source.language = 'rust'
+         ORDER BY unresolved_refs.id",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(LocalRefRow {
+            id: row.get(0)?,
+            from_node_id: row.get(1)?,
+            reference_name: row.get(2)?,
+            reference_kind: row.get(3)?,
+            line: row.get(4)?,
+            col: row.get(5)?,
+            file_path: row.get(6)?,
+            language: row.get(7)?,
+        })
+    })?;
+    rows.collect()
+}
+
+fn find_repo_local_rust_handler_candidates(
+    conn: &Connection,
+    handler_name: &str,
+) -> rusqlite::Result<Vec<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT id
+         FROM nodes
+         WHERE language = 'rust'
+           AND name = ?1
+           AND kind IN ('function', 'method')
+         ORDER BY file_path, start_line",
+    )?;
+    let rows = stmt.query_map(params![handler_name], |row| row.get::<_, String>(0))?;
+    rows.collect()
 }
 
 fn load_rust_scoped_symbol_refs(conn: &Connection) -> rusqlite::Result<Vec<LocalRefRow>> {
@@ -9984,6 +10375,31 @@ fn push_ref(
     });
 }
 
+fn push_manual_ref(
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+    from_node_id: &str,
+    reference_name: &str,
+    reference_kind: &str,
+    line: i64,
+    col: i64,
+    relative_path: &str,
+    language: SourceLanguage,
+) {
+    if reference_name.is_empty() {
+        return;
+    }
+
+    unresolved_refs.push(UnresolvedRef {
+        from_node_id: from_node_id.to_string(),
+        reference_name: reference_name.to_string(),
+        reference_kind: reference_kind.to_string(),
+        line,
+        col,
+        file_path: relative_path.to_string(),
+        language: language.codegraph_name().to_string(),
+    });
+}
+
 fn is_pascal_case(name: &str) -> bool {
     name.chars()
         .next()
@@ -10043,6 +10459,31 @@ impl ExtractedNode {
             end_line: (end.row + 1) as i64,
             start_column: start.column as i64,
             end_column: end.column as i64,
+            updated_at: now_ms(),
+        }
+    }
+
+    fn manual_symbol(
+        relative_path: &str,
+        kind: &str,
+        name: &str,
+        language: &str,
+        start_line: i64,
+        end_line: i64,
+        start_column: i64,
+        end_column: i64,
+    ) -> Self {
+        Self {
+            id: generate_node_id(relative_path, kind, name, start_line),
+            kind: kind.to_string(),
+            name: name.to_string(),
+            qualified_name: format!("{}::{}", relative_path, name),
+            file_path: relative_path.to_string(),
+            language: language.to_string(),
+            start_line,
+            end_line,
+            start_column,
+            end_column,
             updated_at: now_ms(),
         }
     }
@@ -10337,7 +10778,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustMacroTaxonomyCounts\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -10482,7 +10923,8 @@ pub fn result_json(result: &IndexResult) -> String {
                 .profile
                 .rust_cargo_workspace_crate_candidate_counts
         ),
-        fallback_sample_counts_json(&result.profile.rust_macro_taxonomy_counts)
+        fallback_sample_counts_json(&result.profile.rust_macro_taxonomy_counts),
+        fallback_sample_counts_json(&result.profile.rust_axum_route_taxonomy_counts)
     )
 }
 
@@ -11695,6 +12137,127 @@ mod tests {
             )
             .unwrap();
         assert_eq!(macro_named_nodes, 0);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_classifies_axum_route_taxonomy_and_writes_guarded_handler_edge() {
+        let dir = temp_dir("rust-axum-route-wiring");
+        fs::write(
+            dir.join("main.rs"),
+            [
+                "use axum::{routing::{get, post}, Router};",
+                "",
+                "async fn list_users() {}",
+                "async fn create_user() {}",
+                "async fn duplicate() {}",
+                "mod nested { pub async fn duplicate() {} }",
+                "",
+                "fn app() -> Router {",
+                "    let dynamic_path = \"/dynamic\";",
+                "    Router::new()",
+                "        .route(\"/users\", get(list_users).post(create_user))",
+                "        .route(dynamic_path, get(list_users))",
+                "        .route(\"/ambiguous\", get(duplicate))",
+                "        .route(\"/closure\", get(|| async {}))",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let taxonomy = &result.profile.rust_axum_route_taxonomy_counts;
+        assert_eq!(taxonomy.get("axum-route-call-detected"), Some(&4));
+        assert_eq!(taxonomy.get("axum-route-static-path"), Some(&3));
+        assert_eq!(taxonomy.get("axum-route-dynamic-path-deferred"), Some(&1));
+        assert_eq!(taxonomy.get("axum-route-method-wrapper-detected"), Some(&4));
+        assert_eq!(
+            taxonomy.get("axum-route-handler-candidate-unique"),
+            Some(&2)
+        );
+        assert_eq!(
+            taxonomy.get("axum-route-handler-candidate-ambiguous-deferred"),
+            Some(&1)
+        );
+        assert_eq!(
+            taxonomy.get("axum-route-handler-unsupported-deferred"),
+            Some(&1)
+        );
+        assert_eq!(taxonomy.get("axum-route-handler-edge-written"), Some(&2));
+
+        let json: Value = serde_json::from_str(&result_json(&result)).unwrap();
+        assert_eq!(
+            json["profile"]["rustAxumRouteTaxonomyCounts"]["axum-route-handler-edge-written"],
+            2
+        );
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let route_edges: Vec<(String, String, String)> = {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT source.name, target.kind, target.name
+                     FROM edges
+                     JOIN nodes source ON source.id = edges.source
+                     JOIN nodes target ON target.id = edges.target
+                     WHERE source.kind = 'route'
+                       AND edges.kind = 'references'
+                       AND edges.edgeOrigin = 'rust-finalization'
+                     ORDER BY source.name, target.name",
+                )
+                .unwrap();
+            stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap()
+        };
+        assert_eq!(
+            route_edges,
+            vec![
+                (
+                    "GET /users".to_string(),
+                    "function".to_string(),
+                    "list_users".to_string()
+                ),
+                (
+                    "POST /users".to_string(),
+                    "function".to_string(),
+                    "create_user".to_string()
+                )
+            ]
+        );
+
+        let bad_route_edges: i64 = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 WHERE source.kind = 'route'
+                   AND source.name IN ('GET /ambiguous', 'GET /closure')
+                   AND edges.kind = 'references'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(bad_route_edges, 0);
         fs::remove_dir_all(dir).unwrap();
     }
 

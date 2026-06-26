@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-26-rust-language-indexing-roadmap.json` | 最后更新: 2026-06-27 01:24:30
+> 数据文件: `2026-06-26-rust-language-indexing-roadmap.json` | 最后更新: 2026-06-27 02:24:17
 
 [~][X+] 1. Rust Language Indexing Support
 ├── [x][X+] 1-1. Rust language support baseline and taxonomy
@@ -23,10 +23,20 @@
 │   ├── [x][Y+] 1-3-4. README Rust language support level update
 │   ├── [x][Y+] 1-3-5. Rust status and doctor evidence surface
 │   └── [x][Y+] 1-3-6. Rust language support release evidence artifact
-└── [ ][X+] 1-4. Rust semantic graph slices
-    ├── [x][Y+] 1-4-1. Rust repo-local module path resolution slice
-    ├── [x][Y+] 1-4-2. Rust trait definition to impl relationship frontier
-    ├── [x][Y+] 1-4-3. Rust macro coverage taxonomy frontier
-    ├── [x][Y+] 1-4-4. Cargo workspace package and feature taxonomy frontier
-    └── [ ][X+] 1-4-5. Rust web framework route wiring candidates
+├── [x][X+] 1-4. Rust semantic graph slices
+│   ├── [x][Y+] 1-4-1. Rust repo-local module path resolution slice
+│   ├── [x][Y+] 1-4-2. Rust trait definition to impl relationship frontier
+│   ├── [x][Y+] 1-4-3. Rust macro coverage taxonomy frontier
+│   ├── [x][Y+] 1-4-4. Cargo workspace package and feature taxonomy frontier
+│   └── [x][Y+] 1-4-5. Rust web framework route wiring candidates
+└── [ ][X+] 1-5. Rust language semantic frontier after Plan 6
+    ├── [~][X+] 1-5-1. Module path visibility and privacy residuals
+    ├── [ ][X+] 1-5-2. Trait generic and dispatch residuals
+    ├── [ ][X+] 1-5-3. Macro cfg and generated-code frontier
+    ├── [ ][X+] 1-5-4. Cargo package feature and cfg conditional semantics
+    └── [ ][X+] 1-5-5. Framework route and runtime semantics beyond bounded Axum
+
+### 当前施工：1-5-1-2. Module visibility wrong-edge risk residuals
+
+Recommended next bounded implementation candidate: extract/persist coarse Rust visibility metadata and guard cross-module scoped symbol edge writes before writing potentially private/out-of-scope edges.
 <!-- ROADMAP_SECTION_END -->

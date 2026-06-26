@@ -13,13 +13,19 @@
         "1-1",
         "1-2",
         "1-3",
-        "1-4"
+        "1-4",
+        "1-5"
       ],
       "decisions": [
         {
           "q": "How do we avoid losing explore/exploit work while starting Rust indexing?",
           "answer": "Track all known explore and exploit branches in the roadmap now. Start implementation with bounded Rust core ownership for .rs files, while keeping module paths, traits, macros, Cargo workspace/features, framework routes, validation, and product surface as explicit nodes.",
           "note": "This prevents the first implementation slice from silently redefining full Rust language support."
+        },
+        {
+          "q": "After the first six Rust language indexing slices, should we expand the global roadmap or continue directly to slice 7?",
+          "answer": "Expand and reconcile the global roadmap first before starting slice 7.",
+          "note": "The first six slices completed the current Rust semantic graph slice subtree, but stale pending taxonomy nodes still exist under 1-1-3. Reconcile covered taxonomy, bounded solutions, and remaining frontier before choosing the next implementation slice."
         }
       ],
       "notes": ""
@@ -108,7 +114,7 @@
     "1-4": {
       "id": "1-4",
       "label": "Rust semantic graph slices",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -153,7 +159,13 @@
         "1-1-3-3",
         "1-1-3-4"
       ],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "How should stale pending taxonomy nodes be reconciled after Plan 6?",
+          "answer": "Mark the four old taxonomy nodes completed with bounded-coverage notes, then add a new global frontier node for remaining Rust semantic gaps.",
+          "note": "This removes stale pending nodes without pretending full Rust semantics are complete. The new frontier becomes the place to track post-Plan-6 explore/exploit candidates."
+        }
+      ],
       "notes": ""
     },
     "1-2-1": {
@@ -423,12 +435,53 @@
     "1-4-5": {
       "id": "1-4-5",
       "label": "Rust web framework route wiring candidates",
-      "status": "pending",
-      "mode": "explore",
+      "status": "completed",
+      "mode": "exploit",
       "parent": "1-4",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-4-5-1",
+        "1-4-5-2",
+        "1-4-5-3",
+        "1-4-5-4"
+      ],
+      "decisions": [
+        {
+          "q": "What is the sixth Rust semantic graph slice?",
+          "answer": "Enter 1-4-5. Rust web framework route wiring candidates, bounded to route candidate taxonomy plus one safe framework slice.",
+          "note": "Prior module, trait, macro, and Cargo workspace slices provide enough guardrails. Do not implement all Rust web frameworks at once."
+        },
+        {
+          "q": "Which Rust web framework route shape should Plan 6 target first?",
+          "answer": "Axum explicit router call slice: classify and resolve Router::new().route(path, get/post/put/delete(handler)) to a handler candidate when local and unambiguous.",
+          "note": "This gives a concrete route wiring slice without requiring macro expansion, middleware semantics, nesting semantics, state/extractor modeling, or package-wide framework support."
+        },
+        {
+          "q": "Should Plan 6 write route graph edges or only taxonomy?",
+          "answer": "Write guarded route nodes plus references edges only for static Axum paths and repo-local unique handler candidates; otherwise record taxonomy/deferred reasons.",
+          "note": "This makes the slice useful for agent sufficiency while preserving correctness. No nesting, middleware, fallback, state, extractor, macro, or multi-candidate inference."
+        },
+        {
+          "q": "What validation corpus should Plan 6 require?",
+          "answer": "Use synthetic Axum fixture plus mini-redis smoke; treat a real Axum repository as optional evidence, not a blocking requirement.",
+          "note": "The fixture locks the route syntax and guarded edge contract deterministically; mini-redis preserves the existing Rust smoke guardrail without adding setup risk."
+        },
+        {
+          "q": "How should Plan 6 be split into issues?",
+          "answer": "Split into 4 issues: Axum route syntax taxonomy; static path plus local handler candidate resolution; guarded route node/reference edge write plus deferred reasons; synthetic Axum fixture plus mini-redis smoke plus closeout evidence.",
+          "note": "This keeps recognition, candidate resolution, graph writing, and validation independently reviewable while avoiding optional real Axum corpus setup as a blocker."
+        },
+        {
+          "q": "Which GitHub issues track Plan 6?",
+          "answer": "Published #586, #587, #588, and #589 in dependency order with enhancement + ready-for-agent labels.",
+          "note": "Issues map to taxonomy, candidate resolution, guarded graph write, and validation/closeout evidence."
+        },
+        {
+          "q": "What is the Plan 6 closeout result?",
+          "answer": "Completed bounded Axum explicit route wiring: taxonomy, unique handler candidate resolution, guarded route-to-handler edges, result JSON diagnostics, and mini-redis smoke evidence.",
+          "note": "Evidence: docs/benchmarks/2026-06-27-rust-language-indexing-plan-6-axum-route-wiring-evidence.md. Remaining Axum nesting, middleware, fallback, state/extractor, macro routes, and other Rust frameworks stay out of scope."
+        }
+      ],
+      "notes": "Plan 6 candidate: Rust web framework route wiring candidates. Scope is bounded to route candidate taxonomy plus one safe framework slice."
     },
     "1-3-1": {
       "id": "1-3-1",
@@ -493,42 +546,42 @@
     "1-1-3-1": {
       "id": "1-1-3-1",
       "label": "Rust module path and visibility taxonomy",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-1-3",
       "children": [],
       "decisions": [],
-      "notes": ""
+      "notes": "Covered by bounded module-path implementation slices 1-4-1. This does not mean full Rust visibility/privacy semantics are complete; remaining residuals move to the post-Plan-6 semantic frontier."
     },
     "1-1-3-2": {
       "id": "1-1-3-2",
       "label": "Rust trait dispatch and impl taxonomy",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-1-3",
       "children": [],
       "decisions": [],
-      "notes": ""
+      "notes": "Covered by bounded trait/impl implementation slices 1-4-2. This does not mean full trait dispatch, generics, bounds, or dynamic dispatch semantics are complete; remaining residuals move to the post-Plan-6 semantic frontier."
     },
     "1-1-3-3": {
       "id": "1-1-3-3",
       "label": "Rust macro generated symbol taxonomy",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-1-3",
       "children": [],
       "decisions": [],
-      "notes": ""
+      "notes": "Covered by bounded macro taxonomy slices 1-4-3. Macro-generated semantics remain intentionally not implemented; oracle/research or no-go residuals move to the post-Plan-6 semantic frontier."
     },
     "1-1-3-4": {
       "id": "1-1-3-4",
       "label": "Cargo workspace and feature taxonomy",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-1-3",
       "children": [],
       "decisions": [],
-      "notes": ""
+      "notes": "Covered by bounded Cargo workspace/package/feature taxonomy slices 1-4-4. Full feature cfg resolution and conditional compilation semantics remain outside that bounded slice; residuals move to the post-Plan-6 semantic frontier."
     },
     "1-4-1-1": {
       "id": "1-4-1-1",
@@ -689,11 +742,204 @@
       "children": [],
       "decisions": [],
       "notes": "Published issue: #585. Evidence recorded: docs/benchmarks/2026-06-27-rust-language-indexing-plan-5-evidence.md"
+    },
+    "1-4-5-1": {
+      "id": "1-4-5-1",
+      "label": "Axum route syntax taxonomy (#586)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-5",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented Axum explicit route-call taxonomy; tracked by #586."
+    },
+    "1-4-5-2": {
+      "id": "1-4-5-2",
+      "label": "Axum static route handler candidate resolution (#587)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-5",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented repo-local unique handler candidate resolution and deferred taxonomy; tracked by #587."
+    },
+    "1-4-5-3": {
+      "id": "1-4-5-3",
+      "label": "Axum guarded route node and handler edge write (#588)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-5",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented guarded route node plus references edge write for unique Axum handlers; tracked by #588."
+    },
+    "1-4-5-4": {
+      "id": "1-4-5-4",
+      "label": "Axum route wiring validation and closeout evidence (#589)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-4-5",
+      "children": [],
+      "decisions": [],
+      "notes": "Recorded synthetic Axum fixture, Rust semantic regression tests, mini-redis smoke, and closeout evidence; tracked by #589."
+    },
+    "1-5": {
+      "id": "1-5",
+      "label": "Rust language semantic frontier after Plan 6",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-5-1",
+        "1-5-2",
+        "1-5-3",
+        "1-5-4",
+        "1-5-5"
+      ],
+      "decisions": [
+        {
+          "q": "How should the post-Plan-6 Rust semantic frontier be classified?",
+          "answer": "Classify the first layer by semantic ownership frontier: module/visibility, trait/generic dispatch, macro/cfg/generated code, Cargo/package/feature conditional semantics, and framework route/runtime semantics beyond bounded Axum.",
+          "note": "Readiness should be tracked inside each frontier node as mode/status, not as the top-level taxonomy. This restores global map shape before choosing slice 7."
+        },
+        {
+          "q": "Which post-Plan-6 frontier should slice 7 start from?",
+          "answer": "Start with 1-5-1 Module path visibility and privacy residuals as an explore slice.",
+          "note": "Module and visibility semantics are foundational for later trait, macro, Cargo cfg, and framework route work; first map the residual boundary before writing another implementation slice."
+        }
+      ],
+      "notes": ""
+    },
+    "1-5-1": {
+      "id": "1-5-1",
+      "label": "Module path visibility and privacy residuals",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1-5",
+      "children": [
+        "1-5-1-1",
+        "1-5-1-2",
+        "1-5-1-3",
+        "1-5-1-4"
+      ],
+      "decisions": [
+        {
+          "q": "What should the module visibility residual slice deliver?",
+          "answer": "Deliver explore-only residual taxonomy, readiness ranking, and one recommended bounded implementation candidate for the next slice; do not implement visibility enforcement yet.",
+          "note": "Visibility and privacy can either improve correct resolution or prevent wrong edges. Separate the semantic boundary before writing new production behavior."
+        },
+        {
+          "q": "How should module visibility residual taxonomy be organized?",
+          "answer": "Organize by resolution correctness impact: missing-edge residuals, wrong-edge risk residuals, ambiguity residuals, and no-go/oracle-needed residuals.",
+          "note": "This keeps the taxonomy tied to graph correctness decisions instead of a syntax inventory, making the next bounded implementation candidate easier to select."
+        },
+        {
+          "q": "Should the module visibility residual explore slice write an evidence or decision artifact?",
+          "answer": "Write a narrow decision artifact in docs/benchmarks as the slice deliverable.",
+          "note": "This is the first slice after global roadmap reconciliation. A durable artifact should preserve the taxonomy basis, readiness ranking, recommended next candidate, and non-goals for the next agent."
+        },
+        {
+          "q": "Which bounded implementation candidate should the module visibility decision artifact recommend?",
+          "answer": "Recommend wrong-edge guard for private or out-of-scope module symbols before missing-edge expansion.",
+          "note": "After six coverage-expanding slices, the next risk is overconfident wrong edges. A bounded visibility guard makes later expansion safer than immediately adding more path shapes."
+        },
+        {
+          "q": "Should the decision artifact be based on a current code audit?",
+          "answer": "Do a lightweight code-fact audit before writing the artifact.",
+          "note": "Audit only the current Rust module resolver, edge write guards, and symbol visibility extraction. Do not run a new large corpus, implement behavior, create issues, or add a rustc/cargo metadata oracle."
+        },
+        {
+          "q": "What did the module visibility residual explore artifact conclude?",
+          "answer": "Recommend the next bounded implementation as a Rust module visibility wrong-edge guard for private or out-of-scope symbols.",
+          "note": "Artifact: docs/benchmarks/2026-06-27-rust-module-visibility-residual-taxonomy-decision.md. Code audit found module/scoped resolution writes unique symbol edges without visibility guard, while nodes.visibility is currently persisted as NULL by Rust core."
+        }
+      ],
+      "notes": "Slice 7 candidate: explore module path visibility and privacy residuals before choosing bounded implementation work."
+    },
+    "1-5-2": {
+      "id": "1-5-2",
+      "label": "Trait generic and dispatch residuals",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-3": {
+      "id": "1-5-3",
+      "label": "Macro cfg and generated-code frontier",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-4": {
+      "id": "1-5-4",
+      "label": "Cargo package feature and cfg conditional semantics",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-5": {
+      "id": "1-5-5",
+      "label": "Framework route and runtime semantics beyond bounded Axum",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-1-1": {
+      "id": "1-5-1-1",
+      "label": "Module visibility missing-edge residuals",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-5-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Classified in the visibility residual decision artifact. Missing-edge expansion such as pub use/re-export paths should wait until a visibility wrong-edge guard exists."
+    },
+    "1-5-1-2": {
+      "id": "1-5-1-2",
+      "label": "Module visibility wrong-edge risk residuals",
+      "status": "in_progress",
+      "mode": "exploit",
+      "parent": "1-5-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Recommended next bounded implementation candidate: extract/persist coarse Rust visibility metadata and guard cross-module scoped symbol edge writes before writing potentially private/out-of-scope edges."
+    },
+    "1-5-1-3": {
+      "id": "1-5-1-3",
+      "label": "Module visibility ambiguity residuals",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-5-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Classified in the visibility residual decision artifact. Ambiguity currently fails closed through unique-candidate requirements, so it is lower priority than wrong-edge guard work."
+    },
+    "1-5-1-4": {
+      "id": "1-5-1-4",
+      "label": "Module visibility no-go and oracle-needed residuals",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-5-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Classified in the visibility residual decision artifact. Macro-generated modules, full cfg/feature conditional compilation, external crates, and rustc-compatible privacy oracle remain no-go or needs-oracle for this line."
     }
   },
   "metadata": {
     "created": "2026-06-26 17:05:43",
-    "updated": "2026-06-27 01:24:30",
+    "updated": "2026-06-27 02:24:17",
     "md_file": "docs/plans/2026-06-26-rust-language-indexing-roadmap.md"
   }
 }
