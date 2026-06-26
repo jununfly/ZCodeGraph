@@ -1,7 +1,6 @@
 {
   "artifact": "zcodegraph-0.10.0-current-state",
   "generatedAt": "2026-06-26T03:47:31.533Z",
-  "sourceResult": "docs/benchmarks/2026-06-26-zcodegraph-0-10-0-current-state-result.json",
   "zcodegraphCommit": "741fe86",
   "toolchain": {
     "node": "v26.0.0",
@@ -109,14 +108,14 @@
         "dbMaintenanceMs": 3
       },
       "deterministicProbe": {
-        "file": "docs/benchmarks/tmp-2026-06-26-zcodegraph-0-10-0-current-state-probes/ts-js-zustand-store.txt",
         "status": "passed",
         "requiredEvidence": [
           "createStore",
           "setState"
         ],
         "missingEvidence": [],
-        "outputChars": 9233
+        "outputChars": 9233,
+        "artifact": "merged-and-removed"
       }
     },
     {
@@ -162,14 +161,14 @@
         "dbMaintenanceMs": 2
       },
       "deterministicProbe": {
-        "file": "docs/benchmarks/tmp-2026-06-26-zcodegraph-0-10-0-current-state-probes/go-gin-upload.txt",
         "status": "passed",
         "requiredEvidence": [
           "POST /upload",
           "uploadHandler"
         ],
         "missingEvidence": [],
-        "outputChars": 6508
+        "outputChars": 6508,
+        "artifact": "merged-and-removed"
       }
     },
     {
@@ -215,7 +214,6 @@
         "dbMaintenanceMs": 9
       },
       "deterministicProbe": {
-        "file": "docs/benchmarks/tmp-2026-06-26-zcodegraph-0-10-0-current-state-probes/ts-react-excalidraw-render.txt",
         "status": "passed",
         "requiredEvidence": [
           "mutateElement",
@@ -225,7 +223,8 @@
           "renderStaticScene"
         ],
         "missingEvidence": [],
-        "outputChars": 20106
+        "outputChars": 20106,
+        "artifact": "merged-and-removed"
       }
     },
     {
@@ -285,7 +284,6 @@
         "dbMaintenanceMs": 1027
       },
       "deterministicProbe": {
-        "file": "docs/benchmarks/tmp-2026-06-26-zcodegraph-0-10-0-current-state-probes/ts-vscode-sparse-workbench.txt",
         "status": "passed",
         "requiredEvidence": [
           "createWorkbench",
@@ -293,8 +291,10 @@
           "lifecycleService"
         ],
         "missingEvidence": [],
-        "outputChars": 23367
+        "outputChars": 23367,
+        "artifact": "merged-and-removed"
       }
     }
-  ]
+  ],
+  "processArtifacts": "Raw roadmap, baseline-result, profile, probe, and status files were merged into the current-state markdown and removed from long-lived docs."
 }

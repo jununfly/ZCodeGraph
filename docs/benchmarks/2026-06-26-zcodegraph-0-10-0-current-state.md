@@ -53,12 +53,20 @@ The default user path is `rust-hybrid`. Rust-owned languages in this build are J
 - Deterministic probes do not replace agent A/B measurements.
 - All measured corpora report `degraded` hybrid status when non-Rust-owned supported files are appended through TypeScript fallback, or when Rust-owned parse gaps are diagnosed. This is expected under the current ownership boundary.
 - RSS was unavailable for these local command-wrapper runs; the specific unavailable reason is recorded per corpus.
-- VS Code sparse completed only via a direct `index --quiet --profile-out` recovery run because the generic baseline runner terminated the initial `init` run during progress-spinner output capture. The recovered index and profile are included here.
+- VS Code sparse completed only via a direct `index --quiet --profile-out` recovery run because the generic baseline runner terminated the initial `init` run during progress-spinner output capture. The recovered index and profile summary are included here.
 
-## Raw Artifacts
+## Release Decisions
 
-- `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-current-state-result.json`
+- This README metrics refresh is part of the v0.10.0 official release content.
+- README displays only this 0.10.0 current-state metric set; historical benchmark and coverage numbers stay as linked background, not top-level release claims.
+- VS Code sparse checkout is included as large-repo smoke evidence, explicitly labeled as sparse checkout.
+- Deterministic sufficiency pass/fail means required evidence strings appeared in `zcodegraph_explore` output; it is not a full agent-stop or with/without A/B proof.
+- npm package visibility and successful `npm install -g @jununfly/zcodegraph` are release blockers.
+- v0.10.0 should be published through the GitHub Actions Release workflow, not by local manual `npm publish` or hand-built GitHub Release assets.
+- `package-lock.json` is synced to 0.10.0 before triggering the workflow so package metadata and the release tag share one clean boundary.
+
+## Long-Lived Artifacts
+
 - `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-current-state-summary.json`
-- `docs/benchmarks/tmp-2026-06-26-zcodegraph-0-10-0-current-state-result/`
-- `docs/benchmarks/tmp-2026-06-26-zcodegraph-0-10-0-current-state-probes/`
-- `docs/benchmarks/tmp-2026-06-26-zcodegraph-0-10-0-current-state-status/`
+
+The roadmap, raw profile files, probe output logs, status snapshots, and baseline runner output were process artifacts. Their durable conclusions are merged into this document and the summary JSON.
