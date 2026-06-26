@@ -223,8 +223,8 @@ describe('SDK rust-hybrid full-index alignment', () => {
     }
   }, 30_000);
 
-  it('appends language-level TypeScript fallback files through SDK rust-hybrid', async () => {
-    const dir = makeProject('language-fallback');
+  it('indexes Rust files through SDK rust-hybrid as a Rust-owned language', async () => {
+    const dir = makeProject('rust-rust-owned');
     tempDirs.push(dir);
     fs.writeFileSync(path.join(dir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
     const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
@@ -237,8 +237,37 @@ describe('SDK rust-hybrid full-index alignment', () => {
       expect(result.success).toBe(true);
       expect(cg.searchNodes('worker').some((match) => match.node.language === 'rust')).toBe(true);
       expect(cg.getIndexBuildInfo().hybrid).toMatchObject({
+        rustOwnedLanguages: expect.arrayContaining(['rust']),
+        engineByLanguage: { rust: 'rust' },
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
+        fallbackReasonTaxonomy: {},
+      });
+    } finally {
+      if (previousRustCore == null) {
+        delete process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+      } else {
+        process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
+      }
+      cg.close();
+    }
+  }, 30_000);
+
+  it('appends language-level TypeScript fallback files through SDK rust-hybrid', async () => {
+    const dir = makeProject('language-fallback');
+    tempDirs.push(dir);
+    fs.writeFileSync(path.join(dir, 'routing.yml'), 'app:\n  path: /health\n');
+    const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+    process.env.ZCODEGRAPH_RUST_CORE_BINARY = RUST_CORE_BIN;
+
+    const cg = await CodeGraph.init(dir, { index: false });
+    try {
+      const result = await cg.indexAll();
+
+      expect(result.success).toBe(true);
+      expect(cg.getIndexBuildInfo().hybrid).toMatchObject({
         fallbackState: 'degraded',
-        fallbackByLanguage: { rust: 1 },
+        fallbackByLanguage: { yaml: 1 },
         fallbackFileCount: 1,
         fallbackReasonTaxonomy: { 'language-level-typescript-fallback': 1 },
       });
@@ -255,18 +284,18 @@ describe('SDK rust-hybrid full-index alignment', () => {
   it('treats missing language-level fallback files as degraded diagnostics without weakening ordinary file indexing', async () => {
     const dir = makeProject('missing-language-fallback');
     tempDirs.push(dir);
-    fs.writeFileSync(path.join(dir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
+    fs.writeFileSync(path.join(dir, 'routing.yml'), 'app:\n  path: /health\n');
 
     const cg = await CodeGraph.init(dir, { index: false });
     try {
-      await expect(cg.indexFiles(['worker.rs'])).resolves.toMatchObject({
+      await expect(cg.indexFiles(['routing.yml'])).resolves.toMatchObject({
         success: true,
       });
-      await expect(cg.indexFiles(['missing.rs'])).resolves.toMatchObject({
+      await expect(cg.indexFiles(['missing.yml'])).resolves.toMatchObject({
         success: false,
       });
 
-      const result = await cg.indexFallbackFiles(['worker.rs', 'missing.rs']);
+      const result = await cg.indexFallbackFiles(['routing.yml', 'missing.yml']);
 
       expect(result.success).toBe(true);
       expect(result.fallbackFileCount).toBe(2);
@@ -274,8 +303,7 @@ describe('SDK rust-hybrid full-index alignment', () => {
         'language-level-fallback-missing-file': 1,
       });
       expect(result.missingFallbackFileCount).toBe(1);
-      expect(result.missingFallbackByLanguage).toEqual({ rust: 1 });
-      expect(cg.searchNodes('worker').some((match) => match.node.language === 'rust')).toBe(true);
+      expect(result.missingFallbackByLanguage).toEqual({ yaml: 1 });
     } finally {
       cg.close();
     }

@@ -6943,6 +6943,16 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                 )?;
+            } else if language.is_rust() {
+                extract_rust_symbols(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else {
                 extract_top_level_js_symbols(
                     parsed.root_node(),
@@ -7218,6 +7228,7 @@ enum SourceLanguage {
     Cts,
     Go,
     Python,
+    Rust,
 }
 
 impl SourceLanguage {
@@ -7231,6 +7242,7 @@ impl SourceLanguage {
             Some("cts") => Some(Self::Cts),
             Some("go") => Some(Self::Go),
             Some("py") | Some("pyw") => Some(Self::Python),
+            Some("rs") => Some(Self::Rust),
             _ => None,
         }
     }
@@ -7243,6 +7255,7 @@ impl SourceLanguage {
             Self::Tsx => "tsx",
             Self::Go => "go",
             Self::Python => "python",
+            Self::Rust => "rust",
         }
     }
 
@@ -7255,6 +7268,7 @@ impl SourceLanguage {
             Self::Tsx => tree_sitter_typescript::LANGUAGE_TSX.into(),
             Self::Go => tree_sitter_go::LANGUAGE.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
+            Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
     }
 
@@ -7268,6 +7282,10 @@ impl SourceLanguage {
 
     fn is_python(self) -> bool {
         matches!(self, Self::Python)
+    }
+
+    fn is_rust(self) -> bool {
+        matches!(self, Self::Rust)
     }
 }
 
@@ -8047,6 +8065,300 @@ fn python_import_modules(statement: &str) -> Vec<String> {
     }
 
     Vec::new()
+}
+
+fn extract_rust_symbols(
+    root: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut cursor = root.walk();
+    visit_rust_node(
+        &mut cursor,
+        source,
+        relative_path,
+        file_node_id,
+        file_node_id,
+        None,
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
+    Ok(())
+}
+
+fn visit_rust_node(
+    cursor: &mut TreeCursor,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    current_from_node_id: &str,
+    current_container_name: Option<&str>,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let node = cursor.node();
+    let mut child_from_node_id: Cow<'_, str> = Cow::Borrowed(current_from_node_id);
+    let mut child_container_name: Option<String> = current_container_name.map(ToString::to_string);
+
+    if let Some((kind, name, name_node)) =
+        extract_rust_named_symbol(node, source, current_container_name)?
+    {
+        let extracted = ExtractedNode::symbol(relative_path, kind, &name, node, "rust");
+        let extracted_id = extracted.id.clone();
+        let contains_source =
+            if matches!(kind, "method" | "enum_member") && current_from_node_id != file_node_id {
+                current_from_node_id
+            } else {
+                file_node_id
+            };
+        edges.push(ExtractedEdge {
+            source: contains_source.to_string(),
+            target: extracted_id.clone(),
+            kind: "contains".to_string(),
+            line: extracted.start_line,
+            col: extracted.start_column,
+        });
+        nodes.push(extracted);
+
+        if matches!(kind, "struct" | "trait" | "enum" | "function" | "method") {
+            child_from_node_id = Cow::Owned(extracted_id);
+        }
+        if matches!(kind, "struct" | "trait" | "enum") {
+            child_container_name = Some(name_node.utf8_text(source)?.to_string());
+        }
+    } else if node.kind() == "impl_item" {
+        child_container_name = rust_impl_type_name(node, source);
+    }
+
+    extract_rust_imports(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
+    extract_rust_statement_refs(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        unresolved_refs,
+    )?;
+
+    if cursor.goto_first_child() {
+        loop {
+            visit_rust_node(
+                cursor,
+                source,
+                relative_path,
+                file_node_id,
+                &child_from_node_id,
+                child_container_name.as_deref(),
+                nodes,
+                edges,
+                unresolved_refs,
+            )?;
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+        cursor.goto_parent();
+    }
+
+    Ok(())
+}
+
+fn extract_rust_named_symbol<'a>(
+    node: SyntaxNode<'a>,
+    source: &[u8],
+    current_container_name: Option<&str>,
+) -> Result<Option<(&'static str, String, SyntaxNode<'a>)>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "function_item" | "function_signature_item" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                let function_name = name_node.utf8_text(source)?;
+                if let Some(container) = current_container_name {
+                    return Ok(Some((
+                        "method",
+                        format!("{container}.{function_name}"),
+                        name_node,
+                    )));
+                }
+                return Ok(Some(("function", function_name.to_string(), name_node)));
+            }
+        }
+        "struct_item" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "struct",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "trait_item" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "trait",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "enum_item" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "enum",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "enum_variant" => {
+            if let Some(name_node) = node.child_by_field_name("name").or_else(|| {
+                node.named_children(&mut node.walk())
+                    .find(|child| child.kind() == "identifier")
+            }) {
+                return Ok(Some((
+                    "enum_member",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "type_item" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "type_alias",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        _ => {}
+    }
+
+    Ok(None)
+}
+
+fn extract_rust_imports(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "use_declaration" {
+        return Ok(());
+    }
+
+    let Some(module) = rust_use_root_module(node.utf8_text(source)?) else {
+        return Ok(());
+    };
+    let import_node = ExtractedNode::symbol(relative_path, "import", &module, node, "rust");
+    let import_node_id = import_node.id.clone();
+    edges.push(ExtractedEdge {
+        source: from_node_id.to_string(),
+        target: import_node_id,
+        kind: "contains".to_string(),
+        line: import_node.start_line,
+        col: import_node.start_column,
+    });
+    nodes.push(import_node);
+    push_ref(
+        unresolved_refs,
+        from_node_id,
+        &module,
+        "imports",
+        node,
+        relative_path,
+        SourceLanguage::Rust,
+    );
+
+    Ok(())
+}
+
+fn rust_use_root_module(statement: &str) -> Option<String> {
+    let rest = statement.trim().strip_prefix("use ")?;
+    let root: String = rest
+        .trim_start()
+        .chars()
+        .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+        .collect();
+    (!root.is_empty()).then_some(root)
+}
+
+fn extract_rust_statement_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "call_expression" {
+        return Ok(());
+    }
+    let Some(target_node) = node.child_by_field_name("function") else {
+        return Ok(());
+    };
+    let Some(reference_name) = rust_call_reference_name(target_node, source)? else {
+        return Ok(());
+    };
+    push_ref(
+        unresolved_refs,
+        from_node_id,
+        &reference_name,
+        "calls",
+        target_node,
+        relative_path,
+        SourceLanguage::Rust,
+    );
+    Ok(())
+}
+
+fn rust_call_reference_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "identifier" => Ok(Some(node.utf8_text(source)?.to_string())),
+        "scoped_identifier" => Ok(Some(node.utf8_text(source)?.replace("::", "."))),
+        "field_expression" => {
+            let property = node
+                .child_by_field_name("field")
+                .or_else(|| node.child_by_field_name("property"));
+            Ok(property.and_then(|child| child.utf8_text(source).ok().map(ToString::to_string)))
+        }
+        _ => Ok(None),
+    }
+}
+
+fn rust_impl_type_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
+    if let Some(type_node) = node.child_by_field_name("type") {
+        return rust_type_name(type_node, source);
+    }
+    node.named_children(&mut node.walk())
+        .find_map(|child| rust_type_name(child, source))
+}
+
+fn rust_type_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
+    match node.kind() {
+        "type_identifier" | "identifier" => node.utf8_text(source).ok().map(ToString::to_string),
+        "scoped_type_identifier" | "generic_type" | "reference_type" | "pointer_type" => node
+            .named_children(&mut node.walk())
+            .find_map(|child| rust_type_name(child, source)),
+        _ => None,
+    }
 }
 
 fn visit_js_node(
@@ -9476,6 +9788,149 @@ mod tests {
 
         drop(stmt);
         drop(conn);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_parses_rust_files_and_reports_language_profile() {
+        let dir = temp_dir("rust-parser-profile");
+        fs::write(dir.join("lib.rs"), "pub fn answer() -> i32 { 42 }\n").unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 1);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .parse_by_language
+                .get("rust")
+                .map(|profile| profile.files),
+            Some(1)
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_extracts_baseline_rust_symbols_imports_and_calls() {
+        let dir = temp_dir("rust-baseline");
+        fs::write(
+            dir.join("lib.rs"),
+            [
+                "use std::sync::Arc;",
+                "pub type Id = u64;",
+                "pub trait Worker {",
+                "    fn run(&self) -> Id;",
+                "}",
+                "pub struct Service;",
+                "impl Service {",
+                "    pub fn new() -> Self { Service }",
+                "    pub fn run(&self) -> Id { helper() }",
+                "}",
+                "pub enum Mode {",
+                "    Fast,",
+                "    Slow,",
+                "}",
+                "fn helper() -> Id { 1 }",
+                "pub fn entry() -> Id { Service::new().run() }",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(&request.index_path).unwrap();
+        let mut stmt = conn
+            .prepare("SELECT kind, name, language FROM nodes WHERE file_path = 'lib.rs'")
+            .unwrap();
+        let nodes = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        for expected in [
+            ("file", "lib.rs"),
+            ("import", "std"),
+            ("type_alias", "Id"),
+            ("trait", "Worker"),
+            ("method", "Worker.run"),
+            ("struct", "Service"),
+            ("method", "Service.new"),
+            ("method", "Service.run"),
+            ("enum", "Mode"),
+            ("enum_member", "Fast"),
+            ("enum_member", "Slow"),
+            ("function", "helper"),
+            ("function", "entry"),
+        ] {
+            assert!(
+                nodes.contains(&(
+                    expected.0.to_string(),
+                    expected.1.to_string(),
+                    "rust".to_string()
+                )),
+                "missing {:?} in {:?}",
+                expected,
+                nodes
+            );
+        }
+
+        let refs = conn
+            .prepare(
+                "SELECT reference_kind, reference_name FROM unresolved_refs
+                 WHERE file_path = 'lib.rs'
+                 ORDER BY reference_kind, reference_name",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(refs.contains(&("imports".to_string(), "std".to_string())));
+        assert!(refs.contains(&("calls".to_string(), "helper".to_string())));
+        assert!(refs.contains(&("calls".to_string(), "Service.new".to_string())));
         fs::remove_dir_all(dir).unwrap();
     }
 

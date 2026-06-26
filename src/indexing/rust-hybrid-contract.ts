@@ -3,7 +3,7 @@ import { isGeneratedFile } from '../extraction/generated-detection';
 import { scanDirectory } from '../extraction';
 
 export const RUST_HYBRID_PHASE = 'phase-6-rust-owned-per-file-gap-fallback';
-export const RUST_HYBRID_RUST_OWNED_LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'python'] as const;
+export const RUST_HYBRID_RUST_OWNED_LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'python', 'rust'] as const;
 export type RustHybridFallbackState = 'healthy' | 'degraded' | 'pending';
 export type RustOwnedGapCode =
   | 'rust-owned-parse-gap'

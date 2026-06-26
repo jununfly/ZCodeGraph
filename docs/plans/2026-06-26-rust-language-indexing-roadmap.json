@@ -1,0 +1,385 @@
+{
+  "title": "Rust Language Indexing Support",
+  "description": "Roadmap for making Rust language indexing useful beyond structural TS-indexed fallback.",
+  "version": 1,
+  "nodes": {
+    "1": {
+      "id": "1",
+      "label": "Rust Language Indexing Support",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": null,
+      "children": [
+        "1-1",
+        "1-2",
+        "1-3",
+        "1-4"
+      ],
+      "decisions": [
+        {
+          "q": "How do we avoid losing explore/exploit work while starting Rust indexing?",
+          "answer": "Track all known explore and exploit branches in the roadmap now. Start implementation with bounded Rust core ownership for .rs files, while keeping module paths, traits, macros, Cargo workspace/features, framework routes, validation, and product surface as explicit nodes.",
+          "note": "This prevents the first implementation slice from silently redefining full Rust language support."
+        }
+      ],
+      "notes": ""
+    },
+    "1-1": {
+      "id": "1-1",
+      "label": "Rust language support baseline and taxonomy",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-1-1",
+        "1-1-2",
+        "1-1-3"
+      ],
+      "decisions": [
+        {
+          "q": "What is the current Rust language indexing boundary?",
+          "answer": "Current .rs support is Rust-owned baseline structural indexing through rust-hybrid. Full Rust semantic graph work remains explicitly tracked under 1-4.",
+          "note": "This supersedes the initial pre-Plan-1 audit where .rs still used the mature TypeScript indexer path."
+        },
+        {
+          "q": "What is the current Rust language indexing boundary after Plan 1?",
+          "answer": "Current .rs support is Rust-owned baseline structural indexing through rust-hybrid. Full Rust semantic graph work remains explicitly tracked under 1-4.",
+          "note": ""
+        }
+      ],
+      "notes": "Initial baseline/taxonomy discussion superseded by Plan 1 implementation; remaining semantic gaps are tracked under 1-4."
+    },
+    "1-2": {
+      "id": "1-2",
+      "label": "Rust core ownership for .rs files",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [
+        "1-2-1",
+        "1-2-2",
+        "1-2-3",
+        "1-2-4",
+        "1-2-5",
+        "1-2-6",
+        "1-2-7"
+      ],
+      "decisions": [
+        {
+          "q": "Should the first implementation slice make Rust core own .rs baseline extraction?",
+          "answer": "Yes. First add bounded Rust core .rs baseline extraction and rust-hybrid ownership; do not include trait coherence, macro expansion, Cargo feature resolution, or compiler-grade semantics in this slice.",
+          "note": "This creates the foundation for later Rust semantic graph slices without pretending the first slice completes full Rust language intelligence."
+        },
+        {
+          "q": "What is included in the first Rust language indexing implementation slice?",
+          "answer": "Accept bounded baseline extraction: Rust core owns .rs files for basic structure, imports, and calls. Exclude trait dispatch, macro expansion, Cargo feature resolution, and compiler-grade Rust semantics.",
+          "note": "Those deeper semantics remain tracked under 1-4 Rust semantic graph slices."
+        },
+        {
+          "q": "Which GitHub issues implement Rust core .rs ownership Plan 1?",
+          "answer": "#566 covers parser ownership; #567 covers baseline .rs graph extraction; #568 covers rust-hybrid .rs assignment and diagnostics; #569 covers validation, guardrails, and evidence.",
+          "note": "Published with enhancement + ready-for-agent labels in dependency order."
+        },
+        {
+          "q": "What changed in Plan 1?",
+          "answer": "Rust core now owns .rs baseline parsing/extraction and rust-hybrid includes rust in Rust-owned languages. Deeper Rust semantic graph work remains under 1-4.",
+          "note": ""
+        }
+      ],
+      "notes": ""
+    },
+    "1-3": {
+      "id": "1-3",
+      "label": "Rust release validation and product surface",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-3-1",
+        "1-3-2",
+        "1-3-3",
+        "1-3-4",
+        "1-3-5",
+        "1-3-6"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4": {
+      "id": "1-4",
+      "label": "Rust semantic graph slices",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-4-1",
+        "1-4-2",
+        "1-4-3",
+        "1-4-4",
+        "1-4-5"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-1": {
+      "id": "1-1-1",
+      "label": "Current TS-indexed Rust structural support audit",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-2": {
+      "id": "1-1-2",
+      "label": "Real Rust corpus selection for sufficiency baseline",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-3": {
+      "id": "1-1-3",
+      "label": "Rust semantic gap taxonomy",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [
+        "1-1-3-1",
+        "1-1-3-2",
+        "1-1-3-3",
+        "1-1-3-4"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-1": {
+      "id": "1-2-1",
+      "label": "Add tree-sitter-rust to Rust core",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-2": {
+      "id": "1-2-2",
+      "label": "Rust core language detection and parser setup for .rs",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-3": {
+      "id": "1-2-3",
+      "label": "Rust core baseline symbol extraction for .rs",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-4": {
+      "id": "1-2-4",
+      "label": "Rust core use import and basic call reference extraction",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-5": {
+      "id": "1-2-5",
+      "label": "Rust-hybrid ownership assignment for .rs files",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-6": {
+      "id": "1-2-6",
+      "label": "Rust-owned .rs gap taxonomy in status and doctor",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-7": {
+      "id": "1-2-7",
+      "label": "Rust core .rs deterministic fixture tests",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-1": {
+      "id": "1-4-1",
+      "label": "Rust repo-local module path resolution slice",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-2": {
+      "id": "1-4-2",
+      "label": "Rust trait definition to impl relationship frontier",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-3": {
+      "id": "1-4-3",
+      "label": "Rust macro coverage taxonomy frontier",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-4": {
+      "id": "1-4-4",
+      "label": "Cargo workspace package and feature taxonomy frontier",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-5": {
+      "id": "1-4-5",
+      "label": "Rust web framework route wiring candidates",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-1": {
+      "id": "1-3-1",
+      "label": "Real Rust repository deterministic indexing smoke",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "Attempted VS Code sparse large corpus; recorded too-heavy unavailable reason. Completed smaller mixed Rust project smoke."
+    },
+    "1-3-2": {
+      "id": "1-3-2",
+      "label": "Rust Agent Sufficiency deterministic probe",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "Covered by deterministic rust-hybrid symbol retrieval fixtures; no stochastic agent A/B in Plan 1."
+    },
+    "1-3-3": {
+      "id": "1-3-3",
+      "label": "Existing rust-hybrid language regression guardrail",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-4": {
+      "id": "1-3-4",
+      "label": "README Rust language support level update",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "README ownership table now lists Rust as Rust-owned while retaining bounded structural-support wording."
+    },
+    "1-3-5": {
+      "id": "1-3-5",
+      "label": "Rust status and doctor evidence surface",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-6": {
+      "id": "1-3-6",
+      "label": "Rust language support release evidence artifact",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "Evidence: docs/benchmarks/2026-06-26-rust-language-indexing-plan-1-evidence.md"
+    },
+    "1-1-3-1": {
+      "id": "1-1-3-1",
+      "label": "Rust module path and visibility taxonomy",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-3-2": {
+      "id": "1-1-3-2",
+      "label": "Rust trait dispatch and impl taxonomy",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-3-3": {
+      "id": "1-1-3-3",
+      "label": "Rust macro generated symbol taxonomy",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-3-4": {
+      "id": "1-1-3-4",
+      "label": "Cargo workspace and feature taxonomy",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    }
+  },
+  "metadata": {
+    "created": "2026-06-26 17:05:43",
+    "updated": "2026-06-26 19:31:42",
+    "md_file": "docs/plans/2026-06-26-rust-language-indexing-roadmap.md"
+  }
+}

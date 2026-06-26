@@ -607,8 +607,8 @@ zcodegraph index --engine typescript
 
 | State | Meaning | Current languages / files |
 |---|---|---|
-| Rust-owned | Indexed by the Rust core on the default `rust-hybrid` path. | JavaScript, JSX, TypeScript, TSX, Go, Python. |
-| TS-indexed | Indexed by the TypeScript indexer as the mature multi-language path. | Rust, Java, C#, PHP, Ruby, C, C++, Objective-C, Swift, Kotlin, Scala, Dart, Svelte, Vue, Liquid, Pascal/Delphi, Lua, Luau, and other supported non-Rust-owned sources. |
+| Rust-owned | Indexed by the Rust core on the default `rust-hybrid` path. | JavaScript, JSX, TypeScript, TSX, Go, Python, Rust. |
+| TS-indexed | Indexed by the TypeScript indexer as the mature multi-language path. | Java, C#, PHP, Ruby, C, C++, Objective-C, Swift, Kotlin, Scala, Dart, Svelte, Vue, Liquid, Pascal/Delphi, Lua, Luau, and other supported non-Rust-owned sources. |
 | Hybrid fallback | `rust-hybrid` uses TypeScript fallback for a file or language and reports it in status/doctor. | Expected for non-Rust-owned supported files, and for Rust-owned parse gaps when recoverable. |
 | Not covered | Not indexed as source symbols/edges. | Unsupported extensions, ignored paths, default-excluded dependency/build/cache directories, and files over the size limit. |
 

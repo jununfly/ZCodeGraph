@@ -404,6 +404,7 @@ describe('zcodegraph index engine selection', () => {
   it('plans Rust-owned and TypeScript fallback files for rust-hybrid', () => {
     fs.writeFileSync(path.join(tempDir, 'server.go'), 'package main\nfunc main() {}\n');
     fs.writeFileSync(path.join(tempDir, 'service.py'), 'def service():\n    return 1\n');
+    fs.writeFileSync(path.join(tempDir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
     fs.writeFileSync(path.join(tempDir, 'routing.yml'), 'app:\n  path: /health\n');
     fs.writeFileSync(path.join(tempDir, 'notes.txt'), 'not source\n');
     fs.writeFileSync(path.join(tempDir, 'service.pb.go'), 'package main\n');
@@ -413,11 +414,12 @@ describe('zcodegraph index engine selection', () => {
     expect(plan.rustOwnedFiles).toContain('a.ts');
     expect(plan.rustOwnedFiles).toContain('server.go');
     expect(plan.rustOwnedFiles).toContain('service.py');
+    expect(plan.rustOwnedFiles).toContain('worker.rs');
     expect(plan.fallbackFiles).toContain('routing.yml');
     expect(plan.unsupportedFiles).toEqual([]);
     expect(plan.fallbackFiles).not.toContain('notes.txt');
-    expect(plan.engineByLanguage).toMatchObject({ typescript: 'rust', go: 'rust', python: 'rust', yaml: 'typescript' });
-    expect(plan.engineByFileCount).toMatchObject({ rust: 3, typescript: 1 });
+    expect(plan.engineByLanguage).toMatchObject({ typescript: 'rust', go: 'rust', python: 'rust', rust: 'rust', yaml: 'typescript' });
+    expect(plan.engineByFileCount).toMatchObject({ rust: 4, typescript: 1 });
     expect(plan.fallbackByLanguage).toMatchObject({ yaml: 1 });
     expect(plan.fallbackFileCount).toBe(1);
     expect(plan.missingFallbackByLanguage).toEqual({});
@@ -427,6 +429,30 @@ describe('zcodegraph index engine selection', () => {
     expect(plan.fallbackReasonTaxonomy).toMatchObject({ 'language-level-typescript-fallback': 1 });
     expect(plan.pendingFallbacks).toContain('rust-owned-parse-gap');
   });
+
+  it('indexes Rust files as Rust-owned under rust-hybrid', () => {
+    fs.writeFileSync(path.join(tempDir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
+
+    const result = runCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      expect(cg.getStats().filesByLanguage.rust).toBe(1);
+      expect(cg.searchNodes('worker').some((match) => match.node.kind === 'function' && match.node.language === 'rust')).toBe(true);
+      expect(cg.getIndexBuildInfo().hybrid).toMatchObject({
+        rustOwnedLanguages: expect.arrayContaining(['rust']),
+        engineByLanguage: { rust: 'rust' },
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
+        fallbackReasonTaxonomy: {},
+      });
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
 
   it('records Rust-owned per-file gap diagnostics without same-language TypeScript fallback append', () => {
     const plan = planRustHybridAssignments(tempDir);
@@ -455,25 +481,25 @@ describe('zcodegraph index engine selection', () => {
   });
 
   it('records sparse-missing fallback diagnostics in rust-hybrid metadata', () => {
-    fs.writeFileSync(path.join(tempDir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
+    fs.writeFileSync(path.join(tempDir, 'routing.yml'), 'app:\n  path: /health\n');
     const plan = planRustHybridAssignments(tempDir);
     const merged = mergeMissingFallbackDiagnostics(plan, {
       missingFallbackFileCount: 1,
-      missingFallbackByLanguage: { rust: 1 },
+      missingFallbackByLanguage: { yaml: 1 },
     });
 
     const metadata = buildRustHybridMetadataFromPlan(merged);
 
     expect(metadata).toMatchObject({
       fallbackState: 'degraded',
-      fallbackByLanguage: { rust: 1 },
+      fallbackByLanguage: { yaml: 1 },
       fallbackFileCount: 1,
       fallbackReasonTaxonomy: {
         'language-level-typescript-fallback': 1,
         'language-level-fallback-missing-file': 1,
       },
       missingFallbackFileCount: 1,
-      missingFallbackByLanguage: { rust: 1 },
+      missingFallbackByLanguage: { yaml: 1 },
     });
     expect(metadata.fallbackMessage).toContain('Sparse checkout omitted 1 planned TypeScript fallback file');
   });
@@ -589,7 +615,7 @@ describe('zcodegraph index engine selection', () => {
   }, 30_000);
 
   it('prints a concise fallback summary when rust-hybrid appends fallback files', () => {
-    fs.writeFileSync(path.join(tempDir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
+    fs.writeFileSync(path.join(tempDir, 'routing.yml'), 'app:\n  path: /health\n');
 
     const result = runCli(tempDir, ['index'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
@@ -970,7 +996,7 @@ describe('zcodegraph index engine selection', () => {
     expect(status.index.engine).toBe('rust-hybrid');
     expect(status.index.hybrid).toMatchObject({
       phase: 'phase-6-rust-owned-per-file-gap-fallback',
-      rustOwnedLanguages: ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'python'],
+      rustOwnedLanguages: ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'python', 'rust'],
       engineByLanguage: { typescript: 'rust' },
       engineByFileCount: { rust: 1 },
       fallbackByLanguage: {},
