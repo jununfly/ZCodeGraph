@@ -1,0 +1,252 @@
+## Exploration: createStore setState subscribe getState store action
+
+Found 197 symbols across 19 files.
+
+### Blast radius — what depends on these (update/verify before editing)
+
+- `createStore` (tests/persistAsync.test.tsx:150) — 102 callers; tests: `tests/devtools.test.tsx`, `tests/immer.test.tsx`, `tests/middlewareTypes.test.tsx`, `tests/persistAsync.test.tsx` +1
+- `createStore` (tests/persistAsync.test.tsx:864) — 2 callers; tests: `tests/persistAsync.test.tsx`
+- `createStore` (tests/persistSync.test.tsx:101) — 2 callers; tests: `tests/persistSync.test.tsx`
+- `createStore` (tests/persistSync.test.tsx:695) — 2 callers; tests: `tests/persistSync.test.tsx`
+
+### Source Code
+
+> The code below is the **verbatim, current on-disk source** of these files — re-read from disk on this call and line-numbered, byte-for-byte identical to what the Read tool returns. It is NOT a summary, outline, or stale cache. Treat each block as a Read you have already performed: do not Read a file shown here.
+
+#### src/middleware/devtools.ts — extractConnectionInformation(function), set(calls)
+
+```typescript
+128	  )
+129	}
+130	
+131	const extractConnectionInformation = (
+132	  store: string | undefined,
+133	  extensionConnector: NonNullable<
+134	    (typeof window)['__REDUX_DEVTOOLS_EXTENSION__']
+135	  >,
+136	  options: Omit<DevtoolsOptions, 'enabled' | 'anonymousActionType' | 'store'>,
+137	) => {
+138	  if (store === undefined) {
+139	    return {
+140	      type: 'untracked' as const,
+141	      connection: extensionConnector.connect(options),
+142	    }
+143	  }
+144	  const existingConnection = trackedConnections.get(options.name)
+145	  if (existingConnection) {
+146	    return { type: 'tracked' as const, store, ...existingConnection }
+147	  }
+148	  const newConnection: ConnectionInformation = {
+149	    connection: extensionConnector.connect(options),
+150	    stores: {},
+151	  }
+152	  trackedConnections.set(options.name, newConnection)
+153	  return { type: 'tracked' as const, store, ...newConnection }
+154	}
+155	
+156	const removeStoreFromTrackedConnections = (
+157	  name: string | undefined,
+```
+
+#### src/middleware/persist.ts — calls(calls), set(calls), persistImpl(function), hasHydrated(variable), configResult(function), +2 more
+
+```typescript
+184	    }
+185	  }
+186	
+187	const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
+188	  type S = ReturnType<typeof config>
+189	  let options = {
+190	    storage: createJSONStorage<S, void>(() => window.localStorage),
+191	    partialize: (state: S) => state,
+192	    version: 0,
+193	    merge: (persistedState: unknown, currentState: S) => ({
+194	      ...currentState,
+195	      ...(persistedState as object),
+196	    }),
+197	    ...baseOptions,
+198	  }
+199	
+200	  let hasHydrated = false
+201	  // Counter to track hydration versions and prevent race conditions
+202	  // when multiple rehydrate() calls happen concurrently
+203	  let hydrationVersion = 0
+204	  const hydrationListeners = new Set<PersistListener<S>>()
+205	  const finishHydrationListeners = new Set<PersistListener<S>>()
+206	  let storage = options.storage
+207	
+208	  if (!storage) {
+209	    return config(
+210	      (...args) => {
+211	        console.warn(
+212	          `[zustand persist middleware] Unable to update item '${options.name}', the given storage is currently unavailable.`,
+213	        )
+214	        set(...(args as Parameters<typeof set>))
+215	      },
+216	      get,
+217	      api,
+218	    )
+219	  }
+220	
+221	  const setItem = () => {
+222	    const state = options.partialize({ ...get() })
+223	    return (storage as PersistStorage<S, unknown>).setItem(options.name, {
+224	      state,
+225	      version: options.version,
+226	    })
+227	  }
+228	
+229	  const savedSetState = api.setState
+230	
+231	  api.setState = (state, replace) => {
+232	    savedSetState(state, replace as any)
+233	    return setItem()
+234	  }
+235	
+236	  const configResult = config(
+237	    (...args) => {
+238	      set(...(args as Parameters<typeof set>))
+239	      return setItem()
+240	    },
+241	    get,
+242	    api,
+243	  )
+244	
+245	  api.getInitialState = () => configResult
+246	
+247	  // a workaround to solve the issue of not storing rehydrated state in sync storage
+248	  // the set(state) value would be later overridden with initial state by create()
+249	  // to avoid this, we merge the state from localStorage into the initial state.
+250	  let stateFromStorage: S | undefined
+251	
+252	  // rehydrate initial state with existing stored state
+253	  const hydrate = () => {
+254	    if (!storage) return
+255	
+256	    // On the first invocation of 'hydrate', state will not yet be defined (this is
+257	    // true for both the 'asynchronous' and 'synchronous' case). Pass 'configResult'
+258	    // as a backup  to 'get()' so listeners and 'onRehydrateStorage' are called with
+259	    // the latest available state.
+260	
+261	    // Increment version to invalidate any in-flight hydration
+262	    const currentVersion = ++hydrationVersion
+263	    hasHydrated = false
+264	    hydrationListeners.forEach((cb) => cb(get() ?? configResult))
+265	
+266	    const postRehydrationCallback =
+267	      options.onRehydrateStorage?.(get() ?? configResult) || undefined
+268	
+269	    // bind is used to avoid `TypeError: Illegal invocation` error
+270	    return toThenable(storage.getItem.bind(storage))(options.name)
+271	      .then((deserializedStorageValue) => {
+272	        if (deserializedStorageValue) {
+273	          if (
+274	            typeof deserializedStorageValue.version === 'number' &&
+275	            deserializedStorageValue.version !== options.version
+276	          ) {
+277	            if (options.migrate) {
+278	              const migration = options.migrate(
+279	                deserializedStorageValue.state,
+280	                deserializedStorageValue.version,
+281	              )
+282	              if (migration instanceof Promise) {
+283	                return migration.then((result) => [true, result] as const)
+284	              }
+285	              return [true, migration] as const
+286	            }
+287	            console.error(
+288	              `State loaded from storage couldn't be migrated since no migrate function was provided`,
+289	            )
+290	          } else {
+291	            return [false, deserializedStorageValue.state] as const
+292	          }
+293	        }
+294	        return [false, undefined] as const
+295	      })
+296	      .then((migrationResult) => {
+297	        // Abort if a newer hydration has started
+298	        if (currentVersion !== hydrationVersion) {
+299	          return
+300	        }
+301	        const [migrated, migratedState] = migrationResult
+302	        stateFromStorage = options.merge(
+303	          migratedState as S,
+304	          get() ?? configResult,
+305	        )
+306	
+307	        set(stateFromStorage as S, true)
+308	        if (migrated) {
+309	          return setItem()
+310	        }
+311	      })
+312	      .then(() => {
+313	        // Abort if a newer hydration has started
+314	        if (currentVersion !== hydrationVersion) {
+315	          return
+316	        }
+317	        postRehydrationCallback?.(get(), undefined)
+318	
+319	        // It's possible that 'postRehydrationCallback' updated the state. To ensure
+320	        // that isn't overwritten when returning 'stateFromStorage' below
+321	        // (synchronous-case only), update 'stateFromStorage' to point to the latest
+322	        // state. In the asynchronous case, 'stateFromStorage' isn't used after this
+323	        // callback, so there's no harm in updating it to match the latest state.
+324	        stateFromStorage = get()
+325	        hasHydrated = true
+326	        finishHydrationListeners.forEach((cb) => cb(stateFromStorage as S))
+327	      })
+328	      .catch((e: Error) => {
+329	        // Abort if a newer hydration has started
+330	        if (currentVersion !== hydrationVersion) {
+331	          return
+332	        }
+333	        postRehydrationCallback?.(undefined, e)
+334	      })
+335	  }
+336	
+337	  ;(api as StoreApi<S> & StorePersist<StoreApi<S>, S, unknown>).persist = {
+338	    setOptions: (newOptions) => {
+339	      options = {
+340	        ...options,
+341	        ...newOptions,
+342	      }
+343	
+344	      if (newOptions.storage) {
+345	        storage = newOptions.storage
+346	      }
+347	    },
+348	    clearStorage: () => {
+349	      storage?.removeItem(options.name)
+350	    },
+351	    getOptions: () => options,
+352	    rehydrate: () => hydrate() as Promise<void>,
+353	    hasHydrated: () => hasHydrated,
+354	    onHydrate: (cb) => {
+355	      hydrationListeners.add(cb)
+356	
+357	      return () => {
+358	        hydrationListeners.delete(cb)
+359	      }
+360	    },
+361	    onFinishHydration: (cb) => {
+362	      finishHydrationListeners.add(cb)
+363	
+364	      return () => {
+365	        finishHydrationListeners.delete(cb)
+366	      }
+367	    },
+368	  }
+369	
+370	  if (!options.skipHydration) {
+371	    hydrate()
+372	  }
+373	
+374	  return stateFromStorage || configResult
+375	}
+376	
+377	type Persist = <
+378	  T,
+```
+
+
+> Some file sections were trimmed for size. For a specific symbol you still need, run another `zcodegraph_explore` (or `zcodegraph_node`) with its exact name — line-numbered source, cheaper and more complete than Read.

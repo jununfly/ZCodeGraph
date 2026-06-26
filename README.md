@@ -6,7 +6,7 @@
 
 ### Supercharge Claude Code, Cursor, Codex, OpenCode, Hermes Agent, Gemini, Antigravity, and Kiro with Semantic Code Intelligence
 
-**~16% cheaper · ~58% fewer tool calls · 100% local**
+**Rust-hybrid indexing · deterministic code evidence · 100% local**
 
 ### [Documentation & Website →](https://jununfly.github.io/ZCodeGraph/)
 
@@ -106,159 +106,54 @@ When Claude Code explores a codebase, it spawns **Explore agents** that scan fil
 
 **ZCodeGraph gives those agents a pre-indexed knowledge graph** — symbol relationships, call graphs, and code structure. Agents query the graph instantly instead of scanning files.
 
-### Benchmark Results
+### 0.10.0 current-state metrics
 
-Tested across **7 real-world open-source codebases** spanning 7 languages, comparing an agent (Claude Code, headless) answering one architecture question **with** and **without** ZCodeGraph. Each cell is the savings at the **median of 4 runs per arm**. _Re-validated on Opus 4.8 (2026-06-02), on the current build (`zcodegraph_explore` as the primary tool)._
+The 0.10.0 release snapshot measures the current default `rust-hybrid` path on
+the main user-facing corpora. This is release evidence, not a new stochastic
+agent A/B benchmark: indexing numbers come from local profile runs, and
+sufficiency checks call `zcodegraph_explore` directly to verify that the
+expected code evidence appears in the answer.
 
-> **Average: 16% cheaper · 47% fewer tokens · 22% faster · 58% fewer tool calls**
+| Corpus | Scope | Wall | Files | Nodes | Edges | Fallback |
+|---|---|---:|---:|---:|---:|---|
+| ZCodeGraph repo | TS/JS + Rust/YAML | 7.73s | 354 | 16,978 | 40,207 | degraded; 5 files |
+| Zustand | TypeScript/JavaScript | 656ms | 63 | 1,435 | 2,845 | degraded; 14 files |
+| Gin examples | Go/Gin | 326ms | 62 | 565 | 762 | degraded; 5 files |
+| Excalidraw | TypeScript/React | 13.0s | 652 | 20,947 | 53,867 | degraded; 14 files |
+| VS Code sparse checkout | TypeScript/JavaScript | 518.4s | 11,951 | 582,781 | 1,657,053 | degraded; 214 files |
 
-| Codebase | Language | Cost | Tokens | Time | Tool calls |
-|----------|----------|------|--------|------|------------|
-| **VS Code** | TypeScript · ~10k files | 18% cheaper | 64% fewer | 11% faster | 81% fewer |
-| **Excalidraw** | TypeScript · ~640 | even | 25% fewer | 27% faster | 40% fewer |
-| **Django** | Python · ~3k | 8% cheaper | 60% fewer | 13% faster | 77% fewer |
-| **Tokio** | Rust · ~790 | even | 38% fewer | 18% faster | 57% fewer |
-| **OkHttp** | Java · ~645 | 25% cheaper | 54% fewer | 31% faster | 50% fewer |
-| **Gin** | Go · ~110 | 19% cheaper | 23% fewer | 24% faster | 44% fewer |
-| **Alamofire** | Swift · ~110 | 40% cheaper | 64% fewer | 33% faster | 58% fewer |
+Deterministic sufficiency probes passed on the same release snapshot:
 
-ZCodeGraph cuts **tokens, tool calls, and wall-clock time on every repo** — across small, medium, and large codebases — and answers them with **near-zero file reads**, while the no-ZCodeGraph agent spends its budget on grep/find/Read discovery. `zcodegraph_explore` shows the answer in full — the mechanism plus the exact methods you asked about, even when they're buried in a multi-thousand-line file — while collapsing redundant interchangeable implementations to signatures, so the response is sized to the *answer* rather than the file count. **Cost stays flat-to-cheaper everywhere** — largest on the small repos (Alamofire, OkHttp), roughly break-even on the most response-heavy ones (Excalidraw, Tokio), where ZCodeGraph trades the no-ZCodeGraph agent's many small grep/read round-trips for a few large, cache-heavy tool responses.
+| Corpus | Query target | Required evidence found |
+|---|---|---|
+| Zustand | store update evidence | `createStore`, `setState` |
+| Gin examples | `POST /upload` route evidence | `POST /upload`, `uploadHandler` |
+| Excalidraw | element update -> canvas repaint evidence | `mutateElement`, `triggerUpdate`, `triggerRender`, `StaticCanvas`, `renderStaticScene` |
+| VS Code sparse checkout | workbench startup evidence | `createWorkbench`, `Workbench`, `lifecycleService` |
 
-### 0.10.0 release snapshot
+Notes:
 
-The 0.10.0 release-readiness snapshot is intentionally narrower than the full
-benchmark table above. It validates the current default `rust-hybrid` indexing
-path and records caveats rather than making a new broad performance claim.
+- `degraded` means the hybrid run recorded expected fallback or parse-gap
+  taxonomy; it is not a hidden failure.
+- RSS was unavailable in this local command wrapper run, and the artifact
+  records the exact unavailable reason for each corpus.
+- VS Code is a sparse checkout, not the full repository.
+- The local source-path commands ran under Node 26 with
+  `CODEGRAPH_ALLOW_UNSAFE_NODE=1`; release users should use the bundled runtime
+  or a supported embedding runtime.
 
-| Target | Result |
-|---|---|
-| Current ZCodeGraph repo | 3/3 `rust-hybrid` profile runs completed; median wall time 7607 ms; graph stats available with 354 files, 16978 nodes, and 40207 edges. |
-| RSS | Not available from the local command wrapper; the snapshot records `command RSS sampling did not report maximum resident set size`. |
-| Hybrid fallback | Current repo is degraded by 5 non-Rust-owned fallback files (`yaml: 3`, `rust: 2`), which is expected under the current ownership boundary. |
-| TypeScript/JavaScript representative corpus | `needs-human-setup`: `/private/tmp/codegraph-corpus/zustand` was not a Git checkout during the snapshot. |
-| Go/Gin representative corpus | `needs-human-setup`: `/private/tmp/codegraph-corpus/gin-examples` was not a Git checkout during the snapshot. |
-
-Evidence:
-`docs/benchmarks/2026-06-25-zcodegraph-0-10-0-release-snapshot.md` and
-`docs/benchmarks/2026-06-25-zcodegraph-0-10-0-release-snapshot-result.json`.
-
-### Flow-question sufficiency
-
-Latest rust-hybrid pre-release spot-check (2026-06-19): the first-user default path was re-indexed with `zcodegraph init` / `rust-hybrid`, then tested with Claude Code headless A/B against an empty MCP config. This was a targeted release-readiness check, not a replacement for the full median-of-4 benchmark below.
-
-| Repo | Prompt | WITH ZCodeGraph | WITHOUT ZCodeGraph | Result |
-|---|---|---:|---:|---|
-| Excalidraw · TypeScript/React | element update -> canvas repaint | 61s · 7 tools · 2 Read/Grep fallbacks | 222s · 54 tools · 53 Read/Grep fallbacks | strong exploration reduction; still 2 targeted reads |
-| Gin examples · Go | POST `/upload` handler path | 20s · 1 tool · 0 Read/Grep fallbacks | 62s · 12 tools · 11 Read/Grep fallbacks | clean route-lookup sufficiency win |
-| Gin examples · Go | route registration overview | 24s · 1 tool · 0 Read/Grep fallbacks | 78s · 28 tools · 27 Read/Grep fallbacks | clean sufficiency win |
-
-Takeaway: TS/JS flow sufficiency remains strong on the hard Excalidraw path, though not perfectly read-free. Go/Gin route sufficiency now covers both broad route registration and the concrete `POST /upload` handler lookup in these targeted release-readiness prompts. Raw logs and methodology are recorded in `docs/benchmarks/2026-06-19-rust-hybrid-pre-release-agent-sufficiency.md`.
-
-The stricter test is whether `zcodegraph_explore` gives enough evidence for an agent to stop reading files. On 2026-06-12, the current build was run against **18 flow-question prompts per arm**: 3 prompts each on ZCodeGraph itself, Excalidraw, and Django; 2 runs per prompt; WITH ZCodeGraph vs an empty MCP config. The prompts were precise symbol-bag flow questions, and every generic Read or grep/find Bash call was classified as fallback unless it was edit-prep or verification work. Full logs were captured under `/tmp/zcodegraph-sufficiency/` during the run.
-
-> **Flow-sufficiency result: 18% cheaper · 49% faster · 74% fewer tool calls · 99% fewer Read/Grep fallbacks**
-
-| Repo | Flow prompts | Cost | Time | Tool calls | Read/Grep fallback |
-|---|---:|---:|---:|---:|---:|
-| **ZCodeGraph** | 6 runs/arm | 21% cheaper | 50% faster | 73% fewer | 91 -> 0 |
-| **Excalidraw** | 6 runs/arm | 13% higher | 60% faster | 77% fewer | 123 -> 2 |
-| **Django** | 6 runs/arm | 35% cheaper | 29% faster | 67% fewer | 38 -> 0 |
-| **Total** | 18 runs/arm | 18% cheaper | 49% faster | 74% fewer | 252 -> 2 |
-
-Excalidraw is the hard case: the agent still read `App.tsx` twice even though the Flow section already surfaced the relevant `Scene.onUpdate` wiring. That is a sufficiency gap to keep tightening, but it is no longer broad codebase exploration: the no-ZCodeGraph arm needed 56 file reads and 67 grep/find calls on the same six runs.
+Full evidence: `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-current-state.md`.
 
 <details>
-<summary><strong>Per-repo breakdown — WITH vs WITHOUT (median of 4)</strong></summary>
+<summary><strong>Historical benchmark context</strong></summary>
 
-**VS Code** · ~10k files
-| Metric | WITH cg | WITHOUT cg | Δ |
-|---|---|---|---|
-| Time | 1m 59s | 2m 13s | 11% faster |
-| File Reads | 0 | 9 | −9 |
-| Grep/Bash | 0 | 11 | −11 |
-| Tool calls | 4 | 21 | 81% fewer |
-| Total tokens | 640k | 1.79M | 64% fewer |
-| Cost | $0.68 | $0.83 | 18% cheaper |
-
-**Excalidraw** · ~640 files
-| Metric | WITH cg | WITHOUT cg | Δ |
-|---|---|---|---|
-| Time | 1m 32s | 2m 6s | 27% faster |
-| File Reads | 0 | 7 | −7 |
-| Grep/Bash | 1 | 8 | −7 |
-| Tool calls | 9 | 15 | 40% fewer |
-| Total tokens | 1.27M | 1.69M | 25% fewer |
-| Cost | $0.78 | $0.78 | even |
-
-**Django** · ~3k files
-| Metric | WITH cg | WITHOUT cg | Δ |
-|---|---|---|---|
-| Time | 1m 43s | 1m 58s | 13% faster |
-| File Reads | 0 | 9 | −9 |
-| Grep/Bash | 0 | 5 | −5 |
-| Tool calls | 3 | 13 | 77% fewer |
-| Total tokens | 559k | 1.41M | 60% fewer |
-| Cost | $0.57 | $0.62 | 8% cheaper |
-
-**Tokio** · ~790 files
-| Metric | WITH cg | WITHOUT cg | Δ |
-|---|---|---|---|
-| Time | 1m 55s | 2m 20s | 18% faster |
-| File Reads | 0 | 8 | −8 |
-| Grep/Bash | 0 | 6 | −6 |
-| Tool calls | 6 | 14 | 57% fewer |
-| Total tokens | 1.08M | 1.73M | 38% fewer |
-| Cost | $0.82 | $0.82 | even |
-
-**OkHttp** · ~645 files
-| Metric | WITH cg | WITHOUT cg | Δ |
-|---|---|---|---|
-| Time | 1m 1s | 1m 29s | 31% faster |
-| File Reads | 0 | 4 | −4 |
-| Grep/Bash | 2 | 6 | −4 |
-| Tool calls | 5 | 10 | 50% fewer |
-| Total tokens | 502k | 1.10M | 54% fewer |
-| Cost | $0.41 | $0.55 | 25% cheaper |
-
-**Gin** · ~110 files
-| Metric | WITH cg | WITHOUT cg | Δ |
-|---|---|---|---|
-| Time | 1m 14s | 1m 37s | 24% faster |
-| File Reads | 1 | 6 | −5 |
-| Grep/Bash | 1 | 2 | −1 |
-| Tool calls | 5 | 9 | 44% fewer |
-| Total tokens | 651k | 847k | 23% fewer |
-| Cost | $0.46 | $0.57 | 19% cheaper |
-
-**Alamofire** · ~110 files
-| Metric | WITH cg | WITHOUT cg | Δ |
-|---|---|---|---|
-| Time | 1m 35s | 2m 21s | 33% faster |
-| File Reads | 0 | 9 | −9 |
-| Grep/Bash | 0 | 4 | −4 |
-| Tool calls | 5 | 12 | 58% fewer |
-| Total tokens | 766k | 2.10M | 64% fewer |
-| Cost | $0.57 | $0.95 | 40% cheaper |
-
-</details>
-
-<details>
-<summary><strong>Full benchmark details</strong></summary>
-
-**Methodology.** Each arm is `claude -p` (Claude Opus 4.8) run headlessly against the repo with `--strict-mcp-config`: **WITH** = ZCodeGraph's MCP server enabled, **WITHOUT** = an empty MCP config. Built-in Read/Grep/Bash stay available to both. Same question per repo, **4 runs per arm, median reported**. Cost = the run's `total_cost_usd`; Tokens = total tokens processed (input incl. cached + output); Time = wall-clock; Tool calls = every tool invocation, including those inside any sub-agents the model spawns. Repos cloned at `--depth 1` and indexed by the same CodeGraph build that served them. Re-validated 2026-06-02 on the current build. These numbers are lower than the prior Opus 4.7 validation — not a CodeGraph regression but a stronger native baseline: Opus 4.8 greps/reads efficiently on the main thread instead of fanning out into large Explore-subagent sweeps, so the no-CodeGraph arm is leaner than it used to be. Per-repo numbers move run-to-run with how hard the without-arm thrashes (the median-of-4 smooths it, but tails remain — e.g. Django's without-arm hit $2.71/14m one batch).
-
-**Queries:**
-| Codebase | Query |
-|----------|-------|
-| VS Code | "How does the extension host communicate with the main process?" |
-| Excalidraw | "How does Excalidraw render and update canvas elements?" |
-| Django | "How does Django's ORM build and execute a query from a QuerySet?" |
-| Tokio | "How does tokio schedule and run async tasks on its runtime?" |
-| OkHttp | "How does OkHttp process a request through its interceptor chain?" |
-| Gin | "How does gin route requests through its middleware chain?" |
-| Alamofire | "How does Alamofire build, send, and validate a request?" |
-
-**Why ZCodeGraph wins:** with the index available, the agent answers directly — usually one `zcodegraph_explore` returns the relevant source — and stops, usually with zero file reads. Without it, the agent spends most of its budget on discovery (find/ls/grep) before reading the right code. ZCodeGraph only helps when queried *directly*, so its instructions steer agents to answer directly rather than delegate exploration to file-reading sub-agents — otherwise a sub-agent reads files regardless and ZCodeGraph becomes overhead.
+Previous agent A/B and coverage measurements remain useful for understanding
+how ZCodeGraph reduces file-scanning behavior, but they are not the 0.10.0
+release current-state source of truth. See
+`docs/benchmarks/call-sequence-analysis.md`,
+`docs/benchmarks/baseline-agent-sufficiency-v1.md`, and
+`docs/designs/dynamic-dispatch-coverage-playbook.md` for the historical
+methodology and mechanism notes.
 
 </details>
 
@@ -704,35 +599,14 @@ zcodegraph index --engine typescript
 | Lua | `.lua` | Full support (functions, methods with receivers, local variables, `require` imports, call edges) |
 | Luau | `.luau` | Full support (everything in Lua, plus `type`/`export type` aliases, typed signatures, and Roblox instance-path `require`) |
 
-## Measured cross-file coverage
+## Measured Coverage
 
-Impact and blast-radius queries are only as good as the dependency graph behind them, so coverage is measured rather than asserted. **Fair coverage** = the share of symbol-bearing source files that have at least one *resolved cross-file dependent* — something that imports, calls, references, or (through a framework convention) routes to them — on a real-world benchmark repo per language. The residual is always a genuine static-analysis frontier (runtime dynamic dispatch, reflection / DI containers, framework-convention entry points, vendored third-party code), never hidden by gaming the denominator.
-
-| Language | Benchmark repo | Coverage |
-|---|---|---|
-| TypeScript / JavaScript | this repo | 95.8% |
-| Python | psf/requests | 100% |
-| Go | gin-gonic/gin | 96.6% |
-| Rust | BurntSushi/ripgrep | 86.7% |
-| Java | google/gson | 93.3% |
-| C# | jbogard/MediatR | 85.2% |
-| PHP | guzzle/guzzle | 100% |
-| Ruby | sidekiq/sidekiq | 100% |
-| C | redis/redis | 92.2% |
-| C++ | google/leveldb | 94.8% |
-| Objective-C | SDWebImage | 91.6% |
-| Swift | Alamofire | 95.3% |
-| Kotlin | square/okhttp | 96.2% |
-| Scala | gatling/gatling | 91.2% |
-| Dart | flutter/packages | 92.4% |
-| Svelte / SvelteKit | sveltejs/realworld | 100% |
-| Vue / Nuxt | nuxt/movies | 93.5% |
-| Lua | nvim-telescope/telescope.nvim | 84.2% |
-| Luau | dphfox/Fusion | 92.2% |
-| Liquid | Shopify/dawn | 73.8% |
-| Pascal / Delphi | PascalCoin | 75.7% |
-
-Framework routing is validated the same way, on a canonical app per framework: Express 100%, FastAPI 98%, Flask 100%, NestJS 96.8%, Gin 96.5%, Axum 100%, Rocket 93.8%, Vapor 100%, Laravel 92%, Rails 89.6%, React Router 100% — and the convention/reflection-heavy ones at their honest static-analysis ceiling: ASP.NET 83.9%, Spring 83.3%, Drupal 78.9%, Django 74.1%.
+Impact and blast-radius queries are only as good as the dependency graph behind
+them, so coverage is measured rather than asserted. The 0.10.0 README uses the
+current-state release snapshot above as its displayed metric set. Historical
+cross-file and framework coverage methodology is kept in
+`docs/designs/dynamic-dispatch-coverage-playbook.md` so it can evolve without
+mixing old benchmark numbers into the release snapshot.
 
 ## Troubleshooting
 

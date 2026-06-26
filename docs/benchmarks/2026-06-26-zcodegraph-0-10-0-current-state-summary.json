@@ -1,0 +1,300 @@
+{
+  "artifact": "zcodegraph-0.10.0-current-state",
+  "generatedAt": "2026-06-26T03:47:31.533Z",
+  "sourceResult": "docs/benchmarks/2026-06-26-zcodegraph-0-10-0-current-state-result.json",
+  "zcodegraphCommit": "741fe86",
+  "toolchain": {
+    "node": "v26.0.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M5",
+    "cpuCount": 10,
+    "totalMemoryBytes": 17179869184,
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)"
+  },
+  "methodology": {
+    "indexing": "rust-hybrid full-index snapshot; current repo 3 runs, external corpora 1 run each; VS Code sparse used direct quiet recovery run after the generic baseline runner terminated during init spinner output.",
+    "sufficiency": "deterministic zcodegraph_explore evidence probes, not stochastic agent A/B.",
+    "rss": "RSS is recorded when the command wrapper reports it; otherwise a concrete unavailable reason is recorded."
+  },
+  "rows": [
+    {
+      "name": "current-repo",
+      "label": "ZCodeGraph repo",
+      "corpus": "Current repo",
+      "sparseCheckout": false,
+      "path": ".",
+      "commit": "741fe86",
+      "language": "TS/JS + Rust/YAML",
+      "indexing": {
+        "status": "completed",
+        "wallMs": 7729,
+        "rssUnavailableReason": "command RSS sampling did not report maximum resident set size",
+        "fileCount": 354,
+        "nodeCount": 16978,
+        "edgeCount": 40207,
+        "dbSizeBytes": 34770944,
+        "fallbackState": "degraded",
+        "fallbackFileCount": 5,
+        "fallbackByLanguage": {
+          "yaml": 3,
+          "rust": 2
+        },
+        "fallbackReasonTaxonomy": {
+          "language-level-typescript-fallback": 5
+        },
+        "rustOwnedLanguages": [
+          "javascript",
+          "jsx",
+          "typescript",
+          "tsx",
+          "go",
+          "python"
+        ]
+      },
+      "profile": {
+        "complete": true,
+        "rustParseExtractionMs": 1305,
+        "rustSqliteWriteMs": 728,
+        "typescriptFinalizationMs": 2936,
+        "referenceResolutionMs": 2217,
+        "dynamicDispatchSynthesisMs": 639,
+        "dbMaintenanceMs": 4
+      },
+      "deterministicProbe": null
+    },
+    {
+      "name": "ts-js-zustand",
+      "label": "Zustand",
+      "corpus": "pmndrs/zustand",
+      "sparseCheckout": false,
+      "path": "/private/tmp/codegraph-corpus/zustand",
+      "commit": "a1f685c",
+      "language": "TypeScript/JavaScript",
+      "indexing": {
+        "status": "completed",
+        "wallMs": 656,
+        "rssUnavailableReason": "command RSS sampling did not report maximum resident set size",
+        "fileCount": 63,
+        "nodeCount": 1435,
+        "edgeCount": 2845,
+        "dbSizeBytes": 3043328,
+        "fallbackState": "degraded",
+        "fallbackFileCount": 14,
+        "fallbackByLanguage": {
+          "yaml": 14
+        },
+        "fallbackReasonTaxonomy": {
+          "language-level-typescript-fallback": 14,
+          "rust-owned-parse-gap": 4
+        },
+        "rustOwnedLanguages": [
+          "javascript",
+          "jsx",
+          "typescript",
+          "tsx",
+          "go",
+          "python"
+        ]
+      },
+      "profile": {
+        "complete": true,
+        "rustParseExtractionMs": 103,
+        "rustSqliteWriteMs": 45,
+        "typescriptFinalizationMs": 216,
+        "referenceResolutionMs": 186,
+        "dynamicDispatchSynthesisMs": 17,
+        "dbMaintenanceMs": 3
+      },
+      "deterministicProbe": {
+        "file": "docs/benchmarks/tmp-2026-06-26-zcodegraph-0-10-0-current-state-probes/ts-js-zustand-store.txt",
+        "status": "passed",
+        "requiredEvidence": [
+          "createStore",
+          "setState"
+        ],
+        "missingEvidence": [],
+        "outputChars": 9233
+      }
+    },
+    {
+      "name": "go-gin",
+      "label": "Gin examples",
+      "corpus": "gin-gonic/examples",
+      "sparseCheckout": false,
+      "path": "/private/tmp/codegraph-corpus/gin-examples",
+      "commit": "9a79092",
+      "language": "Go/Gin",
+      "indexing": {
+        "status": "completed",
+        "wallMs": 326,
+        "rssUnavailableReason": "command RSS sampling did not report maximum resident set size",
+        "fileCount": 62,
+        "nodeCount": 565,
+        "edgeCount": 762,
+        "dbSizeBytes": 1323008,
+        "fallbackState": "degraded",
+        "fallbackFileCount": 5,
+        "fallbackByLanguage": {
+          "yaml": 5
+        },
+        "fallbackReasonTaxonomy": {
+          "language-level-typescript-fallback": 5
+        },
+        "rustOwnedLanguages": [
+          "javascript",
+          "jsx",
+          "typescript",
+          "tsx",
+          "go",
+          "python"
+        ]
+      },
+      "profile": {
+        "complete": true,
+        "rustParseExtractionMs": 42,
+        "rustSqliteWriteMs": 12,
+        "typescriptFinalizationMs": 30,
+        "referenceResolutionMs": 19,
+        "dynamicDispatchSynthesisMs": 6,
+        "dbMaintenanceMs": 2
+      },
+      "deterministicProbe": {
+        "file": "docs/benchmarks/tmp-2026-06-26-zcodegraph-0-10-0-current-state-probes/go-gin-upload.txt",
+        "status": "passed",
+        "requiredEvidence": [
+          "POST /upload",
+          "uploadHandler"
+        ],
+        "missingEvidence": [],
+        "outputChars": 6508
+      }
+    },
+    {
+      "name": "ts-react-excalidraw",
+      "label": "Excalidraw",
+      "corpus": "excalidraw/excalidraw",
+      "sparseCheckout": false,
+      "path": "/private/tmp/codegraph-corpus/excalidraw",
+      "commit": "2a82821e",
+      "language": "TypeScript/React",
+      "indexing": {
+        "status": "completed",
+        "wallMs": 12957,
+        "rssUnavailableReason": "command RSS sampling did not report maximum resident set size",
+        "fileCount": 652,
+        "nodeCount": 20947,
+        "edgeCount": 53867,
+        "dbSizeBytes": 42422272,
+        "fallbackState": "degraded",
+        "fallbackFileCount": 14,
+        "fallbackByLanguage": {
+          "yaml": 14
+        },
+        "fallbackReasonTaxonomy": {
+          "language-level-typescript-fallback": 14
+        },
+        "rustOwnedLanguages": [
+          "javascript",
+          "jsx",
+          "typescript",
+          "tsx",
+          "go",
+          "python"
+        ]
+      },
+      "profile": {
+        "complete": true,
+        "rustParseExtractionMs": 1763,
+        "rustSqliteWriteMs": 1046,
+        "typescriptFinalizationMs": 5135,
+        "referenceResolutionMs": 4614,
+        "dynamicDispatchSynthesisMs": 426,
+        "dbMaintenanceMs": 9
+      },
+      "deterministicProbe": {
+        "file": "docs/benchmarks/tmp-2026-06-26-zcodegraph-0-10-0-current-state-probes/ts-react-excalidraw-render.txt",
+        "status": "passed",
+        "requiredEvidence": [
+          "mutateElement",
+          "triggerUpdate",
+          "triggerRender",
+          "StaticCanvas",
+          "renderStaticScene"
+        ],
+        "missingEvidence": [],
+        "outputChars": 20106
+      }
+    },
+    {
+      "name": "ts-vscode-sparse",
+      "label": "VS Code sparse checkout",
+      "corpus": "microsoft/vscode sparse checkout",
+      "sparseCheckout": true,
+      "path": "/private/tmp/codegraph-corpus/vscode-sparse",
+      "commit": "09c18fe5c5d",
+      "language": "TypeScript/JavaScript",
+      "indexing": {
+        "status": "completed",
+        "wallMs": 518383,
+        "rssUnavailableReason": "direct recovery run was not wrapped by RSS sampler",
+        "fileCount": 11951,
+        "nodeCount": 582781,
+        "edgeCount": 1657053,
+        "dbSizeBytes": 1302081536,
+        "fallbackState": "degraded",
+        "fallbackFileCount": 214,
+        "fallbackByLanguage": {
+          "yaml": 38,
+          "rust": 81,
+          "csharp": 16,
+          "cpp": 22,
+          "xml": 35,
+          "java": 7,
+          "ruby": 5,
+          "php": 3,
+          "c": 1,
+          "razor": 1,
+          "dart": 1,
+          "lua": 1,
+          "objc": 2,
+          "swift": 1
+        },
+        "fallbackReasonTaxonomy": {
+          "language-level-typescript-fallback": 214,
+          "rust-owned-parse-gap": 34
+        },
+        "rustOwnedLanguages": [
+          "javascript",
+          "jsx",
+          "typescript",
+          "tsx",
+          "go",
+          "python"
+        ]
+      },
+      "profile": {
+        "complete": true,
+        "rustParseExtractionMs": 41342,
+        "rustSqliteWriteMs": 58092,
+        "typescriptFinalizationMs": 162545,
+        "referenceResolutionMs": 141122,
+        "dynamicDispatchSynthesisMs": 17844,
+        "dbMaintenanceMs": 1027
+      },
+      "deterministicProbe": {
+        "file": "docs/benchmarks/tmp-2026-06-26-zcodegraph-0-10-0-current-state-probes/ts-vscode-sparse-workbench.txt",
+        "status": "passed",
+        "requiredEvidence": [
+          "createWorkbench",
+          "Workbench",
+          "lifecycleService"
+        ],
+        "missingEvidence": [],
+        "outputChars": 23367
+      }
+    }
+  ]
+}
