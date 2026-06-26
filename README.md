@@ -131,10 +131,24 @@ Deterministic sufficiency probes passed on the same release snapshot:
 | Excalidraw | element update -> canvas repaint evidence | `mutateElement`, `triggerUpdate`, `triggerRender`, `StaticCanvas`, `renderStaticScene` |
 | VS Code sparse checkout | workbench startup evidence | `createWorkbench`, `Workbench`, `lifecycleService` |
 
+Targeted one-run agent A/B smoke on the same release corpora:
+
+| Corpus | Time | Cost | Tool calls | Read/Grep/Bash fallback |
+|---|---:|---:|---:|---:|
+| Zustand | 35s -> 34s | $0.707 -> $0.742 | 4 -> 3 | 1 -> 3 |
+| Gin examples | 16s -> 44s | $0.303 -> $0.538 | 1 -> 15 | 0 -> 14 |
+| Excalidraw | 45s -> 224s | $1.027 -> $1.521 | 3 -> 55 | 0 -> 54 |
+| VS Code sparse checkout | 119s -> 98s | $1.517 -> $0.555 | 9 -> 18 | 2 -> 17 |
+
+Across these four one-run smoke cells, ZCodeGraph used **51% fewer tool calls**
+and **89% fewer Read/Grep/Bash fallback calls**. Cost and wall time are intentionally
+not claimed as broad savings here: VS Code sparse was fewer-tool but slower and
+costlier, and this smoke is not the historical 7-repo median-of-4 benchmark.
+
 Notes:
 
-- `degraded` means the hybrid run recorded expected fallback or parse-gap
-  taxonomy; it is not a hidden failure.
+- `degraded` means the index completed with hybrid fallback or Rust-owned parse
+  gaps recorded in status/doctor metadata. It is not the same as failed.
 - RSS was unavailable in this local command wrapper run, and the artifact
   records the exact unavailable reason for each corpus.
 - VS Code is a sparse checkout, not the full repository.
@@ -142,7 +156,8 @@ Notes:
   `CODEGRAPH_ALLOW_UNSAFE_NODE=1`; release users should use the bundled runtime
   or a supported embedding runtime.
 
-Full evidence: `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-current-state.md`.
+Full evidence: `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-current-state.md`
+and `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab.md`.
 
 <details>
 <summary><strong>Historical benchmark context</strong></summary>

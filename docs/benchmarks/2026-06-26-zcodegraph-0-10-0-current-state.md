@@ -51,7 +51,7 @@ The default user path is `rust-hybrid`. Rust-owned languages in this build are J
 
 - This is current-state release evidence, not a new full performance benchmark campaign.
 - Deterministic probes do not replace agent A/B measurements.
-- All measured corpora report `degraded` hybrid status when non-Rust-owned supported files are appended through TypeScript fallback, or when Rust-owned parse gaps are diagnosed. This is expected under the current ownership boundary.
+- All measured corpora report `degraded` hybrid status when non-Rust-owned supported files are appended through TypeScript fallback, or when Rust-owned parse gaps are diagnosed. `degraded` means the index completed with fallback or parse-gap taxonomy recorded in status/doctor metadata; it is not the same as failed.
 - RSS was unavailable for these local command-wrapper runs; the specific unavailable reason is recorded per corpus.
 - VS Code sparse completed only via a direct `index --quiet --profile-out` recovery run because the generic baseline runner terminated the initial `init` run during progress-spinner output capture. The recovered index and profile summary are included here.
 
@@ -68,5 +68,7 @@ The default user path is `rust-hybrid`. Rust-owned languages in this build are J
 ## Long-Lived Artifacts
 
 - `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-current-state-summary.json`
+- `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab.md`
+- `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab-summary.json`
 
 The roadmap, raw profile files, probe output logs, status snapshots, and baseline runner output were process artifacts. Their durable conclusions are merged into this document and the summary JSON.

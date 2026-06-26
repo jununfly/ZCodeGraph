@@ -1,0 +1,128 @@
+{
+  "generatedAt": "2026-06-26T06:22:09.407Z",
+  "rows": [
+    {
+      "label": "Zustand",
+      "repo": "zustand",
+      "with": {
+        "durationMs": 34761,
+        "cost": 0.70687225,
+        "tools": 4,
+        "reads": 1,
+        "grep": 0,
+        "cg": 3,
+        "tokens": 221374
+      },
+      "without": {
+        "durationMs": 33965,
+        "cost": 0.7416995,
+        "tools": 3,
+        "reads": 2,
+        "grep": 1,
+        "cg": 0,
+        "tokens": 153666
+      },
+      "saved": {
+        "time": -2,
+        "cost": 5,
+        "tools": -33,
+        "tokens": -44,
+        "readGrep": 67
+      }
+    },
+    {
+      "label": "Gin examples",
+      "repo": "gin-examples",
+      "with": {
+        "durationMs": 15884,
+        "cost": 0.3032165,
+        "tools": 1,
+        "reads": 0,
+        "grep": 0,
+        "cg": 1,
+        "tokens": 81869
+      },
+      "without": {
+        "durationMs": 44261,
+        "cost": 0.53823245,
+        "tools": 15,
+        "reads": 4,
+        "grep": 10,
+        "cg": 0,
+        "tokens": 75974
+      },
+      "saved": {
+        "time": 64,
+        "cost": 44,
+        "tools": 93,
+        "tokens": -8,
+        "readGrep": 100
+      }
+    },
+    {
+      "label": "Excalidraw",
+      "repo": "excalidraw",
+      "with": {
+        "durationMs": 44943,
+        "cost": 1.0272145,
+        "tools": 3,
+        "reads": 0,
+        "grep": 0,
+        "cg": 3,
+        "tokens": 220484
+      },
+      "without": {
+        "durationMs": 224137,
+        "cost": 1.5205748999999997,
+        "tools": 55,
+        "reads": 27,
+        "grep": 27,
+        "cg": 0,
+        "tokens": 83438
+      },
+      "saved": {
+        "time": 80,
+        "cost": 32,
+        "tools": 95,
+        "tokens": -164,
+        "readGrep": 100
+      }
+    },
+    {
+      "label": "VS Code sparse",
+      "repo": "vscode-sparse",
+      "with": {
+        "durationMs": 118845,
+        "cost": 1.5166955000000002,
+        "tools": 9,
+        "reads": 2,
+        "grep": 0,
+        "cg": 7,
+        "tokens": 452172
+      },
+      "without": {
+        "durationMs": 97919,
+        "cost": 0.55508705,
+        "tools": 18,
+        "reads": 11,
+        "grep": 6,
+        "cg": 0,
+        "tokens": 166336
+      },
+      "saved": {
+        "time": -21,
+        "cost": -173,
+        "tools": 50,
+        "tokens": -172,
+        "readGrep": 88
+      }
+    }
+  ],
+  "average": {
+    "time": 30,
+    "cost": -23,
+    "tools": 51,
+    "tokens": -97,
+    "readGrep": 89
+  }
+}
