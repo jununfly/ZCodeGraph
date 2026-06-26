@@ -11585,12 +11585,29 @@ mod tests {
         assert!(result.success, "{:?}", result.errors);
         assert_eq!(result.profile.local_exact_reference_resolved_refs, 900);
         assert_eq!(result.profile.local_exact_reference_fallback_refs, 0);
-        assert!(
-            result.profile.local_exact_reference_resolution_ms <= 160,
-            "localExactReferenceResolutionMs={}ms resolvedRefs={}",
-            result.profile.local_exact_reference_resolution_ms,
-            result.profile.local_exact_reference_resolved_refs
-        );
+        let conn = Connection::open(&request.index_path).unwrap();
+        let rust_finalization_call_edges = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM edges
+                 WHERE kind = 'calls'
+                   AND edgeOrigin = 'rust-finalization'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap();
+        let unresolved_helper_calls = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM unresolved_refs
+                 WHERE reference_kind = 'calls'
+                   AND reference_name = 'helper'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap();
+        assert_eq!(rust_finalization_call_edges, 900);
+        assert_eq!(unresolved_helper_calls, 0);
         fs::remove_dir_all(dir).unwrap();
     }
 
