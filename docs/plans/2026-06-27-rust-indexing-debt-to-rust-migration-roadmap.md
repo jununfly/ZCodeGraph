@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 00:05:53
+> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 00:18:56
 
 [~][X+] 1. Rust Indexing Debt To Rust Migration Roadmap
 ├── [~][X+] 1-1. Technical debt governance staging before migration resumes
@@ -53,15 +53,4 @@
     ├── [ ][X+] 1-8-3. No performance target as primary success criterion
     ├── [ ][X+] 1-8-4. Agent Sufficiency guardrail trigger when graph semantics change
     └── [ ][X+] 1-8-5. Closeout decision before new migration implementation issues
-
-### 当前施工：1-1-2-3-2. Local exact reference and ESM direct binding edges
-
-Published as #619. Scope: split exactly nine direct named ESM binding tests into __tests__/rust-index-engine-cli-esm-direct-binding.test.ts: writes shadow semantic replay diagnostics for direct named ESM imports; records shadow semantic replay taxonomy for unresolved direct named ESM imports; writes guarded Rust finalization diagnostics and usage edges for direct named ESM imports; records guarded edge-write skip taxonomy for unresolved direct named ESM imports; resolves direct ESM named imports to exported target-file symbols as Rust-owned edges; resolves paths-alias ESM named imports to exported target-file symbols as Rust-owned edges; resolves declaration-style ESM named exports with TypeScript modifiers; resolves same-file ESM export specifiers only for unique local bindings; resolves guarded TypeScript overload implementations and keeps no-go cases as fallback. Exclude bounded ESM named binding fallback sample aggregation, default import tests, namespace/default/re-export tests, declaration/runtime pairing, package semantics, candidate producer, file-level import diagnostics, fallback/language/failure-safety, and finalization cleanup. Verification: npx vitest run __tests__/rust-index-engine-cli-esm-direct-binding.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check.
-
-**决策：**
-- Q: What is the seventh cut after file-level import diagnostics? → Continue sibling order with 1-1-2-3-2 Local exact reference and ESM direct binding edges. (This keeps the module-resolution finalization cluster moving from file-level module dependencies into symbol-level direct binding before default/namespace/re-export, declaration/runtime, and package semantics.)
-- Q: Should shadow semantic replay diagnostics and real direct named ESM binding edges be split into separate issues? → No. Keep them in one issue for 1-1-2-3-2, with two explicit subgroups: shadow semantic replay diagnostics and direct named ESM binding behavior. (Both subgroups describe the same direct named ESM binding semantic boundary. Exclude default imports, namespace/default semantics, one-hop re-exports, declaration/runtime pairing, package semantics, candidate protocol, fallback, language smoke, failure-safety, file-level import diagnostics, and finalization cleanup.)
-- Q: Should TypeScript overload implementation direct named binding tests be included? → Yes. Include guarded TypeScript overload implementation resolution and its no-go fallback cases in 1-1-2-3-2. (The test still belongs to direct named ESM binding: it resolves imported names to implementation symbols when safe and records no-go cases within the same binding boundary. It is not default/namespace, one-hop re-export, declaration/runtime pairing, or package semantics.)
-- Q: Should bounded ESM named binding fallback sample aggregation be included in the seventh cut? → No. Exclude the bounded ESM named binding fallback samples profile artifact test from 1-1-2-3-2. (That test is aggregate profile sample/cap diagnostics spanning multiple scenarios, including barrel and leaf fallback shapes. Keep this cut focused on direct named ESM binding shadow diagnostics, guarded edge writes, direct binding behavior, and overload implementation behavior.)
-- Q: Should the seventh cut publish an implementation issue? → Yes. Publish one ready-for-agent issue for the focused ESM direct named binding test split. (Move exactly nine tests into __tests__/rust-index-engine-cli-esm-direct-binding.test.ts: two shadow semantic replay diagnostics, two guarded direct named diagnostics, four direct named binding behavior tests, and the guarded TypeScript overload implementation behavior test. Exclude bounded fallback sample aggregation, default import tests, namespace/default/re-export tests, declaration/runtime pairing, package semantics, candidate producer, file-level import diagnostics, fallback/language/failure-safety, and finalization cleanup.)
 <!-- ROADMAP_SECTION_END -->

@@ -896,7 +896,7 @@
     "1-1-2-3-2": {
       "id": "1-1-2-3-2",
       "label": "Local exact reference and ESM direct binding edges",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1-2-3",
       "children": [],
@@ -927,7 +927,7 @@
           "note": "Move exactly nine tests into __tests__/rust-index-engine-cli-esm-direct-binding.test.ts: two shadow semantic replay diagnostics, two guarded direct named diagnostics, four direct named binding behavior tests, and the guarded TypeScript overload implementation behavior test. Exclude bounded fallback sample aggregation, default import tests, namespace/default/re-export tests, declaration/runtime pairing, package semantics, candidate producer, file-level import diagnostics, fallback/language/failure-safety, and finalization cleanup."
         }
       ],
-      "notes": "Published as #619. Scope: split exactly nine direct named ESM binding tests into __tests__/rust-index-engine-cli-esm-direct-binding.test.ts: writes shadow semantic replay diagnostics for direct named ESM imports; records shadow semantic replay taxonomy for unresolved direct named ESM imports; writes guarded Rust finalization diagnostics and usage edges for direct named ESM imports; records guarded edge-write skip taxonomy for unresolved direct named ESM imports; resolves direct ESM named imports to exported target-file symbols as Rust-owned edges; resolves paths-alias ESM named imports to exported target-file symbols as Rust-owned edges; resolves declaration-style ESM named exports with TypeScript modifiers; resolves same-file ESM export specifiers only for unique local bindings; resolves guarded TypeScript overload implementations and keeps no-go cases as fallback. Exclude bounded ESM named binding fallback sample aggregation, default import tests, namespace/default/re-export tests, declaration/runtime pairing, package semantics, candidate producer, file-level import diagnostics, fallback/language/failure-safety, and finalization cleanup. Verification: npx vitest run __tests__/rust-index-engine-cli-esm-direct-binding.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
+      "notes": "Completed in #619. Moved exactly nine direct named ESM binding tests into __tests__/rust-index-engine-cli-esm-direct-binding.test.ts: two shadow semantic replay diagnostics, two guarded direct named diagnostics, four direct named binding behavior tests, and guarded TypeScript overload implementation behavior. Kept bounded ESM named binding fallback sample aggregation, default import tests, namespace/default/re-export tests, declaration/runtime pairing, package semantics, candidate producer, file-level import diagnostics, fallback/language/failure-safety, and finalization cleanup tests in their existing clusters. Verification: npx vitest run __tests__/rust-index-engine-cli-esm-direct-binding.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
     },
     "1-1-2-3-3": {
       "id": "1-1-2-3-3",
@@ -1028,7 +1028,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 00:05:53",
+    "updated": "2026-06-28 00:18:56",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
