@@ -53,6 +53,13 @@ export interface RustHybridMetadata {
   skippedGeneratedByLanguage: Record<string, number>;
 }
 
+export function rustHybridFallbackStateFor(
+  fallbackFileCount: number,
+  fallbackReasonTaxonomy: Record<string, number>,
+): RustHybridFallbackState {
+  return fallbackFileCount > 0 || Object.keys(fallbackReasonTaxonomy).length > 0 ? 'degraded' : 'healthy';
+}
+
 export function buildRustHybridMetadata(projectPath: string): RustHybridMetadata {
   return buildRustHybridMetadataFromPlan(planRustHybridAssignments(projectPath));
 }
@@ -143,7 +150,9 @@ export function mergeRustOwnedGapDiagnostics(
     fallbackFiles: unique(fallbackFiles),
     fallbackByLanguage,
     fallbackFileCount,
-    fallbackState: fallbackFileCount > 0 || Object.keys(fallbackReasonTaxonomy).length > 0 ? 'degraded' : plan.fallbackState,
+    fallbackState: rustHybridFallbackStateFor(fallbackFileCount, fallbackReasonTaxonomy) === 'degraded'
+      ? 'degraded'
+      : plan.fallbackState,
     fallbackReasonTaxonomy,
     pendingFallbacks,
   };
@@ -224,7 +233,7 @@ export function planRustHybridAssignments(projectPath: string): RustHybridAssign
     missingFallbackByLanguage: {},
     missingFallbackFileCount: 0,
     skippedGeneratedByLanguage,
-    fallbackState: fallbackFiles.length > 0 ? 'degraded' : 'healthy',
+    fallbackState: rustHybridFallbackStateFor(fallbackFiles.length, fallbackFiles.length > 0 ? { 'language-level-typescript-fallback': fallbackFiles.length } : {}),
     fallbackReasonTaxonomy: fallbackFiles.length > 0 ? { 'language-level-typescript-fallback': fallbackFiles.length } : {},
     pendingFallbacks: ['rust-owned-parse-gap'],
   };

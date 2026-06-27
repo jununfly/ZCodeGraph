@@ -1,0 +1,695 @@
+{
+  "title": "Rust Indexing Debt To Rust Migration Roadmap",
+  "description": "先做一轮 Rust indexing 技术债务治理，再回到继续推进 ts-indexing 切换为 rust-indexing 主线。",
+  "version": 1,
+  "nodes": {
+    "1": {
+      "id": "1",
+      "label": "Rust Indexing Debt To Rust Migration Roadmap",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": null,
+      "children": [
+        "1-1",
+        "1-2",
+        "1-3",
+        "1-4",
+        "1-5",
+        "1-6",
+        "1-7",
+        "1-8"
+      ],
+      "decisions": [
+        {
+          "q": "What is the next strategic direction after Rust language support and CI cleanup?",
+          "answer": "Do one focused technical-debt governance round first, then return to the mainline of replacing remaining TypeScript indexing responsibilities with Rust indexing where that is product-safe and evidence-backed.",
+          "note": "Technical debt governance is not generic cleanup; it should reduce migration risk and make the next TS-to-Rust slices easier to reason about."
+        }
+      ],
+      "notes": ""
+    },
+    "1-1": {
+      "id": "1-1",
+      "label": "Technical debt governance staging before migration resumes",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-1-1",
+        "1-1-2",
+        "1-1-3",
+        "1-1-4",
+        "1-1-5"
+      ],
+      "decisions": [
+        {
+          "q": "What should the debt governance round optimize for?",
+          "answer": "Reduce Rust indexing migration risk and code navigation cost, not generic cleanup.",
+          "note": "A debt item belongs here only if it makes later TS-to-Rust indexing migration safer, clearer, or easier to validate."
+        }
+      ],
+      "notes": ""
+    },
+    "1-1-1": {
+      "id": "1-1-1",
+      "label": "Current Rust indexing debt inventory and ownership map",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "What should the first cut produce?",
+          "answer": "Produce a Rust indexing debt inventory, ownership map, and ranked next-slice candidates without changing production code.",
+          "note": "This keeps the first cut as explore work so later exploit slices are chosen from evidence instead of local patch pressure."
+        },
+        {
+          "q": "How should the debt inventory be organized?",
+          "answer": "Organize it by Rust indexing ownership pipeline: discovery/config, extraction, write/finalization, resolver/reference-resolution, diagnostics/status/doctor, tests/evidence.",
+          "note": "Pipeline ownership keeps each debt item tied to the TS-to-Rust migration boundary it affects."
+        },
+        {
+          "q": "Should each debt item carry a next-action class?",
+          "answer": "Yes. Classify every debt item as exploit-now, explore-first, or defer-no-go.",
+          "note": "This prevents the inventory from becoming an undifferentiated backlog and keeps later work aligned to migration readiness."
+        },
+        {
+          "q": "What evidence bar makes the inventory credible?",
+          "answer": "Every debt item needs at least one code or document anchor. Items classified as exploit-now also need a test or verification anchor.",
+          "note": "The evidence bar keeps explore work concrete while making exploit candidates executable by a later TDD slice."
+        },
+        {
+          "q": "Should the first cut rewrite exploit candidates in the roadmap?",
+          "answer": "Yes. Update only the 1-6 Next exploit slice candidate backlog and necessary notes, without rewriting the whole roadmap trunk.",
+          "note": "The inventory must feed execution planning, but the roadmap trunk should remain stable unless the evidence shows a major direction error."
+        },
+        {
+          "q": "Where should the first-cut inventory artifact live?",
+          "answer": "Keep it inside the current roadmap: write the inventory into node notes/decisions and update the 1-6 candidate backlog; do not create a separate plan document.",
+          "note": "This cut is navigation calibration, not an implementation plan. Narrow plans and issues should start only after an exploit slice is selected."
+        },
+        {
+          "q": "Should the inventory cover non-code debt such as historical docs and evidence artifacts?",
+          "answer": "Yes, but only document debt that can mislead migration routing or validation criteria.",
+          "note": "Pure process-file cleanup stays out of the first cut unless it affects which responsibilities are still TypeScript-owned, which are Rust-owned, or which evidence is credible."
+        },
+        {
+          "q": "How should exploit-now candidates be ranked after the inventory?",
+          "answer": "Prioritize low behavior risk, high migration-unlocking value, and clear test or verification anchors.",
+          "note": "This favors boundary/test/fixture cleanup before risky semantic rewrites, while still serving the TS-to-Rust migration mainline."
+        },
+        {
+          "q": "Can this debt round touch crates/zcodegraph-core/src/lib.rs?",
+          "answer": "Yes, but the first exploit should be behavior-preserving module-boundary or test-helper extraction, not semantic rewriting.",
+          "note": "The Rust core giant module is a real migration-readiness debt, but early slices should improve navigability and testability without changing indexing behavior."
+        },
+        {
+          "q": "Should giant Rust indexing test files be exploit-now candidates?",
+          "answer": "Yes. Prioritize test helper, fixture builder, and scenario splitting without changing assertion semantics.",
+          "note": "Large rust-hybrid CLI and diagnostics tests are low user-behavior risk and can reduce validation cost for later migration slices."
+        },
+        {
+          "q": "How should TypeScript fallback and degraded taxonomy debt be handled in this round?",
+          "answer": "Classify it as an exploit-now candidate, scoped to taxonomy/status/doctor consistency without changing fallback behavior.",
+          "note": "Reliable diagnostics are a migration guardrail, but this debt pass should not silently change default indexing behavior."
+        },
+        {
+          "q": "Is candidate producer/resolver migration debt governance or the migration mainline?",
+          "answer": "Treat it as explore-first in this debt round: inventory env/config/diagnostics boundaries and residuals without routing it into the main path.",
+          "note": "Candidate producer is close to resolver semantic migration, so implementation should wait until the roadmap returns to the migration mainline."
+        },
+        {
+          "q": "Should CI and release guardrail debt be exploit-now in this debt round?",
+          "answer": "Default it to explore-first; only CI smoke or gates that directly protect migrated Rust indexing paths can be promoted to exploit-now.",
+          "note": "This keeps CI work tied to migration readiness rather than expanding into generic release hardening."
+        }
+      ],
+      "notes": "First-cut inventory completed. Scope: explore-only inventory, no production behavior change.\n\nInventory coordinate system: discovery/config -> extraction -> write/finalization -> resolver/reference-resolution -> diagnostics/status/doctor -> tests/evidence.\n\nDebt items:\n1. discovery/config: Rust core discovery and engine selection are explicit and mostly centralized (`src/indexing/rust-indexer.ts`, `src/indexing/engine-selection.ts`), but experimental candidate producer activation still has env/config boundary debt (`src/resolution/rust-candidate-producer.ts`). action=explore-first. evidence: `ZCODEGRAPH_RUST_CANDIDATE_PRODUCER`, local routing diagnostics, `__tests__/rust-index-engine-cli.test.ts`.\n2. extraction: Rust core production implementation is concentrated in a giant module (`crates/zcodegraph-core/src/lib.rs`, about 20k lines). action=exploit-now for behavior-preserving module/test-helper extraction only; semantic extraction rewrites remain later migration work. evidence: `crates/zcodegraph-core/src/lib.rs`, Rust core tests.\n3. write/finalization: SQLite/finalization contracts have design docs and tests, but helper boundaries remain mixed with broader Rust indexing test surfaces. action=exploit-now when scoped to helper isolation and fixture reuse. evidence: `docs/designs/rust-indexing-core-sqlite-contract.md`, `docs/designs/rust-indexing-finalization-boundary.md`, `__tests__/rust-sqlite-batching.test.ts`, `__tests__/rust-index-engine-cli.test.ts`.\n4. resolver/reference-resolution: candidate producer and Rust name matcher are close to the TS-to-Rust migration mainline. action=explore-first in this debt round; do not route more resolver semantics into the main path under a debt-cleanup label. evidence: `src/resolution/rust-candidate-producer.ts`, `src/resolution/rust-name-matcher.ts`, consolidated module-resolution evidence docs.\n5. diagnostics/status/doctor: fallback/degraded taxonomy is migration-critical and user-visible. action=exploit-now only for taxonomy/status/doctor consistency, with no fallback behavior change. evidence: `src/indexing/rust-hybrid-contract.ts`, `src/diagnostics/index.ts`, `src/bin/zcodegraph.ts`, `__tests__/rust-hybrid-doctor.test.ts`, `__tests__/rust-package-smoke.test.ts`.\n6. tests/evidence: Rust indexing test surface has very large files, especially `__tests__/rust-index-engine-cli.test.ts` (~5k lines), making later slices costly to navigate. action=exploit-now for fixture builders, scenario split, and helper extraction without assertion-semantic changes.\n7. document/evidence lifecycle: multiple consolidated Rust indexing/rust-hybrid/module-resolution docs remain useful, but stale language ownership claims or validation wording can mislead migration routing. action=explore-first, only when docs affect migration ownership or evidence credibility. evidence: `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`, `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`, `docs/plans/2026-06-24-rust-indexing-ts-replacement-readiness-consolidated-plan.md`.\n8. CI/release guardrails: recent Windows Rust core CI work shows this matters, but generic CI cleanup is outside this first debt pass. action=explore-first by default; promote only smoke/gates directly protecting migrated Rust indexing paths. evidence: `__tests__/ci-rust-packaged-path.test.ts`, `__tests__/release-workflow-rust-core.test.ts`, release workflow tests.\n\nRanked exploit-now candidates: (1) split giant Rust indexing CLI/test fixture helpers; (2) extract behavior-preserving Rust core module/test helpers from `lib.rs`; (3) isolate SQLite/finalization helper boundaries; (4) consolidate fallback taxonomy/status/doctor consistency; (5) add/adjust only Rust-migration-path CI smoke if a concrete guardrail gap is found.\n\nDefer/no-go for this round: performance optimization as primary goal, resolver semantic routing into main path, full TypeScript indexer removal, package/node_modules expansion, and broad process-doc cleanup."
+    },
+    "1-1-2": {
+      "id": "1-1-2",
+      "label": "Rust core giant test module decomposition candidates",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-3": {
+      "id": "1-1-3",
+      "label": "Cross-platform CI and release stability debt candidates",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-4": {
+      "id": "1-1-4",
+      "label": "Plan benchmark evidence lifecycle cleanup rules",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-5": {
+      "id": "1-1-5",
+      "label": "Debt governance closeout decision before migration resumes",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2": {
+      "id": "1-2",
+      "label": "Rust core architecture clarity for future migration",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-2-1",
+        "1-2-2",
+        "1-2-3",
+        "1-2-4",
+        "1-2-5"
+      ],
+      "decisions": [
+        {
+          "q": "Which architecture area is highest leverage?",
+          "answer": "Clarify Rust core ownership boundaries and test/module structure first.",
+          "note": "The current Rust core has accumulated extraction, finalization, resolver, SQLite, diagnostics, and test concerns in a dense surface area."
+        }
+      ],
+      "notes": ""
+    },
+    "1-2-1": {
+      "id": "1-2-1",
+      "label": "Extraction finalization resolution ownership boundary map",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-2": {
+      "id": "1-2-2",
+      "label": "Rust core test helper and fixture module extraction",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-3": {
+      "id": "1-2-3",
+      "label": "SQLite write finalization helper isolation",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-4": {
+      "id": "1-2-4",
+      "label": "JS TS resolver migration tests versus Rust language tests split",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-5": {
+      "id": "1-2-5",
+      "label": "Profile and diagnostic field stability boundary",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3": {
+      "id": "1-3",
+      "label": "Cross-platform CI and release trust guardrails",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-3-1",
+        "1-3-2",
+        "1-3-3",
+        "1-3-4",
+        "1-3-5"
+      ],
+      "decisions": [
+        {
+          "q": "What CI work belongs in this roadmap?",
+          "answer": "Only cross-platform trust work that protects migrated Rust indexing paths belongs here.",
+          "note": "General release automation redesign stays out unless it blocks Rust indexing migration confidence."
+        }
+      ],
+      "notes": ""
+    },
+    "1-3-1": {
+      "id": "1-3-1",
+      "label": "Windows SQLite file-lock regression guard follow-up",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-2": {
+      "id": "1-3-2",
+      "label": "Main CI required matrix health gate",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-3": {
+      "id": "1-3-3",
+      "label": "Packaged Rust core artifact contract coverage",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-4": {
+      "id": "1-3-4",
+      "label": "Release workflow targeted smoke without publish",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-5": {
+      "id": "1-3-5",
+      "label": "Node version and package manager guardrails",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4": {
+      "id": "1-4",
+      "label": "Documentation roadmap and evidence lifecycle governance",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-4-1",
+        "1-4-2",
+        "1-4-3",
+        "1-4-4",
+        "1-4-5"
+      ],
+      "decisions": [
+        {
+          "q": "How should process documents be handled during this roadmap?",
+          "answer": "Keep roadmap JSON as the active truth source, render markdown for humans, and consolidate/delete temporary artifacts at closeout.",
+          "note": "This preserves map visibility without repeating the previous process-file buildup."
+        }
+      ],
+      "notes": ""
+    },
+    "1-4-1": {
+      "id": "1-4-1",
+      "label": "Process roadmap cleanup and consolidation policy",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-2": {
+      "id": "1-4-2",
+      "label": "ADR versus benchmark versus plan routing rules",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-3": {
+      "id": "1-4-3",
+      "label": "Issue PRD roadmap closeout template",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-4": {
+      "id": "1-4-4",
+      "label": "README product language consistency pass",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-5": {
+      "id": "1-4-5",
+      "label": "Temporary evidence retention and deletion checklist",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5": {
+      "id": "1-5",
+      "label": "TypeScript indexing to Rust indexing replacement mainline",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-5-1",
+        "1-5-2",
+        "1-5-3",
+        "1-5-4",
+        "1-5-5",
+        "1-5-6"
+      ],
+      "decisions": [
+        {
+          "q": "When does the roadmap return to TS indexing replacement?",
+          "answer": "After the debt round has a closeout decision showing migration risks are reduced and guardrails are green.",
+          "note": "The migration mainline remains the destination, but it should not resume on top of unstable boundaries."
+        }
+      ],
+      "notes": ""
+    },
+    "1-5-1": {
+      "id": "1-5-1",
+      "label": "Current Rust-owned language coverage ownership map",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-2": {
+      "id": "1-5-2",
+      "label": "Remaining TypeScript indexer responsibility inventory",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-3": {
+      "id": "1-5-3",
+      "label": "Rust-owned extraction gap burn-down candidates",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-4": {
+      "id": "1-5-4",
+      "label": "Rust finalization and reference-resolution residuals",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-5": {
+      "id": "1-5-5",
+      "label": "Non-Rust-owned language fallback boundary",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-6": {
+      "id": "1-5-6",
+      "label": "MCP Explore sufficiency guardrail trigger map",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-6": {
+      "id": "1-6",
+      "label": "Next exploit slice candidate backlog",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [
+        "1-6-1",
+        "1-6-2",
+        "1-6-3",
+        "1-6-4",
+        "1-6-5"
+      ],
+      "decisions": [
+        {
+          "q": "What makes a candidate ready for exploit?",
+          "answer": "It must be bounded, testable, behavior-preserving by default, and directly connected to Rust indexing migration readiness.",
+          "note": "Performance wins or new feature breadth are not enough for this backlog."
+        },
+        {
+          "q": "How should next exploit candidates be ordered after the first inventory cut?",
+          "answer": "Prefer: (1) split giant Rust indexing CLI/test fixture helpers; (2) behavior-preserving Rust core module/test-helper extraction from lib.rs; (3) SQLite/finalization helper isolation; (4) fallback taxonomy/status/doctor consistency; (5) targeted Rust-migration-path CI smoke only if a concrete guardrail gap is found.",
+          "note": "Ranking is recorded as execution guidance without rewriting the roadmap trunk or changing existing candidate labels."
+        }
+      ],
+      "notes": "Candidate backlog refreshed by node 1-1-1 inventory. Published issues: #609 Split Rust indexing CLI test fixtures and scenarios; #610 Extract behavior-preserving Rust core module and test-helper boundaries; #611 Isolate Rust indexing SQLite and finalization helper boundaries; #612 Consolidate rust-hybrid fallback taxonomy across status and doctor. Execution preference: first #609; then #610; then #611; then #612. Existing child labels remain stable; this note is the current tracker mapping."
+    },
+    "1-6-1": {
+      "id": "1-6-1",
+      "label": "Extract Rust core test helpers from lib.rs",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": "Covered by #609 and #610: Rust indexing test helpers were extracted, and the Rust core profiling boundary was moved into a dedicated behavior-preserving module. This does not complete broader Rust core semantic module decomposition."
+    },
+    "1-6-2": {
+      "id": "1-6-2",
+      "label": "Split temporary SQLite and fixture utilities",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": "Covered by #609 and #611: reusable Rust indexing CLI fixtures plus SQLite/finalization test helpers now exist for temp projects, Rust core invocation, and DB assertions."
+    },
+    "1-6-3": {
+      "id": "1-6-3",
+      "label": "Consolidate TypeScript fallback taxonomy in status and doctor",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented by #612: rust-hybrid fallback/degraded doctor hint now covers Rust-owned gap taxonomy as well as fallback append."
+    },
+    "1-6-4": {
+      "id": "1-6-4",
+      "label": "Burn down one high-confidence TypeScript resolver residual",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": "Not implemented in this debt pass. First-cut inventory classified resolver/candidate-producer semantic routing as explore-first, not exploit-now."
+    },
+    "1-6-5": {
+      "id": "1-6-5",
+      "label": "Add cross-platform CI smoke for migrated Rust indexing path",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-7": {
+      "id": "1-7",
+      "label": "Explore frontiers not ready for immediate implementation",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-7-1",
+        "1-7-2",
+        "1-7-3",
+        "1-7-4",
+        "1-7-5"
+      ],
+      "decisions": [
+        {
+          "q": "What should stay explore-only for now?",
+          "answer": "High-risk or product-expanding areas stay explore-only until a PRD or bounded slice chooses an oracle and acceptance criteria.",
+          "note": "This includes full TS indexer removal, node_modules graph expansion, compiler/oracle integration, more languages, and broad performance optimization."
+        }
+      ],
+      "notes": ""
+    },
+    "1-7-1": {
+      "id": "1-7-1",
+      "label": "Full TypeScript indexer removal product risk",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-7",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-7-2": {
+      "id": "1-7-2",
+      "label": "Third-party package and node_modules graph expansion",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-7",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-7-3": {
+      "id": "1-7-3",
+      "label": "Compiler or oracle integration policy",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-7",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-7-4": {
+      "id": "1-7-4",
+      "label": "Additional language support after migration stability",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-7",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-7-5": {
+      "id": "1-7-5",
+      "label": "Performance optimization after architecture cleanup",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-7",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-8": {
+      "id": "1-8",
+      "label": "Completion gates before migration resumes",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-8-1",
+        "1-8-2",
+        "1-8-3",
+        "1-8-4",
+        "1-8-5"
+      ],
+      "decisions": [
+        {
+          "q": "What gates close the debt round?",
+          "answer": "No default user behavior changes, green macOS/Ubuntu/Windows CI, sufficiency guardrails when graph semantics change, and a closeout decision before new migration implementation issues.",
+          "note": "The debt round should end with a clear handoff back to TS-to-Rust migration."
+        }
+      ],
+      "notes": ""
+    },
+    "1-8-1": {
+      "id": "1-8-1",
+      "label": "No default user behavior changes during debt pass",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-8",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-8-2": {
+      "id": "1-8-2",
+      "label": "Green macOS Ubuntu Windows CI gate",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-8",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-8-3": {
+      "id": "1-8-3",
+      "label": "No performance target as primary success criterion",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-8",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-8-4": {
+      "id": "1-8-4",
+      "label": "Agent Sufficiency guardrail trigger when graph semantics change",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-8",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-8-5": {
+      "id": "1-8-5",
+      "label": "Closeout decision before new migration implementation issues",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-8",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    }
+  },
+  "metadata": {
+    "created": "2026-06-27 16:46:36",
+    "updated": "2026-06-27 20:55:00",
+    "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
+  }
+}

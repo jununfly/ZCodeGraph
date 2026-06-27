@@ -10,6 +10,12 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 use tree_sitter::{Node as SyntaxNode, Parser, TreeCursor};
 
+mod index_options;
+mod profiling;
+use index_options::GraphWorkFeatures;
+pub use index_options::{GraphWorkProfile, IndexRequest, SqliteWriteMode};
+pub use profiling::{start_heap_profiler, HeapProfilerGuard};
+
 #[cfg(feature = "dhat")]
 #[global_allocator]
 static ALLOCATOR: dhat::Alloc = dhat::Alloc;
@@ -22,151 +28,6 @@ const IMPORT_FALLBACK_SAMPLE_TOTAL_CAP: usize = 2000;
 const ESM_OVERLOAD_IMPLEMENTATION_RESOLVED_BY: &str =
     "rust-esm-named-import-export-overload-implementation";
 const ESM_VALUE_TOKEN_INTERFACE_RESOLVED_BY: &str = "rust-esm-value-token-interface";
-
-#[cfg(feature = "dhat")]
-pub type HeapProfilerGuard = dhat::Profiler;
-
-#[cfg(not(feature = "dhat"))]
-pub type HeapProfilerGuard = ();
-
-#[cfg(feature = "dhat")]
-pub fn start_heap_profiler(project_path: &str) -> Result<Option<HeapProfilerGuard>, String> {
-    match std::env::var("ZCODEGRAPH_PROFILING") {
-        Ok(value) if value == "heap" => {
-            let experiment_id =
-                std::env::var("ZCODEGRAPH_EXPERIMENT_ID").unwrap_or_else(|_| "manual".to_string());
-            let report_path = Path::new(project_path)
-                .join(".workbuddy")
-                .join("profiling")
-                .join(experiment_id)
-                .join("dhat-heap.json");
-            if let Some(parent) = report_path.parent() {
-                fs::create_dir_all(parent)
-                    .map_err(|err| format!("failed to create heap profiling directory: {}", err))?;
-            }
-            Ok(Some(
-                dhat::Profiler::builder()
-                    .file_name(report_path.to_string_lossy().as_ref())
-                    .build(),
-            ))
-        }
-        Ok(value) if value.trim().is_empty() => Ok(None),
-        Ok(value) => Err(format!(
-            "unsupported profiling mode: {}. Supported modes: heap",
-            value
-        )),
-        Err(std::env::VarError::NotPresent) => Ok(None),
-        Err(err) => Err(format!("failed to read ZCODEGRAPH_PROFILING: {}", err)),
-    }
-}
-
-#[cfg(not(feature = "dhat"))]
-pub fn start_heap_profiler(_project_path: &str) -> Result<Option<HeapProfilerGuard>, String> {
-    match std::env::var("ZCODEGRAPH_PROFILING") {
-        Ok(value) if value == "heap" => {
-            Err("heap profiling requires building zcodegraph-core with --features dhat".to_string())
-        }
-        Ok(value) if value.trim().is_empty() => Ok(None),
-        Ok(value) => Err(format!(
-            "unsupported profiling mode: {}. Supported modes: heap",
-            value
-        )),
-        Err(std::env::VarError::NotPresent) => Ok(None),
-        Err(err) => Err(format!("failed to read ZCODEGRAPH_PROFILING: {}", err)),
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IndexRequest {
-    pub engine: String,
-    pub project_path: String,
-    pub index_path: String,
-    pub force: bool,
-    pub verbose: bool,
-    pub graph_work_profile: GraphWorkProfile,
-    pub sqlite_write_mode: SqliteWriteMode,
-    pub parse_walker_diagnostics: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GraphWorkProfile {
-    Full,
-    MatchedTsJs,
-}
-
-impl Default for GraphWorkProfile {
-    fn default() -> Self {
-        GraphWorkProfile::Full
-    }
-}
-
-impl GraphWorkProfile {
-    pub fn parse(value: &str) -> Result<Self, String> {
-        match value {
-            "full" => Ok(GraphWorkProfile::Full),
-            "matched-ts-js" => Ok(GraphWorkProfile::MatchedTsJs),
-            other => Err(format!(
-                "unsupported graph work profile: {}. Supported profiles: full, matched-ts-js",
-                other
-            )),
-        }
-    }
-
-    fn features(self) -> GraphWorkFeatures {
-        match self {
-            GraphWorkProfile::Full => GraphWorkFeatures {
-                component_detection: true,
-                constant_extraction: true,
-                field_extraction: true,
-                export_extraction: true,
-                aggressive_call_extraction: true,
-            },
-            GraphWorkProfile::MatchedTsJs => GraphWorkFeatures {
-                component_detection: false,
-                constant_extraction: false,
-                field_extraction: false,
-                export_extraction: false,
-                aggressive_call_extraction: false,
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SqliteWriteMode {
-    Disk,
-    FinalFlush,
-    MemoryFinalFlush,
-}
-
-impl Default for SqliteWriteMode {
-    fn default() -> Self {
-        SqliteWriteMode::FinalFlush
-    }
-}
-
-impl SqliteWriteMode {
-    pub fn parse(value: &str) -> Result<Self, String> {
-        match value {
-            "disk" => Ok(SqliteWriteMode::Disk),
-            "final-flush" => Ok(SqliteWriteMode::FinalFlush),
-            "memory-final-flush" => Ok(SqliteWriteMode::MemoryFinalFlush),
-            other => Err(format!(
-                "unsupported SQLite write mode: {}. Supported modes: disk, final-flush, memory-final-flush",
-                other
-            )),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct GraphWorkFeatures {
-    component_detection: bool,
-    constant_extraction: bool,
-    field_extraction: bool,
-    export_extraction: bool,
-    aggressive_call_extraction: bool,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexError {

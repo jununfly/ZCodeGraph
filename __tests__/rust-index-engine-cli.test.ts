@@ -6,15 +6,18 @@ import * as path from 'path';
 import { CodeGraph } from '../src';
 import { ToolHandler } from '../src/mcp/tools';
 import { buildRustHybridMetadataFromPlan, mergeMissingFallbackDiagnostics, mergeRustOwnedGapDiagnostics, planRustHybridAssignments } from '../src/indexing/rust-hybrid-contract';
-
-const BIN = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
-const RUST_CORE_BIN = path.resolve(
-  __dirname,
-  '..',
-  'target',
-  'debug',
-  process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core',
-);
+import {
+  fakeRustCoreMarker,
+  makeRustIndexingTempProject,
+  RUST_CORE_BIN,
+  runZcodegraphCli,
+  waitFor,
+  writeFailingRustCore,
+  writeFakeRustCore,
+  writeFakeRustCoreWithPartialWriteGap,
+  writeFakeRustCoreWithPerFileGap,
+  ZCODEGRAPH_BIN,
+} from './helpers/rust-indexing-cli';
 
 const FINALIZATION_DIAGNOSTIC_BUCKETS = [
   'databaseAccessMs',
@@ -47,154 +50,11 @@ const FINALIZATION_DIAGNOSTIC_BUCKETS = [
   'intentionallyUnresolvedCleanupRowCount',
 ] as const;
 
-function makeTempProject(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-engine-'));
-  fs.writeFileSync(path.join(dir, 'a.ts'), 'export function alpha(): number { return 1; }\n');
-  const cg = CodeGraph.initSync(dir);
-  cg.close();
-  return dir;
-}
-
-function writeFakeRustCore(dir: string): string {
-  const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-core.cjs' : 'fake-rust-core');
-  const marker = path.join(dir, '.fake-rust-core-invoked');
-  fs.writeFileSync(
-    script,
-    [
-      '#!/usr/bin/env node',
-      'const args = process.argv.slice(2);',
-      `require("fs").writeFileSync(${JSON.stringify(marker)}, JSON.stringify({ args, profiling: process.env.ZCODEGRAPH_PROFILING || null, experimentId: process.env.ZCODEGRAPH_EXPERIMENT_ID || null }) + "\\n");`,
-      'if (!args.includes("index")) process.exit(2);',
-      'process.stdout.write(JSON.stringify({ type: "progress", phase: "scanning", current: 0, total: 1 }) + "\\n");',
-      'process.stdout.write(JSON.stringify({ type: "result", success: true, filesIndexed: 0, filesSkipped: 0, filesErrored: 0, nodesCreated: 0, edgesCreated: 0, errors: [], durationMs: 1 }) + "\\n");',
-    ].join('\n') + '\n',
-  );
-  fs.chmodSync(script, 0o755);
-  return script;
-}
-
-function writeFakeRustCoreWithPerFileGap(dir: string, filePath: string, code = 'rust-owned-parse-gap'): string {
-  const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-core-gap.cjs' : 'fake-rust-core-gap');
-  fs.writeFileSync(
-    script,
-    [
-      '#!/usr/bin/env node',
-      'const args = process.argv.slice(2);',
-      'if (!args.includes("index")) process.exit(2);',
-      'process.stdout.write(JSON.stringify({ type: "progress", phase: "scanning", current: 0, total: 1 }) + "\\n");',
-      'process.stdout.write(JSON.stringify({',
-      '  type: "result",',
-      '  success: true,',
-      '  filesIndexed: 1,',
-      '  filesSkipped: 0,',
-      '  filesErrored: 1,',
-      '  nodesCreated: 0,',
-      '  edgesCreated: 0,',
-      '  errors: [{',
-      `    filePath: ${JSON.stringify(filePath)},`,
-      '    language: "typescript",',
-      `    code: ${JSON.stringify(code)},`,
-      '    severity: "warning",',
-      '    writtenByRust: false,',
-      '    line: 1,',
-      '    column: 1,',
-      '    message: "fake Rust-owned parse gap"',
-      '  }],',
-      '  durationMs: 1',
-      '}) + "\\n");',
-    ].join('\n') + '\n',
-  );
-  fs.chmodSync(script, 0o755);
-  return script;
-}
-
-function writeFakeRustCoreWithPartialWriteGap(dir: string, filePath: string): string {
-  const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-core-partial-gap.cjs' : 'fake-rust-core-partial-gap');
-  fs.writeFileSync(
-    script,
-    [
-      '#!/usr/bin/env node',
-      'const args = process.argv.slice(2);',
-      'if (!args.includes("index")) process.exit(2);',
-      'process.stdout.write(JSON.stringify({',
-      '  type: "result",',
-      '  success: true,',
-      '  filesIndexed: 1,',
-      '  filesSkipped: 0,',
-      '  filesErrored: 1,',
-      '  nodesCreated: 0,',
-      '  edgesCreated: 0,',
-      '  errors: [{',
-      `    filePath: ${JSON.stringify(filePath)},`,
-      '    language: "typescript",',
-      '    code: "rust-owned-parse-gap",',
-      '    severity: "warning",',
-      '    writtenByRust: true,',
-      '    message: "fake partial Rust write gap"',
-      '  }],',
-      '  durationMs: 1',
-      '}) + "\\n");',
-    ].join('\n') + '\n',
-  );
-  fs.chmodSync(script, 0o755);
-  return script;
-}
-
-function fakeRustCoreMarker(dir: string): string {
-  return path.join(dir, '.fake-rust-core-invoked');
-}
-
-function writeFailingRustCore(dir: string): string {
-  const script = path.join(dir, process.platform === 'win32' ? 'failing-rust-core.cjs' : 'failing-rust-core');
-  fs.writeFileSync(
-    script,
-    [
-      '#!/usr/bin/env node',
-      'process.stderr.write(JSON.stringify({ type: "error", message: "Rust core should not have been invoked" }) + "\\n");',
-      'process.exit(70);',
-    ].join('\n') + '\n',
-  );
-  fs.chmodSync(script, 0o755);
-  return script;
-}
-
-function runCli(
-  cwd: string,
-  args: string[],
-  env: Record<string, string | undefined> = {},
-): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync(process.execPath, [BIN, ...args], {
-    cwd,
-    env: {
-      ...process.env,
-      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-      CODEGRAPH_NO_DAEMON: '1',
-      CODEGRAPH_NO_RELAUNCH: '1',
-      ...env,
-    },
-    encoding: 'utf-8',
-  });
-  return {
-    status: result.status,
-    stdout: result.stdout,
-    stderr: result.stderr,
-  };
-}
-
-async function waitFor(predicate: () => boolean, timeoutMs = 5_000): Promise<void> {
-  const started = Date.now();
-  while (Date.now() - started < timeoutMs) {
-    if (predicate()) return;
-    await new Promise((resolve) => setTimeout(resolve, 25));
-  }
-  throw new Error('Timed out waiting for condition');
-}
-
 describe('zcodegraph index engine selection', () => {
   let tempDir: string;
 
   beforeAll(() => {
-    if (!fs.existsSync(BIN)) {
+    if (!fs.existsSync(ZCODEGRAPH_BIN)) {
       execFileSync('npm', ['run', 'build'], {
         cwd: path.resolve(__dirname, '..'),
         stdio: 'inherit',
@@ -207,7 +67,7 @@ describe('zcodegraph index engine selection', () => {
   }, 60_000);
 
   beforeEach(() => {
-    tempDir = makeTempProject();
+    tempDir = makeRustIndexingTempProject();
   });
 
   afterEach(() => {
@@ -216,7 +76,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('uses the rust-hybrid indexer by default', () => {
     const rustCore = writeFakeRustCore(tempDir);
-    const result = runCli(tempDir, ['index', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -227,7 +87,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('keeps the TypeScript indexer as an explicit escape hatch', () => {
     const rustCore = writeFailingRustCore(tempDir);
-    const result = runCli(tempDir, ['index', '--engine', 'typescript', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'typescript', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -244,7 +104,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('runs the Rust subprocess when selected by CLI flag', () => {
     const rustCore = writeFakeRustCore(tempDir);
-    const result = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -255,7 +115,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('passes graph work profile to the Rust subprocess when selected by CLI flag', () => {
     const rustCore = writeFakeRustCore(tempDir);
-    const result = runCli(tempDir, ['index', '--engine', 'rust', '--graph-work-profile', 'matched-ts-js', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--graph-work-profile', 'matched-ts-js', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -267,7 +127,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('uses production final-flush for Rust by default while keeping SQLite write mode overrides', () => {
     const rustCore = writeFakeRustCore(tempDir);
-    const defaultResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const defaultResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -277,7 +137,7 @@ describe('zcodegraph index engine selection', () => {
     expect(defaultMarker.args).toContain('final-flush');
 
     fs.rmSync(fakeRustCoreMarker(tempDir), { force: true });
-    const experimentResult = runCli(tempDir, ['index', '--engine', 'rust', '--sqlite-write-mode', 'memory-final-flush', '--quiet'], {
+    const experimentResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--sqlite-write-mode', 'memory-final-flush', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -287,7 +147,7 @@ describe('zcodegraph index engine selection', () => {
     expect(experimentMarker.args).toContain('memory-final-flush');
 
     fs.rmSync(fakeRustCoreMarker(tempDir), { force: true });
-    const diskResult = runCli(tempDir, ['index', '--engine', 'rust', '--sqlite-write-mode', 'disk', '--quiet'], {
+    const diskResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--sqlite-write-mode', 'disk', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -299,7 +159,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('passes heap profiling to the Rust subprocess when selected by CLI flag', () => {
     const rustCore = writeFakeRustCore(tempDir);
-    const result = runCli(tempDir, ['index', '--engine', 'rust', '--profile', 'heap', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--profile', 'heap', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
       ZCODEGRAPH_EXPERIMENT_ID: 'cli-heap-profile',
     });
@@ -313,7 +173,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('rejects stale CLI engine selection from the environment', () => {
     const rustCore = writeFakeRustCore(tempDir);
-    const result = runCli(tempDir, ['index', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
       ZCODEGRAPH_INDEX_ENGINE: 'typescript',
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
@@ -356,7 +216,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('rejects unsupported graph work profile values before indexing', () => {
     const rustCore = writeFailingRustCore(tempDir);
-    const result = runCli(tempDir, ['index', '--engine', 'rust', '--graph-work-profile', 'wide-open', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--graph-work-profile', 'wide-open', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -367,7 +227,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('rejects unsupported profile values before indexing', () => {
     const rustCore = writeFailingRustCore(tempDir);
-    const result = runCli(tempDir, ['index', '--engine', 'rust', '--profile', 'cpu', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--profile', 'cpu', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -376,7 +236,7 @@ describe('zcodegraph index engine selection', () => {
   });
 
   it('rejects unsupported engine values before indexing', () => {
-    const result = runCli(tempDir, ['index', '--engine', 'python', '--quiet']);
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'python', '--quiet']);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Unsupported index engine');
@@ -386,7 +246,7 @@ describe('zcodegraph index engine selection', () => {
   it('indexes ordinary Go files under rust-hybrid', () => {
     fs.writeFileSync(path.join(tempDir, 'server.go'), 'package main\nfunc main() {}\n');
 
-    const result = runCli(tempDir, ['index', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
@@ -433,7 +293,7 @@ describe('zcodegraph index engine selection', () => {
   it('indexes Rust files as Rust-owned under rust-hybrid', () => {
     fs.writeFileSync(path.join(tempDir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
 
-    const result = runCli(tempDir, ['index', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
@@ -507,7 +367,7 @@ describe('zcodegraph index engine selection', () => {
   it('indexes Python as Rust-owned under rust-hybrid', () => {
     fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
 
-    const result = runCli(tempDir, ['index', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
@@ -534,7 +394,7 @@ describe('zcodegraph index engine selection', () => {
   it('does not append TypeScript fallback for Rust-owned per-file gaps from a successful Rust core', () => {
     const rustCore = writeFakeRustCoreWithPerFileGap(tempDir, 'a.ts');
 
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -559,7 +419,7 @@ describe('zcodegraph index engine selection', () => {
   it('reports unrecovered Rust-owned parse gap diagnostics consistently in CLI output and errors log', () => {
     const rustCore = writeFakeRustCoreWithPerFileGap(tempDir, 'a.ts');
 
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -569,6 +429,8 @@ describe('zcodegraph index engine selection', () => {
     expect(result.stdout).not.toContain('could not be parsed');
     expect(result.stdout).toContain('Warning breakdown');
     expect(result.stdout).toContain('Rust-owned files with diagnostics and no TypeScript fallback append');
+    expect(result.stdout).toContain('Fallback health: degraded');
+    expect(result.stdout).toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
 
     const errorsLog = fs.readFileSync(path.join(tempDir, '.zcodegraph', 'errors.log'), 'utf-8');
     expect(errorsLog).toContain('0 files with errors');
@@ -593,7 +455,7 @@ describe('zcodegraph index engine selection', () => {
   it('does not append fallback when a Rust-owned gap may have partial graph writes', () => {
     const rustCore = writeFakeRustCoreWithPartialWriteGap(tempDir, 'a.ts');
 
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -617,7 +479,7 @@ describe('zcodegraph index engine selection', () => {
   it('prints a concise fallback summary when rust-hybrid appends fallback files', () => {
     fs.writeFileSync(path.join(tempDir, 'routing.yml'), 'app:\n  path: /health\n');
 
-    const result = runCli(tempDir, ['index'], {
+    const result = runZcodegraphCli(tempDir, ['index'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
@@ -651,12 +513,12 @@ describe('zcodegraph index engine selection', () => {
   it('counts generated Go files in rust-hybrid metadata', () => {
     fs.writeFileSync(path.join(tempDir, 'service.pb.go'), 'package main\n');
 
-    const result = runCli(tempDir, ['index', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
-    const statusResult = runCli(tempDir, ['status', '--json']);
+    const statusResult = runZcodegraphCli(tempDir, ['status', '--json']);
     expect(statusResult.status).toBe(0);
     const statusLine = statusResult.stdout.trim().split('\n').filter(Boolean).pop();
     expect(statusLine).toBeDefined();
@@ -676,7 +538,7 @@ describe('zcodegraph index engine selection', () => {
     const rustCore = writeFailingRustCore(tempDir);
     fs.writeFileSync(path.join(tempDir, 'server.go'), 'package main\nfunc main() {}\n');
 
-    const result = runCli(tempDir, ['index', '--engine', 'typescript', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'typescript', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -690,7 +552,7 @@ describe('zcodegraph index engine selection', () => {
       fs.writeFileSync(path.join(initDir, 'a.ts'), 'export const initValue = 1;\n');
       const rustCore = writeFakeRustCore(initDir);
 
-      const result = runCli(initDir, ['init'], {
+      const result = runZcodegraphCli(initDir, ['init'], {
         ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
       });
 
@@ -707,7 +569,7 @@ describe('zcodegraph index engine selection', () => {
       fs.writeFileSync(path.join(initDir, 'a.ts'), 'export const initValue = 1;\n');
       const rustCore = writeFakeRustCore(initDir);
 
-      const result = runCli(initDir, ['init', '-i'], {
+      const result = runZcodegraphCli(initDir, ['init', '-i'], {
         ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
       });
 
@@ -726,7 +588,7 @@ describe('zcodegraph index engine selection', () => {
       fs.writeFileSync(path.join(initDir, 'a.ts'), 'export const initValue = 1;\n');
       const rustCore = writeFailingRustCore(initDir);
 
-      const result = runCli(initDir, ['init', '--engine', 'typescript'], {
+      const result = runZcodegraphCli(initDir, ['init', '--engine', 'typescript'], {
         ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
       });
 
@@ -746,7 +608,7 @@ describe('zcodegraph index engine selection', () => {
   it('does not require Rust core when init exits early for an already initialized project', () => {
     const rustCore = writeFailingRustCore(tempDir);
 
-    const result = runCli(tempDir, ['init'], {
+    const result = runZcodegraphCli(tempDir, ['init'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -761,7 +623,7 @@ describe('zcodegraph index engine selection', () => {
     expect(cg.searchNodes('alpha').some((match) => match.node.name === 'alpha')).toBe(true);
     cg.close();
 
-    const result = runCli(tempDir, ['index', '--engine', 'rust', '--force', '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--force', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: path.join(tempDir, 'missing-rust-core'),
     });
 
@@ -789,7 +651,7 @@ describe('zcodegraph index engine selection', () => {
       cg.close();
     }
 
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--force'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--force'], {
       ZCODEGRAPH_RUST_CORE_BINARY: path.join(tempDir, 'missing-rust-core'),
     });
 
@@ -801,7 +663,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('writes a Rust-produced index and profile that TypeScript status can inspect', () => {
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-index-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--profile-out', profileOut, '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--profile-out', profileOut, '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
@@ -891,7 +753,7 @@ describe('zcodegraph index engine selection', () => {
     }
     expect(profile.typescriptFinalizationMs).toEqual(expect.any(Number));
 
-    const statusResult = runCli(tempDir, ['status', '--json']);
+    const statusResult = runZcodegraphCli(tempDir, ['status', '--json']);
     expect(statusResult.status).toBe(0);
     const statusLine = statusResult.stdout.trim().split('\n').filter(Boolean).pop();
     expect(statusLine).toBeDefined();
@@ -923,7 +785,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('does not write a profile from the legacy profile output environment variable', () => {
     const profileOut = path.join(tempDir, '.zcodegraph', 'legacy-env-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
       ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
     });
@@ -934,7 +796,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('rejects profile-out for the TypeScript index engine', () => {
     const profileOut = path.join(tempDir, '.zcodegraph', 'typescript-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'typescript', '--profile-out', profileOut, '--quiet']);
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'typescript', '--profile-out', profileOut, '--quiet']);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('--profile-out is only supported for rust and rust-hybrid index engines');
@@ -945,7 +807,7 @@ describe('zcodegraph index engine selection', () => {
     const rustCore = writeFakeRustCore(tempDir);
     const profileOut = path.join(tempDir, '.zcodegraph', 'partial-profile.json');
 
-    const result = runCli(tempDir, ['index', '--engine', 'rust', '--profile-out', profileOut, '--quiet'], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--profile-out', profileOut, '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
 
@@ -965,12 +827,12 @@ describe('zcodegraph index engine selection', () => {
   });
 
   it('writes rust-hybrid status metadata for a default rust-hybrid index', () => {
-    const indexResult = runCli(tempDir, ['index', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
-    const statusResult = runCli(tempDir, ['status', '--json']);
+    const statusResult = runZcodegraphCli(tempDir, ['status', '--json']);
     expect(statusResult.status).toBe(0);
     const statusLine = statusResult.stdout.trim().split('\n').filter(Boolean).pop();
     expect(statusLine).toBeDefined();
@@ -1037,7 +899,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-import-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -1101,7 +963,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-import-parity-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -1188,7 +1050,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-relative-js-source-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -1245,7 +1107,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-import-fallback-samples-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -1332,7 +1194,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-local-reference-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -1358,7 +1220,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('keeps exact-name resolved graph stable when candidate protocol is enabled or disabled', () => {
     const makeProject = (): string => {
-      const dir = makeTempProject();
+      const dir = makeRustIndexingTempProject();
       fs.writeFileSync(
         path.join(dir, 'candidate-protocol.ts'),
         [
@@ -1377,7 +1239,7 @@ describe('zcodegraph index engine selection', () => {
       stats: { fileCount: number; nodeCount: number; edgeCount: number };
       edges: Array<{ source: string; target: string; kind: string; resolvedBy: unknown }>;
     } => {
-      const result = runCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+      const result = runZcodegraphCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
         ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
         ZCODEGRAPH_CANDIDATE_PROTOCOL: enabled ? '1' : '0',
       });
@@ -1444,7 +1306,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'candidate-protocol-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -1600,7 +1462,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'semantic-replay-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -1654,7 +1516,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'semantic-replay-missing-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -1710,7 +1572,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'guarded-edge-write-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -1792,7 +1654,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'guarded-default-edge-write-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -1885,7 +1747,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'guarded-edge-write-missing-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -1936,7 +1798,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'guarded-default-skip-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2009,7 +1871,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'module-edge-write-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2101,7 +1963,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'namespace-import-edge-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2178,7 +2040,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'module-edge-write-skip-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2251,7 +2113,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'namespace-import-fail-closed-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2297,7 +2159,7 @@ describe('zcodegraph index engine selection', () => {
     fs.writeFileSync(path.join(tempDir, 'src', 'main.ts'), "import './api.d.ts';\n");
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'declaration-runtime-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2337,7 +2199,7 @@ describe('zcodegraph index engine selection', () => {
     fs.writeFileSync(path.join(tempDir, 'src', 'main.ts'), "import './api.d.ts';\n");
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'declaration-runtime-rewrite-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2396,7 +2258,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'declaration-runtime-skip-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2457,7 +2319,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-self-name-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2512,7 +2374,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-imports-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2570,7 +2432,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-imports-edge-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2642,7 +2504,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-imports-pattern-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2720,7 +2582,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-imports-fail-closed-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2804,7 +2666,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-imports-runtime-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2872,7 +2734,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-self-name-edge-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -2943,7 +2805,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-exports-runtime-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -3027,7 +2889,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-self-name-fail-closed-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -3099,7 +2961,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'cleanup-ownership-profile.json');
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -3178,7 +3040,7 @@ describe('zcodegraph index engine selection', () => {
       path.join(tempDir, '.zcodegraph', 'config.json'),
       JSON.stringify({ experimental: { rustCandidateProducerRouting: false } }, null, 2),
     );
-    const result = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
       ZCODEGRAPH_CANDIDATE_PROTOCOL: '1',
       ZCODEGRAPH_RUST_CANDIDATE_PRODUCER: '1',
@@ -3236,7 +3098,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('keeps resolved graph stable when Rust candidate producer shadow mode is enabled', () => {
     const makeProject = (): string => {
-      const dir = makeTempProject();
+      const dir = makeRustIndexingTempProject();
       fs.writeFileSync(
         path.join(dir, 'rust-candidate-producer-guard-helper.ts'),
         [
@@ -3259,7 +3121,7 @@ describe('zcodegraph index engine selection', () => {
       stats: { fileCount: number; nodeCount: number; edgeCount: number };
       edges: Array<{ source: string; target: string; kind: string; resolvedBy: unknown }>;
     } => {
-      const result = runCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+      const result = runZcodegraphCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
         ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
         ZCODEGRAPH_CANDIDATE_PROTOCOL: '1',
         ZCODEGRAPH_RUST_CANDIDATE_PRODUCER: enabled ? '1' : '0',
@@ -3314,7 +3176,7 @@ describe('zcodegraph index engine selection', () => {
 
   it('keeps resolved graph stable when Rust candidate producer routing is locally enabled or invalid', () => {
     const makeProject = (config: string | null, profileName: string): { dir: string; profileOut: string } => {
-      const dir = makeTempProject();
+      const dir = makeRustIndexingTempProject();
       fs.writeFileSync(
         path.join(dir, 'rust-candidate-routing-helper.ts'),
         [
@@ -3347,7 +3209,7 @@ describe('zcodegraph index engine selection', () => {
         fallbackReason: string | null;
       };
     } => {
-      const result = runCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      const result = runZcodegraphCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
         ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -3471,7 +3333,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-named-import-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -3526,7 +3388,7 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
 
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -3574,7 +3436,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-declaration-style-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -3638,7 +3500,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-same-file-export-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -3755,7 +3617,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-overload-implementation-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -3879,7 +3741,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-value-token-interface-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -4006,7 +3868,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-reexport-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -4065,7 +3927,7 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
 
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -4130,7 +3992,7 @@ describe('zcodegraph index engine selection', () => {
     );
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-fallback-profile.json');
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -4216,7 +4078,7 @@ describe('zcodegraph index engine selection', () => {
   }, 30_000);
 
   it('reports Rust index-engine metadata through MCP status', async () => {
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
@@ -4248,7 +4110,7 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
 
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
@@ -4298,7 +4160,7 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
 
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -4358,7 +4220,7 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
 
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -4413,7 +4275,7 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
 
-    const indexResult = runCli(tempDir, ['index', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
@@ -4573,7 +4435,7 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
 
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
@@ -4620,7 +4482,7 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
 
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
@@ -4678,7 +4540,7 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
 
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
@@ -4767,12 +4629,12 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
 
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
 
-    const statusResult = runCli(tempDir, ['status', '--json']);
+    const statusResult = runZcodegraphCli(tempDir, ['status', '--json']);
     const statusLine = statusResult.stdout.trim().split('\n').filter(Boolean).pop();
     const status = JSON.parse(statusLine!) as { languages: string[] };
     expect(status.languages).toEqual(expect.arrayContaining(['typescript', 'jsx', 'tsx']));
@@ -4867,7 +4729,7 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
 
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
@@ -4905,7 +4767,7 @@ describe('zcodegraph index engine selection', () => {
       ].join('\n') + '\n',
     );
 
-    const indexResult = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
@@ -4933,7 +4795,7 @@ describe('zcodegraph index engine selection', () => {
     const lockPath = path.join(tempDir, '.zcodegraph', 'zcodegraph.lock');
     fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx' });
     try {
-      const result = runCli(tempDir, ['index', '--engine', 'rust', '--force', '--quiet'], {
+      const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--force', '--quiet'], {
         ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
 
@@ -4979,7 +4841,7 @@ describe('zcodegraph index engine selection', () => {
     await new Promise<void>((resolve) => child.once('close', () => resolve()));
     expect(fs.existsSync(lockPath)).toBe(true);
 
-    const retry = runCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
+    const retry = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(retry.status).toBe(0);
