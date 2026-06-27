@@ -813,7 +813,7 @@
     "1-5-1": {
       "id": "1-5-1",
       "label": "Module path visibility and privacy residuals",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-5",
       "children": [
@@ -909,11 +909,42 @@
     "1-5-1-2": {
       "id": "1-5-1-2",
       "label": "Module visibility wrong-edge risk residuals",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-5-1",
-      "children": [],
-      "decisions": [],
+      "children": [
+        "1-5-1-2-1",
+        "1-5-1-2-2",
+        "1-5-1-2-3",
+        "1-5-1-2-4"
+      ],
+      "decisions": [
+        {
+          "q": "What should slice 7 implement?",
+          "answer": "Implement Rust module visibility wrong-edge guard v1: coarse visibility extraction plus cross-module scoped symbol edge guard.",
+          "note": "Scope is repo-local same-crate Rust module files. Persist coarse visibility for Rust symbols and fail closed before writing cross-module scoped symbol edges when visibility is private, unknown, or unsupported. Do not implement pub use expansion, external crate semantics, macro/cfg semantics, or full rustc privacy."
+        },
+        {
+          "q": "What is the default behavior for Rust visibility guarded scoped symbol edges?",
+          "answer": "Fail closed: cross-file scoped symbol edges are written only when coarse visibility allows them; private, unknown, and unsupported visibility skip edge write and record taxonomy.",
+          "note": "Same-file edges are unaffected. Cross-file pub and same-crate pub(crate) may write. Conservative pub(super) can write only for a supported parent/descendant relationship. pub(in ...) and unknown visibility are deferred. Skipped refs remain unresolved."
+        },
+        {
+          "q": "How should slice 7 be split into implementation issues?",
+          "answer": "Split into 4 issues: Rust symbol visibility metadata extraction; Rust scoped symbol visibility guard contract; guarded edge write diagnostics and taxonomy; fixture plus mini-redis smoke plus closeout evidence.",
+          "note": "The split keeps metadata persistence, guard behavior, diagnostics, and validation independently reviewable for a correctness-sensitive edge-write change."
+        },
+        {
+          "q": "Which GitHub issues track slice 7?",
+          "answer": "Published #590, #591, #592, and #593 in dependency order with enhancement + ready-for-agent labels.",
+          "note": "Issues map to visibility metadata extraction, scoped symbol guard contract, diagnostics/taxonomy, and fixture/smoke/closeout evidence."
+        },
+        {
+          "q": "What is the Plan 7 closeout decision?",
+          "answer": "Complete: bounded Rust visibility wrong-edge guard v1 is implemented and validated.",
+          "note": "Evidence: docs/benchmarks/2026-06-27-rust-language-indexing-plan-7-visibility-guard-evidence.md. The guard writes cross-module scoped symbol edges only for coarse-visible targets and leaves private, unknown, or unsupported cases unresolved with taxonomy."
+        }
+      ],
       "notes": "Recommended next bounded implementation candidate: extract/persist coarse Rust visibility metadata and guard cross-module scoped symbol edge writes before writing potentially private/out-of-scope edges."
     },
     "1-5-1-3": {
@@ -935,11 +966,51 @@
       "children": [],
       "decisions": [],
       "notes": "Classified in the visibility residual decision artifact. Macro-generated modules, full cfg/feature conditional compilation, external crates, and rustc-compatible privacy oracle remain no-go or needs-oracle for this line."
+    },
+    "1-5-1-2-1": {
+      "id": "1-5-1-2-1",
+      "label": "Rust symbol visibility metadata extraction (#590)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #590: Rust core now extracts coarse visibility for Rust symbols and persists it in nodes.visibility; covered by fixture and Plan 7 evidence."
+    },
+    "1-5-1-2-2": {
+      "id": "1-5-1-2-2",
+      "label": "Rust scoped symbol visibility guard contract (#591)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #591: Rust scoped symbol finalization now routes through a visibility guard before cross-module edge writes."
+    },
+    "1-5-1-2-3": {
+      "id": "1-5-1-2-3",
+      "label": "Rust visibility guarded edge write diagnostics and taxonomy (#592)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #592: result JSON exposes rustVisibilityTaxonomyCounts and rustVisibilityGuardTaxonomyCounts; skipped private/unknown/unsupported refs keep taxonomy."
+    },
+    "1-5-1-2-4": {
+      "id": "1-5-1-2-4",
+      "label": "Rust visibility guard fixture smoke and closeout evidence (#593)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #593: deterministic fixture, full zcodegraph-core test suite, and mini-redis smoke recorded in docs/benchmarks/2026-06-27-rust-language-indexing-plan-7-visibility-guard-evidence.md."
     }
   },
   "metadata": {
     "created": "2026-06-26 17:05:43",
-    "updated": "2026-06-27 02:24:17",
+    "updated": "2026-06-27 10:13:34",
     "md_file": "docs/plans/2026-06-26-rust-language-indexing-roadmap.md"
   }
 }

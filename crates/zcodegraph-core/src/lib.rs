@@ -292,6 +292,8 @@ pub struct IndexProfile {
     pub rust_cargo_workspace_crate_candidate_counts: BTreeMap<String, u32>,
     pub rust_macro_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_axum_route_taxonomy_counts: BTreeMap<String, u32>,
+    pub rust_visibility_taxonomy_counts: BTreeMap<String, u32>,
+    pub rust_visibility_guard_taxonomy_counts: BTreeMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -2131,6 +2133,13 @@ struct LocalRefRow {
     col: i64,
     file_path: String,
     language: String,
+}
+
+#[derive(Debug)]
+struct RustVisibilityCandidate {
+    id: String,
+    file_path: String,
+    visibility: Option<String>,
 }
 
 #[derive(Debug)]
@@ -6987,6 +6996,7 @@ fn index_javascript_files(
                     &mut counts.profile.rust_trait_impl_taxonomy_counts,
                     &mut counts.profile.rust_macro_taxonomy_counts,
                     &mut counts.profile.rust_axum_route_taxonomy_counts,
+                    &mut counts.profile.rust_visibility_taxonomy_counts,
                     &mut rust_trait_impl_facts,
                 )?;
             } else {
@@ -7044,7 +7054,11 @@ fn index_javascript_files(
     let rust_module_edges_started = Instant::now();
     let rust_module_edges_created = resolve_rust_module_file_imports(&tx, project_path)?;
     counts.edges_created += rust_module_edges_created;
-    let rust_scoped_symbol_edges_created = resolve_rust_scoped_symbol_refs(&tx, project_path)?;
+    let rust_scoped_symbol_edges_created = resolve_rust_visibility_guarded_scoped_symbol_refs(
+        &tx,
+        project_path,
+        &mut counts.profile.rust_visibility_guard_taxonomy_counts,
+    )?;
     counts.edges_created += rust_scoped_symbol_edges_created;
     let rust_axum_route_edges_created = resolve_rust_axum_route_handler_refs(
         &tx,
@@ -8492,6 +8506,7 @@ fn extract_rust_symbols(
     rust_trait_impl_taxonomy_counts: &mut BTreeMap<String, u32>,
     rust_macro_taxonomy_counts: &mut BTreeMap<String, u32>,
     rust_axum_route_taxonomy_counts: &mut BTreeMap<String, u32>,
+    rust_visibility_taxonomy_counts: &mut BTreeMap<String, u32>,
     rust_trait_impl_facts: &mut Vec<RustTraitImplFact>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     record_rust_macro_taxonomy(source, rust_macro_taxonomy_counts);
@@ -8517,6 +8532,7 @@ fn extract_rust_symbols(
         edges,
         unresolved_refs,
         rust_trait_impl_taxonomy_counts,
+        rust_visibility_taxonomy_counts,
         rust_trait_impl_facts,
     )?;
     Ok(())
@@ -8534,6 +8550,7 @@ fn visit_rust_node(
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
     rust_trait_impl_taxonomy_counts: &mut BTreeMap<String, u32>,
+    rust_visibility_taxonomy_counts: &mut BTreeMap<String, u32>,
     rust_trait_impl_facts: &mut Vec<RustTraitImplFact>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let node = cursor.node();
@@ -8551,7 +8568,19 @@ fn visit_rust_node(
     if let Some((kind, name, name_node)) =
         extract_rust_named_symbol(node, source, current_container_name)?
     {
-        let extracted = ExtractedNode::symbol(relative_path, kind, &name, node, "rust");
+        let visibility = rust_symbol_visibility(node, source);
+        increment_count(
+            rust_visibility_taxonomy_counts,
+            rust_visibility_taxonomy_bucket(visibility.as_deref()),
+        );
+        let extracted = ExtractedNode::symbol_with_visibility(
+            relative_path,
+            kind,
+            &name,
+            node,
+            "rust",
+            visibility,
+        );
         let extracted_id = extracted.id.clone();
         let contains_source =
             if matches!(kind, "method" | "enum_member") && current_from_node_id != file_node_id {
@@ -8618,6 +8647,7 @@ fn visit_rust_node(
                 edges,
                 unresolved_refs,
                 rust_trait_impl_taxonomy_counts,
+                rust_visibility_taxonomy_counts,
                 rust_trait_impl_facts,
             )?;
             if !cursor.goto_next_sibling() {
@@ -8988,6 +9018,38 @@ fn extract_rust_named_symbol<'a>(
     }
 
     Ok(None)
+}
+
+fn rust_symbol_visibility(node: SyntaxNode, source: &[u8]) -> Option<String> {
+    let Ok(text) = node.utf8_text(source) else {
+        return Some("unknown".to_string());
+    };
+    let trimmed = text.trim_start();
+    if let Some(rest) = trimmed.strip_prefix("pub") {
+        let rest = rest.trim_start();
+        if rest.starts_with("(crate)") {
+            return Some("pub(crate)".to_string());
+        }
+        if rest.starts_with("(super)") {
+            return Some("pub(super)".to_string());
+        }
+        if rest.starts_with("(in ") {
+            return Some("pub(in ...)".to_string());
+        }
+        return Some("pub".to_string());
+    }
+    Some("private".to_string())
+}
+
+fn rust_visibility_taxonomy_bucket(visibility: Option<&str>) -> &'static str {
+    match visibility {
+        Some("pub") => "visibility-pub",
+        Some("pub(crate)") => "visibility-pub-crate",
+        Some("pub(super)") => "visibility-pub-super",
+        Some("pub(in ...)") => "visibility-pub-in-deferred",
+        Some("private") => "visibility-private",
+        _ => "visibility-unknown",
+    }
 }
 
 fn record_rust_trait_impl_taxonomy(
@@ -9528,9 +9590,10 @@ fn resolve_rust_module_file_imports(
     Ok(edges_created)
 }
 
-fn resolve_rust_scoped_symbol_refs(
+fn resolve_rust_visibility_guarded_scoped_symbol_refs(
     conn: &Connection,
     project_path: &Path,
+    counts: &mut BTreeMap<String, u32>,
 ) -> Result<u32, Box<dyn std::error::Error>> {
     let refs = load_rust_scoped_symbol_refs(conn)?;
     let mut edges_created = 0;
@@ -9551,24 +9614,90 @@ fn resolve_rust_scoped_symbol_refs(
         ) else {
             continue;
         };
-        let candidates = find_unique_rust_symbol_in_file(
+        let candidates = find_unique_rust_symbol_with_visibility_in_file(
             conn,
             &target.file_path,
             &symbol_name,
             &reference.reference_kind,
         )?;
         if candidates.len() != 1 {
+            if candidates.is_empty() {
+                increment_count(counts, "visibility-unknown-deferred-skipped");
+            }
             continue;
         }
-        if insert_rust_local_reference_edge(conn, &reference, &candidates[0], &mut existing_edges)?
-        {
-            edges_created += 1;
+
+        increment_count(counts, "visibility-guard-attempted");
+        let candidate = &candidates[0];
+        match rust_visibility_guard_decision(
+            &reference.file_path,
+            &candidate.file_path,
+            candidate.visibility.as_deref(),
+        ) {
+            RustVisibilityGuardDecision::Allow => {
+                if insert_rust_local_reference_edge(
+                    conn,
+                    &reference,
+                    &candidate.id,
+                    &mut existing_edges,
+                )? {
+                    increment_count(counts, "visibility-guard-written");
+                    edges_created += 1;
+                }
+                resolved_ids.push(reference.id);
+            }
+            RustVisibilityGuardDecision::Skip(reason) => {
+                increment_count(counts, reason);
+            }
         }
-        resolved_ids.push(reference.id);
     }
 
     delete_resolved_import_refs(conn, &resolved_ids)?;
     Ok(edges_created)
+}
+
+enum RustVisibilityGuardDecision {
+    Allow,
+    Skip(&'static str),
+}
+
+fn rust_visibility_guard_decision(
+    source_file: &str,
+    target_file: &str,
+    visibility: Option<&str>,
+) -> RustVisibilityGuardDecision {
+    if source_file == target_file {
+        return RustVisibilityGuardDecision::Allow;
+    }
+
+    match visibility {
+        Some("pub") | Some("pub(crate)") => RustVisibilityGuardDecision::Allow,
+        Some("pub(super)") => {
+            if rust_pub_super_visible_from(source_file, target_file) {
+                RustVisibilityGuardDecision::Allow
+            } else {
+                RustVisibilityGuardDecision::Skip("visibility-pub-super-unsupported-skipped")
+            }
+        }
+        Some("private") => {
+            RustVisibilityGuardDecision::Skip("visibility-private-cross-module-skipped")
+        }
+        Some("pub(in ...)") => {
+            RustVisibilityGuardDecision::Skip("visibility-pub-in-deferred-skipped")
+        }
+        _ => RustVisibilityGuardDecision::Skip("visibility-unknown-deferred-skipped"),
+    }
+}
+
+fn rust_pub_super_visible_from(source_file: &str, target_file: &str) -> bool {
+    let source_dir = Path::new(source_file)
+        .parent()
+        .unwrap_or_else(|| Path::new(""));
+    let target_module_dir = rust_module_base_dir(target_file);
+    let Some(super_dir) = target_module_dir.parent() else {
+        return false;
+    };
+    source_dir == super_dir || source_dir.starts_with(super_dir)
 }
 
 fn resolve_rust_axum_route_handler_refs(
@@ -9696,12 +9825,12 @@ fn rust_symbol_name_after_module_prefix(
     parts.get(symbol_index).map(|symbol| (*symbol).to_string())
 }
 
-fn find_unique_rust_symbol_in_file(
+fn find_unique_rust_symbol_with_visibility_in_file(
     conn: &Connection,
     file_path: &str,
     symbol_name: &str,
     reference_kind: &str,
-) -> rusqlite::Result<Vec<String>> {
+) -> rusqlite::Result<Vec<RustVisibilityCandidate>> {
     let kinds = if reference_kind == "calls" {
         vec!["function", "method"]
     } else {
@@ -9718,7 +9847,7 @@ fn find_unique_rust_symbol_in_file(
     };
     let placeholders = kinds.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let sql = format!(
-        "SELECT id FROM nodes
+        "SELECT id, file_path, visibility FROM nodes
          WHERE file_path = ?1 AND name = ?2 AND kind IN ({})
          ORDER BY start_line",
         placeholders
@@ -9728,7 +9857,13 @@ fn find_unique_rust_symbol_in_file(
         params.push(kind);
     }
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params.as_slice(), |row| row.get::<_, String>(0))?;
+    let rows = stmt.query_map(params.as_slice(), |row| {
+        Ok(RustVisibilityCandidate {
+            id: row.get(0)?,
+            file_path: row.get(1)?,
+            visibility: row.get(2)?,
+        })
+    })?;
     rows.collect()
 }
 
@@ -10414,6 +10549,7 @@ struct ExtractedNode {
     qualified_name: String,
     file_path: String,
     language: String,
+    visibility: Option<String>,
     start_line: i64,
     end_line: i64,
     start_column: i64,
@@ -10431,6 +10567,7 @@ impl ExtractedNode {
             qualified_name: relative_path.to_string(),
             file_path: relative_path.to_string(),
             language: language.to_string(),
+            visibility: None,
             start_line: 1,
             end_line,
             start_column: 0,
@@ -10446,6 +10583,17 @@ impl ExtractedNode {
         node: SyntaxNode,
         language: &str,
     ) -> Self {
+        Self::symbol_with_visibility(relative_path, kind, name, node, language, None)
+    }
+
+    fn symbol_with_visibility(
+        relative_path: &str,
+        kind: &str,
+        name: &str,
+        node: SyntaxNode,
+        language: &str,
+        visibility: Option<String>,
+    ) -> Self {
         let start = node.start_position();
         let end = node.end_position();
         Self {
@@ -10455,6 +10603,7 @@ impl ExtractedNode {
             qualified_name: format!("{}::{}", relative_path, name),
             file_path: relative_path.to_string(),
             language: language.to_string(),
+            visibility,
             start_line: (start.row + 1) as i64,
             end_line: (end.row + 1) as i64,
             start_column: start.column as i64,
@@ -10480,6 +10629,7 @@ impl ExtractedNode {
             qualified_name: format!("{}::{}", relative_path, name),
             file_path: relative_path.to_string(),
             language: language.to_string(),
+            visibility: None,
             start_line,
             end_line,
             start_column,
@@ -10629,9 +10779,9 @@ fn insert_nodes(conn: &Connection, nodes: &[ExtractedNode]) -> rusqlite::Result<
         ) VALUES (
           ?1, ?2, ?3, ?4, ?5, ?6,
           ?7, ?8, ?9, ?10,
-          NULL, NULL, NULL,
+          NULL, NULL, ?11,
           0, 0, 0, 0,
-          NULL, NULL, ?11
+          NULL, NULL, ?12
         )",
     )?;
 
@@ -10647,6 +10797,7 @@ fn insert_nodes(conn: &Connection, nodes: &[ExtractedNode]) -> rusqlite::Result<
             node.end_line,
             node.start_column,
             node.end_column,
+            node.visibility,
             node.updated_at,
         ])?;
     }
@@ -10778,7 +10929,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -10924,7 +11075,9 @@ pub fn result_json(result: &IndexResult) -> String {
                 .rust_cargo_workspace_crate_candidate_counts
         ),
         fallback_sample_counts_json(&result.profile.rust_macro_taxonomy_counts),
-        fallback_sample_counts_json(&result.profile.rust_axum_route_taxonomy_counts)
+        fallback_sample_counts_json(&result.profile.rust_axum_route_taxonomy_counts),
+        fallback_sample_counts_json(&result.profile.rust_visibility_taxonomy_counts),
+        fallback_sample_counts_json(&result.profile.rust_visibility_guard_taxonomy_counts)
     )
 }
 
@@ -11823,6 +11976,180 @@ mod tests {
                         && target_kind == "struct"
                 }),
             "{edges:?}"
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_guards_cross_module_scoped_symbol_edges_by_visibility() {
+        let dir = temp_dir("rust-visibility-guard");
+        let src = dir.join("src");
+        fs::create_dir_all(src.join("parent")).unwrap();
+        fs::write(
+            src.join("lib.rs"),
+            [
+                "mod helper;",
+                "mod parent;",
+                "pub fn entry() {",
+                "    helper::public_fn();",
+                "    helper::crate_fn();",
+                "    helper::private_fn();",
+                "    helper::unknown_fn();",
+                "    helper::pub_in_fn();",
+                "    parent::child::super_fn();",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            src.join("helper.rs"),
+            [
+                "pub fn public_fn() {}",
+                "pub(crate) fn crate_fn() {}",
+                "fn private_fn() {}",
+                "pub(in crate::helper) fn pub_in_fn() {}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            src.join("parent").join("mod.rs"),
+            [
+                "pub mod child;",
+                "pub fn entry() { child::super_fn(); }",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            src.join("parent").join("child.rs"),
+            ["pub(super) fn super_fn() {}", ""].join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let visibility_counts = &result.profile.rust_visibility_taxonomy_counts;
+        assert_eq!(visibility_counts.get("visibility-pub"), Some(&3));
+        assert_eq!(visibility_counts.get("visibility-pub-crate"), Some(&1));
+        assert_eq!(visibility_counts.get("visibility-pub-super"), Some(&1));
+        assert_eq!(visibility_counts.get("visibility-private"), Some(&1));
+        assert_eq!(
+            visibility_counts.get("visibility-pub-in-deferred"),
+            Some(&1)
+        );
+
+        let guard_counts = &result.profile.rust_visibility_guard_taxonomy_counts;
+        assert_eq!(guard_counts.get("visibility-guard-attempted"), Some(&6));
+        assert_eq!(guard_counts.get("visibility-guard-written"), Some(&3));
+        assert_eq!(
+            guard_counts.get("visibility-private-cross-module-skipped"),
+            Some(&1)
+        );
+        assert_eq!(
+            guard_counts.get("visibility-unknown-deferred-skipped"),
+            Some(&1)
+        );
+        assert_eq!(
+            guard_counts.get("visibility-pub-in-deferred-skipped"),
+            Some(&1)
+        );
+
+        let json: Value = serde_json::from_str(&result_json(&result)).unwrap();
+        assert_eq!(
+            json["profile"]["rustVisibilityTaxonomyCounts"]["visibility-pub-crate"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["rustVisibilityGuardTaxonomyCounts"]["visibility-guard-written"],
+            3
+        );
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let visibilities = conn
+            .prepare(
+                "SELECT name, visibility
+                 FROM nodes
+                 WHERE file_path IN ('src/helper.rs', 'src/parent/child.rs')
+                   AND kind = 'function'
+                 ORDER BY name",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(
+            visibilities,
+            vec![
+                ("crate_fn".to_string(), Some("pub(crate)".to_string())),
+                ("private_fn".to_string(), Some("private".to_string())),
+                ("pub_in_fn".to_string(), Some("pub(in ...)".to_string())),
+                ("public_fn".to_string(), Some("pub".to_string())),
+                ("super_fn".to_string(), Some("pub(super)".to_string())),
+            ]
+        );
+
+        let written_edges = conn
+            .prepare(
+                "SELECT target.name
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 JOIN nodes target ON target.id = edges.target
+                 WHERE source.file_path IN ('src/lib.rs', 'src/parent/mod.rs')
+                   AND edges.kind = 'calls'
+                   AND edges.edgeOrigin = 'rust-finalization'
+                 ORDER BY target.name",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(written_edges, vec!["crate_fn", "public_fn", "super_fn"]);
+
+        let unresolved = conn
+            .prepare(
+                "SELECT reference_name
+                 FROM unresolved_refs
+                 WHERE reference_name IN ('helper::private_fn', 'helper::unknown_fn', 'helper::pub_in_fn')
+                   AND reference_kind = 'calls'
+                 ORDER BY reference_name",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(
+            unresolved,
+            vec![
+                "helper::private_fn",
+                "helper::pub_in_fn",
+                "helper::unknown_fn"
+            ]
         );
         fs::remove_dir_all(dir).unwrap();
     }
