@@ -180,6 +180,16 @@
           "q": "What should the fifth cut target?",
           "answer": "Target 1-1-2-5 Language framework sufficiency smoke test cluster.",
           "note": "Convert this explore candidate into a narrow exploit slice focused on test-structure decomposition only: JS/TS/Go/Gin/Rust/MCP smoke tests can be split without changing semantics, while module-resolution/finalization and candidate producer remain deferred."
+        },
+        {
+          "q": "After the first five cuts, should the roadmap expand before the sixth cut?",
+          "answer": "Yes. Expand the remaining module-resolution/finalization and candidate-producer nodes before publishing more implementation issues.",
+          "note": "The easy public-behavior clusters are complete. The remaining giant suite surface is semantically dense, so continuing with coarse nodes would produce oversized or misleading issues. Add subnodes first to preserve the map."
+        },
+        {
+          "q": "What should the sixth cut target after expanding the remaining roadmap?",
+          "answer": "Target 1-1-2-3-6 Finalization cleanup ownership diagnostics.",
+          "note": "This is the narrowest remaining module-resolution/finalization subcluster and should keep the next implementation issue small: profile/diagnostic contract only, without import/package/ESM semantic movement."
         }
       ],
       "notes": "Second-cut candidate map created from `__tests__/rust-index-engine-cli.test.ts` public behavior surfaces. Current file remains large (~92 tests / ~4.8k lines) after first helper extraction, so follow-up work should split by observable behavior, not production internals.\n\nCandidate clusters:\n1-1-2-1 CLI engine default init profile test cluster: safest first exploit. Covers default rust-hybrid, explicit TypeScript/rust escape hatches, graph work profile, SQLite write mode, heap profile, stale env rejection, packaged Rust subprocess, init behavior, profile-out behavior, and status metadata.\n1-1-2-2 Fallback degraded doctor status test cluster: exploit after CLI cluster or when diagnostics wording changes. Covers Rust-owned gap, sparse fallback, fallback append, generated files, doctor/status consistency.\n1-1-2-3 Module resolution finalization test cluster: valuable but higher semantic coupling. Covers file imports, aliases, package maps, declaration/runtime pairing, ESM named/default/re-export symbol edges, and finalization cleanup diagnostics.\n1-1-2-4 Candidate producer shadow routing test cluster: explore-first because it sits close to resolver migration semantics and experimental routing.\n1-1-2-5 Language framework sufficiency smoke test cluster: explore-first because it mixes language support and sufficiency guardrails across JS/TS/Go/Gin/Rust/MCP.\n1-1-2-6 Failure safety lock package artifact test cluster: exploit candidate when CI/release guardrails need local test separation. Covers lock preservation, package layout, failure safety, and packaged artifact behavior.\n\nSecond-cut implementation issue should target only 1-1-2-1. Remaining clusters stay as roadmap candidates."
@@ -777,19 +787,29 @@
       "status": "pending",
       "mode": "exploit",
       "parent": "1-1-2",
-      "children": [],
+      "children": [
+        "1-1-2-3-1",
+        "1-1-2-3-2",
+        "1-1-2-3-3",
+        "1-1-2-3-4",
+        "1-1-2-3-5",
+        "1-1-2-3-6"
+      ],
       "decisions": [],
-      "notes": ""
+      "notes": "Expanded after the first five decomposition cuts. This parent now tracks module-resolution/finalization semantic subclusters rather than a single oversized implementation issue."
     },
     "1-1-2-4": {
       "id": "1-1-2-4",
       "label": "Candidate producer shadow routing test cluster",
       "status": "pending",
-      "mode": "explore",
+      "mode": "exploit",
       "parent": "1-1-2",
-      "children": [],
+      "children": [
+        "1-1-2-4-1",
+        "1-1-2-4-2"
+      ],
       "decisions": [],
-      "notes": ""
+      "notes": "Expanded after the first five decomposition cuts. Candidate producer remains separate from module-resolution/finalization and is split into diagnostics versus graph stability/routing config subclusters."
     },
     "1-1-2-5": {
       "id": "1-1-2-5",
@@ -832,11 +852,107 @@
         }
       ],
       "notes": "Published as #615 and implemented. Active-index preservation and project lock safety tests were split into __tests__/rust-index-engine-cli-failure-safety.test.ts. Fallback doctor hint, module-resolution package semantics, direct Rust core language/error artifact tests, MCP status, candidate producer, and language sufficiency remain in their existing clusters. Verification: npx vitest run __tests__/rust-index-engine-cli-failure-safety.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
+    },
+    "1-1-2-3-1": {
+      "id": "1-1-2-3-1",
+      "label": "File-level import resolution diagnostics",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1-2-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-2-3-2": {
+      "id": "1-1-2-3-2",
+      "label": "Local exact reference and ESM direct binding edges",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1-2-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-2-3-3": {
+      "id": "1-1-2-3-3",
+      "label": "ESM default namespace and re-export guarded edges",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1-2-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-2-3-4": {
+      "id": "1-1-2-3-4",
+      "label": "Declaration runtime pairing semantics",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1-2-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-2-3-5": {
+      "id": "1-1-2-3-5",
+      "label": "Package imports exports and self-name module edge semantics",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1-2-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-2-3-6": {
+      "id": "1-1-2-3-6",
+      "label": "Finalization cleanup ownership diagnostics",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-1-2-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Which tests belong to the finalization cleanup ownership diagnostics sixth cut?",
+          "answer": "Move only the finalization cleanup ownership public contract diagnostic test into a focused test file.",
+          "note": "The target test is . Other referenceResolutionBreakdown/profile tests remain with their semantic clusters: candidate protocol, semantic replay, guarded edge-write, module edge-write, package semantics, fallback samples, and language smoke."
+        },
+        {
+          "q": "Correction: what exact test belongs to the finalization cleanup ownership diagnostics sixth cut?",
+          "answer": "Move only the test named reports finalization cleanup ownership as a public contract diagnostic.",
+          "note": "This corrects the previous decision note where shell command substitution stripped the test name. All other referenceResolutionBreakdown/profile tests remain with their semantic clusters: candidate protocol, semantic replay, guarded edge-write, module edge-write, package semantics, fallback samples, and language smoke."
+        },
+        {
+          "q": "Should the finalization cleanup ownership diagnostics sixth cut publish an implementation issue?",
+          "answer": "Yes. Publish one ready-for-agent issue directly from node 1-1-2-3-6.",
+          "note": "The slice intentionally moves only one test so this leaf node can close without merging unrelated finalization/profile diagnostics."
+        }
+      ],
+      "notes": "Completed in #617. Moved only the test named reports finalization cleanup ownership as a public contract diagnostic into __tests__/rust-index-engine-cli-finalization-cleanup.test.ts. Kept unrelated semantic clusters and other profile diagnostics in their existing files. Verification: npx vitest run __tests__/rust-index-engine-cli-finalization-cleanup.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
+    },
+    "1-1-2-4-1": {
+      "id": "1-1-2-4-1",
+      "label": "Candidate producer shadow diagnostics",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1-2-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-2-4-2": {
+      "id": "1-1-2-4-2",
+      "label": "Candidate producer graph stability and routing config",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1-2-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-27 22:21:27",
+    "updated": "2026-06-27 22:46:55",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
