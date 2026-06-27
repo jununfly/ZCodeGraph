@@ -8582,6 +8582,16 @@ fn extract_rust_symbols(
         unresolved_refs,
         rust_axum_route_taxonomy_counts,
     )?;
+    extract_rust_attribute_routes(
+        source,
+        relative_path,
+        file_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+        rust_axum_route_taxonomy_counts,
+    )?;
+    record_rust_route_like_macro_taxonomy(source, rust_axum_route_taxonomy_counts);
     let mut cursor = root.walk();
     visit_rust_node(
         &mut cursor,
@@ -8783,6 +8793,235 @@ fn extract_rust_axum_routes(
         }
     }
     Ok(())
+}
+
+fn extract_rust_attribute_routes(
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+    counts: &mut BTreeMap<String, u32>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let source_text = std::str::from_utf8(source).unwrap_or("");
+    let lines = source_text.lines().collect::<Vec<_>>();
+    let mut byte_offset = 0usize;
+
+    for (line_index, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if is_rust_route_attribute(trimmed) {
+            increment_count(counts, "rust-attribute-route-detected");
+        }
+        let Some(route_attr) = parse_rust_attribute_route(trimmed, counts) else {
+            byte_offset += line.len() + 1;
+            continue;
+        };
+        let Some((handler_line_index, handler_line)) =
+            next_rust_non_attribute_line(&lines, line_index + 1)
+        else {
+            increment_count(counts, "rust-attribute-route-handler-missing-deferred");
+            byte_offset += line.len() + 1;
+            continue;
+        };
+        let Some(handler) = rust_function_name_from_line(handler_line) else {
+            increment_count(counts, "rust-attribute-route-handler-missing-deferred");
+            byte_offset += line.len() + 1;
+            continue;
+        };
+        let route_line_col = line_col_for_index(source_text, byte_offset);
+        let handler_line_col = line_col_for_line(source_text, handler_line_index + 1);
+        let route_name = format!("{} {}", route_attr.method, route_attr.path);
+        let route_node = ExtractedNode::manual_symbol(
+            relative_path,
+            "route",
+            &route_name,
+            "rust",
+            route_line_col.0,
+            route_line_col.0,
+            route_line_col.1,
+            route_line_col.1,
+        );
+        let route_node_id = route_node.id.clone();
+        edges.push(ExtractedEdge {
+            source: file_node_id.to_string(),
+            target: route_node_id.clone(),
+            kind: "contains".to_string(),
+            line: route_node.start_line,
+            col: route_node.start_column,
+        });
+        nodes.push(route_node);
+        push_manual_ref(
+            unresolved_refs,
+            &route_node_id,
+            &handler,
+            "references",
+            handler_line_col.0,
+            handler_line_col.1,
+            relative_path,
+            SourceLanguage::Rust,
+        );
+        byte_offset += line.len() + 1;
+    }
+
+    Ok(())
+}
+
+struct RustAttributeRoute {
+    method: &'static str,
+    path: String,
+}
+
+fn record_rust_route_like_macro_taxonomy(source: &[u8], counts: &mut BTreeMap<String, u32>) {
+    let Ok(source_text) = std::str::from_utf8(source) else {
+        return;
+    };
+    for line in source_text.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("#[")
+            && !is_rust_route_attribute(trimmed)
+            && trimmed.to_ascii_lowercase().contains("route")
+        {
+            increment_count(counts, "rust-route-like-proc-macro-deferred");
+            increment_count(counts, "rust-route-like-macro-generated-deferred");
+            continue;
+        }
+        if rust_line_has_route_like_function_macro(trimmed) {
+            increment_count(counts, "rust-route-like-function-macro-deferred");
+            increment_count(counts, "rust-route-like-macro-generated-deferred");
+        }
+    }
+}
+
+fn rust_line_has_route_like_function_macro(line: &str) -> bool {
+    let bytes = line.as_bytes();
+    let mut index = 0usize;
+    while let Some(relative_bang) = bytes[index..].iter().position(|byte| *byte == b'!') {
+        let bang = index + relative_bang;
+        let mut start = bang;
+        while start > 0 {
+            let previous = bytes[start - 1];
+            if previous.is_ascii_alphanumeric() || matches!(previous, b'_' | b':') {
+                start -= 1;
+            } else {
+                break;
+            }
+        }
+        let name = &line[start..bang];
+        if name.to_ascii_lowercase().contains("route") && name != "macro_rules" {
+            return true;
+        }
+        index = bang + 1;
+    }
+    false
+}
+
+fn is_rust_route_attribute(attribute: &str) -> bool {
+    let trimmed = attribute.trim_start();
+    if !trimmed.starts_with("#[") {
+        return false;
+    }
+    let attr_body = trimmed
+        .trim_start_matches("#[")
+        .trim_end_matches(']')
+        .trim();
+    [
+        "get(", "post(", "put(", "delete(", "patch(", "head(", "options(", "route(",
+    ]
+    .iter()
+    .any(|prefix| attr_body.starts_with(prefix))
+}
+
+fn parse_rust_attribute_route(
+    attribute: &str,
+    counts: &mut BTreeMap<String, u32>,
+) -> Option<RustAttributeRoute> {
+    const ROUTE_ATTRS: [(&str, &str); 8] = [
+        ("get", "GET"),
+        ("post", "POST"),
+        ("put", "PUT"),
+        ("delete", "DELETE"),
+        ("patch", "PATCH"),
+        ("head", "HEAD"),
+        ("options", "OPTIONS"),
+        ("route", "GET"),
+    ];
+    let trimmed = attribute.trim_start();
+    if !trimmed.starts_with("#[") {
+        return None;
+    }
+    let attr_body = trimmed
+        .trim_start_matches("#[")
+        .trim_end_matches(']')
+        .trim();
+    let (attr_name, default_method) = ROUTE_ATTRS
+        .iter()
+        .find(|(name, _)| attr_body.starts_with(&format!("{name}(")))?;
+    let open = attr_name.len();
+    let close = find_matching_delimiter(attr_body, open, b'(', b')')?;
+    let args = attr_body[open + 1..close].trim();
+    let Some((path, rest)) = parse_rust_string_literal(args) else {
+        increment_count(counts, "rust-attribute-route-dynamic-path-deferred");
+        return None;
+    };
+    increment_count(counts, "rust-attribute-route-static-path");
+    let method = if *attr_name == "route" {
+        parse_rust_route_attribute_method(rest).unwrap_or(default_method)
+    } else {
+        default_method
+    };
+    Some(RustAttributeRoute { method, path })
+}
+
+fn parse_rust_route_attribute_method(args_after_path: &str) -> Option<&'static str> {
+    let upper = args_after_path.to_ascii_uppercase();
+    if upper.contains("POST") {
+        Some("POST")
+    } else if upper.contains("PUT") {
+        Some("PUT")
+    } else if upper.contains("DELETE") {
+        Some("DELETE")
+    } else if upper.contains("PATCH") {
+        Some("PATCH")
+    } else if upper.contains("HEAD") {
+        Some("HEAD")
+    } else if upper.contains("OPTIONS") {
+        Some("OPTIONS")
+    } else if upper.contains("GET") {
+        Some("GET")
+    } else {
+        None
+    }
+}
+
+fn next_rust_non_attribute_line<'a>(lines: &'a [&str], start: usize) -> Option<(usize, &'a str)> {
+    for (index, line) in lines.iter().enumerate().skip(start) {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed.starts_with("#[") {
+            continue;
+        }
+        return Some((index, line));
+    }
+    None
+}
+
+fn rust_function_name_from_line(line: &str) -> Option<String> {
+    let fn_index = line.find("fn ")?;
+    let after_fn = &line[fn_index + "fn ".len()..];
+    let name = after_fn
+        .split(|ch: char| !rust_identifier_char(ch))
+        .next()
+        .unwrap_or("");
+    if name.chars().next().is_some_and(rust_identifier_start)
+        && name.chars().all(rust_identifier_char)
+    {
+        Some(name.to_string())
+    } else {
+        None
+    }
 }
 
 struct RustAxumMethodWrapper {
@@ -9008,6 +9247,10 @@ fn line_col_for_index(source: &str, byte_index: usize) -> (i64, i64) {
         }
     }
     (line, col)
+}
+
+fn line_col_for_line(_source: &str, line: usize) -> (i64, i64) {
+    (line as i64, 0)
 }
 
 fn extract_rust_named_symbol<'a>(
@@ -9832,6 +10075,7 @@ fn resolve_rust_axum_route_handler_refs(
         let candidates = find_repo_local_rust_handler_candidates(conn, &reference.reference_name)?;
         match candidates.len() {
             1 => {
+                increment_count(counts, "rust-route-handler-candidate-unique");
                 increment_count(counts, "axum-route-handler-candidate-unique");
                 if insert_rust_local_reference_edge(
                     conn,
@@ -9839,15 +10083,18 @@ fn resolve_rust_axum_route_handler_refs(
                     &candidates[0],
                     &mut existing_edges,
                 )? {
+                    increment_count(counts, "rust-route-handler-edge-written");
                     increment_count(counts, "axum-route-handler-edge-written");
                     edges_created += 1;
                 }
                 resolved_ids.push(reference.id);
             }
             0 => {
+                increment_count(counts, "rust-route-handler-candidate-missing-deferred");
                 increment_count(counts, "axum-route-handler-candidate-missing-deferred");
             }
             _ => {
+                increment_count(counts, "rust-route-handler-candidate-ambiguous-deferred");
                 increment_count(counts, "axum-route-handler-candidate-ambiguous-deferred");
             }
         }
@@ -12874,20 +13121,22 @@ mod tests {
             .query_row(
                 "SELECT COUNT(*)
                  FROM edges
-                 WHERE kind IN ('implements', 'references', 'calls')",
+                 LEFT JOIN nodes source ON source.id = edges.source
+                 WHERE edges.kind IN ('implements', 'references', 'calls')
+                   AND NOT (source.kind = 'route' AND edges.kind = 'references')",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
         assert_eq!(generated_semantic_edges, 0);
-        let generated_route_nodes: i64 = conn
+        let supported_attribute_route_nodes: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM nodes WHERE kind = 'route'",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(generated_route_nodes, 0);
+        assert_eq!(supported_attribute_route_nodes, 1);
         fs::remove_dir_all(dir).unwrap();
     }
 
@@ -13009,6 +13258,184 @@ mod tests {
             )
             .unwrap();
         assert_eq!(bad_route_edges, 0);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_writes_guarded_attribute_route_handler_edges() {
+        let dir = temp_dir("rust-attribute-route-wiring");
+        fs::write(
+            dir.join("main.rs"),
+            [
+                "#[get(\"/users\")]",
+                "async fn list_users() {}",
+                "",
+                "#[post(\"/users\")]",
+                "async fn create_user() {}",
+                "",
+                "#[get(dynamic_path)]",
+                "async fn dynamic_route() {}",
+                "",
+                "#[route(\"/ambiguous\", method = \"GET\")]",
+                "async fn duplicate() {}",
+                "mod nested { pub async fn duplicate() {} }",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let taxonomy = &result.profile.rust_axum_route_taxonomy_counts;
+        assert_eq!(taxonomy.get("rust-attribute-route-detected"), Some(&4));
+        assert_eq!(taxonomy.get("rust-attribute-route-static-path"), Some(&3));
+        assert_eq!(
+            taxonomy.get("rust-attribute-route-dynamic-path-deferred"),
+            Some(&1)
+        );
+        assert_eq!(
+            taxonomy.get("rust-route-handler-candidate-unique"),
+            Some(&2)
+        );
+        assert_eq!(
+            taxonomy.get("rust-route-handler-candidate-ambiguous-deferred"),
+            Some(&1)
+        );
+        assert_eq!(taxonomy.get("rust-route-handler-edge-written"), Some(&2));
+
+        let json: Value = serde_json::from_str(&result_json(&result)).unwrap();
+        assert_eq!(
+            json["profile"]["rustAxumRouteTaxonomyCounts"]["rust-route-handler-edge-written"],
+            2
+        );
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let route_edges: Vec<(String, String)> = conn
+            .prepare(
+                "SELECT source.name, target.name
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 JOIN nodes target ON target.id = edges.target
+                 WHERE source.kind = 'route'
+                   AND edges.kind = 'references'
+                   AND edges.edgeOrigin = 'rust-finalization'
+                 ORDER BY source.name, target.name",
+            )
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(
+            route_edges,
+            vec![
+                ("GET /users".to_string(), "list_users".to_string()),
+                ("POST /users".to_string(), "create_user".to_string())
+            ]
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_classifies_route_like_macro_patterns_without_writing_edges() {
+        let dir = temp_dir("rust-route-like-macro-taxonomy");
+        fs::write(
+            dir.join("main.rs"),
+            [
+                "macro_rules! route_macro {",
+                "    () => {};",
+                "}",
+                "",
+                "#[get(dynamic_path)]",
+                "async fn dynamic_route() {}",
+                "",
+                "#[route_macro]",
+                "async fn macro_generated_route() {}",
+                "",
+                "fn app() {",
+                "    route_macro!(GET, \"/macro\", macro_generated_route);",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let taxonomy = &result.profile.rust_axum_route_taxonomy_counts;
+        assert_eq!(taxonomy.get("rust-attribute-route-detected"), Some(&1));
+        assert_eq!(
+            taxonomy.get("rust-attribute-route-dynamic-path-deferred"),
+            Some(&1)
+        );
+        assert_eq!(
+            taxonomy.get("rust-route-like-proc-macro-deferred"),
+            Some(&1)
+        );
+        assert_eq!(
+            taxonomy.get("rust-route-like-function-macro-deferred"),
+            Some(&1)
+        );
+        assert_eq!(
+            taxonomy.get("rust-route-like-macro-generated-deferred"),
+            Some(&2)
+        );
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let route_nodes: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM nodes WHERE kind = 'route'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(route_nodes, 0);
+        let route_edges: i64 = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 WHERE source.kind = 'route'
+                   AND edges.kind = 'references'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(route_edges, 0);
         fs::remove_dir_all(dir).unwrap();
     }
 

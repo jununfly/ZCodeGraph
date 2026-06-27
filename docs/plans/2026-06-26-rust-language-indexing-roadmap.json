@@ -6,7 +6,7 @@
     "1": {
       "id": "1",
       "label": "Rust Language Indexing Support",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": null,
       "children": [
@@ -786,7 +786,7 @@
     "1-5": {
       "id": "1-5",
       "label": "Rust language semantic frontier after Plan 6",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -1023,12 +1023,55 @@
     "1-5-5": {
       "id": "1-5-5",
       "label": "Framework route and runtime semantics beyond bounded Axum",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-5",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-5-5-1"
+      ],
+      "decisions": [
+        {
+          "q": "前10刀后应回到全局拓展路线图，还是继续第11刀？",
+          "answer": "继续第11刀，处理 1-5-5 Framework route and runtime semantics beyond bounded Axum。",
+          "note": "当前 roadmap 只剩 1-5-5 未完成；先收口最后一个 semantic frontier，再做全局复盘，避免把最后闭环拖成新森林。"
+        },
+        {
+          "q": "第11刀采用什么目标形态？",
+          "answer": "采用 Explore-only closeout slice。",
+          "note": "把 bounded Axum 之外的 Rust framework route/runtime 语义分成可 exploit、needs-oracle/research、defer/no-go；本刀不直接做 Rocket/Actix/Tauri/Leptos 等实现。"
+        },
+        {
+          "q": "beyond bounded Axum 的分类主轴是什么？",
+          "answer": "采用 route/static extractability vs runtime/oracle dependency。",
+          "note": "按能否从源码 AST 稳定抽取 route→handler 关系分类：静态 builder 链、attribute route、macro-generated route、runtime registry/plugin、async runtime/task flow 等；框架品牌只作为样例。"
+        },
+        {
+          "q": "哪些类型进入 safe-ish exploit candidate？",
+          "answer": "只收 repo-local、AST-visible、handler symbol 可唯一定位的 route patterns。",
+          "note": "例如 Axum 已覆盖的静态 builder 链；未来可考虑 Actix/Rocket attribute route，但前提是 attribute + handler function 均源码可见且唯一。"
+        },
+        {
+          "q": "哪些归为 needs-oracle/research？",
+          "answer": "proc-macro / macro-generated routes、runtime registry、middleware/task flow、typed extractor/data flow。",
+          "note": "这些需要宏展开、运行时配置、框架语义或数据流分析；没有 oracle 直接写 graph edge 容易错，且 partial coverage worse than none。"
+        },
+        {
+          "q": "第11刀是否需要真实 repo smoke？",
+          "answer": "需要，但只用已有 mini-redis + 当前 Axum fixture/测试作为 sanity，不新增外部 repo。",
+          "note": "第11刀是 closeout 分类，不是实现或 sufficiency 评测；验证主要确认当前已实现 Axum/route diagnostics 没坏，并保留证据链。"
+        },
+        {
+          "q": "第11刀 closeout artifact 给出什么结论？",
+          "answer": "1-5-5 completed with taxonomy; no immediate implementation required。",
+          "note": "把 Rust framework/runtime beyond bounded Axum 归档为分类完成：可 exploit 候选清楚，research/no-go 边界清楚；不要求当前 roadmap 继续拆 Actix/Rocket 实现 issue。"
+        },
+        {
+          "q": "第11刀 closeout artifact 落在哪里？",
+          "answer": "写入 docs/benchmarks/2026-06-27-rust-framework-route-runtime-frontier-closeout-decision.md。",
+          "note": "结论：completed with taxonomy; no immediate implementation required。当前 roadmap 不再强行拆 Actix/Rocket/Tauri/Leptos implementation issue。"
+        }
+      ],
+      "notes": "Explore closeout completed. Decision artifact: docs/benchmarks/2026-06-27-rust-framework-route-runtime-frontier-closeout-decision.md. No immediate implementation required; future candidates must be bounded and fail-closed."
     },
     "1-5-1-1": {
       "id": "1-5-1-1",
@@ -1358,11 +1401,52 @@
       "children": [],
       "decisions": [],
       "notes": "Closeout evidence recorded in docs/benchmarks/2026-06-27-rust-cargo-cfg-diagnostics-hardening-evidence.md."
+    },
+    "1-5-5-1": {
+      "id": "1-5-5-1",
+      "label": "Framework runtime route oracle research decision (#608)",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-5-5",
+      "children": [],
+      "decisions": [
+        {
+          "q": "为什么重新进入 #608？",
+          "answer": "#606/#607 已完成，#608 不再被 bounded route diagnostics 阻塞；现在需要 human 决策 runtime-accurate Rust framework route graphs 是否进入未来路线图。",
+          "note": "此节点是 ready-for-human decision，不直接改 production code。"
+        },
+        {
+          "q": "Rust framework runtime-accurate route graphs 是否进入未来产品目标？",
+          "answer": "暂不进入主线；记录 no-go taxonomy，保留未来 oracle 出口。",
+          "note": "当前产品目标仍是 Rust language indexing 的 agent sufficiency；runtime-accurate route graphs 涉及 proc macro expansion、runtime registry、middleware、async task/data-flow，暂不把语言索引路线拖成框架运行时分析器。"
+        },
+        {
+          "q": "#608 no-go taxonomy 覆盖哪些内容？",
+          "answer": "覆盖所有需要运行时/编译器语义才能准确的 route graph 边界。",
+          "note": "包括 proc-macro-generated routes、runtime route registry/plugin、middleware stack semantics、async task flow、typed extractor/data-flow、framework lifecycle hooks；这些不写 value graph edges，只保留 diagnostic taxonomy。"
+        },
+        {
+          "q": "未来 oracle 出口如何定义？",
+          "answer": "必须新开 PRD，并先选 oracle 类型，再允许 implementation issue。",
+          "note": "PRD 需说明目标框架、有效性定义、可回放 corpus、失败 taxonomy、是否允许外部工具/编译步骤；禁止普通 issue 直接做 heuristic runtime graph。"
+        },
+        {
+          "q": "#608 closeout 是否关闭 issue？",
+          "answer": "关闭，结论是 wontfix-for-current-roadmap / no-go taxonomy recorded。",
+          "note": "#608 的 acceptance 是做出 human decision；当前已决定不进主线并保留 PRD 级 oracle 出口，关闭可避免它长期看起来像 blocker。"
+        },
+        {
+          "q": "#608 decision artifact 落在哪里？",
+          "answer": "写入 docs/benchmarks/2026-06-27-rust-framework-runtime-oracle-no-go-decision.md。",
+          "note": "记录 no-go taxonomy、PRD-only oracle exit、partial runtime coverage worse than none。"
+        }
+      ],
+      "notes": "Human decision completed. Artifact: docs/benchmarks/2026-06-27-rust-framework-runtime-oracle-no-go-decision.md. Issue #608 can close as no-go for current roadmap with PRD-only future oracle exit."
     }
   },
   "metadata": {
     "created": "2026-06-26 17:05:43",
-    "updated": "2026-06-27 14:07:31",
+    "updated": "2026-06-27 15:33:21",
     "md_file": "docs/plans/2026-06-26-rust-language-indexing-roadmap.md"
   }
 }
