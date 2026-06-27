@@ -134,7 +134,7 @@
     "1-1-2": {
       "id": "1-1-2",
       "label": "Rust core giant test module decomposition candidates",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1",
       "children": [
@@ -810,7 +810,7 @@
     "1-1-2-4": {
       "id": "1-1-2-4",
       "label": "Candidate producer shadow routing test cluster",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1-2",
       "children": [
@@ -1072,12 +1072,28 @@
     "1-1-2-4-2": {
       "id": "1-1-2-4-2",
       "label": "Candidate producer graph stability and routing config",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1-2-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "What is the fourteenth cut scope?",
+          "answer": "Split the two candidate producer graph stability/routing config tests into __tests__/rust-index-engine-cli-candidate-producer-routing.test.ts as a test-only slice.",
+          "note": "Include shadow mode graph stability and local routing config valid/disabled/invalid stability. Exclude candidate producer diagnostics, fallback/degraded/status, language smoke, and production-code changes."
+        },
+        {
+          "q": "Should completing the fourteenth cut close parent roadmap nodes?",
+          "answer": "Yes. Completing 1-1-2-4-2 should auto-complete 1-1-2-4 and 1-1-2 if no other children remain open.",
+          "note": "This is the intended closeout for the candidate producer cluster and the Rust core giant test module decomposition roadmap branch."
+        },
+        {
+          "q": "Which issue tracks the fourteenth cut?",
+          "answer": "GitHub issue #626 tracks the candidate producer graph stability/routing test split.",
+          "note": "Ready-for-agent issue: Split Rust indexing candidate producer routing tests. Acceptance is exactly two graph stability/routing tests moved into __tests__/rust-index-engine-cli-candidate-producer-routing.test.ts, with diagnostics left in its focused file and no production code."
+        }
+      ],
+      "notes": "#626 completed: moved exactly two candidate producer graph stability/routing config tests into __tests__/rust-index-engine-cli-candidate-producer-routing.test.ts; kept diagnostics in its focused file and made no production-code changes. Verification: npx vitest run __tests__/rust-index-engine-cli-candidate-producer-routing.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
     },
     "1-2-5-1": {
       "id": "1-2-5-1",
@@ -1175,7 +1191,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 02:04:16",
+    "updated": "2026-06-28 02:13:21",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
