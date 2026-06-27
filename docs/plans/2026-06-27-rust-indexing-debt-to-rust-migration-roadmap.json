@@ -24,6 +24,11 @@
           "q": "What is the next strategic direction after Rust language support and CI cleanup?",
           "answer": "Do one focused technical-debt governance round first, then return to the mainline of replacing remaining TypeScript indexing responsibilities with Rust indexing where that is product-safe and evidence-backed.",
           "note": "Technical debt governance is not generic cleanup; it should reduce migration risk and make the next TS-to-Rust slices easier to reason about."
+        },
+        {
+          "q": "Should the latest rust-hybrid diagnostic degraded run be added to the roadmap?",
+          "answer": "Yes. Track it as two scoped follow-ups instead of changing the current sixth cut: diagnostic bundle replay-field parity under profile/diagnostic stability, and the specific legal-Rust parser gap under Rust-owned extraction gap burn-down.",
+          "note": "Evidence from zcodegraph doctor --engine rust-hybrid --bundle --last-run on 2026-06-27: graph usable, degraded due to 3 YAML language-level fallbacks plus 1 rust-owned-parse-gap on crates/zcodegraph-core/src/lib.rs; cargo check passes, so the Rust parse gap is parser/extractor coverage, not invalid Rust source."
         }
       ],
       "notes": ""
@@ -292,7 +297,9 @@
       "status": "pending",
       "mode": "explore",
       "parent": "1-2",
-      "children": [],
+      "children": [
+        "1-2-5-1"
+      ],
       "decisions": [],
       "notes": ""
     },
@@ -489,7 +496,9 @@
       "status": "pending",
       "mode": "exploit",
       "parent": "1-5",
-      "children": [],
+      "children": [
+        "1-5-3-1"
+      ],
       "decisions": [],
       "notes": ""
     },
@@ -856,22 +865,69 @@
     "1-1-2-3-1": {
       "id": "1-1-2-3-1",
       "label": "File-level import resolution diagnostics",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1-2-3",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "What is the sixth cut after finalization cleanup diagnostics?",
+          "answer": "Continue the module-resolution finalization test cluster by starting 1-1-2-3-1 File-level import resolution diagnostics.",
+          "note": "This keeps 1-1-2-3 moving toward closure before switching to candidate producer cluster work."
+        },
+        {
+          "q": "Which tests belong to the file-level import resolution diagnostics cut?",
+          "answer": "Move only finalization-layer moduleEdgeWrite file-level import resolution diagnostics, not Rust core importPathAlias extraction/profile tests.",
+          "note": "The target cluster is Module resolution finalization. Keep package self-name/imports, declaration/runtime pairing, ESM binding/re-export/default/namespace, candidate producer, fallback, language smoke, failure-safety, and finalization cleanup tests in their own clusters."
+        },
+        {
+          "q": "Should namespace import diagnostics be included in the file-level import resolution cut?",
+          "answer": "Yes. Include namespace import tests only where they verify file-level module dependency edges or fail-closed moduleEdgeWrite taxonomy.",
+          "note": "Do not include namespace member/symbol binding, default export, one-hop re-export, declaration/runtime, package imports/exports/self-name, or candidate producer semantics in this cut."
+        },
+        {
+          "q": "Should this cut publish an implementation issue?",
+          "answer": "Yes. Publish one ready-for-agent issue for the focused file-level import diagnostics test split.",
+          "note": "Move exactly four tests into __tests__/rust-index-engine-cli-file-import-diagnostics.test.ts: relative/paths-alias module edge-write diagnostics, namespace file dependency edge, fail-closed missing target taxonomy, and namespace fail-closed taxonomy. Verification: targeted vitest for new file plus original suite, npm run build, git diff --check."
+        }
+      ],
+      "notes": "Completed in #618. Moved exactly four finalization-layer moduleEdgeWrite file-level import diagnostics tests into __tests__/rust-index-engine-cli-file-import-diagnostics.test.ts: relative/paths-alias module edge-write diagnostics, namespace file dependency edge, fail-closed missing target taxonomy, and namespace fail-closed taxonomy. Kept Rust core importPathAlias extraction/profile tests, ESM binding/default/re-export symbol tests, declaration/runtime pairing, package imports/exports/self-name, candidate producer, fallback, language smoke, failure-safety, and finalization cleanup tests in their existing clusters. Verification: npx vitest run __tests__/rust-index-engine-cli-file-import-diagnostics.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
     },
     "1-1-2-3-2": {
       "id": "1-1-2-3-2",
       "label": "Local exact reference and ESM direct binding edges",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-1-2-3",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "What is the seventh cut after file-level import diagnostics?",
+          "answer": "Continue sibling order with 1-1-2-3-2 Local exact reference and ESM direct binding edges.",
+          "note": "This keeps the module-resolution finalization cluster moving from file-level module dependencies into symbol-level direct binding before default/namespace/re-export, declaration/runtime, and package semantics."
+        },
+        {
+          "q": "Should shadow semantic replay diagnostics and real direct named ESM binding edges be split into separate issues?",
+          "answer": "No. Keep them in one issue for 1-1-2-3-2, with two explicit subgroups: shadow semantic replay diagnostics and direct named ESM binding behavior.",
+          "note": "Both subgroups describe the same direct named ESM binding semantic boundary. Exclude default imports, namespace/default semantics, one-hop re-exports, declaration/runtime pairing, package semantics, candidate protocol, fallback, language smoke, failure-safety, file-level import diagnostics, and finalization cleanup."
+        },
+        {
+          "q": "Should TypeScript overload implementation direct named binding tests be included?",
+          "answer": "Yes. Include guarded TypeScript overload implementation resolution and its no-go fallback cases in 1-1-2-3-2.",
+          "note": "The test still belongs to direct named ESM binding: it resolves imported names to implementation symbols when safe and records no-go cases within the same binding boundary. It is not default/namespace, one-hop re-export, declaration/runtime pairing, or package semantics."
+        },
+        {
+          "q": "Should bounded ESM named binding fallback sample aggregation be included in the seventh cut?",
+          "answer": "No. Exclude the bounded ESM named binding fallback samples profile artifact test from 1-1-2-3-2.",
+          "note": "That test is aggregate profile sample/cap diagnostics spanning multiple scenarios, including barrel and leaf fallback shapes. Keep this cut focused on direct named ESM binding shadow diagnostics, guarded edge writes, direct binding behavior, and overload implementation behavior."
+        },
+        {
+          "q": "Should the seventh cut publish an implementation issue?",
+          "answer": "Yes. Publish one ready-for-agent issue for the focused ESM direct named binding test split.",
+          "note": "Move exactly nine tests into __tests__/rust-index-engine-cli-esm-direct-binding.test.ts: two shadow semantic replay diagnostics, two guarded direct named diagnostics, four direct named binding behavior tests, and the guarded TypeScript overload implementation behavior test. Exclude bounded fallback sample aggregation, default import tests, namespace/default/re-export tests, declaration/runtime pairing, package semantics, candidate producer, file-level import diagnostics, fallback/language/failure-safety, and finalization cleanup."
+        }
+      ],
+      "notes": "Published as #619. Scope: split exactly nine direct named ESM binding tests into __tests__/rust-index-engine-cli-esm-direct-binding.test.ts: writes shadow semantic replay diagnostics for direct named ESM imports; records shadow semantic replay taxonomy for unresolved direct named ESM imports; writes guarded Rust finalization diagnostics and usage edges for direct named ESM imports; records guarded edge-write skip taxonomy for unresolved direct named ESM imports; resolves direct ESM named imports to exported target-file symbols as Rust-owned edges; resolves paths-alias ESM named imports to exported target-file symbols as Rust-owned edges; resolves declaration-style ESM named exports with TypeScript modifiers; resolves same-file ESM export specifiers only for unique local bindings; resolves guarded TypeScript overload implementations and keeps no-go cases as fallback. Exclude bounded ESM named binding fallback sample aggregation, default import tests, namespace/default/re-export tests, declaration/runtime pairing, package semantics, candidate producer, file-level import diagnostics, fallback/language/failure-safety, and finalization cleanup. Verification: npx vitest run __tests__/rust-index-engine-cli-esm-direct-binding.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
     },
     "1-1-2-3-3": {
       "id": "1-1-2-3-3",
@@ -948,11 +1004,31 @@
       "children": [],
       "decisions": [],
       "notes": ""
+    },
+    "1-2-5-1": {
+      "id": "1-2-5-1",
+      "label": "Diagnostic bundle per-file replay fields parity",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-5",
+      "children": [],
+      "decisions": [],
+      "notes": "Follow-up from the 2026-06-27 last-run diagnostic bundle. Per-file diagnostics currently expose pathHash, extension, language, code, severity, and message, but not all user-facing replay fields promised in troubleshooting/product language such as size, line/column, and git blob hash or explicit unavailable reasons. This is diagnostic trust work, not parser semantics."
+    },
+    "1-5-3-1": {
+      "id": "1-5-3-1",
+      "label": "Rust parser gap on large Rust core lib.rs",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-5-3",
+      "children": [],
+      "decisions": [],
+      "notes": "Follow-up from zcodegraph index on this repo at commit c652deab: cargo check passes, but rust-hybrid records rust-owned-parse-gap for crates/zcodegraph-core/src/lib.rs. Classify the legal-Rust parser gap and decide whether it is grammar limitation, normalization issue, macro/cfg/test-fixture shape, or extractor recoverability work. The graph remains usable; this is not a release blocker by itself."
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-27 22:46:55",
+    "updated": "2026-06-28 00:05:53",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
