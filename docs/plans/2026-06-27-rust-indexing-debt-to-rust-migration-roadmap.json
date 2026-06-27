@@ -793,7 +793,7 @@
     "1-1-2-3": {
       "id": "1-1-2-3",
       "label": "Module resolution finalization test cluster",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1-2",
       "children": [
@@ -996,7 +996,7 @@
     "1-1-2-3-5": {
       "id": "1-1-2-3-5",
       "label": "Package imports exports and self-name module edge semantics",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1-2-3",
       "children": [
@@ -1128,17 +1128,33 @@
     "1-1-2-3-5-2": {
       "id": "1-1-2-3-5-2",
       "label": "Package self-name and exports module edge semantics",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1-2-3-5",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "What is the twelfth cut scope?",
+          "answer": "Split the four package self-name/exports tests into __tests__/rust-index-engine-cli-package-self-name.test.ts as a test-only slice.",
+          "note": "Include self-name diagnostics, self-name root file dependency edge, package exports declaration target runtime sibling rewrite, and self-name fail-closed taxonomy. Exclude package imports, candidate producer, fallback/degraded/status, language smoke, and production-code changes."
+        },
+        {
+          "q": "Should completing the twelfth cut close parent roadmap nodes?",
+          "answer": "Yes. Completing 1-1-2-3-5-2 should auto-complete 1-1-2-3-5 and 1-1-2-3 if no other children remain open.",
+          "note": "This is the intended closeout for the module resolution finalization test cluster; validation should check the roadmap tree after implementation."
+        },
+        {
+          "q": "Which issue tracks the twelfth cut?",
+          "answer": "GitHub issue #624 tracks the package self-name/exports test split.",
+          "note": "Ready-for-agent issue: Split Rust indexing package self-name tests. Acceptance is exactly four package self-name/exports tests moved into __tests__/rust-index-engine-cli-package-self-name.test.ts, no package imports tests, no production code."
+        }
+      ],
+      "notes": "#624 completed: moved exactly four package self-name/exports tests into __tests__/rust-index-engine-cli-package-self-name.test.ts; kept package imports tests in their focused file and made no production-code changes. Verification: npx vitest run __tests__/rust-index-engine-cli-package-self-name.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 01:42:43",
+    "updated": "2026-06-28 01:52:42",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
