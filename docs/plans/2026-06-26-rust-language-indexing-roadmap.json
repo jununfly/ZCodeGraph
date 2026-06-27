@@ -806,6 +806,16 @@
           "q": "Which post-Plan-6 frontier should slice 7 start from?",
           "answer": "Start with 1-5-1 Module path visibility and privacy residuals as an explore slice.",
           "note": "Module and visibility semantics are foundational for later trait, macro, Cargo cfg, and framework route work; first map the residual boundary before writing another implementation slice."
+        },
+        {
+          "q": "Which post-visibility semantic frontier should slice 8 start from?",
+          "answer": "Start with 1-5-2 Trait generic and dispatch residuals.",
+          "note": "Module visibility wrong-edge guard is complete. Trait/generic dispatch is now the highest-leverage correctness frontier because existing bounded trait edges can become wrong or insufficient around generics, blanket impls, where clauses, cross-crate traits, dyn dispatch, and method ambiguity."
+        },
+        {
+          "q": "Which semantic frontier should slice 9 start from?",
+          "answer": "Start with 1-5-3 Macro cfg and generated-code frontier.",
+          "note": "Trait/generic dispatch residuals are classified. Macro/cfg generated-code semantics now need a frontier map because they can invalidate visibility, trait, cargo feature, and framework route assumptions."
         }
       ],
       "notes": ""
@@ -859,22 +869,98 @@
     "1-5-2": {
       "id": "1-5-2",
       "label": "Trait generic and dispatch residuals",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-5",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-5-2-1"
+      ],
+      "decisions": [
+        {
+          "q": "What should slice 8 deliver?",
+          "answer": "Explore-only residual taxonomy, readiness ranking, and one recommended bounded implementation candidate.",
+          "note": "Do not implement trait dispatch behavior in this slice. The purpose is to map correctness risk before writing more semantic edges."
+        },
+        {
+          "q": "How should trait/generic dispatch residual taxonomy be organized?",
+          "answer": "Organize by edge-write correctness risk.",
+          "note": "Buckets: safe-ish exploit candidates, needs-guard candidates, needs-oracle/research, and defer/no-go taxonomy. This keeps later work focused on avoiding wrong semantic edges."
+        },
+        {
+          "q": "Which trait/generic residuals should slice 8 audit?",
+          "answer": "Audit the trait/impl extraction and finalization boundaries Rust core already touches.",
+          "note": "Include inherent-vs-trait impl stability, impl Trait for Type uniqueness, impl method to trait method declaration references, generic/blanket/where taxonomy, cross-crate trait no-go status, dyn dispatch needs-oracle status, associated type/generic bound needs-oracle status, and same-file versus cross-file relationship readiness."
+        },
+        {
+          "q": "Should slice 8 run a real repo smoke?",
+          "answer": "Yes, run a mini-redis deterministic taxonomy smoke only.",
+          "note": "Use it to summarize trait impl taxonomy and existing trait-related graph edges. Do not run agent A/B, performance gates, or additional implementation in this explore slice."
+        },
+        {
+          "q": "Where should slice 8 write its artifact?",
+          "answer": "Write a decision/evidence artifact under docs/benchmarks and record the closeout decision in the roadmap.",
+          "note": "Planned artifact: docs/benchmarks/2026-06-27-rust-trait-generic-dispatch-residual-taxonomy-decision.md. Do not create a PRD or implementation plan from this explore slice."
+        },
+        {
+          "q": "What bounded implementation candidate should slice 8 recommend next?",
+          "answer": "Recommend Rust trait impl edge guard v1 plus taxonomy hardening.",
+          "note": "Do not expand into dyn dispatch or generic inference. The next bounded implementation should make existing Type implements Trait and impl-method to trait-method writes fail closed for generic, blanket, where-clause, cross-crate, or ambiguous cases unless a low-risk unique repo-local candidate is proven."
+        },
+        {
+          "q": "What is the slice 8 closeout decision?",
+          "answer": "Complete: trait generic and dispatch residuals are classified; next step should harden existing trait impl edge writes before expanding dispatch coverage.",
+          "note": "Artifact: docs/benchmarks/2026-06-27-rust-trait-generic-dispatch-residual-taxonomy-decision.md. mini-redis smoke shows trait/impl taxonomy exists, but no trait semantic edges are written there yet; this supports guard-hardening before missing-edge expansion."
+        }
+      ],
+      "notes": "Completed as explore-only slice 8. Decision artifact: docs/benchmarks/2026-06-27-rust-trait-generic-dispatch-residual-taxonomy-decision.md. Recommended next candidate: Rust trait impl edge guard v1 plus taxonomy hardening."
     },
     "1-5-3": {
       "id": "1-5-3",
       "label": "Macro cfg and generated-code frontier",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-5",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-5-3-1"
+      ],
+      "decisions": [
+        {
+          "q": "What should slice 9 deliver?",
+          "answer": "Explore-only macro/cfg/generated-code frontier taxonomy, readiness ranking, and one recommended bounded implementation candidate.",
+          "note": "Do not implement cfg-aware filtering, macro expansion, or generated symbol recovery in this slice. The goal is to prevent future implementation from writing optimistic wrong edges around generated or conditionally compiled Rust code."
+        },
+        {
+          "q": "How should macro/cfg frontier taxonomy be organized?",
+          "answer": "Organize by code existence and semantic generation mode.",
+          "note": "Buckets: always-present parsed AST, conditionally-present AST, macro-affected parsed item, macro-generated missing item, macro invocation opaque region, and external build/generated code. This better predicts graph correctness risk than syntax-only classification."
+        },
+        {
+          "q": "Which macro/cfg scenarios should slice 9 audit?",
+          "answer": "Audit only macro/cfg scenarios Rust core already exposes or depends on.",
+          "note": "Include item-level cfg/cfg_attr, derive/proc macro attributes, macro-affected impl/trait/mod/route-like functions, function-like macro invocation, macro_rules definitions/invocations, include/build generated code taxonomy, Axum route macro interactions, and the relationship between cfg-impl-deferred and macro taxonomy."
+        },
+        {
+          "q": "Should slice 9 run a real repo smoke?",
+          "answer": "Yes, run a mini-redis deterministic macro/cfg taxonomy smoke only.",
+          "note": "Record rustMacroTaxonomyCounts, cfg-impl-deferred, route taxonomy interaction, and whether graph writes remain conservative around macro-generated semantics. Do not run agent A/B or performance gates."
+        },
+        {
+          "q": "Where should slice 9 write its artifact?",
+          "answer": "Write a decision/evidence artifact under docs/benchmarks and record closeout in the roadmap.",
+          "note": "Planned artifact: docs/benchmarks/2026-06-27-rust-macro-cfg-generated-code-frontier-decision.md. Do not create an implementation plan from this explore slice."
+        },
+        {
+          "q": "What bounded implementation candidate should slice 9 recommend next?",
+          "answer": "Recommend Macro/cfg diagnostic hardening v1.",
+          "note": "Do not implement cfg-aware item filtering yet. First make macro/cfg affected Rust semantics visible in profile/result diagnostics, including macro-affected impl/trait/mod/route-like functions and generated-code no-go taxonomy, without changing default graph writes."
+        },
+        {
+          "q": "What is the slice 9 closeout decision?",
+          "answer": "Complete: macro/cfg/generated-code frontier is classified; next step should improve diagnostics before cfg-aware behavior.",
+          "note": "Artifact: docs/benchmarks/2026-06-27-rust-macro-cfg-generated-code-frontier-decision.md. mini-redis shows substantial macro-generated-semantics-deferred surface while graph writes remain conservative."
+        }
+      ],
+      "notes": "Completed as explore-only slice 9. Decision artifact: docs/benchmarks/2026-06-27-rust-macro-cfg-generated-code-frontier-decision.md. Recommended next candidate: Macro/cfg diagnostic hardening v1."
     },
     "1-5-4": {
       "id": "1-5-4",
@@ -1006,11 +1092,163 @@
       "children": [],
       "decisions": [],
       "notes": "Completed by #593: deterministic fixture, full zcodegraph-core test suite, and mini-redis smoke recorded in docs/benchmarks/2026-06-27-rust-language-indexing-plan-7-visibility-guard-evidence.md."
+    },
+    "1-5-2-1": {
+      "id": "1-5-2-1",
+      "label": "Rust trait impl edge guard v1 plus taxonomy hardening",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-2",
+      "children": [
+        "1-5-2-1-1",
+        "1-5-2-1-2",
+        "1-5-2-1-3",
+        "1-5-2-1-4"
+      ],
+      "decisions": [
+        {
+          "q": "How should trait impl guard implementation be split?",
+          "answer": "Split into four ready-for-agent issues: diagnostics baseline, implements guard, method reference guard, and fixture/smoke/closeout evidence.",
+          "note": "Published #594, #595, #596, and #597 as enhancement + ready-for-agent."
+        },
+        {
+          "q": "What dependency order should these issues use?",
+          "answer": "Use strict serial dependency order: #594 -> #595 -> #596 -> #597.",
+          "note": "This keeps taxonomy stable before edge guard changes and leaves real repo smoke/closeout until the end."
+        },
+        {
+          "q": "What validation bar applies?",
+          "answer": "Require deterministic fixture coverage, result/profile JSON taxonomy, SQLite graph assertions, and mini-redis smoke; do not require agent A/B or performance gates.",
+          "note": "No dyn dispatch, generic inference, associated type resolution, or rustc oracle is in scope."
+        },
+        {
+          "q": "What is the trait impl guard hardening closeout decision?",
+          "answer": "Complete: Rust trait impl edge guard v1 plus taxonomy hardening is implemented and validated.",
+          "note": "Evidence: docs/benchmarks/2026-06-27-rust-trait-impl-guard-hardening-evidence.md. Safe same-file trait edges still write; generic, blanket, where-clause, cfg-affected, cross-crate, ambiguous, unsupported, and missing-method cases fail closed with taxonomy."
+        }
+      ],
+      "notes": ""
+    },
+    "1-5-2-1-1": {
+      "id": "1-5-2-1-1",
+      "label": "Trait impl edge diagnostics baseline (#594)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-2-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #594: trait impl edge write diagnostics baseline is exposed in result/profile JSON while safe same-file edges remain unchanged."
+    },
+    "1-5-2-1-2": {
+      "id": "1-5-2-1-2",
+      "label": "Trait implements edge fail-closed guard (#595)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-2-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #595: Type implements Trait writes now fail closed for generic, blanket, where-clause, cfg-affected, cross-crate, ambiguous, or unsupported impls."
+    },
+    "1-5-2-1-3": {
+      "id": "1-5-2-1-3",
+      "label": "Trait method reference fail-closed guard (#596)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-2-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #596: impl-method to trait-method reference writes now fail closed for unsupported impls and missing trait method declarations with taxonomy."
+    },
+    "1-5-2-1-4": {
+      "id": "1-5-2-1-4",
+      "label": "Trait impl guard fixture smoke and closeout evidence (#597)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-2-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #597: deterministic fixtures, full zcodegraph-core suite, mini-redis smoke, and closeout evidence are recorded in docs/benchmarks/2026-06-27-rust-trait-impl-guard-hardening-evidence.md."
+    },
+    "1-5-3-1": {
+      "id": "1-5-3-1",
+      "label": "Macro/cfg diagnostic hardening v1",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-3",
+      "children": [
+        "1-5-3-1-1",
+        "1-5-3-1-2",
+        "1-5-3-1-3",
+        "1-5-3-1-4"
+      ],
+      "decisions": [
+        {
+          "q": "How should macro/cfg diagnostic hardening be split?",
+          "answer": "Split into four ready-for-agent issues: diagnostic baseline, macro-affected item taxonomy hardening, generated-code no-go taxonomy, and smoke/closeout evidence.",
+          "note": "Published #598, #599, #600, and #601 as enhancement + ready-for-agent."
+        },
+        {
+          "q": "What dependency order should these issues use?",
+          "answer": "Use strict serial dependency order: #598 -> #599 -> #600 -> #601.",
+          "note": "This stabilizes taxonomy before no-go generated-code classification and leaves mini-redis smoke/closeout until the end."
+        },
+        {
+          "q": "What validation bar applies?",
+          "answer": "Require deterministic fixtures, result/profile JSON taxonomy, SQLite no-new-generated-edge assertions, and mini-redis smoke; do not require agent A/B or performance gates.",
+          "note": "No macro expansion, cfg evaluation, generated source recovery, or default graph write changes are in scope."
+        },
+        {
+          "q": "What is the macro/cfg diagnostic hardening closeout decision?",
+          "answer": "Complete: Macro/cfg diagnostic hardening v1 is implemented and validated.",
+          "note": "Evidence: docs/benchmarks/2026-06-27-rust-macro-cfg-diagnostic-hardening-evidence.md. Macro/cfg affected and generated-code no-go taxonomy is now clearer in rustMacroTaxonomyCounts while default graph writes remain conservative."
+        }
+      ],
+      "notes": ""
+    },
+    "1-5-3-1-1": {
+      "id": "1-5-3-1-1",
+      "label": "Macro/cfg diagnostic baseline (#598)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-3-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #598: macro/cfg diagnostics baseline is exposed in rustMacroTaxonomyCounts without changing graph writes."
+    },
+    "1-5-3-1-2": {
+      "id": "1-5-3-1-2",
+      "label": "Macro-affected item taxonomy hardening (#599)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-3-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #599: macro/cfg affected impl, trait, mod, and route-like functions are classified with stable taxonomy buckets."
+    },
+    "1-5-3-1-3": {
+      "id": "1-5-3-1-3",
+      "label": "Generated-code no-go taxonomy (#600)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-3-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #600: include!, OUT_DIR, and build.rs generated-code no-go patterns are classified without loading or expanding generated code."
+    },
+    "1-5-3-1-4": {
+      "id": "1-5-3-1-4",
+      "label": "Macro/cfg diagnostics smoke and closeout evidence (#601)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-3-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by #601: deterministic fixtures, full zcodegraph-core suite, mini-redis smoke, and closeout evidence are recorded in docs/benchmarks/2026-06-27-rust-macro-cfg-diagnostic-hardening-evidence.md."
     }
   },
   "metadata": {
     "created": "2026-06-26 17:05:43",
-    "updated": "2026-06-27 10:13:34",
+    "updated": "2026-06-27 13:14:07",
     "md_file": "docs/plans/2026-06-26-rust-language-indexing-roadmap.md"
   }
 }

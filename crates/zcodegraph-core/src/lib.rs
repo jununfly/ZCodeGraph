@@ -288,6 +288,8 @@ pub struct IndexProfile {
     pub module_resolution_declaration_runtime_edge_write_skipped_refs: u32,
     pub module_resolution_declaration_runtime_edge_write_skipped_counts: BTreeMap<String, u32>,
     pub rust_trait_impl_taxonomy_counts: BTreeMap<String, u32>,
+    pub rust_trait_impl_edge_write_counts: BTreeMap<String, u32>,
+    pub rust_trait_method_reference_edge_write_counts: BTreeMap<String, u32>,
     pub rust_cargo_workspace_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_cargo_workspace_crate_candidate_counts: BTreeMap<String, u32>,
     pub rust_macro_taxonomy_counts: BTreeMap<String, u32>,
@@ -7031,7 +7033,13 @@ fn index_javascript_files(
 
         let indexed_at = now_ms();
         let sqlite_write_started = Instant::now();
-        add_rust_trait_impl_edges(&nodes, &mut edges, &rust_trait_impl_facts);
+        add_rust_trait_impl_edges(
+            &nodes,
+            &mut edges,
+            &rust_trait_impl_facts,
+            &mut counts.profile.rust_trait_impl_edge_write_counts,
+            &mut counts.profile.rust_trait_method_reference_edge_write_counts,
+        );
         insert_nodes(&tx, &nodes)?;
         insert_edges(&tx, &edges)?;
         insert_unresolved_refs(&tx, &unresolved_refs)?;
@@ -8509,7 +8517,7 @@ fn extract_rust_symbols(
     rust_visibility_taxonomy_counts: &mut BTreeMap<String, u32>,
     rust_trait_impl_facts: &mut Vec<RustTraitImplFact>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    record_rust_macro_taxonomy(source, rust_macro_taxonomy_counts);
+    record_rust_macro_taxonomy(source, relative_path, rust_macro_taxonomy_counts);
     extract_rust_axum_routes(
         source,
         relative_path,
@@ -9081,7 +9089,7 @@ fn record_rust_trait_impl_taxonomy(
             if text.contains(" where ") {
                 increment_count(counts, "where-clause-deferred");
             }
-            if text.contains("#[") {
+            if rust_impl_is_cfg_affected(node, source, text) {
                 increment_count(counts, "cfg-impl-deferred");
             }
         }
@@ -9095,11 +9103,19 @@ fn record_rust_trait_impl_taxonomy(
     }
 }
 
-fn record_rust_macro_taxonomy(source: &[u8], counts: &mut BTreeMap<String, u32>) {
+fn record_rust_macro_taxonomy(
+    source: &[u8],
+    relative_path: &str,
+    counts: &mut BTreeMap<String, u32>,
+) {
     let Ok(text) = std::str::from_utf8(source) else {
         return;
     };
     let mut pending_attributes: Vec<String> = Vec::new();
+
+    if relative_path.ends_with("build.rs") {
+        increment_count(counts, "generated-code-no-go-build-script");
+    }
 
     for line in text.lines() {
         let trimmed = line.trim();
@@ -9118,10 +9134,14 @@ fn record_rust_macro_taxonomy(source: &[u8], counts: &mut BTreeMap<String, u32>)
             continue;
         }
 
+        record_rust_generated_code_no_go_taxonomy(trimmed, counts);
+
         let invocation_count = count_rust_function_like_macro_invocations(trimmed);
         for _ in 0..invocation_count {
             increment_count(counts, "function-like-macro-invocation");
+            increment_count(counts, "opaque-macro-invocation-deferred");
             increment_count(counts, "macro-generated-semantics-deferred");
+            increment_count(counts, "macro-generated-missing-item-deferred");
         }
 
         if !pending_attributes.is_empty() {
@@ -9134,20 +9154,34 @@ fn record_rust_macro_taxonomy(source: &[u8], counts: &mut BTreeMap<String, u32>)
 fn record_rust_attribute_macro_taxonomy(attribute: &str, counts: &mut BTreeMap<String, u32>) {
     if attribute.starts_with("#[derive") {
         increment_count(counts, "derive-attribute");
+        increment_count(counts, "macro-generated-semantics-deferred");
+        increment_count(counts, "macro-generated-missing-item-deferred");
         return;
     }
     if attribute.starts_with("#[cfg_attr") {
         increment_count(counts, "cfg-attr-attribute");
+        increment_count(counts, "conditionally-present-ast-deferred");
         return;
     }
     if attribute.starts_with("#[cfg") {
         increment_count(counts, "cfg-attribute");
+        increment_count(counts, "conditionally-present-ast-deferred");
         return;
     }
 
     increment_count(counts, "attribute-macro");
     increment_count(counts, "proc-macro-deferred");
     increment_count(counts, "macro-generated-semantics-deferred");
+    increment_count(counts, "macro-generated-missing-item-deferred");
+}
+
+fn record_rust_generated_code_no_go_taxonomy(item: &str, counts: &mut BTreeMap<String, u32>) {
+    if item.contains("include!") {
+        increment_count(counts, "generated-code-no-go-include");
+    }
+    if item.contains("OUT_DIR") {
+        increment_count(counts, "generated-code-no-go-out-dir");
+    }
 }
 
 fn record_rust_macro_affected_region(
@@ -9156,20 +9190,24 @@ fn record_rust_macro_affected_region(
     counts: &mut BTreeMap<String, u32>,
 ) {
     if item_starts_with_rust_keyword(item, "impl") {
+        increment_count(counts, "macro-affected-parsed-item-deferred");
         increment_count(counts, "macro-affected-impl-deferred");
     } else if item_starts_with_rust_keyword(item, "trait")
         || item_starts_with_rust_keyword(item, "pub trait")
     {
+        increment_count(counts, "macro-affected-parsed-item-deferred");
         increment_count(counts, "macro-affected-trait-deferred");
     } else if item_starts_with_rust_keyword(item, "mod")
         || item_starts_with_rust_keyword(item, "pub mod")
     {
+        increment_count(counts, "macro-affected-parsed-item-deferred");
         increment_count(counts, "macro-affected-mod-deferred");
     } else if is_rust_function_item_line(item)
         && attributes
             .iter()
             .any(|attr| is_route_like_rust_attribute(attr))
     {
+        increment_count(counts, "macro-affected-parsed-item-deferred");
         increment_count(counts, "macro-affected-route-like-function-deferred");
     }
 }
@@ -9241,6 +9279,11 @@ fn record_rust_trait_impl_fact(
         file_path: relative_path.to_string(),
         trait_name,
         type_name,
+        is_generic: rust_impl_has_type_parameters(node),
+        is_blanket: rust_impl_is_blanket_impl(text),
+        has_where_clause: text.contains(" where "),
+        is_cross_crate_trait: rust_impl_is_cross_crate_trait(text),
+        is_cfg_affected: rust_impl_is_cfg_affected(node, source, text),
         line: (start.row + 1) as i64,
         col: start.column as i64,
     });
@@ -9302,6 +9345,27 @@ fn rust_impl_is_blanket_impl(text: &str) -> bool {
         return false;
     };
     generic_params.contains(&type_name)
+}
+
+fn rust_impl_is_cfg_affected(node: SyntaxNode, source: &[u8], text: &str) -> bool {
+    if text.contains("#[cfg") {
+        return true;
+    }
+
+    let mut previous = node.prev_named_sibling();
+    while let Some(sibling) = previous {
+        if sibling.kind() != "attribute_item" {
+            break;
+        }
+        if sibling
+            .utf8_text(source)
+            .is_ok_and(|attribute| attribute.trim_start().starts_with("#[cfg"))
+        {
+            return true;
+        }
+        previous = sibling.prev_named_sibling();
+    }
+    false
 }
 
 fn rust_leading_generic_param_names(value: &str) -> HashSet<String> {
@@ -10653,6 +10717,11 @@ struct RustTraitImplFact {
     file_path: String,
     trait_name: String,
     type_name: String,
+    is_generic: bool,
+    is_blanket: bool,
+    has_where_clause: bool,
+    is_cross_crate_trait: bool,
+    is_cfg_affected: bool,
     line: i64,
     col: i64,
 }
@@ -10672,6 +10741,8 @@ fn add_rust_trait_impl_edges(
     nodes: &[ExtractedNode],
     edges: &mut Vec<ExtractedEdge>,
     facts: &[RustTraitImplFact],
+    impl_counts: &mut BTreeMap<String, u32>,
+    method_counts: &mut BTreeMap<String, u32>,
 ) {
     let mut existing = edges
         .iter()
@@ -10679,6 +10750,13 @@ fn add_rust_trait_impl_edges(
         .collect::<HashSet<_>>();
 
     for fact in facts {
+        increment_count(impl_counts, "trait-impl-edge-attempted");
+        if let Some(reason) = rust_trait_impl_edge_skip_reason(fact) {
+            increment_count(impl_counts, "trait-impl-edge-skipped");
+            increment_count(impl_counts, &format!("trait-impl-edge-skipped-{reason}"));
+            record_rust_trait_method_reference_skips_for_fact(nodes, fact, method_counts, reason);
+            continue;
+        }
         let type_candidates = nodes
             .iter()
             .filter(|node| {
@@ -10696,12 +10774,22 @@ fn add_rust_trait_impl_edges(
             })
             .collect::<Vec<_>>();
         if type_candidates.len() != 1 || trait_candidates.len() != 1 {
+            increment_count(impl_counts, "trait-impl-edge-skipped");
+            increment_count(
+                impl_counts,
+                if type_candidates.len() != 1 {
+                    "trait-impl-edge-skipped-type-candidate-not-unique"
+                } else {
+                    "trait-impl-edge-skipped-trait-candidate-not-unique"
+                },
+            );
             continue;
         }
         let source = type_candidates[0].id.clone();
         let target = trait_candidates[0].id.clone();
         let key = (source.clone(), target.clone(), "implements".to_string());
         if existing.insert(key) {
+            increment_count(impl_counts, "trait-impl-edge-written");
             edges.push(ExtractedEdge {
                 source,
                 target,
@@ -10711,7 +10799,44 @@ fn add_rust_trait_impl_edges(
             });
         }
 
-        add_rust_trait_method_reference_edges(nodes, edges, fact, &mut existing);
+        add_rust_trait_method_reference_edges(nodes, edges, fact, &mut existing, method_counts);
+    }
+}
+
+fn rust_trait_impl_edge_skip_reason(fact: &RustTraitImplFact) -> Option<&'static str> {
+    if fact.is_cross_crate_trait {
+        return Some("cross-crate-trait");
+    }
+    if fact.is_cfg_affected {
+        return Some("cfg-affected");
+    }
+    if fact.has_where_clause {
+        return Some("where-clause");
+    }
+    if fact.is_blanket {
+        return Some("blanket-impl");
+    }
+    if fact.is_generic {
+        return Some("generic-impl");
+    }
+    None
+}
+
+fn record_rust_trait_method_reference_skips_for_fact(
+    nodes: &[ExtractedNode],
+    fact: &RustTraitImplFact,
+    counts: &mut BTreeMap<String, u32>,
+    reason: &str,
+) {
+    let impl_prefix = format!("{}.", fact.type_name);
+    for _ in nodes.iter().filter(|node| {
+        node.file_path == fact.file_path
+            && node.kind == "method"
+            && node.name.starts_with(&impl_prefix)
+    }) {
+        increment_count(counts, "trait-method-reference-attempted");
+        increment_count(counts, "trait-method-reference-skipped");
+        increment_count(counts, &format!("trait-method-reference-skipped-{reason}"));
     }
 }
 
@@ -10720,6 +10845,7 @@ fn add_rust_trait_method_reference_edges(
     edges: &mut Vec<ExtractedEdge>,
     fact: &RustTraitImplFact,
     existing: &mut HashSet<(String, String, String)>,
+    counts: &mut BTreeMap<String, u32>,
 ) {
     let impl_prefix = format!("{}.", fact.type_name);
     let trait_prefix = format!("{}.", fact.trait_name);
@@ -10733,7 +10859,10 @@ fn add_rust_trait_method_reference_edges(
         .collect::<Vec<_>>();
 
     for impl_method in impl_methods {
+        increment_count(counts, "trait-method-reference-attempted");
         let Some(method_name) = rust_method_leaf_name(&impl_method.name) else {
+            increment_count(counts, "trait-method-reference-skipped");
+            increment_count(counts, "trait-method-reference-skipped-invalid-method-name");
             continue;
         };
         let trait_method_name = format!("{}.{method_name}", fact.trait_name);
@@ -10747,12 +10876,18 @@ fn add_rust_trait_method_reference_edges(
             })
             .collect::<Vec<_>>();
         if trait_method_candidates.len() != 1 {
+            increment_count(counts, "trait-method-reference-skipped");
+            increment_count(
+                counts,
+                "trait-method-reference-skipped-trait-method-candidate-not-unique",
+            );
             continue;
         }
         let source = impl_method.id.clone();
         let target = trait_method_candidates[0].id.clone();
         let key = (source.clone(), target.clone(), "references".to_string());
         if existing.insert(key) {
+            increment_count(counts, "trait-method-reference-written");
             edges.push(ExtractedEdge {
                 source,
                 target,
@@ -10929,7 +11064,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustTraitImplEdgeWriteCounts\":{},\"rustTraitMethodReferenceEdgeWriteCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -11068,6 +11203,12 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.local_exact_reference_resolved_refs,
         result.profile.local_exact_reference_fallback_refs,
         fallback_sample_counts_json(&result.profile.rust_trait_impl_taxonomy_counts),
+        fallback_sample_counts_json(&result.profile.rust_trait_impl_edge_write_counts),
+        fallback_sample_counts_json(
+            &result
+                .profile
+                .rust_trait_method_reference_edge_write_counts
+        ),
         fallback_sample_counts_json(&result.profile.rust_cargo_workspace_taxonomy_counts),
         fallback_sample_counts_json(
             &result
@@ -12371,6 +12512,17 @@ mod tests {
     fn rust_core_classifies_macro_taxonomy_without_writing_macro_graph_edges() {
         let dir = temp_dir("rust-macro-taxonomy");
         fs::write(
+            dir.join("build.rs"),
+            [
+                "fn main() {",
+                "    println!(\"cargo:rerun-if-changed=src/schema.rs\");",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
             dir.join("lib.rs"),
             [
                 "macro_rules! make_handler {",
@@ -12393,6 +12545,7 @@ mod tests {
                 "    println!(\"hello\");",
                 "    make_handler!();",
                 "    let _items = vec![1, 2, 3];",
+                "    include!(concat!(env!(\"OUT_DIR\"), \"/generated.rs\"));",
                 "}",
                 "",
                 "#[get(\"/health\")]",
@@ -12428,11 +12581,16 @@ mod tests {
         assert!(result.success, "{:?}", result.errors);
         let taxonomy = &result.profile.rust_macro_taxonomy_counts;
         assert_eq!(taxonomy.get("macro-rules-definition"), Some(&1));
-        assert_eq!(taxonomy.get("function-like-macro-invocation"), Some(&3));
+        assert_eq!(taxonomy.get("function-like-macro-invocation"), Some(&7));
         assert_eq!(taxonomy.get("derive-attribute"), Some(&1));
         assert_eq!(taxonomy.get("attribute-macro"), Some(&3));
         assert_eq!(taxonomy.get("cfg-attribute"), Some(&1));
         assert_eq!(taxonomy.get("cfg-attr-attribute"), Some(&1));
+        assert_eq!(taxonomy.get("conditionally-present-ast-deferred"), Some(&2));
+        assert_eq!(
+            taxonomy.get("macro-affected-parsed-item-deferred"),
+            Some(&4)
+        );
         assert_eq!(taxonomy.get("macro-affected-impl-deferred"), Some(&1));
         assert_eq!(taxonomy.get("macro-affected-trait-deferred"), Some(&1));
         assert_eq!(taxonomy.get("macro-affected-mod-deferred"), Some(&1));
@@ -12441,7 +12599,18 @@ mod tests {
             Some(&1)
         );
         assert_eq!(taxonomy.get("proc-macro-deferred"), Some(&3));
-        assert_eq!(taxonomy.get("macro-generated-semantics-deferred"), Some(&6));
+        assert_eq!(
+            taxonomy.get("macro-generated-missing-item-deferred"),
+            Some(&11)
+        );
+        assert_eq!(
+            taxonomy.get("macro-generated-semantics-deferred"),
+            Some(&11)
+        );
+        assert_eq!(taxonomy.get("opaque-macro-invocation-deferred"), Some(&7));
+        assert_eq!(taxonomy.get("generated-code-no-go-build-script"), Some(&1));
+        assert_eq!(taxonomy.get("generated-code-no-go-include"), Some(&1));
+        assert_eq!(taxonomy.get("generated-code-no-go-out-dir"), Some(&1));
 
         let json: Value = serde_json::from_str(&result_json(&result)).unwrap();
         assert_eq!(
@@ -12450,7 +12619,11 @@ mod tests {
         );
         assert_eq!(
             json["profile"]["rustMacroTaxonomyCounts"]["function-like-macro-invocation"],
-            3
+            7
+        );
+        assert_eq!(
+            json["profile"]["rustMacroTaxonomyCounts"]["generated-code-no-go-include"],
+            1
         );
 
         let conn = Connection::open(&request.index_path).unwrap();
@@ -12464,6 +12637,24 @@ mod tests {
             )
             .unwrap();
         assert_eq!(macro_named_nodes, 0);
+        let generated_semantic_edges: i64 = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM edges
+                 WHERE kind IN ('implements', 'references', 'calls')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(generated_semantic_edges, 0);
+        let generated_route_nodes: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM nodes WHERE kind = 'route'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(generated_route_nodes, 0);
         fs::remove_dir_all(dir).unwrap();
     }
 
@@ -12713,6 +12904,346 @@ mod tests {
             !references.contains(&("Service.helper".to_string(), "Worker.run".to_string())),
             "{references:?}"
         );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_reports_trait_impl_edge_write_diagnostics_without_changing_safe_edges() {
+        let dir = temp_dir("rust-trait-edge-diagnostics");
+        fs::write(
+            dir.join("lib.rs"),
+            [
+                "pub trait Worker {",
+                "    fn run(&self);",
+                "}",
+                "pub struct Service;",
+                "impl Worker for Service {",
+                "    fn run(&self) {}",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .rust_trait_impl_edge_write_counts
+                .get("trait-impl-edge-attempted"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .rust_trait_impl_edge_write_counts
+                .get("trait-impl-edge-written"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .rust_trait_method_reference_edge_write_counts
+                .get("trait-method-reference-attempted"),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .profile
+                .rust_trait_method_reference_edge_write_counts
+                .get("trait-method-reference-written"),
+            Some(&1)
+        );
+
+        let json: Value = serde_json::from_str(&result_json(&result)).unwrap();
+        assert_eq!(
+            json["profile"]["rustTraitImplEdgeWriteCounts"]["trait-impl-edge-written"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["rustTraitMethodReferenceEdgeWriteCounts"]
+                ["trait-method-reference-written"],
+            1
+        );
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let edges = conn
+            .prepare(
+                "SELECT source.name, edges.kind, target.name
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 JOIN nodes target ON target.id = edges.target
+                 WHERE edges.kind IN ('implements', 'references')
+                 ORDER BY edges.kind, source.name, target.name",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(
+            edges,
+            vec![
+                (
+                    "Service".to_string(),
+                    "implements".to_string(),
+                    "Worker".to_string()
+                ),
+                (
+                    "Service.run".to_string(),
+                    "references".to_string(),
+                    "Worker.run".to_string()
+                ),
+            ]
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_fails_closed_for_unsupported_trait_impl_edges() {
+        let dir = temp_dir("rust-trait-impl-guard");
+        fs::write(
+            dir.join("lib.rs"),
+            [
+                "pub trait Worker {",
+                "    fn run(&self);",
+                "}",
+                "pub struct Safe;",
+                "pub struct Generic<T>(T);",
+                "pub struct WhereBound<T>(T);",
+                "pub struct CfgService;",
+                "pub struct DisplayService;",
+                "impl Worker for Safe {",
+                "    fn run(&self) {}",
+                "}",
+                "impl<T> Worker for Generic<T> {",
+                "    fn run(&self) {}",
+                "}",
+                "impl<T> Worker for WhereBound<T> where T: Clone {",
+                "    fn run(&self) {}",
+                "}",
+                "impl<T> Worker for T {",
+                "    fn run(&self) {}",
+                "}",
+                "#[cfg(test)]",
+                "impl Worker for CfgService {",
+                "    fn run(&self) {}",
+                "}",
+                "impl std::fmt::Display for DisplayService {",
+                "    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {",
+                "        Ok(())",
+                "    }",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let impl_counts = &result.profile.rust_trait_impl_edge_write_counts;
+        assert_eq!(impl_counts.get("trait-impl-edge-attempted"), Some(&6));
+        assert_eq!(impl_counts.get("trait-impl-edge-written"), Some(&1));
+        assert_eq!(
+            impl_counts.get("trait-impl-edge-skipped-generic-impl"),
+            Some(&1)
+        );
+        assert_eq!(
+            impl_counts.get("trait-impl-edge-skipped-where-clause"),
+            Some(&1)
+        );
+        assert_eq!(
+            impl_counts.get("trait-impl-edge-skipped-blanket-impl"),
+            Some(&1)
+        );
+        assert_eq!(
+            impl_counts.get("trait-impl-edge-skipped-cfg-affected"),
+            Some(&1)
+        );
+        assert_eq!(
+            impl_counts.get("trait-impl-edge-skipped-cross-crate-trait"),
+            Some(&1)
+        );
+
+        let method_counts = &result.profile.rust_trait_method_reference_edge_write_counts;
+        assert_eq!(
+            method_counts.get("trait-method-reference-attempted"),
+            Some(&6)
+        );
+        assert_eq!(
+            method_counts.get("trait-method-reference-written"),
+            Some(&1)
+        );
+        assert_eq!(
+            method_counts.get("trait-method-reference-skipped-generic-impl"),
+            Some(&1)
+        );
+        assert_eq!(
+            method_counts.get("trait-method-reference-skipped-where-clause"),
+            Some(&1)
+        );
+        assert_eq!(
+            method_counts.get("trait-method-reference-skipped-blanket-impl"),
+            Some(&1)
+        );
+        assert_eq!(
+            method_counts.get("trait-method-reference-skipped-cfg-affected"),
+            Some(&1)
+        );
+        assert_eq!(
+            method_counts.get("trait-method-reference-skipped-cross-crate-trait"),
+            Some(&1)
+        );
+
+        let json: Value = serde_json::from_str(&result_json(&result)).unwrap();
+        assert_eq!(
+            json["profile"]["rustTraitImplEdgeWriteCounts"]["trait-impl-edge-skipped-generic-impl"],
+            1
+        );
+        assert_eq!(
+            json["profile"]["rustTraitMethodReferenceEdgeWriteCounts"]
+                ["trait-method-reference-skipped-generic-impl"],
+            1
+        );
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let implements = conn
+            .prepare(
+                "SELECT source.name, target.name
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 JOIN nodes target ON target.id = edges.target
+                 WHERE edges.kind = 'implements'
+                 ORDER BY source.name, target.name",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(implements, vec![("Safe".to_string(), "Worker".to_string())]);
+
+        let references = conn
+            .prepare(
+                "SELECT source.name, target.name
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 JOIN nodes target ON target.id = edges.target
+                 WHERE edges.kind = 'references'
+                 ORDER BY source.name, target.name",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(
+            references,
+            vec![("Safe.run".to_string(), "Worker.run".to_string())]
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_skips_trait_method_reference_when_trait_method_declaration_is_missing() {
+        let dir = temp_dir("rust-trait-method-missing");
+        fs::write(
+            dir.join("lib.rs"),
+            [
+                "pub trait Worker {}",
+                "pub struct Service;",
+                "impl Worker for Service {",
+                "    fn run(&self) {}",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let method_counts = &result.profile.rust_trait_method_reference_edge_write_counts;
+        assert_eq!(
+            method_counts.get("trait-method-reference-attempted"),
+            Some(&1)
+        );
+        assert_eq!(method_counts.get("trait-method-reference-written"), None);
+        assert_eq!(
+            method_counts.get("trait-method-reference-skipped-trait-method-candidate-not-unique"),
+            Some(&1)
+        );
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let references: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM edges WHERE kind = 'references'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(references, 0);
         fs::remove_dir_all(dir).unwrap();
     }
 
