@@ -965,12 +965,33 @@
     "1-1-2-3-4": {
       "id": "1-1-2-3-4",
       "label": "Declaration runtime pairing semantics",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1-2-3",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "What is the tenth cut after ESM value-token residual?",
+          "answer": "Start 1-1-2-3-4 Declaration runtime pairing semantics.",
+          "note": "This is the clean next bounded test-split slice: it has three focused declaration/runtime tests, while package imports/exports/self-name remains broader and should stay separate."
+        },
+        {
+          "q": "What exact tests belong to the tenth cut?",
+          "answer": "Only the three bare declaration/runtime pairing tests.",
+          "note": "Include profile diagnostics, successful unique runtime sibling rewrite, and fail-closed skip taxonomy. Exclude package imports/exports declaration target rewrite tests because their semantic entry point is package resolution and they belong under 1-1-2-3-5."
+        },
+        {
+          "q": "Should the tenth cut split into subnodes or one implementation issue?",
+          "answer": "Use one implementation issue without subnodes.",
+          "note": "The three tests form one bounded declaration/runtime pairing behavior loop. Subnodes would add tracking noise; package-related declaration/runtime tests remain out of scope under 1-1-2-3-5."
+        },
+        {
+          "q": "Which issue tracks the tenth cut?",
+          "answer": "GitHub issue #622 tracks the declaration/runtime pairing test split.",
+          "note": "Ready-for-agent issue: Split Rust indexing declaration/runtime pairing tests. Acceptance is exactly three bare declaration/runtime tests moved into __tests__/rust-index-engine-cli-declaration-runtime.test.ts, no package tests, no production code."
+        }
+      ],
+      "notes": "#622 completed: moved exactly three bare declaration/runtime pairing tests into __tests__/rust-index-engine-cli-declaration-runtime.test.ts; kept package imports/exports declaration target rewrite tests under 1-1-2-3-5 and made no production-code changes. Verification: npx vitest run __tests__/rust-index-engine-cli-declaration-runtime.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
     },
     "1-1-2-3-5": {
       "id": "1-1-2-3-5",
@@ -1072,7 +1093,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 01:04:30",
+    "updated": "2026-06-28 01:20:39",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
