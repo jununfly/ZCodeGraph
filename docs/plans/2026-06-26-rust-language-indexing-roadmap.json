@@ -965,12 +965,60 @@
     "1-5-4": {
       "id": "1-5-4",
       "label": "Cargo package feature and cfg conditional semantics",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-5",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-5-4-1"
+      ],
+      "decisions": [
+        {
+          "q": "第10刀优先处理哪个 semantic frontier？",
+          "answer": "选择 1-5-4 Cargo package feature and cfg conditional semantics。",
+          "note": "它是 trait/macro/cfg fail-closed taxonomy 之后的下层语义基础，先于 framework runtime frontier 更利于收口。"
+        },
+        {
+          "q": "1-5-4 采用什么执行形态？",
+          "answer": "采用 Explore-only decision slice。",
+          "note": "先定义 Cargo package / feature / cfg conditional semantics 的边界、taxonomy、no-go、oracle-needed 和后续 bounded exploit 候选；不在本刀直接实现 full cfg/feature resolution。"
+        },
+        {
+          "q": "1-5-4 的 decision 主轴是什么？",
+          "answer": "采用 graph correctness semantic basis。",
+          "note": "围绕 package ownership、feature/cfg 条件来源、workspace-local vs external crate、target-specific availability、generated/build-script no-go 来定义安全写边与降级 taxonomy。"
+        },
+        {
+          "q": "cfg/feature 语义精度追求到什么程度？",
+          "answer": "只做 condition-aware taxonomy，不做 cfg evaluation。",
+          "note": "识别并分类 cfg/cfg_attr、feature-gated item、target-gated item、test/doc-only item 等条件来源；不判断当前 build 下是否启用，避免环境绑定和 feature unification 范围膨胀。"
+        },
+        {
+          "q": "Cargo package ownership 是否进入实现候选？",
+          "answer": "进入，但限定为 repo-local package ownership diagnostics。",
+          "note": "用 Cargo.toml/workspace metadata 判定 .rs 文件属于哪个 local package/crate root，并把 package/crate ownership 暴露到 diagnostics/profile；不解析 crates.io dependency graph。"
+        },
+        {
+          "q": "build.rs / generated source 是否进入可实现候选？",
+          "answer": "不做实现，只保留 no-go taxonomy。",
+          "note": "build.rs、include!、OUT_DIR、proc-macro expansion 属于生成源不可见或需要编译器/构建执行的边界；本刀只定义 taxonomy，不读取、生成或执行构建产物。"
+        },
+        {
+          "q": "后续 bounded exploit 候选优先哪一个？",
+          "answer": "优先 Cargo/cfg diagnostics hardening v1。",
+          "note": "只增强诊断面：repo-local package/crate ownership、condition source taxonomy、cfg/feature affected edge suppression reason、result JSON/profile counters；不做 feature-aware edge writing 或 Cargo metadata integration。"
+        },
+        {
+          "q": "decision artifact 需要什么验证材料？",
+          "answer": "需要 deterministic fixture + mini-redis smoke evidence。",
+          "note": "fixture 覆盖 cfg(feature)、cfg(target_os)、workspace package ownership、generated/build-script no-go taxonomy；mini-redis 只做真实 repo sanity，不做 agent A/B 或性能评测。"
+        },
+        {
+          "q": "第10刀 decision artifact 落在哪里？",
+          "answer": "写入 docs/benchmarks/2026-06-27-rust-cargo-feature-cfg-conditional-semantics-decision.md。",
+          "note": "结论：1-5-4 作为 explore slice 完成；下一刀候选为 Cargo/cfg diagnostics hardening v1，保持 conservative graph writes，不做 active cfg evaluation。"
+        }
+      ],
+      "notes": "Explore slice completed. Decision artifact: docs/benchmarks/2026-06-27-rust-cargo-feature-cfg-conditional-semantics-decision.md. Next bounded exploit candidate: Cargo/cfg diagnostics hardening v1."
     },
     "1-5-5": {
       "id": "1-5-5",
@@ -1244,11 +1292,77 @@
       "children": [],
       "decisions": [],
       "notes": "Completed by #601: deterministic fixtures, full zcodegraph-core suite, mini-redis smoke, and closeout evidence are recorded in docs/benchmarks/2026-06-27-rust-macro-cfg-diagnostic-hardening-evidence.md."
+    },
+    "1-5-4-1": {
+      "id": "1-5-4-1",
+      "label": "Cargo/cfg diagnostics hardening v1",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-4",
+      "children": [
+        "1-5-4-1-1",
+        "1-5-4-1-2",
+        "1-5-4-1-3",
+        "1-5-4-1-4"
+      ],
+      "decisions": [
+        {
+          "q": "Cargo/cfg diagnostics hardening v1 如何拆 issue？",
+          "answer": "拆成 #602 baseline fixture、#603 package ownership and condition taxonomy、#604 conditional semantic edge suppression diagnostics、#605 fixture smoke and closeout evidence。",
+          "note": "全部发布为 enhancement + ready-for-agent；依赖顺序为 #602 -> #603 -> #604 -> #605。"
+        },
+        {
+          "q": "Cargo/cfg diagnostics hardening v1 closeout 状态是什么？",
+          "answer": "ready for next bounded slice。",
+          "note": "新增 rustCargoConditionSourceCounts 与 rustCargoConditionalSemanticSuppressionCounts；mini-redis smoke 通过；不做 active cfg evaluation、Cargo metadata、feature-aware graph writes。Evidence: docs/benchmarks/2026-06-27-rust-cargo-cfg-diagnostics-hardening-evidence.md。"
+        }
+      ],
+      "notes": ""
+    },
+    "1-5-4-1-1": {
+      "id": "1-5-4-1-1",
+      "label": "Cargo/cfg diagnostics baseline fixture (#602)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented with deterministic cargo/cfg condition diagnostics fixture."
+    },
+    "1-5-4-1-2": {
+      "id": "1-5-4-1-2",
+      "label": "Repo-local package ownership and condition taxonomy hardening (#603)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented repo-local package/crate ownership and condition-source diagnostics hardening."
+    },
+    "1-5-4-1-3": {
+      "id": "1-5-4-1-3",
+      "label": "Conditional semantic edge suppression diagnostics (#604)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Implemented cfg-affected trait edge and trait-method suppression diagnostics."
+    },
+    "1-5-4-1-4": {
+      "id": "1-5-4-1-4",
+      "label": "Cargo/cfg diagnostics fixture smoke and closeout evidence (#605)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "Closeout evidence recorded in docs/benchmarks/2026-06-27-rust-cargo-cfg-diagnostics-hardening-evidence.md."
     }
   },
   "metadata": {
     "created": "2026-06-26 17:05:43",
-    "updated": "2026-06-27 13:14:07",
+    "updated": "2026-06-27 14:07:31",
     "md_file": "docs/plans/2026-06-26-rust-language-indexing-roadmap.md"
   }
 }

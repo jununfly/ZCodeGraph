@@ -292,6 +292,8 @@ pub struct IndexProfile {
     pub rust_trait_method_reference_edge_write_counts: BTreeMap<String, u32>,
     pub rust_cargo_workspace_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_cargo_workspace_crate_candidate_counts: BTreeMap<String, u32>,
+    pub rust_cargo_condition_source_counts: BTreeMap<String, u32>,
+    pub rust_cargo_conditional_semantic_suppression_counts: BTreeMap<String, u32>,
     pub rust_macro_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_axum_route_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_visibility_taxonomy_counts: BTreeMap<String, u32>,
@@ -6926,6 +6928,10 @@ fn index_javascript_files(
                 &content,
                 &mut counts.profile.rust_cargo_workspace_crate_candidate_counts,
             );
+            record_rust_cargo_condition_sources(
+                &content,
+                &mut counts.profile.rust_cargo_condition_source_counts,
+            );
         }
         let normalization_started = Instant::now();
         let parse_content = normalize_source_for_parser(&content, language);
@@ -7039,6 +7045,9 @@ fn index_javascript_files(
             &rust_trait_impl_facts,
             &mut counts.profile.rust_trait_impl_edge_write_counts,
             &mut counts.profile.rust_trait_method_reference_edge_write_counts,
+            &mut counts
+                .profile
+                .rust_cargo_conditional_semantic_suppression_counts,
         );
         insert_nodes(&tx, &nodes)?;
         insert_edges(&tx, &edges)?;
@@ -7463,6 +7472,13 @@ fn build_cargo_workspace_diagnostics(
             increment_count(counts, "cargo-workspace-member-detected");
         }
     }
+    if root_content
+        .as_deref()
+        .is_some_and(manifest_has_target_cfg_selection)
+    {
+        increment_count(counts, "cfg-target-selection-deferred");
+        increment_count(counts, "target-specific-dependency-deferred");
+    }
 
     let mut manifest_dirs = Vec::new();
     if root_manifest.exists()
@@ -7531,7 +7547,7 @@ fn build_cargo_workspace_diagnostics(
         if content.contains("[features]") {
             increment_count(counts, "feature-resolution-deferred");
         }
-        if content.contains("cfg(") || content.contains("target.") || content.contains("[target.") {
+        if manifest_has_target_cfg_selection(&content) {
             increment_count(counts, "cfg-target-selection-deferred");
             increment_count(counts, "target-specific-dependency-deferred");
         }
@@ -7551,6 +7567,10 @@ fn build_cargo_workspace_diagnostics(
     }
 
     diagnostics
+}
+
+fn manifest_has_target_cfg_selection(content: &str) -> bool {
+    content.contains("cfg(") || content.contains("target.") || content.contains("[target.")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -7745,6 +7765,41 @@ fn classify_rust_crate_candidates(
         } else {
             increment_count(counts, "unresolved-crate-candidate");
         }
+    }
+}
+
+fn record_rust_cargo_condition_sources(source: &str, counts: &mut BTreeMap<String, u32>) {
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("#[cfg_attr") {
+            increment_count(counts, "cfg-attr-affected-item");
+            increment_count(counts, "conditionally-present-rust-item");
+            record_rust_cfg_condition_flavors(trimmed, counts);
+            continue;
+        }
+        if trimmed.starts_with("#[cfg") {
+            increment_count(counts, "cfg-affected-item");
+            increment_count(counts, "conditionally-present-rust-item");
+            record_rust_cfg_condition_flavors(trimmed, counts);
+        }
+    }
+}
+
+fn record_rust_cfg_condition_flavors(attribute: &str, counts: &mut BTreeMap<String, u32>) {
+    if attribute.contains("feature") {
+        increment_count(counts, "cfg-feature-gated-item");
+    }
+    if attribute.contains("target_")
+        || attribute.contains("target.")
+        || attribute.contains("target_os")
+    {
+        increment_count(counts, "cfg-target-gated-item");
+    }
+    if attribute.contains("test") {
+        increment_count(counts, "cfg-test-only-item");
+    }
+    if attribute.contains("doc") {
+        increment_count(counts, "cfg-doc-only-item");
     }
 }
 
@@ -10743,6 +10798,7 @@ fn add_rust_trait_impl_edges(
     facts: &[RustTraitImplFact],
     impl_counts: &mut BTreeMap<String, u32>,
     method_counts: &mut BTreeMap<String, u32>,
+    conditional_suppression_counts: &mut BTreeMap<String, u32>,
 ) {
     let mut existing = edges
         .iter()
@@ -10754,7 +10810,19 @@ fn add_rust_trait_impl_edges(
         if let Some(reason) = rust_trait_impl_edge_skip_reason(fact) {
             increment_count(impl_counts, "trait-impl-edge-skipped");
             increment_count(impl_counts, &format!("trait-impl-edge-skipped-{reason}"));
-            record_rust_trait_method_reference_skips_for_fact(nodes, fact, method_counts, reason);
+            if reason == "cfg-affected" {
+                increment_count(
+                    conditional_suppression_counts,
+                    "trait-impl-edge-suppressed-cfg-affected",
+                );
+            }
+            record_rust_trait_method_reference_skips_for_fact(
+                nodes,
+                fact,
+                method_counts,
+                reason,
+                conditional_suppression_counts,
+            );
             continue;
         }
         let type_candidates = nodes
@@ -10827,6 +10895,7 @@ fn record_rust_trait_method_reference_skips_for_fact(
     fact: &RustTraitImplFact,
     counts: &mut BTreeMap<String, u32>,
     reason: &str,
+    conditional_suppression_counts: &mut BTreeMap<String, u32>,
 ) {
     let impl_prefix = format!("{}.", fact.type_name);
     for _ in nodes.iter().filter(|node| {
@@ -10837,6 +10906,12 @@ fn record_rust_trait_method_reference_skips_for_fact(
         increment_count(counts, "trait-method-reference-attempted");
         increment_count(counts, "trait-method-reference-skipped");
         increment_count(counts, &format!("trait-method-reference-skipped-{reason}"));
+        if reason == "cfg-affected" {
+            increment_count(
+                conditional_suppression_counts,
+                "trait-method-reference-suppressed-cfg-affected",
+            );
+        }
     }
 }
 
@@ -11064,7 +11139,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustTraitImplEdgeWriteCounts\":{},\"rustTraitMethodReferenceEdgeWriteCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustTraitImplEdgeWriteCounts\":{},\"rustTraitMethodReferenceEdgeWriteCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustCargoConditionSourceCounts\":{},\"rustCargoConditionalSemanticSuppressionCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -11214,6 +11289,12 @@ pub fn result_json(result: &IndexResult) -> String {
             &result
                 .profile
                 .rust_cargo_workspace_crate_candidate_counts
+        ),
+        fallback_sample_counts_json(&result.profile.rust_cargo_condition_source_counts),
+        fallback_sample_counts_json(
+            &result
+                .profile
+                .rust_cargo_conditional_semantic_suppression_counts
         ),
         fallback_sample_counts_json(&result.profile.rust_macro_taxonomy_counts),
         fallback_sample_counts_json(&result.profile.rust_axum_route_taxonomy_counts),
@@ -12505,6 +12586,158 @@ mod tests {
             )
             .unwrap();
         assert_eq!(cross_package_edges, 0);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rust_core_reports_cargo_cfg_condition_sources_and_suppression_diagnostics() {
+        let dir = temp_dir("rust-cargo-cfg-condition-diagnostics");
+        fs::create_dir_all(dir.join("crates/app/src/bin")).unwrap();
+        fs::write(
+            dir.join("Cargo.toml"),
+            [
+                "[workspace]",
+                "members = [\"crates/app\"]",
+                "",
+                "[target.'cfg(unix)'.dependencies]",
+                "mio = \"0.8\"",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("crates/app/Cargo.toml"),
+            [
+                "[package]",
+                "name = \"app\"",
+                "version = \"0.1.0\"",
+                "",
+                "[features]",
+                "server = []",
+                "",
+                "[dependencies]",
+                "serde = \"1\"",
+                "",
+                "[[bin]]",
+                "name = \"tool\"",
+                "path = \"src/bin/tool.rs\"",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("crates/app/src/lib.rs"),
+            [
+                "pub trait Worker {",
+                "    fn run(&self);",
+                "}",
+                "pub struct Service;",
+                "#[cfg(feature = \"server\")]",
+                "impl Worker for Service {",
+                "    fn run(&self) {}",
+                "}",
+                "#[cfg(target_os = \"linux\")]",
+                "pub fn linux_only() {}",
+                "#[cfg(test)]",
+                "pub fn test_only() {}",
+                "#[cfg(doc)]",
+                "pub fn doc_only() {}",
+                "#[cfg_attr(feature = \"server\", allow(dead_code))]",
+                "pub fn cfg_attr_entry() {}",
+                "pub fn generated_include() {",
+                "    include!(concat!(env!(\"OUT_DIR\"), \"/generated.rs\"));",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(dir.join("crates/app/src/bin/tool.rs"), "fn main() {}\n").unwrap();
+        fs::write(dir.join("build.rs"), "fn main() {}\n").unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let cargo_taxonomy = &result.profile.rust_cargo_workspace_taxonomy_counts;
+        assert_eq!(cargo_taxonomy.get("cargo-workspace-detected"), Some(&1));
+        assert_eq!(cargo_taxonomy.get("cargo-package-detected"), Some(&1));
+        assert_eq!(cargo_taxonomy.get("cargo-lib-root-detected"), Some(&1));
+        assert_eq!(cargo_taxonomy.get("cargo-bin-root-detected"), Some(&1));
+        assert_eq!(cargo_taxonomy.get("rust-file-owned-by-package"), Some(&2));
+        assert_eq!(
+            cargo_taxonomy.get("rust-file-owned-by-crate-root"),
+            Some(&2)
+        );
+        assert_eq!(cargo_taxonomy.get("feature-resolution-deferred"), Some(&1));
+        assert_eq!(
+            cargo_taxonomy.get("cfg-target-selection-deferred"),
+            Some(&1)
+        );
+        assert_eq!(
+            cargo_taxonomy.get("target-specific-dependency-deferred"),
+            Some(&1)
+        );
+        assert_eq!(cargo_taxonomy.get("registry-dependency-deferred"), Some(&1));
+        assert_eq!(cargo_taxonomy.get("build-rs-deferred"), Some(&1));
+
+        let condition_counts = &result.profile.rust_cargo_condition_source_counts;
+        assert_eq!(condition_counts.get("cfg-feature-gated-item"), Some(&2));
+        assert_eq!(condition_counts.get("cfg-target-gated-item"), Some(&1));
+        assert_eq!(condition_counts.get("cfg-test-only-item"), Some(&1));
+        assert_eq!(condition_counts.get("cfg-doc-only-item"), Some(&1));
+        assert_eq!(condition_counts.get("cfg-attr-affected-item"), Some(&1));
+        assert_eq!(
+            condition_counts.get("conditionally-present-rust-item"),
+            Some(&5)
+        );
+
+        let suppression_counts = &result
+            .profile
+            .rust_cargo_conditional_semantic_suppression_counts;
+        assert_eq!(
+            suppression_counts.get("trait-impl-edge-suppressed-cfg-affected"),
+            Some(&1)
+        );
+        assert_eq!(
+            suppression_counts.get("trait-method-reference-suppressed-cfg-affected"),
+            Some(&1)
+        );
+
+        let macro_counts = &result.profile.rust_macro_taxonomy_counts;
+        assert_eq!(
+            macro_counts.get("generated-code-no-go-build-script"),
+            Some(&1)
+        );
+        assert_eq!(macro_counts.get("generated-code-no-go-include"), Some(&1));
+        assert_eq!(macro_counts.get("generated-code-no-go-out-dir"), Some(&1));
+
+        let json: Value = serde_json::from_str(&result_json(&result)).unwrap();
+        assert_eq!(
+            json["profile"]["rustCargoConditionSourceCounts"]["cfg-feature-gated-item"],
+            2
+        );
+        assert_eq!(
+            json["profile"]["rustCargoConditionalSemanticSuppressionCounts"]
+                ["trait-impl-edge-suppressed-cfg-affected"],
+            1
+        );
         fs::remove_dir_all(dir).unwrap();
     }
 
