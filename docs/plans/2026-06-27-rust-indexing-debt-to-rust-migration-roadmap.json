@@ -1041,12 +1041,33 @@
     "1-1-2-4-1": {
       "id": "1-1-2-4-1",
       "label": "Candidate producer shadow diagnostics",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1-2-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "What is the thirteenth cut scope?",
+          "answer": "Split only the candidate producer shadow diagnostics test into __tests__/rust-index-engine-cli-candidate-producer-diagnostics.test.ts.",
+          "note": "Include . Leave graph stability and local routing config tests under 1-1-2-4-2 for the fourteenth cut."
+        },
+        {
+          "q": "Correction: what exact test belongs to the thirteenth cut?",
+          "answer": "Move exactly one diagnostics test: writes Rust candidate producer shadow diagnostics for exact, lower, and known-name lookups.",
+          "note": "This corrects the previous note where shell command substitution stripped the backtick-wrapped test name. Graph stability and local routing config tests remain under 1-1-2-4-2."
+        },
+        {
+          "q": "Is the thirteenth cut test-only?",
+          "answer": "Yes. It is a test-only split with no production-code changes.",
+          "note": "Create __tests__/rust-index-engine-cli-candidate-producer-diagnostics.test.ts, move only the diagnostics profile test, keep both graph stability/routing tests under 1-1-2-4-2, then verify with the focused vitest pair, npm run build, and git diff --check."
+        },
+        {
+          "q": "Which issue tracks the thirteenth cut?",
+          "answer": "GitHub issue #625 tracks the candidate producer diagnostics test split.",
+          "note": "Ready-for-agent issue: Split Rust indexing candidate producer diagnostics test. Acceptance is exactly one diagnostics profile test moved into __tests__/rust-index-engine-cli-candidate-producer-diagnostics.test.ts, with graph stability/routing tests left under 1-1-2-4-2 and no production code."
+        }
+      ],
+      "notes": "#625 completed: moved exactly one candidate producer shadow diagnostics profile test into __tests__/rust-index-engine-cli-candidate-producer-diagnostics.test.ts; kept graph stability and local routing config tests under 1-1-2-4-2 and made no production-code changes. Verification: npx vitest run __tests__/rust-index-engine-cli-candidate-producer-diagnostics.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
     },
     "1-1-2-4-2": {
       "id": "1-1-2-4-2",
@@ -1154,7 +1175,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 01:52:42",
+    "updated": "2026-06-28 02:04:16",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"

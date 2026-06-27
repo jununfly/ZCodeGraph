@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 01:52:42
+> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 02:04:16
 
 [~][X+] 1. Rust Indexing Debt To Rust Migration Roadmap
 ├── [~][X+] 1-1. Technical debt governance staging before migration resumes
