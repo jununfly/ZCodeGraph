@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-27 21:47:52
+> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-27 22:09:31
 
 [~][X+] 1. Rust Indexing Debt To Rust Migration Roadmap
 ├── [~][X+] 1-1. Technical debt governance staging before migration resumes
@@ -53,4 +53,8 @@
     ├── [ ][X+] 1-8-3. No performance target as primary success criterion
     ├── [ ][X+] 1-8-4. Agent Sufficiency guardrail trigger when graph semantics change
     └── [ ][X+] 1-8-5. Closeout decision before new migration implementation issues
+
+### 当前施工：1-1-2-5. Language framework sufficiency smoke test cluster
+
+Fifth-cut target selected. Scope should split language/framework/MCP smoke tests from the Rust indexing CLI giant suite into a focused file while preserving observable behavior. Candidate scope includes JS/TS/JSX/TSX/Rust/Go/Gin/MCP smoke coverage and direct Rust core language/error artifact tests if they are smoke-style language coverage. Keep module-resolution/finalization, candidate producer, and remaining resolver semantics out of scope.
 <!-- ROADMAP_SECTION_END -->

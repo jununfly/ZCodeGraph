@@ -170,6 +170,16 @@
           "q": "What should the third cut target?",
           "answer": "Target 1-1-2-2 Fallback degraded doctor status test cluster.",
           "note": "This is the safest next exploit after CLI/default/init/profile split: adjacent public behavior, user-visible diagnostics/status, and no module-resolution/finalization semantic complexity."
+        },
+        {
+          "q": "What should the fourth cut target?",
+          "answer": "Target 1-1-2-6 Failure safety lock package artifact test cluster.",
+          "note": "This is the next safest exploit cluster after CLI/default and fallback/degraded splits: it keeps the work in test-structure governance, covers CI/release trust boundaries, and avoids resolver/finalization semantic complexity."
+        },
+        {
+          "q": "What should the fifth cut target?",
+          "answer": "Target 1-1-2-5 Language framework sufficiency smoke test cluster.",
+          "note": "Convert this explore candidate into a narrow exploit slice focused on test-structure decomposition only: JS/TS/Go/Gin/Rust/MCP smoke tests can be split without changing semantics, while module-resolution/finalization and candidate producer remain deferred."
         }
       ],
       "notes": "Second-cut candidate map created from `__tests__/rust-index-engine-cli.test.ts` public behavior surfaces. Current file remains large (~92 tests / ~4.8k lines) after first helper extraction, so follow-up work should split by observable behavior, not production internals.\n\nCandidate clusters:\n1-1-2-1 CLI engine default init profile test cluster: safest first exploit. Covers default rust-hybrid, explicit TypeScript/rust escape hatches, graph work profile, SQLite write mode, heap profile, stale env rejection, packaged Rust subprocess, init behavior, profile-out behavior, and status metadata.\n1-1-2-2 Fallback degraded doctor status test cluster: exploit after CLI cluster or when diagnostics wording changes. Covers Rust-owned gap, sparse fallback, fallback append, generated files, doctor/status consistency.\n1-1-2-3 Module resolution finalization test cluster: valuable but higher semantic coupling. Covers file imports, aliases, package maps, declaration/runtime pairing, ESM named/default/re-export symbol edges, and finalization cleanup diagnostics.\n1-1-2-4 Candidate producer shadow routing test cluster: explore-first because it sits close to resolver migration semantics and experimental routing.\n1-1-2-5 Language framework sufficiency smoke test cluster: explore-first because it mixes language support and sufficiency guardrails across JS/TS/Go/Gin/Rust/MCP.\n1-1-2-6 Failure safety lock package artifact test cluster: exploit candidate when CI/release guardrails need local test separation. Covers lock preservation, package layout, failure safety, and packaged artifact behavior.\n\nSecond-cut implementation issue should target only 1-1-2-1. Remaining clusters stay as roadmap candidates."
@@ -784,27 +794,38 @@
     "1-1-2-5": {
       "id": "1-1-2-5",
       "label": "Language framework sufficiency smoke test cluster",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-1-2",
-      "children": [],
-      "decisions": [],
-      "notes": ""
-    },
-    "1-1-2-6": {
-      "id": "1-1-2-6",
-      "label": "Failure safety lock package artifact test cluster",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-1-2",
       "children": [],
       "decisions": [],
-      "notes": ""
+      "notes": "Fifth-cut target selected. Scope should split language/framework/MCP smoke tests from the Rust indexing CLI giant suite into a focused file while preserving observable behavior. Candidate scope includes JS/TS/JSX/TSX/Rust/Go/Gin/MCP smoke coverage and direct Rust core language/error artifact tests if they are smoke-style language coverage. Keep module-resolution/finalization, candidate producer, and remaining resolver semantics out of scope."
+    },
+    "1-1-2-6": {
+      "id": "1-1-2-6",
+      "label": "Failure safety lock package artifact test cluster",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-1-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Which tests belong to the failure safety lock package artifact fourth cut?",
+          "answer": "Move only active-index preservation and project lock safety tests into a focused Rust indexing CLI failure-safety test file.",
+          "note": "Include Rust binary unavailable active-index preservation, writer lock conflict active-index preservation, and terminated Rust subprocess lock cleanup/retry. Exclude fallback doctor hint already moved under #614, module-resolution package semantics, direct Rust core language/error artifact tests, MCP status, candidate producer, and language sufficiency."
+        },
+        {
+          "q": "Should the fourth cut be split into sub-nodes before issue creation?",
+          "answer": "No. Publish one ready-for-agent implementation issue directly from node 1-1-2-6.",
+          "note": "The slice is already narrow: three failure-safety/lock tests, confirmed include/exclude list, no production behavior change, and lightweight structural acceptance."
+        }
+      ],
+      "notes": "Published as #615 and implemented. Active-index preservation and project lock safety tests were split into __tests__/rust-index-engine-cli-failure-safety.test.ts. Fallback doctor hint, module-resolution package semantics, direct Rust core language/error artifact tests, MCP status, candidate producer, and language sufficiency remain in their existing clusters. Verification: npx vitest run __tests__/rust-index-engine-cli-failure-safety.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-27 21:47:52",
+    "updated": "2026-06-27 22:09:31",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
