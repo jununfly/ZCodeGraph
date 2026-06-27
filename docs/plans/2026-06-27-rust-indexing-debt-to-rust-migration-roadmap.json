@@ -896,7 +896,7 @@
     "1-1-2-3-2": {
       "id": "1-1-2-3-2",
       "label": "Local exact reference and ESM direct binding edges",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1-2-3",
       "children": [
@@ -1051,17 +1051,28 @@
     "1-1-2-3-2-1": {
       "id": "1-1-2-3-2-1",
       "label": "Value-token and interface collision guarded routing residual",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1-2-3-2",
       "children": [],
-      "decisions": [],
-      "notes": "Residual discovered while planning the eighth cut. Tracks the test named routes guarded value-token plus interface imports only when value usage is visible. Keep it out of 1-1-2-3-3 because its semantic boundary is value/type namespace collision within direct named binding, not default import, namespace dependency, or one-hop re-export."
+      "decisions": [
+        {
+          "q": "What is the ninth cut after ESM default/re-export tests?",
+          "answer": "Close the direct binding residual first: 1-1-2-3-2-1 Value-token and interface collision guarded routing residual.",
+          "note": "This keeps 1-1-2-3-2 from remaining half-open before moving to declaration/runtime and package semantics."
+        },
+        {
+          "q": "Should the ninth cut publish an implementation issue?",
+          "answer": "Yes. Publish one ready-for-agent issue for the focused ESM value-token/interface collision test split.",
+          "note": "Move exactly one test into __tests__/rust-index-engine-cli-esm-value-token.test.ts: routes guarded value-token plus interface imports only when value usage is visible. Exclude declaration/runtime, package semantics, default/re-export, direct named binding, file-level import diagnostics, candidate producer, fallback/language/failure-safety, and finalization cleanup."
+        }
+      ],
+      "notes": "#621 completed: moved exactly one guarded value-token/interface collision test into __tests__/rust-index-engine-cli-esm-value-token.test.ts; kept unrelated declaration/runtime, package, default/re-export, diagnostics, candidate, fallback, and production-code clusters untouched. Verification: npx vitest run __tests__/rust-index-engine-cli-esm-value-token.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 00:45:40",
+    "updated": "2026-06-28 01:04:30",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
