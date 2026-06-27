@@ -896,10 +896,12 @@
     "1-1-2-3-2": {
       "id": "1-1-2-3-2",
       "label": "Local exact reference and ESM direct binding edges",
-      "status": "completed",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-1-2-3",
-      "children": [],
+      "children": [
+        "1-1-2-3-2-1"
+      ],
       "decisions": [
         {
           "q": "What is the seventh cut after file-level import diagnostics?",
@@ -932,12 +934,33 @@
     "1-1-2-3-3": {
       "id": "1-1-2-3-3",
       "label": "ESM default namespace and re-export guarded edges",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-1-2-3",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "What is the eighth cut after direct named ESM binding?",
+          "answer": "Continue sibling order with 1-1-2-3-3 ESM default namespace and re-export guarded edges.",
+          "note": "This follows file-level import diagnostics and direct named binding by moving into default import, namespace/value-token, and one-hop re-export guarded edge tests before declaration/runtime and package semantics."
+        },
+        {
+          "q": "Should value-token plus interface guarded routing be included in the eighth cut?",
+          "answer": "No. Exclude value-token plus interface guarded routing from 1-1-2-3-3.",
+          "note": "Although guarded routing is involved, the semantic boundary is value/type namespace collision within direct named binding residuals, not default import, namespace file dependency, or one-hop re-export behavior."
+        },
+        {
+          "q": "Should bounded ESM named binding fallback sample aggregation be included in the eighth cut?",
+          "answer": "Yes. Include the bounded ESM named binding fallback samples profile artifact test because it covers one-hop re-export fallback sample taxonomy.",
+          "note": "Move it as an aggregate profile test without modifying assertions or broadening semantics. The issue must say it is included for re-export fallback sample coverage and must not pull value-token/interface collision or generic direct binding residual work into this cut."
+        },
+        {
+          "q": "Should the eighth cut publish an implementation issue?",
+          "answer": "Yes. Publish one ready-for-agent issue for the focused ESM default import and re-export test split.",
+          "note": "Move exactly five tests into __tests__/rust-index-engine-cli-esm-default-reexport.test.ts: default import success, default import fail-closed taxonomy, relative one-hop named re-export, paths-alias one-hop named re-export, and bounded ESM named binding fallback samples profile artifact. Exclude value-token/interface collision residual, direct named binding, file-level import diagnostics, declaration/runtime pairing, package semantics, candidate producer, fallback/language/failure-safety, and finalization cleanup."
+        }
+      ],
+      "notes": "Completed in #620. Moved exactly five ESM default/re-export tests into __tests__/rust-index-engine-cli-esm-default-reexport.test.ts: default import success, default import fail-closed taxonomy, relative one-hop named re-export, paths-alias one-hop named re-export, and bounded ESM named binding fallback samples profile artifact. Kept value-token/interface collision residual tracked by 1-1-2-3-2-1, direct named binding, file-level import diagnostics, declaration/runtime pairing, package semantics, candidate producer, fallback/language/failure-safety, and finalization cleanup tests in their existing clusters. Verification: npx vitest run __tests__/rust-index-engine-cli-esm-default-reexport.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
     },
     "1-1-2-3-4": {
       "id": "1-1-2-3-4",
@@ -1024,11 +1047,21 @@
       "children": [],
       "decisions": [],
       "notes": "Follow-up from zcodegraph index on this repo at commit c652deab: cargo check passes, but rust-hybrid records rust-owned-parse-gap for crates/zcodegraph-core/src/lib.rs. Classify the legal-Rust parser gap and decide whether it is grammar limitation, normalization issue, macro/cfg/test-fixture shape, or extractor recoverability work. The graph remains usable; this is not a release blocker by itself."
+    },
+    "1-1-2-3-2-1": {
+      "id": "1-1-2-3-2-1",
+      "label": "Value-token and interface collision guarded routing residual",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1-2-3-2",
+      "children": [],
+      "decisions": [],
+      "notes": "Residual discovered while planning the eighth cut. Tracks the test named routes guarded value-token plus interface imports only when value usage is visible. Keep it out of 1-1-2-3-3 because its semantic boundary is value/type namespace collision within direct named binding, not default import, namespace dependency, or one-hop re-export."
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 00:18:56",
+    "updated": "2026-06-28 00:45:40",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
