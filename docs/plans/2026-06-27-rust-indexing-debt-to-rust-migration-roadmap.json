@@ -999,8 +999,17 @@
       "status": "pending",
       "mode": "exploit",
       "parent": "1-1-2-3",
-      "children": [],
-      "decisions": [],
+      "children": [
+        "1-1-2-3-5-1",
+        "1-1-2-3-5-2"
+      ],
+      "decisions": [
+        {
+          "q": "Should package semantics split before the eleventh cut?",
+          "answer": "Yes. Split package semantics into package imports hash-specifier semantics and package self-name/exports semantics.",
+          "note": "The remaining package cluster has nine tests with two distinct semantic entry points. The eleventh cut should only take package imports #... tests; self-name/exports stays separate."
+        }
+      ],
       "notes": ""
     },
     "1-1-2-3-6": {
@@ -1089,11 +1098,47 @@
         }
       ],
       "notes": "#621 completed: moved exactly one guarded value-token/interface collision test into __tests__/rust-index-engine-cli-esm-value-token.test.ts; kept unrelated declaration/runtime, package, default/re-export, diagnostics, candidate, fallback, and production-code clusters untouched. Verification: npx vitest run __tests__/rust-index-engine-cli-esm-value-token.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
+    },
+    "1-1-2-3-5-1": {
+      "id": "1-1-2-3-5-1",
+      "label": "Package imports hash-specifier module edge semantics",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-1-2-3-5",
+      "children": [],
+      "decisions": [
+        {
+          "q": "What exact tests belong to package imports hash-specifier semantics?",
+          "answer": "Include the five package imports #... tests: diagnostics, direct key edge, pattern/condition edge, fail-closed taxonomy, and declaration target runtime sibling rewrite.",
+          "note": "The declaration target rewrite test belongs here because its semantic entry point is package imports resolution (#typed), not bare declaration/runtime pairing."
+        },
+        {
+          "q": "Is the eleventh cut test-only?",
+          "answer": "Yes. It is a test-only split with no production-code changes.",
+          "note": "Create __tests__/rust-index-engine-cli-package-imports.test.ts, move only the five package imports tests, keep package self-name/exports and all other clusters in place, then verify with the focused vitest pair, npm run build, and git diff --check."
+        },
+        {
+          "q": "Which issue tracks the eleventh cut?",
+          "answer": "GitHub issue #623 tracks the package imports hash-specifier test split.",
+          "note": "Ready-for-agent issue: Split Rust indexing package imports tests. Acceptance is exactly five package imports tests moved into __tests__/rust-index-engine-cli-package-imports.test.ts, no package self-name/exports tests, no production code."
+        }
+      ],
+      "notes": "#623 completed: moved exactly five package imports hash-specifier tests into __tests__/rust-index-engine-cli-package-imports.test.ts; kept package self-name/exports tests under 1-1-2-3-5-2 and made no production-code changes. Verification: npx vitest run __tests__/rust-index-engine-cli-package-imports.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
+    },
+    "1-1-2-3-5-2": {
+      "id": "1-1-2-3-5-2",
+      "label": "Package self-name and exports module edge semantics",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1-2-3-5",
+      "children": [],
+      "decisions": [],
+      "notes": ""
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 01:20:39",
+    "updated": "2026-06-28 01:42:43",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
