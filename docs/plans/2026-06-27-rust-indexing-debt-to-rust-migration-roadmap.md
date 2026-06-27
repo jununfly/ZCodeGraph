@@ -1,12 +1,12 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-27 20:55:00
+> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-27 21:47:52
 
 [~][X+] 1. Rust Indexing Debt To Rust Migration Roadmap
 ├── [~][X+] 1-1. Technical debt governance staging before migration resumes
 │   ├── [x][X+] 1-1-1. Current Rust indexing debt inventory and ownership map
-│   ├── [ ][Y+] 1-1-2. Rust core giant test module decomposition candidates
+│   ├── [~][Y+] 1-1-2. Rust core giant test module decomposition candidates
 │   ├── [ ][Y+] 1-1-3. Cross-platform CI and release stability debt candidates
 │   ├── [ ][X+] 1-1-4. Plan benchmark evidence lifecycle cleanup rules
 │   └── [ ][X+] 1-1-5. Debt governance closeout decision before migration resumes

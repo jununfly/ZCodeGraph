@@ -129,12 +129,50 @@
     "1-1-2": {
       "id": "1-1-2",
       "label": "Rust core giant test module decomposition candidates",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-1",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-1-2-1",
+        "1-1-2-2",
+        "1-1-2-3",
+        "1-1-2-4",
+        "1-1-2-5",
+        "1-1-2-6"
+      ],
+      "decisions": [
+        {
+          "q": "What should the second cut produce?",
+          "answer": "Produce a narrow decomposition candidate map first, then select exactly one safest exploit issue.",
+          "note": "The previous helper extraction reduced setup duplication, but the remaining giant test surface still needs behavior-cluster mapping before more splitting."
+        },
+        {
+          "q": "How should remaining giant test decomposition candidates be grouped?",
+          "answer": "Group by public behavior surface rather than production module ownership.",
+          "note": "Test decomposition should keep behavior contracts stable across production refactors: CLI/default/init/profile, fallback/degraded/status/doctor, module-resolution/finalization, candidate producer diagnostics, language/framework sufficiency, and failure/package safety."
+        },
+        {
+          "q": "Where should the second-cut candidate map live?",
+          "answer": "Write it into node 1-1-2 notes and add 4-6 child sub-nodes as follow-up candidates; do not create a separate plan document.",
+          "note": "This keeps the decomposition map visible in the roadmap without adding temporary process documents."
+        },
+        {
+          "q": "Should the second cut publish an implementation issue?",
+          "answer": "Yes. Publish exactly one safest ready-for-agent issue from the child sub-node candidates; keep the remaining candidates only in the roadmap.",
+          "note": "This keeps momentum without opening too many parallel test-decomposition fronts."
+        },
+        {
+          "q": "How should the safest implementation candidate be selected?",
+          "answer": "Prefer a cluster with existing helper support, a clear public behavior boundary, and no resolver/finalization semantic complexity.",
+          "note": "This points first to the CLI engine/default/init/profile cluster rather than module-resolution/finalization or candidate producer tests."
+        },
+        {
+          "q": "What should the third cut target?",
+          "answer": "Target 1-1-2-2 Fallback degraded doctor status test cluster.",
+          "note": "This is the safest next exploit after CLI/default/init/profile split: adjacent public behavior, user-visible diagnostics/status, and no module-resolution/finalization semantic complexity."
+        }
+      ],
+      "notes": "Second-cut candidate map created from `__tests__/rust-index-engine-cli.test.ts` public behavior surfaces. Current file remains large (~92 tests / ~4.8k lines) after first helper extraction, so follow-up work should split by observable behavior, not production internals.\n\nCandidate clusters:\n1-1-2-1 CLI engine default init profile test cluster: safest first exploit. Covers default rust-hybrid, explicit TypeScript/rust escape hatches, graph work profile, SQLite write mode, heap profile, stale env rejection, packaged Rust subprocess, init behavior, profile-out behavior, and status metadata.\n1-1-2-2 Fallback degraded doctor status test cluster: exploit after CLI cluster or when diagnostics wording changes. Covers Rust-owned gap, sparse fallback, fallback append, generated files, doctor/status consistency.\n1-1-2-3 Module resolution finalization test cluster: valuable but higher semantic coupling. Covers file imports, aliases, package maps, declaration/runtime pairing, ESM named/default/re-export symbol edges, and finalization cleanup diagnostics.\n1-1-2-4 Candidate producer shadow routing test cluster: explore-first because it sits close to resolver migration semantics and experimental routing.\n1-1-2-5 Language framework sufficiency smoke test cluster: explore-first because it mixes language support and sufficiency guardrails across JS/TS/Go/Gin/Rust/MCP.\n1-1-2-6 Failure safety lock package artifact test cluster: exploit candidate when CI/release guardrails need local test separation. Covers lock preservation, package layout, failure safety, and packaged artifact behavior.\n\nSecond-cut implementation issue should target only 1-1-2-1. Remaining clusters stay as roadmap candidates."
     },
     "1-1-3": {
       "id": "1-1-3",
@@ -685,11 +723,89 @@
       "children": [],
       "decisions": [],
       "notes": ""
+    },
+    "1-1-2-1": {
+      "id": "1-1-2-1",
+      "label": "CLI engine default init profile test cluster",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-1-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "What acceptance bar should the selected test-decomposition issue use?",
+          "answer": "Use lightweight structural criteria, not performance targets.",
+          "note": "The issue should move the CLI engine/default/init/profile cluster into a focused test surface, reduce the giant file's scope, preserve assertions and behavior, and avoid runtime goals."
+        }
+      ],
+      "notes": "Published as #613 and implemented. CLI engine/default/init/profile/status tests were split into `__tests__/rust-index-engine-cli-engine.test.ts` using shared Rust indexing CLI helpers. The original Rust indexing CLI suite now keeps fallback/degraded, module-resolution/finalization, candidate producer, language sufficiency, and failure-safety tests in place. Verification: `npx vitest run __tests__/rust-index-engine-cli-engine.test.ts __tests__/rust-index-engine-cli.test.ts`; `npm run build`; `git diff --check`."
+    },
+    "1-1-2-2": {
+      "id": "1-1-2-2",
+      "label": "Fallback degraded doctor status test cluster",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-1-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Which tests belong to the fallback/degraded doctor status third cut?",
+          "answer": "Move fallback/degraded metadata plus CLI/doctor/status presentation tests into a focused Rust indexing CLI fallback test file.",
+          "note": "Include rust-hybrid fallback planning, Rust-owned gap diagnostics, sparse-missing fallback metadata, no same-language fallback append, CLI degraded warning/errors log, partial-write gap blocking, concise fallback summary, fallback append behavior, generated Go metadata, and rust-hybrid failure doctor hint. Exclude language sufficiency/ownership tests, failure-safety index preservation, module-resolution/finalization fallback samples, candidate producer diagnostics, and MCP status."
+        },
+        {
+          "q": "Should the third cut be split into sub-nodes before issue creation?",
+          "answer": "No. Publish one ready-for-agent implementation issue directly from node 1-1-2-2.",
+          "note": "The slice is already narrow: test-file decomposition only, confirmed include/exclude list, no production behavior change, and lightweight structural acceptance. Sub-node splitting would add process overhead without improving execution clarity."
+        }
+      ],
+      "notes": "Published as #614 and implemented. Fallback/degraded metadata plus CLI/doctor/status presentation tests were split into __tests__/rust-index-engine-cli-fallback.test.ts. Language sufficiency/ownership, failure-safety index preservation, module-resolution/finalization fallback samples, candidate producer diagnostics, and MCP status tests remain in their existing clusters. Verification: npx vitest run __tests__/rust-index-engine-cli-fallback.test.ts __tests__/rust-index-engine-cli.test.ts; npm run build; git diff --check."
+    },
+    "1-1-2-3": {
+      "id": "1-1-2-3",
+      "label": "Module resolution finalization test cluster",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-2-4": {
+      "id": "1-1-2-4",
+      "label": "Candidate producer shadow routing test cluster",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-2-5": {
+      "id": "1-1-2-5",
+      "label": "Language framework sufficiency smoke test cluster",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-2-6": {
+      "id": "1-1-2-6",
+      "label": "Failure safety lock package artifact test cluster",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-27 20:55:00",
+    "updated": "2026-06-27 21:47:52",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
-  }
+  },
+  "current": "1-1-2"
 }
