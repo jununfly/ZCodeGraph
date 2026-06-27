@@ -2,9 +2,11 @@
 
 Date: 2026-06-26
 
-Status: draft for a future feature branch.
+Status: completed for the bounded feature branch.
 
 Related feedback: #565
+
+Closeout: `docs/plans/2026-06-27-rust-language-semantic-support-closeout.md`
 
 ## Problem
 
@@ -94,10 +96,30 @@ sufficiency smoke.
 - Unsupported Rust semantic features produce clear taxonomy rather than silent
   wrong edges.
 
+## Completion Summary
+
+Completed on branch `codex/rust-language-semantic-support-prd`.
+
+The branch implemented the bounded Rust language semantic support track:
+
+- Rust-owned `.rs` baseline indexing under `rust-hybrid`;
+- repo-local module path resolution;
+- bounded trait/impl structural relationships with fail-closed guards;
+- Cargo workspace/package/cfg diagnostics;
+- macro/cfg/generated-code taxonomy;
+- bounded source-visible route wiring for Axum and attribute routes;
+- route/framework runtime no-go taxonomy and future oracle exit.
+
+The durable closeout is recorded in
+`docs/plans/2026-06-27-rust-language-semantic-support-closeout.md`.
+
+This completion does not claim full Rust compiler semantics. Macro expansion,
+active cfg/feature resolution, rustc privacy exactness, cross-crate trait
+coherence, external dependency graph semantics, and runtime-accurate framework
+graphs remain explicit semantic frontiers.
+
 ## Open Questions
 
-- Which real Rust repository should be the first validation corpus?
-- Should the first implementation slice focus on module paths, traits, or a
-  framework such as Axum/Rocket?
-- Should deeper Rust analysis eventually use `rust-analyzer` data, tree-sitter
-  plus bounded heuristics, or a hybrid of both?
+- Deeper Rust analysis may later use `rust-analyzer`, rustc, rustdoc, cargo
+  metadata, framework metadata, tree-sitter plus bounded heuristics, or a hybrid
+  of those sources. That requires a new PRD before implementation.

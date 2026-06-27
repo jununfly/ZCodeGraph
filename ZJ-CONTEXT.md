@@ -27,6 +27,26 @@
 
 **Related terms:** Explore Answer, Read/Grep Fallback.
 
+### Rust-Owned Indexing
+
+**Definition:** A ZCodeGraph indexing ownership state where the Rust-backed core is responsible for extracting graph facts for a language on the default `rust-hybrid` path.
+
+**Use when:** Distinguishing which implementation path owns a source language, especially when explaining `rust-hybrid` status, doctor output, fallback taxonomy, or language support tables.
+
+**Not:** A claim that the Rust programming language has compiler-grade semantic support. Rust-owned indexing is about which engine owns extraction, not the depth of language semantics.
+
+**Related terms:** Rust Language Semantic Support, Semantic Frontier, Evidence Artifact.
+
+### Rust Language Semantic Support
+
+**Definition:** The degree to which ZCodeGraph can answer Rust programming-language questions about `.rs` files, including module paths, traits, macros, Cargo semantics, visibility, and framework route patterns.
+
+**Use when:** Planning or describing Rust-specific graph capability and its frontiers.
+
+**Not:** The same as `rust-hybrid`. `rust-hybrid` is an indexing engine path; Rust Language Semantic Support is the product capability for Rust code understanding.
+
+**Related terms:** Rust-Owned Indexing, Agent Sufficiency, Bounded Slice, Semantic Frontier.
+
 ### Explore Answer
 
 **Definition:** The answer that an Explore handler produces from a user's query and the current code graph. It is a bounded hypothesis about what code context the agent needs next: narrowed to a specific Evidence Scope, prioritized by Evidence Value, and subject to Output Budget and freshness constraints.
