@@ -16,6 +16,8 @@ describe('CI Rust packaged path coverage', () => {
     expect(workflow).toContain('ubuntu-latest');
     expect(workflow).toContain('macos-14');
     expect(workflow).toContain('windows-2025');
+    expect(workflow).toContain('actions/setup-node@v6');
+    expect(workflow).toContain('node-version: 22');
     expect(workflow).toContain('npm ci');
     expect(workflow).toContain('npm run build');
     expect(workflow).toContain('cargo test');

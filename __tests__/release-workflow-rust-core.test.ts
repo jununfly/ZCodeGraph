@@ -84,4 +84,18 @@ describe('Release workflow Rust core artifacts', () => {
     expect(workflow).toContain('https://registry.npmmirror.com/-/package/$enc/syncs');
     expect(workflow).toContain('curl -s -X PUT');
   });
+
+  it('guards release Node runtime and package-lock sync semantics', () => {
+    expect(workflow).toContain('actions/setup-node@v6');
+    expect(workflow).toContain('node-version: 22');
+    expect(workflow).toContain('registry-url: https://registry.npmjs.org');
+
+    expect(workflow).toContain('Sync package-lock.json if version drifted');
+    expect(workflow).toContain('PKG_V=$(node -p "require(\'./package.json\').version")');
+    expect(workflow).toContain('LOCK_V=$(node -p "require(\'./package-lock.json\').version")');
+    expect(workflow).toContain('npm install --package-lock-only --ignore-scripts');
+    expect(workflow).toContain('git add package-lock.json');
+    expect(workflow).toContain('release: sync package-lock.json to ${PKG_V}');
+    expect(workflow).toContain('npm ci');
+  });
 });

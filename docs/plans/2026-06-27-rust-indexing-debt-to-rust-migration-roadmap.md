@@ -1,13 +1,13 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 10:50:21
+> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 11:03:58
 
 [~][X+] 1. Rust Indexing Debt To Rust Migration Roadmap
 ├── [~][X+] 1-1. Technical debt governance staging before migration resumes
 │   ├── [x][X+] 1-1-1. Current Rust indexing debt inventory and ownership map
 │   ├── [x][Y+] 1-1-2. Rust core giant test module decomposition candidates
-│   ├── [~][Y+] 1-1-3. Cross-platform CI and release stability debt candidates
+│   ├── [x][Y+] 1-1-3. Cross-platform CI and release stability debt candidates
 │   ├── [ ][X+] 1-1-4. Plan benchmark evidence lifecycle cleanup rules
 │   └── [ ][X+] 1-1-5. Debt governance closeout decision before migration resumes
 ├── [ ][X+] 1-2. Rust core architecture clarity for future migration
@@ -53,13 +53,4 @@
     ├── [ ][X+] 1-8-3. No performance target as primary success criterion
     ├── [ ][X+] 1-8-4. Agent Sufficiency guardrail trigger when graph semantics change
     └── [ ][X+] 1-8-5. Closeout decision before new migration implementation issues
-
-### 当前施工：1-1-3-4. Cross-platform SQLite file-lock regression guardrails
-
-Ready-for-agent issue #631 published: add targeted CI SQLite/file-lock regression guardrail coverage in the cross-platform Rust packaged-path job.
-
-**决策：**
-- Q: What is the eighteenth cut after release credential/publishing guardrails? → Proceed with cross-platform SQLite/file-lock regression guardrail audit and a narrow CI coverage slice. (This is the next release-trust risk surface: SQLite WAL/busy_timeout, ToolHandler default connection reuse, and Rust project lock failure-safety should be guarded by targeted cross-platform CI rather than relying on broad or local-only tests.)
-- Q: Which issue tracks the cross-platform SQLite/file-lock CI guardrail slice? → GitHub issue #631 tracks the implementation. (The issue is labeled enhancement + ready-for-agent and scoped to targeted CI invocation plus workflow contract coverage for SQLite backend/WAL, concurrent locking, and Rust project-lock failure-safety tests.)
-- Q: What was implemented for issue #631? → The cross-platform CI Rust packaged-path job now includes a targeted SQLite and file-lock guardrail step, and the CI workflow contract test locks that step to the referenced guardrail test files. (This keeps SQLite/indexing behavior unchanged while ensuring release-trust CI exercises node-sqlite WAL/backend reporting, concurrent DB access, and Rust project lock failure-safety on Linux, macOS, and Windows.)
 <!-- ROADMAP_SECTION_END -->

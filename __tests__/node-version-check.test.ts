@@ -7,7 +7,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from '../src/bin/node-version-check';
+
+const root = path.resolve(__dirname, '..');
 
 describe('buildNode25BlockBanner', () => {
   it('embeds the reported Node version in the header', () => {
@@ -65,5 +69,19 @@ describe('buildNodeTooOldBanner', () => {
 
   it('documents the CODEGRAPH_ALLOW_UNSAFE_NODE override', () => {
     expect(buildNodeTooOldBanner('18.0.0')).toContain('CODEGRAPH_ALLOW_UNSAFE_NODE=1');
+  });
+});
+
+describe('Node runtime support contract', () => {
+  it('keeps package engines, CLI hard-block floor, and agent guidance aligned', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as {
+      engines: { node: string };
+    };
+    const agents = fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8');
+
+    expect(pkg.engines.node).toBe('>=20.0.0 <25.0.0');
+    expect(MIN_NODE_MAJOR).toBe(20);
+    expect(agents).toContain('Node engines: `>=20.0.0 <25.0.0`');
+    expect(agents).not.toContain('Node engines: `>=18.0.0 <25.0.0`');
   });
 });
