@@ -11,7 +11,7 @@ export const RUST_CORE_RELEASE_TARGETS = [
   {
     releaseTarget: 'darwin-x64',
     rustTargetTriple: 'x86_64-apple-darwin',
-    runner: 'macos-13',
+    runner: 'macos-15-intel',
     strategy: 'native-github-hosted-runner',
     setupCommands: [],
   },

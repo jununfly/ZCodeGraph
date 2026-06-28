@@ -1234,12 +1234,33 @@
     "1-1-3-2": {
       "id": "1-1-3-2",
       "label": "Release workflow Rust core target matrix and artifact contract",
-      "status": "pending",
-      "mode": "explore",
+      "status": "completed",
+      "mode": "exploit",
       "parent": "1-1-3",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "What is the sixteenth cut after CI packaged-path coverage was fixed?",
+          "answer": "Proceed with Release workflow Rust core target matrix and artifact contract audit.",
+          "note": "This follows the CI packaged-path guardrail with the adjacent release packaging trust surface. It is more directly tied to release confidence than credential, SQLite file-lock, or Node/runtime guardrails."
+        },
+        {
+          "q": "What did the release workflow Rust core contract audit find?",
+          "answer": "The existing tests pass, but the artifact contract runner metadata is stale for darwin-x64.",
+          "note": "release.yml uses macos-15-intel for darwin-x64, while scripts/rust-core-artifact-contract.mjs still records macos-13. The workflow test does not assert target-to-runner parity, so this stale contract can survive green tests."
+        },
+        {
+          "q": "Which issue tracks the release Rust core target-to-runner artifact contract parity gap?",
+          "answer": "GitHub issue #628 tracks the implementation.",
+          "note": "The issue is labeled enhancement + ready-for-agent and scoped to correcting stale runner contract truth plus adding workflow target-to-runner parity coverage."
+        },
+        {
+          "q": "What was implemented for issue #628?",
+          "answer": "The shared Rust core artifact contract now matches the release workflow runner for darwin-x64, and workflow contract tests assert target-to-runner parity for every release target.",
+          "note": "This keeps release behavior unchanged while preventing green tests from hiding stale runner metadata in the shared artifact contract."
+        }
+      ],
+      "notes": "#628 completed: release Rust core artifact contract now records darwin-x64 runner parity with release.yml, and release workflow tests assert each target matrix entry matches the shared contract runner. Verification: npx vitest run __tests__/release-workflow-rust-core.test.ts __tests__/rust-core-artifact-contract.test.ts; npx vitest run __tests__/build-bundle-rust-core.test.ts __tests__/pack-npm-rust-core.test.ts."
     },
     "1-1-3-3": {
       "id": "1-1-3-3",
@@ -1274,7 +1295,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 09:59:19",
+    "updated": "2026-06-28 10:21:42",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"

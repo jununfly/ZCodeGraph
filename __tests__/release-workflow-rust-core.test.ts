@@ -5,6 +5,19 @@ import * as path from 'node:path';
 const root = path.resolve(__dirname, '..');
 const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'release.yml'), 'utf8');
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function releaseTargetMatrixEntry(releaseTarget: string): string {
+  const pattern = new RegExp(
+    String.raw`          - target: ${escapeRegExp(releaseTarget)}\n(?:            .+\n)*?(?=          - target: |\s{4}steps:)`,
+  );
+  const match = workflow.match(pattern);
+  expect(match, `missing release workflow matrix entry for ${releaseTarget}`).not.toBeNull();
+  return match![0];
+}
+
 describe('Release workflow Rust core artifacts', () => {
   it('builds one Rust core artifact for each release target before packaging', async () => {
     const contract = await import('../scripts/rust-core-artifact-contract.mjs');
@@ -18,6 +31,7 @@ describe('Release workflow Rust core artifacts', () => {
       expect(workflow).toContain(`target: ${target.releaseTarget}`);
       expect(workflow).toContain(`rust_target: ${target.rustTargetTriple}`);
       expect(workflow).toContain(`artifact: ${target.artifactName}`);
+      expect(releaseTargetMatrixEntry(target.releaseTarget)).toContain(`runner: ${target.runner}`);
       expect(workflow).toContain(`runs-on: \${{ matrix.runner }}`);
       expect(workflow).toContain(`cargo build --release --package zcodegraph-core --target "\${{ matrix.rust_target }}"`);
       expect(workflow).toContain(`target/\${{ matrix.rust_target }}/release/\${{ matrix.exe }}`);
