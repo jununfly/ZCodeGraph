@@ -97,4 +97,34 @@ describe('Rust indexing migration roadmap ownership map', () => {
       expect(node.notes).toContain(requiredTerm);
     }
   });
+
+  it('locks the remaining TypeScript indexer responsibility inventory contract', () => {
+    const node = readNode('1-5-2');
+
+    expect(node.status).toBe('completed');
+    for (const requiredTerm of [
+      'explicit TypeScript engine escape hatch = keep-stable',
+      "indexAll({ engine: 'typescript' })",
+      'retained user escape hatch, not burn-down target',
+      'non-Rust-owned language fallback append = boundary-guardrail',
+      'fallbackFiles',
+      'indexFallbackFiles',
+      'downstream node 1-5-5',
+      'TypeScript shell finalization = migration-target',
+      'finalizeRustIndex',
+      'reference resolution/finalization shell work',
+      'downstream node 1-5-4',
+      'legacy TypeScript-engine tests/fixtures = legacy-coverage',
+      'only split follow-up when it blocks default rust-hybrid assertions',
+      'product/docs/reporting surface = diagnostic/reporting-only',
+      'status/doctor/profile/README wording',
+      'no production code changes',
+      'no fallback removal',
+      'no README/status/doctor rewrite',
+      'no benchmark requirement',
+      'no real-repo smoke requirement',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
 });

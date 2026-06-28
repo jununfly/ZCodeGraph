@@ -1049,12 +1049,43 @@
     "1-5-2": {
       "id": "1-5-2",
       "label": "Remaining TypeScript indexer responsibility inventory",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-5",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which 1-5 node should the thirty-ninth cut enter?",
+          "answer": "A. Enter 1-5-2 Remaining TypeScript indexer responsibility inventory.",
+          "note": "After 1-5-1 mapped Rust-owned language coverage, the next migration-mainline step is to inventory what the TypeScript indexer still owns before choosing extraction, finalization, fallback-boundary, or sufficiency burn-down work."
+        },
+        {
+          "q": "How should the thirty-ninth cut classify remaining TypeScript indexer responsibilities?",
+          "answer": "A. Use five buckets: explicit TypeScript engine escape hatch; non-Rust-owned language fallback append; TypeScript shell finalization; legacy TypeScript-engine test/fixture coverage; product/docs/reporting surface for fallback taxonomy.",
+          "note": "This separates intentionally retained user escape hatches from migration targets and reporting guardrails, so later burn-down work does not treat every TypeScript indexer call as the same kind of debt."
+        },
+        {
+          "q": "Should this cut implement TypeScript indexer burn-down or stay as an inventory contract?",
+          "answer": "A. Stay as inventory/contract only: record responsibility buckets and lock the classification with tests, without production code changes.",
+          "note": "The implementation burn-down belongs to later 1-5 child nodes. This cut should prevent scope mixing between retained escape hatches, fallback append, finalization migration targets, legacy tests, and reporting surfaces."
+        },
+        {
+          "q": "Which responsibility statuses should the TypeScript indexer inventory use?",
+          "answer": "A. Use status vocabulary: keep-stable for explicit TypeScript engine escape hatch; boundary-guardrail for non-Rust-owned language fallback append; migration-target for TypeScript shell finalization; diagnostic/reporting-only for product/docs/reporting surfaces; legacy-coverage for TypeScript-engine tests/fixtures unless they block default rust-hybrid assertions.",
+          "note": "This keeps the user-visible escape hatch separate from the default-path migration target. The core rust-owned migration blocker is the TypeScript shell finalization/reference-resolution responsibility, not the existence of --engine typescript."
+        },
+        {
+          "q": "Where should the TypeScript indexer responsibility inventory live?",
+          "answer": "A. Store it in roadmap node notes and lock the bucket/status text with a narrow test.",
+          "note": "This is a migration-roadmap construction contract rather than a durable ADR or user-facing README promise. Roadmap notes keep it in the navigation context, while a narrow test prevents later doc cleanup from dropping the classification."
+        },
+        {
+          "q": "Should the inventory map each responsibility bucket to downstream roadmap nodes?",
+          "answer": "A. Yes: record bucket-to-downstream-node mapping for later navigation.",
+          "note": "TypeScript shell finalization maps to 1-5-4; non-Rust-owned fallback append maps to 1-5-5; legacy tests/fixtures only create follow-up work when they block default rust-hybrid assertions; diagnostic/reporting surfaces follow the corresponding implementation node; the explicit TypeScript engine escape hatch is keep-stable and does not enter burn-down."
+        }
+      ],
+      "notes": "Inventory contract for remaining TypeScript indexer responsibilities. Buckets: 1. explicit TypeScript engine escape hatch = keep-stable; covers CLI --engine typescript and SDK indexAll({ engine: 'typescript' }); retained user escape hatch, not burn-down target. 2. non-Rust-owned language fallback append = boundary-guardrail; covers rust-hybrid fallbackFiles and indexFallbackFiles for supported languages not currently Rust-owned; downstream node 1-5-5. 3. TypeScript shell finalization = migration-target; covers finalizeRustIndex, reference resolution/finalization shell work, framework/dynamic-dispatch post-processing, cleanup/reporting tied to the default rust-hybrid path; downstream node 1-5-4. 4. legacy TypeScript-engine tests/fixtures = legacy-coverage; not automatically debt, only split follow-up when it blocks default rust-hybrid assertions. 5. product/docs/reporting surface = diagnostic/reporting-only; covers status/doctor/profile/README wording for fallback taxonomy and follows the corresponding implementation node. Non-goals for this node: no production code changes, no fallback removal, no README/status/doctor rewrite, no benchmark requirement, no real-repo smoke requirement."
     },
     "1-5-3": {
       "id": "1-5-3",
@@ -2037,7 +2068,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 22:08:09",
+    "updated": "2026-06-28 22:28:14",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
