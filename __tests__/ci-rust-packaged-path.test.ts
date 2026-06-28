@@ -4,6 +4,7 @@ import * as path from 'node:path';
 
 const root = path.resolve(__dirname, '..');
 const ciPath = path.join(root, '.github', 'workflows', 'ci.yml');
+const rustHybridCiSmokePath = path.join(root, 'scripts', 'rust-hybrid-ci-smoke.mjs');
 
 function readWorkflow(): string {
   return fs.readFileSync(ciPath, 'utf8');
@@ -62,6 +63,14 @@ describe('CI Rust packaged path coverage', () => {
     expect(workflow).toContain('__tests__/sqlite-backend.test.ts');
     expect(workflow).toContain('__tests__/concurrent-locking.test.ts');
     expect(workflow).toContain('__tests__/rust-index-engine-cli-failure-safety.test.ts');
+  });
+
+  it('runs a rust-hybrid init/index/status/doctor smoke on the cross-platform CI path', () => {
+    const workflow = readWorkflow();
+
+    expect(fs.existsSync(rustHybridCiSmokePath)).toBe(true);
+    expect(workflow).toContain('Verify rust-hybrid CI smoke');
+    expect(workflow).toContain('node scripts/rust-hybrid-ci-smoke.mjs');
   });
 
   it('keeps CI focused on source validation instead of npm install-time Rust compilation', () => {

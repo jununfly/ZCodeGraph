@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-29 02:04:22
+> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-29 02:30:38
 
 [~][X+] 1. Rust Indexing Debt To Rust Migration Roadmap
 ├── [x][X+] 1-1. Technical debt governance staging before migration resumes
@@ -40,7 +40,7 @@
 │   ├── [x][Y+] 1-6-2. Split temporary SQLite and fixture utilities
 │   ├── [x][Y+] 1-6-3. Consolidate TypeScript fallback taxonomy in status and doctor
 │   ├── [ ][Y+] 1-6-4. Burn down one high-confidence TypeScript resolver residual
-│   ├── [ ][Y+] 1-6-5. Add cross-platform CI smoke for migrated Rust indexing path
+│   ├── [x][Y+] 1-6-5. Add cross-platform CI smoke for migrated Rust indexing path
 │   ├── [x][Y+] 1-6-6. Bounded ReferenceResolver semantic migration exploit candidate
 │   ├── [x][Y+] 1-6-7. Framework post-extract Rust migration exploit candidate
 │   ├── [ ][Y+] 1-6-8. Dynamic-dispatch synthesizer Rust migration exploit candidate

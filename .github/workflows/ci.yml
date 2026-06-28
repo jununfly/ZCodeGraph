@@ -37,6 +37,8 @@ jobs:
         run: cargo test
       - name: Build Rust core
         run: cargo build --package zcodegraph-core
+      - name: Verify rust-hybrid CI smoke
+        run: node scripts/rust-hybrid-ci-smoke.mjs
       - name: Verify Rust CLI engine paths
         run: >
           npx vitest run

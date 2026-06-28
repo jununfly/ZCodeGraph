@@ -324,6 +324,16 @@ describe('Rust indexing migration roadmap ownership map', () => {
     expect(resolver.notes).toContain('must not imply full ReferenceResolver migration');
     expect(resolver.notes).toContain('TypeScript fallback remains for unsupported or ambiguous forms');
 
+    const ciSmoke = readNode('1-6-5');
+    expect(ciSmoke.status).toBe('completed');
+    expect(ciSmoke.notes).toContain('docs/plans/2026-06-29-rust-hybrid-cross-platform-ci-smoke-plan.md');
+    expect(ciSmoke.notes).toContain('Completed issue: #662');
+    expect(ciSmoke.notes).toContain('scripts/rust-hybrid-ci-smoke.mjs');
+    expect(ciSmoke.notes).toContain('init, index --engine rust-hybrid, status --json, and doctor --engine rust-hybrid --bundle --last-run');
+    expect(ciSmoke.notes).toContain('existing cross-platform rust-packaged-path CI matrix');
+    expect(ciSmoke.notes).toContain('does not assert semantic parity');
+    expect(ciSmoke.notes).toContain('does not use external repositories');
+
     const framework = readNode('1-6-7');
     expect(framework.notes).toContain('docs/plans/2026-06-29-rust-side-framework-post-extract-protocol-plan.md');
     expect(framework.notes).toContain('generic Rust-side framework postExtract host/update protocol');

@@ -1235,12 +1235,48 @@
     "1-6-5": {
       "id": "1-6-5",
       "label": "Add cross-platform CI smoke for migrated Rust indexing path",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-6",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which roadmap node should the forty-eighth cut enter?",
+          "answer": "A. Enter 1-6-5 Add cross-platform CI smoke for migrated Rust indexing path.",
+          "note": "After completing resolver semantic and framework postExtract migration slices, the next risk is not another behavior expansion but missing cross-platform guardrails for the migrated rust-hybrid path."
+        },
+        {
+          "q": "Which migrated path should the cross-platform CI smoke cover?",
+          "answer": "A. Cover only the minimal rust-hybrid migrated indexing happy path.",
+          "note": "The smoke should build, run a tiny fixture through --engine rust-hybrid, and verify status/doctor output succeeds or reports clear degraded state. It should not become a full semantic parity suite or release qualification path."
+        },
+        {
+          "q": "Where should the cross-platform rust-hybrid smoke run?",
+          "answer": "A. Attach it to the existing CI/test workflow as a lightweight matrix smoke step.",
+          "note": "The guardrail should run before release, stay visible in normal PR/branch validation, and avoid creating a separate CI island unless the existing workflow cannot carry it cleanly."
+        },
+        {
+          "q": "What fixture should the cross-platform rust-hybrid CI smoke use?",
+          "answer": "A. Generate a tiny temporary fixture inside the CI step.",
+          "note": "The smoke should avoid external checkouts and avoid indexing the whole repository. A small generated TypeScript fixture keeps the signal focused on build/init/index/status/doctor rust-hybrid path health across Linux, macOS, and Windows."
+        },
+        {
+          "q": "How strict should the cross-platform rust-hybrid smoke pass/fail standard be?",
+          "answer": "A. Commands must exit 0, status JSON must prove the rust-hybrid path ran, and doctor --last-run may be healthy or explicitly classified degraded.",
+          "note": "This catches missing commands and dead migrated paths without turning the smoke into full semantic parity or failing on known platform-limited diagnostics such as unavailable RSS."
+        },
+        {
+          "q": "Should the CI smoke be implemented inline in workflow YAML or as a repository script?",
+          "answer": "A. Add a small scripts/rust-hybrid-ci-smoke.mjs and keep the workflow as a thin caller.",
+          "note": "A Node script keeps fixture creation, CLI invocation, JSON parsing, and cross-platform path handling testable and locally reproducible while avoiding fragile multi-platform shell logic in YAML."
+        },
+        {
+          "q": "Should the forty-eighth cut implement immediately or publish a narrow plan and issue first?",
+          "answer": "A. Write a narrow plan document and publish one implementation issue before TDD implementation.",
+          "note": "The scope is clear enough for one vertical slice, but workflow changes need an issue anchor and explicit pass/fail criteria. Do not split script and workflow into separate issues because that would create half-finished CI states."
+        }
+      ],
+      "notes": "Plan: docs/plans/2026-06-29-rust-hybrid-cross-platform-ci-smoke-plan.md.\n\nCompleted issue: #662.\n\nForty-eighth cut implementation result:\n- Added scripts/rust-hybrid-ci-smoke.mjs as the local reproduction entry point.\n- The smoke creates a tiny temporary TypeScript fixture.\n- The smoke runs init, index --engine rust-hybrid, status --json, and doctor --engine rust-hybrid --bundle --last-run through the built CLI.\n- The smoke fails if CLI commands crash, status --json does not prove rust-hybrid, indexed file/node evidence is zero, or doctor does not report/create a last-run diagnostic bundle.\n- The existing cross-platform rust-packaged-path CI matrix now calls the smoke after TypeScript/Rust builds.\n\nGuardrails preserved:\n- The smoke does not use external repositories, /private/tmp/codegraph-corpus, or the full ZCodeGraph repository as its fixture.\n- The smoke does not assert semantic parity, graph parity, release package layout, dynamic-dispatch behavior, or full Rust indexing migration completeness.\n- Workflow YAML stays thin; cross-platform path handling lives in the Node script."
     },
     "1-7": {
       "id": "1-7",
@@ -2384,7 +2420,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-29 02:04:22",
+    "updated": "2026-06-29 02:30:38",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
