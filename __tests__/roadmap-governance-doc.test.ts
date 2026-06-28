@@ -148,4 +148,117 @@ describe('Rust indexing debt roadmap governance documentation', () => {
       expect(node.notes).toContain(requiredTerm);
     }
   });
+
+  it('locks README product-language claim categories and capability states', () => {
+    const node = readNode('1-4-4');
+
+    for (const requiredTerm of [
+      'README product language consistency contract',
+      'install/init/doctor/troubleshooting commands',
+      'supported languages',
+      'Rust-owned',
+      'TS-indexed',
+      'hybrid fallback',
+      'degraded status language',
+      'metrics, benchmarks, Agent Sufficiency, and degraded interpretation',
+      'release/current-state evidence versus historical evidence boundaries',
+      'issue reporting and diagnostic bundle user steps',
+      'planned separately',
+      'broad Full support language',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
+
+  it('locks README metrics source and troubleshooting executability rules', () => {
+    const node = readNode('1-4-4');
+
+    for (const requiredTerm of [
+      'current-state release snapshots',
+      'clearly historical benchmarks',
+      'durable benchmark/result/decision artifact',
+      'degraded',
+      'RSS-unavailable',
+      'one-run smoke',
+      'historical boundaries',
+      'Process evidence must not be promoted into current user-facing guarantees',
+      'commands must be executable on the current CLI/release path',
+      'doctor --engine rust-hybrid --bundle --last-run',
+      'status --json',
+      'command-resolution evidence',
+      'diagnostic bundles',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
+
+  it('keeps README editing out of the product-language contract node', () => {
+    const node = readNode('1-4-4');
+
+    for (const requiredTerm of [
+      'roadmap-governance-doc.test.ts',
+      'Do not edit README',
+      'do not create a README style guide',
+      'do not rewrite AGENTS.md',
+      'do not refresh metrics in 1-4-4',
+      'Actual README edits belong to a concrete follow-up issue',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
+
+  it('locks the temporary evidence cleanup checklist decision order and classes', () => {
+    const node = readNode('1-4-5');
+
+    for (const requiredTerm of [
+      'Temporary evidence retention and deletion checklist contract',
+      'preconditions for safe temporary evidence cleanup',
+      'durable absorption -> artifact class -> action',
+      'Directory, age, filename pattern, git history availability, or tmp-prefix alone is not sufficient',
+      'durable baseline/result/decision',
+      'active roadmap/plan',
+      'issue/closeout evidence',
+      'tmp/intermediate evidence',
+      'obsolete duplicate/process doc',
+      'external/human-setup evidence',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
+
+  it('locks temporary evidence cleanup actions and delete preconditions', () => {
+    const node = readNode('1-4-5');
+
+    for (const requiredTerm of [
+      'Allowed actions',
+      'keep',
+      'migrate',
+      'delete',
+      'defer',
+      'all four delete conditions hold',
+      'not a durable baseline/result/decision',
+      'durable facts are already absorbed',
+      'no current roadmap node, open issue, release note, README, or AGENTS reference depends on it',
+      'deletion action is recorded in a concrete issue/closeout',
+      'destination is known',
+      'record the blocked reason',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
+
+  it('keeps cleanup execution out of the checklist contract node', () => {
+    const node = readNode('1-4-5');
+
+    for (const requiredTerm of [
+      'roadmap-governance-doc.test.ts',
+      'Do not create a standalone checklist document',
+      'do not rewrite AGENTS.md',
+      'do not rewrite README',
+      'do not delete, consolidate, or migrate files in 1-4-5',
+      'Actual cleanup execution belongs to a concrete inventory/issue',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
 });

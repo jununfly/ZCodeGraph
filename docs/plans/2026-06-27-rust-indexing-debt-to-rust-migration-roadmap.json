@@ -708,7 +708,7 @@
     "1-4": {
       "id": "1-4",
       "label": "Documentation roadmap and evidence lifecycle governance",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -878,22 +878,104 @@
     "1-4-4": {
       "id": "1-4-4",
       "label": "README product language consistency pass",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which remaining 1-4 node should the thirty-seventh cut enter?",
+          "answer": "A. Enter 1-4-4 README product language consistency pass.",
+          "note": "1-4-1/1-4-2/1-4-3/1-4-5 have defined internal documentation governance. The remaining cut should align README-facing product language with those durable routing, closeout, and evidence lifecycle rules before moving to the migration mainline."
+        },
+        {
+          "q": "How broad should the README consistency pass be?",
+          "answer": "A. Define the README product language consistency contract only; do not rewrite README in this cut.",
+          "note": "1-4 is a governance closeout subtree. This cut should define which README claims must align with durable sources and which claims are not allowed, while actual README editing belongs to a concrete follow-up issue."
+        },
+        {
+          "q": "Which README claim types should the product-language consistency contract govern?",
+          "answer": "A. Govern five user-visible claim types: install/init/doctor/troubleshooting commands; supported languages/Rust-owned/TS-indexed/fallback status language; metrics/benchmarks/Agent Sufficiency/degraded interpretation; release/current-state versus historical evidence boundaries; and issue reporting/diagnostic bundle user steps.",
+          "note": "These are the README claims most likely to shape user behavior or capability expectations. Broad marketing copy can be handled later and should not expand this governance slice."
+        },
+        {
+          "q": "How should README capability-status language be constrained?",
+          "answer": "A. README status language must distinguish supported, Rust-owned, TS-indexed, hybrid fallback/degraded, and planned separately; it must not collapse those states into broad Full support language.",
+          "note": "The README currently mixes broad language-support claims with implementation-path language. The contract should prevent user-facing capability claims from hiding fallback, degraded status, or separately planned semantic work."
+        },
+        {
+          "q": "How should README metrics and benchmark claims be constrained?",
+          "answer": "A. README may show current-state release snapshots or clearly historical benchmarks only; every displayed number must point to a durable benchmark/result/decision artifact and explain degraded, RSS-unavailable, one-run smoke, or historical boundaries when relevant.",
+          "note": "Metrics in README shape product promises. Process evidence must not be promoted into current user-facing guarantees unless it has been absorbed into durable benchmark/result/decision sources with its caveats."
+        },
+        {
+          "q": "Should README troubleshooting and issue-reporting language be constrained to executable current CLI behavior?",
+          "answer": "A. Yes. README troubleshooting commands must be executable on the current CLI/release path and match current doctor/status/command-resolution behavior.",
+          "note": "README issue-reporting guidance must not describe an idealized path. Claims involving doctor --engine rust-hybrid --bundle --last-run, status --json, or command-resolution evidence must stay aligned with released CLI behavior and documented diagnostics."
+        },
+        {
+          "q": "Where should the README product-language consistency contract live?",
+          "answer": "A. Keep it in the 1-4-4 roadmap node notes and lock it with roadmap-governance-doc.test.ts; do not edit README in this cut.",
+          "note": "This matches the 1-4 governance pattern. Actual README edits should be handled by a concrete follow-up issue that uses this contract."
+        },
+        {
+          "q": "Which issue tracks the 1-4-4 README product language consistency implementation?",
+          "answer": "#648 Lock README product language consistency contract.",
+          "note": "The issue was created as a ready-for-agent documentation governance slice and implemented in this branch."
+        }
+      ],
+      "notes": "README product language consistency contract\n\nPurpose: define which README-facing claims must align with durable sources before README editing happens. This node defines the contract only; it does not rewrite README.\n\nGoverned README claim types:\n- install/init/doctor/troubleshooting commands\n- supported languages, Rust-owned, TS-indexed, hybrid fallback, and degraded status language\n- metrics, benchmarks, Agent Sufficiency, and degraded interpretation\n- release/current-state evidence versus historical evidence boundaries\n- issue reporting and diagnostic bundle user steps\n\nCapability-status language: README must distinguish supported, Rust-owned, TS-indexed, hybrid fallback/degraded, and planned separately. It must not collapse implementation path, product capability, fallback status, and future semantic work into broad Full support language.\n\nMetrics and benchmark language: README may show current-state release snapshots or clearly historical benchmarks only. Every displayed number must point to a durable benchmark/result/decision artifact and explain degraded, RSS-unavailable, one-run smoke, or historical boundaries when relevant. Process evidence must not be promoted into current user-facing guarantees unless absorbed into durable sources with caveats.\n\nTroubleshooting and issue-reporting language: README commands must be executable on the current CLI/release path. Claims involving doctor --engine rust-hybrid --bundle --last-run, status --json, command-resolution evidence, diagnostic bundles, fallback, degraded status, or failures must match current released CLI behavior and documented diagnostics.\n\nStorage and non-goals: keep this contract in 1-4-4 roadmap node notes and lock it with roadmap-governance-doc.test.ts. Do not edit README, do not create a README style guide, do not rewrite AGENTS.md, and do not refresh metrics in 1-4-4. Actual README edits belong to a concrete follow-up issue that cites this node."
     },
     "1-4-5": {
       "id": "1-4-5",
       "label": "Temporary evidence retention and deletion checklist",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which remaining 1-4 node should the thirty-sixth cut enter?",
+          "answer": "A. Enter 1-4-5 Temporary evidence retention and deletion checklist.",
+          "note": "1-4-1/1-4-2/1-4-3 already define cleanup taxonomy, artifact routing, and closeout fact absorption. The next narrow cut should turn those rules into the deletion/retention checklist before README projection work."
+        },
+        {
+          "q": "Should 1-4-5 only define the checklist contract, or also delete/merge files now?",
+          "answer": "A. Define the retention/deletion checklist contract only; do not perform batch deletion or consolidation in this cut.",
+          "note": "1-4-5 should establish the preconditions for safe cleanup. Actual deletion or consolidation needs a concrete inventory/issue so durable facts are absorbed before files are removed."
+        },
+        {
+          "q": "What should the retention/deletion checklist decision order be?",
+          "answer": "A. durable absorption -> artifact class -> action.",
+          "note": "First verify whether durable facts have been absorbed into roadmap/ADR/benchmark/README/issue closeout destinations; then classify the artifact; only then choose keep, migrate, delete, or defer. Directory, age, or tmp-prefix alone is not sufficient."
+        },
+        {
+          "q": "Which artifact classes should the retention/deletion checklist cover?",
+          "answer": "A. Cover six classes: durable baseline/result/decision, active roadmap/plan, issue/closeout evidence, tmp/intermediate evidence, obsolete duplicate/process doc, and external/human-setup evidence.",
+          "note": "These classes align with the 1-4-1 cleanup taxonomy, 1-4-2 routing rules, and 1-4-3 closeout absorption contract without expanding into a complete documentation taxonomy."
+        },
+        {
+          "q": "When is delete allowed by the temporary evidence checklist?",
+          "answer": "A. Delete is allowed only when all four conditions hold.",
+          "note": "The artifact is not a durable baseline/result/decision; durable facts have already been absorbed into the correct durable destination; no current roadmap node, open issue, release note, README, or AGENTS reference depends on it; and the deletion action is recorded in a concrete issue/closeout."
+        },
+        {
+          "q": "How should migrate and defer be distinguished in the checklist?",
+          "answer": "A. Use migrate when the durable destination is known; use defer when value or dependency is unclear and record the blocked reason.",
+          "note": "Migrate covers facts with long-term value that are in the wrong place or shape. Defer covers artifacts that cannot be safely classified yet and must carry a reason rather than silently becoming permanent keep."
+        },
+        {
+          "q": "Where should the retention/deletion checklist contract live?",
+          "answer": "A. Keep it in the 1-4-5 roadmap node notes and lock it with roadmap-governance-doc.test.ts; do not create a standalone checklist document.",
+          "note": "This keeps 1-4 governance contracts together. Later cleanup inventory issues can reference this roadmap node when they perform actual deletion or migration."
+        },
+        {
+          "q": "Which issue tracks the 1-4-5 temporary evidence cleanup checklist implementation?",
+          "answer": "#647 Lock temporary evidence cleanup checklist contract.",
+          "note": "The issue was created as a ready-for-agent documentation governance slice and implemented in this branch."
+        }
+      ],
+      "notes": "Temporary evidence retention and deletion checklist contract\n\nPurpose: define the preconditions for safe temporary evidence cleanup. This node defines the checklist only; it does not perform batch deletion, consolidation, or file movement.\n\nDecision order: durable absorption -> artifact class -> action. Directory, age, filename pattern, git history availability, or tmp-prefix alone is not sufficient to delete an artifact.\n\nArtifact classes:\n- durable baseline/result/decision\n- active roadmap/plan\n- issue/closeout evidence\n- tmp/intermediate evidence\n- obsolete duplicate/process doc\n- external/human-setup evidence\n\nAllowed actions:\n- keep: durable artifacts or artifacts still needed by active roadmap nodes, open issues, README, AGENTS/server-instructions, release notes, or current plans.\n- migrate: facts have long-term value but the artifact is in the wrong durable destination or shape, and the destination is known.\n- delete: allowed only when all four delete conditions hold. The artifact is not a durable baseline/result/decision; durable facts are already absorbed into the correct roadmap/ADR/benchmark/README/issue closeout destination; no current roadmap node, open issue, release note, README, or AGENTS reference depends on it; and the deletion action is recorded in a concrete issue/closeout.\n- defer: value or dependency is unclear; record the blocked reason instead of silently turning the artifact into permanent keep.\n\nStorage and non-goals: keep this checklist contract in 1-4-5 roadmap node notes and lock it with roadmap-governance-doc.test.ts. Do not create a standalone checklist document, do not rewrite AGENTS.md, do not rewrite README, and do not delete, consolidate, or migrate files in 1-4-5. Actual cleanup execution belongs to a concrete inventory/issue that cites this node."
     },
     "1-5": {
       "id": "1-5",
@@ -1919,7 +2001,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 20:16:27",
+    "updated": "2026-06-28 21:16:58",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
