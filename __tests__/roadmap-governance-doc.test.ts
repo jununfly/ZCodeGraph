@@ -52,4 +52,41 @@ describe('Rust indexing debt roadmap governance documentation', () => {
     }
     expect(node.notes).toContain('Follow-up execution belongs to 1-4-5 or a dedicated issue');
   });
+
+  it('locks artifact routing by decision lifetime and reuse scope', () => {
+    const node = readNode('1-4-2');
+
+    expect(node.status).toBe('completed');
+    for (const requiredTerm of [
+      'Routing matrix',
+      'ADR',
+      'Benchmark',
+      'Plan/Roadmap',
+      'Issue/tracker or tmp-* artifacts',
+      'README',
+      'AGENTS/server-instructions',
+      'ZJ-CONTEXT/design docs',
+      'decision lifetime and reuse scope',
+      'not by directory name or file extension',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
+
+  it('keeps consumer-facing projections out of the durable source role', () => {
+    const node = readNode('1-4-2');
+
+    for (const requiredTerm of [
+      'user-facing projection',
+      'agent-facing projection',
+      'point back to ADR/benchmark/plan/roadmap sources',
+      'no file movement',
+      'no docs deletion',
+      'no ADR rewrite',
+      'no AGENTS rewrite',
+      'no README rewrite',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
 });

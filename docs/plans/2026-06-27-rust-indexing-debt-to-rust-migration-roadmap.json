@@ -791,12 +791,38 @@
     "1-4-2": {
       "id": "1-4-2",
       "label": "ADR versus benchmark versus plan routing rules",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which 1-4 node should the thirty-fourth cut enter after 1-4-1?",
+          "answer": "A. Enter 1-4-2 ADR versus benchmark versus plan routing rules.",
+          "note": "1-4-1 created the action taxonomy and deferred several artifacts pending routing rules; define routing before deletion/checklist execution."
+        },
+        {
+          "q": "Where should the ADR versus benchmark versus plan routing rules live?",
+          "answer": "A. Store the routing matrix in roadmap node 1-4-2 notes/decisions and lock it with a docs contract test; do not create a new standalone document.",
+          "note": "Long-lived rules already live in ZJ-0005, docs/zj-adr/README.md, AGENTS.md, and benchmark baseline docs. This slice should avoid creating another process artifact."
+        },
+        {
+          "q": "What should be the primary axis for routing artifacts?",
+          "answer": "A. Route by decision lifetime and reuse scope, not by directory name or file extension.",
+          "note": "ADR is for long-lived cross-roadmap hard-to-reverse tradeoffs; benchmarks are for repeatable standards/results/durable evidence; plans/roadmaps are for current execution and closeout handoff; issue-scoped process evidence should stay with tracker or tmp artifacts and be consolidated/deleted."
+        },
+        {
+          "q": "Should README, AGENTS, and server-instructions be included in the routing matrix?",
+          "answer": "A. Include them as consumer-facing projections, not primary durable sources.",
+          "note": "README summarizes user-facing current state; AGENTS/server-instructions carry agent operating guidance. Durable decisions and evidence still route through ADR, benchmark, plan, roadmap, or tracker artifacts and projections should point back to those sources."
+        },
+        {
+          "q": "Which issue locked the 1-4-2 artifact routing matrix?",
+          "answer": "#645. Lock artifact routing matrix in roadmap governance docs.",
+          "note": "Extended the deterministic roadmap governance docs test to cover routing destinations, lifetime/reuse-scope axis, projection boundaries, and non-goals."
+        }
+      ],
+      "notes": "Routing matrix for this roadmap:\n- ADR: long-lived, cross-roadmap, hard-to-reverse architecture/product decisions with explicit tradeoffs.\n- Benchmark: repeatable baseline standards, complete result artifacts, durable evidence, and benchmark decision packs. Temporary profiles and process logs do not belong here unless promoted into durable result/decision artifacts.\n- Plan/Roadmap: current execution route, staged implementation plans, closeout handoffs, candidate inventories, and short/medium-term execution decisions.\n- Issue/tracker or tmp-* artifacts: issue-scoped temporary evidence, experiment intermediates, process logs, and implementation-time measurements. When the issue closes, useful facts should be consolidated into a durable source or deleted.\n- README: user-facing projection. It may summarize current state and link to durable evidence, but must not become the complete evidence history.\n- AGENTS/server-instructions: agent-facing projection. AGENTS carries current operating rules; MCP tool guidance belongs in server-instructions.ts. Neither should carry process evidence.\n- ZJ-CONTEXT/design docs: domain language and design context. Promote only hard-to-reverse tradeoff decisions to ADR.\n\nDecision axis: route by decision lifetime and reuse scope, not by directory name or file extension.\n\nConsumer-facing projection rule: README, AGENTS, and server-instructions can quote or summarize current state, but they should point back to ADR/benchmark/plan/roadmap sources for durable evidence and rationale.\n\nNon-goals for 1-4-2: no file movement, no docs deletion, no ADR rewrite, no AGENTS rewrite, no README rewrite."
     },
     "1-4-3": {
       "id": "1-4-3",
@@ -1852,7 +1878,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 19:29:13",
+    "updated": "2026-06-28 19:47:26",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
