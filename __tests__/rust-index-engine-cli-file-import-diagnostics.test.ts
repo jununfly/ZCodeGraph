@@ -107,6 +107,10 @@ describe('zcodegraph rust-hybrid file-level import diagnostics', () => {
             edgeKindCounts: Record<string, number>;
             supportedSources: string[];
             excludedSources: string[];
+            targetResolutionShapes: Record<string, {
+              status: 'rust-owned' | 'partial' | 'unsupported' | 'needs-oracle';
+              reason: string;
+            }>;
           };
         };
       };
@@ -133,6 +137,36 @@ describe('zcodegraph rust-hybrid file-level import diagnostics', () => {
         'symbolUsageEdges',
         'declarationRuntimeRewrite',
       ]),
+    });
+    expect(moduleEdgeWrite.targetResolutionShapes).toMatchObject({
+      'relative-import-file-target': {
+        status: 'rust-owned',
+        reason: 'guarded-file-imports',
+      },
+      'tsconfig-paths-file-target': {
+        status: 'rust-owned',
+        reason: 'guarded-file-imports',
+      },
+      'rootDirs-file-target': {
+        status: 'unsupported',
+        reason: 'not-yet-rust-owned',
+      },
+      'package-self-name-repo-local-file-target': {
+        status: 'partial',
+        reason: 'repo-local-file-targets-only',
+      },
+      'package-imports-repo-local-file-target': {
+        status: 'partial',
+        reason: 'repo-local-file-targets-only',
+      },
+      'package-exports-repo-local-file-target': {
+        status: 'needs-oracle',
+        reason: 'package-exports-oracle-required',
+      },
+      'declaration-runtime-pairing-file-target': {
+        status: 'partial',
+        reason: 'single-runtime-sibling-only',
+      },
     });
     expect(moduleEdgeWrite.excludedSources).not.toContain('namespaceImports');
     expect(moduleEdgeWrite.eligibleRefs).toBeGreaterThanOrEqual(2);

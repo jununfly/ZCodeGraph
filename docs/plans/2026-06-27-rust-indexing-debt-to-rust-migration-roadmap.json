@@ -2129,7 +2129,9 @@
       "status": "completed",
       "mode": "explore",
       "parent": "1-5-4",
-      "children": [],
+      "children": [
+        "1-5-4-3-1"
+      ],
       "decisions": [
         {
           "q": "Which residual should the forty-first cut enter after finalization ownership reporting?",
@@ -2145,6 +2147,11 @@
           "q": "Should the forty-first cut implement resolver behavior or stay as a semantic boundary contract?",
           "answer": "A. Stay as a ReferenceResolver semantic residual boundary contract with tests and no production behavior change.",
           "note": "This cut should record the five semantic buckets and their migration status vocabulary in roadmap notes, then lock the contract with a narrow test. Resolver behavior, edge writing, cleanup, benchmarks, and real-repo smoke belong to later implementation slices."
+        },
+        {
+          "q": "Which path should the forty-second cut take after locking the ReferenceResolver semantic boundary?",
+          "answer": "A. Create and enter a file/module target resolution bounded exploit child under 1-5-4-3.",
+          "note": "The boundary contract classified file/module target resolution as the first bounded-exploit-candidate. It is closest to existing Rust finalization edge-write capability and lower risk than symbol/name disambiguation or framework semantic migration."
         }
       ],
       "notes": "ReferenceResolver semantic residual boundary contract. Buckets: 1. candidate lookup / cache protocol = migration-infrastructure; covers CandidateProtocolProvider, lookup shapes, LRU cache protocol, Rust candidate producer routing, and Rust name matcher replay inputs; next step can be bounded protocol hardening, not semantic ownership claim. 2. file/module target resolution = bounded-exploit-candidate; covers import path, tsconfig paths, package maps, repo-local file targets, and already bounded Rust finalization edge-write shapes; next step may be a narrow exploit slice with parity guardrails. 3. symbol/name disambiguation = needs-oracle; covers exact/lower/qualified/name matcher, overload, value/type token, receiver/method, and confidence decisions; requires oracle/guarded parity before Rust ownership. 4. framework semantic matching = product-shell-retained; covers framework resolver matching, route/framework-specific semantics, and product behavior that should remain TypeScript shell until a dedicated framework migration plan exists. 5. edge materialization + terminal cleanup = write-cleanup-boundary; covers converting resolver decisions into graph edges and unresolved_refs cleanup; track under finalization write/cleanup boundaries rather than semantic decision migration. Non-goals: no resolver behavior change, no edge write change, no cleanup change, no dynamic-dispatch change, no fallback routing change, no benchmark or real-repo smoke requirement."
@@ -2168,11 +2175,42 @@
       "children": [],
       "decisions": [],
       "notes": ""
+    },
+    "1-5-4-3-1": {
+      "id": "1-5-4-3-1",
+      "label": "File/module target resolution bounded exploit",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-4-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Why does the forty-second cut create this child node?",
+          "answer": "A. Track file/module target resolution bounded exploit separately under the ReferenceResolver semantic boundary.",
+          "note": "This child is for bounded implementation work only. It should not imply full ReferenceResolver semantic ownership, symbol/name disambiguation ownership, framework semantic migration, or terminal cleanup migration."
+        },
+        {
+          "q": "What should the first file/module target resolution bounded exploit implement?",
+          "answer": "A. Start with diagnostics/profile contract for current file/module target resolution shapes and statuses, without adding new resolution semantics.",
+          "note": "The repository already has multiple bounded Rust finalization file/module target resolution shapes. This cut should make existing capability and gaps machine-readable before adding more semantics, so later exploit work does not repeat paths/package/declaration slices or overclaim full moduleResolution."
+        },
+        {
+          "q": "Where should the file/module target resolution diagnostics contract live?",
+          "answer": "A. Extend referenceResolutionBreakdown.moduleEdgeWrite with targetResolutionShapes instead of adding a new top-level bucket.",
+          "note": "Existing diagnostics already group guarded file imports, supported/excluded sources, declaration/runtime pairing, package self-name, and package imports under moduleEdgeWrite. targetResolutionShapes should summarize these into a machine-readable status map while preserving old fields."
+        },
+        {
+          "q": "What status vocabulary should targetResolutionShapes use?",
+          "answer": "A. Use rust-owned / partial / unsupported / needs-oracle.",
+          "note": "rust-owned means current Rust finalization reliably writes that file-level target shape; partial means only a bounded repo-local subset is covered; unsupported means explicitly out of scope for this slice; needs-oracle means research/oracle is required before implementation or support claims."
+        }
+      ],
+      "notes": "Completed by #653. Added referenceResolutionBreakdown.moduleEdgeWrite.targetResolutionShapes as a machine-readable profile contract for current file/module target resolution shape status. Shapes: relative-import-file-target=rust-owned, tsconfig-paths-file-target=rust-owned, rootDirs-file-target=unsupported, package-self-name-repo-local-file-target=partial, package-imports-repo-local-file-target=partial, package-exports-repo-local-file-target=needs-oracle, declaration-runtime-pairing-file-target=partial. Existing moduleEdgeWrite fields remain available. No new module resolution semantics, edge-write behavior, fallback routing, resolver behavior, benchmark, or real-repo smoke change."
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 23:00:38",
+    "updated": "2026-06-28 23:16:00",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
