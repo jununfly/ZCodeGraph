@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 16:45:25
+> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 17:14:19
 
 [~][X+] 1. Rust Indexing Debt To Rust Migration Roadmap
 ├── [x][X+] 1-1. Technical debt governance staging before migration resumes
@@ -16,10 +16,10 @@
 │   ├── [x][Y+] 1-2-3. SQLite write finalization helper isolation
 │   ├── [x][Y+] 1-2-4. JS TS resolver migration tests versus Rust language tests split
 │   └── [x][X+] 1-2-5. Profile and diagnostic field stability boundary
-├── [ ][X+] 1-3. Cross-platform CI and release trust guardrails
+├── [~][X+] 1-3. Cross-platform CI and release trust guardrails
 │   ├── [ ][Y+] 1-3-1. Windows SQLite file-lock regression guard follow-up
 │   ├── [ ][Y+] 1-3-2. Main CI required matrix health gate
-│   ├── [ ][Y+] 1-3-3. Packaged Rust core artifact contract coverage
+│   ├── [x][Y+] 1-3-3. Packaged Rust core artifact contract coverage
 │   ├── [ ][X+] 1-3-4. Release workflow targeted smoke without publish
 │   └── [ ][X+] 1-3-5. Node version and package manager guardrails
 ├── [ ][X+] 1-4. Documentation roadmap and evidence lifecycle governance

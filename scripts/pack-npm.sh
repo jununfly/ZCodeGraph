@@ -30,6 +30,41 @@ shopt -s nullglob
 archives=("$REL"/zcodegraph-*.tar.gz "$REL"/zcodegraph-*.zip)
 [ ${#archives[@]} -gt 0 ] || { echo "[pack-npm] no bundles in $REL — run build-bundle.sh first" >&2; exit 1; }
 
+contract_targets="$(
+  ROOT="$ROOT" node --input-type=module -e '
+    const { pathToFileURL } = await import("node:url");
+    const contractUrl = pathToFileURL(process.env.ROOT + "/scripts/rust-core-artifact-contract.mjs").href;
+    const contract = await import(contractUrl);
+    process.stdout.write(contract.RUST_CORE_NPM_PACKAGES.map((pkg) => pkg.target).join("\n"));
+  '
+)"
+staged_targets_file="$(mktemp)"
+trap 'rm -f "$staged_targets_file"' EXIT
+for archive in "${archives[@]}"; do
+  fname="$(basename "$archive")"
+  case "$fname" in
+    *.tar.gz) base="${fname%.tar.gz}" ;;
+    *.zip)    base="${fname%.zip}" ;;
+  esac
+  printf "%s\n" "${base#zcodegraph-}" >> "$staged_targets_file"
+done
+staged_targets="$(cat "$staged_targets_file")"
+contract_sorted="$(printf "%s\n" "$contract_targets" | sed '/^$/d' | sort -u)"
+staged_sorted="$(printf "%s\n" "$staged_targets" | sed '/^$/d' | sort -u)"
+contract_file="$(mktemp)"
+staged_file="$(mktemp)"
+trap 'rm -f "$staged_targets_file" "$contract_file" "$staged_file"' EXIT
+printf "%s\n" "$contract_sorted" > "$contract_file"
+printf "%s\n" "$staged_sorted" > "$staged_file"
+missing="$(comm -23 "$contract_file" "$staged_file" | paste -sd ' ' -)"
+unexpected="$(comm -13 "$contract_file" "$staged_file" | paste -sd ' ' -)"
+if [ -n "$missing" ] || [ -n "$unexpected" ]; then
+  echo "[pack-npm] error: staged bundle targets do not match Rust core artifact contract" >&2
+  [ -z "$missing" ] || echo "[pack-npm] missing: $missing" >&2
+  [ -z "$unexpected" ] || echo "[pack-npm] unexpected: $unexpected" >&2
+  exit 1
+fi
+
 targets=()
 for archive in "${archives[@]}"; do
   fname="$(basename "$archive")"

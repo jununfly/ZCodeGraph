@@ -22,6 +22,10 @@ function createScriptRoot(): string {
   const root = tempRoot();
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
   fs.copyFileSync(path.join(repoRoot, 'scripts', 'pack-npm.sh'), path.join(root, 'scripts', 'pack-npm.sh'));
+  fs.copyFileSync(
+    path.join(repoRoot, 'scripts', 'rust-core-artifact-contract.mjs'),
+    path.join(root, 'scripts', 'rust-core-artifact-contract.mjs'),
+  );
   fs.copyFileSync(path.join(repoRoot, 'scripts', 'npm-shim.js'), path.join(root, 'scripts', 'npm-shim.js'));
   fs.copyFileSync(path.join(repoRoot, 'scripts', 'npm-sdk.js'), path.join(root, 'scripts', 'npm-sdk.js'));
   fs.writeFileSync(path.join(root, 'README.md'), '# fixture\n');
@@ -100,6 +104,11 @@ function createAllBundles(root: string): void {
   }
 }
 
+async function expectedNpmTargets(): Promise<string[]> {
+  const contract = await import('../scripts/rust-core-artifact-contract.mjs');
+  return contract.RUST_CORE_NPM_PACKAGES.map((pkg: any) => pkg.target);
+}
+
 function readJson(file: string): any {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
@@ -110,14 +119,14 @@ function extractPackage(tgz: string, dest: string): void {
 }
 
 describe('pack-npm.sh Rust core packaging', () => {
-  it('preserves Rust core binaries in platform packages while keeping the main package thin', () => {
+  it('preserves Rust core binaries in platform packages while keeping the main package thin', async () => {
     const root = createScriptRoot();
     try {
       createAllBundles(root);
       execFileSync('bash', ['scripts/pack-npm.sh', '9.9.9-test'], { cwd: root, stdio: 'pipe' });
 
       const npmRoot = path.join(root, 'release', 'npm');
-      const expected = ['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64', 'win32-x64', 'win32-arm64'];
+      const expected = await expectedNpmTargets();
       for (const target of expected) {
         const pkgDir = path.join(npmRoot, `zcodegraph-${target}`);
         const win = target.startsWith('win32-');
@@ -136,6 +145,48 @@ describe('pack-npm.sh Rust core packaging', () => {
       expect(JSON.stringify(mainPkg)).not.toContain('postinstall');
       expect(JSON.stringify(mainPkg)).not.toContain('cargo build');
       expect(JSON.stringify(mainPkg)).not.toContain('rustup');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('fails fast when a staged bundle target is missing from the contract set', async () => {
+    const root = createScriptRoot();
+    try {
+      const expected = await expectedNpmTargets();
+      for (const target of expected.filter((target) => target !== 'linux-arm64')) {
+        createBundle(root, target);
+      }
+
+      const result = spawnSync('bash', ['scripts/pack-npm.sh', '9.9.9-test'], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('[pack-npm] error: staged bundle targets do not match Rust core artifact contract');
+      expect(result.stderr).toContain('missing: linux-arm64');
+      expect(result.stderr).not.toContain('unexpected:');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('fails fast when an unexpected staged bundle target is present', async () => {
+    const root = createScriptRoot();
+    try {
+      createAllBundles(root);
+      createBundle(root, 'linux-riscv64');
+
+      const result = spawnSync('bash', ['scripts/pack-npm.sh', '9.9.9-test'], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('[pack-npm] error: staged bundle targets do not match Rust core artifact contract');
+      expect(result.stderr).toContain('unexpected: linux-riscv64');
+      expect(result.stderr).not.toContain('missing:');
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

@@ -16,6 +16,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixes
 
+- npm packaging now fails fast if the staged platform bundles do not exactly match the Rust core release artifact contract, preventing incomplete or unexpected platform packages from being published. (#640)
 - Diagnostic bundles now include replay-safe per-file classification fields and a short replay guide, so degraded `rust-hybrid` reports are easier to classify without exposing source paths or source slices. (#639)
 - Degraded `rust-hybrid` runs now point to `zcodegraph doctor --engine rust-hybrid --bundle --last-run` even when the issue is a Rust-owned parse or extraction gap rather than a TypeScript fallback append.
 - Rust files now use the default `rust-hybrid` Rust-owned indexing path for baseline structural symbols, while deeper Rust-specific semantics remain tracked separately.

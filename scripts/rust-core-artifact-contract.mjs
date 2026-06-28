@@ -58,6 +58,23 @@ export const RUST_CORE_RELEASE_TARGETS = [
   };
 });
 
+export const RUST_CORE_NPM_PACKAGES = RUST_CORE_RELEASE_TARGETS.map((target) => {
+  const os = target.releaseTarget.slice(0, target.releaseTarget.lastIndexOf('-'));
+  const cpu = target.releaseTarget.slice(target.releaseTarget.lastIndexOf('-') + 1);
+  const packageName = `@jununfly/zcodegraph-${target.releaseTarget}`;
+
+  return {
+    target: target.releaseTarget,
+    packageName,
+    optionalDependencyKey: packageName,
+    os,
+    cpu,
+    packageDirectory: `zcodegraph-${target.releaseTarget}`,
+    bundleArchiveBase: `zcodegraph-${target.releaseTarget}`,
+    rustCoreBinaryPath: target.bundlePath,
+  };
+});
+
 export const RUST_CORE_NPM_CONTRACT = {
   packagedBinaryOnly: true,
   postinstallCompilation: false,

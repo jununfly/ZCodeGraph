@@ -529,7 +529,7 @@
     "1-3": {
       "id": "1-3",
       "label": "Cross-platform CI and release trust guardrails",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -544,9 +544,14 @@
           "q": "What CI work belongs in this roadmap?",
           "answer": "Only cross-platform trust work that protects migrated Rust indexing paths belongs here.",
           "note": "General release automation redesign stays out unless it blocks Rust indexing migration confidence."
+        },
+        {
+          "q": "Should the twenty-ninth cut enter 1-3 after completing 1-1 and 1-2?",
+          "answer": "A. Yes. Enter 1-3 Cross-platform CI and release trust guardrails.",
+          "note": "This protects future Rust indexing migration slices with CI, packaged-path, and release-path confidence before more semantic ownership work lands."
         }
       ],
-      "notes": ""
+      "notes": "Twenty-ninth cut selected: enter cross-platform CI and release trust guardrails after completing 1-1 and 1-2, so future Rust indexing migration work has packaged-path and release-path guardrails."
     },
     "1-3-1": {
       "id": "1-3-1",
@@ -571,12 +576,38 @@
     "1-3-3": {
       "id": "1-3-3",
       "label": "Packaged Rust core artifact contract coverage",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-3",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which 1-3 child should the twenty-ninth cut implement first?",
+          "answer": "A. Start 1-3-3 Packaged Rust core artifact contract coverage.",
+          "note": "This is the closest guardrail to future Rust indexing migration risk: local source-path tests can pass while npm or release packaged Rust core artifact paths are broken."
+        },
+        {
+          "q": "What packaged artifact contract gap should this slice cover?",
+          "answer": "A. Consolidate and strengthen the release artifact contract gate.",
+          "note": "Scope focuses on artifact names, platform matrix targets, executable names, bundle paths, and npm platform package optional dependency correspondence. Do not broaden into a full packaged smoke or CI matrix redesign in this slice."
+        },
+        {
+          "q": "Should the contract gate include npm platform package mapping?",
+          "answer": "A. Yes. Include npm platform package mapping in the same Rust core artifact contract source.",
+          "note": "The user path continues past GitHub artifacts into the @jununfly/zcodegraph shim, platform optional dependencies, os/cpu selection, and bundle bin/zcodegraph-core path. The gate should cover the full artifact-to-npm packaged path."
+        },
+        {
+          "q": "May this slice change scripts/pack-npm.sh?",
+          "answer": "A. Yes, but only narrowly to derive or verify npm targets against the Rust core artifact contract.",
+          "note": "The goal is not a bash-to-JS rewrite. The pack script should fail when staged bundle targets do not exactly match the contract-derived npm targets, and tests should stop maintaining a hand-written expected platform list."
+        },
+        {
+          "q": "How should pack-npm handle staged bundle target mismatch?",
+          "answer": "A. Fail fast when the staged bundle target set does not exactly match the contract target set.",
+          "note": "Missing targets would publish incomplete optional dependencies; extra targets would publish an unprotected platform package. Both should fail during packaging rather than warning or silently ignoring."
+        }
+      ],
+      "notes": "Completed via #640: Rust core artifact contract now includes npm platform package mapping, pack-npm fails fast on missing or unexpected staged bundle targets, and tests derive expected targets from the contract. Verification: npx vitest run __tests__/pack-npm-rust-core.test.ts __tests__/rust-core-artifact-contract.test.ts; npm run build."
     },
     "1-3-4": {
       "id": "1-3-4",
@@ -1673,7 +1704,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 16:45:25",
+    "updated": "2026-06-28 17:14:19",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
