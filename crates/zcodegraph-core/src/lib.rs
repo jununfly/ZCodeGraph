@@ -11795,46 +11795,87 @@ mod tests {
     use super::*;
     use std::env;
 
-    fn temp_dir(name: &str) -> PathBuf {
-        let dir = env::temp_dir().join(format!(
-            "zcodegraph-core-{}-{}",
-            name,
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir_all(&dir).unwrap();
-        dir
-    }
+    mod test_support {
+        use super::*;
 
-    fn cleanup_temp_dir(dir: PathBuf) {
-        for attempt in 0..5 {
-            match fs::remove_dir_all(&dir) {
-                Ok(()) => return,
-                Err(err) if cfg!(windows) && attempt < 4 => {
-                    std::thread::sleep(Duration::from_millis(50 * (attempt + 1)));
-                    if err.kind() == io::ErrorKind::NotFound {
+        pub fn temp_dir(name: &str) -> PathBuf {
+            let dir = env::temp_dir().join(format!(
+                "zcodegraph-core-{}-{}",
+                name,
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            fs::create_dir_all(&dir).unwrap();
+            dir
+        }
+
+        pub fn cleanup_temp_dir(dir: PathBuf) {
+            for attempt in 0..5 {
+                match fs::remove_dir_all(&dir) {
+                    Ok(()) => return,
+                    Err(err) if cfg!(windows) && attempt < 4 => {
+                        std::thread::sleep(Duration::from_millis(50 * (attempt + 1)));
+                        if err.kind() == io::ErrorKind::NotFound {
+                            return;
+                        }
+                    }
+                    Err(err) if cfg!(windows) => {
+                        eprintln!(
+                            "warning: leaving temporary test directory {} because Windows still holds a file lock: {}",
+                            dir.display(),
+                            err
+                        );
                         return;
                     }
-                }
-                Err(err) if cfg!(windows) => {
-                    eprintln!(
-                        "warning: leaving temporary test directory {} because Windows still holds a file lock: {}",
+                    Err(err) if err.kind() == io::ErrorKind::NotFound => return,
+                    Err(err) => panic!(
+                        "failed to remove temporary test directory {}: {}",
                         dir.display(),
                         err
-                    );
-                    return;
+                    ),
                 }
-                Err(err) if err.kind() == io::ErrorKind::NotFound => return,
-                Err(err) => panic!(
-                    "failed to remove temporary test directory {}: {}",
-                    dir.display(),
-                    err
-                ),
             }
         }
+
+        pub fn db_path(dir: &Path) -> PathBuf {
+            dir.join(".zcodegraph").join("zcodegraph.db")
+        }
+
+        pub fn index_request(dir: &Path, sqlite_write_mode: SqliteWriteMode) -> IndexRequest {
+            IndexRequest {
+                engine: "rust".to_string(),
+                project_path: dir.to_string_lossy().to_string(),
+                index_path: db_path(dir).to_string_lossy().to_string(),
+                force: true,
+                verbose: false,
+                graph_work_profile: GraphWorkProfile::Full,
+                sqlite_write_mode,
+                parse_walker_diagnostics: false,
+            }
+        }
+
+        pub fn write_file(dir: &Path, relative_path: &str, content: &str) {
+            let path = dir.join(relative_path);
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            fs::write(path, content).unwrap();
+        }
+
+        pub fn sqlite_count(conn: &Connection, sql: &str) -> i64 {
+            conn.query_row(sql, [], |row| row.get(0)).unwrap()
+        }
+
+        pub fn sqlite_string(conn: &Connection, sql: &str) -> String {
+            conn.query_row(sql, [], |row| row.get(0)).unwrap()
+        }
     }
+
+    use test_support::{
+        cleanup_temp_dir, db_path, index_request, sqlite_count, sqlite_string, temp_dir, write_file,
+    };
 
     #[test]
     fn graph_work_profile_parse_rejects_unknown_profiles() {
@@ -11967,22 +12008,9 @@ mod tests {
     #[test]
     fn rust_core_parses_rust_files_and_reports_language_profile() {
         let dir = temp_dir("rust-parser-profile");
-        fs::write(dir.join("lib.rs"), "pub fn answer() -> i32 { 42 }\n").unwrap();
+        write_file(&dir, "lib.rs", "pub fn answer() -> i32 { 42 }\n");
 
-        let request = IndexRequest {
-            engine: "rust".to_string(),
-            project_path: dir.to_string_lossy().to_string(),
-            index_path: dir
-                .join(".zcodegraph")
-                .join("zcodegraph.db")
-                .to_string_lossy()
-                .to_string(),
-            force: true,
-            verbose: false,
-            graph_work_profile: GraphWorkProfile::Full,
-            sqlite_write_mode: SqliteWriteMode::FinalFlush,
-            parse_walker_diagnostics: false,
-        };
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
 
         let result = run_index(&request);
 
@@ -12003,9 +12031,10 @@ mod tests {
     #[test]
     fn rust_core_extracts_baseline_rust_symbols_imports_and_calls() {
         let dir = temp_dir("rust-baseline");
-        fs::write(
-            dir.join("lib.rs"),
-            [
+        write_file(
+            &dir,
+            "lib.rs",
+            &[
                 "use std::sync::Arc;",
                 "pub type Id = u64;",
                 "pub trait Worker {",
@@ -12025,23 +12054,9 @@ mod tests {
                 "",
             ]
             .join("\n"),
-        )
-        .unwrap();
+        );
 
-        let request = IndexRequest {
-            engine: "rust".to_string(),
-            project_path: dir.to_string_lossy().to_string(),
-            index_path: dir
-                .join(".zcodegraph")
-                .join("zcodegraph.db")
-                .to_string_lossy()
-                .to_string(),
-            force: true,
-            verbose: false,
-            graph_work_profile: GraphWorkProfile::Full,
-            sqlite_write_mode: SqliteWriteMode::FinalFlush,
-            parse_walker_diagnostics: false,
-        };
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
 
         let result = run_index(&request);
 
@@ -15350,36 +15365,19 @@ mod tests {
                     file_index, symbol_index, symbol_index
                 ));
             }
-            fs::write(dir.join(format!("f{}.ts", file_index)), source).unwrap();
+            write_file(&dir, &format!("f{}.ts", file_index), &source);
         }
 
-        let request = IndexRequest {
-            engine: "rust".to_string(),
-            project_path: dir.to_string_lossy().to_string(),
-            index_path: dir
-                .join(".zcodegraph")
-                .join("zcodegraph.db")
-                .to_string_lossy()
-                .to_string(),
-            force: true,
-            verbose: false,
-            graph_work_profile: GraphWorkProfile::Full,
-            sqlite_write_mode: SqliteWriteMode::FinalFlush,
-            parse_walker_diagnostics: false,
-        };
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
 
         let result = run_index(&request);
 
         assert!(result.success, "{:?}", result.errors);
         assert_eq!(result.files_indexed, 80);
         assert!(result.nodes_created >= 40_000);
-        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
-        let fts_count: i64 = conn
-            .query_row("SELECT count(*) FROM nodes_fts", [], |row| row.get(0))
-            .unwrap();
-        let node_count: i64 = conn
-            .query_row("SELECT count(*) FROM nodes", [], |row| row.get(0))
-            .unwrap();
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let fts_count = sqlite_count(&conn, "SELECT count(*) FROM nodes_fts");
+        let node_count = sqlite_count(&conn, "SELECT count(*) FROM nodes");
         assert_eq!(fts_count, node_count);
 
         if !cfg!(windows) {
@@ -15398,32 +15396,19 @@ mod tests {
     #[test]
     fn rust_index_bulk_transaction_keeps_parse_gap_files_and_continues() {
         let dir = temp_dir("bulk-parse-gap");
-        fs::write(
-            dir.join("good-before.ts"),
+        write_file(
+            &dir,
+            "good-before.ts",
             "export function stableSymbol() { return 1; }\n",
-        )
-        .unwrap();
-        fs::write(dir.join("bad.ts"), "export function broken( {\n").unwrap();
-        fs::write(
-            dir.join("good-after.ts"),
+        );
+        write_file(&dir, "bad.ts", "export function broken( {\n");
+        write_file(
+            &dir,
+            "good-after.ts",
             "export function laterSymbol() { return stableSymbol(); }\n",
-        )
-        .unwrap();
+        );
 
-        let request = IndexRequest {
-            engine: "rust".to_string(),
-            project_path: dir.to_string_lossy().to_string(),
-            index_path: dir
-                .join(".zcodegraph")
-                .join("zcodegraph.db")
-                .to_string_lossy()
-                .to_string(),
-            force: true,
-            verbose: false,
-            graph_work_profile: GraphWorkProfile::Full,
-            sqlite_write_mode: SqliteWriteMode::FinalFlush,
-            parse_walker_diagnostics: false,
-        };
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
 
         let result = run_index(&request);
 
@@ -15431,23 +15416,14 @@ mod tests {
         assert_eq!(result.files_indexed, 3);
         assert_eq!(result.files_errored, 1);
         assert_eq!(result.errors.len(), 1);
-        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
-        let file_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM files", [], |row| row.get(0))
-            .unwrap();
-        let fts_count: i64 = conn
-            .query_row("SELECT count(*) FROM nodes_fts", [], |row| row.get(0))
-            .unwrap();
-        let node_count: i64 = conn
-            .query_row("SELECT count(*) FROM nodes", [], |row| row.get(0))
-            .unwrap();
-        let stable_count: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM nodes WHERE name = 'stableSymbol'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let file_count = sqlite_count(&conn, "SELECT COUNT(*) FROM files");
+        let fts_count = sqlite_count(&conn, "SELECT count(*) FROM nodes_fts");
+        let node_count = sqlite_count(&conn, "SELECT count(*) FROM nodes");
+        let stable_count = sqlite_count(
+            &conn,
+            "SELECT COUNT(*) FROM nodes WHERE name = 'stableSymbol'",
+        );
         let later_count: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM nodes WHERE name = 'laterSymbol'",
@@ -19589,39 +19565,20 @@ mod tests {
     #[test]
     fn memory_final_flush_sqlite_mode_writes_a_readable_index() {
         let dir = temp_dir("memory-final-flush");
-        fs::write(
-            dir.join("index.ts"),
+        write_file(
+            &dir,
+            "index.ts",
             "export function alpha(): number { return 1; }\n",
-        )
-        .unwrap();
+        );
 
-        let request = IndexRequest {
-            engine: "rust".to_string(),
-            project_path: dir.to_string_lossy().to_string(),
-            index_path: dir
-                .join(".zcodegraph")
-                .join("zcodegraph.db")
-                .to_string_lossy()
-                .to_string(),
-            force: true,
-            verbose: false,
-            graph_work_profile: GraphWorkProfile::Full,
-            sqlite_write_mode: SqliteWriteMode::MemoryFinalFlush,
-            parse_walker_diagnostics: false,
-        };
+        let request = index_request(&dir, SqliteWriteMode::MemoryFinalFlush);
 
         let result = run_index(&request);
 
         assert!(result.success, "{:?}", result.errors);
         assert_eq!(result.files_indexed, 1);
         let conn = Connection::open(&request.index_path).unwrap();
-        let alpha_count: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM nodes WHERE name = 'alpha'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+        let alpha_count = sqlite_count(&conn, "SELECT COUNT(*) FROM nodes WHERE name = 'alpha'");
         let schema_version: i64 = conn
             .query_row(
                 "SELECT version FROM schema_versions WHERE version = ?1",
@@ -19629,13 +19586,10 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        let engine: String = conn
-            .query_row(
-                "SELECT value FROM project_metadata WHERE key = 'indexed_with_engine'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+        let engine = sqlite_string(
+            &conn,
+            "SELECT value FROM project_metadata WHERE key = 'indexed_with_engine'",
+        );
         assert_eq!(alpha_count, 1);
         assert_eq!(schema_version, CURRENT_SCHEMA_VERSION);
         assert_eq!(engine, "rust");

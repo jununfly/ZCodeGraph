@@ -318,22 +318,89 @@
     "1-2-1": {
       "id": "1-2-1",
       "label": "Extraction finalization resolution ownership boundary map",
-      "status": "pending",
-      "mode": "explore",
+      "status": "completed",
+      "mode": "exploit",
       "parent": "1-2",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "What should the twenty-second cut start with?",
+          "answer": "Start with 1-2-1. Extraction finalization resolution ownership boundary map.",
+          "note": "The previous closeout chose 1-2 as the Rust migration re-entry point. Starting with the boundary map keeps later implementation slices aligned to clear ownership boundaries instead of local cleanup pressure."
+        },
+        {
+          "q": "Where should the ownership boundary map be recorded?",
+          "answer": "Record it in node 1-2-1 notes rather than creating a separate plan, issue, or ADR.",
+          "note": "This slice is roadmap calibration for architecture clarity. The output should guide later 1-2 implementation slices without creating another process artifact."
+        },
+        {
+          "q": "Which dimensions should the ownership boundary map use?",
+          "answer": "Use pipeline ownership dimensions: Extraction, Finalization, Resolution, SQLite write, Diagnostics/profile, and Tests/fixtures.",
+          "note": "This keeps the architecture clarity slice aligned with the earlier debt inventory coordinate system and directly feeds 1-2-2 through 1-2-5."
+        },
+        {
+          "q": "Should the boundary map be based on code exploration before writing notes?",
+          "answer": "Yes. Explore the current Rust core, TypeScript shell, resolver, diagnostics, and test helper surfaces before writing the ownership map.",
+          "note": "Code facts found: Rust core owns source scan/parse extraction/initial graph write and some JS/TS module-resolution edge writes; the TypeScript shell still owns fallback append, framework post-extract, batched reference resolution, dynamic synthesis, DB maintenance, profile merge, and product orchestration."
+        },
+        {
+          "q": "How should Rust ownership be described in the boundary map?",
+          "answer": "Rust owns bounded extraction/write plus selected pre-finalization module edges; TypeScript owns product-shell finalization until those stages are explicitly migrated.",
+          "note": "This matches current code: Rust core writes the initial index and some module-resolution edges, while TypeScript still orchestrates fallback append, framework post-extract, ReferenceResolver, dynamic synthesis, DB maintenance, and profile merging."
+        }
+      ],
+      "notes": "Boundary map decision: Rust owns bounded extraction/write plus selected pre-finalization module edges; TypeScript owns product-shell finalization until each stage is explicitly migrated.\n\nCode fact anchors:\n- Rust entrypoint: crates/zcodegraph-core/src/main.rs accepts only the rust core index command plus match-name and produce-candidates helper modes.\n- Rust request/options: crates/zcodegraph-core/src/index_options.rs defines graph work profile, SQLite write mode, and parse walker diagnostics.\n- Rust core pipeline: crates/zcodegraph-core/src/lib.rs::run_index delegates to write_minimal_index/write_temp_index/write_index_to_connection, which scan/parse supported source files, write files/nodes/edges/unresolved_refs, rebuild FTS, write selected JS/TS module-resolution edges, stamp metadata, and replace the active SQLite index.\n- TypeScript shell pipeline: src/index.ts::indexExternalEngine launches runRustIndexer, applies rust-hybrid fallback append when needed, calls finalizeRustIndex, marks rust-hybrid metadata, and merges rustCore/typescriptFallbackAppend/finalize profile fields.\n- TypeScript finalization: src/index.ts::finalizeRustIndex explicitly runs framework post-extract, batched ReferenceResolver, dynamic dispatch synthesis, DB maintenance, cleanup ownership diagnostics, fallback taxonomy, and boundaryProtocol reporting.\n- Resolver path: src/resolution/index.ts remains the ReferenceResolver orchestration path; src/resolution/candidate-protocol.ts and rust candidate/name matcher are migration helpers, not full resolver ownership.\n- DB access boundary: src/db/access-models.ts separates agent reads, maintenance writes, resolution reads, and status queries; ReferenceResolver still needs both resolution reads and maintenance writes for synthesized/resolved edges.\n- Diagnostics/profile boundary: Rust emits core profile buckets; TypeScript shell merges finalization/profile diagnostics and currently reports productShell=typescript in boundaryProtocol.\n- Test/fixture boundary: Rust indexing tests are now split into behavior clusters, and future migrations should keep deterministic CLI/docs/unit tests tied to explicit roadmap nodes and issue IDs.\n\nOwnership by pipeline:\n1. Extraction: Rust-owned for currently rust-owned languages and graph work profiles. TypeScript fallback remains only for non-Rust-owned or explicitly degraded files in rust-hybrid.\n2. Initial graph write / SQLite index replacement: Rust-owned for full-index rust/rust-hybrid subprocess output, including temp index creation and atomic replacement. TypeScript still owns DB reopening, product orchestration, and post-write finalization invocation.\n3. Selected pre-finalization module edges: Rust-owned only for bounded, already implemented module-resolution edge-write shapes such as import path alias/file-level edges, ESM named import/export, one-hop re-export, declaration/runtime pairing, and local exact references when profile evidence reports them as rust-owned stages.\n4. Product-shell finalization: TypeScript-owned until explicitly migrated. This includes framework post-extract, ReferenceResolver, dynamic-dispatch synthesis, DB maintenance, unresolved cleanup ownership, and final profile merge.\n5. Resolution/candidate lookup: TypeScript-owned for final semantic resolution. Rust candidate producer/name matcher may provide bounded candidate or matcher assistance, but candidate-set parity does not imply resolver ownership.\n6. Diagnostics/profile: Split ownership. Rust owns core extraction/write/module-edge counters; TypeScript owns finalization profile assembly, fallback taxonomy, boundaryProtocol, doctor/status interpretation, and bundle shape.\n7. Tests/fixtures: Tests should follow public behavior clusters rather than internal module seams. Future implementation slices may extract helpers or fixtures only when they reduce migration cost without changing assertion semantics.\n\nNext-slice guidance:\n- 1-2-2 should focus on behavior-preserving Rust core test helper/fixture extraction, not semantic migration.\n- 1-2-3 should isolate SQLite write/finalization helper boundaries without moving TypeScript finalization ownership.\n- 1-2-4 should keep JS/TS resolver migration tests distinct from Rust language extraction tests.\n- 1-2-5 should stabilize diagnostic/profile field boundaries around the split Rust core versus TypeScript product-shell ownership.\n\nNon-goals for this boundary map:\n- Do not claim full Rust finalization/resolver ownership.\n- Do not remove TypeScript fallback or product-shell finalization in this slice.\n- Do not create a new plan, ADR, issue, or benchmark artifact for this map."
     },
     "1-2-2": {
       "id": "1-2-2",
       "label": "Rust core test helper and fixture module extraction",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which 1-2 slice should the twenty-third cut execute first?",
+          "answer": "Execute 1-2-2. Rust core test helper and fixture module extraction.",
+          "note": "After the ownership boundary map, the lowest-risk architecture clarity exploit is behavior-preserving helper/fixture extraction. It reduces navigation cost before touching SQLite/finalization, resolver semantics, or profile boundary behavior."
+        },
+        {
+          "q": "What should 1-2-2 produce?",
+          "answer": "Produce a narrow implementation plan plus issue for TDD, not immediate code changes during this grill.",
+          "note": "The slice is exploit-oriented, but helper/fixture extraction needs explicit boundaries before implementation: which helpers, which fixture layer, production-code allowance, and verification commands."
+        },
+        {
+          "q": "Which helper/fixture layer should this slice target first?",
+          "answer": "Target only Rust crate internal test helpers and fixtures.",
+          "note": "Keep the slice inside crates/zcodegraph-core Rust tests. Do not mix in TS vitest helpers or CLI/product-shell test helper work in this issue."
+        },
+        {
+          "q": "May this slice modify production Rust core code?",
+          "answer": "No. Only extract #[cfg(test)] test helpers and fixtures; do not change production code.",
+          "note": "The objective is navigation and test-structure clarity. Production Rust core module extraction is higher risk and should be handled by a separate explicitly scoped slice."
+        },
+        {
+          "q": "Which helper/fixture cluster should the first implementation issue extract?",
+          "answer": "Extract the IndexRequest, temp project, and SQLite assertion helper cluster first.",
+          "note": "These helpers are test scaffolding shared by many Rust core tests, carry lower semantic risk than module-resolution or language-specific fixtures, and directly reduce navigation cost in crates/zcodegraph-core/src/lib.rs."
+        },
+        {
+          "q": "What acceptance bar should the implementation issue use?",
+          "answer": "Use structural acceptance criteria without a line-count target.",
+          "note": "The issue should require a cfg(test)-only test-support module plus at least one IndexRequest builder, temp project/file fixture helper, and SQLite assertion/query helper extraction. It should preserve production code and assertion semantics, with cargo test -p zcodegraph-core as verification."
+        },
+        {
+          "q": "Should the issue name concrete Rust test helper targets before publishing?",
+          "answer": "Yes. Name the concrete helper targets found in crates/zcodegraph-core/src/lib.rs before publishing.",
+          "note": "Exploration found the Rust tests start at #[cfg(test)] mod tests around line 11793. Existing helpers include temp_dir and cleanup_temp_dir, while IndexRequest literals repeat throughout the test module, and SQLite Connection::open/query_row assertions are repeated across indexing/profile/SQLite-mode tests."
+        },
+        {
+          "q": "How many implementation issues should this helper extraction slice publish?",
+          "answer": "Publish one issue covering the minimal closed loop across IndexRequest builder, temp project/file helper, and SQLite assertion/query helper extraction.",
+          "note": "The issue should require at least one helper in each category, not complete cleanup of all repeated test scaffolding. Splitting into three issues would add process overhead before the first test-support module exists."
+        }
+      ],
+      "notes": "Issue #634 published and implemented. Added a cfg(test)-only Rust test_support module in crates/zcodegraph-core/src/lib.rs and reused it for a minimal closed loop: IndexRequest builder, temp project/file helper, and SQLite count/string query helpers. Scope stayed test-only; no production Rust core behavior, TS vitest helper, CLI/product-shell, resolver, SQLite write, or profile behavior changes. Verification: cargo fmt; cargo test -p zcodegraph-core."
     },
     "1-2-3": {
       "id": "1-2-3",
@@ -1395,7 +1462,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 11:42:34",
+    "updated": "2026-06-28 13:01:18",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
