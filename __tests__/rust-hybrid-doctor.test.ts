@@ -168,6 +168,19 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     });
 
     const perFile = readJson(path.join(bundleDir, 'per-file-diagnostics.json'));
+    expect(perFile).toMatchObject({
+      schemaVersion: 1,
+      classification: {
+        replaySafe: true,
+        sourcePathPolicy: 'path-hash-only',
+        sourceSlicePolicy: 'omitted',
+        aggregateTaxonomy: {
+          fallbackState: 'degraded',
+          fallbackFileCount: 0,
+          fallbackReasonTaxonomy: { 'rust-owned-extraction-gap': 1 },
+        },
+      },
+    });
     expect(perFile.errors).toEqual([
       expect.objectContaining({
         pathHash: expect.any(String),
@@ -182,6 +195,11 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     const diagnosticsText = fs.readFileSync(path.join(bundleDir, 'per-file-diagnostics.json'), 'utf-8');
     expect(diagnosticsText).not.toContain('a.ts');
     expect(diagnosticsText).not.toContain(tempDir);
+    const replay = fs.readFileSync(path.join(bundleDir, 'replay.md'), 'utf-8');
+    expect(replay).toContain('Per-file diagnostics');
+    expect(replay).toContain('pathHash');
+    expect(replay).toContain('fallbackReasonTaxonomy');
+    expect(replay).not.toContain('a.ts');
   }, 30_000);
 
   it('writes a last-failure record and creates a failure bundle for Rust process failure', () => {

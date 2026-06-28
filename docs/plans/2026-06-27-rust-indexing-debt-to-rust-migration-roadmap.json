@@ -296,7 +296,7 @@
     "1-2": {
       "id": "1-2",
       "label": "Rust core architecture clarity for future migration",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -517,7 +517,7 @@
     "1-2-5": {
       "id": "1-2-5",
       "label": "Profile and diagnostic field stability boundary",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2",
       "children": [
@@ -1321,12 +1321,38 @@
     "1-2-5-1": {
       "id": "1-2-5-1",
       "label": "Diagnostic bundle per-file replay fields parity",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-5",
       "children": [],
-      "decisions": [],
-      "notes": "Follow-up from the 2026-06-27 last-run diagnostic bundle. Per-file diagnostics currently expose pathHash, extension, language, code, severity, and message, but not all user-facing replay fields promised in troubleshooting/product language such as size, line/column, and git blob hash or explicit unavailable reasons. This is diagnostic trust work, not parser semantics."
+      "decisions": [
+        {
+          "q": "Should the twenty-ninth cut enter 1-2-5-1?",
+          "answer": "Yes. Start 1-2-5-1. Diagnostic bundle per-file replay fields parity.",
+          "note": "The rest of 1-2 is complete, and this existing child is the narrowest executable entry into the profile and diagnostic field stability boundary."
+        },
+        {
+          "q": "What should 1-2-5-1 produce first?",
+          "answer": "A. Produce one narrow issue plus TDD implementation for diagnostic bundle per-file replay field parity.",
+          "note": "Scope stays on bundle contents for per-file replay/reporting fields; do not broaden into full doctor redesign, source slices, or all profile field stability."
+        },
+        {
+          "q": "Which layer should per-file replay field parity align with?",
+          "answer": "A. Align at the user diagnostic bundle layer.",
+          "note": "The bundle should preserve replay-safe per-file classification fields for reproducing and classifying degraded causes without plaintext paths or source code. Do not commit resolver-internal replayTargetNodeId/replayResolvedBy/replayConfidence as bundle schema unless they already surface through stable index-run diagnostics."
+        },
+        {
+          "q": "Should this slice also update replay.md?",
+          "answer": "A. Update per-file-diagnostics.json as the primary contract and add a narrow replay.md interpretation note.",
+          "note": "JSON remains the machine-verifiable diagnostic contract; replay.md should explain how to read per-file diagnostics and degraded classification without expanding into a full doctor or troubleshooting rewrite."
+        },
+        {
+          "q": "What should the issue acceptance criteria be?",
+          "answer": "A. Use one deterministic doctor bundle contract test plus narrow implementation.",
+          "note": "The test should construct a last-run record with rust-owned-parse-gap/fallback taxonomy, run doctor --engine rust-hybrid --bundle --last-run, assert stable per-file fields and aggregate taxonomy, verify no plaintext paths/source slices, and confirm replay.md explains how to classify the report."
+        }
+      ],
+      "notes": "Completed via #639: diagnostic bundles now expose replay-safe per-file classification fields in per-file-diagnostics.json and a narrow replay.md interpretation guide. Verification: npx vitest run __tests__/rust-hybrid-doctor.test.ts."
     },
     "1-5-3-1": {
       "id": "1-5-3-1",
@@ -1647,7 +1673,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 16:26:54",
+    "updated": "2026-06-28 16:45:25",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
