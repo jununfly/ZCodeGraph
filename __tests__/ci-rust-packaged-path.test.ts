@@ -25,7 +25,9 @@ describe('CI Rust packaged path coverage', () => {
   it('checks default rust-hybrid indexing, packaged Rust discovery, and release artifact coverage', () => {
     const workflow = fs.readFileSync(ciPath, 'utf8');
 
-    expect(workflow).toContain('__tests__/rust-index-engine-cli.test.ts');
+    expect(workflow).toContain('__tests__/rust-index-engine-cli-engine.test.ts');
+    expect(workflow).toContain('__tests__/rust-index-engine-cli-failure-safety.test.ts');
+    expect(workflow).not.toContain('__tests__/rust-index-engine-cli.test.ts');
     expect(workflow).not.toContain('uses the TypeScript indexer by default');
     expect(workflow).toContain('uses the rust-hybrid indexer by default');
     expect(workflow).toContain('uses rust-hybrid for init indexing by default');

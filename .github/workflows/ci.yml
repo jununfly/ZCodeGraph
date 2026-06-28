@@ -36,7 +36,9 @@ jobs:
         run: cargo build --package zcodegraph-core
       - name: Verify Rust CLI engine paths
         run: >
-          npx vitest run __tests__/rust-index-engine-cli.test.ts
+          npx vitest run
+          __tests__/rust-index-engine-cli-engine.test.ts
+          __tests__/rust-index-engine-cli-failure-safety.test.ts
           -t "uses the rust-hybrid indexer by default|uses rust-hybrid for init indexing by default|runs the packaged Rust subprocess from a bundle layout without an env override|leaves the existing TypeScript index intact when the Rust binary is unavailable"
       - name: Verify release artifact contracts
         run: >
