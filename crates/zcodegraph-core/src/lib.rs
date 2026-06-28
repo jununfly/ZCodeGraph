@@ -16010,6 +16010,15 @@ mod tests {
         cleanup_temp_dir(dir);
     }
 
+    // BEGIN ownership bucket: JS/TS resolver migration tests.
+    //
+    // These tests are the first grouped slice for TypeScript/JavaScript module
+    // resolution migration coverage: import/export binding preservation,
+    // guarded ESM symbol edges, file-level imports, rootDirs, package
+    // self-name, package exports/imports, declaration/runtime pairing, and
+    // repo-local workspace package resolution. Keep Rust language semantic
+    // tests, shared Rust core infrastructure tests, and mixed-ownership tests in
+    // separate roadmap buckets.
     #[test]
     fn rust_index_preserves_js_ts_import_export_binding_refs_for_text_reuse() {
         let dir = temp_dir("js-ts-import-export-text-reuse");
@@ -19548,6 +19557,7 @@ mod tests {
 
         cleanup_temp_dir(dir);
     }
+    // END ownership bucket: JS/TS resolver migration tests.
 
     #[test]
     fn rust_index_accepts_typescript_import_type_queries() {

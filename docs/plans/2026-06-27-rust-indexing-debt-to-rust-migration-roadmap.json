@@ -461,12 +461,58 @@
     "1-2-4": {
       "id": "1-2-4",
       "label": "JS TS resolver migration tests versus Rust language tests split",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-2-4-1",
+        "1-2-4-2",
+        "1-2-4-3",
+        "1-2-4-4"
+      ],
+      "decisions": [
+        {
+          "q": "Which 1-2 slice should the twenty-fifth cut execute next?",
+          "answer": "Execute 1-2-4. JS TS resolver migration tests versus Rust language tests split.",
+          "note": "After ownership mapping, Rust test helper extraction, and SQLite write helper isolation, the next architecture-clarity risk is test ownership confusion between JS/TS resolver migration work and Rust language semantic support."
+        },
+        {
+          "q": "What should 1-2-4 produce?",
+          "answer": "Produce a test ownership classification plus one narrow implementation issue; do not directly change code during this grill.",
+          "note": "The current Rust core test surface mixes JS/TS module-resolution migration coverage with Rust language semantic support coverage. This cut should first define the classification and hand a focused issue to TDD instead of splitting tests before the ownership boundary is explicit."
+        },
+        {
+          "q": "Which axis should classify JS/TS resolver migration tests versus Rust language tests?",
+          "answer": "Classify by migration ownership axis.",
+          "note": "Use buckets for js-ts-resolver-migration, rust-language-semantic-support, shared-rust-core-infrastructure, and mixed-needs-split so future agents can distinguish migration evidence from Rust language support evidence and generic Rust core infrastructure tests."
+        },
+        {
+          "q": "Where should the test ownership classification live for implementation usefulness?",
+          "answer": "Require the implementation issue to create clear grouping, comments, or module boundaries in the Rust core test area.",
+          "note": "This keeps the classification close to the tests that future agents will edit. Roadmap notes remain the navigation record, but the durable working boundary should be visible near the Rust core tests rather than only in a separate document."
+        },
+        {
+          "q": "May the implementation issue move test code, or only add classification scaffolding?",
+          "answer": "Allow small behavior-preserving test movement and grouping.",
+          "note": "The issue may add submodules or section comments inside the Rust core test area and move clearly-owned tests into ownership buckets. It must not change production code, assertion semantics, or require a full reorganization of all Rust core tests."
+        },
+        {
+          "q": "Which ownership bucket should the first small test grouping pass handle?",
+          "answer": "Handle the most obvious JS/TS resolver migration tests first.",
+          "note": "Prioritize package exports/imports, rootDirs, ESM binding/re-export, declaration/runtime pairing, and related module-resolution tests so the ts-indexing to rust-indexing migration mainline has a clear test ownership landing zone."
+        },
+        {
+          "q": "Should the first implementation issue close all of 1-2-4?",
+          "answer": "No. It should complete only the first JS/TS resolver migration test grouping slice and keep 1-2-4 in progress.",
+          "note": "The implementation should record remaining buckets for Rust language semantic tests, shared Rust core infrastructure tests, and mixed-needs-split tests so the roadmap does not overclaim completion."
+        },
+        {
+          "q": "Should 1-2-4 get explicit child nodes for the first slice and remaining buckets?",
+          "answer": "Yes. Add four sub-nodes for JS/TS resolver migration test grouping, Rust language semantic test grouping, shared Rust core infrastructure test grouping, and mixed ownership split decision.",
+          "note": "Because the first issue should not close all of 1-2-4, the remaining ownership buckets must be visible on the roadmap rather than hidden in chat history."
+        }
+      ],
+      "notes": "Twenty-fifth cut selected: split JS/TS resolver migration tests from Rust language semantic tests so future migration work has clean test ownership boundaries."
     },
     "1-2-5": {
       "id": "1-2-5",
@@ -1504,11 +1550,51 @@
         }
       ],
       "notes": "#632 completed: AGENTS.md Node engines guidance now matches package.json, node-version tests assert package engines and MIN_NODE_MAJOR alignment, CI workflow contract asserts Node 22 setup, and release workflow contract asserts Node 22 plus package-lock sync semantics. Verification: npx vitest run __tests__/node-version-check.test.ts; npx vitest run __tests__/ci-rust-packaged-path.test.ts __tests__/release-workflow-rust-core.test.ts."
+    },
+    "1-2-4-1": {
+      "id": "1-2-4-1",
+      "label": "JS TS resolver migration test grouping slice",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2-4",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed via #636. Added a visible Rust core test ownership marker for the first JS/TS resolver migration grouping slice covering import/export binding preservation, guarded ESM symbol edges, file-level imports, rootDirs, package self-name, package exports/imports, declaration/runtime pairing, and repo-local workspace package resolution. No production code or assertion semantics changed. Parent 1-2-4 remains open for Rust language semantic, shared infrastructure, and mixed ownership follow-up buckets."
+    },
+    "1-2-4-2": {
+      "id": "1-2-4-2",
+      "label": "Rust language semantic test grouping slice",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-4-3": {
+      "id": "1-2-4-3",
+      "label": "Shared Rust core infrastructure test grouping slice",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-4-4": {
+      "id": "1-2-4-4",
+      "label": "Mixed ownership tests split decision",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 13:37:35",
+    "updated": "2026-06-28 14:17:03",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
