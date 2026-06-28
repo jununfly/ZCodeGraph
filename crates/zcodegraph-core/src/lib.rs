@@ -1260,10 +1260,8 @@ pub struct WriteCounts {
 pub fn write_minimal_index(
     request: &IndexRequest,
 ) -> Result<WriteCounts, Box<dyn std::error::Error>> {
-    let index_path = Path::new(&request.index_path);
-    if let Some(parent) = index_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
+    let write_paths = SqliteIndexWritePaths::new(Path::new(&request.index_path));
+    write_paths.ensure_parent_dir()?;
 
     let lock_path = Path::new(&request.project_path)
         .join(".zcodegraph")
@@ -1271,28 +1269,70 @@ pub fn write_minimal_index(
     let _lock = ProjectLock::acquire(&lock_path)?;
     sleep_after_lock_for_tests();
 
-    let temp_path = temp_index_path(index_path);
-    if temp_path.exists() {
-        fs::remove_file(&temp_path)?;
-    }
+    write_paths.prepare_temp_path()?;
 
     let write_result = (|| -> Result<WriteCounts, Box<dyn std::error::Error>> {
-        let counts = write_temp_index(request, &temp_path)?;
+        let counts = write_temp_index(request, write_paths.temp_path())?;
 
         let replace_started = Instant::now();
-        replace_active_index(&temp_path, index_path)?;
+        write_paths.replace_active_index()?;
         let mut counts = counts;
         counts.profile.sqlite_write_ms += replace_started.elapsed().as_millis();
-        cleanup_sqlite_sidecars(&temp_path);
+        write_paths.cleanup_temp_sidecars();
         Ok(counts)
     })();
 
     if write_result.is_err() {
-        cleanup_sqlite_sidecars(&temp_path);
-        let _ = fs::remove_file(&temp_path);
+        write_paths.discard_temp_path();
     }
 
     write_result
+}
+
+struct SqliteIndexWritePaths {
+    index_path: PathBuf,
+    temp_path: PathBuf,
+}
+
+impl SqliteIndexWritePaths {
+    fn new(index_path: &Path) -> Self {
+        Self {
+            index_path: index_path.to_path_buf(),
+            temp_path: temp_index_path(index_path),
+        }
+    }
+
+    fn ensure_parent_dir(&self) -> io::Result<()> {
+        if let Some(parent) = self.index_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        Ok(())
+    }
+
+    fn temp_path(&self) -> &Path {
+        &self.temp_path
+    }
+
+    fn prepare_temp_path(&self) -> io::Result<()> {
+        self.cleanup_temp_sidecars();
+        if self.temp_path.exists() {
+            fs::remove_file(&self.temp_path)?;
+        }
+        Ok(())
+    }
+
+    fn replace_active_index(&self) -> io::Result<()> {
+        replace_active_index(&self.temp_path, &self.index_path)
+    }
+
+    fn cleanup_temp_sidecars(&self) {
+        cleanup_sqlite_sidecars(&self.temp_path);
+    }
+
+    fn discard_temp_path(&self) {
+        self.cleanup_temp_sidecars();
+        let _ = fs::remove_file(&self.temp_path);
+    }
 }
 
 fn write_temp_index(
@@ -19646,6 +19686,51 @@ mod tests {
             .unwrap();
         assert_eq!(stable_count, 1);
         assert_eq!(engine, "rust");
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn final_flush_sqlite_mode_cleans_stale_temp_sidecars_when_staging_fails() {
+        let dir = temp_dir("final-flush-cleans-stale-temp-sidecars");
+        write_file(
+            &dir,
+            "index.ts",
+            "export function stableSymbol(): number { return 1; }\n",
+        );
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+
+        let initial = run_index(&request);
+        assert!(initial.success, "{:?}", initial.errors);
+
+        let index_path = Path::new(&request.index_path);
+        let staging_path = temp_index_path(index_path);
+        let staging_wal_path = PathBuf::from(format!("{}-wal", staging_path.display()));
+        let staging_shm_path = PathBuf::from(format!("{}-shm", staging_path.display()));
+        fs::create_dir(&staging_path).unwrap();
+        fs::write(&staging_wal_path, "stale wal").unwrap();
+        fs::write(&staging_shm_path, "stale shm").unwrap();
+
+        let failed = run_index(&request);
+
+        assert!(
+            !failed.success,
+            "staging should fail when the temp DB path is blocked"
+        );
+        assert!(
+            !staging_wal_path.exists(),
+            "stale temp WAL sidecar should be removed on staging failure"
+        );
+        assert!(
+            !staging_shm_path.exists(),
+            "stale temp SHM sidecar should be removed on staging failure"
+        );
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let stable_count = sqlite_count(
+            &conn,
+            "SELECT COUNT(*) FROM nodes WHERE name = 'stableSymbol'",
+        );
+        assert_eq!(stable_count, 1);
         cleanup_temp_dir(dir);
     }
 

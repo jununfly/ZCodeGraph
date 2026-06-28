@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 13:01:18
+> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 13:37:35
 
 [~][X+] 1. Rust Indexing Debt To Rust Migration Roadmap
 ├── [x][X+] 1-1. Technical debt governance staging before migration resumes
@@ -13,7 +13,7 @@
 ├── [ ][X+] 1-2. Rust core architecture clarity for future migration
 │   ├── [x][Y+] 1-2-1. Extraction finalization resolution ownership boundary map
 │   ├── [x][Y+] 1-2-2. Rust core test helper and fixture module extraction
-│   ├── [ ][Y+] 1-2-3. SQLite write finalization helper isolation
+│   ├── [x][Y+] 1-2-3. SQLite write finalization helper isolation
 │   ├── [ ][Y+] 1-2-4. JS TS resolver migration tests versus Rust language tests split
 │   └── [ ][X+] 1-2-5. Profile and diagnostic field stability boundary
 ├── [ ][X+] 1-3. Cross-platform CI and release trust guardrails

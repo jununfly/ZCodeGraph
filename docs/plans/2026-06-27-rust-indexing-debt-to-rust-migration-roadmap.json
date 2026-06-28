@@ -405,12 +405,58 @@
     "1-2-3": {
       "id": "1-2-3",
       "label": "SQLite write finalization helper isolation",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which 1-2 slice should the twenty-fourth cut execute next?",
+          "answer": "Execute 1-2-3. SQLite write finalization helper isolation.",
+          "note": "After the ownership boundary map and Rust test-support helper extraction, SQLite write/finalization helper isolation is the next lowest-risk architecture clarity exploit. It should clarify helper boundaries without moving TypeScript product-shell finalization ownership."
+        },
+        {
+          "q": "What should 1-2-3 produce?",
+          "answer": "Produce a narrow implementation plan plus issue for TDD, not immediate code changes during this grill.",
+          "note": "SQLite write/finalization helper isolation can easily cross ownership boundaries, so the issue must first define whether it targets Rust core write helpers, TypeScript finalization helpers, or tests/support only, plus verification commands."
+        },
+        {
+          "q": "Which layer should SQLite write finalization helper isolation target first?",
+          "answer": "Target the Rust core SQLite write helper boundary first; do not modify TypeScript finalizeRustIndex in this slice.",
+          "note": "This keeps the work inside the Rust-owned initial write/index replacement path and avoids moving TypeScript product-shell finalization ownership."
+        },
+        {
+          "q": "Should 1-2-3 allow production helper extraction or stay test-only?",
+          "answer": "Allow production helper extraction, but only as behavior-preserving extraction inside the Rust core SQLite write path.",
+          "note": "This slice is helper isolation, so test-only would under-serve the node. The boundary remains narrow: no TypeScript finalizeRustIndex changes, no ownership migration, no schema/profile shape changes, and no performance claims."
+        },
+        {
+          "q": "What should be the primary acceptance line for 1-2-3?",
+          "answer": "Use active index replacement, rollback/cleanup, and WAL final state as the primary behavior-preserving acceptance line.",
+          "note": "This targets the real SQLite lifecycle risk of helper isolation. Profile accounting and helper naming remain secondary checks, while existing final-flush tests should be preserved or tightened."
+        },
+        {
+          "q": "Should the implementation issue require a named Rust helper or struct boundary?",
+          "answer": "Require a small Rust-core helper or struct boundary, but do not prescribe the final name.",
+          "note": "The issue should require isolation of temp index lifecycle and final replacement behavior behind a clear helper boundary, while letting the implementation choose names that fit the surrounding Rust code."
+        },
+        {
+          "q": "Should the implementation issue update roadmap state as part of closeout?",
+          "answer": "Yes: require code, tests, and a roadmap closeout note for node 1-2-3.",
+          "note": "Closeout should explicitly say this isolates the Rust core SQLite write helper boundary and does not change TypeScript finalization ownership."
+        },
+        {
+          "q": "May this issue change SQLite pragma or write mode behavior?",
+          "answer": "No: keep pragma and write mode behavior unchanged; only allow behavior-preserving helper isolation.",
+          "note": "Disk, FinalFlush, and MemoryFinalFlush semantics must remain unchanged. Profile field meaning should be preserved, and any performance optimization belongs in a separate evidence-driven slice."
+        },
+        {
+          "q": "What issue granularity should 1-2-3 use?",
+          "answer": "Create one narrow issue for Rust core SQLite write helper isolation.",
+          "note": "The issue should cover behavior-preserving helper isolation, targeted tests, and roadmap closeout together. Do not split tests or closeout into separate issues for this small boundary slice."
+        }
+      ],
+      "notes": "Completed via #635. Isolated the Rust core SQLite write helper boundary with behavior-preserving temp index lifecycle/final replacement helpers. This does not change TypeScript finalizeRustIndex ownership, SQLite pragma semantics, write mode behavior, schema/profile field shape, or make a performance optimization claim. Verification: cargo test -p zcodegraph-core."
     },
     "1-2-4": {
       "id": "1-2-4",
@@ -1462,7 +1508,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 13:01:18",
+    "updated": "2026-06-28 13:37:35",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
