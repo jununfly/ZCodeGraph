@@ -708,7 +708,7 @@
     "1-4": {
       "id": "1-4",
       "label": "Documentation roadmap and evidence lifecycle governance",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -723,6 +723,11 @@
           "q": "How should process documents be handled during this roadmap?",
           "answer": "Keep roadmap JSON as the active truth source, render markdown for humans, and consolidate/delete temporary artifacts at closeout.",
           "note": "This preserves map visibility without repeating the previous process-file buildup."
+        },
+        {
+          "q": "Where should the thirty-third cut go after completing 1-3?",
+          "answer": "A. Enter 1-4 Documentation roadmap and evidence lifecycle governance.",
+          "note": "This closes the documentation/evidence lifecycle debt before returning to TypeScript-to-Rust migration implementation, reducing process-file buildup risk."
         }
       ],
       "notes": ""
@@ -730,12 +735,58 @@
     "1-4-1": {
       "id": "1-4-1",
       "label": "Process roadmap cleanup and consolidation policy",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which 1-4 documentation governance node should the thirty-third cut enter first?",
+          "answer": "A. Start 1-4-1 Process roadmap cleanup and consolidation policy.",
+          "note": "This sets the cleanup/consolidation rule before touching ADR routing, benchmark retention, README language, or temporary evidence deletion."
+        },
+        {
+          "q": "What should 1-4-1 produce?",
+          "answer": "A. Produce a narrow process cleanup policy/plan and candidate inventory only; do not batch-delete or merge files in this slice.",
+          "note": "This keeps 1-4-1 as the rule-setting slice. Actual deletion/checklist execution belongs to 1-4-5 or follow-up implementation issues."
+        },
+        {
+          "q": "Where should the 1-4-1 process cleanup policy live?",
+          "answer": "A. Store it in the current roadmap node notes/decisions instead of adding a new standalone document.",
+          "note": "This keeps the roadmap JSON as the active truth source and avoids creating another process artifact while defining process artifact cleanup."
+        },
+        {
+          "q": "How detailed should the 1-4-1 cleanup candidate inventory be?",
+          "answer": "A. Name concrete files and assign each a suggested action: keep, consolidate, delete-candidate, or defer; do not execute deletion in this slice.",
+          "note": "This makes the next cleanup slice directly actionable while keeping 1-4-1 as policy and inventory, not implementation cleanup."
+        },
+        {
+          "q": "Should the 1-4-1 inventory cover docs/plans and docs/benchmarks together?",
+          "answer": "A. Yes. Cover both docs/plans and docs/benchmarks, but only as inventory and suggested action; do not execute cleanup in this slice.",
+          "note": "The two directories have cross-linked plan, decision, closeout, benchmark, result, and evidence artifacts. Inventorying both avoids one-sided cleanup decisions."
+        },
+        {
+          "q": "Which action taxonomy should the 1-4-1 inventory use?",
+          "answer": "A. Use keep, consolidate, delete-candidate, and defer.",
+          "note": "keep=current durable entry point or referenced baseline/result/decision; consolidate=valuable facts should move into existing durable artifacts; delete-candidate=already absorbed or process-only; defer=needs 1-4-2/1-4-5 routing or retention rules before action."
+        },
+        {
+          "q": "How detailed should the roadmap-notes inventory be?",
+          "answer": "A. Use grouped inventory: list file groups with one action per group and call out exceptions.",
+          "note": "This keeps roadmap notes readable while still making the next cleanup issue actionable."
+        },
+        {
+          "q": "Is 1-4-1 complete after policy and grouped inventory are recorded?",
+          "answer": "A. Yes. Mark 1-4-1 complete.",
+          "note": "The node scope was policy plus candidate inventory only. Actual cleanup execution remains for 1-4-5 or a dedicated issue."
+        },
+        {
+          "q": "Which issue locked the 1-4-1 roadmap governance contract?",
+          "answer": "#644. Lock roadmap cleanup policy and inventory contract.",
+          "note": "Added a deterministic docs test for the 1-4-1 taxonomy, grouped inventory scope, and non-goals."
+        }
+      ],
+      "notes": "Policy scope: this node defines cleanup policy and candidate inventory only. It must not merge or delete docs. Follow-up execution belongs to 1-4-5 or a dedicated issue.\n\nAction taxonomy:\n- keep: current durable entry point, baseline/result artifact, release/current-state source, README/ADR referenced artifact, or active roadmap source.\n- consolidate: useful facts remain, but they should move into an existing consolidated plan/benchmark/ADR before deletion.\n- delete-candidate: already absorbed by a consolidated artifact, or process-only evidence whose useful facts are no longer independently needed.\n- defer: needs 1-4-2 ADR-vs-benchmark-vs-plan routing or 1-4-5 retention/deletion checklist before action.\n\nGrouped inventory candidates:\n1. keep current entry points: docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.{json,md}; docs/plans/2026-06-24-rust-indexing-ts-replacement-readiness-consolidated-plan.md; docs/plans/2026-06-24-rust-indexing-core-consolidated-plans.md; docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md; docs/benchmarks/2026-06-24-current-state-decision-pack.md.\n2. keep benchmark standards and README/ADR referenced evidence: docs/benchmarks/baseline-agent-sufficiency-v1.md; baseline-indexing-performance-v1.md; graph-semantics-guardrail-v1.md; call-sequence-analysis.md; answer-directly-vs-explore-agent.md; codegraph-ab-matrix.md; 2026-06-26-zcodegraph-0-10-0-current-state.*; 2026-06-26-zcodegraph-0-10-0-targeted-agent-ab.*; 2026-06-25-zcodegraph-0-10-0-release-snapshot.*.\n3. defer consolidated archives until 1-4-2/1-4-5 confirms retention policy: docs/benchmarks/2026-06-24-rust-hybrid-*-consolidated-evidence.md; docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md; docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md. These are large, but currently serve as historical archives and are referenced by ADR/current-state docs.\n4. consolidate/delete-candidate module-resolution process plans: docs/plans/2026-06-22-rust-native-config-interpretation-completion.md; declaration-target-relationship-diagnostics.md; file-target-semantics-extensionless-candidates.md; package-map-condition-set-completion.md; docs/plans/2026-06-23-rust-native-guarded-esm-named-symbol-edge-write.md; guarded-runtime-sibling-graph-write.md; safe-runtime-sibling-pairing-decision-contract.md. Candidate action: verify facts are already in 2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md or semantic-frontier implementation plan, then delete.\n5. defer older pre-consolidation plans: docs/plans/2026-04-24-framework-resolver-extract.md; 2026-06-08-zcodegraph-brand-and-isolation-migration.md; 2026-06-09-architecture-candidates-and-explore-planner.md; 2026-06-11-explore-sufficiency-evaluation.md. These may still encode historical product/architecture context; route through 1-4-2 before deletion.\n6. consolidate/delete-candidate first-user diagnostic pair: docs/plans/2026-06-19-first-user-diagnostic-trust-cleanup*.md and docs/benchmarks/2026-06-19-first-user-diagnostic-trust-cleanup-evidence.md. Candidate action: keep only if still referenced by release/current-state docs; otherwise merge useful facts into current-state or release validation artifact and delete.\n7. defer release and Rust language closeouts: docs/plans/2026-06-25-zcodegraph-0-10-0-release-go-no-go.md; docs/plans/2026-06-27-rust-language-semantic-support-closeout.md; docs/benchmarks/2026-06-25-zcodegraph-0-10-0-release-critical-validation.md. These are recent release/support closeouts; deletion requires explicit closeout retention rule.\n\nNon-goals for 1-4-1: no file deletion, no README rewrite, no ADR rewrite, no benchmark evidence rewrite."
     },
     "1-4-2": {
       "id": "1-4-2",
@@ -1801,7 +1852,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 18:39:30",
+    "updated": "2026-06-28 19:29:13",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
