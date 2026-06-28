@@ -12045,6 +12045,15 @@ mod tests {
         cleanup_temp_dir(dir);
     }
 
+    // BEGIN ownership bucket: Rust language semantic tests.
+    //
+    // These tests cover Rust programming-language semantic support evidence:
+    // parser/profile baseline, Rust symbol/import/call extraction, module/use
+    // path resolution, scoped visibility guards, Cargo workspace taxonomy and
+    // cfg suppression, macro taxonomy, Axum route semantics, trait impl edges,
+    // and trait method reference edges. Keep JS/TS resolver migration tests,
+    // shared Rust core infrastructure tests, and mixed-ownership tests in
+    // separate roadmap buckets.
     #[test]
     fn rust_core_parses_rust_files_and_reports_language_profile() {
         let dir = temp_dir("rust-parser-profile");
@@ -13850,6 +13859,7 @@ mod tests {
         assert_eq!(references, 0);
         cleanup_temp_dir(dir);
     }
+    // END ownership bucket: Rust language semantic tests.
 
     #[test]
     fn candidate_producer_returns_exact_name_and_presence_from_sqlite() {

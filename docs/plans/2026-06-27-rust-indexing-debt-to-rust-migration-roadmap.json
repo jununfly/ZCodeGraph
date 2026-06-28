@@ -1564,12 +1564,28 @@
     "1-2-4-2": {
       "id": "1-2-4-2",
       "label": "Rust language semantic test grouping slice",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which 1-2-4 bucket should the twenty-sixth cut execute next?",
+          "answer": "Execute 1-2-4-2. Rust language semantic test grouping slice.",
+          "note": "After the first JS/TS resolver migration test grouping slice, the next most natural boundary is the Rust language semantic support test grouping so the two main evidence surfaces are visibly separate."
+        },
+        {
+          "q": "Should Rust language semantic test grouping use lightweight markers or move test bodies?",
+          "answer": "Use lightweight BEGIN/END ownership markers and do not move test bodies.",
+          "note": "The previous JS/TS resolver grouping showed that module wrapping creates very large formatting-only diffs. This slice should mirror the lightweight marker strategy while covering the contiguous Rust semantic tests from Rust parser/profile baseline through trait method edge fail-closed coverage."
+        },
+        {
+          "q": "Should the twenty-sixth cut publish an issue and implement now?",
+          "answer": "Yes. Publish one narrow ready-for-agent issue, implement the lightweight Rust language semantic test ownership marker, verify, and commit.",
+          "note": "The slice is narrow enough for AFK execution: marker-only test ownership grouping, no production code changes, no test body movement, no assertion semantic changes."
+        }
+      ],
+      "notes": "Completed via #637. Added a visible Rust core test ownership marker for Rust language semantic coverage: parser/profile baseline, Rust symbol/import/call extraction, module/use path resolution, scoped visibility guards, Cargo workspace taxonomy and cfg suppression, macro taxonomy, Axum route semantics, trait impl edges, and trait method reference edges. No production code, test body movement, or assertion semantics changed. Parent 1-2-4 remains open for shared infrastructure and mixed ownership follow-up buckets."
     },
     "1-2-4-3": {
       "id": "1-2-4-3",
@@ -1594,7 +1610,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 14:17:03",
+    "updated": "2026-06-28 14:25:53",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
