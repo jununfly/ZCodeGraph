@@ -325,9 +325,22 @@ describe('Rust indexing migration roadmap ownership map', () => {
     expect(resolver.notes).toContain('TypeScript fallback remains for unsupported or ambiguous forms');
 
     const framework = readNode('1-6-7');
-    expect(framework.notes).toContain('Migrate only FrameworkResolver.postExtract() behavior');
-    expect(framework.notes).toContain('node-update protocol preserving ids and qualifiedName/idempotency');
-    expect(framework.notes).toContain('route prefix rewrite edge-preservation tests');
+    expect(framework.notes).toContain('docs/plans/2026-06-29-rust-side-framework-post-extract-protocol-plan.md');
+    expect(framework.notes).toContain('generic Rust-side framework postExtract host/update protocol');
+    expect(framework.notes).toContain('NestJS RouterModule route-name prefix rewrites');
+    expect(framework.notes).toContain('Rust produces typed node updates');
+    expect(framework.notes).toContain('TypeScript shell validates and applies updates through the existing node-update path');
+    expect(framework.notes).toContain('v1 updates may only mutate route node name');
+    expect(framework.notes).toContain('id, qualifiedName, kind, and filePath must remain stable');
+    expect(framework.notes).toContain('Provider failures and unsafe updates are fail-open/fail-closed');
+    expect(framework.notes).toContain('provider=nestjs, updateKind=route-name-prefix, nodeKind=route, field=name');
+    expect(framework.notes).toContain('Completed issues: #659, #660, #661');
+    expect(framework.notes).toContain('Implemented a generic Rust-side framework postExtract host/update protocol');
+    expect(framework.notes).toContain('Implemented the first Rust-produced provider shape for NestJS RouterModule route-name prefix rewrites');
+    expect(framework.notes).toContain('parse-time framework extract() migration remains out of scope');
+    expect(framework.notes).toContain('per-reference framework resolve()/claimsReference() migration remains out of scope');
+    expect(framework.notes).toContain('route-handler edge preservation covered');
+    expect(framework.notes).toContain('idempotency covered with no-op taxonomy');
 
     const dynamic = readNode('1-6-8');
     expect(dynamic.notes).toContain('Choose one bounded full-graph synthesizer or relationship family first');

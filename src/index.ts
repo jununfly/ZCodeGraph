@@ -65,6 +65,8 @@ import {
 } from './indexing/rust-hybrid-contract';
 
 type RustCoreProfileLike = {
+  frameworkPostExtractUpdates?: unknown;
+  frameworkPostExtractProviderErrors?: unknown;
   esmNamedImportExportResolvedRefs?: number;
   esmNamedImportExportFallbackRefs?: number;
   esmNamedImportExportFallbackSampleCounts?: Record<string, number>;
@@ -88,6 +90,32 @@ type RustCoreProfileLike = {
   importPathAliasPackageImportsResolvedRefs?: number;
   importPathAliasPackageImportsFallbackRefs?: number;
   importPathAliasPackageImportsOutcomeCounts?: Record<string, number>;
+};
+
+type RustFrameworkPostExtractUpdate = {
+  provider: string;
+  updateKind: string;
+  nodeId: string;
+  nodeKind: string;
+  filePath: string;
+  qualifiedName: string;
+  field: string;
+  newName: string;
+};
+
+type FrameworkPostExtractDiagnostics = {
+  owner: 'rust-core' | 'typescript-finalization';
+  mode: 'typed-node-update-protocol' | 'typescript-post-extract';
+  attemptedUpdates: number;
+  appliedUpdates: number;
+  skippedUpdates: number;
+  failedProviders: number;
+  skipReasons: Record<string, number>;
+  providerCounts: Record<string, number>;
+  appliedProviderCounts: Record<string, number>;
+  allowedProviders: string[];
+  allowedUpdateKinds: string[];
+  mutableFields: string[];
 };
 
 type GuardedEdgeWriteDiagnostics = {
@@ -417,6 +445,120 @@ function cleanupOwnershipDiagnostics(input: {
       'Rust core may pre-clean references it owns, but this bucket reports null unless a reliable public count exists.',
     ],
   };
+}
+
+function incrementRecordCount(record: Record<string, number>, key: string): void {
+  record[key] = (record[key] ?? 0) + 1;
+}
+
+function rustFrameworkPostExtractUpdates(profile: unknown): RustFrameworkPostExtractUpdate[] {
+  const rustProfile = rustCoreProfileLike(profile);
+  if (!Array.isArray(rustProfile.frameworkPostExtractUpdates)) return [];
+  return rustProfile.frameworkPostExtractUpdates.filter((entry): entry is RustFrameworkPostExtractUpdate => {
+    if (!entry || typeof entry !== 'object') return false;
+    const update = entry as Partial<Record<keyof RustFrameworkPostExtractUpdate, unknown>>;
+    return typeof update.provider === 'string'
+      && typeof update.updateKind === 'string'
+      && typeof update.nodeId === 'string'
+      && typeof update.nodeKind === 'string'
+      && typeof update.filePath === 'string'
+      && typeof update.qualifiedName === 'string'
+      && typeof update.field === 'string'
+      && typeof update.newName === 'string';
+  });
+}
+
+function rustFrameworkPostExtractProviderErrors(profile: unknown): number {
+  const rustProfile = rustCoreProfileLike(profile);
+  if (Array.isArray(rustProfile.frameworkPostExtractProviderErrors)) {
+    return rustProfile.frameworkPostExtractProviderErrors.length;
+  }
+  return 0;
+}
+
+function emptyFrameworkPostExtractDiagnostics(): FrameworkPostExtractDiagnostics {
+  return {
+    owner: 'typescript-finalization',
+    mode: 'typescript-post-extract',
+    attemptedUpdates: 0,
+    appliedUpdates: 0,
+    skippedUpdates: 0,
+    failedProviders: 0,
+    skipReasons: {},
+    providerCounts: {},
+    appliedProviderCounts: {},
+    allowedProviders: ['nestjs'],
+    allowedUpdateKinds: ['route-name-prefix'],
+    mutableFields: ['name'],
+  };
+}
+
+function applyRustFrameworkPostExtractUpdates(
+  queries: QueryBuilder,
+  rustCoreProfile: unknown,
+): FrameworkPostExtractDiagnostics {
+  const updates = rustFrameworkPostExtractUpdates(rustCoreProfile);
+  const diagnostics: FrameworkPostExtractDiagnostics = {
+    ...emptyFrameworkPostExtractDiagnostics(),
+    owner: 'rust-core',
+    mode: 'typed-node-update-protocol',
+    attemptedUpdates: updates.length,
+    failedProviders: rustFrameworkPostExtractProviderErrors(rustCoreProfile),
+  };
+
+  for (const update of updates) {
+    incrementRecordCount(diagnostics.providerCounts, update.provider);
+
+    let skipReason: string | null = null;
+    if (update.provider !== 'nestjs') {
+      skipReason = 'unsupported-provider';
+    } else if (update.updateKind !== 'route-name-prefix') {
+      skipReason = 'unsupported-update-kind';
+    } else if (update.nodeKind !== 'route') {
+      skipReason = 'unsupported-node-kind';
+    } else if (update.field !== 'name') {
+      skipReason = 'unsupported-update-field';
+    }
+
+    if (skipReason) {
+      diagnostics.skippedUpdates++;
+      incrementRecordCount(diagnostics.skipReasons, skipReason);
+      continue;
+    }
+
+    const node = queries.getNodeById(update.nodeId);
+    if (!node) {
+      diagnostics.skippedUpdates++;
+      incrementRecordCount(diagnostics.skipReasons, 'node-not-found');
+      continue;
+    }
+
+    if (
+      node.kind !== update.nodeKind
+      || node.filePath !== update.filePath
+      || node.qualifiedName !== update.qualifiedName
+    ) {
+      diagnostics.skippedUpdates++;
+      incrementRecordCount(diagnostics.skipReasons, 'identity-mismatch');
+      continue;
+    }
+
+    if (node.name === update.newName) {
+      diagnostics.skippedUpdates++;
+      incrementRecordCount(diagnostics.skipReasons, 'no-op');
+      continue;
+    }
+
+    queries.updateNode({
+      ...node,
+      name: update.newName,
+      updatedAt: Date.now(),
+    });
+    diagnostics.appliedUpdates++;
+    incrementRecordCount(diagnostics.appliedProviderCounts, update.provider);
+  }
+
+  return diagnostics;
 }
 
 // Re-export types for consumers
@@ -1305,6 +1447,7 @@ export class CodeGraph {
     edgesCreated: number;
     profile: {
       frameworkPostExtractMs: number;
+      frameworkPostExtract: FrameworkPostExtractDiagnostics;
       referenceResolutionMs: number;
       referenceResolutionBreakdown: {
         importResolutionMs: number;
@@ -1433,6 +1576,7 @@ export class CodeGraph {
         const before = this.queries.getNodeAndEdgeCount();
         const profile = {
           frameworkPostExtractMs: 0,
+          frameworkPostExtract: emptyFrameworkPostExtractDiagnostics(),
           referenceResolutionMs: 0,
           referenceResolutionBreakdown: {
             importResolutionMs: 0,
@@ -1703,6 +1847,10 @@ export class CodeGraph {
         profile.fallbackTaxonomy.totalResiduals += additionalFallbackCount;
         const frameworkStarted = Date.now();
         onCheckpoint?.('finalization.frameworkPostExtract.started');
+        profile.frameworkPostExtract = applyRustFrameworkPostExtractUpdates(
+          this.queries,
+          rustCoreProfile,
+        );
         this.resolver.initialize();
         this.resolver.runPostExtract();
         profile.frameworkPostExtractMs = Date.now() - frameworkStarted;

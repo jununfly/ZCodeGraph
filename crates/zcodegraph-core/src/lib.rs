@@ -159,6 +159,19 @@ pub struct IndexProfile {
     pub rust_axum_route_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_visibility_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_visibility_guard_taxonomy_counts: BTreeMap<String, u32>,
+    pub framework_post_extract_updates: Vec<FrameworkPostExtractUpdate>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FrameworkPostExtractUpdate {
+    pub provider: String,
+    pub update_kind: String,
+    pub node_id: String,
+    pub node_kind: String,
+    pub file_path: String,
+    pub qualified_name: String,
+    pub field: String,
+    pub new_name: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1557,6 +1570,8 @@ fn write_index_to_connection(
     counts.profile.local_exact_reference_resolved_refs = local_reference_stats.resolved_refs;
     counts.profile.local_exact_reference_fallback_refs = local_reference_stats.fallback_refs;
     counts.edges_created += local_reference_stats.edges_created;
+    counts.profile.framework_post_extract_updates =
+        produce_nestjs_framework_post_extract_updates(conn, Path::new(&request.project_path))?;
     Ok(counts)
 }
 
@@ -11260,6 +11275,335 @@ fn sha256_hex(bytes: &[u8]) -> String {
     digest.iter().map(|byte| format!("{:02x}", byte)).collect()
 }
 
+fn produce_nestjs_framework_post_extract_updates(
+    conn: &Connection,
+    project_path: &Path,
+) -> rusqlite::Result<Vec<FrameworkPostExtractUpdate>> {
+    let mut module_to_prefix = BTreeMap::<String, String>::new();
+    let mut controller_to_module = BTreeMap::<String, String>::new();
+
+    let mut stmt = conn.prepare(
+        "SELECT path FROM files
+         WHERE path LIKE '%.module.ts'
+            OR path LIKE '%.module.js'
+            OR path LIKE '%.module.mts'
+            OR path LIKE '%.module.cts'
+            OR path LIKE '%.module.cjs'
+         ORDER BY path",
+    )?;
+    let paths = stmt
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    for file_path in paths {
+        let absolute = project_path.join(&file_path);
+        let Ok(content) = fs::read_to_string(absolute) else {
+            continue;
+        };
+        collect_nestjs_router_module_registrations(&content, &mut module_to_prefix);
+        collect_nestjs_module_controllers(&content, &mut controller_to_module);
+    }
+
+    let mut updates = Vec::new();
+    for (controller, module) in controller_to_module {
+        let Some(prefix) = module_to_prefix.get(&module) else {
+            continue;
+        };
+        if prefix.is_empty() || prefix == "/" {
+            continue;
+        }
+
+        let classes = load_nodes_by_kind_and_name(conn, "class", &controller)?;
+        for class_node in classes {
+            let routes = load_route_nodes_in_file(conn, &class_node.file_path)?;
+            for route in routes {
+                if route.start_line < class_node.start_line
+                    || route.start_line > class_node.end_line
+                {
+                    continue;
+                }
+                let Some((method, original_path)) =
+                    route_method_path_from_qualified_name(&route.qualified_name)
+                else {
+                    continue;
+                };
+                let new_name = format!("{} {}", method, join_route_paths(prefix, original_path));
+                if new_name == route.name {
+                    continue;
+                }
+                updates.push(FrameworkPostExtractUpdate {
+                    provider: "nestjs".to_string(),
+                    update_kind: "route-name-prefix".to_string(),
+                    node_id: route.id,
+                    node_kind: "route".to_string(),
+                    file_path: route.file_path,
+                    qualified_name: route.qualified_name,
+                    field: "name".to_string(),
+                    new_name,
+                });
+            }
+        }
+    }
+
+    Ok(updates)
+}
+
+#[derive(Debug, Clone)]
+struct GraphNodeSummary {
+    id: String,
+    name: String,
+    qualified_name: String,
+    file_path: String,
+    start_line: i64,
+    end_line: i64,
+}
+
+fn load_nodes_by_kind_and_name(
+    conn: &Connection,
+    kind: &str,
+    name: &str,
+) -> rusqlite::Result<Vec<GraphNodeSummary>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, qualified_name, file_path, start_line, end_line
+         FROM nodes
+         WHERE kind = ?1 AND name = ?2",
+    )?;
+    let rows = stmt.query_map(params![kind, name], |row| {
+        Ok(GraphNodeSummary {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            qualified_name: row.get(2)?,
+            file_path: row.get(3)?,
+            start_line: row.get(4)?,
+            end_line: row.get(5)?,
+        })
+    })?;
+    rows.collect()
+}
+
+fn load_route_nodes_in_file(
+    conn: &Connection,
+    file_path: &str,
+) -> rusqlite::Result<Vec<GraphNodeSummary>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, qualified_name, file_path, start_line, end_line
+         FROM nodes
+         WHERE kind = 'route' AND file_path = ?1",
+    )?;
+    let rows = stmt.query_map(params![file_path], |row| {
+        Ok(GraphNodeSummary {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            qualified_name: row.get(2)?,
+            file_path: row.get(3)?,
+            start_line: row.get(4)?,
+            end_line: row.get(5)?,
+        })
+    })?;
+    rows.collect()
+}
+
+fn collect_nestjs_router_module_registrations(
+    content: &str,
+    module_to_prefix: &mut BTreeMap<String, String>,
+) {
+    let mut search_start = 0;
+    while let Some(offset) = content[search_start..].find("RouterModule.") {
+        let start = search_start + offset;
+        search_start = start + "RouterModule.".len();
+        let Some(array_start_rel) = content[start..].find('[') else {
+            continue;
+        };
+        let array_start = start + array_start_rel;
+        let Some(array_end) = find_matching_delimiter(content, array_start, b'[', b']') else {
+            continue;
+        };
+        parse_nestjs_router_array(&content[array_start + 1..array_end], "", module_to_prefix);
+    }
+}
+
+fn parse_nestjs_router_array(
+    array_content: &str,
+    parent_prefix: &str,
+    module_to_prefix: &mut BTreeMap<String, String>,
+) {
+    let mut cursor = 0;
+    while let Some(open_rel) = array_content[cursor..].find('{') {
+        let open = cursor + open_rel;
+        let Some(close) = find_matching_delimiter(array_content, open, b'{', b'}') else {
+            break;
+        };
+        parse_nestjs_router_object(
+            &array_content[open + 1..close],
+            parent_prefix,
+            module_to_prefix,
+        );
+        cursor = close + 1;
+    }
+}
+
+fn parse_nestjs_router_object(
+    object_content: &str,
+    parent_prefix: &str,
+    module_to_prefix: &mut BTreeMap<String, String>,
+) {
+    let path = parse_string_property(object_content, "path").unwrap_or_default();
+    let prefix = join_route_paths(parent_prefix, &path);
+    if let Some(module) = parse_identifier_property(object_content, "module") {
+        module_to_prefix.insert(module, prefix.clone());
+    }
+    if let Some(children_start_rel) = object_content.find("children") {
+        if let Some(array_start_rel) = object_content[children_start_rel..].find('[') {
+            let array_start = children_start_rel + array_start_rel;
+            if let Some(array_end) =
+                find_matching_delimiter(object_content, array_start, b'[', b']')
+            {
+                parse_nestjs_router_array(
+                    &object_content[array_start + 1..array_end],
+                    &prefix,
+                    module_to_prefix,
+                );
+            }
+        }
+    }
+}
+
+fn collect_nestjs_module_controllers(
+    content: &str,
+    controller_to_module: &mut BTreeMap<String, String>,
+) {
+    let mut search_start = 0;
+    while let Some(offset) = content[search_start..].find("@Module") {
+        let module_start = search_start + offset;
+        search_start = module_start + "@Module".len();
+        let Some(paren_start_rel) = content[module_start..].find('(') else {
+            continue;
+        };
+        let paren_start = module_start + paren_start_rel;
+        let Some(paren_end) = find_matching_delimiter(content, paren_start, b'(', b')') else {
+            continue;
+        };
+        let module_body = &content[paren_start + 1..paren_end];
+        let Some(module_name) = parse_export_class_after(content, paren_end) else {
+            continue;
+        };
+        for controller in parse_controllers_array(module_body) {
+            controller_to_module.insert(controller, module_name.clone());
+        }
+    }
+}
+
+fn parse_string_property(content: &str, property: &str) -> Option<String> {
+    let property_index = content.find(property)?;
+    let colon_index = property_index + content[property_index..].find(':')?;
+    let after_colon = &content[colon_index + 1..];
+    let quote_index = after_colon.find(|ch| ch == '\'' || ch == '"')?;
+    let quote = after_colon[quote_index..].chars().next()?;
+    let value_start = quote_index + quote.len_utf8();
+    let value_end = after_colon[value_start..].find(quote)?;
+    Some(
+        after_colon[value_start..value_start + value_end]
+            .trim()
+            .to_string(),
+    )
+}
+
+fn parse_identifier_property(content: &str, property: &str) -> Option<String> {
+    let property_index = content.find(property)?;
+    let colon_index = property_index + content[property_index..].find(':')?;
+    let after_colon = content[colon_index + 1..].trim_start();
+    let ident = after_colon
+        .chars()
+        .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_' || *ch == '$')
+        .collect::<String>();
+    if ident.is_empty() {
+        None
+    } else {
+        Some(ident)
+    }
+}
+
+fn parse_export_class_after(content: &str, after_index: usize) -> Option<String> {
+    let rest = &content[after_index..];
+    let export_index = rest.find("export class ")?;
+    let after_export = &rest[export_index + "export class ".len()..];
+    let ident = after_export
+        .chars()
+        .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_' || *ch == '$')
+        .collect::<String>();
+    if ident.is_empty() {
+        None
+    } else {
+        Some(ident)
+    }
+}
+
+fn parse_controllers_array(module_body: &str) -> Vec<String> {
+    let Some(controller_index) = module_body.find("controllers") else {
+        return Vec::new();
+    };
+    let Some(array_start_rel) = module_body[controller_index..].find('[') else {
+        return Vec::new();
+    };
+    let array_start = controller_index + array_start_rel;
+    let Some(array_end) = find_matching_delimiter(module_body, array_start, b'[', b']') else {
+        return Vec::new();
+    };
+    module_body[array_start + 1..array_end]
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .filter_map(|value| {
+            let ident = value
+                .chars()
+                .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_' || *ch == '$')
+                .collect::<String>();
+            if ident.is_empty() {
+                None
+            } else {
+                Some(ident)
+            }
+        })
+        .collect()
+}
+
+fn route_method_path_from_qualified_name(qualified_name: &str) -> Option<(&str, &str)> {
+    let route_part = qualified_name.rsplit_once("::")?.1;
+    route_part.split_once(':')
+}
+
+fn join_route_paths(prefix: &str, path: &str) -> String {
+    let prefix = prefix.trim().trim_matches('/');
+    let path = path.trim().trim_matches('/');
+    match (prefix.is_empty(), path.is_empty()) {
+        (true, true) => "/".to_string(),
+        (true, false) => format!("/{}", path),
+        (false, true) => format!("/{}", prefix),
+        (false, false) => format!("/{}/{}", prefix, path),
+    }
+}
+
+fn framework_post_extract_updates_json(updates: &[FrameworkPostExtractUpdate]) -> String {
+    let items = updates
+        .iter()
+        .map(|update| {
+            format!(
+                "{{\"provider\":\"{}\",\"updateKind\":\"{}\",\"nodeId\":\"{}\",\"nodeKind\":\"{}\",\"filePath\":\"{}\",\"qualifiedName\":\"{}\",\"field\":\"{}\",\"newName\":\"{}\"}}",
+                escape_json(&update.provider),
+                escape_json(&update.update_kind),
+                escape_json(&update.node_id),
+                escape_json(&update.node_kind),
+                escape_json(&update.file_path),
+                escape_json(&update.qualified_name),
+                escape_json(&update.field),
+                escape_json(&update.new_name),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("[{}]", items)
+}
+
 pub fn result_json(result: &IndexResult) -> String {
     let errors = result
         .errors
@@ -11287,7 +11631,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustTraitImplEdgeWriteCounts\":{},\"rustTraitMethodReferenceEdgeWriteCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustCargoConditionSourceCounts\":{},\"rustCargoConditionalSemanticSuppressionCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"frameworkPostExtractUpdates\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustTraitImplEdgeWriteCounts\":{},\"rustTraitMethodReferenceEdgeWriteCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustCargoConditionSourceCounts\":{},\"rustCargoConditionalSemanticSuppressionCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -11425,6 +11769,7 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.local_exact_reference_resolution_ms,
         result.profile.local_exact_reference_resolved_refs,
         result.profile.local_exact_reference_fallback_refs,
+        framework_post_extract_updates_json(&result.profile.framework_post_extract_updates),
         fallback_sample_counts_json(&result.profile.rust_trait_impl_taxonomy_counts),
         fallback_sample_counts_json(&result.profile.rust_trait_impl_edge_write_counts),
         fallback_sample_counts_json(
@@ -15013,6 +15358,130 @@ mod tests {
             params![id, kind, name, file_path],
         )
         .unwrap();
+    }
+
+    fn insert_symbol_node_with_identity(
+        conn: &Connection,
+        id: &str,
+        kind: &str,
+        name: &str,
+        qualified_name: &str,
+        file_path: &str,
+        start_line: i64,
+        end_line: i64,
+    ) {
+        conn.execute(
+            "INSERT INTO nodes (
+                id, kind, name, qualified_name, file_path, language,
+                start_line, end_line, start_column, end_column, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, 'typescript', ?6, ?7, 0, 0, 1)",
+            params![
+                id,
+                kind,
+                name,
+                qualified_name,
+                file_path,
+                start_line,
+                end_line
+            ],
+        )
+        .unwrap();
+    }
+
+    fn insert_file_record(conn: &Connection, file_path: &str) {
+        conn.execute(
+            "INSERT INTO files (path, content_hash, language, size, modified_at, indexed_at, node_count, errors)
+             VALUES (?1, 'hash', 'typescript', 1, 1, 1, 1, NULL)",
+            params![file_path],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn rust_produces_nestjs_router_module_route_name_post_extract_updates() {
+        let dir = temp_dir("nestjs-post-extract-update-producer");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(
+            dir.join("src/app.module.ts"),
+            [
+                "import { Module } from '@nestjs/common';",
+                "import { RouterModule } from '@nestjs/core';",
+                "import { UsersController } from './users.controller';",
+                "",
+                "@Module({",
+                "  imports: [RouterModule.register([{ path: 'admin', module: UsersModule }])],",
+                "})",
+                "export class AppModule {}",
+                "",
+                "@Module({ controllers: [UsersController] })",
+                "export class UsersModule {}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(SCHEMA_SQL).unwrap();
+        insert_file_record(&conn, "src/app.module.ts");
+        insert_symbol_node_with_identity(
+            &conn,
+            "class:users",
+            "class",
+            "UsersController",
+            "src/users.controller.ts::UsersController",
+            "src/users.controller.ts",
+            1,
+            10,
+        );
+        insert_symbol_node_with_identity(
+            &conn,
+            "route:users-show",
+            "route",
+            "GET /users/:id",
+            "src/users.controller.ts::GET:/users/:id",
+            "src/users.controller.ts",
+            5,
+            5,
+        );
+        insert_symbol_node_with_identity(
+            &conn,
+            "function:show",
+            "method",
+            "show",
+            "src/users.controller.ts::UsersController.show",
+            "src/users.controller.ts",
+            6,
+            6,
+        );
+        conn.execute(
+            "INSERT INTO edges (source, target, kind, metadata, line, col, edgeOrigin)
+             VALUES ('route:users-show', 'function:show', 'references', NULL, 5, 2, NULL)",
+            [],
+        )
+        .unwrap();
+
+        let updates = produce_nestjs_framework_post_extract_updates(&conn, &dir).unwrap();
+
+        assert_eq!(updates.len(), 1);
+        assert_eq!(updates[0].provider, "nestjs");
+        assert_eq!(updates[0].update_kind, "route-name-prefix");
+        assert_eq!(updates[0].node_id, "route:users-show");
+        assert_eq!(updates[0].node_kind, "route");
+        assert_eq!(updates[0].field, "name");
+        assert_eq!(
+            updates[0].qualified_name,
+            "src/users.controller.ts::GET:/users/:id"
+        );
+        assert_eq!(updates[0].new_name, "GET /admin/users/:id");
+
+        let json = framework_post_extract_updates_json(&updates);
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed[0]["provider"], "nestjs");
+        assert_eq!(parsed[0]["updateKind"], "route-name-prefix");
+        assert_eq!(parsed[0]["field"], "name");
+
+        cleanup_temp_dir(dir);
     }
 
     #[test]
