@@ -2116,12 +2116,33 @@
     "1-5-4-2": {
       "id": "1-5-4-2",
       "label": "Framework post-extract residual migration boundary",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-5-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which residual boundary should the forty-fourth cut enter?",
+          "answer": "A. Enter 1-5-4-2 Framework post-extract residual migration boundary.",
+          "note": "This keeps the current 1-5-4 closeout focused on TypeScript product-shell finalization boundaries. Code facts show finalizeRustIndex calls resolver.initialize() and resolver.runPostExtract() under finalization.frameworkPostExtract checkpoints, while framework extractors also have parse-time extract() and post-index postExtract() responsibilities that must not be conflated."
+        },
+        {
+          "q": "How should the framework post-extract residual boundary be scoped?",
+          "answer": "A. Scope this node to FrameworkResolver.postExtract() only; explicitly exclude parse-time framework extract() and per-reference framework resolve()/claimsReference().",
+          "note": "Code facts: finalizeRustIndex records finalization.frameworkPostExtract checkpoints around resolver.initialize() plus resolver.runPostExtract(); runPostExtract calls only fw.postExtract(context) and persists returned node updates through queries.updateNode(). Parse-time framework extract() runs inside tree-sitter extraction and per-reference framework resolve()/claimsReference() belongs to ReferenceResolver semantic matching, so both are outside this node."
+        },
+        {
+          "q": "What ownership/status should FrameworkResolver.postExtract() have in this roadmap?",
+          "answer": "A. Mark FrameworkResolver.postExtract() as typescript-owned / migration-candidate.",
+          "note": "It currently runs only from the TypeScript product-shell finalization path through finalizeRustIndex -> resolver.initialize() -> resolver.runPostExtract(). It is still a migration candidate because the interface is bounded: detect active frameworks, run postExtract(context), return preserved-id node updates, and persist those updates without changing route-handler edges. Current code facts show only NestJS implements postExtract today, but the boundary is the generic FrameworkResolver.postExtract contract rather than a NestJS-only claim."
+        },
+        {
+          "q": "What is the completion standard for the forty-fourth cut?",
+          "answer": "A. Complete this cut with roadmap boundary closeout plus contract test only; do not change production code.",
+          "note": "This node is an ownership and migration-boundary closeout. Production migration of framework postExtract needs a separate exploit slice after Rust-side framework post-extract host API, node-update protocol, idempotency, and fallback behavior are designed."
+        }
+      ],
+      "notes": "Completed via #655.\\n\\nFramework post-extract residual migration boundary contract.\\n\\nOwnership/status:\\n- FrameworkResolver.postExtract() = typescript-owned / migration-candidate.\\n- Current invocation path: finalizeRustIndex -> resolver.initialize() -> resolver.runPostExtract().\\n- Runtime checkpoints/profile fields: finalization.frameworkPostExtract.started, finalization.frameworkPostExtract.completed, frameworkPostExtractMs.\\n- Persistence path: ReferenceResolver.runPostExtract() calls fw.postExtract(context), then persists returned node updates with queries.updateNode(node).\\n- Interface contract: postExtract(context) returns preserved-id node updates after all per-file extraction completes; node id must remain stable so existing route-handler edges survive; qualifiedName should remain stable for idempotency.\\n- Current implementation fact: NestJS is currently the only framework resolver with postExtract(), but this node tracks the generic FrameworkResolver.postExtract contract rather than a NestJS-only migration claim.\\n\\nExplicit exclusions:\\n- parse-time framework extract() is outside this node; it runs during extraction/tree-sitter framework-specific extraction.\\n- per-reference framework resolve() and claimsReference() are outside this node; they belong to ReferenceResolver semantic matching / framework semantic matching.\\n- dynamic-dispatch synthesis is outside this node and remains tracked by 1-5-4-4.\\n\\nFuture exploit prerequisites before migrating to Rust:\\n- Rust-side framework post-extract host API.\\n- node-update protocol preserving ids and qualifiedName/idempotency.\\n- active framework detection parity.\\n- failure/fallback behavior that preserves current silent debug logging semantics.\\n- tests covering route prefix rewrite edge preservation before any production migration.\\n\\nNon-goals for this slice:\\n- no production code behavior change.\\n- no framework extraction behavior change.\\n- no framework semantic resolve behavior change.\\n- no dynamic-dispatch behavior change.\\n- no route node rewrite migration.\\n- no benchmark or real-repo smoke requirement."
     },
     "1-5-4-3": {
       "id": "1-5-4-3",
@@ -2226,7 +2247,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 23:28:35",
+    "updated": "2026-06-28 23:54:46",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"

@@ -172,6 +172,43 @@ describe('Rust indexing migration roadmap ownership map', () => {
     }
   });
 
+  it('locks the framework post-extract residual migration boundary contract', () => {
+    const node = readNode('1-5-4-2');
+
+    expect(node.status).toBe('completed');
+    for (const requiredTerm of [
+      'FrameworkResolver.postExtract() = typescript-owned / migration-candidate',
+      'finalizeRustIndex -> resolver.initialize() -> resolver.runPostExtract()',
+      'finalization.frameworkPostExtract.started',
+      'finalization.frameworkPostExtract.completed',
+      'frameworkPostExtractMs',
+      'ReferenceResolver.runPostExtract() calls fw.postExtract(context)',
+      'queries.updateNode(node)',
+      'postExtract(context) returns preserved-id node updates',
+      'node id must remain stable so existing route-handler edges survive',
+      'qualifiedName should remain stable for idempotency',
+      'NestJS is currently the only framework resolver with postExtract()',
+      'generic FrameworkResolver.postExtract contract rather than a NestJS-only migration claim',
+      'parse-time framework extract() is outside this node',
+      'per-reference framework resolve() and claimsReference() are outside this node',
+      'ReferenceResolver semantic matching / framework semantic matching',
+      'dynamic-dispatch synthesis is outside this node',
+      'Rust-side framework post-extract host API',
+      'node-update protocol preserving ids and qualifiedName/idempotency',
+      'active framework detection parity',
+      'failure/fallback behavior that preserves current silent debug logging semantics',
+      'tests covering route prefix rewrite edge preservation',
+      'no production code behavior change',
+      'no framework extraction behavior change',
+      'no framework semantic resolve behavior change',
+      'no dynamic-dispatch behavior change',
+      'no route node rewrite migration',
+      'no benchmark or real-repo smoke requirement',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
+
   it('locks the DB maintenance and unresolved cleanup residual boundary contract', () => {
     const node = readNode('1-5-4-5');
 
