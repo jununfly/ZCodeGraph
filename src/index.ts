@@ -147,6 +147,60 @@ type CleanupOwnershipDiagnostics = {
   notes: string[];
 };
 
+type FinalizationOwnershipResidualStage = {
+  stage: string;
+  owner: 'typescript-finalization' | 'typescript-product-shell';
+  status: 'migration-target' | 'reporting-only';
+  reason: string;
+};
+
+type FinalizationFallbackTaxonomyClassification =
+  | 'parity-bug'
+  | 'intentional-improvement-candidate'
+  | 'known-unsupported'
+  | 'migration-target'
+  | 'reporting-only';
+
+type FinalizationFallbackTaxonomyEntry = {
+  stage: string;
+  classification: FinalizationFallbackTaxonomyClassification;
+  reason: string;
+  count: number;
+};
+
+const TYPESCRIPT_OWNED_FINALIZATION_RESIDUAL_STAGES: FinalizationOwnershipResidualStage[] = [
+  {
+    stage: 'framework-post-extract',
+    owner: 'typescript-finalization',
+    status: 'migration-target',
+    reason: 'not-yet-rust-owned',
+  },
+  {
+    stage: 'reference-resolution',
+    owner: 'typescript-finalization',
+    status: 'migration-target',
+    reason: 'not-yet-rust-owned',
+  },
+  {
+    stage: 'dynamic-dispatch-synthesis',
+    owner: 'typescript-finalization',
+    status: 'migration-target',
+    reason: 'not-yet-rust-owned',
+  },
+  {
+    stage: 'db-maintenance',
+    owner: 'typescript-finalization',
+    status: 'migration-target',
+    reason: 'not-yet-rust-owned',
+  },
+  {
+    stage: 'profile-checkpoint-orchestration',
+    owner: 'typescript-product-shell',
+    status: 'reporting-only',
+    reason: 'profile-assembly-not-graph-semantics',
+  },
+];
+
 function rustCoreProfileLike(profile: unknown): RustCoreProfileLike {
   return profile && typeof profile === 'object' ? profile as RustCoreProfileLike : {};
 }
@@ -1326,15 +1380,12 @@ export class CodeGraph {
         version: number;
         productShell: 'typescript';
         rustOwnedStages: string[];
+        typescriptOwnedResidualStages: FinalizationOwnershipResidualStage[];
       };
       fallbackTaxonomy: {
         totalFallbacks: number;
-        entries: Array<{
-          stage: string;
-          classification: 'parity-bug' | 'intentional-improvement-candidate' | 'known-unsupported';
-          reason: string;
-          count: number;
-        }>;
+        totalResiduals: number;
+        entries: FinalizationFallbackTaxonomyEntry[];
       };
     };
   }> {
@@ -1559,35 +1610,21 @@ export class CodeGraph {
             version: 1,
             productShell: 'typescript' as const,
             rustOwnedStages: ['source-scan', 'parse-extraction', 'graph-write'],
+            typescriptOwnedResidualStages: TYPESCRIPT_OWNED_FINALIZATION_RESIDUAL_STAGES,
           },
           fallbackTaxonomy: {
-            totalFallbacks: 4,
-            entries: [
-              {
-                stage: 'framework-post-extract',
-                classification: 'known-unsupported' as const,
-                reason: 'typescript-finalization-not-yet-migrated',
-                count: 1,
-              },
-              {
-                stage: 'reference-resolution',
-                classification: 'known-unsupported' as const,
-                reason: 'typescript-finalization-not-yet-migrated',
-                count: 1,
-              },
-              {
-                stage: 'dynamic-dispatch-synthesis',
-                classification: 'known-unsupported' as const,
-                reason: 'typescript-finalization-not-yet-migrated',
-                count: 1,
-              },
-              {
-                stage: 'db-maintenance',
-                classification: 'known-unsupported' as const,
-                reason: 'typescript-finalization-not-yet-migrated',
-                count: 1,
-              },
-            ],
+            totalFallbacks: TYPESCRIPT_OWNED_FINALIZATION_RESIDUAL_STAGES
+              .filter((stage) => stage.status === 'migration-target')
+              .length,
+            totalResiduals: TYPESCRIPT_OWNED_FINALIZATION_RESIDUAL_STAGES.length,
+            entries: TYPESCRIPT_OWNED_FINALIZATION_RESIDUAL_STAGES.map((stage): FinalizationFallbackTaxonomyEntry => ({
+              stage: stage.stage,
+              classification: stage.status,
+              reason: stage.status === 'migration-target'
+                ? 'typescript-finalization-not-yet-migrated'
+                : 'typescript-product-shell-profile-assembly',
+              count: 1,
+            })),
           },
         };
         const rustImportEdgeCount = this.queries.getRustFinalizationImportEdgeCount();
@@ -1628,7 +1665,9 @@ export class CodeGraph {
           },
         ].filter((entry) => entry.count > 0);
         profile.fallbackTaxonomy.entries.push(...additionalFallbackEntries);
-        profile.fallbackTaxonomy.totalFallbacks += additionalFallbackEntries.reduce((sum, entry) => sum + entry.count, 0);
+        const additionalFallbackCount = additionalFallbackEntries.reduce((sum, entry) => sum + entry.count, 0);
+        profile.fallbackTaxonomy.totalFallbacks += additionalFallbackCount;
+        profile.fallbackTaxonomy.totalResiduals += additionalFallbackCount;
         const frameworkStarted = Date.now();
         onCheckpoint?.('finalization.frameworkPostExtract.started');
         this.resolver.initialize();

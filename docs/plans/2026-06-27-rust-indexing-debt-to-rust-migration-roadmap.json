@@ -1102,12 +1102,39 @@
     "1-5-4": {
       "id": "1-5-4",
       "label": "Rust finalization and reference-resolution residuals",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-5",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "children": [
+        "1-5-4-1",
+        "1-5-4-2",
+        "1-5-4-3",
+        "1-5-4-4",
+        "1-5-4-5"
+      ],
+      "decisions": [
+        {
+          "q": "Which node should the fortieth cut enter after the TypeScript indexer responsibility inventory?",
+          "answer": "A. Enter 1-5-4 Rust finalization and reference-resolution residuals.",
+          "note": "The 1-5-2 inventory classified TypeScript shell finalization as the primary migration-target responsibility. This cut should therefore map and narrow the residual finalization/reference-resolution work that blocks Rust-owned default indexing from shedding the TypeScript indexing shell."
+        },
+        {
+          "q": "How should 1-5-4 classify Rust finalization and reference-resolution residuals?",
+          "answer": "A. Split the TypeScript product-shell finalization residuals into six buckets: framework-post-extract residual; ReferenceResolver semantic residual; dynamic-dispatch synthesis residual; DB maintenance / unresolved cleanup residual; boundaryProtocol + fallbackTaxonomy reporting residual; profile/checkpoint orchestration residual.",
+          "note": "Code facts show finalizeRustIndex is not a single resolver call. It also owns framework post-extract, dynamic edge synthesis, DB cleanup/maintenance, fallback taxonomy and boundary reporting, plus profile/checkpoint orchestration. The residual map should reflect the whole product-shell responsibility surface before choosing implementation slices."
+        },
+        {
+          "q": "Which residual bucket should become the first executable slice under 1-5-4?",
+          "answer": "A. Start with the boundaryProtocol + fallbackTaxonomy reporting residual as a contract/diagnostic tightening slice, without migrating resolver semantics.",
+          "note": "This is the lowest-risk, highest-navigation-value first slice. It can make status/doctor/profile report which finalization stages remain TypeScript-owned versus Rust-owned without changing graph semantics, resolver accuracy, cleanup behavior, or dynamic-dispatch synthesis."
+        },
+        {
+          "q": "What is the success criterion for the reporting residual contract slice?",
+          "answer": "A. Success means machine-readable finalization ownership/residual taxonomy is accurate, not that metrics look better.",
+          "note": "The contract should keep boundaryProtocol.productShell as typescript, list only actually Rust-owned stages as rustOwnedStages, expose TypeScript-owned residual stages through taxonomy, avoid mixing known-unsupported/migration-target/reporting-only meanings, and lock this with tests. It must not require benchmark, real-repo smoke, or behavior changes to edge writing, cleanup, resolver, or synthesizer logic."
+        }
+      ],
+      "notes": "Residual map status after #651: 1-5-4-1 completed the boundaryProtocol/fallbackTaxonomy/profile ownership-reporting contract only. The parent remains in_progress because TypeScript product-shell finalization still owns framework post-extract, ReferenceResolver semantics, dynamic-dispatch synthesis, and DB maintenance/unresolved cleanup behavior. Remaining child nodes 1-5-4-2 through 1-5-4-5 track those migration boundaries separately. Do not treat completion of reporting contract as resolver, cleanup, or synthesizer migration."
     },
     "1-5-5": {
       "id": "1-5-5",
@@ -2064,11 +2091,72 @@
         }
       ],
       "notes": "Completed by #643. Added a narrow spawned subprocess cleanup helper that waits for child close before temp-dir cleanup and retries transient EPERM/EBUSY/ENOTEMPTY directory removal. Adopted by mcp-initialize and mcp-roots tests. Verification: npx vitest run __tests__/spawned-process-cleanup.test.ts __tests__/mcp-initialize.test.ts __tests__/mcp-roots.test.ts."
+    },
+    "1-5-4-1": {
+      "id": "1-5-4-1",
+      "label": "Finalization ownership reporting contract",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-5-4",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Should the reporting residual slice be tracked as a child node under 1-5-4?",
+          "answer": "A. Yes. Track this cut as 1-5-4-1 Finalization ownership reporting contract.",
+          "note": "The parent 1-5-4 remains the residual map for framework post-extract, ReferenceResolver semantics, dynamic synthesis, cleanup/maintenance, reporting, and profile orchestration. This child closes only the boundaryProtocol/fallbackTaxonomy/profile ownership-reporting contract slice without claiming resolver, cleanup, or synthesis migration."
+        },
+        {
+          "q": "May this implementation slice change production code?",
+          "answer": "A. Yes, but only narrow reporting/profile/taxonomy production code changes are allowed.",
+          "note": "The slice may adjust finalizeRustIndex boundaryProtocol, fallbackTaxonomy, and profile/reporting shape plus tests that lock their meaning. It must not change resolver target selection, edge writing, cleanup behavior, dynamic-dispatch synthesis, fallback routing, or require benchmark/real-repo smoke evidence."
+        }
+      ],
+      "notes": "Completed by #651. Implemented a narrow finalization ownership reporting contract: boundaryProtocol now keeps productShell=typescript, lists Rust-owned stages separately, and exposes TypeScript-owned residual stages with owner/status/reason. fallbackTaxonomy now distinguishes migration-target residuals from reporting-only profile/checkpoint orchestration and preserves totalFallbacks as fallback-only while adding totalResiduals for the full taxonomy. Scope stayed reporting/profile/taxonomy only: no resolver target selection, edge writing, cleanup behavior, dynamic-dispatch synthesis, fallback routing, benchmark, or real-repo smoke change."
+    },
+    "1-5-4-2": {
+      "id": "1-5-4-2",
+      "label": "Framework post-extract residual migration boundary",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-4-3": {
+      "id": "1-5-4-3",
+      "label": "ReferenceResolver semantic residual migration boundary",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-4-4": {
+      "id": "1-5-4-4",
+      "label": "Dynamic-dispatch synthesis residual migration boundary",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-4-5": {
+      "id": "1-5-4-5",
+      "label": "DB maintenance and unresolved cleanup residual boundary",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-5-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 22:28:14",
+    "updated": "2026-06-28 22:49:40",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
