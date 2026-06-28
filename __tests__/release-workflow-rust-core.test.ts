@@ -18,6 +18,12 @@ function releaseTargetMatrixEntry(releaseTarget: string): string {
   return match![0];
 }
 
+function stepIndex(name: string): number {
+  const index = workflow.indexOf(`- name: ${name}`);
+  expect(index, `missing release workflow step: ${name}`).toBeGreaterThanOrEqual(0);
+  return index;
+}
+
 describe('Release workflow Rust core artifacts', () => {
   it('builds one Rust core artifact for each release target before packaging', async () => {
     const contract = await import('../scripts/rust-core-artifact-contract.mjs');
@@ -83,6 +89,32 @@ describe('Release workflow Rust core artifacts', () => {
     expect(workflow).toContain('continue-on-error: true');
     expect(workflow).toContain('https://registry.npmmirror.com/-/package/$enc/syncs');
     expect(workflow).toContain('curl -s -X PUT');
+  });
+
+  it('runs targeted package smoke after npm packing and before npm publishing', () => {
+    const packIndex = stepIndex('Pack npm packages');
+    const smokeIndex = stepIndex('Run targeted package smoke');
+    const publishIndex = stepIndex('Publish to npm');
+
+    expect(packIndex).toBeLessThan(smokeIndex);
+    expect(smokeIndex).toBeLessThan(publishIndex);
+
+    expect(workflow).toContain('bash scripts/pack-npm.sh "$V"');
+    expect(workflow).toContain('release/zcodegraph-linux-x64.tar.gz');
+    expect(workflow).toContain('scripts/rust-package-smoke.mjs');
+    expect(workflow).toContain('--bundle release/package-smoke/linux-x64-bundle');
+    expect(workflow).toContain('--npm-root release/npm');
+    expect(workflow).toContain('--out release/package-smoke/out');
+    expect(workflow).toContain('Upload package smoke artifacts');
+    expect(workflow).toContain('release/package-smoke/out');
+
+    const smokeStep = workflow.slice(smokeIndex, publishIndex);
+    expect(smokeStep).not.toContain('npm publish');
+    expect(smokeStep).not.toContain('gh release create');
+    expect(smokeStep).not.toContain('gh release upload');
+    expect(smokeStep).not.toContain('npm view');
+    expect(smokeStep).not.toContain('git push');
+    expect(smokeStep).not.toContain('curl ');
   });
 
   it('guards release Node runtime and package-lock sync semantics', () => {

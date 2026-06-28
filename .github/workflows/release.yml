@@ -227,12 +227,34 @@ jobs:
             gh release create "$TAG" release/zcodegraph-* release/SHA256SUMS --title "$TAG" --notes-file notes.md
           fi
 
+      - name: Pack npm packages
+        run: |
+          V="${{ steps.ver.outputs.version }}"
+          bash scripts/pack-npm.sh "$V"
+
+      - name: Run targeted package smoke
+        run: |
+          set -euo pipefail
+          rm -rf release/package-smoke
+          mkdir -p release/package-smoke/linux-x64-bundle release/package-smoke/out
+          tar -xzf release/zcodegraph-linux-x64.tar.gz -C release/package-smoke/linux-x64-bundle --strip-components=1
+          node scripts/rust-package-smoke.mjs \
+            --bundle release/package-smoke/linux-x64-bundle \
+            --npm-root release/npm \
+            --out release/package-smoke/out
+
+      - name: Upload package smoke artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: rust-package-smoke-linux-x64
+          path: release/package-smoke/out
+          if-no-files-found: error
+
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           V="${{ steps.ver.outputs.version }}"
-          bash scripts/pack-npm.sh "$V"
           # Platform packages first, then the main shim (which depends on them).
           # Skip any already on the registry so a re-run only fills in gaps.
           for dir in release/npm/zcodegraph-* release/npm/main; do
