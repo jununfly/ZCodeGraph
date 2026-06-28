@@ -36,7 +36,7 @@
     "1-1": {
       "id": "1-1",
       "label": "Technical debt governance staging before migration resumes",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -250,12 +250,48 @@
     "1-1-5": {
       "id": "1-1-5",
       "label": "Debt governance closeout decision before migration resumes",
-      "status": "pending",
-      "mode": "explore",
+      "status": "completed",
+      "mode": "exploit",
       "parent": "1-1",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Should the twenty-first cut add another governance child or close out 1-1?",
+          "answer": "Close out 1-1 directly.",
+          "note": "The completed 1-1-1 through 1-1-4 cuts already cover debt inventory, test decomposition, CI/release guardrails, and evidence lifecycle rules. Extending governance further risks delaying the Rust migration mainline."
+        },
+        {
+          "q": "Should the closeout be lightweight or include a candidate backlog?",
+          "answer": "Use a closeout artifact with a candidate backlog and an explicit Rust migration re-entry point.",
+          "note": "A lightweight go/no-go note would lose useful deferred governance findings. The closeout should separate completed governance, non-blocking residuals, and the next Rust migration mainline entry."
+        },
+        {
+          "q": "Where should the closeout artifact live?",
+          "answer": "Keep it in the current roadmap plan node rather than creating a separate document.",
+          "note": "This is a phase closeout, not a durable ADR or benchmark result. Keeping it in node 1-1-5 avoids creating another process artifact while preserving the decision trail in the roadmap."
+        },
+        {
+          "q": "What is the debt governance closeout decision?",
+          "answer": "Go: resume the Rust migration mainline, with residual technical debt tracked as backlog rather than a blocker.",
+          "note": "The completed governance cuts establish enough inventory, test decomposition, CI/release guardrails, and evidence lifecycle rules to proceed. Future migration slices must continue using those guardrails instead of reopening a broad debt-cleanup phase."
+        },
+        {
+          "q": "How should the closeout backlog be classified?",
+          "answer": "Use three categories: must-carry guardrails, follow-up debt candidates, and explicit non-blockers.",
+          "note": "This keeps the resumed Rust migration mainline protected by the governance work without letting every residual concern become a blocker."
+        },
+        {
+          "q": "Where should the resumed Rust migration mainline re-enter the roadmap?",
+          "answer": "Re-enter at 1-2. Rust core architecture clarity for future migration.",
+          "note": "After debt governance staging, the next mainline step should clarify Rust core ownership boundaries before more TypeScript-indexing responsibilities are migrated into Rust."
+        },
+        {
+          "q": "Should node 1-1-5 complete immediately or first record concrete backlog content?",
+          "answer": "First record the concrete closeout backlog, then complete 1-1-5.",
+          "note": "The closeout was explicitly chosen as a backlog-bearing artifact. Without concrete backlog content, future agents would need conversation history to recover the handoff."
+        }
+      ],
+      "notes": "Closeout decision: go. Resume the Rust migration mainline at 1-2. Rust core architecture clarity for future migration.\n\nCompleted governance:\n- Rust indexing debt inventory and ownership map completed.\n- Rust indexing giant test/module decomposition candidates were reduced through focused test-cluster splits.\n- Cross-platform CI and release stability guardrails were added for Rust packaged paths, release target matrix, credential/publishing path, SQLite file-locks, and Node/package-manager behavior.\n- Plan/benchmark/evidence lifecycle rules were documented and locked by deterministic docs tests.\n\nMust-carry guardrails for future migration slices:\n- Keep migration slices tied to explicit roadmap nodes and issue IDs.\n- Prefer deterministic CLI/docs/unit tests first; run heavier smoke or benchmark evidence only when the baseline says it is triggered.\n- Preserve graph semantics, fallback taxonomy, Agent Sufficiency trigger rules, and release/CI guardrails.\n- Keep temporary evidence with issue/plan closeout; only durable baseline/result/decision artifacts belong in docs/benchmarks.\n\nFollow-up debt candidates:\n- Continue Rust core architecture boundary clarification under 1-2.\n- Continue behavior-preserving Rust core/test helper decomposition when it directly reduces migration cost.\n- Revisit candidate producer/resolver migration only as migration mainline work, not as generic debt cleanup.\n- Promote additional CI/release guardrails only when they directly protect migrated Rust indexing paths.\n\nExplicit non-blockers:\n- Broad docs cleanup, performance optimization, new language support, and full TypeScript indexer removal are not blockers for resuming the roadmap.\n- Historical consolidated artifacts should not be rewritten or deleted unless a later issue explicitly scopes that cleanup."
     },
     "1-2": {
       "id": "1-2",
@@ -1359,7 +1395,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 11:18:21",
+    "updated": "2026-06-28 11:42:34",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
