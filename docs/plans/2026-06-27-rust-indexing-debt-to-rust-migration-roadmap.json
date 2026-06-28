@@ -229,12 +229,23 @@
     "1-1-4": {
       "id": "1-1-4",
       "label": "Plan benchmark evidence lifecycle cleanup rules",
-      "status": "pending",
-      "mode": "explore",
+      "status": "completed",
+      "mode": "exploit",
       "parent": "1-1",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "What is the twentieth cut after release-stability guardrails completed?",
+          "answer": "Proceed with plan/benchmark/evidence lifecycle cleanup rules.",
+          "note": "GitHub issue #633 tracks surfacing the existing benchmark evidence lifecycle rule in repository guidance and deterministic docs tests before debt governance closeout."
+        },
+        {
+          "q": "What did issue #633 implement?",
+          "answer": "Document the plan/benchmark/evidence lifecycle rule in AGENTS.md and lock it with deterministic docs guardrail tests.",
+          "note": "Verification: npx vitest run __tests__/graph-semantics-guardrail-doc.test.ts -t 'ownership slice performance trend recording contract'; npx vitest run __tests__/graph-semantics-guardrail-doc.test.ts. Scope stayed narrow: no benchmark rerun, product behavior change, or historical artifact rewrite."
+        }
+      ],
+      "notes": "Issue #633 completed: AGENTS.md now documents plan/benchmark/evidence lifecycle rules, and deterministic docs guardrail coverage locks the benchmark evidence guidance contract. No benchmark rerun, product behavior change, or historical artifact cleanup was included."
     },
     "1-1-5": {
       "id": "1-1-5",
@@ -1348,7 +1359,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 11:03:58",
+    "updated": "2026-06-28 11:18:21",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"

@@ -165,6 +165,14 @@ Tests live in `__tests__/` and mirror the module they cover. Notable ones beyond
 
 Tests create temp dirs with `fs.mkdtempSync` and clean up in `afterEach`. They write real files and exercise real SQLite — there is no DB mocking.
 
+### Plan, Benchmark, and Evidence Lifecycle
+
+Only durable baseline, result, and decision artifacts belong in `docs/benchmarks/`;
+temporary profiles, intermediate measurements, and process evidence stay with the issue or plan closeout.
+Checked-in temporary evidence files must use a `tmp-` prefix. Do not delete or
+rewrite historical consolidated artifacts as part of a narrow implementation
+slice unless the issue explicitly scopes that cleanup.
+
 ### Windows-gated tests
 
 Behavior that differs by platform (path resolution, drive letters, `SENSITIVE_PATHS`, `%APPDATA%` config dirs, CRLF) must be gated, not assumed. Use `it.runIf(process.platform === 'win32')(...)` for Windows-only assertions and `it.runIf(process.platform !== 'win32')(...)` for POSIX-only ones — e.g. `/etc` is sensitive on POSIX but resolves to `C:\etc` (non-existent) on Windows, so an ungated `/etc` assertion fails on Windows. Validate the Windows side for real (see below); don't merge a Windows-gated test you haven't seen run.
