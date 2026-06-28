@@ -37,6 +37,15 @@ describe('CI Rust packaged path coverage', () => {
     expect(workflow).toContain('__tests__/rust-core-artifact-contract.test.ts');
   });
 
+  it('runs SQLite and file-lock regression guardrails on the cross-platform CI path', () => {
+    const workflow = fs.readFileSync(ciPath, 'utf8');
+
+    expect(workflow).toContain('Verify SQLite and file-lock guardrails');
+    expect(workflow).toContain('__tests__/sqlite-backend.test.ts');
+    expect(workflow).toContain('__tests__/concurrent-locking.test.ts');
+    expect(workflow).toContain('__tests__/rust-index-engine-cli-failure-safety.test.ts');
+  });
+
   it('keeps CI focused on source validation instead of npm install-time Rust compilation', () => {
     const workflow = fs.readFileSync(ciPath, 'utf8');
 
