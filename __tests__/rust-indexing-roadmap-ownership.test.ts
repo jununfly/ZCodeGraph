@@ -284,6 +284,62 @@ describe('Rust indexing migration roadmap ownership map', () => {
     expect(node.notes).not.toContain('parent remains in_progress');
   });
 
+  it('keeps finalization residual exploit candidates split by guardrail surface', () => {
+    const backlog = readNode('1-6');
+
+    for (const requiredTerm of [
+      'Candidate backlog refreshed after 1-5-4 residual boundary map completion',
+      '1-6-6 Bounded ReferenceResolver semantic migration exploit candidate',
+      '1-6-7 Framework post-extract Rust migration exploit candidate',
+      '1-6-8 Dynamic-dispatch synthesizer Rust migration exploit candidate',
+      '1-6-9 Cleanup and DB maintenance Rust migration exploit candidate',
+      'Prefer 1-6-6 if the next goal is highest-confidence TypeScript finalization burn-down',
+      'Prefer 1-6-7 if the next goal is a narrow framework postExtract migration surface',
+      'Prefer 1-6-8 only if ready to carry Agent Sufficiency guardrails',
+      'Prefer 1-6-9 only if cleanup/backlog semantics are the explicit target',
+      'Do not collapse these candidates into a generic resolver migration',
+    ]) {
+      expect(backlog.notes).toContain(requiredTerm);
+    }
+
+    const resolver = readNode('1-6-6');
+    expect(resolver.notes).toContain('docs/plans/2026-06-29-ts-js-repo-local-file-module-target-parity-plan.md');
+    expect(resolver.notes).toContain('#656');
+    expect(resolver.notes).toContain('#657');
+    expect(resolver.notes).toContain('#658');
+    expect(resolver.notes).toContain('TS/JS repo-local import file/module target parity only');
+    expect(resolver.notes).toContain('relative repo-local file imports: rust-owned');
+    expect(resolver.notes).toContain('extensionless and index-file targets: rust-owned');
+    expect(resolver.notes).toContain('tsconfig paths file targets: rust-owned');
+    expect(resolver.notes).toContain('tsconfig rootDirs file targets: rust-owned and verified in this slice');
+    expect(resolver.notes).toContain('package self-name repo-local file targets: partial');
+    expect(resolver.notes).toContain('package imports repo-local file targets: partial');
+    expect(resolver.notes).toContain('package exports repo-local file targets: needs-oracle');
+    expect(resolver.notes).toContain('Completed parity inventory, one bounded exploit, and guardrail closeout');
+    expect(resolver.notes).toContain('rootDirs public diagnostics parity');
+    expect(resolver.notes).toContain('no binding-level symbol disambiguation');
+    expect(resolver.notes).toContain('no Go module path resolution');
+    expect(resolver.notes).toContain('no Rust module path resolution');
+    expect(resolver.notes).toContain('no Python import semantics');
+    expect(resolver.notes).toContain('must not imply full ReferenceResolver migration');
+    expect(resolver.notes).toContain('TypeScript fallback remains for unsupported or ambiguous forms');
+
+    const framework = readNode('1-6-7');
+    expect(framework.notes).toContain('Migrate only FrameworkResolver.postExtract() behavior');
+    expect(framework.notes).toContain('node-update protocol preserving ids and qualifiedName/idempotency');
+    expect(framework.notes).toContain('route prefix rewrite edge-preservation tests');
+
+    const dynamic = readNode('1-6-8');
+    expect(dynamic.notes).toContain('Choose one bounded full-graph synthesizer or relationship family first');
+    expect(dynamic.notes).toContain('Agent Sufficiency guardrail');
+    expect(dynamic.notes).toContain('Read/Grep');
+
+    const cleanup = readNode('1-6-9');
+    expect(cleanup.notes).toContain('no unresolved_refs deletion semantics drift');
+    expect(cleanup.notes).toContain('retained backlog remains available for later semantic handling');
+    expect(cleanup.notes).toContain('terminal cleanup counters/profile fields remain stable');
+  });
+
   it('locks the DB maintenance and unresolved cleanup residual boundary contract', () => {
     const node = readNode('1-5-4-5');
 

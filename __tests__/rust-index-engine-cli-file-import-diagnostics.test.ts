@@ -127,9 +127,8 @@ describe('zcodegraph rust-hybrid file-level import diagnostics', () => {
       edgeKindCounts: expect.objectContaining({
         imports: expect.any(Number),
       }),
-      supportedSources: ['relative', 'tsconfigPaths'],
+      supportedSources: ['relative', 'tsconfigPaths', 'rootDirs'],
       excludedSources: expect.arrayContaining([
-        'rootDirs',
         'packageSelfName',
         'packageImports',
         'packageExports',
@@ -148,8 +147,8 @@ describe('zcodegraph rust-hybrid file-level import diagnostics', () => {
         reason: 'guarded-file-imports',
       },
       'rootDirs-file-target': {
-        status: 'unsupported',
-        reason: 'not-yet-rust-owned',
+        status: 'rust-owned',
+        reason: 'guarded-file-imports',
       },
       'package-self-name-repo-local-file-target': {
         status: 'partial',
@@ -235,6 +234,82 @@ describe('zcodegraph rust-hybrid file-level import diagnostics', () => {
     expect(moduleEdgeWrite.writtenEdges).toBeGreaterThanOrEqual(1);
     expect(moduleEdgeWrite.edgeKindCounts.imports).toBeGreaterThanOrEqual(1);
     expect(moduleEdgeWrite.excludedSources).not.toContain('namespaceImports');
+  }, 30_000);
+
+  it('reports rootDirs imports as Rust-owned file target edges in public diagnostics', () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'generated'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          rootDirs: ['src', 'generated'],
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(path.join(tempDir, 'src', 'shared.ts'), 'export const shared = 1;\n');
+    fs.writeFileSync(
+      path.join(tempDir, 'generated', 'consumer.ts'),
+      [
+        "import { shared } from './shared';",
+        'export const total = shared;',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'root-dirs-edge-profile.json');
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const consumerFile = cg.searchNodes('consumer.ts').find((match) => match.node.kind === 'file')?.node;
+      const sharedFile = cg.searchNodes('shared.ts').find((match) => match.node.kind === 'file')?.node;
+      expect(consumerFile).toBeDefined();
+      expect(sharedFile).toBeDefined();
+
+      const importEdges = cg
+        .getOutgoingEdges(consumerFile!.id)
+        .filter((edge) => edge.kind === 'imports' && edge.edgeOrigin === 'rust-finalization');
+      expect(importEdges).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          target: sharedFile!.id,
+          edgeOrigin: 'rust-finalization',
+          metadata: expect.objectContaining({
+            resolvedBy: 'rust-import-path-alias',
+          }),
+        }),
+      ]));
+    } finally {
+      cg.close();
+    }
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          moduleEdgeWrite: {
+            supportedSources: string[];
+            excludedSources: string[];
+            targetResolutionShapes: Record<string, {
+              status: 'rust-owned' | 'partial' | 'unsupported' | 'needs-oracle';
+              reason: string;
+            }>;
+          };
+        };
+      };
+      rustCore: {
+        importPathAliasResolvedBySource: Record<string, number>;
+      };
+    };
+    const moduleEdgeWrite = profile.finalize.referenceResolutionBreakdown.moduleEdgeWrite;
+    expect(moduleEdgeWrite.supportedSources).toEqual(['relative', 'tsconfigPaths', 'rootDirs']);
+    expect(moduleEdgeWrite.excludedSources).not.toContain('rootDirs');
+    expect(moduleEdgeWrite.targetResolutionShapes['rootDirs-file-target']).toEqual({
+      status: 'rust-owned',
+      reason: 'guarded-file-imports',
+    });
+    expect(profile.rustCore.importPathAliasResolvedBySource.rootDirs).toBeGreaterThanOrEqual(1);
   }, 30_000);
 
   it('reports fail-closed module edge-write skip taxonomy without writing missing target imports', () => {

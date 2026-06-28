@@ -109,7 +109,7 @@ type ModuleEdgeWriteDiagnostics = {
   skippedRefs: number;
   skipReasons: Record<string, number>;
   edgeKindCounts: Record<string, number>;
-  supportedSources: Array<'relative' | 'tsconfigPaths'>;
+  supportedSources: Array<'relative' | 'tsconfigPaths' | 'rootDirs'>;
   excludedSources: string[];
   targetResolutionShapes: Record<string, {
     status: 'rust-owned' | 'partial' | 'unsupported' | 'needs-oracle';
@@ -357,9 +357,8 @@ function moduleEdgeWriteDiagnosticsFromRustCore(profile: unknown): ModuleEdgeWri
       skipReasons: packageImportsSkipReasons(packageImportsOutcomeCounts),
       outcomeCounts: packageImportsOutcomeCounts,
     },
-    supportedSources: ['relative', 'tsconfigPaths'],
+    supportedSources: ['relative', 'tsconfigPaths', 'rootDirs'],
     excludedSources: [
-      'rootDirs',
       'packageSelfName',
       'packageImports',
       'packageExports',
@@ -378,8 +377,8 @@ function moduleEdgeWriteDiagnosticsFromRustCore(profile: unknown): ModuleEdgeWri
         reason: 'guarded-file-imports',
       },
       'rootDirs-file-target': {
-        status: 'unsupported',
-        reason: 'not-yet-rust-owned',
+        status: 'rust-owned',
+        reason: 'guarded-file-imports',
       },
       'package-self-name-repo-local-file-target': {
         status: 'partial',

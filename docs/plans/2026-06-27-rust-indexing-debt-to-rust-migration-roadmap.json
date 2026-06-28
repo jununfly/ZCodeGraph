@@ -1167,7 +1167,11 @@
         "1-6-2",
         "1-6-3",
         "1-6-4",
-        "1-6-5"
+        "1-6-5",
+        "1-6-6",
+        "1-6-7",
+        "1-6-8",
+        "1-6-9"
       ],
       "decisions": [
         {
@@ -1179,9 +1183,14 @@
           "q": "How should next exploit candidates be ordered after the first inventory cut?",
           "answer": "Prefer: (1) split giant Rust indexing CLI/test fixture helpers; (2) behavior-preserving Rust core module/test-helper extraction from lib.rs; (3) SQLite/finalization helper isolation; (4) fallback taxonomy/status/doctor consistency; (5) targeted Rust-migration-path CI smoke only if a concrete guardrail gap is found.",
           "note": "Ranking is recorded as execution guidance without rewriting the roadmap trunk or changing existing candidate labels."
+        },
+        {
+          "q": "Should the roadmap be expanded before the forty-sixth cut?",
+          "answer": "A. Expand the roadmap before starting the forty-sixth cut.",
+          "note": "The 1-5-4 residual boundary map is now complete and produced multiple concrete exploit candidates. The existing 1-6 backlog is too coarse to guide the next implementation cut without losing the distinction between ReferenceResolver semantics, framework postExtract, dynamic-dispatch synthesis, cleanup/DB maintenance, and sufficiency guardrails."
         }
       ],
-      "notes": "Candidate backlog refreshed by node 1-1-1 inventory. Published issues: #609 Split Rust indexing CLI test fixtures and scenarios; #610 Extract behavior-preserving Rust core module and test-helper boundaries; #611 Isolate Rust indexing SQLite and finalization helper boundaries; #612 Consolidate rust-hybrid fallback taxonomy across status and doctor. Execution preference: first #609; then #610; then #611; then #612. Existing child labels remain stable; this note is the current tracker mapping."
+      "notes": "Candidate backlog refreshed after 1-5-4 residual boundary map completion.\\n\\nExisting completed setup issues remain historical context: #609 Split Rust indexing CLI test fixtures and scenarios; #610 Extract behavior-preserving Rust core module and test-helper boundaries; #611 Isolate Rust indexing SQLite and finalization helper boundaries; #612 Consolidate rust-hybrid fallback taxonomy across status and doctor.\\n\\nNew candidate nodes created from 1-5-4 closeout:\\n- 1-6-6 Bounded ReferenceResolver semantic migration exploit candidate.\\n- 1-6-7 Framework post-extract Rust migration exploit candidate.\\n- 1-6-8 Dynamic-dispatch synthesizer Rust migration exploit candidate.\\n- 1-6-9 Cleanup and DB maintenance Rust migration exploit candidate.\\n\\nSelection guidance for the forty-sixth cut:\\n- Prefer 1-6-6 if the next goal is highest-confidence TypeScript finalization burn-down.\\n- Prefer 1-6-7 if the next goal is a narrow framework postExtract migration surface.\\n- Prefer 1-6-8 only if ready to carry Agent Sufficiency guardrails.\\n- Prefer 1-6-9 only if cleanup/backlog semantics are the explicit target.\\n\\nDo not collapse these candidates into a generic resolver migration. Each carries different guardrails and different failure modes."
     },
     "1-6-1": {
       "id": "1-6-1",
@@ -2264,11 +2273,77 @@
         }
       ],
       "notes": "Completed by #653. Added referenceResolutionBreakdown.moduleEdgeWrite.targetResolutionShapes as a machine-readable profile contract for current file/module target resolution shape status. Shapes: relative-import-file-target=rust-owned, tsconfig-paths-file-target=rust-owned, rootDirs-file-target=unsupported, package-self-name-repo-local-file-target=partial, package-imports-repo-local-file-target=partial, package-exports-repo-local-file-target=needs-oracle, declaration-runtime-pairing-file-target=partial. Existing moduleEdgeWrite fields remain available. No new module resolution semantics, edge-write behavior, fallback routing, resolver behavior, benchmark, or real-repo smoke change."
+    },
+    "1-6-6": {
+      "id": "1-6-6",
+      "label": "Bounded ReferenceResolver semantic migration exploit candidate",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Which candidate should the forty-sixth cut enter?",
+          "answer": "A. Enter 1-6-6 Bounded ReferenceResolver semantic migration exploit candidate.",
+          "note": "This is the best next step after completing 1-5-4 because it stays on the TypeScript finalization burn-down mainline while avoiding higher-risk framework postExtract, dynamic-dispatch synthesis, and cleanup/DB maintenance migrations."
+        },
+        {
+          "q": "Which bounded semantic should the forty-sixth cut target?",
+          "answer": "A. Target a repo-local file/module target resolution parity follow-up exploit.",
+          "note": "This extends the already-evidenced 1-5-4-3-1 path while avoiding binding-level symbol disambiguation, framework semantic matching, and candidate protocol promotion. The scope should stay around repo-local import/module target decisions rather than claiming full ReferenceResolver ownership."
+        },
+        {
+          "q": "What should the forty-sixth cut produce?",
+          "answer": "A. Produce a narrow implementation plan plus issue split; do not change production code in this cut.",
+          "note": "The candidate is ready to become executable, but repo-local file/module target parity still needs shape selection and guardrails before implementation. Direct production changes would risk crossing existing Rust finalization edge-write, TypeScript import resolver, and candidate protocol boundaries without a clear issue contract."
+        },
+        {
+          "q": "Which repo-local target shapes should the narrow plan cover first?",
+          "answer": "A. Cover only TS/JS repo-local import file/module target parity: relative imports, extensionless/index file targets, tsconfig paths/rootDirs, and existing package self-name/exports/imports follow-up boundaries.",
+          "note": "This keeps the plan aligned with the TypeScript-indexing-to-Rust-indexing replacement mainline and the prior 1-5-4-3-1 file/module target evidence. Go module paths, Rust module paths, Python imports, and cross-language resolver semantics should remain out of this slice unless a later roadmap node promotes them explicitly."
+        },
+        {
+          "q": "How many implementation issues should the narrow plan split into?",
+          "answer": "A. Split into 3 issues: parity inventory + fixture taxonomy, one bounded Rust-owned target shape exploit, and guardrail + closeout.",
+          "note": "This keeps the implementation sequence vertical but not bloated. One issue would mix inventory, implementation, and guardrail work; five or more would over-fragment the narrow TS/JS repo-local file/module target parity follow-up."
+        }
+      ],
+      "notes": "Completed by plan and issues: docs/plans/2026-06-29-ts-js-repo-local-file-module-target-parity-plan.md; #656; #657; #658.\n\nForty-sixth cut implementation result:\n- Completed parity inventory, one bounded exploit, and guardrail closeout.\n- Production behavior change is intentionally narrow: public moduleEdgeWrite diagnostics now classify tsconfig rootDirs file targets as Rust-owned, matching already-present Rust core edge-write behavior.\n- Scope remains TS/JS repo-local import file/module target parity only.\n\nInventory classification:\n- relative repo-local file imports: rust-owned.\n- extensionless and index-file targets: rust-owned through relative/package file lookup.\n- tsconfig paths file targets: rust-owned.\n- tsconfig rootDirs file targets: rust-owned and verified in this slice.\n- package self-name repo-local file targets: partial; unsupported or ambiguous package map forms remain fail-closed.\n- package imports repo-local file targets: partial; unsupported or unsafe forms remain fail-closed.\n- package exports repo-local file targets: needs-oracle before broader Rust-owned claims.\n\nIssue split completed:\n1. #656 Parity inventory and fixture taxonomy.\n2. #657 One bounded Rust-owned target shape exploit: rootDirs public diagnostics parity.\n3. #658 Guardrail and closeout.\n\nExplicit exclusions remain:\n- no binding-level symbol disambiguation.\n- no overload, value/type token, receiver/method, or framework semantic ownership.\n- no candidate lookup/cache protocol promotion beyond candidate-set-only behavior.\n- no Go module path resolution.\n- no Rust module path resolution.\n- no Python import semantics.\n- no cross-language resolver semantics.\n- no dynamic-dispatch synthesis.\n- no framework postExtract migration.\n- no cleanup or DB maintenance migration.\n\nGuardrails after closeout:\n- This does not claim full ReferenceResolver migration.\n- status/doctor/profile wording must not imply full ReferenceResolver migration.\n- TypeScript fallback remains for unsupported or ambiguous forms.\n- Follow-up under 1-6-6 should stay limited to bounded TS/JS repo-local file/module target slices; other residual families belong under 1-6-7, 1-6-8, or 1-6-9."
+    },
+    "1-6-7": {
+      "id": "1-6-7",
+      "label": "Framework post-extract Rust migration exploit candidate",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": "Source: 1-5-4-2 Framework post-extract residual migration boundary.\\n\\nCandidate meaning:\\n- Migrate only FrameworkResolver.postExtract() behavior, not parse-time framework extract() and not per-reference framework resolve()/claimsReference().\\n- Current production fact: NestJS is the only postExtract implementation, but the boundary should remain the generic FrameworkResolver.postExtract contract.\\n\\nRequired guardrails before implementation:\\n- Rust-side framework post-extract host API.\\n- node-update protocol preserving ids and qualifiedName/idempotency.\\n- active framework detection parity.\\n- failure/fallback behavior preserving current best-effort logging semantics.\\n- route prefix rewrite edge-preservation tests."
+    },
+    "1-6-8": {
+      "id": "1-6-8",
+      "label": "Dynamic-dispatch synthesizer Rust migration exploit candidate",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": "Source: 1-5-4-4 Dynamic-dispatch synthesis residual migration boundary.\\n\\nCandidate meaning:\\n- Choose one bounded full-graph synthesizer or relationship family first.\\n- Do not migrate all synthesizeCallbackEdges() families at once.\\n- Do not treat SynthesizerRegistry unification as the current production execution path.\\n\\nRequired guardrails before implementation:\\n- Rust-side heuristic edge protocol with provenance, synthesizedBy, registeredAt, precision taxonomy, and language gating.\\n- graph parity checks for synthesized edge counts and representative samples.\\n- Agent Sufficiency guardrail when flow connectivity changes, because missing or noisy dynamic-dispatch edges can push agents back to Read/Grep.\\n- preserve best-effort failure behavior so synthesizer failures do not fail indexing."
+    },
+    "1-6-9": {
+      "id": "1-6-9",
+      "label": "Cleanup and DB maintenance Rust migration exploit candidate",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": "Source: 1-5-4-5 DB maintenance and unresolved cleanup residual boundary.\\n\\nCandidate meaning:\\n- Consider bounded migration of terminal cleanup or DB maintenance responsibilities only after semantics are pinned.\\n- Keep resolved terminal cleanup, intentionally unresolved terminal cleanup, retained unresolved_refs backlog, and SQLite maintenance checkpoint distinct.\\n\\nRequired guardrails before implementation:\\n- no unresolved_refs deletion semantics drift.\\n- retained backlog remains available for later semantic handling.\\n- terminal cleanup counters/profile fields remain stable.\\n- DB maintenance migration must not change product-shell maintenance semantics or SQLite health behavior."
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-29 00:28:04",
+    "updated": "2026-06-29 01:12:28",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
