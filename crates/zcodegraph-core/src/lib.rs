@@ -13861,6 +13861,15 @@ mod tests {
     }
     // END ownership bucket: Rust language semantic tests.
 
+    // BEGIN ownership bucket: shared Rust core infrastructure tests.
+    //
+    // These tests cover Rust core infrastructure evidence shared across
+    // migration tracks: candidate producer, normalization, machine-readable
+    // JSON/result/profile diagnostics, name matcher, project lock, SQLite
+    // batching/FTS/bulk transaction behavior, parse walker diagnostics, profile
+    // buckets, mixed-language parser reuse, local exact lookup cache, and the
+    // matched-ts-js graph work profile. Keep final-flush SQLite write mode tests
+    // in the 1-2-3 SQLite write finalization boundary, not this bucket.
     #[test]
     fn candidate_producer_returns_exact_name_and_presence_from_sqlite() {
         let dir = temp_dir("candidate-producer");
@@ -16019,6 +16028,7 @@ mod tests {
         }
         cleanup_temp_dir(dir);
     }
+    // END ownership bucket: shared Rust core infrastructure tests.
 
     // BEGIN ownership bucket: JS/TS resolver migration tests.
     //

@@ -1590,12 +1590,28 @@
     "1-2-4-3": {
       "id": "1-2-4-3",
       "label": "Shared Rust core infrastructure test grouping slice",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which remaining 1-2-4 bucket should the twenty-seventh cut execute next?",
+          "answer": "Execute 1-2-4-3. Shared Rust core infrastructure test grouping slice.",
+          "note": "With JS/TS resolver migration and Rust language semantic markers complete, shared infrastructure should be marked before mixed ownership decisions so the mixed bucket stays reserved for true boundary cases."
+        },
+        {
+          "q": "Which Rust core tests should the shared infrastructure ownership marker cover?",
+          "answer": "Cover the contiguous infrastructure area from candidate_producer tests through matched_ts_js_profile_controls_cost_relevant_graph_work_before_write.",
+          "note": "This includes candidate producer, normalization, machine-readable JSON/result/profile diagnostics, name matcher, project lock, SQLite batching/FTS/bulk transaction, parse walker diagnostics, profile buckets, mixed-language parser reuse, local exact lookup cache, and matched-ts-js graph work profile. Do not include final-flush SQLite write mode tests because those belong to the earlier 1-2-3 SQLite write finalization helper boundary."
+        },
+        {
+          "q": "Should the twenty-seventh cut publish an issue and implement now?",
+          "answer": "Yes. Publish one narrow ready-for-agent issue, implement the lightweight shared Rust core infrastructure test ownership marker, verify, and commit.",
+          "note": "The slice is marker-only and behavior-preserving: no production code changes, no test body movement, no assertion semantic changes, and no inclusion of final-flush SQLite tests already covered by 1-2-3."
+        }
+      ],
+      "notes": "Completed via #638. Added a visible shared Rust core infrastructure ownership marker covering candidate producer, normalization, machine-readable JSON/result/profile diagnostics, name matcher, project lock, SQLite batching/FTS/bulk transaction behavior, parse walker diagnostics, profile buckets, mixed-language parser reuse, local exact lookup cache, and matched-ts-js graph work profile. Final-flush SQLite write mode tests remain outside this bucket under the earlier 1-2-3 boundary. No production code, test body movement, or assertion semantics changed. Parent 1-2-4 remains open for the mixed ownership split decision."
     },
     "1-2-4-4": {
       "id": "1-2-4-4",
@@ -1610,7 +1626,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 14:25:53",
+    "updated": "2026-06-28 14:35:03",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
