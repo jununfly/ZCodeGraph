@@ -171,4 +171,35 @@ describe('Rust indexing migration roadmap ownership map', () => {
       expect(node.notes).toContain(requiredTerm);
     }
   });
+
+  it('locks the DB maintenance and unresolved cleanup residual boundary contract', () => {
+    const node = readNode('1-5-4-5');
+
+    expect(node.status).toBe('completed');
+    for (const requiredTerm of [
+      'resolved unresolved_refs terminal cleanup = typescript-owned / migration-candidate',
+      'resolvedCleanupRowCount',
+      'resolvedCleanupMs',
+      'resolvedCleanupDbMs',
+      'intentionally unresolved terminal cleanup = typescript-owned / migration-candidate',
+      'intentionallyUnresolvedCleanupRowCount',
+      'intentionallyUnresolvedCleanupMs',
+      'intentionallyUnresolvedCleanupDbMs',
+      'retained unresolved_refs backlog = typescript-owned / guardrail',
+      'cleanupOwnership.retainedRefs',
+      'unresolved refs that must remain available for later semantic handling',
+      'SQLite maintenance checkpoint = typescript-owned / product-shell-maintenance',
+      'dbMaintenanceMs',
+      'DatabaseConnection.runMaintenance',
+      'no cleanup behavior change',
+      'no unresolved_refs deletion semantics change',
+      'no retained backlog reduction target',
+      'no DB maintenance migration',
+      'no resolver behavior change',
+      'no edge write change',
+      'no benchmark or real-repo smoke requirement',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
 });

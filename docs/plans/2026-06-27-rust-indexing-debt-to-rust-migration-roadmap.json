@@ -2169,12 +2169,28 @@
     "1-5-4-5": {
       "id": "1-5-4-5",
       "label": "DB maintenance and unresolved cleanup residual boundary",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-5-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which residual should the forty-third cut enter after file/module target diagnostics?",
+          "answer": "A. Enter 1-5-4-5 DB maintenance and unresolved cleanup residual boundary.",
+          "note": "The ReferenceResolver semantic branch now has a boundary contract and the first bounded file/module diagnostics exploit. The next safer finalization-shell blocker is DB maintenance and unresolved cleanup, which should be separated from resolver decisions, edge materialization, and dynamic-dispatch synthesis before any migration attempt."
+        },
+        {
+          "q": "How should the DB maintenance and unresolved cleanup residual boundary be split?",
+          "answer": "A. Split into four boundary buckets: resolved unresolved_refs terminal cleanup; intentionally unresolved terminal cleanup; retained unresolved_refs backlog; SQLite maintenance checkpoint.",
+          "note": "Existing profile fields already expose resolvedCleanupRowCount, intentionallyUnresolvedCleanupRowCount, cleanupOwnership.retainedRefs, and dbMaintenanceMs. The boundary should separate terminal queue deletion, retained backlog, and SQLite maintenance so future Rust migration does not collapse distinct DB write risks into one cleanup bucket."
+        },
+        {
+          "q": "What ownership/status should the cleanup and maintenance buckets use?",
+          "answer": "A. Keep all four buckets TypeScript-owned for now, with distinct statuses: resolved terminal cleanup = migration-candidate; intentionally unresolved terminal cleanup = migration-candidate; retained unresolved_refs backlog = guardrail; SQLite maintenance checkpoint = product-shell-maintenance.",
+          "note": "Terminal cleanup may become a future Rust migration candidate, but retained backlog protects correctness and must not be optimized away. SQLite maintenance is a product-shell DB maintenance action and should not be collapsed into resolver cleanup migration."
+        }
+      ],
+      "notes": "DB maintenance and unresolved cleanup residual boundary contract. Buckets: 1. resolved unresolved_refs terminal cleanup = typescript-owned / migration-candidate; covers resolvedCleanupRowCount, resolvedCleanupMs, and resolvedCleanupDbMs. 2. intentionally unresolved terminal cleanup = typescript-owned / migration-candidate; covers intentionallyUnresolvedCleanupRowCount, intentionallyUnresolvedCleanupMs, and intentionallyUnresolvedCleanupDbMs. 3. retained unresolved_refs backlog = typescript-owned / guardrail; covers cleanupOwnership.retainedRefs and unresolved refs that must remain available for later semantic handling. 4. SQLite maintenance checkpoint = typescript-owned / product-shell-maintenance; covers dbMaintenanceMs and DatabaseConnection.runMaintenance. Non-goals: no cleanup behavior change, no unresolved_refs deletion semantics change, no retained backlog reduction target, no DB maintenance migration, no resolver behavior change, no edge write change, no benchmark or real-repo smoke requirement."
     },
     "1-5-4-3-1": {
       "id": "1-5-4-3-1",
@@ -2210,7 +2226,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 23:16:00",
+    "updated": "2026-06-28 23:28:35",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
