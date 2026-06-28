@@ -63,4 +63,25 @@ describe('Release workflow Rust core artifacts', () => {
     expect(workflow).not.toContain('there is no native compilation');
     expect(workflow).not.toContain('No cross-compile, no native runners');
   });
+
+  it('guards release credentials, registry confirmation, and best-effort mirror sync', () => {
+    expect(workflow).toContain('permissions:');
+    expect(workflow).toContain('contents: write');
+    expect(workflow).toContain('token: ${{ secrets.RELEASE_PAT }}');
+
+    expect(workflow).toContain('GH_TOKEN: ${{ github.token }}');
+    expect(workflow).toContain('gh release create "$TAG"');
+    expect(workflow).toContain('gh release upload "$TAG"');
+
+    expect(workflow).toContain('NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}');
+    expect(workflow).toContain('npm publish --access public');
+    expect(workflow).toContain('npm view "$name@$V" version >/dev/null 2>&1');
+    expect(workflow).toContain('Verify every package is actually on the registry');
+    expect(workflow).toContain('::error::$name@$V never appeared on the registry');
+
+    expect(workflow).toContain('Sync packages to npmmirror');
+    expect(workflow).toContain('continue-on-error: true');
+    expect(workflow).toContain('https://registry.npmmirror.com/-/package/$enc/syncs');
+    expect(workflow).toContain('curl -s -X PUT');
+  });
 });
