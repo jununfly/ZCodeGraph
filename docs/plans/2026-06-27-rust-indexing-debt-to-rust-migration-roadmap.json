@@ -461,7 +461,7 @@
     "1-2-4": {
       "id": "1-2-4",
       "label": "JS TS resolver migration tests versus Rust language tests split",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -1616,17 +1616,38 @@
     "1-2-4-4": {
       "id": "1-2-4-4",
       "label": "Mixed ownership tests split decision",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "How should the mixed ownership tests split decision be handled?",
+          "answer": "Handle it as a closeout decision, not an implementation issue.",
+          "note": "The three main ownership surfaces now have visible markers. Mixed ownership should define a rule for future tests rather than inventing another marker just to classify leftovers."
+        },
+        {
+          "q": "What rule should classify mixed ownership tests?",
+          "answer": "Classify by primary evidence axis.",
+          "note": "A test belongs to the bucket whose behavior it primarily proves: JS/TS module-resolution migration, Rust language semantics, or shared Rust core protocol/infrastructure. Fixture language, SQLite usage, or helper usage is secondary. Only keep a test mixed when it is key evidence for multiple axes and splitting would reduce readability; future issues should explain that exception."
+        },
+        {
+          "q": "Should the mixed ownership rule also be added to code comments?",
+          "answer": "No. Keep the mixed ownership closeout rule in the roadmap only.",
+          "note": "The code already has concrete ownership markers for the three main contiguous areas. Mixed ownership is a future classification rule rather than a concrete test region, so adding an unanchored code comment would be noise."
+        },
+        {
+          "q": "Should 1-2-4-4 and parent 1-2-4 be closed now?",
+          "answer": "Yes. Close 1-2-4-4 and let parent 1-2-4 close after all child buckets are complete.",
+          "note": "The three main ownership markers are in code and the mixed ownership classification rule is recorded in the roadmap. Future concrete mixed cases should get their own follow-up issue instead of keeping this parent open indefinitely."
+        }
+      ],
+      "notes": "Completed as a roadmap closeout decision. Mixed ownership tests should be classified by primary evidence axis: JS/TS resolver migration, Rust language semantics, or shared Rust core infrastructure. Fixture language, SQLite usage, and helper usage are secondary. Keep a test mixed only when it is key evidence for multiple axes and splitting would reduce readability; future issues should explain that exception. No code changes were needed for this decision."
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 14:35:03",
+    "updated": "2026-06-28 16:26:54",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
