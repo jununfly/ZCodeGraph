@@ -1102,7 +1102,7 @@
     "1-5-4": {
       "id": "1-5-4",
       "label": "Rust finalization and reference-resolution residuals",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-5",
       "children": [
@@ -1134,7 +1134,7 @@
           "note": "The contract should keep boundaryProtocol.productShell as typescript, list only actually Rust-owned stages as rustOwnedStages, expose TypeScript-owned residual stages through taxonomy, avoid mixing known-unsupported/migration-target/reporting-only meanings, and lock this with tests. It must not require benchmark, real-repo smoke, or behavior changes to edge writing, cleanup, resolver, or synthesizer logic."
         }
       ],
-      "notes": "Residual map status after #651: 1-5-4-1 completed the boundaryProtocol/fallbackTaxonomy/profile ownership-reporting contract only. The parent remains in_progress because TypeScript product-shell finalization still owns framework post-extract, ReferenceResolver semantics, dynamic-dispatch synthesis, and DB maintenance/unresolved cleanup behavior. Remaining child nodes 1-5-4-2 through 1-5-4-5 track those migration boundaries separately. Do not treat completion of reporting contract as resolver, cleanup, or synthesizer migration."
+      "notes": "Residual boundary map completed.\\n\\n1-5-4 now closes the TypeScript product-shell finalization residual boundary map for the current roadmap pass. Completed child boundaries:\\n- 1-5-4-1 boundaryProtocol / fallbackTaxonomy / profile ownership reporting contract.\\n- 1-5-4-2 FrameworkResolver.postExtract() framework post-extract residual boundary.\\n- 1-5-4-3 ReferenceResolver semantic residual migration boundary, with 1-5-4-3-1 file/module target resolution bounded exploit completed.\\n- 1-5-4-4 full-graph dynamic-dispatch synthesis residual boundary.\\n- 1-5-4-5 DB maintenance and unresolved cleanup residual boundary.\\n\\nCompletion meaning:\\n- This completes the residual boundary map, not full Rust ownership of finalization/reference-resolution.\\n- TypeScript product-shell finalization remains in production until later exploit slices migrate specific bounded responsibilities.\\n- Do not treat this parent completion as resolver semantics migrated, dynamic-dispatch synthesis migrated, framework post-extract migrated, cleanup migrated, or DB maintenance migrated.\\n\\nNext navigation:\\n- Future implementation slices should choose a bounded child responsibility and carry its specific guardrails.\\n- Dynamic-dispatch migration requires Agent Sufficiency guardrails.\\n- ReferenceResolver semantic migration requires parity/oracle guardrails.\\n- Cleanup and DB maintenance migration requires terminal cleanup/backlog semantics guardrails."
     },
     "1-5-5": {
       "id": "1-5-5",
@@ -2180,12 +2180,33 @@
     "1-5-4-4": {
       "id": "1-5-4-4",
       "label": "Dynamic-dispatch synthesis residual migration boundary",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-5-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which residual boundary should the forty-fifth cut enter?",
+          "answer": "A. Enter 1-5-4-4 Dynamic-dispatch synthesis residual migration boundary.",
+          "note": "This is the last pending child under 1-5-4, so closing it completes the TypeScript product-shell finalization residual boundary map before moving to extraction gaps, fallback boundaries, or sufficiency guardrails."
+        },
+        {
+          "q": "How should the dynamic-dispatch synthesis residual boundary be scoped?",
+          "answer": "A. Scope this node to full-graph dynamic-dispatch synthesis only: resolveAllBatched() runs synthesizeCallbackEdges() after baseline reference-resolution edges are persisted, and finalizeRustIndex reports the timing through dynamicDispatchSynthesisMs plus finalization.dynamicDispatchSynthesis checkpoints.",
+          "note": "This excludes per-reference framework resolve()/claimsReference() and the SynthesizerRegistry unification direction. The current production dynamic-dispatch phase remains the hardcoded full-graph synthesizeCallbackEdges() path, not the per-reference framework matching path."
+        },
+        {
+          "q": "What ownership/status should full-graph dynamic-dispatch synthesis have in this roadmap?",
+          "answer": "A. Mark full-graph dynamic-dispatch synthesis as typescript-owned / migration-candidate-with-agent-sufficiency-guardrail.",
+          "note": "It currently executes from the TypeScript ReferenceResolver path and writes synthesized graph edges after baseline reference resolution. It is a migration candidate because the pass has a graph-query to synthesized-edge shape, but any migration must preserve Agent Sufficiency: missing or noisy synthesized edges can make zcodegraph_explore fail to connect flows and push agents back to Read/Grep."
+        },
+        {
+          "q": "What is the completion standard for the forty-fifth cut?",
+          "answer": "A. Complete this cut with roadmap boundary closeout plus contract test only; do not change production code.",
+          "note": "This completes the last residual-boundary map under 1-5-4. Production migration of dynamic-dispatch synthesis needs a separate exploit slice with chosen synthesizer scope, Rust-side heuristic edge protocol, precision taxonomy, language gating, parity checks, and Agent Sufficiency guardrails."
+        }
+      ],
+      "notes": "Dynamic-dispatch synthesis residual migration boundary contract.\\n\\nOwnership/status:\\n- Full-graph dynamic-dispatch synthesis = typescript-owned / migration-candidate-with-agent-sufficiency-guardrail.\\n- Actual execution path: ReferenceResolver.resolveAllBatched() runs synthesizeCallbackEdges() after baseline reference-resolution edges are persisted.\\n- Reporting/checkpoint path: finalizeRustIndex reads dynamicDispatchSynthesisMs from resolution timings and emits finalization.dynamicDispatchSynthesis.started plus finalization.dynamicDispatchSynthesis.completed checkpoints.\\n- Current production implementation path: synthesizeCallbackEdges() hardcodes full-graph synthesizer execution and writes synthesized edges through queries.insertEdges().\\n- Covered relationship families include callback/observer dispatch, EventEmitter, React render, JSX child, Vue template, SvelteKit load, Go method contains/implements/interface dispatch, React Native/Fabric/Expo bridges, MyBatis Java XML, and Gin middleware chain.\\n- Edge semantics: synthesized edges are additive heuristic graph edges after baseline resolution; they must not be required for index success, and failures are best-effort / ignored by the current TypeScript path.\\n\\nExplicit exclusions:\\n- per-reference framework resolve() and claimsReference() are outside this node; they belong to framework semantic matching / ReferenceResolver semantic residuals.\\n- FrameworkResolver.postExtract() is outside this node and is tracked by 1-5-4-2.\\n- SynthesizerRegistry unification is a design direction, not the current production dynamic-dispatch execution path.\\n- Candidate lookup/cache protocol and Rust matcher replay are outside this node and remain under 1-5-4-3.\\n\\nFuture exploit prerequisites before migrating to Rust:\\n- choose one bounded synthesizer or relationship family first; do not migrate all synthesizers at once.\\n- define a Rust-side heuristic edge protocol with provenance, synthesizedBy, registeredAt, precision taxonomy, and language gating.\\n- require graph parity checks for synthesized edge counts and samples.\\n- require Agent Sufficiency guardrail when flow connectivity changes, because missing or noisy dynamic-dispatch edges can push agents back to Read/Grep.\\n- preserve best-effort failure behavior so synthesizer failures do not fail indexing.\\n\\nNon-goals for this slice:\\n- no production code behavior change.\\n- no synthesized edge behavior change.\\n- no SynthesizerRegistry migration.\\n- no Rust synthesizer implementation.\\n- no framework resolver semantic change.\\n- no benchmark or real-repo smoke requirement."
     },
     "1-5-4-5": {
       "id": "1-5-4-5",
@@ -2247,7 +2268,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 23:54:46",
+    "updated": "2026-06-29 00:28:04",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"

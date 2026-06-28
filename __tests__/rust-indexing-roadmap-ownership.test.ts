@@ -209,6 +209,81 @@ describe('Rust indexing migration roadmap ownership map', () => {
     }
   });
 
+  it('locks the dynamic-dispatch synthesis residual migration boundary contract', () => {
+    const node = readNode('1-5-4-4');
+
+    expect(node.status).toBe('completed');
+    for (const requiredTerm of [
+      'Full-graph dynamic-dispatch synthesis = typescript-owned / migration-candidate-with-agent-sufficiency-guardrail',
+      'ReferenceResolver.resolveAllBatched() runs synthesizeCallbackEdges()',
+      'after baseline reference-resolution edges are persisted',
+      'finalizeRustIndex reads dynamicDispatchSynthesisMs',
+      'finalization.dynamicDispatchSynthesis.started',
+      'finalization.dynamicDispatchSynthesis.completed',
+      'synthesizeCallbackEdges() hardcodes full-graph synthesizer execution',
+      'queries.insertEdges()',
+      'callback/observer dispatch',
+      'EventEmitter',
+      'React render',
+      'JSX child',
+      'Vue template',
+      'SvelteKit load',
+      'Go method contains/implements/interface dispatch',
+      'React Native/Fabric/Expo bridges',
+      'MyBatis Java XML',
+      'Gin middleware chain',
+      'synthesized edges are additive heuristic graph edges',
+      'failures are best-effort / ignored by the current TypeScript path',
+      'per-reference framework resolve() and claimsReference() are outside this node',
+      'FrameworkResolver.postExtract() is outside this node',
+      'SynthesizerRegistry unification is a design direction',
+      'not the current production dynamic-dispatch execution path',
+      'Candidate lookup/cache protocol and Rust matcher replay are outside this node',
+      'choose one bounded synthesizer or relationship family first',
+      'Rust-side heuristic edge protocol',
+      'provenance',
+      'synthesizedBy',
+      'registeredAt',
+      'precision taxonomy',
+      'language gating',
+      'graph parity checks for synthesized edge counts and samples',
+      'Agent Sufficiency guardrail',
+      'Read/Grep',
+      'preserve best-effort failure behavior',
+      'no production code behavior change',
+      'no synthesized edge behavior change',
+      'no SynthesizerRegistry migration',
+      'no Rust synthesizer implementation',
+      'no framework resolver semantic change',
+      'no benchmark or real-repo smoke requirement',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
+
+  it('marks the finalization residual boundary map complete without overclaiming migration', () => {
+    const node = readNode('1-5-4');
+
+    expect(node.status).toBe('completed');
+    for (const requiredTerm of [
+      'Residual boundary map completed',
+      '1-5-4 now closes the TypeScript product-shell finalization residual boundary map',
+      'This completes the residual boundary map, not full Rust ownership of finalization/reference-resolution',
+      'TypeScript product-shell finalization remains in production',
+      'Do not treat this parent completion as resolver semantics migrated',
+      'dynamic-dispatch synthesis migrated',
+      'framework post-extract migrated',
+      'cleanup migrated',
+      'DB maintenance migrated',
+      'Dynamic-dispatch migration requires Agent Sufficiency guardrails',
+      'ReferenceResolver semantic migration requires parity/oracle guardrails',
+      'Cleanup and DB maintenance migration requires terminal cleanup/backlog semantics guardrails',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+    expect(node.notes).not.toContain('parent remains in_progress');
+  });
+
   it('locks the DB maintenance and unresolved cleanup residual boundary contract', () => {
     const node = readNode('1-5-4-5');
 
