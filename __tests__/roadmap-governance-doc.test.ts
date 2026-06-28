@@ -89,4 +89,63 @@ describe('Rust indexing debt roadmap governance documentation', () => {
       expect(node.notes).toContain(requiredTerm);
     }
   });
+
+  it('locks the common closeout skeleton for issue plan roadmap and PRD closeouts', () => {
+    const node = readNode('1-4-3');
+
+    for (const requiredTerm of [
+      'Closeout template contract',
+      'issue closeout',
+      'plan/roadmap closeout',
+      'PRD/release-style closeout',
+      'fact-absorption contract',
+      'Required blocks',
+      'Scope',
+      'Decision',
+      'Evidence',
+      'Absorption',
+      'Follow-up',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
+
+  it('locks closeout evidence lanes and artifact absorption requirements', () => {
+    const node = readNode('1-4-3');
+
+    for (const requiredTerm of [
+      'conditional evidence lanes',
+      'RSS',
+      'rssUnavailableReason',
+      'graphStats',
+      'fallback taxonomy',
+      'Agent Sufficiency guardrail status',
+      'keep / delete / migrate',
+      'durable facts are absorbed',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
+
+  it('locks closeout follow-up classification and non-goals', () => {
+    const node = readNode('1-4-3');
+
+    for (const requiredTerm of [
+      'none',
+      'tracked issue',
+      'roadmap node',
+      'human setup',
+      'deferred no-go',
+      'Vague follow-up later wording is not sufficient',
+      'roadmap node notes',
+      'roadmap-governance-doc.test.ts',
+      'Do not create docs/templates/closeout-template.md',
+      'do not rewrite AGENTS.md',
+      'do not rewrite README',
+      'do not perform file deletion or evidence consolidation in 1-4-3',
+      '1-4-5',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
 });

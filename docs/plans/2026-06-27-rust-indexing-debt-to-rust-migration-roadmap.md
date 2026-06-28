@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 19:47:26
+> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 20:16:27
 
 [~][X+] 1. Rust Indexing Debt To Rust Migration Roadmap
 ├── [x][X+] 1-1. Technical debt governance staging before migration resumes
@@ -25,7 +25,7 @@
 ├── [~][X+] 1-4. Documentation roadmap and evidence lifecycle governance
 │   ├── [x][Y+] 1-4-1. Process roadmap cleanup and consolidation policy
 │   ├── [x][X+] 1-4-2. ADR versus benchmark versus plan routing rules
-│   ├── [ ][Y+] 1-4-3. Issue PRD roadmap closeout template
+│   ├── [x][Y+] 1-4-3. Issue PRD roadmap closeout template
 │   ├── [ ][Y+] 1-4-4. README product language consistency pass
 │   └── [ ][X+] 1-4-5. Temporary evidence retention and deletion checklist
 ├── [ ][X+] 1-5. TypeScript indexing to Rust indexing replacement mainline

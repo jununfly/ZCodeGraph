@@ -827,12 +827,53 @@
     "1-4-3": {
       "id": "1-4-3",
       "label": "Issue PRD roadmap closeout template",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which 1-4 node should the thirty-fifth cut enter?",
+          "answer": "A. Enter 1-4-3 Issue PRD roadmap closeout template.",
+          "note": "Closeout template should precede temporary evidence deletion checklist so cleanup knows which facts must be absorbed before evidence is deleted."
+        },
+        {
+          "q": "Which closeout types should the 1-4-3 template cover?",
+          "answer": "A. Cover issue, plan/roadmap, and PRD/release-style closeouts with one minimal common skeleton plus optional evidence lanes.",
+          "note": "The template is a fact-absorption contract for later evidence deletion, not a complex per-artifact template system."
+        },
+        {
+          "q": "How strict should the closeout template required fields be?",
+          "answer": "A. Require five blocks: Scope, Decision, Evidence, Absorption, and Follow-up.",
+          "note": "Keep the closeout lightweight but force every finished issue/plan/PRD-style closeout to preserve identity, outcome, verification, absorbed facts, and remaining work before temporary evidence can be deleted."
+        },
+        {
+          "q": "Which evidence details should be required in the closeout template?",
+          "answer": "A. Use conditional evidence lanes: required only when the work triggers that lane.",
+          "note": "Performance work must record RSS or an unavailable reason; graph semantic changes must record graphStats, fallback taxonomy, and Agent Sufficiency guardrail status when relevant; ordinary documentation governance can stay at verification commands and results."
+        },
+        {
+          "q": "Should the Absorption block explicitly classify temporary artifacts for retention, deletion, or migration?",
+          "answer": "A. Yes. The closeout must list keep, delete, and migrate categories.",
+          "note": "This is the handoff contract from 1-4-3 to 1-4-5: temporary evidence can only be cleaned up after durable facts are absorbed and artifact routing is explicit."
+        },
+        {
+          "q": "Where should the closeout template contract live?",
+          "answer": "A. Keep it in the roadmap node notes and lock it with roadmap-governance-doc.test.ts; do not create a standalone template document.",
+          "note": "This governance pass should define a verifiable contract without growing another durable process document. If the contract later becomes broadly reused, it can be promoted deliberately."
+        },
+        {
+          "q": "Should the Follow-up block require explicit residual-work classification?",
+          "answer": "A. Yes. Follow-up must classify residual work as none, tracked issue, roadmap node, human setup, or deferred no-go.",
+          "note": "This prevents vague closeout language such as 'follow up later' and makes every residual either absent, tracked, delegated to the roadmap, blocked on human setup, or intentionally deferred/no-go."
+        },
+        {
+          "q": "Which issue tracks the 1-4-3 closeout template implementation?",
+          "answer": "#646 Lock closeout template governance contract.",
+          "note": "The issue was created as a ready-for-agent documentation governance slice and implemented in this branch."
+        }
+      ],
+      "notes": "Closeout template contract\n\nCoverage: one minimal common skeleton covers issue closeout, plan/roadmap closeout, and PRD/release-style closeout. This is a fact-absorption contract, not a standalone template system.\n\nRequired blocks:\n- Scope: roadmap node, issue/PRD/plan identity, commit(s), targeted corpus/fixture when applicable.\n- Decision: final classification, what changed, what did not change, and explicit non-goals.\n- Evidence: verification commands and results plus conditional evidence lanes triggered by the work. Performance-triggered closeouts must record RSS or rssUnavailableReason. Graph-semantic closeouts must record graphStats, fallback taxonomy, and Agent Sufficiency guardrail status when relevant. Ordinary documentation governance can stay at command/result evidence.\n- Absorption: durable destination for absorbed facts and explicit keep / delete / migrate classification for temporary artifacts. Temporary evidence cleanup must not proceed until durable facts are absorbed.\n- Follow-up: residual work must be classified as none, tracked issue, roadmap node, human setup, or deferred no-go. Vague follow-up later wording is not sufficient.\n\nStorage and non-goals: keep this contract in this roadmap node notes and lock it with roadmap-governance-doc.test.ts. Do not create docs/templates/closeout-template.md, do not rewrite AGENTS.md, do not rewrite README, and do not perform file deletion or evidence consolidation in 1-4-3. Follow-up cleanup execution belongs to 1-4-5 or a dedicated issue."
     },
     "1-4-4": {
       "id": "1-4-4",
@@ -1878,7 +1919,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 19:47:26",
+    "updated": "2026-06-28 20:16:27",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
