@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 21:16:58
+> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-28 22:08:09
 
 [~][X+] 1. Rust Indexing Debt To Rust Migration Roadmap
 ├── [x][X+] 1-1. Technical debt governance staging before migration resumes
@@ -29,7 +29,7 @@
 │   ├── [x][Y+] 1-4-4. README product language consistency pass
 │   └── [x][X+] 1-4-5. Temporary evidence retention and deletion checklist
 ├── [ ][X+] 1-5. TypeScript indexing to Rust indexing replacement mainline
-│   ├── [ ][X+] 1-5-1. Current Rust-owned language coverage ownership map
+│   ├── [x][X+] 1-5-1. Current Rust-owned language coverage ownership map
 │   ├── [ ][X+] 1-5-2. Remaining TypeScript indexer responsibility inventory
 │   ├── [ ][Y+] 1-5-3. Rust-owned extraction gap burn-down candidates
 │   ├── [ ][Y+] 1-5-4. Rust finalization and reference-resolution residuals

@@ -1003,12 +1003,48 @@
     "1-5-1": {
       "id": "1-5-1",
       "label": "Current Rust-owned language coverage ownership map",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-5",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which node should the thirty-eighth cut enter after completing documentation governance?",
+          "answer": "A. Enter 1-5-1 Current Rust-owned language coverage ownership map.",
+          "note": "1-1 through 1-4 are complete. The next mainline step is to restart TypeScript-indexing-to-Rust-indexing replacement by mapping current Rust-owned language coverage before selecting burn-down or fallback-boundary work."
+        },
+        {
+          "q": "Should 1-5-1 include README/status wording fixes, or only define the Rust-owned coverage ownership map?",
+          "answer": "A. Define the Rust-owned language coverage ownership map only; do not change README or status/doctor wording in this cut.",
+          "note": "1-5-1 is the migration-mainline fact map. README language consistency is governed by 1-4-4 and should be handled by a concrete follow-up issue, while status/doctor display changes belong to later fallback-boundary or diagnostics slices."
+        },
+        {
+          "q": "How should the Rust-owned language coverage ownership map be organized?",
+          "answer": "A. Organize it across three axes: language ownership, pipeline stage, and fallback/removal risk.",
+          "note": "For each Rust-owned language, the map should distinguish membership in RUST_HYBRID_RUST_OWNED_LANGUAGES from scan/detect, Rust extraction, Rust finalization/reference-resolution, framework/synthesizer, status/doctor reporting, and whether any gap blocks same-language TypeScript fallback removal."
+        },
+        {
+          "q": "Which status set should the Rust-owned language coverage map use?",
+          "answer": "A. Use owned-ready, owned-with-residuals, and owned-structural-only, plus residual classification as blocks-removal or diagnostic/documentation-only.",
+          "note": "The map must separate rust-hybrid assignment ownership from full TypeScript-indexer replacement readiness. Rust-owned does not automatically mean semantically complete or safe to remove every same-language fallback/residual."
+        },
+        {
+          "q": "Should 1-5-1 assign initial statuses to all seven Rust-owned languages now?",
+          "answer": "A. Yes. Record an evidence-limited current map with JS/JSX/TS/TSX, Go, and Python as owned-with-residuals, and Rust as owned-structural-only.",
+          "note": "The initial map should be explicit but not overclaim certainty. JS/JSX/TS/TSX residuals center on module-resolution/finalization/reference-resolution and Explore sufficiency guardrails; Go/Python require framework/sufficiency caution; Rust is structurally indexed but full Rust semantic support remains planned separately."
+        },
+        {
+          "q": "What should the completion shape for 1-5-1 be?",
+          "answer": "A. Roadmap notes plus a contract test; do not change production code in this cut.",
+          "note": "This slice maps Rust-owned language coverage. It should lock the source-of-truth list, the distinction between assignment ownership and replacement readiness, initial language classifications, and residual blocking rules without changing README/status/doctor or running full benchmarks."
+        },
+        {
+          "q": "Which issue tracks the 1-5-1 Rust-owned language coverage ownership map implementation?",
+          "answer": "#649 Lock Rust-owned language coverage ownership map.",
+          "note": "The issue was created as a ready-for-agent migration-mainline mapping slice and implemented in this branch."
+        }
+      ],
+      "notes": "Current Rust-owned language coverage ownership map\n\nPurpose: define the current migration-mainline ownership map before selecting TypeScript-indexing-to-Rust-indexing burn-down slices. This node maps coverage only; it does not change README, status, doctor, or production indexing behavior.\n\nSource of truth: rust-hybrid file assignment uses RUST_HYBRID_RUST_OWNED_LANGUAGES in src/indexing/rust-hybrid-contract.ts. The current Rust-owned assignment languages are javascript, jsx, typescript, tsx, go, python, and rust. Extension-level note: .mts and .cts detect as typescript, and .mjs/.cjs/.xsjs/.xsjslib detect as javascript, so the map is language-level rather than extension-list-level.\n\nMap axes:\n- language ownership: whether a file language is assigned to Rust core on the default rust-hybrid path;\n- pipeline stage: scan/detect, Rust extraction, Rust finalization/reference-resolution, framework/synthesizer, status/doctor reporting;\n- fallback/removal risk: whether residuals block same-language TypeScript fallback removal or are diagnostic/documentation-only.\n\nStatus vocabulary:\n- owned-ready: Rust-owned default-path assignment with no known removal-blocking residual in this map;\n- owned-with-residuals: Rust-owned default-path assignment with known parse/extraction/finalization/framework/sufficiency residuals that may block complete same-language TypeScript fallback removal;\n- owned-structural-only: Rust-owned structural indexing is available, but full language-specific semantic support is explicitly outside the current completion claim;\n- residual classes: blocks-removal or diagnostic/documentation-only.\n\nEvidence-limited current classification:\n- javascript, jsx, typescript, tsx: owned-with-residuals; residuals include module-resolution, finalization/reference-resolution, and MCP Explore sufficiency guardrail risk; classify as blocks-removal until a burn-down slice proves otherwise.\n- go: owned-with-residuals; framework/synthesizer and sufficiency coverage are useful but require current verification before claiming complete replacement; classify uncertain gaps as blocks-removal.\n- python: owned-with-residuals; Rust-owned assignment exists, but framework/resolver semantic coverage and sufficiency need cautious verification; classify uncertain gaps as blocks-removal.\n- rust: owned-structural-only; structural indexing is available, but full Rust semantic support for macros, lifetimes, trait coherence, and Cargo feature resolution is planned separately. For the TypeScript-indexing replacement mainline this is diagnostic/documentation-only unless the roadmap explicitly promotes Rust-language semantic support.\n\nNon-goals: no README rewrite, no status/doctor display change, no production code behavior change, no full benchmark or real-repo smoke, and no language added or removed from Rust-owned assignment in this cut. Follow-up implementation belongs to later 1-5 burn-down or fallback-boundary nodes."
     },
     "1-5-2": {
       "id": "1-5-2",
@@ -2001,7 +2037,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-28 21:16:58",
+    "updated": "2026-06-28 22:08:09",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
