@@ -127,4 +127,48 @@ describe('Rust indexing migration roadmap ownership map', () => {
       expect(node.notes).toContain(requiredTerm);
     }
   });
+
+  it('locks the ReferenceResolver semantic residual migration boundary contract', () => {
+    const node = readNode('1-5-4-3');
+
+    expect(node.status).toBe('completed');
+    for (const requiredTerm of [
+      'candidate lookup / cache protocol = migration-infrastructure',
+      'CandidateProtocolProvider',
+      'lookup shapes',
+      'LRU cache protocol',
+      'Rust candidate producer routing',
+      'Rust name matcher replay inputs',
+      'bounded protocol hardening, not semantic ownership claim',
+      'file/module target resolution = bounded-exploit-candidate',
+      'import path',
+      'tsconfig paths',
+      'package maps',
+      'repo-local file targets',
+      'bounded Rust finalization edge-write shapes',
+      'narrow exploit slice with parity guardrails',
+      'symbol/name disambiguation = needs-oracle',
+      'exact/lower/qualified/name matcher',
+      'overload',
+      'value/type token',
+      'receiver/method',
+      'requires oracle/guarded parity before Rust ownership',
+      'framework semantic matching = product-shell-retained',
+      'framework resolver matching',
+      'route/framework-specific semantics',
+      'dedicated framework migration plan',
+      'edge materialization + terminal cleanup = write-cleanup-boundary',
+      'converting resolver decisions into graph edges',
+      'unresolved_refs cleanup',
+      'finalization write/cleanup boundaries rather than semantic decision migration',
+      'no resolver behavior change',
+      'no edge write change',
+      'no cleanup change',
+      'no dynamic-dispatch change',
+      'no fallback routing change',
+      'no benchmark or real-repo smoke requirement',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
 });
