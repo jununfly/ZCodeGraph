@@ -9,6 +9,9 @@ permissions:
   contents: read
 
 jobs:
+  # Required Rust indexing health gate for migration work: source build,
+  # Rust core build/tests, packaged Rust discovery, SQLite/file-lock guardrails,
+  # and release artifact contract coverage on Linux, macOS, and Windows.
   rust-packaged-path:
     name: Rust packaged path (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
