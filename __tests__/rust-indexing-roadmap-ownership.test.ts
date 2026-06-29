@@ -284,6 +284,44 @@ describe('Rust indexing migration roadmap ownership map', () => {
     expect(node.notes).not.toContain('parent remains in_progress');
   });
 
+  it('locks the MCP Explore sufficiency guardrail trigger map for remaining migration work', () => {
+    const node = readNode('1-5-6');
+
+    expect(node.status).toBe('completed');
+    for (const requiredTerm of [
+      'Trigger map completed for Rust indexing replacement mainline',
+      'baseline-agent-sufficiency-v1',
+      'graph-semantics-guardrail-v1',
+      'Three-tier trigger classification',
+      'Agent Sufficiency required',
+      'graph-semantics sufficient',
+      'diagnostics-only sufficient',
+      'Explore output changes',
+      'MCP tool output/shape/ranking changes',
+      'dynamic-dispatch production edge writes',
+      'user-facing sufficiency claims',
+      'bounded repo-local file/module target parity',
+      'guarded edge-write behavior with deterministic fixtures',
+      'fallback taxonomy movement',
+      'graphStats, fallback taxonomy, and RSS/unavailable reason',
+      'protocol-only diagnostics',
+      'shadow-only diagnostics',
+      'profile field additions',
+      'status/doctor wording that does not change graph output or MCP answer content',
+      '1-5-3 Rust-owned extraction gap burn-down candidates',
+      '1-5-5 Non-Rust-owned language fallback boundary',
+      'future dynamic-dispatch production edge migration',
+      'future bounded ReferenceResolver file/module target parity',
+      'future framework postExtract migration',
+      'no production code behavior change',
+      'no baseline document rewrite',
+      'no new benchmark result',
+      'no full agent A/B run in this map slice',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
+
   it('keeps finalization residual exploit candidates split by guardrail surface', () => {
     const backlog = readNode('1-6');
 

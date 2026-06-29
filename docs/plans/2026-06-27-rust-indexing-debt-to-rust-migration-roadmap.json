@@ -29,6 +29,11 @@
           "q": "Should the latest rust-hybrid diagnostic degraded run be added to the roadmap?",
           "answer": "Yes. Track it as two scoped follow-ups instead of changing the current sixth cut: diagnostic bundle replay-field parity under profile/diagnostic stability, and the specific legal-Rust parser gap under Rust-owned extraction gap burn-down.",
           "note": "Evidence from zcodegraph doctor --engine rust-hybrid --bundle --last-run on 2026-06-27: graph usable, degraded due to 3 YAML language-level fallbacks plus 1 rust-owned-parse-gap on crates/zcodegraph-core/src/lib.rs; cargo check passes, so the Rust parse gap is parser/extractor coverage, not invalid Rust source."
+        },
+        {
+          "q": "Should we first explore/exploit-calibrate the roadmap or start the fifty-fourth cut immediately?",
+          "answer": "A. First run a narrow roadmap calibration, then choose the fifty-fourth cut.",
+          "note": "After 1-6 and 1-8 completed, there is no in-progress leaf. The remaining work splits between 1-5 migration mainline and 1-7 explore frontiers, so the next cut should not implicitly choose a mainline node without checking the map."
         }
       ],
       "notes": ""
@@ -1149,12 +1154,28 @@
     "1-5-6": {
       "id": "1-5-6",
       "label": "MCP Explore sufficiency guardrail trigger map",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-5",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Which 1-5 entry should calibrate the fifty-fourth cut?",
+          "answer": "C. Enter 1-5-6 MCP Explore sufficiency guardrail trigger map.",
+          "note": "After 1-8 closed with Agent Sufficiency trigger conditions, 1-5-6 should become the navigation layer for future migration slices: it decides which graph/explore-visible changes require Agent Sufficiency evidence versus lighter graph semantics or diagnostics evidence."
+        },
+        {
+          "q": "How deep should the MCP Explore sufficiency guardrail trigger map cut go?",
+          "answer": "B. Update the roadmap trigger map and add a roadmap/documentation contract test; do not change production code.",
+          "note": "Existing baseline-agent-sufficiency-v1 and graph-semantics-guardrail-v1 already define the generic policy. This node should map that policy onto Rust indexing replacement follow-up nodes and lock the mapping so later agents do not skip sufficiency gates."
+        },
+        {
+          "q": "How should the sufficiency guardrail trigger map classify future migration changes?",
+          "answer": "A. Use three tiers: Agent Sufficiency required, graph-semantics sufficient, and diagnostics-only sufficient.",
+          "note": "This avoids both extremes: not every graph-visible deterministic migration needs a full agent A/B, but changes that alter Explore/MCP output, flow connectivity, dynamic-dispatch edge writes, or user-facing sufficiency claims must trigger Agent Sufficiency."
+        }
+      ],
+      "notes": "Trigger map completed for Rust indexing replacement mainline.\n\nPurpose: map baseline-agent-sufficiency-v1 and graph-semantics-guardrail-v1 onto the remaining 1-5 migration work so future agents know which evidence lane is required before opening or closing implementation slices.\n\nThree-tier trigger classification:\n1. Agent Sufficiency required: Explore output changes; MCP tool output/shape/ranking changes; dynamic-dispatch production edge writes; framework or language extraction changes that affect user-facing flow answers; user-facing sufficiency claims; broad resolver/finalization behavior that changes graph semantics beyond deterministic fixture parity. Required evidence: baseline-agent-sufficiency-v1 plus graph-semantics-guardrail-v1 when graph semantics change.\n2. graph-semantics sufficient: bounded repo-local file/module target parity; guarded edge-write behavior with deterministic fixtures; fallback taxonomy movement; unresolved cleanup or terminal cleanup semantics; graph-visible changes where graphStats, fallback taxonomy, and RSS/unavailable reason explain the movement and no Explore/MCP/user-facing sufficiency claim changes. Required evidence: graph-semantics-guardrail-v1.\n3. diagnostics-only sufficient: protocol-only diagnostics; shadow-only diagnostics; profile field additions; status/doctor wording that does not change graph output or MCP answer content; CI/package smoke guardrails. Required evidence: targeted tests or closeout explaining graph output and fallback taxonomy are intentionally unchanged.\n\nNode mapping for remaining mainline:\n- 1-5-3 Rust-owned extraction gap burn-down candidates: Agent Sufficiency required if extraction changes user-facing flow answers or language/framework coverage claims; graph-semantics sufficient for narrow parser-gap fixes with deterministic graphStats/fallback taxonomy/RSS evidence and no sufficiency claim change.\n- 1-5-5 Non-Rust-owned language fallback boundary: diagnostics-only or graph-semantics sufficient when preserving fallback behavior; Agent Sufficiency required if default fallback behavior, language ownership claims, or MCP-visible answers change.\n- future dynamic-dispatch production edge migration: Agent Sufficiency required. Protocol-only or shadow-only dynamic-dispatch diagnostics remain diagnostics-only sufficient.\n- future bounded ReferenceResolver file/module target parity: graph-semantics sufficient unless Explore/MCP output or user-facing sufficiency claims change.\n- future framework postExtract migration: graph-semantics sufficient for route identity-preserving deterministic updates; Agent Sufficiency required if route/handler flow answers or sufficiency claims change.\n\nEvidence lock: __tests__/rust-indexing-roadmap-ownership.test.ts keeps this trigger map aligned with the roadmap.\n\nNon-goals: no production code behavior change; no baseline document rewrite; no new benchmark result; no full agent A/B run in this map slice.\n\nFollow-up: use this trigger map before publishing the next 1-5 implementation issue."
     },
     "1-6": {
       "id": "1-6",
@@ -2627,7 +2648,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-29 14:00:45",
+    "updated": "2026-06-29 14:13:31",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
