@@ -77,6 +77,45 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     }
   }, 30_000);
 
+  it('indexes the Rust core lib.rs without a Rust-owned parse gap', () => {
+    const srcDir = path.join(tempDir, 'crates/zcodegraph-core/src');
+    fs.mkdirSync(srcDir, { recursive: true });
+    fs.copyFileSync(
+      path.resolve(__dirname, '../crates/zcodegraph-core/src/lib.rs'),
+      path.join(srcDir, 'lib.rs'),
+    );
+
+    const indexResult = spawnSync(RUST_CORE_BIN, [
+      'index',
+      '--engine',
+      'rust',
+      '--project-path',
+      tempDir,
+      '--index-path',
+      path.join(tempDir, '.zcodegraph', 'zcodegraph.db'),
+    ], {
+      cwd: tempDir,
+      encoding: 'utf-8',
+    });
+    expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
+
+    const resultLine = indexResult.stdout
+      .trim()
+      .split('\n')
+      .filter((line) => line.includes('"type":"result"'))
+      .pop();
+    expect(resultLine).toBeDefined();
+    const result = JSON.parse(resultLine!) as {
+      filesErrored: number;
+      errors: Array<{ filePath?: string; code?: string }>;
+    };
+    expect(result.filesErrored).toBe(0);
+    expect(result.errors).not.toContainEqual(expect.objectContaining({
+      filePath: 'crates/zcodegraph-core/src/lib.rs',
+      code: 'rust-owned-parse-gap',
+    }));
+  }, 30_000);
+
   it('indexes Python as Rust-owned under rust-hybrid', () => {
     fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
 

@@ -6540,13 +6540,13 @@ fn export_keyword_matches_kind(keyword: &str, kind: &str) -> bool {
     }
 }
 
-fn identifier_prefix(raw: &str) -> &str {
-    let end = raw
+fn identifier_prefix(source: &str) -> &str {
+    let end = source
         .char_indices()
         .find(|(_, ch)| !is_identifier_char(*ch))
         .map(|(index, _)| index)
-        .unwrap_or(raw.len());
-    &raw[..end]
+        .unwrap_or(source.len());
+    &source[..end]
 }
 
 fn same_file_export_specifier_declares_name(content: &str, name: &str) -> bool {

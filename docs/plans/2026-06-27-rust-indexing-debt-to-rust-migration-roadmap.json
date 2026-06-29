@@ -1095,7 +1095,7 @@
     "1-5-3": {
       "id": "1-5-3",
       "label": "Rust-owned extraction gap burn-down candidates",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-5",
       "children": [
@@ -1905,12 +1905,28 @@
     "1-5-3-1": {
       "id": "1-5-3-1",
       "label": "Rust parser gap on large Rust core lib.rs",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-5-3",
       "children": [],
-      "decisions": [],
-      "notes": "Follow-up from zcodegraph index on this repo at commit c652deab: cargo check passes, but rust-hybrid records rust-owned-parse-gap for crates/zcodegraph-core/src/lib.rs. Classify the legal-Rust parser gap and decide whether it is grammar limitation, normalization issue, macro/cfg/test-fixture shape, or extractor recoverability work. The graph remains usable; this is not a release blocker by itself."
+      "decisions": [
+        {
+          "q": "Where should the fifty-fourth cut go?",
+          "answer": "Enter 1-5-3-1 Rust parser gap on large Rust core lib.rs.",
+          "note": "After completing the sufficiency guardrail trigger map, this is the concrete remaining exploit candidate under 1-5-3. It targets a known legal-Rust parser/extraction gap observed on this repository while keeping non-Rust-owned fallback boundary work separate."
+        },
+        {
+          "q": "How deep should the Rust parser gap cut go?",
+          "answer": "A. First produce diagnosis classification plus a minimal reproduction; do not commit to fixing the full large-file gap in this cut.",
+          "note": "The node is about classifying a legal-Rust parser gap on a very large Rust core file. The safe path is to isolate the triggering syntax or extractor recoverability issue, then decide whether a narrow implementation issue is ready. If the repro is tiny and the fix is low risk, implementation may follow; otherwise close with a ready issue."
+        },
+        {
+          "q": "Should the isolated Rust parser gap be fixed in this cut?",
+          "answer": "A. Apply a narrow repo-local fix: rename the triggering raw identifier in the helper and add a regression gate for the current Rust core lib.rs.",
+          "note": "Diagnosis found tree-sitter-rust 0.23.3 misparses a Rust 2024 raw-keyword-adjacent slice expression when the identifier is named raw. This cut should avoid the known local trigger and prove the current lib.rs no longer reports rust-owned-parse-gap, without claiming a generic upstream grammar fix or adding parser normalization rewrites."
+        }
+      ],
+      "notes": "Completed. Diagnosis classified the large Rust core lib.rs parse gap as a tree-sitter-rust 0.23.3 grammar limitation around Rust 2024 raw-keyword-adjacent identifier handling: a helper parameter named raw in the slice expression &raw[..end] produced an ERROR node even though cargo accepts the code.\n\nNarrow fix: renamed that helper parameter to source, avoiding the grammar trigger without adding parser normalization, changing production indexing semantics, or claiming a generic upstream grammar fix.\n\nRegression gate: __tests__/rust-index-engine-cli-language-smoke.test.ts copies crates/zcodegraph-core/src/lib.rs into a clean temp project and runs the Rust core index path, asserting filesErrored=0 and no rust-owned-parse-gap for that file.\n\nVerification evidence: direct Rust core smoke on copied lib.rs reported filesErrored=0, errors=[], nodesCreated=726, edgesCreated=725.\n\nGuardrail classification per 1-5-6: graph-semantics sufficient. The change is a narrow parser-gap fix with deterministic graphStats/fallback evidence and no Explore/MCP/user-facing sufficiency claim change."
     },
     "1-1-2-3-2-1": {
       "id": "1-1-2-3-2-1",
@@ -2648,7 +2664,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-29 14:13:31",
+    "updated": "2026-06-29 14:34:51",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"

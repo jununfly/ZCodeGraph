@@ -22,6 +22,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixes
 
+- Rust-owned indexing no longer reports this repository's Rust core as a parse gap when indexing the large Rust core source file.
 - CI now documents and tests the cross-platform `rust-packaged-path` job as the required Rust indexing health gate for migration work. (#642)
 - The Release workflow now runs a local Linux package smoke after staging npm packages and before publishing, catching broken bundle or npm layouts without creating releases or contacting registries. (#641)
 - npm packaging now fails fast if the staged platform bundles do not exactly match the Rust core release artifact contract, preventing incomplete or unexpected platform packages from being published. (#640)
