@@ -8,29 +8,6 @@
 
 **Rust-hybrid indexing · deterministic code evidence · 100% local**
 
-### [Documentation & Website →](https://jununfly.github.io/ZCodeGraph/)
-
-[![npm version](https://img.shields.io/npm/v/@jununfly/zcodegraph.svg)](https://www.npmjs.com/package/@jununfly/zcodegraph)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Self-contained](https://img.shields.io/badge/Node.js-bundled%20%C2%B7%20none%20required-brightgreen.svg)](https://nodejs.org/)
-
-[![Windows](https://img.shields.io/badge/Windows-supported-blue.svg)](#supported-platforms)
-[![macOS](https://img.shields.io/badge/macOS-supported-blue.svg)](#supported-platforms)
-[![Linux](https://img.shields.io/badge/Linux-supported-blue.svg)](#supported-platforms)
-
-[![Claude Code](https://img.shields.io/badge/Claude_Code-supported-blueviolet.svg)](#supported-agents)
-[![Cursor](https://img.shields.io/badge/Cursor-supported-blueviolet.svg)](#supported-agents)
-[![Codex](https://img.shields.io/badge/Codex-supported-blueviolet.svg)](#supported-agents)
-[![opencode](https://img.shields.io/badge/opencode-supported-blueviolet.svg)](#supported-agents)
-[![Hermes Agent](https://img.shields.io/badge/Hermes_Agent-supported-blueviolet.svg)](#supported-agents)
-[![Gemini](https://img.shields.io/badge/Gemini-supported-blueviolet.svg)](#supported-agents)
-[![Antigravity](https://img.shields.io/badge/Antigravity-supported-blueviolet.svg)](#supported-agents)
-[![Kiro](https://img.shields.io/badge/Kiro-supported-blueviolet.svg)](#supported-agents)
-
-<br>
-
-**The ZCodeGraph platform is coming** — for every PR, know exactly what to test, what could break, which flows are affected, and whether business logic is compromised.
-
 </div>
 
 ## Get Started
