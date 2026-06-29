@@ -9,6 +9,9 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+
+## [0.10.1] - 2026-06-29
+
 ### New Features
 
 - `rust-hybrid` indexing now locks in guarded Rust finalization for direct named TypeScript and JavaScript imports, while ambiguous bindings remain safely reported as resolver residuals. (#666)
@@ -409,3 +412,4 @@ Thanks @andreinknv for the substantive draft this release was based on.
 [0.9.8]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.8
 [0.9.9]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.9.9
 [0.10.0]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.10.0
+[0.10.1]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.10.1

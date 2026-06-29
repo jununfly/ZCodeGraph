@@ -75,7 +75,7 @@ describe('Release workflow Rust core artifacts', () => {
     expect(workflow).toContain('contents: write');
     expect(workflow).toContain('token: ${{ secrets.RELEASE_PAT }}');
 
-    expect(workflow).toContain('GH_TOKEN: ${{ github.token }}');
+    expect(workflow).toContain('GH_TOKEN: ${{ secrets.RELEASE_PAT || github.token }}');
     expect(workflow).toContain('gh release create "$TAG"');
     expect(workflow).toContain('gh release upload "$TAG"');
 
