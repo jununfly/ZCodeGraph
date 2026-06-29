@@ -93,7 +93,7 @@
     "1-4": {
       "id": "1-4",
       "label": "Degraded fallback health first-screen explanation",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1",
       "children": [
@@ -326,17 +326,23 @@
     "1-4-3": {
       "id": "1-4-3",
       "label": "Fallback health regression coverage",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-4",
       "children": [],
-      "decisions": [],
-      "notes": "Extend rust-index-engine-cli-fallback coverage to assert user-facing degraded summary text, top reason counts, graph usability wording, and doctor command. Keep existing failure doctor hint behavior intact."
+      "decisions": [
+        {
+          "q": "第 8 刀是否只补 fallback health regression coverage，不再扩首屏功能？",
+          "answer": "是。把第 6/7 刀的 contract 和 CLI 首屏行为钉成回归测试，避免后续 doctor/status 改动把 degraded health 文案或数据字段冲掉。",
+          "note": "Scope: no product behavior change unless tests expose a gap; prefer focused tests around top reasons, missing fallback counts, and init/index visible output."
+        }
+      ],
+      "notes": "第 8 刀完成：补 fallback health regression coverage，新增 formatter missing fallback reason 断言，并新增真实 rust-hybrid init degraded 首屏输出测试；相关 fallback summary/index/init 测试共 15 个通过。"
     }
   },
   "metadata": {
     "created": "2026-06-29 17:22:21",
-    "updated": "2026-06-29 22:59:11",
+    "updated": "2026-06-29 23:04:17",
     "md_file": "docs/plans/2026-06-29-issue-668-next-version-roadmap.md"
   }
 }

@@ -62,6 +62,28 @@ describe('rust-hybrid fallback summary contract', () => {
     ]);
   });
 
+  it('keeps missing fallback counts visible in the degraded first-screen reason list', () => {
+    const summary = buildRustHybridFallbackSummary({
+      success: true,
+      profile: {
+        typescriptFallbackAppend: {
+          fallbackFileCount: 1,
+          missingFallbackFileCount: 2,
+          missingFallbackByLanguage: { yaml: 2 },
+        },
+      },
+      errors: [],
+    });
+
+    expect(summary.fallbackReasonTaxonomy).toEqual({
+      'language-level-typescript-fallback': 1,
+      'language-level-fallback-missing-file': 2,
+    });
+    expect(formatRustHybridFallbackDoctorHint(summary)[2]).toContain(
+      '2 planned TypeScript fallback files missing from the checkout',
+    );
+  });
+
   it('returns no first-screen doctor hint for healthy fallback state', () => {
     const summary = buildRustHybridFallbackSummary({
       success: true,

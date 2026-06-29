@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { CodeGraph } from '../src';
 import { buildRustHybridMetadataFromPlan, mergeMissingFallbackDiagnostics, mergeRustOwnedGapDiagnostics, planRustHybridAssignments } from '../src/indexing/rust-hybrid-contract';
@@ -217,6 +218,29 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     expect(result.stdout).toContain('The index is usable; fallback-degraded files or diagnostics are the only parts that need review.');
     expect(result.stdout).toContain('Top fallback reasons:');
     expect(result.stdout).toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
+  }, 30_000);
+
+  it('prints the degraded fallback health explanation during rust-hybrid init', () => {
+    const initDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-hybrid-fallback-init-'));
+    try {
+      fs.writeFileSync(path.join(initDir, 'a.ts'), 'export const initValue = 1;\n');
+      fs.writeFileSync(path.join(initDir, 'routing.yml'), 'app:\n  path: /health\n');
+
+      const result = runZcodegraphCli(initDir, ['init'], {
+        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      });
+
+      expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+      expect(result.stdout).toContain('Initialized in');
+      expect(result.stdout).toContain('Indexed with rust-hybrid');
+      expect(result.stdout).toContain('Fallback health: degraded');
+      expect(result.stdout).toContain('The index is usable; fallback-degraded files or diagnostics are the only parts that need review.');
+      expect(result.stdout).toContain('Top fallback reasons:');
+      expect(result.stdout).toContain('TypeScript fallback files');
+      expect(result.stdout).toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
+    } finally {
+      fs.rmSync(initDir, { recursive: true, force: true });
+    }
   }, 30_000);
 
   it('appends fallback files without clearing existing graph data or stamping TypeScript metadata', async () => {
