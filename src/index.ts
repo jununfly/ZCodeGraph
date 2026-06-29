@@ -52,6 +52,7 @@ import type { DynamicDispatchHeuristicEdgeProtocolDiagnostics } from './resoluti
 import {
   DYNAMIC_DISPATCH_HEURISTIC_EDGE_PROTOCOL_FAMILIES,
   dynamicDispatchHeuristicEdgeProtocolDiagnostics,
+  withEventEmitterShadowParity,
 } from './resolution/dynamic-dispatch-heuristic-edge-protocol';
 import { GraphTraverser, GraphQueryManager } from './graph';
 import { ContextBuilder, createContextBuilder } from './context';
@@ -73,6 +74,7 @@ type RustCoreProfileLike = {
   frameworkPostExtractUpdates?: unknown;
   frameworkPostExtractProviderErrors?: unknown;
   cleanupProtocol?: unknown;
+  dynamicDispatchShadowProducer?: unknown;
   esmNamedImportExportResolvedRefs?: number;
   esmNamedImportExportFallbackRefs?: number;
   esmNamedImportExportFallbackSampleCounts?: Record<string, number>;
@@ -2006,8 +2008,11 @@ export class CodeGraph {
             rustCoreProfile,
           }),
           candidateProtocol: resolutionTimings?.candidateProtocol ?? profile.referenceResolutionBreakdown.candidateProtocol,
-          dynamicDispatchHeuristicEdgeProtocol: resolutionTimings?.dynamicDispatchHeuristicEdgeProtocol
-            ?? profile.referenceResolutionBreakdown.dynamicDispatchHeuristicEdgeProtocol,
+          dynamicDispatchHeuristicEdgeProtocol: withEventEmitterShadowParity(
+            resolutionTimings?.dynamicDispatchHeuristicEdgeProtocol
+              ?? profile.referenceResolutionBreakdown.dynamicDispatchHeuristicEdgeProtocol,
+            rustCoreProfileLike(rustCoreProfile).dynamicDispatchShadowProducer,
+          ),
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
           edgeMaterializationDbMs: resolutionTimings?.edgeMaterializationDbMs ?? 0,
           edgeEndpointValidationDbMs: resolutionTimings?.edgeEndpointValidationDbMs ?? 0,

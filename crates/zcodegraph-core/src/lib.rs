@@ -160,7 +160,31 @@ pub struct IndexProfile {
     pub rust_visibility_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_visibility_guard_taxonomy_counts: BTreeMap<String, u32>,
     pub framework_post_extract_updates: Vec<FrameworkPostExtractUpdate>,
+    pub dynamic_dispatch_shadow_producer: DynamicDispatchShadowProducerProfile,
     pub cleanup_protocol: CleanupProtocolDeclaration,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DynamicDispatchShadowProducerProfile {
+    pub enabled: bool,
+    pub family: String,
+    pub mode: String,
+    pub candidate_count: u32,
+    pub sample_limit: u32,
+    pub samples: Vec<DynamicDispatchShadowCandidate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DynamicDispatchShadowCandidate {
+    pub source_node_id: String,
+    pub target_node_id: String,
+    pub source_name: String,
+    pub target_name: String,
+    pub source_file_path: String,
+    pub target_file_path: String,
+    pub event_name: String,
+    pub synthesized_by: String,
+    pub metadata_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1452,6 +1476,8 @@ fn write_index_to_connection(
     };
     counts.profile.module_resolution_effective_mode_source =
         module_resolution_shadow.effective_mode_source;
+    counts.profile.dynamic_dispatch_shadow_producer =
+        produce_event_emitter_shadow_candidates(conn, Path::new(&request.project_path))?;
     let import_resolution_started = Instant::now();
     let import_stats = resolve_js_ts_file_imports(conn, Path::new(&request.project_path))?;
     counts.profile.import_path_alias_resolution_ms =
@@ -2716,6 +2742,221 @@ fn build_module_resolution_shadow_diagnostics(
     }
 
     Ok(diagnostics)
+}
+
+#[derive(Debug, Clone)]
+struct DynamicDispatchNodeSummary {
+    id: String,
+    kind: String,
+    name: String,
+    file_path: String,
+    start_line: i64,
+    end_line: i64,
+}
+
+fn produce_event_emitter_shadow_candidates(
+    conn: &Connection,
+    project_path: &Path,
+) -> Result<DynamicDispatchShadowProducerProfile, Box<dyn std::error::Error>> {
+    const SAMPLE_LIMIT: usize = 20;
+    let nodes = load_dynamic_dispatch_nodes(conn)?;
+    let mut nodes_by_file: BTreeMap<String, Vec<DynamicDispatchNodeSummary>> = BTreeMap::new();
+    let mut nodes_by_name: BTreeMap<String, Vec<DynamicDispatchNodeSummary>> = BTreeMap::new();
+    for node in nodes {
+        nodes_by_name
+            .entry(node.name.clone())
+            .or_default()
+            .push(node.clone());
+        nodes_by_file
+            .entry(node.file_path.clone())
+            .or_default()
+            .push(node);
+    }
+
+    let mut registrations: BTreeMap<String, Vec<DynamicDispatchNodeSummary>> = BTreeMap::new();
+    let mut dispatchers: Vec<(String, DynamicDispatchNodeSummary)> = Vec::new();
+    for (file_path, file_nodes) in &nodes_by_file {
+        if !is_js_like_source_file(file_path) {
+            continue;
+        }
+        let Ok(content) = fs::read_to_string(project_path.join(file_path)) else {
+            continue;
+        };
+        for (line_index, line) in content.lines().enumerate() {
+            let line_number = line_index as i64 + 1;
+            for (event, handler_name) in event_emitter_registrations_in_line(line) {
+                let Some(handler) = nodes_by_name
+                    .get(&handler_name)
+                    .and_then(|candidates| choose_event_handler_candidate(candidates, file_path))
+                    .cloned()
+                else {
+                    continue;
+                };
+                registrations.entry(event).or_default().push(handler);
+            }
+            for event in event_emitter_dispatches_in_line(line) {
+                let Some(dispatcher) = enclosing_dynamic_dispatch_node(file_nodes, line_number)
+                else {
+                    continue;
+                };
+                dispatchers.push((event, dispatcher.clone()));
+            }
+        }
+    }
+
+    let mut samples = Vec::new();
+    let mut seen = HashSet::new();
+    for (event_name, dispatcher) in dispatchers {
+        let Some(handlers) = registrations.get(&event_name) else {
+            continue;
+        };
+        for handler in handlers {
+            let key = format!("{}>{}>{}", dispatcher.id, handler.id, event_name);
+            if !seen.insert(key) {
+                continue;
+            }
+            samples.push(DynamicDispatchShadowCandidate {
+                source_node_id: dispatcher.id.clone(),
+                target_node_id: handler.id.clone(),
+                source_name: dispatcher.name.clone(),
+                target_name: handler.name.clone(),
+                source_file_path: dispatcher.file_path.clone(),
+                target_file_path: handler.file_path.clone(),
+                event_name: event_name.clone(),
+                synthesized_by: "event-emitter".to_string(),
+                metadata_keys: vec![
+                    "eventName".to_string(),
+                    "registeredAt".to_string(),
+                    "synthesizedBy".to_string(),
+                ],
+            });
+        }
+    }
+    let candidate_count = samples.len() as u32;
+    samples.truncate(SAMPLE_LIMIT);
+    Ok(DynamicDispatchShadowProducerProfile {
+        enabled: true,
+        family: "event-emitter".to_string(),
+        mode: "shadow-only".to_string(),
+        candidate_count,
+        sample_limit: SAMPLE_LIMIT as u32,
+        samples,
+    })
+}
+
+fn load_dynamic_dispatch_nodes(
+    conn: &Connection,
+) -> rusqlite::Result<Vec<DynamicDispatchNodeSummary>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, kind, name, file_path, start_line, end_line
+         FROM nodes
+         WHERE kind IN ('function', 'method', 'component')
+         ORDER BY file_path, start_line",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(DynamicDispatchNodeSummary {
+            id: row.get(0)?,
+            kind: row.get(1)?,
+            name: row.get(2)?,
+            file_path: row.get(3)?,
+            start_line: row.get(4)?,
+            end_line: row.get(5)?,
+        })
+    })?;
+    rows.collect()
+}
+
+fn is_js_like_source_file(file_path: &str) -> bool {
+    matches!(
+        Path::new(file_path)
+            .extension()
+            .and_then(|ext| ext.to_str()),
+        Some("js" | "jsx" | "ts" | "tsx" | "mjs" | "cjs" | "mts" | "cts")
+    )
+}
+
+fn choose_event_handler_candidate<'a>(
+    candidates: &'a [DynamicDispatchNodeSummary],
+    registration_file_path: &str,
+) -> Option<&'a DynamicDispatchNodeSummary> {
+    candidates
+        .iter()
+        .find(|candidate| candidate.file_path == registration_file_path)
+        .or_else(|| candidates.first())
+}
+
+fn enclosing_dynamic_dispatch_node<'a>(
+    nodes: &'a [DynamicDispatchNodeSummary],
+    line_number: i64,
+) -> Option<&'a DynamicDispatchNodeSummary> {
+    nodes
+        .iter()
+        .filter(|node| node.start_line <= line_number && line_number <= node.end_line)
+        .min_by_key(|node| {
+            let span = node.end_line.saturating_sub(node.start_line);
+            let kind_rank = match node.kind.as_str() {
+                "function" | "method" => 0,
+                _ => 1,
+            };
+            (span, kind_rank)
+        })
+}
+
+fn event_emitter_registrations_in_line(line: &str) -> Vec<(String, String)> {
+    event_emitter_call_pairs_in_line(line, &[".on(", ".once(", ".addListener("])
+}
+
+fn event_emitter_dispatches_in_line(line: &str) -> Vec<String> {
+    event_emitter_call_pairs_in_line(line, &[".emit(", ".fire(", ".dispatchEvent("])
+        .into_iter()
+        .map(|(event, _)| event)
+        .collect()
+}
+
+fn event_emitter_call_pairs_in_line(line: &str, markers: &[&str]) -> Vec<(String, String)> {
+    let mut pairs = Vec::new();
+    for marker in markers {
+        let mut remaining = line;
+        while let Some(marker_index) = remaining.find(marker) {
+            let after_marker = &remaining[marker_index + marker.len()..];
+            if let Some((event, after_event)) = parse_quoted_event_arg(after_marker) {
+                let handler = parse_second_named_arg(after_event).unwrap_or_default();
+                pairs.push((event, handler));
+            }
+            remaining = &after_marker[1.min(after_marker.len())..];
+        }
+    }
+    pairs
+}
+
+fn parse_quoted_event_arg(input: &str) -> Option<(String, &str)> {
+    let trimmed = input.trim_start();
+    let quote = trimmed.chars().next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+    let rest = &trimmed[quote.len_utf8()..];
+    let end = rest.find(quote)?;
+    let event = rest[..end].to_string();
+    Some((event, &rest[end + quote.len_utf8()..]))
+}
+
+fn parse_second_named_arg(input: &str) -> Option<String> {
+    let trimmed = input.trim_start();
+    let after_comma = trimmed.strip_prefix(',')?.trim_start();
+    let mut name = String::new();
+    for ch in after_comma.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' || ch == '$' {
+            name.push(ch);
+        } else {
+            break;
+        }
+    }
+    if name.is_empty() {
+        None
+    } else {
+        Some(name)
+    }
 }
 
 #[derive(Debug)]
@@ -11630,6 +11871,43 @@ fn framework_post_extract_updates_json(updates: &[FrameworkPostExtractUpdate]) -
     format!("[{}]", items)
 }
 
+fn dynamic_dispatch_shadow_producer_json(profile: &DynamicDispatchShadowProducerProfile) -> String {
+    let samples = profile
+        .samples
+        .iter()
+        .map(|sample| {
+            let metadata_keys = sample
+                .metadata_keys
+                .iter()
+                .map(|key| format!("\"{}\"", escape_json(key)))
+                .collect::<Vec<_>>()
+                .join(",");
+            format!(
+                "{{\"sourceNodeId\":\"{}\",\"targetNodeId\":\"{}\",\"sourceName\":\"{}\",\"targetName\":\"{}\",\"sourceFilePath\":\"{}\",\"targetFilePath\":\"{}\",\"eventName\":\"{}\",\"synthesizedBy\":\"{}\",\"metadataKeys\":[{}]}}",
+                escape_json(&sample.source_node_id),
+                escape_json(&sample.target_node_id),
+                escape_json(&sample.source_name),
+                escape_json(&sample.target_name),
+                escape_json(&sample.source_file_path),
+                escape_json(&sample.target_file_path),
+                escape_json(&sample.event_name),
+                escape_json(&sample.synthesized_by),
+                metadata_keys
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"enabled\":{},\"family\":\"{}\",\"mode\":\"{}\",\"candidateCount\":{},\"sampleLimit\":{},\"samples\":[{}]}}",
+        profile.enabled,
+        escape_json(&profile.family),
+        escape_json(&profile.mode),
+        profile.candidate_count,
+        profile.sample_limit,
+        samples
+    )
+}
+
 fn cleanup_protocol_json(protocol: &CleanupProtocolDeclaration) -> String {
     let categories = protocol
         .declared_categories
@@ -11674,7 +11952,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"cleanupProtocol\":{},\"frameworkPostExtractUpdates\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustTraitImplEdgeWriteCounts\":{},\"rustTraitMethodReferenceEdgeWriteCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustCargoConditionSourceCounts\":{},\"rustCargoConditionalSemanticSuppressionCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"dynamicDispatchShadowProducer\":{},\"cleanupProtocol\":{},\"frameworkPostExtractUpdates\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustTraitImplEdgeWriteCounts\":{},\"rustTraitMethodReferenceEdgeWriteCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustCargoConditionSourceCounts\":{},\"rustCargoConditionalSemanticSuppressionCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -11812,6 +12090,7 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.local_exact_reference_resolution_ms,
         result.profile.local_exact_reference_resolved_refs,
         result.profile.local_exact_reference_fallback_refs,
+        dynamic_dispatch_shadow_producer_json(&result.profile.dynamic_dispatch_shadow_producer),
         cleanup_protocol_json(&result.profile.cleanup_protocol),
         framework_post_extract_updates_json(&result.profile.framework_post_extract_updates),
         fallback_sample_counts_json(&result.profile.rust_trait_impl_taxonomy_counts),
@@ -15611,6 +15890,56 @@ mod tests {
             json["profile"]["cleanupProtocol"]["dbMaintenance"],
             "out-of-scope"
         );
+    }
+
+    #[test]
+    fn result_json_emits_dynamic_dispatch_shadow_producer_profile() {
+        let mut profile = IndexProfile::default();
+        profile.dynamic_dispatch_shadow_producer = DynamicDispatchShadowProducerProfile {
+            enabled: true,
+            family: "event-emitter".to_string(),
+            mode: "shadow-only".to_string(),
+            candidate_count: 1,
+            sample_limit: 20,
+            samples: vec![DynamicDispatchShadowCandidate {
+                source_node_id: "function:boot".to_string(),
+                target_node_id: "function:onmount".to_string(),
+                source_name: "boot".to_string(),
+                target_name: "onmount".to_string(),
+                source_file_path: "src/app.ts".to_string(),
+                target_file_path: "src/app.ts".to_string(),
+                event_name: "mount".to_string(),
+                synthesized_by: "event-emitter".to_string(),
+                metadata_keys: vec![
+                    "eventName".to_string(),
+                    "registeredAt".to_string(),
+                    "synthesizedBy".to_string(),
+                ],
+            }],
+        };
+        let result = IndexResult {
+            success: true,
+            files_indexed: 0,
+            files_skipped: 0,
+            files_errored: 0,
+            nodes_created: 0,
+            edges_created: 0,
+            duration_ms: 1,
+            profile,
+            errors: Vec::new(),
+        };
+
+        let json: serde_json::Value = serde_json::from_str(&result_json(&result)).unwrap();
+
+        let producer = &json["profile"]["dynamicDispatchShadowProducer"];
+        assert_eq!(producer["enabled"], true);
+        assert_eq!(producer["family"], "event-emitter");
+        assert_eq!(producer["mode"], "shadow-only");
+        assert_eq!(producer["candidateCount"], 1);
+        assert_eq!(producer["samples"][0]["sourceName"], "boot");
+        assert_eq!(producer["samples"][0]["targetName"], "onmount");
+        assert_eq!(producer["samples"][0]["eventName"], "mount");
+        assert_eq!(producer["samples"][0]["synthesizedBy"], "event-emitter");
     }
 
     #[test]

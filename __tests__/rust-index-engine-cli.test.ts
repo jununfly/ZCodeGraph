@@ -719,4 +719,136 @@ describe('zcodegraph index engine selection', () => {
     expect(protocol.graphParity.families['closure-collection'].samples).toEqual([]);
     expect(protocol.graphParity.families['closure-collection'].unavailableReason).toBe('no-current-typescript-edges');
   }, 30_000);
+
+  it('compares Rust EventEmitter shadow candidates without changing graph output', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'event-shadow.ts'),
+      [
+        'function onmount() {',
+        '  return 1;',
+        '}',
+        '',
+        'export function boot(app: { on(name: string, cb: () => void): void; emit(name: string): void }) {',
+        '  app.on("mount", onmount);',
+        '  app.emit("mount");',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const summarizeGraph = (projectPath: string) => {
+      const cg = CodeGraph.openSync(projectPath);
+      try {
+        const stats = cg.getStats();
+        const boot = cg.searchNodes('boot').find((match) => match.node.kind === 'function')!.node;
+        const nodesById = new Map(
+          cg.searchNodes('onmount').map((match) => [match.node.id, match.node.name]),
+        );
+        const edges = cg.getOutgoingEdges(boot.id)
+          .filter((edge) => edge.kind === 'calls')
+          .map((edge) => ({
+            target: nodesById.get(edge.target),
+            edgeOrigin: edge.edgeOrigin,
+            synthesizedBy: edge.metadata?.synthesizedBy,
+          }))
+          .sort((a, b) => String(a.target).localeCompare(String(b.target)));
+        return {
+          nodeCount: stats.nodeCount,
+          edgeCount: stats.edgeCount,
+          edges,
+        };
+      } finally {
+        cg.close();
+      }
+    };
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'event-shadow-profile.json');
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const graph = summarizeGraph(tempDir);
+    expect(graph.edges).toContainEqual({
+      target: 'onmount',
+      edgeOrigin: 'heuristic',
+      synthesizedBy: 'event-emitter',
+    });
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      rustCore: {
+        dynamicDispatchShadowProducer: {
+          enabled: boolean;
+          family: string;
+          mode: string;
+          candidateCount: number;
+          sampleLimit: number;
+          samples: Array<{
+            sourceName: string;
+            targetName: string;
+            eventName: string;
+            synthesizedBy: string;
+          }>;
+        };
+      };
+      finalize: {
+        referenceResolutionBreakdown: {
+          dynamicDispatchHeuristicEdgeProtocol: {
+            graphParity: {
+              eventEmitterShadow: {
+                rustCandidateCount: number;
+                typescriptEdgeCount: number;
+                comparedCount: number;
+                matchedCount: number;
+                mismatchCount: number;
+                rustEdgeWritesEnabled: boolean;
+                mismatchReasons: Record<string, number>;
+                samples: Array<{
+                  sourceName: string;
+                  targetName: string;
+                  eventName: string;
+                  status: string;
+                }>;
+              };
+            };
+          };
+        };
+      };
+    };
+
+    expect(profile.rustCore.dynamicDispatchShadowProducer).toMatchObject({
+      enabled: true,
+      family: 'event-emitter',
+      mode: 'shadow-only',
+      candidateCount: 1,
+      sampleLimit: expect.any(Number),
+    });
+    expect(profile.rustCore.dynamicDispatchShadowProducer.samples).toContainEqual(
+      expect.objectContaining({
+        sourceName: 'boot',
+        targetName: 'onmount',
+        eventName: 'mount',
+        synthesizedBy: 'event-emitter',
+      }),
+    );
+
+    const parity = profile.finalize.referenceResolutionBreakdown
+      .dynamicDispatchHeuristicEdgeProtocol.graphParity.eventEmitterShadow;
+    expect(parity).toMatchObject({
+      rustCandidateCount: 1,
+      typescriptEdgeCount: 1,
+      comparedCount: 1,
+      matchedCount: 1,
+      mismatchCount: 0,
+      rustEdgeWritesEnabled: false,
+      mismatchReasons: {},
+    });
+    expect(parity.samples).toContainEqual(
+      expect.objectContaining({
+        sourceName: 'boot',
+        targetName: 'onmount',
+        eventName: 'mount',
+        status: 'matched',
+      }),
+    );
+  }, 30_000);
 });

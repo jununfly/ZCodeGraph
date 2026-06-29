@@ -2400,7 +2400,7 @@
     "1-6-8": {
       "id": "1-6-8",
       "label": "Dynamic-dispatch synthesizer Rust migration exploit candidate",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-6",
       "children": [
@@ -2505,17 +2505,48 @@
     "1-6-8-2": {
       "id": "1-6-8-2",
       "label": "Rust shadow/double-read dynamic-dispatch edge migration follow-up",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-6-8",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Where should the fifty-first cut go?",
+          "answer": "A. Continue with 1-6-8-2 Rust shadow/double-read dynamic-dispatch edge migration follow-up.",
+          "note": "The previous cut completed the protocol seed for callback/EventEmitter heuristic edges. The next bounded step should produce shadow/double-read evidence against that protocol before any production Rust heuristic edge writes are considered."
+        },
+        {
+          "q": "How deep should the dynamic-dispatch shadow/double-read follow-up go?",
+          "answer": "A. Implement a Rust shadow producer plus TypeScript parity comparator, without consuming Rust-produced heuristic edges.",
+          "note": "Rust may produce callback/EventEmitter heuristic edge candidates for comparison, but the graph remains written by the existing TypeScript synthesizer. This creates migration evidence without introducing behavior changes or experimental production routing."
+        },
+        {
+          "q": "Which family should the first Rust shadow producer cover?",
+          "answer": "A. Cover only EventEmitter named-handler shadow producer in the first slice.",
+          "note": "The named-handler EventEmitter shape has a clear bounded input pattern: on/once/addListener with a string event and named handler plus emit/fire/dispatchEvent with the same string event. This proves the shadow/double-read pipeline without migrating the full TypeScript callback synthesizer."
+        },
+        {
+          "q": "What input boundary should the Rust shadow producer use?",
+          "answer": "A. Rust core scans indexed source and node facts for EventEmitter shadow candidates; TypeScript only provides comparison context.",
+          "note": "This preserves Rust ownership of candidate discovery. TypeScript should not pre-digest EventEmitter facts for Rust, and this slice should not introduce a new persistent shadow table or simulate Rust candidates in TypeScript."
+        },
+        {
+          "q": "How should Rust shadow candidates be emitted?",
+          "answer": "A. Reuse index profile/finalization diagnostics; do not create a new persistent shadow artifact.",
+          "note": "Rust core should expose EventEmitter shadow producer output in its profile, and TypeScript should merge it into finalization parity diagnostics. This keeps the evidence machine-readable without adding a new diagnostics file lifecycle."
+        },
+        {
+          "q": "What acceptance bar should the fifty-first cut use?",
+          "answer": "A. Require fixture parity, no graph delta, and a stable profile contract; keep Agent Sufficiency as the next gate.",
+          "note": "A bounded EventEmitter fixture should show Rust shadow candidates matching the current TypeScript heuristic graph. Enabling shadow diagnostics must not change graph nodes or edges. The profile must expose compared, matched, mismatch, and sample diagnostics. Agent A/B is deferred because this slice intentionally has no graph behavior change."
+        }
+      ],
+      "notes": "Completed by issue #665. Rust core now emits EventEmitter named-handler shadow candidates in the index profile, and TypeScript finalization compares them against the existing TypeScript heuristic EventEmitter graph under dynamicDispatchHeuristicEdgeProtocol.graphParity.eventEmitterShadow. Rust-produced candidates remain shadow-only and are not consumed for graph writes; Agent Sufficiency A/B remains a later gate before any production routing."
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-29 12:13:51",
+    "updated": "2026-06-29 13:17:20",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"

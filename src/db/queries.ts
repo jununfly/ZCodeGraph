@@ -1937,6 +1937,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
           kind: row.kind,
           provenance: 'heuristic' as const,
           synthesizedBy: String(metadata.synthesizedBy ?? family),
+          eventName: typeof metadata.event === 'string' ? metadata.event : undefined,
           metadataKeys: Object.keys(metadata).sort(),
         };
       });
