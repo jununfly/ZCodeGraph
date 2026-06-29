@@ -1384,7 +1384,7 @@
     "1-8": {
       "id": "1-8",
       "label": "Completion gates before migration resumes",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -1399,6 +1399,26 @@
           "q": "What gates close the debt round?",
           "answer": "No default user behavior changes, green macOS/Ubuntu/Windows CI, sufficiency guardrails when graph semantics change, and a closeout decision before new migration implementation issues.",
           "note": "The debt round should end with a clear handoff back to TS-to-Rust migration."
+        },
+        {
+          "q": "Where should the fifty-third cut go after completing the 1-6 exploit backlog?",
+          "answer": "A. Enter 1-8 Completion gates before migration resumes.",
+          "note": "The 1-6 exploit backlog is complete, so the next cut should not jump straight into new migration implementation. First close out the gates that decide whether the roadmap can safely resume the TypeScript-indexing-to-Rust-indexing mainline."
+        },
+        {
+          "q": "How should the completion gates be closed?",
+          "answer": "A. Run a gate audit plus closeout decision, without opening new implementation issues in this cut.",
+          "note": "1-8 is a re-entry gate for the migration mainline, not a feature slice. The cut should mark satisfied gates with evidence, record any residual gaps as todos, and finish with a Go/No-Go/Conditional-Go decision in 1-8-5."
+        },
+        {
+          "q": "Can the remaining completion gates be closed in one audit pass?",
+          "answer": "A. Close 1-8-1, 1-8-3, and 1-8-4 by evidence, then record 1-8-5 as Conditional-Go.",
+          "note": "The remaining gates are closeout criteria rather than new implementation work. They can be closed by recording the evidence and constraints from the completed debt/migration-readiness slices."
+        },
+        {
+          "q": "Which issue tracks the completion-gate closeout?",
+          "answer": "Issue #667 tracks and closes the 1-8 completion-gate audit.",
+          "note": "The issue is a closeout/gate audit slice, not a new implementation plan. It records Conditional-Go for resuming 1-5 planning."
         }
       ],
       "notes": ""
@@ -1406,52 +1426,82 @@
     "1-8-1": {
       "id": "1-8-1",
       "label": "No default user behavior changes during debt pass",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-8",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Did the debt pass change default user behavior?",
+          "answer": "No. Mark completed.",
+          "note": "The recent slices were diagnostics/protocol/shadow/regression-lock work: cleanup protocol handoff diagnostics, dynamic-dispatch protocol diagnostics, EventEmitter shadow comparison, and direct named import regression locking. They did not enable Rust heuristic edge writes or broaden default user-facing graph behavior."
+        }
+      ],
+      "notes": "Completed. Debt-pass slices preserved default user behavior: diagnostics/protocol/shadow evidence stayed observational, Rust heuristic edge writes were not enabled, and direct named import work regression-locked existing ESM named Rust finalization behavior."
     },
     "1-8-2": {
       "id": "1-8-2",
       "label": "Green macOS Ubuntu Windows CI gate",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-8",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "How should the Green macOS Ubuntu Windows CI gate be closed?",
+          "answer": "B. Conditional-Go: the cross-platform CI smoke mechanism is in place, but this cut does not claim the current branch has a freshly confirmed green remote CI run.",
+          "note": "Evidence: commit 239099a3 added the rust-hybrid cross-platform CI smoke, and CHANGELOG records Linux/macOS/Windows init/index/status/doctor coverage. The closeout should distinguish mechanism satisfied from latest-run confirmation."
+        }
+      ],
+      "notes": "Conditional-Go. Cross-platform CI smoke mechanism exists for rust-hybrid migrated path, but this gate does not assert a freshly checked remote green run for the current branch. Before merging/releasing, confirm GitHub Actions on macOS/Ubuntu/Windows is green."
     },
     "1-8-3": {
       "id": "1-8-3",
       "label": "No performance target as primary success criterion",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-8",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Was performance the primary success criterion for this debt/migration-readiness pass?",
+          "answer": "No. Mark completed.",
+          "note": "Performance remains a guardrail, not the pass/fail target. The pass optimized migration readiness, ownership clarity, diagnostics, CI guardrails, and Agent Sufficiency safety before resuming new TS-to-Rust implementation work."
+        }
+      ],
+      "notes": "Completed. This pass did not use performance as the primary success criterion; it used migration readiness, ownership boundary clarity, diagnostics, CI guardrails, and sufficiency-risk containment."
     },
     "1-8-4": {
       "id": "1-8-4",
       "label": "Agent Sufficiency guardrail trigger when graph semantics change",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-8",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "When must Agent Sufficiency guardrails trigger after this closeout?",
+          "answer": "Trigger them when a future slice changes graph semantics, explore-visible behavior, or enables Rust-owned edge writes for sufficiency-sensitive surfaces.",
+          "note": "Protocol-only and shadow-only diagnostics do not need Agent A/B by themselves. Enabling Rust graph writes for dynamic dispatch, changing explore output semantics, or making user-facing sufficiency claims does require the guardrail."
+        }
+      ],
+      "notes": "Completed. Agent Sufficiency guardrail trigger is explicit: required for future graph semantics changes, explore-visible behavior changes, Rust-owned edge-write enablement on sufficiency-sensitive surfaces, or new user-facing sufficiency claims; not required for protocol-only or shadow-only diagnostics."
     },
     "1-8-5": {
       "id": "1-8-5",
       "label": "Closeout decision before new migration implementation issues",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-8",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "What is the closeout decision before new migration implementation issues?",
+          "answer": "Conditional-Go: resume planning under 1-5 TypeScript indexing to Rust indexing replacement mainline.",
+          "note": "Conditions: before merge/release, confirm remote macOS/Ubuntu/Windows CI is green; any future graph semantic or explore-visible behavior change must trigger the Agent Sufficiency guardrail. Next implementation planning should start from remaining 1-5 nodes, especially 1-5-3, 1-5-5, or 1-5-6."
+        }
+      ],
+      "notes": "Conditional-Go. Resume planning under 1-5 TypeScript indexing to Rust indexing replacement mainline. Conditions: confirm remote macOS/Ubuntu/Windows CI green before merge/release; trigger Agent Sufficiency guardrails for graph semantic or explore-visible behavior changes."
     },
     "1-1-2-1": {
       "id": "1-1-2-1",
@@ -2577,7 +2627,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-29 13:42:32",
+    "updated": "2026-06-29 14:00:45",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"

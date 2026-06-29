@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-29 13:42:32
+> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-29 14:00:45
 
 [~][X+] 1. Rust Indexing Debt To Rust Migration Roadmap
 ├── [x][X+] 1-1. Technical debt governance staging before migration resumes
@@ -51,10 +51,10 @@
 │   ├── [ ][X+] 1-7-3. Compiler or oracle integration policy
 │   ├── [ ][X+] 1-7-4. Additional language support after migration stability
 │   └── [ ][X+] 1-7-5. Performance optimization after architecture cleanup
-└── [ ][X+] 1-8. Completion gates before migration resumes
-    ├── [ ][Y+] 1-8-1. No default user behavior changes during debt pass
-    ├── [ ][Y+] 1-8-2. Green macOS Ubuntu Windows CI gate
-    ├── [ ][X+] 1-8-3. No performance target as primary success criterion
-    ├── [ ][X+] 1-8-4. Agent Sufficiency guardrail trigger when graph semantics change
-    └── [ ][X+] 1-8-5. Closeout decision before new migration implementation issues
+└── [x][X+] 1-8. Completion gates before migration resumes
+    ├── [x][Y+] 1-8-1. No default user behavior changes during debt pass
+    ├── [x][Y+] 1-8-2. Green macOS Ubuntu Windows CI gate
+    ├── [x][X+] 1-8-3. No performance target as primary success criterion
+    ├── [x][X+] 1-8-4. Agent Sufficiency guardrail trigger when graph semantics change
+    └── [x][X+] 1-8-5. Closeout decision before new migration implementation issues
 <!-- ROADMAP_SECTION_END -->
