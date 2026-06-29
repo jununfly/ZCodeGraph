@@ -985,7 +985,7 @@
     "1-5": {
       "id": "1-5",
       "label": "TypeScript indexing to Rust indexing replacement mainline",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -1144,12 +1144,23 @@
     "1-5-5": {
       "id": "1-5-5",
       "label": "Non-Rust-owned language fallback boundary",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-5",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Where should the fifty-fifth cut go?",
+          "answer": "A. Enter 1-5-5 Non-Rust-owned language fallback boundary, starting with a boundary map and no production behavior change.",
+          "note": "This is the only remaining unfinished child under the 1-5 TypeScript-indexing-to-Rust-indexing replacement mainline. Because the node is explore-mode and has no notes yet, the first cut should define the boundary rather than deleting fallback behavior."
+        },
+        {
+          "q": "How deep should the 1-5-5 boundary map go?",
+          "answer": "A. Boundary-map only: document the stable fallback boundary and do not change production behavior.",
+          "note": "The existing code and tests already cover non-Rust-owned fallback execution. This cut records the guardrail so future migration work does not treat language-level TypeScript fallback as accidental debt."
+        }
+      ],
+      "notes": "Non-Rust-owned language fallback boundary completed.\n\nPurpose: define non-Rust-owned language fallback append as a boundary-guardrail, not a burn-down target. Rust-hybrid should keep explicit TypeScript fallback for supported languages that are not in RUST_HYBRID_RUST_OWNED_LANGUAGES.\n\nCurrent behavior map:\n- Rust-owned assignment source of truth: RUST_HYBRID_RUST_OWNED_LANGUAGES currently includes javascript, jsx, typescript, tsx, go, python, and rust.\n- Supported but non-Rust-owned files are routed to fallbackFiles and appended through indexFallbackFiles.\n- Fallback diagnostics record fallbackByLanguage, fallbackFileCount, fallbackReasonTaxonomy[language-level-typescript-fallback], fallbackState, and degraded status when such fallback exists.\n- Generated supported files are skipped rather than appended to TypeScript fallback.\n- Unsupported files are reported as unsupportedFiles, not silently routed through TypeScript fallback.\n\nBoundary categories:\n1. Keep-stable: explicit TypeScript engine escape hatch, including explicit --engine typescript and SDK TypeScript-engine use.\n2. Boundary-guardrail: rust-hybrid fallbackFiles, indexFallbackFiles, fallbackByLanguage, fallbackFileCount, fallbackReasonTaxonomy[language-level-typescript-fallback], fallbackState=degraded, and sparse missing-fallback diagnostics.\n3. Not a burn-down target: do not remove fallback just to make rust-hybrid pure Rust; do not silently reclassify supported but non-Rust-owned files as unsupportedFiles.\n4. Future migration path: a language leaves fallback only through an explicit roadmap/PRD/implementation slice that adds Rust ownership, updates RUST_HYBRID_RUST_OWNED_LANGUAGES, adds extraction/finalization/status/doctor tests, and records the proper graph-semantics or Agent Sufficiency evidence.\n5. Agent Sufficiency trigger: Agent Sufficiency is required if default fallback behavior, language ownership claims, or MCP-visible answers change. It is not required for this boundary-map-only slice.\n\nNon-goals: no production code behavior change, no fallback removal, no README/status/doctor rewrite, no new language ownership claim, no benchmark or agent A/B requirement, and no real-repo smoke requirement."
     },
     "1-5-6": {
       "id": "1-5-6",
@@ -2664,7 +2675,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-29 14:34:51",
+    "updated": "2026-06-29 14:50:44",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"

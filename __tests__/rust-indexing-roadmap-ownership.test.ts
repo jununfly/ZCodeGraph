@@ -322,6 +322,41 @@ describe('Rust indexing migration roadmap ownership map', () => {
     }
   });
 
+  it('locks the non-Rust-owned language fallback boundary map', () => {
+    const node = readNode('1-5-5');
+
+    expect(node.status).toBe('completed');
+    for (const requiredTerm of [
+      'Non-Rust-owned language fallback boundary completed',
+      'boundary-guardrail',
+      'not a burn-down target',
+      'RUST_HYBRID_RUST_OWNED_LANGUAGES',
+      'Supported but non-Rust-owned files',
+      'fallbackFiles',
+      'indexFallbackFiles',
+      'fallbackByLanguage',
+      'fallbackFileCount',
+      'fallbackReasonTaxonomy[language-level-typescript-fallback]',
+      'fallbackState',
+      'degraded',
+      'Generated supported files are skipped',
+      'Unsupported files are reported as unsupportedFiles',
+      'explicit TypeScript engine escape hatch',
+      'do not remove fallback',
+      'do not silently reclassify supported but non-Rust-owned files as unsupportedFiles',
+      'a language leaves fallback only through an explicit roadmap/PRD/implementation slice',
+      'Agent Sufficiency is required if default fallback behavior, language ownership claims, or MCP-visible answers change',
+      'no production code behavior change',
+      'no fallback removal',
+      'no README/status/doctor rewrite',
+      'no new language ownership claim',
+      'no benchmark or agent A/B requirement',
+      'no real-repo smoke requirement',
+    ]) {
+      expect(node.notes).toContain(requiredTerm);
+    }
+  });
+
   it('keeps finalization residual exploit candidates split by guardrail surface', () => {
     const backlog = readNode('1-6');
 
