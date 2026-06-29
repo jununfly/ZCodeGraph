@@ -285,7 +285,30 @@ function corpusFingerprint(projectRoot: string): unknown {
 }
 
 function perFileDiagnostics(record: DiagnosticRunRecord): unknown {
+  const fallbackSummary = (record.statusSummary as { index?: { hybrid?: {
+    fallbackState?: string;
+    fallbackFileCount?: number;
+    fallbackReasonTaxonomy?: Record<string, number>;
+    missingFallbackFileCount?: number;
+    missingFallbackByLanguage?: Record<string, number>;
+    fallbackByLanguage?: Record<string, number>;
+  } } })?.index?.hybrid ?? null;
+
   return {
+    schemaVersion: 1,
+    classification: {
+      replaySafe: true,
+      sourcePathPolicy: 'path-hash-only',
+      sourceSlicePolicy: 'omitted',
+      aggregateTaxonomy: fallbackSummary ? {
+        fallbackState: fallbackSummary.fallbackState ?? null,
+        fallbackFileCount: fallbackSummary.fallbackFileCount ?? null,
+        fallbackReasonTaxonomy: fallbackSummary.fallbackReasonTaxonomy ?? {},
+        missingFallbackFileCount: fallbackSummary.missingFallbackFileCount ?? null,
+        missingFallbackByLanguage: fallbackSummary.missingFallbackByLanguage ?? {},
+        fallbackByLanguage: fallbackSummary.fallbackByLanguage ?? {},
+      } : null,
+    },
     errors: record.errors.map((err) => ({
       pathHash: err.pathHash,
       extension: err.extension,
@@ -296,7 +319,7 @@ function perFileDiagnostics(record: DiagnosticRunRecord): unknown {
       column: err.column,
       message: err.message,
     })),
-    fallbackSummary: (record.statusSummary as { index?: { hybrid?: unknown } })?.index?.hybrid ?? null,
+    fallbackSummary,
   };
 }
 
@@ -338,7 +361,8 @@ export function createDiagnosticBundle(projectRoot: string, options: {
     });
   writeJson(path.join(bundleDir, 'profile.json'), record.profile ?? { available: false, unavailableReason: 'not-collected-in-this-run' });
   writeJson(path.join(bundleDir, 'corpus-fingerprint.json'), corpusFingerprint(projectRoot));
-  writeJson(path.join(bundleDir, 'per-file-diagnostics.json'), perFileDiagnostics(record));
+  const perFile = perFileDiagnostics(record);
+  writeJson(path.join(bundleDir, 'per-file-diagnostics.json'), perFile);
   fs.writeFileSync(path.join(bundleDir, 'replay.md'), [
     '# Replay Manifest',
     '',
@@ -348,6 +372,13 @@ export function createDiagnosticBundle(projectRoot: string, options: {
     '',
     'This bundle intentionally omits source code and plaintext file paths.',
     'Use the recorded Git commit, aggregate corpus fingerprint, engine assignment, fallback taxonomy, and sanitized process output to classify the report.',
+    '',
+    '## Per-file diagnostics',
+    '',
+    '`per-file-diagnostics.json` is the replay-safe per-file classification contract for this bundle.',
+    'Each diagnostic uses `pathHash` instead of a plaintext path and keeps only classification fields such as language, extension, code, severity, location, and sanitized message.',
+    'The `classification.aggregateTaxonomy.fallbackReasonTaxonomy` field summarizes why the run was degraded, including Rust-owned parse or extraction gaps and hybrid fallback categories when present.',
+    'Diagnostic bundle v1 does not include source slices; use these fields to classify the report before requesting any source from the reporter.',
     '',
   ].join('\n'));
   fs.writeFileSync(path.join(bundleDir, 'privacy.md'), [

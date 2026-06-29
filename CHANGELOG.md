@@ -11,11 +11,23 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New Features
 
+- `rust-hybrid` indexing now locks in guarded Rust finalization for direct named TypeScript and JavaScript imports, while ambiguous bindings remain safely reported as resolver residuals. (#666)
+- `rust-hybrid` indexing now compares Rust-produced EventEmitter shadow candidates against the existing TypeScript heuristic graph in finalization diagnostics without changing graph output. (#665)
+- `rust-hybrid` indexing now reports a dynamic-dispatch heuristic edge protocol seed in finalization diagnostics, making callback and EventEmitter migration planning visible without changing graph output. (#664)
+- `rust-hybrid` indexing now reports a Rust-declared cleanup protocol handoff in finalization diagnostics while keeping TypeScript responsible for the existing safe cleanup execution path. (#663)
+- `rust-hybrid` indexing now has a cross-platform CI smoke that verifies the built CLI can run init, index, status, and doctor on Linux, macOS, and Windows before migration work reaches release. (#662)
+- `rust-hybrid` indexing now has a guarded Rust-side framework post-extract update protocol for NestJS RouterModule route prefixes, preserving route identity while moving the first bounded framework finalization shape toward Rust ownership. (#659, #660, #661)
 - Rust indexing now reports macro-related diagnostics for Rust projects, making macro definitions, invocations, attributes, and deferred macro-expanded semantics visible without adding unsafe graph edges. (#582, #583, #584, #585)
 - Rust indexing now reports Cargo package and workspace diagnostics, including crate roots, local path dependencies, and deferred Cargo resolver areas, without writing unsafe cross-package graph edges. (#578, #579, #580, #581)
 
 ### Fixes
 
+- Rust-owned indexing no longer reports this repository's Rust core as a parse gap when indexing the large Rust core source file.
+- CI now documents and tests the cross-platform `rust-packaged-path` job as the required Rust indexing health gate for migration work. (#642)
+- The Release workflow now runs a local Linux package smoke after staging npm packages and before publishing, catching broken bundle or npm layouts without creating releases or contacting registries. (#641)
+- npm packaging now fails fast if the staged platform bundles do not exactly match the Rust core release artifact contract, preventing incomplete or unexpected platform packages from being published. (#640)
+- Diagnostic bundles now include replay-safe per-file classification fields and a short replay guide, so degraded `rust-hybrid` reports are easier to classify without exposing source paths or source slices. (#639)
+- Degraded `rust-hybrid` runs now point to `zcodegraph doctor --engine rust-hybrid --bundle --last-run` even when the issue is a Rust-owned parse or extraction gap rather than a TypeScript fallback append.
 - Rust files now use the default `rust-hybrid` Rust-owned indexing path for baseline structural symbols, while deeper Rust-specific semantics remain tracked separately.
 - Troubleshooting now tells users how to verify which `zcodegraph` binary their shell is running when `doctor` or its diagnostic flags appear to be missing.
 - The README now distinguishes the `rust-hybrid` indexing engine from Rust language semantic support, so `.rs` coverage is described as structural indexing while deeper Rust-specific analysis is tracked separately.

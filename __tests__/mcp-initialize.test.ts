@@ -16,6 +16,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { CodeGraph } from '../src';
+import { cleanupSpawnedProcessAndTempDirs } from './helpers/spawned-process-cleanup';
 
 const BIN = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
 
@@ -107,12 +108,9 @@ describe('MCP initialize handshake (issue #172)', () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-mcp-init-'));
   });
 
-  afterEach(() => {
-    if (child && !child.killed) {
-      child.kill('SIGKILL');
-      child = null;
-    }
-    fs.rmSync(tempDir, { recursive: true, force: true });
+  afterEach(async () => {
+    await cleanupSpawnedProcessAndTempDirs(child, [tempDir]);
+    child = null;
   });
 
   it('responds to initialize quickly when no .zcodegraph exists in cwd', async () => {

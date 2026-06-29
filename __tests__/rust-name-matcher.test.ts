@@ -95,6 +95,7 @@ function makeBatchedQueries(nodes: Node[], unresolved: UnresolvedReference[]): Q
     deleteSpecificResolvedReferences: () => {
       queries.__unresolved = [];
     },
+    getDynamicDispatchHeuristicEdgeGraphParity: () => [],
   } as unknown as QueryBuilder;
 }
 

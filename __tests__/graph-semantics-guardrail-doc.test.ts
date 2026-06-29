@@ -103,6 +103,7 @@ describe('Graph semantics guardrail documentation', () => {
 
   it('locks the ownership slice performance trend recording contract', () => {
     const doc = fs.readFileSync(INDEXING_PERFORMANCE_DOC, 'utf8');
+    const agentGuidance = fs.readFileSync(path.join(REPO_ROOT, 'AGENTS.md'), 'utf8');
 
     expect(doc).toContain('## Ownership Slice Trend Recording');
     for (const requiredTerm of [
@@ -125,6 +126,15 @@ describe('Graph semantics guardrail documentation', () => {
       'issue or plan closeout',
     ]) {
       expect(doc).toContain(requiredTerm);
+    }
+
+    for (const requiredGuidance of [
+      'Plan, Benchmark, and Evidence Lifecycle',
+      'Only durable baseline, result, and decision artifacts belong in `docs/benchmarks/`',
+      'temporary profiles, intermediate measurements, and process evidence stay with the issue or plan closeout',
+      'Checked-in temporary evidence files must use a `tmp-` prefix',
+    ]) {
+      expect(agentGuidance).toContain(requiredGuidance);
     }
 
     for (const trigger of [

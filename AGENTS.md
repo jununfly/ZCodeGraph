@@ -29,7 +29,7 @@ npx vitest run __tests__/extraction.test.ts -t "TypeScript"
 
 `copy-assets` (called from `build`) copies `src/db/schema.sql` and all `src/extraction/wasm/*.wasm` files into `dist/`. **Any new SQL or grammar wasm must be copied or it won't ship.**
 
-Node engines: `>=18.0.0 <25.0.0`. There is a hard exit on Node 25.x (see `src/bin/node-version-check.ts`).
+Node engines: `>=20.0.0 <25.0.0`. There is a hard exit below Node 20 and on Node 25.x (see `src/bin/node-version-check.ts`).
 
 ## Architecture
 
@@ -164,6 +164,14 @@ Tests live in `__tests__/` and mirror the module they cover. Notable ones beyond
 - `pr19-improvements.test.ts`, `frameworks-integration.test.ts` — regression coverage for specific past PRs/incidents; don't rename these, the names anchor to git history.
 
 Tests create temp dirs with `fs.mkdtempSync` and clean up in `afterEach`. They write real files and exercise real SQLite — there is no DB mocking.
+
+### Plan, Benchmark, and Evidence Lifecycle
+
+Only durable baseline, result, and decision artifacts belong in `docs/benchmarks/`;
+temporary profiles, intermediate measurements, and process evidence stay with the issue or plan closeout.
+Checked-in temporary evidence files must use a `tmp-` prefix. Do not delete or
+rewrite historical consolidated artifacts as part of a narrow implementation
+slice unless the issue explicitly scopes that cleanup.
 
 ### Windows-gated tests
 

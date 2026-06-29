@@ -44,6 +44,27 @@ describe('Rust core release artifact contract', () => {
     expect(winArm64.setupCommands).toContain('rustup target add aarch64-pc-windows-msvc');
   });
 
+  it('maps every release target to one npm platform package', async () => {
+    const contract = await import('../scripts/rust-core-artifact-contract.mjs');
+
+    expect(contract.RUST_CORE_NPM_PACKAGES).toHaveLength(contract.RUST_CORE_RELEASE_TARGETS.length);
+    expect(contract.RUST_CORE_NPM_PACKAGES.map((pkg: any) => pkg.target)).toEqual(
+      contract.RUST_CORE_RELEASE_TARGETS.map((target: any) => target.releaseTarget),
+    );
+
+    for (const pkg of contract.RUST_CORE_NPM_PACKAGES) {
+      const releaseTarget = contract.RUST_CORE_RELEASE_TARGETS.find((target: any) => target.releaseTarget === pkg.target);
+      expect(releaseTarget, `missing release target for npm package ${pkg.target}`).toBeDefined();
+      expect(pkg.packageName).toBe(`@jununfly/zcodegraph-${pkg.target}`);
+      expect(pkg.optionalDependencyKey).toBe(pkg.packageName);
+      expect(pkg.packageDirectory).toBe(`zcodegraph-${pkg.target}`);
+      expect(pkg.bundleArchiveBase).toBe(`zcodegraph-${pkg.target}`);
+      expect(pkg.os).toBe(pkg.target.slice(0, pkg.target.lastIndexOf('-')));
+      expect(pkg.cpu).toBe(pkg.target.slice(pkg.target.lastIndexOf('-') + 1));
+      expect(pkg.rustCoreBinaryPath).toBe(releaseTarget.bundlePath);
+    }
+  });
+
   it('keeps npm and npx users free of local Rust compilation', async () => {
     await import('../scripts/rust-core-artifact-contract.mjs');
     const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));

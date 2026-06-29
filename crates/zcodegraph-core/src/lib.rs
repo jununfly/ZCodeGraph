@@ -10,6 +10,12 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 use tree_sitter::{Node as SyntaxNode, Parser, TreeCursor};
 
+mod index_options;
+mod profiling;
+use index_options::GraphWorkFeatures;
+pub use index_options::{GraphWorkProfile, IndexRequest, SqliteWriteMode};
+pub use profiling::{start_heap_profiler, HeapProfilerGuard};
+
 #[cfg(feature = "dhat")]
 #[global_allocator]
 static ALLOCATOR: dhat::Alloc = dhat::Alloc;
@@ -22,151 +28,6 @@ const IMPORT_FALLBACK_SAMPLE_TOTAL_CAP: usize = 2000;
 const ESM_OVERLOAD_IMPLEMENTATION_RESOLVED_BY: &str =
     "rust-esm-named-import-export-overload-implementation";
 const ESM_VALUE_TOKEN_INTERFACE_RESOLVED_BY: &str = "rust-esm-value-token-interface";
-
-#[cfg(feature = "dhat")]
-pub type HeapProfilerGuard = dhat::Profiler;
-
-#[cfg(not(feature = "dhat"))]
-pub type HeapProfilerGuard = ();
-
-#[cfg(feature = "dhat")]
-pub fn start_heap_profiler(project_path: &str) -> Result<Option<HeapProfilerGuard>, String> {
-    match std::env::var("ZCODEGRAPH_PROFILING") {
-        Ok(value) if value == "heap" => {
-            let experiment_id =
-                std::env::var("ZCODEGRAPH_EXPERIMENT_ID").unwrap_or_else(|_| "manual".to_string());
-            let report_path = Path::new(project_path)
-                .join(".workbuddy")
-                .join("profiling")
-                .join(experiment_id)
-                .join("dhat-heap.json");
-            if let Some(parent) = report_path.parent() {
-                fs::create_dir_all(parent)
-                    .map_err(|err| format!("failed to create heap profiling directory: {}", err))?;
-            }
-            Ok(Some(
-                dhat::Profiler::builder()
-                    .file_name(report_path.to_string_lossy().as_ref())
-                    .build(),
-            ))
-        }
-        Ok(value) if value.trim().is_empty() => Ok(None),
-        Ok(value) => Err(format!(
-            "unsupported profiling mode: {}. Supported modes: heap",
-            value
-        )),
-        Err(std::env::VarError::NotPresent) => Ok(None),
-        Err(err) => Err(format!("failed to read ZCODEGRAPH_PROFILING: {}", err)),
-    }
-}
-
-#[cfg(not(feature = "dhat"))]
-pub fn start_heap_profiler(_project_path: &str) -> Result<Option<HeapProfilerGuard>, String> {
-    match std::env::var("ZCODEGRAPH_PROFILING") {
-        Ok(value) if value == "heap" => {
-            Err("heap profiling requires building zcodegraph-core with --features dhat".to_string())
-        }
-        Ok(value) if value.trim().is_empty() => Ok(None),
-        Ok(value) => Err(format!(
-            "unsupported profiling mode: {}. Supported modes: heap",
-            value
-        )),
-        Err(std::env::VarError::NotPresent) => Ok(None),
-        Err(err) => Err(format!("failed to read ZCODEGRAPH_PROFILING: {}", err)),
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IndexRequest {
-    pub engine: String,
-    pub project_path: String,
-    pub index_path: String,
-    pub force: bool,
-    pub verbose: bool,
-    pub graph_work_profile: GraphWorkProfile,
-    pub sqlite_write_mode: SqliteWriteMode,
-    pub parse_walker_diagnostics: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GraphWorkProfile {
-    Full,
-    MatchedTsJs,
-}
-
-impl Default for GraphWorkProfile {
-    fn default() -> Self {
-        GraphWorkProfile::Full
-    }
-}
-
-impl GraphWorkProfile {
-    pub fn parse(value: &str) -> Result<Self, String> {
-        match value {
-            "full" => Ok(GraphWorkProfile::Full),
-            "matched-ts-js" => Ok(GraphWorkProfile::MatchedTsJs),
-            other => Err(format!(
-                "unsupported graph work profile: {}. Supported profiles: full, matched-ts-js",
-                other
-            )),
-        }
-    }
-
-    fn features(self) -> GraphWorkFeatures {
-        match self {
-            GraphWorkProfile::Full => GraphWorkFeatures {
-                component_detection: true,
-                constant_extraction: true,
-                field_extraction: true,
-                export_extraction: true,
-                aggressive_call_extraction: true,
-            },
-            GraphWorkProfile::MatchedTsJs => GraphWorkFeatures {
-                component_detection: false,
-                constant_extraction: false,
-                field_extraction: false,
-                export_extraction: false,
-                aggressive_call_extraction: false,
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SqliteWriteMode {
-    Disk,
-    FinalFlush,
-    MemoryFinalFlush,
-}
-
-impl Default for SqliteWriteMode {
-    fn default() -> Self {
-        SqliteWriteMode::FinalFlush
-    }
-}
-
-impl SqliteWriteMode {
-    pub fn parse(value: &str) -> Result<Self, String> {
-        match value {
-            "disk" => Ok(SqliteWriteMode::Disk),
-            "final-flush" => Ok(SqliteWriteMode::FinalFlush),
-            "memory-final-flush" => Ok(SqliteWriteMode::MemoryFinalFlush),
-            other => Err(format!(
-                "unsupported SQLite write mode: {}. Supported modes: disk, final-flush, memory-final-flush",
-                other
-            )),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct GraphWorkFeatures {
-    component_detection: bool,
-    constant_extraction: bool,
-    field_extraction: bool,
-    export_extraction: bool,
-    aggressive_call_extraction: bool,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexError {
@@ -298,6 +159,69 @@ pub struct IndexProfile {
     pub rust_axum_route_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_visibility_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_visibility_guard_taxonomy_counts: BTreeMap<String, u32>,
+    pub framework_post_extract_updates: Vec<FrameworkPostExtractUpdate>,
+    pub dynamic_dispatch_shadow_producer: DynamicDispatchShadowProducerProfile,
+    pub cleanup_protocol: CleanupProtocolDeclaration,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DynamicDispatchShadowProducerProfile {
+    pub enabled: bool,
+    pub family: String,
+    pub mode: String,
+    pub candidate_count: u32,
+    pub sample_limit: u32,
+    pub samples: Vec<DynamicDispatchShadowCandidate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DynamicDispatchShadowCandidate {
+    pub source_node_id: String,
+    pub target_node_id: String,
+    pub source_name: String,
+    pub target_name: String,
+    pub source_file_path: String,
+    pub target_file_path: String,
+    pub event_name: String,
+    pub synthesized_by: String,
+    pub metadata_keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FrameworkPostExtractUpdate {
+    pub provider: String,
+    pub update_kind: String,
+    pub node_id: String,
+    pub node_kind: String,
+    pub file_path: String,
+    pub qualified_name: String,
+    pub field: String,
+    pub new_name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CleanupProtocolDeclaration {
+    pub version: u32,
+    pub declared_categories: Vec<String>,
+    pub executor: String,
+    pub deletion_mechanics: String,
+    pub db_maintenance: String,
+}
+
+impl Default for CleanupProtocolDeclaration {
+    fn default() -> Self {
+        Self {
+            version: 1,
+            declared_categories: vec![
+                "resolved-terminal".to_string(),
+                "intentionally-unresolved-terminal".to_string(),
+                "retained-backlog".to_string(),
+            ],
+            executor: "typescript-shell".to_string(),
+            deletion_mechanics: "typescript-rowid-range".to_string(),
+            db_maintenance: "out-of-scope".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1399,10 +1323,8 @@ pub struct WriteCounts {
 pub fn write_minimal_index(
     request: &IndexRequest,
 ) -> Result<WriteCounts, Box<dyn std::error::Error>> {
-    let index_path = Path::new(&request.index_path);
-    if let Some(parent) = index_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
+    let write_paths = SqliteIndexWritePaths::new(Path::new(&request.index_path));
+    write_paths.ensure_parent_dir()?;
 
     let lock_path = Path::new(&request.project_path)
         .join(".zcodegraph")
@@ -1410,28 +1332,70 @@ pub fn write_minimal_index(
     let _lock = ProjectLock::acquire(&lock_path)?;
     sleep_after_lock_for_tests();
 
-    let temp_path = temp_index_path(index_path);
-    if temp_path.exists() {
-        fs::remove_file(&temp_path)?;
-    }
+    write_paths.prepare_temp_path()?;
 
     let write_result = (|| -> Result<WriteCounts, Box<dyn std::error::Error>> {
-        let counts = write_temp_index(request, &temp_path)?;
+        let counts = write_temp_index(request, write_paths.temp_path())?;
 
         let replace_started = Instant::now();
-        replace_active_index(&temp_path, index_path)?;
+        write_paths.replace_active_index()?;
         let mut counts = counts;
         counts.profile.sqlite_write_ms += replace_started.elapsed().as_millis();
-        cleanup_sqlite_sidecars(&temp_path);
+        write_paths.cleanup_temp_sidecars();
         Ok(counts)
     })();
 
     if write_result.is_err() {
-        cleanup_sqlite_sidecars(&temp_path);
-        let _ = fs::remove_file(&temp_path);
+        write_paths.discard_temp_path();
     }
 
     write_result
+}
+
+struct SqliteIndexWritePaths {
+    index_path: PathBuf,
+    temp_path: PathBuf,
+}
+
+impl SqliteIndexWritePaths {
+    fn new(index_path: &Path) -> Self {
+        Self {
+            index_path: index_path.to_path_buf(),
+            temp_path: temp_index_path(index_path),
+        }
+    }
+
+    fn ensure_parent_dir(&self) -> io::Result<()> {
+        if let Some(parent) = self.index_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        Ok(())
+    }
+
+    fn temp_path(&self) -> &Path {
+        &self.temp_path
+    }
+
+    fn prepare_temp_path(&self) -> io::Result<()> {
+        self.cleanup_temp_sidecars();
+        if self.temp_path.exists() {
+            fs::remove_file(&self.temp_path)?;
+        }
+        Ok(())
+    }
+
+    fn replace_active_index(&self) -> io::Result<()> {
+        replace_active_index(&self.temp_path, &self.index_path)
+    }
+
+    fn cleanup_temp_sidecars(&self) {
+        cleanup_sqlite_sidecars(&self.temp_path);
+    }
+
+    fn discard_temp_path(&self) {
+        self.cleanup_temp_sidecars();
+        let _ = fs::remove_file(&self.temp_path);
+    }
 }
 
 fn write_temp_index(
@@ -1512,6 +1476,8 @@ fn write_index_to_connection(
     };
     counts.profile.module_resolution_effective_mode_source =
         module_resolution_shadow.effective_mode_source;
+    counts.profile.dynamic_dispatch_shadow_producer =
+        produce_event_emitter_shadow_candidates(conn, Path::new(&request.project_path))?;
     let import_resolution_started = Instant::now();
     let import_stats = resolve_js_ts_file_imports(conn, Path::new(&request.project_path))?;
     counts.profile.import_path_alias_resolution_ms =
@@ -1656,6 +1622,8 @@ fn write_index_to_connection(
     counts.profile.local_exact_reference_resolved_refs = local_reference_stats.resolved_refs;
     counts.profile.local_exact_reference_fallback_refs = local_reference_stats.fallback_refs;
     counts.edges_created += local_reference_stats.edges_created;
+    counts.profile.framework_post_extract_updates =
+        produce_nestjs_framework_post_extract_updates(conn, Path::new(&request.project_path))?;
     Ok(counts)
 }
 
@@ -2774,6 +2742,221 @@ fn build_module_resolution_shadow_diagnostics(
     }
 
     Ok(diagnostics)
+}
+
+#[derive(Debug, Clone)]
+struct DynamicDispatchNodeSummary {
+    id: String,
+    kind: String,
+    name: String,
+    file_path: String,
+    start_line: i64,
+    end_line: i64,
+}
+
+fn produce_event_emitter_shadow_candidates(
+    conn: &Connection,
+    project_path: &Path,
+) -> Result<DynamicDispatchShadowProducerProfile, Box<dyn std::error::Error>> {
+    const SAMPLE_LIMIT: usize = 20;
+    let nodes = load_dynamic_dispatch_nodes(conn)?;
+    let mut nodes_by_file: BTreeMap<String, Vec<DynamicDispatchNodeSummary>> = BTreeMap::new();
+    let mut nodes_by_name: BTreeMap<String, Vec<DynamicDispatchNodeSummary>> = BTreeMap::new();
+    for node in nodes {
+        nodes_by_name
+            .entry(node.name.clone())
+            .or_default()
+            .push(node.clone());
+        nodes_by_file
+            .entry(node.file_path.clone())
+            .or_default()
+            .push(node);
+    }
+
+    let mut registrations: BTreeMap<String, Vec<DynamicDispatchNodeSummary>> = BTreeMap::new();
+    let mut dispatchers: Vec<(String, DynamicDispatchNodeSummary)> = Vec::new();
+    for (file_path, file_nodes) in &nodes_by_file {
+        if !is_js_like_source_file(file_path) {
+            continue;
+        }
+        let Ok(content) = fs::read_to_string(project_path.join(file_path)) else {
+            continue;
+        };
+        for (line_index, line) in content.lines().enumerate() {
+            let line_number = line_index as i64 + 1;
+            for (event, handler_name) in event_emitter_registrations_in_line(line) {
+                let Some(handler) = nodes_by_name
+                    .get(&handler_name)
+                    .and_then(|candidates| choose_event_handler_candidate(candidates, file_path))
+                    .cloned()
+                else {
+                    continue;
+                };
+                registrations.entry(event).or_default().push(handler);
+            }
+            for event in event_emitter_dispatches_in_line(line) {
+                let Some(dispatcher) = enclosing_dynamic_dispatch_node(file_nodes, line_number)
+                else {
+                    continue;
+                };
+                dispatchers.push((event, dispatcher.clone()));
+            }
+        }
+    }
+
+    let mut samples = Vec::new();
+    let mut seen = HashSet::new();
+    for (event_name, dispatcher) in dispatchers {
+        let Some(handlers) = registrations.get(&event_name) else {
+            continue;
+        };
+        for handler in handlers {
+            let key = format!("{}>{}>{}", dispatcher.id, handler.id, event_name);
+            if !seen.insert(key) {
+                continue;
+            }
+            samples.push(DynamicDispatchShadowCandidate {
+                source_node_id: dispatcher.id.clone(),
+                target_node_id: handler.id.clone(),
+                source_name: dispatcher.name.clone(),
+                target_name: handler.name.clone(),
+                source_file_path: dispatcher.file_path.clone(),
+                target_file_path: handler.file_path.clone(),
+                event_name: event_name.clone(),
+                synthesized_by: "event-emitter".to_string(),
+                metadata_keys: vec![
+                    "eventName".to_string(),
+                    "registeredAt".to_string(),
+                    "synthesizedBy".to_string(),
+                ],
+            });
+        }
+    }
+    let candidate_count = samples.len() as u32;
+    samples.truncate(SAMPLE_LIMIT);
+    Ok(DynamicDispatchShadowProducerProfile {
+        enabled: true,
+        family: "event-emitter".to_string(),
+        mode: "shadow-only".to_string(),
+        candidate_count,
+        sample_limit: SAMPLE_LIMIT as u32,
+        samples,
+    })
+}
+
+fn load_dynamic_dispatch_nodes(
+    conn: &Connection,
+) -> rusqlite::Result<Vec<DynamicDispatchNodeSummary>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, kind, name, file_path, start_line, end_line
+         FROM nodes
+         WHERE kind IN ('function', 'method', 'component')
+         ORDER BY file_path, start_line",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(DynamicDispatchNodeSummary {
+            id: row.get(0)?,
+            kind: row.get(1)?,
+            name: row.get(2)?,
+            file_path: row.get(3)?,
+            start_line: row.get(4)?,
+            end_line: row.get(5)?,
+        })
+    })?;
+    rows.collect()
+}
+
+fn is_js_like_source_file(file_path: &str) -> bool {
+    matches!(
+        Path::new(file_path)
+            .extension()
+            .and_then(|ext| ext.to_str()),
+        Some("js" | "jsx" | "ts" | "tsx" | "mjs" | "cjs" | "mts" | "cts")
+    )
+}
+
+fn choose_event_handler_candidate<'a>(
+    candidates: &'a [DynamicDispatchNodeSummary],
+    registration_file_path: &str,
+) -> Option<&'a DynamicDispatchNodeSummary> {
+    candidates
+        .iter()
+        .find(|candidate| candidate.file_path == registration_file_path)
+        .or_else(|| candidates.first())
+}
+
+fn enclosing_dynamic_dispatch_node<'a>(
+    nodes: &'a [DynamicDispatchNodeSummary],
+    line_number: i64,
+) -> Option<&'a DynamicDispatchNodeSummary> {
+    nodes
+        .iter()
+        .filter(|node| node.start_line <= line_number && line_number <= node.end_line)
+        .min_by_key(|node| {
+            let span = node.end_line.saturating_sub(node.start_line);
+            let kind_rank = match node.kind.as_str() {
+                "function" | "method" => 0,
+                _ => 1,
+            };
+            (span, kind_rank)
+        })
+}
+
+fn event_emitter_registrations_in_line(line: &str) -> Vec<(String, String)> {
+    event_emitter_call_pairs_in_line(line, &[".on(", ".once(", ".addListener("])
+}
+
+fn event_emitter_dispatches_in_line(line: &str) -> Vec<String> {
+    event_emitter_call_pairs_in_line(line, &[".emit(", ".fire(", ".dispatchEvent("])
+        .into_iter()
+        .map(|(event, _)| event)
+        .collect()
+}
+
+fn event_emitter_call_pairs_in_line(line: &str, markers: &[&str]) -> Vec<(String, String)> {
+    let mut pairs = Vec::new();
+    for marker in markers {
+        let mut remaining = line;
+        while let Some(marker_index) = remaining.find(marker) {
+            let after_marker = &remaining[marker_index + marker.len()..];
+            if let Some((event, after_event)) = parse_quoted_event_arg(after_marker) {
+                let handler = parse_second_named_arg(after_event).unwrap_or_default();
+                pairs.push((event, handler));
+            }
+            remaining = &after_marker[1.min(after_marker.len())..];
+        }
+    }
+    pairs
+}
+
+fn parse_quoted_event_arg(input: &str) -> Option<(String, &str)> {
+    let trimmed = input.trim_start();
+    let quote = trimmed.chars().next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+    let rest = &trimmed[quote.len_utf8()..];
+    let end = rest.find(quote)?;
+    let event = rest[..end].to_string();
+    Some((event, &rest[end + quote.len_utf8()..]))
+}
+
+fn parse_second_named_arg(input: &str) -> Option<String> {
+    let trimmed = input.trim_start();
+    let after_comma = trimmed.strip_prefix(',')?.trim_start();
+    let mut name = String::new();
+    for ch in after_comma.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' || ch == '$' {
+            name.push(ch);
+        } else {
+            break;
+        }
+    }
+    if name.is_empty() {
+        None
+    } else {
+        Some(name)
+    }
 }
 
 #[derive(Debug)]
@@ -6357,13 +6540,13 @@ fn export_keyword_matches_kind(keyword: &str, kind: &str) -> bool {
     }
 }
 
-fn identifier_prefix(raw: &str) -> &str {
-    let end = raw
+fn identifier_prefix(source: &str) -> &str {
+    let end = source
         .char_indices()
         .find(|(_, ch)| !is_identifier_char(*ch))
         .map(|(index, _)| index)
-        .unwrap_or(raw.len());
-    &raw[..end]
+        .unwrap_or(source.len());
+    &source[..end]
 }
 
 fn same_file_export_specifier_declares_name(content: &str, name: &str) -> bool {
@@ -11359,6 +11542,389 @@ fn sha256_hex(bytes: &[u8]) -> String {
     digest.iter().map(|byte| format!("{:02x}", byte)).collect()
 }
 
+fn produce_nestjs_framework_post_extract_updates(
+    conn: &Connection,
+    project_path: &Path,
+) -> rusqlite::Result<Vec<FrameworkPostExtractUpdate>> {
+    let mut module_to_prefix = BTreeMap::<String, String>::new();
+    let mut controller_to_module = BTreeMap::<String, String>::new();
+
+    let mut stmt = conn.prepare(
+        "SELECT path FROM files
+         WHERE path LIKE '%.module.ts'
+            OR path LIKE '%.module.js'
+            OR path LIKE '%.module.mts'
+            OR path LIKE '%.module.cts'
+            OR path LIKE '%.module.cjs'
+         ORDER BY path",
+    )?;
+    let paths = stmt
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    for file_path in paths {
+        let absolute = project_path.join(&file_path);
+        let Ok(content) = fs::read_to_string(absolute) else {
+            continue;
+        };
+        collect_nestjs_router_module_registrations(&content, &mut module_to_prefix);
+        collect_nestjs_module_controllers(&content, &mut controller_to_module);
+    }
+
+    let mut updates = Vec::new();
+    for (controller, module) in controller_to_module {
+        let Some(prefix) = module_to_prefix.get(&module) else {
+            continue;
+        };
+        if prefix.is_empty() || prefix == "/" {
+            continue;
+        }
+
+        let classes = load_nodes_by_kind_and_name(conn, "class", &controller)?;
+        for class_node in classes {
+            let routes = load_route_nodes_in_file(conn, &class_node.file_path)?;
+            for route in routes {
+                if route.start_line < class_node.start_line
+                    || route.start_line > class_node.end_line
+                {
+                    continue;
+                }
+                let Some((method, original_path)) =
+                    route_method_path_from_qualified_name(&route.qualified_name)
+                else {
+                    continue;
+                };
+                let new_name = format!("{} {}", method, join_route_paths(prefix, original_path));
+                if new_name == route.name {
+                    continue;
+                }
+                updates.push(FrameworkPostExtractUpdate {
+                    provider: "nestjs".to_string(),
+                    update_kind: "route-name-prefix".to_string(),
+                    node_id: route.id,
+                    node_kind: "route".to_string(),
+                    file_path: route.file_path,
+                    qualified_name: route.qualified_name,
+                    field: "name".to_string(),
+                    new_name,
+                });
+            }
+        }
+    }
+
+    Ok(updates)
+}
+
+#[derive(Debug, Clone)]
+struct GraphNodeSummary {
+    id: String,
+    name: String,
+    qualified_name: String,
+    file_path: String,
+    start_line: i64,
+    end_line: i64,
+}
+
+fn load_nodes_by_kind_and_name(
+    conn: &Connection,
+    kind: &str,
+    name: &str,
+) -> rusqlite::Result<Vec<GraphNodeSummary>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, qualified_name, file_path, start_line, end_line
+         FROM nodes
+         WHERE kind = ?1 AND name = ?2",
+    )?;
+    let rows = stmt.query_map(params![kind, name], |row| {
+        Ok(GraphNodeSummary {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            qualified_name: row.get(2)?,
+            file_path: row.get(3)?,
+            start_line: row.get(4)?,
+            end_line: row.get(5)?,
+        })
+    })?;
+    rows.collect()
+}
+
+fn load_route_nodes_in_file(
+    conn: &Connection,
+    file_path: &str,
+) -> rusqlite::Result<Vec<GraphNodeSummary>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, qualified_name, file_path, start_line, end_line
+         FROM nodes
+         WHERE kind = 'route' AND file_path = ?1",
+    )?;
+    let rows = stmt.query_map(params![file_path], |row| {
+        Ok(GraphNodeSummary {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            qualified_name: row.get(2)?,
+            file_path: row.get(3)?,
+            start_line: row.get(4)?,
+            end_line: row.get(5)?,
+        })
+    })?;
+    rows.collect()
+}
+
+fn collect_nestjs_router_module_registrations(
+    content: &str,
+    module_to_prefix: &mut BTreeMap<String, String>,
+) {
+    let mut search_start = 0;
+    while let Some(offset) = content[search_start..].find("RouterModule.") {
+        let start = search_start + offset;
+        search_start = start + "RouterModule.".len();
+        let Some(array_start_rel) = content[start..].find('[') else {
+            continue;
+        };
+        let array_start = start + array_start_rel;
+        let Some(array_end) = find_matching_delimiter(content, array_start, b'[', b']') else {
+            continue;
+        };
+        parse_nestjs_router_array(&content[array_start + 1..array_end], "", module_to_prefix);
+    }
+}
+
+fn parse_nestjs_router_array(
+    array_content: &str,
+    parent_prefix: &str,
+    module_to_prefix: &mut BTreeMap<String, String>,
+) {
+    let mut cursor = 0;
+    while let Some(open_rel) = array_content[cursor..].find('{') {
+        let open = cursor + open_rel;
+        let Some(close) = find_matching_delimiter(array_content, open, b'{', b'}') else {
+            break;
+        };
+        parse_nestjs_router_object(
+            &array_content[open + 1..close],
+            parent_prefix,
+            module_to_prefix,
+        );
+        cursor = close + 1;
+    }
+}
+
+fn parse_nestjs_router_object(
+    object_content: &str,
+    parent_prefix: &str,
+    module_to_prefix: &mut BTreeMap<String, String>,
+) {
+    let path = parse_string_property(object_content, "path").unwrap_or_default();
+    let prefix = join_route_paths(parent_prefix, &path);
+    if let Some(module) = parse_identifier_property(object_content, "module") {
+        module_to_prefix.insert(module, prefix.clone());
+    }
+    if let Some(children_start_rel) = object_content.find("children") {
+        if let Some(array_start_rel) = object_content[children_start_rel..].find('[') {
+            let array_start = children_start_rel + array_start_rel;
+            if let Some(array_end) =
+                find_matching_delimiter(object_content, array_start, b'[', b']')
+            {
+                parse_nestjs_router_array(
+                    &object_content[array_start + 1..array_end],
+                    &prefix,
+                    module_to_prefix,
+                );
+            }
+        }
+    }
+}
+
+fn collect_nestjs_module_controllers(
+    content: &str,
+    controller_to_module: &mut BTreeMap<String, String>,
+) {
+    let mut search_start = 0;
+    while let Some(offset) = content[search_start..].find("@Module") {
+        let module_start = search_start + offset;
+        search_start = module_start + "@Module".len();
+        let Some(paren_start_rel) = content[module_start..].find('(') else {
+            continue;
+        };
+        let paren_start = module_start + paren_start_rel;
+        let Some(paren_end) = find_matching_delimiter(content, paren_start, b'(', b')') else {
+            continue;
+        };
+        let module_body = &content[paren_start + 1..paren_end];
+        let Some(module_name) = parse_export_class_after(content, paren_end) else {
+            continue;
+        };
+        for controller in parse_controllers_array(module_body) {
+            controller_to_module.insert(controller, module_name.clone());
+        }
+    }
+}
+
+fn parse_string_property(content: &str, property: &str) -> Option<String> {
+    let property_index = content.find(property)?;
+    let colon_index = property_index + content[property_index..].find(':')?;
+    let after_colon = &content[colon_index + 1..];
+    let quote_index = after_colon.find(|ch| ch == '\'' || ch == '"')?;
+    let quote = after_colon[quote_index..].chars().next()?;
+    let value_start = quote_index + quote.len_utf8();
+    let value_end = after_colon[value_start..].find(quote)?;
+    Some(
+        after_colon[value_start..value_start + value_end]
+            .trim()
+            .to_string(),
+    )
+}
+
+fn parse_identifier_property(content: &str, property: &str) -> Option<String> {
+    let property_index = content.find(property)?;
+    let colon_index = property_index + content[property_index..].find(':')?;
+    let after_colon = content[colon_index + 1..].trim_start();
+    let ident = after_colon
+        .chars()
+        .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_' || *ch == '$')
+        .collect::<String>();
+    if ident.is_empty() {
+        None
+    } else {
+        Some(ident)
+    }
+}
+
+fn parse_export_class_after(content: &str, after_index: usize) -> Option<String> {
+    let rest = &content[after_index..];
+    let export_index = rest.find("export class ")?;
+    let after_export = &rest[export_index + "export class ".len()..];
+    let ident = after_export
+        .chars()
+        .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_' || *ch == '$')
+        .collect::<String>();
+    if ident.is_empty() {
+        None
+    } else {
+        Some(ident)
+    }
+}
+
+fn parse_controllers_array(module_body: &str) -> Vec<String> {
+    let Some(controller_index) = module_body.find("controllers") else {
+        return Vec::new();
+    };
+    let Some(array_start_rel) = module_body[controller_index..].find('[') else {
+        return Vec::new();
+    };
+    let array_start = controller_index + array_start_rel;
+    let Some(array_end) = find_matching_delimiter(module_body, array_start, b'[', b']') else {
+        return Vec::new();
+    };
+    module_body[array_start + 1..array_end]
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .filter_map(|value| {
+            let ident = value
+                .chars()
+                .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_' || *ch == '$')
+                .collect::<String>();
+            if ident.is_empty() {
+                None
+            } else {
+                Some(ident)
+            }
+        })
+        .collect()
+}
+
+fn route_method_path_from_qualified_name(qualified_name: &str) -> Option<(&str, &str)> {
+    let route_part = qualified_name.rsplit_once("::")?.1;
+    route_part.split_once(':')
+}
+
+fn join_route_paths(prefix: &str, path: &str) -> String {
+    let prefix = prefix.trim().trim_matches('/');
+    let path = path.trim().trim_matches('/');
+    match (prefix.is_empty(), path.is_empty()) {
+        (true, true) => "/".to_string(),
+        (true, false) => format!("/{}", path),
+        (false, true) => format!("/{}", prefix),
+        (false, false) => format!("/{}/{}", prefix, path),
+    }
+}
+
+fn framework_post_extract_updates_json(updates: &[FrameworkPostExtractUpdate]) -> String {
+    let items = updates
+        .iter()
+        .map(|update| {
+            format!(
+                "{{\"provider\":\"{}\",\"updateKind\":\"{}\",\"nodeId\":\"{}\",\"nodeKind\":\"{}\",\"filePath\":\"{}\",\"qualifiedName\":\"{}\",\"field\":\"{}\",\"newName\":\"{}\"}}",
+                escape_json(&update.provider),
+                escape_json(&update.update_kind),
+                escape_json(&update.node_id),
+                escape_json(&update.node_kind),
+                escape_json(&update.file_path),
+                escape_json(&update.qualified_name),
+                escape_json(&update.field),
+                escape_json(&update.new_name),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("[{}]", items)
+}
+
+fn dynamic_dispatch_shadow_producer_json(profile: &DynamicDispatchShadowProducerProfile) -> String {
+    let samples = profile
+        .samples
+        .iter()
+        .map(|sample| {
+            let metadata_keys = sample
+                .metadata_keys
+                .iter()
+                .map(|key| format!("\"{}\"", escape_json(key)))
+                .collect::<Vec<_>>()
+                .join(",");
+            format!(
+                "{{\"sourceNodeId\":\"{}\",\"targetNodeId\":\"{}\",\"sourceName\":\"{}\",\"targetName\":\"{}\",\"sourceFilePath\":\"{}\",\"targetFilePath\":\"{}\",\"eventName\":\"{}\",\"synthesizedBy\":\"{}\",\"metadataKeys\":[{}]}}",
+                escape_json(&sample.source_node_id),
+                escape_json(&sample.target_node_id),
+                escape_json(&sample.source_name),
+                escape_json(&sample.target_name),
+                escape_json(&sample.source_file_path),
+                escape_json(&sample.target_file_path),
+                escape_json(&sample.event_name),
+                escape_json(&sample.synthesized_by),
+                metadata_keys
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"enabled\":{},\"family\":\"{}\",\"mode\":\"{}\",\"candidateCount\":{},\"sampleLimit\":{},\"samples\":[{}]}}",
+        profile.enabled,
+        escape_json(&profile.family),
+        escape_json(&profile.mode),
+        profile.candidate_count,
+        profile.sample_limit,
+        samples
+    )
+}
+
+fn cleanup_protocol_json(protocol: &CleanupProtocolDeclaration) -> String {
+    let categories = protocol
+        .declared_categories
+        .iter()
+        .map(|category| format!("\"{}\"", escape_json(category)))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"version\":{},\"declaredCategories\":[{}],\"executor\":\"{}\",\"deletionMechanics\":\"{}\",\"dbMaintenance\":\"{}\"}}",
+        protocol.version,
+        categories,
+        escape_json(&protocol.executor),
+        escape_json(&protocol.deletion_mechanics),
+        escape_json(&protocol.db_maintenance),
+    )
+}
+
 pub fn result_json(result: &IndexResult) -> String {
     let errors = result
         .errors
@@ -11386,7 +11952,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustTraitImplEdgeWriteCounts\":{},\"rustTraitMethodReferenceEdgeWriteCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustCargoConditionSourceCounts\":{},\"rustCargoConditionalSemanticSuppressionCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"dynamicDispatchShadowProducer\":{},\"cleanupProtocol\":{},\"frameworkPostExtractUpdates\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustTraitImplEdgeWriteCounts\":{},\"rustTraitMethodReferenceEdgeWriteCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustCargoConditionSourceCounts\":{},\"rustCargoConditionalSemanticSuppressionCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -11524,6 +12090,9 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.local_exact_reference_resolution_ms,
         result.profile.local_exact_reference_resolved_refs,
         result.profile.local_exact_reference_fallback_refs,
+        dynamic_dispatch_shadow_producer_json(&result.profile.dynamic_dispatch_shadow_producer),
+        cleanup_protocol_json(&result.profile.cleanup_protocol),
+        framework_post_extract_updates_json(&result.profile.framework_post_extract_updates),
         fallback_sample_counts_json(&result.profile.rust_trait_impl_taxonomy_counts),
         fallback_sample_counts_json(&result.profile.rust_trait_impl_edge_write_counts),
         fallback_sample_counts_json(
@@ -11934,46 +12503,87 @@ mod tests {
     use super::*;
     use std::env;
 
-    fn temp_dir(name: &str) -> PathBuf {
-        let dir = env::temp_dir().join(format!(
-            "zcodegraph-core-{}-{}",
-            name,
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir_all(&dir).unwrap();
-        dir
-    }
+    mod test_support {
+        use super::*;
 
-    fn cleanup_temp_dir(dir: PathBuf) {
-        for attempt in 0..5 {
-            match fs::remove_dir_all(&dir) {
-                Ok(()) => return,
-                Err(err) if cfg!(windows) && attempt < 4 => {
-                    std::thread::sleep(Duration::from_millis(50 * (attempt + 1)));
-                    if err.kind() == io::ErrorKind::NotFound {
+        pub fn temp_dir(name: &str) -> PathBuf {
+            let dir = env::temp_dir().join(format!(
+                "zcodegraph-core-{}-{}",
+                name,
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            fs::create_dir_all(&dir).unwrap();
+            dir
+        }
+
+        pub fn cleanup_temp_dir(dir: PathBuf) {
+            for attempt in 0..5 {
+                match fs::remove_dir_all(&dir) {
+                    Ok(()) => return,
+                    Err(err) if cfg!(windows) && attempt < 4 => {
+                        std::thread::sleep(Duration::from_millis(50 * (attempt + 1)));
+                        if err.kind() == io::ErrorKind::NotFound {
+                            return;
+                        }
+                    }
+                    Err(err) if cfg!(windows) => {
+                        eprintln!(
+                            "warning: leaving temporary test directory {} because Windows still holds a file lock: {}",
+                            dir.display(),
+                            err
+                        );
                         return;
                     }
-                }
-                Err(err) if cfg!(windows) => {
-                    eprintln!(
-                        "warning: leaving temporary test directory {} because Windows still holds a file lock: {}",
+                    Err(err) if err.kind() == io::ErrorKind::NotFound => return,
+                    Err(err) => panic!(
+                        "failed to remove temporary test directory {}: {}",
                         dir.display(),
                         err
-                    );
-                    return;
+                    ),
                 }
-                Err(err) if err.kind() == io::ErrorKind::NotFound => return,
-                Err(err) => panic!(
-                    "failed to remove temporary test directory {}: {}",
-                    dir.display(),
-                    err
-                ),
             }
         }
+
+        pub fn db_path(dir: &Path) -> PathBuf {
+            dir.join(".zcodegraph").join("zcodegraph.db")
+        }
+
+        pub fn index_request(dir: &Path, sqlite_write_mode: SqliteWriteMode) -> IndexRequest {
+            IndexRequest {
+                engine: "rust".to_string(),
+                project_path: dir.to_string_lossy().to_string(),
+                index_path: db_path(dir).to_string_lossy().to_string(),
+                force: true,
+                verbose: false,
+                graph_work_profile: GraphWorkProfile::Full,
+                sqlite_write_mode,
+                parse_walker_diagnostics: false,
+            }
+        }
+
+        pub fn write_file(dir: &Path, relative_path: &str, content: &str) {
+            let path = dir.join(relative_path);
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            fs::write(path, content).unwrap();
+        }
+
+        pub fn sqlite_count(conn: &Connection, sql: &str) -> i64 {
+            conn.query_row(sql, [], |row| row.get(0)).unwrap()
+        }
+
+        pub fn sqlite_string(conn: &Connection, sql: &str) -> String {
+            conn.query_row(sql, [], |row| row.get(0)).unwrap()
+        }
     }
+
+    use test_support::{
+        cleanup_temp_dir, db_path, index_request, sqlite_count, sqlite_string, temp_dir, write_file,
+    };
 
     #[test]
     fn graph_work_profile_parse_rejects_unknown_profiles() {
@@ -12103,25 +12713,21 @@ mod tests {
         cleanup_temp_dir(dir);
     }
 
+    // BEGIN ownership bucket: Rust language semantic tests.
+    //
+    // These tests cover Rust programming-language semantic support evidence:
+    // parser/profile baseline, Rust symbol/import/call extraction, module/use
+    // path resolution, scoped visibility guards, Cargo workspace taxonomy and
+    // cfg suppression, macro taxonomy, Axum route semantics, trait impl edges,
+    // and trait method reference edges. Keep JS/TS resolver migration tests,
+    // shared Rust core infrastructure tests, and mixed-ownership tests in
+    // separate roadmap buckets.
     #[test]
     fn rust_core_parses_rust_files_and_reports_language_profile() {
         let dir = temp_dir("rust-parser-profile");
-        fs::write(dir.join("lib.rs"), "pub fn answer() -> i32 { 42 }\n").unwrap();
+        write_file(&dir, "lib.rs", "pub fn answer() -> i32 { 42 }\n");
 
-        let request = IndexRequest {
-            engine: "rust".to_string(),
-            project_path: dir.to_string_lossy().to_string(),
-            index_path: dir
-                .join(".zcodegraph")
-                .join("zcodegraph.db")
-                .to_string_lossy()
-                .to_string(),
-            force: true,
-            verbose: false,
-            graph_work_profile: GraphWorkProfile::Full,
-            sqlite_write_mode: SqliteWriteMode::FinalFlush,
-            parse_walker_diagnostics: false,
-        };
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
 
         let result = run_index(&request);
 
@@ -12142,9 +12748,10 @@ mod tests {
     #[test]
     fn rust_core_extracts_baseline_rust_symbols_imports_and_calls() {
         let dir = temp_dir("rust-baseline");
-        fs::write(
-            dir.join("lib.rs"),
-            [
+        write_file(
+            &dir,
+            "lib.rs",
+            &[
                 "use std::sync::Arc;",
                 "pub type Id = u64;",
                 "pub trait Worker {",
@@ -12164,23 +12771,9 @@ mod tests {
                 "",
             ]
             .join("\n"),
-        )
-        .unwrap();
+        );
 
-        let request = IndexRequest {
-            engine: "rust".to_string(),
-            project_path: dir.to_string_lossy().to_string(),
-            index_path: dir
-                .join(".zcodegraph")
-                .join("zcodegraph.db")
-                .to_string_lossy()
-                .to_string(),
-            force: true,
-            verbose: false,
-            graph_work_profile: GraphWorkProfile::Full,
-            sqlite_write_mode: SqliteWriteMode::FinalFlush,
-            parse_walker_diagnostics: false,
-        };
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
 
         let result = run_index(&request);
 
@@ -13934,7 +14527,17 @@ mod tests {
         assert_eq!(references, 0);
         cleanup_temp_dir(dir);
     }
+    // END ownership bucket: Rust language semantic tests.
 
+    // BEGIN ownership bucket: shared Rust core infrastructure tests.
+    //
+    // These tests cover Rust core infrastructure evidence shared across
+    // migration tracks: candidate producer, normalization, machine-readable
+    // JSON/result/profile diagnostics, name matcher, project lock, SQLite
+    // batching/FTS/bulk transaction behavior, parse walker diagnostics, profile
+    // buckets, mixed-language parser reuse, local exact lookup cache, and the
+    // matched-ts-js graph work profile. Keep final-flush SQLite write mode tests
+    // in the 1-2-3 SQLite write finalization boundary, not this bucket.
     #[test]
     fn candidate_producer_returns_exact_name_and_presence_from_sqlite() {
         let dir = temp_dir("candidate-producer");
@@ -15080,6 +15683,130 @@ mod tests {
         .unwrap();
     }
 
+    fn insert_symbol_node_with_identity(
+        conn: &Connection,
+        id: &str,
+        kind: &str,
+        name: &str,
+        qualified_name: &str,
+        file_path: &str,
+        start_line: i64,
+        end_line: i64,
+    ) {
+        conn.execute(
+            "INSERT INTO nodes (
+                id, kind, name, qualified_name, file_path, language,
+                start_line, end_line, start_column, end_column, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, 'typescript', ?6, ?7, 0, 0, 1)",
+            params![
+                id,
+                kind,
+                name,
+                qualified_name,
+                file_path,
+                start_line,
+                end_line
+            ],
+        )
+        .unwrap();
+    }
+
+    fn insert_file_record(conn: &Connection, file_path: &str) {
+        conn.execute(
+            "INSERT INTO files (path, content_hash, language, size, modified_at, indexed_at, node_count, errors)
+             VALUES (?1, 'hash', 'typescript', 1, 1, 1, 1, NULL)",
+            params![file_path],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn rust_produces_nestjs_router_module_route_name_post_extract_updates() {
+        let dir = temp_dir("nestjs-post-extract-update-producer");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(
+            dir.join("src/app.module.ts"),
+            [
+                "import { Module } from '@nestjs/common';",
+                "import { RouterModule } from '@nestjs/core';",
+                "import { UsersController } from './users.controller';",
+                "",
+                "@Module({",
+                "  imports: [RouterModule.register([{ path: 'admin', module: UsersModule }])],",
+                "})",
+                "export class AppModule {}",
+                "",
+                "@Module({ controllers: [UsersController] })",
+                "export class UsersModule {}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(SCHEMA_SQL).unwrap();
+        insert_file_record(&conn, "src/app.module.ts");
+        insert_symbol_node_with_identity(
+            &conn,
+            "class:users",
+            "class",
+            "UsersController",
+            "src/users.controller.ts::UsersController",
+            "src/users.controller.ts",
+            1,
+            10,
+        );
+        insert_symbol_node_with_identity(
+            &conn,
+            "route:users-show",
+            "route",
+            "GET /users/:id",
+            "src/users.controller.ts::GET:/users/:id",
+            "src/users.controller.ts",
+            5,
+            5,
+        );
+        insert_symbol_node_with_identity(
+            &conn,
+            "function:show",
+            "method",
+            "show",
+            "src/users.controller.ts::UsersController.show",
+            "src/users.controller.ts",
+            6,
+            6,
+        );
+        conn.execute(
+            "INSERT INTO edges (source, target, kind, metadata, line, col, edgeOrigin)
+             VALUES ('route:users-show', 'function:show', 'references', NULL, 5, 2, NULL)",
+            [],
+        )
+        .unwrap();
+
+        let updates = produce_nestjs_framework_post_extract_updates(&conn, &dir).unwrap();
+
+        assert_eq!(updates.len(), 1);
+        assert_eq!(updates[0].provider, "nestjs");
+        assert_eq!(updates[0].update_kind, "route-name-prefix");
+        assert_eq!(updates[0].node_id, "route:users-show");
+        assert_eq!(updates[0].node_kind, "route");
+        assert_eq!(updates[0].field, "name");
+        assert_eq!(
+            updates[0].qualified_name,
+            "src/users.controller.ts::GET:/users/:id"
+        );
+        assert_eq!(updates[0].new_name, "GET /admin/users/:id");
+
+        let json = framework_post_extract_updates_json(&updates);
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed[0]["provider"], "nestjs");
+        assert_eq!(parsed[0]["updateKind"], "route-name-prefix");
+        assert_eq!(parsed[0]["field"], "name");
+
+        cleanup_temp_dir(dir);
+    }
+
     #[test]
     fn result_json_emits_candidate_declaration_diagnostics() {
         let result = IndexResult {
@@ -15124,6 +15851,95 @@ mod tests {
         assert!(json.contains("\"declarationForm\":\"implementation\""));
         assert!(json.contains("\"metadataSource\":\"target-file-line-range-inference\""));
         assert!(!json.contains("return String"));
+    }
+
+    #[test]
+    fn result_json_emits_cleanup_protocol_declaration() {
+        let result = IndexResult {
+            success: true,
+            files_indexed: 0,
+            files_skipped: 0,
+            files_errored: 0,
+            nodes_created: 0,
+            edges_created: 0,
+            duration_ms: 1,
+            profile: IndexProfile::default(),
+            errors: Vec::new(),
+        };
+
+        let json: serde_json::Value = serde_json::from_str(&result_json(&result)).unwrap();
+
+        assert_eq!(json["profile"]["cleanupProtocol"]["version"], 1);
+        assert_eq!(
+            json["profile"]["cleanupProtocol"]["declaredCategories"],
+            serde_json::json!([
+                "resolved-terminal",
+                "intentionally-unresolved-terminal",
+                "retained-backlog"
+            ])
+        );
+        assert_eq!(
+            json["profile"]["cleanupProtocol"]["executor"],
+            "typescript-shell"
+        );
+        assert_eq!(
+            json["profile"]["cleanupProtocol"]["deletionMechanics"],
+            "typescript-rowid-range"
+        );
+        assert_eq!(
+            json["profile"]["cleanupProtocol"]["dbMaintenance"],
+            "out-of-scope"
+        );
+    }
+
+    #[test]
+    fn result_json_emits_dynamic_dispatch_shadow_producer_profile() {
+        let mut profile = IndexProfile::default();
+        profile.dynamic_dispatch_shadow_producer = DynamicDispatchShadowProducerProfile {
+            enabled: true,
+            family: "event-emitter".to_string(),
+            mode: "shadow-only".to_string(),
+            candidate_count: 1,
+            sample_limit: 20,
+            samples: vec![DynamicDispatchShadowCandidate {
+                source_node_id: "function:boot".to_string(),
+                target_node_id: "function:onmount".to_string(),
+                source_name: "boot".to_string(),
+                target_name: "onmount".to_string(),
+                source_file_path: "src/app.ts".to_string(),
+                target_file_path: "src/app.ts".to_string(),
+                event_name: "mount".to_string(),
+                synthesized_by: "event-emitter".to_string(),
+                metadata_keys: vec![
+                    "eventName".to_string(),
+                    "registeredAt".to_string(),
+                    "synthesizedBy".to_string(),
+                ],
+            }],
+        };
+        let result = IndexResult {
+            success: true,
+            files_indexed: 0,
+            files_skipped: 0,
+            files_errored: 0,
+            nodes_created: 0,
+            edges_created: 0,
+            duration_ms: 1,
+            profile,
+            errors: Vec::new(),
+        };
+
+        let json: serde_json::Value = serde_json::from_str(&result_json(&result)).unwrap();
+
+        let producer = &json["profile"]["dynamicDispatchShadowProducer"];
+        assert_eq!(producer["enabled"], true);
+        assert_eq!(producer["family"], "event-emitter");
+        assert_eq!(producer["mode"], "shadow-only");
+        assert_eq!(producer["candidateCount"], 1);
+        assert_eq!(producer["samples"][0]["sourceName"], "boot");
+        assert_eq!(producer["samples"][0]["targetName"], "onmount");
+        assert_eq!(producer["samples"][0]["eventName"], "mount");
+        assert_eq!(producer["samples"][0]["synthesizedBy"], "event-emitter");
     }
 
     #[test]
@@ -15489,36 +16305,19 @@ mod tests {
                     file_index, symbol_index, symbol_index
                 ));
             }
-            fs::write(dir.join(format!("f{}.ts", file_index)), source).unwrap();
+            write_file(&dir, &format!("f{}.ts", file_index), &source);
         }
 
-        let request = IndexRequest {
-            engine: "rust".to_string(),
-            project_path: dir.to_string_lossy().to_string(),
-            index_path: dir
-                .join(".zcodegraph")
-                .join("zcodegraph.db")
-                .to_string_lossy()
-                .to_string(),
-            force: true,
-            verbose: false,
-            graph_work_profile: GraphWorkProfile::Full,
-            sqlite_write_mode: SqliteWriteMode::FinalFlush,
-            parse_walker_diagnostics: false,
-        };
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
 
         let result = run_index(&request);
 
         assert!(result.success, "{:?}", result.errors);
         assert_eq!(result.files_indexed, 80);
         assert!(result.nodes_created >= 40_000);
-        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
-        let fts_count: i64 = conn
-            .query_row("SELECT count(*) FROM nodes_fts", [], |row| row.get(0))
-            .unwrap();
-        let node_count: i64 = conn
-            .query_row("SELECT count(*) FROM nodes", [], |row| row.get(0))
-            .unwrap();
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let fts_count = sqlite_count(&conn, "SELECT count(*) FROM nodes_fts");
+        let node_count = sqlite_count(&conn, "SELECT count(*) FROM nodes");
         assert_eq!(fts_count, node_count);
 
         if !cfg!(windows) {
@@ -15537,32 +16336,19 @@ mod tests {
     #[test]
     fn rust_index_bulk_transaction_keeps_parse_gap_files_and_continues() {
         let dir = temp_dir("bulk-parse-gap");
-        fs::write(
-            dir.join("good-before.ts"),
+        write_file(
+            &dir,
+            "good-before.ts",
             "export function stableSymbol() { return 1; }\n",
-        )
-        .unwrap();
-        fs::write(dir.join("bad.ts"), "export function broken( {\n").unwrap();
-        fs::write(
-            dir.join("good-after.ts"),
+        );
+        write_file(&dir, "bad.ts", "export function broken( {\n");
+        write_file(
+            &dir,
+            "good-after.ts",
             "export function laterSymbol() { return stableSymbol(); }\n",
-        )
-        .unwrap();
+        );
 
-        let request = IndexRequest {
-            engine: "rust".to_string(),
-            project_path: dir.to_string_lossy().to_string(),
-            index_path: dir
-                .join(".zcodegraph")
-                .join("zcodegraph.db")
-                .to_string_lossy()
-                .to_string(),
-            force: true,
-            verbose: false,
-            graph_work_profile: GraphWorkProfile::Full,
-            sqlite_write_mode: SqliteWriteMode::FinalFlush,
-            parse_walker_diagnostics: false,
-        };
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
 
         let result = run_index(&request);
 
@@ -15570,23 +16356,14 @@ mod tests {
         assert_eq!(result.files_indexed, 3);
         assert_eq!(result.files_errored, 1);
         assert_eq!(result.errors.len(), 1);
-        let conn = Connection::open(dir.join(".zcodegraph").join("zcodegraph.db")).unwrap();
-        let file_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM files", [], |row| row.get(0))
-            .unwrap();
-        let fts_count: i64 = conn
-            .query_row("SELECT count(*) FROM nodes_fts", [], |row| row.get(0))
-            .unwrap();
-        let node_count: i64 = conn
-            .query_row("SELECT count(*) FROM nodes", [], |row| row.get(0))
-            .unwrap();
-        let stable_count: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM nodes WHERE name = 'stableSymbol'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let file_count = sqlite_count(&conn, "SELECT COUNT(*) FROM files");
+        let fts_count = sqlite_count(&conn, "SELECT count(*) FROM nodes_fts");
+        let node_count = sqlite_count(&conn, "SELECT count(*) FROM nodes");
+        let stable_count = sqlite_count(
+            &conn,
+            "SELECT COUNT(*) FROM nodes WHERE name = 'stableSymbol'",
+        );
         let later_count: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM nodes WHERE name = 'laterSymbol'",
@@ -16132,7 +16909,17 @@ mod tests {
         }
         cleanup_temp_dir(dir);
     }
+    // END ownership bucket: shared Rust core infrastructure tests.
 
+    // BEGIN ownership bucket: JS/TS resolver migration tests.
+    //
+    // These tests are the first grouped slice for TypeScript/JavaScript module
+    // resolution migration coverage: import/export binding preservation,
+    // guarded ESM symbol edges, file-level imports, rootDirs, package
+    // self-name, package exports/imports, declaration/runtime pairing, and
+    // repo-local workspace package resolution. Keep Rust language semantic
+    // tests, shared Rust core infrastructure tests, and mixed-ownership tests in
+    // separate roadmap buckets.
     #[test]
     fn rust_index_preserves_js_ts_import_export_binding_refs_for_text_reuse() {
         let dir = temp_dir("js-ts-import-export-text-reuse");
@@ -19671,6 +20458,7 @@ mod tests {
 
         cleanup_temp_dir(dir);
     }
+    // END ownership bucket: JS/TS resolver migration tests.
 
     #[test]
     fn rust_index_accepts_typescript_import_type_queries() {
@@ -19728,39 +20516,20 @@ mod tests {
     #[test]
     fn memory_final_flush_sqlite_mode_writes_a_readable_index() {
         let dir = temp_dir("memory-final-flush");
-        fs::write(
-            dir.join("index.ts"),
+        write_file(
+            &dir,
+            "index.ts",
             "export function alpha(): number { return 1; }\n",
-        )
-        .unwrap();
+        );
 
-        let request = IndexRequest {
-            engine: "rust".to_string(),
-            project_path: dir.to_string_lossy().to_string(),
-            index_path: dir
-                .join(".zcodegraph")
-                .join("zcodegraph.db")
-                .to_string_lossy()
-                .to_string(),
-            force: true,
-            verbose: false,
-            graph_work_profile: GraphWorkProfile::Full,
-            sqlite_write_mode: SqliteWriteMode::MemoryFinalFlush,
-            parse_walker_diagnostics: false,
-        };
+        let request = index_request(&dir, SqliteWriteMode::MemoryFinalFlush);
 
         let result = run_index(&request);
 
         assert!(result.success, "{:?}", result.errors);
         assert_eq!(result.files_indexed, 1);
         let conn = Connection::open(&request.index_path).unwrap();
-        let alpha_count: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM nodes WHERE name = 'alpha'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+        let alpha_count = sqlite_count(&conn, "SELECT COUNT(*) FROM nodes WHERE name = 'alpha'");
         let schema_version: i64 = conn
             .query_row(
                 "SELECT version FROM schema_versions WHERE version = ?1",
@@ -19768,13 +20537,10 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        let engine: String = conn
-            .query_row(
-                "SELECT value FROM project_metadata WHERE key = 'indexed_with_engine'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+        let engine = sqlite_string(
+            &conn,
+            "SELECT value FROM project_metadata WHERE key = 'indexed_with_engine'",
+        );
         assert_eq!(alpha_count, 1);
         assert_eq!(schema_version, CURRENT_SCHEMA_VERSION);
         assert_eq!(engine, "rust");
@@ -19831,6 +20597,51 @@ mod tests {
             .unwrap();
         assert_eq!(stable_count, 1);
         assert_eq!(engine, "rust");
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn final_flush_sqlite_mode_cleans_stale_temp_sidecars_when_staging_fails() {
+        let dir = temp_dir("final-flush-cleans-stale-temp-sidecars");
+        write_file(
+            &dir,
+            "index.ts",
+            "export function stableSymbol(): number { return 1; }\n",
+        );
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+
+        let initial = run_index(&request);
+        assert!(initial.success, "{:?}", initial.errors);
+
+        let index_path = Path::new(&request.index_path);
+        let staging_path = temp_index_path(index_path);
+        let staging_wal_path = PathBuf::from(format!("{}-wal", staging_path.display()));
+        let staging_shm_path = PathBuf::from(format!("{}-shm", staging_path.display()));
+        fs::create_dir(&staging_path).unwrap();
+        fs::write(&staging_wal_path, "stale wal").unwrap();
+        fs::write(&staging_shm_path, "stale shm").unwrap();
+
+        let failed = run_index(&request);
+
+        assert!(
+            !failed.success,
+            "staging should fail when the temp DB path is blocked"
+        );
+        assert!(
+            !staging_wal_path.exists(),
+            "stale temp WAL sidecar should be removed on staging failure"
+        );
+        assert!(
+            !staging_shm_path.exists(),
+            "stale temp SHM sidecar should be removed on staging failure"
+        );
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let stable_count = sqlite_count(
+            &conn,
+            "SELECT COUNT(*) FROM nodes WHERE name = 'stableSymbol'",
+        );
+        assert_eq!(stable_count, 1);
         cleanup_temp_dir(dir);
     }
 

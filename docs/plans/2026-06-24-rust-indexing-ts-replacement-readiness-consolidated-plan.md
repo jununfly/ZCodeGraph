@@ -271,6 +271,159 @@ Use this order unless a product release need interrupts it.
    language to migrate into Rust-owned indexing only if a bounded extraction
    baseline and diagnostic story are credible.
 
+## 2026-06-27 Debt-To-Migration Roadmap Closeout
+
+This addendum consolidates the completed debt-governance-to-Rust-migration
+roadmap cycle that ran after the original replacement-readiness decision.
+
+Final roadmap state:
+
+- all roadmap nodes completed: `91 completed / 0 pending / 0 in_progress`;
+- debt governance, CI/release trust guardrails, documentation lifecycle rules,
+  and Rust migration-readiness boundaries were completed;
+- the `1-5. TypeScript indexing to Rust indexing replacement mainline` branch
+  is closed as a boundary map, not as a claim that TypeScript indexing can now
+  be fully removed;
+- the `1-6. Next exploit slice candidate backlog` branch completed the bounded
+  exploit slices listed below;
+- the `1-7. Explore frontiers not ready for immediate implementation` branch
+  was explicitly classified so future agents do not treat deferred product
+  frontiers as immediate migration debt.
+
+### Completed Debt And Migration Slices
+
+1. Rust core test and helper decomposition made large Rust-indexing test
+   surfaces easier to navigate without changing behavior.
+2. Cross-platform CI and release guardrails were tightened around the packaged
+   Rust path, release workflow, credentials, SQLite file-lock risks, Node
+   version policy, and package-manager behavior.
+3. Documentation and evidence lifecycle rules were clarified: durable
+   baseline/result/decision artifacts stay in `docs/benchmarks/`; temporary
+   evidence stays with issues or plans and should be deleted or consolidated.
+4. Rust-owned coverage and remaining TypeScript indexer responsibilities were
+   mapped across extraction, finalization/reference-resolution,
+   framework/dynamic-dispatch behavior, diagnostics, fallback, and test
+   evidence.
+5. The Rust core parser gap in the large ZCodeGraph Rust `lib.rs` fixture was
+   fixed by avoiding the `raw` identifier shape that triggers a
+   tree-sitter-rust parse error.
+6. Non-Rust-owned language fallback was classified as an intentional boundary
+   guardrail, not a burn-down target.
+7. MCP Explore sufficiency guardrail triggers were mapped so future
+   graph-semantic or MCP-visible behavior changes know when Agent Sufficiency
+   evidence is required.
+
+### Completed 2026-06-29 Bounded Exploit Slices
+
+Issues #656, #657, and #658 completed the TS/JS repo-local file/module target
+parity slice:
+
+- relative repo-local file imports, extensionless/index-file targets,
+  `tsconfig` `paths`, and `tsconfig` `rootDirs` file targets are Rust-owned for
+  the bounded file/module target surface;
+- package self-name and package `imports` repo-local file targets remain
+  partial and fail closed for unsupported or ambiguous package map forms;
+- package `exports` repo-local file targets remain `needs-oracle` before any
+  broader Rust-owned claim;
+- the only production-facing change was narrow diagnostics parity for
+  `rootDirs` file targets; this does not claim full ReferenceResolver
+  migration.
+
+Issues #659, #660, and #661 completed the first framework `postExtract`
+migration slice:
+
+- Rust core emits typed framework post-extract update candidates through the
+  Rust profile;
+- the TypeScript product shell validates and applies those candidates through
+  the existing node-update path;
+- the only default-path allowlisted provider shape is NestJS `RouterModule`
+  route-name prefix rewriting (`provider=nestjs`,
+  `updateKind=route-name-prefix`, `nodeKind=route`, `field=name`);
+- route node `id`, `qualifiedName`, `kind`, and `filePath` must remain stable;
+- parse-time framework extraction, per-reference framework
+  `resolve()`/`claimsReference()`, dynamic-dispatch synthesis, direct Rust DB
+  writes, and DB maintenance remain out of scope.
+
+Issue #662 added a cross-platform `rust-hybrid` CI smoke:
+
+- `scripts/rust-hybrid-ci-smoke.mjs` creates a tiny deterministic TypeScript
+  fixture and runs the built CLI through `init`, `index --engine rust-hybrid`,
+  `status --json`, and `doctor --engine rust-hybrid --bundle --last-run`;
+- the existing cross-platform `rust-packaged-path` CI matrix calls the smoke
+  after TypeScript/Rust builds;
+- the smoke is a path-health guardrail only, not graph parity, semantic parity,
+  release-package qualification, or full migration completeness.
+
+Issue #663 completed the cleanup protocol handoff:
+
+- Rust core emits a `cleanupProtocol` declaration in the index profile;
+- TypeScript finalization validates the declaration before reporting
+  `cleanupOwnership.owner=rust-core-protocol` and
+  `mode=rust-declared-typescript-executed`;
+- missing or invalid declarations fail closed to the TypeScript finalization
+  contract with visible fallback reasons;
+- TypeScript still executes resolved and intentionally unresolved rowid-range
+  cleanup, retained `unresolved_refs` backlog semantics are unchanged, and
+  SQLite maintenance remains out of scope.
+
+Issue #664 added the dynamic-dispatch heuristic edge protocol seed:
+
+- finalization diagnostics now expose protocol fields, supported seed families,
+  callback/EventEmitter metadata whitelists, TypeScript-owned graph parity
+  counts/samples, and Agent Sufficiency guardrail status;
+- Rust heuristic edge writes are not enabled.
+
+Issue #665 added the first EventEmitter shadow producer:
+
+- Rust core emits EventEmitter named-handler shadow candidates in the index
+  profile;
+- TypeScript finalization compares those candidates against the existing
+  TypeScript heuristic EventEmitter graph under
+  `dynamicDispatchHeuristicEdgeProtocol.graphParity.eventEmitterShadow`;
+- candidates remain shadow-only and are not consumed for graph writes;
+- Agent Sufficiency A/B remains a later gate before any production routing.
+
+Issue #666 burned down one high-confidence resolver residual:
+
+- direct named import binding residuals are covered for the bounded
+  single-target case through existing Rust ESM named finalization semantics;
+- positive fixtures prove guarded `rust-finalization` `imports` edge creation
+  and final fallback taxonomy removal;
+- ambiguous duplicate-candidate fixtures remain fail-closed with
+  `direct-export-candidate-multiple` and a visible binding residual;
+- the edge source remains the existing unresolved-reference owner node, which
+  is currently the source file node for JS/TS extraction.
+
+### Closed Boundaries And Future Entry Conditions
+
+Full TypeScript indexer removal is classified as `needs-PRD/oracle`.
+It is not a narrow debt slice. Future work must first define user-visible
+behavior, explicit TypeScript-engine escape-hatch policy, non-Rust-owned
+fallback commitments, language ownership boundaries, status/doctor wording,
+and Agent Sufficiency success criteria.
+
+Third-party package and `node_modules` graph expansion is classified as
+`defer/no-go`. It is not a Rust migration blocker. Future work requires an
+explicit product switch or dedicated PRD covering package-manager semantics,
+depth limits, ignore rules, privacy expectations, benchmark guardrails, and
+diagnostics.
+
+Compiler/oracle integration is classified as `needs-PRD/oracle`. It remains a
+future semantic-exactness research entry, not a blocker for repo-local Rust
+ownership work. Any future slice must define oracle source, setup model, cache
+invalidation, timeout/failure taxonomy, privacy/security expectations, and
+fallback behavior.
+
+Additional language support is classified as `future-explicit-slice`. New
+language work should be planned per language or language family with its own
+PRD/branch/slice, not mixed into the TS-to-Rust migration closeout.
+
+Performance optimization after architecture cleanup is classified as
+`future-explicit-slice`. A future performance roadmap must define baseline
+standards, result artifact format, decision artifact policy, RSS or
+unavailable-reason requirements, graph parity guardrails, and Agent
+Sufficiency triggers for MCP-visible behavior changes.
+
 ## Consolidated And Removed Intermediate Files
 
 The following intermediate documents and artifacts were folded into this plan
@@ -283,7 +436,13 @@ and deleted:
 - sparse-missing fallback robustness plan, now represented by
   `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - `docs/plans/2026-06-24-rust-owned-python-extraction-baseline-v1.md`
-- `docs/plans/2026-06-24-rust-indexing-ts-replacement-readiness-consolidated-plan.md`
+- `docs/plans/2026-06-29-ts-js-repo-local-file-module-target-parity-plan.md`
+- `docs/plans/2026-06-29-rust-side-framework-post-extract-protocol-plan.md`
+- `docs/plans/2026-06-29-rust-hybrid-cross-platform-ci-smoke-plan.md`
+- `docs/plans/2026-06-29-rust-cleanup-protocol-handoff-plan.md`
+- `docs/plans/2026-06-29-rust-dynamic-dispatch-heuristic-edge-protocol-seed-plan.md`
+- `docs/plans/2026-06-29-rust-event-emitter-shadow-producer-plan.md`
+- `docs/plans/2026-06-29-rust-direct-named-import-binding-residual-burndown-plan.md`
 - `docs/benchmarks/2026-06-24-rust-owned-gap-audit-current.md`
 - `docs/benchmarks/2026-06-24-rust-owned-gap-audit-current.profile.json`
 - `docs/benchmarks/2026-06-24-rust-owned-gap-audit-current.status.json`

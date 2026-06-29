@@ -48,6 +48,12 @@ import {
   ResolutionResult,
 } from './resolution';
 import type { CandidateProtocolDiagnostics } from './resolution/candidate-protocol';
+import type { DynamicDispatchHeuristicEdgeProtocolDiagnostics } from './resolution/dynamic-dispatch-heuristic-edge-protocol';
+import {
+  DYNAMIC_DISPATCH_HEURISTIC_EDGE_PROTOCOL_FAMILIES,
+  dynamicDispatchHeuristicEdgeProtocolDiagnostics,
+  withEventEmitterShadowParity,
+} from './resolution/dynamic-dispatch-heuristic-edge-protocol';
 import { GraphTraverser, GraphQueryManager } from './graph';
 import { ContextBuilder, createContextBuilder } from './context';
 import { Mutex, FileLock } from './utils';
@@ -65,6 +71,10 @@ import {
 } from './indexing/rust-hybrid-contract';
 
 type RustCoreProfileLike = {
+  frameworkPostExtractUpdates?: unknown;
+  frameworkPostExtractProviderErrors?: unknown;
+  cleanupProtocol?: unknown;
+  dynamicDispatchShadowProducer?: unknown;
   esmNamedImportExportResolvedRefs?: number;
   esmNamedImportExportFallbackRefs?: number;
   esmNamedImportExportFallbackSampleCounts?: Record<string, number>;
@@ -90,6 +100,32 @@ type RustCoreProfileLike = {
   importPathAliasPackageImportsOutcomeCounts?: Record<string, number>;
 };
 
+type RustFrameworkPostExtractUpdate = {
+  provider: string;
+  updateKind: string;
+  nodeId: string;
+  nodeKind: string;
+  filePath: string;
+  qualifiedName: string;
+  field: string;
+  newName: string;
+};
+
+type FrameworkPostExtractDiagnostics = {
+  owner: 'rust-core' | 'typescript-finalization';
+  mode: 'typed-node-update-protocol' | 'typescript-post-extract';
+  attemptedUpdates: number;
+  appliedUpdates: number;
+  skippedUpdates: number;
+  failedProviders: number;
+  skipReasons: Record<string, number>;
+  providerCounts: Record<string, number>;
+  appliedProviderCounts: Record<string, number>;
+  allowedProviders: string[];
+  allowedUpdateKinds: string[];
+  mutableFields: string[];
+};
+
 type GuardedEdgeWriteDiagnostics = {
   eligibleRefs: number;
   attemptedRefs: number;
@@ -109,8 +145,12 @@ type ModuleEdgeWriteDiagnostics = {
   skippedRefs: number;
   skipReasons: Record<string, number>;
   edgeKindCounts: Record<string, number>;
-  supportedSources: Array<'relative' | 'tsconfigPaths'>;
+  supportedSources: Array<'relative' | 'tsconfigPaths' | 'rootDirs'>;
   excludedSources: string[];
+  targetResolutionShapes: Record<string, {
+    status: 'rust-owned' | 'partial' | 'unsupported' | 'needs-oracle';
+    reason: string;
+  }>;
   declarationRuntime: {
     mode: 'single-runtime-sibling-only';
     eligibleRefs: number;
@@ -138,14 +178,77 @@ type ModuleEdgeWriteDiagnostics = {
 };
 
 type CleanupOwnershipDiagnostics = {
-  owner: 'typescript-finalization';
-  mode: 'contract-only';
+  owner: 'typescript-finalization' | 'rust-core-protocol';
+  mode: 'contract-only' | 'rust-declared-typescript-executed';
   resolvedTerminalRefs: number;
   intentionallyUnresolvedTerminalRefs: number;
   retainedRefs: number;
   rustCorePrecleanedRefs: number | null;
+  fallbackReason: string | null;
+  protocol: {
+    version: number | null;
+    valid: boolean;
+    declaredCategories: string[];
+    executor: string | null;
+    deletionMechanics: string | null;
+    dbMaintenance: string | null;
+  };
   notes: string[];
 };
+
+type FinalizationOwnershipResidualStage = {
+  stage: string;
+  owner: 'typescript-finalization' | 'typescript-product-shell';
+  status: 'migration-target' | 'reporting-only';
+  reason: string;
+};
+
+type FinalizationFallbackTaxonomyClassification =
+  | 'parity-bug'
+  | 'intentional-improvement-candidate'
+  | 'known-unsupported'
+  | 'migration-target'
+  | 'reporting-only';
+
+type FinalizationFallbackTaxonomyEntry = {
+  stage: string;
+  classification: FinalizationFallbackTaxonomyClassification;
+  reason: string;
+  count: number;
+};
+
+const TYPESCRIPT_OWNED_FINALIZATION_RESIDUAL_STAGES: FinalizationOwnershipResidualStage[] = [
+  {
+    stage: 'framework-post-extract',
+    owner: 'typescript-finalization',
+    status: 'migration-target',
+    reason: 'not-yet-rust-owned',
+  },
+  {
+    stage: 'reference-resolution',
+    owner: 'typescript-finalization',
+    status: 'migration-target',
+    reason: 'not-yet-rust-owned',
+  },
+  {
+    stage: 'dynamic-dispatch-synthesis',
+    owner: 'typescript-finalization',
+    status: 'migration-target',
+    reason: 'not-yet-rust-owned',
+  },
+  {
+    stage: 'db-maintenance',
+    owner: 'typescript-finalization',
+    status: 'migration-target',
+    reason: 'not-yet-rust-owned',
+  },
+  {
+    stage: 'profile-checkpoint-orchestration',
+    owner: 'typescript-product-shell',
+    status: 'reporting-only',
+    reason: 'profile-assembly-not-graph-semantics',
+  },
+];
 
 function rustCoreProfileLike(profile: unknown): RustCoreProfileLike {
   return profile && typeof profile === 'object' ? profile as RustCoreProfileLike : {};
@@ -299,9 +402,8 @@ function moduleEdgeWriteDiagnosticsFromRustCore(profile: unknown): ModuleEdgeWri
       skipReasons: packageImportsSkipReasons(packageImportsOutcomeCounts),
       outcomeCounts: packageImportsOutcomeCounts,
     },
-    supportedSources: ['relative', 'tsconfigPaths'],
+    supportedSources: ['relative', 'tsconfigPaths', 'rootDirs'],
     excludedSources: [
-      'rootDirs',
       'packageSelfName',
       'packageImports',
       'packageExports',
@@ -310,6 +412,87 @@ function moduleEdgeWriteDiagnosticsFromRustCore(profile: unknown): ModuleEdgeWri
       'symbolUsageEdges',
       'declarationRuntimeRewrite',
     ],
+    targetResolutionShapes: {
+      'relative-import-file-target': {
+        status: 'rust-owned',
+        reason: 'guarded-file-imports',
+      },
+      'tsconfig-paths-file-target': {
+        status: 'rust-owned',
+        reason: 'guarded-file-imports',
+      },
+      'rootDirs-file-target': {
+        status: 'rust-owned',
+        reason: 'guarded-file-imports',
+      },
+      'package-self-name-repo-local-file-target': {
+        status: 'partial',
+        reason: 'repo-local-file-targets-only',
+      },
+      'package-imports-repo-local-file-target': {
+        status: 'partial',
+        reason: 'repo-local-file-targets-only',
+      },
+      'package-exports-repo-local-file-target': {
+        status: 'needs-oracle',
+        reason: 'package-exports-oracle-required',
+      },
+      'declaration-runtime-pairing-file-target': {
+        status: 'partial',
+        reason: 'single-runtime-sibling-only',
+      },
+    },
+  };
+}
+
+function rustCleanupProtocol(profile: unknown): CleanupOwnershipDiagnostics['protocol'] {
+  const raw = rustCoreProfileLike(profile).cleanupProtocol;
+  if (!raw || typeof raw !== 'object') {
+    return {
+      version: null,
+      valid: false,
+      declaredCategories: [],
+      executor: null,
+      deletionMechanics: null,
+      dbMaintenance: null,
+    };
+  }
+  const protocol = raw as {
+    version?: unknown;
+    declaredCategories?: unknown;
+    executor?: unknown;
+    deletionMechanics?: unknown;
+    dbMaintenance?: unknown;
+  };
+  const declaredCategories = Array.isArray(protocol.declaredCategories)
+    ? protocol.declaredCategories.filter((category): category is string => typeof category === 'string')
+    : [];
+  return {
+    version: typeof protocol.version === 'number' ? protocol.version : null,
+    valid: false,
+    declaredCategories,
+    executor: typeof protocol.executor === 'string' ? protocol.executor : null,
+    deletionMechanics: typeof protocol.deletionMechanics === 'string' ? protocol.deletionMechanics : null,
+    dbMaintenance: typeof protocol.dbMaintenance === 'string' ? protocol.dbMaintenance : null,
+  };
+}
+
+function validatedRustCleanupProtocol(profile: unknown): CleanupOwnershipDiagnostics['protocol'] {
+  const protocol = rustCleanupProtocol(profile);
+  const expectedCategories = [
+    'resolved-terminal',
+    'intentionally-unresolved-terminal',
+    'retained-backlog',
+  ];
+  const categoriesMatch = expectedCategories.length === protocol.declaredCategories.length
+    && expectedCategories.every((category, index) => protocol.declaredCategories[index] === category);
+  return {
+    ...protocol,
+    valid: protocol.version === 1
+      && categoriesMatch
+      && protocol.executor === 'typescript-shell'
+      && protocol.deletionMechanics === 'typescript-rowid-range'
+      && protocol.dbMaintenance === 'out-of-scope',
   };
 }
 
@@ -317,7 +500,27 @@ function cleanupOwnershipDiagnostics(input: {
   resolvedTerminalRefs?: number;
   intentionallyUnresolvedTerminalRefs?: number;
   retainedRefs?: number;
+  rustCoreProfile?: unknown;
 } = {}): CleanupOwnershipDiagnostics {
+  const protocol = validatedRustCleanupProtocol(input.rustCoreProfile);
+  const hasProtocol = rustCoreProfileLike(input.rustCoreProfile).cleanupProtocol !== undefined;
+  if (protocol.valid) {
+    return {
+      owner: 'rust-core-protocol',
+      mode: 'rust-declared-typescript-executed',
+      resolvedTerminalRefs: input.resolvedTerminalRefs ?? 0,
+      intentionallyUnresolvedTerminalRefs: input.intentionallyUnresolvedTerminalRefs ?? 0,
+      retainedRefs: input.retainedRefs ?? 0,
+      rustCorePrecleanedRefs: null,
+      fallbackReason: null,
+      protocol,
+      notes: [
+        'Rust core declared terminal cleanup protocol categories; TypeScript shell validates the declaration.',
+        'TypeScript shell still executes rowid-range cleanup and preserves retained unresolved_refs backlog semantics.',
+        'SQLite maintenance remains out of scope for this cleanup protocol handoff.',
+      ],
+    };
+  }
   return {
     owner: 'typescript-finalization',
     mode: 'contract-only',
@@ -325,11 +528,128 @@ function cleanupOwnershipDiagnostics(input: {
     intentionallyUnresolvedTerminalRefs: input.intentionallyUnresolvedTerminalRefs ?? 0,
     retainedRefs: input.retainedRefs ?? 0,
     rustCorePrecleanedRefs: null,
+    fallbackReason: hasProtocol ? 'invalid-rust-cleanup-protocol' : 'missing-rust-cleanup-protocol',
+    protocol,
     notes: [
       'This contract reports TypeScript finalization terminal cleanup and does not migrate cleanup into Rust core.',
       'Rust core may pre-clean references it owns, but this bucket reports null unless a reliable public count exists.',
+      'Missing or invalid Rust cleanup protocol declarations fail closed to TypeScript cleanup execution.',
     ],
   };
+}
+
+function incrementRecordCount(record: Record<string, number>, key: string): void {
+  record[key] = (record[key] ?? 0) + 1;
+}
+
+function rustFrameworkPostExtractUpdates(profile: unknown): RustFrameworkPostExtractUpdate[] {
+  const rustProfile = rustCoreProfileLike(profile);
+  if (!Array.isArray(rustProfile.frameworkPostExtractUpdates)) return [];
+  return rustProfile.frameworkPostExtractUpdates.filter((entry): entry is RustFrameworkPostExtractUpdate => {
+    if (!entry || typeof entry !== 'object') return false;
+    const update = entry as Partial<Record<keyof RustFrameworkPostExtractUpdate, unknown>>;
+    return typeof update.provider === 'string'
+      && typeof update.updateKind === 'string'
+      && typeof update.nodeId === 'string'
+      && typeof update.nodeKind === 'string'
+      && typeof update.filePath === 'string'
+      && typeof update.qualifiedName === 'string'
+      && typeof update.field === 'string'
+      && typeof update.newName === 'string';
+  });
+}
+
+function rustFrameworkPostExtractProviderErrors(profile: unknown): number {
+  const rustProfile = rustCoreProfileLike(profile);
+  if (Array.isArray(rustProfile.frameworkPostExtractProviderErrors)) {
+    return rustProfile.frameworkPostExtractProviderErrors.length;
+  }
+  return 0;
+}
+
+function emptyFrameworkPostExtractDiagnostics(): FrameworkPostExtractDiagnostics {
+  return {
+    owner: 'typescript-finalization',
+    mode: 'typescript-post-extract',
+    attemptedUpdates: 0,
+    appliedUpdates: 0,
+    skippedUpdates: 0,
+    failedProviders: 0,
+    skipReasons: {},
+    providerCounts: {},
+    appliedProviderCounts: {},
+    allowedProviders: ['nestjs'],
+    allowedUpdateKinds: ['route-name-prefix'],
+    mutableFields: ['name'],
+  };
+}
+
+function applyRustFrameworkPostExtractUpdates(
+  queries: QueryBuilder,
+  rustCoreProfile: unknown,
+): FrameworkPostExtractDiagnostics {
+  const updates = rustFrameworkPostExtractUpdates(rustCoreProfile);
+  const diagnostics: FrameworkPostExtractDiagnostics = {
+    ...emptyFrameworkPostExtractDiagnostics(),
+    owner: 'rust-core',
+    mode: 'typed-node-update-protocol',
+    attemptedUpdates: updates.length,
+    failedProviders: rustFrameworkPostExtractProviderErrors(rustCoreProfile),
+  };
+
+  for (const update of updates) {
+    incrementRecordCount(diagnostics.providerCounts, update.provider);
+
+    let skipReason: string | null = null;
+    if (update.provider !== 'nestjs') {
+      skipReason = 'unsupported-provider';
+    } else if (update.updateKind !== 'route-name-prefix') {
+      skipReason = 'unsupported-update-kind';
+    } else if (update.nodeKind !== 'route') {
+      skipReason = 'unsupported-node-kind';
+    } else if (update.field !== 'name') {
+      skipReason = 'unsupported-update-field';
+    }
+
+    if (skipReason) {
+      diagnostics.skippedUpdates++;
+      incrementRecordCount(diagnostics.skipReasons, skipReason);
+      continue;
+    }
+
+    const node = queries.getNodeById(update.nodeId);
+    if (!node) {
+      diagnostics.skippedUpdates++;
+      incrementRecordCount(diagnostics.skipReasons, 'node-not-found');
+      continue;
+    }
+
+    if (
+      node.kind !== update.nodeKind
+      || node.filePath !== update.filePath
+      || node.qualifiedName !== update.qualifiedName
+    ) {
+      diagnostics.skippedUpdates++;
+      incrementRecordCount(diagnostics.skipReasons, 'identity-mismatch');
+      continue;
+    }
+
+    if (node.name === update.newName) {
+      diagnostics.skippedUpdates++;
+      incrementRecordCount(diagnostics.skipReasons, 'no-op');
+      continue;
+    }
+
+    queries.updateNode({
+      ...node,
+      name: update.newName,
+      updatedAt: Date.now(),
+    });
+    diagnostics.appliedUpdates++;
+    incrementRecordCount(diagnostics.appliedProviderCounts, update.provider);
+  }
+
+  return diagnostics;
 }
 
 // Re-export types for consumers
@@ -1218,6 +1538,7 @@ export class CodeGraph {
     edgesCreated: number;
     profile: {
       frameworkPostExtractMs: number;
+      frameworkPostExtract: FrameworkPostExtractDiagnostics;
       referenceResolutionMs: number;
       referenceResolutionBreakdown: {
         importResolutionMs: number;
@@ -1302,6 +1623,7 @@ export class CodeGraph {
         moduleEdgeWrite: ModuleEdgeWriteDiagnostics;
         cleanupOwnership: CleanupOwnershipDiagnostics;
         candidateProtocol: CandidateProtocolDiagnostics;
+        dynamicDispatchHeuristicEdgeProtocol: DynamicDispatchHeuristicEdgeProtocolDiagnostics;
         edgeMaterializationMs: number;
         edgeMaterializationDbMs: number;
         edgeEndpointValidationDbMs: number;
@@ -1326,15 +1648,12 @@ export class CodeGraph {
         version: number;
         productShell: 'typescript';
         rustOwnedStages: string[];
+        typescriptOwnedResidualStages: FinalizationOwnershipResidualStage[];
       };
       fallbackTaxonomy: {
         totalFallbacks: number;
-        entries: Array<{
-          stage: string;
-          classification: 'parity-bug' | 'intentional-improvement-candidate' | 'known-unsupported';
-          reason: string;
-          count: number;
-        }>;
+        totalResiduals: number;
+        entries: FinalizationFallbackTaxonomyEntry[];
       };
     };
   }> {
@@ -1349,6 +1668,7 @@ export class CodeGraph {
         const before = this.queries.getNodeAndEdgeCount();
         const profile = {
           frameworkPostExtractMs: 0,
+          frameworkPostExtract: emptyFrameworkPostExtractDiagnostics(),
           referenceResolutionMs: 0,
           referenceResolutionBreakdown: {
             importResolutionMs: 0,
@@ -1535,6 +1855,13 @@ export class CodeGraph {
                 },
               },
             } as CandidateProtocolDiagnostics,
+            dynamicDispatchHeuristicEdgeProtocol: dynamicDispatchHeuristicEdgeProtocolDiagnostics({
+              sampleLimit: 5,
+              families: this.queries.getDynamicDispatchHeuristicEdgeGraphParity(
+                DYNAMIC_DISPATCH_HEURISTIC_EDGE_PROTOCOL_FAMILIES,
+                5,
+              ),
+            }),
             edgeMaterializationMs: 0,
             edgeMaterializationDbMs: 0,
             edgeEndpointValidationDbMs: 0,
@@ -1559,35 +1886,21 @@ export class CodeGraph {
             version: 1,
             productShell: 'typescript' as const,
             rustOwnedStages: ['source-scan', 'parse-extraction', 'graph-write'],
+            typescriptOwnedResidualStages: TYPESCRIPT_OWNED_FINALIZATION_RESIDUAL_STAGES,
           },
           fallbackTaxonomy: {
-            totalFallbacks: 4,
-            entries: [
-              {
-                stage: 'framework-post-extract',
-                classification: 'known-unsupported' as const,
-                reason: 'typescript-finalization-not-yet-migrated',
-                count: 1,
-              },
-              {
-                stage: 'reference-resolution',
-                classification: 'known-unsupported' as const,
-                reason: 'typescript-finalization-not-yet-migrated',
-                count: 1,
-              },
-              {
-                stage: 'dynamic-dispatch-synthesis',
-                classification: 'known-unsupported' as const,
-                reason: 'typescript-finalization-not-yet-migrated',
-                count: 1,
-              },
-              {
-                stage: 'db-maintenance',
-                classification: 'known-unsupported' as const,
-                reason: 'typescript-finalization-not-yet-migrated',
-                count: 1,
-              },
-            ],
+            totalFallbacks: TYPESCRIPT_OWNED_FINALIZATION_RESIDUAL_STAGES
+              .filter((stage) => stage.status === 'migration-target')
+              .length,
+            totalResiduals: TYPESCRIPT_OWNED_FINALIZATION_RESIDUAL_STAGES.length,
+            entries: TYPESCRIPT_OWNED_FINALIZATION_RESIDUAL_STAGES.map((stage): FinalizationFallbackTaxonomyEntry => ({
+              stage: stage.stage,
+              classification: stage.status,
+              reason: stage.status === 'migration-target'
+                ? 'typescript-finalization-not-yet-migrated'
+                : 'typescript-product-shell-profile-assembly',
+              count: 1,
+            })),
           },
         };
         const rustImportEdgeCount = this.queries.getRustFinalizationImportEdgeCount();
@@ -1628,9 +1941,15 @@ export class CodeGraph {
           },
         ].filter((entry) => entry.count > 0);
         profile.fallbackTaxonomy.entries.push(...additionalFallbackEntries);
-        profile.fallbackTaxonomy.totalFallbacks += additionalFallbackEntries.reduce((sum, entry) => sum + entry.count, 0);
+        const additionalFallbackCount = additionalFallbackEntries.reduce((sum, entry) => sum + entry.count, 0);
+        profile.fallbackTaxonomy.totalFallbacks += additionalFallbackCount;
+        profile.fallbackTaxonomy.totalResiduals += additionalFallbackCount;
         const frameworkStarted = Date.now();
         onCheckpoint?.('finalization.frameworkPostExtract.started');
+        profile.frameworkPostExtract = applyRustFrameworkPostExtractUpdates(
+          this.queries,
+          rustCoreProfile,
+        );
         this.resolver.initialize();
         this.resolver.runPostExtract();
         profile.frameworkPostExtractMs = Date.now() - frameworkStarted;
@@ -1686,8 +2005,14 @@ export class CodeGraph {
             resolvedTerminalRefs: resolutionTimings?.resolvedCleanupRowCount ?? 0,
             intentionallyUnresolvedTerminalRefs: resolutionTimings?.intentionallyUnresolvedCleanupRowCount ?? 0,
             retainedRefs: this.queries.getUnresolvedReferencesCount(),
+            rustCoreProfile,
           }),
           candidateProtocol: resolutionTimings?.candidateProtocol ?? profile.referenceResolutionBreakdown.candidateProtocol,
+          dynamicDispatchHeuristicEdgeProtocol: withEventEmitterShadowParity(
+            resolutionTimings?.dynamicDispatchHeuristicEdgeProtocol
+              ?? profile.referenceResolutionBreakdown.dynamicDispatchHeuristicEdgeProtocol,
+            rustCoreProfileLike(rustCoreProfile).dynamicDispatchShadowProducer,
+          ),
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
           edgeMaterializationDbMs: resolutionTimings?.edgeMaterializationDbMs ?? 0,
           edgeEndpointValidationDbMs: resolutionTimings?.edgeEndpointValidationDbMs ?? 0,

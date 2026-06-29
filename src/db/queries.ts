@@ -28,6 +28,10 @@ import type {
   ResolutionAccessModel,
   StatusAccessModel,
 } from './access-models';
+import type {
+  DynamicDispatchHeuristicEdgeFamilyGraphParity,
+  DynamicDispatchHeuristicEdgeProtocolFamily,
+} from '../resolution/dynamic-dispatch-heuristic-edge-protocol';
 
 /**
  * Path-only heuristic for files that should not be candidates for
@@ -1876,6 +1880,74 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       .prepare("SELECT COUNT(*) AS count FROM edges WHERE edgeOrigin = 'rust-finalization' AND metadata LIKE '%rust-esm-one-hop-reexport%'")
       .get() as { count: number };
     return row.count;
+  }
+
+  getDynamicDispatchHeuristicEdgeGraphParity(
+    families: readonly DynamicDispatchHeuristicEdgeProtocolFamily[],
+    sampleLimit: number,
+  ): Record<DynamicDispatchHeuristicEdgeProtocolFamily, DynamicDispatchHeuristicEdgeFamilyGraphParity> {
+    const result = {} as Record<DynamicDispatchHeuristicEdgeProtocolFamily, DynamicDispatchHeuristicEdgeFamilyGraphParity>;
+    for (const family of families) {
+      const countRow = this.db
+        .prepare(
+          "SELECT COUNT(*) AS count FROM edges WHERE edgeOrigin = 'heuristic' AND json_extract(metadata, '$.synthesizedBy') = ?",
+        )
+        .get(family) as { count: number };
+      const sampleRows = this.db
+        .prepare(`
+          SELECT
+            e.source AS sourceNodeId,
+            e.target AS targetNodeId,
+            s.name AS sourceName,
+            t.name AS targetName,
+            s.file_path AS sourceFilePath,
+            t.file_path AS targetFilePath,
+            s.language AS language,
+            e.kind AS kind,
+            e.metadata AS metadata
+          FROM edges e
+          JOIN nodes s ON e.source = s.id
+          JOIN nodes t ON e.target = t.id
+          WHERE e.edgeOrigin = 'heuristic'
+            AND json_extract(e.metadata, '$.synthesizedBy') = ?
+          ORDER BY s.file_path, s.start_line, t.file_path, t.start_line
+          LIMIT ?
+        `)
+        .all(family, sampleLimit) as Array<{
+          sourceNodeId: string;
+          targetNodeId: string;
+          sourceName: string;
+          targetName: string;
+          sourceFilePath: string;
+          targetFilePath: string;
+          language: string;
+          kind: string;
+          metadata: string | null;
+        }>;
+      const samples = sampleRows.map((row) => {
+        const metadata = row.metadata ? safeJsonParse(row.metadata, {}) as Record<string, unknown> : {};
+        return {
+          sourceNodeId: row.sourceNodeId,
+          targetNodeId: row.targetNodeId,
+          sourceName: row.sourceName,
+          targetName: row.targetName,
+          sourceFilePath: row.sourceFilePath,
+          targetFilePath: row.targetFilePath,
+          language: row.language,
+          kind: row.kind,
+          provenance: 'heuristic' as const,
+          synthesizedBy: String(metadata.synthesizedBy ?? family),
+          eventName: typeof metadata.event === 'string' ? metadata.event : undefined,
+          metadataKeys: Object.keys(metadata).sort(),
+        };
+      });
+      result[family] = {
+        synthesizedEdgeCount: countRow.count,
+        unavailableReason: countRow.count === 0 ? 'no-current-typescript-edges' : null,
+        samples,
+      };
+    }
+    return result;
   }
 
   /**

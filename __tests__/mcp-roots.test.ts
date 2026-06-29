@@ -21,6 +21,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { CodeGraph } from '../src';
+import { cleanupSpawnedProcessAndTempDirs } from './helpers/spawned-process-cleanup';
 
 const BIN = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
 
@@ -84,13 +85,9 @@ describe('MCP project resolution via roots/list (issue #196)', () => {
     projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-mcp-proj-'));
   });
 
-  afterEach(() => {
-    if (child && !child.killed) {
-      child.kill('SIGKILL');
-      child = null;
-    }
-    fs.rmSync(cwdDir, { recursive: true, force: true });
-    fs.rmSync(projectDir, { recursive: true, force: true });
+  afterEach(async () => {
+    await cleanupSpawnedProcessAndTempDirs(child, [cwdDir, projectDir]);
+    child = null;
   });
 
   it('resolves the project from the client roots/list when no rootUri is sent', async () => {
