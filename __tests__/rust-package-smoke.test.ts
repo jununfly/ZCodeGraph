@@ -76,13 +76,13 @@ function invokeRustCore() {
 if (args[0] === 'init') {
   const project = projectArg('init');
   invokeRustCore();
-  ensureIndex(project, fs.existsSync(path.join(project, 'worker.py')));
+  ensureIndex(project, fs.existsSync(path.join(project, 'routing.yml')));
   process.exit(0);
 }
 if (args[0] === 'index') {
   const project = projectArg('index');
   invokeRustCore();
-  ensureIndex(project, fs.existsSync(path.join(project, 'worker.py')));
+  ensureIndex(project, fs.existsSync(path.join(project, 'routing.yml')));
   fs.writeFileSync(${JSON.stringify(defaultMarker)}, '1\\n');
   process.exit(0);
 }

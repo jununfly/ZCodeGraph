@@ -80,7 +80,7 @@ function makeProject(label, kind = 'healthy') {
     fs.writeFileSync(path.join(project, 'main.go'), 'package main\nfunc main() {}\n');
   }
   if (kind === 'degraded') {
-    fs.writeFileSync(path.join(project, 'worker.py'), 'def worker():\n    return 1\n');
+    fs.writeFileSync(path.join(project, 'routing.yml'), 'app:\n  path: /package-smoke\n');
   }
   return project;
 }
