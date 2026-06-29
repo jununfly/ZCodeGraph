@@ -6,6 +6,7 @@
 
 import { EdgeKind, Language, Node } from '../types';
 import type { CandidateProtocolDiagnostics } from './candidate-protocol';
+import type { DynamicDispatchHeuristicEdgeProtocolDiagnostics } from './dynamic-dispatch-heuristic-edge-protocol';
 
 /**
  * An unresolved reference from extraction
@@ -139,6 +140,7 @@ export interface ResolutionResult {
         }>;
       };
       candidateProtocol?: CandidateProtocolDiagnostics;
+      dynamicDispatchHeuristicEdgeProtocol?: DynamicDispatchHeuristicEdgeProtocolDiagnostics;
       edgeMaterializationMs?: number;
       edgeMaterializationDbMs?: number;
       edgeEndpointValidationDbMs?: number;

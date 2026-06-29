@@ -599,4 +599,124 @@ describe('zcodegraph index engine selection', () => {
       profile.finalize.referenceResolutionBreakdown.refHydrationDbMs,
     );
   }, 30_000);
+
+  it('writes dynamic-dispatch heuristic edge protocol seed diagnostics without Rust edge writes', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'dynamic-dispatch.ts'),
+      [
+        'class UpdateBus {',
+        '  private listeners = new Set<() => void>();',
+        '  onUpdate(cb: () => void) {',
+        '    this.listeners.add(cb);',
+        '  }',
+        '  triggerUpdate() {',
+        '    for (const cb of this.listeners) cb();',
+        '  }',
+        '}',
+        '',
+        'function handleUpdate() {',
+        '  return 1;',
+        '}',
+        '',
+        'function onmount() {',
+        '  return 2;',
+        '}',
+        '',
+        'export function boot(app: { on(name: string, cb: () => void): void; emit(name: string): void }) {',
+        '  const bus = new UpdateBus();',
+        '  bus.onUpdate(handleUpdate);',
+        '  bus.triggerUpdate();',
+        '  app.on("mount", onmount);',
+        '  app.emit("mount");',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const profileOut = path.join(tempDir, '.zcodegraph', 'dynamic-dispatch-protocol-profile.json');
+    const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+    const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
+      finalize: {
+        referenceResolutionBreakdown: {
+          dynamicDispatchHeuristicEdgeProtocol: {
+            version: number;
+            status: string;
+            productionWriterOwner: string;
+            rustEdgeWritesEnabled: boolean;
+            commonFields: string[];
+            familyMetadataWhitelist: Record<string, string[]>;
+            supportedSeedFamilies: string[];
+            graphParity: {
+              sampleLimit: number;
+              families: Record<string, {
+                synthesizedEdgeCount: number;
+                unavailableReason: string | null;
+                samples: Array<{
+                  sourceName: string;
+                  targetName: string;
+                  kind: string;
+                  provenance: string;
+                  synthesizedBy: string;
+                  metadataKeys: string[];
+                }>;
+              }>;
+            };
+            agentSufficiencyGuardrail: {
+              status: string;
+              fullAgentAbRequiredForThisSlice: boolean;
+            };
+          };
+        };
+      };
+    };
+
+    const protocol = profile.finalize.referenceResolutionBreakdown.dynamicDispatchHeuristicEdgeProtocol;
+    expect(protocol).toMatchObject({
+      version: 1,
+      status: 'protocol-seed-only',
+      productionWriterOwner: 'typescript-synthesizer',
+      rustEdgeWritesEnabled: false,
+      supportedSeedFamilies: ['callback', 'closure-collection', 'event-emitter'],
+      agentSufficiencyGuardrail: {
+        status: 'required-before-rust-shadow-or-double-read',
+        fullAgentAbRequiredForThisSlice: false,
+      },
+    });
+    expect(protocol.commonFields).toEqual([
+      'sourceNodeId',
+      'targetNodeId',
+      'kind',
+      'provenance',
+      'synthesizedBy',
+      'registeredAt',
+      'language',
+      'precision',
+    ]);
+    expect(protocol.familyMetadataWhitelist.callback).toEqual(expect.arrayContaining(['via', 'field', 'registrationSite', 'confidenceReason']));
+    expect(protocol.familyMetadataWhitelist['event-emitter']).toEqual(expect.arrayContaining(['eventName', 'registrationSite', 'confidenceReason']));
+    expect(protocol.graphParity.sampleLimit).toBeGreaterThan(0);
+    expect(protocol.graphParity.families.callback.synthesizedEdgeCount).toBeGreaterThan(0);
+    expect(protocol.graphParity.families.callback.samples).toContainEqual(
+      expect.objectContaining({
+        targetName: 'handleUpdate',
+        kind: 'calls',
+        provenance: 'heuristic',
+        synthesizedBy: 'callback',
+      }),
+    );
+    expect(protocol.graphParity.families['event-emitter'].synthesizedEdgeCount).toBeGreaterThan(0);
+    expect(protocol.graphParity.families['event-emitter'].samples).toContainEqual(
+      expect.objectContaining({
+        targetName: 'onmount',
+        kind: 'calls',
+        provenance: 'heuristic',
+        synthesizedBy: 'event-emitter',
+      }),
+    );
+    expect(protocol.graphParity.families['closure-collection'].samples).toEqual([]);
+    expect(protocol.graphParity.families['closure-collection'].unavailableReason).toBe('no-current-typescript-edges');
+  }, 30_000);
 });

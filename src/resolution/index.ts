@@ -43,6 +43,10 @@ import {
   type CandidateProtocolDiagnostics,
 } from './candidate-protocol';
 import {
+  DYNAMIC_DISPATCH_HEURISTIC_EDGE_PROTOCOL_FAMILIES,
+  dynamicDispatchHeuristicEdgeProtocolDiagnostics,
+} from './dynamic-dispatch-heuristic-edge-protocol';
+import {
   collectRustNameMatcherReference,
   compareNameMatcherCandidateReplayForRef,
   createCandidateSetResolutionContext,
@@ -1567,6 +1571,13 @@ export class ReferenceResolver {
       // synthesis is additive and optional; ignore failures
     }
     aggregateStats.timings.candidateProtocol = this.getCandidateProtocolDiagnostics();
+    aggregateStats.timings.dynamicDispatchHeuristicEdgeProtocol = dynamicDispatchHeuristicEdgeProtocolDiagnostics({
+      sampleLimit: 5,
+      families: this.queries.getDynamicDispatchHeuristicEdgeGraphParity(
+        DYNAMIC_DISPATCH_HEURISTIC_EDGE_PROTOCOL_FAMILIES,
+        5,
+      ),
+    });
 
     return {
       resolved: [],

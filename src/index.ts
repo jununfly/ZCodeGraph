@@ -48,6 +48,11 @@ import {
   ResolutionResult,
 } from './resolution';
 import type { CandidateProtocolDiagnostics } from './resolution/candidate-protocol';
+import type { DynamicDispatchHeuristicEdgeProtocolDiagnostics } from './resolution/dynamic-dispatch-heuristic-edge-protocol';
+import {
+  DYNAMIC_DISPATCH_HEURISTIC_EDGE_PROTOCOL_FAMILIES,
+  dynamicDispatchHeuristicEdgeProtocolDiagnostics,
+} from './resolution/dynamic-dispatch-heuristic-edge-protocol';
 import { GraphTraverser, GraphQueryManager } from './graph';
 import { ContextBuilder, createContextBuilder } from './context';
 import { Mutex, FileLock } from './utils';
@@ -1616,6 +1621,7 @@ export class CodeGraph {
         moduleEdgeWrite: ModuleEdgeWriteDiagnostics;
         cleanupOwnership: CleanupOwnershipDiagnostics;
         candidateProtocol: CandidateProtocolDiagnostics;
+        dynamicDispatchHeuristicEdgeProtocol: DynamicDispatchHeuristicEdgeProtocolDiagnostics;
         edgeMaterializationMs: number;
         edgeMaterializationDbMs: number;
         edgeEndpointValidationDbMs: number;
@@ -1847,6 +1853,13 @@ export class CodeGraph {
                 },
               },
             } as CandidateProtocolDiagnostics,
+            dynamicDispatchHeuristicEdgeProtocol: dynamicDispatchHeuristicEdgeProtocolDiagnostics({
+              sampleLimit: 5,
+              families: this.queries.getDynamicDispatchHeuristicEdgeGraphParity(
+                DYNAMIC_DISPATCH_HEURISTIC_EDGE_PROTOCOL_FAMILIES,
+                5,
+              ),
+            }),
             edgeMaterializationMs: 0,
             edgeMaterializationDbMs: 0,
             edgeEndpointValidationDbMs: 0,
@@ -1993,6 +2006,8 @@ export class CodeGraph {
             rustCoreProfile,
           }),
           candidateProtocol: resolutionTimings?.candidateProtocol ?? profile.referenceResolutionBreakdown.candidateProtocol,
+          dynamicDispatchHeuristicEdgeProtocol: resolutionTimings?.dynamicDispatchHeuristicEdgeProtocol
+            ?? profile.referenceResolutionBreakdown.dynamicDispatchHeuristicEdgeProtocol,
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,
           edgeMaterializationDbMs: resolutionTimings?.edgeMaterializationDbMs ?? 0,
           edgeEndpointValidationDbMs: resolutionTimings?.edgeEndpointValidationDbMs ?? 0,

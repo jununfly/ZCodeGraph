@@ -11,6 +11,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New Features
 
+- `rust-hybrid` indexing now reports a dynamic-dispatch heuristic edge protocol seed in finalization diagnostics, making callback and EventEmitter migration planning visible without changing graph output. (#664)
 - `rust-hybrid` indexing now reports a Rust-declared cleanup protocol handoff in finalization diagnostics while keeping TypeScript responsible for the existing safe cleanup execution path. (#663)
 - `rust-hybrid` indexing now has a cross-platform CI smoke that verifies the built CLI can run init, index, status, and doctor on Linux, macOS, and Windows before migration work reaches release. (#662)
 - `rust-hybrid` indexing now has a guarded Rust-side framework post-extract update protocol for NestJS RouterModule route prefixes, preserving route identity while moving the first bounded framework finalization shape toward Rust ownership. (#659, #660, #661)

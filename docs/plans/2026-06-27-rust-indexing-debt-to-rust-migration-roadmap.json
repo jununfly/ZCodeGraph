@@ -2400,11 +2400,55 @@
     "1-6-8": {
       "id": "1-6-8",
       "label": "Dynamic-dispatch synthesizer Rust migration exploit candidate",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-6",
-      "children": [],
-      "decisions": [],
+      "children": [
+        "1-6-8-1",
+        "1-6-8-2"
+      ],
+      "decisions": [
+        {
+          "q": "Which roadmap node should the fiftieth cut enter?",
+          "answer": "A. Enter 1-6-8 Dynamic-dispatch synthesizer Rust migration exploit candidate, but start with protocol plus one bounded family planning rather than migrating all dynamic-dispatch behavior.",
+          "note": "1-6-4 still needs fresh resolver residual inventory before exploit. 1-6-8 is the remaining major migration candidate with a clear boundary, but it carries Agent Sufficiency risk, so the fiftieth cut should first constrain the protocol and first family rather than implement all synthesizers."
+        },
+        {
+          "q": "Which bounded dynamic-dispatch family should seed the fiftieth cut?",
+          "answer": "A. Use JS/TS callback/observer plus EventEmitter as the first protocol taxonomy and parity-planning family, without enabling Rust production edge writes yet.",
+          "note": "This family has canonical design documentation and explicit current metadata names (, , ). It is broad enough to shape the heuristic edge protocol, but still safer than migrating React/JSX end-to-end or cross-language bridges in the first cut."
+        },
+        {
+          "q": "Supersedes previous shell-quoted note: which bounded dynamic-dispatch family should seed the fiftieth cut?",
+          "answer": "A. Use JS/TS callback/observer plus EventEmitter as the first protocol taxonomy and parity-planning family, without enabling Rust production edge writes yet.",
+          "note": "Corrected metadata names: callback, closure-collection, event-emitter. This family has canonical design documentation and explicit current metadata names. It is broad enough to shape the heuristic edge protocol, but safer than migrating React/JSX end-to-end or cross-language bridges in the first cut."
+        },
+        {
+          "q": "What artifact shape should the fiftieth cut produce?",
+          "answer": "A. Write a narrow plan document and create one implementation issue.",
+          "note": "The cut should define Rust heuristic edge protocol, callback/EventEmitter family taxonomy, parity checks, and Agent Sufficiency guardrails, but should not enable Rust production edge writes yet."
+        },
+        {
+          "q": "How much code implementation is allowed in this issue?",
+          "answer": "A. Implement only the protocol and diagnostics contract; do not write Rust heuristic edges.",
+          "note": "The existing TypeScript dynamic-dispatch synthesizer remains the only production edge writer. This slice may define and validate the future Rust heuristic edge shape, taxonomy, diagnostics, and evidence fields, but it must not route callback/EventEmitter heuristic edges through Rust yet."
+        },
+        {
+          "q": "How should the Rust heuristic edge protocol field boundary be defined?",
+          "answer": "A. Use minimal common fields plus a family-specific metadata whitelist.",
+          "note": "Common fields are sourceNodeId, targetNodeId, kind, provenance=heuristic, synthesizedBy, registeredAt, language, and precision. The callback/EventEmitter family may add whitelisted metadata such as via, eventName, registrationSite, and confidenceReason. Avoid unbounded JSON metadata and avoid freezing TypeScript implementation details into the Rust protocol."
+        },
+        {
+          "q": "What validation bar should the fiftieth cut use?",
+          "answer": "A. Use contract tests plus graph parity diagnostics plus an Agent Sufficiency guardrail placeholder.",
+          "note": "Contract tests lock the protocol fields and family metadata whitelist. Graph parity diagnostics record current TypeScript callback/EventEmitter heuristic edge counts and representative samples. The Agent Sufficiency guardrail is a required placeholder for the next Rust shadow/double-read cut, because this slice has no behavior change and a full Agent A/B would be low-signal now."
+        },
+        {
+          "q": "How should node 1-6-8 be closed after the fiftieth cut?",
+          "answer": "A. Complete the current protocol seed, but keep 1-6-8 in progress and track the later shadow/double-read work as child nodes.",
+          "note": "The fiftieth cut only defines protocol, diagnostics, taxonomy, and guardrails. It does not complete dynamic-dispatch synthesizer Rust migration, so marking 1-6-8 completed would mislead future agents."
+        }
+      ],
       "notes": "Source: 1-5-4-4 Dynamic-dispatch synthesis residual migration boundary.\\n\\nCandidate meaning:\\n- Choose one bounded full-graph synthesizer or relationship family first.\\n- Do not migrate all synthesizeCallbackEdges() families at once.\\n- Do not treat SynthesizerRegistry unification as the current production execution path.\\n\\nRequired guardrails before implementation:\\n- Rust-side heuristic edge protocol with provenance, synthesizedBy, registeredAt, precision taxonomy, and language gating.\\n- graph parity checks for synthesized edge counts and representative samples.\\n- Agent Sufficiency guardrail when flow connectivity changes, because missing or noisy dynamic-dispatch edges can push agents back to Read/Grep.\\n- preserve best-effort failure behavior so synthesizer failures do not fail indexing."
     },
     "1-6-9": {
@@ -2447,11 +2491,31 @@
         }
       ],
       "notes": "Plan: docs/plans/2026-06-29-rust-cleanup-protocol-handoff-plan.md.\n\nCompleted issue: #663.\n\nForty-ninth cut implementation result:\n- Rust core emits cleanupProtocol in its index profile.\n- TypeScript finalization validates the Rust cleanup protocol declaration before reporting cleanup ownership as rust-core-protocol.\n- Valid declarations report cleanupOwnership.owner=rust-core-protocol and mode=rust-declared-typescript-executed.\n- Missing declarations fail closed with fallbackReason=missing-rust-cleanup-protocol.\n- Invalid declarations fail closed with fallbackReason=invalid-rust-cleanup-protocol.\n\nGuardrails preserved:\n- TypeScript still executes resolved and intentionally unresolved rowid-range cleanup.\n- Retained unresolved_refs backlog semantics are unchanged.\n- Cleanup counters continue to report resolved terminal refs, intentionally unresolved terminal refs, and retained refs.\n- rustCorePrecleanedRefs remains null because deletion did not move into Rust.\n- SQLite maintenance checkpoint behavior remains out of scope.\n- This is not full cleanup or DB maintenance migration."
+    },
+    "1-6-8-1": {
+      "id": "1-6-8-1",
+      "label": "Callback/EventEmitter heuristic edge protocol seed",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6-8",
+      "children": [],
+      "decisions": [],
+      "notes": "Completed by issue #664. Added narrow plan docs/plans/2026-06-29-rust-dynamic-dispatch-heuristic-edge-protocol-seed-plan.md and rust-hybrid finalization profile diagnostics for the dynamic-dispatch heuristic edge protocol seed. The slice reports protocol fields, family metadata whitelist, TypeScript-owned graph parity counts/samples, and Agent Sufficiency guardrail status without enabling Rust heuristic edge writes."
+    },
+    "1-6-8-2": {
+      "id": "1-6-8-2",
+      "label": "Rust shadow/double-read dynamic-dispatch edge migration follow-up",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6-8",
+      "children": [],
+      "decisions": [],
+      "notes": ""
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-29 11:33:39",
+    "updated": "2026-06-29 12:13:51",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
