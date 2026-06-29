@@ -7,6 +7,8 @@ import * as path from 'path';
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DEV_LINK_SCRIPT = path.join(REPO_ROOT, 'scripts', 'dev-link.sh');
 const LOCAL_INSTALL_SCRIPT = path.join(REPO_ROOT, 'scripts', 'local-install.sh');
+const AGENT_AUDIT_SCRIPT = path.join(REPO_ROOT, 'scripts', 'agent-eval', 'audit.sh');
+const ADD_LANG_BENCH_SCRIPT = path.join(REPO_ROOT, 'scripts', 'add-lang', 'bench.sh');
 
 const tempDirs: string[] = [];
 
@@ -153,5 +155,26 @@ describe('scripts/local-install.sh compatibility wrapper', () => {
     expect(result.stdout).toContain('zcodegraph was not modified.');
     expect(fs.existsSync(path.join(binDir, 'zcodegraph-dev'))).toBe(false);
     expect(fs.existsSync(path.join(binDir, 'zcodegraph'))).toBe(true);
+  });
+});
+
+describe('repository automation dogfood channel', () => {
+  it('agent audit local mode uses zcodegraph-dev instead of local-install npm link', () => {
+    const body = fs.readFileSync(AGENT_AUDIT_SCRIPT, 'utf8');
+
+    expect(body).toContain('scripts/dev-link.sh --bin-dir "$DEV_BIN_DIR" --no-build');
+    expect(body).toContain('CG_BIN="$CG_BIN" bash "$HARNESS/run-all.sh"');
+    expect(body).not.toContain('./scripts/local-install.sh');
+    expect(body).not.toContain('npm link');
+  });
+
+  it('add-lang bench uses zcodegraph-dev or ZCODEGRAPH_DEV_BIN', () => {
+    const body = fs.readFileSync(ADD_LANG_BENCH_SCRIPT, 'utf8');
+
+    expect(body).toContain('ZCODEGRAPH_DEV_BIN');
+    expect(body).toContain('command -v zcodegraph-dev');
+    expect(body).toContain('CG_BIN="$CG_BIN" bash "$AGENT_EVAL/run-all.sh"');
+    expect(body).not.toContain('command -v zcodegraph >/dev/null');
+    expect(body).not.toContain('./scripts/local-install.sh');
   });
 });

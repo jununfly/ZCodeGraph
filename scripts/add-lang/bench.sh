@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # Add-lang benchmark for ONE repo:
-#   clone -> wipe+index (with zcodegraph on PATH) -> verify extraction ->
+#   clone -> wipe+index (with zcodegraph-dev) -> verify extraction ->
 #   with/without retrieval A/B (reuses scripts/agent-eval/run-all.sh).
 #
-# Assumes the zcodegraph dev build is already built + linked on PATH — the skill
-# runs `npm run build && ./scripts/local-install.sh` ONCE before looping repos.
+# Assumes the zcodegraph dev build is available as zcodegraph-dev, or that
+# ZCODEGRAPH_DEV_BIN points at the dev binary under test.
 # The A/B is skipped if extraction fails its critical checks (don't burn $ on a
 # broken extractor); set FORCE_AB=1 to run it anyway.
 #
 # Usage: bench.sh <lang> <repo-name> <repo-url> "<question>" [headless|tmux|all]
-# Env:   CORPUS   corpus dir (default /tmp/codegraph-corpus, shared with agent-eval)
+# Env:   CORPUS              corpus dir (default /tmp/codegraph-corpus, shared with agent-eval)
+#        ZCODEGRAPH_DEV_BIN  explicit dev binary (default: command -v zcodegraph-dev)
 set -uo pipefail
 
 LANG_TOKEN="${1:?usage: bench.sh <lang> <repo-name> <repo-url> \"<question>\" [mode]}"
@@ -22,11 +23,12 @@ HARNESS="$(cd "$(dirname "$0")" && pwd)"
 AGENT_EVAL="$(cd "$HARNESS/../agent-eval" && pwd)"
 CORPUS="${CORPUS:-/tmp/codegraph-corpus}"
 REPO="$CORPUS/$NAME"
+CG_BIN="${ZCODEGRAPH_DEV_BIN:-$(command -v zcodegraph-dev || true)}"
 
-command -v zcodegraph >/dev/null || { echo "no zcodegraph on PATH (build + ./scripts/local-install.sh first)"; exit 1; }
+[ -n "$CG_BIN" ] || { echo "no zcodegraph-dev on PATH (run ./scripts/dev-link.sh first, or set ZCODEGRAPH_DEV_BIN)"; exit 1; }
 
 echo "==================== add-lang bench: $NAME ($LANG_TOKEN) ===================="
-echo "zcodegraph: $(command -v zcodegraph) -> $(zcodegraph --version 2>/dev/null || echo '?')"
+echo "zcodegraph-dev: $CG_BIN -> $("$CG_BIN" --version 2>/dev/null || echo '?')"
 
 # 1. Ensure the repo (shallow clone, reuse if present).
 mkdir -p "$CORPUS"
@@ -40,7 +42,7 @@ fi
 # 2. Wipe + index with the binary under test.
 echo "→ wiping .zcodegraph and indexing"
 rm -rf "$REPO/.zcodegraph"
-( cd "$REPO" && zcodegraph init ) || { echo "indexing failed"; exit 1; }
+( cd "$REPO" && "$CG_BIN" init ) || { echo "indexing failed"; exit 1; }
 
 # 3. Verify extraction (cheap guard before the paid A/B).
 echo "→ verifying extraction"
@@ -52,7 +54,7 @@ if [ "$VERIFY" -ne 0 ] && [ "${FORCE_AB:-0}" != "1" ]; then
   echo "→ SKIPPING A/B — extraction failed critical checks (set FORCE_AB=1 to override)"
 else
   echo "→ retrieval A/B (mode=$MODE)"
-  bash "$AGENT_EVAL/run-all.sh" "$REPO" "$Q" "$MODE"
+  CG_BIN="$CG_BIN" bash "$AGENT_EVAL/run-all.sh" "$REPO" "$Q" "$MODE"
 fi
 
 echo "==================== bench complete: $NAME (verify exit=$VERIFY) ===================="

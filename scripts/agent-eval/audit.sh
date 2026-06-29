@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # One-shot ZCodeGraph quality audit:
 #   set version -> ensure corpus repo -> wipe+reindex with that version ->
-#   run with/without A/B -> restore the local dev link.
+#   run with/without A/B.
 #
 # Usage: audit.sh <version> <repo-name> <repo-url> "<question>" [headless|all]
-#   <version>    "local" (build + npm link this repo) | "latest" | a version (e.g. 0.7.10)
+#   <version>    "local" (build + temporary zcodegraph-dev) | "latest" | a version (e.g. 0.7.10)
 #   <repo-name>  dir name under the corpus dir
 #   <repo-url>   git URL (cloned --depth 1 when the repo dir is missing)
 #   [mode]       headless (default) | all (also the interactive tmux arms)
@@ -22,21 +22,28 @@ REPO_ROOT="$(cd "$HARNESS/../.." && pwd)"     # zcodegraph repo root
 CORPUS="${CORPUS:-/tmp/zcodegraph-corpus}"
 REPO="$CORPUS/$NAME"
 PKG="@jununfly/zcodegraph"
+DEV_BIN_DIR=""
 
 echo "==================== ZCodeGraph audit ===================="
 echo "version=$VERSION  repo=$NAME  mode=$MODE  corpus=$CORPUS"
 echo
 
-# 1. Set the zcodegraph version under test (mutates the global install).
+# 1. Set the zcodegraph version under test.
 if [ "$VERSION" = local ]; then
-  echo "→ [1/4] building + linking local dev build (local-install.sh)"
-  ( cd "$REPO_ROOT" && ./scripts/local-install.sh ) || { echo "local-install.sh failed"; exit 1; }
+  echo "→ [1/4] building local dev build and installing temporary zcodegraph-dev"
+  DEV_BIN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/zcodegraph-dev-bin.XXXXXX")"
+  ( cd "$REPO_ROOT" && npm run build && ./scripts/dev-link.sh --bin-dir "$DEV_BIN_DIR" --no-build ) || {
+    echo "local dev setup failed"
+    exit 1
+  }
+  CG_BIN="$DEV_BIN_DIR/zcodegraph-dev"
 else
   echo "→ [1/4] installing $PKG@$VERSION globally"
   npm install -g "$PKG@$VERSION" || { echo "npm install -g $PKG@$VERSION failed"; exit 1; }
+  CG_BIN="$(command -v zcodegraph)"
 fi
-ACTUAL="$(zcodegraph --version 2>/dev/null || echo '?')"
-echo "  zcodegraph on PATH: $(command -v zcodegraph) -> $ACTUAL"
+ACTUAL="$("$CG_BIN" --version 2>/dev/null || echo '?')"
+echo "  zcodegraph under test: $CG_BIN -> $ACTUAL"
 
 # 2. Ensure the corpus repo exists (clone shallow if missing, reuse if present).
 mkdir -p "$CORPUS"
@@ -51,18 +58,11 @@ fi
 #    binary that serves it — different versions extract differently).
 echo "→ [3/4] wiping .zcodegraph and re-indexing with $ACTUAL"
 rm -rf "$REPO/.zcodegraph"
-( cd "$REPO" && zcodegraph init ) || { echo "indexing failed"; exit 1; }
+( cd "$REPO" && "$CG_BIN" init ) || { echo "indexing failed"; exit 1; }
 
 # 4. Run the with/without A/B.
 echo "→ [4/4] running A/B harness (mode=$MODE)"
-bash "$HARNESS/run-all.sh" "$REPO" "$Q" "$MODE"
+CG_BIN="$CG_BIN" bash "$HARNESS/run-all.sh" "$REPO" "$Q" "$MODE"
 
-# Restore the dev link (the normal working state in this repo).
-echo
-echo "→ restoring local dev link (local-install.sh)"
-if ( cd "$REPO_ROOT" && ./scripts/local-install.sh >/dev/null 2>&1 ); then
-  echo "  global zcodegraph restored to dev build"
-else
-  echo "  WARN: restore failed — run ./scripts/local-install.sh manually"
-fi
+[ -n "$DEV_BIN_DIR" ] && rm -rf "$DEV_BIN_DIR"
 echo "==================== audit complete ===================="

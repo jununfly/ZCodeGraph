@@ -9,6 +9,9 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### New Features
+
+- Source checkouts now install an explicit `zcodegraph-dev` dogfood command, so maintainers can test local builds across projects without taking over the release `zcodegraph` command.
 
 ## [0.10.1] - 2026-06-29
 
