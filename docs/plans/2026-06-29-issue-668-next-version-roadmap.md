@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-29-issue-668-next-version-roadmap.json` | 最后更新: 2026-06-29 22:54:52
+> 数据文件: `2026-06-29-issue-668-next-version-roadmap.json` | 最后更新: 2026-06-29 22:59:11
 
 [~][Y+] 1. Issue #668 下个版本产品路线图
 ├── [x][X+] 1-1. Dogfood and release channel isolation
@@ -13,7 +13,7 @@
 ├── [ ][Y+] 1-3. Doctor bundle compact diagnostic summary
 └── [~][Y+] 1-4. Degraded fallback health first-screen explanation
     ├── [x][Y+] 1-4-1. Fallback summary data contract
-    ├── [ ][Y+] 1-4-2. Init and index degraded health message
+    ├── [x][Y+] 1-4-2. Init and index degraded health message
     └── [ ][Y+] 1-4-3. Fallback health regression coverage
 
 ### 当前施工：1-4. Degraded fallback health first-screen explanation
@@ -22,6 +22,6 @@ P1 first. Goal: make degraded rust-hybrid fallback health explain itself on the 
 
 **当前子树：**
 ├── [x][Y+] 1-4-1. Fallback summary data contract
-├── [ ][Y+] 1-4-2. Init and index degraded health message
+├── [x][Y+] 1-4-2. Init and index degraded health message
 └── [ ][Y+] 1-4-3. Fallback health regression coverage
 <!-- ROADMAP_SECTION_END -->

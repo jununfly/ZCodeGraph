@@ -764,11 +764,13 @@ function printRustHybridDoctorHint(
 ): void {
   if (!result.success) return;
   const summary = buildRustHybridFallbackSummary(result);
-  const [indexedLine, healthLine, doctorLine] = formatRustHybridFallbackDoctorHint(summary);
-  if (!indexedLine || !healthLine || !doctorLine) return;
+  const [indexedLine, healthLine, ...detailLines] = formatRustHybridFallbackDoctorHint(summary);
+  if (!indexedLine || !healthLine) return;
   clack.log.info(indexedLine);
   clack.log.warn(healthLine);
-  clack.log.info(doctorLine);
+  for (const line of detailLines) {
+    clack.log.info(line);
+  }
 }
 
 function printRustHybridFailureDoctorHint(): void {

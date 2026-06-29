@@ -34,6 +34,14 @@ const DEGRADED_GRAPH_USABILITY_MESSAGE =
 const HEALTHY_GRAPH_USABILITY_MESSAGE =
   'The index is fully covered by rust-hybrid without fallback diagnostics.';
 
+const FALLBACK_REASON_LABELS: Record<string, string> = {
+  'language-level-typescript-fallback': 'TypeScript fallback files',
+  'language-level-fallback-missing-file': 'planned TypeScript fallback files missing from the checkout',
+  'rust-owned-parse-gap': 'Rust-owned files with parse diagnostics',
+  'rust-owned-extraction-gap': 'Rust-owned files with extraction diagnostics',
+  'rust-owned-gap-with-partial-write-blocked': 'Rust-owned files with partial Rust writes not fallback-appended',
+};
+
 function fallbackProfile(input: RustHybridFallbackSummaryInput): RustHybridFallbackProfile | undefined {
   return input.profile as RustHybridFallbackProfile | undefined;
 }
@@ -78,14 +86,23 @@ export function buildRustHybridFallbackSummary(input: RustHybridFallbackSummaryI
   };
 }
 
+function formatReasonCount(reason: RustHybridFallbackReasonCount): string {
+  return `${reason.count} ${FALLBACK_REASON_LABELS[reason.code] ?? reason.code}`;
+}
+
 export function formatRustHybridFallbackDoctorHint(
   summary: RustHybridFallbackSummary,
   doctorCommand = 'zcodegraph doctor --engine rust-hybrid --bundle --last-run',
 ): string[] {
   if (summary.fallbackState !== 'degraded') return [];
+  const reasons = summary.topFallbackReasons.slice(0, 3).map(formatReasonCount);
+  const reasonBlock = reasons.length > 0
+    ? `Top fallback reasons:\n${reasons.map((reason) => `  ${reason}`).join('\n')}`
+    : 'Top fallback reasons: unavailable';
   return [
     'Indexed with rust-hybrid',
     'Fallback health: degraded',
+    `${summary.graphUsabilityMessage}\n${reasonBlock}`,
     `Run diagnostic bundle:\n  ${doctorCommand}`,
   ];
 }

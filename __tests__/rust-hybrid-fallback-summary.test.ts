@@ -57,6 +57,7 @@ describe('rust-hybrid fallback summary contract', () => {
     expect(formatRustHybridFallbackDoctorHint(summary)).toEqual([
       'Indexed with rust-hybrid',
       'Fallback health: degraded',
+      'The index is usable; fallback-degraded files or diagnostics are the only parts that need review.\nTop fallback reasons:\n  1 TypeScript fallback files',
       'Run diagnostic bundle:\n  zcodegraph doctor --engine rust-hybrid --bundle --last-run',
     ]);
   });

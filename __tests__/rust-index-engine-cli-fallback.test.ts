@@ -155,6 +155,9 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     expect(result.stdout).toContain('Warning breakdown');
     expect(result.stdout).toContain('Rust-owned files with diagnostics and no TypeScript fallback append');
     expect(result.stdout).toContain('Fallback health: degraded');
+    expect(result.stdout).toContain('The index is usable; fallback-degraded files or diagnostics are the only parts that need review.');
+    expect(result.stdout).toContain('Top fallback reasons:');
+    expect(result.stdout).toContain('1 Rust-owned files with parse diagnostics');
     expect(result.stdout).toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
 
     const errorsLog = fs.readFileSync(path.join(tempDir, '.zcodegraph', 'errors.log'), 'utf-8');
@@ -211,6 +214,8 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
     expect(result.stdout).toContain('TypeScript fallback files');
     expect(result.stdout).toContain('Fallback health: degraded');
+    expect(result.stdout).toContain('The index is usable; fallback-degraded files or diagnostics are the only parts that need review.');
+    expect(result.stdout).toContain('Top fallback reasons:');
     expect(result.stdout).toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
   }, 30_000);
 

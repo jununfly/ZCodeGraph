@@ -310,12 +310,18 @@
     "1-4-2": {
       "id": "1-4-2",
       "label": "Init and index degraded health message",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-4",
       "children": [],
-      "decisions": [],
-      "notes": "Replace bare 'Fallback health: degraded' hint with compact explanation after successful rust-hybrid init/index: what degraded means, whether the graph is usable, top reason counts, and exact doctor command for deeper diagnostics."
+      "decisions": [
+        {
+          "q": "第 7 刀是否把 degraded fallback health message 接到 init/index 首屏？",
+          "answer": "是。复用第 6 刀 summary/formatter，在 init 和 index 成功路径显示可理解的 degraded health 首屏解释。",
+          "note": "Scope: keep behavior narrow; no diagnostic bundle generation change; first-screen output avoids source paths and source slices; tests pin CLI-visible wording."
+        }
+      ],
+      "notes": "第 7 刀完成：init/index 的 rust-hybrid degraded 首屏提示现在复用 fallback summary formatter，展示 graph usability 文案、top fallback reason counts 和 doctor bundle 命令；真实 CLI 输出测试已钉住关键文案。"
     },
     "1-4-3": {
       "id": "1-4-3",
@@ -330,7 +336,7 @@
   },
   "metadata": {
     "created": "2026-06-29 17:22:21",
-    "updated": "2026-06-29 22:54:52",
+    "updated": "2026-06-29 22:59:11",
     "md_file": "docs/plans/2026-06-29-issue-668-next-version-roadmap.md"
   }
 }
