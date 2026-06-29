@@ -74,6 +74,15 @@ describe('zcodegraph rust-hybrid finalization cleanup diagnostics', () => {
             intentionallyUnresolvedTerminalRefs: number;
             retainedRefs: number;
             rustCorePrecleanedRefs: number | null;
+            fallbackReason: string | null;
+            protocol: {
+              version: number;
+              valid: boolean;
+              declaredCategories: string[];
+              executor: string;
+              deletionMechanics: string;
+              dbMaintenance: string;
+            };
             notes: string[];
           };
         };
@@ -82,14 +91,28 @@ describe('zcodegraph rust-hybrid finalization cleanup diagnostics', () => {
     const breakdown = profile.finalize.referenceResolutionBreakdown;
 
     expect(breakdown.cleanupOwnership).toMatchObject({
-      owner: 'typescript-finalization',
-      mode: 'contract-only',
+      owner: 'rust-core-protocol',
+      mode: 'rust-declared-typescript-executed',
       resolvedTerminalRefs: breakdown.resolvedCleanupRowCount,
       intentionallyUnresolvedTerminalRefs: breakdown.intentionallyUnresolvedCleanupRowCount,
       retainedRefs: expect.any(Number),
       rustCorePrecleanedRefs: null,
+      fallbackReason: null,
+      protocol: {
+        version: 1,
+        valid: true,
+        declaredCategories: [
+          'resolved-terminal',
+          'intentionally-unresolved-terminal',
+          'retained-backlog',
+        ],
+        executor: 'typescript-shell',
+        deletionMechanics: 'typescript-rowid-range',
+        dbMaintenance: 'out-of-scope',
+      },
       notes: expect.arrayContaining([
-        expect.stringContaining('does not migrate cleanup into Rust core'),
+        expect.stringContaining('Rust core declared terminal cleanup protocol'),
+        expect.stringContaining('TypeScript shell still executes rowid-range cleanup'),
       ]),
     });
     expect(breakdown.cleanupOwnership.resolvedTerminalRefs).toBeGreaterThan(0);

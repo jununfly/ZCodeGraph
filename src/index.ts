@@ -67,6 +67,7 @@ import {
 type RustCoreProfileLike = {
   frameworkPostExtractUpdates?: unknown;
   frameworkPostExtractProviderErrors?: unknown;
+  cleanupProtocol?: unknown;
   esmNamedImportExportResolvedRefs?: number;
   esmNamedImportExportFallbackRefs?: number;
   esmNamedImportExportFallbackSampleCounts?: Record<string, number>;
@@ -170,12 +171,21 @@ type ModuleEdgeWriteDiagnostics = {
 };
 
 type CleanupOwnershipDiagnostics = {
-  owner: 'typescript-finalization';
-  mode: 'contract-only';
+  owner: 'typescript-finalization' | 'rust-core-protocol';
+  mode: 'contract-only' | 'rust-declared-typescript-executed';
   resolvedTerminalRefs: number;
   intentionallyUnresolvedTerminalRefs: number;
   retainedRefs: number;
   rustCorePrecleanedRefs: number | null;
+  fallbackReason: string | null;
+  protocol: {
+    version: number | null;
+    valid: boolean;
+    declaredCategories: string[];
+    executor: string | null;
+    deletionMechanics: string | null;
+    dbMaintenance: string | null;
+  };
   notes: string[];
 };
 
@@ -428,11 +438,82 @@ function moduleEdgeWriteDiagnosticsFromRustCore(profile: unknown): ModuleEdgeWri
   };
 }
 
+function rustCleanupProtocol(profile: unknown): CleanupOwnershipDiagnostics['protocol'] {
+  const raw = rustCoreProfileLike(profile).cleanupProtocol;
+  if (!raw || typeof raw !== 'object') {
+    return {
+      version: null,
+      valid: false,
+      declaredCategories: [],
+      executor: null,
+      deletionMechanics: null,
+      dbMaintenance: null,
+    };
+  }
+  const protocol = raw as {
+    version?: unknown;
+    declaredCategories?: unknown;
+    executor?: unknown;
+    deletionMechanics?: unknown;
+    dbMaintenance?: unknown;
+  };
+  const declaredCategories = Array.isArray(protocol.declaredCategories)
+    ? protocol.declaredCategories.filter((category): category is string => typeof category === 'string')
+    : [];
+  return {
+    version: typeof protocol.version === 'number' ? protocol.version : null,
+    valid: false,
+    declaredCategories,
+    executor: typeof protocol.executor === 'string' ? protocol.executor : null,
+    deletionMechanics: typeof protocol.deletionMechanics === 'string' ? protocol.deletionMechanics : null,
+    dbMaintenance: typeof protocol.dbMaintenance === 'string' ? protocol.dbMaintenance : null,
+  };
+}
+
+function validatedRustCleanupProtocol(profile: unknown): CleanupOwnershipDiagnostics['protocol'] {
+  const protocol = rustCleanupProtocol(profile);
+  const expectedCategories = [
+    'resolved-terminal',
+    'intentionally-unresolved-terminal',
+    'retained-backlog',
+  ];
+  const categoriesMatch = expectedCategories.length === protocol.declaredCategories.length
+    && expectedCategories.every((category, index) => protocol.declaredCategories[index] === category);
+  return {
+    ...protocol,
+    valid: protocol.version === 1
+      && categoriesMatch
+      && protocol.executor === 'typescript-shell'
+      && protocol.deletionMechanics === 'typescript-rowid-range'
+      && protocol.dbMaintenance === 'out-of-scope',
+  };
+}
+
 function cleanupOwnershipDiagnostics(input: {
   resolvedTerminalRefs?: number;
   intentionallyUnresolvedTerminalRefs?: number;
   retainedRefs?: number;
+  rustCoreProfile?: unknown;
 } = {}): CleanupOwnershipDiagnostics {
+  const protocol = validatedRustCleanupProtocol(input.rustCoreProfile);
+  const hasProtocol = rustCoreProfileLike(input.rustCoreProfile).cleanupProtocol !== undefined;
+  if (protocol.valid) {
+    return {
+      owner: 'rust-core-protocol',
+      mode: 'rust-declared-typescript-executed',
+      resolvedTerminalRefs: input.resolvedTerminalRefs ?? 0,
+      intentionallyUnresolvedTerminalRefs: input.intentionallyUnresolvedTerminalRefs ?? 0,
+      retainedRefs: input.retainedRefs ?? 0,
+      rustCorePrecleanedRefs: null,
+      fallbackReason: null,
+      protocol,
+      notes: [
+        'Rust core declared terminal cleanup protocol categories; TypeScript shell validates the declaration.',
+        'TypeScript shell still executes rowid-range cleanup and preserves retained unresolved_refs backlog semantics.',
+        'SQLite maintenance remains out of scope for this cleanup protocol handoff.',
+      ],
+    };
+  }
   return {
     owner: 'typescript-finalization',
     mode: 'contract-only',
@@ -440,9 +521,12 @@ function cleanupOwnershipDiagnostics(input: {
     intentionallyUnresolvedTerminalRefs: input.intentionallyUnresolvedTerminalRefs ?? 0,
     retainedRefs: input.retainedRefs ?? 0,
     rustCorePrecleanedRefs: null,
+    fallbackReason: hasProtocol ? 'invalid-rust-cleanup-protocol' : 'missing-rust-cleanup-protocol',
+    protocol,
     notes: [
       'This contract reports TypeScript finalization terminal cleanup and does not migrate cleanup into Rust core.',
       'Rust core may pre-clean references it owns, but this bucket reports null unless a reliable public count exists.',
+      'Missing or invalid Rust cleanup protocol declarations fail closed to TypeScript cleanup execution.',
     ],
   };
 }
@@ -1906,6 +1990,7 @@ export class CodeGraph {
             resolvedTerminalRefs: resolutionTimings?.resolvedCleanupRowCount ?? 0,
             intentionallyUnresolvedTerminalRefs: resolutionTimings?.intentionallyUnresolvedCleanupRowCount ?? 0,
             retainedRefs: this.queries.getUnresolvedReferencesCount(),
+            rustCoreProfile,
           }),
           candidateProtocol: resolutionTimings?.candidateProtocol ?? profile.referenceResolutionBreakdown.candidateProtocol,
           edgeMaterializationMs: resolutionTimings?.edgeMaterializationMs ?? 0,

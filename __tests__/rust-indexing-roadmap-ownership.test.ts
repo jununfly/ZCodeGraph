@@ -358,9 +358,18 @@ describe('Rust indexing migration roadmap ownership map', () => {
     expect(dynamic.notes).toContain('Read/Grep');
 
     const cleanup = readNode('1-6-9');
-    expect(cleanup.notes).toContain('no unresolved_refs deletion semantics drift');
-    expect(cleanup.notes).toContain('retained backlog remains available for later semantic handling');
-    expect(cleanup.notes).toContain('terminal cleanup counters/profile fields remain stable');
+    expect(cleanup.status).toBe('completed');
+    expect(cleanup.notes).toContain('docs/plans/2026-06-29-rust-cleanup-protocol-handoff-plan.md');
+    expect(cleanup.notes).toContain('Completed issue: #663');
+    expect(cleanup.notes).toContain('Rust core emits cleanupProtocol');
+    expect(cleanup.notes).toContain('cleanupOwnership.owner=rust-core-protocol');
+    expect(cleanup.notes).toContain('mode=rust-declared-typescript-executed');
+    expect(cleanup.notes).toContain('fallbackReason=missing-rust-cleanup-protocol');
+    expect(cleanup.notes).toContain('fallbackReason=invalid-rust-cleanup-protocol');
+    expect(cleanup.notes).toContain('TypeScript still executes resolved and intentionally unresolved rowid-range cleanup');
+    expect(cleanup.notes).toContain('Retained unresolved_refs backlog semantics are unchanged');
+    expect(cleanup.notes).toContain('SQLite maintenance checkpoint behavior remains out of scope');
+    expect(cleanup.notes).toContain('not full cleanup or DB maintenance migration');
   });
 
   it('locks the DB maintenance and unresolved cleanup residual boundary contract', () => {

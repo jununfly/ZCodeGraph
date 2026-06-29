@@ -97,4 +97,51 @@ describe('Rust finalization ownership reporting', () => {
       cg.close();
     }
   });
+
+  it('fails closed to TypeScript cleanup ownership when the Rust cleanup protocol is missing or invalid', async () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-cleanup-protocol-fallback-'));
+    const cg = CodeGraph.initSync(tempDir);
+
+    try {
+      const missing = await cg.finalizeRustIndex();
+      expect(missing.profile.referenceResolutionBreakdown.cleanupOwnership).toMatchObject({
+        owner: 'typescript-finalization',
+        mode: 'contract-only',
+        fallbackReason: 'missing-rust-cleanup-protocol',
+        protocol: {
+          valid: false,
+          version: null,
+          declaredCategories: [],
+          executor: null,
+          deletionMechanics: null,
+          dbMaintenance: null,
+        },
+      });
+
+      const invalid = await cg.finalizeRustIndex(undefined, undefined, {
+        cleanupProtocol: {
+          version: 1,
+          declaredCategories: ['resolved-terminal'],
+          executor: 'rust-core',
+          deletionMechanics: 'rust-direct-delete',
+          dbMaintenance: 'sqlite-checkpoint',
+        },
+      });
+      expect(invalid.profile.referenceResolutionBreakdown.cleanupOwnership).toMatchObject({
+        owner: 'typescript-finalization',
+        mode: 'contract-only',
+        fallbackReason: 'invalid-rust-cleanup-protocol',
+        protocol: {
+          valid: false,
+          version: 1,
+          declaredCategories: ['resolved-terminal'],
+          executor: 'rust-core',
+          deletionMechanics: 'rust-direct-delete',
+          dbMaintenance: 'sqlite-checkpoint',
+        },
+      });
+    } finally {
+      cg.close();
+    }
+  });
 });

@@ -160,6 +160,7 @@ pub struct IndexProfile {
     pub rust_visibility_taxonomy_counts: BTreeMap<String, u32>,
     pub rust_visibility_guard_taxonomy_counts: BTreeMap<String, u32>,
     pub framework_post_extract_updates: Vec<FrameworkPostExtractUpdate>,
+    pub cleanup_protocol: CleanupProtocolDeclaration,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -172,6 +173,31 @@ pub struct FrameworkPostExtractUpdate {
     pub qualified_name: String,
     pub field: String,
     pub new_name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CleanupProtocolDeclaration {
+    pub version: u32,
+    pub declared_categories: Vec<String>,
+    pub executor: String,
+    pub deletion_mechanics: String,
+    pub db_maintenance: String,
+}
+
+impl Default for CleanupProtocolDeclaration {
+    fn default() -> Self {
+        Self {
+            version: 1,
+            declared_categories: vec![
+                "resolved-terminal".to_string(),
+                "intentionally-unresolved-terminal".to_string(),
+                "retained-backlog".to_string(),
+            ],
+            executor: "typescript-shell".to_string(),
+            deletion_mechanics: "typescript-rowid-range".to_string(),
+            db_maintenance: "out-of-scope".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -11604,6 +11630,23 @@ fn framework_post_extract_updates_json(updates: &[FrameworkPostExtractUpdate]) -
     format!("[{}]", items)
 }
 
+fn cleanup_protocol_json(protocol: &CleanupProtocolDeclaration) -> String {
+    let categories = protocol
+        .declared_categories
+        .iter()
+        .map(|category| format!("\"{}\"", escape_json(category)))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"version\":{},\"declaredCategories\":[{}],\"executor\":\"{}\",\"deletionMechanics\":\"{}\",\"dbMaintenance\":\"{}\"}}",
+        protocol.version,
+        categories,
+        escape_json(&protocol.executor),
+        escape_json(&protocol.deletion_mechanics),
+        escape_json(&protocol.db_maintenance),
+    )
+}
+
 pub fn result_json(result: &IndexResult) -> String {
     let errors = result
         .errors
@@ -11631,7 +11674,7 @@ pub fn result_json(result: &IndexResult) -> String {
         .join(",");
 
     format!(
-        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"frameworkPostExtractUpdates\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustTraitImplEdgeWriteCounts\":{},\"rustTraitMethodReferenceEdgeWriteCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustCargoConditionSourceCounts\":{},\"rustCargoConditionalSemanticSuppressionCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
+        "{{\"type\":\"result\",\"success\":{},\"filesIndexed\":{},\"filesSkipped\":{},\"filesErrored\":{},\"nodesCreated\":{},\"edgesCreated\":{},\"errors\":[{}],\"durationMs\":{},\"profile\":{{\"sourceScanMs\":{},\"parseExtractionMs\":{},\"parseSourceReadMs\":{},\"parseNormalizationMs\":{},\"parseParserSetupMs\":{},\"parseTreeSitterMs\":{},\"parseAstExtractionMs\":{},\"parseErrorHandlingMs\":{},\"parseByLanguage\":{},\"parseAstWalker\":{},\"sqliteWriteMs\":{},\"importPathAliasResolutionMs\":{},\"importPathAliasResolvedRefs\":{},\"importPathAliasFallbackRefs\":{},\"importPathAliasBindingFallbackRefs\":{},\"importPathAliasUnsupportedFallbackRefs\":{},\"importPathAliasUnresolvedFallbackRefs\":{},\"importPathAliasResolvedBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{}}},\"importPathAliasFallbackBySource\":{{\"relative\":{},\"tsconfigPaths\":{},\"conventionalAlias\":{},\"workspacePackage\":{},\"rootDirs\":{},\"packageSelfName\":{},\"packageImports\":{},\"binding\":{},\"unsupported\":{},\"unresolved\":{}}},\"importPathAliasPackageSelfNameOutcomeCounts\":{},\"importPathAliasPackageImportsOutcomeCounts\":{},\"importPathAliasFallbackSampleCounts\":{},\"importPathAliasFallbackSamples\":{},\"importPathAliasFallbackSampleCap\":{},\"esmNamedImportExportResolutionMs\":{},\"esmNamedImportExportResolvedRefs\":{},\"esmNamedImportExportFallbackRefs\":{},\"esmOneHopReexportResolvedRefs\":{},\"esmNamedImportExportOverloadImplementationResolvedRefs\":{},\"esmNamedImportExportFallbackSampleCounts\":{},\"esmNamedImportExportFallbackSamples\":{},\"esmNamedImportExportFallbackSampleCap\":{},\"esmNamedImportExportEdgeWriteAttemptedRefs\":{},\"esmNamedImportExportEdgeWriteWrittenRefs\":{},\"esmNamedImportExportEdgeWriteSkippedRefs\":{},\"esmNamedImportExportEdgeWriteSkippedCounts\":{},\"esmNamedImportExportEdgeWriteSkippedSamples\":{},\"esmNamedImportExportEdgeWriteSkippedSampleCap\":{},\"moduleResolutionShadowDecisionRefs\":{},\"moduleResolutionShadowDecisionCounts\":{},\"moduleResolutionSemanticBoundaryCounts\":{},\"moduleResolutionShadowParityCounts\":{},\"moduleResolutionDeclarationTargetRelationshipCounts\":{},\"moduleResolutionDeclarationRuntimePairingDecisionCounts\":{},\"moduleResolutionShadowSamples\":{},\"moduleResolutionShadowSampleCap\":{},\"moduleResolutionEffectiveModeSource\":\"{}\",\"moduleResolutionGuardedEdgeWriteAttemptedRefs\":{},\"moduleResolutionGuardedEdgeWriteWrittenRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedRefs\":{},\"moduleResolutionGuardedEdgeWriteSkippedCounts\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteAttemptedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteWrittenRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedRefs\":{},\"moduleResolutionDeclarationRuntimeEdgeWriteSkippedCounts\":{},\"localExactReferenceResolutionMs\":{},\"localExactReferenceResolvedRefs\":{},\"localExactReferenceFallbackRefs\":{},\"cleanupProtocol\":{},\"frameworkPostExtractUpdates\":{},\"rustTraitImplTaxonomyCounts\":{},\"rustTraitImplEdgeWriteCounts\":{},\"rustTraitMethodReferenceEdgeWriteCounts\":{},\"rustCargoWorkspaceTaxonomyCounts\":{},\"rustCargoWorkspaceCrateCandidateCounts\":{},\"rustCargoConditionSourceCounts\":{},\"rustCargoConditionalSemanticSuppressionCounts\":{},\"rustMacroTaxonomyCounts\":{},\"rustAxumRouteTaxonomyCounts\":{},\"rustVisibilityTaxonomyCounts\":{},\"rustVisibilityGuardTaxonomyCounts\":{}}}}}",
         result.success,
         result.files_indexed,
         result.files_skipped,
@@ -11769,6 +11812,7 @@ pub fn result_json(result: &IndexResult) -> String {
         result.profile.local_exact_reference_resolution_ms,
         result.profile.local_exact_reference_resolved_refs,
         result.profile.local_exact_reference_fallback_refs,
+        cleanup_protocol_json(&result.profile.cleanup_protocol),
         framework_post_extract_updates_json(&result.profile.framework_post_extract_updates),
         fallback_sample_counts_json(&result.profile.rust_trait_impl_taxonomy_counts),
         fallback_sample_counts_json(&result.profile.rust_trait_impl_edge_write_counts),
@@ -15528,6 +15572,45 @@ mod tests {
         assert!(json.contains("\"declarationForm\":\"implementation\""));
         assert!(json.contains("\"metadataSource\":\"target-file-line-range-inference\""));
         assert!(!json.contains("return String"));
+    }
+
+    #[test]
+    fn result_json_emits_cleanup_protocol_declaration() {
+        let result = IndexResult {
+            success: true,
+            files_indexed: 0,
+            files_skipped: 0,
+            files_errored: 0,
+            nodes_created: 0,
+            edges_created: 0,
+            duration_ms: 1,
+            profile: IndexProfile::default(),
+            errors: Vec::new(),
+        };
+
+        let json: serde_json::Value = serde_json::from_str(&result_json(&result)).unwrap();
+
+        assert_eq!(json["profile"]["cleanupProtocol"]["version"], 1);
+        assert_eq!(
+            json["profile"]["cleanupProtocol"]["declaredCategories"],
+            serde_json::json!([
+                "resolved-terminal",
+                "intentionally-unresolved-terminal",
+                "retained-backlog"
+            ])
+        );
+        assert_eq!(
+            json["profile"]["cleanupProtocol"]["executor"],
+            "typescript-shell"
+        );
+        assert_eq!(
+            json["profile"]["cleanupProtocol"]["deletionMechanics"],
+            "typescript-rowid-range"
+        );
+        assert_eq!(
+            json["profile"]["cleanupProtocol"]["dbMaintenance"],
+            "out-of-scope"
+        );
     }
 
     #[test]

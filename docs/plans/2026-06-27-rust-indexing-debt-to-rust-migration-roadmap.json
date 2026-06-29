@@ -2410,17 +2410,48 @@
     "1-6-9": {
       "id": "1-6-9",
       "label": "Cleanup and DB maintenance Rust migration exploit candidate",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-6",
       "children": [],
-      "decisions": [],
-      "notes": "Source: 1-5-4-5 DB maintenance and unresolved cleanup residual boundary.\\n\\nCandidate meaning:\\n- Consider bounded migration of terminal cleanup or DB maintenance responsibilities only after semantics are pinned.\\n- Keep resolved terminal cleanup, intentionally unresolved terminal cleanup, retained unresolved_refs backlog, and SQLite maintenance checkpoint distinct.\\n\\nRequired guardrails before implementation:\\n- no unresolved_refs deletion semantics drift.\\n- retained backlog remains available for later semantic handling.\\n- terminal cleanup counters/profile fields remain stable.\\n- DB maintenance migration must not change product-shell maintenance semantics or SQLite health behavior."
+      "decisions": [
+        {
+          "q": "Which roadmap node should the forty-ninth cut enter?",
+          "answer": "A. Enter 1-6-9 Cleanup and DB maintenance Rust migration exploit candidate.",
+          "note": "After resolver semantic and framework postExtract migration slices plus the cross-platform CI smoke guardrail, the next bounded ownership tail is finalization cleanup/DB maintenance. Dynamic-dispatch remains higher Agent Sufficiency risk, and 1-6-4 still needs fresh resolver residual inventory before exploit."
+        },
+        {
+          "q": "Which cleanup/DB maintenance sub-surface should the forty-ninth cut target first?",
+          "answer": "A. Target terminal cleanup protocol/diagnostics parity first, and leave SQLite maintenance checkpoint out of this cut.",
+          "note": "Terminal cleanup has clearer semantic guardrails around resolved cleanup, intentionally unresolved cleanup, retained unresolved_refs backlog, and counters/profile taxonomy. SQLite maintenance is a DB lifecycle/platform-locking surface and should not be mixed into the same slice."
+        },
+        {
+          "q": "Should the forty-ninth cut migrate cleanup deletion mechanics or first add a Rust-owned cleanup contract handoff?",
+          "answer": "A. First add a Rust-owned cleanup contract handoff/diagnostics path; do not migrate deletion mechanics in this cut.",
+          "note": "Current TypeScript cleanup already owns resolved terminal deletion, intentionally unresolved deletion, retained backlog preservation, and rowid-range mechanics. Moving deletion into Rust would mix unresolved lifecycle, edge write, batching, rollback, and DB ownership. This cut should mirror prior typed-protocol migrations: Rust declares/claims the cleanup categories, TypeScript shell keeps executing the deletion path."
+        },
+        {
+          "q": "What profile shape should represent the cleanup contract handoff?",
+          "answer": "A. Extend the existing cleanupOwnership bucket instead of adding a parallel cleanupProtocol bucket.",
+          "note": "cleanupOwnership is already the public contract diagnostic. Extending it with owner/mode/protocol fields keeps one source of truth: Rust declares cleanup categories, TypeScript shell executes rowid-range deletion, retainedRefs remains a guardrail, and DB maintenance remains out of scope."
+        },
+        {
+          "q": "Should Rust core emit the cleanup protocol declaration, or should TypeScript infer it?",
+          "answer": "A. Rust core must emit a cleanup protocol declaration; the TypeScript shell switches cleanupOwnership to rust-core-protocol only when that declaration is present and valid.",
+          "note": "A TypeScript-only owner flip would be a wording change, not a handoff. Rust profile participation proves Rust core knows the terminal cleanup categories and boundary. TypeScript remains the validator/executor and fails closed to contract-only when the declaration is missing or invalid."
+        },
+        {
+          "q": "How should missing or invalid Rust cleanup protocol declarations behave?",
+          "answer": "A. Fail closed to typescript-finalization / contract-only, do not fail indexing, and record missing/invalid fallback diagnostics.",
+          "note": "The cleanup protocol handoff is an ownership diagnostic contract, not a graph-correctness requirement. Missing or invalid Rust declarations should preserve existing cleanup execution while making the fallback reason visible for future migration work."
+        }
+      ],
+      "notes": "Plan: docs/plans/2026-06-29-rust-cleanup-protocol-handoff-plan.md.\n\nCompleted issue: #663.\n\nForty-ninth cut implementation result:\n- Rust core emits cleanupProtocol in its index profile.\n- TypeScript finalization validates the Rust cleanup protocol declaration before reporting cleanup ownership as rust-core-protocol.\n- Valid declarations report cleanupOwnership.owner=rust-core-protocol and mode=rust-declared-typescript-executed.\n- Missing declarations fail closed with fallbackReason=missing-rust-cleanup-protocol.\n- Invalid declarations fail closed with fallbackReason=invalid-rust-cleanup-protocol.\n\nGuardrails preserved:\n- TypeScript still executes resolved and intentionally unresolved rowid-range cleanup.\n- Retained unresolved_refs backlog semantics are unchanged.\n- Cleanup counters continue to report resolved terminal refs, intentionally unresolved terminal refs, and retained refs.\n- rustCorePrecleanedRefs remains null because deletion did not move into Rust.\n- SQLite maintenance checkpoint behavior remains out of scope.\n- This is not full cleanup or DB maintenance migration."
     }
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-29 02:30:38",
+    "updated": "2026-06-29 11:33:39",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"
