@@ -1159,7 +1159,7 @@
     "1-6": {
       "id": "1-6",
       "label": "Next exploit slice candidate backlog",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1",
       "children": [
@@ -1225,12 +1225,43 @@
     "1-6-4": {
       "id": "1-6-4",
       "label": "Burn down one high-confidence TypeScript resolver residual",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-6",
       "children": [],
-      "decisions": [],
-      "notes": "Not implemented in this debt pass. First-cut inventory classified resolver/candidate-producer semantic routing as explore-first, not exploit-now."
+      "decisions": [
+        {
+          "q": "Where should the fifty-second cut go?",
+          "answer": "A. Enter 1-6-4 Burn down one high-confidence TypeScript resolver residual.",
+          "note": "This is the only incomplete node under 1-6. Dynamic-dispatch, framework post-extract, cleanup, CI, and bounded resolver semantic migration evidence have already landed, so the backlog should now close the remaining resolver residual candidate."
+        },
+        {
+          "q": "Which TypeScript resolver residual should this cut burn down?",
+          "answer": "A. Target the binding-level symbol disambiguation residual.",
+          "note": "The existing rust-hybrid finalization fallback taxonomy already reports this as reference-resolution / known-unsupported / binding-level-symbol-disambiguation-not-yet-rust-owned. That makes it a high-confidence resolver residual with a clear profile boundary and a direct Rust resolver ownership connection."
+        },
+        {
+          "q": "How deep should the binding-level symbol disambiguation cut go?",
+          "answer": "A. Implement a narrow exploit for Rust direct named import binding resolution in single-export/same-file-target cases, with guarded writes and fallback for everything else.",
+          "note": "The slice should genuinely burn down part of the binding-level fallback bucket rather than only improving taxonomy. Keep the boundary narrow: direct named imports with an already resolved file target and a unique value symbol target; ambiguous, re-export, type-only, default, and interop cases remain fallback."
+        },
+        {
+          "q": "What graph edge should the narrow binding exploit write?",
+          "answer": "A. Reuse the existing ESM named guarded edge-write semantics: write an imports edge from the source binding/import node to the target value symbol with edgeOrigin=rust-finalization.",
+          "note": "This keeps the slice aligned with existing esm-named-import-export-resolution diagnostics, boundary protocol stages, and guarded edge-write skip counts. It avoids introducing a new edge kind or a separate resolver vocabulary."
+        },
+        {
+          "q": "What validation bar should the binding-level residual exploit use?",
+          "answer": "A. Use bounded fixtures proving fallback bucket reduction, Rust finalization graph edge creation, and ambiguous-case fail-closed behavior.",
+          "note": "The positive fixture must show binding-level-symbol-disambiguation fallback decreasing while esmNamedImportExportResolvedRefs and edge-write counts rise, with a rust-finalization imports edge in the graph. The ambiguous fixture must not write an edge and must report an explicit skip/fallback reason. Graph stats should only change by the expected edge delta."
+        },
+        {
+          "q": "What did implementation confirm about the ESM named edge source?",
+          "answer": "Existing guarded ESM named semantics use the unresolved reference owner as the edge source; for current JS/TS extraction this is the source file node, not a new binding/import node.",
+          "note": "The slice preserves existing semantics and records the boundary in the plan outcome so future migration work does not infer a new edge shape."
+        }
+      ],
+      "notes": "Completed by issue #666. Direct named import binding residual is burned down for the bounded single-target case via existing Rust ESM named finalization semantics: positive fixtures prove guarded rust-finalization imports edge creation and final fallback taxonomy removal; ambiguous duplicate-candidate fixtures remain fail-closed with direct-export-candidate-multiple and visible binding residual. Boundary note: source is the existing unresolved-ref owner node, currently the source file node for JS/TS extraction."
     },
     "1-6-5": {
       "id": "1-6-5",
@@ -2546,7 +2577,7 @@
   },
   "metadata": {
     "created": "2026-06-27 16:46:36",
-    "updated": "2026-06-29 13:17:20",
+    "updated": "2026-06-29 13:42:32",
     "md_file": "docs/plans/2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.md"
   },
   "current": "1-1-2"

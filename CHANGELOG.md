@@ -11,6 +11,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New Features
 
+- `rust-hybrid` indexing now locks in guarded Rust finalization for direct named TypeScript and JavaScript imports, while ambiguous bindings remain safely reported as resolver residuals. (#666)
 - `rust-hybrid` indexing now compares Rust-produced EventEmitter shadow candidates against the existing TypeScript heuristic graph in finalization diagnostics without changing graph output. (#665)
 - `rust-hybrid` indexing now reports a dynamic-dispatch heuristic edge protocol seed in finalization diagnostics, making callback and EventEmitter migration planning visible without changing graph output. (#664)
 - `rust-hybrid` indexing now reports a Rust-declared cleanup protocol handoff in finalization diagnostics while keeping TypeScript responsible for the existing safe cleanup execution path. (#663)

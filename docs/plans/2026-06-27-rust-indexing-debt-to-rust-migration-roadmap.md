@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-29 13:17:20
+> 数据文件: `2026-06-27-rust-indexing-debt-to-rust-migration-roadmap.json` | 最后更新: 2026-06-29 13:42:32
 
 [~][X+] 1. Rust Indexing Debt To Rust Migration Roadmap
 ├── [x][X+] 1-1. Technical debt governance staging before migration resumes
@@ -35,11 +35,11 @@
 │   ├── [x][Y+] 1-5-4. Rust finalization and reference-resolution residuals
 │   ├── [ ][X+] 1-5-5. Non-Rust-owned language fallback boundary
 │   └── [ ][X+] 1-5-6. MCP Explore sufficiency guardrail trigger map
-├── [ ][Y+] 1-6. Next exploit slice candidate backlog
+├── [x][Y+] 1-6. Next exploit slice candidate backlog
 │   ├── [x][Y+] 1-6-1. Extract Rust core test helpers from lib.rs
 │   ├── [x][Y+] 1-6-2. Split temporary SQLite and fixture utilities
 │   ├── [x][Y+] 1-6-3. Consolidate TypeScript fallback taxonomy in status and doctor
-│   ├── [ ][Y+] 1-6-4. Burn down one high-confidence TypeScript resolver residual
+│   ├── [x][Y+] 1-6-4. Burn down one high-confidence TypeScript resolver residual
 │   ├── [x][Y+] 1-6-5. Add cross-platform CI smoke for migrated Rust indexing path
 │   ├── [x][Y+] 1-6-6. Bounded ReferenceResolver semantic migration exploit candidate
 │   ├── [x][Y+] 1-6-7. Framework post-extract Rust migration exploit candidate
