@@ -39,10 +39,10 @@ import {
   mergeMissingFallbackDiagnostics,
   mergeRustOwnedGapDiagnostics,
   planRustHybridAssignments,
-  rustHybridFallbackStateFor,
   RustOwnedPerFileGapDiagnostic,
 } from '../indexing/rust-hybrid-contract';
 import { createDiagnosticBundle, writeDiagnosticRunRecord } from '../diagnostics';
+import { buildRustHybridFallbackSummary, formatRustHybridFallbackDoctorHint } from '../diagnostics/fallback-summary';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
 import { relaunchWithWasmRuntimeFlagsIfNeeded } from '../extraction/wasm-runtime-flags';
@@ -758,34 +758,17 @@ function recordRustHybridFailure(
   });
 }
 
-function rustHybridFallbackDiagnosticSummary(result: IndexResult): {
-  fallbackFileCount: number;
-  fallbackReasonTaxonomy: Record<string, number>;
-} {
-  const profile = result.profile as RustIndexProfile | undefined;
-  const fallbackReasonTaxonomy: Record<string, number> = {};
-  const fallbackFileCount = profile?.typescriptFallbackAppend?.fallbackFileCount ?? 0;
-  if (fallbackFileCount > 0) {
-    fallbackReasonTaxonomy['language-level-typescript-fallback'] = fallbackFileCount;
-  }
-  for (const err of result.errors) {
-    if (err.severity === 'error') continue;
-    if (!err.code?.startsWith('rust-owned-')) continue;
-    fallbackReasonTaxonomy[err.code] = (fallbackReasonTaxonomy[err.code] ?? 0) + 1;
-  }
-  return { fallbackFileCount, fallbackReasonTaxonomy };
-}
-
 function printRustHybridDoctorHint(
   clack: typeof import('@clack/prompts'),
   result: IndexResult,
 ): void {
   if (!result.success) return;
-  const summary = rustHybridFallbackDiagnosticSummary(result);
-  if (rustHybridFallbackStateFor(summary.fallbackFileCount, summary.fallbackReasonTaxonomy) !== 'degraded') return;
-  clack.log.info('Indexed with rust-hybrid');
-  clack.log.warn('Fallback health: degraded');
-  clack.log.info('Run diagnostic bundle:\n  zcodegraph doctor --engine rust-hybrid --bundle --last-run');
+  const summary = buildRustHybridFallbackSummary(result);
+  const [indexedLine, healthLine, doctorLine] = formatRustHybridFallbackDoctorHint(summary);
+  if (!indexedLine || !healthLine || !doctorLine) return;
+  clack.log.info(indexedLine);
+  clack.log.warn(healthLine);
+  clack.log.info(doctorLine);
 }
 
 function printRustHybridFailureDoctorHint(): void {
