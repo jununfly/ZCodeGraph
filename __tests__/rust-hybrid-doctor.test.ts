@@ -123,6 +123,9 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
 
     const doctor = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-run']);
     expect(doctor.status, `stdout:\n${doctor.stdout}\nstderr:\n${doctor.stderr}`).toBe(0);
+    expect(doctor.stdout).toContain('Bundle summary: rust-hybrid last-run');
+    expect(doctor.stdout).toContain('Graph:');
+    expect(doctor.stdout).toContain('Fallback health: healthy');
     const bundleDir = path.resolve(tempDir, latestBundlePath(doctor.stdout));
     expect(fs.existsSync(path.join(bundleDir, 'manifest.json'))).toBe(true);
     expect(fs.existsSync(path.join(bundleDir, 'status.json'))).toBe(true);
@@ -158,6 +161,11 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
 
     const doctor = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-run']);
     expect(doctor.status, `stdout:\n${doctor.stdout}\nstderr:\n${doctor.stderr}`).toBe(0);
+    expect(doctor.stdout).toContain('Bundle summary: rust-hybrid last-run');
+    expect(doctor.stdout).toContain('Fallback health: degraded');
+    expect(doctor.stdout).toContain('The index is usable; fallback-degraded files or diagnostics are the only parts that need review.');
+    expect(doctor.stdout).toContain('Top fallback reasons:');
+    expect(doctor.stdout).toContain('1 Rust-owned files with extraction diagnostics');
     const bundleDir = path.resolve(tempDir, latestBundlePath(doctor.stdout));
 
     const status = readJson(path.join(bundleDir, 'status.json'));

@@ -41,7 +41,7 @@ import {
   planRustHybridAssignments,
   RustOwnedPerFileGapDiagnostic,
 } from '../indexing/rust-hybrid-contract';
-import { createDiagnosticBundle, writeDiagnosticRunRecord } from '../diagnostics';
+import { createDiagnosticBundle, formatDiagnosticBundleSummary, writeDiagnosticRunRecord } from '../diagnostics';
 import { buildRustHybridFallbackSummary, formatRustHybridFallbackDoctorHint } from '../diagnostics/fallback-summary';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
@@ -1311,6 +1311,9 @@ program
       });
       success('Created diagnostic bundle:');
       console.log(bundlePath);
+      for (const line of formatDiagnosticBundleSummary(projectPath, bundlePath)) {
+        console.log(line);
+      }
     } catch (err) {
       error(err instanceof Error ? err.message : String(err));
       process.exit(1);

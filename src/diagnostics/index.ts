@@ -5,6 +5,10 @@ import * as path from 'path';
 import { CodeGraph } from '../index';
 import { scanDirectory, detectLanguage } from '../extraction';
 import { isGeneratedFile } from '../extraction/generated-detection';
+import {
+  buildRustHybridFallbackSummary,
+  formatRustHybridFallbackHealthLines,
+} from './fallback-summary';
 
 export type DiagnosticRecordKind = 'last-run' | 'last-failure';
 
@@ -392,4 +396,83 @@ export function createDiagnosticBundle(projectRoot: string, options: {
   ].join('\n'));
 
   return relativeBundleDir;
+}
+
+function readBundleJson(bundleDir: string, fileName: string): unknown {
+  return JSON.parse(fs.readFileSync(path.join(bundleDir, fileName), 'utf-8'));
+}
+
+function graphStatsLine(graphStats: unknown): string | null {
+  const stats = graphStats as {
+    available?: boolean;
+    fileCount?: number;
+    nodeCount?: number;
+    edgeCount?: number;
+    unavailableReason?: string;
+  };
+  if (stats.available === false) {
+    return `Graph stats unavailable: ${stats.unavailableReason ?? 'unknown'}`;
+  }
+  const values = [
+    typeof stats.fileCount === 'number' ? `${stats.fileCount} files` : null,
+    typeof stats.nodeCount === 'number' ? `${stats.nodeCount} nodes` : null,
+    typeof stats.edgeCount === 'number' ? `${stats.edgeCount} edges` : null,
+  ].filter((value): value is string => value !== null);
+  return values.length > 0 ? `Graph: ${values.join(', ')}` : null;
+}
+
+export function formatDiagnosticBundleSummary(projectRoot: string, relativeBundleDir: string): string[] {
+  const bundleDir = path.join(projectRoot, relativeBundleDir);
+  const manifest = readBundleJson(bundleDir, 'manifest.json') as {
+    source?: string;
+    engine?: string;
+    recordKind?: string;
+  };
+  const graphStats = readBundleJson(bundleDir, 'graph-stats.json');
+  const perFile = readBundleJson(bundleDir, 'per-file-diagnostics.json') as {
+    classification?: {
+      aggregateTaxonomy?: {
+        fallbackState?: string | null;
+        fallbackFileCount?: number | null;
+        fallbackReasonTaxonomy?: Record<string, number>;
+        missingFallbackFileCount?: number | null;
+        missingFallbackByLanguage?: Record<string, number>;
+      } | null;
+    };
+    errors?: Array<{ severity?: string; code?: string }>;
+  };
+
+  const lines = [
+    `Bundle summary: ${manifest.engine ?? 'unknown'} ${manifest.source ?? manifest.recordKind ?? 'diagnostic'}`,
+  ];
+  const graphLine = graphStatsLine(graphStats);
+  if (graphLine) lines.push(graphLine);
+
+  const aggregateTaxonomy = perFile.classification?.aggregateTaxonomy;
+  if (!aggregateTaxonomy) return lines;
+
+  const fallbackReasonTaxonomy = aggregateTaxonomy.fallbackReasonTaxonomy ?? {};
+  const fallbackSummary = buildRustHybridFallbackSummary({
+    success: true,
+    errors: [],
+    profile: {
+      typescriptFallbackAppend: {
+        fallbackFileCount: aggregateTaxonomy.fallbackFileCount ?? 0,
+        missingFallbackFileCount: aggregateTaxonomy.missingFallbackFileCount ?? 0,
+        missingFallbackByLanguage: aggregateTaxonomy.missingFallbackByLanguage ?? {},
+      },
+    },
+  });
+  fallbackSummary.fallbackReasonTaxonomy = fallbackReasonTaxonomy;
+  fallbackSummary.topFallbackReasons = Object.entries(fallbackReasonTaxonomy)
+    .map(([code, count]) => ({ code, count }))
+    .sort((left, right) => right.count - left.count || left.code.localeCompare(right.code));
+  fallbackSummary.fallbackState = aggregateTaxonomy.fallbackState === 'degraded'
+    ? 'degraded'
+    : fallbackSummary.fallbackState;
+  if (fallbackSummary.fallbackState === 'degraded') {
+    fallbackSummary.graphUsabilityMessage = 'The index is usable; fallback-degraded files or diagnostics are the only parts that need review.';
+  }
+  lines.push(...formatRustHybridFallbackHealthLines(fallbackSummary));
+  return lines;
 }

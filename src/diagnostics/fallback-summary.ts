@@ -90,19 +90,26 @@ function formatReasonCount(reason: RustHybridFallbackReasonCount): string {
   return `${reason.count} ${FALLBACK_REASON_LABELS[reason.code] ?? reason.code}`;
 }
 
-export function formatRustHybridFallbackDoctorHint(
-  summary: RustHybridFallbackSummary,
-  doctorCommand = 'zcodegraph doctor --engine rust-hybrid --bundle --last-run',
-): string[] {
-  if (summary.fallbackState !== 'degraded') return [];
+export function formatRustHybridFallbackHealthLines(summary: RustHybridFallbackSummary): string[] {
+  if (summary.fallbackState !== 'degraded') return ['Fallback health: healthy'];
   const reasons = summary.topFallbackReasons.slice(0, 3).map(formatReasonCount);
   const reasonBlock = reasons.length > 0
     ? `Top fallback reasons:\n${reasons.map((reason) => `  ${reason}`).join('\n')}`
     : 'Top fallback reasons: unavailable';
   return [
-    'Indexed with rust-hybrid',
     'Fallback health: degraded',
     `${summary.graphUsabilityMessage}\n${reasonBlock}`,
+  ];
+}
+
+export function formatRustHybridFallbackDoctorHint(
+  summary: RustHybridFallbackSummary,
+  doctorCommand = 'zcodegraph doctor --engine rust-hybrid --bundle --last-run',
+): string[] {
+  if (summary.fallbackState !== 'degraded') return [];
+  return [
+    'Indexed with rust-hybrid',
+    ...formatRustHybridFallbackHealthLines(summary),
     `Run diagnostic bundle:\n  ${doctorCommand}`,
   ];
 }

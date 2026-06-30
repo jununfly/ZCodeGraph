@@ -83,12 +83,18 @@
     "1-3": {
       "id": "1-3",
       "label": "Doctor bundle compact diagnostic summary",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1",
       "children": [],
-      "decisions": [],
-      "notes": "P1 second after first-screen fallback explanation. Goal: after doctor --bundle --last-run, print compact local summary from the bundle/record instead of only the path."
+      "decisions": [
+        {
+          "q": "第 9 刀的 doctor bundle 摘要是否只做 CLI 生成后输出，不改 bundle schema？",
+          "answer": "是。bundle 已经包含 status、graph-stats、per-file taxonomy；本刀只新增读取已生成 bundle 的 compact summary formatter，并在 doctor 成功后打印。",
+          "note": "Scope: no source paths, no source slices, no schema migration; summary includes bundle source/engine, graph stats, fallback health, and top taxonomy reasons."
+        }
+      ],
+      "notes": "第 9 刀完成：doctor --bundle 成功后打印 compact local summary，包含 engine/source、graph stats、fallback health 和 top fallback taxonomy reasons；不改变 bundle schema，不包含源码路径或源码片段。"
     },
     "1-4": {
       "id": "1-4",
@@ -342,7 +348,7 @@
   },
   "metadata": {
     "created": "2026-06-29 17:22:21",
-    "updated": "2026-06-29 23:04:17",
+    "updated": "2026-06-30 11:17:30",
     "md_file": "docs/plans/2026-06-29-issue-668-next-version-roadmap.md"
   }
 }

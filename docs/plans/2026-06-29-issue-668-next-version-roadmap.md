@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-06-29-issue-668-next-version-roadmap.json` | 最后更新: 2026-06-29 23:04:17
+> 数据文件: `2026-06-29-issue-668-next-version-roadmap.json` | 最后更新: 2026-06-30 11:17:30
 
 [~][Y+] 1. Issue #668 下个版本产品路线图
 ├── [x][X+] 1-1. Dogfood and release channel isolation
@@ -10,7 +10,7 @@
 │   ├── [x][Y+] 1-1-3. Repository automation uses zcodegraph-dev channel
 │   └── [x][Y+] 1-1-4. Dogfood channel tests and release notes
 ├── [ ][X+] 1-2. Stable non-interactive command output
-├── [ ][Y+] 1-3. Doctor bundle compact diagnostic summary
+├── [x][Y+] 1-3. Doctor bundle compact diagnostic summary
 └── [x][Y+] 1-4. Degraded fallback health first-screen explanation
     ├── [x][Y+] 1-4-1. Fallback summary data contract
     ├── [x][Y+] 1-4-2. Init and index degraded health message
@@ -29,7 +29,7 @@ Confirmed scope: next version is a Recovery + Explainability patch release. Excl
 ├── [x][X+] 1-1. Dogfood and release channel isolation
 │   ... 4 more child nodes; run tree 1-1 --depth 2 for full view
 ├── [ ][X+] 1-2. Stable non-interactive command output
-├── [ ][Y+] 1-3. Doctor bundle compact diagnostic summary
+├── [x][Y+] 1-3. Doctor bundle compact diagnostic summary
 └── [x][Y+] 1-4. Degraded fallback health first-screen explanation
     ... 3 more child nodes; run tree 1-4 --depth 2 for full view
 <!-- ROADMAP_SECTION_END -->
