@@ -82,6 +82,26 @@ export interface DiagnosticRecordInput {
 
 export type DiagnosticBundleSource = 'last-run' | 'last-failure';
 
+export interface DiagnosticBundleCompactSummary {
+  engine: string;
+  source: string;
+  lines: string[];
+  graph: {
+    available: boolean;
+    fileCount: number | null;
+    nodeCount: number | null;
+    edgeCount: number | null;
+    unavailableReason?: string;
+  };
+  fallback: {
+    state: string | null;
+    fileCount: number | null;
+    missingFileCount: number | null;
+    reasonTaxonomy: Record<string, number>;
+    topReasons: Array<{ code: string; count: number }>;
+  } | null;
+}
+
 export function diagnosticsDir(projectRoot: string): string {
   return path.join(projectRoot, '.zcodegraph', 'diagnostics');
 }
@@ -402,7 +422,7 @@ function readBundleJson(bundleDir: string, fileName: string): unknown {
   return JSON.parse(fs.readFileSync(path.join(bundleDir, fileName), 'utf-8'));
 }
 
-function graphStatsLine(graphStats: unknown): string | null {
+function graphStatsSummary(graphStats: unknown): DiagnosticBundleCompactSummary['graph'] {
   const stats = graphStats as {
     available?: boolean;
     fileCount?: number;
@@ -411,17 +431,35 @@ function graphStatsLine(graphStats: unknown): string | null {
     unavailableReason?: string;
   };
   if (stats.available === false) {
-    return `Graph stats unavailable: ${stats.unavailableReason ?? 'unknown'}`;
+    return {
+      available: false,
+      fileCount: null,
+      nodeCount: null,
+      edgeCount: null,
+      unavailableReason: stats.unavailableReason ?? 'unknown',
+    };
+  }
+  return {
+    available: true,
+    fileCount: typeof stats.fileCount === 'number' ? stats.fileCount : null,
+    nodeCount: typeof stats.nodeCount === 'number' ? stats.nodeCount : null,
+    edgeCount: typeof stats.edgeCount === 'number' ? stats.edgeCount : null,
+  };
+}
+
+function graphStatsLine(summary: DiagnosticBundleCompactSummary['graph']): string | null {
+  if (!summary.available) {
+    return `Graph stats unavailable: ${summary.unavailableReason ?? 'unknown'}`;
   }
   const values = [
-    typeof stats.fileCount === 'number' ? `${stats.fileCount} files` : null,
-    typeof stats.nodeCount === 'number' ? `${stats.nodeCount} nodes` : null,
-    typeof stats.edgeCount === 'number' ? `${stats.edgeCount} edges` : null,
+    typeof summary.fileCount === 'number' ? `${summary.fileCount} files` : null,
+    typeof summary.nodeCount === 'number' ? `${summary.nodeCount} nodes` : null,
+    typeof summary.edgeCount === 'number' ? `${summary.edgeCount} edges` : null,
   ].filter((value): value is string => value !== null);
   return values.length > 0 ? `Graph: ${values.join(', ')}` : null;
 }
 
-export function formatDiagnosticBundleSummary(projectRoot: string, relativeBundleDir: string): string[] {
+export function buildDiagnosticBundleSummary(projectRoot: string, relativeBundleDir: string): DiagnosticBundleCompactSummary {
   const bundleDir = path.join(projectRoot, relativeBundleDir);
   const manifest = readBundleJson(bundleDir, 'manifest.json') as {
     source?: string;
@@ -442,14 +480,25 @@ export function formatDiagnosticBundleSummary(projectRoot: string, relativeBundl
     errors?: Array<{ severity?: string; code?: string }>;
   };
 
+  const engine = manifest.engine ?? 'unknown';
+  const source = manifest.source ?? manifest.recordKind ?? 'diagnostic';
+  const graph = graphStatsSummary(graphStats);
   const lines = [
-    `Bundle summary: ${manifest.engine ?? 'unknown'} ${manifest.source ?? manifest.recordKind ?? 'diagnostic'}`,
+    `Bundle summary: ${engine} ${source}`,
   ];
-  const graphLine = graphStatsLine(graphStats);
+  const graphLine = graphStatsLine(graph);
   if (graphLine) lines.push(graphLine);
 
   const aggregateTaxonomy = perFile.classification?.aggregateTaxonomy;
-  if (!aggregateTaxonomy) return lines;
+  if (!aggregateTaxonomy) {
+    return {
+      engine,
+      source,
+      lines,
+      graph,
+      fallback: null,
+    };
+  }
 
   const fallbackReasonTaxonomy = aggregateTaxonomy.fallbackReasonTaxonomy ?? {};
   const fallbackSummary = buildRustHybridFallbackSummary({
@@ -474,5 +523,21 @@ export function formatDiagnosticBundleSummary(projectRoot: string, relativeBundl
     fallbackSummary.graphUsabilityMessage = 'The index is usable; fallback-degraded files or diagnostics are the only parts that need review.';
   }
   lines.push(...formatRustHybridFallbackHealthLines(fallbackSummary));
-  return lines;
+  return {
+    engine,
+    source,
+    lines,
+    graph,
+    fallback: {
+      state: fallbackSummary.fallbackState,
+      fileCount: aggregateTaxonomy.fallbackFileCount ?? null,
+      missingFileCount: aggregateTaxonomy.missingFallbackFileCount ?? null,
+      reasonTaxonomy: fallbackReasonTaxonomy,
+      topReasons: fallbackSummary.topFallbackReasons,
+    },
+  };
+}
+
+export function formatDiagnosticBundleSummary(projectRoot: string, relativeBundleDir: string): string[] {
+  return buildDiagnosticBundleSummary(projectRoot, relativeBundleDir).lines;
 }

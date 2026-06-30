@@ -151,6 +151,46 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     expect(bundleText).not.toContain(tempDir);
   }, 30_000);
 
+  it('prints a parseable machine-readable doctor bundle summary with --json', () => {
+    fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
+
+    const index = runCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
+
+    const doctor = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-run', '--json']);
+    expect(doctor.status, `stdout:\n${doctor.stdout}\nstderr:\n${doctor.stderr}`).toBe(0);
+    expect(doctor.stdout).not.toContain('Created diagnostic bundle');
+    const parsed = JSON.parse(doctor.stdout) as {
+      bundlePath: string;
+      summary: {
+        engine: string;
+        source: string;
+        lines: string[];
+        graph: { available: boolean; fileCount: number | null; nodeCount: number | null; edgeCount: number | null };
+        fallback: { state: string | null; reasonTaxonomy: Record<string, number>; topReasons: Array<{ code: string; count: number }> } | null;
+      };
+    };
+    expect(parsed.bundlePath).toContain('.zcodegraph/diagnostics/bundles/');
+    expect(parsed.summary).toMatchObject({
+      engine: 'rust-hybrid',
+      source: 'last-run',
+      graph: {
+        available: true,
+        fileCount: expect.any(Number),
+        nodeCount: expect.any(Number),
+        edgeCount: expect.any(Number),
+      },
+      fallback: {
+        state: 'healthy',
+        reasonTaxonomy: {},
+        topReasons: [],
+      },
+    });
+    expect(parsed.summary.lines).toContain('Fallback health: healthy');
+  }, 30_000);
+
   it('includes Rust-owned per-file fallback taxonomy in the doctor last-run bundle', () => {
     const rustCore = writeFakeRustCoreWithPerFileGap(tempDir, 'a.ts');
 

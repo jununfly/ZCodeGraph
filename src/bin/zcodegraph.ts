@@ -41,7 +41,7 @@ import {
   planRustHybridAssignments,
   RustOwnedPerFileGapDiagnostic,
 } from '../indexing/rust-hybrid-contract';
-import { createDiagnosticBundle, formatDiagnosticBundleSummary, writeDiagnosticRunRecord } from '../diagnostics';
+import { buildDiagnosticBundleSummary, createDiagnosticBundle, writeDiagnosticRunRecord } from '../diagnostics';
 import { buildRustHybridFallbackSummary, formatRustHybridFallbackDoctorHint } from '../diagnostics/fallback-summary';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
@@ -1284,7 +1284,8 @@ program
   .option('--last-run', 'Bundle the last completed run')
   .option('--last-failure', 'Bundle the last failed run')
   .option('--include-source-slice', 'Unsupported in diagnostic bundle v1')
-  .action((pathArg: string | undefined, options: { engine?: string; bundle?: boolean; lastRun?: boolean; lastFailure?: boolean; includeSourceSlice?: boolean }) => {
+  .option('-j, --json', 'Output a machine-readable bundle summary')
+  .action((pathArg: string | undefined, options: { engine?: string; bundle?: boolean; lastRun?: boolean; lastFailure?: boolean; includeSourceSlice?: boolean; json?: boolean }) => {
     const projectPath = resolveProjectPath(pathArg);
     try {
       if (options.includeSourceSlice) {
@@ -1309,9 +1310,17 @@ program
         source,
         version: packageJson.version,
       });
+      const summary = buildDiagnosticBundleSummary(projectPath, bundlePath);
+      if (options.json) {
+        console.log(JSON.stringify({
+          bundlePath,
+          summary,
+        }));
+        return;
+      }
       success('Created diagnostic bundle:');
       console.log(bundlePath);
-      for (const line of formatDiagnosticBundleSummary(projectPath, bundlePath)) {
+      for (const line of summary.lines) {
         console.log(line);
       }
     } catch (err) {

@@ -6,7 +6,7 @@
     "1": {
       "id": "1",
       "label": "Issue #668 下个版本产品路线图",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": null,
       "children": [
@@ -73,12 +73,18 @@
     "1-2": {
       "id": "1-2",
       "label": "Stable non-interactive command output",
-      "status": "pending",
-      "mode": "explore",
+      "status": "completed",
+      "mode": "exploit",
       "parent": "1",
       "children": [],
-      "decisions": [],
-      "notes": "P1 third / possible P2. Stable --plain/--json is valuable for agents and CI but crosscuts CLI output architecture, so defer until fallback and doctor summaries settle the diagnostic content model."
+      "decisions": [
+        {
+          "q": "第 10 刀是否先做 doctor --bundle --json，而不是全 CLI 输出架构？",
+          "answer": "是。先把 doctor bundle summary 的机器可读输出稳定下来，作为 non-interactive 输出的 tracer bullet。",
+          "note": "Scope: add --json only to doctor --bundle; preserve default human output; JSON must be parseable stdout with no chalk/prose prefix; include bundlePath and compact summary fields."
+        }
+      ],
+      "notes": "第 10 刀完成：为 doctor --bundle 增加 --json 机器可读输出，stdout 为可直接 JSON.parse 的对象，包含 bundlePath 和 compact summary；默认人类输出保持不变。"
     },
     "1-3": {
       "id": "1-3",
@@ -348,7 +354,7 @@
   },
   "metadata": {
     "created": "2026-06-29 17:22:21",
-    "updated": "2026-06-30 11:17:30",
+    "updated": "2026-06-30 11:25:20",
     "md_file": "docs/plans/2026-06-29-issue-668-next-version-roadmap.md"
   }
 }
