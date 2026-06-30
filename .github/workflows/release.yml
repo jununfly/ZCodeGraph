@@ -217,7 +217,11 @@ jobs:
 
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PAT || github.token }}
+          # Use the workflow token for Releases API calls. RELEASE_PAT is only
+          # needed for git pushes that must bypass the main-branch ruleset; a
+          # fine-grained PAT without release access would make `gh release`
+          # fail with "Resource not accessible by personal access token".
+          GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ steps.ver.outputs.version }}"
           # Idempotent: create the release once, otherwise (re-run) refresh assets.
