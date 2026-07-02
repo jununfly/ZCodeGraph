@@ -26,6 +26,16 @@
           "q": "Python 支持目标如何收敛？",
           "answer": "不是重复注册 Python；当前主干已有 baseline Rust-owned Python。目标收敛为补齐 Python extractor 的实用语义覆盖，并用中等 GitHub Python 项目提供真实 corpus 验证。",
           "note": "历史 docs/benchmarks/2026-06-24-current-state-decision-pack.md 仍标注 Python real-corpus evidence/open sufficiency boundary。"
+        },
+        {
+          "q": "pattern 源文件以哪里为准？",
+          "answer": "用户指定以 /Users/bilibili/Documents/workspace/github/jununfly/ZAgenticLoop/patterns/ 为准；当前检查该目录尚无 roadmap-sliced-development-pattern.md 或 registry entry，因此本轮继续执行已读取的同名设计文档约束，并在后续 patterns 副本出现时切换。",
+          "note": "检查时间：2026-07-02；patterns/ 当前包含 pr-babysitter、daily-triage、issue-triage、ci-sweeper、post-merge-cleanup、dependency-sweeper、changelog-drafter。"
+        },
+        {
+          "q": "pattern 源文件更正",
+          "answer": "更正：用户确认同名 pattern 副本位于 /Users/bilibili/Documents/workspace/github/jununfly/ZAgenticLoop/docs/designs/，本轮继续以该文件为准。",
+          "note": "此前检查 patterns/ 是误判；已纠正，不影响已执行的 branch/leaf gate/commit intent/closeout 约束。"
         }
       ],
       "notes": ""
@@ -49,22 +59,22 @@
     "1-2": {
       "id": "1-2",
       "label": "Rust extractor Python 语法与符号覆盖",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": "Gate passed. Implemented Rust-owned Python decorator refs for decorated functions/classes/methods and allowed same-file exact finalization to consider Python decorates refs. Verification: cargo test -p zcodegraph-core rust_index_emits_python_decorator_refs_for_local_decorators; cargo build -p zcodegraph-core; npm run build; npx vitest run __tests__/rust-index-engine-cli-language-smoke.test.ts -t 'indexes Python as Rust-owned under rust-hybrid'."
+    },
+    "1-3": {
+      "id": "1-3",
+      "label": "CLI 与 SQLite 合同验证",
       "status": "in_progress",
       "mode": "exploit",
       "parent": "1",
       "children": [],
       "decisions": [],
-      "notes": "Gate: add focused Rust core Python fixture coverage for decorated/async definitions, method containment, imports, calls, and SQLite graph facts. Commit intent: feat: strengthen rust-owned python extraction."
-    },
-    "1-3": {
-      "id": "1-3",
-      "label": "CLI 与 SQLite 合同验证",
-      "status": "pending",
-      "mode": "exploit",
-      "parent": "1",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "notes": "Gate: verify the Rust-owned Python decorator contract through CLI/SQLite metadata and decide whether extra status/profile assertions are needed. Commit intent: test: cover rust-owned python decorator graph contract."
     },
     "1-4": {
       "id": "1-4",
@@ -89,7 +99,7 @@
   },
   "metadata": {
     "created": "2026-07-02 23:13:44",
-    "updated": "2026-07-02 23:17:05",
+    "updated": "2026-07-02 23:32:25",
     "md_file": "docs/plans/2026-07-02-rust-owned-python-support-roadmap.md"
   }
 }

@@ -2473,7 +2473,7 @@ fn resolve_js_ts_file_imports(
     for reference in refs {
         if !matches!(
             reference.language.as_str(),
-            "javascript" | "jsx" | "typescript" | "tsx"
+            "javascript" | "jsx" | "typescript" | "tsx" | "python"
         ) {
             continue;
         }
@@ -6896,7 +6896,7 @@ fn load_local_callable_refs(conn: &Connection) -> rusqlite::Result<Vec<LocalRefR
     let mut stmt = conn.prepare(
         "SELECT id, from_node_id, reference_name, reference_kind, line, col, file_path, language
          FROM unresolved_refs
-         WHERE reference_kind IN ('calls', 'instantiates')
+         WHERE reference_kind IN ('calls', 'instantiates', 'decorates')
          ORDER BY id",
     )?;
     let rows = stmt.query_map([], |row| {
@@ -8622,6 +8622,13 @@ fn visit_python_node(
         current_from_node_id,
         unresolved_refs,
     )?;
+    extract_python_decorator_refs(
+        node,
+        source,
+        relative_path,
+        current_class_name,
+        unresolved_refs,
+    )?;
 
     if cursor.goto_first_child() {
         loop {
@@ -8674,6 +8681,50 @@ fn extract_python_statement_refs(
     Ok(())
 }
 
+fn extract_python_decorator_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    current_class_name: Option<&str>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "decorator" {
+        return Ok(());
+    }
+    let Some(decorated_definition) = node.parent() else {
+        return Ok(());
+    };
+    if decorated_definition.kind() != "decorated_definition" {
+        return Ok(());
+    }
+    let Some(definition_node) = decorated_definition
+        .named_children(&mut decorated_definition.walk())
+        .find(|child| matches!(child.kind(), "class_definition" | "function_definition"))
+    else {
+        return Ok(());
+    };
+    let Some((kind, name, _)) =
+        extract_python_named_symbol(definition_node, source, current_class_name)?
+    else {
+        return Ok(());
+    };
+    let Some(reference_name) = python_decorator_reference_name(node, source)? else {
+        return Ok(());
+    };
+    let start = definition_node.start_position();
+    let from_node_id = generate_node_id(relative_path, kind, &name, (start.row + 1) as i64);
+    push_ref(
+        unresolved_refs,
+        &from_node_id,
+        &reference_name,
+        "decorates",
+        node,
+        relative_path,
+        SourceLanguage::Python,
+    );
+    Ok(())
+}
+
 fn python_call_reference_name(
     node: SyntaxNode,
     source: &[u8],
@@ -8682,6 +8733,22 @@ fn python_call_reference_name(
         "identifier" | "attribute" => Ok(Some(node.utf8_text(source)?.to_string())),
         _ => Ok(None),
     }
+}
+
+fn python_decorator_reference_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let text = node.utf8_text(source)?.trim();
+    let Some(rest) = text.strip_prefix('@') else {
+        return Ok(None);
+    };
+    let reference = rest
+        .split_once('(')
+        .map(|(name, _)| name)
+        .unwrap_or(rest)
+        .trim();
+    Ok((!reference.is_empty()).then(|| reference.to_string()))
 }
 
 fn extract_python_named_symbol<'a>(
@@ -12838,6 +12905,66 @@ mod tests {
         assert_eq!(call_refs, vec!["helper", "os.getcwd"]);
 
         drop(stmt);
+        drop(conn);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_index_emits_python_decorator_refs_for_local_decorators() {
+        let dir = temp_dir("python-decorators");
+        write_file(
+            &dir,
+            "app.py",
+            [
+                "def route(path):",
+                "    def wrap(fn):",
+                "        return fn",
+                "    return wrap",
+                "",
+                "@route('/users')",
+                "def list_users():",
+                "    return []",
+                "",
+                "class Service:",
+                "    @staticmethod",
+                "    @route('/health')",
+                "    def health():",
+                "        return 'ok'",
+                "",
+            ]
+            .join("\n")
+            .as_str(),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 1);
+        assert_eq!(result.files_errored, 0);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let decorator_refs: Vec<(String, String)> = conn
+            .prepare(
+                "SELECT source.name, unresolved_refs.reference_name
+                 FROM unresolved_refs
+                 JOIN nodes source ON source.id = unresolved_refs.from_node_id
+                 WHERE unresolved_refs.reference_kind = 'decorates'
+                 ORDER BY source.name, unresolved_refs.reference_name",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(decorator_refs.contains(&("list_users".to_string(), "route".to_string())));
+        assert!(decorator_refs.contains(&("Service.health".to_string(), "route".to_string())));
+        assert!(
+            decorator_refs.contains(&("Service.health".to_string(), "staticmethod".to_string()))
+        );
+
         drop(conn);
         cleanup_temp_dir(dir);
     }
