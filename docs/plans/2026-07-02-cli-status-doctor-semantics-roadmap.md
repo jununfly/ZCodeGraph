@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-07-02-cli-status-doctor-semantics-roadmap.json` | 最后更新: 2026-07-02 18:25:23
+> 数据文件: `2026-07-02-cli-status-doctor-semantics-roadmap.json` | 最后更新: 2026-07-02 18:27:35
 
 [~][X+] 1. CLI/status/doctor 语义统一
 ├── [x][X+] 1-1. 统一诊断语义契约
@@ -11,8 +11,8 @@
 ├── [ ][X+] 1-3. doctor命令诊断入口收敛
 │   ├── [x][X+] 1-3-1. doctor命令来源选择提示
 │   └── [ ][X+] 1-3-2. corrupted诊断bundle后续版本
-├── [ ][X+] 1-4. 本地验证与公开文档同步
-│   └── [ ][X+] 1-4-1. 公开文档健康词汇同步
+├── [x][X+] 1-4. 本地验证与公开文档同步
+│   └── [x][X+] 1-4-1. 公开文档健康词汇同步
 └── [ ][X+] 1-5. 过程决策收束与closeout
 
 ### 当前施工：1. CLI/status/doctor 语义统一
@@ -29,7 +29,7 @@
 │   ... 1 more child nodes; run tree 1-2 --depth 2 for full view
 ├── [ ][X+] 1-3. doctor命令诊断入口收敛
 │   ... 2 more child nodes; run tree 1-3 --depth 2 for full view
-├── [ ][X+] 1-4. 本地验证与公开文档同步
+├── [x][X+] 1-4. 本地验证与公开文档同步
 │   ... 1 more child nodes; run tree 1-4 --depth 2 for full view
 └── [ ][X+] 1-5. 过程决策收束与closeout
 <!-- ROADMAP_SECTION_END -->

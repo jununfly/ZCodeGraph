@@ -97,7 +97,7 @@
     "1-4": {
       "id": "1-4",
       "label": "本地验证与公开文档同步",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -155,12 +155,12 @@
     "1-4-1": {
       "id": "1-4-1",
       "label": "公开文档健康词汇同步",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4",
       "children": [],
       "decisions": [],
-      "notes": "Commit intent: update README/troubleshooting/changelog wording so users learn one health vocabulary across status, init/index, and doctor. Gate: git diff --check plus targeted text scan for old conflicting terminology."
+      "notes": "Commit intent: update README/troubleshooting/changelog wording so users learn one health vocabulary across status, init/index, and doctor. Gate: git diff --check plus targeted text scan for old conflicting terminology. Evidence: git diff --check passed; rg scan confirmed healthy/degraded/stale/failed/unavailable/corrupted appears in README troubleshooting and CHANGELOG. README now frames zcodegraph status as the graph trust check."
     },
     "1-3-2": {
       "id": "1-3-2",
@@ -181,7 +181,7 @@
   },
   "metadata": {
     "created": "2026-07-02 17:47:15",
-    "updated": "2026-07-02 18:25:23",
+    "updated": "2026-07-02 18:27:35",
     "md_file": "docs/plans/2026-07-02-cli-status-doctor-semantics-roadmap.md"
   }
 }

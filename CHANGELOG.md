@@ -11,7 +11,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New Features
 
-- `zcodegraph status --json` now reports a shared graph health summary, so scripts can distinguish healthy, degraded, stale, failed, unavailable, and corrupted indexes with exact next-step commands.
+- `zcodegraph status` and `zcodegraph doctor` now share graph health language, so users and scripts can distinguish healthy, degraded, stale, failed, unavailable, and corrupted indexes with exact next-step commands.
 
 ## [0.10.2] - 2026-06-30
 
