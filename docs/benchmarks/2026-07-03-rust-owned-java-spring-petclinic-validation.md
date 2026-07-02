@@ -25,7 +25,7 @@ node /Users/bilibili/Documents/workspace/github/jununfly/ZCodeGraph/dist/bin/zco
 ## Result
 
 - Indexed files: 72
-- Nodes: 989
+- Nodes: 992
 - Edges: 1,656
 - Languages: `java`, `properties`, `xml`, `yaml`
 - Rust-owned languages included `java`.
