@@ -37,10 +37,10 @@ Use these before reading older evidence:
 
 - `docs/prds/2026-06-18-rust-hybrid-first-user-release.md`
 - `docs/prds/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
-- `docs/plans/2026-06-24-rust-indexing-ts-replacement-readiness-consolidated-plan.md`
-- `docs/plans/2026-06-24-rust-indexing-core-consolidated-plans.md`
+- `docs/designs/plan-artifact-consolidated-closeout.md`
 - `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
+- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 - `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 - `docs/zj-adr/ZJ-0001-agent-sufficiency-as-architecture-north-star.md`
 - `docs/zj-adr/ZJ-0002-rust-owned-finalization-reference-resolution.md`
@@ -65,7 +65,7 @@ Current interpretation:
 
 Decision source:
 
-- `docs/plans/2026-06-24-rust-indexing-ts-replacement-readiness-consolidated-plan.md`
+- `docs/designs/plan-artifact-consolidated-closeout.md`
 
 Current interpretation:
 
@@ -155,7 +155,7 @@ Why:
   history.
 - The Phase 14 experiment manifest and runner note are historical process
   files. The useful Rust indexing history has already been consolidated into
-  `docs/plans/2026-06-24-rust-indexing-core-consolidated-plans.md` and
+  `docs/designs/plan-artifact-consolidated-closeout.md` and
   `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`.
 
 ## Issue State Audit Queue
@@ -174,7 +174,7 @@ Next triage pass should verify:
   open, because its durable decisions are now in ADRs and this decision pack.
 - #475-#487: should be closed or marked completed if still open; their
   implementation/closeout state is consolidated in
-  `docs/plans/2026-06-24-rust-indexing-ts-replacement-readiness-consolidated-plan.md`.
+  `docs/designs/plan-artifact-consolidated-closeout.md`.
 
 ## Recommended Next Candidate Queue
 

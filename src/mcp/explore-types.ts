@@ -6,7 +6,7 @@
  * planning decisions were made.
  *
  * Part of Phase 1: Extract ExplorePlanner / ExploreRenderer.
- * See docs/plans/2026-06-09-architecture-candidates-and-explore-planner.md
+ * See docs/designs/architecture-roadmap.md
  */
 
 import type { Node, Subgraph } from '../types';
@@ -93,7 +93,7 @@ export interface FlowSpine {
  * - `distracting` — test, generated, or low-value file; excluded from output
  *   unless the query specifically targets such content.
  *
- * @see docs/plans/2026-06-09-architecture-candidates-and-explore-planner.md
+ * @see docs/designs/architecture-roadmap.md
  */
 export type EvidenceValue = 'critical' | 'supportive' | 'compressible' | 'distracting';
 

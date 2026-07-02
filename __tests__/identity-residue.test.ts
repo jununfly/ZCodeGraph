@@ -44,12 +44,6 @@ const RESIDUE_PATTERNS: Array<{ name: string; regex: RegExp }> = [
 const RESIDUE_SCAN_EXCLUDE = new Set([
   // Historical records — intentionally preserve old changelog entries
   'CHANGELOG.md',
-  // Migration/planning documents — contain old names as part of the plan
-  'docs/plans/2026-06-08-zcodegraph-brand-and-isolation-migration.md',
-  // Architecture review plan (temporary, will be deleted)
-  'docs/plans/architecture-review-2026-06-08T18-03-08.md',
-  // Handoff document
-  'docs/plans/zcodegraph-architecture-review-handoff-2026-06-08.md',
   // Test files may contain old names in negative assertions
   // (e.g., expect(x).not.toContain('@colbymchenry/codegraph'))
   // and the residue test itself references old patterns

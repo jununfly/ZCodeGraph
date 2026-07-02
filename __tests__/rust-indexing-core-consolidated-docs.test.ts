@@ -3,9 +3,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
-const PLAN = path.join(
+const CLOSEOUT = path.join(
   REPO_ROOT,
-  'docs/plans/2026-06-24-rust-indexing-core-consolidated-plans.md',
+  'docs/designs/plan-artifact-consolidated-closeout.md',
 );
 const BENCHMARK = path.join(
   REPO_ROOT,
@@ -17,23 +17,21 @@ const DESIGN = path.join(
 );
 
 describe('Rust indexing core consolidated documentation', () => {
-  it('keeps the durable plan history after process-file consolidation', () => {
-    expect(fs.existsSync(PLAN)).toBe(true);
-    const plan = fs.readFileSync(PLAN, 'utf-8');
+  it('keeps the durable plan closeout after process-file consolidation', () => {
+    expect(fs.existsSync(CLOSEOUT)).toBe(true);
+    const closeout = fs.readFileSync(CLOSEOUT, 'utf-8');
 
     for (const requiredTerm of [
-      'Rust Indexing Core Consolidated Plans',
-      'phase-2-packaging-ci-performance',
-      'Phase 3 verification status',
-      'Phase 4 Execution Status',
-      'Phase 5 is a targeted blocker-reduction phase',
-      'Phase 6 is a JS/TS Rust indexing completeness phase',
-      'guarded Rust-assisted name matcher prototype',
-      'Matcher Viability Hardening',
-      'default rollout',
-      'Branch A',
+      'Plan Artifact Consolidated Closeout',
+      'Rust indexing core',
+      'staged replacement path',
+      'Rust indexing core is a staged replacement path',
+      'Rust indexing core',
+      'Rust-native TypeScript module resolution',
+      'Future Entry Points',
+      'Removed Process Artifacts',
     ]) {
-      expect(plan).toContain(requiredTerm);
+      expect(closeout).toContain(requiredTerm);
     }
   });
 

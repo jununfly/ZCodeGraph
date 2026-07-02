@@ -67,7 +67,7 @@ All 23 failures are pre-existing and unrelated to the explore planner seam extra
 ### Design deviations recorded
 
 See the "Implementation deviations from original design" section in:
-`docs/plans/2026-06-09-architecture-candidates-and-explore-planner.md#post-phase-benchmarks`
+`docs/designs/architecture-roadmap.md`
 
 Summary:
 

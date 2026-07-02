@@ -11,7 +11,7 @@ without falling back to generic Read/Grep-style tools.
 
 Related design context:
 
-- `docs/plans/2026-06-09-architecture-candidates-and-explore-planner.md`
+- `docs/designs/architecture-roadmap.md`
 - `docs/designs/architecture-roadmap.md`
 - `docs/benchmarks/explore-sufficiency-2026-06-11.md`
 

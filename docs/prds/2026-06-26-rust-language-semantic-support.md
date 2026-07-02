@@ -6,7 +6,7 @@ Status: completed for the bounded feature branch.
 
 Related feedback: #565
 
-Closeout: `docs/plans/2026-06-27-rust-language-semantic-support-closeout.md`
+Closeout: `docs/designs/plan-artifact-consolidated-closeout.md`
 
 ## Problem
 
@@ -111,7 +111,7 @@ The branch implemented the bounded Rust language semantic support track:
 - route/framework runtime no-go taxonomy and future oracle exit.
 
 The durable closeout is recorded in
-`docs/plans/2026-06-27-rust-language-semantic-support-closeout.md`.
+`docs/designs/plan-artifact-consolidated-closeout.md`.
 
 This completion does not claim full Rust compiler semantics. Macro expansion,
 active cfg/feature resolution, rustc privacy exactness, cross-crate trait

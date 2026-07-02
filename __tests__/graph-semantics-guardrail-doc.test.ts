@@ -14,7 +14,7 @@ const RESEARCH_ORACLE_CLOSEOUT_DOC = path.join(
 );
 const OWNERSHIP_ROADMAP_DOC = path.join(
   REPO_ROOT,
-  'docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md',
+  'docs/designs/plan-artifact-consolidated-closeout.md',
 );
 const RESOLVER_SEMANTIC_RESIDUALS_DOC = path.join(
   REPO_ROOT,
@@ -201,7 +201,8 @@ describe('Graph semantics guardrail documentation', () => {
     ]) {
       expect(`${doc}\n${roadmap}\n${resolverResiduals}`).toContain(requiredTerm);
     }
-    expect(roadmap).toContain('Rust Hybrid Consolidated Plans');
-    expect(roadmap).toContain('no-go, defer, and research archive');
+    expect(roadmap).toContain('Rust indexing core');
+    expect(roadmap).toContain('Rust-native TypeScript module resolution');
+    expect(roadmap).toContain('guarded, evidence-backed');
   });
 });

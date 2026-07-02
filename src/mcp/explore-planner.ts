@@ -6,7 +6,7 @@
  * and builds the flow spine.  The renderer consumes the plan.
  *
  * Part of Phase 1 Candidate 1: Explore Answer Planner Seam.
- * See docs/plans/2026-06-09-architecture-candidates-and-explore-planner.md
+ * See docs/designs/architecture-roadmap.md
  */
 
 import CodeGraph from '../index';

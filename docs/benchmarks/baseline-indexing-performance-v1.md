@@ -10,7 +10,8 @@ for `rust-hybrid` indexing performance optimization.
 This baseline measures the default `rust-hybrid` full-index path. It is the
 comparison standard for #165 follow-up work and for the performance optimization
 history consolidated at
-`docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`.
+`docs/designs/plan-artifact-consolidated-closeout.md` and the consolidated
+benchmark artifacts under `docs/benchmarks/`.
 
 ## Scope
 
