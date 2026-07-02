@@ -42,7 +42,14 @@ import {
   RustOwnedPerFileGapDiagnostic,
 } from '../indexing/rust-hybrid-contract';
 import { buildDiagnosticBundleSummary, createDiagnosticBundle, diagnosticRecordPath, writeDiagnosticRunRecord } from '../diagnostics';
-import { buildRustHybridFallbackSummary, formatRustHybridFallbackDoctorHint } from '../diagnostics/fallback-summary';
+import {
+  buildRustHybridFallbackSummary,
+  formatRustHybridFallbackDoctorHint,
+  formatRustHybridFallbackHealthLines,
+  rustHybridFallbackReasonLabel,
+  RustHybridFallbackReasonCount,
+  RustHybridFallbackSummary,
+} from '../diagnostics/fallback-summary';
 import { classifyGraphHealth, formatGraphHealthLines, GraphHealth } from '../diagnostics/graph-health';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
@@ -65,6 +72,81 @@ function resolveSqliteWriteMode(raw: string | undefined): 'disk' | 'final-flush'
   if (raw == null) return 'final-flush';
   if (raw === 'disk' || raw === 'final-flush' || raw === 'memory-final-flush') return raw;
   throw new Error(`Unsupported SQLite write mode "${raw}". Supported modes: disk, final-flush, memory-final-flush`);
+}
+
+type RustHybridStatusFallbackDiagnostics = {
+  state: string;
+  graphUsabilityMessage: string;
+  fallbackFileCount: number;
+  missingFallbackFileCount: number;
+  reasonTaxonomy: Record<string, number>;
+  topReasons: Array<RustHybridFallbackReasonCount & { label: string }>;
+  doctorCommand: string;
+  artifactHint: string;
+} | null;
+
+function fallbackSummaryFromHybridMetadata(hybrid: unknown): RustHybridFallbackSummary | null {
+  if (!hybrid || typeof hybrid !== 'object') return null;
+  const metadata = hybrid as {
+    fallbackState?: string;
+    fallbackFileCount?: number;
+    missingFallbackFileCount?: number;
+    missingFallbackByLanguage?: Record<string, number>;
+    fallbackReasonTaxonomy?: Record<string, number>;
+  };
+  const fallbackReasonTaxonomy = metadata.fallbackReasonTaxonomy ?? {};
+  const fallbackFileCount = metadata.fallbackFileCount ?? 0;
+  const missingFallbackFileCount = metadata.missingFallbackFileCount ?? 0;
+  const summary = buildRustHybridFallbackSummary({
+    success: true,
+    errors: [],
+    profile: {
+      typescriptFallbackAppend: {
+        fallbackFileCount,
+        missingFallbackFileCount,
+        missingFallbackByLanguage: metadata.missingFallbackByLanguage ?? {},
+      },
+    },
+  });
+  summary.fallbackReasonTaxonomy = fallbackReasonTaxonomy;
+  summary.topFallbackReasons = Object.entries(fallbackReasonTaxonomy)
+    .map(([code, count]) => ({ code, count }))
+    .sort((left, right) => right.count - left.count || left.code.localeCompare(right.code));
+  summary.fallbackState = metadata.fallbackState === 'degraded' ? 'degraded' : summary.fallbackState;
+  if (summary.fallbackState === 'degraded') {
+    summary.graphUsabilityMessage = 'The index is usable; fallback-degraded files or diagnostics are the only parts that need review.';
+  }
+  return summary;
+}
+
+function statusFallbackDiagnostics(hybrid: unknown): RustHybridStatusFallbackDiagnostics {
+  const summary = fallbackSummaryFromHybridMetadata(hybrid);
+  if (!summary || summary.fallbackState !== 'degraded') return null;
+  return {
+    state: summary.fallbackState,
+    graphUsabilityMessage: summary.graphUsabilityMessage,
+    fallbackFileCount: summary.fallbackFileCount,
+    missingFallbackFileCount: summary.missingFallbackFileCount,
+    reasonTaxonomy: summary.fallbackReasonTaxonomy,
+    topReasons: summary.topFallbackReasons.map((reason) => ({
+      ...reason,
+      label: rustHybridFallbackReasonLabel(reason.code),
+    })),
+    doctorCommand: 'zcodegraph doctor --engine rust-hybrid --bundle --last-run',
+    artifactHint: 'per-file-diagnostics.json uses path hashes and reason categories without source slices.',
+  };
+}
+
+function printRustHybridFallbackStatus(hybrid: unknown): void {
+  const summary = fallbackSummaryFromHybridMetadata(hybrid);
+  if (!summary || summary.fallbackState !== 'degraded') return;
+  console.log('Rust-hybrid Fallback:');
+  for (const line of formatRustHybridFallbackHealthLines(summary)) {
+    console.log(`  ${line.replace(/\n/g, '\n  ')}`);
+  }
+  console.log('  Diagnostic artifact: per-file-diagnostics.json uses path hashes and reason categories without source slices.');
+  console.log('  Next step: zcodegraph doctor --engine rust-hybrid --bundle --last-run');
+  console.log();
 }
 
 type ProfileCheckpointState = 'started' | 'completed';
@@ -1249,6 +1331,7 @@ program
             currentExtractionVersion: EXTRACTION_VERSION,
             reindexRecommended,
           },
+          fallbackDiagnostics: statusFallbackDiagnostics(buildInfo.hybrid),
           rust: getRustReadinessDiagnostics(projectPath, buildInfo),
         }));
         cg.destroy();
@@ -1265,6 +1348,7 @@ program
       console.log();
 
       printGraphHealthSummary(health);
+      printRustHybridFallbackStatus(buildInfo.hybrid);
 
       // Index stats
       console.log(chalk.bold('Index Statistics:'));

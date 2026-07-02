@@ -636,6 +636,8 @@ shared health states are:
 
 - `healthy` — the graph is current and fully usable.
 - `degraded` — the graph is usable, but fallback diagnostics need review.
+  `zcodegraph status` shows the top fallback reason groups and the exact
+  `doctor` command to create the per-file diagnostic artifact.
 - `stale` — the graph is usable but out of date; run `zcodegraph sync` or
   `zcodegraph index --force`.
 - `failed` — the latest build failed; run
@@ -646,12 +648,27 @@ shared health states are:
 
 **Indexing is slow** — Check that `node_modules` and other large directories are excluded. Use `--quiet` to reduce output overhead.
 
-**Indexing completed with fallback or failed** — Run a local diagnostic bundle and attach it to your issue. Bundles do not include source code by default:
+**Indexing completed with fallback or failed** — Start with `zcodegraph status`
+to separate freshness from quality: `stale` means run `zcodegraph sync` or
+`zcodegraph index --force`, while `degraded` means the graph is current enough
+to use but some files or Rust-owned diagnostics need review. `init` creates the
+project index, `index` rebuilds it, `sync` catches up source edits, `status`
+answers whether the current graph can be trusted, and `doctor` packages the
+evidence for maintainers.
+
+Run a local diagnostic bundle and attach it to your issue. Bundles do not
+include source code by default:
 
 ```bash
 zcodegraph doctor --engine rust-hybrid --bundle --last-run
 zcodegraph doctor --engine rust-hybrid --bundle --last-failure
 ```
+
+For degraded fallback, `status` and `doctor` summarize the top reason groups in
+human terms. The bundle's `per-file-diagnostics.json` records path hashes,
+extensions, languages, reason categories, and sanitized messages so maintainers
+can classify affected files without receiving plaintext source paths or source
+slices.
 
 If `doctor` or one of those flags is missing, capture command-resolution
 evidence before filing the issue:

@@ -42,6 +42,10 @@ const FALLBACK_REASON_LABELS: Record<string, string> = {
   'rust-owned-gap-with-partial-write-blocked': 'Rust-owned files with partial Rust writes not fallback-appended',
 };
 
+export function rustHybridFallbackReasonLabel(code: string): string {
+  return FALLBACK_REASON_LABELS[code] ?? code;
+}
+
 function fallbackProfile(input: RustHybridFallbackSummaryInput): RustHybridFallbackProfile | undefined {
   return input.profile as RustHybridFallbackProfile | undefined;
 }
@@ -87,7 +91,7 @@ export function buildRustHybridFallbackSummary(input: RustHybridFallbackSummaryI
 }
 
 function formatReasonCount(reason: RustHybridFallbackReasonCount): string {
-  return `${reason.count} ${FALLBACK_REASON_LABELS[reason.code] ?? reason.code}`;
+  return `${reason.count} ${rustHybridFallbackReasonLabel(reason.code)}`;
 }
 
 export function formatRustHybridFallbackHealthLines(summary: RustHybridFallbackSummary): string[] {

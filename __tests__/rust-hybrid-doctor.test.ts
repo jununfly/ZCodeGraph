@@ -209,6 +209,8 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     expect(doctor.stdout).toContain('The index is usable; fallback-degraded files or diagnostics are the only parts that need review.');
     expect(doctor.stdout).toContain('Top fallback reasons:');
     expect(doctor.stdout).toContain('1 Rust-owned files with extraction diagnostics');
+    expect(doctor.stdout).toContain('Diagnostic artifact: per-file-diagnostics.json uses path hashes and reason categories without source slices.');
+    expect(doctor.stdout).toContain('Next step: share this bundle path with the maintainer or attach the bundle contents requested by them.');
     const bundleDir = path.resolve(tempDir, latestBundlePath(doctor.stdout));
 
     const status = readJson(path.join(bundleDir, 'status.json'));
