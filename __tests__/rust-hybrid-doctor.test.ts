@@ -125,6 +125,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     expect(doctor.status, `stdout:\n${doctor.stdout}\nstderr:\n${doctor.stderr}`).toBe(0);
     expect(doctor.stdout).toContain('Bundle summary: rust-hybrid last-run');
     expect(doctor.stdout).toContain('Graph:');
+    expect(doctor.stdout).toContain('Graph health: healthy');
     expect(doctor.stdout).toContain('Fallback health: healthy');
     const bundleDir = path.resolve(tempDir, latestBundlePath(doctor.stdout));
     expect(fs.existsSync(path.join(bundleDir, 'manifest.json'))).toBe(true);
@@ -188,6 +189,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
         topReasons: [],
       },
     });
+    expect(parsed.summary.lines).toContain('Graph health: healthy');
     expect(parsed.summary.lines).toContain('Fallback health: healthy');
   }, 30_000);
 
@@ -202,6 +204,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     const doctor = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-run']);
     expect(doctor.status, `stdout:\n${doctor.stdout}\nstderr:\n${doctor.stderr}`).toBe(0);
     expect(doctor.stdout).toContain('Bundle summary: rust-hybrid last-run');
+    expect(doctor.stdout).toContain('Graph health: degraded');
     expect(doctor.stdout).toContain('Fallback health: degraded');
     expect(doctor.stdout).toContain('The index is usable; fallback-degraded files or diagnostics are the only parts that need review.');
     expect(doctor.stdout).toContain('Top fallback reasons:');
@@ -271,6 +274,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
 
     const doctor = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-failure']);
     expect(doctor.status, `stdout:\n${doctor.stdout}\nstderr:\n${doctor.stderr}`).toBe(0);
+    expect(doctor.stdout).toContain('Graph health: failed');
     const bundleDir = path.resolve(tempDir, latestBundlePath(doctor.stdout));
     expect(readJson(path.join(bundleDir, 'manifest.json'))).toMatchObject({
       engine: 'rust-hybrid',
@@ -285,5 +289,25 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     const result = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-run', '--include-source-slice']);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('source slices are not supported');
+  });
+
+  it('prints an exact last-run source-selection command when no last-run record exists', () => {
+    const result = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-run']);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('No last-run diagnostic record found.');
+    expect(result.stderr).toContain('Graph health: unavailable');
+    expect(result.stderr).toContain('zcodegraph index --engine rust-hybrid');
+    expect(result.stderr).toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
+  });
+
+  it('prints an exact last-failure source-selection command when no last-failure record exists', () => {
+    const result = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-failure']);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('No last-failure diagnostic record found.');
+    expect(result.stderr).toContain('Graph health: unavailable');
+    expect(result.stderr).toContain('zcodegraph index --engine rust-hybrid');
+    expect(result.stderr).toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-failure');
   });
 });

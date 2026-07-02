@@ -807,6 +807,27 @@ function printGraphHealthSummary(health: GraphHealth): void {
   console.log();
 }
 
+function missingDiagnosticRecordMessage(kind: 'last-run' | 'last-failure'): string {
+  if (kind === 'last-run') {
+    return [
+      'No last-run diagnostic record found.',
+      'Graph health: unavailable',
+      'Run a successful rust-hybrid index first:',
+      '  zcodegraph index --engine rust-hybrid',
+      'Then create the bundle:',
+      '  zcodegraph doctor --engine rust-hybrid --bundle --last-run',
+    ].join('\n');
+  }
+  return [
+    'No last-failure diagnostic record found.',
+    'Graph health: unavailable',
+    'Reproduce the rust-hybrid failure first:',
+    '  zcodegraph index --engine rust-hybrid',
+    'Then create the bundle:',
+    '  zcodegraph doctor --engine rust-hybrid --bundle --last-failure',
+  ].join('\n');
+}
+
 // =============================================================================
 // Commands
 // =============================================================================
@@ -1387,6 +1408,9 @@ program
         throw new Error(`CodeGraph not initialized in ${projectPath}. Run "zcodegraph init" first.`);
       }
       const source = options.lastRun ? 'last-run' : 'last-failure';
+      if (!diagnosticRecordInfo(projectPath, source).exists) {
+        throw new Error(missingDiagnosticRecordMessage(source));
+      }
       const bundlePath = createDiagnosticBundle(projectPath, {
         engine,
         source,

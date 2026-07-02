@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `2026-07-02-cli-status-doctor-semantics-roadmap.json` | 最后更新: 2026-07-02 18:21:52
+> 数据文件: `2026-07-02-cli-status-doctor-semantics-roadmap.json` | 最后更新: 2026-07-02 18:25:23
 
 [~][X+] 1. CLI/status/doctor 语义统一
 ├── [x][X+] 1-1. 统一诊断语义契约
@@ -9,7 +9,7 @@
 ├── [x][X+] 1-2. 状态命令用户体验收敛
 │   └── [x][Y+] 1-2-1. status命令信任摘要输出
 ├── [ ][X+] 1-3. doctor命令诊断入口收敛
-│   ├── [ ][X+] 1-3-1. doctor命令来源选择提示
+│   ├── [x][X+] 1-3-1. doctor命令来源选择提示
 │   └── [ ][X+] 1-3-2. corrupted诊断bundle后续版本
 ├── [ ][X+] 1-4. 本地验证与公开文档同步
 │   └── [ ][X+] 1-4-1. 公开文档健康词汇同步
