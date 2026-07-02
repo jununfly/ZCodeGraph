@@ -9,6 +9,7 @@ import {
   buildRustHybridFallbackSummary,
   formatRustHybridFallbackHealthLines,
 } from './fallback-summary';
+import { classifyGraphHealth, type GraphHealthDiagnosticRecord } from './graph-health';
 
 export type DiagnosticRecordKind = 'last-run' | 'last-failure';
 
@@ -159,11 +160,75 @@ function safeRelativePathDetails(projectRoot: string, filePath: string | undefin
   };
 }
 
+function diagnosticRecordSummary(projectRoot: string, kind: DiagnosticRecordKind): GraphHealthDiagnosticRecord {
+  const file = diagnosticRecordPath(projectRoot, kind);
+  if (!fs.existsSync(file)) return { exists: false };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf-8')) as { endedAt?: unknown };
+    return {
+      exists: true,
+      endedAt: typeof parsed.endedAt === 'string' ? parsed.endedAt : null,
+    };
+  } catch {
+    return { exists: true, endedAt: null };
+  }
+}
+
+function databaseFileMetadata(projectRoot: string, openError: string): unknown {
+  const databasePath = path.join(projectRoot, '.zcodegraph', 'zcodegraph.db');
+  const sanitizedOpenError = sanitizeDiagnosticText(openError, projectRoot);
+  try {
+    const stat = fs.statSync(databasePath);
+    return {
+      present: true,
+      sizeBytes: stat.size,
+      mtime: stat.mtime.toISOString(),
+      openError: sanitizedOpenError,
+    };
+  } catch {
+    return {
+      present: false,
+      sizeBytes: null,
+      mtime: null,
+      openError: sanitizedOpenError,
+    };
+  }
+}
+
+function corruptedStatusSummary(projectRoot: string, openError: string): unknown {
+  const databasePath = path.join(projectRoot, '.zcodegraph', 'zcodegraph.db');
+  const databasePresent = fs.existsSync(databasePath);
+  const lastRun = diagnosticRecordSummary(projectRoot, 'last-run');
+  const lastFailure = diagnosticRecordSummary(projectRoot, 'last-failure');
+  return {
+    available: false,
+    unavailableReason: 'corrupted',
+    health: classifyGraphHealth({
+      initialized: true,
+      databasePath,
+      databasePresent,
+      openError: sanitizeDiagnosticText(openError, projectRoot),
+      lastRun,
+      lastFailure,
+    }),
+    database: databaseFileMetadata(projectRoot, openError),
+    diagnostics: {
+      lastRun,
+      lastFailure,
+    },
+  };
+}
+
 function statusSummary(projectRoot: string): unknown {
   if (!fs.existsSync(path.join(projectRoot, '.zcodegraph', 'zcodegraph.db'))) {
     return { available: false, unavailableReason: 'index-db-not-found' };
   }
-  const cg = CodeGraph.openSync(projectRoot);
+  let cg: CodeGraph;
+  try {
+    cg = CodeGraph.openSync(projectRoot);
+  } catch (err) {
+    return corruptedStatusSummary(projectRoot, err instanceof Error ? err.message : String(err));
+  }
   try {
     const stats = cg.getStats();
     const buildInfo = cg.getIndexBuildInfo();
@@ -375,7 +440,10 @@ export function createDiagnosticBundle(projectRoot: string, options: {
   writeJson(path.join(bundleDir, 'status.json'), status);
   const statusObject = status as { available?: boolean; fileCount?: number; nodeCount?: number; edgeCount?: number; nodesByKind?: unknown; filesByLanguage?: unknown };
   writeJson(path.join(bundleDir, 'graph-stats.json'), statusObject.available === false
-    ? { available: false, unavailableReason: 'status-unavailable' }
+    ? {
+      available: false,
+      unavailableReason: (status as { unavailableReason?: string }).unavailableReason ?? 'status-unavailable',
+    }
     : {
       fileCount: statusObject.fileCount,
       nodeCount: statusObject.nodeCount,
@@ -493,6 +561,8 @@ export function buildDiagnosticBundleSummary(projectRoot: string, relativeBundle
   if (!aggregateTaxonomy) {
     if (source === 'last-failure') {
       lines.push('Graph health: failed');
+    } else if (!graph.available && graph.unavailableReason === 'corrupted') {
+      lines.push('Graph health: corrupted');
     }
     return {
       engine,
