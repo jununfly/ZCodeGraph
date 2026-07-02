@@ -8615,6 +8615,13 @@ fn visit_python_node(
         edges,
         unresolved_refs,
     )?;
+    extract_python_statement_refs(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        unresolved_refs,
+    )?;
 
     if cursor.goto_first_child() {
         loop {
@@ -8637,6 +8644,44 @@ fn visit_python_node(
     }
 
     Ok(())
+}
+
+fn extract_python_statement_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "call" {
+        return Ok(());
+    }
+    let Some(target_node) = node.child_by_field_name("function") else {
+        return Ok(());
+    };
+    let Some(reference_name) = python_call_reference_name(target_node, source)? else {
+        return Ok(());
+    };
+    push_ref(
+        unresolved_refs,
+        from_node_id,
+        &reference_name,
+        "calls",
+        target_node,
+        relative_path,
+        SourceLanguage::Python,
+    );
+    Ok(())
+}
+
+fn python_call_reference_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "identifier" | "attribute" => Ok(Some(node.utf8_text(source)?.to_string())),
+        _ => Ok(None),
+    }
 }
 
 fn extract_python_named_symbol<'a>(
@@ -8667,6 +8712,26 @@ fn extract_python_named_symbol<'a>(
                 return Ok(Some(("function", function_name.to_string(), name_node)));
             }
         }
+        "assignment"
+            if node
+                .parent()
+                .and_then(|parent| parent.parent())
+                .is_some_and(|grandparent| grandparent.kind() == "module") =>
+        {
+            let Some(left_node) = node
+                .child_by_field_name("left")
+                .or_else(|| node.named_child(0))
+            else {
+                return Ok(None);
+            };
+            if left_node.kind() == "identifier" {
+                return Ok(Some((
+                    "variable",
+                    left_node.utf8_text(source)?.to_string(),
+                    left_node,
+                )));
+            }
+        }
         _ => {}
     }
     Ok(None)
@@ -8685,7 +8750,8 @@ fn extract_python_imports(
         return Ok(());
     }
 
-    for module in python_import_modules(node.utf8_text(source)?) {
+    let statement = node.utf8_text(source)?;
+    for module in python_import_modules(statement) {
         let import_node = ExtractedNode::symbol(relative_path, "import", &module, node, "python");
         let import_node_id = import_node.id.clone();
         edges.push(ExtractedEdge {
@@ -8700,6 +8766,17 @@ fn extract_python_imports(
             unresolved_refs,
             from_node_id,
             &module,
+            "imports",
+            node,
+            relative_path,
+            SourceLanguage::Python,
+        );
+    }
+    for local_name in python_from_import_local_names(statement) {
+        push_ref(
+            unresolved_refs,
+            from_node_id,
+            &local_name,
             "imports",
             node,
             relative_path,
@@ -8738,6 +8815,30 @@ fn python_import_modules(statement: &str) -> Vec<String> {
     }
 
     Vec::new()
+}
+
+fn python_from_import_local_names(statement: &str) -> Vec<String> {
+    let statement = statement.trim();
+    let Some(rest) = statement.strip_prefix("from ") else {
+        return Vec::new();
+    };
+    let Some((_, imported)) = rest.split_once(" import ") else {
+        return Vec::new();
+    };
+    imported
+        .split(',')
+        .filter_map(|part| {
+            let part = part.trim();
+            if part.is_empty() || part == "*" {
+                return None;
+            }
+            let local = part
+                .split_once(" as ")
+                .map(|(_, alias)| alias.trim())
+                .unwrap_or_else(|| part.rsplit('.').next().unwrap_or(part).trim());
+            (!local.is_empty() && local != "*").then(|| local.to_string())
+        })
+        .collect()
 }
 
 fn extract_rust_symbols(
@@ -12626,7 +12727,11 @@ mod tests {
             dir.join("service.py"),
             [
                 "import os",
-                "from package.worker import helper",
+                "from package.worker import helper, widget",
+                "from package.worker import Thing as T",
+                "from . import sibling",
+                "from bar import *",
+                "widget = {\"n\": 1}",
                 "",
                 "class Service:",
                 "    def handle(self):",
@@ -12688,6 +12793,11 @@ mod tests {
             "top_level".to_string(),
             "python".to_string()
         )));
+        assert!(nodes.contains(&(
+            "variable".to_string(),
+            "widget".to_string(),
+            "python".to_string()
+        )));
         assert!(nodes.contains(&("import".to_string(), "os".to_string(), "python".to_string())));
         assert!(nodes.contains(&(
             "import".to_string(),
@@ -12706,7 +12816,26 @@ mod tests {
             .unwrap()
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
-        assert_eq!(import_refs, vec!["os", "package.worker"]);
+        assert!(import_refs.contains(&"os".to_string()));
+        assert!(import_refs.contains(&"package.worker".to_string()));
+        assert!(import_refs.contains(&"helper".to_string()));
+        assert!(import_refs.contains(&"widget".to_string()));
+        assert!(import_refs.contains(&"T".to_string()));
+        assert!(import_refs.contains(&"sibling".to_string()));
+        assert!(!import_refs.contains(&"*".to_string()));
+
+        let call_refs: Vec<String> = conn
+            .prepare(
+                "SELECT reference_name FROM unresolved_refs
+                 WHERE file_path = 'service.py' AND reference_kind = 'calls'
+                 ORDER BY reference_name",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(call_refs, vec!["helper", "os.getcwd"]);
 
         drop(stmt);
         drop(conn);
