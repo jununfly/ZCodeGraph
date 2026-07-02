@@ -117,6 +117,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
   }, 30_000);
 
   it('indexes Python as Rust-owned under rust-hybrid', () => {
+    fs.mkdirSync(path.join(tempDir, 'pkg'), { recursive: true });
     fs.writeFileSync(
       path.join(tempDir, 'worker.py'),
       [
@@ -127,6 +128,23 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
         '    return helper()',
       ].join('\n') + '\n',
     );
+    fs.writeFileSync(
+      path.join(tempDir, 'pkg', 'foo.py'),
+      [
+        'widget = {"n": 1}',
+        '',
+        'def helper():',
+        '    return 1',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'pkg', 'bar.py'),
+      [
+        'from foo import widget, helper',
+        '',
+        'registry = [widget]',
+      ].join('\n') + '\n',
+    );
 
     const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
@@ -135,13 +153,14 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
     const cg = CodeGraph.openSync(tempDir);
     try {
-      expect(cg.getStats().filesByLanguage.python).toBe(1);
+      expect(cg.getStats().filesByLanguage.python).toBe(3);
       const worker = cg.searchNodes('worker').find((match) => match.node.kind === 'function' && match.node.language === 'python')?.node;
       const helper = cg.searchNodes('helper').find((match) => match.node.kind === 'function' && match.node.language === 'python')?.node;
       expect(worker).toBeDefined();
       expect(helper).toBeDefined();
       const workerCalls = cg.getOutgoingEdges(worker!.id).filter((edge) => edge.kind === 'calls');
       expect(workerCalls.some((edge) => edge.target === helper!.id)).toBe(true);
+      expect(cg.getFileDependents('pkg/foo.py')).toContain('pkg/bar.py');
       const buildInfo = cg.getIndexBuildInfo();
       expect(buildInfo.engine).toBe('rust-hybrid');
       expect(buildInfo.hybrid).toMatchObject({
