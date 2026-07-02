@@ -124,6 +124,12 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
         'def helper():',
         '    return 1',
         '',
+        'def route(path):',
+        '    def wrap(fn):',
+        '        return fn',
+        '    return wrap',
+        '',
+        '@route("/workers")',
         'def worker():',
         '    return helper()',
       ].join('\n') + '\n',
@@ -156,10 +162,14 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
       expect(cg.getStats().filesByLanguage.python).toBe(3);
       const worker = cg.searchNodes('worker').find((match) => match.node.kind === 'function' && match.node.language === 'python')?.node;
       const helper = cg.searchNodes('helper').find((match) => match.node.kind === 'function' && match.node.language === 'python')?.node;
+      const route = cg.searchNodes('route').find((match) => match.node.kind === 'function' && match.node.language === 'python')?.node;
       expect(worker).toBeDefined();
       expect(helper).toBeDefined();
+      expect(route).toBeDefined();
       const workerCalls = cg.getOutgoingEdges(worker!.id).filter((edge) => edge.kind === 'calls');
       expect(workerCalls.some((edge) => edge.target === helper!.id)).toBe(true);
+      const workerDecorators = cg.getOutgoingEdges(worker!.id).filter((edge) => edge.kind === 'decorates');
+      expect(workerDecorators.some((edge) => edge.target === route!.id)).toBe(true);
       expect(cg.getFileDependents('pkg/foo.py')).toContain('pkg/bar.py');
       const buildInfo = cg.getIndexBuildInfo();
       expect(buildInfo.engine).toBe('rust-hybrid');

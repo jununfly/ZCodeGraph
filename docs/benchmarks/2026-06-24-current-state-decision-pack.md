@@ -121,15 +121,14 @@ Current interpretation:
 
 These are current-state gaps, not immediate implementation commitments.
 
-1. Python Rust-owned support is baseline extraction only. Framework sufficiency
-   and Python resolver parity remain open.
-2. Python real-corpus evidence still needs a valid Django or approved Python
-   checkout.
-3. VS Code sparse still has Rust-owned parse gap taxonomy to review.
-4. TypeScript fallback still covers non-Rust-owned product languages.
-5. TypeScript finalization/reference resolution remains an architecture-bound
+1. Python Rust-owned support now has baseline extraction plus decorator graph
+   evidence on a real Python corpus. Larger framework sufficiency and broader
+   Python resolver parity remain open.
+2. VS Code sparse still has Rust-owned parse gap taxonomy to review.
+3. TypeScript fallback still covers non-Rust-owned product languages.
+4. TypeScript finalization/reference resolution remains an architecture-bound
    performance and semantic frontier.
-6. Several benchmark artifacts remain as supporting raw evidence. They should
+5. Several benchmark artifacts remain as supporting raw evidence. They should
    not be deleted unless a canonical decision already includes the useful
    conclusion and no current document depends on the raw data.
 
@@ -192,10 +191,12 @@ from the current ADR-backed state:
 - use `ZJ-0003` for evidence gates;
 - use `ZJ-0004` for write-path boundaries.
 
-### 3. Python Real-Corpus And Sufficiency Boundary
+### 3. Python Framework Sufficiency Boundary
 
-Provide a valid Python corpus, then decide whether Python should stay baseline
-only or get a framework sufficiency roadmap.
+Use `docs/benchmarks/2026-07-02-rust-owned-python-flask-validation.md` as the
+current Rust-owned Python real-corpus baseline. A separate framework sufficiency
+roadmap should decide whether Django/DRF, Flask, or FastAPI need deeper
+dynamic-dispatch validation beyond baseline extraction and decorator edges.
 
 ### 4. Broader Language Coverage
 
