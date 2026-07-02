@@ -12,6 +12,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### New Features
 
 - `zcodegraph status` and `zcodegraph doctor` now share graph health language, so users and scripts can distinguish healthy, degraded, stale, failed, unavailable, and corrupted indexes with exact next-step commands.
+- `rust-hybrid` indexing now understands Python calls, imported names, and module-level values, so Python search, callers/callees, and file dependents work through the Rust indexer.
 
 ## [0.10.2] - 2026-06-30
 
