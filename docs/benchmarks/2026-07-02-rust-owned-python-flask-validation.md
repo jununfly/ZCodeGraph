@@ -61,3 +61,16 @@ decorator semantics through final graph edges.
 The run does not claim full Python framework sufficiency. Larger Django/DRF or
 FastAPI flow A/B validation remains a separate dynamic-dispatch/framework
 coverage initiative.
+
+## Closeout Decision Audit
+
+| Roadmap decision | Classification | Durable location |
+| --- | --- | --- |
+| Use a dedicated roadmap branch and roadmap-sliced development loop | PR only | Branch commits and PR body |
+| Scope Python support as practical Rust-owned extraction plus real-corpus evidence, not duplicate language registration | durable doc | This file and `docs/benchmarks/2026-06-24-current-state-decision-pack.md` |
+| Use `/Users/bilibili/Documents/workspace/github/jununfly/ZAgenticLoop/docs/designs/roadmap-sliced-development-pattern.md` as the pattern source | discarded process note | Relevant only to this run's process |
+| Select `pallets/flask` as the real Python validation corpus | durable doc | Corpus section above |
+
+Process roadmap JSON/Markdown files were deleted after this audit because the
+durable evidence now lives in this benchmark note, the current-state decision
+pack, the changelog, and the commit history.
