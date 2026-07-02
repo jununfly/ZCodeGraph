@@ -285,6 +285,69 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     expect(replay).not.toContain(tempDir);
   }, 30_000);
 
+  it('creates a corrupted database bundle without opening the malformed DB', () => {
+    const lastRunPath = path.join(tempDir, '.zcodegraph', 'diagnostics', 'last-run.json');
+    fs.mkdirSync(path.dirname(lastRunPath), { recursive: true });
+    fs.writeFileSync(lastRunPath, `${JSON.stringify({
+      schemaVersion: 1,
+      kind: 'last-run',
+      engine: 'rust-hybrid',
+      command: { name: 'index', args: ['--engine', 'rust-hybrid'] },
+      startedAt: '2026-07-02T00:00:00.000Z',
+      endedAt: '2026-07-02T00:00:01.000Z',
+      elapsedMs: 1000,
+      exitCode: 0,
+      fallbackState: null,
+      previousIndexPreserved: null,
+      projectRootHash: 'test-project-root-hash',
+      rss: { peakRssBytes: null, unavailableReason: 'not-collected-in-this-run' },
+      sanitizedOutput: {
+        stdoutTail: { unavailableReason: 'not-captured-in-this-run' },
+        stderrTail: { unavailableReason: 'not-captured-in-this-run' },
+      },
+      errors: [],
+    }, null, 2)}\n`);
+    fs.writeFileSync(path.join(tempDir, '.zcodegraph', 'zcodegraph.db'), 'not sqlite');
+
+    const doctor = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-run']);
+    expect(doctor.status, `stdout:\n${doctor.stdout}\nstderr:\n${doctor.stderr}`).toBe(0);
+    expect(doctor.stdout).toContain('Graph health: corrupted');
+    const bundleDir = path.resolve(tempDir, latestBundlePath(doctor.stdout));
+
+    const status = readJson(path.join(bundleDir, 'status.json'));
+    expect(status).toMatchObject({
+      available: false,
+      health: {
+        state: 'corrupted',
+        usable: false,
+      },
+      database: {
+        present: true,
+        sizeBytes: expect.any(Number),
+        mtime: expect.any(String),
+        openError: expect.any(String),
+      },
+      diagnostics: {
+        lastRun: { exists: true, endedAt: '2026-07-02T00:00:01.000Z' },
+        lastFailure: { exists: false },
+      },
+    });
+    expect(status.database.openError).toMatch(/file is not a database|database disk image is malformed/);
+    expect(status.database.openError).not.toContain(tempDir);
+    expect(status.health.nextCommands).toContain('rm -rf .zcodegraph && zcodegraph init');
+
+    const graphStats = readJson(path.join(bundleDir, 'graph-stats.json'));
+    expect(graphStats).toEqual({
+      available: false,
+      unavailableReason: 'corrupted',
+    });
+    const bundleText = fs.readdirSync(bundleDir)
+      .map((file) => fs.readFileSync(path.join(bundleDir, file), 'utf-8'))
+      .join('\n');
+    expect(bundleText).not.toContain(tempDir);
+    expect(bundleText).not.toContain('secretSourceNeedle');
+  }, 30_000);
+
   it('rejects source slices for diagnostic bundle v1', () => {
     const result = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-run', '--include-source-slice']);
     expect(result.status).toBe(1);
