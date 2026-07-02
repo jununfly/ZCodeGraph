@@ -8712,6 +8712,26 @@ fn extract_python_named_symbol<'a>(
                 return Ok(Some(("function", function_name.to_string(), name_node)));
             }
         }
+        "assignment"
+            if node
+                .parent()
+                .and_then(|parent| parent.parent())
+                .is_some_and(|grandparent| grandparent.kind() == "module") =>
+        {
+            let Some(left_node) = node
+                .child_by_field_name("left")
+                .or_else(|| node.named_child(0))
+            else {
+                return Ok(None);
+            };
+            if left_node.kind() == "identifier" {
+                return Ok(Some((
+                    "variable",
+                    left_node.utf8_text(source)?.to_string(),
+                    left_node,
+                )));
+            }
+        }
         _ => {}
     }
     Ok(None)
@@ -12711,6 +12731,7 @@ mod tests {
                 "from package.worker import Thing as T",
                 "from . import sibling",
                 "from bar import *",
+                "widget = {\"n\": 1}",
                 "",
                 "class Service:",
                 "    def handle(self):",
@@ -12770,6 +12791,11 @@ mod tests {
         assert!(nodes.contains(&(
             "function".to_string(),
             "top_level".to_string(),
+            "python".to_string()
+        )));
+        assert!(nodes.contains(&(
+            "variable".to_string(),
+            "widget".to_string(),
             "python".to_string()
         )));
         assert!(nodes.contains(&("import".to_string(), "os".to_string(), "python".to_string())));

@@ -60,12 +60,12 @@
     "1-2-2": {
       "id": "1-2-2",
       "label": "补齐 Python 模块变量节点供 import 召回",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [],
       "decisions": [],
-      "notes": ""
+      "notes": "Commit intent: feat: index rust python module variables. Gate passed: cargo test --package zcodegraph-core indexes_minimal_python_symbols_and_imports; cargo fmt --check; git diff --check. Result: Rust Python now indexes simple top-level assignment identifiers such as widget as variable nodes, enabling from-import value recall."
     },
     "1-2-3": {
       "id": "1-2-3",
@@ -90,7 +90,7 @@
   },
   "metadata": {
     "created": "2026-07-02 20:47:51",
-    "updated": "2026-07-02 20:53:13",
+    "updated": "2026-07-02 20:57:19",
     "md_file": "docs/plans/2026-07-02-rust-index-python-support-roadmap.md"
   }
 }
