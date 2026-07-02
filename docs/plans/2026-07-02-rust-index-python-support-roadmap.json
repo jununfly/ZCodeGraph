@@ -1,0 +1,136 @@
+{
+  "title": "添加 rust-index 对 Python 语言的支持",
+  "description": "按 Roadmap-Sliced Development Pattern，为 zcodegraph rust index 增加 Python 语言支持；先探索架构与切片边界，再逐叶子实现。",
+  "version": 1,
+  "nodes": {
+    "1": {
+      "id": "1",
+      "label": "添加 rust-index 对 Python 语言的支持",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": null,
+      "children": [
+        "1-1",
+        "1-2",
+        "1-3"
+      ],
+      "decisions": [
+        {
+          "q": "采用什么开发节奏？",
+          "answer": "采用 Roadmap-Sliced Development Pattern；当前先以 explore 模式建图，确认 P0 切片后再进入 exploit。",
+          "note": "非平凡、多层架构变更；已创建专用分支 zjal/rust-index-python-support。"
+        }
+      ],
+      "notes": ""
+    },
+    "1-1": {
+      "id": "1-1",
+      "label": "探索 rust-index 与现有 Python 支持边界",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "代码库已经回答了什么？",
+          "answer": "rust core 已包含 tree-sitter-python、.py/.pyw 识别、extract_python_symbols，以及一条最薄的 rust-hybrid Python smoke；当前缺口不是从零接入，而是提升到可相信的 rust-owned Python 基础语义。",
+          "note": "已观察到 Rust 侧仅明确覆盖 file/module/class/method/function/import 与 import refs；TS 侧还有 Python import 依赖召回、Django/Flask/FastAPI framework routes 等更高层能力。"
+        }
+      ],
+      "notes": ""
+    },
+    "1-2": {
+      "id": "1-2",
+      "label": "实现 rust-index Python 基础语义可信路径",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-2-1",
+        "1-2-2",
+        "1-2-3"
+      ],
+      "decisions": [
+        {
+          "q": "P0 推荐边界是什么？",
+          "answer": "P0 聚焦 rust-index Python 基础语义可信：文件识别、module/class/function/method、import refs、直接调用 refs、rust-hybrid owns/fallback 健康信号；不把 Django/Flask/FastAPI routes 纳入第一刀。",
+          "note": "理由：Rust 已有薄 Python 通路，最小价值是让 Python 文件在 rust-owned 路径下不只是冒烟，而能支撑搜索、callers/callees 和 import 依赖召回；框架 routes 牵涉 resolver/post-extract，适合作为后续父节点。"
+        },
+        {
+          "q": "Human Gate：P0 边界是否采纳？",
+          "answer": "采纳。P0 只做 rust-index Python 基础语义可信；Django/Flask/FastAPI routes 和更高阶 Python framework/post-extract 留到后续范围。",
+          "note": "用户回复：采纳。该确认适用于当前 roadmap 的 P0 范围，不自动批准后续框架路由 scope expansion。"
+        }
+      ],
+      "notes": "P0 边界已由 Human Gate 采纳；进入 exploit，先从最小契约测试切入。"
+    },
+    "1-3": {
+      "id": "1-3",
+      "label": "隔离 Python 框架路由与高级解析后续范围",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-3-1"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-1": {
+      "id": "1-2-1",
+      "label": "建立 Rust Python 基础符号契约测试",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "第一刀是否只做红灯契约测试？",
+          "answer": "要。先写最小 Rust Python 基础语义契约测试并观察红灯；实现留到下一刀。",
+          "note": "用户回复：要。提交边界等 green gate 后再过，避免把失败测试作为稳定切片提交。"
+        },
+        {
+          "q": "自动运行约束修正：红灯后是否停？",
+          "answer": "不停。若红灯是当前 leaf 已声明的预期契约失败，Agent 必须自动继续 green 实现，直到该 leaf verification gate 通过或出现未预期失败/Human Gate/scope expansion。",
+          "note": "这是对本次执行偏差的修正：我之前把预期红灯误判为停顿点。"
+        }
+      ],
+      "notes": "Commit intent: test: lock rust python baseline symbol contract. Gate passed: cargo test --package zcodegraph-core indexes_minimal_python_symbols_and_imports; cargo fmt --check; git diff --check. Result: Rust Python now emits calls unresolved refs for helper and os.getcwd in the baseline contract."
+    },
+    "1-2-2": {
+      "id": "1-2-2",
+      "label": "补齐 Rust Python 调用与 import reference 语义",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-3": {
+      "id": "1-2-3",
+      "label": "验证 rust-hybrid Python owns 与 fallback 健康信号",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-1": {
+      "id": "1-3-1",
+      "label": "登记 Django Flask FastAPI 路由为后续候选",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    }
+  },
+  "metadata": {
+    "created": "2026-07-02 20:11:46",
+    "updated": "2026-07-02 20:31:42",
+    "md_file": "docs/plans/2026-07-02-rust-index-python-support-roadmap.md"
+  }
+}

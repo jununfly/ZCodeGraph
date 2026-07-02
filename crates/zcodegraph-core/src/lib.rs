@@ -8615,6 +8615,13 @@ fn visit_python_node(
         edges,
         unresolved_refs,
     )?;
+    extract_python_statement_refs(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        unresolved_refs,
+    )?;
 
     if cursor.goto_first_child() {
         loop {
@@ -8637,6 +8644,44 @@ fn visit_python_node(
     }
 
     Ok(())
+}
+
+fn extract_python_statement_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "call" {
+        return Ok(());
+    }
+    let Some(target_node) = node.child_by_field_name("function") else {
+        return Ok(());
+    };
+    let Some(reference_name) = python_call_reference_name(target_node, source)? else {
+        return Ok(());
+    };
+    push_ref(
+        unresolved_refs,
+        from_node_id,
+        &reference_name,
+        "calls",
+        target_node,
+        relative_path,
+        SourceLanguage::Python,
+    );
+    Ok(())
+}
+
+fn python_call_reference_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "identifier" | "attribute" => Ok(Some(node.utf8_text(source)?.to_string())),
+        _ => Ok(None),
+    }
 }
 
 fn extract_python_named_symbol<'a>(
@@ -12707,6 +12752,19 @@ mod tests {
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
         assert_eq!(import_refs, vec!["os", "package.worker"]);
+
+        let call_refs: Vec<String> = conn
+            .prepare(
+                "SELECT reference_name FROM unresolved_refs
+                 WHERE file_path = 'service.py' AND reference_kind = 'calls'
+                 ORDER BY reference_name",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(call_refs, vec!["helper", "os.getcwd"]);
 
         drop(stmt);
         drop(conn);
