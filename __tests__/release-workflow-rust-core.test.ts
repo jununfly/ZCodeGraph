@@ -11,7 +11,7 @@ function escapeRegExp(value: string): string {
 
 function releaseTargetMatrixEntry(releaseTarget: string): string {
   const pattern = new RegExp(
-    String.raw`          - target: ${escapeRegExp(releaseTarget)}\n(?:            .+\n)*?(?=          - target: |\s{4}steps:)`,
+    String.raw`          - target: ${escapeRegExp(releaseTarget)}\r?\n(?:            .+\r?\n)*?(?=          - target: |\s{4}steps:)`,
   );
   const match = workflow.match(pattern);
   expect(match, `missing release workflow matrix entry for ${releaseTarget}`).not.toBeNull();
