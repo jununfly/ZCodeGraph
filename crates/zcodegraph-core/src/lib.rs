@@ -7164,6 +7164,16 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                 )?;
+            } else if language.is_java() {
+                extract_java_symbols(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -7491,6 +7501,7 @@ enum SourceLanguage {
     Mts,
     Cts,
     Go,
+    Java,
     Python,
     Rust,
 }
@@ -7505,6 +7516,7 @@ impl SourceLanguage {
             Some("mts") => Some(Self::Mts),
             Some("cts") => Some(Self::Cts),
             Some("go") => Some(Self::Go),
+            Some("java") => Some(Self::Java),
             Some("py") | Some("pyw") => Some(Self::Python),
             Some("rs") => Some(Self::Rust),
             _ => None,
@@ -7518,6 +7530,7 @@ impl SourceLanguage {
             Self::TypeScript | Self::Mts | Self::Cts => "typescript",
             Self::Tsx => "tsx",
             Self::Go => "go",
+            Self::Java => "java",
             Self::Python => "python",
             Self::Rust => "rust",
         }
@@ -7531,6 +7544,7 @@ impl SourceLanguage {
             }
             Self::Tsx => tree_sitter_typescript::LANGUAGE_TSX.into(),
             Self::Go => tree_sitter_go::LANGUAGE.into(),
+            Self::Java => tree_sitter_java::LANGUAGE.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
@@ -7542,6 +7556,10 @@ impl SourceLanguage {
 
     fn is_go(self) -> bool {
         matches!(self, Self::Go)
+    }
+
+    fn is_java(self) -> bool {
+        matches!(self, Self::Java)
     }
 
     fn is_python(self) -> bool {
@@ -8523,6 +8541,527 @@ fn go_type_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
             .and_then(|child| child.utf8_text(source).ok().map(ToString::to_string)),
         _ => None,
     }
+}
+
+fn extract_java_symbols(
+    root: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let package = find_java_package(root, source)?;
+    let mut base_from_node_id: Cow<'_, str> = Cow::Borrowed(file_node_id);
+    let mut qualified_base: Cow<'_, str> = Cow::Borrowed(relative_path);
+    if let Some((package_name, package_node)) = package {
+        let module_node = ExtractedNode::symbol_with_qualified_name(
+            relative_path,
+            "module",
+            &package_name,
+            package_node,
+            "java",
+            package_name.clone(),
+        );
+        let module_node_id = module_node.id.clone();
+        edges.push(ExtractedEdge {
+            source: file_node_id.to_string(),
+            target: module_node_id.clone(),
+            kind: "contains".to_string(),
+            line: module_node.start_line,
+            col: module_node.start_column,
+        });
+        nodes.push(module_node);
+        base_from_node_id = Cow::Owned(module_node_id);
+        qualified_base = Cow::Owned(package_name);
+    }
+
+    let mut cursor = root.walk();
+    visit_java_node(
+        &mut cursor,
+        source,
+        relative_path,
+        file_node_id,
+        &base_from_node_id,
+        &qualified_base,
+        &[],
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
+    Ok(())
+}
+
+fn visit_java_node(
+    cursor: &mut TreeCursor,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    current_from_node_id: &str,
+    qualified_base: &str,
+    container_stack: &[String],
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let node = cursor.node();
+    let mut child_from_node_id: Cow<'_, str> = Cow::Borrowed(current_from_node_id);
+    let mut child_container_stack = container_stack.to_vec();
+
+    if let Some(symbol) = extract_java_named_symbol(node, source)? {
+        let qualified_name =
+            java_qualified_name(qualified_base, &symbol.name, &child_container_stack);
+        let mut extracted = ExtractedNode::symbol_with_qualified_name(
+            relative_path,
+            symbol.kind,
+            &symbol.name,
+            node,
+            "java",
+            qualified_name,
+        );
+        extracted.signature = symbol.signature;
+        let extracted_id = extracted.id.clone();
+        let contains_source = if current_from_node_id != file_node_id {
+            current_from_node_id
+        } else {
+            file_node_id
+        };
+        edges.push(ExtractedEdge {
+            source: contains_source.to_string(),
+            target: extracted_id.clone(),
+            kind: "contains".to_string(),
+            line: extracted.start_line,
+            col: extracted.start_column,
+        });
+        nodes.push(extracted);
+        if let Some(extends_name) = symbol.extends_name.as_deref() {
+            push_ref(
+                unresolved_refs,
+                &extracted_id,
+                extends_name,
+                "extends",
+                node,
+                relative_path,
+                SourceLanguage::Java,
+            );
+        }
+        for relation in java_type_relation_refs(node, source)? {
+            push_ref(
+                unresolved_refs,
+                &extracted_id,
+                &relation.name,
+                relation.kind,
+                node,
+                relative_path,
+                SourceLanguage::Java,
+            );
+        }
+
+        if matches!(symbol.kind, "class" | "interface" | "enum" | "method") {
+            child_from_node_id = Cow::Owned(extracted_id);
+        }
+        if matches!(symbol.kind, "class" | "interface" | "enum" | "method") {
+            child_container_stack.push(symbol.name);
+        }
+    }
+
+    extract_java_imports(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
+    extract_java_statement_refs(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        unresolved_refs,
+    )?;
+
+    if cursor.goto_first_child() {
+        loop {
+            visit_java_node(
+                cursor,
+                source,
+                relative_path,
+                file_node_id,
+                &child_from_node_id,
+                qualified_base,
+                &child_container_stack,
+                nodes,
+                edges,
+                unresolved_refs,
+            )?;
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+        cursor.goto_parent();
+    }
+
+    Ok(())
+}
+
+struct JavaSymbolCandidate {
+    kind: &'static str,
+    name: String,
+    extends_name: Option<String>,
+    signature: Option<String>,
+}
+
+struct JavaTypeRelation {
+    kind: &'static str,
+    name: String,
+}
+
+fn extract_java_named_symbol(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<JavaSymbolCandidate>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "package_declaration" => {
+            return Ok(None);
+        }
+        "class_declaration" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "class",
+                    name: name_node.utf8_text(source)?.to_string(),
+                    extends_name: None,
+                    signature: None,
+                }));
+            }
+        }
+        "interface_declaration" | "annotation_type_declaration" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "interface",
+                    name: name_node.utf8_text(source)?.to_string(),
+                    extends_name: None,
+                    signature: None,
+                }));
+            }
+        }
+        "enum_declaration" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "enum",
+                    name: name_node.utf8_text(source)?.to_string(),
+                    extends_name: None,
+                    signature: None,
+                }));
+            }
+        }
+        "object_creation_expression" if java_anonymous_class_body(node).is_some() => {
+            let (type_name, line) = java_object_creation_type_name(node, source)?
+                .unwrap_or_else(|| ("Object".to_string(), (node.start_position().row + 1) as i64));
+            return Ok(Some(JavaSymbolCandidate {
+                kind: "class",
+                name: format!("<{type_name}$anon@{line}>"),
+                extends_name: Some(type_name),
+                signature: None,
+            }));
+        }
+        "enum_constant" => {
+            if let Some(name_node) = node
+                .child_by_field_name("name")
+                .or_else(|| node.named_child(0))
+            {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "enum_member",
+                    name: name_node.utf8_text(source)?.to_string(),
+                    extends_name: None,
+                    signature: None,
+                }));
+            }
+        }
+        "method_declaration"
+        | "constructor_declaration"
+        | "annotation_type_element_declaration" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "method",
+                    name: name_node.utf8_text(source)?.to_string(),
+                    extends_name: None,
+                    signature: None,
+                }));
+            }
+        }
+        "field_declaration" => {
+            if let Some(name) = java_variable_declarator_name(node, source)? {
+                let signature = java_variable_signature(node, source, &name)?;
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "field",
+                    name,
+                    extends_name: None,
+                    signature,
+                }));
+            }
+        }
+        "local_variable_declaration" => {
+            if let Some(name) = java_variable_declarator_name(node, source)? {
+                let signature = java_variable_signature(node, source, &name)?;
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "variable",
+                    name,
+                    extends_name: None,
+                    signature,
+                }));
+            }
+        }
+        _ => {}
+    }
+
+    Ok(None)
+}
+
+fn find_java_package<'a>(
+    root: SyntaxNode<'a>,
+    source: &[u8],
+) -> Result<Option<(String, SyntaxNode<'a>)>, Box<dyn std::error::Error>> {
+    for child in root.named_children(&mut root.walk()) {
+        if child.kind() == "package_declaration" {
+            if let Some(name) = java_scoped_name(child, source)? {
+                return Ok(Some((name, child)));
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn extract_java_imports(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "import_declaration" {
+        return Ok(());
+    }
+    let Some(module_name) = java_scoped_name(node, source)? else {
+        return Ok(());
+    };
+    let import_node = ExtractedNode::symbol(relative_path, "import", &module_name, node, "java");
+    let import_node_id = import_node.id.clone();
+    edges.push(ExtractedEdge {
+        source: from_node_id.to_string(),
+        target: import_node_id,
+        kind: "contains".to_string(),
+        line: import_node.start_line,
+        col: import_node.start_column,
+    });
+    nodes.push(import_node);
+    push_ref(
+        unresolved_refs,
+        from_node_id,
+        &module_name,
+        "imports",
+        node,
+        relative_path,
+        SourceLanguage::Java,
+    );
+    Ok(())
+}
+
+fn extract_java_statement_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "method_invocation" {
+        return Ok(());
+    }
+    let Some(name_node) = node.child_by_field_name("name") else {
+        return Ok(());
+    };
+    let reference_name = java_method_invocation_reference_name(node, name_node, source)?;
+    push_ref(
+        unresolved_refs,
+        from_node_id,
+        &reference_name,
+        "calls",
+        name_node,
+        relative_path,
+        SourceLanguage::Java,
+    );
+    Ok(())
+}
+
+fn java_method_invocation_reference_name(
+    node: SyntaxNode,
+    name_node: SyntaxNode,
+    source: &[u8],
+) -> Result<String, Box<dyn std::error::Error>> {
+    let method_name = name_node.utf8_text(source)?;
+    let receiver = node
+        .child_by_field_name("object")
+        .or_else(|| node.child_by_field_name("receiver"));
+    let Some(receiver) = receiver else {
+        return Ok(method_name.to_string());
+    };
+    let mut receiver_text = receiver.utf8_text(source)?.trim().to_string();
+    if let Some(stripped) = receiver_text.strip_prefix("this.") {
+        receiver_text = stripped.to_string();
+    }
+    if receiver_text.is_empty() || receiver_text.contains('(') {
+        return Ok(method_name.to_string());
+    }
+    Ok(format!("{receiver_text}.{method_name}"))
+}
+
+fn java_scoped_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    for child in node.named_children(&mut node.walk()) {
+        if matches!(
+            child.kind(),
+            "scoped_identifier" | "identifier" | "asterisk" | "static"
+        ) {
+            let text = child.utf8_text(source)?.trim();
+            if !text.is_empty() && text != "static" {
+                return Ok(Some(text.to_string()));
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn java_variable_declarator_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    for child in node.named_children(&mut node.walk()) {
+        if child.kind() == "variable_declarator" {
+            if let Some(name_node) = child.child_by_field_name("name") {
+                return Ok(Some(name_node.utf8_text(source)?.to_string()));
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn java_variable_signature(
+    node: SyntaxNode,
+    source: &[u8],
+    name: &str,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let type_node = node.child_by_field_name("type").or_else(|| {
+        node.named_children(&mut node.walk())
+            .find(|child| !matches!(child.kind(), "modifiers" | "variable_declarator"))
+    });
+    let Some(type_node) = type_node else {
+        return Ok(None);
+    };
+    let type_text = type_node.utf8_text(source)?.trim();
+    if type_text.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(format!("{type_text} {name}")))
+}
+
+fn java_type_relation_refs(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Vec<JavaTypeRelation>, Box<dyn std::error::Error>> {
+    if !matches!(
+        node.kind(),
+        "class_declaration" | "interface_declaration" | "enum_declaration"
+    ) {
+        return Ok(Vec::new());
+    }
+    let header = node
+        .utf8_text(source)?
+        .split_once('{')
+        .map(|(header, _)| header)
+        .unwrap_or_else(|| node.utf8_text(source).unwrap_or(""));
+    let mut refs = Vec::new();
+    if let Some(name) = java_type_name_after_keyword(header, "extends") {
+        refs.push(JavaTypeRelation {
+            kind: "extends",
+            name,
+        });
+    }
+    if let Some(rest) = java_text_after_keyword(header, "implements") {
+        for name in rest.split(',').filter_map(java_clean_type_name) {
+            refs.push(JavaTypeRelation {
+                kind: "implements",
+                name,
+            });
+        }
+    }
+    Ok(refs)
+}
+
+fn java_type_name_after_keyword(header: &str, keyword: &str) -> Option<String> {
+    java_text_after_keyword(header, keyword)
+        .and_then(|rest| rest.split(',').next().and_then(java_clean_type_name))
+}
+
+fn java_text_after_keyword<'a>(header: &'a str, keyword: &str) -> Option<&'a str> {
+    let marker = format!(" {keyword} ");
+    header.split_once(&marker).map(|(_, rest)| rest)
+}
+
+fn java_clean_type_name(raw: &str) -> Option<String> {
+    let first = raw
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .trim()
+        .trim_end_matches('{');
+    let no_generics = first.split_once('<').map(|(left, _)| left).unwrap_or(first);
+    let leaf = no_generics.rsplit('.').next().unwrap_or(no_generics).trim();
+    (!leaf.is_empty()).then(|| leaf.to_string())
+}
+
+fn java_anonymous_class_body(node: SyntaxNode) -> Option<SyntaxNode> {
+    node.named_children(&mut node.walk())
+        .find(|child| child.kind() == "class_body")
+}
+
+fn java_object_creation_type_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<(String, i64)>, Box<dyn std::error::Error>> {
+    let type_node = node
+        .child_by_field_name("constructor")
+        .or_else(|| node.child_by_field_name("type"))
+        .or_else(|| node.child_by_field_name("name"))
+        .or_else(|| node.named_child(0));
+    let Some(type_node) = type_node else {
+        return Ok(None);
+    };
+    let mut type_name = type_node.utf8_text(source)?.trim().to_string();
+    if let Some(index) = type_name.find('<') {
+        type_name.truncate(index);
+    }
+    if let Some(index) = type_name.rfind('.') {
+        type_name = type_name[index + 1..].to_string();
+    }
+    let type_name = type_name.trim().to_string();
+    if type_name.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some((type_name, (node.start_position().row + 1) as i64)))
+}
+
+fn java_qualified_name(qualified_base: &str, name: &str, containers: &[String]) -> String {
+    let mut parts = Vec::with_capacity(containers.len() + 2);
+    parts.push(qualified_base.to_string());
+    parts.extend(containers.iter().cloned());
+    parts.push(name.to_string());
+    parts.join("::")
 }
 
 fn extract_python_symbols(
@@ -11267,6 +11806,7 @@ struct ExtractedNode {
     file_path: String,
     language: String,
     visibility: Option<String>,
+    signature: Option<String>,
     start_line: i64,
     end_line: i64,
     start_column: i64,
@@ -11285,6 +11825,7 @@ impl ExtractedNode {
             file_path: relative_path.to_string(),
             language: language.to_string(),
             visibility: None,
+            signature: None,
             start_line: 1,
             end_line,
             start_column: 0,
@@ -11311,16 +11852,56 @@ impl ExtractedNode {
         language: &str,
         visibility: Option<String>,
     ) -> Self {
+        Self::symbol_with_visibility_and_qualified_name(
+            relative_path,
+            kind,
+            name,
+            node,
+            language,
+            visibility,
+            format!("{}::{}", relative_path, name),
+        )
+    }
+
+    fn symbol_with_qualified_name(
+        relative_path: &str,
+        kind: &str,
+        name: &str,
+        node: SyntaxNode,
+        language: &str,
+        qualified_name: String,
+    ) -> Self {
+        Self::symbol_with_visibility_and_qualified_name(
+            relative_path,
+            kind,
+            name,
+            node,
+            language,
+            None,
+            qualified_name,
+        )
+    }
+
+    fn symbol_with_visibility_and_qualified_name(
+        relative_path: &str,
+        kind: &str,
+        name: &str,
+        node: SyntaxNode,
+        language: &str,
+        visibility: Option<String>,
+        qualified_name: String,
+    ) -> Self {
         let start = node.start_position();
         let end = node.end_position();
         Self {
             id: generate_node_id(relative_path, kind, name, (start.row + 1) as i64),
             kind: kind.to_string(),
             name: name.to_string(),
-            qualified_name: format!("{}::{}", relative_path, name),
+            qualified_name,
             file_path: relative_path.to_string(),
             language: language.to_string(),
             visibility,
+            signature: None,
             start_line: (start.row + 1) as i64,
             end_line: (end.row + 1) as i64,
             start_column: start.column as i64,
@@ -11347,6 +11928,7 @@ impl ExtractedNode {
             file_path: relative_path.to_string(),
             language: language.to_string(),
             visibility: None,
+            signature: None,
             start_line,
             end_line,
             start_column,
@@ -11587,9 +12169,9 @@ fn insert_nodes(conn: &Connection, nodes: &[ExtractedNode]) -> rusqlite::Result<
         ) VALUES (
           ?1, ?2, ?3, ?4, ?5, ?6,
           ?7, ?8, ?9, ?10,
-          NULL, NULL, ?11,
+          NULL, ?11, ?12,
           0, 0, 0, 0,
-          NULL, NULL, ?12
+          NULL, NULL, ?13
         )",
     )?;
 
@@ -11605,6 +12187,7 @@ fn insert_nodes(conn: &Connection, nodes: &[ExtractedNode]) -> rusqlite::Result<
             node.end_line,
             node.start_column,
             node.end_column,
+            node.signature,
             node.visibility,
             node.updated_at,
         ])?;

@@ -1385,7 +1385,7 @@ public class Handler {
 `
       );
 
-      cg = await CodeGraph.init(tempDir, { index: true, engine: 'typescript' });
+      cg = await CodeGraph.init(tempDir, { index: true, engine: 'rust-hybrid' });
 
       const use = cg
         .getNodesByKind('method')

@@ -437,7 +437,7 @@ describe('Java end-to-end — field-injected bean trace (issue #389)', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
 
     const methods = cg.getNodesByKind('method');
     const find = (cls: string, name: string) =>
@@ -503,7 +503,7 @@ describe('Java end-to-end — field-injected bean trace (issue #389)', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
 
     const methods = cg.getNodesByKind('method');
     const getByIdJava = methods.find((m) => m.name === 'getById' && m.language === 'java');
@@ -665,7 +665,7 @@ describe('Java end-to-end — field-injected bean trace (issue #389)', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
 
     const methods = cg.getNodesByKind('method');
     const go = methods.find((m) => m.name === 'go');
@@ -752,7 +752,7 @@ describe('JVM FQN imports — end-to-end', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
 
     const javaBar = cg.getNodesByKind('class').find((n) => n.qualifiedName === 'com.example::JavaBar');
     expect(javaBar, 'JavaBar should be extracted under com.example regardless of language').toBeDefined();
@@ -840,7 +840,7 @@ describe('Java anonymous-class override synthesis — end-to-end', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
 
     // The anon class is extracted and contains the override.
     const anonClass = cg

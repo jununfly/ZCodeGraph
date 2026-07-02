@@ -186,6 +186,98 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     }
   }, 30_000);
 
+  it('indexes Java as Rust-owned under rust-hybrid', () => {
+    const javaDir = path.join(tempDir, 'src/main/java/com/example');
+    fs.mkdirSync(javaDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(javaDir, 'Worker.java'),
+      [
+        'package com.example;',
+        '',
+        'public interface Worker {',
+        '  void run();',
+        '}',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(javaDir, 'Service.java'),
+      [
+        'package com.example;',
+        '',
+        'import java.util.List;',
+        '',
+        'public class Service {',
+        '  private Worker worker;',
+        '',
+        '  public Service(Worker worker) {',
+        '    this.worker = worker;',
+        '  }',
+        '',
+        '  public void handle() {',
+        '    int result = assist();',
+        '    worker.run();',
+        '  }',
+        '',
+        '  private int assist() {',
+        '    return List.of(1).size();',
+        '  }',
+        '',
+        '  enum Mode { FAST }',
+        '}',
+        '',
+        '@interface CustomMapping {',
+        '  String value();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      expect(cg.getStats().filesByLanguage.java).toBe(2);
+      const expectations = [
+        ['com.example', 'module'],
+        ['java.util.List', 'import'],
+        ['Worker', 'interface'],
+        ['Service', 'class'],
+        ['worker', 'field'],
+        ['Service', 'method'],
+        ['handle', 'method'],
+        ['result', 'variable'],
+        ['assist', 'method'],
+        ['Mode', 'enum'],
+        ['FAST', 'enum_member'],
+        ['CustomMapping', 'interface'],
+        ['value', 'method'],
+      ] as const;
+      for (const [name, kind] of expectations) {
+        expect(
+          cg.searchNodes(name).some((match) => match.node.name === name && match.node.kind === kind && match.node.language === 'java'),
+          `${name} (${kind}) should be indexed as Java`,
+        ).toBe(true);
+      }
+
+      const assist = cg.searchNodes('assist').find((match) => match.node.kind === 'method')?.node;
+      expect(assist?.qualifiedName).toContain('Service::assist');
+
+      const buildInfo = cg.getIndexBuildInfo();
+      expect(buildInfo.engine).toBe('rust-hybrid');
+      expect(buildInfo.hybrid).toMatchObject({
+        rustOwnedLanguages: expect.arrayContaining(['java']),
+        engineByLanguage: { java: 'rust' },
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
+        fallbackReasonTaxonomy: {},
+      });
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
   it('reports Rust index-engine metadata through MCP status', async () => {
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,

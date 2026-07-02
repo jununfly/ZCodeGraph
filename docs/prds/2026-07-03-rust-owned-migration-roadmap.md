@@ -63,7 +63,7 @@ Each language migration must include:
 These languages currently have TypeScript-owned tree-sitter extractor configs
 and should be migrated language by language:
 
-- [ ] Java: classes, interfaces, annotations, enums, imports, method calls,
+- [x] Java: classes, interfaces, annotations, enums, imports, method calls,
       package declarations, Spring/Play boundary decision.
 - [ ] C: functions, structs, enums, typedefs, includes, calls, header
       classification boundary.
@@ -203,6 +203,8 @@ Near-term clean candidates from the current map:
 
 - Python framework sufficiency check after Python baseline Rust-owned evidence.
 - Go/Gin route ownership check.
-- Java or Kotlin baseline migration, because Spring resolver boundaries are
-  already explicit.
+- Kotlin baseline migration, because Spring resolver boundaries are already
+  explicit. Java baseline migration is complete; Spring/Play framework semantics
+  remain TypeScript-shell owned, with corpus evidence recorded in
+  `docs/benchmarks/2026-07-03-rust-owned-java-spring-petclinic-validation.md`.
 - Swift baseline migration, if mobile bridge ownership becomes product priority.
