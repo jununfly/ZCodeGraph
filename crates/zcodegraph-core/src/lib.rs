@@ -8730,7 +8730,8 @@ fn extract_python_imports(
         return Ok(());
     }
 
-    for module in python_import_modules(node.utf8_text(source)?) {
+    let statement = node.utf8_text(source)?;
+    for module in python_import_modules(statement) {
         let import_node = ExtractedNode::symbol(relative_path, "import", &module, node, "python");
         let import_node_id = import_node.id.clone();
         edges.push(ExtractedEdge {
@@ -8745,6 +8746,17 @@ fn extract_python_imports(
             unresolved_refs,
             from_node_id,
             &module,
+            "imports",
+            node,
+            relative_path,
+            SourceLanguage::Python,
+        );
+    }
+    for local_name in python_from_import_local_names(statement) {
+        push_ref(
+            unresolved_refs,
+            from_node_id,
+            &local_name,
             "imports",
             node,
             relative_path,
@@ -8783,6 +8795,30 @@ fn python_import_modules(statement: &str) -> Vec<String> {
     }
 
     Vec::new()
+}
+
+fn python_from_import_local_names(statement: &str) -> Vec<String> {
+    let statement = statement.trim();
+    let Some(rest) = statement.strip_prefix("from ") else {
+        return Vec::new();
+    };
+    let Some((_, imported)) = rest.split_once(" import ") else {
+        return Vec::new();
+    };
+    imported
+        .split(',')
+        .filter_map(|part| {
+            let part = part.trim();
+            if part.is_empty() || part == "*" {
+                return None;
+            }
+            let local = part
+                .split_once(" as ")
+                .map(|(_, alias)| alias.trim())
+                .unwrap_or_else(|| part.rsplit('.').next().unwrap_or(part).trim());
+            (!local.is_empty() && local != "*").then(|| local.to_string())
+        })
+        .collect()
 }
 
 fn extract_rust_symbols(
@@ -12671,7 +12707,10 @@ mod tests {
             dir.join("service.py"),
             [
                 "import os",
-                "from package.worker import helper",
+                "from package.worker import helper, widget",
+                "from package.worker import Thing as T",
+                "from . import sibling",
+                "from bar import *",
                 "",
                 "class Service:",
                 "    def handle(self):",
@@ -12751,7 +12790,13 @@ mod tests {
             .unwrap()
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
-        assert_eq!(import_refs, vec!["os", "package.worker"]);
+        assert!(import_refs.contains(&"os".to_string()));
+        assert!(import_refs.contains(&"package.worker".to_string()));
+        assert!(import_refs.contains(&"helper".to_string()));
+        assert!(import_refs.contains(&"widget".to_string()));
+        assert!(import_refs.contains(&"T".to_string()));
+        assert!(import_refs.contains(&"sibling".to_string()));
+        assert!(!import_refs.contains(&"*".to_string()));
 
         let call_refs: Vec<String> = conn
             .prepare(
