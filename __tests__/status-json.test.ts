@@ -88,6 +88,11 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     expect(out.indexPath as string).toContain('.zcodegraph');
     expect(out.databasePath).toBe(path.join(fs.realpathSync(tempDir), '.zcodegraph', 'zcodegraph.db'));
     expect(out.lastIndexed).toBeNull();
+    expect(out.health).toMatchObject({
+      state: 'unavailable',
+      usable: false,
+      nextCommands: ['zcodegraph init'],
+    });
     expect((out as { rust: { configuredEngine: { engine: string; source: string } } }).rust.configuredEngine)
       .toMatchObject({ engine: 'rust-hybrid', source: 'default' });
   });
@@ -110,6 +115,25 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     const ms = Date.parse(out.lastIndexed as string);
     expect(ms).toBeGreaterThanOrEqual(before - 1000);
     expect(ms).toBeLessThanOrEqual(after + 1000);
+    expect(out.health).toMatchObject({
+      state: 'healthy',
+      usable: true,
+      nextCommands: [],
+    });
+  });
+
+  it('status --json on a CORRUPTED project reports graph health without opening the graph', () => {
+    fs.mkdirSync(path.join(tempDir, '.zcodegraph'), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, '.zcodegraph', 'zcodegraph.db'), 'not sqlite');
+
+    const out = runStatusJson(tempDir);
+    expect(out.initialized).toBe(true);
+    expect(out.health).toMatchObject({
+      state: 'corrupted',
+      usable: false,
+    });
+    expect((out.health as { summary: string }).summary).toContain('cannot be opened');
+    expect((out.health as { nextCommands: string[] }).nextCommands).toContain('rm -rf .zcodegraph && zcodegraph init');
   });
 
   it('status --json reports local Rust readiness diagnostics for a missing Rust core override', () => {
