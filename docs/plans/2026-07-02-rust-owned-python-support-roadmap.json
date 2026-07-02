@@ -1,0 +1,95 @@
+{
+  "title": "Rust-owned Python language support",
+  "description": "Use roadmap-sliced-development-pattern to add Python support to the Rust-owned indexing path and validate it on a suitably sized GitHub Python project.",
+  "version": 1,
+  "nodes": {
+    "1": {
+      "id": "1",
+      "label": "Rust-owned Python language support",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": null,
+      "children": [
+        "1-1",
+        "1-2",
+        "1-3",
+        "1-4",
+        "1-5"
+      ],
+      "decisions": [
+        {
+          "q": "本目标是否使用专用分支和 roadmap-sliced-development-pattern？",
+          "answer": "采用。分支为 codex/rust-owned-python-support，过程状态写入 docs/plans/2026-07-02-rust-owned-python-support-roadmap.json/md。",
+          "note": "非平凡跨层语言支持，满足 pattern 的 branch、leaf gate、commit intent 和最终 closeout 要求。"
+        },
+        {
+          "q": "Python 支持目标如何收敛？",
+          "answer": "不是重复注册 Python；当前主干已有 baseline Rust-owned Python。目标收敛为补齐 Python extractor 的实用语义覆盖，并用中等 GitHub Python 项目提供真实 corpus 验证。",
+          "note": "历史 docs/benchmarks/2026-06-24-current-state-decision-pack.md 仍标注 Python real-corpus evidence/open sufficiency boundary。"
+        }
+      ],
+      "notes": ""
+    },
+    "1-1": {
+      "id": "1-1",
+      "label": "Rust-owned Python 支持范围与现状定位",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "第一片的 gate 和 commit intent 是什么？",
+          "answer": "Gate：定位 Rust-owned 当前语言注册、Python TS extractor 能力、缺口清单，并把下一步切片收敛到可实现范围。Commit intent：docs: add rust-owned python support roadmap.",
+          "note": "这是 decision-only/exploration leaf，完成条件是 roadmap 决策和现状证据落盘。"
+        }
+      ],
+      "notes": "Evidence: Rust core already has SourceLanguage::Python, tree-sitter-python, extract_python_symbols, and a rust-hybrid smoke test for Python-owned indexing. Durable gap from current-state decision pack: real Python corpus evidence and sufficiency boundary still missing. Dogfood zcodegraph index is currently malformed, so repo exploration used rg/file reads."
+    },
+    "1-2": {
+      "id": "1-2",
+      "label": "Rust extractor Python 语法与符号覆盖",
+      "status": "in_progress",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": "Gate: add focused Rust core Python fixture coverage for decorated/async definitions, method containment, imports, calls, and SQLite graph facts. Commit intent: feat: strengthen rust-owned python extraction."
+    },
+    "1-3": {
+      "id": "1-3",
+      "label": "CLI 与 SQLite 合同验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4": {
+      "id": "1-4",
+      "label": "GitHub Python 项目实证验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5": {
+      "id": "1-5",
+      "label": "发布前文档与收尾",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    }
+  },
+  "metadata": {
+    "created": "2026-07-02 23:13:44",
+    "updated": "2026-07-02 23:17:05",
+    "md_file": "docs/plans/2026-07-02-rust-owned-python-support-roadmap.md"
+  }
+}
