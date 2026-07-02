@@ -7164,6 +7164,16 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                 )?;
+            } else if language.is_java() {
+                extract_java_symbols(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -7491,6 +7501,7 @@ enum SourceLanguage {
     Mts,
     Cts,
     Go,
+    Java,
     Python,
     Rust,
 }
@@ -7505,6 +7516,7 @@ impl SourceLanguage {
             Some("mts") => Some(Self::Mts),
             Some("cts") => Some(Self::Cts),
             Some("go") => Some(Self::Go),
+            Some("java") => Some(Self::Java),
             Some("py") | Some("pyw") => Some(Self::Python),
             Some("rs") => Some(Self::Rust),
             _ => None,
@@ -7518,6 +7530,7 @@ impl SourceLanguage {
             Self::TypeScript | Self::Mts | Self::Cts => "typescript",
             Self::Tsx => "tsx",
             Self::Go => "go",
+            Self::Java => "java",
             Self::Python => "python",
             Self::Rust => "rust",
         }
@@ -7531,6 +7544,7 @@ impl SourceLanguage {
             }
             Self::Tsx => tree_sitter_typescript::LANGUAGE_TSX.into(),
             Self::Go => tree_sitter_go::LANGUAGE.into(),
+            Self::Java => tree_sitter_java::LANGUAGE.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
@@ -7542,6 +7556,10 @@ impl SourceLanguage {
 
     fn is_go(self) -> bool {
         matches!(self, Self::Go)
+    }
+
+    fn is_java(self) -> bool {
+        matches!(self, Self::Java)
     }
 
     fn is_python(self) -> bool {
@@ -8523,6 +8541,309 @@ fn go_type_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
             .and_then(|child| child.utf8_text(source).ok().map(ToString::to_string)),
         _ => None,
     }
+}
+
+fn extract_java_symbols(
+    root: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut cursor = root.walk();
+    visit_java_node(
+        &mut cursor,
+        source,
+        relative_path,
+        file_node_id,
+        file_node_id,
+        &[],
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
+    Ok(())
+}
+
+fn visit_java_node(
+    cursor: &mut TreeCursor,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    current_from_node_id: &str,
+    container_stack: &[String],
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let node = cursor.node();
+    let mut child_from_node_id: Cow<'_, str> = Cow::Borrowed(current_from_node_id);
+    let mut child_container_stack = container_stack.to_vec();
+
+    if let Some(symbol) = extract_java_named_symbol(node, source)? {
+        let qualified_name =
+            java_qualified_name(relative_path, &symbol.name, &child_container_stack);
+        let extracted = ExtractedNode::symbol_with_qualified_name(
+            relative_path,
+            symbol.kind,
+            &symbol.name,
+            node,
+            "java",
+            qualified_name,
+        );
+        let extracted_id = extracted.id.clone();
+        let contains_source = if current_from_node_id != file_node_id
+            && matches!(symbol.kind, "method" | "field" | "variable" | "enum_member")
+        {
+            current_from_node_id
+        } else {
+            file_node_id
+        };
+        edges.push(ExtractedEdge {
+            source: contains_source.to_string(),
+            target: extracted_id.clone(),
+            kind: "contains".to_string(),
+            line: extracted.start_line,
+            col: extracted.start_column,
+        });
+        nodes.push(extracted);
+
+        if matches!(symbol.kind, "class" | "interface" | "enum" | "method") {
+            child_from_node_id = Cow::Owned(extracted_id);
+        }
+        if matches!(symbol.kind, "class" | "interface" | "enum") {
+            child_container_stack.push(symbol.name);
+        }
+    }
+
+    extract_java_imports(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
+    extract_java_statement_refs(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        unresolved_refs,
+    )?;
+
+    if cursor.goto_first_child() {
+        loop {
+            visit_java_node(
+                cursor,
+                source,
+                relative_path,
+                file_node_id,
+                &child_from_node_id,
+                &child_container_stack,
+                nodes,
+                edges,
+                unresolved_refs,
+            )?;
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+        cursor.goto_parent();
+    }
+
+    Ok(())
+}
+
+struct JavaSymbolCandidate {
+    kind: &'static str,
+    name: String,
+}
+
+fn extract_java_named_symbol(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<JavaSymbolCandidate>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "package_declaration" => {
+            if let Some(name) = java_scoped_name(node, source)? {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "module",
+                    name,
+                }));
+            }
+        }
+        "class_declaration" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "class",
+                    name: name_node.utf8_text(source)?.to_string(),
+                }));
+            }
+        }
+        "interface_declaration" | "annotation_type_declaration" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "interface",
+                    name: name_node.utf8_text(source)?.to_string(),
+                }));
+            }
+        }
+        "enum_declaration" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "enum",
+                    name: name_node.utf8_text(source)?.to_string(),
+                }));
+            }
+        }
+        "enum_constant" => {
+            if let Some(name_node) = node
+                .child_by_field_name("name")
+                .or_else(|| node.named_child(0))
+            {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "enum_member",
+                    name: name_node.utf8_text(source)?.to_string(),
+                }));
+            }
+        }
+        "method_declaration"
+        | "constructor_declaration"
+        | "annotation_type_element_declaration" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "method",
+                    name: name_node.utf8_text(source)?.to_string(),
+                }));
+            }
+        }
+        "field_declaration" => {
+            if let Some(name) = java_variable_declarator_name(node, source)? {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "field",
+                    name,
+                }));
+            }
+        }
+        "local_variable_declaration" => {
+            if let Some(name) = java_variable_declarator_name(node, source)? {
+                return Ok(Some(JavaSymbolCandidate {
+                    kind: "variable",
+                    name,
+                }));
+            }
+        }
+        _ => {}
+    }
+
+    Ok(None)
+}
+
+fn extract_java_imports(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "import_declaration" {
+        return Ok(());
+    }
+    let Some(module_name) = java_scoped_name(node, source)? else {
+        return Ok(());
+    };
+    let import_node = ExtractedNode::symbol(relative_path, "import", &module_name, node, "java");
+    let import_node_id = import_node.id.clone();
+    edges.push(ExtractedEdge {
+        source: from_node_id.to_string(),
+        target: import_node_id,
+        kind: "contains".to_string(),
+        line: import_node.start_line,
+        col: import_node.start_column,
+    });
+    nodes.push(import_node);
+    push_ref(
+        unresolved_refs,
+        from_node_id,
+        &module_name,
+        "imports",
+        node,
+        relative_path,
+        SourceLanguage::Java,
+    );
+    Ok(())
+}
+
+fn extract_java_statement_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "method_invocation" {
+        return Ok(());
+    }
+    let Some(name_node) = node.child_by_field_name("name") else {
+        return Ok(());
+    };
+    let reference_name = name_node.utf8_text(source)?;
+    push_ref(
+        unresolved_refs,
+        from_node_id,
+        reference_name,
+        "calls",
+        name_node,
+        relative_path,
+        SourceLanguage::Java,
+    );
+    Ok(())
+}
+
+fn java_scoped_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    for child in node.named_children(&mut node.walk()) {
+        if matches!(
+            child.kind(),
+            "scoped_identifier" | "identifier" | "asterisk" | "static"
+        ) {
+            let text = child.utf8_text(source)?.trim();
+            if !text.is_empty() && text != "static" {
+                return Ok(Some(text.to_string()));
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn java_variable_declarator_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    for child in node.named_children(&mut node.walk()) {
+        if child.kind() == "variable_declarator" {
+            if let Some(name_node) = child.child_by_field_name("name") {
+                return Ok(Some(name_node.utf8_text(source)?.to_string()));
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn java_qualified_name(relative_path: &str, name: &str, containers: &[String]) -> String {
+    let mut parts = Vec::with_capacity(containers.len() + 2);
+    parts.push(relative_path.to_string());
+    parts.extend(containers.iter().cloned());
+    parts.push(name.to_string());
+    parts.join("::")
 }
 
 fn extract_python_symbols(
@@ -11311,13 +11632,52 @@ impl ExtractedNode {
         language: &str,
         visibility: Option<String>,
     ) -> Self {
+        Self::symbol_with_visibility_and_qualified_name(
+            relative_path,
+            kind,
+            name,
+            node,
+            language,
+            visibility,
+            format!("{}::{}", relative_path, name),
+        )
+    }
+
+    fn symbol_with_qualified_name(
+        relative_path: &str,
+        kind: &str,
+        name: &str,
+        node: SyntaxNode,
+        language: &str,
+        qualified_name: String,
+    ) -> Self {
+        Self::symbol_with_visibility_and_qualified_name(
+            relative_path,
+            kind,
+            name,
+            node,
+            language,
+            None,
+            qualified_name,
+        )
+    }
+
+    fn symbol_with_visibility_and_qualified_name(
+        relative_path: &str,
+        kind: &str,
+        name: &str,
+        node: SyntaxNode,
+        language: &str,
+        visibility: Option<String>,
+        qualified_name: String,
+    ) -> Self {
         let start = node.start_position();
         let end = node.end_position();
         Self {
             id: generate_node_id(relative_path, kind, name, (start.row + 1) as i64),
             kind: kind.to_string(),
             name: name.to_string(),
-            qualified_name: format!("{}::{}", relative_path, name),
+            qualified_name,
             file_path: relative_path.to_string(),
             language: language.to_string(),
             visibility,

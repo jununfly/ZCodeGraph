@@ -40,32 +40,32 @@
     "1-2": {
       "id": "1-2",
       "label": "Rust-owned Java baseline implementation",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1",
       "children": [],
       "decisions": [],
-      "notes": "Gate: Rust core extracts Java package/module, classes, interfaces, annotation declarations, enums, enum members, constructors, methods, fields/local variables, imports, and method invocation unresolved refs. Commit intent: feat: add rust-owned java baseline extraction."
+      "notes": "Gate passed. Rust core now registers SourceLanguage::Java, uses tree-sitter-java, and extracts package/module, class, interface, annotation type, enum, enum_member, constructors/methods, annotation elements, fields/local variables, imports, and method_invocation unresolved calls. Verification: cargo build --package zcodegraph-core; npx vitest run __tests__/rust-index-engine-cli-language-smoke.test.ts."
     },
     "1-3": {
       "id": "1-3",
       "label": "Rust-hybrid Java ownership contract switch",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1",
       "children": [],
       "decisions": [],
-      "notes": "Gate: rust-hybrid metadata reports java as rust-owned and no longer plans Java fallback files. Commit intent: test: verify rust-hybrid java ownership contract."
+      "notes": "Gate passed. src/indexing/rust-hybrid-contract.ts now lists java as Rust-owned. Targeted smoke asserts buildInfo.hybrid.rustOwnedLanguages includes java, engineByLanguage.java is rust, fallbackByLanguage is empty, and fallbackFileCount is 0 for a Java-only project. Verification: npm run build; npx vitest run __tests__/rust-index-engine-cli-language-smoke.test.ts."
     },
     "1-4": {
       "id": "1-4",
       "label": "Java fixture and contract verification",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1",
       "children": [],
       "decisions": [],
-      "notes": "Gate: targeted Rust/CLI tests prove Java symbol kinds, imports, package metadata, unresolved refs, and rust-hybrid shape. Commit intent: test: cover rust-owned java extraction."
+      "notes": "Gate passed. Added Java smoke fixture with package, import, interface, class, constructor, methods, field, local variable, enum/member, annotation type/element, and qualifiedName assertion for Service::assist. Verification: npx vitest run __tests__/rust-index-engine-cli-language-smoke.test.ts passed 18 tests."
     },
     "1-5": {
       "id": "1-5",
@@ -80,12 +80,12 @@
     "1-6": {
       "id": "1-6",
       "label": "Remove TypeScript Java fallback extractor",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1",
       "children": [],
       "decisions": [],
-      "notes": "Gate: TypeScript Java fallback extractor implementation is removed or disconnected, while framework resolvers that intentionally remain TS-shell continue to compile/test. Commit intent: refactor: remove typescript java fallback extraction."
+      "notes": "Gate passed. Removed src/extraction/languages/java.ts and removed javaExtractor from EXTRACTORS. Kept grammar/extension detection so .java files are still recognized and routed to Rust-owned indexing. Verification: npm run build; npx vitest run __tests__/rust-index-engine-cli-language-smoke.test.ts passed 18 tests."
     },
     "1-7": {
       "id": "1-7",
@@ -100,7 +100,7 @@
   },
   "metadata": {
     "created": "2026-07-03 00:37:29",
-    "updated": "2026-07-03 00:42:51",
+    "updated": "2026-07-03 00:51:45",
     "md_file": "docs/plans/2026-07-03-rust-owned-java-support-roadmap.md"
   }
 }
