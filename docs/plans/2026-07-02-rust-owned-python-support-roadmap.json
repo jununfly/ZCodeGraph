@@ -79,27 +79,33 @@
     "1-4": {
       "id": "1-4",
       "label": "GitHub Python 项目实证验证",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "真实 GitHub Python 项目选择哪个？",
+          "answer": "选择 pallets/flask。它是尺寸适中的 Python 项目，Python 源文件规模足够验证 Rust-owned 真实 corpus，同时大量使用 decorator/route 模式，能覆盖本轮新增的 decorates 语义。",
+          "note": "不选 Django/Saleor 是为了避免把本轮语言支持验证扩大成大型框架 sufficiency A/B；本 slice 的目标是 Rust-owned Python indexing 可用性证据。"
+        }
+      ],
+      "notes": "Gate passed. Selected pallets/flask (shallow commit 36e4a82), 217 files total and 83 Python files. Local rust-hybrid init indexed 91 files, 2,570 nodes, 4,042 edges in 355ms. Status: degraded but usable because 8 YAML files used TypeScript fallback; python assigned to rust. SQLite evidence: python files 83, file errors 0, decorates edges 64, python decorates unresolved refs 0. Durable evidence: docs/benchmarks/2026-07-02-rust-owned-python-flask-validation.md."
+    },
+    "1-5": {
+      "id": "1-5",
+      "label": "发布前文档与收尾",
       "status": "in_progress",
       "mode": "exploit",
       "parent": "1",
       "children": [],
       "decisions": [],
-      "notes": "Gate: choose a suitably sized GitHub Python repository, index it with the local rust-hybrid build, and record concrete language/build evidence. Commit intent: docs: record rust-owned python real-corpus validation."
-    },
-    "1-5": {
-      "id": "1-5",
-      "label": "发布前文档与收尾",
-      "status": "pending",
-      "mode": "exploit",
-      "parent": "1",
-      "children": [],
-      "decisions": [],
-      "notes": ""
+      "notes": "Gate: update durable user-facing docs/changelog as needed, run final verification, audit roadmap decisions, then close out process files separately. Commit intent: docs: close out rust-owned python support."
     }
   },
   "metadata": {
     "created": "2026-07-02 23:13:44",
-    "updated": "2026-07-02 23:33:59",
+    "updated": "2026-07-02 23:37:55",
     "md_file": "docs/plans/2026-07-02-rust-owned-python-support-roadmap.md"
   }
 }
