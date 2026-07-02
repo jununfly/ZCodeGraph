@@ -13,10 +13,12 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `zcodegraph status` and `zcodegraph doctor` now share graph health language, so users and scripts can distinguish healthy, degraded, stale, failed, unavailable, and corrupted indexes with exact next-step commands.
 - `rust-hybrid` indexing now understands Python calls, imported names, and module-level values, so Python search, callers/callees, and file dependents work through the Rust indexer.
+- `zcodegraph status` now shows decision-ready `rust-hybrid` fallback diagnostics, including top reason groups, graph usability, the exact doctor command, and the privacy-preserving bundle artifact to share with maintainers. (#668, #669, #670)
 
 ### Fixes
 
 - `zcodegraph doctor --engine rust-hybrid --bundle` can now create a local diagnostic bundle for a corrupted graph database without opening the broken database or collecting source paths. (#671)
+- `zcodegraph doctor --engine rust-hybrid --bundle --last-run` now points degraded fallback reports to the per-file diagnostic artifact and next maintainer handoff step instead of leaving users at the bundle path alone. (#669, #670)
 
 ## [0.10.2] - 2026-06-30
 

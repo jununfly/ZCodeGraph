@@ -598,6 +598,10 @@ export function buildDiagnosticBundleSummary(projectRoot: string, relativeBundle
     fallbackSummary.graphUsabilityMessage = 'The index is usable; fallback-degraded files or diagnostics are the only parts that need review.';
   }
   lines.push(...formatRustHybridFallbackHealthLines(fallbackSummary));
+  if (fallbackSummary.fallbackState === 'degraded') {
+    lines.push('Diagnostic artifact: per-file-diagnostics.json uses path hashes and reason categories without source slices.');
+    lines.push('Next step: share this bundle path with the maintainer or attach the bundle contents requested by them.');
+  }
   return {
     engine,
     source,

@@ -220,6 +220,62 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     expect(result.stdout).toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
   }, 30_000);
 
+  it('surfaces degraded fallback quality details in status output', () => {
+    fs.writeFileSync(path.join(tempDir, 'routing.yml'), 'app:\n  path: /health\n');
+
+    const index = runZcodegraphCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
+
+    const status = runZcodegraphCli(tempDir, ['status']);
+    expect(status.status, `stdout:\n${status.stdout}\nstderr:\n${status.stderr}`).toBe(0);
+    expect(status.stdout).toContain('Graph Health:');
+    expect(status.stdout).toContain('State: degraded');
+    expect(status.stdout).toContain('Rust-hybrid Fallback:');
+    expect(status.stdout).toContain('Fallback health: degraded');
+    expect(status.stdout).toContain('Top fallback reasons:');
+    expect(status.stdout).toContain('TypeScript fallback files');
+    expect(status.stdout).toContain('per-file-diagnostics.json');
+    expect(status.stdout).toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
+  }, 30_000);
+
+  it('exposes degraded fallback quality details in status json', () => {
+    fs.writeFileSync(path.join(tempDir, 'routing.yml'), 'app:\n  path: /health\n');
+
+    const index = runZcodegraphCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+    expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
+
+    const statusResult = runZcodegraphCli(tempDir, ['status', '--json']);
+    expect(statusResult.status, `stdout:\n${statusResult.stdout}\nstderr:\n${statusResult.stderr}`).toBe(0);
+    const statusLine = statusResult.stdout.trim().split('\n').filter(Boolean).pop();
+    expect(statusLine).toBeDefined();
+    const status = JSON.parse(statusLine!) as {
+      fallbackDiagnostics: {
+        state: string;
+        graphUsabilityMessage: string;
+        doctorCommand: string;
+        artifactHint: string;
+        topReasons: Array<{ code: string; count: number; label: string }>;
+      };
+    };
+    expect(status.fallbackDiagnostics).toMatchObject({
+      state: 'degraded',
+      doctorCommand: 'zcodegraph doctor --engine rust-hybrid --bundle --last-run',
+      artifactHint: 'per-file-diagnostics.json uses path hashes and reason categories without source slices.',
+    });
+    expect(status.fallbackDiagnostics.graphUsabilityMessage).toContain('The index is usable');
+    expect(status.fallbackDiagnostics.topReasons).toEqual([
+      expect.objectContaining({
+        code: 'language-level-typescript-fallback',
+        count: 1,
+        label: 'TypeScript fallback files',
+      }),
+    ]);
+  }, 30_000);
+
   it('prints the degraded fallback health explanation during rust-hybrid init', () => {
     const initDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-hybrid-fallback-init-'));
     try {
