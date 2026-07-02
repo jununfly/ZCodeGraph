@@ -25,6 +25,27 @@ export interface GraphHealth {
   nextCommands: string[];
 }
 
+export function formatGraphHealthLines(health: GraphHealth): string[] {
+  const lines = [
+    `State: ${health.state}`,
+    `Usable: ${health.usable ? 'yes' : 'no'}`,
+    health.summary,
+  ];
+  if (health.reasons.length > 0) {
+    lines.push('Reasons:');
+    for (const reason of health.reasons) {
+      lines.push(`  ${reason}`);
+    }
+  }
+  if (health.nextCommands.length > 0) {
+    lines.push('Next steps:');
+    for (const command of health.nextCommands) {
+      lines.push(`  ${command}`);
+    }
+  }
+  return lines;
+}
+
 function diagnosticRecordTime(record: GraphHealthDiagnosticRecord | null | undefined): number | null {
   if (!record?.exists || !record.endedAt) return null;
   const ms = Date.parse(record.endedAt);

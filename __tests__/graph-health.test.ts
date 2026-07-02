@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyGraphHealth } from '../src/diagnostics/graph-health';
+import { classifyGraphHealth, formatGraphHealthLines } from '../src/diagnostics/graph-health';
 
 describe('graph health classification contract', () => {
   const base = {
@@ -88,5 +88,25 @@ describe('graph health classification contract', () => {
         'rm -rf .zcodegraph && zcodegraph init',
       ],
     });
+  });
+
+  it('formats human-readable status lines with exact next steps', () => {
+    expect(formatGraphHealthLines(classifyGraphHealth({
+      ...base,
+      pendingChangeCount: 1,
+    }))).toEqual([
+      'State: stale',
+      'Usable: yes',
+      'The graph is usable but out of date with the current checkout.',
+      'Reasons:',
+      '  1 pending source change(s).',
+      'Next steps:',
+      '  zcodegraph sync',
+    ]);
+
+    expect(formatGraphHealthLines(classifyGraphHealth({
+      ...base,
+      hybridFallbackState: 'degraded',
+    }))).toContain('  zcodegraph doctor --engine rust-hybrid --bundle --last-run');
   });
 });

@@ -43,7 +43,7 @@ import {
 } from '../indexing/rust-hybrid-contract';
 import { buildDiagnosticBundleSummary, createDiagnosticBundle, diagnosticRecordPath, writeDiagnosticRunRecord } from '../diagnostics';
 import { buildRustHybridFallbackSummary, formatRustHybridFallbackDoctorHint } from '../diagnostics/fallback-summary';
-import { classifyGraphHealth } from '../diagnostics/graph-health';
+import { classifyGraphHealth, formatGraphHealthLines, GraphHealth } from '../diagnostics/graph-health';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
 import { relaunchWithWasmRuntimeFlagsIfNeeded } from '../extraction/wasm-runtime-flags';
@@ -792,6 +792,21 @@ function diagnosticRecordInfo(projectPath: string, kind: 'last-run' | 'last-fail
   }
 }
 
+function printGraphHealthSummary(health: GraphHealth): void {
+  const stateColor = health.state === 'healthy'
+    ? chalk.green
+    : health.state === 'corrupted' || health.state === 'failed'
+      ? chalk.red
+      : chalk.yellow;
+  console.log(chalk.bold('Graph Health:'));
+  const [stateLine, ...rest] = formatGraphHealthLines(health);
+  console.log(`  ${stateColor(stateLine ?? `State: ${health.state}`)}`);
+  for (const line of rest) {
+    console.log(`  ${line}`);
+  }
+  console.log();
+}
+
 // =============================================================================
 // Commands
 // =============================================================================
@@ -1131,6 +1146,11 @@ program
 
     try {
       if (!isInitialized(projectPath)) {
+        const health = classifyGraphHealth({
+          initialized: false,
+          databasePath: getDatabasePath(projectPath),
+          databasePresent: fs.existsSync(getDatabasePath(projectPath)),
+        });
         if (options.json) {
           console.log(JSON.stringify({
             initialized: false,
@@ -1139,19 +1159,14 @@ program
             indexPath: getCodeGraphDir(projectPath),
             databasePath: getDatabasePath(projectPath),
             lastIndexed: null,
-            health: classifyGraphHealth({
-              initialized: false,
-              databasePath: getDatabasePath(projectPath),
-              databasePresent: fs.existsSync(getDatabasePath(projectPath)),
-            }),
+            health,
             rust: getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null }),
           }));
           return;
         }
         console.log(chalk.bold('\nCodeGraph Status\n'));
         info(`Project: ${projectPath}`);
-        warn('Not initialized');
-        info('Run "zcodegraph init" to initialize');
+        printGraphHealthSummary(health);
         return;
       }
 
@@ -1228,6 +1243,8 @@ program
       }
       console.log();
 
+      printGraphHealthSummary(health);
+
       // Index stats
       console.log(chalk.bold('Index Statistics:'));
       console.log(`  Files:     ${formatNumber(stats.fileCount)}`);
@@ -1298,8 +1315,8 @@ program
 
       cg.destroy();
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       if (options.json && isInitialized(projectPath)) {
-        const message = err instanceof Error ? err.message : String(err);
         console.log(JSON.stringify({
           initialized: true,
           version: packageJson.version,
@@ -1318,6 +1335,20 @@ program
           rust: getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null }),
         }));
         return;
+      }
+      if (isInitialized(projectPath)) {
+        const health = classifyGraphHealth({
+          initialized: true,
+          databasePath: getDatabasePath(projectPath),
+          databasePresent: fs.existsSync(getDatabasePath(projectPath)),
+          openError: message,
+          lastRun: diagnosticRecordInfo(projectPath, 'last-run'),
+          lastFailure: diagnosticRecordInfo(projectPath, 'last-failure'),
+        });
+        console.log(chalk.bold('\nCodeGraph Status\n'));
+        info(`Project: ${projectPath}`);
+        printGraphHealthSummary(health);
+        process.exit(1);
       }
       error(`Failed to get status: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
