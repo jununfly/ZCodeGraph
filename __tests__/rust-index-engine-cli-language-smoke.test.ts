@@ -117,7 +117,16 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
   }, 30_000);
 
   it('indexes Python as Rust-owned under rust-hybrid', () => {
-    fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
+    fs.writeFileSync(
+      path.join(tempDir, 'worker.py'),
+      [
+        'def helper():',
+        '    return 1',
+        '',
+        'def worker():',
+        '    return helper()',
+      ].join('\n') + '\n',
+    );
 
     const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
@@ -127,7 +136,12 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     const cg = CodeGraph.openSync(tempDir);
     try {
       expect(cg.getStats().filesByLanguage.python).toBe(1);
-      expect(cg.searchNodes('worker').some((match) => match.node.kind === 'function' && match.node.language === 'python')).toBe(true);
+      const worker = cg.searchNodes('worker').find((match) => match.node.kind === 'function' && match.node.language === 'python')?.node;
+      const helper = cg.searchNodes('helper').find((match) => match.node.kind === 'function' && match.node.language === 'python')?.node;
+      expect(worker).toBeDefined();
+      expect(helper).toBeDefined();
+      const workerCalls = cg.getOutgoingEdges(worker!.id).filter((edge) => edge.kind === 'calls');
+      expect(workerCalls.some((edge) => edge.target === helper!.id)).toBe(true);
       const buildInfo = cg.getIndexBuildInfo();
       expect(buildInfo.engine).toBe('rust-hybrid');
       expect(buildInfo.hybrid).toMatchObject({

@@ -100,12 +100,12 @@
     "1-2-2": {
       "id": "1-2-2",
       "label": "补齐 Rust Python 调用与 import reference 语义",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [],
       "decisions": [],
-      "notes": ""
+      "notes": "Commit intent: test: verify rust-hybrid python call dependency path. Gate passed: npx vitest run __tests__/rust-index-engine-cli-language-smoke.test.ts -t indexes Python as Rust-owned; cargo test --package zcodegraph-core indexes_minimal_python_symbols_and_imports; cargo fmt --check; git diff --check. Result: CLI rust-hybrid Python smoke now verifies worker -> helper calls edge."
     },
     "1-2-3": {
       "id": "1-2-3",
@@ -130,7 +130,7 @@
   },
   "metadata": {
     "created": "2026-07-02 20:11:46",
-    "updated": "2026-07-02 20:31:42",
+    "updated": "2026-07-02 20:34:03",
     "md_file": "docs/plans/2026-07-02-rust-index-python-support-roadmap.md"
   }
 }
