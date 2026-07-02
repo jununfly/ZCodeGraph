@@ -26,6 +26,11 @@
           "q": "是否创建专用 roadmap 分支？",
           "answer": "已创建 codex/cli-status-doctor-semantics。",
           "note": "非平凡 roadmap 必须使用专用分支；当前分支承载本次 initiative。"
+        },
+        {
+          "q": "本次 ZAgenticLoop 是否连续执行直到 roadmap 完成？",
+          "answer": "采用连续执行约束：按叶子节点一刀一提交持续推进；遇到 Human Gate、scope expansion、失败 gate、需要删除/发布/merge 时停下来问 Human。",
+          "note": "Human Gate 已确认：先添加这个运行约束并实践。该约束适用于本 roadmap 当前分支 codex/cli-status-doctor-semantics。"
         }
       ],
       "notes": ""
@@ -176,7 +181,7 @@
   },
   "metadata": {
     "created": "2026-07-02 17:47:15",
-    "updated": "2026-07-02 18:11:23",
+    "updated": "2026-07-02 18:17:33",
     "md_file": "docs/plans/2026-07-02-cli-status-doctor-semantics-roadmap.md"
   }
 }
