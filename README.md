@@ -54,6 +54,9 @@ zcodegraph status
 
 <sub>Builds the local `.zcodegraph/` knowledge graph for this project. ZCodeGraph uses its fastest supported local indexing path automatically, with per-file fallback when needed, so you don't have to choose an engine during setup.</sub>
 
+`zcodegraph status` is the trust check for the current graph. It reports one
+shared health state across the CLI: `healthy`, `degraded`, `stale`, `failed`,
+`unavailable`, or `corrupted`, plus the exact next command when action is needed.
 If indexing reports fallback, degraded status, or a failure, create a local
 diagnostic bundle before opening an issue:
 
@@ -628,7 +631,18 @@ mixing old benchmark numbers into the release snapshot.
 **"CodeGraph not initialized"** — Run `zcodegraph init` in your project directory first.
 
 **Check index health** — Use `zcodegraph status` for a human-readable summary,
-or `zcodegraph status --json` when reporting a bug or scripting a check.
+or `zcodegraph status --json` when reporting a bug or scripting a check. The
+shared health states are:
+
+- `healthy` — the graph is current and fully usable.
+- `degraded` — the graph is usable, but fallback diagnostics need review.
+- `stale` — the graph is usable but out of date; run `zcodegraph sync` or
+  `zcodegraph index --force`.
+- `failed` — the latest build failed; run
+  `zcodegraph doctor --engine rust-hybrid --bundle --last-failure`.
+- `unavailable` — no usable graph exists yet; run `zcodegraph init`.
+- `corrupted` — the database exists but cannot be opened; do not trust the graph
+  until you follow the recovery commands printed by `zcodegraph status`.
 
 **Indexing is slow** — Check that `node_modules` and other large directories are excluded. Use `--quiet` to reduce output overhead.
 

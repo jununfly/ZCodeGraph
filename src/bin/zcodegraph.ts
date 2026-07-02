@@ -41,8 +41,9 @@ import {
   planRustHybridAssignments,
   RustOwnedPerFileGapDiagnostic,
 } from '../indexing/rust-hybrid-contract';
-import { buildDiagnosticBundleSummary, createDiagnosticBundle, writeDiagnosticRunRecord } from '../diagnostics';
+import { buildDiagnosticBundleSummary, createDiagnosticBundle, diagnosticRecordPath, writeDiagnosticRunRecord } from '../diagnostics';
 import { buildRustHybridFallbackSummary, formatRustHybridFallbackDoctorHint } from '../diagnostics/fallback-summary';
+import { classifyGraphHealth, formatGraphHealthLines, GraphHealth } from '../diagnostics/graph-health';
 
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
 import { relaunchWithWasmRuntimeFlagsIfNeeded } from '../extraction/wasm-runtime-flags';
@@ -780,6 +781,53 @@ function printRustHybridFailureDoctorHint(): void {
   console.error('  zcodegraph doctor --engine rust-hybrid --bundle --last-failure');
 }
 
+function diagnosticRecordInfo(projectPath: string, kind: 'last-run' | 'last-failure'): { exists: boolean; endedAt?: string | null } {
+  const file = diagnosticRecordPath(projectPath, kind);
+  if (!fs.existsSync(file)) return { exists: false };
+  try {
+    const record = JSON.parse(fs.readFileSync(file, 'utf-8')) as { endedAt?: string | null };
+    return { exists: true, endedAt: record.endedAt ?? null };
+  } catch {
+    return { exists: true, endedAt: null };
+  }
+}
+
+function printGraphHealthSummary(health: GraphHealth): void {
+  const stateColor = health.state === 'healthy'
+    ? chalk.green
+    : health.state === 'corrupted' || health.state === 'failed'
+      ? chalk.red
+      : chalk.yellow;
+  console.log(chalk.bold('Graph Health:'));
+  const [stateLine, ...rest] = formatGraphHealthLines(health);
+  console.log(`  ${stateColor(stateLine ?? `State: ${health.state}`)}`);
+  for (const line of rest) {
+    console.log(`  ${line}`);
+  }
+  console.log();
+}
+
+function missingDiagnosticRecordMessage(kind: 'last-run' | 'last-failure'): string {
+  if (kind === 'last-run') {
+    return [
+      'No last-run diagnostic record found.',
+      'Graph health: unavailable',
+      'Run a successful rust-hybrid index first:',
+      '  zcodegraph index --engine rust-hybrid',
+      'Then create the bundle:',
+      '  zcodegraph doctor --engine rust-hybrid --bundle --last-run',
+    ].join('\n');
+  }
+  return [
+    'No last-failure diagnostic record found.',
+    'Graph health: unavailable',
+    'Reproduce the rust-hybrid failure first:',
+    '  zcodegraph index --engine rust-hybrid',
+    'Then create the bundle:',
+    '  zcodegraph doctor --engine rust-hybrid --bundle --last-failure',
+  ].join('\n');
+}
+
 // =============================================================================
 // Commands
 // =============================================================================
@@ -1119,6 +1167,11 @@ program
 
     try {
       if (!isInitialized(projectPath)) {
+        const health = classifyGraphHealth({
+          initialized: false,
+          databasePath: getDatabasePath(projectPath),
+          databasePresent: fs.existsSync(getDatabasePath(projectPath)),
+        });
         if (options.json) {
           console.log(JSON.stringify({
             initialized: false,
@@ -1127,14 +1180,14 @@ program
             indexPath: getCodeGraphDir(projectPath),
             databasePath: getDatabasePath(projectPath),
             lastIndexed: null,
+            health,
             rust: getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null }),
           }));
           return;
         }
         console.log(chalk.bold('\nCodeGraph Status\n'));
         info(`Project: ${projectPath}`);
-        warn('Not initialized');
-        info('Run "zcodegraph init" to initialize');
+        printGraphHealthSummary(health);
         return;
       }
 
@@ -1147,6 +1200,18 @@ program
 
       const buildInfo = cg.getIndexBuildInfo();
       const reindexRecommended = cg.isIndexStale();
+      const pendingChangeCount = changes.added.length + changes.modified.length + changes.removed.length;
+      const hybridFallbackState = (buildInfo.hybrid as { fallbackState?: string } | null | undefined)?.fallbackState ?? null;
+      const health = classifyGraphHealth({
+        initialized: true,
+        databasePath: getDatabasePath(projectPath),
+        databasePresent: fs.existsSync(getDatabasePath(projectPath)),
+        pendingChangeCount,
+        reindexRecommended,
+        hybridFallbackState,
+        lastRun: diagnosticRecordInfo(projectPath, 'last-run'),
+        lastFailure: diagnosticRecordInfo(projectPath, 'last-failure'),
+      });
 
       // JSON output mode
       if (options.json) {
@@ -1158,6 +1223,7 @@ program
           indexPath: getCodeGraphDir(projectPath),
           databasePath: getDatabasePath(projectPath),
           lastIndexed: lastIndexedMs != null ? new Date(lastIndexedMs).toISOString() : null,
+          health,
           fileCount: stats.fileCount,
           nodeCount: stats.nodeCount,
           edgeCount: stats.edgeCount,
@@ -1197,6 +1263,8 @@ program
         warn(worktreeMismatchWarning(worktreeMismatch));
       }
       console.log();
+
+      printGraphHealthSummary(health);
 
       // Index stats
       console.log(chalk.bold('Index Statistics:'));
@@ -1268,6 +1336,41 @@ program
 
       cg.destroy();
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (options.json && isInitialized(projectPath)) {
+        console.log(JSON.stringify({
+          initialized: true,
+          version: packageJson.version,
+          projectPath,
+          indexPath: getCodeGraphDir(projectPath),
+          databasePath: getDatabasePath(projectPath),
+          lastIndexed: null,
+          health: classifyGraphHealth({
+            initialized: true,
+            databasePath: getDatabasePath(projectPath),
+            databasePresent: fs.existsSync(getDatabasePath(projectPath)),
+            openError: message,
+            lastRun: diagnosticRecordInfo(projectPath, 'last-run'),
+            lastFailure: diagnosticRecordInfo(projectPath, 'last-failure'),
+          }),
+          rust: getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null }),
+        }));
+        return;
+      }
+      if (isInitialized(projectPath)) {
+        const health = classifyGraphHealth({
+          initialized: true,
+          databasePath: getDatabasePath(projectPath),
+          databasePresent: fs.existsSync(getDatabasePath(projectPath)),
+          openError: message,
+          lastRun: diagnosticRecordInfo(projectPath, 'last-run'),
+          lastFailure: diagnosticRecordInfo(projectPath, 'last-failure'),
+        });
+        console.log(chalk.bold('\nCodeGraph Status\n'));
+        info(`Project: ${projectPath}`);
+        printGraphHealthSummary(health);
+        process.exit(1);
+      }
       error(`Failed to get status: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
     }
@@ -1305,6 +1408,9 @@ program
         throw new Error(`CodeGraph not initialized in ${projectPath}. Run "zcodegraph init" first.`);
       }
       const source = options.lastRun ? 'last-run' : 'last-failure';
+      if (!diagnosticRecordInfo(projectPath, source).exists) {
+        throw new Error(missingDiagnosticRecordMessage(source));
+      }
       const bundlePath = createDiagnosticBundle(projectPath, {
         engine,
         source,

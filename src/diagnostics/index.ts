@@ -491,6 +491,9 @@ export function buildDiagnosticBundleSummary(projectRoot: string, relativeBundle
 
   const aggregateTaxonomy = perFile.classification?.aggregateTaxonomy;
   if (!aggregateTaxonomy) {
+    if (source === 'last-failure') {
+      lines.push('Graph health: failed');
+    }
     return {
       engine,
       source,
@@ -519,6 +522,8 @@ export function buildDiagnosticBundleSummary(projectRoot: string, relativeBundle
   fallbackSummary.fallbackState = aggregateTaxonomy.fallbackState === 'degraded'
     ? 'degraded'
     : fallbackSummary.fallbackState;
+  const graphHealth = source === 'last-failure' ? 'failed' : fallbackSummary.fallbackState;
+  lines.push(`Graph health: ${graphHealth}`);
   if (fallbackSummary.fallbackState === 'degraded') {
     fallbackSummary.graphUsabilityMessage = 'The index is usable; fallback-degraded files or diagnostics are the only parts that need review.';
   }

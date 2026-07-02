@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { execFileSync } from 'child_process';
+import { execFileSync, spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -39,6 +39,15 @@ function runStatusText(cwd: string): string {
     env: { ...process.env, CODEGRAPH_NO_DAEMON: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+}
+
+function runStatusTextResult(cwd: string): { status: number | null; stdout: string; stderr: string } {
+  const result = spawnSync(process.execPath, [BIN, 'status'], {
+    cwd,
+    encoding: 'utf-8',
+    env: { ...process.env, CODEGRAPH_NO_DAEMON: '1' },
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
 function writeFakeRustCore(dir: string): string {
@@ -88,6 +97,11 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     expect(out.indexPath as string).toContain('.zcodegraph');
     expect(out.databasePath).toBe(path.join(fs.realpathSync(tempDir), '.zcodegraph', 'zcodegraph.db'));
     expect(out.lastIndexed).toBeNull();
+    expect(out.health).toMatchObject({
+      state: 'unavailable',
+      usable: false,
+      nextCommands: ['zcodegraph init'],
+    });
     expect((out as { rust: { configuredEngine: { engine: string; source: string } } }).rust.configuredEngine)
       .toMatchObject({ engine: 'rust-hybrid', source: 'default' });
   });
@@ -110,6 +124,25 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     const ms = Date.parse(out.lastIndexed as string);
     expect(ms).toBeGreaterThanOrEqual(before - 1000);
     expect(ms).toBeLessThanOrEqual(after + 1000);
+    expect(out.health).toMatchObject({
+      state: 'healthy',
+      usable: true,
+      nextCommands: [],
+    });
+  });
+
+  it('status --json on a CORRUPTED project reports graph health without opening the graph', () => {
+    fs.mkdirSync(path.join(tempDir, '.zcodegraph'), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, '.zcodegraph', 'zcodegraph.db'), 'not sqlite');
+
+    const out = runStatusJson(tempDir);
+    expect(out.initialized).toBe(true);
+    expect(out.health).toMatchObject({
+      state: 'corrupted',
+      usable: false,
+    });
+    expect((out.health as { summary: string }).summary).toContain('cannot be opened');
+    expect((out.health as { nextCommands: string[] }).nextCommands).toContain('rm -rf .zcodegraph && zcodegraph init');
   });
 
   it('status --json reports local Rust readiness diagnostics for a missing Rust core override', () => {
@@ -245,5 +278,42 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     expect(out).not.toContain('Rust diagnostics');
     expect(out).not.toContain('discovery source');
     expect(out).not.toContain('attempted command');
+  });
+
+  it('normal status output reports unavailable graph health with an init command', () => {
+    const out = runStatusText(tempDir);
+
+    expect(out).toContain('Graph Health:');
+    expect(out).toContain('State: unavailable');
+    expect(out).toContain('Usable: no');
+    expect(out).toContain('zcodegraph init');
+  });
+
+  it('normal status output reports healthy graph health before index statistics', async () => {
+    fs.writeFileSync(path.join(tempDir, 'a.ts'), 'export const x = 1;\n');
+    const cg = CodeGraph.initSync(tempDir);
+    await cg.indexAll({ engine: 'typescript' });
+    cg.close();
+
+    const out = runStatusText(tempDir);
+
+    expect(out).toContain('Graph Health:');
+    expect(out).toContain('State: healthy');
+    expect(out).toContain('Usable: yes');
+    expect(out.indexOf('Graph Health:')).toBeLessThan(out.indexOf('Index Statistics:'));
+  });
+
+  it('normal status output reports corrupted graph health with recovery commands', () => {
+    fs.mkdirSync(path.join(tempDir, '.zcodegraph'), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, '.zcodegraph', 'zcodegraph.db'), 'not sqlite');
+
+    const result = runStatusTextResult(tempDir);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain('Graph Health:');
+    expect(result.stdout).toContain('State: corrupted');
+    expect(result.stdout).toContain('Usable: no');
+    expect(result.stdout).toContain('cannot be opened');
+    expect(result.stdout).toContain('rm -rf .zcodegraph && zcodegraph init');
   });
 });
