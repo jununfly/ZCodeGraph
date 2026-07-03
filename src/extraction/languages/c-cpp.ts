@@ -45,51 +45,6 @@ function extractCppReceiverType(node: SyntaxNode, source: string): string | unde
   return parts.length > 1 ? parts.slice(0, -1).join('::') : undefined;
 }
 
-export const cExtractor: LanguageExtractor = {
-  functionTypes: ['function_definition'],
-  classTypes: [],
-  methodTypes: [],
-  interfaceTypes: [],
-  structTypes: ['struct_specifier'],
-  enumTypes: ['enum_specifier'],
-  enumMemberTypes: ['enumerator'],
-  typeAliasTypes: ['type_definition'], // typedef
-  importTypes: ['preproc_include'],
-  callTypes: ['call_expression'],
-  variableTypes: ['declaration'],
-  nameField: 'declarator',
-  bodyField: 'body',
-  paramsField: 'parameters',
-  resolveTypeAliasKind: (node, _source) => {
-    // C typedef: `typedef enum { ... } name;` or `typedef struct { ... } name;`
-    // The inner enum_specifier/struct_specifier is anonymous, but we want the typedef name
-    // to become the enum/struct node name.
-    for (let i = 0; i < node.namedChildCount; i++) {
-      const child = node.namedChild(i);
-      if (!child) continue;
-      if (child.type === 'enum_specifier' && getChildByField(child, 'body')) return 'enum';
-      if (child.type === 'struct_specifier' && getChildByField(child, 'body')) return 'struct';
-    }
-    return undefined;
-  },
-  extractImport: (node, source) => {
-    const importText = source.substring(node.startIndex, node.endIndex).trim();
-    // C includes: #include <stdio.h>, #include "myheader.h"
-    const systemLib = node.namedChildren.find((c: SyntaxNode) => c.type === 'system_lib_string');
-    if (systemLib) {
-      return { moduleName: getNodeText(systemLib, source).replace(/^<|>$/g, ''), signature: importText };
-    }
-    const stringLiteral = node.namedChildren.find((c: SyntaxNode) => c.type === 'string_literal');
-    if (stringLiteral) {
-      const stringContent = stringLiteral.namedChildren.find((c: SyntaxNode) => c.type === 'string_content');
-      if (stringContent) {
-        return { moduleName: getNodeText(stringContent, source), signature: importText };
-      }
-    }
-    return null;
-  },
-};
-
 export const cppExtractor: LanguageExtractor = {
   functionTypes: ['function_definition'],
   classTypes: ['class_specifier'],

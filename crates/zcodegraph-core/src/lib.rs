@@ -7100,6 +7100,9 @@ fn index_javascript_files(
         counts
             .profile
             .add_parse_language_source_read(&language_name, source_read_ms);
+        if language.is_c() && is_non_c_header(&file_path, &content) {
+            continue;
+        }
         if language.is_rust() {
             record_rust_file_cargo_ownership(
                 &cargo_workspace_diagnostics,
@@ -7140,7 +7143,7 @@ fn index_javascript_files(
         let file_node_id = file_node.id.clone();
         nodes.push(file_node);
 
-        if parsed.root_node().has_error() {
+        if parsed.root_node().has_error() && !language.is_c() {
             let error_started = Instant::now();
             counts.files_errored += 1;
             counts.errors.push(IndexError::rust_owned_parse_gap(
@@ -7176,6 +7179,16 @@ fn index_javascript_files(
                 )?;
             } else if language.is_python() {
                 extract_python_symbols(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
+            } else if language.is_c() {
+                extract_c_symbols(
                     parsed.root_node(),
                     content.as_bytes(),
                     &relative_path,
@@ -7494,6 +7507,7 @@ fn is_member_receiver_position(bytes: &[u8], after_word: usize) -> bool {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum SourceLanguage {
+    C,
     JavaScript,
     Jsx,
     TypeScript,
@@ -7515,6 +7529,7 @@ impl SourceLanguage {
             Some("tsx") => Some(Self::Tsx),
             Some("mts") => Some(Self::Mts),
             Some("cts") => Some(Self::Cts),
+            Some("c") | Some("h") => Some(Self::C),
             Some("go") => Some(Self::Go),
             Some("java") => Some(Self::Java),
             Some("py") | Some("pyw") => Some(Self::Python),
@@ -7525,6 +7540,7 @@ impl SourceLanguage {
 
     fn codegraph_name(self) -> &'static str {
         match self {
+            Self::C => "c",
             Self::JavaScript => "javascript",
             Self::Jsx => "jsx",
             Self::TypeScript | Self::Mts | Self::Cts => "typescript",
@@ -7538,6 +7554,7 @@ impl SourceLanguage {
 
     fn tree_sitter_language(self) -> tree_sitter::Language {
         match self {
+            Self::C => tree_sitter_c::LANGUAGE.into(),
             Self::JavaScript | Self::Jsx => tree_sitter_javascript::LANGUAGE.into(),
             Self::TypeScript | Self::Mts | Self::Cts => {
                 tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()
@@ -7558,6 +7575,10 @@ impl SourceLanguage {
         matches!(self, Self::Go)
     }
 
+    fn is_c(self) -> bool {
+        matches!(self, Self::C)
+    }
+
     fn is_java(self) -> bool {
         matches!(self, Self::Java)
     }
@@ -7569,6 +7590,36 @@ impl SourceLanguage {
     fn is_rust(self) -> bool {
         matches!(self, Self::Rust)
     }
+}
+
+fn is_non_c_header(path: &Path, source: &str) -> bool {
+    if path.extension().and_then(|ext| ext.to_str()) != Some("h") {
+        return false;
+    }
+    let sample = source.get(..source.len().min(8192)).unwrap_or(source);
+    looks_like_cpp_header(sample) || looks_like_objc_header(sample)
+}
+
+fn looks_like_cpp_header(source: &str) -> bool {
+    const NEEDLES: [&str; 7] = [
+        "namespace ",
+        "template <",
+        "template<",
+        "class ",
+        "public:",
+        "private:",
+        "protected:",
+    ];
+    NEEDLES.iter().any(|needle| source.contains(needle))
+        || source.contains(" virtual ")
+        || source.contains("using namespace ")
+}
+
+fn looks_like_objc_header(source: &str) -> bool {
+    source.contains("@interface")
+        || source.contains("@protocol")
+        || source.contains("@class")
+        || source.contains("#import")
 }
 
 fn collect_supported_files(project_path: &Path) -> io::Result<Vec<PathBuf>> {
@@ -8540,6 +8591,320 @@ fn go_type_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
             .last()
             .and_then(|child| child.utf8_text(source).ok().map(ToString::to_string)),
         _ => None,
+    }
+}
+
+fn extract_c_symbols(
+    root: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut cursor = root.walk();
+    visit_c_node(
+        &mut cursor,
+        source,
+        relative_path,
+        file_node_id,
+        file_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
+    Ok(())
+}
+
+fn visit_c_node(
+    cursor: &mut TreeCursor,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    current_from_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let node = cursor.node();
+    let mut child_from_node_id: Cow<'_, str> = Cow::Borrowed(current_from_node_id);
+
+    if let Some((kind, name, name_node)) = extract_c_named_symbol(node, source)? {
+        let extracted = ExtractedNode::symbol(relative_path, kind, &name, node, "c");
+        let extracted_id = extracted.id.clone();
+        let contains_source = if current_from_node_id != file_node_id {
+            current_from_node_id
+        } else {
+            file_node_id
+        };
+        edges.push(ExtractedEdge {
+            source: contains_source.to_string(),
+            target: extracted_id.clone(),
+            kind: "contains".to_string(),
+            line: extracted.start_line,
+            col: extracted.start_column,
+        });
+        nodes.push(extracted);
+        if matches!(kind, "function" | "struct" | "enum") {
+            child_from_node_id = Cow::Owned(extracted_id);
+        }
+
+        if matches!(kind, "enum_member") || name_node.kind() == "field_identifier" {
+            return Ok(());
+        }
+    }
+
+    extract_c_include(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
+    extract_c_statement_refs(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        unresolved_refs,
+    )?;
+
+    if cursor.goto_first_child() {
+        loop {
+            visit_c_node(
+                cursor,
+                source,
+                relative_path,
+                file_node_id,
+                &child_from_node_id,
+                nodes,
+                edges,
+                unresolved_refs,
+            )?;
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+        cursor.goto_parent();
+    }
+
+    Ok(())
+}
+
+fn extract_c_include(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "preproc_include" {
+        return Ok(());
+    }
+    let Some(module_name) = c_include_name(node, source)? else {
+        return Ok(());
+    };
+    let import_node = ExtractedNode::symbol(relative_path, "import", &module_name, node, "c");
+    let import_node_id = import_node.id.clone();
+    edges.push(ExtractedEdge {
+        source: from_node_id.to_string(),
+        target: import_node_id,
+        kind: "contains".to_string(),
+        line: import_node.start_line,
+        col: import_node.start_column,
+    });
+    nodes.push(import_node);
+    push_ref(
+        unresolved_refs,
+        from_node_id,
+        &module_name,
+        "imports",
+        node,
+        relative_path,
+        SourceLanguage::C,
+    );
+    Ok(())
+}
+
+fn extract_c_statement_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "call_expression" {
+        return Ok(());
+    }
+    let Some(target_node) = node.child_by_field_name("function") else {
+        return Ok(());
+    };
+    let Some(reference_name) = c_call_reference_name(target_node, source)? else {
+        return Ok(());
+    };
+    push_ref(
+        unresolved_refs,
+        from_node_id,
+        &reference_name,
+        "calls",
+        target_node,
+        relative_path,
+        SourceLanguage::C,
+    );
+    Ok(())
+}
+
+fn extract_c_named_symbol<'a>(
+    node: SyntaxNode<'a>,
+    source: &[u8],
+) -> Result<Option<(&'static str, String, SyntaxNode<'a>)>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "function_definition" => {
+            if let Some(name_node) = node
+                .child_by_field_name("declarator")
+                .and_then(c_declarator_name_node)
+            {
+                return Ok(Some((
+                    "function",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "struct_specifier" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "struct",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "enum_specifier" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "enum",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "enumerator" => {
+            if let Some(name_node) = node
+                .child_by_field_name("name")
+                .or_else(|| first_named_child_of_kind(node, "identifier"))
+            {
+                return Ok(Some((
+                    "enum_member",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "type_definition" => {
+            if let Some(name_node) = node
+                .child_by_field_name("declarator")
+                .and_then(c_declarator_name_node)
+            {
+                let kind = c_typedef_kind(node);
+                return Ok(Some((
+                    kind,
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        "declaration" => {
+            if let Some(name_node) = node
+                .child_by_field_name("declarator")
+                .and_then(c_declarator_name_node)
+            {
+                return Ok(Some((
+                    "variable",
+                    name_node.utf8_text(source)?.to_string(),
+                    name_node,
+                )));
+            }
+        }
+        _ => {}
+    }
+    Ok(None)
+}
+
+fn c_typedef_kind(node: SyntaxNode) -> &'static str {
+    for child in node.named_children(&mut node.walk()) {
+        if child.kind() == "struct_specifier" && child.child_by_field_name("body").is_some() {
+            return "struct";
+        }
+        if child.kind() == "enum_specifier" && child.child_by_field_name("body").is_some() {
+            return "enum";
+        }
+    }
+    "type_alias"
+}
+
+fn c_declarator_name_node(node: SyntaxNode) -> Option<SyntaxNode> {
+    if matches!(
+        node.kind(),
+        "identifier" | "field_identifier" | "type_identifier"
+    ) {
+        return Some(node);
+    }
+    if matches!(node.kind(), "parameter_list" | "argument_list") {
+        return None;
+    }
+    let mut last = None;
+    for child in node.named_children(&mut node.walk()) {
+        if let Some(candidate) = c_declarator_name_node(child) {
+            last = Some(candidate);
+        }
+    }
+    last
+}
+
+fn c_include_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    for child in node.named_children(&mut node.walk()) {
+        if matches!(child.kind(), "system_lib_string" | "string_literal") {
+            let raw = child.utf8_text(source)?.trim();
+            return Ok(Some(
+                raw.trim_start_matches(['<', '"'])
+                    .trim_end_matches(['>', '"'])
+                    .to_string(),
+            ));
+        }
+    }
+    Ok(None)
+}
+
+fn c_call_reference_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "identifier" | "field_identifier" => Ok(Some(node.utf8_text(source)?.to_string())),
+        "field_expression" => {
+            let field = node
+                .child_by_field_name("field")
+                .or_else(|| first_named_child_of_kind(node, "field_identifier"));
+            Ok(field.and_then(|child| child.utf8_text(source).ok().map(ToString::to_string)))
+        }
+        "parenthesized_expression" | "pointer_expression" => {
+            for child in node.named_children(&mut node.walk()) {
+                if let Some(name) = c_call_reference_name(child, source)? {
+                    return Ok(Some(name));
+                }
+            }
+            Ok(None)
+        }
+        _ => Ok(None),
     }
 }
 

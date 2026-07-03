@@ -13,7 +13,7 @@ import { javascriptExtractor } from './javascript';
 import { pythonExtractor } from './python';
 import { goExtractor } from './go';
 import { rustExtractor } from './rust';
-import { cExtractor, cppExtractor } from './c-cpp';
+import { cppExtractor } from './c-cpp';
 import { csharpExtractor } from './csharp';
 import { phpExtractor } from './php';
 import { rubyExtractor } from './ruby';
@@ -34,7 +34,6 @@ export const EXTRACTORS: Partial<Record<Language, LanguageExtractor>> = {
   python: pythonExtractor,
   go: goExtractor,
   rust: rustExtractor,
-  c: cExtractor,
   cpp: cppExtractor,
   csharp: csharpExtractor,
   php: phpExtractor,

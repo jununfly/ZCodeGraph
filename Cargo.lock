@@ -475,6 +475,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter-c"
+version = "0.23.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afd2b1bf1585dc2ef6d69e87d01db8adb059006649dd5f96f31aa789ee6e9c71"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
 name = "tree-sitter-go"
 version = "0.23.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -581,6 +591,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tree-sitter",
+ "tree-sitter-c",
  "tree-sitter-go",
  "tree-sitter-java",
  "tree-sitter-javascript",
