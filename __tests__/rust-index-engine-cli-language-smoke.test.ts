@@ -278,6 +278,91 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     }
   }, 30_000);
 
+  it('indexes C as Rust-owned under rust-hybrid', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'worker.h'),
+      [
+        '#pragma once',
+        '',
+        'typedef enum { MODE_FAST, MODE_SAFE } Mode;',
+        '',
+        'typedef struct Worker {',
+        '  int count;',
+        '} Worker;',
+        '',
+        'int helper(int input);',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'worker.c'),
+      [
+        '#include <stdio.h>',
+        '#include "worker.h"',
+        '',
+        'struct State {',
+        '  int value;',
+        '};',
+        '',
+        'typedef unsigned long WorkerId;',
+        '',
+        'int helper(int input) {',
+        '  return input + 1;',
+        '}',
+        '',
+        'int run_worker(Worker *worker) {',
+        '  printf("%d", worker->count);',
+        '  return helper(worker->count);',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      expect(cg.getStats().filesByLanguage.c).toBe(2);
+      const expectations = [
+        ['stdio.h', 'import'],
+        ['worker.h', 'import'],
+        ['Mode', 'enum'],
+        ['MODE_FAST', 'enum_member'],
+        ['Worker', 'struct'],
+        ['State', 'struct'],
+        ['WorkerId', 'type_alias'],
+        ['helper', 'function'],
+        ['run_worker', 'function'],
+      ] as const;
+      for (const [name, kind] of expectations) {
+        expect(
+          cg.searchNodes(name).some((match) => match.node.name === name && match.node.kind === kind && match.node.language === 'c'),
+          `${name} (${kind}) should be indexed as C`,
+        ).toBe(true);
+      }
+
+      const runWorker = cg.searchNodes('run_worker').find((match) => match.node.kind === 'function' && match.node.language === 'c')?.node;
+      const helper = cg.searchNodes('helper').find((match) => match.node.kind === 'function' && match.node.language === 'c')?.node;
+      expect(runWorker).toBeDefined();
+      expect(helper).toBeDefined();
+      const calls = cg.getOutgoingEdges(runWorker!.id).filter((edge) => edge.kind === 'calls');
+      expect(calls.some((edge) => edge.target === helper!.id)).toBe(true);
+
+      const buildInfo = cg.getIndexBuildInfo();
+      expect(buildInfo.engine).toBe('rust-hybrid');
+      expect(buildInfo.hybrid).toMatchObject({
+        rustOwnedLanguages: expect.arrayContaining(['c']),
+        engineByLanguage: { c: 'rust' },
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
+        fallbackReasonTaxonomy: {},
+      });
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
   it('reports Rust index-engine metadata through MCP status', async () => {
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,

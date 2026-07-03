@@ -42,6 +42,7 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     fs.writeFileSync(path.join(tempDir, 'server.go'), 'package main\nfunc main() {}\n');
     fs.writeFileSync(path.join(tempDir, 'service.py'), 'def service():\n    return 1\n');
     fs.writeFileSync(path.join(tempDir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
+    fs.writeFileSync(path.join(tempDir, 'worker.c'), 'int worker(void) { return 1; }\n');
     fs.writeFileSync(path.join(tempDir, 'routing.yml'), 'app:\n  path: /health\n');
     fs.writeFileSync(path.join(tempDir, 'notes.txt'), 'not source\n');
     fs.writeFileSync(path.join(tempDir, 'service.pb.go'), 'package main\n');
@@ -52,11 +53,12 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     expect(plan.rustOwnedFiles).toContain('server.go');
     expect(plan.rustOwnedFiles).toContain('service.py');
     expect(plan.rustOwnedFiles).toContain('worker.rs');
+    expect(plan.rustOwnedFiles).toContain('worker.c');
     expect(plan.fallbackFiles).toContain('routing.yml');
     expect(plan.unsupportedFiles).toEqual([]);
     expect(plan.fallbackFiles).not.toContain('notes.txt');
-    expect(plan.engineByLanguage).toMatchObject({ typescript: 'rust', go: 'rust', python: 'rust', rust: 'rust', yaml: 'typescript' });
-    expect(plan.engineByFileCount).toMatchObject({ rust: 4, typescript: 1 });
+    expect(plan.engineByLanguage).toMatchObject({ typescript: 'rust', go: 'rust', python: 'rust', rust: 'rust', c: 'rust', yaml: 'typescript' });
+    expect(plan.engineByFileCount).toMatchObject({ rust: 5, typescript: 1 });
     expect(plan.fallbackByLanguage).toMatchObject({ yaml: 1 });
     expect(plan.fallbackFileCount).toBe(1);
     expect(plan.missingFallbackByLanguage).toEqual({});
@@ -65,6 +67,20 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     expect(plan.fallbackState).toBe('degraded');
     expect(plan.fallbackReasonTaxonomy).toMatchObject({ 'language-level-typescript-fallback': 1 });
     expect(plan.pendingFallbacks).toContain('rust-owned-parse-gap');
+  });
+
+  it('classifies ambiguous headers by content before assigning rust-hybrid ownership', () => {
+    fs.writeFileSync(path.join(tempDir, 'plain.h'), '#ifndef PLAIN_H\nint plain(void);\n#endif\n');
+    fs.writeFileSync(path.join(tempDir, 'widget.h'), 'namespace app { class Widget {}; }\n');
+    fs.writeFileSync(path.join(tempDir, 'View.h'), '@interface View\n@end\n');
+
+    const plan = planRustHybridAssignments(tempDir);
+
+    expect(plan.rustOwnedFiles).toContain('plain.h');
+    expect(plan.fallbackFiles).toContain('widget.h');
+    expect(plan.fallbackFiles).toContain('View.h');
+    expect(plan.engineByLanguage).toMatchObject({ c: 'rust', cpp: 'typescript', objc: 'typescript' });
+    expect(plan.fallbackByLanguage).toMatchObject({ cpp: 1, objc: 1 });
   });
 
   it('records Rust-owned per-file gap diagnostics without same-language TypeScript fallback append', () => {

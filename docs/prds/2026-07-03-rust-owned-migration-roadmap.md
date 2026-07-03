@@ -65,7 +65,7 @@ and should be migrated language by language:
 
 - [x] Java: classes, interfaces, annotations, enums, imports, method calls,
       package declarations, Spring/Play boundary decision.
-- [ ] C: functions, structs, enums, typedefs, includes, calls, header
+- [x] C: functions, structs, enums, typedefs, includes, calls, header
       classification boundary.
 - [ ] C++: functions, classes, structs, enums, typedefs/aliases, includes,
       calls, namespace/member boundary.

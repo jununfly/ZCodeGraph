@@ -2345,15 +2345,6 @@ end
       expect(importNode?.name).toBe('myheader.h');
     });
 
-    it('should extract C header', () => {
-      const code = `#include <stdio.h>`;
-      const result = extractFromSource('main.c', code);
-
-      const importNode = result.nodes.find((n) => n.kind === 'import');
-      expect(importNode).toBeDefined();
-      expect(importNode?.name).toBe('stdio.h');
-    });
-
     it('should extract multiple includes', () => {
       const code = `
 #include <iostream>

@@ -1,9 +1,12 @@
 import { detectLanguage, isLanguageSupported } from '../extraction/grammars';
 import { isGeneratedFile } from '../extraction/generated-detection';
 import { scanDirectory } from '../extraction';
+import type { Language } from '../types';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export const RUST_HYBRID_PHASE = 'phase-6-rust-owned-per-file-gap-fallback';
-export const RUST_HYBRID_RUST_OWNED_LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'java', 'python', 'rust'] as const;
+export const RUST_HYBRID_RUST_OWNED_LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'java', 'python', 'rust', 'c'] as const;
 export type RustHybridFallbackState = 'healthy' | 'degraded' | 'pending';
 export type RustOwnedGapCode =
   | 'rust-owned-parse-gap'
@@ -199,7 +202,7 @@ export function planRustHybridAssignments(projectPath: string): RustHybridAssign
   const skippedGeneratedByLanguage: Record<string, number> = {};
 
   for (const filePath of scanDirectory(projectPath)) {
-    const language = detectLanguage(filePath);
+    const language = detectLanguageForRustHybridPlan(projectPath, filePath);
     if (isGeneratedFile(filePath)) {
       if (isLanguageSupported(language)) {
         skippedGeneratedByLanguage[language] = (skippedGeneratedByLanguage[language] ?? 0) + 1;
@@ -237,4 +240,15 @@ export function planRustHybridAssignments(projectPath: string): RustHybridAssign
     fallbackReasonTaxonomy: fallbackFiles.length > 0 ? { 'language-level-typescript-fallback': fallbackFiles.length } : {},
     pendingFallbacks: ['rust-owned-parse-gap'],
   };
+}
+
+function detectLanguageForRustHybridPlan(projectPath: string, filePath: string): Language {
+  if (!filePath.toLowerCase().endsWith('.h')) {
+    return detectLanguage(filePath);
+  }
+  try {
+    return detectLanguage(filePath, fs.readFileSync(path.join(projectPath, filePath), 'utf-8'));
+  } catch {
+    return detectLanguage(filePath);
+  }
 }
