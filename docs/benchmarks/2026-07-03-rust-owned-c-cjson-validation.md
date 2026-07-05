@@ -39,6 +39,15 @@ node /Users/bilibili/Documents/workspace/github/jununfly/ZCodeGraph/dist/bin/zco
   - `yaml`: 7
   - `ruby`: 13
 
+## Verification Gates
+
+- C Rust-owned fixture and rust-hybrid metadata coverage:
+  `npx vitest run __tests__/rust-index-engine-cli-language-smoke.test.ts __tests__/rust-index-engine-cli-fallback.test.ts __tests__/rust-index-engine-cli-engine.test.ts`
+  passed with 54 tests.
+- C++ and Objective-C TypeScript extraction guard:
+  `npx vitest run __tests__/extraction.test.ts -t "C/C\\+\\+ imports|Objective-C|detect language"`
+  passed with 15 focused tests.
+
 ## Boundary Note
 
 `libuv/libuv` was also tried as a larger C corpus. It indexed successfully, but
@@ -50,3 +59,7 @@ it is a better future stress corpus than a first baseline migration gate.
 The C baseline migration gate passes for this corpus. C source and header files
 are owned by the Rust indexer; remaining fallback evidence belongs to non-C
 languages outside this PR's C baseline extraction scope.
+
+The migrated TypeScript-owned C extraction path was removed after this gate
+passed. C++ remains TypeScript-owned and is tracked separately in the Rust-owned
+migration roadmap.

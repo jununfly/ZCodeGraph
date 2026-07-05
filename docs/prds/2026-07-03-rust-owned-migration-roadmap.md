@@ -66,7 +66,10 @@ and should be migrated language by language:
 - [x] Java: classes, interfaces, annotations, enums, imports, method calls,
       package declarations, Spring/Play boundary decision.
 - [x] C: functions, structs, enums, typedefs, includes, calls, header
-      classification boundary.
+      classification boundary. Baseline migration completed with
+      `DaveGamble/cJSON` corpus evidence recorded in
+      `docs/benchmarks/2026-07-03-rust-owned-c-cjson-validation.md`;
+      `libuv/libuv` remains a future macro-heavy C stress corpus.
 - [ ] C++: functions, classes, structs, enums, typedefs/aliases, includes,
       calls, namespace/member boundary.
 - [ ] C#: classes, records, interfaces, structs, enums, using directives,
@@ -208,3 +211,20 @@ Near-term clean candidates from the current map:
   remain TypeScript-shell owned, with corpus evidence recorded in
   `docs/benchmarks/2026-07-03-rust-owned-java-spring-petclinic-validation.md`.
 - Swift baseline migration, if mobile bridge ownership becomes product priority.
+
+## Completed Migration Notes
+
+### C Baseline Extraction
+
+Decision: C source files moved to Rust-owned per-file indexing. C/C++ header
+ambiguity remains an explicit classification boundary; this migration does not
+claim C++ or Objective-C ownership.
+
+Validation: `DaveGamble/cJSON` at `fb16e5c` passed as the real-corpus gate with
+Rust-owned C metadata and no Rust-owned C gap diagnostics. `libuv/libuv` indexed
+successfully but is deferred as a future stress corpus because macro-heavy
+platform headers produced many parse diagnostics.
+
+TypeScript fallback removal: the migrated TypeScript C extractor path was
+removed after fixture, metadata, and real-corpus validation passed. C++ remains
+TypeScript-owned until its own roadmap item is implemented.
