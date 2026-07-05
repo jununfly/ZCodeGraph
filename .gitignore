@@ -71,3 +71,7 @@ tmux-web/
 assets/__pycache__/
 
 assets/generate-waitlist.py
+
+# ZAgenticLoop local runtime state
+zj-loop/STATE.md
+zj-loop/zj-loop-run-log.md

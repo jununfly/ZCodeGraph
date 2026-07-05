@@ -27,5 +27,19 @@
 - If token spend hits 80% of daily cap, switch to report-only
 - If loop-pause-all is active, exit immediately
 
+## Daily Triage
+- Daily Triage is L3 readiness with L1 report-only execution.
+- Run at most once per day.
+- Read only GitHub Actions, open issues, open PRs, main branch commits, and `git status --short`.
+- Use the cursor in `zj-loop/STATE.md` as the primary scan window; fall back to the last 24 hours only when the cursor is missing or corrupt.
+- Do not scan chat, unrelated docs, the full repository, dependency freshness, security advisories, or local diffs by default.
+- Only write `zj-loop/STATE.md` when new signals exist.
+- Append `zj-loop/zj-loop-run-log.md` every run.
+- If there is no new signal, append a no-op run-log entry and do not rewrite `zj-loop/STATE.md`.
+- Do not edit product code, tests, package files, or docs outside `zj-loop/`.
+- Do not create branches, worktrees, commits, PRs, issue comments, issue closures, or GitHub writes.
+- Do not spawn sub-agents or automatically start follow-up loops.
+- For Critical or High-Priority items, include evidence and an exact human-confirmation command; do not execute it.
+
 ---
 <!-- Add your own rules below. Use plain English. The loop reads this verbatim. -->

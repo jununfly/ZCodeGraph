@@ -1,0 +1,273 @@
+# Machine-readable pattern registry for zagenticloop
+# Used by zj-loop-audit, zj-loop-cost, docs site, and tooling.
+
+schemaVersion: 1
+
+patterns:
+  - id: pr-steward
+    name: PR Steward
+    file: pr-steward.md
+    goal: Steward PRs through review, CI, rebase, and merge
+    cadence: 5m-15m
+    risk: medium
+    tools: [grok, claude-code, codex, github-actions]
+    skills: [zj-pr-review-triage, zj-minimal-fix, zj-rebase-and-clean]
+    state: zj-loop/pr-steward-state.md
+    phases: [discover, triage, fix, verify, notify]
+    human_gates: [security, payments, auth, max-fix-attempts]
+    starter: starters/pr-steward
+    week_one_mode: L1
+    token_cost: high
+    cost:
+      tokens_noop: 3000
+      tokens_report: 80000
+      tokens_action: 250000
+      suggested_daily_cap: 2000000
+      early_exit_required: true
+    init:
+      templates:
+        minimal_fix: true
+        verifier: false
+      budget:
+        max_runs_per_day: 288
+        max_spawns_l1: 0
+        max_spawns_l2: 3
+      first_loop_command:
+        grok: /loop 10m Run zj-pr-review-triage. Update pr-steward-state.md. Worktree + zj-minimal-fix + verifier for allowlisted PRs only. Escalate after 3 attempts.
+        claude: /loop 10m $zj-pr-review-triage — update pr-steward-state.md. No auto-merge.
+        codex: "Automation 10m: zj-pr-review-triage → pr-steward-state.md. No auto-merge."
+
+  - id: daily-triage
+    name: Daily Triage
+    file: daily-triage.md
+    goal: Prioritized morning scan of CI, issues, commits, and chat
+    cadence: 1d
+    risk: low
+    tools: [grok, claude-code, codex, github-actions]
+    skills: [zj-loop-triage, zj-minimal-fix]
+    state: zj-loop/STATE.md
+    phases: [report, act-small-wins, escalate]
+    human_gates: [design-decisions, multi-file-refactors]
+    starter: starters/minimal-loop
+    week_one_mode: L1
+    token_cost: low
+    cost:
+      tokens_noop: 3000
+      tokens_report: 25000
+      tokens_action: 0
+      suggested_daily_cap: 50000
+      early_exit_required: true
+    init:
+      tool_starters:
+        grok: starters/minimal-loop
+        claude: starters/minimal-loop-claude
+        codex: starters/minimal-loop-codex
+      templates:
+        minimal_fix: false
+        verifier: false
+      budget:
+        max_runs_per_day: 1
+        max_spawns_l1: 0
+        max_spawns_l2: 0
+      first_loop_command:
+        grok: /loop 1d Run zj-loop-triage. Update zj-loop/STATE.md. No auto-fix in week one.
+        claude: /loop 1d $zj-loop-triage — update zj-loop/STATE.md. Report-only week one.
+        codex: "Automation daily: Run $zj-loop-budget + $zj-loop-constraints + $zj-loop-triage. Update zj-loop/STATE.md only when new signals exist; append zj-loop/zj-loop-run-log.md every run. Report-only."
+
+  - id: ci-sweeper
+    name: CI Sweeper
+    file: ci-sweeper.md
+    goal: React to failing CI with minimal fixes and escalation
+    cadence: 5m-15m
+    risk: medium
+    tools: [grok, claude-code, codex, github-actions]
+    skills: [zj-ci-triage, zj-minimal-fix]
+    state: zj-loop/ci-sweeper-state.md
+    phases: [detect, classify, fix, verify, escalate]
+    human_gates: [infra-failures, max-attempts, security-tests]
+    starter: starters/ci-sweeper
+    week_one_mode: L2
+    token_cost: very-high
+    cost:
+      tokens_noop: 5000
+      tokens_report: 50000
+      tokens_action: 200000
+      suggested_daily_cap: 1000000
+      early_exit_required: true
+    init:
+      templates:
+        minimal_fix: true
+        verifier: true
+      budget:
+        max_runs_per_day: 96
+        max_spawns_l1: 0
+        max_spawns_l2: 3
+      first_loop_command:
+        grok: /loop 15m Run zj-ci-triage on failing CI. Update ci-sweeper-state.md. Fix only regressions in worktree. Max 3 attempts.
+        claude: /loop 15m $zj-ci-triage — update ci-sweeper-state.md. Max 3 fix attempts.
+        codex: "Automation 15m: zj-ci-triage on CI failures. Max 3 attempts."
+
+  - id: post-merge-cleanup
+    name: Post-Merge Cleanup
+    file: post-merge-cleanup.md
+    goal: Follow-up tech debt and cleanup after merges to main
+    cadence: 1d-6h
+    risk: low
+    tools: [grok, claude-code, codex, github-actions]
+    skills: [zj-post-merge-scan, zj-minimal-fix]
+    state: zj-loop/post-merge-state.md
+    phases: [scan-merges, prioritize, fix-small, ticket-large]
+    human_gates: [architectural-debt, feature-flags, large-diffs]
+    starter: starters/post-merge-cleanup
+    week_one_mode: L1
+    token_cost: low
+    cost:
+      tokens_noop: 5000
+      tokens_report: 40000
+      tokens_action: 150000
+      suggested_daily_cap: 200000
+      early_exit_required: false
+    init:
+      templates:
+        minimal_fix: true
+        verifier: false
+      budget:
+        max_runs_per_day: 1
+        max_spawns_l1: 0
+        max_spawns_l2: 2
+      first_loop_command:
+        grok: /loop 1d Run zj-post-merge-scan on recent merges. Update post-merge-state.md. Small fixes only in worktree.
+        claude: /loop 1d $zj-post-merge-scan — update post-merge-state.md. Small fixes only.
+        codex: "Automation daily: zj-post-merge-scan → post-merge-state.md."
+
+  - id: dependency-sweeper
+    name: Dependency Sweeper
+    file: dependency-sweeper.md
+    goal: Discover, safely apply, and verify dependency + vulnerability updates with human gates on risky changes
+    cadence: 6h-1d
+    risk: medium
+    tools: [grok, claude-code, codex, github-actions]
+    skills: [zj-dependency-triage, zj-minimal-fix, zj-loop-verifier]
+    state: zj-loop/dependency-sweeper-state.md
+    phases: [scan, triage-risk, patch-safe, verify-worktree, escalate-risky]
+    human_gates: [major-bumps, high-sev-cve, denylisted-packages, max-attempts]
+    starter: starters/dependency-sweeper
+    week_one_mode: L2
+    token_cost: medium
+    cost:
+      tokens_noop: 5000
+      tokens_report: 60000
+      tokens_action: 300000
+      suggested_daily_cap: 500000
+      early_exit_required: true
+    init:
+      templates:
+        minimal_fix: true
+        verifier: true
+      budget:
+        max_runs_per_day: 4
+        max_spawns_l1: 0
+        max_spawns_l2: 3
+      first_loop_command:
+        grok: /loop 6h Run zj-dependency-triage. Patch-only auto-fix in worktree + verifier. Escalate majors and denylist.
+        claude: /loop 6h $zj-dependency-triage — patch-only with verifier. Escalate risky bumps.
+        codex: "Automation 6h: zj-dependency-triage. Patch-only with verifier."
+
+  - id: changelog-drafter
+    name: Changelog Drafter
+    file: changelog-drafter.md
+    goal: Scan merged PRs and commits, draft categorized high-quality release notes or CHANGELOG entries for human review
+    cadence: 1d
+    risk: low
+    tools: [grok, claude-code, codex, github-actions]
+    skills: [zj-changelog-scan, zj-draft-release-notes, zj-loop-verifier]
+    state: zj-loop/changelog-drafter-state.md
+    phases: [scan-merges, categorize, draft, review, publish]
+    human_gates: [breaking-changes, security, major-features, marketing-sensitive]
+    starter: starters/changelog-drafter
+    week_one_mode: L1
+    token_cost: low
+    cost:
+      tokens_noop: 5000
+      tokens_report: 35000
+      tokens_action: 80000
+      suggested_daily_cap: 100000
+      early_exit_required: false
+    init:
+      templates:
+        minimal_fix: false
+        verifier: false
+      budget:
+        max_runs_per_day: 1
+        max_spawns_l1: 0
+        max_spawns_l2: 2
+      first_loop_command:
+        grok: /loop 1d Run zj-changelog-scan on merges since last tag. Produce categorized draft in RELEASE_NOTES_DRAFT.md using zj-draft-release-notes. Update changelog-drafter-state.md. Human review only.
+        claude: /loop 1d $zj-changelog-scan + zj-draft-release-notes — write RELEASE_NOTES_DRAFT.md and update state. Human approves before publish.
+        codex: "Automation daily: zj-changelog-scan + zj-draft-release-notes → RELEASE_NOTES_DRAFT.md. Human review."
+
+  - id: issue-triage
+    name: Issue Triage
+    file: issue-triage.md
+    goal: Discover, deduplicate, prioritize and label incoming issues/discussions so the team always has a clean actionable queue. Excellent low-risk companion to Daily Triage.
+    cadence: 2h-1d
+    risk: low
+    tools: [grok, claude-code, codex, github-actions]
+    skills: [zj-issue-triage, zj-loop-verifier]
+    state: zj-loop/issue-triage-state.md
+    phases: [discover, dedupe, score, propose-labels, human-review]
+    human_gates: [security, p0-p1, ambiguous-duplicates, stale-closures]
+    starter: starters/issue-triage
+    week_one_mode: L1
+    token_cost: low
+    cost:
+      tokens_noop: 3000
+      tokens_report: 30000
+      tokens_action: 60000
+      suggested_daily_cap: 80000
+      early_exit_required: false
+    init:
+      templates:
+        minimal_fix: false
+        verifier: false
+      budget:
+        max_runs_per_day: 12
+        max_spawns_l1: 0
+        max_spawns_l2: 1
+      first_loop_command:
+        grok: /loop 2h Run zj-issue-triage. Update zj-loop/issue-triage-state.md. Propose labels and priority only. No auto-apply. Human reviews the needs-human slice.
+        claude: /loop 2h $zj-issue-triage — update zj-loop/issue-triage-state.md. Suggest labels on allowlisted areas only. Report mode week one.
+        codex: "Automation 2h: zj-issue-triage → zj-loop/issue-triage-state.md. Propose only."
+
+  - id: roadmap-sliced-development
+    name: Roadmap-Sliced Development Pattern
+    file: roadmap-sliced-development.md
+    goal: Drive ambiguous architecture, product, documentation, and release initiatives through bounded roadmap-backed slices
+    cadence: 1d
+    risk: medium
+    tools: [grok, claude-code, codex]
+    skills: [zj-grill-me, zj-roadmap-driven, zj-grill-with-docs]
+    state: zj-loop/roadmap-sliced-state.md
+    phases: [explore, decide, slice, verify, commit, closeout, pr-handoff]
+    human_gates: [naming, scope-expansion, release-boundary, branch-merge, process-doc-deletion]
+    starter: starters/roadmap-sliced-development
+    week_one_mode: L2
+    token_cost: medium
+    cost:
+      tokens_noop: 10000
+      tokens_report: 80000
+      tokens_action: 300000
+      suggested_daily_cap: 500000
+      early_exit_required: true
+    init:
+      templates:
+        minimal_fix: false
+        verifier: true
+      budget:
+        max_runs_per_day: 1
+        max_spawns_l1: 0
+        max_spawns_l2: 2
+      first_loop_command:
+        grok: /loop 1d Run roadmap-sliced-development. Update zj-loop/roadmap-sliced-state.md before commits. Execute one bounded slice, verify, commit, and stop at Human Gates.
+        claude: /loop 1d $zj-grill-me + $zj-roadmap-driven — execute one roadmap slice with verification evidence before commit. Stop at Human Gates.
+        codex: "Run $zj-grill-me + $zj-roadmap-driven for one bounded roadmap slice. Update zj-loop/roadmap-sliced-state.md before commit; continue to PR handoff after closeout."

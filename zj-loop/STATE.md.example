@@ -1,0 +1,20 @@
+# Loop State - ZCodeGraph
+
+Last run: never
+
+## Cursor
+
+- last_run_at:
+- last_seen_main_sha:
+- last_seen_issue_updated_at:
+- last_seen_pr_updated_at:
+- last_seen_ci_run_id:
+
+## High Priority
+
+## Watch List
+
+## Recent Noise
+
+---
+Run log: `zj-loop/zj-loop-run-log.md`

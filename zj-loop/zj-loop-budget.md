@@ -1,4 +1,4 @@
-# Loop Budget — YOUR_PROJECT
+# Loop Budget - ZCodeGraph
 
 > Primary loop: **Daily Triage** (scaffolded by zj-loop-init)
 
@@ -6,7 +6,15 @@
 
 | Loop | Max runs/day | Max tokens/day | Max sub-agent spawns/run |
 |------|--------------|----------------|--------------------------|
-| Daily Triage | 2 | 100k | 0 (L1) / 2 (L2) |
+| Daily Triage | 1 | 50k | 0 |
+
+## Daily Triage Cost Rules
+
+- No new signal: append `zj-loop/zj-loop-run-log.md` only and exit.
+- New signal: update `zj-loop/STATE.md` and append `zj-loop/zj-loop-run-log.md`.
+- Do not spawn sub-agents.
+- Do not read local diffs by default.
+- Do not start implementation loops automatically.
 
 ## On budget exceed
 
