@@ -26,6 +26,7 @@ import {
   existsSync,
 } from 'fs';
 import { clamp, validateProjectPath } from '../utils';
+import { isSqliteCorruptionError } from '../db/error-detection';
 import { isGeneratedFile } from '../extraction/generated-detection';
 import { resolve as resolvePath } from 'path';
 import type { ExploreOutputBudget } from './explore-types.js';
@@ -897,83 +898,114 @@ export class ToolHandler {
   }
 
   /**
-   * Execute a tool by name
+   * Execute a tool by name.
+   *
+   * Wraps {@link executeOnce} with lazy SQLite corruption recovery (Issue #679):
+   * if the first attempt throws a corruption error — typically because CLI
+   * `zcodegraph index` rebuilt the DB file under the MCP server's long-lived
+   * connection — the handler reopens the database and retries exactly once.
+   * Non-corruption errors and second-attempt failures are returned as-is.
    */
   async execute(toolName: string, args: Record<string, unknown>): Promise<ToolResult> {
     try {
-      // Block the first tool call on the engine's post-open reconcile so we
-      // never serve rows for files deleted/edited while no MCP server was
-      // running. The gate is cleared after first await — subsequent calls
-      // pay nothing. Catch-up failures are logged by the engine; we
-      // proceed regardless so a transient sync error never breaks tools.
-      //
-      // Only gate the DEFAULT project (no explicit projectPath). Cross-project
-      // queries open CodeGraph on demand without a watcher or catch-up sync,
-      // so there is no gate to wait for (Issue #5: isolate MCP project state).
-      if (!args.projectPath && this.catchUpGate) {
-        const gate = this.catchUpGate;
-        this.catchUpGate = null;
-        try { await gate; } catch { /* engine already logged */ }
-      }
-      // Honor the optional tool allowlist (CODEGRAPH_MCP_TOOLS): a trimmed
-      // surface rejects ablated tools defensively even if a client cached them.
-      if (!this.isToolAllowed(toolName)) {
-        return this.errorResult(`Tool ${toolName} is disabled via CODEGRAPH_MCP_TOOLS`);
-      }
-      // Cross-cutting input validation. All tools accept an optional
-      // `projectPath` and most accept either `query`, `task`, or
-      // `symbol` — bound their lengths centrally so individual handlers
-      // can stay focused on tool-specific logic.
-      const pathCheck = this.validateOptionalPath(args.projectPath, 'projectPath');
-      if (typeof pathCheck === 'object' && pathCheck !== undefined) {
-        return pathCheck;
-      }
-      // The `path` and `pattern` properties used by zcodegraph_files are
-      // also path-shaped — apply the same cap.
-      if (args.path !== undefined) {
-        const check = this.validateOptionalPath(args.path, 'path');
-        if (typeof check === 'object' && check !== undefined) return check;
-      }
-      if (args.pattern !== undefined) {
-        const check = this.validateOptionalPath(args.pattern, 'pattern');
-        if (typeof check === 'object' && check !== undefined) return check;
-      }
-
-      // Read tools resolve through a single result variable so cross-cutting
-      // notices — worktree-index mismatch (issue #155) and per-file
-      // staleness (issue #403) — can be applied in one place. status embeds
-      // its own verbose worktree warning but still flows through the
-      // staleness wrapper so its pending-files section stays consistent
-      // with what the read tools surface.
-      let result: ToolResult;
-      switch (toolName) {
-        case 'zcodegraph_search':
-          result = await this.handleSearch(args); break;
-        case 'zcodegraph_callers':
-          result = await this.handleCallers(args); break;
-        case 'zcodegraph_callees':
-          result = await this.handleCallees(args); break;
-        case 'zcodegraph_impact':
-          result = await this.handleImpact(args); break;
-        case 'zcodegraph_explore':
-          result = await this.handleExplore(args); break;
-        case 'zcodegraph_node':
-          result = await this.handleNode(args); break;
-        case 'zcodegraph_status':
-          // status embeds the pending-files list as a first-class section
-          // (see handleStatus), so we skip the auto-banner wrapper here to
-          // avoid duplicating the same info at the top of the response.
-          return await this.handleStatus(args);
-        case 'zcodegraph_files':
-          result = await this.handleFiles(args); break;
-        default:
-          return this.errorResult(`Unknown tool: ${toolName}`);
-      }
-      const withWorktree = this.withWorktreeNotice(result, args.projectPath as string | undefined);
-      return this.withStalenessNotice(withWorktree, args.projectPath as string | undefined);
+      return await this.executeOnce(toolName, args);
     } catch (err) {
-      return this.errorResult(`Tool execution failed: ${err instanceof Error ? err.message : String(err)}`);
+      if (!isSqliteCorruptionError(err)) {
+        return this.errorResult(`Tool execution failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      // Corruption detected — reopen the DB connection and retry once.
+      let cg: CodeGraph;
+      try {
+        cg = this.getCodeGraph(args.projectPath as string | undefined);
+      } catch {
+        return this.errorResult(`Tool execution failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      try {
+        cg.reopen();
+        return await this.executeOnce(toolName, args);
+      } catch (retryErr) {
+        const msg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+        return this.errorResult(`Tool execution failed: ${msg}`);
+      }
     }
+  }
+
+  /**
+   * Single-attempt tool execution — gate, validation, dispatch, and
+   * cross-cutting notice wrappers. Called by {@link execute}; not intended
+   * for direct external use.
+   */
+  private async executeOnce(toolName: string, args: Record<string, unknown>): Promise<ToolResult> {
+    // Block the first tool call on the engine's post-open reconcile so we
+    // never serve rows for files deleted/edited while no MCP server was
+    // running. The gate is cleared after first await — subsequent calls
+    // pay nothing. Catch-up failures are logged by the engine; we
+    // proceed regardless so a transient sync error never breaks tools.
+    //
+    // Only gate the DEFAULT project (no explicit projectPath). Cross-project
+    // queries open CodeGraph on demand without a watcher or catch-up sync,
+    // so there is no gate to wait for (Issue #5: isolate MCP project state).
+    if (!args.projectPath && this.catchUpGate) {
+      const gate = this.catchUpGate;
+      this.catchUpGate = null;
+      try { await gate; } catch { /* engine already logged */ }
+    }
+    // Honor the optional tool allowlist (CODEGRAPH_MCP_TOOLS): a trimmed
+    // surface rejects ablated tools defensively even if a client cached them.
+    if (!this.isToolAllowed(toolName)) {
+      return this.errorResult(`Tool ${toolName} is disabled via CODEGRAPH_MCP_TOOLS`);
+    }
+    // Cross-cutting input validation. All tools accept an optional
+    // `projectPath` and most accept either `query`, `task`, or
+    // `symbol` — bound their lengths centrally so individual handlers
+    // can stay focused on tool-specific logic.
+    const pathCheck = this.validateOptionalPath(args.projectPath, 'projectPath');
+    if (typeof pathCheck === 'object' && pathCheck !== undefined) {
+      return pathCheck;
+    }
+    // The `path` and `pattern` properties used by zcodegraph_files are
+    // also path-shaped — apply the same cap.
+    if (args.path !== undefined) {
+      const check = this.validateOptionalPath(args.path, 'path');
+      if (typeof check === 'object' && check !== undefined) return check;
+    }
+    if (args.pattern !== undefined) {
+      const check = this.validateOptionalPath(args.pattern, 'pattern');
+      if (typeof check === 'object' && check !== undefined) return check;
+    }
+
+    // Read tools resolve through a single result variable so cross-cutting
+    // notices — worktree-index mismatch (issue #155) and per-file
+    // staleness (issue #403) — can be applied in one place. status embeds
+    // its own verbose worktree warning but still flows through the
+    // staleness wrapper so its pending-files section stays consistent
+    // with what the read tools surface.
+    let result: ToolResult;
+    switch (toolName) {
+      case 'zcodegraph_search':
+        result = await this.handleSearch(args); break;
+      case 'zcodegraph_callers':
+        result = await this.handleCallers(args); break;
+      case 'zcodegraph_callees':
+        result = await this.handleCallees(args); break;
+      case 'zcodegraph_impact':
+        result = await this.handleImpact(args); break;
+      case 'zcodegraph_explore':
+        result = await this.handleExplore(args); break;
+      case 'zcodegraph_node':
+        result = await this.handleNode(args); break;
+      case 'zcodegraph_status':
+        // status embeds the pending-files list as a first-class section
+        // (see handleStatus), so we skip the auto-banner wrapper here to
+        // avoid duplicating the same info at the top of the response.
+        return await this.handleStatus(args);
+      case 'zcodegraph_files':
+        result = await this.handleFiles(args); break;
+      default:
+        return this.errorResult(`Unknown tool: ${toolName}`);
+    }
+    const withWorktree = this.withWorktreeNotice(result, args.projectPath as string | undefined);
+    return this.withStalenessNotice(withWorktree, args.projectPath as string | undefined);
   }
 
   /**

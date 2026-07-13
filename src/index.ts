@@ -945,6 +945,28 @@ export class CodeGraph {
   }
 
   /**
+   * Close the stale SQLite connection and reopen a fresh one to the same
+   * database file, rebuilding all internal objects that hold references to
+   * the old connection.
+   *
+   * Used by {@link ToolHandler.execute} when it detects a SQLite corruption
+   * error (Issue #679): after CLI `zcodegraph index` rebuilds the `.codegraph/
+   * codegraph.db` file out from under the MCP server's long-lived
+   * `CodeGraph` instance, the old connection is stale. Calling `reopen()`
+   * picks up the new file without restarting the process.
+   *
+   * The file watcher is stopped before closing (so it doesn't try to write
+   * to a closing handle) and NOT restarted — the caller is responsible for
+   * restarting it if needed. The file lock is NOT released — the MCP server
+   * still owns it.
+   */
+  reopen(): void {
+    this.unwatch();
+    this.db.close();
+    this.reopenDatabaseAfterExternalIndex();
+  }
+
+  /**
    * Get the project root directory
    */
   getProjectRoot(): string {
