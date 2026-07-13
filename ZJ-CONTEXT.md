@@ -47,6 +47,23 @@
 
 **Related terms:** Rust-Owned Indexing, Agent Sufficiency, Bounded Slice, Semantic Frontier.
 
+### Fallback Health State
+
+**Definition:** The three-tier classification of rust-hybrid indexing fallback
+quality: `healthy` (zero fallbacks), `partial` (only non-Rust-owned language
+fallbacks — expected behavior), or `degraded` (Rust-owned parse/extraction
+gaps or missing files — real problems).
+
+**Use when:** Interpreting `fallbackState` in CLI output, status JSON, doctor
+diagnostics, or deciding whether fallback diagnostics warrant investigation.
+
+**Not:** A measure of graph completeness. `partial` means the index is complete
+and usable; it only indicates that some files were indexed via TypeScript
+fallback rather than the Rust core. `degraded` is the only state that signals
+a real indexing problem.
+
+**Related terms:** Rust-Owned Indexing, Evidence Artifact.
+
 ### Explore Answer
 
 **Definition:** The answer that an Explore handler produces from a user's query and the current code graph. It is a bounded hypothesis about what code context the agent needs next: narrowed to a specific Evidence Scope, prioritized by Evidence Value, and subject to Output Budget and freshness constraints.

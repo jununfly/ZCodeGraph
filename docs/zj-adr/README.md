@@ -17,6 +17,11 @@ long-lived decision that meets the ADR bar.
   SQLite write paths for Rust indexing.
 - `ZJ-0005-separate-durable-decisions-from-process-artifacts.md` — keep
   durable decisions separate from temporary benchmark/process artifacts.
+- `ZJ-0006-lazy-sqlite-corruption-recovery.md` — lazy SQLite corruption
+  detection and reopen for MCP daemon stale-handle recovery.
+- `ZJ-0007-three-tier-fallback-health-state.md` — three-tier fallback health
+  state (healthy/partial/degraded) to distinguish expected fallbacks from
+  unexpected gaps.
 
 ## Supporting Evidence
 
