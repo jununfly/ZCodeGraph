@@ -541,6 +541,7 @@ export function buildDiagnosticBundleSummary(projectRoot: string, relativeBundle
         fallbackState?: string | null;
         fallbackFileCount?: number | null;
         fallbackReasonTaxonomy?: Record<string, number>;
+        fallbackByLanguage?: Record<string, number>;
         missingFallbackFileCount?: number | null;
         missingFallbackByLanguage?: Record<string, number>;
       } | null;
@@ -580,6 +581,7 @@ export function buildDiagnosticBundleSummary(projectRoot: string, relativeBundle
     profile: {
       typescriptFallbackAppend: {
         fallbackFileCount: aggregateTaxonomy.fallbackFileCount ?? 0,
+        fallbackByLanguage: aggregateTaxonomy.fallbackByLanguage ?? {},
         missingFallbackFileCount: aggregateTaxonomy.missingFallbackFileCount ?? 0,
         missingFallbackByLanguage: aggregateTaxonomy.missingFallbackByLanguage ?? {},
       },

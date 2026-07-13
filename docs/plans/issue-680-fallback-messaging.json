@@ -1,0 +1,115 @@
+{
+  "title": "Issue #680: Clarify rust-hybrid fallback degraded summary for non-Rust-owned YAML files",
+  "description": "CLI says '30 TypeScript fallback files' but actual is 30 YAML files via TypeScript fallback path. Fix: distinguish fallback implementation from source language in all three print locations.",
+  "version": 1,
+  "nodes": {
+    "1": {
+      "id": "1",
+      "label": "Issue #680: Clarify rust-hybrid fallback degraded summary for non-Rust-owned YAML files",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": null,
+      "children": [
+        "1-1",
+        "1-2",
+        "1-3",
+        "1-4",
+        "1-5",
+        "1-6"
+      ],
+      "decisions": [
+        {
+          "q": "修复范围",
+          "answer": "B. 全面修复",
+          "note": "index + status + doctor 三个位置"
+        },
+        {
+          "q": "输出格式",
+          "answer": "B. 原因行+独立语言明细行",
+          "note": "可扩展"
+        },
+        {
+          "q": "数据传递",
+          "answer": "A. 扩展profile对象",
+          "note": "时序安全"
+        },
+        {
+          "q": "存储消息",
+          "answer": "A. 不改",
+          "note": "向后兼容"
+        },
+        {
+          "q": "warn一行",
+          "answer": "A. 改措辞不加明细",
+          "note": "简洁"
+        }
+      ],
+      "notes": ""
+    },
+    "1-1": {
+      "id": "1-1",
+      "label": "修改 FALLBACK_REASON_LABELS 标签并添加语言明细行到 formatRustHybridFallbackHealthLines",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": "文件: src/diagnostics/fallback-summary.ts。1) FALLBACK_REASON_LABELS label 改为 non-Rust-owned files via TypeScript fallback。2) RustHybridFallbackSummary 加 fallbackByLanguage?: Record<string, number>。3) formatRustHybridFallbackHealthLines 追加语言明细行。"
+    },
+    "1-2": {
+      "id": "1-2",
+      "label": "fallbackSummaryFromHybridMetadata 提取 fallbackByLanguage 字段",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": "文件: src/bin/zcodegraph.ts。fallbackSummaryFromHybridMetadata 提取 fallbackByLanguage。"
+    },
+    "1-3": {
+      "id": "1-3",
+      "label": "typescriptFallbackAppend profile 对象添加 fallbackByLanguage 字段",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": "文件: src/bin/zcodegraph.ts。RustIndexProfile.typescriptFallbackAppend 加 fallbackByLanguage。构建 profile 处从 plan 传入。"
+    },
+    "1-4": {
+      "id": "1-4",
+      "label": "clack.log.warn 一行式警告改措辞为 non-Rust-owned files via TypeScript fallback",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": "文件: src/bin/zcodegraph.ts:536。clack.log.warn 改措辞。"
+    },
+    "1-5": {
+      "id": "1-5",
+      "label": "buildDiagnosticBundleSummary 传递 fallbackByLanguage 到 summary",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": "文件: src/diagnostics/index.ts。buildDiagnosticBundleSummary 传递 fallbackByLanguage。"
+    },
+    "1-6": {
+      "id": "1-6",
+      "label": "端到端验证与 PR 提交",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    }
+  },
+  "metadata": {
+    "created": "2026-07-13 23:34:32",
+    "updated": "2026-07-13 23:51:37",
+    "md_file": "D:/workspace/github/jununfly/ZCodeGraph/docs/plans/issue-680-fallback-messaging.md"
+  }
+}

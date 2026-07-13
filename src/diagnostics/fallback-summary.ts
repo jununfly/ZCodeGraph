@@ -3,6 +3,7 @@ import { rustHybridFallbackStateFor, RustHybridFallbackState } from '../indexing
 export type RustHybridFallbackProfile = {
   typescriptFallbackAppend?: {
     fallbackFileCount?: number;
+    fallbackByLanguage?: Record<string, number>;
     missingFallbackFileCount?: number;
     missingFallbackByLanguage?: Record<string, number>;
   };
@@ -22,6 +23,7 @@ export type RustHybridFallbackReasonCount = {
 export type RustHybridFallbackSummary = {
   fallbackState: RustHybridFallbackState;
   fallbackFileCount: number;
+  fallbackByLanguage: Record<string, number>;
   missingFallbackFileCount: number;
   missingFallbackByLanguage: Record<string, number>;
   fallbackReasonTaxonomy: Record<string, number>;
@@ -35,7 +37,7 @@ const HEALTHY_GRAPH_USABILITY_MESSAGE =
   'The index is fully covered by rust-hybrid without fallback diagnostics.';
 
 const FALLBACK_REASON_LABELS: Record<string, string> = {
-  'language-level-typescript-fallback': 'TypeScript fallback files',
+  'language-level-typescript-fallback': 'non-Rust-owned files via TypeScript fallback',
   'language-level-fallback-missing-file': 'planned TypeScript fallback files missing from the checkout',
   'rust-owned-parse-gap': 'Rust-owned files with parse diagnostics',
   'rust-owned-extraction-gap': 'Rust-owned files with extraction diagnostics',
@@ -60,6 +62,7 @@ export function buildRustHybridFallbackSummary(input: RustHybridFallbackSummaryI
   const profile = fallbackProfile(input);
   const fallbackAppend = profile?.typescriptFallbackAppend;
   const fallbackFileCount = fallbackAppend?.fallbackFileCount ?? 0;
+  const fallbackByLanguage = fallbackAppend?.fallbackByLanguage ?? {};
   const missingFallbackFileCount = fallbackAppend?.missingFallbackFileCount ?? 0;
   const missingFallbackByLanguage = fallbackAppend?.missingFallbackByLanguage ?? {};
   const fallbackReasonTaxonomy: Record<string, number> = {};
@@ -80,6 +83,7 @@ export function buildRustHybridFallbackSummary(input: RustHybridFallbackSummaryI
   return {
     fallbackState,
     fallbackFileCount,
+    fallbackByLanguage,
     missingFallbackFileCount,
     missingFallbackByLanguage,
     fallbackReasonTaxonomy,
@@ -100,9 +104,14 @@ export function formatRustHybridFallbackHealthLines(summary: RustHybridFallbackS
   const reasonBlock = reasons.length > 0
     ? `Top fallback reasons:\n${reasons.map((reason) => `  ${reason}`).join('\n')}`
     : 'Top fallback reasons: unavailable';
+  const langEntries = Object.entries(summary.fallbackByLanguage)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const langBlock = langEntries.length > 0
+    ? `\nFallback by source language: ${langEntries.map(([lang, count]) => `${lang} (${count})`).join(', ')}`
+    : '';
   return [
     'Fallback health: degraded',
-    `${summary.graphUsabilityMessage}\n${reasonBlock}`,
+    `${summary.graphUsabilityMessage}\n${reasonBlock}${langBlock}`,
   ];
 }
 

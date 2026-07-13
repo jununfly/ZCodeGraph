@@ -90,6 +90,7 @@ function fallbackSummaryFromHybridMetadata(hybrid: unknown): RustHybridFallbackS
   const metadata = hybrid as {
     fallbackState?: string;
     fallbackFileCount?: number;
+    fallbackByLanguage?: Record<string, number>;
     missingFallbackFileCount?: number;
     missingFallbackByLanguage?: Record<string, number>;
     fallbackReasonTaxonomy?: Record<string, number>;
@@ -103,6 +104,7 @@ function fallbackSummaryFromHybridMetadata(hybrid: unknown): RustHybridFallbackS
     profile: {
       typescriptFallbackAppend: {
         fallbackFileCount,
+        fallbackByLanguage: metadata.fallbackByLanguage ?? {},
         missingFallbackFileCount,
         missingFallbackByLanguage: metadata.missingFallbackByLanguage ?? {},
       },
@@ -468,6 +470,7 @@ type RustIndexProfile = {
   typescriptFallbackAppend?: {
     durationMs: number;
     fallbackFileCount: number;
+    fallbackByLanguage?: Record<string, number>;
     missingFallbackFileCount?: number;
     missingFallbackByLanguage?: Record<string, number>;
     errorTaxonomy: Record<string, number>;
@@ -533,7 +536,7 @@ function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexR
     clack.log.info(`${formatNumber(result.nodesCreated)} nodes, ${formatNumber(result.edgesCreated)} edges in ${formatDuration(result.durationMs)}`);
     const fallbackAppend = (result.profile as RustIndexProfile | undefined)?.typescriptFallbackAppend;
     if (fallbackAppend && fallbackAppend.fallbackFileCount > 0) {
-      clack.log.warn(`Rust-hybrid appended ${formatNumber(fallbackAppend.fallbackFileCount)} TypeScript fallback files`);
+      clack.log.warn(`Rust-hybrid appended ${formatNumber(fallbackAppend.fallbackFileCount)} non-Rust-owned files via TypeScript fallback`);
     }
   } else if (hasErrors) {
     clack.log.error(`Indexing failed ${getGlyphs().dash} all ${formatNumber(result.filesErrored)} files had errors`);
@@ -718,6 +721,7 @@ async function runSelectedIndex(
         typescriptFallbackAppend: {
           durationMs: fallbackResult.durationMs,
           fallbackFileCount: fallbackResult.fallbackFileCount,
+          fallbackByLanguage: runtimeHybridPlan.fallbackByLanguage,
           missingFallbackFileCount: fallbackResult.missingFallbackFileCount,
           missingFallbackByLanguage: fallbackResult.missingFallbackByLanguage,
           errorTaxonomy: fallbackResult.errorTaxonomy,
@@ -741,6 +745,7 @@ async function runSelectedIndex(
             typescriptFallbackAppend: {
               durationMs: fallbackResult.durationMs,
               fallbackFileCount: fallbackResult.fallbackFileCount,
+              fallbackByLanguage: runtimeHybridPlan.fallbackByLanguage,
               missingFallbackFileCount: fallbackResult.missingFallbackFileCount,
               missingFallbackByLanguage: fallbackResult.missingFallbackByLanguage,
               errorTaxonomy: fallbackResult.errorTaxonomy,
@@ -779,6 +784,7 @@ async function runSelectedIndex(
         typescriptFallbackAppend: {
           durationMs: fallbackResult.durationMs,
           fallbackFileCount: fallbackResult.fallbackFileCount,
+          fallbackByLanguage: runtimeHybridPlan?.fallbackByLanguage ?? {},
           missingFallbackFileCount: fallbackResult.missingFallbackFileCount,
           missingFallbackByLanguage: fallbackResult.missingFallbackByLanguage,
           errorTaxonomy: fallbackResult.errorTaxonomy,
