@@ -114,16 +114,21 @@ function fallbackSummaryFromHybridMetadata(hybrid: unknown): RustHybridFallbackS
   summary.topFallbackReasons = Object.entries(fallbackReasonTaxonomy)
     .map(([code, count]) => ({ code, count }))
     .sort((left, right) => right.count - left.count || left.code.localeCompare(right.code));
-  summary.fallbackState = metadata.fallbackState === 'degraded' ? 'degraded' : summary.fallbackState;
+  summary.fallbackState = (metadata.fallbackState === 'degraded' || metadata.fallbackState === 'partial')
+    ? metadata.fallbackState as RustHybridFallbackSummary['fallbackState']
+    : summary.fallbackState;
   if (summary.fallbackState === 'degraded') {
     summary.graphUsabilityMessage = 'The index is usable; fallback-degraded files or diagnostics are the only parts that need review.';
+  } else if (summary.fallbackState === 'partial') {
+    summary.graphUsabilityMessage = 'Index is complete; some files were indexed via TypeScript fallback for non-Rust-owned languages.';
   }
   return summary;
 }
 
 function statusFallbackDiagnostics(hybrid: unknown): RustHybridStatusFallbackDiagnostics {
   const summary = fallbackSummaryFromHybridMetadata(hybrid);
-  if (!summary || summary.fallbackState !== 'degraded') return null;
+  if (!summary || summary.fallbackState === 'healthy') return null;
+  const isDegraded = summary.fallbackState === 'degraded';
   return {
     state: summary.fallbackState,
     graphUsabilityMessage: summary.graphUsabilityMessage,
@@ -134,20 +139,22 @@ function statusFallbackDiagnostics(hybrid: unknown): RustHybridStatusFallbackDia
       ...reason,
       label: rustHybridFallbackReasonLabel(reason.code),
     })),
-    doctorCommand: 'zcodegraph doctor --engine rust-hybrid --bundle --last-run',
-    artifactHint: 'per-file-diagnostics.json uses path hashes and reason categories without source slices.',
+    doctorCommand: isDegraded ? 'zcodegraph doctor --engine rust-hybrid --bundle --last-run' : '',
+    artifactHint: isDegraded ? 'per-file-diagnostics.json uses path hashes and reason categories without source slices.' : '',
   };
 }
 
 function printRustHybridFallbackStatus(hybrid: unknown): void {
   const summary = fallbackSummaryFromHybridMetadata(hybrid);
-  if (!summary || summary.fallbackState !== 'degraded') return;
+  if (!summary || summary.fallbackState === 'healthy') return;
   console.log('Rust-hybrid Fallback:');
   for (const line of formatRustHybridFallbackHealthLines(summary)) {
     console.log(`  ${line.replace(/\n/g, '\n  ')}`);
   }
-  console.log('  Diagnostic artifact: per-file-diagnostics.json uses path hashes and reason categories without source slices.');
-  console.log('  Next step: zcodegraph doctor --engine rust-hybrid --bundle --last-run');
+  if (summary.fallbackState === 'degraded') {
+    console.log('  Diagnostic artifact: per-file-diagnostics.json uses path hashes and reason categories without source slices.');
+    console.log('  Next step: zcodegraph doctor --engine rust-hybrid --bundle --last-run');
+  }
   console.log();
 }
 
@@ -536,7 +543,9 @@ function printIndexResult(clack: typeof import('@clack/prompts'), result: IndexR
     clack.log.info(`${formatNumber(result.nodesCreated)} nodes, ${formatNumber(result.edgesCreated)} edges in ${formatDuration(result.durationMs)}`);
     const fallbackAppend = (result.profile as RustIndexProfile | undefined)?.typescriptFallbackAppend;
     if (fallbackAppend && fallbackAppend.fallbackFileCount > 0) {
-      clack.log.warn(`Rust-hybrid appended ${formatNumber(fallbackAppend.fallbackFileCount)} non-Rust-owned files via TypeScript fallback`);
+      const fallbackSummary = buildRustHybridFallbackSummary(result);
+      const logFn = fallbackSummary.fallbackState === 'degraded' ? clack.log.warn : clack.log.info;
+      logFn(`Rust-hybrid appended ${formatNumber(fallbackAppend.fallbackFileCount)} non-Rust-owned files via TypeScript fallback`);
     }
   } else if (hasErrors) {
     clack.log.error(`Indexing failed ${getGlyphs().dash} all ${formatNumber(result.filesErrored)} files had errors`);
@@ -856,7 +865,8 @@ function printRustHybridDoctorHint(
   const [indexedLine, healthLine, ...detailLines] = formatRustHybridFallbackDoctorHint(summary);
   if (!indexedLine || !healthLine) return;
   clack.log.info(indexedLine);
-  clack.log.warn(healthLine);
+  const healthLogFn = summary.fallbackState === 'degraded' ? clack.log.warn : clack.log.info;
+  healthLogFn(healthLine);
   for (const line of detailLines) {
     clack.log.info(line);
   }

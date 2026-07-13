@@ -591,13 +591,15 @@ export function buildDiagnosticBundleSummary(projectRoot: string, relativeBundle
   fallbackSummary.topFallbackReasons = Object.entries(fallbackReasonTaxonomy)
     .map(([code, count]) => ({ code, count }))
     .sort((left, right) => right.count - left.count || left.code.localeCompare(right.code));
-  fallbackSummary.fallbackState = aggregateTaxonomy.fallbackState === 'degraded'
-    ? 'degraded'
+  fallbackSummary.fallbackState = (aggregateTaxonomy.fallbackState === 'degraded' || aggregateTaxonomy.fallbackState === 'partial')
+    ? aggregateTaxonomy.fallbackState as typeof fallbackSummary.fallbackState
     : fallbackSummary.fallbackState;
   const graphHealth = source === 'last-failure' ? 'failed' : fallbackSummary.fallbackState;
   lines.push(`Graph health: ${graphHealth}`);
   if (fallbackSummary.fallbackState === 'degraded') {
     fallbackSummary.graphUsabilityMessage = 'The index is usable; fallback-degraded files or diagnostics are the only parts that need review.';
+  } else if (fallbackSummary.fallbackState === 'partial') {
+    fallbackSummary.graphUsabilityMessage = 'Index is complete; some files were indexed via TypeScript fallback for non-Rust-owned languages.';
   }
   lines.push(...formatRustHybridFallbackHealthLines(fallbackSummary));
   if (fallbackSummary.fallbackState === 'degraded') {
