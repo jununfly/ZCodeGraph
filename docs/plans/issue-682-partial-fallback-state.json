@@ -1,0 +1,109 @@
+{
+  "title": "Issue #682: Three-tier fallback health state (healthy/partial/degraded)",
+  "description": "Refine rustHybridFallbackStateFor() to distinguish expected fallbacks (non-Rust-owned languages) from unexpected gaps (rust-owned parse/extraction failures, missing files). Add 'partial' state for expected-only fallbacks.",
+  "version": 1,
+  "nodes": {
+    "1": {
+      "id": "1",
+      "label": "Issue #682: Three-tier fallback health state (healthy/partial/degraded)",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": null,
+      "children": [
+        "1-1",
+        "1-2",
+        "1-3",
+        "1-4",
+        "1-5"
+      ],
+      "decisions": [
+        {
+          "q": "PR #684 是否已解决",
+          "answer": "B. 需进一步改进 degraded 语义",
+          "note": "PR #684 修复了措辞但 degraded 语义仍需调整"
+        },
+        {
+          "q": "状态模型",
+          "answer": "A. 三级 healthy/partial/degraded",
+          "note": "partial = 仅预期 fallback (non-Rust-owned 语言)"
+        },
+        {
+          "q": "改动范围",
+          "answer": "A. 仅状态语义",
+          "note": "不扩展 Rust-owned 语言，单独 issue 跟踪"
+        },
+        {
+          "q": "partial log 级别",
+          "answer": "A. info (degraded 保持 warn)",
+          "note": "log 级别与状态语义一致"
+        },
+        {
+          "q": "partial 消息格式",
+          "answer": "A. 信息行 + 语言明细",
+          "note": "不含 need review 语句"
+        },
+        {
+          "q": "missing-file 归类",
+          "answer": "A. 归入 degraded",
+          "note": "索引不完整"
+        }
+      ],
+      "notes": ""
+    },
+    "1-1": {
+      "id": "1-1",
+      "label": "Add 'partial' to RustHybridFallbackState type and update rustHybridFallbackStateFor() three-tier logic",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": "File: src/indexing/rust-hybrid-contract.ts. 1) RustHybridFallbackState type add 'partial'. 2) rustHybridFallbackStateFor(): three-tier logic. 3) fallback-summary.ts: PARTIAL_GRAPH_USABILITY_MESSAGE, formatRustHybridFallbackHealthLines partial branch, formatRustHybridFallbackDoctorHint partial branch. 4) graph-health.ts: no change needed (partial falls through to healthy). 11/11 tests pass."
+    },
+    "1-2": {
+      "id": "1-2",
+      "label": "Update existing tests: assert 'partial' instead of 'degraded' for non-Rust-owned language fallback scenarios",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": "Updated: rust-hybrid-fallback-summary.test.ts (1 test), issue-680-fallback-messaging.test.ts (1 test), rust-index-engine-cli-fallback.test.ts (5 tests). All non-Rust-owned language fallback assertions changed from degraded to partial."
+    },
+    "1-3": {
+      "id": "1-3",
+      "label": "Update clack.log in zcodegraph.ts: conditional info/warn based on fallback state",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": "zcodegraph.ts: fallbackSummaryFromHybridMetadata handles partial state. statusFallbackDiagnostics returns data for partial (empty doctorCommand). printRustHybridFallbackStatus shows for partial. clack.log conditional info/warn. printRustHybridDoctorHint conditional log level. diagnostics/index.ts: fallbackState override handles partial."
+    },
+    "1-4": {
+      "id": "1-4",
+      "label": "Update formatRustHybridFallbackHealthLines() for partial state output (info line + language breakdown)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": "formatRustHybridFallbackHealthLines: partial branch with info line + language breakdown. formatRustHybridFallbackDoctorHint: partial returns hint without Run diagnostic bundle. PARTIAL_GRAPH_USABILITY_MESSAGE added."
+    },
+    "1-5": {
+      "id": "1-5",
+      "label": "End-to-end verification and PR submission",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    }
+  },
+  "metadata": {
+    "created": "2026-07-14 00:12:37",
+    "updated": "2026-07-14 00:28:56",
+    "md_file": "D:/workspace/github/jununfly/ZCodeGraph/docs/plans/issue-682-partial-fallback-state.md"
+  }
+}

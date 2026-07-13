@@ -7,7 +7,7 @@ import * as path from 'path';
 
 export const RUST_HYBRID_PHASE = 'phase-6-rust-owned-per-file-gap-fallback';
 export const RUST_HYBRID_RUST_OWNED_LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'java', 'python', 'rust', 'c'] as const;
-export type RustHybridFallbackState = 'healthy' | 'degraded' | 'pending';
+export type RustHybridFallbackState = 'healthy' | 'partial' | 'degraded' | 'pending';
 export type RustOwnedGapCode =
   | 'rust-owned-parse-gap'
   | 'rust-owned-extraction-gap'
@@ -60,7 +60,12 @@ export function rustHybridFallbackStateFor(
   fallbackFileCount: number,
   fallbackReasonTaxonomy: Record<string, number>,
 ): RustHybridFallbackState {
-  return fallbackFileCount > 0 || Object.keys(fallbackReasonTaxonomy).length > 0 ? 'degraded' : 'healthy';
+  const hasAnyReason = fallbackFileCount > 0 || Object.keys(fallbackReasonTaxonomy).length > 0;
+  if (!hasAnyReason) return 'healthy';
+  const hasUnexpectedReasons = Object.keys(fallbackReasonTaxonomy).some(
+    (code) => code !== 'language-level-typescript-fallback',
+  );
+  return hasUnexpectedReasons ? 'degraded' : 'partial';
 }
 
 export function buildRustHybridMetadata(projectPath: string): RustHybridMetadata {

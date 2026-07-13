@@ -26,8 +26,8 @@ describe('Issue #680: fallback messaging distinguishes implementation from sourc
     const lines = formatRustHybridFallbackHealthLines(summary);
     const joined = lines.join('\n');
 
-    // Reason line should use the new label
-    expect(joined).toContain('30 non-Rust-owned files via TypeScript fallback');
+    // Partial state: info line uses "files indexed via TypeScript fallback (non-Rust-owned languages)"
+    expect(joined).toContain('30 files indexed via TypeScript fallback (non-Rust-owned languages)');
     expect(joined).not.toContain('30 TypeScript fallback files');
 
     // Language breakdown line

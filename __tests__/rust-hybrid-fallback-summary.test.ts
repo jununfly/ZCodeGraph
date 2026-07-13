@@ -47,7 +47,7 @@ describe('rust-hybrid fallback summary contract', () => {
     expect(JSON.stringify(summary)).not.toContain('function ');
   });
 
-  it('formats the existing first-screen degraded doctor hint from the summary', () => {
+  it('formats the first-screen partial doctor hint for non-Rust-owned language fallback', () => {
     const summary = buildRustHybridFallbackSummary({
       success: true,
       profile: { typescriptFallbackAppend: { fallbackFileCount: 1 } },
@@ -56,9 +56,8 @@ describe('rust-hybrid fallback summary contract', () => {
 
     expect(formatRustHybridFallbackDoctorHint(summary)).toEqual([
       'Indexed with rust-hybrid',
-      'Fallback health: degraded',
-      'The index is usable; fallback-degraded files or diagnostics are the only parts that need review.\nTop fallback reasons:\n  1 non-Rust-owned files via TypeScript fallback',
-      'Run diagnostic bundle:\n  zcodegraph doctor --engine rust-hybrid --bundle --last-run',
+      'Fallback health: partial',
+      'Index is complete; some files were indexed via TypeScript fallback for non-Rust-owned languages.\n1 files indexed via TypeScript fallback (non-Rust-owned languages)',
     ]);
   });
 

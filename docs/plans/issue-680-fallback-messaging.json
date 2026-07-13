@@ -6,7 +6,7 @@
     "1": {
       "id": "1",
       "label": "Issue #680: Clarify rust-hybrid fallback degraded summary for non-Rust-owned YAML files",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": null,
       "children": [
@@ -99,17 +99,17 @@
     "1-6": {
       "id": "1-6",
       "label": "端到端验证与 PR 提交",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [],
       "decisions": [],
-      "notes": ""
+      "notes": "PR #684: https://github.com/jununfly/ZCodeGraph/pull/684 — 8/8 tests pass, tsc zero errors."
     }
   },
   "metadata": {
     "created": "2026-07-13 23:34:32",
-    "updated": "2026-07-13 23:51:37",
+    "updated": "2026-07-13 23:53:07",
     "md_file": "D:/workspace/github/jununfly/ZCodeGraph/docs/plans/issue-680-fallback-messaging.md"
   }
 }
