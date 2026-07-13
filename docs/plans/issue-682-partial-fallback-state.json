@@ -6,7 +6,7 @@
     "1": {
       "id": "1",
       "label": "Issue #682: Three-tier fallback health state (healthy/partial/degraded)",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": null,
       "children": [
@@ -93,17 +93,17 @@
     "1-5": {
       "id": "1-5",
       "label": "End-to-end verification and PR submission",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [],
       "decisions": [],
-      "notes": ""
+      "notes": "PR #685: https://github.com/jununfly/ZCodeGraph/pull/685 — 11 new tests + 7 existing tests updated. tsc zero errors. 19/19 unit tests pass."
     }
   },
   "metadata": {
     "created": "2026-07-14 00:12:37",
-    "updated": "2026-07-14 00:28:56",
+    "updated": "2026-07-14 00:31:02",
     "md_file": "D:/workspace/github/jununfly/ZCodeGraph/docs/plans/issue-682-partial-fallback-state.md"
   }
 }
