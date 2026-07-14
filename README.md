@@ -75,7 +75,7 @@ zcodegraph --version
 zcodegraph doctor --help
 ```
 
-The expected 0.10.x CLI lists `doctor [options] [path]` in `zcodegraph --help`
+The expected 0.11.x CLI lists `doctor [options] [path]` in `zcodegraph --help`
 and lists `--engine`, `--bundle`, `--last-run`, and `--last-failure` in
 `zcodegraph doctor --help`. If your shell shows a different command, open a new
 terminal or reinstall/upgrade ZCodeGraph so your PATH points at the current
@@ -179,7 +179,7 @@ methodology and mechanism notes.
 | **Full-Text Search** | Find code by name instantly across your entire codebase, powered by FTS5 |
 | **Impact Analysis** | Trace callers, callees, and the full impact radius of any symbol before making changes |
 | **Always Fresh** | File watcher uses native OS events (FSEvents/inotify/ReadDirectoryChangesW) with debounced auto-sync — the graph stays current as you code, zero config |
-| **20+ Languages** | TypeScript, JavaScript, Python, Go, Rust, Java, C#, PHP, Ruby, C, C++, Objective-C, Swift, Kotlin, Dart, Lua, Luau, Svelte, Liquid, Pascal/Delphi |
+| **22 Languages** | TypeScript, JavaScript, Python, Go, Rust, Java, C#, PHP, Ruby, C, C++, Objective-C, Swift, Kotlin, Scala, Dart, Lua, Luau, Svelte, Vue, Liquid, Pascal/Delphi |
 | **Framework-aware Routes** | Recognizes web-framework routing files and links URL patterns to their handlers across 14 frameworks |
 | **Mixed iOS / React Native / Expo** | Closes cross-language flows that static parsing misses: Swift ↔ ObjC bridging, React Native legacy bridge + TurboModules + Fabric view components, native → JS event emitters, Expo Modules |
 | **100% Local** | No data leaves your machine. No API keys. No external services. SQLite database only |
@@ -587,8 +587,8 @@ zcodegraph index --engine typescript
 
 | State | Meaning | Current languages / files |
 |---|---|---|
-| Rust-owned | Indexed by the Rust core on the default `rust-hybrid` path. | JavaScript, JSX, TypeScript, TSX, Go, Python, Rust. |
-| TS-indexed | Indexed by the TypeScript indexer as the mature multi-language path. | Java, C#, PHP, Ruby, C, C++, Objective-C, Swift, Kotlin, Scala, Dart, Svelte, Vue, Liquid, Pascal/Delphi, Lua, Luau, and other supported non-Rust-owned sources. |
+| Rust-owned | Indexed by the Rust core on the default `rust-hybrid` path. | JavaScript, JSX, TypeScript, TSX, Go, Python, Rust, C, Java. |
+| TS-indexed | Indexed by the TypeScript indexer as the mature multi-language path. | C#, PHP, Ruby, C++, Objective-C, Swift, Kotlin, Scala, Dart, Svelte, Vue, Liquid, Pascal/Delphi, Lua, Luau, and other supported non-Rust-owned sources. |
 | Hybrid fallback | `rust-hybrid` uses TypeScript fallback for a file or language and reports it in status/doctor. | Expected for non-Rust-owned supported files, and for Rust-owned parse gaps when recoverable. |
 | Not covered | Not indexed as source symbols/edges. | Unsupported extensions, ignored paths, default-excluded dependency/build/cache directories, and files over the size limit. |
 
