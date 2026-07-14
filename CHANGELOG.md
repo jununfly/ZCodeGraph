@@ -20,6 +20,8 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixes
 
+- MCP ToolHandler now lazily recovers from corrupted SQLite databases instead of crashing, so agents get a clear error and retry path instead of a hard failure. (#679)
+- `rust-hybrid` fallback health now reports a three-tier state (healthy / partial / degraded), so users can tell at a glance whether the graph is fully usable or partially degraded. (#682)
 - `zcodegraph doctor --engine rust-hybrid --bundle` can now create a local diagnostic bundle for a corrupted graph database without opening the broken database or collecting source paths. (#671)
 - `zcodegraph doctor --engine rust-hybrid --bundle --last-run` now points degraded fallback reports to the per-file diagnostic artifact and next maintainer handoff step instead of leaving users at the bundle path alone. (#669, #670)
 
