@@ -9,6 +9,9 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+
+## [0.11.0] - 2026-07-14
+
 ### New Features
 
 - `zcodegraph status` and `zcodegraph doctor` now share graph health language, so users and scripts can distinguish healthy, degraded, stale, failed, unavailable, and corrupted indexes with exact next-step commands.
@@ -442,3 +445,4 @@ Thanks @andreinknv for the substantive draft this release was based on.
 [0.10.0]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.10.0
 [0.10.1]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.10.1
 [0.10.2]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.10.2
+[0.11.0]: https://github.com/jununfly/ZCodeGraph/releases/tag/v0.11.0
