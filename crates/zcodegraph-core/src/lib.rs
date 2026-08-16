@@ -6853,7 +6853,7 @@ fn resolve_same_file_exact_callable_refs(
     for reference in refs {
         if !matches!(
             reference.language.as_str(),
-            "javascript" | "jsx" | "typescript" | "tsx"
+            "javascript" | "jsx" | "typescript" | "tsx" | "c" | "cpp"
         ) {
             continue;
         }
@@ -7074,8 +7074,26 @@ fn index_javascript_files(
 
     for file_path in files {
         let parse_started = Instant::now();
-        let language = SourceLanguage::from_path(&file_path)
+        let mut language = SourceLanguage::from_path(&file_path)
             .ok_or_else(|| format!("Unsupported source file: {}", file_path.display()))?;
+        let relative_path = relative_slash_path(project_path, &file_path)?;
+        let source_read_started = Instant::now();
+        let content = fs::read_to_string(&file_path)?;
+        let metadata = fs::metadata(&file_path)?;
+        let source_read_ms = source_read_started.elapsed().as_millis();
+        counts.profile.parse_source_read_ms += source_read_ms;
+        counts
+            .profile
+            .add_parse_language_source_read(language.codegraph_name(), source_read_ms);
+        // Reclassify .h headers: C → Cpp or skip (ObjC), aligned with TS
+        // looksLikeCpp/looksLikeObjc in src/extraction/grammars.ts.
+        if language.is_c() && file_path.extension().and_then(|e| e.to_str()) == Some("h") {
+            if looks_like_cpp_header(&content) {
+                language = SourceLanguage::Cpp;
+            } else if looks_like_objc_header(&content) {
+                continue;
+            }
+        }
         let language_name = language.codegraph_name().to_string();
         if !parsers.contains_key(&language) {
             let parser_setup_started = Instant::now();
@@ -7091,18 +7109,6 @@ fn index_javascript_files(
         let parser = parsers
             .get_mut(&language)
             .expect("parser should be initialized for source language");
-        let relative_path = relative_slash_path(project_path, &file_path)?;
-        let source_read_started = Instant::now();
-        let content = fs::read_to_string(&file_path)?;
-        let metadata = fs::metadata(&file_path)?;
-        let source_read_ms = source_read_started.elapsed().as_millis();
-        counts.profile.parse_source_read_ms += source_read_ms;
-        counts
-            .profile
-            .add_parse_language_source_read(&language_name, source_read_ms);
-        if language.is_c() && is_non_c_header(&file_path, &content) {
-            continue;
-        }
         if language.is_rust() {
             record_rust_file_cargo_ownership(
                 &cargo_workspace_diagnostics,
@@ -7143,7 +7149,7 @@ fn index_javascript_files(
         let file_node_id = file_node.id.clone();
         nodes.push(file_node);
 
-        if parsed.root_node().has_error() && !language.is_c() {
+        if parsed.root_node().has_error() && !language.is_c_family() {
             let error_started = Instant::now();
             counts.files_errored += 1;
             counts.errors.push(IndexError::rust_owned_parse_gap(
@@ -7189,6 +7195,16 @@ fn index_javascript_files(
                 )?;
             } else if language.is_c() {
                 extract_c_symbols(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
+            } else if language.is_cpp() {
+                extract_cpp_symbols(
                     parsed.root_node(),
                     content.as_bytes(),
                     &relative_path,
@@ -7508,6 +7524,7 @@ fn is_member_receiver_position(bytes: &[u8], after_word: usize) -> bool {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum SourceLanguage {
     C,
+    Cpp,
     JavaScript,
     Jsx,
     TypeScript,
@@ -7530,6 +7547,9 @@ impl SourceLanguage {
             Some("mts") => Some(Self::Mts),
             Some("cts") => Some(Self::Cts),
             Some("c") | Some("h") => Some(Self::C),
+            Some("cpp") | Some("cc") | Some("cxx") | Some("hpp") | Some("hxx") => {
+                Some(Self::Cpp)
+            }
             Some("go") => Some(Self::Go),
             Some("java") => Some(Self::Java),
             Some("py") | Some("pyw") => Some(Self::Python),
@@ -7541,6 +7561,7 @@ impl SourceLanguage {
     fn codegraph_name(self) -> &'static str {
         match self {
             Self::C => "c",
+            Self::Cpp => "cpp",
             Self::JavaScript => "javascript",
             Self::Jsx => "jsx",
             Self::TypeScript | Self::Mts | Self::Cts => "typescript",
@@ -7555,6 +7576,7 @@ impl SourceLanguage {
     fn tree_sitter_language(self) -> tree_sitter::Language {
         match self {
             Self::C => tree_sitter_c::LANGUAGE.into(),
+            Self::Cpp => tree_sitter_cpp::LANGUAGE.into(),
             Self::JavaScript | Self::Jsx => tree_sitter_javascript::LANGUAGE.into(),
             Self::TypeScript | Self::Mts | Self::Cts => {
                 tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()
@@ -7579,6 +7601,14 @@ impl SourceLanguage {
         matches!(self, Self::C)
     }
 
+    fn is_cpp(self) -> bool {
+        matches!(self, Self::Cpp)
+    }
+
+    fn is_c_family(self) -> bool {
+        matches!(self, Self::C | Self::Cpp)
+    }
+
     fn is_java(self) -> bool {
         matches!(self, Self::Java)
     }
@@ -7592,34 +7622,30 @@ impl SourceLanguage {
     }
 }
 
-fn is_non_c_header(path: &Path, source: &str) -> bool {
-    if path.extension().and_then(|ext| ext.to_str()) != Some("h") {
-        return false;
-    }
-    let sample = source.get(..source.len().min(8192)).unwrap_or(source);
-    looks_like_cpp_header(sample) || looks_like_objc_header(sample)
-}
-
+/// Aligned with TS `looksLikeCpp` (src/extraction/grammars.ts).
+/// Checks the first ~8KB for patterns unique to C++ and never valid C.
 fn looks_like_cpp_header(source: &str) -> bool {
-    const NEEDLES: [&str; 7] = [
-        "namespace ",
-        "template <",
-        "template<",
-        "class ",
-        "public:",
-        "private:",
-        "protected:",
-    ];
-    NEEDLES.iter().any(|needle| source.contains(needle))
-        || source.contains(" virtual ")
-        || source.contains("using namespace ")
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| {
+        regex::Regex::new(
+            r"\bnamespace\b|\bclass\s+\w+\s*[:{]|\btemplate\s*<|\b(?:public|private|protected)\s*:|\bvirtual\b|\busing\s+(?:namespace\b|\w+\s*=)",
+        )
+        .expect("cpp header regex should be valid")
+    });
+    let sample = source.get(..source.len().min(8192)).unwrap_or(source);
+    re.is_match(sample)
 }
 
+/// Aligned with TS `looksLikeObjc` (src/extraction/grammars.ts).
+/// Checks the first ~8KB for Objective-C @-directives.
 fn looks_like_objc_header(source: &str) -> bool {
-    source.contains("@interface")
-        || source.contains("@protocol")
-        || source.contains("@class")
-        || source.contains("#import")
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| {
+        regex::Regex::new(r"@(?:interface|implementation|protocol|synthesize)\b")
+            .expect("objc header regex should be valid")
+    });
+    let sample = source.get(..source.len().min(8192)).unwrap_or(source);
+    re.is_match(sample)
 }
 
 fn collect_supported_files(project_path: &Path) -> io::Result<Vec<PathBuf>> {
@@ -8663,6 +8689,8 @@ fn visit_c_node(
         nodes,
         edges,
         unresolved_refs,
+        "c",
+        SourceLanguage::C,
     )?;
     extract_c_statement_refs(
         node,
@@ -8702,6 +8730,8 @@ fn extract_c_include(
     nodes: &mut Vec<ExtractedNode>,
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
+    language: &str,
+    source_language: SourceLanguage,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if node.kind() != "preproc_include" {
         return Ok(());
@@ -8709,7 +8739,7 @@ fn extract_c_include(
     let Some(module_name) = c_include_name(node, source)? else {
         return Ok(());
     };
-    let import_node = ExtractedNode::symbol(relative_path, "import", &module_name, node, "c");
+    let import_node = ExtractedNode::symbol(relative_path, "import", &module_name, node, language);
     let import_node_id = import_node.id.clone();
     edges.push(ExtractedEdge {
         source: from_node_id.to_string(),
@@ -8726,7 +8756,7 @@ fn extract_c_include(
         "imports",
         node,
         relative_path,
-        SourceLanguage::C,
+        source_language,
     );
     Ok(())
 }
@@ -8899,6 +8929,358 @@ fn c_call_reference_name(
         "parenthesized_expression" | "pointer_expression" => {
             for child in node.named_children(&mut node.walk()) {
                 if let Some(name) = c_call_reference_name(child, source)? {
+                    return Ok(Some(name));
+                }
+            }
+            Ok(None)
+        }
+        _ => Ok(None),
+    }
+}
+
+// === C++ extraction ===
+
+fn extract_cpp_symbols(
+    root: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut cursor = root.walk();
+    visit_cpp_node(
+        &mut cursor,
+        source,
+        relative_path,
+        file_node_id,
+        file_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
+    Ok(())
+}
+
+fn visit_cpp_node(
+    cursor: &mut TreeCursor,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    current_from_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let node = cursor.node();
+    let mut child_from_node_id: Cow<'_, str> = Cow::Borrowed(current_from_node_id);
+
+    if let Some((kind, name, qualified_name, _name_node)) =
+        extract_cpp_named_symbol(node, source, relative_path)?
+    {
+        if kind == "function" && cpp_is_misparsed_function(&name) {
+            // C++ macros like NLOHMANN_JSON_NAMESPACE_BEGIN cause tree-sitter
+            // to misparse namespace blocks as function_definitions. Skip the
+            // symbol but still visit children.
+        } else {
+            let extracted = if let Some(ref qn) = qualified_name {
+                ExtractedNode::symbol_with_qualified_name(
+                    relative_path,
+                    kind,
+                    &name,
+                    node,
+                    "cpp",
+                    qn.clone(),
+                )
+            } else {
+                ExtractedNode::symbol(relative_path, kind, &name, node, "cpp")
+            };
+            let extracted_id = extracted.id.clone();
+            let contains_source = if current_from_node_id != file_node_id {
+                current_from_node_id
+            } else {
+                file_node_id
+            };
+            edges.push(ExtractedEdge {
+                source: contains_source.to_string(),
+                target: extracted_id.clone(),
+                kind: "contains".to_string(),
+                line: extracted.start_line,
+                col: extracted.start_column,
+            });
+            nodes.push(extracted);
+            if matches!(
+                kind,
+                "function" | "class" | "struct" | "enum" | "namespace"
+            ) {
+                child_from_node_id = Cow::Owned(extracted_id);
+            }
+            if matches!(kind, "enum_member") {
+                return Ok(());
+            }
+        }
+    }
+
+    extract_c_include(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+        "cpp",
+        SourceLanguage::Cpp,
+    )?;
+    extract_cpp_statement_refs(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        unresolved_refs,
+    )?;
+
+    if cursor.goto_first_child() {
+        loop {
+            visit_cpp_node(
+                cursor,
+                source,
+                relative_path,
+                file_node_id,
+                &child_from_node_id,
+                nodes,
+                edges,
+                unresolved_refs,
+            )?;
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+        cursor.goto_parent();
+    }
+
+    Ok(())
+}
+
+/// Returns (kind, name, Option<qualified_name>, name_node).
+/// `qualified_name` is Some only for out-of-class method definitions where
+/// the declarator contains a `qualified_identifier` (e.g., `ns::Foo::bar`).
+fn extract_cpp_named_symbol<'a>(
+    node: SyntaxNode<'a>,
+    source: &[u8],
+    relative_path: &str,
+) -> Result<
+    Option<(&'static str, String, Option<String>, SyntaxNode<'a>)>,
+    Box<dyn std::error::Error>,
+> {
+    match node.kind() {
+        "function_definition" => {
+            if let Some(declarator) = node.child_by_field_name("declarator") {
+                if let Some((name, qualified, name_node)) = cpp_declarator_name(declarator, source)?
+                {
+                    let qualified_name =
+                        qualified.map(|qn| format!("{}::{}", relative_path, qn));
+                    return Ok(Some(("function", name, qualified_name, name_node)));
+                }
+            }
+        }
+        "class_specifier" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "class",
+                    name_node.utf8_text(source)?.to_string(),
+                    None,
+                    name_node,
+                )));
+            }
+        }
+        "struct_specifier" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "struct",
+                    name_node.utf8_text(source)?.to_string(),
+                    None,
+                    name_node,
+                )));
+            }
+        }
+        "enum_specifier" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "enum",
+                    name_node.utf8_text(source)?.to_string(),
+                    None,
+                    name_node,
+                )));
+            }
+        }
+        "enumerator" => {
+            if let Some(name_node) = node
+                .child_by_field_name("name")
+                .or_else(|| first_named_child_of_kind(node, "identifier"))
+            {
+                return Ok(Some((
+                    "enum_member",
+                    name_node.utf8_text(source)?.to_string(),
+                    None,
+                    name_node,
+                )));
+            }
+        }
+        "type_definition" => {
+            if let Some(name_node) = node
+                .child_by_field_name("declarator")
+                .and_then(c_declarator_name_node)
+            {
+                let kind = c_typedef_kind(node);
+                return Ok(Some((
+                    kind,
+                    name_node.utf8_text(source)?.to_string(),
+                    None,
+                    name_node,
+                )));
+            }
+        }
+        "alias_declaration" => {
+            // C++ using alias: using Foo = Bar;
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "type_alias",
+                    name_node.utf8_text(source)?.to_string(),
+                    None,
+                    name_node,
+                )));
+            }
+        }
+        "namespace_definition" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return Ok(Some((
+                    "namespace",
+                    name_node.utf8_text(source)?.to_string(),
+                    None,
+                    name_node,
+                )));
+            }
+            // Anonymous namespace: no name, just a scope — visit children
+        }
+        "declaration" => {
+            if let Some(name_node) = node
+                .child_by_field_name("declarator")
+                .and_then(c_declarator_name_node)
+            {
+                return Ok(Some((
+                    "variable",
+                    name_node.utf8_text(source)?.to_string(),
+                    None,
+                    name_node,
+                )));
+            }
+        }
+        _ => {}
+    }
+    Ok(None)
+}
+
+/// Extract name from a C++ declarator. Returns (name, Option<qualified_name>, name_node).
+/// For `qualified_identifier` (e.g., `ns::Foo::bar`), name is the last part
+/// and qualified_name is the full `ns::Foo::bar`.
+fn cpp_declarator_name<'a>(
+    node: SyntaxNode<'a>,
+    source: &[u8],
+) -> Result<Option<(String, Option<String>, SyntaxNode<'a>)>, Box<dyn std::error::Error>> {
+    if let Some(qid) = cpp_find_qualified_identifier(node) {
+        let full_text = qid.utf8_text(source)?;
+        let parts: Vec<&str> = full_text.split("::").filter(|s| !s.is_empty()).collect();
+        if let Some(last) = parts.last() {
+            let name = last.to_string();
+            let qualified = if parts.len() > 1 {
+                Some(parts.join("::"))
+            } else {
+                None
+            };
+            return Ok(Some((name, qualified, qid)));
+        }
+    }
+    if let Some(name_node) = c_declarator_name_node(node) {
+        let name = name_node.utf8_text(source)?.to_string();
+        return Ok(Some((name, None, name_node)));
+    }
+    Ok(None)
+}
+
+/// BFS to find `qualified_identifier` inside a declarator, skipping
+/// `parameter_list` and `trailing_return_type` (aligned with TS
+/// `findDeclaratorQualifiedId` in src/extraction/languages/c-cpp.ts).
+fn cpp_find_qualified_identifier(node: SyntaxNode) -> Option<SyntaxNode> {
+    let mut queue = std::collections::VecDeque::new();
+    queue.push_back(node);
+    while let Some(current) = queue.pop_front() {
+        if current.kind() == "qualified_identifier" {
+            return Some(current);
+        }
+        for child in current.named_children(&mut current.walk()) {
+            if !matches!(child.kind(), "parameter_list" | "trailing_return_type") {
+                queue.push_back(child);
+            }
+        }
+    }
+    None
+}
+
+fn cpp_is_misparsed_function(name: &str) -> bool {
+    if name.starts_with("namespace") {
+        return true;
+    }
+    const CPP_KEYWORDS: &[&str] = &["switch", "if", "for", "while", "do", "case", "return"];
+    CPP_KEYWORDS.contains(&name)
+}
+
+fn extract_cpp_statement_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "call_expression" {
+        return Ok(());
+    }
+    let Some(target_node) = node.child_by_field_name("function") else {
+        return Ok(());
+    };
+    let Some(reference_name) = cpp_call_reference_name(target_node, source)? else {
+        return Ok(());
+    };
+    push_ref(
+        unresolved_refs,
+        from_node_id,
+        &reference_name,
+        "calls",
+        target_node,
+        relative_path,
+        SourceLanguage::Cpp,
+    );
+    Ok(())
+}
+
+fn cpp_call_reference_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "identifier" | "field_identifier" | "qualified_identifier" => {
+            Ok(Some(node.utf8_text(source)?.to_string()))
+        }
+        "field_expression" => {
+            let field = node
+                .child_by_field_name("field")
+                .or_else(|| first_named_child_of_kind(node, "field_identifier"));
+            Ok(field.and_then(|child| child.utf8_text(source).ok().map(ToString::to_string)))
+        }
+        "parenthesized_expression" | "pointer_expression" => {
+            for child in node.named_children(&mut node.walk()) {
+                if let Some(name) = cpp_call_reference_name(child, source)? {
                     return Ok(Some(name));
                 }
             }
@@ -21927,6 +22309,194 @@ mod tests {
 
         assert!(result.success, "{:?}", result.errors);
         assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_cpp_header_classification_matrix() {
+        let dir = temp_dir("cpp-h-matrix");
+        write_file(
+            &dir,
+            "plain_c.h",
+            "struct Point { int x; int y; };\nint compute(int a, int b);\n",
+        );
+        write_file(
+            &dir,
+            "cpp_header.h",
+            "#pragma once\nnamespace gfx {\nclass Canvas {\npublic:\n  void draw();\n};\n}\n",
+        );
+        write_file(
+            &dir,
+            "objc_header.h",
+            "#import <Foundation/Foundation.h>\n@interface MyView : NSObject\n@end\n",
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let c_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE language='c' AND kind='file'",
+        );
+        let cpp_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE language='cpp' AND kind='file'",
+        );
+        assert_eq!(c_count, 1, "plain_c.h should be indexed as C");
+        assert_eq!(cpp_count, 1, "cpp_header.h should be indexed as C++");
+        let objc_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE name='objc_header.h'",
+        );
+        assert_eq!(objc_count, 0, "objc_header.h should be skipped (TS fallback)");
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_cpp_extracts_functions_and_classes() {
+        let dir = temp_dir("cpp-symbols");
+        write_file(
+            &dir,
+            "main.cpp",
+            "void freeFunction() { return; }\nclass MyClass {\npublic:\n  void method();\n};\nstruct MyStruct { int field; };\nenum Color { Red, Green, Blue };\nint globalVar = 42;\n",
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let fn_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE kind='function' AND name='freeFunction' AND language='cpp'",
+        );
+        assert_eq!(fn_count, 1, "freeFunction should be extracted");
+
+        let class_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE kind='class' AND name='MyClass'",
+        );
+        assert_eq!(class_count, 1, "MyClass should be extracted");
+
+        let struct_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE kind='struct' AND name='MyStruct'",
+        );
+        assert_eq!(struct_count, 1, "MyStruct should be extracted");
+
+        let enum_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE kind='enum' AND name='Color'",
+        );
+        assert_eq!(enum_count, 1, "Color enum should be extracted");
+
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_cpp_out_of_class_method_uses_qualified_name() {
+        let dir = temp_dir("cpp-qualified");
+        write_file(
+            &dir,
+            "impl.cpp",
+            "namespace gfx {\nclass Canvas {\npublic:\n  void draw();\n};\n}\nvoid gfx::Canvas::draw() { /* render */ }\n",
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let qualified: String = conn
+            .query_row(
+                "SELECT qualified_name FROM nodes WHERE name='draw' AND kind='function'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| String::new());
+        assert!(
+            qualified.contains("gfx::Canvas::draw"),
+            "qualified_name should contain 'gfx::Canvas::draw', got: {}",
+            qualified
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_cpp_extracts_includes() {
+        let dir = temp_dir("cpp-includes");
+        write_file(&dir, "main.cpp", "#include <vector>\n#include \"local.h\"\nvoid main() {}\n");
+        write_file(&dir, "local.h", "#pragma once\nvoid helper();\n");
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let import_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE kind='import' AND language='cpp'",
+        );
+        assert_eq!(import_count, 2, "should extract both #include directives");
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_cpp_extracts_call_expressions() {
+        let dir = temp_dir("cpp-calls");
+        write_file(
+            &dir,
+            "main.cpp",
+            "void target() {}\nvoid caller() { target(); }\n",
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let call_edges = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM edges WHERE kind='calls'",
+        );
+        assert!(
+            call_edges >= 1,
+            "should have at least 1 call edge, got {}",
+            call_edges
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_cpp_extracts_namespaces_and_alias() {
+        let dir = temp_dir("cpp-ns-alias");
+        write_file(
+            &dir,
+            "main.cpp",
+            "namespace util {\nint helper() { return 1; }\n}\nusing IntVec = std::vector<int>;\n",
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let ns_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE kind='namespace' AND name='util'",
+        );
+        assert_eq!(ns_count, 1, "namespace util should be extracted");
+
+        let alias_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE kind='type_alias' AND name='IntVec'",
+        );
+        assert_eq!(
+            alias_count, 1,
+            "using alias IntVec should be extracted"
+        );
         cleanup_temp_dir(dir);
     }
 }

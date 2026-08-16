@@ -10,7 +10,7 @@ import * as path from 'path';
 import { Parser, Language as WasmLanguage } from 'web-tree-sitter';
 import { Language } from '../types';
 
-export type GrammarLanguage = Exclude<Language, 'svelte' | 'vue' | 'liquid' | 'razor' | 'yaml' | 'twig' | 'xml' | 'properties' | 'unknown'>;
+export type GrammarLanguage = Exclude<Language, 'svelte' | 'vue' | 'liquid' | 'razor' | 'yaml' | 'twig' | 'xml' | 'properties' | 'unknown' | 'cpp'>;
 
 /**
  * WASM filename map — maps each language to its .wasm grammar file
@@ -26,7 +26,6 @@ const WASM_GRAMMAR_FILES: Record<GrammarLanguage, string> = {
   rust: 'tree-sitter-rust.wasm',
   java: 'tree-sitter-java.wasm',
   c: 'tree-sitter-c.wasm',
-  cpp: 'tree-sitter-cpp.wasm',
   csharp: 'tree-sitter-c_sharp.wasm',
   php: 'tree-sitter-php.wasm',
   ruby: 'tree-sitter-ruby.wasm',
@@ -298,6 +297,7 @@ function looksLikeObjc(source: string): boolean {
  * Returns true if the grammar exists, even if not yet loaded.
  */
 export function isLanguageSupported(language: Language): boolean {
+  if (language === 'cpp') return true; // Rust-owned (Issue #678)
   if (language === 'svelte') return true; // custom extractor (script block delegation)
   if (language === 'vue') return true; // custom extractor (script block delegation)
   if (language === 'liquid') return true; // custom regex extractor
@@ -337,7 +337,7 @@ export function isFileLevelOnlyLanguage(language: Language): boolean {
  * Get all supported languages (those with grammar definitions).
  */
 export function getSupportedLanguages(): Language[] {
-  return [...(Object.keys(WASM_GRAMMAR_FILES) as GrammarLanguage[]), 'svelte', 'vue', 'liquid'];
+  return [...(Object.keys(WASM_GRAMMAR_FILES) as GrammarLanguage[]), 'svelte', 'vue', 'liquid', 'cpp'];
 }
 
 /**

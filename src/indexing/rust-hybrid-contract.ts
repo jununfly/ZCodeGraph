@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export const RUST_HYBRID_PHASE = 'phase-6-rust-owned-per-file-gap-fallback';
-export const RUST_HYBRID_RUST_OWNED_LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'java', 'python', 'rust', 'c'] as const;
+export const RUST_HYBRID_RUST_OWNED_LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'java', 'python', 'rust', 'c', 'cpp'] as const;
 export type RustHybridFallbackState = 'healthy' | 'partial' | 'degraded' | 'pending';
 export type RustOwnedGapCode =
   | 'rust-owned-parse-gap'

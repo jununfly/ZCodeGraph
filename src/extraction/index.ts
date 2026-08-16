@@ -672,10 +672,6 @@ export class ExtractionOrchestrator {
 
     // Detect needed languages and load grammars in the parse worker
     const neededLanguages = [...new Set(files.map((f) => detectLanguage(f)))];
-    // .h files default to 'c' but may be C++ — ensure cpp grammar is loaded when c is needed
-    if (neededLanguages.includes('c') && !neededLanguages.includes('cpp')) {
-      neededLanguages.push('cpp');
-    }
 
     // Try to use a worker thread for parsing (keeps main thread unblocked for UI).
     // Falls back to in-process parsing if the compiled worker is unavailable (e.g. tests).
@@ -1427,10 +1423,6 @@ export class ExtractionOrchestrator {
     // Load only grammars needed for changed files
     if (filesToIndex.length > 0) {
       const neededLanguages = [...new Set(filesToIndex.map((f) => detectLanguage(f)))];
-      // .h files default to 'c' but may be C++ — ensure cpp grammar is loaded
-      if (neededLanguages.includes('c') && !neededLanguages.includes('cpp')) {
-        neededLanguages.push('cpp');
-      }
       await loadGrammarsForLanguages(neededLanguages);
     }
 

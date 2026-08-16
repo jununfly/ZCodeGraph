@@ -1201,9 +1201,6 @@ export class CodeGraph {
       try {
         await initGrammars();
         const neededLanguages = [...new Set(filePaths.map((filePath) => detectLanguage(filePath)))];
-        if (neededLanguages.includes('c') && !neededLanguages.includes('cpp')) {
-          neededLanguages.push('cpp');
-        }
         await loadGrammarsForLanguages(neededLanguages);
         return this.orchestrator.indexFiles(filePaths);
       } finally {
