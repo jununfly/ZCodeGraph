@@ -207,10 +207,6 @@ export class ScanStage implements IndexStage {
 
     // Detect needed languages
     ctx.neededLanguages = [...new Set(files.map((f) => detectLanguage(f)))];
-    // .h files default to 'c' but may be C++ — ensure cpp grammar is loaded
-    if (ctx.neededLanguages.includes('c') && !ctx.neededLanguages.includes('cpp')) {
-      ctx.neededLanguages.push('cpp');
-    }
 
     // Determine worker availability
     ctx.parseWorkerPath = path.join(__dirname, 'parse-worker.js');

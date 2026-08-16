@@ -26,7 +26,6 @@ const WASM_GRAMMAR_FILES: Record<GrammarLanguage, string> = {
   rust: 'tree-sitter-rust.wasm',
   java: 'tree-sitter-java.wasm',
   c: 'tree-sitter-c.wasm',
-  cpp: 'tree-sitter-cpp.wasm',
   csharp: 'tree-sitter-c_sharp.wasm',
   php: 'tree-sitter-php.wasm',
   ruby: 'tree-sitter-ruby.wasm',

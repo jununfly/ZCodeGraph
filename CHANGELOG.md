@@ -9,6 +9,16 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### New Features
+
+- `rust-hybrid` indexing now handles C++ baseline symbols through the Rust-owned path, so C++ functions, classes, structs, namespaces, enums, type aliases, includes, and calls no longer depend on TypeScript fallback extraction. (#678)
+- `.h` header files are now classified as C, C++, or Objective-C by content sniffing on both the Rust and TypeScript sides, using aligned regex patterns for consistent routing. (#678)
+- `rust-hybrid` metadata now includes `cpp` in `rustOwnedLanguages`, so C++ files are correctly assigned to the Rust engine with no TypeScript fallback. (#678)
+
+### Changes
+
+- Removed the TypeScript-owned C++ extractor (`c-cpp.ts`) and `tree-sitter-cpp.wasm` grammar dependency, as C++ extraction is now fully handled by the Rust core via `tree-sitter-cpp` crate. (#678)
+
 
 ## [0.11.0] - 2026-07-14
 

@@ -363,6 +363,87 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     }
   }, 30_000);
 
+  it('indexes C++ as Rust-owned under rust-hybrid', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'widget.h'),
+      [
+        '#pragma once',
+        '',
+        'namespace app {',
+        'class Widget {',
+        'public:',
+        '  Widget();',
+        '  ~Widget();',
+        '  int render();',
+        '};',
+        '}',
+        '',
+        'using WidgetPtr = Widget*;',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'main.cpp'),
+      [
+        '#include <cstdio>',
+        '#include "widget.h"',
+        '',
+        'namespace app {',
+        'Widget::Widget() {}',
+        'Widget::~Widget() {}',
+        'int Widget::render() { return 42; }',
+        '}',
+        '',
+        'int main() {',
+        '  Widget w;',
+        '  return w.render();',
+        '}',
+      ].join('\n') + '\n',
+    );
+
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      expect(cg.getStats().filesByLanguage.cpp).toBe(2);
+      const expectations = [
+        ['cstdio', 'import'],
+        ['widget.h', 'import'],
+        ['Widget', 'class'],
+        ['app', 'namespace'],
+        ['WidgetPtr', 'type_alias'],
+        ['main', 'function'],
+      ] as const;
+      for (const [name, kind] of expectations) {
+        expect(
+          cg.searchNodes(name).some((match) => match.node.name === name && match.node.kind === kind && match.node.language === 'cpp'),
+          `${name} (${kind}) should be indexed as C++`,
+        ).toBe(true);
+      }
+
+      const mainFn = cg.searchNodes('main').find((match) => match.node.kind === 'function' && match.node.language === 'cpp')?.node;
+      const renderFn = cg.searchNodes('render').find((match) => match.node.kind === 'function' && match.node.language === 'cpp')?.node;
+      expect(mainFn).toBeDefined();
+      expect(renderFn).toBeDefined();
+      const calls = cg.getOutgoingEdges(mainFn!.id).filter((edge) => edge.kind === 'calls');
+      expect(calls.some((edge) => edge.target === renderFn!.id)).toBe(true);
+
+      const buildInfo = cg.getIndexBuildInfo();
+      expect(buildInfo.engine).toBe('rust-hybrid');
+      expect(buildInfo.hybrid).toMatchObject({
+        rustOwnedLanguages: expect.arrayContaining(['cpp']),
+        engineByLanguage: { cpp: 'rust' },
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
+        fallbackReasonTaxonomy: {},
+      });
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
   it('reports Rust index-engine metadata through MCP status', async () => {
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,

@@ -311,6 +311,42 @@ deleted process files:
 - Release readiness: start from the release workflow, changelog rules, and
   release validation benchmark artifacts.
 
+## Issue #678: C++ baseline extraction → Rust-owned indexing
+
+C++ extraction migrated from TypeScript fallback (`c-cpp.ts`) to Rust-owned
+per-file indexing via `tree-sitter-cpp` crate. The TS extractor and
+`tree-sitter-cpp.wasm` grammar were removed; C++ is now in
+`RUST_HYBRID_RUST_OWNED_LANGUAGES`.
+
+### Durable decisions
+
+- **Rust toolchain**: GNU host (`stable-x86_64-pc-windows-gnu`) + WinLibs
+  POSIX UCRT gcc — WSL produces Linux ELF that Windows Node.js cannot spawn;
+  MinGW keeps a single Windows environment.
+- **Namespace representation**: out-of-class `ns::Foo::bar` stores
+  `name=bar`, `qualified_name` preserves `ns::Foo::bar` prefix; free functions
+  carry no prefix.
+- **`.h` sniffing alignment**: Rust-side `looks_like_cpp_header` /
+  `looks_like_objc_header` use `regex::Regex` + `OnceLock` to match the exact
+  TS-side regex patterns, eliminating the plan/parse ownership gap.
+- **Call resolution fix**: `resolve_same_file_exact_callable_refs` extended
+  from JS/TS-only to include `"c" | "cpp"` languages.
+- **Test layering**: cargo unit tests (6 tests: .h classification matrix,
+  extraction core) + CLI smoke tests (language metadata, .h boundary).
+
+### Durable home
+
+- `CHANGELOG.md` — Unreleased entry
+- `docs/benchmarks/2026-07-13-rust-owned-cpp-fmt-validation.md` — corpus evidence
+- `crates/zcodegraph-core/src/lib.rs` — `extract_cpp_symbols` and related functions
+- `src/indexing/rust-hybrid-contract.ts` — `RUST_HYBRID_RUST_OWNED_LANGUAGES` includes `'cpp'`
+
+### Former process files
+
+- `docs/plans/issue-678-rust-owned-cpp.json`
+- `docs/plans/issue-678-rust-owned-cpp.md`
+- `docs/plans/issue-678-fmt-corpus-evidence.md`
+
 ## Removed Process Artifacts
 
 The following files were consolidated and removed:
@@ -340,3 +376,6 @@ The following files were consolidated and removed:
 - `docs/plans/2026-07-02-corrupted-doctor-bundle-v2-roadmap.md`
 - `docs/plans/2026-07-02-fallback-diagnostics-ux-roadmap.json`
 - `docs/plans/2026-07-02-fallback-diagnostics-ux-roadmap.md`
+- `docs/plans/issue-678-rust-owned-cpp.json`
+- `docs/plans/issue-678-rust-owned-cpp.md`
+- `docs/plans/issue-678-fmt-corpus-evidence.md`

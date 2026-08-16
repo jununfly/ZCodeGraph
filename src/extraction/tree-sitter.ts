@@ -190,7 +190,7 @@ const MEMBER_ACCESS_TYPES: ReadonlySet<string> = new Set([
  * already-covered types). Don't re-add `member_expression`/`attribute` here.
  */
 const STATIC_MEMBER_LANGS: ReadonlySet<string> = new Set([
-  'java', 'csharp', 'kotlin', 'swift', 'scala', 'dart', 'php', 'cpp',
+  'java', 'csharp', 'kotlin', 'swift', 'scala', 'dart', 'php',
 ]);
 
 /**

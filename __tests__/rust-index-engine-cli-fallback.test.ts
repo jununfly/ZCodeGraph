@@ -77,10 +77,10 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     const plan = planRustHybridAssignments(tempDir);
 
     expect(plan.rustOwnedFiles).toContain('plain.h');
-    expect(plan.fallbackFiles).toContain('widget.h');
+    expect(plan.rustOwnedFiles).toContain('widget.h');
     expect(plan.fallbackFiles).toContain('View.h');
-    expect(plan.engineByLanguage).toMatchObject({ c: 'rust', cpp: 'typescript', objc: 'typescript' });
-    expect(plan.fallbackByLanguage).toMatchObject({ cpp: 1, objc: 1 });
+    expect(plan.engineByLanguage).toMatchObject({ c: 'rust', cpp: 'rust', objc: 'typescript' });
+    expect(plan.fallbackByLanguage).toMatchObject({ objc: 1 });
   });
 
   it('records Rust-owned per-file gap diagnostics without same-language TypeScript fallback append', () => {
