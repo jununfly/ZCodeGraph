@@ -18,7 +18,7 @@ await cg.indexAll({
 
 const results = cg.searchNodes('UserService');
 const callers = cg.getCallers(results[0].node.id);
-const context = await cg.buildContext('fix login bug', {
+const context = await cg.collectContext('fix login bug', {
   maxNodes: 20,
   includeCode: true,
   format: 'markdown',
@@ -40,6 +40,6 @@ cg.close();
 | `searchNodes(query)` | Full-text symbol search |
 | `getCallers(id)` / `getCallees(id)` | Walk the call graph |
 | `getImpactRadius(id, depth)` | Transitive impact of a change |
-| `buildContext(task, opts)` | Markdown / JSON context for AI |
+| `collectContext(task, opts)` | Markdown / JSON context for AI |
 | `watch()` / `unwatch()` | Start / stop the file watcher |
 | `close()` | Close the database connection |

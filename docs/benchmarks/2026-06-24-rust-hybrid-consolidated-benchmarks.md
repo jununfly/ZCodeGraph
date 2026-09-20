@@ -2661,7 +2661,7 @@ Updated current user-facing guidance in:
 - `docs/designs/dynamic-dispatch-coverage-playbook.md`
 - `docs/designs/callback-edge-synthesis.md`
 - `docs/designs/architecture-roadmap-validation.md`
-- `docs/SEARCH_QUALITY_LOOP.md`
+- `docs/references/language-verification-guide.md`
 - `docs/prds/2026-06-18-rust-hybrid-first-user-release.md`
 - `CHANGELOG.md`
 
