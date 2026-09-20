@@ -9,7 +9,7 @@ It evaluates current `zcodegraph_explore` Agent Sufficiency for flow questions
 using **Read/Grep Fallback displacement** as the primary metric.
 
 The completed 2026-06-12 matrix is summarized below. The compact source record
-is `docs/states/explore-sufficiency-2026-06-12-results.md`; raw transcripts
+is `docs/benchmarks/explore-sufficiency-2026-06-12-results.md`; raw transcripts
 remain outside the repository under `/tmp/zcodegraph-sufficiency/`.
 
 ## Scope

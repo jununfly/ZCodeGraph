@@ -491,7 +491,7 @@ await cg.indexAll({
 
 const results = cg.searchNodes('UserService');
 const callers = cg.getCallers(results[0].node.id);
-const context = await cg.buildContext('fix login bug', { maxNodes: 20, includeCode: true, format: 'markdown' });
+const context = await cg.collectContext('fix login bug', { maxNodes: 20, includeCode: true, format: 'markdown' });
 const impact = cg.getImpactRadius(results[0].node.id, 2);
 
 cg.watch();   // auto-sync on file changes
