@@ -38,10 +38,8 @@ Use these before reading older evidence:
 - `docs/prds/2026-06-18-rust-hybrid-first-user-release.md`
 - `docs/prds/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
 - `docs/designs/plan-artifact-consolidated-closeout.md`
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/designs/rust-indexing-core-decision-ledger.md`
+- `docs/designs/rust-hybrid-optimization-decision-ledger.md`
 - `docs/zj-adr/ZJ-0001-agent-sufficiency-as-architecture-north-star.md`
 - `docs/zj-adr/ZJ-0002-rust-owned-finalization-reference-resolution.md`
 - `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
@@ -155,7 +153,7 @@ Why:
 - The Phase 14 experiment manifest and runner note are historical process
   files. The useful Rust indexing history has already been consolidated into
   `docs/designs/plan-artifact-consolidated-closeout.md` and
-  `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`.
+  `docs/designs/rust-indexing-core-decision-ledger.md`.
 
 ## Issue State Audit Queue
 

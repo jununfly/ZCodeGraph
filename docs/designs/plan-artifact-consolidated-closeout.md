@@ -195,7 +195,7 @@ Durable home:
 - `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
 - `docs/designs/rust-indexing-core-sqlite-contract.md`
 - `docs/designs/rust-indexing-finalization-boundary.md`
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/designs/rust-indexing-core-decision-ledger.md`
 
 Former process files:
 
@@ -214,7 +214,7 @@ Durable home:
 
 - `docs/prds/2026-06-18-rust-hybrid-first-user-release.md`
 - `docs/prds/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
-- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/designs/rust-hybrid-optimization-decision-ledger.md`
 - `docs/benchmarks/2026-06-24-current-state-decision-pack.md`
 - `src/indexing/rust-hybrid-contract.ts`
 - `__tests__/rust-index-engine-cli-fallback.test.ts`
@@ -236,7 +236,7 @@ classification.
 
 Durable home:
 
-- `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
+- `docs/designs/rust-native-ts-module-resolution-ledger.md`
 - `docs/zj-adr/ZJ-0002-rust-owned-finalization-reference-resolution.md`
 - `src/indexing/`
 - `crates/zcodegraph-core/`
