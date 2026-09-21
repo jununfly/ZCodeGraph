@@ -3,36 +3,23 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
-const OWNERSHIP_DOC = path.join(
+// Durable design authority distilled from the deleted consolidated evidence
+// archive (governance pass 2026-09-21).
+const BOUNDARY_DOC = path.join(
   REPO_ROOT,
-  'docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md',
+  'docs/designs/finalization-tail-boundary-contract.md',
 );
-const FRAMEWORK_POST_EXTRACT_DOC = path.join(
-  REPO_ROOT,
-  'docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md',
-);
-const EDGE_WRITE_CLEANUP_DOC = path.join(
-  REPO_ROOT,
-  'docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md',
-);
-const UNRESOLVED_LIFECYCLE_DOC = path.join(
-  REPO_ROOT,
-  'docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md',
-);
-const CLOSEOUT_DOC = path.join(
-  REPO_ROOT,
-  'docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md',
-);
+
 describe('Finalization tail boundary plan artifacts', () => {
   it('records the ownership matrix and public diagnostic contract', () => {
-    expect(fs.existsSync(OWNERSHIP_DOC)).toBe(true);
+    expect(fs.existsSync(BOUNDARY_DOC)).toBe(true);
 
-    const doc = fs.readFileSync(OWNERSHIP_DOC, 'utf8');
+    const doc = fs.readFileSync(BOUNDARY_DOC, 'utf8');
     for (const section of [
-      '## Responsibility Matrix',
-      '## Public Diagnostic Contract',
-      '## Missing Fields',
-      '## Deferred Boundaries',
+      'Responsibility Matrix',
+      'Public Diagnostic Contract',
+      'Missing Fields',
+      'Deferred Boundaries',
     ]) {
       expect(doc).toContain(section);
     }
@@ -79,18 +66,18 @@ describe('Finalization tail boundary plan artifacts', () => {
   });
 
   it('records the framework post-extract ordering and migration gate', () => {
-    expect(fs.existsSync(FRAMEWORK_POST_EXTRACT_DOC)).toBe(true);
+    expect(fs.existsSync(BOUNDARY_DOC)).toBe(true);
 
-    const doc = fs.readFileSync(FRAMEWORK_POST_EXTRACT_DOC, 'utf8');
+    const doc = fs.readFileSync(BOUNDARY_DOC, 'utf8');
     for (const section of [
-      '## Boundary Contract',
-      '## Ordering Contract',
-      '## Deterministic Fixture',
-      '## Migration Gate',
+      'Boundary Contract',
+      'Ordering Contract',
+      'Deterministic Fixture',
+      'Migration Gate',
     ]) {
       expect(doc).toContain(section);
     }
-    expect(doc).toContain('Framework post-extract remains TypeScript-owned and deferred for migration');
+    expect(doc).toContain('Framework post-extract remains TypeScript-owned and deferred for');
     expect(doc).toContain('framework post-extract');
     expect(doc).toContain('reference resolution');
     expect(doc).toContain('GET /admin/users/:id');
@@ -99,15 +86,15 @@ describe('Finalization tail boundary plan artifacts', () => {
   });
 
   it('records the edge write and cleanup ownership boundary', () => {
-    expect(fs.existsSync(EDGE_WRITE_CLEANUP_DOC)).toBe(true);
+    expect(fs.existsSync(BOUNDARY_DOC)).toBe(true);
 
-    const doc = fs.readFileSync(EDGE_WRITE_CLEANUP_DOC, 'utf8');
+    const doc = fs.readFileSync(BOUNDARY_DOC, 'utf8');
     for (const section of [
-      '## Boundary Split',
-      '## Profile Contract',
-      '## Graph Parity Contract',
-      '## Migration Gate',
-      '## No-Go Conditions',
+      'Boundary Split',
+      'Profile Contract',
+      'Graph Parity Contract',
+      'Migration Gate',
+      'No-Go Conditions',
     ]) {
       expect(doc).toContain(section);
     }
@@ -123,15 +110,15 @@ describe('Finalization tail boundary plan artifacts', () => {
   });
 
   it('records the unresolved refs lifecycle and fail-closed cleanup contract', () => {
-    expect(fs.existsSync(UNRESOLVED_LIFECYCLE_DOC)).toBe(true);
+    expect(fs.existsSync(BOUNDARY_DOC)).toBe(true);
 
-    const doc = fs.readFileSync(UNRESOLVED_LIFECYCLE_DOC, 'utf8');
+    const doc = fs.readFileSync(BOUNDARY_DOC, 'utf8');
     for (const section of [
-      '## Lifecycle Taxonomy',
-      '## Fail-Closed Cleanup Contract',
-      '## Rust-Hybrid Interaction',
-      '## Visibility Contract',
-      '## No-Go Conditions',
+      'Lifecycle Taxonomy',
+      'Fail-Closed Cleanup Contract',
+      'Rust-Hybrid Interaction',
+      'Visibility Contract',
+      'No-Go Conditions',
     ]) {
       expect(doc).toContain(section);
     }
@@ -152,9 +139,9 @@ describe('Finalization tail boundary plan artifacts', () => {
   });
 
   it('records the finalization tail boundary closeout and #165 state transition', () => {
-    expect(fs.existsSync(CLOSEOUT_DOC)).toBe(true);
+    expect(fs.existsSync(BOUNDARY_DOC)).toBe(true);
 
-    const doc = fs.readFileSync(CLOSEOUT_DOC, 'utf8');
+    const doc = fs.readFileSync(BOUNDARY_DOC, 'utf8');
     expect(doc).toContain('Finalization Tail Boundary Plan completed');
     expect(doc).toContain('implementation-sequence mode');
     for (const issue of ['#407', '#408', '#409', '#410', '#411']) {

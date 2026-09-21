@@ -15,7 +15,7 @@ Cleanup rule:
   first-user and performance routing decisions;
 - long-lived theme evidence remains separate when it is a useful knowledge
   entry point:
-  - `docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md`
+  - `docs/designs/finalization-tail-boundary-contract.md`
   - `docs/benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md`
   - `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 - raw result JSON, profile directories, generated experiment summaries, and
@@ -6508,7 +6508,7 @@ Date: 2026-06-22
   - `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
   - `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 - Finalization tail closeout:
-  `docs/benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md`
+  `docs/designs/finalization-tail-boundary-contract.md`
 - Parse/extraction closeout:
   `docs/benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md`
 

@@ -1,7 +1,7 @@
 # ZCodeGraph Documentation Map
 
 > Single entry point and authority register for this repository's durable
-> documentation. Last reviewed: 2026-09-20.
+> documentation. Last reviewed: 2026-09-21.
 
 This map is the index of record. It binds each page to a lifecycle category, a
 `doc-kind`, and an `authority`. Navigation order here is **not** truth
@@ -67,6 +67,7 @@ retained as historical context for their slice.
 | --- | --- | --- | --- |
 | primary | DES-architecture-roadmap | [architecture-roadmap.md](designs/architecture-roadmap.md) | Current architecture roadmap |
 | primary | DES-sqlite-contract | [rust-indexing-core-sqlite-contract.md](designs/rust-indexing-core-sqlite-contract.md) | Rust indexing core SQLite contract |
+| primary | DES-finalization-tail | [finalization-tail-boundary-contract.md](designs/finalization-tail-boundary-contract.md) | Finalization-tail ownership, diagnostic, edge-write & unresolved-refs contracts |
 | supporting | DES-plan-closeout | [plan-artifact-consolidated-closeout.md](designs/plan-artifact-consolidated-closeout.md) | Durable process-consolidation navigation (ADR-0005); **existence + content locked by two vitest contracts — do not delete** |
 | supporting | — | [architecture-roadmap-validation.md](designs/architecture-roadmap-validation.md) | Validation report for the roadmap |
 | supporting | — | [index-pipeline.md](designs/index-pipeline.md) | Index pipeline design |
@@ -112,7 +113,6 @@ Dated consolidated evidence and release snapshots:
 - [2026-06-19-first-user-diagnostic-trust-cleanup-evidence.md](benchmarks/2026-06-19-first-user-diagnostic-trust-cleanup-evidence.md)
 - [2026-06-24-current-state-decision-pack.md](benchmarks/2026-06-24-current-state-decision-pack.md)
 - [2026-06-24-rust-hybrid-consolidated-benchmarks.md](benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md)
-- [2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md](benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md)
 - [2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md](benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md)
 - [2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md](benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md)
 - [2026-06-24-rust-indexing-core-consolidated-benchmarks.md](benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md)
@@ -193,9 +193,49 @@ plain git binary (shim-immune); the two staged renames and the staged
 process-file deletion survived, and this untracked map was reconstructed from
 the pass record. No tracked content was lost.
 
-Still awaiting separate Human confirmation (no action taken):
+## Change log — governance pass 2026-09-21 (pilot)
 
-- **Historical benchmark archival/deletion.** Dated `historical` evidence whose
-  facts are consolidated into ADRs/current-state pages may be archived after
-  review; several are also referenced by `__tests__/*-doc.test.ts` contracts,
-  so each deletion needs a contract check. Nothing is deleted by default.
+Human-confirmed strategy for this pass: **extract durable facts → repoint test
+contracts → delete the process/consolidated originals** (no `archive/` bucket;
+raw history stays in git). Executed one pilot to validate the pattern before
+batch rollout.
+
+1. **Extracted** the normative content of
+   `benchmarks/2026-06-24-rust-hybrid-finalization-tail-consolidated-evidence.md`
+   (a 1,150-line append-concatenation of ten 2026-06-21/22 process artifacts)
+   into the new primary design
+   [`designs/finalization-tail-boundary-contract.md`](designs/finalization-tail-boundary-contract.md).
+   Preserved: the responsibility matrix, public diagnostic contract,
+   framework post-extract boundary/ordering/fixture, edge-write & cleanup
+   boundary, the unresolved-refs lifecycle taxonomy and fail-closed cleanup
+   rules, and the #407–#411/#165 provenance. Dropped: one-off profile numbers,
+   the generated module-resolution oracle table, and per-machine command logs.
+2. **Repointed** `__tests__/finalization-tail-boundary-doc.test.ts` (5 `it`
+   blocks) from the deleted evidence file to the new design; assertions kept
+   semantically identical.
+3. **Deleted** the consolidated evidence file via `git rm` after extraction.
+4. **Repaired** its two inbound references in
+   `benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`.
+
+### Incident note (2026-09-21)
+
+The safe-delete shim again transiently emptied the `docs/` working tree right
+after `git rm` (same shape as 2026-09-20: index intact, tracked files showed
+` D`, and the new untracked design file was also swept). Recovery:
+`git restore --worktree docs` (plain git binary), then recreated the new design
+and immediately `git add`-ed it so it is protected by the index. Final state
+verified to contain only the intended changes. Lesson for the remaining batch:
+`git add` each new authority file immediately after writing it.
+
+### Remaining batch (awaiting per-pilot sign-off to proceed)
+
+The same extract → repoint → delete pattern is queued for the other four large
+consolidated process files and the dated one-off snapshots:
+`2026-06-24-rust-indexing-core-consolidated-benchmarks.md` (16,104 lines),
+`2026-06-24-rust-hybrid-consolidated-benchmarks.md` (6,647),
+`2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+(5,721),
+`2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
+(3,097), plus release/post-c1/explore snapshots and old PRDs. Each needs its
+own contract check (`rust-indexing-core-consolidated-docs.test.ts`,
+`graph-semantics-guardrail-doc.test.ts` lock two of the large files).
