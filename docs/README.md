@@ -77,6 +77,10 @@ retained as historical context for their slice.
 | supporting | — | [callback-edge-synthesis.md](designs/callback-edge-synthesis.md) | Callback/observer edge synthesis |
 | supporting | — | [mixed-ios-and-react-native-bridging.md](designs/mixed-ios-and-react-native-bridging.md) | Mixed iOS + RN bridging coverage |
 | supporting | — | [template-markup-parser.md](designs/template-markup-parser.md) | Template parser scope (Razor/Blazor/Thymeleaf) |
+| supporting | DES-rust-indexing-ledger | [rust-indexing-core-decision-ledger.md](designs/rust-indexing-core-decision-ledger.md) | Distilled decision ledger (16,104→2,699 lines); terms locked by `rust-indexing-core-consolidated-docs.test.ts` — do not delete |
+| supporting | DES-rust-hybrid-ledger | [rust-hybrid-optimization-decision-ledger.md](designs/rust-hybrid-optimization-decision-ledger.md) | Distilled optimization/rollout ledger (6,647→2,130); research/oracle terms locked by `graph-semantics-guardrail-doc.test.ts` — do not delete |
+| supporting | DES-resolver-residuals-ledger | [resolver-semantic-residuals-ledger.md](designs/resolver-semantic-residuals-ledger.md) | Distilled resolver semantic-residual ledger (5,721→3,003); residual terms locked by `graph-semantics-guardrail-doc.test.ts` — do not delete |
+| supporting | DES-native-ts-resolution-ledger | [rust-native-ts-module-resolution-ledger.md](designs/rust-native-ts-module-resolution-ledger.md) | Distilled Rust-native TS module-resolution decision ledger (3,097→1,786) |
 | historical | — | [2026-06-14-rust-end-to-end-graph-pipeline-feasibility.md](designs/2026-06-14-rust-end-to-end-graph-pipeline-feasibility.md) | Dated feasibility decision; existence + terms also test-locked |
 
 > No `process` pages remain in `designs/` as of 2026-09-20. The former
@@ -112,11 +116,7 @@ Dated consolidated evidence and release snapshots:
 
 - [2026-06-19-first-user-diagnostic-trust-cleanup-evidence.md](benchmarks/2026-06-19-first-user-diagnostic-trust-cleanup-evidence.md)
 - [2026-06-24-current-state-decision-pack.md](benchmarks/2026-06-24-current-state-decision-pack.md)
-- [2026-06-24-rust-hybrid-consolidated-benchmarks.md](benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md)
 - [2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md](benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md)
-- [2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md](benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md)
-- [2026-06-24-rust-indexing-core-consolidated-benchmarks.md](benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md)
-- [2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md](benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md)
 - [2026-06-25-zcodegraph-0-10-0-release-critical-validation.md](benchmarks/2026-06-25-zcodegraph-0-10-0-release-critical-validation.md)
 - [2026-06-25-zcodegraph-0-10-0-release-snapshot.md](benchmarks/2026-06-25-zcodegraph-0-10-0-release-snapshot.md)
   · data: [`...-result.json`](benchmarks/2026-06-25-zcodegraph-0-10-0-release-snapshot-result.json)
@@ -227,15 +227,48 @@ and immediately `git add`-ed it so it is protected by the index. Final state
 verified to contain only the intended changes. Lesson for the remaining batch:
 `git add` each new authority file immediately after writing it.
 
-### Remaining batch (awaiting per-pilot sign-off to proceed)
+### Batch A — four large consolidated files (completed 2026-09-21)
 
-The same extract → repoint → delete pattern is queued for the other four large
-consolidated process files and the dated one-off snapshots:
-`2026-06-24-rust-indexing-core-consolidated-benchmarks.md` (16,104 lines),
-`2026-06-24-rust-hybrid-consolidated-benchmarks.md` (6,647),
-`2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
-(5,721),
-`2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
-(3,097), plus release/post-c1/explore snapshots and old PRDs. Each needs its
-own contract check (`rust-indexing-core-consolidated-docs.test.ts`,
-`graph-semantics-guardrail-doc.test.ts` lock two of the large files).
+Applied the same extract → repoint → delete pattern to the four remaining large
+consolidated process files (31,569 lines total):
+
+1. **Distilled** each into a `supporting` design decision ledger:
+   - `rust-indexing-core-consolidated-benchmarks.md` (16,104) →
+     [`designs/rust-indexing-core-decision-ledger.md`](designs/rust-indexing-core-decision-ledger.md) (2,699)
+   - `rust-hybrid-consolidated-benchmarks.md` (6,647) →
+     [`designs/rust-hybrid-optimization-decision-ledger.md`](designs/rust-hybrid-optimization-decision-ledger.md) (2,130)
+   - `rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md` (5,721) →
+     [`designs/resolver-semantic-residuals-ledger.md`](designs/resolver-semantic-residuals-ledger.md) (3,003)
+   - `rust-native-typescript-module-resolution-consolidated-evidence.md` (3,097) →
+     [`designs/rust-native-ts-module-resolution-ledger.md`](designs/rust-native-ts-module-resolution-ledger.md) (1,786)
+
+   Net −70% (31,569 → 9,618). Each ledger keeps a "Source Files" provenance list
+   and per-artifact (`###`) decision blocks; normative decisions, the rollout /
+   reference-resolution / syntax-gap narratives, the research-oracle deferral,
+   and the resolver-residual and moduleResolution frontier tables are preserved.
+   Dropped: one-off profile numbers, per-machine logs, and duplicated process
+   boilerplate.
+2. **Repointed** the two vitest contracts that locked the originals:
+   `rust-indexing-core-consolidated-docs.test.ts` (benchmark constant → core
+   ledger) and `graph-semantics-guardrail-doc.test.ts` (research/oracle constant
+   → hybrid ledger; resolver-residuals constant → resolver ledger). Assertions
+   kept semantically identical; all required terms verified present in the
+   ledgers.
+3. **Repaired inbound references** in ADRs `ZJ-0002`/`ZJ-0003`/`ZJ-0004`,
+   `designs/plan-artifact-consolidated-closeout.md`, and
+   `benchmarks/2026-06-24-current-state-decision-pack.md` to point at the
+   ledgers.
+4. **Deleted** the four consolidated files via `git rm` after extraction.
+
+### Batch B — queued (next commit)
+
+Still pending under the same pattern: dated one-off release snapshots
+(0.10.0 release trio + 3 JSON companions, 2026-06-26 current-state /
+targeted-agent-ab), post-c1 baselines (×3), explore-sufficiency (×2), the four
+rust-owned language validations (flask/c-cjson/java-petclinic/cpp-fmt), the
+current-state decision pack, old PRDs (keeping the current 2026-07-03 roadmap),
+`architecture-roadmap-validation.md`, and the 559-line
+`rust-hybrid-parse-extraction-consolidated-evidence.md` (no ledger yet). The
+test-locked `designs/2026-06-14-...-feasibility.md` must be evaluated before any
+move. Inbound references in root `README.md` and the current PRD roadmap need
+repair in the same pass.

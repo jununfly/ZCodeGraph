@@ -9,7 +9,7 @@ const CLOSEOUT = path.join(
 );
 const BENCHMARK = path.join(
   REPO_ROOT,
-  'docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md',
+  'docs/designs/rust-indexing-core-decision-ledger.md',
 );
 const DESIGN = path.join(
   REPO_ROOT,

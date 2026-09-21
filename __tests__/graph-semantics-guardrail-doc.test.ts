@@ -10,7 +10,7 @@ const INDEXING_PERFORMANCE_DOC = path.join(
 );
 const RESEARCH_ORACLE_CLOSEOUT_DOC = path.join(
   REPO_ROOT,
-  'docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md',
+  'docs/designs/rust-hybrid-optimization-decision-ledger.md',
 );
 const OWNERSHIP_ROADMAP_DOC = path.join(
   REPO_ROOT,
@@ -18,7 +18,7 @@ const OWNERSHIP_ROADMAP_DOC = path.join(
 );
 const RESOLVER_SEMANTIC_RESIDUALS_DOC = path.join(
   REPO_ROOT,
-  'docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md',
+  'docs/designs/resolver-semantic-residuals-ledger.md',
 );
 
 describe('Graph semantics guardrail documentation', () => {

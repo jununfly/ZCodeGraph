@@ -13,8 +13,8 @@ had to be preserved.
 
 Supporting evidence:
 
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/designs/rust-indexing-core-decision-ledger.md`
+- `docs/designs/rust-hybrid-optimization-decision-ledger.md`
 - `docs/benchmarks/2026-06-24-current-state-decision-pack.md`
 
 ## Decision

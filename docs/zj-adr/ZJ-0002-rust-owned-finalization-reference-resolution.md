@@ -16,7 +16,7 @@ TypeScript product shell.
 
 Supporting evidence:
 
-- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/designs/rust-hybrid-optimization-decision-ledger.md`
 - `docs/designs/plan-artifact-consolidated-closeout.md`
 - #296 resolver migration decision plan
 - `docs/benchmarks/2026-06-24-current-state-decision-pack.md`
