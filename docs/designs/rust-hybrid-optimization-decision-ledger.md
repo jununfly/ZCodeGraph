@@ -23,8 +23,8 @@ Cleanup rule:
 - long-lived theme evidence remains separate when it is a useful knowledge
   entry point:
   - `docs/designs/finalization-tail-boundary-contract.md`
-  - `docs/benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md`
-  - `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+  - `docs/designs/rust-hybrid-parse-extraction-decision-ledger.md`
+  - `docs/designs/resolver-semantic-residuals-ledger.md`
 - raw result JSON, profile directories, generated experiment summaries, and
   issue-scoped closeout files are deleted once their durable facts are absorbed
   here or in the theme evidence files;

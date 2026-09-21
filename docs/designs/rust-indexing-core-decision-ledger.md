@@ -376,7 +376,7 @@ on both target repositories after the #67 SQLite write batching optimization.
 Agent Sufficiency guardrails reported no Rust-vs-TypeScript regressions.
 
 The explicit Phase 2 stop/continue decision is recorded in
-[the #69 decision document](2026-06-13-rust-indexing-core-phase-2-decision.md):
+the #69 decision document:
 Default rollout remains blocked. The remaining risk is not the stretch goal; it
 is whether the opt-in Rust path has enough coverage, repeatability, and release
 confidence to be considered for a broader rollout.
@@ -864,7 +864,7 @@ until #88 is resolved or the limitations are explicitly accepted.
 
 This taxonomy removed the generic "unknown parse errors" blocker from Phase 4.
 #88 later fixed the 16 real supported JS/TS syntax-gap paths; see
-[Rust Indexing Core Phase 4 VS Code Syntax Gap Resolution](2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-resolution.md).
+Rust Indexing Core Phase 4 VS Code Syntax Gap Resolution.
 Rust still is not ready for default rollout because #87 identified the
 large-repo reference-resolution database-access bottleneck as a remaining
 default-rollout blocker.
@@ -906,9 +906,9 @@ The target is larger than the old Phase 7 sparse checkout and includes the workb
 
 **Artifacts**
 
-- Target validator raw JSON: [2026-06-14-rust-indexing-core-phase-10-vs1-target-validation.raw.json](2026-06-14-rust-indexing-core-phase-10-vs1-target-validation.raw.json)
-- Deterministic probe raw JSON: [2026-06-14-rust-indexing-core-phase-10-vs1-probe.raw.json](2026-06-14-rust-indexing-core-phase-10-vs1-probe.raw.json)
-- Sufficiency smoke raw JSON: [2026-06-14-rust-indexing-core-phase-10-vscode-sufficiency.raw.json](2026-06-14-rust-indexing-core-phase-10-vscode-sufficiency.raw.json)
+- Target validator raw JSON: `2026-06-14-rust-indexing-core-phase-10-vs1-target-validation.raw.json`
+- Deterministic probe raw JSON: `2026-06-14-rust-indexing-core-phase-10-vs1-probe.raw.json`
+- Sufficiency smoke raw JSON: `2026-06-14-rust-indexing-core-phase-10-vscode-sufficiency.raw.json`
 
 **Deterministic Probe Result**
 
@@ -1084,7 +1084,7 @@ files in the profile harness.
 ZCODEGRAPH_RUST_NAME_MATCHER=1 node scripts/rust-index-profile.mjs --repo vscode=/tmp/zcodegraph-phase7-vscode-sparse --rust-core target/debug/zcodegraph-core
 ```
 
-Raw artifact: [Phase 7 VS Code profile](2026-06-14-rust-indexing-core-phase-7-vscode-profile.raw.json)
+Raw artifact: Phase 7 VS Code profile
 
 Observed VS Code sparse profile:
 
@@ -1142,9 +1142,9 @@ The guarded Rust matcher remains opt-in. Phase 8 did not establish default rollo
 
 **Artifacts**
 
-- Reduced profile raw JSON: [2026-06-14-rust-indexing-core-phase-8-reduced-profile.raw.json](2026-06-14-rust-indexing-core-phase-8-reduced-profile.raw.json)
-- VS Code profile raw JSON: [2026-06-14-rust-indexing-core-phase-8-vscode-profile.raw.json](2026-06-14-rust-indexing-core-phase-8-vscode-profile.raw.json)
-- VS Code sufficiency raw JSON: [2026-06-14-rust-indexing-core-phase-8-vscode-sufficiency.raw.json](2026-06-14-rust-indexing-core-phase-8-vscode-sufficiency.raw.json)
+- Reduced profile raw JSON: `2026-06-14-rust-indexing-core-phase-8-reduced-profile.raw.json`
+- VS Code profile raw JSON: `2026-06-14-rust-indexing-core-phase-8-vscode-profile.raw.json`
+- VS Code sufficiency raw JSON: `2026-06-14-rust-indexing-core-phase-8-vscode-sufficiency.raw.json`
 
 **Implementation Summary**
 
@@ -1176,8 +1176,8 @@ Phase 9 does not change Rust matcher opt-in status, does not change Rust indexer
 
 **Artifacts**
 
-- Probe raw JSON: [2026-06-14-rust-indexing-core-phase-9-vs1-probe.raw.json](2026-06-14-rust-indexing-core-phase-9-vs1-probe.raw.json)
-- Sufficiency validation raw JSON: [2026-06-14-rust-indexing-core-phase-9-vscode-sufficiency.raw.json](2026-06-14-rust-indexing-core-phase-9-vscode-sufficiency.raw.json)
+- Probe raw JSON: `2026-06-14-rust-indexing-core-phase-9-vs1-probe.raw.json`
+- Sufficiency validation raw JSON: `2026-06-14-rust-indexing-core-phase-9-vscode-sufficiency.raw.json`
 
 **Implemented Fix**
 
@@ -1263,9 +1263,9 @@ The VS Code target was upgraded after Phase 10 from explicit drift to the exact 
 
 **Artifacts**
 
-- Phase 10 decision doc: [2026-06-14-rust-indexing-core-phase-10-results-and-decision.md](2026-06-14-rust-indexing-core-phase-10-results-and-decision.md)
-- Exact target validator raw JSON: [2026-06-15-rust-indexing-core-phase-11-vs1-target-validation.raw.json](2026-06-15-rust-indexing-core-phase-11-vs1-target-validation.raw.json)
-- Corrected-target smoke raw JSON: [2026-06-15-rust-indexing-core-phase-11-vscode-sufficiency.raw.json](2026-06-15-rust-indexing-core-phase-11-vscode-sufficiency.raw.json)
+- Phase 10 decision doc: `2026-06-14-rust-indexing-core-phase-10-results-and-decision.md`
+- Exact target validator raw JSON: `2026-06-15-rust-indexing-core-phase-11-vs1-target-validation.raw.json`
+- Corrected-target smoke raw JSON: `2026-06-15-rust-indexing-core-phase-11-vscode-sufficiency.raw.json`
 
 **Implemented Harness Changes**
 
@@ -1338,11 +1338,11 @@ The Phase 10 drift-target wording is historical. Phase 12 and later should use t
 
 **Artifacts**
 
-- Phase 11 results: [2026-06-15-rust-indexing-core-phase-11-results-and-decision.md](2026-06-15-rust-indexing-core-phase-11-results-and-decision.md)
-- Phase 12 plan: [../plans/2026-06-15-rust-indexing-core-phase-12-supported-runtime-sufficiency-completion.md](../plans/2026-06-15-rust-indexing-core-phase-12-supported-runtime-sufficiency-completion.md)
-- Exact target validator raw JSON: [2026-06-15-rust-indexing-core-phase-12-vs1-target-validation.raw.json](2026-06-15-rust-indexing-core-phase-12-vs1-target-validation.raw.json)
-- Attempt 1 raw JSON: [2026-06-15-rust-indexing-core-phase-12-vscode-sufficiency-attempt1.raw.json](2026-06-15-rust-indexing-core-phase-12-vscode-sufficiency-attempt1.raw.json)
-- Attempt 2 raw JSON: [2026-06-15-rust-indexing-core-phase-12-vscode-sufficiency-attempt2.raw.json](2026-06-15-rust-indexing-core-phase-12-vscode-sufficiency-attempt2.raw.json)
+- Phase 11 results: `2026-06-15-rust-indexing-core-phase-11-results-and-decision.md`
+- Phase 12 plan: `../plans/2026-06-15-rust-indexing-core-phase-12-supported-runtime-sufficiency-completion.md`
+- Exact target validator raw JSON: `2026-06-15-rust-indexing-core-phase-12-vs1-target-validation.raw.json`
+- Attempt 1 raw JSON: `2026-06-15-rust-indexing-core-phase-12-vscode-sufficiency-attempt1.raw.json`
+- Attempt 2 raw JSON: `2026-06-15-rust-indexing-core-phase-12-vscode-sufficiency-attempt2.raw.json`
 
 **Follow-Up Direction**
 
@@ -2695,4 +2695,4 @@ facts are preserved in the durable decisions and summarized here.
 Concise source lines carrying terms that the section-classifier did not retain verbatim, preserved to keep documentation contracts intact.
 
 - `Rust Indexing Core Consolidated Benchmarks` — # Rust Indexing Core Consolidated Benchmarks And Evidence
-- `syntax-gap resolution` — - [VS Code syntax-gap resolution](2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-resolution.md)
+- `syntax-gap resolution` — - VS Code syntax-gap resolution
