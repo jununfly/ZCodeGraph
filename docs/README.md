@@ -1,7 +1,7 @@
 # ZCodeGraph Documentation Map
 
 > Single entry point and authority register for this repository's durable
-> documentation. Last reviewed: 2026-09-21.
+> documentation. Last reviewed: 2026-09-28.
 
 This map is the index of record. It binds each page to a lifecycle category, a
 `doc-kind`, and an `authority`. Navigation order here is **not** truth
@@ -33,7 +33,7 @@ language glossary (`external`, governed at repository root).
 ## zj-adr — durable architecture decisions
 
 `doc-kind: adr`. Index: [`zj-adr/README.md`](zj-adr/README.md)
-(`supporting`). All seven decisions are `primary`.
+(`supporting`). All eight decisions are `primary`.
 
 | Authority ID | Page | Bounded question |
 | --- | --- | --- |
@@ -302,3 +302,53 @@ What this pass actually did:
 > reliable path on this host was python `os.remove` for the physical unlink
 > plus `git add <path>` to record the deletion, with all new/edited files staged
 > first so a `git restore --worktree docs` could always rebuild the tree.
+
+## Change log — governance pass 2026-09-28
+
+Full read-only discovery + validation after the init/index hard merge (ADR
+ZJ-0008) and the Mac full-suite validation commit `fb2124d`:
+
+1. **Registered ADR ZJ-0008** (`merge-init-into-index`) — already present in
+   both the ADR table above and `zj-adr/README.md` from the merge pass; this
+   review confirmed the registration is complete and consistent.
+2. **Fixed narrative drift**: the `zj-adr` section still read "All seven
+   decisions"; corrected to "eight" (ZJ-0008 is `primary`, the 8th). Separately
+   corrected one living "Current user-facing contract" bullet in
+   `designs/plan-artifact-consolidated-closeout.md` that still listed both
+   `zcodegraph index` and the now-deleted `zcodegraph init`; it now states
+   `index` auto-bootstraps per ADR ZJ-0008. (Neither text is a locked term in
+   the two vitest contracts on that file.) Historical `init` mentions in dated
+   PRDs/benchmarks and the distilled ledgers were left as point-in-time
+   evidence.
+3. **Mechanical validation clean**: `docs_governance.py --validate` reports
+   `diagnostics: []` and every `map_links` target exists. A separate full
+   clickable-link scan across all 53 Markdown pages (docs/ + root README /
+   AGENTS / CLAUDE / ZJ-CONTEXT) found **zero real dead relative links** (three
+   apparent hits were inline regex/Go source inside code, not Markdown links).
+4. **No orphans**: every page on disk under `prds` / `designs` / `benchmarks` /
+   `zj-adr` / `references` is bound here, and every map link resolves to a file.
+5. **Process material deliberately excluded from this ontology**: the completed
+   init/index roadmap (`.workbuddy/init-index-merge-roadmap.json` + rendered
+   `.md`) is local process/SoT material under the gitignored `.workbuddy/`. It
+   has no tracked inbound references and is not a durable doc; its durable output
+   is already captured as ADR ZJ-0008 + the CHANGELOG `Breaking Changes` entry.
+   No durable extraction is pending, so it is left out of `docs/` and the map by
+   design rather than copied in.
+6. Historical `zcodegraph init` mentions in dated PRDs/benchmarks, test-locked
+   decision ledgers, and old CHANGELOG entries remain intentionally preserved
+   (point-in-time evidence); only living, copy-pasteable guidance was updated.
+7. **Process-handoff distill + delete**: the only true process doc,
+   `.claude/handoffs/cross-language-impact-coverage-2026-06-04.md` (a fork-branch
+   campaign handoff whose 11 commit SHAs are all ABSENT from this repository's
+   history), was distilled into the primary
+   [`references/language-verification-guide.md`](references/language-verification-guide.md)
+   as a new "Measuring cross-file coverage (fair coverage)" section — the fair-coverage
+   definition + auditable denominator exclusions + the honest sub-95%
+   convention/reflection/actor ceiling (ASP.NET 83.9 / Spring 83.3 / Drupal 78.9 /
+   Django 74.1 / actix 65.4, no metric-gaming) + the measured-and-rejected TS/JS/Python
+   static-member lever. The per-language/per-framework results were already carried by
+   code comments and the dynamic-dispatch playbook §6 matrix, so they were not copied.
+   The handoff's one inbound ref (`designs/template-markup-parser.md`) was repointed at
+   the new section, and the handoff was then deleted. Two stale `zcodegraph init -v`
+   commands in that same living reference guide were updated to `index -v` (post
+   ZJ-0008).

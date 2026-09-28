@@ -11,10 +11,10 @@ A language is NOT verified until an LLM can reliably use CodeGraph's MCP tools t
 ```bash
 npm run build
 rm -rf <codebase_path>/.zcodegraph
-node dist/bin/zcodegraph.js init -v <codebase_path>
+node dist/bin/zcodegraph.js index -v <codebase_path>
 ```
 
-The `-iv` flag gives verbose output showing extraction progress, node/edge counts, and timing.
+The `-v` flag gives verbose output showing extraction progress, node/edge counts, and timing. Since ADR ZJ-0008, `index` auto-bootstraps an uninitialized store and then indexes (the former `init` command was hard-merged into `index`).
 
 ### 2. Quick sanity check
 
@@ -433,6 +433,79 @@ test().catch(console.error);
 
 ---
 
+## Measuring cross-file coverage (fair coverage)
+
+When validating that a language's cross-file dependency graph is complete, quote a
+**fair coverage** number, never a raw "files with a dependent / all files" ratio. Raw
+ratios are heavily polluted by files that *structurally cannot* have an in-repo
+dependent, and they make a good engine look bad (and gaming-friendly exclusions make a
+bad engine look good). Distilled from the 2026-06 cross-language impact-coverage
+campaign (all 22 README "Full support" languages + 14 frameworks measured).
+
+**Definition:** fair coverage = the percentage of *symbol-bearing* source files that
+are the target of at least one non-`contains` edge whose source is in a **different**
+file (i.e. the file has ≥1 genuine cross-file dependent).
+
+```sql
+-- A file is "covered" when a node in some other file has a non-contains edge into it.
+-- Schema: edges(source/target are node ids), nodes.file_path, files.path.
+WITH covered AS (
+  SELECT DISTINCT tn.file_path AS path
+  FROM edges e
+  JOIN nodes sn ON sn.id = e.source
+  JOIN nodes tn ON tn.id = e.target
+  WHERE e.kind != 'contains' AND sn.file_path != tn.file_path
+)
+SELECT
+  100.0 * SUM(CASE WHEN c.path IS NOT NULL THEN 1 ELSE 0 END)
+        / COUNT(*) AS fair_coverage_pct
+FROM files f
+LEFT JOIN covered c ON c.path = f.path
+WHERE <denominator filter below>;
+```
+
+**Exclude from the denominator** (each exclusion must be auditable, not hidden):
+
+- **No-symbol / see-through barrels** — files with no non-`file` node: `package-info.java`
+  / `module-info.java` shells, doc-only files, `__init__.py` umbrellas, web re-export
+  files, umbrella/SDK headers. (A 0-symbol *source implementation* is **not** excluded —
+  it is a real frontier zero and must stay counted.)
+- **Tests** — `*_test.go`, `test_*.py`, `*Tests.cs`, `*_spec.rb`, `*.test.ts`, etc.
+- **Entry points** — `main`/`bin`/`examples`/`benches`/`fuzz`/`samples`, package
+  `src/index`, platform registration entries (e.g. RN `ReactPackageProvider`), build
+  manifests (`Package.swift`), static-asset dirs (`Public/`).
+- **Generated / structural** — codegen (`.g.h`), build scripts, tooling config, generated
+  migrations (Django/Alembic `migrations/`, EF `Migrations/*.Designer.cs`/`*ModelSnapshot.cs`).
+- **Other-language files miscounted by the include glob** — e.g. `.kt` files under a Java
+  benchmark, JS vendored libraries in a PHP module. Include globs leak; filter in SQL.
+
+**Measure before assuming a hole.** Audit every residual 0-dependent file and classify it
+as a *real miss* vs a *frontier* with a controlled 2-file probe. Verify node count stays
+stable across a fix (edges added, not nodes, except genuinely new symbols). Hold the metric
+constant in an A/B so an engine fix is isolated from a denominator change.
+
+### The honest sub-95% ceiling (do not game the number)
+
+Import/aggregator-style and config/file-convention frameworks reach 95–100% with
+tractable resolution fixes (Express, FastAPI, Flask, requests, NestJS, Gin, Axum, Rocket,
+Vapor, React Router, SvelteKit, Nuxt all measured at 93.5–100%). But **convention /
+reflection / actor frameworks sit at a genuine static-analysis ceiling** — measured:
+**ASP.NET 83.9%, Spring 83.3%, Drupal 78.9%, Django 74.1%, actix-web 65.4%**. Their
+residual zeros are reached only via reflection/DI registration, proxy classes
+(AutoMapper/Swagger/Spring Data), template markup, or actor message dispatch
+(`db.send(Msg)` → `impl Handler<Msg>`) — dynamic boundaries with no static edge.
+
+Reaching a literal 95% there requires either (a) per-framework reflection/markup/DI
+modeling (large features), or (b) excluding markup-driven business code (DTOs/
+ViewModels) from the denominator. **(b) is metric-gaming — do not do it.** Business
+*logic* (services/repos) is covered; the residual is leaf views/DTOs/configs whose impact
+is captured in the other direction (route→handler). Report the honest sub-95 number and
+name the frontier. A separate measured-and-rejected lever: extending the static-member
+value-read pass to TS/JS/Python gave **0 coverage gain** (+1813 edges / +2448 references
+of pure noise on the retrieval-perf canary) because the import edge already covers the
+type — see the `STATIC_MEMBER_LANGS` comment in `src/extraction/tree-sitter.ts`; do not
+re-try it.
+
 ## Diagnosing Failures
 
 | Symptom | Likely Cause | Where to Fix |
@@ -470,7 +543,7 @@ test().catch(console.error);
 ```bash
 npm run build
 rm -rf <codebase_path>/.zcodegraph
-node dist/bin/zcodegraph.js init -v <codebase_path>
+node dist/bin/zcodegraph.js index -v <codebase_path>
 # Re-run the failing tests from above
 ```
 

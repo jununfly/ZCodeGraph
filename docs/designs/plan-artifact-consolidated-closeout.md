@@ -86,8 +86,9 @@ language, while JSON and bundles preserve machine-readable codes.
 
 Current user-facing contract:
 
-- `zcodegraph index` and `zcodegraph init` explain degraded fallback on the
-  first screen.
+- `zcodegraph index` (which auto-bootstraps an uninitialized store since ADR
+  ZJ-0008; the former `init` command was hard-merged into `index`) explains
+  degraded fallback on the first screen.
 - `zcodegraph status` shows graph usability, top fallback reason groups, the
   exact doctor command, and the privacy-preserving artifact to share.
 - `zcodegraph status --json` exposes `fallbackDiagnostics`.
