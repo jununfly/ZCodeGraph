@@ -317,4 +317,100 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
       }
     });
   });
+
+  // Legacy L831 cases #3/#4 (package declaration handling). Kept in their own
+  // describe because they assert module/qualifiedName shape, not imports.
+  describe('Java package declaration baseline', () => {
+    // Legacy L831 case #3. The TS extractor wrapped a package in a
+    // `namespace` node; the Rust engine models the package as kind `module`
+    // (locked by rust-index-engine-cli-language-smoke). The qualifiedName
+    // shape is byte-identical, so that part ports directly.
+    it('wraps package-level declarations in a module and keeps package-qualified names', () => {
+      writeFile(
+        'pkg/com/example/foo/Bar.java',
+        ['package com.example.foo;', '', 'public class Bar {', '    public String greet() { return "hi"; }', '}', ''].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        const filePath = 'pkg/com/example/foo/Bar.java';
+        const pkg = cg
+          .getNodesByKind('module')
+          .find((n) => n.name === 'com.example.foo' && n.filePath === filePath);
+        expect(pkg, 'package emitted as a module node').toBeDefined();
+
+        const cls = cg
+          .getNodesByKind('class')
+          .find((n) => n.name === 'Bar' && n.filePath === filePath);
+        expect(cls?.qualifiedName).toBe('com.example.foo::Bar');
+
+        const greet = cg
+          .getNodesByKind('method')
+          .find((n) => n.name === 'greet' && n.filePath === filePath);
+        expect(greet?.qualifiedName).toBe('com.example.foo::Bar::greet');
+      } finally {
+        cg.close();
+      }
+    });
+
+    // Legacy L831 case #4. Without a package declaration no wrapper node is
+    // emitted. The TS extractor used a bare `Bar` qualifiedName; Rust always
+    // file-prefixes top-level symbols (`NoPkg.java::Bar`), a design locked by
+    // the smoke suite, so the portable assertion is the ABSENCE of a package
+    // module node rather than the bare name.
+    it('does not emit a package module when no package is declared', () => {
+      writeFile('NoPkg.java', ['public class Bar {', '    public String greet() { return "hi"; }', '}', ''].join('\n'));
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        const pkgModules = cg
+          .getNodesByKind('module')
+          .filter((n) => n.language === 'java' && n.filePath === 'NoPkg.java');
+        expect(pkgModules).toHaveLength(0);
+
+        const cls = cg
+          .getNodesByKind('class')
+          .find((n) => n.name === 'Bar' && n.filePath === 'NoPkg.java');
+        expect(cls, 'top-level class still indexed without a package').toBeDefined();
+        expect(cls?.qualifiedName).toBe('NoPkg.java::Bar');
+      } finally {
+        cg.close();
+      }
+    });
+  });
+
+  // Legacy L6467. Only the @interface DEFINITION half is supported by Rust
+  // (annotation_type_declaration -> interface + element method). The USAGE
+  // half (@MyAnno on a class/field/method) emits nothing — gap G7 under
+  // roadmap 1-2-1-1 — so the end-to-end file-dependency assertion stays in the
+  // skipped block; here we guard the definition extraction Rust does own.
+  describe('Java annotation definition baseline', () => {
+    it('indexes an @interface annotation type and its element method', () => {
+      writeFile(
+        'p/MyAnno.java',
+        ['package p;', 'public @interface MyAnno { String value() default ""; }', ''].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        const filePath = 'p/MyAnno.java';
+        const anno = cg
+          .getNodesByKind('interface')
+          .find((n) => n.name === 'MyAnno' && n.filePath === filePath);
+        expect(anno, '@interface indexed as an interface node').toBeDefined();
+        expect(anno?.qualifiedName).toBe('p::MyAnno');
+
+        const element = cg
+          .getNodesByKind('method')
+          .find((n) => n.name === 'value' && n.filePath === filePath);
+        expect(element, 'annotation element value() indexed as a method').toBeDefined();
+        expect(element?.qualifiedName).toBe('p::MyAnno::value');
+      } finally {
+        cg.close();
+      }
+    });
+  });
 });

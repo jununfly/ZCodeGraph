@@ -828,6 +828,14 @@ impl Counter {
 // Java is Rust-owned on the supported rust-hybrid path. These direct
 // TypeScript extractor tests are retained as migration notes until they are
 // ported to Rust-owned fixtures; see #692.
+// #692 wave-0 probe (2026-09-28): two of the six cases here are ported to
+// rust-owned-language-fixtures.test.ts -> "Java package declaration baseline"
+// (the package-wrapper and no-package cases; package is kind `module` in Rust,
+// not `namespace`, and no-package symbols are file-prefixed). Two are confirmed
+// Rust Java extraction gaps kept here: class visibility always null (G5) and
+// method is_static always 0 (G6), tracked under roadmap 1-2-1-1. The final
+// two anonymous-class cases are the 1-6-5-2 group-D probes. Keep the whole
+// describe skipped until the modifier gaps land (do not port to a red test).
 describe.skip('Java Extraction (legacy TypeScript extractor)', () => {
   it('should extract class declarations', () => {
     const code = `
@@ -6354,6 +6362,12 @@ describe('Rust cross-module recall', () => {
 });
 
 // Rust-owned Java annotation dependency coverage is tracked in #692.
+// Wave-0 probe (2026-09-28): Rust indexes the @interface DEFINITION (interface
+// node + element method) — guarded in rust-owned-language-fixtures.test.ts ->
+// "Java annotation definition baseline". The @MyAnno USAGE half emits no node
+// and no unresolved ref (marker_annotation not visited), so the end-to-end
+// getFileDependents link cannot form. That is gap G7 (roadmap 1-2-1-1); keep
+// this end-to-end case skipped until Rust emits annotation-usage references.
 describe.skip('Java annotations (Rust-owned migration)', () => {
   it('indexes @interface definitions and links @Annotation usages to them', async () => {
     const dir = createTempDir();
