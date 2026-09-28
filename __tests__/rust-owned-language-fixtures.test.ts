@@ -114,6 +114,24 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
       }>;
   }
 
+  // Generic unresolved-ref read for non-import kinds (extends / implements /
+  // instantiates / calls ...), used by the anonymous-class semantics block.
+  function unresolvedRefs(db: DbHandle, filePath: string): Array<{
+    reference_name: string;
+    reference_kind: string;
+    line: number;
+  }> {
+    return db
+      .prepare(
+        'SELECT reference_name, reference_kind, line FROM unresolved_refs WHERE file_path = ?1 ORDER BY line',
+      )
+      .all(filePath) as Array<{
+        reference_name: string;
+        reference_kind: string;
+        line: number;
+      }>;
+  }
+
   describe('C/C++ baseline', () => {
     it('extracts a C++ system include node (#include <iostream>)', () => {
       writeFile('main.cpp', '#include <iostream>\n');
@@ -408,6 +426,173 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
           .find((n) => n.name === 'value' && n.filePath === filePath);
         expect(element, 'annotation element value() indexed as a method').toBeDefined();
         expect(element?.qualifiedName).toBe('p::MyAnno::value');
+      } finally {
+        cg.close();
+      }
+    });
+  });
+
+  // Legacy extraction.test D group (the `Java Extraction` skip block, cases
+  // "anonymous-class overrides" D1/D2). Unlike the modifier/annotation gaps,
+  // Rust DOES extract anonymous classes declared via `new T() { ... }`,
+  // including inside a lambda body: the synthetic `<T$anon@line>` class, its
+  // override methods (fully qualified through the enclosing method path) and
+  // the `extends T` / `implements I` refs are all present, so these port
+  // end-to-end. One half of the legacy D1 assertion does NOT port: Rust emits
+  // no `instantiates` ref for object creation — not even for a plain
+  // `new Foo()` — which is the general gap G8 under roadmap 1-2-1-1, not an
+  // anonymous-class-specific miss. That half is tracked there and deliberately
+  // not asserted here (no red test in wave 0).
+  describe('Java anonymous-class overrides baseline', () => {
+    // Legacy D1: `new Base() { @Override int compute(...) }` inside a factory
+    // method.
+    it('extracts an anonymous-class override from `new T() { ... }` with an extends ref', () => {
+      writeFile(
+        'com/example/Factory.java',
+        [
+          'package com.example;',
+          '',
+          'abstract class Base {',
+          '  abstract int compute(int x);',
+          '}',
+          '',
+          'public class Factory {',
+          '  public Base make() {',
+          '    return new Base() {',
+          '      @Override',
+          '      int compute(int x) { return x + 1; }',
+          '    };',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const filePath = 'com/example/Factory.java';
+
+        const anon = cg
+          .getNodesByKind('class')
+          .find((n) => n.filePath === filePath && /Base\$anon@/.test(n.name));
+        expect(anon, 'anonymous Base subclass extracted as a class').toBeDefined();
+        expect(anon?.qualifiedName).toContain('Factory::make::<Base$anon@');
+
+        const compute = cg
+          .getNodesByKind('method')
+          .find(
+            (n) =>
+              n.filePath === filePath &&
+              n.name === 'compute' &&
+              (n.qualifiedName.includes('$anon@')),
+          );
+        expect(compute, 'override method belongs to the anon class').toBeDefined();
+        expect(compute?.qualifiedName).toContain('Factory::make::<Base$anon@');
+        expect(compute?.qualifiedName?.endsWith('::compute')).toBe(true);
+
+        // The anon class must carry `extends Base` so the interface-impl
+        // synthesizer has something to bridge.
+        const refs = unresolvedRefs(db, filePath);
+        const extendsBase = refs.some(
+          (r) => r.reference_kind === 'extends' && r.reference_name === 'Base',
+        );
+        expect(extendsBase, 'anon class carries an `extends Base` reference').toBe(true);
+
+        // G8 (roadmap 1-2-1-1): Rust emits no `instantiates` ref for object
+        // creation. Document the current behavior as a locked ABSENCE so a
+        // future fix is a deliberate, reviewed change rather than a silent
+        // assumption. Remove this assertion when G8 ships instantiates refs.
+        const instantiates = refs.filter((r) => r.reference_kind === 'instantiates');
+        expect(
+          instantiates,
+          'G8: object creation emits no instantiates ref yet (see roadmap 1-2-1-1)',
+        ).toHaveLength(0);
+      } finally {
+        cg.close();
+      }
+    });
+
+    // Legacy D2: the guava Splitter shape — an anonymous class returned from
+    // inside a lambda body passed to a constructor.
+    it('extracts an anonymous class declared inside a lambda body', () => {
+      writeFile(
+        'com/example/Splitter.java',
+        [
+          'package com.example;',
+          '',
+          'interface Strategy {',
+          '  java.util.Iterator<String> iterator(String s);',
+          '}',
+          '',
+          'abstract class BaseIter implements java.util.Iterator<String> {',
+          '  abstract int separatorStart(int start);',
+          '}',
+          '',
+          'public class Splitter {',
+          '  private final Strategy strategy;',
+          '  public Splitter(Strategy s) { this.strategy = s; }',
+          '',
+          '  public static Splitter on(char c) {',
+          '    return new Splitter((seq) ->',
+          '        new BaseIter() {',
+          '          @Override',
+          '          int separatorStart(int start) { return start + 1; }',
+          '          @Override public boolean hasNext() { return false; }',
+          '          @Override public String next() { return null; }',
+          '        });',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const filePath = 'com/example/Splitter.java';
+
+        const anon = cg
+          .getNodesByKind('class')
+          .find((n) => n.filePath === filePath && /BaseIter\$anon@/.test(n.name));
+        expect(anon, 'anon BaseIter inside the lambda body is extracted').toBeDefined();
+        expect(anon?.qualifiedName).toContain('Splitter::on::<BaseIter$anon@');
+
+        const sepStart = cg
+          .getNodesByKind('method')
+          .find(
+            (n) =>
+              n.filePath === filePath &&
+              n.name === 'separatorStart' &&
+              n.qualifiedName.includes('$anon@'),
+          );
+        expect(sepStart, 'override inside the lambda-returned anon class is a method').toBeDefined();
+
+        // Rust extracts all three overridden methods, not just the abstract one.
+        for (const methodName of ['separatorStart', 'hasNext', 'next']) {
+          const m = cg
+            .getNodesByKind('method')
+            .find(
+              (n) =>
+                n.filePath === filePath &&
+                n.name === methodName &&
+                n.qualifiedName.includes('$anon@'),
+            );
+          expect(m, `anon override ${methodName} is indexed`).toBeDefined();
+          expect(m?.qualifiedName).toContain('Splitter::on::<BaseIter$anon@');
+        }
+
+        // BaseIter's own `implements Iterator` and the anon class's
+        // `extends BaseIter` both survive the lambda nesting.
+        const refs = unresolvedRefs(db, filePath);
+        expect(
+          refs.some((r) => r.reference_kind === 'implements' && r.reference_name === 'Iterator'),
+          'BaseIter implements Iterator',
+        ).toBe(true);
+        expect(
+          refs.some((r) => r.reference_kind === 'extends' && r.reference_name === 'BaseIter'),
+          'anon class extends BaseIter',
+        ).toBe(true);
       } finally {
         cg.close();
       }
