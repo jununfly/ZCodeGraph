@@ -48,7 +48,7 @@ describe('CI Rust packaged path coverage', () => {
     expect(workflow).not.toContain('__tests__/rust-index-engine-cli.test.ts');
     expect(workflow).not.toContain('uses the TypeScript indexer by default');
     expect(workflow).toContain('uses the rust-hybrid indexer by default');
-    expect(workflow).toContain('uses rust-hybrid for init indexing by default');
+    expect(workflow).toContain('bootstraps an uninitialized project then indexes with rust-hybrid by default');
     expect(workflow).toContain('runs the packaged Rust subprocess from a bundle layout without an env override');
     expect(workflow).toContain('leaves the existing TypeScript index intact when the Rust binary is unavailable');
     expect(workflow).toContain('Verify release artifact contracts');
