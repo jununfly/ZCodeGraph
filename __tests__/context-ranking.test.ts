@@ -181,7 +181,7 @@ public class IndexerJobStats {}
     cg = CodeGraph.initSync(testDir, {
       config: { include: ['**/*.java'], exclude: [] },
     });
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
   });
 
   afterEach(() => {
@@ -261,7 +261,7 @@ public class TrainedModelAssignmentRebalancer {
     cg = CodeGraph.initSync(testDir, {
       config: { include: ['**/*.java'], exclude: [] },
     });
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
   });
 
   afterEach(() => {
@@ -355,7 +355,7 @@ public class TestEngine extends Engine {
     cg = CodeGraph.initSync(testDir, {
       config: { include: ['**/*.java'], exclude: [] },
     });
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
   });
 
   afterEach(() => {

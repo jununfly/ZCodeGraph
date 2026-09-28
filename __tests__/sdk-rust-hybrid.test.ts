@@ -266,7 +266,7 @@ describe('SDK rust-hybrid full-index alignment', () => {
 
       expect(result.success).toBe(true);
       expect(cg.getIndexBuildInfo().hybrid).toMatchObject({
-        fallbackState: 'degraded',
+        fallbackState: 'partial',
         fallbackByLanguage: { yaml: 1 },
         fallbackFileCount: 1,
         fallbackReasonTaxonomy: { 'language-level-typescript-fallback': 1 },

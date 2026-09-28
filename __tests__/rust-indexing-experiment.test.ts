@@ -506,7 +506,7 @@ describe('Rust indexing formal experiment runner', () => {
     expect(byName.missingTarget.arms.rust.execution.status).toBe('skipped');
   });
 
-  it('records child process errors when init output exceeds the configured capture buffer', () => {
+  it('records child process errors when index output exceeds the configured capture buffer', () => {
     const temp = makeTempDir('zcodegraph-rust-experiment-init-buffer-');
     tempDirs.push(temp);
     const source = path.join(temp, 'source');
@@ -562,7 +562,7 @@ describe('Rust indexing formal experiment runner', () => {
     const diagnostic = artifact.targets[0].arms.typescript.execution.diagnostics[0];
     expect(artifact.targets[0].arms.typescript.execution.status).toBe('failed');
     expect(artifact.targets[0].arms.typescript.graphAvailable).toBe(false);
-    expect(diagnostic).toMatchObject({ kind: 'init-process-failed', errorCode: 'ENOBUFS' });
+    expect(diagnostic).toMatchObject({ kind: 'index-process-failed', errorCode: 'ENOBUFS' });
     expect((diagnostic.stdoutTail ?? diagnostic.stderrTail ?? '').length).toBeGreaterThan(0);
   });
 

@@ -36,7 +36,12 @@ describe('git sync hooks', () => {
   });
 
   afterEach(() => {
-    if (fs.existsSync(repo)) fs.rmSync(repo, { recursive: true, force: true });
+    // macOS can briefly keep a newly-created hooks entry visible while the
+    // git subprocess exits; retry the recursive cleanup instead of turning a
+    // passing hook assertion into an ENOTEMPTY teardown failure.
+    if (fs.existsSync(repo)) {
+      fs.rmSync(repo, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
+    }
   });
 
   it('installs all default hooks, executable, invoking zcodegraph sync', () => {

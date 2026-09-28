@@ -250,7 +250,7 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     expect(status.stdout).toContain('State: healthy');
     expect(status.stdout).toContain('Rust-hybrid Fallback:');
     expect(status.stdout).toContain('Fallback health: partial');
-    expect(status.stdout).toContain('non-Rust-owned files via TypeScript fallback');
+    expect(status.stdout).toContain('files indexed via TypeScript fallback (non-Rust-owned languages)');
     expect(status.stdout).not.toContain('per-file-diagnostics.json');
     expect(status.stdout).not.toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
   }, 30_000);

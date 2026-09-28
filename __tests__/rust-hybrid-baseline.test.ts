@@ -324,7 +324,6 @@ describe('rust-hybrid baseline runner', () => {
       'if (args[0] === "status") { process.stdout.write(JSON.stringify({ initialized: true, fileCount: 1, nodeCount: 1, edgeCount: 1 })); process.exit(0); }',
       'process.exit(2);',
     ].join('\n'));
-
     const out = path.join(outDir, 'baseline-result.json');
     const result = spawnSync(
       process.execPath,
@@ -493,6 +492,7 @@ describe('rust-hybrid baseline runner', () => {
     spawnSync('git', ['init'], { cwd: fixture, stdio: 'ignore' });
 
     const fakeBin = path.join(binDir, 'zcodegraph.js');
+    const fakeTime = path.join(binDir, 'fake-time');
     fs.writeFileSync(fakeBin, [
       '#!/usr/bin/env node',
       'const args = process.argv.slice(2);',
@@ -500,12 +500,27 @@ describe('rust-hybrid baseline runner', () => {
       'if (args[0] === "status") { process.stdout.write(JSON.stringify({ initialized: false })); process.exit(0); }',
       'process.exit(2);',
     ].join('\n'));
+    fs.writeFileSync(fakeTime, [
+      '#!/usr/bin/env node',
+      'const { spawnSync } = require("child_process");',
+      'const [command, ...args] = process.argv.slice(2);',
+      'const result = spawnSync(command, args, { encoding: "utf-8" });',
+      'process.stdout.write(result.stdout || "");',
+      'process.stderr.write(result.stderr || "");',
+      'process.exit(result.status ?? 1);',
+      '',
+    ].join('\n'));
+    fs.chmodSync(fakeTime, 0o755);
 
     const out = path.join(outDir, 'baseline-result.json');
     const result = spawnSync(
       process.execPath,
       [SCRIPT, '--bin', fakeBin, '--out', out, '--repo', `fixture=${fixture}`],
-      { cwd: REPO_ROOT, encoding: 'utf-8' },
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+        env: { ...process.env, ZCODEGRAPH_RSS_TIME_COMMAND: fakeTime },
+      },
     );
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);

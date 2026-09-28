@@ -128,7 +128,7 @@ describe('ZCodeGraph identity residue verification', () => {
         'src/cli/command-helpers.ts',
       ];
       for (const rel of guidanceFiles) {
-        const content = fs.readFileSync(path.join(root, 'src', rel), 'utf8');
+        const content = fs.readFileSync(path.join(root, rel), 'utf8');
         expect(content, `${rel} should guide users to "zcodegraph index"`).toContain('zcodegraph index');
         expect(content, `${rel} must not resurrect "zcodegraph init"`).not.toContain('zcodegraph init');
       }
