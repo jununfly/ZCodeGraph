@@ -2023,63 +2023,11 @@ import okhttp3.OkHttpClient
     });
   });
 
-  describe.skip('Java imports (legacy TypeScript extractor)', () => {
-    it('should extract simple import', () => {
-      const code = `import java.util.List;`;
-      const result = extractFromSource('Main.java', code);
-
-      const importNode = result.nodes.find((n) => n.kind === 'import');
-      expect(importNode).toBeDefined();
-      expect(importNode?.name).toBe('java.util.List');
-      expect(importNode?.signature).toBe('import java.util.List;');
-    });
-
-    it('should extract static import', () => {
-      const code = `import static java.util.Collections.emptyList;`;
-      const result = extractFromSource('Utils.java', code);
-
-      const importNode = result.nodes.find((n) => n.kind === 'import');
-      expect(importNode).toBeDefined();
-      expect(importNode?.name).toBe('java.util.Collections.emptyList');
-      expect(importNode?.signature).toContain('static');
-    });
-
-    it('should extract wildcard import', () => {
-      const code = `import java.util.*;`;
-      const result = extractFromSource('App.java', code);
-
-      const importNode = result.nodes.find((n) => n.kind === 'import');
-      expect(importNode).toBeDefined();
-      expect(importNode?.name).toBe('java.util');
-      expect(importNode?.signature).toContain('.*');
-    });
-
-    it('should extract nested class import', () => {
-      const code = `import java.util.Map.Entry;`;
-      const result = extractFromSource('MapUtil.java', code);
-
-      const importNode = result.nodes.find((n) => n.kind === 'import');
-      expect(importNode).toBeDefined();
-      expect(importNode?.name).toBe('java.util.Map.Entry');
-    });
-
-    it('should extract multiple imports', () => {
-      const code = `
-import java.util.List;
-import java.util.Map;
-import java.io.IOException;
-`;
-      const result = extractFromSource('Service.java', code);
-
-      const importNodes = result.nodes.filter((n) => n.kind === 'import');
-      expect(importNodes.length).toBe(3);
-
-      const names = importNodes.map((n) => n.name);
-      expect(names).toContain('java.util.List');
-      expect(names).toContain('java.util.Map');
-      expect(names).toContain('java.io.IOException');
-    });
-  });
+  // Java import extraction (simple / static / wildcard / nested-class /
+  // multiple) moved to the Rust-owned engine; see
+  // rust-owned-language-fixtures.test.ts -> "Java imports baseline". Rust
+  // stores no import `signature`, so the legacy raw-import-text assertions were
+  // dropped in favour of the import name + unresolved_refs.
 
   describe('C# imports', () => {
     it('should extract simple using', () => {
@@ -2319,73 +2267,10 @@ end
     });
   });
 
-  describe.skip('C/C++ imports (legacy TypeScript extractor)', () => {
-    it('should extract system include', () => {
-      const code = `#include <iostream>`;
-      const result = extractFromSource('main.cpp', code);
-
-      const importNode = result.nodes.find((n) => n.kind === 'import');
-      expect(importNode).toBeDefined();
-      expect(importNode?.name).toBe('iostream');
-      expect(importNode?.signature).toBe('#include <iostream>');
-    });
-
-    it('should extract system include with path', () => {
-      const code = `#include <nlohmann/json.hpp>`;
-      const result = extractFromSource('app.cpp', code);
-
-      const importNode = result.nodes.find((n) => n.kind === 'import');
-      expect(importNode).toBeDefined();
-      expect(importNode?.name).toBe('nlohmann/json.hpp');
-    });
-
-    it('should extract local include', () => {
-      const code = `#include "myheader.h"`;
-      const result = extractFromSource('main.cpp', code);
-
-      const importNode = result.nodes.find((n) => n.kind === 'import');
-      expect(importNode).toBeDefined();
-      expect(importNode?.name).toBe('myheader.h');
-    });
-
-    it('should extract multiple includes', () => {
-      const code = `
-#include <iostream>
-#include <vector>
-#include "config.h"
-`;
-      const result = extractFromSource('app.cpp', code);
-
-      const importNodes = result.nodes.filter((n) => n.kind === 'import');
-      expect(importNodes.length).toBe(3);
-
-      const names = importNodes.map((n) => n.name);
-      expect(names).toContain('iostream');
-      expect(names).toContain('vector');
-      expect(names).toContain('config.h');
-    });
-
-    it('should create unresolved references for local includes', () => {
-      const code = `#include "myheader.h"`;
-      const result = extractFromSource('main.cpp', code);
-
-      const importRef = result.unresolvedReferences.find(
-        (r) => r.referenceKind === 'imports' && r.referenceName === 'myheader.h'
-      );
-      expect(importRef).toBeDefined();
-      expect(importRef?.line).toBe(1);
-    });
-
-    it('should create unresolved references for system includes', () => {
-      const code = `#include <iostream>`;
-      const result = extractFromSource('main.cpp', code);
-
-      const importRef = result.unresolvedReferences.find(
-        (r) => r.referenceKind === 'imports' && r.referenceName === 'iostream'
-      );
-      expect(importRef).toBeDefined();
-    });
-  });
+  // C/C++ #include extraction moved to the Rust-owned engine. The six cases
+  // above now live in rust-owned-language-fixtures.test.ts (engine=rust,
+  // asserting import nodes + unresolved_refs). Note Rust stores no import
+  // `signature`, so the legacy `#include <x>` text assertion was dropped.
 
   describe('Dart imports', () => {
     it('should extract dart: import', () => {
@@ -3625,6 +3510,11 @@ end
   });
 });
 
+// Partially ported to rust-owned-language-fixtures.test.ts (#692 wave 0):
+// `TableFileName` (qualified-type params) is named correctly by Rust and is
+// asserted there. The trailing-return-type half still fails — Rust misnames
+// `auto BuildName(...) -> std::string` as `string` (gap G1, roadmap 1-2-3-1) —
+// so this end-to-end block stays skipped until that extraction gap is fixed.
 describe.skip('C++ free-function name extraction (legacy TypeScript extractor)', () => {
   let tempDir: string;
   let cg: CodeGraph;
