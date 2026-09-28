@@ -79,7 +79,7 @@ describe('ZCodeGraph identity residue verification', () => {
     }
   });
 
-  // ---------- Source-level CLI command residue (zcodegraph init / serve) ----------
+  // ---------- Source-level CLI command residue (zcodegraph index / serve) ----------
 
   describe('CLI command identity in source files', () => {
     const srcFiles = walkDir(path.join(root, 'src'), ['.ts', '.tsx']);
@@ -88,14 +88,8 @@ describe('ZCodeGraph identity residue verification', () => {
 
     const cliResiduePatterns: Array<{ name: string; regex: RegExp; files?: string[] }> = [
       {
-        name: 'zcodegraph init (user-facing)',
-        regex: /Run ["]zcodegraph init/,
-        files: ['src/sync/worktree.ts', 'src/mcp/tools.ts', 'src/bin/zcodegraph.ts'],
-      },
-      {
-        name: 'zcodegraph init (agent instructions)',
-        regex: /zcodegraph init -i/,
-        files: ['src/mcp/server-instructions.ts', 'src/mcp/engine.ts'],
+        name: 'zcodegraph init (removed bootstrap command)',
+        regex: /zcodegraph init\b/,
       },
       {
         name: 'codegraph serve --mcp',
@@ -124,6 +118,21 @@ describe('ZCodeGraph identity residue verification', () => {
         expect(hits, `Residual "${name}" found in:\n${hits.join('\n')}`).toEqual([]);
       });
     }
+
+    it('uninitialized-project guidance points at zcodegraph index, not init', () => {
+      const guidanceFiles = [
+        'src/mcp/tools.ts',
+        'src/mcp/server-instructions.ts',
+        'src/sync/worktree.ts',
+        'src/diagnostics/graph-health.ts',
+        'src/cli/command-helpers.ts',
+      ];
+      for (const rel of guidanceFiles) {
+        const content = fs.readFileSync(path.join(root, 'src', rel), 'utf8');
+        expect(content, `${rel} should guide users to "zcodegraph index"`).toContain('zcodegraph index');
+        expect(content, `${rel} must not resurrect "zcodegraph init"`).not.toContain('zcodegraph init');
+      }
+    });
   });
 
   // ---------- Scripts residue ----------

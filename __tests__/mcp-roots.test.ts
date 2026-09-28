@@ -5,7 +5,7 @@
  * doesn't pass a `rootUri`/`workspaceFolders` in `initialize`, the server used
  * to fall straight back to `process.cwd()` — which for many IDE clients is the
  * wrong directory. Every tool call without an explicit `projectPath` then
- * failed with a misleading "CodeGraph not initialized. Run 'zcodegraph init'."
+ * failed with a misleading "CodeGraph not initialized. Run 'zcodegraph index'."
  *
  * The fix: when no explicit path is provided, the server asks the client for
  * its workspace root via the spec-blessed `roots/list` request (if the client

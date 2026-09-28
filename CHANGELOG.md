@@ -15,6 +15,10 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `.h` header files are now classified as C, C++, or Objective-C by content sniffing on both the Rust and TypeScript sides, using aligned regex patterns for consistent routing. (#678)
 - `rust-hybrid` metadata now includes `cpp` in `rustOwnedLanguages`, so C++ files are correctly assigned to the Rust engine with no TypeScript fallback. (#678)
 
+### Breaking Changes
+
+- **`zcodegraph init` has been removed and hard-merged into `zcodegraph index`.** `index` now auto-bootstraps an uninitialized project (creates `.zcodegraph/` + schema) and builds the index in one step; on an existing project it performs the normal (re)index. There is **no alias and no deprecation shim** — running `zcodegraph init` now fails as an unknown command. This closes the bootstrap capability gap (cold CI no longer runs `init` + `index --force`, i.e. two full indexes) and all index flags (`--quiet`, `--engine`, the Rust tuning and profiling flags) apply on first run. `uninit` is unchanged. The library SDK (`CodeGraph.init()`/`initSync()`/`indexAll()`) and the installer are unaffected — the merge is CLI-layer only. See ADR ZJ-0008.
+
 ### Changes
 
 - Removed the TypeScript-owned C++ extractor (`c-cpp.ts`) and `tree-sitter-cpp.wasm` grammar dependency, as C++ extraction is now fully handled by the Rust core via `tree-sitter-cpp` crate. (#678)

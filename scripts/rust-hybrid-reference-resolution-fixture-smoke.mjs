@@ -126,13 +126,8 @@ function main() {
   }
 
   fs.rmSync(path.join(args.fixture, '.zcodegraph'), { recursive: true, force: true });
-  const init = run(process.execPath, [args.bin, 'init', args.fixture, '--engine', 'rust-hybrid'], args.fixture);
-  if (init.status !== 0) {
-    const artifact = failArtifact(args, 'init-failed', init, startedAt);
-    console.log(JSON.stringify({ status: artifact.status, result: artifact }, null, 2));
-    process.exit(1);
-  }
-
+  // Hard merge: a single `index` bootstraps the store on the clean fixture,
+  // then runs the full rust-hybrid index (old init + index pair collapsed).
   const profilePath = path.resolve(path.dirname(args.out), `${path.basename(args.out, path.extname(args.out))}.profile.json`);
   const index = run(
     process.execPath,

@@ -73,12 +73,6 @@ function invokeRustCore() {
   const result = spawnSync(core, ['index'], { cwd: process.cwd(), encoding: 'utf8' });
   if (result.status) process.exit(result.status);
 }
-if (args[0] === 'init') {
-  const project = projectArg('init');
-  invokeRustCore();
-  ensureIndex(project, fs.existsSync(path.join(project, 'routing.yml')));
-  process.exit(0);
-}
 if (args[0] === 'index') {
   const project = projectArg('index');
   invokeRustCore();
@@ -188,7 +182,7 @@ describe.skipIf(process.platform === 'win32')('local Rust package smoke primitiv
     expect(summary.gateFailures).toEqual([]);
     expect(summary.bundle).toMatchObject({
       launcherPathPreserved: true,
-      initRustHybridWorks: true,
+      bootstrapRustHybridWorks: true,
       defaultRustHybridIndexWorks: true,
       explicitRustHybridIndexWorks: true,
       staleEnvEngineSelectionFailsClearly: true,
@@ -198,7 +192,7 @@ describe.skipIf(process.platform === 'win32')('local Rust package smoke primitiv
       failureDoctorLastFailureWorks: true,
     });
     expect(summary.npm).toMatchObject({
-      initRustHybridWorks: true,
+      bootstrapRustHybridWorks: true,
       defaultRustHybridIndexWorks: true,
       explicitRustHybridIndexWorks: true,
       staleEnvEngineSelectionFailsClearly: true,

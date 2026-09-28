@@ -98,8 +98,6 @@ function copyPhase1Slice(source, label) {
 }
 
 async function indexWithTimedCli(project, engine) {
-  run(process.execPath, [distBin, 'init', project], project, baseEnv());
-
   const args = [
     distBin,
     'index',

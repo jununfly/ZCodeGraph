@@ -9,13 +9,13 @@ Once CodeGraph is installed, building and exploring a graph takes three commands
 
 ```bash
 cd your-project
-zcodegraph init -i      # initialize + index in one step
+zcodegraph index        # create the store on first run, then build the full index
 ```
 
-`init` creates the `.codegraph/` directory; `-i` (or `--index`) immediately builds the full index. For an existing project you can re-index any time:
+`index` creates the `.zcodegraph/` directory and builds the full index in one step — there is no separate initialize command. Running it again on an existing project re-indexes any time:
 
 ```bash
-zcodegraph index          # full index
+zcodegraph index          # full (re)index; --force to force a rebuild
 zcodegraph sync           # incremental update of changed files
 ```
 

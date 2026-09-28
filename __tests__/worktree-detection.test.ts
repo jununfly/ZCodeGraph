@@ -100,7 +100,7 @@ describe('detectWorktreeIndexMismatch (issue #155)', () => {
     const msg = worktreeMismatchWarning(detectWorktreeIndexMismatch(worktree, mainRepo)!);
     expect(msg).toContain(real(worktree));
     expect(msg).toContain(real(mainRepo));
-    expect(msg).toContain('zcodegraph init');
+    expect(msg).toContain('zcodegraph index');
   });
 });
 
@@ -152,7 +152,7 @@ describe('worktree mismatch surfaces on hot read tools (issue #155)', () => {
     expect(res.isError).toBeFalsy();
     expect(text).toContain('different git worktree');
     expect(text).toContain(real(worktree));
-    expect(text).toContain('zcodegraph init');
+    expect(text).toContain('zcodegraph index');
   });
 
   it('does NOT prefix when the default project is the main checkout itself', async () => {

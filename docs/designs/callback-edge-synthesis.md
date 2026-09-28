@@ -36,8 +36,7 @@ We synthesize `dispatcher → callback` edges that static parsing misses. It wor
 **How to reproduce / test:**
 ```bash
 npm run build
-rm -rf /tmp/zcodegraph-corpus/excalidraw/.zcodegraph
-( cd /tmp/zcodegraph-corpus/excalidraw && zcodegraph init )
+( cd /tmp/zcodegraph-corpus/excalidraw && zcodegraph uninit -f && zcodegraph index )
 # synthesized edges (provenance='heuristic', metadata.synthesizedBy in {callback,event-emitter}):
 sqlite3 /tmp/zcodegraph-corpus/excalidraw/.zcodegraph/zcodegraph.db \
   "select s.name||' → '||t.name||'  '||coalesce(e.metadata,'') from edges e \

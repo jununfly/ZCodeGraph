@@ -46,14 +46,14 @@ zcodegraph install --print-config codex               # print snippet, no file w
 
 Restart your agent (Claude Code / Cursor / Codex CLI / opencode / Hermes Agent / Gemini CLI / Antigravity IDE / Kiro) for the MCP server to load.
 
-## 4. Initialize projects
+## 4. Index projects
 
 ```bash
 cd your-project
-zcodegraph init -i
+zcodegraph index
 ```
 
-This builds the per-project knowledge graph index and wires up any project-local agent surfaces, so a single global `zcodegraph install` works in every project you open.
+This creates the `.zcodegraph/` store on first run, builds the per-project knowledge graph index, and wires up any project-local agent surfaces, so a single global `zcodegraph install` works in every project you open.
 
 ## Supported platforms
 

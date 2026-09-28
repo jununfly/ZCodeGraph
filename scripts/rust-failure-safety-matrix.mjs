@@ -87,10 +87,7 @@ function makeProject(caseId) {
   const project = fs.mkdtempSync(path.join(os.tmpdir(), `zcodegraph-rust-failure-${caseId}-`));
   fs.writeFileSync(path.join(project, 'package.json'), JSON.stringify({ name: `failure-${caseId}` }, null, 2));
   fs.writeFileSync(path.join(project, 'alpha.ts'), 'export function alpha() { return 1; }\n');
-  const init = runCli(project, ['init', project]);
-  if (init.status !== 0) {
-    throw new Error(`failed to initialize baseline project for ${caseId}\n${init.stdout}\n${init.stderr}`);
-  }
+  // Hard merge: one `index` bootstraps the store and builds the TypeScript baseline.
   const index = runCli(project, ['index', project, '--force', '--quiet', '--engine', 'typescript']);
   if (index.status !== 0) {
     throw new Error(`failed to create TypeScript baseline for ${caseId}\n${index.stdout}\n${index.stderr}`);

@@ -282,20 +282,19 @@ function runDefaultTypescriptSmoke(outDir) {
   }
 
   const project = makeSmokeProject('typescript-smoke');
-  const init = runProcess(process.execPath, [distBin, 'init', project], project);
-  const index = init.status === 0
-    ? runProcess(process.execPath, [distBin, 'index', project, '--force', '--quiet'], project)
-    : null;
-  const stdout = [`$ zcodegraph init\n${init.stdout}`, `$ zcodegraph index\n${index?.stdout ?? ''}`].join('\n');
-  const stderr = [`$ zcodegraph init\n${init.stderr}`, `$ zcodegraph index\n${index?.stderr ?? ''}`].join('\n');
+  // Hard merge: `index` bootstraps the store on first run, so a single
+  // `index --force --quiet` replaces the old init + index pair.
+  const index = runProcess(process.execPath, [distBin, 'index', project, '--force', '--quiet'], project);
+  const stdout = `$ zcodegraph index\n${index.stdout}`;
+  const stderr = `$ zcodegraph index\n${index.stderr}`;
   const artifacts = {
     stdout: writeTextArtifact(outDir, 'default-typescript-smoke', 'stdout.txt', stdout),
     stderr: writeTextArtifact(outDir, 'default-typescript-smoke', 'stderr.txt', stderr),
   };
   return {
     name: 'default-typescript-smoke',
-    passed: init.status === 0 && index?.status === 0,
-    exitCode: index?.status ?? init.status,
+    passed: index.status === 0,
+    exitCode: index.status,
     artifacts,
   };
 }
@@ -313,25 +312,22 @@ function runRustSmoke(outDir) {
 
   const rustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY ?? defaultRustCore;
   const project = makeSmokeProject('rust-smoke');
-  const init = runProcess(process.execPath, [distBin, 'init', project], project);
-  const index = init.status === 0
-    ? runProcess(
-      process.execPath,
-      [distBin, 'index', project, '--force', '--quiet', '--engine', 'rust'],
-      project,
-      { ZCODEGRAPH_RUST_CORE_BINARY: rustCore },
-    )
-    : null;
-  const stdout = [`$ zcodegraph init\n${init.stdout}`, `$ zcodegraph index --engine rust\n${index?.stdout ?? ''}`].join('\n');
-  const stderr = [`$ zcodegraph init\n${init.stderr}`, `$ zcodegraph index --engine rust\n${index?.stderr ?? ''}`].join('\n');
+  const index = runProcess(
+    process.execPath,
+    [distBin, 'index', project, '--force', '--quiet', '--engine', 'rust'],
+    project,
+    { ZCODEGRAPH_RUST_CORE_BINARY: rustCore },
+  );
+  const stdout = `$ zcodegraph index --engine rust\n${index.stdout}`;
+  const stderr = `$ zcodegraph index --engine rust\n${index.stderr}`;
   const artifacts = {
     stdout: writeTextArtifact(outDir, 'rust-smoke', 'stdout.txt', stdout),
     stderr: writeTextArtifact(outDir, 'rust-smoke', 'stderr.txt', stderr),
   };
   return {
     name: 'rust-smoke',
-    passed: init.status === 0 && index?.status === 0,
-    exitCode: index?.status ?? init.status,
+    passed: index.status === 0,
+    exitCode: index.status,
     rustCore,
     artifacts,
   };
@@ -349,19 +345,19 @@ function runDiagnostics(outDir) {
   }
 
   const project = makeSmokeProject('diagnostics');
-  const init = runProcess(process.execPath, [distBin, 'init', project], project);
-  const status = init.status === 0
+  const index = runProcess(process.execPath, [distBin, 'index', project, '--force', '--quiet'], project);
+  const status = index.status === 0
     ? runProcess(process.execPath, [distBin, 'status', project, '--json'], project)
     : null;
   const parsedStdout = parseJsonMaybe(status?.stdout ?? '');
   const artifacts = {
     stdout: writeTextArtifact(outDir, 'diagnostics', parsedStdout ? 'stdout.json' : 'stdout.txt', status?.stdout ?? ''),
-    stderr: writeTextArtifact(outDir, 'diagnostics', 'stderr.txt', `${init.stderr}${status?.stderr ?? ''}`),
+    stderr: writeTextArtifact(outDir, 'diagnostics', 'stderr.txt', `${index.stderr}${status?.stderr ?? ''}`),
   };
   return {
     name: 'diagnostics',
-    passed: init.status === 0 && status?.status === 0 && parsedStdout != null,
-    exitCode: status?.status ?? init.status,
+    passed: index.status === 0 && status?.status === 0 && parsedStdout != null,
+    exitCode: status?.status ?? index.status,
     statusJson: parsedStdout,
     artifacts,
   };

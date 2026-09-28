@@ -96,7 +96,7 @@ These are exact, fragile wiring — match the existing style precisely:
 1. **`src/types.ts`** — TWO edits:
    - add `'<lang>',` to the `LANGUAGES` const (before `'unknown'`);
    - add `'**/*.<ext>',` to `DEFAULT_CONFIG.include`. **Don't skip this** — it's
-     the file-scan allowlist; without the glob, `zcodegraph init` finds **0
+     the file-scan allowlist; without the glob, `zcodegraph index` finds **0
      files** even though detection/extraction are wired.
 2. **`src/extraction/grammars.ts`** — three maps:
    - `WASM_GRAMMAR_FILES`: `<lang>: 'tree-sitter-<lang>.wasm',`
@@ -131,7 +131,7 @@ npm run build            # tsc + copy-assets (copies any vendored *.wasm into di
 ```
 Index a small sample repo and check extraction:
 ```bash
-( cd <sample-repo> && zcodegraph init -i )
+( cd <sample-repo> && zcodegraph index )
 node scripts/add-lang/verify-extraction.mjs <sample-repo> <lang>
 ```
 `verify-extraction.mjs` fails (exit 1) if the language isn't detected or only

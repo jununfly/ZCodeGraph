@@ -70,7 +70,7 @@ describe('graph health classification contract', () => {
     })).toMatchObject({
       state: 'unavailable',
       usable: false,
-      nextCommands: ['zcodegraph init'],
+      nextCommands: ['zcodegraph index'],
     });
   });
 
@@ -85,7 +85,7 @@ describe('graph health classification contract', () => {
       reasons: ['database disk image is malformed'],
       nextCommands: [
         'zcodegraph doctor --engine rust-hybrid --bundle --last-run',
-        'rm -rf .zcodegraph && zcodegraph init',
+        'zcodegraph uninit -f && zcodegraph index',
       ],
     });
   });

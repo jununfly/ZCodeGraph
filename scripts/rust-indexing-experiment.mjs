@@ -941,21 +941,9 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
       total: 0,
     };
     const bin = path.join(repoRoot, 'dist', 'bin', 'zcodegraph.js');
-    const initStarted = Date.now();
-    const initResult = runCommand(
-      process.execPath,
-      [bin, 'init', arm.sourceCopy.path, '--engine', engine],
-      arm.sourceCopy.path,
-      engine === 'rust' ? { ZCODEGRAPH_RUST_CORE_BINARY: rustCoreInfo.path } : {},
-    );
-    timingsMs.init = elapsedSince(initStarted);
-    if (initResult.status !== 0 || initResult.error) {
-      arm.execution.status = 'failed';
-      arm.execution.diagnostics.push(diagnostic('init-process-failed', `Init failed for ${target.name}:${engine}`, childProcessFailureDetails(initResult)));
-      arm.indexing.status = 'failed';
-      arm.graphAvailable = false;
-      return;
-    }
+    // Hard merge: there is no separate `init` phase anymore. `index` bootstraps
+    // the store on the fresh source copy, so the init timing phase is kept as a
+    // constant 0 for report-schema continuity and bootstrap cost folds into index.
     const args = [bin, 'index', arm.sourceCopy.path, '--force', '--quiet'];
     const env = {};
     let indexProfileFile = null;

@@ -7,9 +7,8 @@ description: Every ZCodeGraph command and the flags it accepts.
 zcodegraph                         # Run interactive installer
 zcodegraph install                 # Run installer (explicit)
 zcodegraph uninstall               # Remove ZCodeGraph from your agents (inverse of install)
-zcodegraph init [path]             # Initialize in a project (--index to also index)
 zcodegraph uninit [path]           # Remove ZCodeGraph from a project (--force to skip prompt)
-zcodegraph index [path]            # Full index (--force to re-index, --quiet for less output)
+zcodegraph index [path]            # Create the store on first run, then (re)index (--force, --quiet)
 zcodegraph sync [path]             # Incremental update
 zcodegraph status [path]           # Show statistics
 zcodegraph query <search>          # Search symbols (--kind, --limit, --json)

@@ -44,7 +44,6 @@ describe('rust-hybrid baseline runner', () => {
       'const fs = require("fs");',
       'const path = require("path");',
       'const args = process.argv.slice(2);',
-      'if (args[0] === "init") { process.exit(0); }',
       'if (args[0] === "index") {',
       '  const profileOut = args[args.indexOf("--profile-out") + 1];',
       '  fs.mkdirSync(path.dirname(profileOut), { recursive: true });',
@@ -315,7 +314,6 @@ describe('rust-hybrid baseline runner', () => {
       'const fs = require("fs");',
       'const path = require("path");',
       'const args = process.argv.slice(2);',
-      'if (args[0] === "init") { process.exit(0); }',
       'if (args[0] === "index" && process.cwd().includes("second")) { setTimeout(() => {}, 10_000); return; }',
       'if (args[0] === "index") {',
       '  const profileOut = args[args.indexOf("--profile-out") + 1];',
@@ -413,7 +411,6 @@ describe('rust-hybrid baseline runner', () => {
       'const fs = require("fs");',
       'const path = require("path");',
       'const args = process.argv.slice(2);',
-      'if (args[0] === "init") { process.exit(0); }',
       'if (args[0] === "index") {',
       '  const profileOut = args[args.indexOf("--profile-out") + 1];',
       '  fs.mkdirSync(path.dirname(profileOut), { recursive: true });',
@@ -488,8 +485,8 @@ describe('rust-hybrid baseline runner', () => {
     });
   });
 
-  it('records init failure output for setup failures', () => {
-    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-baseline-init-fail-'));
+  it('records index failure output for setup failures', () => {
+    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-baseline-index-fail-'));
     const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-baseline-bin-'));
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-baseline-out-'));
     tempDirs.push(fixture, binDir, outDir);
@@ -499,7 +496,7 @@ describe('rust-hybrid baseline runner', () => {
     fs.writeFileSync(fakeBin, [
       '#!/usr/bin/env node',
       'const args = process.argv.slice(2);',
-      'if (args[0] === "init") { process.stderr.write("init exploded\\n"); process.exit(7); }',
+      'if (args[0] === "index") { process.stderr.write("index exploded\\n"); process.exit(7); }',
       'if (args[0] === "status") { process.stdout.write(JSON.stringify({ initialized: false })); process.exit(0); }',
       'process.exit(2);',
     ].join('\n'));
@@ -520,7 +517,7 @@ describe('rust-hybrid baseline runner', () => {
     expect(artifact.results[0]!.runs[0]).toMatchObject({
       status: 'failed',
       exitCode: 7,
-      failureOutput: { stderrTail: 'init exploded\n' },
+      failureOutput: { stderrTail: 'index exploded\n' },
     });
   });
 });

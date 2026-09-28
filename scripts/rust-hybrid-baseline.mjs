@@ -293,36 +293,9 @@ function baseEnv(extra = {}) {
 
 async function runOne({ repo, runIndex, bin, outDir, timeoutMs }) {
   const profilePath = path.join(outDir, `${repo.name}-run${runIndex}.profile.json`);
-  const init = run(
-    process.execPath,
-    [bin, 'init', repo.path, '--engine', 'rust-hybrid'],
-    repo.path,
-    baseEnv(),
-  );
-  if (init.status !== 0) {
-    return {
-      run: runIndex,
-      command: {
-        executable: process.execPath,
-        args: [bin, 'init', repo.path, '--engine', 'rust-hybrid'],
-        cwd: repo.path,
-      },
-      status: 'failed',
-      exitCode: init.status,
-      signal: init.signal,
-      wallMs: 0,
-      peakRssBytes: null,
-      rssSource: null,
-      rssUnavailableKind: 'process-ended-before-sample',
-      rssUnavailableReason: 'RSS not sampled because init failed before indexing',
-      profilePath: null,
-      profileSummary: summarizeProfile(null),
-      graphStats: statusGraphStats(bin, repo.path),
-      stdoutBytes: Buffer.byteLength(init.stdout ?? ''),
-      stderrBytes: Buffer.byteLength(init.stderr ?? ''),
-      failureOutput: failureOutput(init.stdout, init.stderr),
-    };
-  }
+  // Single bootstrap-and-index invocation: `index` now auto-initializes an
+  // uninitialized project on first run. --force keeps every run a full rebuild
+  // so repeated baseline runs stay comparable.
   const args = [
     bin,
     'index',

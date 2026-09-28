@@ -44,15 +44,15 @@ zcodegraph install
 
 <sub>Detects and auto-configures Claude Code, Cursor, Codex CLI, opencode, Hermes Agent, Gemini CLI, Antigravity IDE, and Kiro — wiring the ZCodeGraph MCP server into each. **This is the step that connects ZCodeGraph to your agent;** installing the CLI in step 1 does not do it on its own. (Shortcut: `npx @jununfly/zcodegraph` downloads and runs this in one go.)</sub>
 
-### 3. Initialize each project
+### 3. Index each project
 
 ```bash
 cd your-project
-zcodegraph init
+zcodegraph index
 zcodegraph status
 ```
 
-<sub>Builds the local `.zcodegraph/` knowledge graph for this project. ZCodeGraph uses its fastest supported local indexing path automatically, with per-file fallback when needed, so you don't have to choose an engine during setup.</sub>
+<sub>On first run this creates the local `.zcodegraph/` store and builds the knowledge graph for this project; on later runs it rebuilds the index. ZCodeGraph uses its fastest supported local indexing path automatically, with per-file fallback when needed, so you don't have to choose an engine during setup.</sub>
 
 `zcodegraph status` is the trust check for the current graph. It reports one
 shared health state across the CLI: `healthy`, `degraded`, `stale`, `failed`,
@@ -81,7 +81,7 @@ and lists `--engine`, `--bundle`, `--last-run`, and `--last-failure` in
 terminal or reinstall/upgrade ZCodeGraph so your PATH points at the current
 `zcodegraph` binary.
 
-After `zcodegraph install` and `zcodegraph init`, restart your agent and ask
+After `zcodegraph install` and `zcodegraph index`, restart your agent and ask
 normal code questions. The MCP server exposes the graph automatically; you do
 not need to paste code or teach the agent a new workflow.
 
@@ -302,14 +302,14 @@ zcodegraph install --print-config codex               # print snippet, no file w
 
 Restart your agent (Claude Code / Cursor / Codex CLI / opencode / Hermes Agent / Gemini CLI / Antigravity IDE / Kiro) for the MCP server to load.
 
-### 3. Initialize Projects
+### 3. Index Projects
 
 ```bash
 cd your-project
-zcodegraph init
+zcodegraph index
 ```
 
-Builds the per-project knowledge graph index. ZCodeGraph uses Rust-backed indexing where supported and falls back file-by-file where needed, while your agent still reads one local graph. A single global `zcodegraph install` works in every project you open — no need to re-run the installer per project.
+Builds the per-project knowledge graph index, creating the `.zcodegraph/` store automatically on first run. ZCodeGraph uses Rust-backed indexing where supported and falls back file-by-file where needed, while your agent still reads one local graph. A single global `zcodegraph install` works in every project you open — no need to re-run the installer per project.
 
 That's it — your agent will use ZCodeGraph tools automatically when a `.zcodegraph/` directory exists.
 
@@ -362,7 +362,7 @@ ZCodeGraph's MCP server delivers its usage guidance to your agent **automaticall
 - **Answer structural questions directly with ZCodeGraph** — it *is* the pre-built index, so a grep/read loop just repeats work it already did. Treat the returned source as already read.
 - **Pick the tool by intent:** `zcodegraph_explore` for almost anything — "how does X work", a flow/"how does X reach Y", or surveying an area (one call returns the relevant symbols' source grouped by file); `zcodegraph_search` to just locate a symbol; `zcodegraph_callers`/`zcodegraph_callees` to walk call flow; `zcodegraph_impact` before editing; `zcodegraph_node` for one specific symbol's full source (it returns every overload for an ambiguous name).
 - **Trust the results — don't re-verify with grep**, and check the staleness banner after edits.
-- If `.zcodegraph/` doesn't exist yet, offer to run `zcodegraph init`.
+- If `.zcodegraph/` doesn't exist yet, offer to run `zcodegraph index` (it creates the store and builds the index in one step).
 
 The exact text is `src/mcp/server-instructions.ts` — the single source of truth.
 
@@ -409,9 +409,8 @@ The exact text is `src/mcp/server-instructions.ts` — the single source of trut
 zcodegraph                         # Run interactive installer
 zcodegraph install                 # Run installer (explicit)
 zcodegraph uninstall               # Remove ZCodeGraph from your agents (inverse of install)
-zcodegraph init [path]             # Initialize a project and build the initial index
 zcodegraph uninit [path]           # Remove ZCodeGraph from a project (--force to skip prompt)
-zcodegraph index [path]            # Full index (--force to re-index, --quiet for less output)
+zcodegraph index [path]            # Create the store on first run, then (re)index (--force, --quiet)
 zcodegraph sync [path]             # Incremental update
 zcodegraph status [path]           # Show statistics
 zcodegraph query <search>          # Search symbols (--kind, --limit, --json)
@@ -628,7 +627,7 @@ mixing old benchmark numbers into the release snapshot.
 
 ## Troubleshooting
 
-**"CodeGraph not initialized"** — Run `zcodegraph init` in your project directory first.
+**"CodeGraph not initialized"** — Run `zcodegraph index` in your project directory; it creates the store and builds the index on first run.
 
 **Check index health** — Use `zcodegraph status` for a human-readable summary,
 or `zcodegraph status --json` when reporting a bug or scripting a check. The
@@ -642,7 +641,7 @@ shared health states are:
   `zcodegraph index --force`.
 - `failed` — the latest build failed; run
   `zcodegraph doctor --engine rust-hybrid --bundle --last-failure`.
-- `unavailable` — no usable graph exists yet; run `zcodegraph init`.
+- `unavailable` — no usable graph exists yet; run `zcodegraph index` (it bootstraps the store on first run).
 - `corrupted` — the database exists but cannot be opened; do not trust the graph
   until you follow the recovery commands printed by `zcodegraph status`.
 

@@ -686,7 +686,7 @@ export class ToolHandler {
     const resolvedRoot = findNearestCodeGraphRoot(projectPath);
 
     if (!resolvedRoot) {
-      throw new Error(`CodeGraph not initialized in ${projectPath}. Run 'zcodegraph init' in that project first.`);
+      throw new Error(`CodeGraph not initialized in ${projectPath}. Run 'zcodegraph index' in that project first.`);
     }
 
     // If the path resolves to the default project, reuse the already-open

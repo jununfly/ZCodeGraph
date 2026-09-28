@@ -19,13 +19,13 @@ zcodegraph install
 
 The installer auto-configures your agent(s) — Claude Code, Cursor, Codex CLI, opencode, Hermes Agent, Gemini CLI, Antigravity IDE, Kiro.
 
-## Initialize Projects
+## Index Projects
 
 ```bash
 cd your-project
-zcodegraph init -i
+zcodegraph index
 ```
 
-That's it — your agent will use ZCodeGraph tools automatically when a `.codegraph/` directory exists.
+That's it — `index` creates the `.zcodegraph/` store automatically on first run and builds the graph. Your agent will use ZCodeGraph tools automatically when a `.zcodegraph/` directory exists.
 
 Next: build [Your First Graph](/ZCodeGraph/getting-started/your-first-graph/), or see the full [Installation](/ZCodeGraph/getting-started/installation/) options.

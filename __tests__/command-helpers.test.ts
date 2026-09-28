@@ -111,7 +111,7 @@ describe('requireInitialized', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.message).toContain('not initialized');
-      expect(result.hint).toContain('zcodegraph init');
+      expect(result.hint).toContain('zcodegraph index');
     }
   });
 });

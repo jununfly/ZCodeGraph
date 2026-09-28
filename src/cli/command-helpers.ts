@@ -54,7 +54,7 @@ export function requireInitialized(pathArg: string | undefined, cwd: string): Ch
     return {
       ok: false,
       message: `CodeGraph not initialized in ${projectPath}`,
-      hint: 'Run "zcodegraph init" first',
+      hint: 'Run "zcodegraph index" first',
     };
   }
   return { ok: true, path: projectPath };

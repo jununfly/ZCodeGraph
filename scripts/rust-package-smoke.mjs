@@ -132,51 +132,49 @@ function doctorCreatedBundle(doctorRun) {
 }
 
 function smokeRustHybridTarget(target, section, outDir, rustCore, rootForRelativePaths) {
-  const initProject = makeProject(`${section}-init`, 'go');
-  const initRun = runCli(target, ['init', initProject], initProject);
-  const initStatusRun = initRun.status === 0
-    ? runCli(target, ['status', initProject, '--json'], initProject)
-    : notRun('init failed');
+  // Hard merge (init deleted): every scenario now bootstraps through `index`,
+  // which creates the store on first run and builds the full index. There is
+  // no separate init step anymore.
+  const bootstrapProject = makeProject(`${section}-bootstrap`, 'go');
+  const bootstrapRun = runCli(target, ['index', bootstrapProject, '--quiet'], bootstrapProject);
+  const bootstrapStatusRun = bootstrapRun.status === 0
+    ? runCli(target, ['status', bootstrapProject, '--json'], bootstrapProject)
+    : notRun('bootstrap index failed');
 
   const defaultProject = makeProject(`${section}-default`, 'go');
-  const defaultInitRun = runCli(target, ['init', defaultProject], defaultProject);
-  const defaultRun = defaultInitRun.status === 0
-    ? runCli(target, ['index', defaultProject, '--quiet'], defaultProject)
-    : notRun('default init failed');
+  const defaultRun = runCli(target, ['index', defaultProject, '--quiet'], defaultProject);
   const defaultStatusRun = defaultRun.status === 0
     ? runCli(target, ['status', defaultProject, '--json'], defaultProject)
     : notRun('default index failed');
 
   const explicitProject = makeProject(`${section}-explicit`, 'go');
-  const explicitInitRun = runCli(target, ['init', explicitProject], explicitProject);
-  const explicitRun = explicitInitRun.status === 0
-    ? runCli(target, ['index', explicitProject, '--engine', 'rust-hybrid', '--quiet'], explicitProject)
-    : notRun('explicit init failed');
+  const explicitRun = runCli(target, ['index', explicitProject, '--engine', 'rust-hybrid', '--quiet'], explicitProject);
 
   const envFailProject = makeProject(`${section}-env-fail`, 'go');
-  const envFailInitRun = runCli(target, ['init', envFailProject], envFailProject);
-  const envFailRun = envFailInitRun.status === 0
-    ? runCli(target, ['index', envFailProject, '--quiet'], envFailProject, { ZCODEGRAPH_INDEX_ENGINE: 'typescript' })
-    : notRun('env fail init failed');
+  // The stale env var is rejected during engine resolution, before any indexing,
+  // so a fresh (unbootstrapped) project surfaces the clear error directly.
+  const envFailRun = runCli(target, ['index', envFailProject, '--quiet'], envFailProject, { ZCODEGRAPH_INDEX_ENGINE: 'typescript' });
 
   const degradedProject = makeProject(`${section}-degraded`, 'degraded');
-  const degradedInitRun = runCli(target, ['init', degradedProject], degradedProject);
-  const degradedStatusRun = degradedInitRun.status === 0
+  const degradedRun = runCli(target, ['index', degradedProject, '--quiet'], degradedProject);
+  const degradedStatusRun = degradedRun.status === 0
     ? runCli(target, ['status', degradedProject, '--json'], degradedProject)
-    : notRun('degraded init failed');
-  const lastRunDoctor = degradedInitRun.status === 0
+    : notRun('degraded index failed');
+  const lastRunDoctor = degradedRun.status === 0
     ? runCli(target, ['doctor', degradedProject, '--engine', 'rust-hybrid', '--bundle', '--last-run'], degradedProject)
-    : notRun('degraded init failed');
+    : notRun('degraded index failed');
 
   const failureProject = makeProject(`${section}-failure`, 'go');
-  const failureInitRun = runCli(target, ['init', failureProject], failureProject);
+  // First bootstrap successfully while the Rust core is present, then move the
+  // core away and force a re-index to exercise the missing-core safe failure.
+  const failureBootstrapRun = runCli(target, ['index', failureProject, '--quiet'], failureProject);
   let missingRun = notRun('rust core missing fixture not available');
   let lastFailureDoctor = notRun('missing rust core run not executed');
   const movedCore = `${rustCore}.removed-for-smoke`;
-  if (failureInitRun.status === 0 && fs.existsSync(rustCore)) {
+  if (failureBootstrapRun.status === 0 && fs.existsSync(rustCore)) {
     fs.renameSync(rustCore, movedCore);
     try {
-      missingRun = runCli(target, ['index', failureProject, '--engine', 'rust-hybrid', '--quiet'], failureProject);
+      missingRun = runCli(target, ['index', failureProject, '--engine', 'rust-hybrid', '--quiet', '--force'], failureProject);
       lastFailureDoctor = runCli(target, ['doctor', failureProject, '--engine', 'rust-hybrid', '--bundle', '--last-failure'], failureProject);
     } finally {
       fs.renameSync(movedCore, rustCore);
@@ -184,26 +182,18 @@ function smokeRustHybridTarget(target, section, outDir, rustCore, rootForRelativ
   }
 
   const artifacts = {
-    initStdout: writeArtifact(outDir, section, 'init.stdout.txt', initRun.stdout),
-    initStderr: writeArtifact(outDir, section, 'init.stderr.txt', initRun.stderr),
-    initStatusStdout: writeArtifact(outDir, section, 'init-status.stdout.txt', initStatusRun.stdout),
-    initStatusStderr: writeArtifact(outDir, section, 'init-status.stderr.txt', initStatusRun.stderr),
-    defaultInitStdout: writeArtifact(outDir, section, 'default-init.stdout.txt', defaultInitRun.stdout),
-    defaultInitStderr: writeArtifact(outDir, section, 'default-init.stderr.txt', defaultInitRun.stderr),
+    bootstrapStdout: writeArtifact(outDir, section, 'bootstrap.stdout.txt', bootstrapRun.stdout),
+    bootstrapStderr: writeArtifact(outDir, section, 'bootstrap.stderr.txt', bootstrapRun.stderr),
+    bootstrapStatusStdout: writeArtifact(outDir, section, 'bootstrap-status.stdout.txt', bootstrapStatusRun.stdout),
+    bootstrapStatusStderr: writeArtifact(outDir, section, 'bootstrap-status.stderr.txt', bootstrapStatusRun.stderr),
     defaultStdout: writeArtifact(outDir, section, 'default.stdout.txt', defaultRun.stdout),
     defaultStderr: writeArtifact(outDir, section, 'default.stderr.txt', defaultRun.stderr),
     defaultStatusStdout: writeArtifact(outDir, section, 'default-status.stdout.txt', defaultStatusRun.stdout),
     defaultStatusStderr: writeArtifact(outDir, section, 'default-status.stderr.txt', defaultStatusRun.stderr),
-    explicitInitStdout: writeArtifact(outDir, section, 'explicit-init.stdout.txt', explicitInitRun.stdout),
-    explicitInitStderr: writeArtifact(outDir, section, 'explicit-init.stderr.txt', explicitInitRun.stderr),
     explicitStdout: writeArtifact(outDir, section, 'explicit.stdout.txt', explicitRun.stdout),
     explicitStderr: writeArtifact(outDir, section, 'explicit.stderr.txt', explicitRun.stderr),
-    envFailInitStdout: writeArtifact(outDir, section, 'env-fail-init.stdout.txt', envFailInitRun.stdout),
-    envFailInitStderr: writeArtifact(outDir, section, 'env-fail-init.stderr.txt', envFailInitRun.stderr),
     envFailStdout: writeArtifact(outDir, section, 'env-fail.stdout.txt', envFailRun.stdout),
     envFailStderr: writeArtifact(outDir, section, 'env-fail.stderr.txt', envFailRun.stderr),
-    degradedInitStdout: writeArtifact(outDir, section, 'degraded-init.stdout.txt', degradedInitRun.stdout),
-    degradedInitStderr: writeArtifact(outDir, section, 'degraded-init.stderr.txt', degradedInitRun.stderr),
     degradedStatusStdout: writeArtifact(outDir, section, 'degraded-status.stdout.txt', degradedStatusRun.stdout),
     degradedStatusStderr: writeArtifact(outDir, section, 'degraded-status.stderr.txt', degradedStatusRun.stderr),
     doctorLastRunStdout: writeArtifact(outDir, section, 'doctor-last-run.stdout.txt', lastRunDoctor.stdout),
@@ -217,7 +207,7 @@ function smokeRustHybridTarget(target, section, outDir, rustCore, rootForRelativ
   return {
     rustCore: path.relative(rootForRelativePaths, rustCore).split(path.sep).join('/'),
     rustCorePresent: fs.existsSync(rustCore),
-    initRustHybridWorks: initRun.status === 0 && statusShowsHybrid(initStatusRun),
+    bootstrapRustHybridWorks: bootstrapRun.status === 0 && statusShowsHybrid(bootstrapStatusRun),
     defaultRustHybridIndexWorks: defaultRun.status === 0 && statusShowsHybrid(defaultStatusRun),
     explicitRustHybridIndexWorks: explicitRun.status === 0,
     staleEnvEngineSelectionFailsClearly: envFailRun.status !== 0
@@ -321,7 +311,7 @@ async function main() {
   const bundleSummary = smokeBundle(bundle, outDir);
   const npmSummary = smokeNpm(npmRoot, outDir);
   const gates = [
-    { name: 'bundle-init-rust-hybrid', passed: bundleSummary.initRustHybridWorks },
+    { name: 'bundle-bootstrap-rust-hybrid', passed: bundleSummary.bootstrapRustHybridWorks },
     { name: 'bundle-default-rust-hybrid', passed: bundleSummary.defaultRustHybridIndexWorks },
     { name: 'bundle-explicit-rust-hybrid', passed: bundleSummary.explicitRustHybridIndexWorks },
     { name: 'bundle-env-engine-selection-fails', passed: bundleSummary.staleEnvEngineSelectionFailsClearly },
@@ -331,7 +321,7 @@ async function main() {
     { name: 'bundle-missing-rust-binary', passed: bundleSummary.missingRustBinaryFailsSafely },
     { name: 'bundle-doctor-last-failure', passed: bundleSummary.failureDoctorLastFailureWorks },
     { name: 'bundle-launcher-path', passed: bundleSummary.launcherPathPreserved },
-    { name: 'npm-init-rust-hybrid', passed: npmSummary.initRustHybridWorks },
+    { name: 'npm-bootstrap-rust-hybrid', passed: npmSummary.bootstrapRustHybridWorks },
     { name: 'npm-default-rust-hybrid', passed: npmSummary.defaultRustHybridIndexWorks },
     { name: 'npm-explicit-rust-hybrid', passed: npmSummary.explicitRustHybridIndexWorks },
     { name: 'npm-env-engine-selection-fails', passed: npmSummary.staleEnvEngineSelectionFailsClearly },

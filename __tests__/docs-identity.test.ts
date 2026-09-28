@@ -16,7 +16,7 @@ describe('ZCodeGraph docs and agent-facing identity', () => {
     expect(readme).toContain('maintained by jununfly');
     expect(readme).toContain('based on upstream CodeGraph by Colby McHenry');
     expect(readme).toContain('npm install -g @jununfly/zcodegraph');
-    expect(readme).toContain('zcodegraph init');
+    expect(readme).toContain('zcodegraph index');
     expect(readme).toContain('zcodegraph serve --mcp');
     expect(readme).toContain('zcodegraph_explore');
     expect(readme).toContain('https://jununfly.github.io/ZCodeGraph/');

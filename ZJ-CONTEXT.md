@@ -11,7 +11,7 @@
 **Rules:**
 - **ZCodeGraph** — product name, GitHub repo name, package/API shorthand in prose, official documentation titles, and public-facing prose.
 - **CodeGraph** — existing code identifiers such as the `CodeGraph` class.
-- **zcodegraph** — the CLI command, MCP tool prefix, filesystem namespace, database filename, and MCP server key, such as `zcodegraph init`, `zcodegraph_explore`, `.zcodegraph/`, `zcodegraph.db`, and the server key `zcodegraph`.
+- **zcodegraph** — the CLI command, MCP tool prefix, filesystem namespace, database filename, and MCP server key, such as `zcodegraph index`, `zcodegraph_explore`, `.zcodegraph/`, `zcodegraph.db`, and the server key `zcodegraph`.
 
 **Not:** A generic lowercase product name. `codegraph` appears only as a legacy compatibility name or in historical references.
 

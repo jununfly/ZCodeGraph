@@ -250,75 +250,65 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
     expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(false);
   }, 30_000);
 
-  it('uses rust-hybrid for init indexing by default', () => {
-    const initDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-hybrid-init-'));
+  it('bootstraps an uninitialized project then indexes with rust-hybrid by default', () => {
+    // Tracer bullet for the init/index merge: `index` on a project with no
+    // .zcodegraph/ must create the store and run the first index in one command.
+    const freshDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-bootstrap-hybrid-'));
     try {
-      fs.writeFileSync(path.join(initDir, 'a.ts'), 'export const initValue = 1;\n');
-      const rustCore = writeFakeRustCore(initDir);
+      fs.writeFileSync(path.join(freshDir, 'a.ts'), 'export const initValue = 1;\n');
+      const rustCore = writeFakeRustCore(freshDir);
 
-      const result = runZcodegraphCli(initDir, ['init'], {
+      const result = runZcodegraphCli(freshDir, ['index', '--quiet'], {
         ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
       });
 
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
-      expect(fs.existsSync(fakeRustCoreMarker(initDir))).toBe(true);
+      expect(fs.existsSync(path.join(freshDir, '.zcodegraph', 'zcodegraph.db'))).toBe(true);
+      expect(fs.existsSync(fakeRustCoreMarker(freshDir))).toBe(true);
     } finally {
-      fs.rmSync(initDir, { recursive: true, force: true });
+      fs.rmSync(freshDir, { recursive: true, force: true });
     }
   }, 30_000);
 
-  it('does not accept the historical init --index flag', () => {
-    const initDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-hybrid-init-flag-'));
+  it('bootstraps an uninitialized project through the TypeScript escape hatch', () => {
+    const freshDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-bootstrap-ts-'));
     try {
-      fs.writeFileSync(path.join(initDir, 'a.ts'), 'export const initValue = 1;\n');
-      const rustCore = writeFakeRustCore(initDir);
+      fs.writeFileSync(path.join(freshDir, 'a.ts'), 'export const initValue = 1;\n');
+      const rustCore = writeFailingRustCore(freshDir);
 
-      const result = runZcodegraphCli(initDir, ['init', '-i'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-      });
-
-      expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
-      expect(result.stderr).toContain('unknown option');
-      expect(result.stderr).toContain('-i');
-      expect(fs.existsSync(fakeRustCoreMarker(initDir))).toBe(false);
-    } finally {
-      fs.rmSync(initDir, { recursive: true, force: true });
-    }
-  }, 30_000);
-
-  it('allows init indexing to use the TypeScript escape hatch', () => {
-    const initDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-typescript-init-'));
-    try {
-      fs.writeFileSync(path.join(initDir, 'a.ts'), 'export const initValue = 1;\n');
-      const rustCore = writeFailingRustCore(initDir);
-
-      const result = runZcodegraphCli(initDir, ['init', '--engine', 'typescript'], {
+      const result = runZcodegraphCli(freshDir, ['index', '--engine', 'typescript', '--quiet'], {
         ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
       });
 
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
-      expect(fs.existsSync(fakeRustCoreMarker(initDir))).toBe(false);
-      const cg = CodeGraph.openSync(initDir);
+      expect(fs.existsSync(path.join(freshDir, '.zcodegraph', 'zcodegraph.db'))).toBe(true);
+      expect(fs.existsSync(fakeRustCoreMarker(freshDir))).toBe(false);
+      const cg = CodeGraph.openSync(freshDir);
       try {
+        expect(cg.searchNodes('initValue').some((match) => match.node.name === 'initValue')).toBe(true);
         expect(cg.getIndexBuildInfo()).toMatchObject({ engine: 'typescript' });
       } finally {
         cg.close();
       }
     } finally {
-      fs.rmSync(initDir, { recursive: true, force: true });
+      fs.rmSync(freshDir, { recursive: true, force: true });
     }
   }, 30_000);
 
-  it('does not require Rust core when init exits early for an already initialized project', () => {
-    const rustCore = writeFailingRustCore(tempDir);
+  it('rejects the removed init command as unknown', () => {
+    // Hard merge: `init` no longer exists and has no alias/deprecation shim.
+    const freshDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-init-removed-'));
+    try {
+      fs.writeFileSync(path.join(freshDir, 'a.ts'), 'export const initValue = 1;\n');
 
-    const result = runZcodegraphCli(tempDir, ['init'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-    });
+      const result = runZcodegraphCli(freshDir, ['init']);
 
-    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
-    expect(result.stdout).toContain('Already initialized');
-    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(false);
+      expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).not.toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/unknown command|unknown/);
+      expect(fs.existsSync(path.join(freshDir, '.zcodegraph', 'zcodegraph.db'))).toBe(false);
+    } finally {
+      fs.rmSync(freshDir, { recursive: true, force: true });
+    }
   });
 
   it('writes a Rust-produced index and profile that TypeScript status can inspect', () => {

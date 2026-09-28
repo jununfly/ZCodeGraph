@@ -22,6 +22,9 @@ long-lived decision that meets the ADR bar.
 - `ZJ-0007-three-tier-fallback-health-state.md` — three-tier fallback health
   state (healthy/partial/degraded) to distinguish expected fallbacks from
   unexpected gaps.
+- `ZJ-0008-merge-init-into-index.md` — hard-merge `init` into `index` with
+  auto-bootstrap; delete `init` with no alias or transition, CLI layer only
+  (SDK and installer keep explicit lifecycle steps).
 
 ## Supporting Evidence
 

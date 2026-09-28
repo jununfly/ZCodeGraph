@@ -24,7 +24,7 @@ const args = process.argv.slice(2);
 const command = args[0];
 const project = args[1] && !args[1].startsWith('-') ? args[1] : process.cwd();
 if (calls) fs.appendFileSync(calls, args.join(' ') + '\\n');
-if (command === 'init' || command === 'index') {
+if (command === 'index') {
   fs.mkdirSync(path.join(project, '.zcodegraph'), { recursive: true });
   fs.writeFileSync(path.join(project, '.zcodegraph', 'status.json'), JSON.stringify({
     index: {
@@ -72,7 +72,7 @@ describe('rust-hybrid CI smoke script', () => {
     }
   });
 
-  it('runs init, index, status, and doctor against a temporary rust-hybrid fixture', () => {
+  it('runs index (bootstrap on first run), status, and doctor against a temporary rust-hybrid fixture', () => {
     const root = makeTempRoot();
     const calls = path.join(root, 'calls.txt');
     const cli = writeFakeCli(root);
@@ -83,8 +83,7 @@ describe('rust-hybrid CI smoke script', () => {
     expect(result.stdout).toContain('rust-hybrid CI smoke passed');
     const callLines = fs.readFileSync(calls, 'utf8').trim().split(/\r?\n/);
     expect(callLines).toEqual([
-      expect.stringMatching(/^init .+ --engine rust-hybrid$/),
-      expect.stringMatching(/^index .+ --engine rust-hybrid --force --quiet$/),
+      expect.stringMatching(/^index .+ --engine rust-hybrid --quiet$/),
       expect.stringMatching(/^status .+ --json$/),
       expect.stringMatching(/^doctor .+ --engine rust-hybrid --bundle --last-run$/),
     ]);

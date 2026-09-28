@@ -173,7 +173,7 @@ async function main() {
   if (!repo) throw new Error('--repo is required');
   if (!fs.existsSync(distBin)) throw new Error('dist/bin/zcodegraph.js not found. Run npm run build first.');
   if (!fs.existsSync(path.join(repo, '.zcodegraph'))) {
-    throw new Error(`${repo} is not indexed. Run zcodegraph init/index first.`);
+    throw new Error(`${repo} is not indexed. Run zcodegraph index first.`);
   }
 
   const result = await validate({ repo, expectedCommit });

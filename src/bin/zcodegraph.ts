@@ -8,9 +8,8 @@
  *   zcodegraph                    Run interactive installer (when no args)
  *   zcodegraph install            Run interactive installer
  *   zcodegraph uninstall          Remove ZCodeGraph from your agents
- *   zcodegraph init [path]        Initialize ZCodeGraph in a project
+ *   zcodegraph index [path]       Initialize (if needed) and index all files
  *   zcodegraph uninit [path]      Remove ZCodeGraph from a project
- *   zcodegraph index [path]       Index all files in the project
  *   zcodegraph sync [path]        Sync changes since last index
  *   zcodegraph status [path]      Show index status
  *   zcodegraph doctor [path]      Create a local diagnostic bundle
@@ -245,6 +244,52 @@ async function loadCodeGraph(): Promise<typeof import('../index')> {
 // eslint-disable-next-line @typescript-eslint/no-implied-eval
 const importESM = new Function('specifier', 'return import(specifier)') as
   (specifier: string) => Promise<typeof import('@clack/prompts')>;
+
+/**
+ * Ensure a `.zcodegraph/` store exists before indexing. Creates it (without
+ * indexing) the first time a project is seen; a no-op afterwards.
+ *
+ * This is the bootstrap half of the merged `index` command: `index` now owns
+ * both first-time initialization and subsequent full re-indexing. Returns
+ * `true` when it created the store (callers use that to surface the
+ * watch-fallback offer once, at bootstrap).
+ */
+async function ensureProjectStore(projectPath: string): Promise<boolean> {
+  if (isInitialized(projectPath)) return false;
+
+  const { default: CodeGraph } = await loadCodeGraph();
+  const cg = await CodeGraph.init(projectPath, { index: false });
+  cg.destroy();
+  return true;
+}
+
+/**
+ * Offer the git-hook watch fallback after a bootstrap. Interactive callers
+ * pass a clack instance for the prompt; non-interactive (`--quiet` or a
+ * non-TTY stdin) callers get a one-line stderr hint at most and never block.
+ */
+async function offerBootstrapWatchFallback(
+  projectPath: string,
+  interactive: { clack: typeof import('@clack/prompts') } | { quiet: true },
+): Promise<void> {
+  const { watchDisabledReason } = await import('../sync/watch-policy');
+  const reason = watchDisabledReason(projectPath);
+  if (!reason) return;
+
+  if ('quiet' in interactive || !process.stdin.isTTY) {
+    process.stderr.write(
+      `Live file watching is disabled here (${reason}); the index will not auto-update. ` +
+      'Run `zcodegraph sync` after changes, or run `zcodegraph index` in an interactive terminal to install git sync hooks.\n',
+    );
+    return;
+  }
+
+  try {
+    const { offerWatchFallback } = await import('../installer');
+    await offerWatchFallback(interactive.clack, projectPath);
+  } catch { /* non-fatal */ }
+}
+
 
 // Block CodeGraph on Node.js 25.x — V8's turboshaft WASM JIT has a Zone
 // allocator bug that reliably crashes when compiling tree-sitter
@@ -931,88 +976,6 @@ function missingDiagnosticRecordMessage(kind: 'last-run' | 'last-failure'): stri
 // =============================================================================
 
 /**
- * zcodegraph init [path]
- */
-program
-  .command('init [path]')
-  .description('Initialize ZCodeGraph in a project directory and build the initial index')
-  .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
-  .option('--engine <engine>', 'Index engine to use: typescript, rust, or rust-hybrid')
-  .action(async (pathArg: string | undefined, options: { verbose?: boolean; engine?: string }) => {
-    const projectPath = path.resolve(pathArg || process.cwd());
-    const clack = await importESM('@clack/prompts');
-    let selectedEngine: IndexEngine | undefined;
-    const commandStartedAt = Date.now();
-
-    clack.intro('Initializing ZCodeGraph');
-
-    try {
-      const engine = resolveIndexEngine(options.engine);
-      selectedEngine = engine;
-
-      if (isInitialized(projectPath)) {
-        clack.log.warn(`Already initialized in ${projectPath}`);
-        clack.log.info('Use "zcodegraph index" to re-index or "zcodegraph sync" to update');
-        try {
-          const { offerWatchFallback } = await import('../installer');
-          await offerWatchFallback(clack, projectPath);
-        } catch { /* non-fatal */ }
-        clack.outro('');
-        return;
-      }
-
-      const { default: CodeGraph } = await loadCodeGraph();
-      const cg = await CodeGraph.init(projectPath, { index: false });
-      clack.log.success(`Initialized in ${projectPath}`);
-      cg.destroy();
-
-      let result: IndexResult;
-      if (options.verbose) {
-        result = await runSelectedIndex(projectPath, engine, { verbose: true }, createVerboseProgress());
-      } else {
-        process.stdout.write(`${colors.dim}${getGlyphs().rail}${colors.reset}\n`);
-        const progress = createShimmerProgress();
-        result = await runSelectedIndex(projectPath, engine, {}, progress.onProgress);
-        await progress.stop();
-      }
-      printIndexResult(clack, result, projectPath);
-      recordRustHybridRun(projectPath, engine, 'init', commandStartedAt, result);
-      if (engine === 'rust-hybrid') {
-        printRustHybridDoctorHint(clack, result);
-      }
-
-      if (!result.success) {
-        process.exit(1);
-      }
-
-      try {
-        const { offerWatchFallback } = await import('../installer');
-        await offerWatchFallback(clack, projectPath);
-      } catch { /* non-fatal */ }
-
-      clack.outro('Done');
-    } catch (err) {
-      recordRustHybridFailure(projectPath, selectedEngine, 'init', commandStartedAt, err);
-      clack.log.error(`Failed: ${err instanceof Error ? err.message : String(err)}`);
-      if (shouldShowRustDiagnostics(selectedEngine)) {
-        const diagnostics = getRustReadinessDiagnostics(projectPath, { engine: null, engineVersion: null });
-        const activeIndexPreserved = fs.existsSync(getDatabasePath(projectPath));
-        console.error('Rust diagnostics:');
-        console.error(`  discovery source: ${diagnostics.core.discoverySource}`);
-        console.error(`  attempted command: ${diagnostics.core.attemptedCommand}`);
-        if (diagnostics.core.attemptedArgsPrefix.length > 0) {
-          console.error(`  attempted args prefix: ${diagnostics.core.attemptedArgsPrefix.join(' ')}`);
-        }
-        console.error(`  active index preserved: ${activeIndexPreserved ? 'yes' : 'no active index found'}`);
-        if (selectedEngine === 'rust-hybrid') {
-          printRustHybridFailureDoctorHint();
-        }
-      }
-      process.exit(1);
-    }
-  });
-
-/**
  * zcodegraph uninit [path]
  */
 program
@@ -1071,7 +1034,7 @@ program
  */
 program
   .command('index [path]')
-  .description('Index all files in the project')
+  .description('Initialize the project on first run, then index all files')
   .option('-f, --force', 'Force full re-index even if already indexed')
   .option('-q, --quiet', 'Suppress progress output')
   .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
@@ -1095,11 +1058,8 @@ program
         throw new Error('--profile-out is only supported for rust and rust-hybrid index engines');
       }
 
-      if (!isInitialized(projectPath)) {
-        error(`CodeGraph not initialized in ${projectPath}`);
-        info('Run "zcodegraph init" first');
-        process.exit(1);
-      }
+      // `index` owns bootstrap too: create the store on first run, then index.
+      const bootstrapped = await ensureProjectStore(projectPath);
 
       if (options.quiet) {
         // Quiet mode: no UI, just run
@@ -1112,11 +1072,17 @@ program
           profileOut: options.profileOut,
         });
         recordRustHybridRun(projectPath, engine, 'index', commandStartedAt, result);
+        if (bootstrapped) {
+          await offerBootstrapWatchFallback(projectPath, { quiet: true });
+        }
         if (!result.success) process.exit(1);
         return;
       }
 
       const clack = await importESM('@clack/prompts');
+      if (bootstrapped) {
+        clack.log.success(`Initialized ${projectPath}`);
+      }
       clack.intro('Indexing project');
 
       let result: IndexResult;
@@ -1158,6 +1124,10 @@ program
 
       if (!result.success) {
         process.exit(1);
+      }
+
+      if (bootstrapped) {
+        await offerBootstrapWatchFallback(projectPath, { clack });
       }
 
       clack.outro('Done');
@@ -1505,7 +1475,7 @@ program
         throw new Error('doctor bundle v1 currently supports --engine rust-hybrid');
       }
       if (!isInitialized(projectPath)) {
-        throw new Error(`CodeGraph not initialized in ${projectPath}. Run "zcodegraph init" first.`);
+        throw new Error(`CodeGraph not initialized in ${projectPath}. Run "zcodegraph index" first.`);
       }
       const source = options.lastRun ? 'last-run' : 'last-failure';
       if (!diagnosticRecordInfo(projectPath, source).exists) {

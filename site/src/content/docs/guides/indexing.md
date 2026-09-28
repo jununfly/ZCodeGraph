@@ -3,14 +3,14 @@ title: Indexing a Project
 description: Full index, incremental sync, and the file watcher.
 ---
 
-## Initialize and index
+## First run and indexing
 
 ```bash
 cd your-project
-zcodegraph init -i      # initialize + full index
+zcodegraph index        # create .zcodegraph/ on first run, then full index
 ```
 
-`init` creates `.codegraph/`; `-i`/`--index` builds the index immediately. To initialize without indexing, drop the flag and run `zcodegraph index` later.
+`index` is idempotent: on an uninitialized project it bootstraps the `.zcodegraph/` store and builds the index in one step; there is no separate initialize command. Running it again re-indexes the project.
 
 ## Full vs. incremental
 

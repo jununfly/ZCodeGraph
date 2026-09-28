@@ -80,7 +80,7 @@ export function classifyGraphHealth(input: GraphHealthInput): GraphHealth {
       reasons: input.initialized
         ? [`Database not found: ${input.databasePath}`]
         : ['Project is not initialized.'],
-      nextCommands: ['zcodegraph init'],
+      nextCommands: ['zcodegraph index'],
     };
   }
 
@@ -93,7 +93,7 @@ export function classifyGraphHealth(input: GraphHealthInput): GraphHealth {
       reasons: [input.openError],
       nextCommands: [
         ...commands,
-        'rm -rf .zcodegraph && zcodegraph init',
+        'zcodegraph uninit -f && zcodegraph index',
       ],
     };
   }

@@ -291,18 +291,18 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     ]);
   }, 30_000);
 
-  it('prints the partial fallback health explanation during rust-hybrid init', () => {
-    const initDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-hybrid-fallback-init-'));
+  it('prints the partial fallback health explanation during bootstrap rust-hybrid index', () => {
+    const initDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-hybrid-fallback-bootstrap-'));
     try {
       fs.writeFileSync(path.join(initDir, 'a.ts'), 'export const initValue = 1;\n');
       fs.writeFileSync(path.join(initDir, 'routing.yml'), 'app:\n  path: /health\n');
 
-      const result = runZcodegraphCli(initDir, ['init'], {
+      const result = runZcodegraphCli(initDir, ['index'], {
         ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
 
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
-      expect(result.stdout).toContain('Initialized in');
+      expect(result.stdout).toContain('Initialized');
       expect(result.stdout).toContain('Indexed with rust-hybrid');
       expect(result.stdout).toContain('Fallback health: partial');
       expect(result.stdout).toContain('files indexed via TypeScript fallback (non-Rust-owned languages)');

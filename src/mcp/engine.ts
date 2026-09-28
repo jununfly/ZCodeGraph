@@ -188,7 +188,7 @@ export class MCPEngine {
     if (disabledReason) {
       process.stderr.write(
         `[CodeGraph MCP] File watcher disabled — ${disabledReason}. ` +
-        `The graph will not auto-update; run \`zcodegraph sync\` (or install the git sync hooks via \`zcodegraph init\`) to refresh.\n`
+        `The graph will not auto-update; run \`zcodegraph sync\` (or run \`zcodegraph index\` in an interactive terminal to install git sync hooks) to refresh.\n`
       );
       this.watcherStarted = true;
       return;

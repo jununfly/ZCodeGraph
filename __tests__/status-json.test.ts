@@ -100,7 +100,7 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     expect(out.health).toMatchObject({
       state: 'unavailable',
       usable: false,
-      nextCommands: ['zcodegraph init'],
+      nextCommands: ['zcodegraph index'],
     });
     expect((out as { rust: { configuredEngine: { engine: string; source: string } } }).rust.configuredEngine)
       .toMatchObject({ engine: 'rust-hybrid', source: 'default' });
@@ -142,7 +142,7 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
       usable: false,
     });
     expect((out.health as { summary: string }).summary).toContain('cannot be opened');
-    expect((out.health as { nextCommands: string[] }).nextCommands).toContain('rm -rf .zcodegraph && zcodegraph init');
+    expect((out.health as { nextCommands: string[] }).nextCommands).toContain('zcodegraph uninit -f && zcodegraph index');
   });
 
   it('status --json reports local Rust readiness diagnostics for a missing Rust core override', () => {
@@ -280,13 +280,13 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     expect(out).not.toContain('attempted command');
   });
 
-  it('normal status output reports unavailable graph health with an init command', () => {
+  it('normal status output reports unavailable graph health with an index command', () => {
     const out = runStatusText(tempDir);
 
     expect(out).toContain('Graph Health:');
     expect(out).toContain('State: unavailable');
     expect(out).toContain('Usable: no');
-    expect(out).toContain('zcodegraph init');
+    expect(out).toContain('zcodegraph index');
   });
 
   it('normal status output reports healthy graph health before index statistics', async () => {
@@ -314,6 +314,6 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     expect(result.stdout).toContain('State: corrupted');
     expect(result.stdout).toContain('Usable: no');
     expect(result.stdout).toContain('cannot be opened');
-    expect(result.stdout).toContain('rm -rf .zcodegraph && zcodegraph init');
+    expect(result.stdout).toContain('zcodegraph uninit -f && zcodegraph index');
   });
 });

@@ -37,7 +37,7 @@ function usage() {
     'Usage: node scripts/rust-hybrid-ci-smoke.mjs [--bin <dist/bin/zcodegraph.js>] [--keep-fixture]',
     '',
     'Creates a tiny temporary TypeScript project and verifies the built CLI can',
-    'run init, index --engine rust-hybrid, status --json, and doctor --last-run.',
+    'run index --engine rust-hybrid (bootstraps on first run), status --json, and doctor --last-run.',
   ].join('\n'));
 }
 
@@ -147,8 +147,7 @@ function main() {
 
   const project = createFixture();
   try {
-    runCli(args.bin, project, ['init', project, '--engine', 'rust-hybrid']);
-    runCli(args.bin, project, ['index', project, '--engine', 'rust-hybrid', '--force', '--quiet']);
+    runCli(args.bin, project, ['index', project, '--engine', 'rust-hybrid', '--quiet']);
     const status = parseStatus(runCli(args.bin, project, ['status', project, '--json']).stdout);
     assertStatusShowsRustHybrid(status);
     const doctor = runCli(args.bin, project, ['doctor', project, '--engine', 'rust-hybrid', '--bundle', '--last-run']);

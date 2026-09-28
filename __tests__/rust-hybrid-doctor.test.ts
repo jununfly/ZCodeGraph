@@ -336,7 +336,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     });
     expect(status.database.openError).toMatch(/file is not a database|database disk image is malformed/);
     expect(status.database.openError).not.toContain(tempDir);
-    expect(status.health.nextCommands).toContain('rm -rf .zcodegraph && zcodegraph init');
+    expect(status.health.nextCommands).toContain('zcodegraph uninit -f && zcodegraph index');
 
     const graphStats = readJson(path.join(bundleDir, 'graph-stats.json'));
     expect(graphStats).toEqual({

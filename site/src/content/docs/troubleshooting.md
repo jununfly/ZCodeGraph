@@ -5,7 +5,7 @@ description: Fixes for the most common CodeGraph issues.
 
 ## "CodeGraph not initialized"
 
-Run `zcodegraph init` in your project directory first.
+Run `zcodegraph index` in your project directory — it creates the `.zcodegraph/` store and builds the index on first run.
 
 ## Indexing is slow
 

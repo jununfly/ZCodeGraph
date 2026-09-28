@@ -44,6 +44,7 @@ language glossary (`external`, governed at repository root).
 | ADR-0005 | [ZJ-0005-separate-durable-decisions-from-process-artifacts.md](zj-adr/ZJ-0005-separate-durable-decisions-from-process-artifacts.md) | Keep durable decisions separate from process artifacts? |
 | ADR-0006 | [ZJ-0006-lazy-sqlite-corruption-recovery.md](zj-adr/ZJ-0006-lazy-sqlite-corruption-recovery.md) | How does the MCP daemon recover stale/corrupt SQLite handles? |
 | ADR-0007 | [ZJ-0007-three-tier-fallback-health-state.md](zj-adr/ZJ-0007-three-tier-fallback-health-state.md) | How are expected fallbacks distinguished from real gaps? |
+| ADR-0008 | [ZJ-0008-merge-init-into-index.md](zj-adr/ZJ-0008-merge-init-into-index.md) | Should `init` be hard-merged into `index` with auto-bootstrap? |
 
 ## prds — product requirements
 

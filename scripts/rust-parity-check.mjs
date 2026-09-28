@@ -99,8 +99,7 @@ function initAndIndex(project, engine) {
     CODEGRAPH_NO_DAEMON: '1',
     CODEGRAPH_NO_RELAUNCH: '1',
   };
-  run(process.execPath, [distBin, 'init', project], project, env);
-  const args = [distBin, 'index', project, '--quiet'];
+  const args = [distBin, 'index', project, '--force', '--quiet'];
   if (engine === 'rust') {
     args.push('--engine', 'rust');
     env.ZCODEGRAPH_RUST_CORE_BINARY = rustCore;
