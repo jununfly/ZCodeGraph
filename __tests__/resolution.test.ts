@@ -2192,8 +2192,16 @@ func main() {
     // in the actual indexing pipeline (not just a phantom file→import-node
     // edge). This pins the include-dir resolution path so the headline PR
     // feature can't silently regress to a no-op in the indexing flow.
-    // Rust-owned C++ include-to-header resolution is tracked in #692.
-    it.skip('connects #include to the real header file via include-dir scan (end-to-end)', async () => {
+    // #692 wave-0 probe C (2026-09-28): ACTIVE. Pure-rust extraction supplies
+    // the import node + unresolved_ref(imports) for both "utils.h" and
+    // <vector>; the engine-agnostic TS shell builds the edge. The cross-dir
+    // header is found by loadCppIncludeDirs heuristic (convention `include/`,
+    // no compile_commands.json needed -> include-dir fallback in
+    // resolveCppIncludePath), and `vector` is filtered as a C++ stdlib header
+    // so it yields no file edge. rust-hybrid indexing auto-resolves, so
+    // init({index:true}) needs no explicit resolveReferences(). Verified on
+    // CI three-OS in roadmap 1-6-5-3.
+    it('connects #include to the real header file via include-dir scan (end-to-end)', async () => {
       const tempProject = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-cpp-e2e-'));
       try {
         fs.mkdirSync(path.join(tempProject, 'include'), { recursive: true });

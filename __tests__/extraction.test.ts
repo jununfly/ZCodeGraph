@@ -3587,8 +3587,15 @@ class UserService extends Repository with Loggable {
   });
 });
 
-// Rust-owned Java value-read coverage is tracked for porting in #692.
-describe.skip('Static-member / value-read references (Rust-owned migration)', () => {
+// #692 wave-0 probe E (2026-09-28): the two cases here had different fates.
+// Case 1 (Java static-field/enum value-read) is a real Rust EXTRACTION gap G9
+// (tracked under roadmap 1-2-1-1, not the 1-4-2 terminal layer the pre-plan
+// guessed): pure-rust emits zero refs for `JsonScope.EMPTY_DOCUMENT`, and the
+// shell cannot reconstruct member-access AST the TS extractor handled in
+// extractStaticMemberRef. It stays it.skip until G9 ships. Case 2 is a
+// Rust-independent engine:'typescript' negative guard (a Kotlin Build.VERSION
+// read must not cross-link to a same-named TS class), so it is ACTIVE.
+describe('Static-member / value-read references (Rust-owned migration)', () => {
   let tempDir: string;
   let cg: CodeGraph;
 
@@ -3601,7 +3608,14 @@ describe.skip('Static-member / value-read references (Rust-owned migration)', ()
     if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('links a type referenced only via a static field / enum value (and ignores lowercase receivers)', async () => {
+  // G9 (roadmap 1-2-1-1): the Rust Java extractor emits no references edge
+  // for a type read only via a static field / enum value
+  // (`JsonScope.EMPTY_DOCUMENT`). Pure-rust probe shows zero unresolved refs
+  // across Reader.java, so BOTH the JsonScope-positive half and the
+  // this/helper-negative half are unassertable. The TS extractor's
+  // extractStaticMemberRef pass has no Rust counterpart. Un-skip when G9
+  // lands; no red test in wave 0.
+  it.skip('links a type referenced only via a static field / enum value (and ignores lowercase receivers)', async () => {
     fs.writeFileSync(
       path.join(tempDir, 'JsonScope.java'),
       `class JsonScope {
