@@ -109,7 +109,7 @@
     "1-2-1": {
       "id": "1-2-1",
       "label": "Java 基线抽取（已完成）",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -2009,8 +2009,8 @@
     },
     "1-2-1-1": {
       "id": "1-2-1-1",
-      "label": "Java 语义抽取缺口：修饰符 G5/G6 + 注解使用 G7 + instantiates G8 + 静态值读取 G9（波次0探针，#692）",
-      "status": "pending",
+      "label": "Java 语义抽取缺口：G5/G6 修饰符 + G7 注解使用 + G8 instantiates + G9 静态值读取 — 全部已修三 OS 绿（ae343cc，run 36568957232）；节点完成",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-1",
       "children": [],
@@ -2034,6 +2034,21 @@
           "q": "G9 static-member/value-read refs",
           "answer": "Rust Java extractor emits NO references edge for a type read only via a static field / enum value: Type.CONST / Enum.value (member_access / field_access value-read). TS extractor covers this in tree-sitter.ts extractStaticMemberRef (STATIC_MEMBER_LANGS includes java), emitting references->Capitalized receiver; rust-hybrid Java never runs that TS pass and Rust has no equivalent, so such types show zero dependents (impact radius miss). Shell cannot reconstruct member-access AST from Rust nodes -> must be emitted in Rust extraction. Need: references ref to the capitalized receiver of a non-call member access. Evidence pure-rust probe 2026-09-28 (JsonScope.EMPTY_DOCUMENT -> zero refs).",
           "note": "found via 1-6-5 E-group probe; pre-plan wrongly assigned to 1-4-2 terminal layer"
+        },
+        {
+          "q": "G5-G9 before probe",
+          "answer": "Rust debug exe index of 6-file fixture (Calculator/User/UserRepository/Service/JsonScope/Client under com/example) on tree-sitter-java 0.23.5: ALL symbol visibility=None incl public class/method; is_static=0 everywhere incl 'public static int add' and EMPTY_DOCUMENT field; zero non-contains edges; unresolved_refs ONLY 2 calls (length, user.getName) -- @Service no decorates, two 'new User()' no instantiates, JsonScope.EMPTY_DOCUMENT no references. @interface Service definition extracted as interface+method value. Baseline confirmed.",
+          "note": "probe dir .workbuddy/probe-java (gitignored), db .zcodegraph/zcodegraph.db, dumper .workbuddy/probe_java.py"
+        },
+        {
+          "q": "G5-G9 implementation",
+          "answer": "All fixed ONLY in crates/zcodegraph-core/src/lib.rs. (1) ExtractedNode gains is_static:bool (3 ctor sites default false); insert_nodes binds ?13 to node.is_static instead of hardcoded 0. (2) New java_modifiers(node) reads optional modifiers wrapper children keyword nodes (public/private/protected->visibility, static->is_static); no-access-keyword stays NULL (Java package-private, NOT private). JavaSymbolCandidate carries visibility+is_static, attached uniformly after the kind match. (3) G7 java_annotation_usage_refs scans modifiers for marker_annotation|annotation, emits decorates ref to NAME-field leaf (identifier|scoped_identifier). (4) G8 extract_java_statement_refs handles object_creation_expression -> instantiates (incl anon form which KEEPS its own extends ref). (5) G9 handles field_access -> references only when object field is bare Capitalized identifier and field is identifier (excludes this/lowercase/nested/call-receiver). After-probe on 11-file fixture confirms all 5, zero noise. cargo test 118 pass (3 new: visibility/static, annotation, instantiates+static-read). tree-sitter-java 0.23.5 node-types: field_access{object,field}, object_creation{type:_simple_type}, marker/annotation{name}.",
+          "note": "commit pending; no EXTRACTION_VERSION bump (same unreleased batch as C++ G10/G1..G4, stays v2)"
+        },
+        {
+          "q": "CLOSED G5-G9 three-OS green",
+          "answer": "All five Java gaps fixed and verified on ubuntu-latest / macos-14 / windows-2025, CI run 36568957232 @ae343cc. Windows log audit proves real execution (not silent -t skips): cargo test 118 passed incl 3 new java unit tests (g5_g6 line336/g7 line333/g8_g9 line334); wave0+guardrail step 28 passed (25+3 new G5-G9 cases, zero skips, ALLOWED_SKIPS empty); step2 10 passed with G7 'links @Annotation usages to them' 620ms and G9 'links a type referenced only via a static field' 710ms both checkmarked. Product commit ae343cc (lib.rs only for impl + 4 test/ci files), 676 insertions. EXTRACTION_VERSION stays 2 (same unreleased batch as C++ G10/G1-G4); existing stores reindex once. Next roadmap product leaf: 1-6-1 Kotlin baseline (wave1).",
+          "note": "closeout docs commit follows; changelog groups Java batch under extraction v2"
         }
       ],
       "notes": ""
@@ -2041,7 +2056,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-09-29 18:55:00",
+    "updated": "2026-09-29 20:38:28",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }

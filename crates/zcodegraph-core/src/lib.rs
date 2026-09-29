@@ -23,13 +23,17 @@ static ALLOCATOR: dhat::Alloc = dhat::Alloc;
 const SCHEMA_SQL: &str = include_str!("../../../src/db/schema.sql");
 const CURRENT_SCHEMA_VERSION: i64 = 4;
 // Mirrors EXTRACTION_VERSION in src/extraction/extraction-version.ts — keep the
-// two equal. 2 = the unreleased Rust-owned C/C++ semantic batch (#678/#692):
-// basename file nodes (G10, fixes file->file imports edges), trailing-return
-// free-function naming (G1), base_class_clause `extends` edges (G2), inline
-// class methods -> method/class-scoped qualifiedName (G3), and preserved
-// receiver in ->/. calls + out-of-class method promotion + init_declarator
-// variable naming (G4). Single 1->2 bump shipped together; old indexes
-// re-index once. See the TS file's Version history for the full list.
+// two equal. 2 = the unreleased Rust-owned semantic batch (#678/#692), shipped
+// together as a single 1->2 bump; old indexes re-index once:
+// basename file nodes (G10, fixes file->file imports edges); C++
+// trailing-return free-function naming (G1), base_class_clause `extends` edges
+// (G2), inline class methods -> method/class-scoped qualifiedName (G3), and
+// preserved receiver in ->/. calls + out-of-class method promotion +
+// init_declarator variable naming (G4); Java class/method visibility with
+// package-private NULL (G5), method is_static (G6), annotation-usage
+// `decorates` edges (G7), `new Foo()` `instantiates` edges (G8), and
+// `Type.CONST`/`Enum.value` static-value-read `references` edges (G9).
+// See the TS file's Version history for the full list.
 const EXTRACTION_VERSION: i64 = 2;
 const IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP: usize = 100;
 const IMPORT_FALLBACK_SAMPLE_TOTAL_CAP: usize = 2000;
