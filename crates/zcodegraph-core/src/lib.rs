@@ -9022,6 +9022,15 @@ fn visit_cpp_node(
                 col: extracted.start_column,
             });
             nodes.push(extracted);
+            if matches!(kind, "class" | "struct") {
+                extract_cpp_base_class_refs(
+                    node,
+                    source,
+                    relative_path,
+                    &extracted_id,
+                    unresolved_refs,
+                )?;
+            }
             if matches!(
                 kind,
                 "function" | "class" | "struct" | "enum" | "namespace"
@@ -9247,6 +9256,77 @@ fn cpp_is_misparsed_function(name: &str) -> bool {
     const CPP_KEYWORDS: &[&str] = &["switch", "if", "for", "while", "do", "case", "return"];
     CPP_KEYWORDS.contains(&name)
 }
+
+/// Emit an `extends` unresolved ref for every base class/struct listed in a
+/// C++ `base_class_clause` (e.g. `class Derived : public Base, private Other`).
+/// Mirrors the legacy TS extractor (src/extraction/tree-sitter.ts
+/// `base_class_clause` branch): one ref per base type, skipping
+/// `access_specifier` / `attribute_declaration`. Multi-inheritance is
+/// supported (the clause lists several base types). The reference name is the
+/// leaf identifier so the basename-based resolver hits both same-file and
+/// cross-file base nodes (qualified `ns::Qux` -> `Qux`, `std::vector<int>` ->
+/// `vector`).
+fn extract_cpp_base_class_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    class_node_id: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() != "base_class_clause" {
+            continue;
+        }
+        let mut base_cursor = child.walk();
+        for base in child.named_children(&mut base_cursor) {
+            let name_node = match base.kind() {
+                "type_identifier" => Some(base),
+                // ns::Qux -> the last type_identifier (Qux); Tmpl<int> -> its name.
+                "qualified_identifier" | "template_type" => cpp_base_leaf_identifier(base),
+                _ => None,
+            };
+            let Some(name_node) = name_node else {
+                continue;
+            };
+            let name = name_node.utf8_text(source)?;
+            push_ref(
+                unresolved_refs,
+                class_node_id,
+                name,
+                "extends",
+                name_node,
+                relative_path,
+                SourceLanguage::Cpp,
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Leaf base-type identifier for a qualified or templated C++ base class.
+/// `template_type` carries its name in the `name` field (the template
+/// argument list can itself contain type identifiers and must not be picked),
+/// and `qualified_identifier` exposes its last segment (`ns::Qux` -> `Qux`)
+/// via `name`.
+fn cpp_base_leaf_identifier(node: SyntaxNode) -> Option<SyntaxNode> {
+    match node.kind() {
+        "template_type" | "qualified_identifier" => node
+            .child_by_field_name("name")
+            .and_then(|name| {
+                if name.kind() == "type_identifier" {
+                    Some(name)
+                } else {
+                    // Nested qualified name: recurse to its own `name`.
+                    cpp_base_leaf_identifier(name)
+                }
+            }),
+        "type_identifier" => Some(node),
+        _ => None,
+    }
+}
+
+
 
 fn extract_cpp_statement_refs(
     node: SyntaxNode,
@@ -14780,6 +14860,88 @@ mod tests {
             vec!["TableFileName".to_string(), "BuildName".to_string()],
             "trailing-return free function must keep its real name (G1)"
         );
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_core_emits_cpp_base_class_extends_refs_g2() {
+        // G2: a C++ `base_class_clause` (`class D : public A, private B`) must
+        // emit one `extends` unresolved ref per base type so the rust-hybrid
+        // shell resolves them into extends edges. Skip access specifiers and
+        // attributes; support multi-inheritance, qualified (`ns::Qux` -> Qux),
+        // templated (`std::vector<int>` -> vector) bases, and structs. Pure rust
+        // does not resolve extends itself, so assert on unresolved_refs.
+        let dir = temp_dir("rust-cpp-extends-g2");
+        let src = dir.join("src");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(
+            src.join("base.h"),
+            "class Base { public: int baseMethod(); };\nclass Other {};\n",
+        )
+        .unwrap();
+        fs::write(
+            src.join("derived.cc"),
+            [
+                "#include \"base.h\"",
+                "namespace ns { class Qux {}; }",
+                "class Derived : public Base, private Other { int derivedMethod(); };",
+                "class Qual : public ns::Qux, public std::vector<int> {};",
+                "struct SBase { int x; };",
+                "struct SDerived : SBase { int y; };",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let index_path = dir.join(".zcodegraph").join("index.db");
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: index_path.to_string_lossy().to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(&index_path).unwrap();
+        let mut refs: Vec<(String, String)> = conn
+            .prepare(
+                "SELECT reference_name, reference_kind FROM unresolved_refs \
+                 WHERE reference_kind='extends' AND language='cpp' ORDER BY id",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                ))
+            })
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        refs.sort();
+        assert_eq!(
+            refs,
+            vec![
+                ("Base".to_string(), "extends".to_string()),
+                ("Other".to_string(), "extends".to_string()),
+                ("Qux".to_string(), "extends".to_string()),
+                ("SBase".to_string(), "extends".to_string()),
+                ("vector".to_string(), "extends".to_string()),
+            ],
+            "one extends ref per base, leaf names only (no access keywords / template args)"
+        );
+        // The access keyword must never leak in as a reference name.
+        let leaked = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM unresolved_refs WHERE reference_name IN ('public','private','protected','int')",
+        );
+        assert_eq!(leaked, 0, "access specifiers / template args must not be refs");
         cleanup_temp_dir(dir);
     }
 

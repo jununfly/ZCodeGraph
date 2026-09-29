@@ -229,13 +229,16 @@ describe('Flutter end-to-end — setState→build synthesis', () => {
 // The old TypeScript C++ extractor was removed in favor of Rust ownership.
 // #692 wave-0 probe (2026-09-28, rust-bin sqlite probes) showed these CANNOT
 // be cheaply re-activated on the Rust graph: Rust emits (G3) in-class methods
-// as kind `function` (not `method`) without the class in qualifiedName, (G2)
-// no `extends` edge for `class D : public B`, so the queries-only
-// cppOverrideEdges synthesizer (method + extends gated) never fires; (G4)
-// `m_cpAlg->Processing()` yields only a bare-name call ref with the receiver
-// lost, and RunAssign even spawns a spurious `Processing` variable node.
-// Tracked as extraction gaps G2/G3/G4 under roadmap 1-2-3-1 — keep skipped
-// until Rust C++ semantics land there (do NOT port to a red test in wave 0).
+// as kind `function` (not `method`) without the class in qualifiedName, so the
+// queries-only cppOverrideEdges synthesizer (method + extends gated) never
+// fires; (G4) `m_cpAlg->Processing()` yields only a bare-name call ref with
+// the receiver lost, and RunAssign even spawns a spurious `Processing`
+// variable node. G2 (no `extends` edge for `class D : public B`) is now FIXED
+// in the Rust core and covered by the focused hybrid e2e
+// "C++ class inheritance extraction (rust-hybrid) (G2)"; but override
+// synthesis still needs G3+G4.
+// Tracked as extraction gaps G3/G4 under roadmap 1-2-3-1 — keep skipped until
+// the remaining Rust C++ semantics land there (do NOT port to a red test).
 describe.skip('C++ end-to-end — virtual override synthesis (Rust-owned migration)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {

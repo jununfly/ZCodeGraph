@@ -31,6 +31,12 @@ import {
  * was Rust extraction gap G1 (roadmap 1-2-3-1) — the declarator-name walk used
  * to take the trailing return type's last identifier (`string`); it now prunes
  * `trailing_return_type` and keeps the real name.
+ *
+ * C++ inheritance (gap G2) is covered at the pure-Rust layer here: a
+ * `base_class_clause` (`class D : public A, private B`) emits one `extends`
+ * unresolved ref per base (access keywords skipped), with qualified/templated
+ * bases reduced to their leaf name. The rust-hybrid end-to-end edge resolution
+ * lives in extraction.test.ts "C++ class inheritance extraction (rust-hybrid)".
  */
 describe('Rust-owned language fixtures (#692 wave 0)', () => {
   let tempDir: string;
@@ -276,6 +282,48 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
           .map((n) => n.name);
         expect(fns, 'BuildName extracted, not its trailing return type `string`').toContain('BuildName');
         expect(fns, 'no node misnamed after the trailing return type').not.toContain('string');
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('emits an extends ref per C++ base class, incl cross-file and templated bases (G2)', () => {
+      // G2 regression guard: `class Derived : public Base, private Other` used
+      // to emit zero inheritance information because the Rust extractor never
+      // visited `base_class_clause`. It now emits one `extends` unresolved ref
+      // per base type (access keywords skipped), reduces qualified/templated
+      // bases to their leaf name, and handles structs too. Pure rust only emits
+      // the refs; the rust-hybrid shell resolves them into extends edges
+      // (covered by the activated extraction e2e, #692).
+      writeFile('src/base.h', 'class Base { public: int baseMethod(); };\nclass Other {};\n');
+      writeFile(
+        'src/derived.cc',
+        [
+          '#include "base.h"',
+          'namespace ns { class Qux {}; }',
+          'class Derived : public Base, private Other { int derivedMethod(); };',
+          'class Qual : public ns::Qux, public std::vector<int> {};',
+          'struct SBase { int x; };',
+          'struct SDerived : SBase { int y; };',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const names = unresolvedRefs(db, 'src/derived.cc')
+          .filter((r) => r.reference_kind === 'extends')
+          .map((r) => r.reference_name);
+        // Base/Other live in base.h (cross-file); Qux/vector/SBase same file.
+        for (const expected of ['Base', 'Other', 'Qux', 'vector', 'SBase']) {
+          expect(names, `extends ref to ${expected}`).toContain(expected);
+        }
+        // Access specifiers and template arguments must never become refs.
+        expect(names).not.toContain('public');
+        expect(names).not.toContain('private');
+        expect(names).not.toContain('int');
+        expect(names.some((n) => n.includes(':')), 'qualified name reduced to leaf').toBe(false);
       } finally {
         cg.close();
       }

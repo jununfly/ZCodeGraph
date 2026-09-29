@@ -3465,6 +3465,107 @@ std::string use() {
   });
 });
 
+// G2 (#692 wave 0 / roadmap 1-2-3-1): the Rust extractor never visited a
+// C++ `base_class_clause`, so `class Derived : public Base` produced zero
+// inheritance information. It now emits one `extends` unresolved ref per base
+// type (access keywords skipped; qualified/templated bases reduced to their
+// leaf), and the rust-hybrid shell resolves them into real extends edges —
+// including cross-file and multi-inheritance — exactly like the legacy TS engine.
+describe('C++ class inheritance extraction (rust-hybrid) (G2)', () => {
+  let tempDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(() => {
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    if (cg) cg.close();
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('resolves base_class_clause bases into extends edges (cross-file + multi-inheritance)', async () => {
+    const src = path.join(tempDir, 'src');
+    fs.mkdirSync(src, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(src, 'base.h'),
+      `#pragma once
+class Base {
+public:
+  virtual int baseMethod();
+};
+
+class Other {};
+`
+    );
+    fs.writeFileSync(
+      path.join(src, 'derived.cc'),
+      `#include "base.h"
+
+namespace ns { class Qux {}; }
+
+// Cross-file multi-inheritance: Base and Other both live in base.h.
+class Derived : public Base, private Other {
+public:
+  int derivedMethod();
+};
+
+// Same-file qualified + templated bases reduce to leaf names.
+class Qual : public ns::Qux {
+};
+
+struct SBase { int x; };
+struct SDerived : SBase { int y; };
+`
+    );
+
+    cg = CodeGraph.initSync(tempDir);
+    await cg.indexAll({ engine: 'rust-hybrid' });
+    cg.resolveReferences();
+
+    const byName = (name: string, filePath: string) =>
+      cg.getNodesByKind('class').concat(cg.getNodesByKind('struct'))
+        .find((n) => n.name === name && (n.filePath ?? '').endsWith(filePath));
+
+    const derived = byName('Derived', 'derived.cc');
+    expect(derived, 'Derived class extracted').toBeDefined();
+
+    const extTargets = cg
+      .getOutgoingEdges(derived!.id)
+      .filter((e) => e.kind === 'extends')
+      .map((e) => {
+        const target = cg.getNodeById(e.target);
+        return target ? { name: target.name, filePath: target.filePath ?? '' } : undefined;
+      });
+
+    expect(
+      extTargets.some((t) => t?.name === 'Base' && t.filePath.endsWith('base.h')),
+      'Derived --extends--> cross-file Base',
+    ).toBe(true);
+    expect(
+      extTargets.some((t) => t?.name === 'Other' && t.filePath.endsWith('base.h')),
+      'Derived --extends--> cross-file Other (private base still inheritance)',
+    ).toBe(true);
+
+    // Qualified same-file base resolves by leaf name.
+    const qual = byName('Qual', 'derived.cc');
+    expect(qual, 'Qual class extracted').toBeDefined();
+    const qualExt = cg
+      .getOutgoingEdges(qual!.id)
+      .some((e) => e.kind === 'extends' && cg.getNodeById(e.target)?.name === 'Qux');
+    expect(qualExt, 'Qual --extends--> ns::Qux (leaf name)').toBe(true);
+
+    // Struct inheritance works too.
+    const sDerived = byName('SDerived', 'derived.cc');
+    expect(sDerived, 'SDerived struct extracted').toBeDefined();
+    const structExt = cg
+      .getOutgoingEdges(sDerived!.id)
+      .some((e) => e.kind === 'extends' && cg.getNodeById(e.target)?.name === 'SBase');
+    expect(structExt, 'SDerived --extends--> SBase').toBe(true);
+  });
+});
+
 describe('C header invalid-symbol storage safety', () => {
   let tempDir: string;
   let cg: CodeGraph;
