@@ -56,11 +56,6 @@ const ALLOWED_SKIPS: ReadonlyArray<{ file: string; kind: string; title: string }
     kind: 'describe',
     title: 'Java annotations (Rust-owned migration)',
   },
-  {
-    file: 'frameworks-integration.test.ts',
-    kind: 'describe',
-    title: 'C++ end-to-end — typed-pointer receiver callers, pending G4 (Rust-owned migration)',
-  },
 ];
 
 function listTestFiles(): string[] {

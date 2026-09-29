@@ -424,7 +424,9 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
       }
 
       const mainFn = cg.searchNodes('main').find((match) => match.node.kind === 'function' && match.node.language === 'cpp')?.node;
-      const renderFn = cg.searchNodes('render').find((match) => match.node.kind === 'function' && match.node.language === 'cpp')?.node;
+      // `int Widget::render() {}` is an out-of-class qualified definition, so
+      // since G4 it is kind `method` (mirroring the #445 engine), not function.
+      const renderFn = cg.searchNodes('render').find((match) => match.node.kind === 'method' && match.node.language === 'cpp')?.node;
       expect(mainFn).toBeDefined();
       expect(renderFn).toBeDefined();
       const calls = cg.getOutgoingEdges(mainFn!.id).filter((edge) => edge.kind === 'calls');

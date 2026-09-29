@@ -42,13 +42,13 @@ jobs:
           npx vitest run
           __tests__/rust-owned-language-fixtures.test.ts
           __tests__/skip-debt-guardrail.test.ts
-      - name: Verify wave-0 activated include, C++ free-function, inheritance, override, and cross-language e2e cases (#692)
+      - name: Verify wave-0 activated include, C++ free-function, inheritance, override, typed-pointer receiver, and cross-language e2e cases (#692)
         run: >
           npx vitest run
           __tests__/extraction.test.ts
           __tests__/resolution.test.ts
           __tests__/frameworks-integration.test.ts
-          -t "resolves to the same-directory header, not a same-named one elsewhere|connects #include to the real header file via include-dir scan|does not link a static-member read across language families|names a free function correctly when it has qualified-type params or a trailing return type|resolves base_class_clause bases into extends edges|bridges a base virtual method to the subclass override"
+          -t "resolves to the same-directory header, not a same-named one elsewhere|connects #include to the real header file via include-dir scan|does not link a static-member read across language families|names a free function correctly when it has qualified-type params or a trailing return type|resolves base_class_clause bases into extends edges|bridges a base virtual method to the subclass override|resolves callers through typed object pointers|the call sits inside a return/declaration"
       - name: Verify rust-hybrid CI smoke
         run: node scripts/rust-hybrid-ci-smoke.mjs
       - name: Verify Rust CLI engine paths

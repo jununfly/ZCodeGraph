@@ -8900,6 +8900,21 @@ fn c_declarator_name_node(node: SyntaxNode) -> Option<SyntaxNode> {
     ) {
         return None;
     }
+    // An initialized declaration `int r = ptr->Processing();` is an
+    // `init_declarator` with a `declarator` field (the declared name `r`) and a
+    // `value` field (the initializer). Resolve ONLY the declarator field; the
+    // generic last-identifier walk below would otherwise descend into the
+    // initializer's call/field_expression and mistake `Processing` for the
+    // declared variable (G4 spurious `Processing` variable, real `r` lost).
+    if node.kind() == "init_declarator" {
+        if let Some(declared) = node
+            .child_by_field_name("declarator")
+            .and_then(c_declarator_name_node)
+        {
+            return Some(declared);
+        }
+        return None;
+    }
     let mut last = None;
     for child in node.named_children(&mut node.walk()) {
         if let Some(candidate) = c_declarator_name_node(child) {
@@ -9103,10 +9118,7 @@ fn extract_cpp_named_symbol<'a>(
                     // An inline function definition lexically inside a
                     // class/struct body is a METHOD (G3): kind `method` and the
                     // qualified name carries the enclosing scope,
-                    // `file::[ns::]Class::name`. Out-of-class definitions
-                    // (`void Widget::draw() {}`) have no class ancestor and keep
-                    // kind `function`; their explicit qualified_identifier is
-                    // already handled below.
+                    // `file::[ns::]Class::name`.
                     if let Some(class_scope) =
                         cpp_enclosing_class_scope(node, source)?
                     {
@@ -9114,9 +9126,23 @@ fn extract_cpp_named_symbol<'a>(
                             format!("{}::{}::{}", relative_path, class_scope, name);
                         return Ok(Some(("method", name, Some(qualified_name), name_node)));
                     }
-                    let qualified_name =
-                        qualified.map(|qn| format!("{}::{}", relative_path, qn));
-                    return Ok(Some(("function", name, qualified_name, name_node)));
+                    // An OUT-OF-CLASS definition whose declarator is qualified
+                    // (`int CDetect::Processing() {}` in a .cpp while the class
+                    // lives in the .hpp) is also a METHOD (G4), mirroring the
+                    // #445 TS engine's getReceiverType promotion: any multi-segment
+                    // qualified_identifier in the declarator becomes kind `method`
+                    // with qualified name `file::[ns::]Class::name`. The TS shell's
+                    // resolveMethodOnType matches by the `Class::method` suffix and
+                    // hard-filters kind == 'method', so leaving these as `function`
+                    // blocked typed-pointer callers across the typical .hpp/.cpp
+                    // split. A namespace-qualified free function (`ns::helper`)
+                    // also promotes, exactly as the shipped engine did; it matches
+                    // no class so it never misroutes.
+                    if let Some(qn) = qualified {
+                        let qualified_name = format!("{}::{}", relative_path, qn);
+                        return Ok(Some(("method", name, Some(qualified_name), name_node)));
+                    }
+                    return Ok(Some(("function", name, None, name_node)));
                 }
             }
         }
@@ -9459,14 +9485,69 @@ fn cpp_call_reference_name(
             Ok(Some(node.utf8_text(source)?.to_string()))
         }
         "field_expression" => {
+            // tree-sitter-cpp models BOTH `obj.method()` and `ptr->method()` as
+            // `field_expression` (the `operator` field distinguishes `.`/`->`),
+            // with the object in `argument` and the member in `field`. Preserve
+            // the receiver as `receiver.method` (G4) so the rust-hybrid TS shell
+            // runs inferCppReceiverType on the receiver name (the bare field name
+            // alone loses the typed pointer/variable and never resolves). Mirrors
+            // the #445 TS extractor, which normalizes `->` to `.` and skips
+            // this/self receivers.
             let field = node
                 .child_by_field_name("field")
                 .or_else(|| first_named_child_of_kind(node, "field_identifier"));
-            Ok(field.and_then(|child| child.utf8_text(source).ok().map(ToString::to_string)))
+            let Some(field) = field else {
+                return Ok(None);
+            };
+            let method = field.utf8_text(source)?.trim().to_string();
+            let receiver = cpp_field_receiver(node, source)?;
+            match receiver {
+                Some(receiver) if !CPP_SKIP_RECEIVERS.contains(&receiver.as_str()) => {
+                    Ok(Some(format!("{receiver}.{method}")))
+                }
+                _ => Ok(Some(method)),
+            }
         }
         "parenthesized_expression" | "pointer_expression" => {
             for child in node.named_children(&mut node.walk()) {
                 if let Some(name) = cpp_call_reference_name(child, source)? {
+                    return Ok(Some(name));
+                }
+            }
+            Ok(None)
+        }
+        _ => Ok(None),
+    }
+}
+
+/// Receivers that add no resolution signal (`this->x()`, `self.m()`, …): emit
+/// the bare method name rather than `this.method`.
+const CPP_SKIP_RECEIVERS: &[&str] = &["this", "self", "cls", "super"];
+
+/// Leaf receiver name of a C++ `field_expression`. `argument` may itself be a
+/// nested field_expression (`a.b->c`) — reduce to the innermost object's simple
+/// identifier so the TS declarator regex can locate its declared type. Returns
+/// None for call-expressions/complex expressions (then the bare method is used).
+fn cpp_field_receiver(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let Some(argument) = node
+        .child_by_field_name("argument")
+        .or_else(|| first_named_child_of_kind(node, "identifier"))
+    else {
+        return Ok(None);
+    };
+    match argument.kind() {
+        "identifier" | "field_identifier" | "type_identifier" => {
+            Ok(Some(argument.utf8_text(source)?.trim().to_string()))
+        }
+        "field_expression" => cpp_field_receiver(argument, source),
+        // pointer_expression is unary `*x`/`&x`; parenthesized wrappers and
+        // anything containing a call cannot name a declarator — drop receiver.
+        "pointer_expression" | "parenthesized_expression" => {
+            for child in argument.named_children(&mut argument.walk()) {
+                if let Some(name) = cpp_field_receiver(child, source)? {
                     return Ok(Some(name));
                 }
             }
@@ -15044,9 +15125,11 @@ mod tests {
         // G3: a function_definition lexically inside a class/struct body is a
         // METHOD (kind `method`) whose qualified name carries the enclosing
         // scope (`file::[ns::]Class::name`), matching the legacy TS extractor.
-        // Out-of-class definitions (`void Widget::draw() {}`) have no class
-        // ancestor and stay kind `function` (their explicit qualified_identifier
-        // already carries the class). Inline constructors are methods too.
+        // An out-of-class qualified definition (`void gfx::Canvas::render_extra()
+        // {}`) is ALSO a method since G4 (multi-segment qualified_identifier in
+        // the declarator, mirroring the #445 TS getReceiverType promotion); only
+        // a bare free function (`void freeFn() {}`) stays kind `function`.
+        // Inline constructors are methods too.
         let dir = temp_dir("rust-cpp-methods-g3");
         fs::write(
             dir.join("widget.hpp"),
@@ -15114,15 +15197,16 @@ mod tests {
             1,
             "inline struct method is kind method"
         );
-        // Out-of-class qualified definition stays a function (locked by
-        // rust_cpp_out_of_class_method_uses_qualified_name), and free fns too.
+        // Out-of-class qualified definition is ALSO a method since G4 (its
+        // multi-segment qualified_identifier `gfx::Canvas::render_extra` carries
+        // a class scope; mirrors #445). A bare free function stays `function`.
         assert_eq!(
             sqlite_count(
                 &conn,
-                "SELECT count(*) FROM nodes WHERE kind='function' AND name='render_extra'"
+                "SELECT count(*) FROM nodes WHERE kind='method' AND name='render_extra'"
             ),
             1,
-            "out-of-class definition stays function"
+            "out-of-class qualified definition becomes method (G4)"
         );
         assert_eq!(
             sqlite_count(
@@ -15139,6 +15223,130 @@ mod tests {
              WHERE e.kind='contains' AND s.name='Canvas' AND t.kind='method'",
         );
         assert_eq!(contained, 2, "Canvas contains its two inline methods");
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_core_preserves_cpp_receiver_and_classifies_out_of_class_methods_g4() {
+        // G4 across the typical .hpp/.cpp split: a typed-pointer member call
+        // `m_cpAlg->Processing()` and a value call `local.Processing()` must
+        // preserve the receiver as `receiver.method` (tree-sitter-cpp models
+        // both `.` and `->` as field_expression; `->` normalizes to `.` so the
+        // TS shell's inferCppReceiverType runs). Out-of-class definitions
+        // `int CDetector::Run(){}` are kind `method` with the right qualified
+        // name; the initialized declaration `int r = ...->Processing()` creates
+        // variable `r`, NOT a spurious `Processing` variable.
+        let dir = temp_dir("rust-cpp-receiver-g4");
+        let src = dir.join("src");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(
+            src.join("detect.hpp"),
+            [
+                "class CDetect { public: int Processing(); };",
+                "class CWidget { public: int Processing(); };",
+                "class CDetector {",
+                " private:",
+                "  CDetect* m_cpAlg = nullptr;",
+                " public:",
+                "  int RunReturn();",
+                "  int RunAssign();",
+                "  int RunDot();",
+                "};",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            src.join("detect.cpp"),
+            [
+                "#include \"detect.hpp\"",
+                "int CDetector::RunReturn() { return m_cpAlg->Processing(); }",
+                "int CDetector::RunAssign() { int r = m_cpAlg->Processing(); return r; }",
+                "int CDetector::RunDot() { CDetect local; return local.Processing(); }",
+                "int CDetect::Processing() { return 0; }",
+                "int CWidget::Processing() { return 0; }",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let index_path = dir.join(".zcodegraph").join("index.db");
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: index_path.to_string_lossy().to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(&index_path).unwrap();
+
+        // Calls preserve receiver (bare `Processing` ref must not exist).
+        let mut call_refs: Vec<String> = conn
+            .prepare(
+                "SELECT reference_name FROM unresolved_refs \
+                 WHERE reference_kind='calls' AND language='cpp' ORDER BY id",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        call_refs.sort();
+        assert_eq!(
+            call_refs,
+            vec![
+                "local.Processing".to_string(),
+                "m_cpAlg.Processing".to_string(),
+                "m_cpAlg.Processing".to_string(),
+            ],
+            "receiver must be preserved for both -> and . member calls"
+        );
+
+        // Out-of-class definitions are methods with class-scoped qualified names.
+        for method in ["RunReturn", "RunAssign", "RunDot"] {
+            let qn: String = conn
+                .query_row(
+                    "SELECT qualified_name FROM nodes WHERE kind='method' AND name=?1",
+                    [method],
+                    |row| row.get(0),
+                )
+                .unwrap_or_else(|_| String::new());
+            assert!(
+                qn.contains(&format!("CDetector::{method}")),
+                "{method} should be a method qualified by CDetector, got {qn}"
+            );
+        }
+        let proc_kinds: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM nodes WHERE name='Processing' AND kind='method'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(proc_kinds, 2, "both out-of-class Processing defs are methods");
+
+        // The initialized local is `r`, with no spurious `Processing` variable.
+        let spurious = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE kind='variable' AND name='Processing'",
+        );
+        assert_eq!(spurious, 0, "init-declarator must not spawn a Processing var");
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT count(*) FROM nodes WHERE kind='variable' AND name='r'"
+            ),
+            1,
+            "the declared variable r must be extracted"
+        );
         cleanup_temp_dir(dir);
     }
 
@@ -22885,6 +23093,11 @@ mod tests {
 
     #[test]
     fn rust_cpp_out_of_class_method_uses_qualified_name() {
+        // Out-of-line definition `void gfx::Canvas::draw() {}` is a METHOD whose
+        // qualified name carries `gfx::Canvas::draw`. Since G4 it is kind
+        // `method` (multi-segment qualified_identifier promotion mirroring the
+        // #445 TS engine) rather than `function`; the qualified identity this
+        // test locks is unchanged.
         let dir = temp_dir("cpp-qualified");
         write_file(
             &dir,
@@ -22899,7 +23112,7 @@ mod tests {
         let conn = Connection::open(db_path(&dir)).unwrap();
         let qualified: String = conn
             .query_row(
-                "SELECT qualified_name FROM nodes WHERE name='draw' AND kind='function'",
+                "SELECT qualified_name FROM nodes WHERE name='draw' AND kind='method'",
                 [],
                 |row| row.get(0),
             )

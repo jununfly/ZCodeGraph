@@ -227,20 +227,24 @@ describe('Flutter end-to-end — setState→build synthesis', () => {
 });
 
 // The old TypeScript C++ extractor was removed in favor of Rust ownership.
-// #692 wave-0 probe (2026-09-28, rust-bin sqlite probes) showed these receiver
-// cases CANNOT be cheaply re-activated on the Rust graph: (G4)
-// `m_cpAlg->Processing()` yields only a bare-name call ref with the receiver
-// lost, so typed-pointer callers never resolve, and RunAssign even spawns a
-// spurious `Processing` variable node. They also rely on out-of-class
-// definitions being `method` nodes, which are still extracted as functions.
-// G2 (no `extends` edge for `class D : public B`) is FIXED and covered by
-// "C++ class inheritance extraction (rust-hybrid) (G2)"; G3 (inline class
-// methods are now kind `method` with class-scoped qualifiedName) is FIXED and
-// unlocked the non-receiver virtual-override bridge, now an ACTIVE describe
-// below ("C++ virtual override synthesis (rust-hybrid) (G2+G3)").
-// Tracked as extraction gap G4 under roadmap 1-2-3-1 — keep these two receiver
-// tests skipped until the Rust receiver semantics land (no red test in wave 0).
-describe.skip('C++ end-to-end — typed-pointer receiver callers, pending G4 (Rust-owned migration)', () => {
+// #692 wave-0 probe (2026-09-28) showed these receiver cases could not be
+// re-activated on the Rust graph. G4 (roadmap 1-2-3-1, FIXED) closed all three
+// underlying gaps in the Rust core: (1) `m_cpAlg->Processing()` now preserves
+// the receiver as a `m_cpAlg.Processing` call ref (tree-sitter-cpp models both
+// `.` and `->` as field_expression; `->` normalizes to `.`) so the TS shell's
+// inferCppReceiverType runs and resolves the typed-pointer callee across the
+// .hpp/.cpp split; (2) out-of-class `int CDetect::Run(){}` definitions are now
+// kind `method` with a `Class::method` qualifiedName (the resolver hard-filters
+// kind == 'method'); (3) `int r = ...->Processing()` creates variable `r`, no
+// longer a spurious `Processing` variable. G2 (extends) + G3 (inline methods)
+// landed earlier; the non-receiver virtual-override bridge is the separate
+// ACTIVE describe below.
+describe('C++ end-to-end — typed pointer callers (rust-hybrid) (G4)', () => {
+  // Rust qualifiedName is always `relative_path::[scope::]Class::method`; the
+  // #445-era assertions compared the bare `Class::method` tail, so reduce to
+  // the last two segments (Class::method) for the caller/callee comparisons.
+  const classMethodTail = (qualifiedName: string): string =>
+    qualifiedName.split('::').slice(-2).join('::');
   let tmpDir: string | undefined;
   afterEach(() => {
     if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -281,7 +285,7 @@ describe.skip('C++ end-to-end — typed-pointer receiver callers, pending G4 (Ru
         .find((n) => n.qualifiedName.endsWith('CDetect::Processing'));
       expect(processing).toBeDefined();
 
-      const callers = cg.getCallers(processing!.id).map((c) => c.node.qualifiedName);
+      const callers = cg.getCallers(processing!.id).map((c) => classMethodTail(c.node.qualifiedName));
       expect(callers).toContain('CDetector::Run');
       expect(callers).toContain('CDetector::Flush');
 
@@ -289,7 +293,7 @@ describe.skip('C++ end-to-end — typed-pointer receiver callers, pending G4 (Ru
         .getNodesByKind('method')
         .find((n) => n.qualifiedName.endsWith('CDetector::Run'));
       expect(runMethod).toBeDefined();
-      const callees = cg.getCallees(runMethod!.id).map((c) => c.node.qualifiedName);
+      const callees = cg.getCallees(runMethod!.id).map((c) => classMethodTail(c.node.qualifiedName));
       expect(callees).toContain('CDetect::Processing');
     } finally {
       cg?.close();
@@ -332,19 +336,23 @@ describe.skip('C++ end-to-end — typed-pointer receiver callers, pending G4 (Ru
 
       const detectProc = cg
         .getNodesByKind('method')
-        .find((n) => n.qualifiedName === 'CDetect::Processing');
+        .find((n) => n.qualifiedName.endsWith('CDetect::Processing'));
       const widgetProc = cg
         .getNodesByKind('method')
-        .find((n) => n.qualifiedName === 'CWidget::Processing');
+        .find((n) => n.qualifiedName.endsWith('CWidget::Processing'));
       expect(detectProc).toBeDefined();
       expect(widgetProc).toBeDefined();
 
-      const detectCallers = cg.getCallers(detectProc!.id).map((c) => c.node.qualifiedName);
+      const detectCallers = cg
+        .getCallers(detectProc!.id)
+        .map((c) => classMethodTail(c.node.qualifiedName));
       expect(detectCallers).toContain('CDetector::RunReturn');
       expect(detectCallers).toContain('CDetector::RunAssign');
 
       // CWidget::Processing is never called — calls must NOT misroute here.
-      const widgetCallers = cg.getCallers(widgetProc!.id).map((c) => c.node.qualifiedName);
+      const widgetCallers = cg
+        .getCallers(widgetProc!.id)
+        .map((c) => classMethodTail(c.node.qualifiedName));
       expect(widgetCallers).not.toContain('CDetector::RunReturn');
       expect(widgetCallers).not.toContain('CDetector::RunAssign');
     } finally {

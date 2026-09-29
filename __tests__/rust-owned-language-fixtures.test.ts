@@ -37,6 +37,13 @@ import {
  * unresolved ref per base (access keywords skipped), with qualified/templated
  * bases reduced to their leaf name. The rust-hybrid end-to-end edge resolution
  * lives in extraction.test.ts "C++ class inheritance extraction (rust-hybrid)".
+ *
+ * C++ typed-pointer/member calls (gap G4) are also covered here: `ptr->m()` and
+ * `obj.m()` (both tree-sitter field_expression) emit a receiver-qualified call
+ * ref `receiver.m`; out-of-class `Class::m` definitions are kind `method`; and
+ * `int r = ptr->m()` yields variable `r`, not a spurious `m` variable. The
+ * rust-hybrid receiver-type inference end-to-end lives in
+ * frameworks-integration.test.ts "C++ end-to-end — typed pointer callers".
  */
 describe('Rust-owned language fixtures (#692 wave 0)', () => {
   let tempDir: string;
@@ -332,9 +339,11 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
     it('classifies an inline C++ class method as method with class-scoped qualifiedName (G3)', () => {
       // G3 regression guard: an inline function_definition inside a class body
       // used to be kind `function` with a qualified name lacking the class. It
-      // is now `method`, scoped `file::[ns::]Class::name`. Out-of-class
-      // definitions (`void Canvas::draw() {}`) stay `function` (they already
-      // carry the class in their explicit qualified_identifier).
+      // is now `method`, scoped `file::[ns::]Class::name`. An out-of-class
+      // qualified definition (`void gfx::Canvas::draw() {}`) is ALSO `method`
+      // since G4 (multi-segment qualified_identifier promotion, mirroring the
+      // #445 engine); only a bare free function (`void freeFn() {}`) stays
+      // `function`.
       writeFile(
         'widget.hpp',
         [
@@ -364,13 +373,88 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
         ).toBe('widget.hpp::gfx::Canvas::render');
         expect(methods.some((n) => n.name === 'area'), 'virtual inline method is a method').toBe(true);
         expect(methods.some((n) => n.name === 'x'), 'inline struct method is a method').toBe(true);
+        const draw = methods.find((n) => n.name === 'draw');
+        expect(draw, 'out-of-class qualified definition is a method since G4').toBeDefined();
+        expect(draw!.qualifiedName, 'out-of-class method keeps class scope').toContain(
+          'gfx::Canvas::draw',
+        );
 
         const functions = cg.getNodesByKind('function');
-        expect(
-          functions.some((n) => n.name === 'draw'),
-          'out-of-class qualified definition stays a function',
-        ).toBe(true);
         expect(functions.some((n) => n.name === 'freeFn'), 'free function stays a function').toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('preserves the receiver of ->/. member calls and promotes out-of-class defs to method (G4)', () => {
+      // G4 regression guard at the pure-Rust layer: a typed-pointer member call
+      // `m_cpAlg->Processing()` must emit a receiver-qualified unresolved ref
+      // `m_cpAlg.Processing` (tree-sitter-cpp models both `.` and `->` as
+      // field_expression; `->` normalizes to `.` so the hybrid shell infers the
+      // receiver type). Out-of-class definitions are `method`, and an
+      // initialized declaration `int r = ...->Processing()` yields variable `r`
+      // — never a spurious `Processing` variable.
+      writeFile(
+        'src/detect.hpp',
+        [
+          'class CDetect { public: int Processing(); };',
+          'class CWidget { public: int Processing(); };',
+          'class CDetector {',
+          ' private:',
+          '  CDetect* m_cpAlg = nullptr;',
+          ' public:',
+          '  int RunReturn();',
+          '  int RunAssign();',
+          '  int RunDot();',
+          '};',
+          '',
+        ].join('\n'),
+      );
+      writeFile(
+        'src/detect.cpp',
+        [
+          '#include "detect.hpp"',
+          'int CDetector::RunReturn() { return m_cpAlg->Processing(); }',
+          'int CDetector::RunAssign() { int r = m_cpAlg->Processing(); return r; }',
+          'int CDetector::RunDot() { CDetect local; return local.Processing(); }',
+          'int CDetect::Processing() { return 0; }',
+          'int CWidget::Processing() { return 0; }',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const callNames = unresolvedRefs(db, 'src/detect.cpp')
+          .filter((r) => r.reference_kind === 'calls')
+          .map((r) => r.reference_name)
+          .sort();
+        expect(callNames).toEqual([
+          'local.Processing',
+          'm_cpAlg.Processing',
+          'm_cpAlg.Processing',
+        ]);
+
+        const methods = cg.getNodesByKind('method');
+        for (const m of ['RunReturn', 'RunAssign', 'RunDot']) {
+          const node = methods.find((n) => n.name === m);
+          expect(node, `${m} out-of-class def is a method`).toBeDefined();
+          expect(node!.qualifiedName).toContain(`CDetector::${m}`);
+        }
+        expect(
+          methods.filter((n) => n.name === 'Processing').length,
+          'both out-of-class Processing defs are methods',
+        ).toBe(2);
+
+        const variables = cg.getNodesByKind('variable');
+        expect(
+          variables.some((n) => n.name === 'Processing'),
+          'no spurious Processing variable from the initializer',
+        ).toBe(false);
+        expect(variables.some((n) => n.name === 'r'), 'the declared variable r is extracted').toBe(
+          true,
+        );
       } finally {
         cg.close();
       }
