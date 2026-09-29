@@ -9033,7 +9033,7 @@ fn visit_cpp_node(
             }
             if matches!(
                 kind,
-                "function" | "class" | "struct" | "enum" | "namespace"
+                "function" | "method" | "class" | "struct" | "enum" | "namespace"
             ) {
                 child_from_node_id = Cow::Owned(extracted_id);
             }
@@ -9100,6 +9100,20 @@ fn extract_cpp_named_symbol<'a>(
             if let Some(declarator) = node.child_by_field_name("declarator") {
                 if let Some((name, qualified, name_node)) = cpp_declarator_name(declarator, source)?
                 {
+                    // An inline function definition lexically inside a
+                    // class/struct body is a METHOD (G3): kind `method` and the
+                    // qualified name carries the enclosing scope,
+                    // `file::[ns::]Class::name`. Out-of-class definitions
+                    // (`void Widget::draw() {}`) have no class ancestor and keep
+                    // kind `function`; their explicit qualified_identifier is
+                    // already handled below.
+                    if let Some(class_scope) =
+                        cpp_enclosing_class_scope(node, source)?
+                    {
+                        let qualified_name =
+                            format!("{}::{}::{}", relative_path, class_scope, name);
+                        return Ok(Some(("method", name, Some(qualified_name), name_node)));
+                    }
                     let qualified_name =
                         qualified.map(|qn| format!("{}::{}", relative_path, qn));
                     return Ok(Some(("function", name, qualified_name, name_node)));
@@ -9302,6 +9316,86 @@ fn extract_cpp_base_class_refs(
         }
     }
     Ok(())
+}
+
+/// Walk up from a C++ function_definition to its nearest enclosing
+/// class_specifier/struct_specifier, if any. Returns the lexical scope prefix
+/// (outer->inner) needed for a method qualified name, e.g. `gfx::Canvas` for a
+/// method defined inline inside `namespace gfx { class Canvas { ... } }`.
+/// Constructors/destructors defined inline sit in the same body, so they are
+/// classified the same way. Out-of-class definitions (`void Canvas::draw() {}`)
+/// are NOT nested in a class body and return None.
+fn cpp_enclosing_class_scope<'a>(
+    node: SyntaxNode<'a>,
+    source: &'a [u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    // Find nearest enclosing class/struct.
+    let mut class_node: Option<SyntaxNode> = None;
+    let mut ancestor = node.parent();
+    while let Some(current) = ancestor {
+        if matches!(current.kind(), "class_specifier" | "struct_specifier") {
+            class_node = Some(current);
+            break;
+        }
+        ancestor = current.parent();
+    }
+    let Some(class_node) = class_node else {
+        return Ok(None);
+    };
+
+    // Collect enclosing namespace names inner->outer, then reverse to outer->inner.
+    let mut namespaces: Vec<String> = Vec::new();
+    let mut up = class_node.parent();
+    while let Some(current) = up {
+        if current.kind() == "namespace_definition" {
+            if let Some(ns_node) = current.child_by_field_name("name") {
+                namespaces.push(cpp_scope_leaf_name(ns_node, source)?);
+            }
+            // Anonymous namespace contributes no segment but still scopes.
+        }
+        up = current.parent();
+    }
+    namespaces.reverse();
+
+    let Some(class_name_node) = class_node.child_by_field_name("name") else {
+        return Ok(None);
+    };
+    let class_name = cpp_scope_leaf_name(class_name_node, source)?;
+
+    let mut scope = namespaces.join("::");
+    if !scope.is_empty() {
+        scope.push_str("::");
+    }
+    scope.push_str(&class_name);
+    Ok(Some(scope))
+}
+
+/// Leaf text of a class/namespace/type `name` node, reducing a qualified
+/// (`ns::Foo`) or template (`Foo<T>`) name to its last segment.
+fn cpp_scope_leaf_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<String, Box<dyn std::error::Error>> {
+    match node.kind() {
+        "qualified_identifier" | "template_type" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                return cpp_scope_leaf_name(name_node, source);
+            }
+            // Fallback: last type identifier in the subtree.
+            let mut last: Option<SyntaxNode> = None;
+            let mut cursor = node.walk();
+            for child in node.named_children(&mut cursor) {
+                if child.kind() == "type_identifier" {
+                    last = Some(child);
+                }
+            }
+            if let Some(n) = last {
+                return Ok(n.utf8_text(source)?.to_string());
+            }
+            Ok(node.utf8_text(source)?.to_string())
+        }
+        _ => Ok(node.utf8_text(source)?.to_string()),
+    }
 }
 
 /// Leaf base-type identifier for a qualified or templated C++ base class.
@@ -14942,6 +15036,109 @@ mod tests {
             "SELECT count(*) FROM unresolved_refs WHERE reference_name IN ('public','private','protected','int')",
         );
         assert_eq!(leaked, 0, "access specifiers / template args must not be refs");
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_core_classifies_inline_cpp_class_methods_g3() {
+        // G3: a function_definition lexically inside a class/struct body is a
+        // METHOD (kind `method`) whose qualified name carries the enclosing
+        // scope (`file::[ns::]Class::name`), matching the legacy TS extractor.
+        // Out-of-class definitions (`void Widget::draw() {}`) have no class
+        // ancestor and stay kind `function` (their explicit qualified_identifier
+        // already carries the class). Inline constructors are methods too.
+        let dir = temp_dir("rust-cpp-methods-g3");
+        fs::write(
+            dir.join("widget.hpp"),
+            [
+                "namespace gfx {",
+                "class Canvas {",
+                "public:",
+                "  void render() { return; }",
+                "  virtual int area() const { return 0; }",
+                "};",
+                "}",
+                "struct Point {",
+                "  int x() { return 0; }",
+                "};",
+                "void gfx::Canvas::render_extra() { }",
+                "void freeFn() { }",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let index_path = dir.join(".zcodegraph").join("index.db");
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: index_path.to_string_lossy().to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(&index_path).unwrap();
+        // Inline class method -> method with class-scoped qualified name.
+        let render_qn: String = conn
+            .query_row(
+                "SELECT qualified_name FROM nodes WHERE kind='method' AND name='render'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| String::new());
+        assert_eq!(
+            render_qn, "widget.hpp::gfx::Canvas::render",
+            "inline namespaced class method must carry class + namespace scope"
+        );
+        // virtual inline method is also a method.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT count(*) FROM nodes WHERE kind='method' AND name='area'"
+            ),
+            1,
+            "virtual inline method is kind method"
+        );
+        // struct inline method is a method.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT count(*) FROM nodes WHERE kind='method' AND name='x'"
+            ),
+            1,
+            "inline struct method is kind method"
+        );
+        // Out-of-class qualified definition stays a function (locked by
+        // rust_cpp_out_of_class_method_uses_qualified_name), and free fns too.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT count(*) FROM nodes WHERE kind='function' AND name='render_extra'"
+            ),
+            1,
+            "out-of-class definition stays function"
+        );
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT count(*) FROM nodes WHERE kind='function' AND name='freeFn'"
+            ),
+            1,
+            "free function stays function"
+        );
+        // The class contains the method nodes.
+        let contained = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM edges e JOIN nodes s ON s.id=e.source JOIN nodes t ON t.id=e.target \
+             WHERE e.kind='contains' AND s.name='Canvas' AND t.kind='method'",
+        );
+        assert_eq!(contained, 2, "Canvas contains its two inline methods");
         cleanup_temp_dir(dir);
     }
 

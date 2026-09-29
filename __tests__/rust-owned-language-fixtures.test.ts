@@ -328,6 +328,53 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
         cg.close();
       }
     });
+
+    it('classifies an inline C++ class method as method with class-scoped qualifiedName (G3)', () => {
+      // G3 regression guard: an inline function_definition inside a class body
+      // used to be kind `function` with a qualified name lacking the class. It
+      // is now `method`, scoped `file::[ns::]Class::name`. Out-of-class
+      // definitions (`void Canvas::draw() {}`) stay `function` (they already
+      // carry the class in their explicit qualified_identifier).
+      writeFile(
+        'widget.hpp',
+        [
+          'namespace gfx {',
+          'class Canvas {',
+          'public:',
+          '  void render() { return; }',
+          '  virtual int area() const { return 0; }',
+          '};',
+          '}',
+          'struct Point { int x() { return 0; } };',
+          'void gfx::Canvas::draw() { }',
+          'void freeFn() { }',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        const methods = cg.getNodesByKind('method');
+        const render = methods.find((n) => n.name === 'render');
+        expect(render, 'inline class method is kind method').toBeDefined();
+        expect(
+          render!.qualifiedName,
+          'method qualifiedName carries namespace + class',
+        ).toBe('widget.hpp::gfx::Canvas::render');
+        expect(methods.some((n) => n.name === 'area'), 'virtual inline method is a method').toBe(true);
+        expect(methods.some((n) => n.name === 'x'), 'inline struct method is a method').toBe(true);
+
+        const functions = cg.getNodesByKind('function');
+        expect(
+          functions.some((n) => n.name === 'draw'),
+          'out-of-class qualified definition stays a function',
+        ).toBe(true);
+        expect(functions.some((n) => n.name === 'freeFn'), 'free function stays a function').toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
   });
 
   describe('Java imports baseline', () => {

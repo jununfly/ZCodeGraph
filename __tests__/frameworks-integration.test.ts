@@ -227,19 +227,20 @@ describe('Flutter end-to-end — setState→build synthesis', () => {
 });
 
 // The old TypeScript C++ extractor was removed in favor of Rust ownership.
-// #692 wave-0 probe (2026-09-28, rust-bin sqlite probes) showed these CANNOT
-// be cheaply re-activated on the Rust graph: Rust emits (G3) in-class methods
-// as kind `function` (not `method`) without the class in qualifiedName, so the
-// queries-only cppOverrideEdges synthesizer (method + extends gated) never
-// fires; (G4) `m_cpAlg->Processing()` yields only a bare-name call ref with
-// the receiver lost, and RunAssign even spawns a spurious `Processing`
-// variable node. G2 (no `extends` edge for `class D : public B`) is now FIXED
-// in the Rust core and covered by the focused hybrid e2e
-// "C++ class inheritance extraction (rust-hybrid) (G2)"; but override
-// synthesis still needs G3+G4.
-// Tracked as extraction gaps G3/G4 under roadmap 1-2-3-1 — keep skipped until
-// the remaining Rust C++ semantics land there (do NOT port to a red test).
-describe.skip('C++ end-to-end — virtual override synthesis (Rust-owned migration)', () => {
+// #692 wave-0 probe (2026-09-28, rust-bin sqlite probes) showed these receiver
+// cases CANNOT be cheaply re-activated on the Rust graph: (G4)
+// `m_cpAlg->Processing()` yields only a bare-name call ref with the receiver
+// lost, so typed-pointer callers never resolve, and RunAssign even spawns a
+// spurious `Processing` variable node. They also rely on out-of-class
+// definitions being `method` nodes, which are still extracted as functions.
+// G2 (no `extends` edge for `class D : public B`) is FIXED and covered by
+// "C++ class inheritance extraction (rust-hybrid) (G2)"; G3 (inline class
+// methods are now kind `method` with class-scoped qualifiedName) is FIXED and
+// unlocked the non-receiver virtual-override bridge, now an ACTIVE describe
+// below ("C++ virtual override synthesis (rust-hybrid) (G2+G3)").
+// Tracked as extraction gap G4 under roadmap 1-2-3-1 — keep these two receiver
+// tests skipped until the Rust receiver semantics land (no red test in wave 0).
+describe.skip('C++ end-to-end — typed-pointer receiver callers, pending G4 (Rust-owned migration)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
     if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -349,6 +350,19 @@ describe.skip('C++ end-to-end — virtual override synthesis (Rust-owned migrati
     } finally {
       cg?.close();
     }
+  });
+});
+
+// G2 (extends edge) + G3 (inline class methods are kind `method`) together
+// unlock the queries-only cppOverrideEdges synthesizer: both the base virtual
+// and the subclass override are now `method` nodes contained by classes linked
+// by an `extends` edge, so the base method bridges to the override. This case
+// has no `obj->method()` receiver call, so it does not need G4.
+describe('C++ virtual override synthesis (rust-hybrid) (G2+G3)', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
   });
 
   it('bridges a base virtual method to the subclass override', async () => {
