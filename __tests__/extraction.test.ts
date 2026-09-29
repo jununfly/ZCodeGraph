@@ -3535,7 +3535,7 @@ struct SDerived : SBase { int y; };
       .getOutgoingEdges(derived!.id)
       .filter((e) => e.kind === 'extends')
       .map((e) => {
-        const target = cg.getNodeById(e.target);
+        const target = cg.getNode(e.target);
         return target ? { name: target.name, filePath: target.filePath ?? '' } : undefined;
       });
 
@@ -3553,7 +3553,7 @@ struct SDerived : SBase { int y; };
     expect(qual, 'Qual class extracted').toBeDefined();
     const qualExt = cg
       .getOutgoingEdges(qual!.id)
-      .some((e) => e.kind === 'extends' && cg.getNodeById(e.target)?.name === 'Qux');
+      .some((e) => e.kind === 'extends' && cg.getNode(e.target)?.name === 'Qux');
     expect(qualExt, 'Qual --extends--> ns::Qux (leaf name)').toBe(true);
 
     // Struct inheritance works too.
@@ -3561,7 +3561,7 @@ struct SDerived : SBase { int y; };
     expect(sDerived, 'SDerived struct extracted').toBeDefined();
     const structExt = cg
       .getOutgoingEdges(sDerived!.id)
-      .some((e) => e.kind === 'extends' && cg.getNodeById(e.target)?.name === 'SBase');
+      .some((e) => e.kind === 'extends' && cg.getNode(e.target)?.name === 'SBase');
     expect(structExt, 'SDerived --extends--> SBase').toBe(true);
   });
 });
