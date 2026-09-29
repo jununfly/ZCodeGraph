@@ -20162,7 +20162,9 @@ mod tests {
             target,
             (
                 "file".to_string(),
-                "src/config.json".to_string(),
+                // G10: file nodes are named by basename; file_path keeps the
+                // full relative path and is what the json edge targets.
+                "config.json".to_string(),
                 "src/config.json".to_string(),
                 "rust-finalization".to_string(),
             )
