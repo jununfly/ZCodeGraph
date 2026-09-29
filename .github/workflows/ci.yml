@@ -42,11 +42,12 @@ jobs:
           npx vitest run
           __tests__/rust-owned-language-fixtures.test.ts
           __tests__/skip-debt-guardrail.test.ts
-      - name: Verify wave-0 activated cross-language e2e guard (#692)
+      - name: Verify wave-0 activated include and cross-language e2e cases (#692)
         run: >
           npx vitest run
           __tests__/extraction.test.ts
-          -t "does not link a static-member read across language families"
+          __tests__/resolution.test.ts
+          -t "resolves to the same-directory header, not a same-named one elsewhere|connects #include to the real header file via include-dir scan|does not link a static-member read across language families"
       - name: Verify rust-hybrid CI smoke
         run: node scripts/rust-hybrid-ci-smoke.mjs
       - name: Verify Rust CLI engine paths

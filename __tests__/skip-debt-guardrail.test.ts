@@ -33,9 +33,10 @@ const TRACKER_RE = /(?:#\d{2,})|(?:\bG\d+\b)|(?:\broadmap\s+1-\d+(?:-\d+)*)|(?:\
 const TITLE_RE = /\b(?:it|test)\(\s*(['"`])([\s\S]*?)\1/g;
 
 // The exact, frozen set of skips wave 0 left behind — all are real Rust
-// extraction / hybrid-seam gaps, each mapped to a gap id + roadmap node in
-// its comment. Any change here must be a deliberate wave-N decision, not a
-// drive-by skip.
+// extraction gaps, each mapped to a gap id + roadmap node in its comment.
+// Any change here must be a deliberate wave-N decision, not a drive-by skip.
+// (B/C c/cpp include e2e were on this list as G10 but were removed once the
+// G10 file-node basename normalization shipped and the tests were re-activated.)
 const ALLOWED_SKIPS: ReadonlyArray<{ file: string; kind: string; title: string }> = [
   {
     file: 'extraction.test.ts',
@@ -61,19 +62,6 @@ const ALLOWED_SKIPS: ReadonlyArray<{ file: string; kind: string; title: string }
     file: 'frameworks-integration.test.ts',
     kind: 'describe',
     title: 'C++ end-to-end — virtual override synthesis (Rust-owned migration)',
-  },
-  // B/C were activated in wave 0 then re-skipped after three-OS CI run
-  // 36531923912 proved the G10 c/cpp include hybrid seam (Rust names file
-  // nodes by full file_path while include resolution looks up basename).
-  {
-    file: 'extraction.test.ts',
-    kind: 'it',
-    title: 'a C/C++ #include resolves to the same-directory header, not a same-named one elsewhere',
-  },
-  {
-    file: 'resolution.test.ts',
-    kind: 'it',
-    title: 'connects #include to the real header file via include-dir scan (end-to-end)',
   },
 ];
 

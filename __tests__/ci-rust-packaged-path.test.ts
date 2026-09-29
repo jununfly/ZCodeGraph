@@ -74,13 +74,16 @@ describe('CI Rust packaged path coverage', () => {
     expect(workflow).toContain('__tests__/rust-owned-language-fixtures.test.ts');
     expect(workflow).toContain('__tests__/skip-debt-guardrail.test.ts');
 
-    // The cross-family negative guard (E case 2, engine:'typescript') runs via
-    // -t against the large legacy extraction suite. B/C include e2e cases were
-    // re-skipped after three-OS CI proved the G10 hybrid seam (see skip-debt
-    // guardrail); re-add them here when G10 lands. The branch uses a unique
-    // metacharacter-free substring (vitest parses -t as a raw regexp), and the
-    // skip-debt guardrail keeps it in sync with the real test title.
-    expect(workflow).toContain('Verify wave-0 activated cross-language e2e guard (#692)');
+    // The activated same-dir include (B), -I include-dir (C), and
+    // cross-family negative guard (E case 2) run via -t against the larger
+    // legacy suites. B/C were re-activated after the G10 file-node basename
+    // normalization shipped (they had been re-skipped once CI proved the seam).
+    // The branches use metacharacter-free unique substrings (vitest parses -t
+    // as a raw regexp; `C++`/`(...)` would miscompile), and the skip-debt
+    // guardrail keeps them in sync with the real test titles.
+    expect(workflow).toContain('Verify wave-0 activated include and cross-language e2e cases (#692)');
+    expect(workflow).toContain('resolves to the same-directory header, not a same-named one elsewhere');
+    expect(workflow).toContain('connects #include to the real header file via include-dir scan');
     expect(workflow).toContain('does not link a static-member read across language families');
   });
 

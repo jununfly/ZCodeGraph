@@ -4073,15 +4073,16 @@ describe('Same-directory include + KMP import resolution', () => {
     if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  // #692 wave-0 probe B (2026-09-28/29): was activated, then RE-SKIPPED after
-  // the three-OS CI run (36531923912) showed no file->file imports edge is
-  // built on a rust-hybrid graph. Root cause = hybrid seam G10 (roadmap
-  // 1-2-3-1): Rust names file nodes by FULL file_path (windows/Storage.h)
-  // while the c/cpp include resolver looks headers up via
-  // getNodesByName(basename) (Storage.h), so sibling-first misses. Re-activate
-  // once G10 lands (basename-normalize Rust file nodes or make include
-  // resolution filePath-aware).
-  it.skip('a C/C++ #include resolves to the same-directory header, not a same-named one elsewhere', async () => {
+  // #692 wave-0 probe B (2026-09-28/29): re-skipped once after three-OS CI run
+  // 36531923912 proved the G10 hybrid seam, then RE-ACTIVATED once G10 was
+  // fixed. G10 root cause: Rust named file nodes by full file_path while the
+  // c/cpp include resolver looks headers up by basename. Fix (roadmap
+  // 1-2-3-1): ExtractedNode::file now names file nodes by basename
+  // (qualified_name/file_path keep the full path), so the TS shell's quoted-
+  // include sibling-first rule (import-resolver.ts c/cpp branch, exact filePath
+  // match, confidence 0.92) picks the includer's OWN header over an arbitrary
+  // same-basename header. End-to-end rust-hybrid contract on CI three-OS.
+  it('a C/C++ #include resolves to the same-directory header, not a same-named one elsewhere', async () => {
     // A multi-platform native module has a header of the same basename per
     // platform. `windows/Provider.cpp`'s `#include "Storage.h"` means its OWN
     // sibling header — not `apple/Storage.h` (which sorts first and so was
