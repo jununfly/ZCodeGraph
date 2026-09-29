@@ -2205,6 +2205,7 @@ func main() {
     // explicit resolveReferences(). Verified on CI three-OS.
     it('connects #include to the real header file via include-dir scan (end-to-end)', async () => {
       const tempProject = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-cpp-e2e-'));
+      let db: ReturnType<typeof DatabaseConnection.open> | undefined;
       try {
         fs.mkdirSync(path.join(tempProject, 'include'), { recursive: true });
         fs.mkdirSync(path.join(tempProject, 'src'), { recursive: true });
@@ -2227,8 +2228,9 @@ func main() {
         // The `#include "utils.h"` edge should target the real
         // `include/utils.h` file node — not a floating `import` node
         // living inside main.cpp.
-        const db = DatabaseConnection.open(path.join(tempProject, '.zcodegraph', 'zcodegraph.db'));
-        const rows = db.getDb().prepare(`
+        const dbConn = DatabaseConnection.open(path.join(tempProject, '.zcodegraph', 'zcodegraph.db'));
+        db = dbConn;
+        const rows = dbConn.getDb().prepare(`
           select dst.kind as dstKind, dst.file_path as dstPath
           from edges e
           join nodes src on e.source = src.id
@@ -2247,6 +2249,11 @@ func main() {
         );
         expect(stdlibFile).toBeUndefined();
       } finally {
+        // Close every DB handle before removing the temp project: on Windows
+        // an open better-sqlite3 connection locks zcodegraph.db and rmSync
+        // throws EBUSY (this e2e opens both `cg` and a manual `db`).
+        db?.close();
+        await cg?.close();
         fs.rmSync(tempProject, { recursive: true, force: true });
       }
     });
