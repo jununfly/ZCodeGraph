@@ -8888,7 +8888,16 @@ fn c_declarator_name_node(node: SyntaxNode) -> Option<SyntaxNode> {
     ) {
         return Some(node);
     }
-    if matches!(node.kind(), "parameter_list" | "argument_list") {
+    // Prune the declarator's type-bearing children so the declared NAME wins:
+    // parameter_list/argument_list hold argument types, and trailing_return_type
+    // is the `-> std::string` suffix of `auto f(...) -> std::string`. Without
+    // pruning the trailing type its inner type_identifier (`string`) is the last
+    // identifier in the subtree and gets mistaken for the function name (G1).
+    // Mirrors the trailing_return_type prune in cpp_find_qualified_identifier.
+    if matches!(
+        node.kind(),
+        "parameter_list" | "argument_list" | "trailing_return_type"
+    ) {
         return None;
     }
     let mut last = None;
@@ -14713,6 +14722,63 @@ mod tests {
         assert_eq!(
             qualified, "windows/Storage.h",
             "qualified_name must keep the full relative path (G10)"
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_core_names_trailing_return_free_function_g1() {
+        // G1: `auto BuildName(...) -> std::string` must be named BuildName, not
+        // `string` (the trailing return type's last type identifier). The
+        // declarator-name walk must prune trailing_return_type just like it
+        // prunes parameter_list/argument_list. A qualified-type parameter
+        // (`const std::string&`) must likewise keep the real name (TableFileName).
+        let dir = temp_dir("rust-cpp-trailing-return-g1");
+        let src = dir.join("src");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(
+            src.join("names.cc"),
+            [
+                "#include <string>",
+                "",
+                "std::string TableFileName(const std::string& dbname, int number) {",
+                "  return dbname;",
+                "}",
+                "",
+                "auto BuildName(const std::string& a) -> std::string {",
+                "  return a;",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let index_path = dir.join(".zcodegraph").join("index.db");
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: index_path.to_string_lossy().to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(&index_path).unwrap();
+        let names: Vec<String> = conn
+            .prepare("SELECT name FROM nodes WHERE kind='function' ORDER BY start_line")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        assert_eq!(
+            names,
+            vec!["TableFileName".to_string(), "BuildName".to_string()],
+            "trailing-return free function must keep its real name (G1)"
         );
         cleanup_temp_dir(dir);
     }

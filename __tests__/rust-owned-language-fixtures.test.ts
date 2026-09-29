@@ -25,12 +25,12 @@ import {
  * `signature` (the legacy raw `#include <x>` / `import x;` text is not stored),
  * so only the import NAME and the unresolved ref are asserted.
  *
- * The C++ free-function block is only partially portable: the
- * qualified-type-param function (`TableFileName`) is named correctly, but a
- * trailing-return-type function (`auto BuildName(...) -> std::string`) is
- * still misnamed `string`. That is a tracked Rust extraction gap
- * (roadmap 1-2-3-1 / G1), so the legacy skip block for it stays until the
- * gap is fixed — no red or fake-green test is written here.
+ * C++ free-function naming is fully covered: the qualified-type-param
+ * function (`TableFileName`) and the trailing-return-type function
+ * (`auto BuildName(...) -> std::string`) are both named correctly. The latter
+ * was Rust extraction gap G1 (roadmap 1-2-3-1) — the declarator-name walk used
+ * to take the trailing return type's last identifier (`string`); it now prunes
+ * `trailing_return_type` and keeps the real name.
  */
 describe('Rust-owned language fixtures (#692 wave 0)', () => {
   let tempDir: string;
@@ -225,9 +225,8 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
     it('names a C++ free function with qualified-type params correctly (not after its return type)', () => {
       // Regression guard for the legacy bug where a `const std::string&` parameter
       // made the extractor name the function `string`. `TableFileName` must keep
-      // its real name. (The trailing-return-type twin of this bug, `BuildName`,
-      // is still open — roadmap 1-2-3-1 / G1 — so it is intentionally NOT
-      // asserted here.)
+      // its real name. (The trailing-return-type twin, `BuildName`, was gap G1
+      // and now has its own case below.)
       writeFile(
         'src/names.cc',
         [
@@ -247,6 +246,36 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
           .getNodesByKind('function')
           .find((n) => n.name === 'TableFileName' && n.filePath === 'src/names.cc');
         expect(tableFn, 'TableFileName extracted under its real name').toBeDefined();
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('names a C++ free function with a trailing return type correctly (G1)', () => {
+      // G1 regression guard: `auto BuildName(...) -> std::string` used to be
+      // named `string` because the declarator-name walk took the trailing
+      // return type's last type identifier. It must keep the real name.
+      writeFile(
+        'src/names.cc',
+        [
+          '#include <string>',
+          '',
+          'auto BuildName(const std::string& a) -> std::string {',
+          '  return a;',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        const fns = cg
+          .getNodesByKind('function')
+          .filter((n) => n.filePath === 'src/names.cc')
+          .map((n) => n.name);
+        expect(fns, 'BuildName extracted, not its trailing return type `string`').toContain('BuildName');
+        expect(fns, 'no node misnamed after the trailing return type').not.toContain('string');
       } finally {
         cg.close();
       }

@@ -36,17 +36,15 @@ const TITLE_RE = /\b(?:it|test)\(\s*(['"`])([\s\S]*?)\1/g;
 // extraction gaps, each mapped to a gap id + roadmap node in its comment.
 // Any change here must be a deliberate wave-N decision, not a drive-by skip.
 // (B/C c/cpp include e2e were on this list as G10 but were removed once the
-// G10 file-node basename normalization shipped and the tests were re-activated.)
+// G10 file-node basename normalization shipped and the tests were re-activated.
+// The C++ free-function describe was on this list as G1 and was removed once
+// trailing-return-type naming was fixed in the Rust core and it was
+// re-activated on rust-hybrid.)
 const ALLOWED_SKIPS: ReadonlyArray<{ file: string; kind: string; title: string }> = [
   {
     file: 'extraction.test.ts',
     kind: 'describe',
     title: 'Java Extraction (legacy TypeScript extractor)',
-  },
-  {
-    file: 'extraction.test.ts',
-    kind: 'describe',
-    title: 'C++ free-function name extraction (legacy TypeScript extractor)',
   },
   {
     file: 'extraction.test.ts',

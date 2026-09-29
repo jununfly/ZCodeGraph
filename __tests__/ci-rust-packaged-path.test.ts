@@ -68,23 +68,26 @@ describe('CI Rust packaged path coverage', () => {
   it('runs the #692 wave-0 rust-owned fixtures, skip-debt guardrail, and activated e2e cases', () => {
     const workflow = readWorkflow();
 
-    // The pure-Rust fixtures (17 cases) + the skip-inventory/-t-sync audit
+    // The pure-Rust fixtures (18 cases) + the skip-inventory/-t-sync audit
     // must run as a full-file step (no -t, so none are silently filtered out).
     expect(workflow).toContain('Verify wave-0 rust-owned fixtures and skip-debt guardrails (#692)');
     expect(workflow).toContain('__tests__/rust-owned-language-fixtures.test.ts');
     expect(workflow).toContain('__tests__/skip-debt-guardrail.test.ts');
 
-    // The activated same-dir include (B), -I include-dir (C), and
-    // cross-family negative guard (E case 2) run via -t against the larger
-    // legacy suites. B/C were re-activated after the G10 file-node basename
-    // normalization shipped (they had been re-skipped once CI proved the seam).
-    // The branches use metacharacter-free unique substrings (vitest parses -t
-    // as a raw regexp; `C++`/`(...)` would miscompile), and the skip-debt
-    // guardrail keeps them in sync with the real test titles.
-    expect(workflow).toContain('Verify wave-0 activated include and cross-language e2e cases (#692)');
+    // The activated same-dir include (B), -I include-dir (C),
+    // cross-family negative guard (E case 2), and C++ free-function naming
+    // (G1) run via -t against the larger legacy suites. B/C were re-activated
+    // after the G10 file-node basename normalization shipped (they had been
+    // re-skipped once CI proved the seam); G1 was re-activated after the
+    // trailing-return-type naming fix. The branches use metacharacter-free
+    // unique substrings (vitest parses -t as a raw regexp; `C++`/`(...)` would
+    // miscompile), and the skip-debt guardrail keeps them in sync with the real
+    // test titles.
+    expect(workflow).toContain('Verify wave-0 activated include, C++ free-function, and cross-language e2e cases (#692)');
     expect(workflow).toContain('resolves to the same-directory header, not a same-named one elsewhere');
     expect(workflow).toContain('connects #include to the real header file via include-dir scan');
     expect(workflow).toContain('does not link a static-member read across language families');
+    expect(workflow).toContain('names a free function correctly when it has qualified-type params or a trailing return type');
   });
 
   it('runs a rust-hybrid init/index/status/doctor smoke on the cross-platform CI path', () => {

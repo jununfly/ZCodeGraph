@@ -3397,12 +3397,12 @@ end
   });
 });
 
-// Partially ported to rust-owned-language-fixtures.test.ts (#692 wave 0):
-// `TableFileName` (qualified-type params) is named correctly by Rust and is
-// asserted there. The trailing-return-type half still fails — Rust misnames
-// `auto BuildName(...) -> std::string` as `string` (gap G1, roadmap 1-2-3-1) —
-// so this end-to-end block stays skipped until that extraction gap is fixed.
-describe.skip('C++ free-function name extraction (legacy TypeScript extractor)', () => {
+// End-to-end rust-hybrid contract for #692 wave 0 / roadmap 1-2-3-1. The
+// legacy TS c/cpp extractor was removed (#678); this now runs on rust-hybrid.
+// G1 (trailing return type) is fixed in the Rust core: the declarator-name
+// walk prunes `trailing_return_type`, so `auto BuildName(...) -> std::string`
+// keeps its real name and cross-file callers resolve.
+describe('C++ free-function name extraction (rust-hybrid)', () => {
   let tempDir: string;
   let cg: CodeGraph;
 
@@ -3447,7 +3447,7 @@ std::string use() {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
     cg.resolveReferences();
 
     // The functions are extracted under their real names, not `string`.
