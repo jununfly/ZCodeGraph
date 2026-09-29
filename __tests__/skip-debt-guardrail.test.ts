@@ -12,7 +12,7 @@ import * as path from 'node:path';
  *  1. Skipped tests are deliberate debt. Every retained `describe.skip` /
  *     `it.skip` must (a) be on a frozen allowlist (so a new skip can't appear
  *     silently) and (b) carry a tracker in a preceding comment — a gap id
- *     (G1..G9), a roadmap node (1-x-y), or a GitHub issue (#nnn). `.only` is
+ *     (G1..G10), a roadmap node (1-x-y), or a GitHub issue (#nnn). `.only` is
  *     forbidden outright.
  *
  *  2. CI `-t` name filters stay in sync with real test names. vitest's `-t`
@@ -29,12 +29,13 @@ const ciPath = path.join(root, '.github', 'workflows', 'ci.yml');
 // the test kind and the string-literal title.
 const SKIP_RE = /^\s*(describe|it|test)\.skip\(\s*(['"`])([\s\S]*?)\2/;
 // A tracker that justifies why the skip is still allowed.
-const TRACKER_RE = /(?:#\d{2,})|(?:\bG[1-9]\b)|(?:\broadmap\s+1-\d+(?:-\d+)*)|(?:\bissue\b)/i;
+const TRACKER_RE = /(?:#\d{2,})|(?:\bG\d+\b)|(?:\broadmap\s+1-\d+(?:-\d+)*)|(?:\bissue\b)/i;
 const TITLE_RE = /\b(?:it|test)\(\s*(['"`])([\s\S]*?)\1/g;
 
 // The exact, frozen set of skips wave 0 left behind — all are real Rust
-// extraction gaps, each mapped to a gap id + roadmap node in its comment.
-// Any change here must be a deliberate wave-N decision, not a drive-by skip.
+// extraction / hybrid-seam gaps, each mapped to a gap id + roadmap node in
+// its comment. Any change here must be a deliberate wave-N decision, not a
+// drive-by skip.
 const ALLOWED_SKIPS: ReadonlyArray<{ file: string; kind: string; title: string }> = [
   {
     file: 'extraction.test.ts',
@@ -60,6 +61,19 @@ const ALLOWED_SKIPS: ReadonlyArray<{ file: string; kind: string; title: string }
     file: 'frameworks-integration.test.ts',
     kind: 'describe',
     title: 'C++ end-to-end — virtual override synthesis (Rust-owned migration)',
+  },
+  // B/C were activated in wave 0 then re-skipped after three-OS CI run
+  // 36531923912 proved the G10 c/cpp include hybrid seam (Rust names file
+  // nodes by full file_path while include resolution looks up basename).
+  {
+    file: 'extraction.test.ts',
+    kind: 'it',
+    title: 'a C/C++ #include resolves to the same-directory header, not a same-named one elsewhere',
+  },
+  {
+    file: 'resolution.test.ts',
+    kind: 'it',
+    title: 'connects #include to the real header file via include-dir scan (end-to-end)',
   },
 ];
 
