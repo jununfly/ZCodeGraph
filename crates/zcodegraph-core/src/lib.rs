@@ -12564,10 +12564,24 @@ struct ExtractedNode {
 impl ExtractedNode {
     fn file(relative_path: &str, content: &str, language: &str) -> Self {
         let end_line = content.lines().count().max(1) as i64;
+        // File nodes are named by BASENAME (Storage.h), matching the TS
+        // extractor (path.basename). Every name-based file resolver — both the
+        // Rust core's own match_by_file_path (`node.name == file_name`) and the
+        // TS shell's getNodesByName(basename) paths for c/cpp includes, Python
+        // modules and generic file imports — looks up the basename, so a full
+        // relative path here silently produced no file->file edges on a
+        // rust-hybrid graph (G10). qualified_name/file_path keep the full path
+        // for exact/suffix disambiguation; the node id is derived from the full
+        // path, so this normalization does not change ids or existing edges.
+        let base_name = std::path::Path::new(relative_path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(relative_path)
+            .to_string();
         Self {
             id: generate_node_id(relative_path, "file", relative_path, 1),
             kind: "file".to_string(),
-            name: relative_path.to_string(),
+            name: base_name,
             qualified_name: relative_path.to_string(),
             file_path: relative_path.to_string(),
             language: language.to_string(),
@@ -14652,6 +14666,50 @@ mod tests {
                         && target_kind == "struct"
                 }),
             "{edges:?}"
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_core_names_file_nodes_by_basename_g10() {
+        // G10: file nodes must be named by BASENAME (Storage.h) while
+        // qualified_name/file_path keep the full relative path. Both the Rust
+        // name matcher (`node.name == file_name`) and the TS shell resolvers
+        // (getNodesByName(basename) for c/cpp includes, Python modules, generic
+        // file imports) look up the basename; a full-path name produced no
+        // file->file edges on rust-hybrid.
+        let dir = temp_dir("rust-file-node-basename");
+        let win = dir.join("windows");
+        fs::create_dir_all(&win).unwrap();
+        fs::write(win.join("Provider.cpp"), "#include \"Storage.h\"\n").unwrap();
+        fs::write(win.join("Storage.h"), "#pragma once\n").unwrap();
+
+        let index_path = dir.join(".zcodegraph").join("index.db");
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: index_path.to_string_lossy().to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(&index_path).unwrap();
+        let (name, qualified): (String, String) = conn
+            .prepare(
+                "SELECT name, qualified_name FROM nodes \
+                 WHERE kind='file' AND file_path='windows/Storage.h'",
+            )
+            .unwrap()
+            .query_row([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap();
+        assert_eq!(name, "Storage.h", "file node name must be basename (G10)");
+        assert_eq!(
+            qualified, "windows/Storage.h",
+            "qualified_name must keep the full relative path (G10)"
         );
         cleanup_temp_dir(dir);
     }
