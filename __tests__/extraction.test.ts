@@ -825,58 +825,16 @@ impl Counter {
   });
 });
 
-// Java is Rust-owned on the supported rust-hybrid path; the legacy TS
-// extractor is gone. Of the six original cases here, four are ported to
-// rust-owned-language-fixtures.test.ts (see #692, roadmap 1-6-5):
+// Java is fully Rust-owned on the supported rust-hybrid path; the legacy TS
+// extractor is gone (no per-language TS Java extractor exists), so the old
+// `describe.skip('Java Extraction (legacy TypeScript extractor)')` block was
+// deleted rather than re-activated. All six original cases are now covered
+// against the pure-Rust engine / rust-hybrid in rust-owned-language-fixtures
+// (#692, roadmap 1-6-5 and 1-2-1-1):
 //   - package-wrapper + no-package -> "Java package declaration baseline"
-//     (package is kind `module` in Rust, not `namespace`; no-package symbols
-//     are file-prefixed)
-//   - anonymous-class D1 + lambda-body D2 -> "Java anonymous-class overrides
-//     baseline" (Rust extracts `<T$anon@line>` classes, override methods and
-//     extends/implements refs; the legacy D1 `instantiates Base` half is the
-//     general object-creation gap G8, tracked under 1-2-1-1)
-// Only the two cases below remain, both blocked by real Rust extraction gaps:
-// class visibility always null (G5) and method is_static always 0 (G6).
-// Keep this describe skipped until the modifier gaps land (no red test).
-describe.skip('Java Extraction (legacy TypeScript extractor)', () => {
-  it('should extract class declarations', () => {
-    const code = `
-public class UserService {
-    private final UserRepository repository;
-
-    public UserService(UserRepository repository) {
-        this.repository = repository;
-    }
-
-    public User getUser(String id) {
-        return repository.findById(id);
-    }
-}
-`;
-    const result = extractFromSource('UserService.java', code);
-
-    const classNode = result.nodes.find((n) => n.kind === 'class');
-    expect(classNode).toBeDefined();
-    expect(classNode?.name).toBe('UserService');
-    expect(classNode?.visibility).toBe('public');
-  });
-
-  it('should extract method declarations', () => {
-    const code = `
-public class Calculator {
-    public static int add(int a, int b) {
-        return a + b;
-    }
-}
-`;
-    const result = extractFromSource('Calculator.java', code);
-
-    const methodNode = result.nodes.find((n) => n.kind === 'method' && n.name === 'add');
-    expect(methodNode).toBeDefined();
-    expect(methodNode?.isStatic).toBe(true);
-  });
-
-});
+//   - anonymous-class D1/D2 -> "Java anonymous-class overrides baseline"
+//   - class visibility (G5) + method is_static (G6), annotation usages (G7),
+//     instantiates (G8), static value-read (G9) -> "Java semantic gaps G5-G9".
 
 describe('C# Extraction', () => {
   it('should extract class declarations', () => {
@@ -3688,14 +3646,13 @@ class UserService extends Repository with Loggable {
   });
 });
 
-// #692 wave-0 probe E (2026-09-28): the two cases here had different fates.
-// Case 1 (Java static-field/enum value-read) is a real Rust EXTRACTION gap G9
-// (tracked under roadmap 1-2-1-1, not the 1-4-2 terminal layer the pre-plan
-// guessed): pure-rust emits zero refs for `JsonScope.EMPTY_DOCUMENT`, and the
-// shell cannot reconstruct member-access AST the TS extractor handled in
-// extractStaticMemberRef. It stays it.skip until G9 ships. Case 2 is a
-// Rust-independent engine:'typescript' negative guard (a Kotlin Build.VERSION
-// read must not cross-link to a same-named TS class), so it is ACTIVE.
+// #692 wave-0 probe E: both cases are now ACTIVE. Case 1 (Java static-field /
+// enum value-read) was Rust extraction gap G9 (roadmap 1-2-1-1): pure-rust used
+// to emit zero refs for `JsonScope.EMPTY_DOCUMENT`; the Rust Java extractor now
+// emits a references ref to the Capitalized receiver (mirroring the TS
+// extractStaticMemberRef gate), resolved end-to-end on rust-hybrid below.
+// Case 2 is a Rust-independent engine:'typescript' negative guard (a Kotlin
+// Build.VERSION read must not cross-link to a same-named TS class).
 describe('Static-member / value-read references (Rust-owned migration)', () => {
   let tempDir: string;
   let cg: CodeGraph;
@@ -3709,14 +3666,13 @@ describe('Static-member / value-read references (Rust-owned migration)', () => {
     if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  // G9 (roadmap 1-2-1-1): the Rust Java extractor emits no references edge
-  // for a type read only via a static field / enum value
-  // (`JsonScope.EMPTY_DOCUMENT`). Pure-rust probe shows zero unresolved refs
-  // across Reader.java, so BOTH the JsonScope-positive half and the
-  // this/helper-negative half are unassertable. The TS extractor's
-  // extractStaticMemberRef pass has no Rust counterpart. Un-skip when G9
-  // lands; no red test in wave 0.
-  it.skip('links a type referenced only via a static field / enum value (and ignores lowercase receivers)', async () => {
+  // G9 (roadmap 1-2-1-1) SHIPPED: the Rust Java extractor emits a references
+  // ref for a type read only via a static field / enum value
+  // (`JsonScope.EMPTY_DOCUMENT`), mirroring the TS extractor's
+  // extractStaticMemberRef Capitalized-receiver gate; the rust-hybrid shell
+  // resolves it into a real references edge so Reader.java reaches JsonScope
+  // through impact analysis. The lowercase `this.helper` receiver is excluded.
+  it('links a type referenced only via a static field / enum value (and ignores lowercase receivers)', async () => {
     fs.writeFileSync(
       path.join(tempDir, 'JsonScope.java'),
       `class JsonScope {
@@ -6363,14 +6319,14 @@ describe('Rust cross-module recall', () => {
   });
 });
 
-// Rust-owned Java annotation dependency coverage is tracked in #692.
-// Wave-0 probe (2026-09-28): Rust indexes the @interface DEFINITION (interface
-// node + element method) — guarded in rust-owned-language-fixtures.test.ts ->
-// "Java annotation definition baseline". The @MyAnno USAGE half emits no node
-// and no unresolved ref (marker_annotation not visited), so the end-to-end
-// getFileDependents link cannot form. That is gap G7 (roadmap 1-2-1-1); keep
-// this end-to-end case skipped until Rust emits annotation-usage references.
-describe.skip('Java annotations (Rust-owned migration)', () => {
+// G7 (roadmap 1-2-1-1) SHIPPED: Rust indexes the @interface DEFINITION
+// (guarded in rust-owned-language-fixtures.test.ts -> "Java annotation
+// definition baseline") AND emits a `decorates` unresolved ref for every
+// @MyAnno USAGE nested in the declaration's `modifiers` node (marker,
+// arg-bearing and qualified forms). The rust-hybrid shell resolves them to the
+// annotation interface cross-file, so getFileDependents links User.java ->
+// MyAnno.java.
+describe('Java annotations (Rust-owned migration)', () => {
   it('indexes @interface definitions and links @Annotation usages to them', async () => {
     const dir = createTempDir();
     try {

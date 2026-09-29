@@ -40,23 +40,13 @@ const TITLE_RE = /\b(?:it|test)\(\s*(['"`])([\s\S]*?)\1/g;
 // The C++ free-function describe was on this list as G1 and was removed once
 // trailing-return-type naming was fixed in the Rust core and it was
 // re-activated on rust-hybrid.)
-const ALLOWED_SKIPS: ReadonlyArray<{ file: string; kind: string; title: string }> = [
-  {
-    file: 'extraction.test.ts',
-    kind: 'describe',
-    title: 'Java Extraction (legacy TypeScript extractor)',
-  },
-  {
-    file: 'extraction.test.ts',
-    kind: 'it',
-    title: 'links a type referenced only via a static field / enum value (and ignores lowercase receivers)',
-  },
-  {
-    file: 'extraction.test.ts',
-    kind: 'describe',
-    title: 'Java annotations (Rust-owned migration)',
-  },
-];
+// The wave-0 / roadmap 1-2-1-1 Java skip inventory is now EMPTY: G5/G6's dead
+// legacy-TS-engine describe was deleted (replaced by the pure-Rust
+// "Java semantic gaps G5-G9" fixtures), and the G7 end-to-end describe and G9
+// static-value-read `it` were re-activated on rust-hybrid once the Rust core
+// emitted decorates / references / instantiates refs. Keep this list empty so
+// any NEW skip fails loudly; add an entry here only with a tracker comment.
+const ALLOWED_SKIPS: ReadonlyArray<{ file: string; kind: string; title: string }> = [];
 
 function listTestFiles(): string[] {
   return fs

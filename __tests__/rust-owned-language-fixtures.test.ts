@@ -607,11 +607,11 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
     });
   });
 
-  // Legacy L6467. Only the @interface DEFINITION half is supported by Rust
-  // (annotation_type_declaration -> interface + element method). The USAGE
-  // half (@MyAnno on a class/field/method) emits nothing — gap G7 under
-  // roadmap 1-2-1-1 — so the end-to-end file-dependency assertion stays in the
-  // skipped block; here we guard the definition extraction Rust does own.
+  // Legacy L6467. The @interface DEFINITION half
+  // (annotation_type_declaration -> interface + element method) is guarded
+  // here; the USAGE half (@MyAnno on a class/field/method -> decorates ref) is
+  // gap G7 under roadmap 1-2-1-1 and now SHIPPED, covered in the
+  // "Java semantic gaps G5-G9" describe below.
   describe('Java annotation definition baseline', () => {
     it('indexes an @interface annotation type and its element method', () => {
       writeFile(
@@ -707,15 +707,18 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
         );
         expect(extendsBase, 'anon class carries an `extends Base` reference').toBe(true);
 
-        // G8 (roadmap 1-2-1-1): Rust emits no `instantiates` ref for object
-        // creation. Document the current behavior as a locked ABSENCE so a
-        // future fix is a deliberate, reviewed change rather than a silent
-        // assumption. Remove this assertion when G8 ships instantiates refs.
-        const instantiates = refs.filter((r) => r.reference_kind === 'instantiates');
+        // G8 (roadmap 1-2-1-1) SHIPPED: `new T(...)` now emits an
+        // `instantiates` unresolved ref. For the anonymous form the synthetic
+        // class keeps its own `extends Base` (asserted above) AND the enclosing
+        // factory method carries `instantiates Base`, exactly like the legacy
+        // TS D1 assertion expected (both edges, from different sources).
+        const instantiatesBase = refs.some(
+          (r) => r.reference_kind === 'instantiates' && r.reference_name === 'Base',
+        );
         expect(
-          instantiates,
-          'G8: object creation emits no instantiates ref yet (see roadmap 1-2-1-1)',
-        ).toHaveLength(0);
+          instantiatesBase,
+          'G8: `new Base(){}` emits an instantiates Base ref from the enclosing method',
+        ).toBe(true);
       } finally {
         cg.close();
       }
@@ -801,6 +804,135 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
           refs.some((r) => r.reference_kind === 'extends' && r.reference_name === 'BaseIter'),
           'anon class extends BaseIter',
         ).toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
+  });
+
+  // Roadmap 1-2-1-1 (#692) Java semantic gaps G5-G9, calibrated against the
+  // pure-Rust engine with sqlite probes. G5/G6 persist modifiers
+  // (visibility/is_static); G7 emits decorates refs for annotation usages; G8
+  // emits instantiates refs for `new T()`; G9 emits references refs for
+  // Capitalized-receiver static-field / enum value reads.
+  describe('Java semantic gaps G5-G9 (roadmap 1-2-1-1)', () => {
+    function nodeByName(
+      cg: CodeGraph,
+      filePath: string,
+      name: string,
+      kind?: string,
+    ) {
+      return cg
+        .getNodesByKind(kind ?? 'method')
+        .find((n) => n.filePath === filePath && n.name === name);
+    }
+
+    it('G5/G6 persists visibility and is_static (package-private stays null)', () => {
+      writeFile(
+        'com/example/Calculator.java',
+        [
+          'package com.example;',
+          '',
+          'public class Calculator {',
+          '    private int secret;',
+          '    String packageScoped;',
+          '',
+          '    public Calculator() {}',
+          '    public static int add(int a, int b) { return a + b; }',
+          '    protected int getSecret() { return secret; }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        const filePath = 'com/example/Calculator.java';
+        expect(nodeByName(cg, filePath, 'Calculator', 'class')?.visibility).toBe('public');
+        expect(nodeByName(cg, filePath, 'secret', 'field')?.visibility).toBe('private');
+        expect(nodeByName(cg, filePath, 'getSecret')?.visibility).toBe('protected');
+        // No access keyword -> package-private -> NULL (never forced to "private").
+        expect(nodeByName(cg, filePath, 'packageScoped', 'field')?.visibility ?? null).toBeNull();
+        expect(nodeByName(cg, filePath, 'add')?.isStatic).toBe(true);
+        expect(nodeByName(cg, filePath, 'getSecret')?.isStatic).toBe(false);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('G7 emits decorates refs for marker, arg-bearing and qualified annotation usages', () => {
+      writeFile(
+        'com/example/Service.java',
+        'package com.example;\npublic @interface Service { String value() default ""; }\n',
+      );
+      writeFile(
+        'com/example/Edge.java',
+        [
+          'package com.example;',
+          '@com.example.Service',
+          'public class Edge {',
+          '    @Named("primary")',
+          '    private String label;',
+          '    @Override public String toString() { return label; }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const refs = unresolvedRefs(db, 'com/example/Edge.java').filter(
+          (r) => r.reference_kind === 'decorates',
+        );
+        const names = refs.map((r) => r.reference_name).sort();
+        expect(names).toEqual(['Named', 'Override', 'Service']);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('G8/G9 emits instantiates for new T() and references for Capitalized static reads', () => {
+      writeFile(
+        'com/example/User.java',
+        'package com.example;\npublic class User {\n    public String getName() { return ""; }\n}\n',
+      );
+      writeFile(
+        'com/example/JsonScope.java',
+        'package com.example;\npublic class JsonScope {\n    public static final int EMPTY_DOCUMENT = 1;\n}\n',
+      );
+      writeFile(
+        'com/example/Client.java',
+        [
+          'package com.example;',
+          'public class Client {',
+          '    public int run() {',
+          '        int scope = JsonScope.EMPTY_DOCUMENT;',
+          '        User user = new User();',
+          '        return user.getName().length() + scope;',
+          '    }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const refs = unresolvedRefs(db, 'com/example/Client.java');
+        expect(
+          refs.some((r) => r.reference_kind === 'instantiates' && r.reference_name === 'User'),
+          'plain new User() emits instantiates User',
+        ).toBe(true);
+        expect(
+          refs.some((r) => r.reference_kind === 'references' && r.reference_name === 'JsonScope'),
+          'JsonScope.EMPTY_DOCUMENT value read emits references JsonScope',
+        ).toBe(true);
+        expect(
+          refs.some((r) => r.reference_kind === 'references' && r.reference_name === 'user'),
+          'lowercase instance read user.getName() must not emit a references ref',
+        ).toBe(false);
       } finally {
         cg.close();
       }

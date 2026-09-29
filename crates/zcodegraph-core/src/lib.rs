@@ -9640,6 +9640,8 @@ fn visit_java_node(
             qualified_name,
         );
         extracted.signature = symbol.signature;
+        extracted.visibility = symbol.visibility;
+        extracted.is_static = symbol.is_static;
         let extracted_id = extracted.id.clone();
         let contains_source = if current_from_node_id != file_node_id {
             current_from_node_id
@@ -9671,6 +9673,23 @@ fn visit_java_node(
                 &extracted_id,
                 &relation.name,
                 relation.kind,
+                node,
+                relative_path,
+                SourceLanguage::Java,
+            );
+        }
+        // G7: annotation USAGES on a declaration (`@Service class X`,
+        // `@Override method`, `@Autowired field`). Java nests them inside the
+        // `modifiers` container. Emit a `decorates` ref from the decorated
+        // symbol to the annotation's leaf name so an annotation type reached
+        // only by usage gets a file dependency (its @interface DEFINITION is
+        // extracted separately as an interface node).
+        for annotation_name in java_annotation_usage_refs(node, source)? {
+            push_ref(
+                unresolved_refs,
+                &extracted_id,
+                &annotation_name,
+                "decorates",
                 node,
                 relative_path,
                 SourceLanguage::Java,
@@ -9731,6 +9750,52 @@ struct JavaSymbolCandidate {
     name: String,
     extends_name: Option<String>,
     signature: Option<String>,
+    visibility: Option<String>,
+    is_static: bool,
+}
+
+/// Java modifiers live in an optional `modifiers` container whose children are
+/// `marker_annotation`/`annotation` nodes plus modifier KEYWORD nodes
+/// (`public`/`private`/`protected`, `static`, `final`, ...). The keywords are
+/// anonymous nodes whose `kind()` is their literal text. A declaration with no
+/// modifier keyword is package-private (Java default), which we surface as
+/// `None` (NOT "private") to match the legacy TS extractor (G5/G6).
+fn java_modifiers(
+    node: SyntaxNode,
+) -> (Option<String>, bool) {
+    let mut visibility: Option<String> = None;
+    let mut is_static = false;
+    let keyword_kinds =
+        ["public", "private", "protected", "static", "final", "abstract", "default", "synchronized", "native", "strictfp", "transient", "volatile"];
+    let mut scan = |kw_node: SyntaxNode| {
+        let kind = kw_node.kind();
+        match kind {
+            "public" | "private" | "protected" => {
+                // First visibility keyword wins; only one is legal anyway.
+                if visibility.is_none() {
+                    visibility = Some(kind.to_string());
+                }
+            }
+            "static" => is_static = true,
+            _ => {}
+        }
+    };
+    // Modifiers may sit directly on the declaration or inside a `modifiers`
+    // wrapper; scan both so the helper tolerates grammar shape drift.
+    let mut direct_cursor = node.walk();
+    for child in node.children(&mut direct_cursor) {
+        if child.kind() == "modifiers" {
+            let mut mc = child.walk();
+            for kw in child.children(&mut mc) {
+                if keyword_kinds.contains(&kw.kind()) {
+                    scan(kw);
+                }
+            }
+        } else if keyword_kinds.contains(&child.kind()) {
+            scan(child);
+        }
+    }
+    (visibility, is_static)
 }
 
 struct JavaTypeRelation {
@@ -9742,101 +9807,127 @@ fn extract_java_named_symbol(
     node: SyntaxNode,
     source: &[u8],
 ) -> Result<Option<JavaSymbolCandidate>, Box<dyn std::error::Error>> {
+    let mut candidate: Option<JavaSymbolCandidate> = None;
     match node.kind() {
         "package_declaration" => {
             return Ok(None);
         }
         "class_declaration" => {
             if let Some(name_node) = node.child_by_field_name("name") {
-                return Ok(Some(JavaSymbolCandidate {
+                candidate = Some(JavaSymbolCandidate {
                     kind: "class",
                     name: name_node.utf8_text(source)?.to_string(),
                     extends_name: None,
                     signature: None,
-                }));
+                    visibility: None,
+                    is_static: false,
+                });
             }
         }
         "interface_declaration" | "annotation_type_declaration" => {
             if let Some(name_node) = node.child_by_field_name("name") {
-                return Ok(Some(JavaSymbolCandidate {
+                candidate = Some(JavaSymbolCandidate {
                     kind: "interface",
                     name: name_node.utf8_text(source)?.to_string(),
                     extends_name: None,
                     signature: None,
-                }));
+                    visibility: None,
+                    is_static: false,
+                });
             }
         }
         "enum_declaration" => {
             if let Some(name_node) = node.child_by_field_name("name") {
-                return Ok(Some(JavaSymbolCandidate {
+                candidate = Some(JavaSymbolCandidate {
                     kind: "enum",
                     name: name_node.utf8_text(source)?.to_string(),
                     extends_name: None,
                     signature: None,
-                }));
+                    visibility: None,
+                    is_static: false,
+                });
             }
         }
         "object_creation_expression" if java_anonymous_class_body(node).is_some() => {
             let (type_name, line) = java_object_creation_type_name(node, source)?
                 .unwrap_or_else(|| ("Object".to_string(), (node.start_position().row + 1) as i64));
-            return Ok(Some(JavaSymbolCandidate {
+            candidate = Some(JavaSymbolCandidate {
                 kind: "class",
                 name: format!("<{type_name}$anon@{line}>"),
                 extends_name: Some(type_name),
                 signature: None,
-            }));
+                visibility: None,
+                is_static: false,
+            });
         }
         "enum_constant" => {
             if let Some(name_node) = node
                 .child_by_field_name("name")
                 .or_else(|| node.named_child(0))
             {
-                return Ok(Some(JavaSymbolCandidate {
+                candidate = Some(JavaSymbolCandidate {
                     kind: "enum_member",
                     name: name_node.utf8_text(source)?.to_string(),
                     extends_name: None,
                     signature: None,
-                }));
+                    visibility: None,
+                    is_static: false,
+                });
             }
         }
         "method_declaration"
         | "constructor_declaration"
         | "annotation_type_element_declaration" => {
             if let Some(name_node) = node.child_by_field_name("name") {
-                return Ok(Some(JavaSymbolCandidate {
+                candidate = Some(JavaSymbolCandidate {
                     kind: "method",
                     name: name_node.utf8_text(source)?.to_string(),
                     extends_name: None,
                     signature: None,
-                }));
+                    visibility: None,
+                    is_static: false,
+                });
             }
         }
         "field_declaration" => {
             if let Some(name) = java_variable_declarator_name(node, source)? {
                 let signature = java_variable_signature(node, source, &name)?;
-                return Ok(Some(JavaSymbolCandidate {
+                candidate = Some(JavaSymbolCandidate {
                     kind: "field",
                     name,
                     extends_name: None,
                     signature,
-                }));
+                    visibility: None,
+                    is_static: false,
+                });
             }
         }
         "local_variable_declaration" => {
             if let Some(name) = java_variable_declarator_name(node, source)? {
                 let signature = java_variable_signature(node, source, &name)?;
-                return Ok(Some(JavaSymbolCandidate {
+                candidate = Some(JavaSymbolCandidate {
                     kind: "variable",
                     name,
                     extends_name: None,
                     signature,
-                }));
+                    visibility: None,
+                    is_static: false,
+                });
             }
         }
         _ => {}
     }
 
-    Ok(None)
+    // Attach visibility/static modifiers read from the declaration's
+    // `modifiers` container (G5/G6). Declarations without a visibility keyword
+    // are package-private -> None (not "private"), matching the TS extractor.
+    if let Some(symbol) = candidate.as_mut() {
+        let (visibility, is_static) = java_modifiers(node);
+        symbol.visibility = visibility;
+        symbol.is_static = is_static;
+    }
+
+    Ok(candidate)
 }
 
 fn find_java_package<'a>(
@@ -9897,23 +9988,117 @@ fn extract_java_statement_refs(
     from_node_id: &str,
     unresolved_refs: &mut Vec<UnresolvedRef>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if node.kind() != "method_invocation" {
-        return Ok(());
+    match node.kind() {
+        "method_invocation" => {
+            let Some(name_node) = node.child_by_field_name("name") else {
+                return Ok(());
+            };
+            let reference_name =
+                java_method_invocation_reference_name(node, name_node, source)?;
+            push_ref(
+                unresolved_refs,
+                from_node_id,
+                &reference_name,
+                "calls",
+                name_node,
+                relative_path,
+                SourceLanguage::Java,
+            );
+        }
+        // G8: every `new T(...)` instantiates T, including the `new T(){}`
+        // anonymous-class form (which ALSO emits an extends T ref from the
+        // synthetic anon class node — the legacy TS extractor asserted both).
+        "object_creation_expression" => {
+            if let Some((type_name, _)) = java_object_creation_type_name(node, source)? {
+                if let Some(type_node) = node
+                    .child_by_field_name("type")
+                    .or_else(|| node.child_by_field_name("constructor"))
+                {
+                    push_ref(
+                        unresolved_refs,
+                        from_node_id,
+                        &type_name,
+                        "instantiates",
+                        type_node,
+                        relative_path,
+                        SourceLanguage::Java,
+                    );
+                }
+            }
+        }
+        // G9: a type referenced ONLY through a static-field / enum-value read
+        // (`Type.CONST`, `Enum.VALUE`) would otherwise show zero dependents.
+        // Emit a references edge to the capitalized simple receiver. Lowercase
+        // `obj.field` instance reads are excluded by the Capitalized test.
+        "field_access" => {
+            if let Some((name, object_node)) =
+                java_static_value_read_receiver(node, source)?
+            {
+                // Skip when this access is the leftmost receiver of a method
+                // call (`Type.CONST.foo()`): the enclosing method_invocation
+                // already links the call; a value-read ref there is noise.
+                let is_call_receiver = node.parent().is_some_and(|parent| {
+                    parent.kind() == "method_invocation"
+                        && parent
+                            .child_by_field_name("object")
+                            .is_some_and(|obj| obj.id() == node.id())
+                });
+                if !is_call_receiver {
+                    push_ref(
+                        unresolved_refs,
+                        from_node_id,
+                        &name,
+                        "references",
+                        object_node,
+                        relative_path,
+                        SourceLanguage::Java,
+                    );
+                }
+            }
+        }
+        _ => {}
     }
-    let Some(name_node) = node.child_by_field_name("name") else {
-        return Ok(());
-    };
-    let reference_name = java_method_invocation_reference_name(node, name_node, source)?;
-    push_ref(
-        unresolved_refs,
-        from_node_id,
-        &reference_name,
-        "calls",
-        name_node,
-        relative_path,
-        SourceLanguage::Java,
-    );
     Ok(())
+}
+
+/// For a Java `field_access` (`object.field`), return the receiver name and its
+/// node only when the receiver is a SIMPLE capitalized identifier (a type/enum
+/// by Java convention), mirroring the TS `extractStaticMemberRef`
+/// Capitalized-receiver gate. Returns None for lowercase instance receivers,
+/// `this`, nested chains (`a.B.c`) and static METHOD calls (handled by the
+/// method_invocation branch instead).
+fn java_static_value_read_receiver<'a>(
+    node: SyntaxNode<'a>,
+    source: &[u8],
+) -> Result<Option<(String, SyntaxNode<'a>)>, Box<dyn std::error::Error>> {
+    let object = match node.child_by_field_name("object") {
+        Some(object) => object,
+        None => return Ok(None),
+    };
+    // Only a bare identifier is a valid type/enum receiver; a nested
+    // field_access here (`a.B.c`) is handled when its own head is visited.
+    if object.kind() != "identifier" {
+        return Ok(None);
+    }
+    // The `field` slot must be a plain identifier, not the `this` keyword.
+    let is_plain_field = node
+        .child_by_field_name("field")
+        .is_some_and(|field| field.kind() == "identifier");
+    if !is_plain_field {
+        return Ok(None);
+    }
+    let name = object.utf8_text(source)?.trim();
+    let is_capitalized = name
+        .chars()
+        .next()
+        .is_some_and(|first| first.is_ascii_uppercase())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_');
+    if !is_capitalized {
+        return Ok(None);
+    }
+    Ok(Some((name.to_string(), object)))
 }
 
 fn java_method_invocation_reference_name(
@@ -10020,6 +10205,49 @@ fn java_type_relation_refs(
         }
     }
     Ok(refs)
+}
+
+/// Collect annotation USAGE names applied to a Java declaration. Java nests
+/// `marker_annotation` (arg-less `@Foo`) and `annotation` (`@Foo(...)`) inside
+/// the declaration's `modifiers` container. The annotation name may be a simple
+/// identifier or a `scoped_identifier`; only the leaf segment is emitted. The
+/// `@interface` DEFINITION is excluded: it has `kind
+/// annotation_type_declaration`, not a marker/annotation usage node.
+fn java_annotation_usage_refs(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut names = Vec::new();
+    let mut inspect = |ann: SyntaxNode, source: &[u8]| -> Result<(), Box<dyn std::error::Error>> {
+        if !matches!(ann.kind(), "marker_annotation" | "annotation") {
+            return Ok(());
+        }
+        // `name` field is identifier | scoped_identifier.
+        let Some(name_node) = ann.child_by_field_name("name") else {
+            return Ok(());
+        };
+        let raw = name_node.utf8_text(source)?.trim();
+        // scoped_identifier: keep the leaf segment after the last '.'.
+        let leaf = raw.rsplit('.').next().unwrap_or(raw).trim();
+        if !leaf.is_empty() {
+            names.push(leaf.to_string());
+        }
+        Ok(())
+    };
+
+    let mut top = node.walk();
+    for child in node.children(&mut top) {
+        if child.kind() == "modifiers" {
+            let mut mc = child.walk();
+            for ann in child.children(&mut mc) {
+                inspect(ann, source)?;
+            }
+        } else if matches!(child.kind(), "marker_annotation" | "annotation") {
+            // Defensive: some grammars/positions attach the annotation directly.
+            inspect(child, source)?;
+        }
+    }
+    Ok(names)
 }
 
 fn java_type_name_after_keyword(header: &str, keyword: &str) -> Option<String> {
@@ -12825,6 +13053,7 @@ struct ExtractedNode {
     file_path: String,
     language: String,
     visibility: Option<String>,
+    is_static: bool,
     signature: Option<String>,
     start_line: i64,
     end_line: i64,
@@ -12858,6 +13087,7 @@ impl ExtractedNode {
             file_path: relative_path.to_string(),
             language: language.to_string(),
             visibility: None,
+            is_static: false,
             signature: None,
             start_line: 1,
             end_line,
@@ -12934,6 +13164,7 @@ impl ExtractedNode {
             file_path: relative_path.to_string(),
             language: language.to_string(),
             visibility,
+            is_static: false,
             signature: None,
             start_line: (start.row + 1) as i64,
             end_line: (end.row + 1) as i64,
@@ -12961,6 +13192,7 @@ impl ExtractedNode {
             file_path: relative_path.to_string(),
             language: language.to_string(),
             visibility: None,
+            is_static: false,
             signature: None,
             start_line,
             end_line,
@@ -13203,8 +13435,8 @@ fn insert_nodes(conn: &Connection, nodes: &[ExtractedNode]) -> rusqlite::Result<
           ?1, ?2, ?3, ?4, ?5, ?6,
           ?7, ?8, ?9, ?10,
           NULL, ?11, ?12,
-          0, 0, 0, 0,
-          NULL, NULL, ?13
+          0, 0, ?13, 0,
+          NULL, NULL, ?14
         )",
     )?;
 
@@ -13222,6 +13454,7 @@ fn insert_nodes(conn: &Connection, nodes: &[ExtractedNode]) -> rusqlite::Result<
             node.end_column,
             node.signature,
             node.visibility,
+            node.is_static as i64,
             node.updated_at,
         ])?;
     }
@@ -23203,6 +23436,230 @@ mod tests {
             alias_count, 1,
             "using alias IntVec should be extracted"
         );
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_core_java_extracts_visibility_and_static_g5_g6() {
+        // G5/G6 (#692, roadmap 1-2-1-1): Java symbols must persist their
+        // access modifier as `visibility` and a `static` keyword as
+        // `is_static`. A declaration with no access keyword is package-private
+        // and must surface NULL (NOT "private"), matching the legacy TS
+        // extractor.
+        let dir = temp_dir("rust-java-modifiers-g5-g6");
+        let src = dir.join("com").join("example");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(
+            src.join("Calculator.java"),
+            [
+                "package com.example;",
+                "",
+                "public class Calculator {",
+                "    private int secret;",
+                "    String packageScoped;",
+                "",
+                "    public Calculator() {}",
+                "    public static int add(int a, int b) { return a + b; }",
+                "    protected int getSecret() { return secret; }",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(db_path(&dir)).unwrap();
+
+        let vis = |name: &str| -> Option<Option<String>> {
+            conn.prepare(
+                "SELECT visibility FROM nodes WHERE language='java' AND name=?1 \
+                 AND kind IN ('class','method','field') LIMIT 1",
+            )
+            .unwrap()
+            .query_row([name], |row| row.get::<_, Option<String>>(0))
+            .ok()
+        };
+        assert_eq!(vis("Calculator").flatten().as_deref(), Some("public"));
+        assert_eq!(vis("secret").flatten().as_deref(), Some("private"));
+        assert_eq!(vis("getSecret").flatten().as_deref(), Some("protected"));
+        // Package-private member -> NULL visibility.
+        assert_eq!(
+            vis("packageScoped").flatten(),
+            None,
+            "no access keyword must be NULL, not \"private\""
+        );
+
+        let static_flag: i64 = conn
+            .prepare(
+                "SELECT is_static FROM nodes WHERE language='java' \
+                 AND kind='method' AND name='add'",
+            )
+            .unwrap()
+            .query_row([], |row| row.get(0))
+            .unwrap();
+        assert_eq!(static_flag, 1, "public static method must be is_static=1");
+
+        let instance_flag: i64 = conn
+            .prepare(
+                "SELECT is_static FROM nodes WHERE language='java' \
+                 AND kind='method' AND name='getSecret'",
+            )
+            .unwrap()
+            .query_row([], |row| row.get(0))
+            .unwrap();
+        assert_eq!(instance_flag, 0, "instance method must be is_static=0");
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_core_java_emits_annotation_usage_decorates_g7() {
+        // G7: marker (`@Service`, `@Override`) and argument-bearing
+        // (`@Named("x")`) annotation USAGES must emit a `decorates` unresolved
+        // ref from the decorated symbol to the annotation's leaf name, while a
+        // qualified usage (`@com.example.Service`) resolves to its leaf.
+        let dir = temp_dir("rust-java-annotation-g7");
+        let src = dir.join("com").join("example");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(
+            src.join("Service.java"),
+            "package com.example;\npublic @interface Service { String value() default \"\"; }\n",
+        )
+        .unwrap();
+        fs::write(
+            src.join("Edge.java"),
+            [
+                "package com.example;",
+                "@com.example.Service",
+                "public class Edge {",
+                "    @Named(\"primary\")",
+                "    private String label;",
+                "    @Override public String toString() { return label; }",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(db_path(&dir)).unwrap();
+
+        let mut decorates: Vec<String> = conn
+            .prepare(
+                "SELECT DISTINCT reference_name FROM unresolved_refs \
+                 WHERE language='java' AND reference_kind='decorates' ORDER BY reference_name",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        decorates.sort();
+        assert_eq!(
+            decorates,
+            vec!["Named".to_string(), "Override".to_string(), "Service".to_string()],
+            "annotation usages (marker, arg-bearing, qualified) must emit decorates leaf refs"
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_core_java_emits_instantiates_and_static_value_read_g8_g9() {
+        // G8: every `new T(...)` emits an `instantiates` ref, including the
+        // anonymous-class form `new Runnable(){}` (which ALSO keeps its
+        // `extends` ref). G9: a Capitalized-receiver value read
+        // (`Type.CONST` / `Enum.VALUE`) emits a `references` ref, while a
+        // lowercase instance read (`user.getName()` does not).
+        let dir = temp_dir("rust-java-instantiates-g8-g9");
+        let src = dir.join("com").join("example");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(
+            src.join("User.java"),
+            "package com.example;\npublic class User {\n    public String getName() { return \"\"; }\n}\n",
+        )
+        .unwrap();
+        fs::write(
+            src.join("JsonScope.java"),
+            "package com.example;\npublic class JsonScope {\n    public static final int EMPTY_DOCUMENT = 1;\n}\n",
+        )
+        .unwrap();
+        fs::write(
+            src.join("Client.java"),
+            [
+                "package com.example;",
+                "public class Client {",
+                "    public int run() {",
+                "        int scope = JsonScope.EMPTY_DOCUMENT;",
+                "        User user = new User();",
+                "        Runnable r = new Runnable() { public void run() {} };",
+                "        return user.getName().length() + scope;",
+                "    }",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(db_path(&dir)).unwrap();
+
+        let instantiates: i64 = conn
+            .prepare(
+                "SELECT count(*) FROM unresolved_refs \
+                 WHERE language='java' AND reference_kind='instantiates' AND reference_name='User'",
+            )
+            .unwrap()
+            .query_row([], |row| row.get(0))
+            .unwrap();
+        assert!(instantiates >= 1, "plain `new User()` must instantiate User");
+
+        // Anonymous-class form: instantiates Runnable AND extends Runnable.
+        let anon_inst: i64 = conn
+            .prepare(
+                "SELECT count(*) FROM unresolved_refs \
+                 WHERE language='java' AND reference_kind='instantiates' AND reference_name='Runnable'",
+            )
+            .unwrap()
+            .query_row([], |row| row.get(0))
+            .unwrap();
+        let anon_extends: i64 = conn
+            .prepare(
+                "SELECT count(*) FROM unresolved_refs \
+                 WHERE language='java' AND reference_kind='extends' AND reference_name='Runnable'",
+            )
+            .unwrap()
+            .query_row([], |row| row.get(0))
+            .unwrap();
+        assert_eq!((anon_inst, anon_extends), (1, 1), "anon class emits both instantiates and extends");
+
+        let static_read: i64 = conn
+            .prepare(
+                "SELECT count(*) FROM unresolved_refs \
+                 WHERE language='java' AND reference_kind='references' AND reference_name='JsonScope'",
+            )
+            .unwrap()
+            .query_row([], |row| row.get(0))
+            .unwrap();
+        assert_eq!(static_read, 1, "`JsonScope.EMPTY_DOCUMENT` value read must reference JsonScope");
+
+        // No false-positive references for a lowercase instance receiver.
+        let noise: i64 = conn
+            .prepare(
+                "SELECT count(*) FROM unresolved_refs \
+                 WHERE language='java' AND reference_kind='references' AND reference_name='user'",
+            )
+            .unwrap()
+            .query_row([], |row| row.get(0))
+            .unwrap();
+        assert_eq!(noise, 0, "lowercase `user.getName()` instance read must not emit references");
         cleanup_temp_dir(dir);
     }
 }
