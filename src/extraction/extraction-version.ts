@@ -20,5 +20,15 @@
  * pure bug fixes, CLI/UX changes, or schema-only migrations. Over-bumping
  * turns the re-index hint into noise — keep it honest (see CLAUDE.md, "Honesty
  * in the product is load-bearing").
+ *
+ * Version history
+ * ---------------
+ * - 1: initial.
+ * - 2: file nodes are named by basename (`Storage.h`) instead of the full
+ *   relative path, which makes c/cpp `#include` (same-directory + include-dir),
+ *   Python absolute-module, and generic file-name imports resolve the correct
+ *   file-to-file `imports` edges on a Rust-owned graph (G10, #692). Existing
+ *   indexes carry the old full-path file names and must be re-indexed; node id
+ *   and `file_path` are unchanged, so this is purely the extracted content.
  */
-export const EXTRACTION_VERSION = 1;
+export const EXTRACTION_VERSION = 2;

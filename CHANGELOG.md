@@ -23,6 +23,11 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Removed the TypeScript-owned C++ extractor (`c-cpp.ts`) and `tree-sitter-cpp.wasm` grammar dependency, as C++ extraction is now fully handled by the Rust core via `tree-sitter-cpp` crate. (#678)
 
+### Fixes
+
+- `rust-hybrid` indexing now names file nodes by their basename (for example `Storage.h`) instead of the full relative path, matching the TypeScript extractor's `path.basename` convention. The resolver's file lookup is basename-based (`getNodesByName`), so on a Rust-owned graph it previously found no file node and failed to build file-to-file `imports` edges. With this fix, C/C++ `#include "..."` resolution (same-directory headers first, then include-dir scan), Python absolute-module imports, and generic file-name imports now resolve to the correct file. Node ids, `qualified_name`, and `file_path` keep the full relative path, so symbol ids and non-file edges are unchanged. (#692)
+- The extraction version is bumped to 2, so indexes built by an earlier engine are now reported as stale by `zcodegraph status` (`index.reindexRecommended` in `--json`) and pick up a re-index recommendation; rebuild with `zcodegraph index -f` (full rebuild) to write the corrected basename file nodes and edges. This is an extracted-content change that no in-place schema migration can backfill, not a SQLite schema version bump.
+
 
 ## [0.11.0] - 2026-07-14
 

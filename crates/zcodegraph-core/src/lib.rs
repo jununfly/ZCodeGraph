@@ -22,7 +22,10 @@ static ALLOCATOR: dhat::Alloc = dhat::Alloc;
 
 const SCHEMA_SQL: &str = include_str!("../../../src/db/schema.sql");
 const CURRENT_SCHEMA_VERSION: i64 = 4;
-const EXTRACTION_VERSION: i64 = 1;
+// Mirrors EXTRACTION_VERSION in src/extraction/extraction-version.ts — keep the
+// two equal. Bumped to 2 for G10 (#692): file nodes are named by basename,
+// changing which file->file imports edges exist; old indexes must re-index.
+const EXTRACTION_VERSION: i64 = 2;
 const IMPORT_FALLBACK_SAMPLE_PER_BUCKET_CAP: usize = 100;
 const IMPORT_FALLBACK_SAMPLE_TOTAL_CAP: usize = 2000;
 const ESM_OVERLOAD_IMPLEMENTATION_RESOLVED_BY: &str =
