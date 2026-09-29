@@ -1,0 +1,2047 @@
+{
+  "title": "Rust-Owned 索引迁移路线图",
+  "description": "源自 docs/prds/2026-07-03-rust-owned-migration-roadmap.md，2026-09-28 按代码现状校准。Goal1: 全部源语言基线抽取迁移到 Rust 原生 tree-sitter；Goal2: TS shell 共享层（框架 resolver/引用解析/终结）逐项做 migrate/keep/split 理性决策。",
+  "version": 1,
+  "nodes": {
+    "1": {
+      "id": "1",
+      "label": "Rust-Owned 索引迁移路线图",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": null,
+      "children": [
+        "1-1",
+        "1-2",
+        "1-3",
+        "1-4",
+        "1-5",
+        "1-6"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1": {
+      "id": "1-1",
+      "label": "现状基线校准（2026-09-28 代码核对）",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [
+        "1-1-1",
+        "1-1-2",
+        "1-1-3",
+        "1-1-4"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-1-1": {
+      "id": "1-1-1",
+      "label": "Rust-owned 语言清单核对（rust-hybrid-contract.ts）",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "RUST_HYBRID_RUST_OWNED_LANGUAGES 现为 10 语言：javascript, jsx, typescript, tsx, go, java, python, rust, c, cpp。phase = phase-6-rust-owned-per-file-gap-fallback。Rust 引擎在 crates/zcodegraph-core（tree-sitter 0.24 原生 C ABI，8 grammar 依赖），经 src/indexing/rust-indexer.ts 子进程 JSON 协议调用，engine-selection.ts 决定启用引擎。"
+    },
+    "1-1-2": {
+      "id": "1-1-2",
+      "label": "C++ 已迁移事实校准（PRD 状态过期项）",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "PRD 与代码冲突时以谁为准？",
+          "answer": "以代码现状为准，roadmap 按 10 语言已迁移编排",
+          "note": "PRD 是 2026-07-03 快照；本 roadmap 为校准后的新事实源"
+        }
+      ],
+      "notes": "PRD(2026-07-03) 标 C++ 为 [ ]，实际已 Rust-owned（issue #678）：cpp 在 RUST_HYBRID_RUST_OWNED_LANGUAGES 内；TS 侧 grammars.ts 标注 'cpp // Rust-owned'，无 TS wasm grammar；证据 docs/benchmarks/2026-07-13-rust-owned-cpp-fmt-validation.md。"
+    },
+    "1-1-3": {
+      "id": "1-1-3",
+      "label": "真实语料证据文档清点",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "docs/benchmarks/: 2026-07-02-rust-owned-python-flask-validation.md; 2026-07-03-rust-owned-c-cjson-validation.md (DaveGamble/cJSON @fb16e5c); 2026-07-03-rust-owned-java-spring-petclinic-validation.md; 2026-07-13-rust-owned-cpp-fmt-validation.md。遗留：libuv/libuv 宏密集 C 压力语料已索引但暂缓（平台头 parse 噪音）。"
+    },
+    "1-1-4": {
+      "id": "1-1-4",
+      "label": "剩余迁移范围确认",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "11 个 grammar 语言（C#/PHP/Ruby/Swift/Kotlin/Dart/Pascal/Scala/Lua/Luau/ObjC）+ 8 个自定义/文件级格式 + Goal2 共享层（23 resolver + 8 共享项）归属决策。"
+    },
+    "1-2": {
+      "id": "1-2",
+      "label": "Goal1: Grammar 语言基线抽取迁移到 Rust",
+      "status": "in_progress",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [
+        "1-2-1",
+        "1-2-2",
+        "1-2-3",
+        "1-2-4",
+        "1-2-5",
+        "1-2-6",
+        "1-2-7",
+        "1-2-8",
+        "1-2-9",
+        "1-2-10",
+        "1-2-11",
+        "1-2-12",
+        "1-2-13",
+        "1-2-14"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-1": {
+      "id": "1-2-1",
+      "label": "Java 基线抽取（已完成）",
+      "status": "in_progress",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-1-1"
+      ],
+      "decisions": [
+        {
+          "q": "Java 的框架语义归谁？",
+          "answer": "Spring/Play resolver 保持 TypeScript-shell owned",
+          "note": "基线 Rust-owned 不等于框架语义 Rust-owned；证据见 petclinic benchmark"
+        }
+      ],
+      "notes": "类/接口/注解/枚举/import/方法调用/package。证据：java-spring-petclinic 语料验证通过。"
+    },
+    "1-2-2": {
+      "id": "1-2-2",
+      "label": "C 基线抽取（已完成）",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "C/C++/ObjC 头文件歧义如何处理？",
+          "answer": "保持显式分类边界（.h 内容启发式），本次迁移不宣称 C++/ObjC 所有权",
+          "note": "边界在 grammars.ts looksLikeCpp/looksLikeObjc"
+        }
+      ],
+      "notes": "函数/struct/enum/typedef/include/call。证据：DaveGamble/cJSON @fb16e5c 无 Rust gap 诊断。libuv 宏密集语料留作未来压力项。TS C extractor 路径已移除。"
+    },
+    "1-2-3": {
+      "id": "1-2-3",
+      "label": "C++ 基线抽取（已完成, #678）",
+      "status": "in_progress",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-3-1"
+      ],
+      "decisions": [
+        {
+          "q": "C++ 迁移遗留？",
+          "answer": "9 个 Java/C++ TS 夹具 .skip（wasm 不在 git）→ issue #692：移植到 Rust-owned 夹具",
+          "note": "skip != complete；#692 是唯一后续债，非 Mac 专属"
+        }
+      ],
+      "notes": "函数/类/struct/enum/typedef 与 alias/include/call/namespace 成员边界。证据：2026-07-13-rust-owned-cpp-fmt-validation.md。TS 侧无 wasm grammar，完全 Rust-owned。"
+    },
+    "1-2-4": {
+      "id": "1-2-4",
+      "label": "C# 基线抽取迁移",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-4-1",
+        "1-2-4-2",
+        "1-2-4-3",
+        "1-2-4-4"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-4-1": {
+      "id": "1-2-4-1",
+      "label": "C#: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-4",
+      "children": [],
+      "decisions": [],
+      "notes": "范围：类/record/接口/struct/enum/using/调用/namespace 包抽取；ASP.NET/Razor 边界。grammar：tree-sitter-c-sharp（Rust crate）；TS 侧自 vendor ABI-15 wasm 0.23.5 支持主构造函数(#237)，Rust 侧需对齐。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+    },
+    "1-2-4-2": {
+      "id": "1-2-4-2",
+      "label": "C#: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-4",
+      "children": [],
+      "decisions": [],
+      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+    },
+    "1-2-4-3": {
+      "id": "1-2-4-3",
+      "label": "C#: 确定性 fixture 测试 + 真实语料验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-4",
+      "children": [],
+      "decisions": [],
+      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+    },
+    "1-2-4-4": {
+      "id": "1-2-4-4",
+      "label": "C#: 框架/运行时语义边界决策 + TS fallback 移除",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-4",
+      "children": [],
+      "decisions": [],
+      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+    },
+    "1-2-5": {
+      "id": "1-2-5",
+      "label": "PHP 基线抽取迁移",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-5-1",
+        "1-2-5-2",
+        "1-2-5-3",
+        "1-2-5-4"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-5-1": {
+      "id": "1-2-5-1",
+      "label": "PHP: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-5",
+      "children": [],
+      "decisions": [],
+      "notes": "范围：函数/类/trait/接口/enum/namespace 导入/函数与成员与作用域调用；Laravel/Drupal 边界。grammar：tree-sitter-php；注意 .module/.install/.theme/.inc 等 Drupal 扩展名。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+    },
+    "1-2-5-2": {
+      "id": "1-2-5-2",
+      "label": "PHP: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-5",
+      "children": [],
+      "decisions": [],
+      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+    },
+    "1-2-5-3": {
+      "id": "1-2-5-3",
+      "label": "PHP: 确定性 fixture 测试 + 真实语料验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-5",
+      "children": [],
+      "decisions": [],
+      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+    },
+    "1-2-5-4": {
+      "id": "1-2-5-4",
+      "label": "PHP: 框架/运行时语义边界决策 + TS fallback 移除",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-5",
+      "children": [],
+      "decisions": [],
+      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+    },
+    "1-2-6": {
+      "id": "1-2-6",
+      "label": "Ruby 基线抽取迁移",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-6-1",
+        "1-2-6-2",
+        "1-2-6-3",
+        "1-2-6-4"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-6-1": {
+      "id": "1-2-6-1",
+      "label": "Ruby: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-6",
+      "children": [],
+      "decisions": [],
+      "notes": "范围：方法/类/module/赋值/require 与 require_relative/调用；Rails 边界。grammar：tree-sitter-ruby；.rake 同路径。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+    },
+    "1-2-6-2": {
+      "id": "1-2-6-2",
+      "label": "Ruby: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-6",
+      "children": [],
+      "decisions": [],
+      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+    },
+    "1-2-6-3": {
+      "id": "1-2-6-3",
+      "label": "Ruby: 确定性 fixture 测试 + 真实语料验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-6",
+      "children": [],
+      "decisions": [],
+      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+    },
+    "1-2-6-4": {
+      "id": "1-2-6-4",
+      "label": "Ruby: 框架/运行时语义边界决策 + TS fallback 移除",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-6",
+      "children": [],
+      "decisions": [],
+      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+    },
+    "1-2-7": {
+      "id": "1-2-7",
+      "label": "Swift 基线抽取迁移",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-7-1",
+        "1-2-7-2",
+        "1-2-7-3",
+        "1-2-7-4"
+      ],
+      "decisions": [
+        {
+          "q": "Swift 迁移的耦合项？",
+          "answer": "Swift 完成后紧接 Objective-C；两者共享 iOS 桥接决策上下文（1-4-1 中 SwiftUI/UIKit/Vapor/桥接）",
+          "note": "启动条件仍为移动桥接成为产品优先级（1-6-4）"
+        }
+      ],
+      "notes": ""
+    },
+    "1-2-7-1": {
+      "id": "1-2-7-1",
+      "label": "Swift: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-7",
+      "children": [],
+      "decisions": [],
+      "notes": "范围：函数/类/protocol/struct/enum/typealias/import/调用；SwiftUI/UIKit/Vapor 边界。grammar：tree-sitter-swift；移动桥接语义属 Goal2。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+    },
+    "1-2-7-2": {
+      "id": "1-2-7-2",
+      "label": "Swift: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-7",
+      "children": [],
+      "decisions": [],
+      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+    },
+    "1-2-7-3": {
+      "id": "1-2-7-3",
+      "label": "Swift: 确定性 fixture 测试 + 真实语料验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-7",
+      "children": [],
+      "decisions": [],
+      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+    },
+    "1-2-7-4": {
+      "id": "1-2-7-4",
+      "label": "Swift: 框架/运行时语义边界决策 + TS fallback 移除",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-7",
+      "children": [],
+      "decisions": [],
+      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+    },
+    "1-2-8": {
+      "id": "1-2-8",
+      "label": "Kotlin 基线抽取迁移",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-8-1",
+        "1-2-8-2",
+        "1-2-8-3",
+        "1-2-8-4"
+      ],
+      "decisions": [
+        {
+          "q": "Kotlin 何时启动？",
+          "answer": "波次 1：1-6-5（#692 夹具模式）完成后首个新语言迁移",
+          "note": "原决策（PRD 推荐近期候选、JVM 协同最强）不变"
+        }
+      ],
+      "notes": ""
+    },
+    "1-2-8-1": {
+      "id": "1-2-8-1",
+      "label": "Kotlin: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-8",
+      "children": [],
+      "decisions": [],
+      "notes": "范围：函数/类与 data class/enum/typealias/import/调用/属性/package；Spring/Expo 边界。grammar：tree-sitter-kotlin；.kts 脚本同路径；PRD 建议近期候选（Spring 边界已明确）。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+    },
+    "1-2-8-2": {
+      "id": "1-2-8-2",
+      "label": "Kotlin: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-8",
+      "children": [],
+      "decisions": [],
+      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+    },
+    "1-2-8-3": {
+      "id": "1-2-8-3",
+      "label": "Kotlin: 确定性 fixture 测试 + 真实语料验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-8",
+      "children": [],
+      "decisions": [],
+      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+    },
+    "1-2-8-4": {
+      "id": "1-2-8-4",
+      "label": "Kotlin: 框架/运行时语义边界决策 + TS fallback 移除",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-8",
+      "children": [],
+      "decisions": [],
+      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+    },
+    "1-2-9": {
+      "id": "1-2-9",
+      "label": "Dart 基线抽取迁移",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-9-1",
+        "1-2-9-2",
+        "1-2-9-3",
+        "1-2-9-4"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-9-1": {
+      "id": "1-2-9-1",
+      "label": "Dart: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-9",
+      "children": [],
+      "decisions": [],
+      "notes": "范围：函数/类/enum/typealias/import 与 export/调用策略。grammar：tree-sitter-dart；Flutter widget 语义不在基线范围。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+    },
+    "1-2-9-2": {
+      "id": "1-2-9-2",
+      "label": "Dart: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-9",
+      "children": [],
+      "decisions": [],
+      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+    },
+    "1-2-9-3": {
+      "id": "1-2-9-3",
+      "label": "Dart: 确定性 fixture 测试 + 真实语料验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-9",
+      "children": [],
+      "decisions": [],
+      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+    },
+    "1-2-9-4": {
+      "id": "1-2-9-4",
+      "label": "Dart: 框架/运行时语义边界决策 + TS fallback 移除",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-9",
+      "children": [],
+      "decisions": [],
+      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+    },
+    "1-2-10": {
+      "id": "1-2-10",
+      "label": "Pascal/Delphi 基线抽取迁移",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-10-1",
+        "1-2-10-2",
+        "1-2-10-3",
+        "1-2-10-4"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-10-1": {
+      "id": "1-2-10-1",
+      "label": "Pascal/Delphi: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-10",
+      "children": [],
+      "decisions": [],
+      "notes": "范围：过程/函数/类/接口/enum/类型声明/uses/调用；DFM/FMX 边界。grammar：tree-sitter-pascal（自 vendor wasm）；.pas/.dpr/.dpk/.lpr/.dfm/.fmx。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+    },
+    "1-2-10-2": {
+      "id": "1-2-10-2",
+      "label": "Pascal/Delphi: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-10",
+      "children": [],
+      "decisions": [],
+      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+    },
+    "1-2-10-3": {
+      "id": "1-2-10-3",
+      "label": "Pascal/Delphi: 确定性 fixture 测试 + 真实语料验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-10",
+      "children": [],
+      "decisions": [],
+      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+    },
+    "1-2-10-4": {
+      "id": "1-2-10-4",
+      "label": "Pascal/Delphi: 框架/运行时语义边界决策 + TS fallback 移除",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-10",
+      "children": [],
+      "decisions": [],
+      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+    },
+    "1-2-11": {
+      "id": "1-2-11",
+      "label": "Scala 基线抽取迁移",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-11-1",
+        "1-2-11-2",
+        "1-2-11-3",
+        "1-2-11-4"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-2-11-1": {
+      "id": "1-2-11-1",
+      "label": "Scala: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-11",
+      "children": [],
+      "decisions": [],
+      "notes": "范围：类/object/trait/enum/类型定义/import/调用/val 与 var；Play 边界。grammar：tree-sitter-scala（自 vendor wasm）；.sc 脚本同路径。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+    },
+    "1-2-11-2": {
+      "id": "1-2-11-2",
+      "label": "Scala: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-11",
+      "children": [],
+      "decisions": [],
+      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+    },
+    "1-2-11-3": {
+      "id": "1-2-11-3",
+      "label": "Scala: 确定性 fixture 测试 + 真实语料验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-11",
+      "children": [],
+      "decisions": [],
+      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+    },
+    "1-2-11-4": {
+      "id": "1-2-11-4",
+      "label": "Scala: 框架/运行时语义边界决策 + TS fallback 移除",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-11",
+      "children": [],
+      "decisions": [],
+      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+    },
+    "1-2-12": {
+      "id": "1-2-12",
+      "label": "Lua 基线抽取迁移",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-12-1",
+        "1-2-12-2",
+        "1-2-12-3",
+        "1-2-12-4"
+      ],
+      "decisions": [
+        {
+          "q": "Lua 与 Luau 如何排波次？",
+          "answer": "合并为同一交付波次，Lua 先行；Luau 紧接并最大化复用 Lua Rust 抽取",
+          "note": "两节点保留独立 4 子节点，fixture/语料同一 benchmark 批次验收"
+        }
+      ],
+      "notes": ""
+    },
+    "1-2-12-1": {
+      "id": "1-2-12-1",
+      "label": "Lua: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-12",
+      "children": [],
+      "decisions": [],
+      "notes": "范围：函数/table 风格值/require/调用。grammar：自 vendor ABI-15 wasm：tree-sitter-wasms 的 ABI-13 构建在 web-tree-sitter 0.25 下破坏共享 WASM 堆。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+    },
+    "1-2-12-2": {
+      "id": "1-2-12-2",
+      "label": "Lua: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-12",
+      "children": [],
+      "decisions": [],
+      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+    },
+    "1-2-12-3": {
+      "id": "1-2-12-3",
+      "label": "Lua: 确定性 fixture 测试 + 真实语料验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-12",
+      "children": [],
+      "decisions": [],
+      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+    },
+    "1-2-12-4": {
+      "id": "1-2-12-4",
+      "label": "Lua: 框架/运行时语义边界决策 + TS fallback 移除",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-12",
+      "children": [],
+      "decisions": [],
+      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+    },
+    "1-2-13": {
+      "id": "1-2-13",
+      "label": "Luau 基线抽取迁移",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-13-1",
+        "1-2-13-2",
+        "1-2-13-3",
+        "1-2-13-4"
+      ],
+      "decisions": [
+        {
+          "q": "Luau 与 Lua 的关系？",
+          "answer": "同波次后半：Lua 抽取落地后做 Luau 类型定义增量，不单独走一轮完整流水线",
+          "note": "若 Luau grammar 对纯 Lua 文件解析验证不通过，回退为独立完整迁移"
+        }
+      ],
+      "notes": ""
+    },
+    "1-2-13-1": {
+      "id": "1-2-13-1",
+      "label": "Luau: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-13",
+      "children": [],
+      "decisions": [],
+      "notes": "范围：Lua 兼容抽取 + Luau 类型定义。grammar：tree-sitter-luau（自 vendor wasm）；应最大化复用 Lua Rust 抽取。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+    },
+    "1-2-13-2": {
+      "id": "1-2-13-2",
+      "label": "Luau: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-13",
+      "children": [],
+      "decisions": [],
+      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+    },
+    "1-2-13-3": {
+      "id": "1-2-13-3",
+      "label": "Luau: 确定性 fixture 测试 + 真实语料验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-13",
+      "children": [],
+      "decisions": [],
+      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+    },
+    "1-2-13-4": {
+      "id": "1-2-13-4",
+      "label": "Luau: 框架/运行时语义边界决策 + TS fallback 移除",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-13",
+      "children": [],
+      "decisions": [],
+      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+    },
+    "1-2-14": {
+      "id": "1-2-14",
+      "label": "Objective-C 基线抽取迁移",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2",
+      "children": [
+        "1-2-14-1",
+        "1-2-14-2",
+        "1-2-14-3",
+        "1-2-14-4"
+      ],
+      "decisions": [
+        {
+          "q": "Objective-C 排序？",
+          "answer": "排到 Swift（1-2-7）之后：Swift 迁移带出 SwiftUI/UIKit/Vapor 边界，ObjC 紧随，桥接三 resolver（Swift-ObjC / RN bridge / Expo Modules）一次性收敛",
+          "note": "节点位置不动，执行顺序由本决策表达；.h 启发式分类仍与 C 共用"
+        }
+      ],
+      "notes": ""
+    },
+    "1-2-14-1": {
+      "id": "1-2-14-1",
+      "label": "Objective-C: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-14",
+      "children": [],
+      "decisions": [],
+      "notes": "范围：函数/interface 与 class/protocol/struct/enum/typedef/include/消息表达式；Swift-ObjC 与 RN 桥接边界。grammar：tree-sitter-objc；.m/.mm；.h 启发式分类与 C 共用。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+    },
+    "1-2-14-2": {
+      "id": "1-2-14-2",
+      "label": "Objective-C: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-14",
+      "children": [],
+      "decisions": [],
+      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+    },
+    "1-2-14-3": {
+      "id": "1-2-14-3",
+      "label": "Objective-C: 确定性 fixture 测试 + 真实语料验证",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-14",
+      "children": [],
+      "decisions": [],
+      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+    },
+    "1-2-14-4": {
+      "id": "1-2-14-4",
+      "label": "Objective-C: 框架/运行时语义边界决策 + TS fallback 移除",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-14",
+      "children": [],
+      "decisions": [],
+      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+    },
+    "1-3": {
+      "id": "1-3",
+      "label": "Goal1: 自定义与文件级语言 Rust 化可行性",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-3-1",
+        "1-3-2",
+        "1-3-3",
+        "1-3-4",
+        "1-3-5",
+        "1-3-6",
+        "1-3-7",
+        "1-3-8"
+      ],
+      "decisions": [
+        {
+          "q": "自定义/文件级语言何时评估？",
+          "answer": "不单独设波次：随对应生态语言迁移触发（如 C# 波次触发 Razor/XML 可行性；PHP 波次触发 YAML/Twig）；Properties 随 Kotlin/Spring 决策；Svelte/Vue/Liquid 在 JS 生态有框架需求时插入",
+          "note": "Goal2 just-in-time 决策原则同样适用 Goal1 自定义格式"
+        }
+      ],
+      "notes": ""
+    },
+    "1-3-1": {
+      "id": "1-3-1",
+      "label": "Svelte Rust 化可行性与落地",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [
+        "1-3-1-1",
+        "1-3-1-2"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-1-1": {
+      "id": "1-3-1-1",
+      "label": "Svelte: 可行性评估与 migrate/keep/split 决策",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3-1",
+      "children": [],
+      "decisions": [],
+      "notes": "决策范围：保留 script-block 委托与 SvelteKit route/action 语义；决策 Rust 拥有 markup 扫描还是仅 script 事实。现状：svelte-extractor.ts：抽出 script 块委托 tree-sitter。产出：决策与理由；keep 也要写明审计边界与护栏。"
+    },
+    "1-3-1-2": {
+      "id": "1-3-1-2",
+      "label": "Svelte: 决策落地（Rust 实现 或 TS-shell 归属固化）",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-3-1",
+      "children": [],
+      "decisions": [],
+      "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
+    },
+    "1-3-2": {
+      "id": "1-3-2",
+      "label": "Vue Rust 化可行性与落地",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [
+        "1-3-2-1",
+        "1-3-2-2"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-2-1": {
+      "id": "1-3-2-1",
+      "label": "Vue: 可行性评估与 migrate/keep/split 决策",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3-2",
+      "children": [],
+      "decisions": [],
+      "notes": "决策范围：保留 script-block 委托与 Vue/Nuxt 文件约定路由；决策 Rust 是否拥有 SFC 结构。现状：vue-extractor.ts 同 Svelte 委托模式。产出：决策与理由；keep 也要写明审计边界与护栏。"
+    },
+    "1-3-2-2": {
+      "id": "1-3-2-2",
+      "label": "Vue: 决策落地（Rust 实现 或 TS-shell 归属固化）",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-3-2",
+      "children": [],
+      "decisions": [],
+      "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
+    },
+    "1-3-3": {
+      "id": "1-3-3",
+      "label": "Liquid Rust 化可行性与落地",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [
+        "1-3-3-1",
+        "1-3-3-2"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-3-1": {
+      "id": "1-3-3-1",
+      "label": "Liquid: 可行性评估与 migrate/keep/split 决策",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3-3",
+      "children": [],
+      "decisions": [],
+      "notes": "决策范围：移植正则抽取与 Shopify JSON template/section 链接，或因 parser-free 更易审计而留 TS shell。现状：liquid-extractor.ts + isShopifyLiquidJson 特例。产出：决策与理由；keep 也要写明审计边界与护栏。"
+    },
+    "1-3-3-2": {
+      "id": "1-3-3-2",
+      "label": "Liquid: 决策落地（Rust 实现 或 TS-shell 归属固化）",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-3-3",
+      "children": [],
+      "decisions": [],
+      "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
+    },
+    "1-3-4": {
+      "id": "1-3-4",
+      "label": "Razor/Blazor Rust 化可行性与落地",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [
+        "1-3-4-1",
+        "1-3-4-2"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-4-1": {
+      "id": "1-3-4-1",
+      "label": "Razor/Blazor: 可行性评估与 migrate/keep/split 决策",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3-4",
+      "children": [],
+      "decisions": [],
+      "notes": "决策范围：评估 markup-to-C# 链接迁 Rust，或因框架语义密集保持 TS shell。现状：razor-extractor.ts：@model/@inject/组件标签到 C# 类型。产出：决策与理由；keep 也要写明审计边界与护栏。"
+    },
+    "1-3-4-2": {
+      "id": "1-3-4-2",
+      "label": "Razor/Blazor: 决策落地（Rust 实现 或 TS-shell 归属固化）",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-3-4",
+      "children": [],
+      "decisions": [],
+      "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
+    },
+    "1-3-5": {
+      "id": "1-3-5",
+      "label": "XML/MyBatis Rust 化可行性与落地",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [
+        "1-3-5-1",
+        "1-3-5-2"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-5-1": {
+      "id": "1-3-5-1",
+      "label": "XML/MyBatis: 可行性评估与 migrate/keep/split 决策",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3-5",
+      "children": [],
+      "decisions": [],
+      "notes": "决策范围：移植 mapper 语句抽取与 MyBatis resolver 契约，或显式保留 TS shell。现状：mybatis-extractor.ts：<mapper namespace> 形状发射 SQL 语句节点；其他 XML 返回空。产出：决策与理由；keep 也要写明审计边界与护栏。"
+    },
+    "1-3-5-2": {
+      "id": "1-3-5-2",
+      "label": "XML/MyBatis: 决策落地（Rust 实现 或 TS-shell 归属固化）",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-3-5",
+      "children": [],
+      "decisions": [],
+      "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
+    },
+    "1-3-6": {
+      "id": "1-3-6",
+      "label": "YAML Rust 化可行性与落地",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [
+        "1-3-6-1",
+        "1-3-6-2"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-6-1": {
+      "id": "1-3-6-1",
+      "label": "YAML: 可行性评估与 migrate/keep/split 决策",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3-6",
+      "children": [],
+      "decisions": [],
+      "notes": "决策范围：按用例拆分：Drupal 路由/Spring 配置/Play routes/通用文件级跟踪，可能不属于同一次迁移。现状：yaml 现为文件级零符号；Play conf/routes 无扩展名走 yaml 路径由框架 resolver 出路由。产出：决策与理由；keep 也要写明审计边界与护栏。"
+    },
+    "1-3-6-2": {
+      "id": "1-3-6-2",
+      "label": "YAML: 决策落地（Rust 实现 或 TS-shell 归属固化）",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-3-6",
+      "children": [],
+      "decisions": [],
+      "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
+    },
+    "1-3-7": {
+      "id": "1-3-7",
+      "label": "Twig Rust 化可行性与落地",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [
+        "1-3-7-1",
+        "1-3-7-2"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-7-1": {
+      "id": "1-3-7-1",
+      "label": "Twig: 可行性评估与 migrate/keep/split 决策",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3-7",
+      "children": [],
+      "decisions": [],
+      "notes": "决策范围：决策文件级跟踪是否足够，或先补真正的 Twig 抽取故事。现状：twig 现为文件级零符号。产出：决策与理由；keep 也要写明审计边界与护栏。"
+    },
+    "1-3-7-2": {
+      "id": "1-3-7-2",
+      "label": "Twig: 决策落地（Rust 实现 或 TS-shell 归属固化）",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-3-7",
+      "children": [],
+      "decisions": [],
+      "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
+    },
+    "1-3-8": {
+      "id": "1-3-8",
+      "label": "Properties Rust 化可行性与落地",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [
+        "1-3-8-1",
+        "1-3-8-2"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-3-8-1": {
+      "id": "1-3-8-1",
+      "label": "Properties: 可行性评估与 migrate/keep/split 决策",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3-8",
+      "children": [],
+      "decisions": [],
+      "notes": "决策范围：仅当 Spring @Value 绑定精度可保持时才移植配置键抽取。现状：properties：每叶子键一节点，Spring resolver 链接 @Value(\"${k}\")。产出：决策与理由；keep 也要写明审计边界与护栏。"
+    },
+    "1-3-8-2": {
+      "id": "1-3-8-2",
+      "label": "Properties: 决策落地（Rust 实现 或 TS-shell 归属固化）",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-3-8",
+      "children": [],
+      "decisions": [],
+      "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
+    },
+    "1-4": {
+      "id": "1-4",
+      "label": "Goal2: TS shell 共享层 migrate/keep/split 决策",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-4-1",
+        "1-4-2"
+      ],
+      "decisions": [
+        {
+          "q": "31 个共享层决策何时做？",
+          "answer": "随语言迁移顺带做（just-in-time）：迁某语言时同步决策其相关 resolver/终结项；未触及语言的 resolver 保持 pending，不提前做空对空决策",
+          "note": "例：Kotlin 迁移时决策 Spring resolver；Swift/ObjC 时决策 SwiftUI/UIKit/Vapor/桥接 4 resolver。ReferenceResolver/NameMatcher/MCP API 等语言无关项在首个框架边界出现时决策"
+        }
+      ],
+      "notes": ""
+    },
+    "1-4-1": {
+      "id": "1-4-1",
+      "label": "Framework resolvers 逐项归属决策（23 项）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [
+        "1-4-1-1",
+        "1-4-1-2",
+        "1-4-1-3",
+        "1-4-1-4",
+        "1-4-1-5",
+        "1-4-1-6",
+        "1-4-1-7",
+        "1-4-1-8",
+        "1-4-1-9",
+        "1-4-1-10",
+        "1-4-1-11",
+        "1-4-1-12",
+        "1-4-1-13",
+        "1-4-1-14",
+        "1-4-1-15",
+        "1-4-1-16",
+        "1-4-1-17",
+        "1-4-1-18",
+        "1-4-1-19",
+        "1-4-1-20",
+        "1-4-1-21",
+        "1-4-1-22",
+        "1-4-1-23"
+      ],
+      "decisions": [],
+      "notes": "每项必须落 migrate / keep TS-shell / split 三选一决策 + 理由；基线 Rust-owned 不自动带出框架所有权。resolver 均在 src/resolution/frameworks/。"
+    },
+    "1-4-1-1": {
+      "id": "1-4-1-1",
+      "label": "Laravel resolver（路由/resource/控制器解析）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-2": {
+      "id": "1-4-1-2",
+      "label": "Drupal resolver（routing YAML 与 hook 抽取）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-3": {
+      "id": "1-4-1-3",
+      "label": "Express resolver（路由与中间件）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-4": {
+      "id": "1-4-1-4",
+      "label": "NestJS resolver（控制器路由、模块前缀 post-extract、GraphQL/gateway/class 装饰器）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-5": {
+      "id": "1-4-1-5",
+      "label": "React resolver（组件/context/router 语义与 dynamic-dispatch 交互）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-6": {
+      "id": "1-4-1-6",
+      "label": "Svelte resolver（SvelteKit routes 与 form actions）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-7": {
+      "id": "1-4-1-7",
+      "label": "Vue/Nuxt resolver（文件约定路由与中间件）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-8": {
+      "id": "1-4-1-8",
+      "label": "Django resolver（URL/view/model 与 ORM descriptor 语义）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-9": {
+      "id": "1-4-1-9",
+      "label": "Flask resolver（装饰器路由与 Flask-RESTful resources）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-10": {
+      "id": "1-4-1-10",
+      "label": "FastAPI resolver（装饰器路由与依赖注入语义）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-11": {
+      "id": "1-4-1-11",
+      "label": "Rails resolver（routes、controller/model/helper/service 约定）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-12": {
+      "id": "1-4-1-12",
+      "label": "Spring resolver（控制器路由与配置键绑定）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-13": {
+      "id": "1-4-1-13",
+      "label": "Play resolver（无扩展名 conf/routes 抽取）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-14": {
+      "id": "1-4-1-14",
+      "label": "Go/Gin resolver（路由抽取与 handler 解析）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-15": {
+      "id": "1-4-1-15",
+      "label": "Rust 框架 resolver（Rocket/Axum 类路由，core 未覆盖部分）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-16": {
+      "id": "1-4-1-16",
+      "label": "ASP.NET resolver（路由与 Razor/Blazor 链接边界）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-17": {
+      "id": "1-4-1-17",
+      "label": "SwiftUI resolver（app/view 链接）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-18": {
+      "id": "1-4-1-18",
+      "label": "UIKit resolver（view-controller/view 关系）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-19": {
+      "id": "1-4-1-19",
+      "label": "Vapor resolver（Swift 服务端路由）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-20": {
+      "id": "1-4-1-20",
+      "label": "Swift-Objective-C bridge resolver（iOS 混合桥接语义）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-21": {
+      "id": "1-4-1-21",
+      "label": "React Native bridge resolver（JS-to-native 桥接）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-22": {
+      "id": "1-4-1-22",
+      "label": "Expo Modules resolver（Swift/Kotlin 模块 DSL）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-1-23": {
+      "id": "1-4-1-23",
+      "label": "Fabric view resolver（TS spec 到 native component/view-manager 链接）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+    },
+    "1-4-2": {
+      "id": "1-4-2",
+      "label": "引用解析与终结层逐项决策（8 项）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [
+        "1-4-2-1",
+        "1-4-2-2",
+        "1-4-2-3",
+        "1-4-2-4",
+        "1-4-2-5",
+        "1-4-2-6",
+        "1-4-2-7",
+        "1-4-2-8"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-2-1": {
+      "id": "1-4-2-1",
+      "label": "ReferenceResolver 编排",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "决策项：决策保持 TS shell（协调全部语言）还是 Rust 拥有语言局部子集；现状为跨语言总编排。 完成定义：decide 落 migrate/keep/split + 理由。"
+    },
+    "1-4-2-2": {
+      "id": "1-4-2-2",
+      "label": "Name matcher",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "决策项：决策移植通用 matcher / 留 TS / 拆分候选生产与决策逻辑。 完成定义：decide 落 migrate/keep/split + 理由。"
+    },
+    "1-4-2-3": {
+      "id": "1-4-2-3",
+      "label": "Dynamic-dispatch synthesizers",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "决策项：保持 TS shell，直到每个机制有端到端流证明与精度证据（见 docs/designs/dynamic-dispatch-coverage-playbook.md）。 完成定义：decide 落 migrate/keep/split + 理由。"
+    },
+    "1-4-2-4": {
+      "id": "1-4-2-4",
+      "label": "Framework resolver registry",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "决策项：决策 Rust 暴露 post-extract 协议 vs 直接拥有框架 registry。 完成定义：decide 落 migrate/keep/split + 理由。"
+    },
+    "1-4-2-5": {
+      "id": "1-4-2-5",
+      "label": "Cleanup protocol 执行",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "决策项：决策 TS 继续做 executor，还是 Rust 安全拥有 resolved/unresolved cleanup（注意 finalization-tail-boundary 契约）。 完成定义：decide 落 migrate/keep/split + 理由。"
+    },
+    "1-4-2-6": {
+      "id": "1-4-2-6",
+      "label": "Status/doctor 降级诊断",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "决策项：即使底层所有权变更，用户侧健康词汇（healthy/degraded/failed/unavailable/stale/corrupted）保持稳定。 完成定义：decide 落 migrate/keep/split + 理由。"
+    },
+    "1-4-2-7": {
+      "id": "1-4-2-7",
+      "label": "MCP/read API 表面",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "决策项：迁移不得改变 agent 工具语义；src/mcp/server-instructions.ts 是 agent 指引唯一事实源。 完成定义：decide 落 migrate/keep/split + 理由。"
+    },
+    "1-4-2-8": {
+      "id": "1-4-2-8",
+      "label": "Rust-owned gap 诊断",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "决策项：每个新迁移语言必须保留 per-file parse/extraction-gap 上报（contract: rust-owned-parse-gap / extraction-gap / partial-write-blocked）。 完成定义：decide 落 migrate/keep/split + 理由。"
+    },
+    "1-5": {
+      "id": "1-5",
+      "label": "验收标准与所有权护栏",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1",
+      "children": [
+        "1-5-1",
+        "1-5-2",
+        "1-5-3",
+        "1-5-4",
+        "1-5-5"
+      ],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-5-1": {
+      "id": "1-5-1",
+      "label": "迁移语言在 rust-hybrid 元数据中 TS fallback 归零",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": "RUST_HYBRID_RUST_OWNED_LANGUAGES 含该语言，fallbackReasonTaxonomy 无该语言 TS 追加；gap 计数独立报告。"
+    },
+    "1-5-2": {
+      "id": "1-5-2",
+      "label": "每个迁移语言有确定性 fixture 与真实语料证据",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": "fixture 进 __tests__ 且 CI 三 OS 运行（禁止 .skip 充数，#692 教训）；语料 benchmark 落 docs/benchmarks/ 含 SHA。"
+    },
+    "1-5-3": {
+      "id": "1-5-3",
+      "label": "每个未迁移共享层项有 keep/split/migrate 决策与理由",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": "决策挂 roadmap 节点；keep 项在代码注释/文档显式标注归属并加防回退测试。"
+    },
+    "1-5-4": {
+      "id": "1-5-4",
+      "label": "Status/doctor 在混合所有权下六态健康输出不回归",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": "healthy/degraded/failed/unavailable/stale/corrupted；引擎切换（engine-selection）对用户可解释。"
+    },
+    "1-5-5": {
+      "id": "1-5-5",
+      "label": "所有权护栏：文件 Rust-owned 不自动宣称框架/运行时语义 Rust-owned",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-5",
+      "children": [],
+      "decisions": [],
+      "notes": "每语言迁移节点必须单独回答框架边界（如 Python Rust-owned 但 Django/Flask/FastAPI resolver 仍 TS shell）。"
+    },
+    "1-6": {
+      "id": "1-6",
+      "label": "排序与调度",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-6-1",
+        "1-6-2",
+        "1-6-3",
+        "1-6-4",
+        "1-6-5"
+      ],
+      "decisions": [
+        {
+          "q": "排序总原则？",
+          "answer": "一次一个语言：基线→真实语料→元数据/诊断→框架边界决策→再下一个",
+          "note": "来自 PRD Suggested Sequencing；每语言必须 fixture+语料双证据后才推进"
+        },
+        {
+          "q": "波次 0 是什么？",
+          "answer": "#692 夹具债清零（1-6-5）先行：先把 Rust-owned 夹具模式与 CI 三 OS 跑通，再启动任何新语言迁移",
+          "note": "2026-09-28 grilling 决策；顺序：#692 → Kotlin → 后续语言"
+        },
+        {
+          "q": "锁定的执行波次序列？",
+          "answer": "波次0: #692 夹具模式(1-6-5) → 波次1: Kotlin(1-2-8, 顺带 Spring resolver 决策) → 波次2: Lua→Luau 成对(1-2-12/13, 小语言打磨模板) → 波次3+: C#/PHP/Ruby/Dart/Pascal/Scala 按语料就绪度排 → Swift→ObjC 收尾(1-2-7→1-2-14, 需移动优先级触发, 桥接 resolver 一并决策)",
+          "note": "2026-09-28 grilling；波次3 内部顺序待每波次完成后用真实 gap 数据再 grill，不提前锁死"
+        }
+      ],
+      "notes": ""
+    },
+    "1-6-1": {
+      "id": "1-6-1",
+      "label": "波次1: Kotlin 基线迁移（#692 夹具模式落地后首个新语言）",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [
+        {
+          "q": "下一个迁移语言选谁？",
+          "answer": "Kotlin",
+          "note": "PRD Suggested Sequencing 明确建议；JVM 系协同最强"
+        }
+      ],
+      "notes": "理由：Java 基线已完成且 Spring/Play 边界已显式，Kotlin 与 JVM 系复用度最高；交付后回填 2-Kotlin 四个子节点并新增 kotlin benchmark。"
+    },
+    "1-6-2": {
+      "id": "1-6-2",
+      "label": "Python 框架充分性检查（Django/Flask/FastAPI 边界实证）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": "Python 基线 Rust-owned 已有 flask benchmark；本项验证三个框架 resolver 保持 TS shell 下的端到端精度，产出归属决策或缺口清单。"
+    },
+    "1-6-3": {
+      "id": "1-6-3",
+      "label": "Go/Gin 路由所有权检查",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": "Go 文件已 Rust-owned；验证 Gin 路由抽取归属（Rust core 已覆盖部分 vs TS resolver）。"
+    },
+    "1-6-4": {
+      "id": "1-6-4",
+      "label": "Swift 基线迁移（移动桥接成为产品优先级时启动）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": "触发条件：iOS/桥接语义产品优先级提升；与 Goal2 SwiftUI/UIKit/Vapor/桥接 resolver 决策联动。"
+    },
+    "1-6-5": {
+      "id": "1-6-5",
+      "label": "波次0: #692 夹具债清零（新语言迁移前置）",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6",
+      "children": [
+        "1-6-5-1",
+        "1-6-5-2",
+        "1-6-5-3"
+      ],
+      "decisions": [
+        {
+          "q": "波次0 完成口径？",
+          "answer": "19 基线全绿 + 7 高级语义各有移植或分流节点 + 9 个死块清零 + CI 三 OS 绿",
+          "note": "2026-09-28 grilling；旧块处置=新用例落地后立即删"
+        },
+        {
+          "q": "warmup build timing",
+          "answer": "cold cargo build 619s first-time crate fetch; later incremental",
+          "note": "2026-09-28 measured task 5C8n0Y"
+        },
+        {
+          "q": "wave-0 closeout",
+          "answer": "All four acceptance items met: (1) the pure-baseline cases moved into rust-owned-language-fixtures (6 describe/17 it, 3-OS green) and their skip dead-blocks deleted (1-6-5-1); (2) the 7 advanced-semantic cases each have a home — portable ones ported, real product gaps split to roadmap nodes (G1-G4 -> 1-2-3-1; G5-G9 -> 1-2-1-1; G10 hybrid file-name seam -> 1-2-3-1); (3) skip debt frozen to exactly 7 tracked sites enforced by skip-debt-guardrail; (4) three-OS CI green (run 36533846082, 39f951e). Wave 0 closes with NO red tests and NO product impl added.",
+          "note": "2026-09-29 closeout; commits 06972fa/972862c/8cc19e6/93d41de/61943c1/39f951e; B/C re-skip is tracked G10 debt, not a wave-0 miss"
+        }
+      ],
+      "notes": "事实校准（2026-09-28 代码核对）：共 9 个 skip 站点、26 个 it()（非此前记忆的 9 用例）。分布 extraction.test.ts 7 站 + frameworks-integration.test.ts 1 站 + resolution.test.ts 1 站。这些块调用已删除的 TS extractor API，无法就近激活，必须新写 Rust-owned 断言。"
+    },
+    "1-6-5-1": {
+      "id": "1-6-5-1",
+      "label": "移植 19 个纯基线用例到 Rust-owned 夹具并删除对应 skip 死块",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6-5",
+      "children": [],
+      "decisions": [
+        {
+          "q": "基线夹具文件形态？",
+          "answer": "新建 rust-owned-language-fixtures.test.ts + 复用 helpers/rust-indexing-cli；内联临时项目",
+          "note": "与现有 rust-* 40+ 测试一致；beforeAll cargo build 仅编 debug bin，Win 可跑"
+        },
+        {
+          "q": "移植顺序？",
+          "answer": "C/C++ 7 个先行（include 6+自由函数 1，最纯，先立夹具骨架）→ Java import 5 → L831 待探测组 4 → L6467 注解 1",
+          "note": "每组落地即删对应 skip 死块；待探测组若证实 Rust 输出差异，转 1-6-5-2 分流"
+        },
+        {
+          "q": "断言层级？",
+          "answer": "CLI 端到端 + DB/SDK 断言：runZcodegraphCli index 后 CodeGraph.openSync/searchNodes/getStats + 必要时直查 nodes 表 (qualified_name/signature/visibility/is_static)",
+          "note": "Rust 无 TS 可调用抽取函数，原 extractFromSource 单元写法不可复用；模板=rust-index-engine-cli-language-smoke.test.ts；不用 parity 快照（TS 参照实现已删，拿不到对照快照）"
+        },
+        {
+          "q": "提交粒度？",
+          "answer": "每组语言一个 chore(test:) 提交：新用例+删死块同提交；不自动 push，等显式 checkpoint 指令",
+          "note": "建议 3 提交：C/C++ 组 / Java import 组 / L831+注解待探测组；feat 与 test 分离"
+        },
+        {
+          "q": "死块删除会留悬空依赖吗？",
+          "answer": "不会：skip 块自包含；删后 extraction.test.ts 仍有 238 处活跃 extractFromSource、61 处 tempDir helper 使用，import/helper 全保留；预计纯删约 340 行",
+          "note": "2026-09-28 代码核对；新测试与删块同提交但 diff 可分文件审查"
+        },
+        {
+          "q": "include 6 portability",
+          "answer": "port with changed assertions: import node name matches and unresolved_refs(imports,line,file_path,language=cpp) written; signature is NULL in Rust so drop old TS signature assertion",
+          "note": "2026-09-28 rust-bin + sqlite probe"
+        },
+        {
+          "q": "free function case 7 split",
+          "answer": "split: TableFileName(qualified-type param) named correctly, portable; BuildName(trailing return type auto->std::string) STILL misnamed 'string' in Rust = real extraction gap -> child of 1-2-3; no red test this wave",
+          "note": "2026-09-28 probe"
+        },
+        {
+          "q": "Java import 5 portability",
+          "answer": "ALL 5 portable with name+unresolved_refs assertions (signature dropped, Rust stores null): simple java.util.List; static -> java.util.Collections.emptyList; wildcard java.util.* -> java.util; nested java.util.Map.Entry; multiple=3 rows in order. Names match legacy TS exactly. Skip block deleted",
+          "note": "2026-09-28 rust-bin sqlite probe"
+        },
+        {
+          "q": "L831 probe 4 verdict",
+          "answer": "split 2/2. Portable: #3 package wraps as kind=module(not namespace) but qn com.example.foo::Bar / ::greet matches TS exactly; #4 no-package emits no module node (intent matches), class qn is file-prefixed NoPkg.java::Bar by Rust design (smoke-locked) so assert module-absence not bare qn. Gaps: #1 class visibility null (TS wanted public)=G5; #2 method is_static 0 for 'public static'=G6. Both real Java extraction gaps -> child of 1-2-1, skip it()s retained with pointers",
+          "note": "2026-09-28 rust-bin sqlite probe"
+        },
+        {
+          "q": "L6467 annotation verdict",
+          "answer": "NOT portable as-is, split. Supported (definition side): @interface MyAnno -> interface node qn p::MyAnno, element value() -> method (Rust lib.rs:9487 annotation_type_declaration + :9532 element_decl) -> write definition guard test. Gap G7: marker_annotation USAGES (@MyAnno on class/field/method) produce NO node and NO unresolved ref (User.java refs empty, decorators null), so TS resolver cannot link and getFileDependents(p/MyAnno.java)->p/User.java fails end-to-end. G7 appended to 1-2-1-1; skip block retained with pointer",
+          "note": "2026-09-28 rust-bin sqlite probe"
+        },
+        {
+          "q": "baseline port final tally",
+          "answer": "15 Rust-owned its landed (7 C/C++ incl TableFileName, 5 Java imports, 2 Java package, 1 @interface definition). The remaining legacy baseline cases are PROVEN extraction gaps, not portable debt: G1 trailing-return fn name->1-2-3-1; G5 visibility/G6 is_static/G7 annotation usage->1-2-1-1. Baseline fixture scaffolding established; 1-6-5-1 closed by divergence (gaps tracked as product nodes, skip blocks carry pointers). No fake-green/red tests",
+          "note": "2026-09-28 L6467 probe completes baseline pass"
+        }
+      ],
+      "notes": "DONE 2026-09-28: rust-owned-language-fixtures.test.ts 15 it 落地(5 describe)。分类经探针修正后：可移植基线全部移植(6 C/C++ include + TableFileName 命名守护 + 5 Java import + 2 Java package + 1 @interface 定义)；不可移植项全部实测证实为真抽取缺口并分流产品节点——G1 trailing-return 函数名->1-2-3-1；G5 visibility/G6 is_static/G7 注解使用->1-2-1-1。对应 skip 块保留(因同块含未决用例)且带分流指针，未写红/假绿测试。skip 站点 9->7(注解块保留故仍含1站)。本机词法括号校验 BALANCED，数据断言 rust-bin+sqlite 实测，tsc/vitest 交 CI。"
+    },
+    "1-6-5-2": {
+      "id": "1-6-5-2",
+      "label": "探测 7 个高级语义用例：能移植的移植，产品缺口分流为新节点",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6-5",
+      "children": [],
+      "decisions": [
+        {
+          "q": "高级语义缺口如何处置？",
+          "answer": "只做能力探测与分流，不在波次0补产品实现；真缺口转新 roadmap 节点",
+          "note": "保持波次0=夹具模式立制，避免膨胀成产品开发"
+        },
+        {
+          "q": "9 个高级语义的处置原则？",
+          "answer": "逐条实测定分流，不在波次0补产品实现：A 优先试（split 边界已存在）；B/C 验证 resolver 归属；D 明确为 Rust Java 抽取缺口挂 1-2-1；E 挂 1-4-2 并用独立数据评估",
+          "note": "2026-09-28 grill；预判表见 notes，实施顺序 A→B→C→D→E（先捡低成本的）"
+        },
+        {
+          "q": "[纠正] D 组 Java 匿名类是缺口吗？",
+          "answer": "不是确定缺口。Rust core lib.rs:9508 已有 object_creation_expression+java_anonymous_class_body 抽取，产出 <Type>$anon@{line} class 节点且带 extends_name=Type；visit_java_node(9343) 通用递归无 lambda 跳过分支，lambda 体内匿名类也会下钻。D 组改判【可能已支持,实测激活】，与 A/B 同级；唯一真实风险是 qualifiedName 格式（TS 期望 Factory::make::<Base$anon@..>::compute 含外层方法路径，Rust 限定格式未证实一致）。",
+          "note": "2026-09-28 二次核实；上一轮 grep 'anon' 被 canonicalize 命中淹没+head 截断导致误判，教训：能力判定以实测为准，不靠关键词 grep"
+        },
+        {
+          "q": "要不要预先给已完成的 1-2-1(Java) 建匿名类缺口子节点？",
+          "answer": "不预建。实现已存在，预建缺口节点=错误事实；实测若 qualifiedName 等真不一致，再给 1-2-1 加子节点（父同步会把 1-2-1 从 completed 降 in_progress，符合规则）",
+          "note": "修正后分流：A/B/C/D 全部'实测激活'优先，仅 C(include-dir -I) 预期 TS-shell 独占；E 仍挂 1-4-2"
+        },
+        {
+          "q": "A group probe result",
+          "answer": "ALL 3 disproven as cheap activations. Rust cpp extraction gaps: (A3) no 'extends' edge for base_class_clause AND in-class methods emitted kind=function not method with no class in qualifiedName, so TS cppOverrideEdges(filter method+extends) can never fire; (A1/A2) receiver call m_cpAlg->Processing emits bare-name unresolved call ref only; RunAssign line also yields spurious 'Processing' variable node. hybrid E2E resolution unverifiable locally (no TS shell), deferred to CI",
+          "note": "2026-09-28 rust-bin + full node/edge dump"
+        },
+        {
+          "q": "D-group anon extracted?",
+          "answer": "YES portable; anon class+override methods+extends/implements refs all present",
+          "note": ""
+        },
+        {
+          "q": "D1 evidence",
+          "answer": "anon <Base$anon@9> qn com.example::Factory::make::<Base$anon@9>; compute method qn ...::compute; extends Base ref present; NO instantiates ref",
+          "note": ""
+        },
+        {
+          "q": "D2 evidence",
+          "answer": "lambda-body anon <BaseIter$anon@17> with separatorStart/hasNext/next; implements Iterator L7 + extends BaseIter L17",
+          "note": ""
+        },
+        {
+          "q": "G8 instantiates gap",
+          "answer": "Rust Java emits NO instantiates refs for any object creation; plain new Foo() also zero refs; D1 missing instantiates Base is one instance -> logged to node 1-2-1-1 as G8, not wave-0 impl",
+          "note": ""
+        },
+        {
+          "q": "B same-dir include: Rust extraction?",
+          "answer": "YES: pure --engine rust on apple/Storage.h + windows/Storage.h + windows/Provider.cpp emits import node Storage.h and unresolved_refs(kind=imports,name=Storage.h,file=windows/Provider.cpp,L1). But pure rust builds NO file->file edge (no imports edges at all)",
+          "note": ""
+        },
+        {
+          "q": "B where edge is built",
+          "answer": "TS-shell resolver import-resolver.ts:1091-1108 c/cpp quoted-include branch: sibling-first, exact match n.kind=file AND n.filePath===windows/Storage.h, confidence 0.92, BEFORE -I scan / arbitrary basename pick. Comment names the RNCAsyncStorage same-basename case. Engine-agnostic shell logic, filePaths stored posix",
+          "note": ""
+        },
+        {
+          "q": "B disposition",
+          "answer": "NOT a Rust gap and NOT portable to pure-rust fixtures (they cannot assert resolver file edges). It is a rust-hybrid end-to-end contract whose two halves are both confirmed (rust ref + resolver sibling-first). ACTIVATE the it.skip in extraction.test.ts; real verification delegated to 1-6-5-3 CI three-OS (esp windows-2025 posix filePath)",
+          "note": ""
+        },
+        {
+          "q": "C include-dir -I: pre-plan said TS-shell keep",
+          "answer": "CORRECTED by evidence: the end-to-end contract runs on rust-hybrid, so activate rather than keep skipped",
+          "note": ""
+        },
+        {
+          "q": "C half 1 rust ref",
+          "answer": "pure --engine rust on include/utils.h + src/main.cpp (#include \"utils.h\", #include <vector>) emits import nodes + unresolved_refs(imports) for BOTH utils.h and vector; pure rust builds no file edge (shell job)",
+          "note": ""
+        },
+        {
+          "q": "C half 2 shell include-dir",
+          "answer": "import-resolver: quoted-include sibling-first misses (not same dir) -> resolveCppIncludePath (L71/L510) scans include dirs; loadCppIncludeDirs heuristic L475 lists convention include/ (no compile_commands.json needed); vector filtered by C_CPP_STDLIB_HEADERS L111 -> no file edge. getCppIncludeDirs wired at resolution/index.ts:664",
+          "note": ""
+        },
+        {
+          "q": "C auto-resolve + disposition",
+          "answer": "index.ts rust-hybrid indexing (L1300-1332) auto-runs runPostExtract+resolveAndPersist+resolveReferencesBatched, so init({index:true}) builds the edge without explicit resolveReferences(). ACTIVATE resolution.test L2196 it.skip; same engine-agnostic shell contract as B; CI three-OS verification in 1-6-5-3",
+          "note": ""
+        },
+        {
+          "q": "E case1 Java value-read: pre-plan said 1-4-2 terminal layer",
+          "answer": "CORRECTED: root cause is Rust EXTRACTION, not the terminal layer. pure --engine rust on JsonScope.EMPTY_DOCUMENT read in Reader.peek emits ZERO refs (no JsonScope type ref, no EMPTY_DOCUMENT field ref). TS extractor tree-sitter.ts:2523 extractStaticMemberRef (STATIC_MEMBER_LANGS includes java) DOES emit it, but Rust Java extractor has no equivalent, and shell cannot reconstruct member-access AST from Rust nodes. Logged G9 under 1-2-1-1 (Java extraction), not 1-4-2",
+          "note": ""
+        },
+        {
+          "q": "E case1 lowercase receiver half",
+          "answer": "also unmet: this.helper produces no ref either in Rust (whole Reader.java has zero unresolved_refs), so neither the JsonScope-positive nor the this/helper-negative half can be asserted. Case stays skipped pending G9",
+          "note": ""
+        },
+        {
+          "q": "E case2 cross-family negative guard disposition",
+          "answer": "engine:typescript, Rust-independent (TS Build.ts vs Kotlin Build.VERSION must not cross-link). Activate it as a standalone negative guard; complements the active Cross-language gate describe below. Requires un-skipping the describe and skipping only case1",
+          "note": ""
+        },
+        {
+          "q": "group E disposition summary",
+          "answer": "case1 stays it.skip tagged G9 (real extraction gap); case2 activated. describe.skip -> describe, case1 -> it.skip with G9 pointer",
+          "note": ""
+        }
+      ],
+      "notes": "【9 高级语义分流预判 v2（2026-09-28 二次核实，D 已纠正）；实施时逐条实测】\n[A] C++ virtual override×3（frameworks-integration L232）【预期低成本激活】：cppOverrideEdges 在 TS synthesizer-modules.ts:227 queries-only(cpp/c)，rust-hybrid split 边界已存在，断言改到 rust-hybrid 图大概率直接绿。\n[B] include 同目录头×1（extraction L4286）【可能已支持,实测】：Rust import_file_candidates(lib.rs:4747) 通用相对候选，确认 C preproc_include 走且优先同目录。\n[C] include-dir -I 扫描×1（resolution L2196）【预期 TS-shell 独占, keep】：TS import-resolver.ts:403 有 -I 解析，Rust 无 include_dir/isystem；端到端若 TS resolver 收尾则能跑，否则登记 TS 独占不移植。\n[D] Java 匿名类 override×2（extraction L831 末）【纠正：可能已支持,实测】：Rust lib.rs:9508 已有 object_creation_expression+java_anonymous_class_body，产 <Type>$anon@{line}> class 带 extends_name；visit_java_node(9343) 递归无 lambda 跳过。唯一风险=qualifiedName 格式是否含外层方法路径(Factory::make::<...>::compute)。若实测不一致再给 1-2-1 加子节点，不预建。\n[E] 静态成员/枚举值读取×2（extraction L3814）【解析能力,挂 1-4-2】：两侧无专门 value-read 合成器；用例1 rust-hybrid、用例2 typescript 防跨语言误连；TS/JS/Python 同类 pass 曾 measured&REJECTED，Java 需独立数据勿照搬。\n实施顺序 A→D→B→C→E（D 提到 B 前，与 A 同属大概率快绿的端到端激活；C/E 是边界登记）。"
+    },
+    "1-6-5-3": {
+      "id": "1-6-5-3",
+      "label": "CI 三 OS 验证 + 防新增 skip 护栏",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6-5",
+      "children": [],
+      "decisions": [
+        {
+          "q": "新测试在本机/CI 如何拿到 Rust core？",
+          "answer": "beforeAll 直接 cargo build（沿用 rust-parity/rust-language-smoke 惯例），不加 skipIf 守卫防静默跳过；CI ci.yml:39 已先跑同命令零新增成本；本机首次实施先单独 build 计时预热",
+          "note": "debug build 非 test codegen，不触发 53min .rlib 问题；不加 core 缺失 skipIf 是 #692 教训"
+        },
+        {
+          "q": "CI gap finding",
+          "answer": "ci.yml rust-packaged-path runs ONLY targeted vitest subsets (3 steps) + cargo + a smoke; there is NO full `npm test`/`vitest run`, so the 17 new rust-owned fixture cases and activated B/C/E2 are not executed on CI unless explicitly added. The 4 -t filter names all verified present (2 in ci-rust-packaged-path contract, all 4 real in cli-engine test)",
+          "note": ""
+        },
+        {
+          "q": "guardrail design",
+          "answer": "Add ONE source-level audit test file __tests__/skip-debt-guardrail.test.ts (no index, runs on every vitest): (1) FREEZE retained skip inventory = exactly the 5 sites (4 describe.skip + 1 it.skip across extraction/frameworks-integration); a 6th unannotated skip fails. (2) Each skip must carry a tracker token (G1..G9 gap id / roadmap node / #issue) within a preceding comment window. (3) forbid .only. It asserts the inventory so new skips are deliberate+tracked and cannot silently grow (#692 debt).",
+          "note": ""
+        },
+        {
+          "q": "CI wiring design",
+          "answer": "Add a rust-owned fixtures step to ci.yml matrix that (a) cargo build zcodegraph-core then (b) vitest run rust-owned-language-fixtures.test.ts + extraction.test.ts/resolution.test.ts focused B/C/E names OR the full files; update ci-rust-packaged-path.test.ts contract to pin the new step/file. Exact scope (full-file vs -t subset) decided after checking vitest config include + cost.",
+          "note": ""
+        },
+        {
+          "q": "guardrail file delivered",
+          "answer": "__tests__/skip-debt-guardrail.test.ts (4 it, source-only no index): freeze retained skip inventory to exactly the 5 wave-0 sites (4 describe.skip + 1 it.skip), require a tracker token (G#/roadmap node/issue) in preceding comment window, forbid .only, and keep ci.yml -t regex branches runnable",
+          "note": ""
+        },
+        {
+          "q": "vitest -t is a raw regexp",
+          "answer": "CONFIRMED via vitest docs/source: -t/testNamePattern is compiled to a RegExp, | is OR, and +/( ) are metacharacters. The existing 4 CI names were safe (letters/spaces only). My first wave-0 -t filter wrongly embedded \"C++\" (+ quantifier) and \"(...)\" (groups) which would match NOTHING and silently run 0. Fixed: use unique metacharacter-free substrings, and made the guardrail evaluate each -t branch as `new RegExp(branch).test(title)` so future metachar mistakes fail CI too",
+          "note": ""
+        },
+        {
+          "q": "CI wiring delivered",
+          "answer": "ci.yml matrix gains 2 steps after cargo build: (1) full-file vitest run rust-owned-language-fixtures.test.ts (17 it) + skip-debt-guardrail.test.ts (no -t, so nothing filtered); (2) -t run of extraction.test.ts+resolution.test.ts for activated B/C/E2 via 3 unique substrings. ci-rust-packaged-path.test.ts contract pinned with a new it. Verified statically via node sim (5 skips tracked, 0 only, 7/7 -t branches each hit exactly 1 real title)",
+          "note": ""
+        },
+        {
+          "q": "remaining = real three-OS CI only",
+          "answer": "code/guardrail side of 1-6-5-3 is DONE; node cannot run vitest/tsc locally (no node_modules). Real three-OS verification (ubuntu/macos-14/windows-2025, esp windows posix filePath + cargo build before fixtures) happens only after the 4 wave-0 commits + this guardrail commit are pushed. Keep node in_progress until push-triggered CI is green",
+          "note": ""
+        },
+        {
+          "q": "CI RESULT red on B/C",
+          "answer": "push 61943c1 ran three-OS: 17 rust-owned fixtures + 4 guardrails GREEN on all 3; E2 cross-family guard GREEN. Only B (same-dir include) and C (-I include-dir) FAIL identically on ubuntu/macos/windows: no file->file imports edge. My static inference \"resolver code exists => e2e works\" was WRONG",
+          "note": ""
+        },
+        {
+          "q": "B/C root cause = hybrid file-name seam G10",
+          "answer": "TS extractor names file nodes by path.basename (tree-sitter.ts:292 -> Storage.h); Rust extractor names file nodes by FULL file_path (windows/Storage.h, confirmed via sqlite). resolver c/cpp include resolution finds headers via context.getNodesByName(basename) which is exact WHERE name=? (queries.ts:774, no adaptation at resolution/index.ts:510), so BOTH sibling-first (import-resolver.ts:1103) and include-dir fallback (1112) miss on the Rust graph. A genuine rust-hybrid seam gap, not a test bug",
+          "note": ""
+        },
+        {
+          "q": "disposition: revert B/C to skip + G10",
+          "answer": "wave 0 ships no product impl and no red tests, so revert B and C to it.skip tagged G10, keep E2 active (it passed), keep the guardrail + fixture CI step, and drop the dedicated B/C -t CI step. Add G10 to node 1-2-3-1 (C++ ownership) and grow the frozen skip allowlist to 7. Fix G10 later by either basename-normalizing Rust file nodes or making include resolution filePath-aware",
+          "note": ""
+        },
+        {
+          "q": "three-OS CI final result for the B/C revert fix",
+          "answer": "GREEN: run 36533846082 on 39f951e completed success on windows-2025 + ubuntu-latest + macos-14. The narrowed CI step runs only the E2 cross-family negative guard; the 17 rust-owned fixtures + skip-debt guardrails step and all pre-existing steps pass. B/C stay it.skip tagged G10 (roadmap 1-2-3-1). 1-6-5-3 acceptance (real three-OS green) met.",
+          "note": "2026-09-29; prior red run 36531923912 (61943c1) was the G10 evidence"
+        }
+      ],
+      "notes": "新测试须在 CI ubuntu/macos-14/windows-2025 真 cargo build + vitest 跑通（参考 rust-package-smoke 的平台 skipIf 仅限不适用平台）。护栏：测试名与 -t filter 同步（CI 曾因 filter 不匹配静默跳过）；新增 .skip 必须挂 issue 号；26 个 it() 全部有归宿（ported 或 roadmap 节点）才算波次0完成。"
+    },
+    "1-2-3-1": {
+      "id": "1-2-3-1",
+      "label": "C++ 语义抽取缺口（#692）：G10/G1/G2/G3/G4 全部已修并三 OS 绿（G4 c7991f0，run 36558114423）；节点完成",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-2-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "scope gaps",
+          "answer": "G1 trailing return type: auto BuildName(...) -> std::string misnamed 'string'. G2 no extends edge for base_class_clause. G3 in-class methods emitted kind=function not method, qualifiedName lacks class. G4 receiver call obj->method emits bare-name call ref (loses receiver) blocking inferCppReceiverType; plus RunAssign spurious 'Processing' variable. Evidence: rust-bin sqlite probes 2026-09-28",
+          "note": "parent 1-2-3 baseline imports done #678; these are deeper semantics found via 1-6-5"
+        },
+        {
+          "q": "G10 c/cpp include edge hybrid seam",
+          "answer": "Rust file nodes are named by FULL file_path (e.g. windows/Storage.h) while TS file nodes use path.basename (Storage.h). The c/cpp include resolver locates headers with context.getNodesByName(basename) (exact match) for both quoted-include sibling-first and -I include-dir fallback, so on a rust-hybrid graph it finds neither and NO file->file imports edge is built. Confirmed red on all three OS in CI run 36531923912 (B same-dir + C include-dir). Fix options: (a) normalize Rust file node name to basename to match TS, or (b) make include resolution filePath-aware (match on filePath column instead of name). Observed on c/cpp; audit whether the full-path naming also affects other basename-based file resolution.",
+          "note": "found via 1-6-5-3 push CI; B/C wave-0 cases reverted to skip pending this"
+        },
+        {
+          "q": "G10 fix-direction investigation: root cause is Rust-internal, choose basename-normalize",
+          "answer": "DECISION = Option A (normalize at the single source). Evidence: (1) ExtractedNode::file sets name=qualified=relative_path (lib.rs:12570-71) while the TS extractor names file nodes by path.basename (tree-sitter.ts:292). (2) The Rust core's OWN file-path matcher already expects basename: match_by_file_path filters by_file_name candidates with node.kind==file && node.name == file_name (lib.rs:875) and candidate-producer FileNodes is a file_path lookup — so the full-path name is an internal Rust inconsistency, not a TS-only seam. (3) Blast radius of the name=basename convention is BROADER than just c/cpp: TS resolvers c/cpp include (import-resolver.ts:1104/1112), Python absolute module resolution (1540/1544 bar.py/__init__.py), and the generic file-name strategy (name-matcher.ts:31) all call getNodesByName(basename); every one currently misses on a rust-hybrid graph. (4) There is NO TS mapping bridge — Rust writes SQLite directly (rust-indexer only shells out) — so normalization cannot be done in TS per-language cheaply. (5) Node id comes from generate_node_id(relative_path,'file',relative_path,1) (lib.rs:12568,13033): changing the name FIELD does not change id, so all edges stay stable. (6) No test pins name=full-path; the lib.rs:14624 edge assertion matches on target_file_path+kind, not name. Fix = set only the  field to file_name basename in ExtractedNode::file (keep qualified_name/file_path = relative_path); Option B (filePath-aware resolution) rejected as N call-site patches that also leaves Rust's own matcher inconsistent. Risks to audit before shipping: FTS/search and getNodesByName-by-full-path consumers now see basename (consistent with TS engine); requires reindex; validate B+C+python on three-OS CI.",
+          "note": "2026-09-29; supersedes earlier 'two equivalent directions' framing — they are not equivalent; A is the deep-module root fix"
+        },
+        {
+          "q": "G10 fix precise edit point",
+          "answer": "Clarification (the prior answer lost a word to shell backtick expansion): in ExtractedNode::file (crates/zcodegraph-core/src/lib.rs around line 12565-12582) change ONLY the struct field named name from relative_path.to_string() to the file-name basename (std::path::Path::new(relative_path).file_name()), and KEEP id, qualified_name and file_path all as relative_path. Do not change ExtractedNode::symbol. Then rebuild the packaged core, reindex, and re-activate B and C plus add a python absolute-import e2e; verify on three-OS CI.",
+          "note": "2026-09-29"
+        },
+        {
+          "q": "G10 implementation status (pre-push)",
+          "answer": "Implemented Option A + re-activated B/C, pending three-OS CI. Changes: (1) crates/zcodegraph-core/src/lib.rs ExtractedNode::file now sets name=basename (Path::file_name), id/qualified_name/file_path unchanged; added rust unit test rust_core_names_file_nodes_by_basename_g10; cargo check --tests GREEN, cargo build GREEN (18s). (2) Local rust-bin end-to-end probe on the rebuilt core confirms file nodes are named Storage.h/utils.h/mod.py and the replicated TS resolver lookups all hit: B sibling-first picks windows/Storage.h over same-basename apple/Storage.h, C include-dir hits include/utils.h, stdlib vector filtered to 0 files, python absolute import hits pkg/mod.py. (3) Read-code wiring confirmed: hybrid indexAll calls resolveReferencesBatched (index.ts:1979) over rust-written unresolved_refs; resolveOne gate hasAnyPossibleMatch uses KnownNamePresence WHERE name=? which the basename normalization now satisfies; resolveViaImport cpp branch then builds the file edge. (4) Re-activated B (extraction.test.ts) and C (resolution.test.ts), guardrail allowlist back to 5, ci.yml -t step restored with B/C/E2 three metacharacter-free branches, ci-rust-packaged-path contract reverted to assert all three; node static sim ALL GREEN (5 skips, 0 .only, 7 -t branches each 1 hit across 1896 titles). Final proof = real three-OS CI hybrid e2e (lesson from run 36531923912); keep node in_progress until green.",
+          "note": "2026-09-29; NOT yet committed/pushed"
+        },
+        {
+          "q": "G10 CI iteration 2 and 3 fixes (product fix GREEN on all 3 OS, only test-harness cleanup left)",
+          "answer": "Run 36536751323 (d27fbb8): cargo test FAILED identically on 3 OS because ONE pre-existing rust test rust_resolves_json_module_imports... still asserted the target file node name was the full path src/config.json; my pre-ship sweep missed it (only grepped .h/.rs/.py + TS tests, missed the .json tuple). The new G10 unit test passed and 110/111 passed. Fixed by updating that tuple to (file, config.json, src/config.json) - the json edge still targets the right file_path (json resolution matches by file_path, unaffected); committed 36f4ad6, verified via rebuilt bin. Run 36537461962 (36f4ad6): cargo test GREEN on all 3 OS; B same-dir include e2e GREEN on windows AND mac AND ubuntu (G10 product fix CONFIRMED cross-platform); only C failed, WINDOWS ONLY, with EBUSY unlink zcodegraph.db - a test-harness cleanup bug, NOT product logic: C opened both cg and a manual DatabaseConnection and finally rmSync'd the temp project while handles were still open (Windows locks open sqlite files). Fixed resolution.test.ts finally to db?.close(); await cg?.close(); BEFORE rmSync (same pattern as B's afterEach which is green on windows); close() is idempotent so the outer afterEach cg.destroy() double-close is safe. Pending final CI.",
+          "note": "2026-09-29; lesson reconfirmed: cargo check cannot replace cargo test - an assertion constant only fails at runtime; and activated e2e tests that were long-skipped can hide windows-only cleanup bugs"
+        },
+        {
+          "q": "G10 CLOSED - three-OS green",
+          "answer": "G10 is FIXED and VERIFIED. Run 36538231309 (d91e1ca) completed success on windows-2025 + ubuntu-latest + macos-14: cargo test green (incl new rust_core_names_file_nodes_by_basename_g10 + updated json tuple), and the activated B same-dir include and C include-dir e2e plus the E2 cross-family guard all green. Final commit set on main: 12dd3e3 (core basename fix), d27fbb8 (re-activate B/C + guardrail/CI), 36f4ad6 (json tuple), d91e1ca (windows EBUSY cleanup). Node 1-2-3-1 STAYS in_progress because it also owns G1-G4 (C++ trailing-return naming, virtual-override synthesis) which are not addressed here. Follow-up: existing stores need a reindex; decide whether to add a CHANGELOG note for the file-node name semantic change.",
+          "note": "2026-09-29 G10 closed"
+        },
+        {
+          "q": "G10 reindex mechanism: bump EXTRACTION_VERSION not a DDL migration",
+          "answer": "Investigated schema/migration versioning. There is already a purpose-built content-version mechanism separate from the SQLite DDL version: EXTRACTION_VERSION (src/extraction/extraction-version.ts, mirrored const in crates/zcodegraph-core/src/lib.rs) stamped into project_metadata key indexed_with_extraction_version on every FULL index (TS path index.ts ~L1060; Rust binary stamp_metadata ~L13840; TS shell after a rust index does NOT overwrite it). CodeGraph.isIndexStale() (index.ts ~L1503) compares disk stamp < running constant and drives zcodegraph status re-index hint (human warn + JSON index.reindexRecommended). Its doc literally says bump for 'a resolver fix that materially changes which edges exist' and do NOT bump for pure bugfixes/schema-only. G10 changes which file->file imports edges exist and cannot be backfilled by a DDL migration (needs re-extraction), so it is a textbook bump, not a migration. Decision: bump BOTH mirrored constants 1 -> 2 (they are deliberately kept equal) with a comment tying v2 to G10/#692; do NOT add a one-off data migration. Consumers already generic: status human+JSON, diagnostics. No test locks the absolute value (upgrade.test stamps EXTRACTION_VERSION and EXTRACTION_VERSION-1; rust-index-engine-cli-engine asserts typeof number only); no Rust test reads the stamp. Honesty note: this also flags pre-release indexes across the whole unreleased rust C/C++ batch (#678), which is correct not noise. Pure typescript-engine graphs built at v1 will also show the hint once though their output is unchanged, but typescript is only a fallback engine and a rebuild is a safe no-op refresh; accepted over adding engine-aware threshold complexity that would split the deliberately-mirrored constants.",
+          "note": "user chose 'reindex' to investigate mechanism then implement; advisory only, no forced migration"
+        },
+        {
+          "q": "G10 extraction v2 reindex signal: three-OS CI green",
+          "answer": "Committed e2ac4d7 (fix(index): bump extraction version to 2 for basename file-node edges, #692; 3 files CHANGELOG + extraction-version.ts + mirrored rust const) and pushed to main (d91e1ca..e2ac4d7). CI run 36545023771 success on ubuntu-latest / macos-14 / windows-2025. Windows step audit all green: Build TypeScript CLI (real tsc strict - the TS first-validation unavailable on this node_modules-less host), Test Rust core, Build Rust core, wave-0 rust-owned fixtures + skip-debt guardrails, wave-0 activated include + cross-language e2e (B/C), rust-hybrid CI smoke, Rust CLI engine paths, SQLite/file-lock guardrails, release artifact contracts. Confirms EXTRACTION_VERSION 1->2 keeps upgrade.test (relative -1 constant) and typeof-number status assertions green. No further code follow-up; pre-existing indexes now surface status reindexRecommended and rebuild via 'zcodegraph index -f'.",
+          "note": "user p authorized push; node stays in_progress for G1-G4"
+        },
+        {
+          "q": "G1 root cause + fix: skip trailing_return_type in c_declarator_name_node",
+          "answer": "Reproduced via rust-bin probe on src/names.cc: TableFileName (line3) named correctly, but 'auto BuildName(const std::string& a) -> std::string' (line7) is emitted as function named 'string' (qualified src/names.cc::string). Root cause: c_declarator_name_node (lib.rs ~8884) recursively returns the LAST identifier/type_identifier in the declarator subtree and only prunes parameter_list/argument_list; it does NOT prune trailing_return_type, whose 'std::string' contributes type_identifier 'string' that wins as last. The sibling helper cpp_find_qualified_identifier (~9218 BFS) already skips trailing_return_type, so the two declarator-name paths are inconsistent. Fix: add 'trailing_return_type' to the prune match in c_declarator_name_node alongside parameter_list/argument_list. Blast radius audited: the only non-recursive caller is cpp_declarator_name (~9208, C++ function naming); plain C tree-sitter grammar produces no trailing_return_type, so C is unaffected. After fix the function_declarator named-child walk yields the real identifier (BuildName). Tests: (1) add rust unit test indexing names.cc asserting BOTH TableFileName and BuildName function names; (2) extend rust-owned-language-fixtures.test.ts case (which currently intentionally does NOT assert BuildName per its comment) to assert BuildName too - that file runs in the wave-0 CI step; (3) evaluate activating the legacy extraction.test.ts describe.skip (currently engine typescript whose c-cpp extractor was deleted in #678) by switching to rust-hybrid only if a probe shows free-function call edges + impact already resolve (may overlap G4, so gate on evidence).",
+          "note": "scope gaps decision 0; evidence rust-bin probe 2026-09-29; aligned with G10 single-source approach"
+        },
+        {
+          "q": "G1 implemented pre-push: core fix + 3 test layers + CI/guardrail sync",
+          "answer": "Single-source core fix in c_declarator_name_node (lib.rs ~8884): added trailing_return_type to the prune match alongside parameter_list/argument_list, mirroring cpp_find_qualified_identifier. rust-bin probe before/after on src/names.cc: 'auto BuildName(...) -> std::string' was emitted as function 'string', now 'BuildName'; cross-file pure-rust probe also emits the BuildName calls unresolved_ref (precondition for hybrid caller resolution). (1) New rust unit test rust_core_names_trailing_return_free_function_g1 asserts BOTH TableFileName+BuildName, PASSED locally cargo test (112 total). (2) rust-owned-language-fixtures.test.ts: new G1 case asserts BuildName present and 'string' absent (wave-0 full-file CI step, count 17->18), header doc + old case comment updated. (3) Legacy extraction.test.ts describe RE-ACTIVATED: describe.skip removed, title 'C++ free-function name extraction (rust-hybrid)', engine typescript->rust-hybrid (TS c/cpp extractor deleted in #678); asserts both fns defined AND cross-file impact reaches user.cc - this is the full end-to-end contract, NOT locally runnable on this node_modules-less host (hybrid shell resolver), so CI-first like G10 B/C. Synced: skip-debt guardrail ALLOWED_SKIPS 5->4 (removed C++ free-function describe) + note; ci.yml step2 -t adds G1 metacharacter-free unique-in-scope branch and renamed step; ci-rust-packaged-path contract test updated (new step name, new toContain branch, 17->18 cases comment). Static node replica of the guardrail regex/title/-t audit = PASS (4/4 skips two-way, no untracked, no .only, all 8 -t branches each hit exactly 1 real title). 6 files changed. NOT committed/pushed; needs three-OS CI first validation of the hybrid e2e (risk: hybrid shell must resolve free-function call refs into impact edges - pure rust proved the ref exists; free functions simpler than G4 receiver calls).",
+          "note": "user asked to continue node 1-2-3-1; aligned with G10 playbook"
+        },
+        {
+          "q": "EXTRACTION_VERSION policy across the unreleased C++ semantic batch (G1-G4): keep at 2, re-check before release",
+          "answer": "G1 (like G10) changes extracted function names and therefore cross-file calls/impact edges, which nominally meets the extraction-version bump criterion. But EXTRACTION_VERSION 2 was only introduced THIS session (e2ac4d7) and has shipped in NO release (latest released is 0.11.0 at v1). G2/G3/G4 are the same still-unreleased C++ semantic batch. Decision: do NOT bump per gap (2->3->4...) - that is pre-release noise against the doc's 'over-bumping turns the hint into noise; keep it honest'. Any RELEASED user is at v1, so the single v1->2 jump already recommends a rebuild that picks up G10+G1+...; dev/dogfood v2 indexes between now and the next release are throwaway. ACTION ITEM before cutting the release that includes G1-G4: re-confirm the constant is above the last RELEASED value (it is: released=1) and add a CHANGELOG/version-history line grouping the C++ semantic batch; bump again only if a release actually shipped at v2 in the meantime. Recorded so the choice is explicit, not an accidental missed bump.",
+          "note": "honesty/load-bearing; revisit at 1-2-3-1 closeout or release time"
+        },
+        {
+          "q": "G1 CLOSED - three-OS CI green, hybrid e2e actually executed",
+          "answer": "Committed d1fa664 (fix(cpp): name trailing-return free functions correctly, G1 #692; 6 files +130/-34) pushed e2ac4d7..d1fa664. CI run 36548469782 success on ubuntu/macos-14/windows-2025 (watch exit 0); all steps green including Build TypeScript CLI (real tsc), Test Rust core, wave-0 fixtures (2 files passed, now 18 it incl new G1 pure-rust case) + skip guardrail (4 skips), and the renamed step '...include, C++ free-function, and cross-language e2e'. Verified NOT silently filtered (the -t historical pitfall): windows log shows the activated case 'C++ free-function name extraction (rust-hybrid) > names a free function correctly ... trailing return type' RAN and PASSED (410ms); step tally 4 passed (B/C/E2/G1) | 379 skipped. Confirms the rust-hybrid shell resolves the free-function call refs into cross-file impact edges (the one CI-first risk) on all three OS, incl windows file-handle cleanup (no EBUSY - single cg handle pattern like case B). G1 is FIXED + CLOSED. Residual on 1-2-3-1: G2 (no extends edge for base_class_clause), G3 (in-class methods kind=function not method + qualifiedName lacks class), G4 (receiver call obj->method bare-name call ref loses receiver; RunAssign spurious Processing variable).",
+          "note": "user cp authorized commit+push; node stays in_progress for G2-G4"
+        },
+        {
+          "q": "G2 root cause + fix: emit extends refs from C++ base_class_clause",
+          "answer": "Reproduced via rust-bin sqlite probe (2 files, same-file + cross-file + multi-inheritance + qualified + templated + struct bases): before fix edges table = contains only, 0 extends; the class/struct nodes all existed. Root cause: visit_cpp_node/extract_cpp_named_symbol built class_specifier/struct_specifier NODES but never traversed base_class_clause (zero occurrences of the node kind anywhere in lib.rs; only the legacy TS engine handled it at tree-sitter.ts:3084). tree-sitter-cpp 0.23.4 node-types confirmed base_class_clause named children = access_specifier | attribute_declaration (skip) + type_identifier | qualified_identifier | template_type (bases, multiple). Fix at the single source: after building each class/struct node, new extract_cpp_base_class_refs walks base_class_clause and push_ref(..\"extends\",..,SourceLanguage::Cpp) per base; cpp_base_leaf_identifier uses the `name` FIELD (template_type name field excludes template_argument_list which itself contains type identifiers — last-type-identifier scan would wrongly pick `int` in vector<int>; qualified_identifier name field = last segment ns::Qux->Qux), giving basename leaf names that hit both same-file and cross-file resolvers. Confirmed: pure-rust resolver does NOT resolve extends (SQL gates only calls/instantiates/references/decorates/imports/exports — lib.rs 6694/6902), so like G1/G10 pure rust only EMITS the ref and the rust-hybrid TS shell resolves it into the edge (TS resolver index.ts:1801 gates only references/imports; extends resolves by name, promotes extends->implements only when target is interface/protocol). Verified post-fix via rebuilt bin: 5 extends refs (Base/Other/Qux/SBase/vector) with correct cols, no public/private/int leakage.",
+          "note": "2026-09-29; single-source at visit_cpp_node; mirrors legacy TS branch"
+        },
+        {
+          "q": "G2 3-layer tests, guardrail/CI sync, first red run",
+          "answer": "(1) rust unit rust_core_emits_cpp_base_class_extends_refs_g2 asserts the 5 sorted extends refs + no access-keyword/int leakage on unresolved_refs (cargo test 113 total green). (2) rust-owned-language-fixtures new G2 pure-rust case (it count 18->19, wave0 full-file step). (3) extraction.test NEW describe 'C++ class inheritance extraction (rust-hybrid) (G2)' e2e asserting getOutgoingEdges(kind=extends) resolve cross-file Base/Other (base.h), same-file qualified Qux (leaf), and struct SBase. frameworks-integration override describe STAYS describe.skip (synthesizer needs method+extends; G2 landed but G3 method-kind + G4 receiver still gate it); its comment updated, ALLOWED_SKIPS unchanged at 4 (title string untouched). ci.yml step2 adds metachar-free unique -t branch 'resolves base_class_clause bases into extends edges' and step renamed (..., C++ free-function, inheritance, ...); ci-rust-packaged-path contract synced (new toContain branch, step name, 18->19 cases comment). Static audit (python replica of vitest raw-regexp -t): all 5 step2 branches hit exactly 1 real title; 4 real skips == 4 allowlisted; no .only. FIRST push (8e5c061) run 36551408106 RED on all 3 OS: TypeError cg.getNodeById is not a function — getNodeById is the internal queries method, CodeGraph public wrapper is getNode(id) (index.ts:2129). Lesson: in an e2e use the CodeGraph public surface; tsc would have caught it but this host has no node_modules (CI-first).",
+          "note": "2026-09-29; appended-fix workflow"
+        },
+        {
+          "q": "G2 CLOSED - three-OS CI green, hybrid e2e actually executed",
+          "answer": "Fix commit 0015c6e (test(cpp): use public CodeGraph.getNode) pushed after 8e5c061 (feat), appended not rewritten. CI run 36551796471 (0015c6e) completed success on ubuntu-latest + macos-14 + windows-2025: real tsc build, cargo test 113 (incl rust_core_emits_cpp_base_class_extends_refs_g2), wave0 fixtures (19 it) + skip guardrail (4), and the renamed step2 all green. Windows log proves the G2 e2e actually RAN (not -t filtered): '✓ C++ class inheritance extraction (rust-hybrid) (G2) > resolves base_class_clause bases into extends edges (cross-file + multi-inheritance) 398ms', plus 'test tests::rust_core_emits_cpp_base_class_extends_refs_g2 ... ok'. Residual on 1-2-3-1: G3 (in-class methods emitted kind=function not method + qualifiedName lacks class) and G4 (obj->method bare-name call ref loses receiver, blocks inferCppReceiverType; RunAssign spurious Processing variable). EXTRACTION_VERSION stays 2 (same unreleased C++ semantic batch; re-check > last RELEASED v1 + group CHANGELOG at release).",
+          "note": "2026-09-29 G2 closed; node stays in_progress for G3/G4"
+        },
+        {
+          "q": "G3 root cause + scope decision: inline class methods -> method + class-scoped qualifiedName",
+          "answer": "rust-bin probe on widget.hpp found FOUR distinct facts, sharper than the roadmap's one-line G3: (1) INLINE in-class methods (function_definition inside field_declaration_list, incl constructors Widget(){}) were emitted kind=function with qualifiedName lacking the class; (2) out-of-class definitions 'void Widget::draw(){}' were already class-prefixed in qualifiedName but still kind=function (pinned by pre-existing rust test rust_cpp_out_of_class_method_uses_qualified_name); (3) in-class BODYLESS declarations 'void draw();' (function_declarator wrapped in field_declaration) emitted NO node at all; (4) nested namespaces were not reflected on the method qualified name. Root cause: extract_cpp_named_symbol's function_definition branch never inspected whether the function lives lexically inside a class_specifier/struct_specifier body. SCOPE DECISION (explicit, no scope creep): this gap fixes ONLY (1)+(4) - inline defs -> kind=method with qualifiedName relative_path::[outer::ns::]Class::name - because that is G3's literal scope and the exact precondition of cppOverrideEdges (it queries class CONTAINS method nodes). (2) out-of-class defs STAY kind=function: matchers accept both method|function and existing tests pin it; changing it is a separate decision. (3) bodiless declarations producing no node is a SEPARATE extraction gap, recorded here but NOT fixed this pass. Fix at the single source (lib.rs): new cpp_enclosing_class_scope(node,source)->Option<String> walks UP to nearest class/struct ancestor then collects enclosing namespaces (inner->outer then reversed); function_definition branch maps to ('method', name, Some(qualified), name_node) only when a class scope exists; cpp_scope_leaf_name reduces qualified/template names to last segment; child-containment match gains 'method' so method-body locals are contained by the method.",
+          "note": "2026-09-29; fixes inline+namespace; out-of-class function-kind and bodiless-declaration gap explicitly deferred (both G4-adjacent prerequisites)"
+        },
+        {
+          "q": "G3 3-layer tests + override describe split (partial override unblocked without G4)",
+          "answer": "(1) rust unit rust_core_classifies_inline_cpp_class_methods_g3 asserts inline render/area + ctor -> method with qualified widget.hpp::gfx::Canvas::render (nested namespace), struct Point::x method, out-of-class render_extra + freeFn still function, Canvas CONTAINS exactly 2 methods (cargo test 114 green). (2) rust-owned-language-fixtures new G3 pure-rust case (it count 19->20, wave0 full-file step) asserting qualifiedName 'widget.hpp::gfx::Canvas::render', area/x methods, out-of-class draw + freeFn remain function; header doc updated. (3) frameworks-integration override describe SPLIT: the two typed-pointer-RECEIVER its ('...->Next()' calls needing receiver inference) stay in a NEW describe.skip titled 'C++ end-to-end - typed-pointer receiver callers, pending G4'; the THIRD it 'bridges a base virtual method to the subclass override' (Iterator::Next -> DBIter::Next; the override body calls bare advance() with NO receiver) moves to a newly ACTIVATED describe 'C++ virtual override synthesis (rust-hybrid) (G2+G3)' - cppOverrideEdges (callback-synthesizer.ts:443) is pure query-driven and only needs class + extends edge + class-contained method nodes, so G2+G3 already satisfy it; G4 receiver inference is irrelevant to that case. skip-debt guardrail ALLOWED_SKIPS title updated to the renamed receiver-only skip describe, total stays 4. ci.yml step2 adds the framework file to the file list and a metachar-free unique -t branch 'bridges a base virtual method to the subclass override', step renamed (...inheritance, override...); ci-rust-packaged-path contract synced (file added, 2 toContain branches, 19->20 cases comment). Static raw-regexp -t audit: all 6 step2 branches hit exactly 1 real title; 4 skips two-way; no .only.",
+          "note": "2026-09-29; non-receiver virtual override bridge legitimately re-activated ahead of G4"
+        },
+        {
+          "q": "G3 CLOSED - three-OS CI green, override e2e actually executed",
+          "answer": "Commit 61b97a4 (fix(cpp): classify inline class methods as method with class-scoped qualifiedName, G3 #692; 6 files +290/-27) pushed to main. CI run 36554234008 (61b97a4) completed success on ubuntu-latest (1m7s) + macos-14 (1m13s) + windows-2025 (2m44s): real tsc build, cargo test 114 (incl rust_core_classifies_inline_cpp_class_methods_g3), wave0 fixtures (20 it) + skip guardrail (4), and the renamed step2 (now incl frameworks-integration) all green. Windows log proves NON-filtered execution: 'test tests::rust_core_classifies_inline_cpp_class_methods_g3 ... ok', the 6 -t branches incl frameworks file on the command line, and '✓ C++ virtual override synthesis (rust-hybrid) (G2+G3) > bridges a base virtual method to the subclass override 1387ms'. EXTRACTION_VERSION stays 2 (same unreleased C++ semantic batch; re-confirm > released v1 + group CHANGELOG at release). RESIDUAL on 1-2-3-1: only G4 remains (obj->method bare-name call ref loses receiver, blocks inferCppReceiverType; RunAssign spurious Processing variable), PLUS the two G4-adjacent prerequisites recorded in the G3 scope decision: out-of-class method defs still kind=function, and in-class bodiless declarations 'void f();' emit no node. Node STAYS in_progress for G4.",
+          "note": "2026-09-29 G3 closed; node stays in_progress, only G4 (+two prerequisites) remains"
+        },
+        {
+          "q": "G4 root cause + scope: receiver loss, out-of-class function-kind, init_declarator spurious var",
+          "answer": "rust-bin sqlite probe on target/probe-g4 (detect.hpp + detect.cpp: CDetect* m_cpAlg; calls m_cpAlg->Processing() inside RunReturn/RunAssign and local.Processing() in RunDot) found FOUR interacting gaps, sharper than the roadmap one-liner: (1) RECEIVER LOSS - every member call ref was emitted with a BARE name 'Processing' (L2:36/L3:37/L4:48); the m_cpAlg-> / local. receiver was discarded. tree-sitter-cpp 0.23.4 fact: BOTH a.b and a->b are field_expression (operator field distinguishes . / ->), object in `argument`, member in `field`. cpp_call_reference_name only read the field, so TS matchMethodCall's dotted regex never matched and inferCppReceiverType never fired. (2) OUT-OF-CLASS METHODS WERE kind=function - RunReturn/RunAssign/RunDot/Processing are defined out of line as 'int CDetector::RunReturn(){}' (multi-segment qualified_identifier). resolveMethodOnType hard-filters kind==='method' (name-matcher.ts:280) and the e2e asserts method; legacy TS engine #445 promoted ANY multi-segment qualified declarator to method (even ns::helper free fns, which never match a class so they do not misroute). G3 explicitly deferred this and pinned it as function; G4 un-defers it. (3) SPURIOUS VAR - 'int r = m_cpAlg->Processing();' emitted a variable node named 'Processing' (L3 col29, the member start) and LOST the real variable r, because c_declarator_name_node recursed to the last identifier inside the init_declarator's `value`; it never special-cased init_declarator (named children `declarator`=declared name, `value`=init expr). (4) bodyless in-header declaration 'int Processing();' emits NO node - confirmed a SEPARATE gap, does NOT block G4 (resolver finds the .cpp method node), explicitly deferred to backlog. SCOPE DECISION: fix (1)+(2)+(3) at the single source lib.rs; NO TS change needed because inferCppReceiverType + resolveMethodOnType already exist and were #445-validated - Rust just has to emit the dotted ref and the method node for the hybrid shell to close the loop end to end.",
+          "note": "2026-09-29; four probe facts; mirror legacy #445 contract; bodiless-header decl (4) deferred as non-blocking"
+        },
+        {
+          "q": "G4 fix precise edits + 3-layer tests + guardrail/CI sync (pre-push)",
+          "answer": "All in crates/zcodegraph-core/src/lib.rs. FIX A (receiver): rewrote cpp_call_reference_name field_expression branch - new CPP_SKIP_RECEIVERS const [this,self,cls,super] and cpp_field_receiver helper reading the `argument` field; emits '{receiver}.{method}' (-> normalized to .), bare member when receiver is a skip word or a complex call-bearing expression (identifier/field_identifier/type_identifier name directly; nested field_expression/pointer/parenthesized recurse). FIX B (out-of-class -> method): in extract_cpp_named_symbol function_definition branch, AFTER G3's lexical in-class -> method, ANY out-of-class def whose declarator carries a multi-segment qualified_identifier returns ('method', name, Some(relative_path::qn), name_node); single-segment / plain free fns stay ('function', name, None). FIX C (init_declarator): c_declarator_name_node, after the prune branch, special-cases init_declarator: recurse into child_by_field_name('declarator') only, return None if absent - so the init `value` can no longer win as the variable name. TESTS (3 layers): new rust unit rust_core_preserves_cpp_receiver_and_classifies_out_of_class_methods_g4 (sorted call refs = [local.Processing, m_cpAlg.Processing, m_cpAlg.Processing]; RunReturn/RunAssign/RunDot are method with qualifiedName containing 'CDetector::m...'; 2 Processing methods; no variable named Processing; variable r present); synced G3 unit rust_core_classifies_inline_cpp_class_methods_g3 (render_extra now method, freeFn still function) and rust_cpp_out_of_class_method_uses_qualified_name (SQL kind='function' -> 'method'). cargo test 115 passed / 0 failed. rust-owned-language-fixtures new pure-rust G4 case (20->21 it, detect.hpp/detect.cpp, unresolvedRefs filtered reference_kind==='calls' -> reference_name). frameworks-integration: the two receiver its re-activated under describe 'C++ end-to-end - typed pointer callers (rust-hybrid) (G4)' with classMethodTail(qn)=qn.split('::').slice(-2).join('::') helper (Rust qualifiedName always carries the file prefix, so compare last two segments vs the #445-era bare Class::method); that file now has ZERO .skip. skip-debt guardrail ALLOWED_SKIPS 4->3 (only the three Java skips in extraction.test.ts remain). ci.yml step2 renamed '...inheritance, override, typed-pointer receiver, and cross-language e2e' and -t gains 2 metachar-free branches ('resolves callers through typed object pointers', 'the call sits inside a return/declaration') = 8 branches; ci-rust-packaged-path contract synced; rust-index-engine-cli-language-smoke render assertion ('int Widget::render(){}' now method) function->method (main stays function, main->render calls edge kept). STATIC AUDIT PASS: python replica of new RegExp(branch).test(title) shows each of the 8 -t branches hits exactly 1 real title; repo-wide .skip count == 3 == allowlist two-way; no .only. PIPELINE RISK (the only CI-first unknown) cleared by reading TS: hasAnyPossibleMatch (index.ts:831) passes 'm_cpAlg.Processing' because the member segment 'Processing' is in knownNames; resolveOne Strategy3 -> matchReference -> matchMethodCall (name-matcher.ts:813/484 cpp dot branch) -> inferCppReceiverType('m_cpAlg')->CDetect -> resolveMethodOnType hits the fix-B method node. 7 files, +369/-63. NOT yet pushed at decision time.",
+          "note": "2026-09-29; single-source lib.rs, no TS change; cargo test 115; fixtures 21; ALLOWED_SKIPS 3; step2 8 branches"
+        },
+        {
+          "q": "G4 CLOSED - three-OS CI green, receiver e2e actually executed; node 1-2-3-1 COMPLETE",
+          "answer": "Commit c7991f0 (fix(cpp): preserve receiver in ->/. member calls and promote out-of-class methods, G4 #692; 7 files +369/-63) pushed 61b97a4..c7991f0. CI run 36558114423 (c7991f0) completed success on ubuntu-latest (1m8s) + macos-14 + windows-2025: real tsc strict build, Test Rust core, wave0 fixtures (21 it) + skip guardrail (3 skips), and the renamed step2 all green. Windows log proves NON-filtered execution: 'test tests::rust_core_preserves_cpp_receiver_and_classifies_out_of_class_methods_g4 ... ok'; both receiver e2e cases RAN and PASSED with real durations ('✓ C++ end-to-end - typed pointer callers (rust-hybrid) (G4) > resolves callers through typed object pointers 505ms' and '> resolves typed pointer callers when the method name is ambiguous and the call sits inside a return/declaration 426ms' - a skip would show down-arrow with no duration); step2 3 Test Files passed. With G10/G1/G2/G3/G4 all fixed and three-OS green, NODE 1-2-3-1 IS COMPLETE -> status completed. EXTRACTION_VERSION stays 2 (same unreleased C++ semantic batch, latest release 0.11.0 at v1); before the release that includes this batch re-confirm constant > 1 and add ONE CHANGELOG line grouping G10/G1/G2/G3/G4; existing stores reindex. BACKLOG (non-blocking, separate gaps): (a) bodyless in-header method declarations 'void f();' emit no node; (b) Java G5-G9 static/visibility/annotation/instantiates/enum value-read live under node 1-2-1-1.",
+          "note": "2026-09-29 G4 closed; entire node 1-2-3-1 completed; release-time CHANGELOG grouping + reindex remain"
+        }
+      ],
+      "notes": ""
+    },
+    "1-2-1-1": {
+      "id": "1-2-1-1",
+      "label": "Java 语义抽取缺口：修饰符 G5/G6 + 注解使用 G7 + instantiates G8 + 静态值读取 G9（波次0探针，#692）",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-2-1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "scope gaps",
+          "answer": "G5 class/method visibility always NULL for Java (TS wanted 'public' on UserService). G6 method is_static always 0 even for 'public static int add'. visit_java_node emits symbols without modifiers. Ported-but-different: package declared as kind module (not namespace) already smoke-locked. Evidence rust-bin sqlite probe 2026-09-28",
+          "note": "parent 1-2-1 Java baseline marked done; these modifier gaps found via 1-6-5 L831 probe"
+        },
+        {
+          "q": "G7 annotation usages",
+          "answer": "Rust extracts @interface DEFINITION (interface node + element methods) but marker_annotation USAGES @Name on class/field/method emit no node, no unresolved ref, null decorators. Breaks annotation usage->definition file dependency (L6467). Need: emit a references/decorates unresolved ref for marker_annotation identifier. Evidence rust-bin probe 2026-09-28",
+          "note": "extends scope beyond modifiers; same Java extractor visit_java_node area"
+        },
+        {
+          "q": "G8 instantiates refs",
+          "answer": "Rust Java extractor emits NO instantiates unresolved ref for ANY object creation expression. Confirmed on plain new Foo() (zero refs whole file), so it is a general object_creation_expression gap, not anonymous-class-specific. Anon D1 new Base(){} therefore carries only extends Base, not instantiates Base (old TS extraction.test D1 asserted both). Blocks callers/instantiators traversal through constructor calls. Need: emit instantiates ref for object_creation_expression type identifier.",
+          "note": "found via 1-6-5 D-group probe 2026-09-28"
+        },
+        {
+          "q": "G9 static-member/value-read refs",
+          "answer": "Rust Java extractor emits NO references edge for a type read only via a static field / enum value: Type.CONST / Enum.value (member_access / field_access value-read). TS extractor covers this in tree-sitter.ts extractStaticMemberRef (STATIC_MEMBER_LANGS includes java), emitting references->Capitalized receiver; rust-hybrid Java never runs that TS pass and Rust has no equivalent, so such types show zero dependents (impact radius miss). Shell cannot reconstruct member-access AST from Rust nodes -> must be emitted in Rust extraction. Need: references ref to the capitalized receiver of a non-call member access. Evidence pure-rust probe 2026-09-28 (JsonScope.EMPTY_DOCUMENT -> zero refs).",
+          "note": "found via 1-6-5 E-group probe; pre-plan wrongly assigned to 1-4-2 terminal layer"
+        }
+      ],
+      "notes": ""
+    }
+  },
+  "metadata": {
+    "created": "2026-09-28 16:09:10",
+    "updated": "2026-09-29 18:55:00",
+    "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
+  }
+}
