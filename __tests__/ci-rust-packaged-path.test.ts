@@ -93,11 +93,13 @@ describe('CI Rust packaged path coverage', () => {
     // substrings (vitest parses -t as a raw regexp; `C++`/`(...)` would
     // miscompile), and the skip-debt guardrail keeps them in sync with the
     // real test titles.
-    expect(workflow).toContain('Verify wave-0 activated include, C++ free-function, inheritance, override, typed-pointer receiver, and cross-language e2e cases (#692)');
+    expect(workflow).toContain('Verify wave-0 activated include, C++ free-function, inheritance, override, typed-pointer receiver, Java G7/G9 e2e, and cross-language cases (#692)');
     expect(workflow).toContain('__tests__/frameworks-integration.test.ts');
     expect(workflow).toContain('resolves to the same-directory header, not a same-named one elsewhere');
     expect(workflow).toContain('connects #include to the real header file via include-dir scan');
     expect(workflow).toContain('does not link a static-member read across language families');
+    expect(workflow).toContain('links a type referenced only via a static field');
+    expect(workflow).toContain('links @Annotation usages to them');
     expect(workflow).toContain('names a free function correctly when it has qualified-type params or a trailing return type');
     expect(workflow).toContain('resolves base_class_clause bases into extends edges');
     expect(workflow).toContain('bridges a base virtual method to the subclass override');
