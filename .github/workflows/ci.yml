@@ -68,3 +68,6 @@ jobs:
           npx vitest run
           __tests__/release-workflow-rust-core.test.ts
           __tests__/rust-core-artifact-contract.test.ts
+          __tests__/prepare-release.test.ts
+          __tests__/extraction-version-contract.test.ts
+          __tests__/ci-rust-packaged-path.test.ts

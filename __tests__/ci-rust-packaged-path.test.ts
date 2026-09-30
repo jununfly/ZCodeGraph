@@ -54,6 +54,11 @@ describe('CI Rust packaged path coverage', () => {
     expect(workflow).toContain('Verify release artifact contracts');
     expect(workflow).toContain('__tests__/release-workflow-rust-core.test.ts');
     expect(workflow).toContain('__tests__/rust-core-artifact-contract.test.ts');
+    // The EXTRACTION_VERSION release gate and its TS/Rust mirror contract must
+    // actually run on CI — the workflow enumerates test files explicitly, so a
+    // new test file left off the list silently never executes.
+    expect(workflow).toContain('__tests__/prepare-release.test.ts');
+    expect(workflow).toContain('__tests__/extraction-version-contract.test.ts');
   });
 
   it('runs SQLite and file-lock regression guardrails on the cross-platform CI path', () => {
