@@ -7161,7 +7161,7 @@ fn index_javascript_files(
         let file_node_id = file_node.id.clone();
         nodes.push(file_node);
 
-        if parsed.root_node().has_error() && !language.is_c_family() {
+        if parsed.root_node().has_error() && !language.tolerates_parse_errors() {
             let error_started = Instant::now();
             counts.files_errored += 1;
             counts.errors.push(IndexError::rust_owned_parse_gap(
@@ -7187,6 +7187,16 @@ fn index_javascript_files(
                 )?;
             } else if language.is_java() {
                 extract_java_symbols(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
+            } else if language.is_kotlin() {
+                extract_kotlin_symbols(
                     parsed.root_node(),
                     content.as_bytes(),
                     &relative_path,
@@ -7545,6 +7555,7 @@ enum SourceLanguage {
     Cts,
     Go,
     Java,
+    Kotlin,
     Python,
     Rust,
 }
@@ -7564,6 +7575,7 @@ impl SourceLanguage {
             }
             Some("go") => Some(Self::Go),
             Some("java") => Some(Self::Java),
+            Some("kt") | Some("kts") => Some(Self::Kotlin),
             Some("py") | Some("pyw") => Some(Self::Python),
             Some("rs") => Some(Self::Rust),
             _ => None,
@@ -7580,6 +7592,7 @@ impl SourceLanguage {
             Self::Tsx => "tsx",
             Self::Go => "go",
             Self::Java => "java",
+            Self::Kotlin => "kotlin",
             Self::Python => "python",
             Self::Rust => "rust",
         }
@@ -7596,6 +7609,7 @@ impl SourceLanguage {
             Self::Tsx => tree_sitter_typescript::LANGUAGE_TSX.into(),
             Self::Go => tree_sitter_go::LANGUAGE.into(),
             Self::Java => tree_sitter_java::LANGUAGE.into(),
+            Self::Kotlin => tree_sitter_kotlin::LANGUAGE.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
@@ -7621,8 +7635,22 @@ impl SourceLanguage {
         matches!(self, Self::C | Self::Cpp)
     }
 
+    /// Languages whose extractor tolerates a tree with `has_error()` and still
+    /// produces useful nodes, so the hard whole-file parse-gap gate is skipped.
+    /// C/C++ header ambiguity and Kotlin's fwcd grammar both flag well-formed
+    /// constructs (Kotlin: a bodyless interface `fun x(): T` under some
+    /// layouts). The TS orchestrator never gated on has_error for ANY language,
+    /// so tolerant traversal is the parity behavior (roadmap 1-6-1).
+    fn tolerates_parse_errors(self) -> bool {
+        self.is_c_family() || matches!(self, Self::Kotlin)
+    }
+
     fn is_java(self) -> bool {
         matches!(self, Self::Java)
+    }
+
+    fn is_kotlin(self) -> bool {
+        matches!(self, Self::Kotlin)
     }
 
     fn is_python(self) -> bool {
@@ -10313,6 +10341,700 @@ fn java_qualified_name(qualified_base: &str, name: &str, containers: &[String]) 
     parts.extend(containers.iter().cloned());
     parts.push(name.to_string());
     parts.join("::")
+}
+
+// ===========================================================================
+// Kotlin baseline extraction (roadmap 1-6-1 wave 1)
+//
+// Mirrors the legacy TS kotlinExtractor trunk over fwcd tree-sitter-kotlin
+// 0.4. Baseline scope (declared on the roadmap): package/imports,
+// class/interface/enum/data-class/object, top-level and member functions
+// (incl. extension receivers), properties, type aliases, call sites,
+// type-position references, delegation `: T` and annotation usages.
+// `fun interface` ERROR recovery, expect/actual markers and companion-object
+// static semantics are intentionally OUT of baseline.
+// ===========================================================================
+
+fn is_kotlin_builtin_type(name: &str) -> bool {
+    matches!(
+        name,
+        "Int" | "Long"
+            | "Short"
+            | "Byte"
+            | "Float"
+            | "Double"
+            | "Boolean"
+            | "Char"
+            | "Unit"
+            | "String"
+            | "Any"
+            | "Nothing"
+            | "Null"
+            | "UInt"
+            | "ULong"
+            | "UShort"
+            | "UByte"
+            | "IntArray"
+            | "LongArray"
+            | "ShortArray"
+            | "ByteArray"
+            | "FloatArray"
+            | "DoubleArray"
+            | "BooleanArray"
+            | "CharArray"
+            | "Array"
+    )
+}
+
+fn extract_kotlin_symbols(
+    root: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // package_header > identifier (dotted) → module node + qualified base.
+    let mut base_from_node_id: Cow<'_, str> = Cow::Borrowed(file_node_id);
+    let mut qualified_base: Cow<'_, str> = Cow::Borrowed(relative_path);
+    for child in root.named_children(&mut root.walk()) {
+        if child.kind() == "package_header" {
+            if let Some(id) =
+                child.named_children(&mut child.walk()).find(|c| c.kind() == "identifier")
+            {
+                let package_name = id.utf8_text(source)?.trim().to_string();
+                if !package_name.is_empty() {
+                    let module_node = ExtractedNode::symbol_with_qualified_name(
+                        relative_path,
+                        "module",
+                        &package_name,
+                        child,
+                        "kotlin",
+                        package_name.clone(),
+                    );
+                    let module_node_id = module_node.id.clone();
+                    edges.push(ExtractedEdge {
+                        source: file_node_id.to_string(),
+                        target: module_node_id.clone(),
+                        kind: "contains".to_string(),
+                        line: module_node.start_line,
+                        col: module_node.start_column,
+                    });
+                    nodes.push(module_node);
+                    base_from_node_id = Cow::Owned(module_node_id);
+                    qualified_base = Cow::Owned(package_name);
+                }
+            }
+        }
+    }
+
+    let mut cursor = root.walk();
+    visit_kotlin_node(
+        &mut cursor,
+        source,
+        relative_path,
+        file_node_id,
+        &base_from_node_id,
+        &base_from_node_id,
+        &qualified_base,
+        &[],
+        false,
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn visit_kotlin_node(
+    cursor: &mut TreeCursor,
+    source: &[u8],
+    relative_path: &str,
+    _file_node_id: &str,
+    contains_parent: &str,
+    ref_parent: &str,
+    qualified_base: &str,
+    container_stack: &[String],
+    in_class_like: bool,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let node = cursor.node();
+
+    // import_header → import node + imports ref; children are not symbols.
+    if node.kind() == "import_header" {
+        if let Some(id) = node.named_children(&mut node.walk()).find(|c| c.kind() == "identifier")
+        {
+            let module_name = id.utf8_text(source)?.trim().to_string();
+            if !module_name.is_empty() {
+                let import_node =
+                    ExtractedNode::symbol(relative_path, "import", &module_name, node, "kotlin");
+                let import_node_id = import_node.id.clone();
+                edges.push(ExtractedEdge {
+                    source: contains_parent.to_string(),
+                    target: import_node_id.clone(),
+                    kind: "contains".to_string(),
+                    line: import_node.start_line,
+                    col: import_node.start_column,
+                });
+                nodes.push(import_node);
+                push_ref(
+                    unresolved_refs,
+                    contains_parent,
+                    &module_name,
+                    "imports",
+                    node,
+                    relative_path,
+                    SourceLanguage::Kotlin,
+                );
+            }
+        }
+        return Ok(());
+    }
+
+    let mut child_contains_parent = Cow::Borrowed(contains_parent);
+    let mut child_ref_parent = Cow::Borrowed(ref_parent);
+    let mut child_container_stack = container_stack.to_vec();
+    let mut child_in_class_like = in_class_like;
+
+    // call_expression → calls ref (children still walked for nested calls).
+    if node.kind() == "call_expression" {
+        if let Some(callee) = kotlin_call_reference_name(node, source)? {
+            push_ref(
+                unresolved_refs,
+                ref_parent,
+                &callee,
+                "calls",
+                node,
+                relative_path,
+                SourceLanguage::Kotlin,
+            );
+        }
+    }
+
+    // Named symbol declarations.
+    if let Some((kind, name)) = kotlin_named_symbol(node, source, in_class_like)? {
+        let qualified_name =
+            java_qualified_name(qualified_base, &name, &child_container_stack);
+        let visibility = if matches!(
+            kind,
+            "class" | "interface" | "enum" | "method" | "property"
+        ) {
+            Some(kotlin_visibility(node, source))
+        } else {
+            None
+        };
+        let mut extracted = ExtractedNode::symbol_with_visibility_and_qualified_name(
+            relative_path,
+            kind,
+            &name,
+            node,
+            "kotlin",
+            visibility,
+            qualified_name,
+        );
+        // Extension functions (`fun Int.x()`) are qualified through their
+        // receiver type (`Int::x`), mirroring the TS getReceiverType override
+        // of qualifiedName, rather than through the package/container stack.
+        if kind == "method" {
+            if let Some(receiver) = kotlin_extension_receiver(node, source)? {
+                extracted.qualified_name = format!("{receiver}::{name}");
+            }
+        }
+        match kind {
+            "method" | "function" => {
+                extracted.signature = kotlin_function_signature(node, source)?
+            }
+            "property" | "variable" => {
+                extracted.signature = kotlin_property_signature(node, source, &name)?
+            }
+            _ => {}
+        }
+        let extracted_id = extracted.id.clone();
+        edges.push(ExtractedEdge {
+            source: contains_parent.to_string(),
+            target: extracted_id.clone(),
+            kind: "contains".to_string(),
+            line: extracted.start_line,
+            col: extracted.start_column,
+        });
+        nodes.push(extracted);
+
+        // Type-position references from the declaration signature.
+        for tname in kotlin_signature_type_refs(node, source)? {
+            push_ref(
+                unresolved_refs,
+                &extracted_id,
+                &tname,
+                "references",
+                node,
+                relative_path,
+                SourceLanguage::Kotlin,
+            );
+        }
+        // Annotation usages → decorates.
+        for aname in kotlin_annotation_usage_refs(node, source)? {
+            push_ref(
+                unresolved_refs,
+                &extracted_id,
+                &aname,
+                "decorates",
+                node,
+                relative_path,
+                SourceLanguage::Kotlin,
+            );
+        }
+        // Delegation specifiers (`: Base(), Iface`) → extends refs.
+        if matches!(kind, "class" | "interface" | "enum") {
+            for dname in kotlin_delegation_refs(node, source)? {
+                push_ref(
+                    unresolved_refs,
+                    &extracted_id,
+                    &dname,
+                    "extends",
+                    node,
+                    relative_path,
+                    SourceLanguage::Kotlin,
+                );
+            }
+            child_contains_parent = Cow::Owned(extracted_id.clone());
+            child_container_stack.push(name.clone());
+            child_in_class_like = true;
+        }
+        if matches!(kind, "method" | "function") {
+            child_contains_parent = Cow::Owned(extracted_id.clone());
+            child_in_class_like = false;
+        }
+        child_ref_parent = Cow::Owned(extracted_id);
+    }
+
+    // enum_entry → enum_member under the enum body.
+    if node.kind() == "enum_entry" {
+        if let Some(name_node) = node
+            .named_children(&mut node.walk())
+            .find(|c| c.kind() == "simple_identifier")
+        {
+            let name = name_node.utf8_text(source)?.trim().to_string();
+            if !name.is_empty() {
+                let qualified_name =
+                    java_qualified_name(qualified_base, &name, &child_container_stack);
+                let extracted = ExtractedNode::symbol_with_qualified_name(
+                    relative_path,
+                    "enum_member",
+                    &name,
+                    node,
+                    "kotlin",
+                    qualified_name,
+                );
+                let extracted_id = extracted.id.clone();
+                edges.push(ExtractedEdge {
+                    source: contains_parent.to_string(),
+                    target: extracted_id.clone(),
+                    kind: "contains".to_string(),
+                    line: extracted.start_line,
+                    col: extracted.start_column,
+                });
+                nodes.push(extracted);
+                child_ref_parent = Cow::Owned(extracted_id);
+            }
+        }
+    }
+
+    if cursor.goto_first_child() {
+        loop {
+            visit_kotlin_node(
+                cursor,
+                source,
+                relative_path,
+                _file_node_id,
+                &child_contains_parent,
+                &child_ref_parent,
+                qualified_base,
+                &child_container_stack,
+                child_in_class_like,
+                nodes,
+                edges,
+                unresolved_refs,
+            )?;
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+        cursor.goto_parent();
+    }
+    Ok(())
+}
+
+/// Extension receiver for `fun Type.method()`: receiver_type > user_type >
+/// type_identifier. Returns the leaf type name (e.g. `Int`), mirroring the TS
+/// getReceiverType hook.
+fn kotlin_extension_receiver(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let Some(rt) = node
+        .named_children(&mut node.walk())
+        .find(|c| c.kind() == "receiver_type")
+    else {
+        return Ok(None);
+    };
+    let name = rt
+        .named_children(&mut rt.walk())
+        .find(|c| c.kind() == "user_type")
+        .and_then(|ut| {
+            ut.named_children(&mut ut.walk())
+                .find(|c| c.kind() == "type_identifier")
+        })
+        .map(|t| t.utf8_text(source).unwrap_or("").trim().to_string());
+    Ok(name.filter(|n| !n.is_empty()))
+}
+
+fn extract_kotlin_class_kind(node: SyntaxNode) -> Option<&'static str> {    if node.kind() != "class_declaration" {
+        return None;
+    }
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        match child.kind() {
+            "interface" => return Some("interface"),
+            "enum" => return Some("enum"),
+            _ => {}
+        }
+    }
+    Some("class")
+}
+
+#[allow(clippy::type_complexity)]
+fn kotlin_named_symbol(
+    node: SyntaxNode,
+    source: &[u8],
+    in_class_like: bool,
+) -> Result<Option<(&'static str, String)>, Box<dyn std::error::Error>> {
+    let candidate: Option<(&str, String)> = match node.kind() {
+        "object_declaration" => node
+            .named_children(&mut node.walk())
+            .find(|c| c.kind() == "type_identifier")
+            .map(|n| ("class", n.utf8_text(source).unwrap_or("").trim().to_string())),
+        "class_declaration" => {
+            let kind = extract_kotlin_class_kind(node).unwrap_or("class");
+            node.named_children(&mut node.walk())
+                .find(|c| c.kind() == "type_identifier")
+                .map(|n| (kind, n.utf8_text(source).unwrap_or("").trim().to_string()))
+        }
+        "function_declaration" => {
+            // First DIRECT simple_identifier is the function name; receiver
+            // types and parameter names live in their own containers.
+            let has_receiver = node
+                .named_children(&mut node.walk())
+                .any(|c| c.kind() == "receiver_type");
+            node.named_children(&mut node.walk())
+                .find(|c| c.kind() == "simple_identifier")
+                .map(|n| {
+                    // An extension receiver (`fun Int.x()`) extracts as a METHOD
+                    // qualified through the receiver, matching the TS
+                    // getReceiverType path. Otherwise class members are methods
+                    // and top-level declarations are functions.
+                    let kind = if has_receiver || in_class_like {
+                        "method"
+                    } else {
+                        "function"
+                    };
+                    (kind, n.utf8_text(source).unwrap_or("").trim().to_string())
+                })
+        }
+        "property_declaration" => {
+            // variable_declaration > simple_identifier. Class-body members are
+            // `property`; top-level/local declarations are `variable`.
+            let name = node
+                .named_children(&mut node.walk())
+                .find(|c| c.kind() == "variable_declaration")
+                .and_then(|vd| {
+                    vd.named_children(&mut vd.walk())
+                        .find(|c| c.kind() == "simple_identifier")
+                })
+                .map(|n| n.utf8_text(source).unwrap_or("").trim().to_string());
+            let kind = if in_class_like { "property" } else { "variable" };
+            name.map(|n| (kind, n))
+        }
+        "type_alias" => node
+            .named_children(&mut node.walk())
+            .find(|c| c.kind() == "type_identifier")
+            .map(|n| ("type_alias", n.utf8_text(source).unwrap_or("").trim().to_string())),
+        _ => None,
+    };
+    Ok(candidate
+        .filter(|(_, n)| !n.is_empty())
+        .map(|(k, n)| (k, n)))
+}
+
+fn kotlin_visibility(node: SyntaxNode, source: &[u8]) -> String {
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        if child.kind() == "modifiers" {
+            let mut mc = child.walk();
+            for m in child.children(&mut mc) {
+                if m.kind() == "visibility_modifier" {
+                    if let Ok(text) = m.utf8_text(source) {
+                        let t = text.trim();
+                        if !t.is_empty() {
+                            return t.to_string();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    "public".to_string()
+}
+
+fn kotlin_function_signature(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let params = node
+        .named_children(&mut node.walk())
+        .find(|c| c.kind() == "function_value_parameters");
+    let mut sig = match params {
+        Some(p) => p.utf8_text(source)?.trim().to_string(),
+        None => return Ok(None),
+    };
+    // Return type is a direct user_type child AFTER the parameter list.
+    let mut after_params = false;
+    for child in node.named_children(&mut node.walk()) {
+        if child.kind() == "function_value_parameters" {
+            after_params = true;
+            continue;
+        }
+        if after_params && child.kind() == "user_type" {
+            sig = format!("{sig}: {}", child.utf8_text(source)?.trim());
+            break;
+        }
+    }
+    Ok(Some(sig))
+}
+
+fn kotlin_property_signature(
+    node: SyntaxNode,
+    source: &[u8],
+    name: &str,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    // variable_declaration > user_type (optional explicit type).
+    let type_text = node
+        .named_children(&mut node.walk())
+        .find(|c| c.kind() == "variable_declaration")
+        .and_then(|vd| vd.named_children(&mut vd.walk()).find(|c| c.kind() == "user_type"))
+        .map(|t| t.utf8_text(source).unwrap_or("").trim().to_string());
+    Ok(Some(match type_text {
+        Some(t) if !t.is_empty() => format!("{t} {name}"),
+        _ => name.to_string(),
+    }))
+}
+
+/// Collect non-builtin `type_identifier` leaves from type-position subtrees of
+/// a declaration (parameters, return type, property type, type-alias RHS and
+/// class primary-constructor properties). Does NOT walk function bodies, so
+/// generic call args and casts never become false type refs.
+fn kotlin_signature_type_refs(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut roots: Vec<SyntaxNode> = Vec::new();
+    let kind = node.kind();
+    match kind {
+        "function_declaration" => {
+            for child in node.named_children(&mut node.walk()) {
+                if matches!(child.kind(), "function_value_parameters" | "user_type" | "receiver_type")
+                {
+                    roots.push(child);
+                }
+            }
+        }
+        "property_declaration" => {
+            if let Some(vd) = node
+                .named_children(&mut node.walk())
+                .find(|c| c.kind() == "variable_declaration")
+            {
+                roots.push(vd);
+            }
+        }
+        "class_declaration" => {
+            if let Some(ctor) = node
+                .named_children(&mut node.walk())
+                .find(|c| c.kind() == "primary_constructor")
+            {
+                roots.push(ctor);
+            }
+        }
+        "type_alias" => {
+            // The alias name is a `type_identifier` sibling; every direct
+            // `user_type` child is the aliased RHS (`List<User>`), including
+            // its generic type arguments.
+            let user_types: Vec<_> = node
+                .named_children(&mut node.walk())
+                .filter(|c| c.kind() == "user_type")
+                .collect();
+            roots.extend(user_types);
+        }
+        _ => {}
+    }
+
+    let mut names = Vec::new();
+    let mut walk_types = |root: SyntaxNode| -> Result<(), Box<dyn std::error::Error>> {
+        let mut stack = vec![root];
+        while let Some(n) = stack.pop() {
+            if n.kind() == "type_identifier" {
+                let t = n.utf8_text(source)?.trim();
+                if !t.is_empty() && !is_kotlin_builtin_type(t) {
+                    names.push(t.to_string());
+                }
+            }
+            let mut c = n.walk();
+            for ch in n.children(&mut c) {
+                stack.push(ch);
+            }
+        }
+        Ok(())
+    };
+    for r in roots {
+        walk_types(r)?;
+    }
+    Ok(names)
+}
+
+/// Annotation usages inside a declaration's `modifiers` container:
+/// `annotation > user_type > type_identifier` (`@Service`, `@Inject(...)`).
+/// Returns the leaf annotation names for `decorates` refs.
+fn kotlin_annotation_usage_refs(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut names = Vec::new();
+    let mut top = node.walk();
+    for child in node.children(&mut top) {
+        if child.kind() != "modifiers" {
+            continue;
+        }
+        let mut mc = child.walk();
+        for ann in child.children(&mut mc) {
+            if ann.kind() != "annotation" {
+                continue;
+            }
+            if let Some(ut) = ann
+                .named_children(&mut ann.walk())
+                .find(|c| c.kind() == "user_type")
+            {
+                if let Some(tid) = ut
+                    .named_children(&mut ut.walk())
+                    .find(|c| c.kind() == "type_identifier")
+                {
+                    let t = tid.utf8_text(source)?.trim();
+                    if !t.is_empty() {
+                        names.push(t.to_string());
+                    }
+                }
+            }
+        }
+    }
+    Ok(names)
+}
+
+/// `class Foo : Base(x), Iface` → leaf type names from each
+/// delegation_specifier (user_type or constructor_invocation > user_type).
+fn kotlin_delegation_refs(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut names = Vec::new();
+    for spec in node
+        .named_children(&mut node.walk())
+        .filter(|c| c.kind() == "delegation_specifier")
+    {
+        let user_type = spec
+            .named_children(&mut spec.walk())
+            .find(|c| c.kind() == "user_type")
+            .or_else(|| {
+                spec.named_children(&mut spec.walk())
+                    .find(|c| c.kind() == "constructor_invocation")
+                    .and_then(|ci| ci.named_children(&mut ci.walk()).find(|c| c.kind() == "user_type"))
+            });
+        if let Some(ut) = user_type {
+            if let Some(tid) = ut
+                .named_children(&mut ut.walk())
+                .find(|c| c.kind() == "type_identifier")
+            {
+                let t = tid.utf8_text(source)?.trim();
+                if !t.is_empty() {
+                    names.push(t.to_string());
+                }
+            }
+        }
+    }
+    Ok(names)
+}
+
+/// Callee name for a Kotlin call_expression. Shapes (from fwcd 0.4 grammar):
+///   helper()            → simple_identifier
+///   Foo() / Bar<Baz>()  → simple_identifier(+ type args)
+///   obj.method()        → navigation_expression(simple_identifier,
+///                          navigation_suffix > simple_identifier)
+///   a.b.c()             → nested navigation_expression
+/// Mirrors the TS extractCall navigation path: bare receiver → name only;
+/// qualified receiver → "receiver.method"; this/super receiver → method only.
+fn kotlin_call_reference_name(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    // function slot = first named child (simple_identifier | navigation_expression).
+    let Some(func) = node.named_children(&mut node.walk()).next() else {
+        return Ok(None);
+    };
+    let leaf = |n: SyntaxNode| -> Option<String> {
+        n.utf8_text(source)
+            .ok()
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty())
+    };
+
+    if func.kind() == "simple_identifier" {
+        return Ok(leaf(func));
+    }
+
+    if func.kind() == "navigation_expression" {
+        // navigation_expression(simple_identifier|nested-expr, navigation_suffix).
+        // navigation_suffix carries the method name. Mirror the TS extractCall
+        // navigation branch: qualify with the receiver ONLY when it is a bare
+        // simple_identifier; a call-expression receiver (`Foo().bar()`) or a
+        // nested navigation (`a.b.c()`) yields the bare method name.
+        let named: Vec<_> = func.named_children(&mut func.walk()).collect();
+        let receiver_node = named.first().copied();
+        let method_name = named
+            .iter()
+            .find(|c| c.kind() == "navigation_suffix")
+            .and_then(|suf| {
+                suf.named_children(&mut suf.walk())
+                    .find(|c| c.kind() == "simple_identifier")
+            })
+            .and_then(leaf);
+        let Some(method_name) = method_name else {
+            return Ok(None);
+        };
+        let receiver_is_simple = receiver_node.is_some_and(|r| {
+            matches!(r.kind(), "simple_identifier" | "identifier" | "field_identifier")
+        });
+        if !receiver_is_simple {
+            return Ok(Some(method_name));
+        }
+        let receiver_text = receiver_node.and_then(leaf).unwrap_or_default();
+        const SKIP: [&str; 4] = ["this", "super", "it", ""];
+        if SKIP.contains(&receiver_text.trim()) {
+            return Ok(Some(method_name));
+        }
+        return Ok(Some(format!("{receiver_text}.{method_name}")));
+    }
+
+    Ok(None)
 }
 
 fn extract_python_symbols(
@@ -23440,6 +24162,84 @@ mod tests {
             alias_count, 1,
             "using alias IntVec should be extracted"
         );
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_core_kotlin_baseline_classification_typealias_and_extension() {
+        // Roadmap 1-6-1: the fwcd tree-sitter-kotlin (v0.4) grammar reuses
+        // `class_declaration` for class/interface/enum/data-class and uses
+        // `object_declaration` for singletons. This locks three baseline
+        // semantics that are easy to regress:
+        //  1. `object Registry` is classified as a CLASS (not lost entirely);
+        //  2. a `typealias RHS` user_type emits a `references` ref (the alias
+        //     name itself is a `type_identifier` sibling, NOT a user_type);
+        //  3. an extension `fun Int.times2()` is a METHOD qualified `Int::times2`.
+        let dir = temp_dir("rust-kotlin-baseline");
+        let src = dir.join("com").join("example").join("demo");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(
+            src.join("Core.kt"),
+            [
+                "package com.example.demo",
+                "",
+                "object Registry {",
+                "    const val MAX: Int = 100",
+                "}",
+                "",
+                "typealias Users = List<User>",
+                "",
+                "fun Int.times2(): Int = this * 2",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(db_path(&dir)).unwrap();
+
+        let object_is_class = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE language='kotlin' AND kind='class' AND name='Registry'",
+        );
+        assert_eq!(object_is_class, 1, "`object Registry` must classify as class");
+
+        let mut type_refs: Vec<String> = conn
+            .prepare(
+                "SELECT reference_name FROM unresolved_refs \
+                 WHERE reference_kind='references' AND reference_name='User'",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        type_refs.sort();
+        type_refs.dedup();
+        assert_eq!(
+            type_refs,
+            vec!["User".to_string()],
+            "typealias RHS generic argument User must emit a references ref"
+        );
+
+        let ext_qname: String = conn
+            .prepare(
+                "SELECT qualified_name FROM nodes WHERE language='kotlin' \
+                 AND kind='method' AND name='times2'",
+            )
+            .unwrap()
+            .query_row([], |row| row.get(0))
+            .unwrap();
+        assert_eq!(ext_qname, "Int::times2", "extension receiver qualifies the method name");
+
+        let ext_as_function = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE language='kotlin' AND kind='function' AND name='times2'",
+        );
+        assert_eq!(ext_as_function, 0, "extension must not also be a top-level function");
         cleanup_temp_dir(dir);
     }
 

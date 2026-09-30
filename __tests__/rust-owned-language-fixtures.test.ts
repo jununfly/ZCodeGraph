@@ -938,4 +938,262 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
       }
     });
   });
+
+  // Kotlin baseline (roadmap 1-6-1 wave 1). The fwcd tree-sitter-kotlin 0.4
+  // grammar drives pure-Rust extraction: package module, imports,
+  // class/interface/enum/data-class/object, member + top-level + extension
+  // functions, properties, type aliases, call sites (simple / qualified /
+  // chained), type-position references, delegation `: T` and annotation
+  // usages. Assertions were calibrated against the Rust core via sqlite
+  // probes. `fun interface` ERROR recovery, expect/actual and companion-object
+  // static semantics are deliberately out of the baseline.
+  describe('Kotlin baseline (roadmap 1-6-1)', () => {
+    function ktNodes(
+      cg: CodeGraph,
+      filePath: string,
+      kind: string,
+    ): Array<{ name: string; qualifiedName: string; visibility: string | null }> {
+      return cg
+        .getNodesByKind(kind)
+        .filter((n) => n.language === 'kotlin' && n.filePath === filePath)
+        .map((n) => ({ name: n.name, qualifiedName: n.qualifiedName, visibility: n.visibility ?? null }));
+    }
+
+    function ktRefs(db: DbHandle, filePath: string, kind: string): string[] {
+      return unresolvedRefs(db, filePath)
+        .filter((r) => r.reference_kind === kind)
+        .map((r) => r.reference_name);
+    }
+
+    it('counts .kt files under the kotlin language and indexes imports', () => {
+      writeFile('com/example/a.kt', 'package com.example\n\nimport kotlin.collections.List\nimport com.other.Thing\n\nclass A\n');
+      writeFile('com/example/b.kt', 'package com.example\n\nclass B\n');
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.kotlin).toBe(2);
+        expect(importNames(cg, 'kotlin')).toEqual([
+          'kotlin.collections.List',
+          'com.other.Thing',
+        ]);
+        const refs = unresolvedImportRefs(db, 'com/example/a.kt').map((r) => r.reference_name);
+        expect(refs).toEqual(['kotlin.collections.List', 'com.other.Thing']);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('wraps the package in a module and keeps package-qualified symbol names', () => {
+      const filePath = 'com/example/demo/Models.kt';
+      writeFile(
+        filePath,
+        ['package com.example.demo', '', 'class UserService {', '    fun find(id: Int): User = User()', '}', ''].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        const pkg = cg
+          .getNodesByKind('module')
+          .find((n) => n.language === 'kotlin' && n.name === 'com.example.demo' && n.filePath === filePath);
+        expect(pkg, 'package emitted as a module node').toBeDefined();
+
+        const cls = ktNodes(cg, filePath, 'class').find((n) => n.name === 'UserService');
+        expect(cls?.qualifiedName).toBe('com.example.demo::UserService');
+
+        const method = ktNodes(cg, filePath, 'method').find((n) => n.name === 'find');
+        expect(method?.qualifiedName).toBe('com.example.demo::UserService::find');
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('classifies class/interface/enum/data-class/object and enum entries', () => {
+      const filePath = 'com/example/demo/Shapes.kt';
+      writeFile(
+        filePath,
+        [
+          'package com.example.demo',
+          '',
+          'interface Named {',
+          '    fun name(): String',
+          '}',
+          '',
+          'enum class Level {',
+          '    LOW, HIGH, MEDIUM',
+          '}',
+          '',
+          'data class User(val name: String, var age: Int = 0) : Named',
+          '',
+          'object Registry {',
+          '    const val MAX: Int = 100',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const names = (kind: string) => ktNodes(cg, filePath, kind).map((n) => n.name).sort();
+        expect(names('interface')).toEqual(['Named']);
+        expect(names('enum')).toEqual(['Level']);
+        expect(names('class').sort()).toEqual(['Registry', 'User']);
+        expect(names('enum_member')).toEqual(['HIGH', 'LOW', 'MEDIUM']);
+        // data class : Named → extends ref
+        const extendsRefs = ktRefs(db, filePath, 'extends');
+        expect(extendsRefs).toContain('Named');
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('qualifies extension functions through their receiver type', () => {
+      const filePath = 'com/example/demo/Ext.kt';
+      writeFile(
+        filePath,
+        ['package com.example.demo', '', 'fun Int.times2(): Int = this * 2', ''].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        // An extension receiver extracts as a METHOD qualified `Int::times2`,
+        // mirroring the TS getReceiverType qualifiedName override.
+        const ext = cg
+          .getNodesByKind('method')
+          .find((n) => n.language === 'kotlin' && n.filePath === filePath && n.name === 'times2');
+        expect(ext, 'extension fun extracted as method').toBeDefined();
+        expect(ext?.qualifiedName).toBe('Int::times2');
+        expect(cg.getNodesByKind('function').some((n) => n.name === 'times2')).toBe(false);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('routes class-body members to property and locals/top-level vals to variable', () => {
+      const filePath = 'com/example/demo/Svc.kt';
+      writeFile(
+        filePath,
+        [
+          'package com.example.demo',
+          '',
+          'object Registry {',
+          '    const val MAX: Int = 100',
+          '}',
+          '',
+          'class Svc {',
+          '    private val total: Int get() = 0',
+          '    fun go() { val label = 1 }',
+          '}',
+          '',
+          'val topLevel: Int = 0',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        const props = ktNodes(cg, filePath, 'property');
+        expect(props.map((p) => p.name).sort()).toEqual(['MAX', 'total']);
+        expect(props.find((p) => p.name === 'total')?.visibility).toBe('private');
+        // No explicit modifier → Kotlin default public.
+        expect(props.find((p) => p.name === 'MAX')?.visibility).toBe('public');
+
+        const vars = ktNodes(cg, filePath, 'variable').map((v) => v.name).sort();
+        expect(vars).toEqual(['label', 'topLevel']);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('extracts a type alias node', () => {
+      const filePath = 'com/example/demo/Aliases.kt';
+      writeFile(
+        filePath,
+        'package com.example.demo\n\ntypealias Users = List<User>\n',
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(ktNodes(cg, filePath, 'type_alias').map((n) => n.name)).toEqual(['Users']);
+        // RHS user_type emits a references edge to the aliased type.
+        expect(ktRefs(db, filePath, 'references')).toContain('User');
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('emits calls: bare name, receiver-qualified, and bare method on a call receiver', () => {
+      const filePath = 'com/example/demo/Flow.kt';
+      writeFile(
+        filePath,
+        [
+          'package com.example.demo',
+          '',
+          'class Repo {',
+          '    fun count(): Int = 0',
+          '}',
+          '',
+          'class Flow(private val repo: Repo) {',
+          '    fun run() {',
+          '        val s = StringBuilder().append(1)',
+          '        helper(s)',
+          '        return repo.count()',
+          '    }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const calls = ktRefs(db, filePath, 'calls');
+        expect(calls).toContain('helper');
+        expect(calls).toContain('repo.count');
+        // Chained call whose receiver is itself a call (`StringBuilder().append`)
+        // emits the bare method name, not the noisy `StringBuilder().append`.
+        expect(calls).toContain('append');
+        expect(calls.some((c) => c.includes('('))).toBe(false);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('emits extends refs for every delegation specifier and decorates for annotations', () => {
+      const filePath = 'com/example/demo/UserService.kt';
+      writeFile(
+        filePath,
+        [
+          'package com.example.demo',
+          '',
+          'import org.springframework.stereotype.Service',
+          '',
+          'class UserRepository',
+          'open class Base',
+          'interface Iface',
+          '',
+          '@Service',
+          'class UserService(private val repo: UserRepository) : Base(), Iface',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const ext = ktRefs(db, filePath, 'extends').sort();
+        expect(ext).toEqual(['Base', 'Iface']);
+        expect(ktRefs(db, filePath, 'decorates')).toEqual(['Service']);
+        // Primary-constructor property type is a type-position reference.
+        expect(ktRefs(db, filePath, 'references')).toContain('UserRepository');
+      } finally {
+        cg.close();
+      }
+    });
+  });
 });

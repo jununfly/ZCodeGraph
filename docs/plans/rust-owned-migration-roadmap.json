@@ -1565,15 +1565,46 @@
     "1-6-1": {
       "id": "1-6-1",
       "label": "波次1: Kotlin 基线迁移（#692 夹具模式落地后首个新语言）",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-6",
-      "children": [],
+      "children": [
+        "1-6-1-1",
+        "1-6-1-2",
+        "1-6-1-3",
+        "1-6-1-4",
+        "1-6-1-5"
+      ],
       "decisions": [
         {
           "q": "下一个迁移语言选谁？",
           "answer": "Kotlin",
           "note": "PRD Suggested Sequencing 明确建议；JVM 系协同最强"
+        },
+        {
+          "q": "Scope gate：本节点是产品实现还是技能验收？",
+          "answer": "Product execution",
+          "note": "1-6-1 是 ZCodeGraph 产品自身 Rust 迁移路线的波次1节点，交付物=Kotlin 基线抽取迁入 Rust + 所有权元数据切换 + wave0 夹具 + 真实语料 benchmark + 3-OS CI；允许改产品代码"
+        },
+        {
+          "q": "Kotlin tree-sitter grammar 供应方案？",
+          "answer": "git rev-pin fwcd/tree-sitter-kotlin@1852ea17 (v0.4.0)",
+          "note": "crates.io 最新发布 0.3.8 锁 tree-sitter >=0.21,<0.23 与本仓 0.24 冲突；fwcd main 已升 0.4.0 用 tree-sitter-language 0.1(dev-dep 0.24)但未发 crates.io。隔离 scratch 工程实测 cargo build 通过、LANGUAGE.into() 与 tree_sitter::Language ABI 兼容、解析 source_file/package_header/class_declaration 无 error。CI 用 CARGO_NET_GIT_FETCH_WITH_CLI=true 走 git CLI 拉取(schannel 吊销服务器离线时 Cargo 内建 fetch 失败)。等 fwcd 发布 0.4.x 到 crates.io 后可改回 registry 版本"
+        },
+        {
+          "q": "Kotlin 基线抽取范围边界？",
+          "answer": "基线=package_header/import_header/class_declaration(class/interface/enum/data class)/object_declaration/function_declaration(method/top-level/extension receiver)/property_declaration/type_alias/call_expression；与 TS kotlinExtractor 主干对齐",
+          "note": "边角(fun interface ERROR 恢复、expect/actual platform_modifier、companion object 静态语义)不进基线，经 fixture 探针暴露后分流为独立语义缺口节点，复用 C++ G1-G4/Java G5-G9 模式。框架(Spring/Expo Modules)resolver 保持 TS-shell 所有权，遵循 1-5-5 护栏：文件 Rust-owned 不宣称框架语义 Rust-owned"
+        },
+        {
+          "q": "Kotlin 容错抽取策略：fwcd 0.4 grammar 对接口无体抽象方法(fun x():T，单行/某些排版)误报 has_error，但 AST 完整；现有 Rust 门控对非 C-family has_error 即整文件 parse-gap 放弃。如何处理？",
+          "answer": "Kotlin 与 C-family 同级豁免 has_error 硬门控(tolerates_parse_errors)，容错遍历抽取",
+          "note": "证据：scratch 探针实测 interface N { fun x():T } 单行 err=true/多行 err=false，LEAF-ERR 落在完整 class_body；TS orchestrator 全语言从不检查 has_error(无任何 hasError 分支)，kotlinExtractor 内置 fun-interface ERROR 恢复即容错设计；若不豁免，真实 Kotlin 接口文件几乎全 parse-gap，与 1-5-1 fallback 归零目标冲突。实现：引入 tolerates_parse_errors() 谓词(C/Kotlin=true)替换裸 is_c_family 判定；真正损坏文件仍只产出部分节点(与 TS 等价行为)，不记 rust-owned-parse-gap"
+        },
+        {
+          "q": "fwcd 0.4 grammar 单行带体声明(object/class 单行 {成员})误解析为 infix_expression 致节点丢失，基线是否处理？",
+          "answer": "不处理，记为 grammar 已知边界；fixture/语料用主流多行体排版",
+          "note": "探针实测 object R {\\n val x\\n}=object_declaration 正常，单行 object R { val x }=infix_expression(无 ERROR，#277/#280 同系列歧义)；TS kotlinExtractor 仅对 fun interface 做 ERROR 恢复，普通 object/class 单行体同样抽不到，Rust 与 TS parity。接口无体抽象方法 fun x():T 单行体误报 has_error 已由 tolerates_parse_errors 容错覆盖(节点仍完整)。若真实语料证明单行 object 高频且 TS 能抽而 Rust 不能，再开语义缺口节点"
         }
       ],
       "notes": "理由：Java 基线已完成且 Spring/Play 边界已显式，Kotlin 与 JVM 系复用度最高；交付后回填 2-Kotlin 四个子节点并新增 kotlin benchmark。"
@@ -2052,11 +2083,67 @@
         }
       ],
       "notes": ""
+    },
+    "1-6-1-1": {
+      "id": "1-6-1-1",
+      "label": "接入 tree-sitter-kotlin grammar：Cargo dep(git rev-pin) + SourceLanguage::Kotlin + .kt/.kts + tree_sitter_language + 分派 extract_kotlin_symbols",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6-1",
+      "children": [],
+      "decisions": [],
+      "notes": "fwcd tree-sitter-kotlin v0.4 git rev-pin 1852ea17 接入 Cargo.toml；SourceLanguage::Kotlin 全链路接线(enum/from_path kt|kts/codegraph_name kotlin/tree_sitter_language)；逐文件分派 extract_kotlin_symbols；tolerates_parse_errors() 让 Kotlin 豁免非 C-family 的 has_error 硬门控(单行接口误报)。cargo build/bin 通过。"
+    },
+    "1-6-1-2": {
+      "id": "1-6-1-2",
+      "label": "Kotlin baseline visitor：package/imports/class/interface/enum/data-class/object/functions(含 extension receiver)/properties/typealias/calls",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6-1",
+      "children": [],
+      "decisions": [],
+      "notes": "完整 Kotlin baseline visitor 落 lib.rs(package_header module + :: 限定名；import_header；class_declaration 按 keyword 分 class/interface/enum/data-class；object_declaration->class；enum_entry；function 有 receiver/类内->method 否则 function；property 类内->property/顶层局部->variable；type_alias；delegation_specifier->extends；annotation->decorates；calls bare/receiver/chained)。修复两点：(a) typealias RHS 的 user_type 直子节点即 RHS，alias 名是 type_identifier sibling，去掉错误的 split_first 丢弃；(b) 扩展函数 fun Int.x 归 method 且 qualified_name 覆盖为 Int::x。经 rust bin + sqlite 探针校准(2 文件 8 节点 / 多项目) 0 parse error。"
+    },
+    "1-6-1-3": {
+      "id": "1-6-1-3",
+      "label": "wave0 确定性 fixture：Kotlin 基线段落落入 rust-owned-language-fixtures.test.ts（#692 夹具模式），rust unit + 引擎无关 TS shell e2e(engine: rust-hybrid)",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6-1",
+      "children": [],
+      "decisions": [],
+      "notes": "rust-owned-language-fixtures.test.ts 新增 describe('Kotlin baseline (roadmap 1-6-1)')：8 用例(imports/包模块限定名/分类+enum_entry/extension receiver/property-variable 路由+visibility/typealias RHS/calls 三态/delegation extends+decorates+主构造类型引用)，helper ktNodes/ktRefs。带体 object/class/interface/enum 统一多行体(fwcd 0.4 单行带体 object 退化为 infix_expression 的 grammar 已知边界)。补 rust unit rust_core_kotlin_baseline_classification_typealias_and_extension(cargo test --lib kotlin_baseline 1 passed)。本机无 node_modules 不能跑 vitest；用 rust bin(index --engine rust) 对逐字样本端到端索引+sqlite 核对，27/27 断言全绿、全部文件 errors=NULL、file_path 正斜杠格式与 TS helper 等价。vitest 正式仲裁留 CI。"
+    },
+    "1-6-1-4": {
+      "id": "1-6-1-4",
+      "label": "真实语料 gate：小/中型 Kotlin 仓库 Rust-owned 索引通过 + 新增 docs/benchmarks kotlin 验证文档（参照 java-spring-petclinic / c-cjson）",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6-1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "真实语料 gate 选哪个 Kotlin 仓库？",
+          "answer": "Kotlin/kotlin-koans @5935a3c (98 .kt / 2423 LOC + 10 java interop)",
+          "note": "规模与 cJSON gate(53 C 文件)同级；官方教学语料，语法覆盖广(data class/object/extension/SAM/lambda/generics/builders/delegates)。实测 rust bin --engine rust：filesIndexed=108(98 kt+10 java)、filesErrored=0、nodes 959、edges 851、parseByLanguage.kotlin.files=98；DB 复核 kotlin 文件 errors 全空、0 个 kotlin instantiates(3 个全属 java)、93 decorates 全为 JUnit @Test、extends 真实(html Tag 继承/ReadWriteProperty delegate)、imports 通配正确(java.util.* 一条)。浅克隆极小、纯 grammar 级无框架噪音，适合作首个新语言迁移 gate。"
+        }
+      ],
+      "notes": "真实语料 gate 通过。Kotlin/kotlin-koans @5935a3c（98 .kt/2423 LOC + 10 java interop，规模对齐 cJSON gate）。rust bin --engine rust 实测：filesIndexed=108(98 kt+10 java)、filesErrored=0、nodes 959、edges 851、~388ms。DB 复核：98 kt 文件 errors 全空；节点分布 98 module/74 class/1 interface/2 enum/6 enum_member/147 method/120 function/8 property/121 variable/200 import；refs 747 calls/200 imports/174 references/93 decorates(全 JUnit @Test 零噪音)/10 extends(真实 Tag/ReadWriteProperty)/0 instantiates(3 个全属 java)。新增 docs/benchmarks/2026-09-30-rust-owned-kotlin-koans-validation.md（含 grammar 供应 rev-pin 说明与单行带体 grammar 边界）。3-OS vitest 仲裁在 1-6-1-5。"
+    },
+    "1-6-1-5": {
+      "id": "1-6-1-5",
+      "label": "TS fallback 归零 + RUST_HYBRID_RUST_OWNED_LANGUAGES 加 kotlin + 3-OS CI 绿 + ALLOWED_SKIPS/skip-debt 护栏同步",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6-1",
+      "children": [],
+      "decisions": [],
+      "notes": ""
     }
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-09-29 20:38:28",
+    "updated": "2026-09-30 13:58:23",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
