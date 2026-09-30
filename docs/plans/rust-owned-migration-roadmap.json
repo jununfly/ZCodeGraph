@@ -387,7 +387,7 @@
     "1-2-8": {
       "id": "1-2-8",
       "label": "Kotlin 基线抽取迁移",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -401,6 +401,11 @@
           "q": "Kotlin 何时启动？",
           "answer": "波次 1：1-6-5（#692 夹具模式）完成后首个新语言迁移",
           "note": "原决策（PRD 推荐近期候选、JVM 协同最强）不变"
+        },
+        {
+          "q": "旧轨 1-2-8 Kotlin 基线与新波次轨 1-6-1 的关系？",
+          "answer": "1-2-8 由 1-6-1 波次轨实现并回填关闭（不重复施工）",
+          "note": "1-2-8-1..4 与 1-6-1-1..5 一一对应，已全部回填为 completed 并标注实现节点。实际执行采用 #692 沉淀的 rust-owned-language-fixtures wave0 模式（1-6 调度轨），而非 1-2 早期规划的逐语言直推；两条轨描述同一交付。已交付（实现落在波次轨 1-6-1，#692 wave0 夹具模式）：能力提交 58e7768 + 所有权割接提交 81f1db9；3-OS CI run 36687391892 全 success（ubuntu 首次仅 perf 挂钟门 rust_index_bulk_write... 因 runner I/O 抖动失败，--failed 重跑转绿，与 Kotlin 无关；本批 Rust 源码改动在 58e7768 已验证）。"
         }
       ],
       "notes": ""
@@ -408,42 +413,42 @@
     "1-2-8-1": {
       "id": "1-2-8-1",
       "label": "Kotlin: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-8",
       "children": [],
       "decisions": [],
-      "notes": "范围：函数/类与 data class/enum/typealias/import/调用/属性/package；Spring/Expo 边界。grammar：tree-sitter-kotlin；.kts 脚本同路径；PRD 建议近期候选（Spring 边界已明确）。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+      "notes": "范围：函数/类与 data class/enum/typealias/import/调用/属性/package；Spring/Expo 边界。grammar：tree-sitter-kotlin；.kts 脚本同路径；PRD 建议近期候选（Spring 边界已明确）。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。\n[回填 2026-09-30] 1-6-1-1（grammar rev-pin 接入）+ 1-6-1-2（Kotlin baseline visitor：package/imports/class/interface/enum/data-class/object/typealias/extension）。已交付（实现落在波次轨 1-6-1，#692 wave0 夹具模式）：能力提交 58e7768 + 所有权割接提交 81f1db9；3-OS CI run 36687391892 全 success（ubuntu 首次仅 perf 挂钟门 rust_index_bulk_write... 因 runner I/O 抖动失败，--failed 重跑转绿，与 Kotlin 无关；本批 Rust 源码改动在 58e7768 已验证）。"
     },
     "1-2-8-2": {
       "id": "1-2-8-2",
       "label": "Kotlin: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-8",
       "children": [],
       "decisions": [],
-      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。\n[回填 2026-09-30] 1-6-1-2（引用边发射，含 typealias RHS List<User> 与扩展 Int::times2 修复）+ 1-6-1-5（kotlin 入 RUST_HYBRID_RUST_OWNED_LANGUAGES，元数据 engineByLanguage.kotlin=rust）。已交付（实现落在波次轨 1-6-1，#692 wave0 夹具模式）：能力提交 58e7768 + 所有权割接提交 81f1db9；3-OS CI run 36687391892 全 success（ubuntu 首次仅 perf 挂钟门 rust_index_bulk_write... 因 runner I/O 抖动失败，--failed 重跑转绿，与 Kotlin 无关；本批 Rust 源码改动在 58e7768 已验证）。"
     },
     "1-2-8-3": {
       "id": "1-2-8-3",
       "label": "Kotlin: 确定性 fixture 测试 + 真实语料验证",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-8",
       "children": [],
       "decisions": [],
-      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。\n[回填 2026-09-30] 1-6-1-3（wave0 rust-owned-language-fixtures Kotlin 8 用例/27 断言，无 .skip、三 OS 真跑）+ 1-6-1-4（真实语料 gate：Kotlin/kotlin-koans@5935a3c，docs/benchmarks/2026-09-30-rust-owned-kotlin-koans-validation.md）。已交付（实现落在波次轨 1-6-1，#692 wave0 夹具模式）：能力提交 58e7768 + 所有权割接提交 81f1db9；3-OS CI run 36687391892 全 success（ubuntu 首次仅 perf 挂钟门 rust_index_bulk_write... 因 runner I/O 抖动失败，--failed 重跑转绿，与 Kotlin 无关；本批 Rust 源码改动在 58e7768 已验证）。"
     },
     "1-2-8-4": {
       "id": "1-2-8-4",
       "label": "Kotlin: 框架/运行时语义边界决策 + TS fallback 移除",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2-8",
       "children": [],
       "decisions": [],
-      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。\n[回填 2026-09-30] 1-6-1-5（对齐 java 先例 41ae7ed 最小割接：删 TS kotlin.ts、family-gate 守卫切 rust-hybrid；fun-interface/suspend/expect-actual 明确 out-of-baseline；Spring/Expo/RN 框架 resolver 保留 TS shell）。已交付（实现落在波次轨 1-6-1，#692 wave0 夹具模式）：能力提交 58e7768 + 所有权割接提交 81f1db9；3-OS CI run 36687391892 全 success（ubuntu 首次仅 perf 挂钟门 rust_index_bulk_write... 因 runner I/O 抖动失败，--failed 重跑转绿，与 Kotlin 无关；本批 Rust 源码改动在 58e7768 已验证）。"
     },
     "1-2-9": {
       "id": "1-2-9",
@@ -1565,7 +1570,7 @@
     "1-6-1": {
       "id": "1-6-1",
       "label": "波次1: Kotlin 基线迁移（#692 夹具模式落地后首个新语言）",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-6",
       "children": [
@@ -2133,7 +2138,7 @@
     "1-6-1-5": {
       "id": "1-6-1-5",
       "label": "TS fallback 归零 + RUST_HYBRID_RUST_OWNED_LANGUAGES 加 kotlin + 3-OS CI 绿 + ALLOWED_SKIPS/skip-debt 护栏同步",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-6-1",
       "children": [],
@@ -2154,7 +2159,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-09-30 15:42:20",
+    "updated": "2026-09-30 16:20:36",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
