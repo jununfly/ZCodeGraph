@@ -105,6 +105,10 @@ describe('CI Rust packaged path coverage', () => {
     expect(workflow).toContain('bridges a base virtual method to the subclass override');
     expect(workflow).toContain('resolves callers through typed object pointers');
     expect(workflow).toContain('the call sits inside a return/declaration');
+    // Roadmap 1-6-2-4: re-activated rust-hybrid Django/Flask/FastAPI route e2e.
+    expect(workflow).toContain('creates a route->view edge from urls.py to view class on rust-hybrid');
+    expect(workflow).toContain('extracts stacked @bp.route nodes and resolves them to the view on rust-hybrid');
+    expect(workflow).toContain('extracts FastAPI @app.get/@app.post routes and resolves them to handlers on rust-hybrid');
   });
 
   it('runs a rust-hybrid init/index/status/doctor smoke on the cross-platform CI path', () => {

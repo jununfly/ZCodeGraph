@@ -42,7 +42,7 @@ jobs:
           npx vitest run
           __tests__/rust-owned-language-fixtures.test.ts
           __tests__/skip-debt-guardrail.test.ts
-      - name: Verify wave-0 activated include, C++ free-function, inheritance, override, typed-pointer receiver, Java G7/G9 e2e, cross-language cases, and rust-hybrid Python framework routes (#692, roadmap 1-6-2-4)
+      - name: Verify wave-0 activated include, C++ free-function, inheritance, override, typed-pointer receiver, Java G7/G9 e2e, and cross-language cases (#692)
         run: >
           npx vitest run
           __tests__/extraction.test.ts
