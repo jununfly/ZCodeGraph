@@ -48,8 +48,126 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const CHANGELOG_PATH = resolve(process.cwd(), 'CHANGELOG.md');
+
+// --- EXTRACTION_VERSION release gate -------------------------------------
+//
+// EXTRACTION_VERSION (src/extraction/extraction-version.ts, mirrored in the
+// Rust core) identifies the *shape/depth* of extracted content. It must never
+// decrease, and when CHANGELOG declares a bump ("extraction version is bumped
+// to N") that N has to (a) equal the code constant and (b) be strictly greater
+// than what the last released tag shipped. Previously this was a manual
+// pre-release memory; this gate makes it impossible to ship a regression or a
+// changelog/code drift silently. The gate is ADVISORY (skips with a log line)
+// when the value can't be determined — no TS file, no released block, or git
+// history/tags unavailable (shallow checkout, temp test dir) — so it never
+// blocks a legitimate release it can't actually judge.
+const TS_VERSION_PATH = ['src', 'extraction', 'extraction-version.ts'].join('/');
+const SEMVER_RE = /^\d+\.\d+\.\d+(?:[-+].*)?$/;
+const CURRENT_VERSION_RE = /EXTRACTION_VERSION\s*=\s*(\d+)/;
+// Matches our own CHANGELOG convention, e.g.
+// "The extraction version is bumped to 2 for the whole Rust-owned batch".
+const DECLARED_BUMP_RE = /extraction version (?:is )?bumped to\s+(\d+)/i;
+
+function readCurrentExtractionVersion() {
+  try {
+    const m = readFileSync(resolve(process.cwd(), TS_VERSION_PATH), 'utf8').match(
+      CURRENT_VERSION_RE,
+    );
+    return m ? Number(m[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function readReleasedExtractionVersion(tagVersion) {
+  try {
+    const text = execFileSync('git', ['show', `v${tagVersion}:${TS_VERSION_PATH}`], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const m = text.match(CURRENT_VERSION_RE);
+    return m ? Number(m[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function lastReleasedVersion(blocks) {
+  return blocks.find((b) => b.name !== 'Unreleased' && SEMVER_RE.test(b.name))?.name ?? null;
+}
+
+function declaredBump(body) {
+  for (const line of body) {
+    const m = line.match(DECLARED_BUMP_RE);
+    if (m) return Number(m[1]);
+  }
+  return null;
+}
+
+function assertExtractionVersionReady({ blocks, unreleasedBody }) {
+  const current = readCurrentExtractionVersion();
+  if (current === null) {
+    console.log(
+      `prepare-release: extraction-version gate skipped (no ${TS_VERSION_PATH} in tree)`,
+    );
+    return;
+  }
+
+  const declared = declaredBump(unreleasedBody);
+  if (declared !== null && declared !== current) {
+    throw new Error(
+      `EXTRACTION_VERSION drift: CHANGELOG declares a bump to ${declared} but ` +
+        `${TS_VERSION_PATH} is ${current}. Make them agree before releasing.`,
+    );
+  }
+
+  const lastVersion = lastReleasedVersion(blocks);
+  if (!lastVersion) {
+    console.log(
+      `prepare-release: extraction-version gate: current=${current}; no prior released CHANGELOG block to compare`,
+    );
+    return;
+  }
+
+  const previous = readReleasedExtractionVersion(lastVersion);
+  if (previous === null) {
+    console.log(
+      `prepare-release: extraction-version gate: current=${current}; could not read the value ` +
+        `shipped in v${lastVersion} (git history/tags unavailable) — skipped`,
+    );
+    return;
+  }
+
+  if (current < previous) {
+    throw new Error(
+      `EXTRACTION_VERSION regression: ${TS_VERSION_PATH} is ${current} but v${lastVersion} ` +
+        `shipped ${previous}. Extraction versions must never decrease across releases.`,
+    );
+  }
+  if (declared !== null && !(current > previous)) {
+    throw new Error(
+      `CHANGELOG declares an EXTRACTION_VERSION bump to ${current}, but v${lastVersion} already ` +
+        `shipped ${previous}. A declared bump must be strictly greater than the last release.`,
+    );
+  }
+
+  if (current === previous) {
+    console.log(
+      `prepare-release: extraction-version gate: current=${current}, unchanged since v${lastVersion} ` +
+        `(OK only if this release has no extracted-content changes)`,
+    );
+  } else {
+    console.log(
+      `prepare-release: extraction-version gate: OK (${previous} @ v${lastVersion} -> ${current}` +
+        (declared !== null ? ', CHANGELOG-declared' : '') +
+        `)`,
+    );
+  }
+}
 
 function readPackageVersion() {
   const pkg = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'));
@@ -178,6 +296,11 @@ function main() {
     console.log(`prepare-release: [Unreleased] is empty — nothing to do`);
     return;
   }
+
+  // Gate the release on EXTRACTION_VERSION consistency BEFORE mutating the
+  // CHANGELOG, so a drift/regression fails the run instead of promoting a bad
+  // changelog. Advisory-only when the comparison inputs are unavailable.
+  assertExtractionVersionReady({ blocks: parsed.blocks, unreleasedBody: unrel.body });
 
   if (verIdx === -1) {
     // Case A — promote Unreleased → [version].

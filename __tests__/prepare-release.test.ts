@@ -19,11 +19,42 @@ function run(cwd: string, ...args: string[]) {
   return out.trim();
 }
 
-function setup(changelog: string, version = '1.2.3') {
+function runExpectingFailure(cwd: string, ...args: string[]): string {
+  try {
+    execFileSync('node', [SCRIPT, ...args], { cwd, encoding: 'utf8' });
+  } catch (err: any) {
+    return `${err?.stderr ?? ''} ${err?.message ?? ''}`;
+  }
+  throw new Error('expected prepare-release to exit non-zero, but it succeeded');
+}
+
+const TS_VERSION_REL = path.join('src', 'extraction', 'extraction-version.ts');
+
+function writeTsVersion(dir: string, value: number | string) {
+  const file = path.join(dir, TS_VERSION_REL);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `export const EXTRACTION_VERSION = ${value};\n`);
+}
+
+function setup(changelog: string, version = '1.2.3', tsVersion?: number | string) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'prepare-release-'));
   fs.writeFileSync(path.join(dir, 'CHANGELOG.md'), changelog);
   fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'x', version }));
+  if (tsVersion !== undefined) writeTsVersion(dir, tsVersion);
   return dir;
+}
+
+function gitAvailable(): boolean {
+  try {
+    execFileSync('git', ['--version'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function git(cwd: string, ...args: string[]) {
+  execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 }
 
 const HEADER = `# Changelog
@@ -196,6 +227,86 @@ describe('prepare-release.mjs', () => {
       const result = fs.readFileSync(path.join(dir, 'CHANGELOG.md'), 'utf8');
       const occurrences = result.split(ref).length - 1;
       expect(occurrences).toBe(1);
+    });
+  });
+
+  describe('EXTRACTION_VERSION release gate', () => {
+    const BUMP_LINE =
+      '- The extraction version is bumped to 2 for the whole Rust-owned semantic batch.\n';
+    const changelogWith = (unreleasedBody: string, bumpLine = '') =>
+      HEADER +
+      `## [Unreleased]\n\n### Added\n${unreleasedBody}${bumpLine}\n## [1.2.2] - 2026-01-01\n\n### Added\n- Old\n`;
+
+    it('skips the gate (and still releases) when the TS constant file is absent', () => {
+      dir = setup(changelogWith('- thing\n'));
+      const out = run(dir);
+      expect(out).toMatch(/extraction-version gate skipped/);
+      const result = fs.readFileSync(path.join(dir, 'CHANGELOG.md'), 'utf8');
+      expect(result).toMatch(/## \[1\.2\.3\] - \d{4}-\d{2}-\d{2}/);
+    });
+
+    it('fails when CHANGELOG declares a bump that disagrees with the code constant', () => {
+      // CHANGELOG says "bumped to 2" but the TS file is still 3 (or vice versa).
+      dir = setup(changelogWith('- thing\n', BUMP_LINE), '1.2.3', 3);
+      const err = runExpectingFailure(dir);
+      expect(err).toMatch(/EXTRACTION_VERSION drift/);
+      // No promotion happened.
+      const result = fs.readFileSync(path.join(dir, 'CHANGELOG.md'), 'utf8');
+      expect(result).toContain('## [Unreleased]');
+      expect(result).not.toMatch(/## \[1\.2\.3\] - \d{4}-\d{2}-\d{2}/);
+    });
+
+    const describeGit = gitAvailable() ? describe : describe.skip;
+    describeGit('against the last released tag (real git repo)', () => {
+      function repo(opts: { prev: number; current: number; bumpLine?: string }) {
+        const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'prepare-release-git-'));
+        git(repoDir, 'init', '-q');
+        git(repoDir, 'config', 'user.email', 'test@example.com');
+        git(repoDir, 'config', 'user.name', 'test');
+        git(repoDir, 'config', 'commit.gpgsign', 'false');
+        fs.writeFileSync(
+          path.join(repoDir, 'package.json'),
+          JSON.stringify({ name: 'x', version: '1.2.3' }),
+        );
+        writeTsVersion(repoDir, opts.prev);
+        git(repoDir, 'add', '-A');
+        git(repoDir, 'commit', '-qm', 'base');
+        git(repoDir, 'tag', 'v1.2.2');
+        writeTsVersion(repoDir, opts.current);
+        fs.writeFileSync(
+          path.join(repoDir, 'CHANGELOG.md'),
+          changelogWith('- thing\n', opts.bumpLine ?? ''),
+        );
+        return repoDir;
+      }
+
+      it('passes and releases when the constant strictly advances over the shipped value', () => {
+        dir = repo({ prev: 1, current: 2, bumpLine: BUMP_LINE });
+        const out = run(dir);
+        expect(out).toMatch(/extraction-version gate: OK \(1 @ v1\.2\.2 -> 2/);
+        const result = fs.readFileSync(path.join(dir, 'CHANGELOG.md'), 'utf8');
+        expect(result).toMatch(/## \[1\.2\.3\] - \d{4}-\d{2}-\d{2}/);
+      });
+
+      it('passes with an unchanged constant when the release declares no bump', () => {
+        dir = repo({ prev: 2, current: 2 });
+        const out = run(dir);
+        expect(out).toMatch(/extraction-version gate: current=2, unchanged since v1\.2\.2/);
+      });
+
+      it('fails when the constant regressed below the shipped value', () => {
+        dir = repo({ prev: 2, current: 1 });
+        const err = runExpectingFailure(dir);
+        expect(err).toMatch(/EXTRACTION_VERSION regression/);
+        const result = fs.readFileSync(path.join(dir, 'CHANGELOG.md'), 'utf8');
+        expect(result).not.toMatch(/## \[1\.2\.3\] - \d{4}-\d{2}-\d{2}/);
+      });
+
+      it('fails when a bump is declared but the value is not greater than the shipped one', () => {
+        dir = repo({ prev: 2, current: 2, bumpLine: BUMP_LINE });
+        const err = runExpectingFailure(dir);
+        expect(err).toMatch(/already shipped 2/);
+      });
     });
   });
 

@@ -82,6 +82,10 @@ jobs:
           # Default checkout is detached at a SHA; we need an actual branch
           # so the CHANGELOG-promote commit knows where to push.
           ref: ${{ github.ref }}
+          # Full history + tags so prepare-release.mjs's EXTRACTION_VERSION gate
+          # can `git show v<last-release>:src/extraction/extraction-version.ts`
+          # and compare against the value the previous release shipped.
+          fetch-depth: 0
           # Authenticate as the maintainer (admin), not as github-actions[bot].
           # The "Require PR approval for main branch" ruleset only lets the
           # Admin repo role bypass — and GitHub blocks adding the GitHub
