@@ -446,6 +446,77 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     }
   }, 30_000);
 
+  it('indexes Kotlin as Rust-owned under rust-hybrid', () => {
+    const ktDir = path.join(tempDir, 'src/main/kotlin/com/example');
+    fs.mkdirSync(ktDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(ktDir, 'Worker.kt'),
+      [
+        'package com.example',
+        '',
+        'import java.util.List',
+        '',
+        'interface Worker {',
+        '    fun run()',
+        '}',
+        '',
+        'object Registry {',
+        '    const val MAX: Int = 100',
+        '}',
+        '',
+        'class Service(private val worker: Worker) : Worker {',
+        '    override fun run() {',
+        '        helper()',
+        '    }',
+        '',
+        '    private fun assist(): Int = 0',
+        '}',
+        '',
+      ].join('\n'),
+    );
+
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      expect(cg.getStats().filesByLanguage.kotlin).toBe(1);
+      const expectations = [
+        ['com.example', 'module'],
+        ['java.util.List', 'import'],
+        ['Worker', 'interface'],
+        ['Registry', 'class'],
+        ['MAX', 'property'],
+        ['Service', 'class'],
+        ['run', 'method'],
+        ['assist', 'method'],
+      ] as const;
+      for (const [name, kind] of expectations) {
+        expect(
+          cg.searchNodes(name).some((match) => match.node.name === name && match.node.kind === kind && match.node.language === 'kotlin'),
+          `${name} (${kind}) should be indexed as Kotlin`,
+        ).toBe(true);
+      }
+
+      // `Service : Worker` emits an extends ref to the delegated interface.
+      const svc = cg.searchNodes('Service').find((match) => match.node.language === 'kotlin')?.node;
+      expect(svc?.qualifiedName).toBe('com.example::Service');
+
+      const buildInfo = cg.getIndexBuildInfo();
+      expect(buildInfo.engine).toBe('rust-hybrid');
+      expect(buildInfo.hybrid).toMatchObject({
+        rustOwnedLanguages: expect.arrayContaining(['kotlin']),
+        engineByLanguage: { kotlin: 'rust' },
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
+      });
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
   it('reports Rust index-engine metadata through MCP status', async () => {
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
       ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,

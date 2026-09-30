@@ -80,8 +80,11 @@ and should be migrated language by language:
       calls, Rails boundary.
 - [ ] Swift: functions, classes, protocols, structs, enums, typealiases,
       imports, calls, SwiftUI/UIKit/Vapor boundary.
-- [ ] Kotlin: functions, classes/data classes/enums, type aliases, imports,
+- [x] Kotlin: functions, classes/data classes/enums, type aliases, imports,
       calls, properties, package extraction, Spring/Expo boundary.
+      (Rust-owned baseline, roadmap 1-6-1. Package is a `module` node; grammar
+      gaps — fun-interface/SAM ERROR recovery, suspend isAsync, expect/actual —
+      are out of baseline. Spring/Expo resolvers remain TS-shell.)
 - [ ] Dart: functions, classes, enums, type aliases, imports/exports,
       invocation strategy.
 - [ ] Pascal/Delphi: procedures/functions, classes, interfaces, enums, type

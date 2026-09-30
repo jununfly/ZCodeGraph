@@ -735,7 +735,7 @@ describe('JVM FQN imports — end-to-end', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
 
     const bar = cg.getNodesByKind('class').find((n) => n.qualifiedName === 'com.example::Bar');
     expect(bar, 'Bar should be extracted with package-qualified name').toBeDefined();
@@ -766,7 +766,7 @@ describe('JVM FQN imports — end-to-end', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
 
     const util = cg.getNodesByKind('function').find((n) => n.qualifiedName === 'com.example::util');
     expect(util, 'top-level util() should be extracted under com.example').toBeDefined();
@@ -819,7 +819,7 @@ describe('JVM FQN imports — end-to-end', () => {
     );
 
     const cg = CodeGraph.initSync(tmpDir);
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
 
     const alphaBar = cg.getNodesByKind('class').find((n) => n.qualifiedName === 'com.example.alpha::Bar');
     const betaBar = cg.getNodesByKind('class').find((n) => n.qualifiedName === 'com.example.beta::Bar');

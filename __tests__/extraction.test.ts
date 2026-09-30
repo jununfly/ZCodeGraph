@@ -1117,211 +1117,17 @@ protocol UploadConvertible: URLRequestConvertible {
   });
 });
 
-describe('Kotlin Extraction', () => {
-  it('should extract class declarations', () => {
-    const code = `
-class UserRepository(private val database: Database) {
-    fun findById(id: String): User? {
-        return database.query("SELECT * FROM users WHERE id = ?", id)
-    }
-
-    suspend fun save(user: User) {
-        database.insert(user)
-    }
-}
-`;
-    const result = extractFromSource('UserRepository.kt', code);
-
-    const classNode = result.nodes.find((n) => n.kind === 'class');
-    expect(classNode).toBeDefined();
-    expect(classNode?.name).toBe('UserRepository');
-  });
-
-  it('should extract function declarations', () => {
-    const code = `
-fun calculateTotal(items: List<Item>): Double {
-    return items.sumOf { it.price }
-}
-
-suspend fun fetchUserData(userId: String): User {
-    return api.getUser(userId)
-}
-`;
-    const result = extractFromSource('utils.kt', code);
-
-    const functions = result.nodes.filter((n) => n.kind === 'function');
-    expect(functions.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('should detect suspend functions as async', () => {
-    const code = `
-suspend fun loadData(): List<String> {
-    delay(1000)
-    return listOf("a", "b", "c")
-}
-`;
-    const result = extractFromSource('loader.kt', code);
-
-    const funcNode = result.nodes.find((n) => n.kind === 'function');
-    expect(funcNode).toBeDefined();
-    expect(funcNode?.isAsync).toBe(true);
-  });
-
-  it('should extract fun interface declarations', () => {
-    const code = `
-fun interface OnObjectRetainedListener {
-  fun onObjectRetained()
-}
-`;
-    const result = extractFromSource('listener.kt', code);
-
-    const ifaceNode = result.nodes.find((n) => n.kind === 'interface');
-    expect(ifaceNode).toBeDefined();
-    expect(ifaceNode?.name).toBe('OnObjectRetainedListener');
-
-    const methodNode = result.nodes.find((n) => n.kind === 'method');
-    expect(methodNode).toBeDefined();
-    expect(methodNode?.name).toBe('onObjectRetained');
-    expect(methodNode?.qualifiedName).toBe('OnObjectRetainedListener::onObjectRetained');
-  });
-
-  it('should extract complex fun interface with nested classes', () => {
-    const code = `
-fun interface EventListener {
-  fun onEvent(event: Event)
-
-  sealed class Event {
-    class DumpingHeap : Event()
-  }
-}
-`;
-    const result = extractFromSource('events.kt', code);
-
-    const ifaceNode = result.nodes.find((n) => n.kind === 'interface');
-    expect(ifaceNode).toBeDefined();
-    expect(ifaceNode?.name).toBe('EventListener');
-
-    // Nested sealed class should still be extracted (as sibling due to grammar limitations)
-    const eventClass = result.nodes.find((n) => n.kind === 'class' && n.name === 'Event');
-    expect(eventClass).toBeDefined();
-
-    const dumpingHeap = result.nodes.find((n) => n.kind === 'class' && n.name === 'DumpingHeap');
-    expect(dumpingHeap).toBeDefined();
-  });
-
-  it('should not affect regular function declarations', () => {
-    const code = `
-fun interface MyCallback {
-  fun invoke(value: Int)
-}
-
-fun regularFunction(): String {
-  return "hello"
-}
-`;
-    const result = extractFromSource('mixed.kt', code);
-
-    const ifaceNode = result.nodes.find((n) => n.kind === 'interface');
-    expect(ifaceNode).toBeDefined();
-    expect(ifaceNode?.name).toBe('MyCallback');
-
-    const funcNode = result.nodes.find((n) => n.kind === 'function');
-    expect(funcNode).toBeDefined();
-    expect(funcNode?.name).toBe('regularFunction');
-  });
-
-  it('should extract fun interface with annotation on method (Pattern 2b)', () => {
-    // When the SAM method has annotations like @Throws, tree-sitter produces a different
-    // misparse: function_declaration > ERROR("interface Name {") instead of
-    // function_declaration > user_type("interface"). This is the OkHttp Interceptor pattern.
-    const code = `
-import java.io.IOException
-
-fun interface Interceptor {
-  @Throws(IOException::class)
-  fun intercept(chain: Chain): Response
-}
-`;
-    const result = extractFromSource('interceptor.kt', code);
-
-    const ifaceNode = result.nodes.find((n) => n.kind === 'interface');
-    expect(ifaceNode).toBeDefined();
-    expect(ifaceNode?.name).toBe('Interceptor');
-  });
-
-  it('should extract methods from interface with nested fun interface', () => {
-    // When an interface contains a nested `fun interface`, tree-sitter misparsed
-    // the parent body as ERROR. Methods inside should still be extracted.
-    const code = `
-interface WebSocket {
-  fun request(): Request
-  fun send(text: String): Boolean
-  fun cancel()
-  fun interface Factory {
-    fun newWebSocket(request: Request): WebSocket
-  }
-}
-`;
-    const result = extractFromSource('websocket.kt', code);
-
-    const wsIface = result.nodes.find((n) => n.kind === 'interface' && n.name === 'WebSocket');
-    expect(wsIface).toBeDefined();
-
-    const methods = result.nodes.filter((n) => n.kind === 'method' && n.qualifiedName?.startsWith('WebSocket::'));
-    const methodNames = methods.map((m) => m.name);
-    expect(methodNames).toContain('request');
-    expect(methodNames).toContain('send');
-    expect(methodNames).toContain('cancel');
-  });
-
-  it('wraps top-level declarations in a namespace from package_header', () => {
-    const code = `
-package com.example.foo
-
-class Bar {
-  fun greet(): String = "hi"
-}
-
-fun util(): Int = 42
-`;
-    const result = extractFromSource('Bar.kt', code);
-
-    const ns = result.nodes.find((n) => n.kind === 'namespace');
-    expect(ns?.name).toBe('com.example.foo');
-
-    const cls = result.nodes.find((n) => n.kind === 'class' && n.name === 'Bar');
-    expect(cls?.qualifiedName).toBe('com.example.foo::Bar');
-
-    const greet = result.nodes.find((n) => n.kind === 'method' && n.name === 'greet');
-    expect(greet?.qualifiedName).toBe('com.example.foo::Bar::greet');
-
-    const util = result.nodes.find((n) => n.kind === 'function' && n.name === 'util');
-    expect(util?.qualifiedName).toBe('com.example.foo::util');
-  });
-
-  it('handles a single-segment package', () => {
-    const code = `
-package foo
-
-class Bar
-`;
-    const result = extractFromSource('Bar.kt', code);
-    const cls = result.nodes.find((n) => n.kind === 'class' && n.name === 'Bar');
-    expect(cls?.qualifiedName).toBe('foo::Bar');
-  });
-
-  it('does not wrap when no package is declared', () => {
-    const code = `
-class Bar {
-  fun greet() = "hi"
-}
-`;
-    const result = extractFromSource('Bar.kt', code);
-    expect(result.nodes.find((n) => n.kind === 'namespace')).toBeUndefined();
-    const cls = result.nodes.find((n) => n.kind === 'class' && n.name === 'Bar');
-    expect(cls?.qualifiedName).toBe('Bar');
-  });
-});
+// Kotlin is fully Rust-owned on the supported rust-hybrid path; the legacy TS
+// extractor is gone (no per-language TS Kotlin extractor exists), so this old
+// `describe('Kotlin Extraction')` block was deleted rather than re-activated.
+// Its in-scope cases are now covered against the pure-Rust engine /
+// rust-hybrid in rust-owned-language-fixtures.test.ts (#692, roadmap 1-6-1):
+//   - class / top-level function extraction, package module + qualified names,
+//     single-segment and no-package cases -> "wraps the package in a module"
+//     and the Kotlin baseline describe.
+// Out of the Rust baseline (deliberately not migrated, not skipped):
+//   - `suspend` isAsync marking, fun-interface (SAM) ERROR recovery, and the
+//     TypeScript namespace-wrapping of package headers (Rust emits `module`).
 
 describe('Dart Extraction', () => {
   it('should extract class declarations', () => {
@@ -1819,54 +1625,11 @@ import Alamofire
     });
   });
 
-  describe('Kotlin imports', () => {
-    it('should extract simple import', () => {
-      const code = `import java.io.IOException`;
-      const result = extractFromSource('Main.kt', code);
-
-      const importNode = result.nodes.find((n) => n.kind === 'import');
-      expect(importNode).toBeDefined();
-      expect(importNode?.name).toBe('java.io.IOException');
-      expect(importNode?.signature).toBe('import java.io.IOException');
-    });
-
-    it('should extract aliased import', () => {
-      const code = `import okhttp3.Request.Builder as RequestBuilder`;
-      const result = extractFromSource('Utils.kt', code);
-
-      const importNode = result.nodes.find((n) => n.kind === 'import');
-      expect(importNode).toBeDefined();
-      expect(importNode?.name).toBe('okhttp3.Request.Builder');
-      expect(importNode?.signature).toContain('as RequestBuilder');
-    });
-
-    it('should extract wildcard import', () => {
-      const code = `import java.util.concurrent.TimeUnit.*`;
-      const result = extractFromSource('Time.kt', code);
-
-      const importNode = result.nodes.find((n) => n.kind === 'import');
-      expect(importNode).toBeDefined();
-      expect(importNode?.name).toBe('java.util.concurrent.TimeUnit');
-      expect(importNode?.signature).toContain('.*');
-    });
-
-    it('should extract multiple imports', () => {
-      const code = `
-import java.io.IOException
-import kotlin.test.assertFailsWith
-import okhttp3.OkHttpClient
-`;
-      const result = extractFromSource('Test.kt', code);
-
-      const importNodes = result.nodes.filter((n) => n.kind === 'import');
-      expect(importNodes.length).toBe(3);
-
-      const names = importNodes.map((n) => n.name);
-      expect(names).toContain('java.io.IOException');
-      expect(names).toContain('kotlin.test.assertFailsWith');
-      expect(names).toContain('okhttp3.OkHttpClient');
-    });
-  });
+  // Kotlin import extraction (simple / aliased / wildcard / multiple) moved to
+  // the Rust-owned engine; see rust-owned-language-fixtures.test.ts ->
+  // "Kotlin baseline (roadmap 1-6-1)" ("counts .kt files ... and indexes
+  // imports"). Rust stores no import `signature`, so the legacy raw-import-text
+  // assertions were dropped in favour of the import name + unresolved_refs.
 
   // Java import extraction (simple / static / wildcard / nested-class /
   // multiple) moved to the Rust-owned engine; see
@@ -2945,142 +2708,14 @@ end`;
   });
 });
 
-describe('Kotlin Multiplatform expect/actual', () => {
-  let tempDir: string;
-  let cg: CodeGraph;
-
-  beforeEach(() => {
-    tempDir = createTempDir();
-  });
-
-  afterEach(() => {
-    if (cg) cg.close();
-    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
-  });
-
-  it('links expect declarations to platform actual implementations and surfaces them in impact', async () => {
-    const common = path.join(tempDir, 'src', 'commonMain');
-    const jvm = path.join(tempDir, 'src', 'jvmMain');
-    fs.mkdirSync(common, { recursive: true });
-    fs.mkdirSync(jvm, { recursive: true });
-
-    // common source set: expect declarations + a caller that uses them
-    fs.writeFileSync(
-      path.join(common, 'SystemProps.kt'),
-      `package demo.internal
-
-expect fun systemProp(name: String): String?
-
-expect class Platform {
-    fun describe(): String
-}
-`
-    );
-    fs.writeFileSync(
-      path.join(common, 'Caller.kt'),
-      `package demo
-
-import demo.internal.systemProp
-import demo.internal.Platform
-
-fun useIt(): String {
-    val v = systemProp("os.name")
-    return Platform().describe() + v
-}
-`
-    );
-    // jvm source set: actual implementations
-    fs.writeFileSync(
-      path.join(jvm, 'SystemProps.kt'),
-      `package demo.internal
-
-actual fun systemProp(name: String): String? = System.getProperty(name)
-
-actual class Platform {
-    actual fun describe(): String = "JVM"
-}
-`
-    );
-
-    cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll({ engine: 'typescript' });
-    cg.resolveReferences();
-
-    // The expect/actual markers are captured onto the node's decorators.
-    const fns = cg.getNodesByKind('function');
-    const actualFn = fns.find(
-      (n) => n.name === 'systemProp' && n.decorators?.includes('actual')
-    );
-    const expectFn = fns.find(
-      (n) => n.name === 'systemProp' && n.decorators?.includes('expect')
-    );
-    expect(actualFn).toBeDefined();
-    expect(expectFn).toBeDefined();
-    expect(actualFn!.filePath).not.toBe(expectFn!.filePath);
-
-    // Editing the JVM actual must surface the common expect AND its caller —
-    // before the expect/actual bridge the actual had zero dependents.
-    const impact = cg.getImpactRadius(actualFn!.id, 3);
-    const impacted = [...impact.nodes.values()].map((n) => n.name);
-    expect(impacted).toContain('systemProp'); // the common expect
-    expect(impacted).toContain('useIt'); // the caller, reached transitively
-
-    // The bridging edge is a heuristic `calls` edge tagged by the synthesizer.
-    const bridge = impact.edges.find(
-      (e) =>
-        e.target === actualFn!.id &&
-        e.edgeOrigin === 'heuristic' &&
-        (e.metadata as { synthesizedBy?: string } | undefined)?.synthesizedBy ===
-          'kotlin-expect-actual'
-    );
-    expect(bridge).toBeDefined();
-    expect(bridge!.source).toBe(expectFn!.id);
-  });
-
-  it('links an expect class to an actual typealias (different node kinds)', async () => {
-    const common = path.join(tempDir, 'src', 'commonMain');
-    const jvm = path.join(tempDir, 'src', 'jvmMain');
-    fs.mkdirSync(common, { recursive: true });
-    fs.mkdirSync(jvm, { recursive: true });
-
-    fs.writeFileSync(
-      path.join(common, 'Lock.kt'),
-      `package demo
-
-expect class Lock {
-    fun acquire()
-}
-`
-    );
-    fs.writeFileSync(
-      path.join(jvm, 'Lock.kt'),
-      `package demo
-
-actual typealias Lock = java.util.concurrent.locks.ReentrantLock
-`
-    );
-
-    cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll({ engine: 'typescript' });
-    cg.resolveReferences();
-
-    const aliasNode = cg
-      .getNodesByKind('type_alias')
-      .find((n) => n.name === 'Lock' && n.decorators?.includes('actual'));
-    expect(aliasNode).toBeDefined();
-
-    // The actual typealias is now a cross-file dependency target (linked from
-    // the expect class), so it participates in impact rather than being orphaned.
-    const impact = cg.getImpactRadius(aliasNode!.id, 3);
-    const bridge = impact.edges.find(
-      (e) =>
-        e.target === aliasNode!.id &&
-        (e.metadata as { synthesizedBy?: string } | undefined)?.synthesizedBy ===
-          'kotlin-expect-actual'
-    );
-    expect(bridge).toBeDefined();
-  });
-});
+// Kotlin Multiplatform expect/actual linking ran only on the legacy TypeScript
+// engine (`engine: 'typescript'`) and depended on the TS extractor tagging
+// expect/actual decorators plus the kotlin-expect-actual synthesizer. Kotlin is
+// now Rust-owned on the rust-hybrid path (roadmap 1-6-1); expect/actual is
+// deliberately outside the Rust baseline, so this describe was deleted (not
+// skipped -- the skip-debt allowlist is kept empty). Re-introduce against the
+// Rust engine in rust-owned-language-fixtures.test.ts if a future wave models
+// expect/actual.
 
 describe('Scala cross-file dependencies', () => {
   let tempDir: string;
@@ -3651,8 +3286,13 @@ class UserService extends Repository with Loggable {
 // to emit zero refs for `JsonScope.EMPTY_DOCUMENT`; the Rust Java extractor now
 // emits a references ref to the Capitalized receiver (mirroring the TS
 // extractStaticMemberRef gate), resolved end-to-end on rust-hybrid below.
-// Case 2 is a Rust-independent engine:'typescript' negative guard (a Kotlin
-// Build.VERSION read must not cross-link to a same-named TS class).
+// Case 2 is a language-family isolation negative guard (a Kotlin
+// Build.VERSION read must not cross-link to a same-named TS class). It runs on
+// rust-hybrid because Kotlin is Rust-owned (roadmap 1-6-1-5): the Rust
+// extractor indexes Device.kt and may emit a Capitalized-receiver `Build`
+// value-read ref, but the TS-shell family gate (sameLanguageFamily) must still
+// refuse to resolve it onto the same-named TS class. Running it on the legacy
+// typescript engine would be vacuous now (that engine no longer indexes .kt).
 describe('Static-member / value-read references (Rust-owned migration)', () => {
   let tempDir: string;
   let cg: CodeGraph;
@@ -3729,7 +3369,7 @@ describe('Static-member / value-read references (Rust-owned migration)', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll({ engine: 'typescript' });
+    await cg.indexAll({ engine: 'rust-hybrid' });
     cg.resolveReferences();
 
     const tsBuild = cg.getNodesByKind('class').find((n) => n.name === 'Build' && n.filePath.endsWith('Build.ts'));
@@ -3779,7 +3419,10 @@ describe('Cross-language type/import gate (RN name collisions)', () => {
     );
 
     cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll({ engine: 'typescript' });
+    // rust-hybrid: Kotlin is Rust-owned (roadmap 1-6-1-5). The Rust extractor
+    // must index the Kotlin `class TestRunner` (asserted present below), and the
+    // TS-shell family gate must still keep that ref from crossing web -> jvm.
+    await cg.indexAll({ engine: 'rust-hybrid' });
     cg.resolveReferences();
 
     const ktRunner = cg
@@ -4117,7 +3760,7 @@ describe('Chained method-call resolution (C# extension methods)', () => {
   });
 });
 
-describe('Same-directory include + KMP import resolution', () => {
+describe('Same-directory #include resolution', () => {
   let tempDir: string;
   let cg: CodeGraph;
 
@@ -4167,29 +3810,11 @@ describe('Same-directory include + KMP import resolution', () => {
     expect(appleDeps.some((p) => p.endsWith('Provider.cpp')), 'other-platform header does NOT').toBe(false);
   });
 
-  it('a Kotlin Multiplatform commonMain import resolves to the expect, not a platform actual', async () => {
-    const common = path.join(tempDir, 'src/commonMain/kotlin/app');
-    const android = path.join(tempDir, 'src/androidMain/kotlin/app');
-    fs.mkdirSync(common, { recursive: true });
-    fs.mkdirSync(android, { recursive: true });
-    fs.writeFileSync(path.join(common, 'Platform.kt'), `package app\nexpect class PlatformContext\n`);
-    fs.writeFileSync(path.join(android, 'Platform.android.kt'), `package app\nactual class PlatformContext\n`);
-    fs.writeFileSync(
-      path.join(common, 'Db.kt'),
-      `package app\nimport app.PlatformContext\nclass Db {\n  fun open(ctx: PlatformContext) {}\n}\n`
-    );
-
-    cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll({ engine: 'typescript' });
-    cg.resolveReferences();
-
-    const expectCtx = cg
-      .getNodesByKind('class')
-      .find((n) => n.name === 'PlatformContext' && n.filePath.endsWith('commonMain/kotlin/app/Platform.kt'));
-    expect(expectCtx, 'commonMain expect PlatformContext').toBeDefined();
-    const deps = [...cg.getImpactRadius(expectCtx!.id, 2).nodes.values()].map((n) => n.filePath ?? '');
-    expect(deps.some((p) => p.endsWith('Db.kt')), 'commonMain import lands on the expect, not the actual').toBe(true);
-  });
+  // Kotlin Multiplatform expect/actual resolution ran only on the legacy
+  // TypeScript engine (`engine: 'typescript'`). Kotlin is now Rust-owned on
+  // the rust-hybrid path (roadmap 1-6-1); expect/actual markers are outside
+  // the Rust baseline, so this typescript-only case was deleted rather than
+  // skipped. The same-directory C/C++ #include case above stays active.
 });
 
 describe('Delphi form code-behind pairing', () => {
