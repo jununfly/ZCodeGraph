@@ -109,23 +109,22 @@ describe('Flask end-to-end framework extraction', () => {
 // Python is rust-owned, so python files never enter the TypeScript fallback
 // pass, and the Rust core does not implement Django/Flask/FastAPI route
 // extraction (only axum/Rust attribute routes, Go Gin, and NestJS post-extract
-// updates). finalizeRustIndex therefore never runs the python framework
-// extractors, and the route nodes the TypeScript-engine e2e above rely on are
-// silently absent — route recall is 0% on django-realworld (18 path()/url())
-// and fastapi-realworld (20 @app/@router.METHOD). Confirmed by rust-bin sqlite
-// probes on 2026-09-30 (mini fixtures + both real corpora, 0 parse errors).
-// These are tracked skips, not passing contracts: they assert the intended
-// route seam and are re-activated by the product-fix node (roadmap 1-6-2-1's
-// follow-on), at which point their titles must be added to ci.yml's step2 -t.
-describe('Python framework routes on rust-hybrid (roadmap 1-6-2 tracked gap)', () => {
+// updates). Roadmap 1-6-2-4 fixed this by re-running the TypeScript python
+// framework route extractors during finalizeRustIndex (after post-extract,
+// before batched reference resolution), inserting route nodes + unresolved
+// refs that resolve into route -> handler `references` edges. The three
+// cases below were tracked skips encoding the intended seam (0% route recall
+// on django-realworld/fastapi-realworld, confirmed 2026-09-30) and are now
+// active contracts; their titles are registered in ci.yml step2's -t filter.
+describe('Python framework routes on rust-hybrid (roadmap 1-6-2-4 restored)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
     if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
     tmpDir = undefined;
   });
 
-  // roadmap 1-6-2: Django path() route + route->view edge missing on rust-hybrid.
-  it.skip('creates a route->view edge from urls.py to view class on rust-hybrid', async () => {
+  // roadmap 1-6-2-4: Django path() route + route->view edge restored on rust-hybrid.
+  it('creates a route->view edge from urls.py to view class on rust-hybrid', async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-django-rh-'));
     fs.writeFileSync(path.join(tmpDir, 'manage.py'), '# marker\n');
     fs.writeFileSync(path.join(tmpDir, 'requirements.txt'), 'django==4.2\n');
@@ -156,8 +155,8 @@ describe('Python framework routes on rust-hybrid (roadmap 1-6-2 tracked gap)', (
     cg.close();
   });
 
-  // roadmap 1-6-2: Flask @bp.route decorator routes missing on rust-hybrid.
-  it.skip('extracts stacked @bp.route nodes and resolves them to the view on rust-hybrid', async () => {
+  // roadmap 1-6-2-4: Flask @bp.route decorator routes restored on rust-hybrid.
+  it('extracts stacked @bp.route nodes and resolves them to the view on rust-hybrid', async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-flask-rh-'));
     fs.writeFileSync(path.join(tmpDir, 'requirements.txt'), 'flask==3.0\n');
     fs.writeFileSync(
@@ -186,8 +185,8 @@ describe('Python framework routes on rust-hybrid (roadmap 1-6-2 tracked gap)', (
     cg.close();
   });
 
-  // roadmap 1-6-2: FastAPI @app.METHOD decorator routes missing on rust-hybrid.
-  it.skip('extracts FastAPI @app.get/@app.post routes and resolves them to handlers on rust-hybrid', async () => {
+  // roadmap 1-6-2-4: FastAPI @app.METHOD decorator routes restored on rust-hybrid.
+  it('extracts FastAPI @app.get/@app.post routes and resolves them to handlers on rust-hybrid', async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-fastapi-rh-'));
     fs.writeFileSync(path.join(tmpDir, 'requirements.txt'), 'fastapi\n');
     fs.writeFileSync(

@@ -2238,17 +2238,38 @@
     "1-6-2-4": {
       "id": "1-6-2-4",
       "label": "[产品修复] rust-hybrid 下恢复 Python 三框架路由：finalize 阶段对 rust-owned python 补跑 TS 框架 extractor（推荐）或移植入 Rust；re-activate 3 个 tracked skip + ci.yml -t 同步 + 真实语料 fair coverage",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-6-2",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Q1 修复方案",
+          "answer": "采用推荐方案(a)：在 TS shell finalize 阶段对 rust-owned python 文件补跑成熟的 TS 三框架 route extractor（djangoResolver/flaskResolver/fastapiResolver.extract，纯正则 (filePath,content)->{nodes,references}，不引入 tree-sitter 依赖）。不移植 Rust。与 Spring/Express 保持 TS-owned 一致，最小风险、零 regex 重复。",
+          "note": "explore 实证 route 节点在 extraction 阶段即缺失；resolver.extract 无 AST 依赖"
+        },
+        {
+          "q": "Q2 接缝与模块",
+          "answer": "新深度模块 src/indexing/rust-python-framework-routes.ts 导出 runPythonFrameworkRouteExtraction(queries, projectRoot, frameworkNames)：枚举 queries.getAllFiles() 筛 language==='python'，按 path.join(projectRoot,f.path) 读源码，仅对检测到的 django/flask/fastapi resolver.extract 产出 route 节点+unresolved refs。调用点在 src/index.ts finalizeRustIndex 第1973 runPostExtract()之后、1979 resolveReferencesBatched之前——route refs 落库后现有 batched resolution 经 name matching/import mapping 自动产出 references 边，无需手建边。",
+          "note": "route id 确定性(route:filePath:line:...) + insertNode INSERT OR REPLACE + edge INSERT OR IGNORE 天然幂等"
+        },
+        {
+          "q": "Q3 幂等与清理",
+          "answer": "每文件先经 queries.getNodesByFile 筛 kind==='route' 的旧 route 节点，逐个 deleteNode+deleteEdgesBySource+deleteUnresolvedByNode（不能用 deleteNodesByFile，会误删 rust 普通符号节点），再插入新 route 节点(INSERT OR REPLACE) 与 unresolved refs。增量 sync 与 --force 重跑均幂等；edge INSERT OR IGNORE 防重复。read 失败/extractor 抛错按 warning 跳过该文件，不中断 finalize。",
+          "note": ""
+        },
+        {
+          "q": "Q4 测试/护栏/验收",
+          "answer": "同改动：frameworks-integration.test.ts 三个 it.skip 改 it；skip-debt-guardrail ALLOWED_SKIPS 删三条并改 toHaveLength；ci.yml step2 第51行 -t 追加三标题。本机无 node_modules/dist：静态契约核对+rust-bin 探针证伪 route 仍0（纯rust不跑TS shell，预期仍0，证明补跑只在hybrid TS shell生效）；真实 tsc/vitest + django/fastapi-realworld hybrid fair coverage 归 3-OS CI。",
+          "note": ""
+        }
+      ],
+      "notes": "方案(a)落地：新增 src/indexing/rust-python-framework-routes.ts，finalizeRustIndex 在 runPostExtract 后、resolveReferencesBatched 前补跑 django/flask/fastapi resolver.extract，插 route 节点+unresolved refs，由现有 batched resolution 连 route->handler references 边。确定性 route id+INSERT OR REPLACE+按文件先清旧 route(仅 kind=route)+edge INSERT OR IGNORE 保证增量/--force 幂等。3 tracked skips 转 it、ALLOWED_SKIPS 清空、ci.yml step2 -t 追加三标题。本机隔离验证：4 文件 transpile 语法绿；真实 resolver extract 三夹具断言 6/6；真实补跑模块+in-memory QueryBuilder fake 编排 16/16(计数/python过滤/ref归属/clean-replace幂等/框架门控/空操作/读错容错)；护栏静态审计 4/4。纯rust仍0route(设计内，补跑仅hybrid TS shell)。真实 tsc/vitest+realworld hybrid fair coverage 归3-OS CI。"
     }
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-09-30 16:54:56",
+    "updated": "2026-09-30 17:40:15",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }

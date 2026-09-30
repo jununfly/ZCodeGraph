@@ -137,3 +137,53 @@ the three route extractors into the Rust core (consistent with axum/Gin, but
 larger and duplicates the regex logic). Option (a) is the recommended
 minimum-risk path. Full fair-coverage numbers on real corpora require the TS
 shell and are measured after the fix under that node.
+
+## Fix — roadmap 1-6-2-4 (2026-09-30, option a)
+
+The product fix landed on top of the acceptance evidence above, taking the
+recommended option (a): re-run the TypeScript python framework route
+extractors during rust-hybrid finalization rather than porting regexes to
+Rust.
+
+- New deep module `src/indexing/rust-python-framework-routes.ts`
+  (`runPythonFrameworkRouteBackfill(queries, projectRoot, frameworkNames)`):
+  enumerates `queries.getAllFiles()` filtered to `language === 'python'`,
+  reads each file from disk, and runs the existing, regex-only
+  `djangoResolver` / `flaskResolver` / `fastapiResolver` `.extract()`
+  (imported directly from `resolution/frameworks/python.ts` so the path does
+  not pull in the full resolver registry and its tree-sitter grammar chain).
+  It inserts only `route` nodes + their unresolved references; baseline
+  python symbols owned by Rust are never re-extracted.
+- Seam: `src/index.ts` `finalizeRustIndex`, after `resolver.runPostExtract()`
+  and before `resolveReferencesBatched()`. The newly inserted unresolved
+  route->handler refs are linked into `references` edges by the existing
+  batched resolution (name matching + import mapping); no edges are built by
+  hand. Stats are exposed on the finalize profile as
+  `pythonFrameworkRouteBackfill` (filesScanned / routeNodes /
+  routeReferences / readErrors / extractErrors).
+- Idempotency: route ids are deterministic (`route:<file>:<line>:...`) and
+  use `INSERT OR REPLACE`; before re-extracting a file the pass removes only
+  its prior `kind === 'route'` nodes (and their edges + unresolved refs), not
+  all file nodes, so route deletion and incremental / `--force` re-indexes
+  converge cleanly. Edges use `INSERT OR IGNORE`. Read/extractor failures are
+  counted and skipped per file without aborting finalization.
+- Tests: the three `it.skip` cases in `__tests__/frameworks-integration.test.ts`
+  (describe renamed "...(roadmap 1-6-2-4 restored)") are active `it(...)`
+  contracts; `skip-debt-guardrail.test.ts` `ALLOWED_SKIPS` is back to empty;
+  `.github/workflows/ci.yml` step2's `-t` filter gains the three titles in the
+  same change (guardrail statically verifies each branch hits a real test).
+
+Local verification (the clone has no `node_modules`/`dist`): transpile syntax
+check of all touched TS files is clean; an isolated CommonJS harness drove the
+real three resolvers' `extract()` on the exact fixtures — django `users/` ->
+`UserListView`, flask `['GET /','GET /index']` -> `index` x2, fastapi
+`['GET /items','POST /items']` -> `list_items`/`create_item` — and drove the
+real `runPythonFrameworkRouteBackfill` against an in-memory QueryBuilder fake
+(16 assertions: counts, python-only filtering, ref ownership, clean-replace
+idempotency on re-run, framework gating, no-op when undetected, read-error
+tolerance). The pure-`rust` binary intentionally still emits 0 routes — the
+back-fill is a TypeScript-shell finalization stage and only takes effect under
+`rust-hybrid`, by design. Authoritative tsc/vitest and real-corpus
+(django-realworld / fastapi-realworld) hybrid fair coverage are arbitrated by
+the 3-OS CI matrix.
+

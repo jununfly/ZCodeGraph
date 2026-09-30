@@ -50,27 +50,13 @@ const TITLE_RE = /\b(?:it|test)\(\s*(['"`])([\s\S]*?)\1/g;
 // Roadmap 1-6-2 (Python framework sufficiency, 2026-09-30) added three tracked
 // skips in frameworks-integration.test.ts: python is rust-owned, but the Rust
 // core does not extract Django/Flask/FastAPI routes (only axum/Gin/NestJS), so
-// route nodes are 0 under the default rust-hybrid engine. Confirmed by rust-bin
-// sqlite probes on mini fixtures + django-realworld/fastapi-realworld. They
-// assert the intended route seam and are re-activated by the 1-6-2 product-fix
-// follow-on; ci.yml step2 -t gains their titles in that same change.
-const ALLOWED_SKIPS: ReadonlyArray<{ file: string; kind: string; title: string }> = [
-  {
-    file: 'frameworks-integration.test.ts',
-    kind: 'it',
-    title: 'creates a route->view edge from urls.py to view class on rust-hybrid',
-  },
-  {
-    file: 'frameworks-integration.test.ts',
-    kind: 'it',
-    title: 'extracts stacked @bp.route nodes and resolves them to the view on rust-hybrid',
-  },
-  {
-    file: 'frameworks-integration.test.ts',
-    kind: 'it',
-    title: 'extracts FastAPI @app.get/@app.post routes and resolves them to handlers on rust-hybrid',
-  },
-];
+// route nodes were 0 under the default rust-hybrid engine. Roadmap 1-6-2-4
+// (2026-09-30) fixed the seam by re-running the TypeScript python framework
+// route extractors during finalizeRustIndex, re-activated all three cases, and
+// registered their titles in ci.yml step2's -t filter — so this inventory is
+// empty again. Keep it empty so any NEW skip fails loudly; add an entry only
+// with a tracker comment.
+const ALLOWED_SKIPS: ReadonlyArray<{ file: string; kind: string; title: string }> = [];
 
 function listTestFiles(): string[] {
   return fs

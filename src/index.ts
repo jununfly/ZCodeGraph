@@ -62,6 +62,8 @@ import { EXTRACTION_VERSION } from './extraction/extraction-version';
 import { CodeGraphPackageVersion } from './mcp/version';
 import { IndexEngine } from './indexing/engine-selection';
 import { runRustIndexer } from './indexing/rust-indexer';
+import { runPythonFrameworkRouteBackfill } from './indexing/rust-python-framework-routes';
+import type { PythonFrameworkRouteBackfillStats } from './indexing/rust-python-framework-routes';
 import {
   buildRustHybridMetadataFromPlan,
   mergeMissingFallbackDiagnostics,
@@ -1558,6 +1560,7 @@ export class CodeGraph {
     profile: {
       frameworkPostExtractMs: number;
       frameworkPostExtract: FrameworkPostExtractDiagnostics;
+      pythonFrameworkRouteBackfill?: PythonFrameworkRouteBackfillStats;
       referenceResolutionMs: number;
       referenceResolutionBreakdown: {
         importResolutionMs: number;
@@ -1688,6 +1691,13 @@ export class CodeGraph {
         const profile = {
           frameworkPostExtractMs: 0,
           frameworkPostExtract: emptyFrameworkPostExtractDiagnostics(),
+          pythonFrameworkRouteBackfill: {
+            filesScanned: 0,
+            routeNodes: 0,
+            routeReferences: 0,
+            readErrors: 0,
+            extractErrors: 0,
+          } as PythonFrameworkRouteBackfillStats,
           referenceResolutionMs: 0,
           referenceResolutionBreakdown: {
             importResolutionMs: 0,
@@ -1973,6 +1983,26 @@ export class CodeGraph {
         this.resolver.runPostExtract();
         profile.frameworkPostExtractMs = Date.now() - frameworkStarted;
         onCheckpoint?.('finalization.frameworkPostExtract.completed');
+
+        // Roadmap 1-6-2-4: the Rust core owns python extraction but has no
+        // Django/Flask/FastAPI route extraction, so re-run the TypeScript
+        // python framework route extractors for the rust-owned .py files here.
+        // Inserted route nodes + unresolved refs are linked into route ->
+        // handler `references` edges by the batched resolution directly below.
+        onCheckpoint?.('finalization.pythonFrameworkRouteBackfill.started');
+        const pythonRouteBackfill = runPythonFrameworkRouteBackfill(
+          this.queries,
+          this.projectRoot,
+          this.resolver.getDetectedFrameworks(),
+        );
+        profile.pythonFrameworkRouteBackfill = pythonRouteBackfill;
+        if (pythonRouteBackfill.routeNodes > 0) {
+          // Resolution caches symbol names for its pre-filter; the newly
+          // inserted route handler refs target existing rust-owned nodes, but
+          // clear to be safe before the resolution pass.
+          this.resolver.clearCaches();
+        }
+        onCheckpoint?.('finalization.pythonFrameworkRouteBackfill.completed');
 
         const resolutionStarted = Date.now();
         onCheckpoint?.('finalization.referenceResolution.started');
