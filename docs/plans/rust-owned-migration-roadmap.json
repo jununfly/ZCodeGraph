@@ -1658,12 +1658,30 @@
     "1-6-3": {
       "id": "1-6-3",
       "label": "Go/Gin 路由所有权检查",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-6",
-      "children": [],
-      "decisions": [],
-      "notes": "Go 文件已 Rust-owned；验证 Gin 路由抽取归属（Rust core 已覆盖部分 vs TS resolver）。"
+      "children": [
+        "1-6-3-1"
+      ],
+      "decisions": [
+        {
+          "q": "Q1 验收口径/所有权边界",
+          "answer": "Go 已 rust-owned。Rust core 已实现 Gin 路由抽取（lib.rs extract_go_gin_route + parse_go_gin_route_call + collect_go_gin_group_prefixes，route 节点+route 自身 contains 边+handler unresolved ref，rust-finalization 解析）。与 Python(rust 侧 0)不同，Go 是'Rust 已覆盖部分'。本节点做边界实证，产品代码只读；缺口修复分流 exploit 子节点。",
+          "note": ""
+        },
+        {
+          "q": "Q2 实测缺口（mini fixture 8 标记）",
+          "answer": "同一 Go 夹具(gin group+OPTIONS+HEAD+stdlib HandleFunc+Chi Get)对照：TS resolver 抽 8 条，Rust core 抽 4 条。Rust 命中=GET/POST/DELETE + group 前缀拼接(GET /api/v1/users，比 TS 出裸 /users 更准)。Rust 缺失 3 类：①Gin OPTIONS/HEAD(parse_go_gin_route_call METHODS 仅 5 个 GET/POST/PUT/DELETE/PATCH，lib.rs:8360)；②Chi 驼峰动词 Get/Post/Put/Patch/Delete；③net/http stdlib HandleFunc/Handle(应记 ANY)。合计 Go 路由在 rust-hybrid 下召回 4/8=50%，但丢的是真实常用形态(gorilla/mux HandleFunc 已有 TS 单测 frameworks.test.ts:932/938 佐证常见)。",
+          "note": ""
+        },
+        {
+          "q": "Q3 归属决策与修复方向",
+          "answer": "推荐=扩展 Rust core 的 parse_go_gin_route_call（与 Python 的 TS finalize 补跑不同，因为 Go 路由本就 Rust-owned 且 group 前缀逻辑在 Rust 更准）。具体：①METHODS 增 OPTIONS/HEAD；②识别驼峰动词 Get/Post/Put/Patch/Delete(Chi)；③HandleFunc/Handle 归一成方法名 ANY；保留并复用现有 group_prefixes 拼接。备选=TS finalize 对 go 补跑 goResolver.extract，但会重复正则且丢失 Rust 的 group 前缀优势(TS 出裸 /users)，不推荐。注意 gorilla/mux 链式 .Methods() 与子路由形态需纳入夹具。",
+          "note": ""
+        }
+      ],
+      "notes": "实证关闭(acceptance/read-only)。Go 已 rust-owned：Rust core 已实现 Gin 抽取(extract_go_gin_route/parse_go_gin_route_call/collect_go_gin_group_prefixes)，且 group 前缀拼接(GET /api/v1/users)比 TS 出裸 /users 更准。mini 夹具 8 路由标记对照 TS=8/Rust=4，召回 4/8=50%。缺 3 类：①Gin OPTIONS/HEAD(METHODS 仅 5 动词, lib.rs:8360)；②Chi 驼峰 Get/Post/Put/Patch/Delete；③net/http HandleFunc/Handle(应归 ANY)。结论：与 Python 不同，修复应在 Rust core 而非 TS finalize 补跑。证据 docs/benchmarks/2026-09-30-go-gin-route-ownership.md。产品修复分流 exploit 子节点 1-6-3-1(pending)。"
     },
     "1-6-4": {
       "id": "1-6-4",
@@ -2270,11 +2288,21 @@
         }
       ],
       "notes": "方案(a)落地：新增 src/indexing/rust-python-framework-routes.ts，finalizeRustIndex 在 runPostExtract 后、resolveReferencesBatched 前补跑 django/flask/fastapi resolver.extract，插 route 节点+unresolved refs，由现有 batched resolution 连 route->handler references 边。确定性 route id+INSERT OR REPLACE+按文件先清旧 route(仅 kind=route)+edge INSERT OR IGNORE 保证增量/--force 幂等。3 tracked skips 转 it、ALLOWED_SKIPS 清空、ci.yml step2 -t 追加三标题。本机隔离验证：4 文件 transpile 语法绿；真实 resolver extract 三夹具断言 6/6；真实补跑模块+in-memory QueryBuilder fake 编排 16/16(计数/python过滤/ref归属/clean-replace幂等/框架门控/空操作/读错容错)；护栏静态审计 4/4。纯rust仍0route(设计内，补跑仅hybrid TS shell)。真实 tsc/vitest+realworld hybrid fair coverage 归3-OS CI。"
+    },
+    "1-6-3-1": {
+      "id": "1-6-3-1",
+      "label": "[产品修复] 扩展 Rust core Go 路由抽取至 TS 覆盖范围：parse_go_gin_route_call 增 OPTIONS/HEAD、Chi 驼峰 Get/Post/Put/Patch/Delete、net/http HandleFunc/Handle(归 ANY)，保留 group 前缀；rust 单测 + 真实 rust-hybrid e2e(gorilla/mux 链式 .Methods + group) + 3-OS CI",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6-3",
+      "children": [],
+      "decisions": [],
+      "notes": ""
     }
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-09-30 18:28:11",
+    "updated": "2026-09-30 18:53:10",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
