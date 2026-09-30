@@ -2262,6 +2262,11 @@
           "q": "Q4 测试/护栏/验收",
           "answer": "同改动：frameworks-integration.test.ts 三个 it.skip 改 it；skip-debt-guardrail ALLOWED_SKIPS 删三条并改 toHaveLength；ci.yml step2 第51行 -t 追加三标题。本机无 node_modules/dist：静态契约核对+rust-bin 探针证伪 route 仍0（纯rust不跑TS shell，预期仍0，证明补跑只在hybrid TS shell生效）；真实 tsc/vitest + django/fastapi-realworld hybrid fair coverage 归 3-OS CI。",
           "note": ""
+        },
+        {
+          "q": "CI 终裁",
+          "answer": "feat 2838067 首跑 run 36698041323：三 OS 仅 ci-rust-packaged-path 静态 workflow 契约红（我误改 step2 step 名+新 -t 三分支缺独立 toContain 锁定）；三个真实 rust-hybrid route e2e 在三 OS 全部 ✓(367-617ms)，tsc build 与产品逻辑通过。追修 158c3e7(test(ci) 还原 step 名+补 3 条 toContain)，rerun 36701886458 三 OS 全 success。1-6-2-4 闭环。",
+          "note": ""
         }
       ],
       "notes": "方案(a)落地：新增 src/indexing/rust-python-framework-routes.ts，finalizeRustIndex 在 runPostExtract 后、resolveReferencesBatched 前补跑 django/flask/fastapi resolver.extract，插 route 节点+unresolved refs，由现有 batched resolution 连 route->handler references 边。确定性 route id+INSERT OR REPLACE+按文件先清旧 route(仅 kind=route)+edge INSERT OR IGNORE 保证增量/--force 幂等。3 tracked skips 转 it、ALLOWED_SKIPS 清空、ci.yml step2 -t 追加三标题。本机隔离验证：4 文件 transpile 语法绿；真实 resolver extract 三夹具断言 6/6；真实补跑模块+in-memory QueryBuilder fake 编排 16/16(计数/python过滤/ref归属/clean-replace幂等/框架门控/空操作/读错容错)；护栏静态审计 4/4。纯rust仍0route(设计内，补跑仅hybrid TS shell)。真实 tsc/vitest+realworld hybrid fair coverage 归3-OS CI。"
@@ -2269,7 +2274,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-09-30 17:40:15",
+    "updated": "2026-09-30 18:28:11",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
