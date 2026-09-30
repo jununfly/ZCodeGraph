@@ -1617,12 +1617,43 @@
     "1-6-2": {
       "id": "1-6-2",
       "label": "Python 框架充分性检查（Django/Flask/FastAPI 边界实证）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-6",
-      "children": [],
-      "decisions": [],
-      "notes": "Python 基线 Rust-owned 已有 flask benchmark；本项验证三个框架 resolver 保持 TS shell 下的端到端精度，产出归属决策或缺口清单。"
+      "children": [
+        "1-6-2-1",
+        "1-6-2-2",
+        "1-6-2-3",
+        "1-6-2-4"
+      ],
+      "decisions": [
+        {
+          "q": "Q1 验收口径",
+          "answer": "路由边 + fair coverage：三框架语料上验 route 节点存在、route->handler/reference 解析率（路由 unresolved=0 为目标）、记录诚实 fair coverage；深层动态分派（CBV/signals/Depends/中间件）只记录不修",
+          "note": ""
+        },
+        {
+          "q": "Q2 语料选择",
+          "answer": "小型真实应用 + 复用既有 Flask 基准：Django/DRF 用 django-realworld（44 文件，AB 矩阵已有语料），FastAPI 用同类小型真实仓库（realworld/full-stack-fastapi 精简），浅克隆到 .workbuddy/probe-python/；Flask 复用 2026-07-02 基准证据",
+          "note": ""
+        },
+        {
+          "q": "Q3 执行通道",
+          "answer": "本机无 node_modules/dist，原生 rust exe 不跑 TS 框架 resolver。新增 engine:rust-hybrid 的 TS-shell 夹具 e2e（先本地 rust-bin sqlite 探针证伪/证实 route 断层，再落 vitest 夹具），真实 tsc/vitest+真实语料索引由 3-OS CI 执行；ci.yml step2 -t 分支须静态审计命中真实标题",
+          "note": ""
+        },
+        {
+          "q": "Q4 交付物与边界",
+          "answer": "一份合并基准文档 docs/benchmarks/2026-09-30-python-framework-sufficiency.md + roadmap 决策 + 新增 rust-hybrid 夹具 e2e（证据资产允许）；产品代码只读。若实证确认 route 断层（高度疑似：python rust-owned 后 TS 三框架 route 抽取不再运行，现有 TS 引擎 e2e 与全绿 CI 掩盖），开 1-6-2-1 产品修复子节点（TS finalize 补跑 route 抽取或 rust 侧实现），本节点不实现修复",
+          "note": ""
+        },
+        {
+          "q": "最终归属决策",
+          "answer": "实证完成：python rust-owned 后三框架路由在默认 rust-hybrid 下 100% 丢失（mini fixture + django/fastapi-realworld 真实语料 route=0，0 parse error）。归属=框架 route 抽取属 TS shell 资产但未接入 rust-owned 文件的 finalize 接缝；非 rust python 基线提取缺陷。证据：docs/benchmarks/2026-09-30-python-framework-sufficiency.md + 3 tracked skips(frameworks-integration)+ALLOWED_SKIPS。产品修复分流 exploit 节点 1-6-2-4（推荐 finalize 对 rust-owned python 补跑 TS extractor；备选移植入 rust）。次要：同行 suite 'def:pass' rust parse-gap 真实语料0触发，仅记录。本实证节点产品代码只读，关闭",
+          "note": ""
+        }
+      ],
+      "notes": "实证关闭：rust-hybrid 下三框架路由0%，证据+tracked skips+基准齐备；产品修复见 1-6-2-4(exploit,pending)"
     },
     "1-6-3": {
       "id": "1-6-3",
@@ -2155,11 +2186,69 @@
         }
       ],
       "notes": ""
+    },
+    "1-6-2-1": {
+      "id": "1-6-2-1",
+      "label": "rust-bin sqlite 探针：Django/Flask/FastAPI mini fixture 证伪/证实 rust-hybrid 下 route 断层",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-6-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "探针结论",
+          "answer": "断层证实。三 mini fixture（Django path()/Flask @bp.route x2/FastAPI @app.get+post）纯 rust exe 索引后 route 节点均=0（仅 contains 边）。穷举调用点：framework.extract 唯一入口是 extractFromSource，仅 TS 引擎/fallback 路径调用；python in RUST_HYBRID_RUST_OWNED_LANGUAGES 不进 fallback；finalizeRustIndex 只 apply rust 下发的 nestjs route-name-prefix 更新，不补跑 python 三框架。结论：默认 rust-hybrid 下 Django/Flask/FastAPI 路由图整体丢失，现有 TS 引擎 e2e(frameworks-integration L38/L85 engine typescript)+全绿 CI 掩盖。2026-07-02 Flask 基准 edge 计数无 route 为独立佐证",
+          "note": ""
+        }
+      ],
+      "notes": "三框架 route 节点 rust 路径全 0，断层证实；另发现次要 parse-gap：python 同行 suite 'def x: pass' 触发 rust-owned-parse-gap（多行正常，真实语料罕见，Flask 基准 0 error）"
+    },
+    "1-6-2-2": {
+      "id": "1-6-2-2",
+      "label": "真实语料实证：django-realworld + 小型 FastAPI 仓库（+复用 Flask 基准），rust-hybrid 索引取 route 节点/route->handler 解析率/fair coverage",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-6-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "真实语料影响面",
+          "answer": "django-realworld(gothinkster,44 py):源码18个 path/url()路由调用,rust索引332节点/44py/0解析错误/route节点=0;fastapi-realworld(nsidnev,95 py):20个@app/@router.METHOD装饰器路由,878节点/95py/0错误/route节点=0。两库路由召回0%。注:纯rust engine仅产contains边(imports/calls解析在TS shell finalize),但route节点在extraction阶段即不存在,finalize无法凭空补route,故route缺失与finalization无关。次要parse-gap(同行'def:pass')真实语料0触发。完整fair coverage需TS shell(本机无node_modules,归CI)",
+          "note": ""
+        }
+      ],
+      "notes": "django-rw 18路由/route=0, fastapi-rw 20路由/route=0, 0 parse errors"
+    },
+    "1-6-2-3": {
+      "id": "1-6-2-3",
+      "label": "rust-hybrid 夹具 e2e：frameworks-integration 新增/改写 Django+Flask+FastAPI engine:rust-hybrid route 接缝用例，ci.yml step2 -t 护栏同步并静态审计命中",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-6-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "夹具 e2e 与护栏落地",
+          "answer": "frameworks-integration.test.ts 新增 tracked-skip describe（Django/Flask/FastAPI 三个 engine:rust-hybrid route 接缝用例，断言目标行为而非 route=0）；skip-debt-guardrail ALLOWED_SKIPS 登记三标题；python 复刻护栏正则静态自检：3 站点与 allowlist 逐字一致、全部带 roadmap 1-6-2 tracker、不撞活跃标题。skip 不进 ci.yml step2 -t（修复 re-activate 时才加）。真实 vitest 归 3-OS CI",
+          "note": ""
+        }
+      ],
+      "notes": "3 tracked skips + ALLOWED_SKIPS 同步 + 静态自检通过"
+    },
+    "1-6-2-4": {
+      "id": "1-6-2-4",
+      "label": "[产品修复] rust-hybrid 下恢复 Python 三框架路由：finalize 阶段对 rust-owned python 补跑 TS 框架 extractor（推荐）或移植入 Rust；re-activate 3 个 tracked skip + ci.yml -t 同步 + 真实语料 fair coverage",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6-2",
+      "children": [],
+      "decisions": [],
+      "notes": ""
     }
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-09-30 16:20:36",
+    "updated": "2026-09-30 16:54:56",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }

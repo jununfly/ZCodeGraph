@@ -105,6 +105,123 @@ describe('Flask end-to-end framework extraction', () => {
   });
 });
 
+// Python framework routes on the DEFAULT rust-hybrid engine (roadmap 1-6-2).
+// Python is rust-owned, so python files never enter the TypeScript fallback
+// pass, and the Rust core does not implement Django/Flask/FastAPI route
+// extraction (only axum/Rust attribute routes, Go Gin, and NestJS post-extract
+// updates). finalizeRustIndex therefore never runs the python framework
+// extractors, and the route nodes the TypeScript-engine e2e above rely on are
+// silently absent — route recall is 0% on django-realworld (18 path()/url())
+// and fastapi-realworld (20 @app/@router.METHOD). Confirmed by rust-bin sqlite
+// probes on 2026-09-30 (mini fixtures + both real corpora, 0 parse errors).
+// These are tracked skips, not passing contracts: they assert the intended
+// route seam and are re-activated by the product-fix node (roadmap 1-6-2-1's
+// follow-on), at which point their titles must be added to ci.yml's step2 -t.
+describe('Python framework routes on rust-hybrid (roadmap 1-6-2 tracked gap)', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  // roadmap 1-6-2: Django path() route + route->view edge missing on rust-hybrid.
+  it.skip('creates a route->view edge from urls.py to view class on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-django-rh-'));
+    fs.writeFileSync(path.join(tmpDir, 'manage.py'), '# marker\n');
+    fs.writeFileSync(path.join(tmpDir, 'requirements.txt'), 'django==4.2\n');
+    fs.mkdirSync(path.join(tmpDir, 'users'));
+    fs.writeFileSync(path.join(tmpDir, 'users/__init__.py'), '');
+    fs.writeFileSync(
+      path.join(tmpDir, 'users/views.py'),
+      'class UserListView:\n    def get(self, request):\n        return None\n'
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, 'users/urls.py'),
+      'from django.urls import path\n' +
+        'from users.views import UserListView\n' +
+        "urlpatterns = [path('users/', UserListView.as_view(), name='user-list')]\n"
+    );
+
+    const cg = CodeGraph.initSync(tmpDir);
+    await cg.indexAll({ engine: 'rust-hybrid' });
+
+    const route = cg.getNodesByKind('route').find((n) => n.name === 'users/');
+    expect(route).toBeDefined();
+    const view = cg.getNodesByKind('class').find((n) => n.name === 'UserListView');
+    expect(view).toBeDefined();
+    const toView = cg.getOutgoingEdges(route!.id).find((e) => e.target === view!.id);
+    expect(toView).toBeDefined();
+    expect(toView!.kind).toBe('references');
+
+    cg.close();
+  });
+
+  // roadmap 1-6-2: Flask @bp.route decorator routes missing on rust-hybrid.
+  it.skip('extracts stacked @bp.route nodes and resolves them to the view on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-flask-rh-'));
+    fs.writeFileSync(path.join(tmpDir, 'requirements.txt'), 'flask==3.0\n');
+    fs.writeFileSync(
+      path.join(tmpDir, 'app.py'),
+      'from flask import Blueprint\n' +
+        'bp = Blueprint("main", __name__)\n' +
+        '\n' +
+        '@bp.route("/", methods=["GET", "POST"])\n' +
+        '@bp.route("/index")\n' +
+        'def index():\n' +
+        '    return "ok"\n'
+    );
+
+    const cg = CodeGraph.initSync(tmpDir);
+    await cg.indexAll({ engine: 'rust-hybrid' });
+
+    const routes = cg.getNodesByKind('route');
+    expect(routes.map((r) => r.name).sort()).toEqual(['GET /', 'GET /index']);
+    const fn = cg.getNodesByKind('function').find((n) => n.name === 'index');
+    expect(fn).toBeDefined();
+    for (const route of routes) {
+      const toView = cg.getOutgoingEdges(route.id).find((e) => e.target === fn!.id && e.kind === 'references');
+      expect(toView, `route ${route.name} should resolve to index()`).toBeDefined();
+    }
+
+    cg.close();
+  });
+
+  // roadmap 1-6-2: FastAPI @app.METHOD decorator routes missing on rust-hybrid.
+  it.skip('extracts FastAPI @app.get/@app.post routes and resolves them to handlers on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-fastapi-rh-'));
+    fs.writeFileSync(path.join(tmpDir, 'requirements.txt'), 'fastapi\n');
+    fs.writeFileSync(
+      path.join(tmpDir, 'main.py'),
+      'from fastapi import FastAPI\n' +
+        'app = FastAPI()\n' +
+        '\n' +
+        '@app.get("/items")\n' +
+        'def list_items():\n' +
+        '    return []\n' +
+        '\n' +
+        '@app.post("/items")\n' +
+        'def create_item(item_id: int):\n' +
+        '    return item_id\n'
+    );
+
+    const cg = CodeGraph.initSync(tmpDir);
+    await cg.indexAll({ engine: 'rust-hybrid' });
+
+    const routes = cg.getNodesByKind('route');
+    expect(routes.map((r) => r.name).sort()).toEqual(['GET /items', 'POST /items']);
+    for (const [routeName, handlerName] of [['GET /items', 'list_items'], ['POST /items', 'create_item']] as const) {
+      const route = routes.find((r) => r.name === routeName);
+      expect(route, `route ${routeName}`).toBeDefined();
+      const handler = cg.getNodesByKind('function').find((n) => n.name === handlerName);
+      expect(handler, `handler ${handlerName}`).toBeDefined();
+      const edge = cg.getOutgoingEdges(route!.id).find((e) => e.target === handler!.id && e.kind === 'references');
+      expect(edge, `route ${routeName} -> ${handlerName}`).toBeDefined();
+    }
+
+    cg.close();
+  });
+});
+
 describe('NestJS end-to-end framework post-extract boundary', () => {
   let tmpDir: string | undefined;
   afterEach(() => {

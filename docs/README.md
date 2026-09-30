@@ -128,6 +128,11 @@ Dated release snapshots, language validations, and the current-state decision pa
 - [2026-07-03-rust-owned-c-cjson-validation.md](benchmarks/2026-07-03-rust-owned-c-cjson-validation.md)
 - [2026-07-03-rust-owned-java-spring-petclinic-validation.md](benchmarks/2026-07-03-rust-owned-java-spring-petclinic-validation.md)
 - [2026-07-13-rust-owned-cpp-fmt-validation.md](benchmarks/2026-07-13-rust-owned-cpp-fmt-validation.md)
+- [2026-09-30-rust-owned-kotlin-koans-validation.md](benchmarks/2026-09-30-rust-owned-kotlin-koans-validation.md)
+- [2026-09-30-python-framework-sufficiency.md](benchmarks/2026-09-30-python-framework-sufficiency.md)
+  — Django/Flask/FastAPI route extraction under rust-owned indexing (roadmap
+  1-6-2): routes are 0% on the default rust-hybrid engine; tracked skips +
+  product-fix node 1-6-2-4.
 
 All items above are `authority: historical` (JSON companions are data
 evidence, not standalone pages).
