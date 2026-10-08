@@ -12,6 +12,8 @@ import { CodeGraph } from '../src';
 import { extractFromSource, scanDirectory } from '../src/extraction';
 import { detectLanguage, isLanguageSupported, getSupportedLanguages, initGrammars, loadAllGrammars, isSourceFile } from '../src/extraction/grammars';
 import { normalizePath } from '../src/utils';
+import { isRustHybridOwnedLanguage, planRustHybridAssignments } from '../src/indexing/rust-hybrid-contract';
+import type { Node } from '../src/types';
 
 beforeAll(async () => {
   await initGrammars();
@@ -5988,5 +5990,182 @@ describe('Swift property wrappers / attributes (blast-radius recall)', () => {
       expect(cg.getFileDependents('Sources/M/Wrap.swift')).toContain('Sources/M/Cmd.swift');
       cg.destroy();
     } finally { cleanupTempDir(dir); }
+  });
+});
+
+// ===========================================================================
+// Roadmap 1-2-4-2 — C# reference-edge resolution on rust-hybrid BEFORE the
+// ownership-table cutover (which is deliberately deferred to 1-2-4-4).
+//
+// Important mechanism these tests pin: after 1-2-4-1 the Rust core scans and
+// extracts every `.cs` (SourceLanguage::Csharp is registered), even though
+// 'csharp' is still absent from RUST_HYBRID_RUST_OWNED_LANGUAGES. In the
+// default rust-hybrid flow the TypeScript fallback lists those files, but
+// storeExtractionResult() sees the SAME sha256(raw disk content) the Rust core
+// wrote and short-circuits (no-op) — so the Rust-emitted `module` nodes and
+// unresolved refs survive and are resolved by the language-agnostic NameMatcher
+// during finalizeRustIndex. There must be NO duplicate module+namespace nodes.
+// The ownership cutover in 1-2-4-4 only removes the redundant TS parse + flips
+// the metadata label; graph shape is already Rust here.
+// ===========================================================================
+describe('C# cross-file reference edges on rust-hybrid (roadmap 1-2-4-2)', () => {
+  let tempDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(() => {
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    if (cg) cg.close();
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('resolves cross-file C# calls, extends, instantiates, references, and imports on rust-hybrid before the ownership cutover, roadmap 1-2-4-2', async () => {
+    const write = (name: string, body: string): void =>
+      fs.writeFileSync(path.join(tempDir, name), body);
+
+    // Abstractions + model live in their own files; consumed across files below.
+    write(
+      'IRepo.cs',
+      `namespace Shop.Abstractions;
+public interface IOrderRepository { Order Find(int id); }
+`
+    );
+    write(
+      'Order.cs',
+      `namespace Shop.Abstractions;
+public class Order { public int Id { get; set; } }
+`
+    );
+    write(
+      'Log.cs',
+      `namespace Shop.Util;
+public static class Log { public static void Intro() { } }
+`
+    );
+    // Implementation of the cross-file interface; constructs the cross-file Order.
+    write(
+      'Repo.cs',
+      `using Shop.Abstractions;
+namespace Shop.Data;
+public class OrderRepository : IOrderRepository
+{
+    public Order Find(int id) => new Order();
+}
+`
+    );
+    // Consumer: field typed by the interface, constructs the impl, static-calls
+    // Log.Intro, calls through the interface, and returns the cross-file Order.
+    write(
+      'Service.cs',
+      `using Shop.Data;
+using Shop.Abstractions;
+using Shop.Util;
+namespace Shop.Web;
+public class OrderService
+{
+    private readonly IOrderRepository _repo = new OrderRepository();
+    public Order Get(int id)
+    {
+        Log.Intro();
+        return _repo.Find(id);
+    }
+}
+`
+    );
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    cg.resolveReferences();
+
+    // ---- Delivery 2: zero parse/extraction gaps on clean C# --------------
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+    expect(result.errors).toHaveLength(0);
+
+    // ---- Rust extractor owned the graph: `module` nodes present, and the
+    // TypeScript `namespace` shape must NOT be duplicated alongside them. ----
+    const modules = cg.getNodesByKind('module').map((n) => n.name);
+    expect(modules).toContain('Shop.Abstractions');
+    expect(modules).toContain('Shop.Data');
+    expect(modules).toContain('Shop.Web');
+    expect(cg.getNodesByKind('namespace').map((n) => n.name)).not.toContain('Shop.Abstractions');
+
+    const findNode = (kind: Node['kind'], name: string, file: string): Node | undefined =>
+      cg
+        .getNodesByKind(kind)
+        .find((n) => n.name === name && (n.filePath ?? '').endsWith(file));
+
+    // ---- extends: OrderRepository --extends--> cross-file IOrderRepository
+    const repoImpl = findNode('class', 'OrderRepository', 'Repo.cs');
+    expect(repoImpl, 'OrderRepository extracted').toBeDefined();
+    const extTarget = cg
+      .getOutgoingEdges(repoImpl!.id)
+      .filter((e) => e.kind === 'extends')
+      .map((e) => cg.getNode(e.target))
+      .find((t) => t?.name === 'IOrderRepository' && (t?.filePath ?? '').endsWith('IRepo.cs'));
+    expect(extTarget, 'cross-file interface implementation edge').toBeDefined();
+
+    // ---- instantiates: Repo.cs constructs the cross-file Order ----------
+    const findMethod = findNode('method', 'Find', 'Repo.cs');
+    expect(findMethod, 'Repo.Find extracted').toBeDefined();
+    const newOrder = cg
+      .getOutgoingEdges(findMethod!.id)
+      .some((e) => e.kind === 'instantiates' && cg.getNode(e.target)?.name === 'Order');
+    expect(newOrder, 'Find body `new Order()` instantiates cross-file Order').toBe(true);
+
+    // ---- references: OrderService field typed by the cross-file interface
+    const service = findNode('class', 'OrderService', 'Service.cs');
+    expect(service, 'OrderService extracted').toBeDefined();
+    const ifaceRef = cg
+      .getOutgoingEdges(service!.id)
+      .some((e) => e.kind === 'references' && cg.getNode(e.target)?.name === 'IOrderRepository');
+    expect(ifaceRef, 'field type references cross-file IOrderRepository').toBe(true);
+
+    // ---- calls: the static Log.Intro() resolves to the cross-file method -
+    const intro = findNode('method', 'Intro', 'Log.cs');
+    expect(intro, 'Log.Intro extracted').toBeDefined();
+    const introCallers = cg
+      .getIncomingEdges(intro!.id)
+      .filter((e) => e.kind === 'calls')
+      .map((e) => cg.getNode(e.source)?.filePath ?? '');
+    expect(introCallers.some((p) => p.endsWith('Service.cs')), 'Service.Get calls Log.Intro cross-file').toBe(true);
+
+    // ---- file-level blast radius: any resolved cross-file edge makes the
+    // provider file a dependency of the consumer. --------------------------
+    expect(cg.getFileDependents('Order.cs'), 'Order used by Repo + Service + IRepo').toEqual(
+      expect.arrayContaining(['Repo.cs', 'Service.cs', 'IRepo.cs'])
+    );
+    expect(cg.getFileDependents('IRepo.cs'), 'interface used by Repo + Service').toEqual(
+      expect.arrayContaining(['Repo.cs', 'Service.cs'])
+    );
+    expect(cg.getFileDependents('Log.cs'), 'Log called by Service').toEqual(
+      expect.arrayContaining(['Service.cs'])
+    );
+  });
+
+  it('keeps C# on the typescript fallback side of the rust-hybrid plan before the ownership cutover, roadmap 1-2-4-2', () => {
+    // Delivery 3: lock the pre-cutover ownership contract. 'csharp' must stay
+    // OUT of RUST_HYBRID_RUST_OWNED_LANGUAGES until 1-2-4-4, so the hybrid plan
+    // routes .cs through the (hash-short-circuited) TypeScript fallback and the
+    // metadata labels it typescript. Flipping this early is a cutover-scope leak.
+    expect(isRustHybridOwnedLanguage('csharp')).toBe(false);
+    expect(isRustHybridOwnedLanguage('go')).toBe(true);
+
+    const dir = createTempDir();
+    try {
+      fs.writeFileSync(path.join(dir, 'Model.cs'), 'namespace Shop;\npublic class Model { }\n');
+      fs.writeFileSync(path.join(dir, 'server.go'), 'package main\nfunc main() {}\n');
+
+      const plan = planRustHybridAssignments(dir);
+      expect(plan.engineByLanguage).toMatchObject({ csharp: 'typescript', go: 'rust' });
+      expect(plan.fallbackFiles).toContain('Model.cs');
+      expect(plan.rustOwnedFiles).toContain('server.go');
+      expect(plan.fallbackFiles).not.toContain('server.go');
+      expect(plan.fallbackByLanguage.csharp).toBe(1);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
