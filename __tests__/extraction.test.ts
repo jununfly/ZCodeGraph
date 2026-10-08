@@ -6092,20 +6092,24 @@ public class OrderService
     expect(modules).toContain('Shop.Web');
     expect(cg.getNodesByKind('namespace').map((n) => n.name)).not.toContain('Shop.Abstractions');
 
+    // Exact-basename match (NOT endsWith): 'IRepo.cs' must not satisfy a lookup
+    // for 'Repo.cs' — both declare a `Find` method but only Repo.cs's has a body.
     const findNode = (kind: Node['kind'], name: string, file: string): Node | undefined =>
       cg
         .getNodesByKind(kind)
-        .find((n) => n.name === name && (n.filePath ?? '').endsWith(file));
+        .find((n) => n.name === name && path.basename(n.filePath ?? '') === file);
 
-    // ---- extends: OrderRepository --extends--> cross-file IOrderRepository
+    // ---- inheritance: OrderRepository --> cross-file IOrderRepository. A
+    // class/struct targeting an interface is promoted `extends` -> `implements`
+    // by the resolver (createEdges), so accept either edge kind. ----
     const repoImpl = findNode('class', 'OrderRepository', 'Repo.cs');
     expect(repoImpl, 'OrderRepository extracted').toBeDefined();
     const extTarget = cg
       .getOutgoingEdges(repoImpl!.id)
-      .filter((e) => e.kind === 'extends')
+      .filter((e) => e.kind === 'extends' || e.kind === 'implements')
       .map((e) => cg.getNode(e.target))
       .find((t) => t?.name === 'IOrderRepository' && (t?.filePath ?? '').endsWith('IRepo.cs'));
-    expect(extTarget, 'cross-file interface implementation edge').toBeDefined();
+    expect(extTarget, 'cross-file interface inheritance edge (extends/implements)').toBeDefined();
 
     // ---- instantiates: Repo.cs constructs the cross-file Order ----------
     const findMethod = findNode('method', 'Find', 'Repo.cs');
