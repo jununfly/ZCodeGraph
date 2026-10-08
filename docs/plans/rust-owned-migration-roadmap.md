@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-08 13:16:38
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-08 14:08:57
 
 [~][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
@@ -48,11 +48,4 @@
     ├── [x][X+] 1-6-3. Go/Gin 路由所有权检查
     ├── [x][X+] 1-6-4. Swift 基线迁移（移动桥接成为产品优先级时启动）
     └── [x][Y+] 1-6-5. 波次0: #692 夹具债清零（新语言迁移前置）
-
-### 当前施工：1-2-4-2. C#: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust
-
-import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。
-
-**决策：**
-- Q: 节点 label『rust-hybrid 元数据切 rust』与父决策 Q3『ownership 表 1-2-4-4 才加 csharp』时点冲突，本节点如何落？ → 只验证不切表（守 Q3）：引用边 NameMatcher 可解析 e2e + gap 诊断无 gap + 元数据就绪但默认仍 TS；csharp 加入 RUST_HYBRID_RUST_OWNED_LANGUAGES 严格留到 1-2-4-4 (Scope=Product execution。三项交付：(1) 引擎无关 TS-shell e2e（engine rust-hybrid）证明 Rust 发射的 C# unresolved refs 经 NameMatcher 解析成真实 calls/extends/instantiates/references/imports 边——需在不改 ownership 默认表的前提下让被测 .cs 走 Rust 抽取（测试夹具 override/env，或临时 in-test 注入）；(2) parse-gap/extraction-gap 诊断对 C# 语料为 0；(3) buildRustHybridMetadata 在不含 csharp 时仍正确（csharp 计入 fallback/typescript），并加测试锁定『切表前 csharp 默认 TS』契约，防过早切换。对齐 Kotlin 分段：引用边 e2e 在 -3 段、ownership 切换在末尾 -5。)
 <!-- ROADMAP_SECTION_END -->
