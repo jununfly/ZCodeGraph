@@ -4,12 +4,13 @@
 //! the orchestrator's generic node-stack semantics over tree-sitter-php
 //! 0.23.11 (ABI 14, `LANGUAGE_PHP` — the full grammar, inline HTML included).
 //!
-//! Scope split: 1-2-5-1 emits SYMBOL NODES + `contains` edges only —
-//! functions/methods, class/trait/interface/enum (+ enum cases), properties,
-//! constants, the file-level namespace, and `use` imports (single, grouped,
-//! function/const). Unresolved references (calls, instantiates,
-//! extends/implements, type hints, static-member reads, import/trait-use
-//! dependency edges) arrive in 1-2-5-2.
+//! 1-2-5-1 emits SYMBOL NODES + `contains` edges — functions/methods,
+//! class/trait/interface/enum (+ enum cases), properties, constants, the
+//! file-level namespace, and `use` imports (single, grouped, function/const).
+//! 1-2-5-2 adds the unresolved references: calls (free/member/scoped),
+//! instantiates, extends/implements (incl. in-class trait `use`), parameter
+//! and return type hints, static-member value reads, and the `use FQN`
+//! imports dependency edge. The TS ownership cutover stays in 1-2-5-4.
 //!
 //! The semantic stack mirrors the TS orchestrator: a `file` frame at the
 //! bottom (excluded from qualified names), then the file-level namespace
@@ -29,9 +30,149 @@
 
 use tree_sitter::Node as SyntaxNode;
 
-use crate::{ExtractedEdge, ExtractedNode, UnresolvedRef};
+use crate::{push_ref, ExtractedEdge, ExtractedNode, SourceLanguage, UnresolvedRef};
 
 const LANG: &str = "php";
+
+/// Receiver names that don't aid cross-file resolution (mirrors the TS
+/// orchestrator's SKIP_RECEIVERS for member/scoped calls).
+const SKIP_RECEIVERS: &[&str] = &["self", "this", "cls", "super", "parent", "static"];
+
+/// PHP pseudo-types / keywords that name no project symbol (mirrors
+/// PHP_PSEUDO_TYPES in the TS orchestrator). Scalar primitives parse as
+/// `primitive_type` and are skipped structurally.
+fn is_pseudo_type(name: &str) -> bool {
+    matches!(
+        name,
+        "self" | "static" | "parent" | "mixed" | "object" | "iterable" | "callable" | "void"
+            | "null" | "false" | "true" | "never" | "array" | "int" | "float" | "string" | "bool"
+    )
+}
+
+/// The trailing simple name of a PHP type subtree: a `qualified_name` ends in
+/// a direct `name` child (`\App\Domain\Result` -> `Result`), while a bare
+/// `name` is itself. Returns the leaf text and its node (the ref anchor).
+fn type_leaf<'a>(node: SyntaxNode<'a>, source: &'a [u8]) -> Option<(String, SyntaxNode<'a>)> {
+    match node.kind() {
+        "name" => node_text(node, source).map(|t| (t, node)),
+        "qualified_name" => node
+            .named_children(&mut node.walk())
+            .filter(|c| c.kind() == "name")
+            .last()
+            .and_then(|leaf| node_text(leaf, source).map(|t| (t, leaf))),
+        _ => None,
+    }
+}
+
+/// Walk a subtree KNOWN to be in a PHP type position, emitting a `references`
+/// ref per resolvable class/interface name (mirrors walkPhpTypePosition):
+/// `name` -> the name (modulo pseudo-types), `qualified_name` -> its trailing
+/// leaf, `primitive_type` -> nothing, wrapper nodes (named/optional/union/
+/// intersection/DNF) -> recurse.
+fn emit_php_type_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    from_id: &str,
+    relative_path: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) {
+    match node.kind() {
+        "primitive_type" => {}
+        "name" => {
+            if let Some(name) = node_text(node, source) {
+                if !is_pseudo_type(&name) {
+                    push_ref(
+                        unresolved_refs,
+                        from_id,
+                        &name,
+                        "references",
+                        node,
+                        relative_path,
+                        SourceLanguage::Php,
+                    );
+                }
+            }
+        }
+        "qualified_name" => {
+            if let Some((leaf, at)) = type_leaf(node, source) {
+                if !is_pseudo_type(&leaf) {
+                    push_ref(
+                        unresolved_refs,
+                        from_id,
+                        &leaf,
+                        "references",
+                        at,
+                        relative_path,
+                        SourceLanguage::Php,
+                    );
+                }
+            }
+        }
+        _ => {
+            for child in node.named_children(&mut node.walk()) {
+                emit_php_type_refs(child, source, from_id, relative_path, unresolved_refs);
+            }
+        }
+    }
+}
+
+/// Emit parameter + return type-hint refs for a function/method declaration.
+/// Mirrors extractPhpTypeRefs: each parameter's `type` field and the
+/// `return_type` field, walked ONLY as type positions (a `variable_name`
+/// can never leak).
+fn emit_declaration_type_hints(
+    decl: SyntaxNode,
+    source: &[u8],
+    from_id: &str,
+    relative_path: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) {
+    if let Some(params) = decl
+        .named_children(&mut decl.walk())
+        .find(|c| c.kind() == "formal_parameters")
+    {
+        for param in params.named_children(&mut params.walk()) {
+            // simple_parameter / property_promotion_parameter / variadic_parameter
+            if let Some(ty) = param.child_by_field_name("type") {
+                emit_php_type_refs(ty, source, from_id, relative_path, unresolved_refs);
+            }
+        }
+    }
+    if let Some(return_type) = decl.child_by_field_name("return_type") {
+        emit_php_type_refs(
+            return_type,
+            source,
+            from_id,
+            relative_path,
+            unresolved_refs,
+        );
+    }
+}
+
+/// Convert a PHP `use` FQN (`Foo\Bar\Baz`) to the stored `Foo\Bar::Baz`
+/// imports reference. A global-namespace class (no backslash) emits nothing —
+/// it already matches by simple name (mirrors pushPhpUseRef).
+fn push_php_use_ref(
+    fqn: &str,
+    from_id: &str,
+    anchor: SyntaxNode,
+    relative_path: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) {
+    let clean = fqn.trim_start_matches('\\');
+    if let Some(idx) = clean.rfind('\\') {
+        let reference_name = format!("{}::{}", &clean[..idx], &clean[idx + 1..]);
+        push_ref(
+            unresolved_refs,
+            from_id,
+            &reference_name,
+            "imports",
+            anchor,
+            relative_path,
+            SourceLanguage::Php,
+        );
+    }
+}
 
 /// A semantic-scope frame. The `file` frame sits at the bottom and is excluded
 /// from qualified names (mirrors the TS nodeStack, which skips kind==='file').
@@ -89,6 +230,32 @@ fn is_static(node: SyntaxNode) -> bool {
         .any(|c| c.kind() == "static_modifier")
 }
 
+/// Nearest class-like frame (class/trait/interface/enum).
+fn class_like_owner(stack: &[Frame]) -> Option<&str> {
+    stack
+        .iter()
+        .rev()
+        .find(|f| matches!(f.kind, "class" | "trait" | "interface" | "enum"))
+        .map(|f| f.id.as_str())
+}
+
+/// The id that owns calls/refs inside a body: the method/function frame when
+/// present, otherwise the enclosing class-like (property initializers),
+/// otherwise the file (top-level code). Mirrors the TS nodeStack head.
+fn ref_owner<'a>(stack: &'a [Frame]) -> &'a str {
+    for f in stack.iter().rev() {
+        if matches!(f.kind, "method" | "function") {
+            return &f.id;
+        }
+    }
+    for f in stack.iter().rev() {
+        if matches!(f.kind, "class" | "trait" | "interface" | "enum") {
+            return &f.id;
+        }
+    }
+    &stack[0].id
+}
+
 /// File-level namespace (`namespace App\Http;`): has a `name` and NO `body`.
 /// The braced form carries a `compound_statement` body and is excluded.
 fn file_level_namespace(root: SyntaxNode) -> Option<SyntaxNode> {
@@ -108,7 +275,6 @@ pub(crate) fn extract(
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let _ = unresolved_refs; // populated in 1-2-5-2
     let file_name = relative_path
         .replace('\\', "/")
         .rsplit('/')
@@ -165,17 +331,18 @@ fn walk(
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let _ = unresolved_refs; // populated in 1-2-5-2
     let kind = node.kind();
     let parent_id = stack
         .last()
         .map(|f| f.id.clone())
         .unwrap_or_default();
 
-    // ---- namespace_use_declaration -> import node(s) ----------------------
+    // ---- namespace_use_declaration -> import node(s) + imports ref --------
     // Single: `use App\Services\UserService;` / `use function X\f;` /
     //         `use Mockery as m;`. Grouped: `use App\Models\{User, Profile};`
-    //         -> one import per clause.
+    //         -> one import per clause. Each namespaced import also emits an
+    //         `imports` ref (`App\Models::User`) so an imported-but-DI-injected
+    //         contract records a cross-file dependency (emitPhpUseRefs).
     if kind == "namespace_use_declaration" {
         let group = node
             .named_children(&mut node.walk())
@@ -202,6 +369,14 @@ fn walk(
                         nodes,
                         edges,
                     );
+                    // TS anchors the grouped ref on the whole declaration.
+                    push_php_use_ref(
+                        &import_name,
+                        &parent_id,
+                        node,
+                        relative_path,
+                        unresolved_refs,
+                    );
                 }
             }
         } else if let Some(clause) = node
@@ -218,6 +393,37 @@ fn walk(
                     nodes,
                     edges,
                 );
+                // TS anchors the single ref on the whole declaration.
+                push_php_use_ref(&import_name, &parent_id, node, relative_path, unresolved_refs);
+            }
+        }
+        return Ok(());
+    }
+
+    // ---- in-class trait use: `use T1, T2;` -> implements refs -------------
+    // A class-body `use_declaration` lists consumed traits (the names are
+    // direct `name`/`qualified_name` children). The file-level `use X;`
+    // import is the namespace_use_declaration handled above.
+    if kind == "use_declaration" {
+        if let Some(owner_id) = class_like_owner(stack) {
+            for name_node in node
+                .named_children(&mut node.walk())
+                .filter(|c| matches!(c.kind(), "name" | "qualified_name"))
+            {
+                // A qualified trait name matches on its trailing simple name.
+                let resolved = type_leaf(name_node, source)
+                    .or_else(|| node_text(name_node, source).map(|t| (t, name_node)));
+                if let Some((rname, at)) = resolved {
+                    push_ref(
+                        unresolved_refs,
+                        owner_id,
+                        rname.trim_start_matches('\\'),
+                        "implements",
+                        at,
+                        relative_path,
+                        SourceLanguage::Php,
+                    );
+                }
             }
         }
         return Ok(());
@@ -348,6 +554,39 @@ fn walk(
             );
             let id = extracted.id.clone();
             edges.push(contains_edge(&parent_id, &id, node));
+
+            // Inheritance: `base_clause` (`extends X`; an interface's
+            // `extends A, B` uses the same node) -> extends refs;
+            // `class_interface_clause` (`implements I, J`; an enum's
+            // `implements \BackedEnum` too) -> implements refs. Targets are
+            // bare `name` or `qualified_name` children; match the leaf.
+            for clause in node
+                .named_children(&mut node.walk())
+                .filter(|c| matches!(c.kind(), "base_clause" | "class_interface_clause"))
+            {
+                let ref_kind = if clause.kind() == "base_clause" {
+                    "extends"
+                } else {
+                    "implements"
+                };
+                for target in clause
+                    .named_children(&mut clause.walk())
+                    .filter(|c| matches!(c.kind(), "name" | "qualified_name"))
+                {
+                    if let Some((rname, at)) = type_leaf(target, source) {
+                        push_ref(
+                            unresolved_refs,
+                            &id,
+                            rname.trim_start_matches('\\'),
+                            ref_kind,
+                            at,
+                            relative_path,
+                            SourceLanguage::Php,
+                        );
+                    }
+                }
+            }
+
             nodes.push(extracted);
             stack.push(Frame {
                 id: id.clone(),
@@ -381,6 +620,18 @@ fn walk(
             sym.is_static = is_static(node);
             let id = sym.id.clone();
             edges.push(contains_edge(&parent_id, &id, node));
+
+            // Parameter + return type hints -> references (constructor
+            // property-promotion params included; pseudo/primitive types
+            // filtered). Mirrors extractPhpTypeRefs on the declaration.
+            emit_declaration_type_hints(
+                node,
+                source,
+                &id,
+                relative_path,
+                unresolved_refs,
+            );
+
             nodes.push(sym);
             stack.push(Frame {
                 id: id.clone(),
@@ -393,6 +644,145 @@ fn walk(
             stack.pop();
             return Ok(());
         }
+    }
+
+    // ---- expression-level refs: calls / instantiates / static reads -------
+    match kind {
+        // Bare free-function call: `helper($id)` — the `function` field is a
+        // `name` (or a `qualified_name` for `\ns\f()`; keep its text, mirroring
+        // the TS generic callee path).
+        "function_call_expression" => {
+            if let Some(callee) = node.child_by_field_name("function") {
+                if let Some(name) = node_text(callee, source) {
+                    push_ref(
+                        unresolved_refs,
+                        ref_owner(stack),
+                        &name,
+                        "calls",
+                        node,
+                        relative_path,
+                        SourceLanguage::Php,
+                    );
+                }
+            }
+        }
+        // `$receiver->method()` / `$this->logger->log()` — object + name.
+        // The receiver text keeps PHP's chain shape (`$this->logger` -> the
+        // leading `$` is stripped); self/this/static/parent collapse to the
+        // bare method. Mirrors extractCall's member-call branch.
+        "member_call_expression" => {
+            if let Some(method_node) = node.child_by_field_name("name") {
+                if let Some(method) = node_text(method_node, source) {
+                    let callee = node
+                        .child_by_field_name("object")
+                        .and_then(|o| node_text(o, source))
+                        .map(|recv| {
+                            let recv = recv.trim_start_matches('$');
+                            if SKIP_RECEIVERS.contains(&recv) {
+                                method.clone()
+                            } else {
+                                format!("{recv}.{method}")
+                            }
+                        })
+                        .unwrap_or(method);
+                    push_ref(
+                        unresolved_refs,
+                        ref_owner(stack),
+                        &callee,
+                        "calls",
+                        node,
+                        relative_path,
+                        SourceLanguage::Php,
+                    );
+                }
+            }
+        }
+        // `ClassName::method()` / `self::f()` — scope + name.
+        "scoped_call_expression" => {
+            if let Some(method_node) = node.child_by_field_name("name") {
+                if let Some(method) = node_text(method_node, source) {
+                    let callee = node
+                        .child_by_field_name("scope")
+                        .and_then(|s| node_text(s, source))
+                        .map(|scope| {
+                            let scope = scope.trim_start_matches('$');
+                            if SKIP_RECEIVERS.contains(&scope) {
+                                method.clone()
+                            } else {
+                                format!("{scope}.{method}")
+                            }
+                        })
+                        .unwrap_or(method);
+                    push_ref(
+                        unresolved_refs,
+                        ref_owner(stack),
+                        &callee,
+                        "calls",
+                        node,
+                        relative_path,
+                        SourceLanguage::Php,
+                    );
+                }
+            }
+        }
+        // `new User()` / `new \App\Domain\Result()` — instantiates the class.
+        // The class is the first named child (a `name` or `qualified_name`);
+        // TS keeps the qualified text verbatim (no backslash stripping), so
+        // mirror that exactly.
+        "object_creation_expression" => {
+            if let Some(ctor) = node.named_children(&mut node.walk()).next() {
+                if let Some(class_name) = node_text(ctor, source) {
+                    push_ref(
+                        unresolved_refs,
+                        ref_owner(stack),
+                        class_name.trim(),
+                        "instantiates",
+                        ctor,
+                        relative_path,
+                        SourceLanguage::Php,
+                    );
+                }
+            }
+        }
+        // Static-member VALUE reads: `Status::ACTIVE`, `User::class`,
+        // `Config::$driver`. Emit a references ref to a capitalized simple
+        // receiver (types are capitalized by PHP convention). A scoped CALL
+        // (`User::find()`) parses as scoped_call_expression, not these nodes,
+        // but guard the parent anyway.
+        "class_constant_access_expression" | "scoped_property_access_expression" => {
+            let parent_is_call = node
+                .parent()
+                .map(|p| p.kind() == "scoped_call_expression")
+                .unwrap_or(false);
+            if !parent_is_call {
+                let receiver = node
+                    .child_by_field_name("scope")
+                    .or_else(|| node.named_children(&mut node.walk()).next());
+                if let Some(recv) = receiver {
+                    if matches!(recv.kind(), "name") {
+                        if let Some(text) = node_text(recv, source) {
+                            if text
+                                .chars()
+                                .next()
+                                .map(|c| c.is_ascii_uppercase())
+                                .unwrap_or(false)
+                            {
+                                push_ref(
+                                    unresolved_refs,
+                                    ref_owner(stack),
+                                    &text,
+                                    "references",
+                                    recv,
+                                    relative_path,
+                                    SourceLanguage::Php,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
     }
 
     // ---- generic descent --------------------------------------------------
@@ -470,7 +860,13 @@ mod tests {
     use super::*;
     use tree_sitter::Parser;
 
-    fn extract_nodes(code: &str) -> (Vec<ExtractedNode>, Vec<ExtractedEdge>) {
+    fn extract_all(
+        code: &str,
+    ) -> (
+        Vec<ExtractedNode>,
+        Vec<ExtractedEdge>,
+        Vec<UnresolvedRef>,
+    ) {
         let mut parser = Parser::new();
         parser.set_language(&tree_sitter_php::LANGUAGE_PHP.into()).unwrap();
         let tree = parser.parse(code, None).unwrap();
@@ -490,7 +886,23 @@ mod tests {
             &mut refs,
         )
         .unwrap();
+        (nodes, edges, refs)
+    }
+
+    fn extract_nodes(code: &str) -> (Vec<ExtractedNode>, Vec<ExtractedEdge>) {
+        let (nodes, edges, _refs) = extract_all(code);
         (nodes, edges)
+    }
+
+    /// Collect reference names for a given reference kind, sorted.
+    fn ref_names(refs: &[UnresolvedRef], kind: &str) -> Vec<String> {
+        let mut out: Vec<String> = refs
+            .iter()
+            .filter(|r| r.reference_kind == kind)
+            .map(|r| r.reference_name.clone())
+            .collect();
+        out.sort();
+        out
     }
 
     fn kinds<'a>(nodes: &'a [ExtractedNode], kind: &str) -> Vec<&'a ExtractedNode> {
@@ -654,5 +1066,154 @@ mod tests {
                 "{ext} must classify as PHP"
             );
         }
+    }
+
+    #[test]
+    fn emits_imports_extends_implements_and_trait_use_refs() {
+        let code = [
+            "<?php",
+            "namespace App\\Http;",
+            "",
+            "use App\\Models\\User;",
+            "use App\\Contracts\\Logger as LogContract;",
+            "use App\\Models\\{Profile, Post};",
+            "",
+            "class UserController extends BaseController implements \\Countable, LogContract",
+            "{",
+            "    use HasTimestamps, SoftDeletes;",
+            "}",
+            "",
+        ]
+        .join("\n");
+        let (_nodes, _edges, refs) = extract_all(&code);
+
+        // imports refs use the `NS::leaf` stored shape; global names (no
+        // backslash) emit nothing, aliases keep the RHS qualified name.
+        assert_eq!(
+            ref_names(&refs, "imports"),
+            vec![
+                "App\\Contracts::Logger",
+                "App\\Models::Post",
+                "App\\Models::Profile",
+                "App\\Models::User",
+            ]
+        );
+        assert_eq!(
+            ref_names(&refs, "extends"),
+            vec!["BaseController".to_string()]
+        );
+        // A qualified `\Countable` target matches its trailing leaf.
+        assert_eq!(
+            ref_names(&refs, "implements"),
+            vec![
+                "Countable".to_string(),
+                "HasTimestamps".to_string(),
+                "LogContract".to_string(),
+                "SoftDeletes".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn emits_calls_instantiates_and_static_value_reads() {
+        let code = [
+            "<?php",
+            "namespace App\\Http;",
+            "",
+            "class UserController",
+            "{",
+            "    public function show(string $id): User",
+            "    {",
+            "        $u = new User();",
+            "        helper($id);",
+            "        $this->logger->log($id);",
+            "        User::find($id);",
+            "        $x = Status::ACTIVE;",
+            "        $y = User::class;",
+            "        $z = Config::\x24driver;",
+            "        self::internal();",
+            "        return $u;",
+            "    }",
+            "}",
+            "",
+        ]
+        .join("\n");
+        let (_nodes, _edges, refs) = extract_all(&code);
+
+        assert_eq!(
+            ref_names(&refs, "instantiates"),
+            vec!["User".to_string()]
+        );
+
+        let calls = ref_names(&refs, "calls");
+        // free fn, scoped static call, self:: collapses to bare method, member
+        // call carries the receiver chain text.
+        assert!(calls.contains(&"helper".to_string()), "calls: {calls:?}");
+        assert!(calls.contains(&"User.find".to_string()), "calls: {calls:?}");
+        assert!(calls.contains(&"internal".to_string()), "calls: {calls:?}");
+        assert!(
+            calls.iter().any(|c| c.ends_with(".log")),
+            "member call ends .log: {calls:?}"
+        );
+
+        let references = ref_names(&refs, "references");
+        // return type User + static value reads Status / User(::class) / Config.
+        assert!(references.contains(&"User".to_string()), "refs: {references:?}");
+        assert!(references.contains(&"Status".to_string()), "refs: {references:?}");
+        assert!(references.contains(&"Config".to_string()), "refs: {references:?}");
+        // `string` primitive parameter emits nothing; `User::find` is a CALL,
+        // so no duplicate static-read ref on that line.
+        assert!(!references.contains(&"string".to_string()));
+    }
+
+    #[test]
+    fn emits_type_hint_refs_filtering_pseudo_and_primitive_types() {
+        let code = [
+            "<?php",
+            "namespace App;",
+            "",
+            "class C",
+            "{",
+            "    public function f(int $a, mixed $b, self $c, static $d, Logger $e, ?Optional $g, A|B $h): ?\\App\\Domain\\Result",
+            "    {}",
+            "}",
+            "",
+        ]
+        .join("\n");
+        let (_nodes, _edges, refs) = extract_all(&code);
+        let references = ref_names(&refs, "references");
+        assert_eq!(
+            references,
+            vec![
+                "A".to_string(),
+                "B".to_string(),
+                "Logger".to_string(),
+                "Optional".to_string(),
+                "Result".to_string(),
+            ],
+            "only class hints; int/mixed/self/static and the qualified return leaf"
+        );
+    }
+
+    #[test]
+    fn interface_extends_and_enum_implements_emit_refs() {
+        let code = [
+            "<?php",
+            "namespace App;",
+            "",
+            "interface Repository extends \\Countable, BaseIface {}",
+            "enum Suit: string implements \\BackedEnum { case Hearts = 'H'; }",
+            "",
+        ]
+        .join("\n");
+        let (_nodes, _edges, refs) = extract_all(&code);
+        assert_eq!(
+            ref_names(&refs, "extends"),
+            vec!["BaseIface".to_string(), "Countable".to_string()]
+        );
+        assert_eq!(
+            ref_names(&refs, "implements"),
+            vec!["BackedEnum".to_string()]
+        );
     }
 }
