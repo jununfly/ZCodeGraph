@@ -301,7 +301,7 @@
     "1-2-5": {
       "id": "1-2-5",
       "label": "PHP 基线抽取迁移",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -310,17 +310,49 @@
         "1-2-5-3",
         "1-2-5-4"
       ],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "开工勘察（2026-10-08）",
+          "answer": "Rust 端 SourceLanguage 无 PHP（lib.rs L7685 共 13 变体：c/cpp/js/jsx/ts/tsx/mts/cts/go/java/kotlin/csharp/python/rust）；from_path 无 .php/.module/.install/.theme/.inc；extraction dispatch L7179-7265 无 php 分支。grammar 可用 tree-sitter-php 0.23.11（crates.io 官方 tree-sitter org，tree-sitter ^0.24 / ABI14，与全部现有 grammar 兼容，无需 git pin、无需 =pin，区别于 c-sharp 0.23.5 跳 ABI15；导出 LANGUAGE 为 full php grammar 含 inline HTML，与 TS tree-sitter-wasms@0.1.13 的 tree-sitter-php.wasm 同源；实施以 cargo fetch 后 registry src node-types.json 为准）。TS 面：src/extraction/languages/php.ts 声明式 extractor（function_definition；class/trait_declaration 经 classifyClassNode；interface/enum_declaration+enum_case；method_declaration；property_declaration；const_declaration 含类内常量 visitNode 特判；namespace_use_declaration；call 三型 function_call_expression/member_call_expression/scoped_call_expression；默认 public、static_modifier；packageTypes=namespace_definition 仅 file-level 跳过 braced；extractImport 单条+grouped use X\\{A,B} 返 null 走 core 多导入；类内 use_declaration trait 消费→implements refs）。tree-sitter.ts PHP 特殊分支四处：L1846 emitPhpUseRefs（use FQN→命名空间限定定义，Laravel DI 契约依赖边；grouped L1945 另支）、L3419 extractPhpTypeRefs（named_type/optional_type/union_type 类型位，PHP_PSEUDO_TYPES 过滤 self/static/parent/标量伪类型）、L175-176+L192 static-member 值读（class_constant_access_expression Foo::CONST/Foo::class、scoped_property_access_expression Foo::$bar，php 在 STATIC_MEMBER_LANGS）、instantiation 通用 new（object_creation_expression）。TS shell 保留件：resolution/frameworks/laravel.ts（Route::verb/resource 纯 regex on .php）与 drupal.ts（.routing.yml 路由 + .module/.install/.theme/.inc hook 提取，hook ref 用 generateNodeId 对齐 function 节点 ID；claimsReference 认领 hook_*/含反斜杠/FQCN::method）；import-resolver.ts L560 extractPHPImports + L34 php 扩展名；grammars.ts L75-80 五扩展名。ownership：rust-hybrid-contract.ts L9 RUST_HYBRID_RUST_OWNED_LANGUAGES 现 12 语言无 php。先例：C# split cutover（1-2-4-4 e5608de）新增 rust-csharp-framework-routes.ts 在 finalizeRustIndex post-extract 后、批量 resolve 前 backfill 路由节点。基线测试：extraction.test.ts L948 PHP Extraction 2 例（class+private 类型提示构造函数；extends+implements×2）、L1700 PHP imports 5 例（单/as/use function/grouped/...）、L2803 namespace+import 跨文件 Factory 消歧 1 例；wave0 模板 __tests__/rust-owned-language-fixtures.test.ts。",
+          "note": ""
+        },
+        {
+          "q": "Q1 基线范围",
+          "answer": "全集对齐 TS phpExtractor + tree-sitter.ts 四个 PHP 特殊分支，一次做到位：(1) 符号：file-level namespace_definition→namespace 节点（跳过 braced namespace，与 TS extractPackage 一致）并以 App\\\\Sub 限定所有顶层声明 qualifiedName（Factory 消歧命门，L2803 用例锁定）；class_declaration/trait_declaration(classify→trait)/interface_declaration/enum_declaration+enum_case；function_definition（含 .module/.install/.theme/.inc 里的 Drupal hook 函数，节点 ID 必须与 TS generateNodeId 同构以保住 drupalResolver hook 边）；method_declaration+构造函数；property_declaration→field；const_declaration（全局 constant + 类内常量两路径）；(2) import：namespace_use_declaration 单条（含 use function/use const、as 别名）与 grouped use X\\{A,B} 逐条建 import 节点 + imports refs；(3) 边/refs：function_call_expression/member_call_expression/scoped_call_expression calls；object_creation_expression instantiates；class 声明的 base_clause(extends) 与 class_interface_clause(implements) 发裸名 extends/implements unresolved refs（legacy 2 例锁定）；类内 use_declaration trait 列表→implements refs；类型位 named_type/optional_type/union_type 的参数/返回/属性类型 hints→references（移植 PHP_PSEUDO_TYPES 过滤集 + primitive_type 结构跳过，Laravel 构造注入契约是主要受益者）；static-member 值读 class_constant_access_expression(Foo::CONST/Foo::class) 与 scoped_property_access_expression(Foo::$bar) 首名大写时发 references（对齐 STATIC_MEMBER_LANGS php）；emitPhpUseRefs 的 use FQN 边（含 grouped 形态）。可见性默认 public、读 visibility_modifier/static_modifier。不留 skip 债；HTML 混排模板（\\?>HTML<?php）由 grammar 天然承载，验证不报错即可。",
+          "note": ""
+        },
+        {
+          "q": "Q2 探针方法",
+          "answer": "沿用 C# 1-2-4 playbook：(1) cargo fetch 后直接读 registry src 的 php grammar node-types.json + grammar.js，核对节点名（function_definition/class_declaration/trait_declaration/interface_declaration/enum_declaration/enum_case/method_declaration/property_declaration/const_declaration/const_element/namespace_definition/namespace_name/namespace_use_declaration/namespace_use_clause/qualified_name/name/base_clause/class_interface_clause/use_declaration/function_call_expression/member_call_expression/scoped_call_expression/object_creation_expression/named_type/optional_type/union_type/class_constant_access_expression/scoped_property_access_expression/visibility_modifier/static_modifier），不靠记忆；(2) 本机 rust-bin sqlite 探针先行：cargo build -p zcodegraph-core，最小 .php 夹具 --engine rust 直查 SQLite，before/after 校准 node kinds/qualifiedName/unresolved_refs，探针脚本在仓外临时目录或 target/ 下，不入仓；(3) 对照基准不是记忆而是现网 TS：同一批夹具用现有 TS 管线跑一遍导出 nodes/refs JSON 做逐字段 diff（对齐 1-2-4-2 证明的 contentHash 同值策略——Rust module/function 节点须与 TS raw sha256 一致，切流后 fallback 才能 no-op）。",
+          "note": ""
+        },
+        {
+          "q": "Q3 切换时机",
+          "answer": "两阶段 split cutover，完全对齐 1-2-4-4（e5608de）：1-2-5-1~3 Rust 新增能力，src/extraction/languages/php.ts 保留（TS-direct legacy 用例继续在 TS 引擎上跑）；1-2-5-4 把 php 加入 RUST_HYBRID_RUST_OWNED_LANGUAGES（第 13 个）使 hybrid 把 .php/.module/.install/.theme/.inc 全部路由给 Rust，同时新增 src/indexing/rust-php-framework-routes.ts（镜像 rust-csharp-framework-routes.ts），在 finalizeRustIndex 的 runPostExtract 之后、批量 resolve 之前 backfill Laravel 路由（Route::verb/resource，仅 .php）与 Drupal 产物（.routing.yml 路由提取 + .module/.install/.theme/.inc/.php hook refs）；profile.phpFrameworkRouteBackfill 计数；backfill 复用现有 laravel.ts/drupal.ts 纯 regex resolver 与 INSERT OR REPLACE/INSERT OR IGNORE 幂等语义。关键 ID 契约：Drupal hook refs 依赖 TS generateNodeId(filePath,'function',name,line) 与 Rust function 节点 id 同构——1-2-5-1 必须验证该同构（Rust 已有 ExtractedNode id 体系，Java/C# 跨文件 e2e 已证明通用格式兼容）。.yml 不在 Rust 支持扩展名（yaml 仅 TS framework 文件级追踪），backfill 需直接读盘 .routing.yml，不走文件表（drupal resolver 本就 readFile 式 regex）。TS php.ts 与 EXTRACTORS barrel 在无第二消费者（对照 razor 教训排查：grep 无 razor/blade 等复用 php grammar 者，blade 走 .blade.php 但 TS 端未见独立 extractor，切流前再 grep 确认）后于 1-2-5-4 删除；frameworks/laravel.ts、drupal.ts、import-resolver PHP 映射永久留 TS shell。",
+          "note": ""
+        },
+        {
+          "q": "Q4 真实语料",
+          "answer": "两个真实 OSS 语料对应两个保留框架，均无需 PHP 运行时、只解析源码：(1) Laravel 侧选 Laravel 框架本身或一个中等规模 Laravel 应用子集（优先含 routes/api.php + app/Http/Controllers + app/Models 的发布 tag 快照子集，记录 SHA），度量 Route::verb/resource 解析、构造注入类型提示 refs、use FQN 跨文件边、enum/trait 命中；(2) Drupal 侧选一个 Drupal core 模块或流行 contrib 模块子集（覆盖 .module/.install/.theme/.inc + .routing.yml + .info.yml，hook docblock Strategy A 与前缀 Strategy B 各有样本），验证五扩展名被 Rust 收录、hook function 节点 ID 与 generateNodeId 同构、routing FQCN::method 经 backfill+resolve 落 references 边。证据落 docs/benchmarks/2026-10-xx-rust-owned-php-*.md（SHA、文件数/LOC、node/edge/unresolved/parse-gap、fallbackByLanguage.php=0、fair-coverage 完整测度留框架节点但本 benchmark 给原始符号/边计数）。fixture 确定性（固定内容不依赖 clone），CI 三 OS 跑；真实语料只做本机/CI ubuntu 一次性 benchmark 不入仓大文件。",
+          "note": ""
+        }
+      ],
       "notes": ""
     },
     "1-2-5-1": {
       "id": "1-2-5-1",
       "label": "PHP: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-5",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "完成证据（2026-10-08）",
+          "answer": "实现：crates/zcodegraph-core/Cargo.toml 加 tree-sitter-php 0.23.11（tree-sitter ^0.24/ABI14，LANGUAGE_PHP 全语法含 inline HTML，fetch 实锁 0.23.11）；新建 crates/zcodegraph-core/src/php.rs（~460 行，单 nodeStack 镜像 csharp.rs 结构）；lib.rs 注册 SourceLanguage::Php（from_path 五扩展名 php/module/install/theme/inc；codegraph_name=php；tree_sitter_language=LANGUAGE_PHP；is_php；dispatch 走 php::extract）。符号覆盖（仅节点+contains，unresolved refs 归 -2）：file-level namespace_definition（无 body 分号式）→kind=module 并 FQN 限定（对齐 C# Rust 侧 module 惯例；braced namespace 故意不建 frame，镜像 TS extractPackage hasBody skip）；class/trait/interface/enum(classify 同 TS)；enum_case→enum_member；function_definition/method_declaration（语法按 node kind 区分，嵌套函数即 free function）；property_declaration 每 property_element→field（variable_name 内层 name，剥离 $，可见性+static）；const_declaration 每 const_element→constant（全局+类内两路径，visibility=None 精确镜像 phpExtractor.visitNode 不传 visibility）；namespace_use_declaration import 节点（单条 qualified_name/裸 name，as 别名不改模块名，use function/const；grouped use Prefix\\{A,B} 逐 clause 加前缀，5 例锁定）。可见性：class/trait/interface/enum/function/method/field 默认 public（镜像 TS getVisibility 兜底），读 visibility_modifier/static_modifier。验证三层其一：6 个 Rust 单元测试全过（namespace FQN 链/trait+interface+enum+enum_case+顶层 fn+全局 const/import 五形态/braced 跳过/默认 public/五扩展名归类）；完整 lib 套件 134 passed 0 回归。sqlite before/after 探针：3 文件夹具(UserController.php+Types.php+mymodule.module) → files 3 language=php（含 Drupal .module），22 nodes/19 contains/0 parse error；节点 kind/name/qualifiedName/visibility 逐项符合预期。grammar 节点形态以 cargo registry src node-types.json + 实际 AST dump 为准（formal_parameters/simple_parameter/property_element/class_constant_access_expression 等均实测，非记忆）。TS 引擎 fixture e2e（wave0）与 TS-vs-Rust 节点逐项 diff 归 1-2-5-3（其 notes 含 fixture 对齐）；引用边发射归 1-2-5-2。",
+          "note": ""
+        }
+      ],
       "notes": "范围：函数/类/trait/接口/enum/namespace 导入/函数与成员与作用域调用；Laravel/Drupal 边界。grammar：tree-sitter-php；注意 .module/.install/.theme/.inc 等 Drupal 扩展名。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
     },
     "1-2-5-2": {
@@ -2434,7 +2466,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-08 16:12:27",
+    "updated": "2026-10-08 20:53:54",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
