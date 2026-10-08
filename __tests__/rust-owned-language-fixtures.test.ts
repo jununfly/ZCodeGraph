@@ -1196,4 +1196,368 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
       }
     });
   });
+
+  // C# baseline (roadmap 1-2-4). Pure-Rust extraction over
+  // tree-sitter-c-sharp 0.23.1 (ABI 14, pinned to match the tree-sitter 0.24
+  // runtime — 0.23.5 is parser ABI 15 and fails to load). Namespaces become
+  // `module` nodes like Java/Kotlin; the dotted namespace name stays one
+  // segment so qualified names read `App.Models::OrderService::GetOrderAsync`.
+  // `#if` directive lines are byte-offset-preserving blanked in parse
+  // normalization so enum-internal multi-targeting shapes parse cleanly (#237).
+  describe('C# baseline (roadmap 1-2-4)', () => {
+    function csNodes(
+      cg: CodeGraph,
+      filePath: string,
+      kind: string,
+    ): Array<{ name: string; qualifiedName: string; visibility: string | null; isStatic: boolean }> {
+      return cg
+        .getNodesByKind(kind)
+        .filter((n) => n.language === 'csharp' && n.filePath === filePath)
+        .map((n) => ({
+          name: n.name,
+          qualifiedName: n.qualifiedName,
+          visibility: n.visibility ?? null,
+          isStatic: Boolean((n as { isStatic?: boolean }).isStatic),
+        }));
+    }
+
+    function csRefs(db: DbHandle, filePath: string, kind: string): string[] {
+      return unresolvedRefs(db, filePath)
+        .filter((r) => r.reference_kind === kind)
+        .map((r) => r.reference_name);
+    }
+
+    it('counts .cs files and indexes all four using_directive forms', () => {
+      const filePath = 'Usings.cs';
+      writeFile(
+        filePath,
+        [
+          'using System;',
+          'using System.Collections.Generic;',
+          'using static System.Console;',
+          'using MyList = System.Collections.Generic.List<int>;',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.csharp).toBe(1);
+        // The alias using is keyed on the RIGHT-HAND qualified type text, not
+        // the alias (mirrors the TS extractImport qualified_name lookup).
+        expect(importNames(cg, 'csharp')).toEqual([
+          'System',
+          'System.Collections.Generic',
+          'System.Console',
+          'System.Collections.Generic.List<int>',
+        ]);
+        const refs = unresolvedImportRefs(db, filePath).map((r) => r.reference_name);
+        expect(refs).toContain('System');
+        expect(refs).toContain('System.Collections.Generic.List<int>');
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('wraps both block and file-scoped namespaces in a module and qualifies types', () => {
+      const blockFile = 'App/Entities.cs';
+      writeFile(
+        blockFile,
+        [
+          'namespace App.Entities',
+          '{',
+          '    public record CatalogBrand(int Id, string Name);',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      const fsFile = 'App/Models.cs';
+      writeFile(
+        fsFile,
+        [
+          'namespace App.Models;',
+          '',
+          'public class OrderService',
+          '{',
+          '    public OrderService() { }',
+          '    public string Name { get; set; }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        const blockModule = cg
+          .getNodesByKind('module')
+          .find((n) => n.language === 'csharp' && n.filePath === blockFile && n.name === 'App.Entities');
+        expect(blockModule, 'block namespace emitted as module').toBeDefined();
+
+        const record = csNodes(cg, blockFile, 'class').find((n) => n.name === 'CatalogBrand');
+        expect(record?.qualifiedName).toBe('App.Entities::CatalogBrand');
+
+        const fsModule = cg
+          .getNodesByKind('module')
+          .find((n) => n.language === 'csharp' && n.filePath === fsFile && n.name === 'App.Models');
+        expect(fsModule, 'file-scoped namespace emitted as module').toBeDefined();
+
+        const svc = csNodes(cg, fsFile, 'class').find((n) => n.name === 'OrderService');
+        expect(svc?.qualifiedName).toBe('App.Models::OrderService');
+        const ctor = csNodes(cg, fsFile, 'method').find((n) => n.name === 'OrderService');
+        expect(ctor?.qualifiedName).toBe('App.Models::OrderService::OrderService');
+        const prop = csNodes(cg, fsFile, 'property').find((n) => n.name === 'Name');
+        expect(prop?.qualifiedName).toBe('App.Models::OrderService::Name');
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('classifies record/record struct/class/interface/enum and enum members', () => {
+      const filePath = 'Shapes.cs';
+      writeFile(
+        filePath,
+        [
+          'namespace App;',
+          '',
+          'public interface INamed { }',
+          'public record Rec(int Id);',
+          'public record struct Pt(int X);',
+          'public class Widget { }',
+          'public enum Color { Red, Green, Blue }',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        expect(csNodes(cg, filePath, 'interface').map((n) => n.name)).toEqual(['INamed']);
+        // `record` is a class; `record struct` is a struct.
+        expect(csNodes(cg, filePath, 'class').map((n) => n.name).sort()).toEqual(['Rec', 'Widget']);
+        expect(csNodes(cg, filePath, 'struct').map((n) => n.name)).toEqual(['Pt']);
+        expect(csNodes(cg, filePath, 'enum').map((n) => n.name)).toEqual(['Color']);
+        expect(csNodes(cg, filePath, 'enum_member').map((n) => n.name)).toEqual([
+          'Red',
+          'Green',
+          'Blue',
+        ]);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('applies C# default-private visibility and attributes fields/properties/methods to the class', () => {
+      const filePath = 'App/Models.cs';
+      writeFile(
+        filePath,
+        [
+          'namespace App.Models;',
+          '',
+          'public class OrderService',
+          '{',
+          '    private readonly IOrderRepository _repo;',
+          '    private int a = 1, b = 2;',
+          '    public string Name { get; set; }',
+          '',
+          '    public OrderService(IOrderRepository repository) { }',
+          '',
+          '    public async Task<Order> GetOrderAsync(string id)',
+          '    {',
+          '        return null;',
+          '    }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        const fields = csNodes(cg, filePath, 'field');
+        expect(fields.map((f) => f.name).sort()).toEqual(['_repo', 'a', 'b']);
+        // Every field/property/method belongs to the class (qualified name,
+        // never the file path) and carries explicit visibility.
+        for (const f of fields) {
+          expect(f.qualifiedName.startsWith('App.Models::OrderService::')).toBe(true);
+          expect(f.visibility).toBe('private');
+        }
+        const name = csNodes(cg, filePath, 'property').find((p) => p.name === 'Name');
+        expect(name?.visibility).toBe('public');
+        const method = csNodes(cg, filePath, 'method').find((m) => m.name === 'GetOrderAsync');
+        expect(method?.visibility).toBe('public');
+        expect(method?.qualifiedName).toBe('App.Models::OrderService::GetOrderAsync');
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('emits type-position refs for field/property/ctor/method signature types', () => {
+      const filePath = 'App/Models.cs';
+      writeFile(
+        filePath,
+        [
+          'namespace App.Models;',
+          '',
+          'public class OrderService',
+          '{',
+          '    private readonly IOrderRepository _repo;',
+          '    public string Name { get; set; }',
+          '    public OrderService(IOrderRepository repository) { }',
+          '    public async Task<Order> GetOrderAsync(string id) { return null; }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const refs = csRefs(db, filePath, 'references');
+        // field type + ctor param type = two IOrderRepository; generic
+        // Task<Order> emits BOTH the Task head and the Order arg (Task is not
+        // a builtin, matching the TS BUILTIN_TYPES set); string/id are
+        // predefined and skipped.
+        expect(refs.filter((r) => r === 'IOrderRepository').length).toBe(2);
+        expect(refs).toContain('Task');
+        expect(refs).toContain('Order');
+        expect(refs.some((r) => r === 'string')).toBe(false);
+        expect(csNodes(cg, filePath, 'class').length).toBe(1);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('emits one extends ref per base_list entry plus primary-ctor param and attribute refs', () => {
+      const filePath = 'Primary.cs';
+      writeFile(
+        filePath,
+        [
+          '[Service]',
+          'public class DataService(IMemoryCache cache)',
+          '{',
+          '    public void Warm() { }',
+          '}',
+          'public class K1([FromKeyedServices("primary")] IMemoryCache cache) { }',          'public partial class UpdateService(int x) : ILifetimeService, IOther',
+          '{',
+          '    public void Run() { }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const ext = csRefs(db, filePath, 'extends').sort();
+        expect(ext).toEqual(['ILifetimeService', 'IOther']);
+        // Primary-constructor parameter types are dependencies of the TYPE
+        // (both DataService and K1 take IMemoryCache).
+        const refs = csRefs(db, filePath, 'references');
+        expect(refs.filter((r) => r === 'IMemoryCache').length).toBe(2);
+        // Only attributes ON THE TYPE are emitted. The [FromKeyedServices]
+        // attribute sits on a primary-ctor PARAMETER; the TS primary-ctor pass
+        // walks type positions only, so it is not a decorates ref — parity.
+        const decorates = csRefs(db, filePath, 'decorates');
+        expect(decorates).toEqual(['Service']);
+        // Types without a namespace qualify from the file root.
+        expect(csNodes(cg, filePath, 'class').map((c) => c.qualifiedName).sort()).toEqual([
+          'DataService',
+          'K1',
+          'UpdateService',
+        ]);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('emits calls (bare/member/chained) and instantiates, and scopes locals to the method', () => {
+      const filePath = 'App/Driver.cs';
+      writeFile(
+        filePath,
+        [
+          'namespace App;',
+          'public class Driver',
+          '{',
+          '    public void Go()',
+          '    {',
+          '        helper(x);',
+          '        var sb = new StringBuilder().Append(1);',
+          '        Box box = new Box(1);',
+          '        Console.WriteLine("hi");',
+          '    }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const calls = csRefs(db, filePath, 'calls');
+        expect(calls).toContain('helper');
+        expect(calls).toContain('StringBuilder.Append');
+        expect(calls).toContain('Console.WriteLine');
+        expect(csRefs(db, filePath, 'instantiates').sort()).toEqual(['Box', 'StringBuilder']);
+        // Local typed declaration `Box box` also reads as a type reference.
+        expect(csRefs(db, filePath, 'references')).toContain('Box');
+        // Locals are nested under the method, never file- or class-qualified.
+        const vars = csNodes(cg, filePath, 'variable').map((v) => v.qualifiedName).sort();
+        expect(vars).toEqual(['App::Driver::Go::box', 'App::Driver::Go::sb']);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('keeps enum members and enclosing-class methods across an in-enum #if block (#237)', () => {
+      const filePath = 'Reader.cs';
+      writeFile(
+        filePath,
+        [
+          'public class Reader',
+          '{',
+          '    private enum ReadType',
+          '    {',
+          '#if HAVE_DATE_TIME_OFFSET',
+          '        ReadAsDateTimeOffset,',
+          '#endif',
+          '        ReadAsDouble,',
+          '        ReadAsString,',
+          '    }',
+          '    public void Open() { }',
+          '    public void Close() { }',
+          '    public int ReadInt() { return 0; }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        // Blank the directive but KEEP both branches: all three enum members
+        // survive, and the enclosing class's member list is not detached.
+        expect(csNodes(cg, filePath, 'enum_member').map((m) => m.name)).toEqual([
+          'ReadAsDateTimeOffset',
+          'ReadAsDouble',
+          'ReadAsString',
+        ]);
+        const methods = csNodes(cg, filePath, 'method').map((m) => m.name).sort();
+        expect(methods).toEqual(['Close', 'Open', 'ReadInt']);
+        // The nested enum defaults to private and qualifies through the class.
+        const en = csNodes(cg, filePath, 'enum').find((e) => e.name === 'ReadType');
+        expect(en?.visibility).toBe('private');
+        expect(en?.qualifiedName).toBe('Reader::ReadType');
+        // No parse errors recorded for the file.
+        const errs = db
+          .prepare('SELECT errors FROM files WHERE path = ?1')
+          .all(filePath) as Array<{ errors: string }>;
+        const parsed = errs[0]?.errors;
+        expect(parsed === null || parsed === '[]' || parsed === '').toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
+  });
 });

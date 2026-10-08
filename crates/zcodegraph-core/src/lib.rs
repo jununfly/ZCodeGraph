@@ -10,6 +10,7 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 use tree_sitter::{Node as SyntaxNode, Parser, TreeCursor};
 
+mod csharp;
 mod index_options;
 mod profiling;
 use index_options::GraphWorkFeatures;
@@ -7205,6 +7206,16 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                 )?;
+            } else if language.is_csharp() {
+                csharp::extract(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -7339,8 +7350,50 @@ fn index_javascript_files(
 fn normalize_source_for_parser(source: &str, language: SourceLanguage) -> Cow<'_, str> {
     if matches!(language, SourceLanguage::TypeScript | SourceLanguage::Tsx) {
         normalize_typescript_source(source)
+    } else if language.is_csharp() {
+        blank_csharp_preprocessor_directives(source)
     } else {
         Cow::Borrowed(source)
+    }
+}
+
+/// Mirrors TS `blankCsharpPreprocessorDirectives` (src/extraction/languages/
+/// csharp.ts, #237). The 0.23 grammar mis-parses a `#if` inside an enum member
+/// list: the ERROR detaches the enclosing class's member list, silently
+/// dropping most of the class. Blank ONLY the directive line (keeping guarded
+/// code and byte offsets, so line/column stay exact) sidesteps it; both #if
+/// branches stay indexed. `#region`/`#pragma`/`#nullable` parse fine and are
+/// left alone.
+fn blank_csharp_preprocessor_directives(source: &str) -> Cow<'_, str> {
+    if !source.as_bytes().contains(&b'#') {
+        return Cow::Borrowed(source);
+    }
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| {
+        regex::Regex::new(r"(?m)^(?P<indent>[ \t]*)#[ \t]*(?:if|elif|else|endif)\b[^\n]*")
+            .expect("csharp preproc regex should be valid")
+    });
+    let mut out: Option<Vec<u8>> = None;
+    let mut last = 0usize;
+    for caps in re.captures_iter(source) {
+        let m = caps.get(0).expect("full match");
+        let indent_len = caps
+            .name("indent")
+            .map(|g| g.end() - g.start())
+            .unwrap_or(0);
+        if out.is_none() {
+            out = Some(source.as_bytes().to_vec());
+        }
+        let buf = out.as_mut().expect("initialized");
+        for slot in &mut buf[m.start() + indent_len..m.end()] {
+            *slot = b' ';
+        }
+        last = m.end();
+    }
+    let _ = last;
+    match out {
+        Some(buf) => Cow::Owned(String::from_utf8(buf).unwrap_or_else(|_| source.to_string())),
+        None => Cow::Borrowed(source),
     }
 }
 
@@ -7556,6 +7609,7 @@ enum SourceLanguage {
     Go,
     Java,
     Kotlin,
+    Csharp,
     Python,
     Rust,
 }
@@ -7576,6 +7630,7 @@ impl SourceLanguage {
             Some("go") => Some(Self::Go),
             Some("java") => Some(Self::Java),
             Some("kt") | Some("kts") => Some(Self::Kotlin),
+            Some("cs") => Some(Self::Csharp),
             Some("py") | Some("pyw") => Some(Self::Python),
             Some("rs") => Some(Self::Rust),
             _ => None,
@@ -7593,6 +7648,7 @@ impl SourceLanguage {
             Self::Go => "go",
             Self::Java => "java",
             Self::Kotlin => "kotlin",
+            Self::Csharp => "csharp",
             Self::Python => "python",
             Self::Rust => "rust",
         }
@@ -7610,6 +7666,7 @@ impl SourceLanguage {
             Self::Go => tree_sitter_go::LANGUAGE.into(),
             Self::Java => tree_sitter_java::LANGUAGE.into(),
             Self::Kotlin => tree_sitter_kotlin::LANGUAGE.into(),
+            Self::Csharp => tree_sitter_c_sharp::LANGUAGE.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
@@ -7651,6 +7708,10 @@ impl SourceLanguage {
 
     fn is_kotlin(self) -> bool {
         matches!(self, Self::Kotlin)
+    }
+
+    fn is_csharp(self) -> bool {
+        matches!(self, Self::Csharp)
     }
 
     fn is_python(self) -> bool {

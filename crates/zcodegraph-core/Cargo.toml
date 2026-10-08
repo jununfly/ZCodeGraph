@@ -14,6 +14,10 @@ serde_json = "1"
 sha2 = "0.10"
 tree-sitter = "0.24"
 tree-sitter-c = "0.23"
+# 0.23.5 jumped to tree-sitter ^0.25 / parser ABI 15, which tree-sitter 0.24
+# rejects (LanguageError{version:15}). 0.23.1 is the ABI-14 build pinned to
+# ^0.24, matching every other grammar here and the TS-side vendored wasm.
+tree-sitter-c-sharp = "=0.23.1"
 tree-sitter-cpp = "0.23"
 tree-sitter-go = "0.23"
 tree-sitter-java = "0.23"
