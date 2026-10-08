@@ -1538,7 +1538,7 @@
     "1-6": {
       "id": "1-6",
       "label": "排序与调度",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -1686,12 +1686,33 @@
     "1-6-4": {
       "id": "1-6-4",
       "label": "Swift 基线迁移（移动桥接成为产品优先级时启动）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-6",
       "children": [],
-      "decisions": [],
-      "notes": "触发条件：iOS/桥接语义产品优先级提升；与 Goal2 SwiftUI/UIKit/Vapor/桥接 resolver 决策联动。"
+      "decisions": [
+        {
+          "q": "Q1 当前所有权边界（实证）",
+          "answer": "Swift 当前完全 TS-owned 且功能正常，Rust 侧零支持。TS 层：①src/extraction/languages/swift.ts(83 行声明式 LanguageExtractor，tree-sitter AST)；②grammar 运行时由 tree-sitter-wasms npm 包 require.resolve 提供(tree-sitter-swift.wasm)，非本地 vendored；③三个带 extract 的框架 resolver=swift.ts 内 swiftUIResolver(emit component View + @main App class)/uikitResolver(UIViewController/UIView subclass class)/vaporResolver(route 节点+grouped 前缀+use: handler)，共 454 行；④resolve-only 的 swift-objc bridge resolver(299 行，lazy resolve)；⑤callback-synthesizer.ts(1749 行，23 处 swift，closure-collection 是 Swift-first，语言无关消费 DB)。Rust 侧：SourceLanguage 无 Swift、Cargo 无 dep、rust-hybrid-contract RUST_OWNED 不含 swift。",
+          "note": ""
+        },
+        {
+          "q": "Q2 grammar 可得性",
+          "answer": "tree-sitter-swift(alex-pinkus/tree-sitter-swift，crates.io 同名)活跃维护：0.6.0 起支持 tree-sitter 0.23，最新 0.7.3(2026-06-01)，与仓库 tree-sitter 0.24 ABI 兼容，可直接 crates.io 依赖，无需 Kotlin 那样 git rev-pin。硬前置无障碍。外部 scanner 处理 Swift 空白/上下文敏感构造，构建走 cc build.rs，三 OS(含 windows-2025)CI 需确认 C 编译链(既有 c/cpp/kotlin grammar 已用 cc，先例充分)。",
+          "note": ""
+        },
+        {
+          "q": "Q3 迁移工作量与断层风险",
+          "answer": "比 Kotlin wave-1 重。基线符号(class/struct/protocol→interface/enum/func/typealias/property/import/extends+protocol conformance)可 Rust 化，与 1-6-1 同型。但 Swift 有 4 个 extraction 阶段 TS 专属语义，切 rust-owned 后会像 Python 一样断层(swift 离开 TS fallback，这些不跑)：①swiftUI/uikit/vapor 三个 resolver.extract(component/@main App/UIViewController-UIView class/Vapor route)；②property-wrapper metatype 引用 @Siblings(through: Pivot.self) 在通用 tree-sitter.ts:469 编排器 extraction 阶段产生，非语言专属；③Swift 特有语法节点(closure/property wrapper/if-let guard/actor/extension/protocol associatedtype/throws-async)需 Rust visitor 覆盖，TS 声明式 extractor 白拿、Rust 要手写；④swift-objc bridge 与 callback-synthesizer closure-collection 是 resolve/DB-consumer，引擎无关，只要 Rust 产出的节点形状(kind/name/qualifiedName)对齐即可继续工作，风险较低。结论：必须配套 TS-shell finalize 补跑(对标 1-6-2-4 的 rust-python-framework-routes 模式)或把 ①② 移植 Rust，否则功能回退。",
+          "note": ""
+        },
+        {
+          "q": "Q4 范围结论与调度建议",
+          "answer": "explore/read-only 结论：Swift 当前健康(TS-owned)，无现网断层，迁移是性能/一致性收益(去 TS fallback、统一 rust-hybrid)而非修 bug，且 gate 条件(iOS/桥接产品优先级)未由产品侧明确触发。建议：本节点保持 gate，不现在启动从无到有的 exploit 迁移。若要推进，推荐拆成与 1-6-1 同型的 5 子节点 wave(grammar 接入→baseline visitor→wave0 夹具→真实语料 gate→TS fallback 归零+框架/property-wrapper finalize 补跑)，其中框架 resolver 与 @Siblings metatype 引用必须用 1-6-2-4 的 TS-shell finalize 模式保留，bridge/callback synthesizer 不动。本 explore 产出基准文档后闭环；真正开工等移动桥接产品优先级确认。",
+          "note": ""
+        }
+      ],
+      "notes": "explore/read-only 闭环。结论：Swift 完全 TS-owned 且健康(无现网断层)，Rust 侧零支持；迁移是性能/一致性收益非修 bug，gate(iOS/桥接优先级)未触发，建议保持 gate 不现在开工。grammar 无障碍(tree-sitter-swift crates.io 0.7.x 兼容 tree-sitter 0.24，无需 git pin)。关键风险：切 rust-owned 后 4 类 extraction 阶段 TS 语义会断层(swiftUI/uikit/vapor 三 resolver.extract、@Siblings property-wrapper metatype refs 在通用 tree-sitter.ts:469、Swift 特有语法 visitor、节点形状契约)；bridge resolver 与 callback-synthesizer 为 resolve/DB-consumer 引擎无关风险低。未来开工按 Kotlin 5 子节点 wave，框架+property-wrapper 语义必须用 1-6-2-4 TS-shell finalize 模式保留。证据 docs/benchmarks/2026-10-08-swift-rust-ownership-assessment.md。"
     },
     "1-6-5": {
       "id": "1-6-5",
@@ -2328,7 +2349,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-08 11:21:09",
+    "updated": "2026-10-08 11:36:13",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }

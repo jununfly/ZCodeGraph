@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-08 11:21:09
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-08 11:36:13
 
 [~][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
@@ -42,10 +42,10 @@
 │   ├── [ ][Y+] 1-5-3. 每个未迁移共享层项有 keep/split/migrate 决策与理由
 │   ├── [ ][Y+] 1-5-4. Status/doctor 在混合所有权下六态健康输出不回归
 │   └── [ ][Y+] 1-5-5. 所有权护栏：文件 Rust-owned 不自动宣称框架/运行时语义 Rust-owned
-└── [ ][X+] 1-6. 排序与调度
+└── [x][X+] 1-6. 排序与调度
     ├── [x][Y+] 1-6-1. 波次1: Kotlin 基线迁移（#692 夹具模式落地后首个新语言）
     ├── [x][X+] 1-6-2. Python 框架充分性检查（Django/Flask/FastAPI 边界实证）
     ├── [x][X+] 1-6-3. Go/Gin 路由所有权检查
-    ├── [ ][X+] 1-6-4. Swift 基线迁移（移动桥接成为产品优先级时启动）
+    ├── [x][X+] 1-6-4. Swift 基线迁移（移动桥接成为产品优先级时启动）
     └── [x][Y+] 1-6-5. 波次0: #692 夹具债清零（新语言迁移前置）
 <!-- ROADMAP_SECTION_END -->

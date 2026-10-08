@@ -138,6 +138,12 @@ Dated release snapshots, language validations, and the current-state decision pa
   — Django/Flask/FastAPI route extraction under rust-owned indexing (roadmap
   1-6-2): routes are 0% on the default rust-hybrid engine; tracked skips +
   product-fix node 1-6-2-4.
+- [2026-10-08-swift-rust-ownership-assessment.md](benchmarks/2026-10-08-swift-rust-ownership-assessment.md)
+  — Swift baseline migration ownership (roadmap 1-6-4): Swift is fully
+  TypeScript-owned and healthy (no production gap); Rust side is zero. Grammar
+  is available on crates.io (tree-sitter-swift 0.7.x, no git pin), but three
+  framework extract passes + property-wrapper metatype refs would regress
+  without a finalize back-fill; node stays gated pending iOS/bridge priority.
 
 All items above are `authority: historical` (JSON companions are data
 evidence, not standalone pages).
