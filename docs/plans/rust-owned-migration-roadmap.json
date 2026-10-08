@@ -358,11 +358,22 @@
     "1-2-5-2": {
       "id": "1-2-5-2",
       "label": "PHP: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-5",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "实现范围与归属决策（2026-10-08，AST 实测）",
+          "answer": "AST dump（tree-sitter-php 0.23.11 实测，探针 examples/php_ast_probe.rs 用后即删）确认全部引用形态：(1) calls 三型——function_call_expression 的 function 字段=name（裸函数）；member_call_expression：object+name，object 多为 member_access_expression(variable_name->name)，receiver 剥 $、this/self/static/parent 归一跳过产出 receiver.method；scoped_call_expression：scope(name)+name，scope∈self/static/parent 归一跳过否则 scope.name。(2) object_creation_expression：new 后 name 或 qualified_name，取 trailing leaf（剥前导反斜杠），instantiates。(3) class 声明的 base_clause（extends，interface 也用 base_clause！）每个 name/qualified_name→extends（qn 取 leaf）；class_interface_clause（implements）每个 name/qualified_name→implements。(4) 类内 use_declaration 直接含 name/qualified_name（可限定 App\\Traits\\X），from=类帧，implements。(5) type hints：formal_parameters>simple_parameter/property_promotion_parameter 的 type 字段（named_type/optional_type/union_type/intersection_type/disjunctive_normal_form_type/primitive_type）+ 声明直接子节点中的 return_type/property type；walk：name 全字（PHP_PSEUDO_TYPES 过滤 self/static/parent/mixed/object/iterable/callable/void/null/false/true/never/array/int/float/string/bool）、qualified_name 取 trailing leaf、primitive_type 结构跳过。from=方法/函数帧；property type 从 field 节点（镜像 TS extractField 每 field 调 extractTypeAnnotations）。(6) static 值读：class_constant_access_expression 与 scoped_property_access_expression 的 scope/首名 name 且 ^[A-Z] 才发 references；父节点是 scoped_call 时跳过（call 已覆盖）。(7) imports refs：单条/grouped use FQN 转 'NS\\..::leaf'（pushPhpUseRef 规则：剥前导反斜杠、无 \\ 的全局名不发、只发含命名空间的），from=栈顶（TS 中 file 下 namespace 帧在栈，module/file 帧解析等价）；use function/const 同路径。归属决策：本节点只发 unresolved refs + 保持 TS fallback 现状（contentHash 同值时 TS no-op，Rust refs 经语言无关 NameMatcher 解析，1-2-4-2 已证机制）；RUST_HYBRID_RUST_OWNED_LANGUAGES 不在本节点切（notes 提到的'元数据切 rust'在 -4 cutover 统一做，Q3 split 决策已锁定），避免重复 TS parse 仅在 -4 消除。parse/extraction gap 诊断：纯 rust bin 探针断言 parse error=0、ref kind 分布与 TS 同夹具逐字段 diff 归 -3。walk 行为对齐 TS：const_declaration 不下钻（TS visitNode handled return）；property_declaration 下钻抓 initializer（TS extractField 不 skip）。",
+          "note": ""
+        },
+        {
+          "q": "完成证据（2026-10-08）",
+          "answer": "实现（仅改 crates/zcodegraph-core/src/php.rs，lib.rs 无需动——push_ref/SourceLanguage::Php 已就绪）：替换 1-2-5-1 的 unresolved_refs 占位，新增 (1) calls 三型——function_call_expression 取 function 字段全字（含 \\NS\\f 限定，与 TS generic callee 一致）；member_call_expression object+name，receiver 剥前导 $、this/self/static/parent/cls/super 归一产出裸 method 否则 receiver.method（实测 $this->logger->log() → this->logger.log，与 TS 同形）；scoped_call_expression scope+name 同规则；(2) object_creation_expression 取首个命名子节点 name/qualified_name，TS 只切 . 和 :: 不切反斜杠故保留 \\NS\\Class 全字发 instantiates；(3) class/trait/interface/enum 声明的 base_clause（interface extends 也用它）→extends、class_interface_clause（enum implements \\BackedEnum 同路径，extractInheritance 对 enum 也跑）→implements，name/qualified_name 取 trailing leaf、剥前导反斜杠；(4) 类内 use_declaration 直接 name/qualified_name（可限定 App\\Traits\\X，取 leaf）→implements，from=类帧；文件级 use X 是 namespace_use_declaration 不与此冲突；(5) 类型 hints：function/method 声明的 formal_parameters 各参数 type 字段（simple/property_promotion/variadic）+ return_type 字段，走 PHP 专用 type-position walk——name 全字过 PHP_PSEUDO_TYPES（self/static/parent/mixed/object/iterable/callable/void/null/false/true/never/array/int/float/string/bool）、qualified_name 取 leaf、primitive_type 结构跳过、wrapper(named/optional/nullable/union/intersection/DNF)递归；关键 parity：property_declaration 的类型不发 ref（TS extractField PHP 分支 L1221 提前 return，仅方法/函数参数与返回发），property initializer 也不下钻（与 TS 一致）；(6) static 值读 class_constant_access_expression(Status::ACTIVE/User::class) 与 scoped_property_access_expression(Config::$driver) 取 scope/首名 name 且首字母大写发 references，父为 scoped_call 跳过；(7) imports refs：单条/grouped use 的 FQN 转 'NS::leaf'（剥前导反斜杠、无 \\ 的全局名不发），from=栈顶=namespace module 帧（TS package 帧在栈）。验证：PHP 单测 6→10（新增 imports/extends/implements/trait-use、calls/instantiates/static 读、类型 hint 伪类型过滤、interface extends+enum implements 共 4 个）；全套件 138 passed（134+4）0 回归；临时 examples/php_ast_probe.rs AST dump 探针用后即删。rust-bin 跨文件夹具（app/Contracts/Logger.php + Models/User.php + Support/Status.php + Http/UserController.php + mymodule.module，5 文件/22 节点/0 parse error）SQLite 核验 16 条 unresolved refs 全类正确且归属节点正确：imports 3 归 App\\Http module 帧（App\\Models::User 等 QN 与目标符号 App\\Models::User 精确对应——Factory 消歧命门保住）、extends BaseController、implements Logger+HasTimestamps 归 class、instantiates User 归 method find、references Logger 归 __construct（构造注入）/User 归 show 返回类型/Status 归 static 读、calls User.find/this->logger.log/helper 归 show、\\App\\Models\\User instantiates 与 \\App\\Support\\helper calls 归 Drupal .module 的 hook 函数。纯 rust bin 按设计只写 unresolved_refs 不做 resolve（NameMatcher 在 hybrid TS-shell finalize 阶段，C# 1-2-4-2 已证 contentHash 同值 no-op 保留 Rust refs 机制），TS-vs-Rust 同夹具逐字段解析 diff 归 1-2-5-3。parse-gap=0；extraction-gap 量化归 -3。ownership 表 RUST_HYBRID_RUST_OWNED_LANGUAGES 本节点不动（-4 cutover 统一切）。未提交，等 checkpoint。",
+          "note": ""
+        }
+      ],
       "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
     },
     "1-2-5-3": {
@@ -2466,7 +2477,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-08 20:53:54",
+    "updated": "2026-10-08 21:42:19",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
