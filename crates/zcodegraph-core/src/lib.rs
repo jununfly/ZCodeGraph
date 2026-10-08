@@ -7364,36 +7364,121 @@ fn normalize_source_for_parser(source: &str, language: SourceLanguage) -> Cow<'_
 /// code and byte offsets, so line/column stay exact) sidesteps it; both #if
 /// branches stay indexed. `#region`/`#pragma`/`#nullable` parse fine and are
 /// left alone.
+///
+/// A leading UTF-8 BOM would otherwise sit between the `^` anchor and a
+/// column-1 `#if`: that first directive then stays unblanked while its later
+/// `#endif` is blanked, leaving an unbalanced region the 0.23 grammar reports
+/// as `MISSING #endif` (a file that parsed with zero errors raw gets WORSE
+/// after blanking — seen in Newtonsoft.Json DiagnosticsTraceWriter.cs). We run
+/// the regex over the BOM-less tail and shift blank offsets past the BOM, whose
+/// bytes are preserved verbatim so every offset stays exact.
+///
+/// `#if/#else` (or `#elif`) regions that *continue an expression across lines*
+/// defeat the "keep both arms" approach: blanking only the directive lines
+/// leaves two adjacent operands (`value > A` immediately followed by
+/// `value > B`) with no operator, one ERROR node that makes the 0.23 grammar
+/// drop the enclosing class member list — a 46 KB Newtonsoft.Json JsonReader.cs
+/// then indexes a single node. We therefore keep a single deterministic ACTIVE
+/// arm (the `#if` arm) and blank from the first `#elif`/`#else` through the
+/// matching `#endif`. Corpus-wide (242 files) this removed every parse error at
+/// the cost of seven symbols, all legacy multi-targeting fallback arms
+/// (e.g. `#if !HAVE_CONCURRENT_DICTIONARY` hand-written locks); the kept `#if`
+/// arm is the modern configuration. The symbol truth value is intentionally
+/// ignored — the `#if` arm is always active by convention. Newlines inside a
+/// blanked arm are preserved so every surviving symbol's byte offset is exact,
+/// and nesting is tracked per-region.
 fn blank_csharp_preprocessor_directives(source: &str) -> Cow<'_, str> {
     if !source.as_bytes().contains(&b'#') {
         return Cow::Borrowed(source);
     }
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let re = RE.get_or_init(|| {
-        regex::Regex::new(r"(?m)^(?P<indent>[ \t]*)#[ \t]*(?:if|elif|else|endif)\b[^\n]*")
-            .expect("csharp preproc regex should be valid")
+        regex::Regex::new(
+            r"(?m)^(?P<indent>[ \t]*)#[ \t]*(?P<kw>if|elif|else|endif)\b[^\n]*",
+        )
+        .expect("csharp preproc regex should be valid")
     });
-    let mut out: Option<Vec<u8>> = None;
-    let mut last = 0usize;
-    for caps in re.captures_iter(source) {
+    let bom_len = if source.starts_with('\u{feff}') {
+        '\u{feff}'.len_utf8()
+    } else {
+        0
+    };
+    let body = &source[bom_len..];
+
+    // Byte range (into `source`, BOM-shifted) to space out; newlines are kept.
+    struct BlankRange {
+        start: usize,
+        end: usize,
+    }
+    // One frame per open `#if`; it stores the start (body offset) of the first
+    // `#elif`/`#else` directive, i.e. where the inactive arm begins.
+    let mut stack: Vec<Option<usize>> = Vec::new();
+    let mut ranges: Vec<BlankRange> = Vec::new();
+
+    for caps in re.captures_iter(body) {
+        let m = caps.get(0).expect("full match");
+        let (start, end) = (m.start(), m.end());
+        let keyword = caps.name("kw").expect("keyword").as_str();
+
+        match keyword {
+            "if" => stack.push(None),
+            "elif" | "else" => {
+                if let Some(top) = stack.last_mut() {
+                    if top.is_none() {
+                        *top = Some(start);
+                    }
+                }
+            }
+            "endif" => {
+                if let Some(Some(arm_start)) = stack.pop() {
+                    // Blank the inactive arm through the closing #endif line.
+                    ranges.push(BlankRange {
+                        start: arm_start + bom_len,
+                        end: end + bom_len,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+    // Unbalanced `#if` (no #endif): nothing to range-blank, but directive lines
+    // are still blanked below.
+
+    if !re.is_match(body) {
+        return Cow::Borrowed(source);
+    }
+
+    let mut buf = source.as_bytes().to_vec();
+    let mut changed = false;
+
+    // Always blank every directive line itself (indent preserved).
+    for caps in re.captures_iter(body) {
         let m = caps.get(0).expect("full match");
         let indent_len = caps
             .name("indent")
             .map(|g| g.end() - g.start())
             .unwrap_or(0);
-        if out.is_none() {
-            out = Some(source.as_bytes().to_vec());
-        }
-        let buf = out.as_mut().expect("initialized");
-        for slot in &mut buf[m.start() + indent_len..m.end()] {
+        let s = m.start() + bom_len + indent_len;
+        let e = m.end() + bom_len;
+        for slot in &mut buf[s..e] {
             *slot = b' ';
+            changed = true;
         }
-        last = m.end();
     }
-    let _ = last;
-    match out {
-        Some(buf) => Cow::Owned(String::from_utf8(buf).unwrap_or_else(|_| source.to_string())),
-        None => Cow::Borrowed(source),
+    // Blank inactive arms, preserving newlines for byte-offset fidelity.
+    for r in &ranges {
+        for slot in &mut buf[r.start..r.end] {
+            if *slot != b'\n' {
+                *slot = b' ';
+                changed = true;
+            }
+        }
+    }
+
+    if changed {
+        Cow::Owned(String::from_utf8(buf).unwrap_or_else(|_| source.to_string()))
+    } else {
+        Cow::Borrowed(source)
     }
 }
 
@@ -24672,5 +24757,90 @@ mod tests {
         assert!(parse_go_gin_route_call("r.GET(\"/x\")", &groups, &vars).is_none());
         // Unrelated call.
         assert!(parse_go_gin_route_call("fmt.Println(\"GET\")", &groups, &vars).is_none());
+    }
+
+    #[test]
+    fn csharp_preproc_blanking_is_bom_aware() {
+        // Column-1 `#if` immediately after a UTF-8 BOM must be blanked together
+        // with its `#endif`; otherwise the grammar reports MISSING #endif and a
+        // file that parsed clean raw gets worse after blanking (Newtonsoft.Json
+        // Serialization/DiagnosticsTraceWriter.cs shape).
+        let src = "\u{feff}#if HAVE_TRACE_WRITER\nclass C {\n    void M() {}\n}\n#endif\n";
+        let out = blank_csharp_preprocessor_directives(src);
+
+        // BOM bytes preserved, total length unchanged (offsets stay exact).
+        assert!(out.starts_with('\u{feff}'));
+        assert_eq!(out.len(), src.len());
+        // Neither directive token survives; the guarded code and newline do.
+        assert!(!out.contains("#if"));
+        assert!(!out.contains("#endif"));
+        assert!(out.contains("class C"));
+        assert!(out.contains("void M()"));
+        // The BOM itself and every directive char after the indent are spaces.
+        assert_eq!(
+            out.as_bytes()[..3],
+            [0xEF, 0xBB, 0xBF],
+            "BOM must be preserved verbatim"
+        );
+    }
+
+    #[test]
+    fn csharp_preproc_blanking_without_bom_unchanged() {
+        // No-BOM regression guard: directives are blanked, guarded code kept.
+        let src = "#if X\nclass C {\n    void M() {}\n}\n#endif\n";
+        let out = blank_csharp_preprocessor_directives(src);
+        assert_eq!(out.len(), src.len());
+        assert!(!out.contains("#if"));
+        assert!(!out.contains("#endif"));
+        assert!(out.contains("class C"));
+    }
+
+    #[test]
+    fn csharp_preproc_keeps_active_arm_and_blanks_else_arm() {
+        // Expression-continuation `#if/#else` (Newtonsoft.Json JsonReader.cs
+        // shape): keeping both arms leaves two adjacent operands with no
+        // operator and one ERROR node that detaches the member list. The
+        // deterministic active `#if` arm must survive while the `#else` arm is
+        // blanked (newlines kept) so byte offsets stay exact.
+        let src = concat!(
+            "class R {\n",
+            "    void Set(int value) {\n",
+            "        if (value < 0 ||\n",
+            "#if HAVE_OFFSET\n",
+            "            value > 3\n",
+            "#else\n",
+            "            value > 2\n",
+            "#endif\n",
+            "            ) { Throw(); }\n",
+            "    }\n",
+            "}\n",
+        );
+        let out = blank_csharp_preprocessor_directives(src);
+        assert_eq!(out.len(), src.len(), "byte length / offsets preserved");
+        // Directive tokens all gone.
+        assert!(!out.contains("#if"));
+        assert!(!out.contains("#else"));
+        assert!(!out.contains("#endif"));
+        // Active (#if) arm kept; inactive (#else) arm blanked.
+        assert!(out.contains("value > 3"), "active #if arm must survive");
+        assert!(!out.contains("value > 2"), "inactive #else arm must be blanked");
+        assert!(out.contains("Throw()"));
+        // Every original newline is retained (line/column fidelity).
+        assert_eq!(
+            out.bytes().filter(|b| *b == b'\n').count(),
+            src.bytes().filter(|b| *b == b'\n').count()
+        );
+    }
+
+    #[test]
+    fn csharp_preproc_keeps_code_for_if_without_else() {
+        // #237 enum-member shape: a plain #if/#endif with no else keeps the
+        // guarded code (directive lines blanked only).
+        let src = "enum E {\n#if X\n    A,\n#endif\n    B,\n}\n";
+        let out = blank_csharp_preprocessor_directives(src);
+        assert!(out.contains("A,"));
+        assert!(out.contains("B,"));
+        assert!(!out.contains("#if"));
+        assert!(!out.contains("#endif"));
     }
 }

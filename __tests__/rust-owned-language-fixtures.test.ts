@@ -1559,5 +1559,116 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
         cg.close();
       }
     });
+
+    it('blanks a column-1 #if guarded by a leading UTF-8 BOM (Newtonsoft DiagnosticsTraceWriter shape)', () => {
+      // A UTF-8 BOM between the line anchor and a column-1 #if used to leave
+      // the #if unblanked while its #endif was blanked -> MISSING #endif, which
+      // detaches the enclosing class's member list. Real corpus: Newtonsoft.Json
+      // Src/Newtonsoft.Json/Serialization/DiagnosticsTraceWriter.cs starts with
+      // EF BB BF then `#if HAVE_TRACE_WRITER` (roadmap 1-2-4-3). The BOM is
+      // preserved (byte offsets stay exact) and both directive lines are blanked.
+      const filePath = 'Tracer.cs';
+      writeFile(
+        filePath,
+        [
+          '\uFEFF#if HAVE_TRACE_WRITER',
+          'public class Tracer',
+          '{',
+          '    private enum Level',
+          '    {',
+          '        Off,',
+          '#if VERBOSE',
+          '        Verbose,',
+          '#endif',
+          '        Info,',
+          '    }',
+          '    public void Trace() { }',
+          '    public void Flush() { }',
+          '}',
+          '#endif',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(csNodes(cg, filePath, 'enum_member').map((m) => m.name)).toEqual([
+          'Off',
+          'Verbose',
+          'Info',
+        ]);
+        expect(csNodes(cg, filePath, 'method').map((m) => m.name).sort()).toEqual([
+          'Flush',
+          'Trace',
+        ]);
+        const errs = db
+          .prepare('SELECT errors FROM files WHERE path = ?1')
+          .all(filePath) as Array<{ errors: string }>;
+        const parsed = errs[0]?.errors;
+        expect(parsed === null || parsed === '[]' || parsed === '').toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('keeps the active #if arm and blanks the #else arm across an expression continuation (#237/JsonReader shape)', () => {
+      // Newtonsoft.Json JsonReader.cs wraps a multi-line boolean guard in
+      // #if HAVE_DATE_TIME_OFFSET ... #else ... #endif. Keeping BOTH arms left
+      // two adjacent operands with no operator -> one ERROR node that detached
+      // the whole class (the 46KB file indexed a single node). The deterministic
+      // active (#if) arm is kept; the inactive (#else) arm is blanked while
+      // newlines/byte offsets are preserved (roadmap 1-2-4-3).
+      const filePath = 'Guard.cs';
+      writeFile(
+        filePath,
+        [
+          'public class Guard',
+          '{',
+          '    private int _value;',
+          '    public int Value',
+          '    {',
+          '        set',
+          '        {',
+          '            if (value < 0 ||',
+          '#if HAVE_DATE_TIME_OFFSET',
+          '                value > 3',
+          '#else',
+          '                value > 2',
+          '#endif',
+          '                )',
+          '            {',
+          '                throw new System.ArgumentOutOfRangeException(nameof(value));',
+          '            }',
+          '            _value = value;',
+          '        }',
+          '    }',
+          '    public int Get() { return _value; }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        // Property + accessor method and Get all survive — the class member
+        // list is no longer detached (regression: whole file collapsed to one
+        // node when both arms were retained).
+        const methods = csNodes(cg, filePath, 'method').map((m) => m.name).sort();
+        expect(methods).toContain('Get');
+        const props = csNodes(cg, filePath, 'property').map((p) => p.name);
+        expect(props).toContain('Value');
+        const fields = csNodes(cg, filePath, 'field').map((f) => f.name);
+        expect(fields).toContain('_value');
+        const errs = db
+          .prepare('SELECT errors FROM files WHERE path = ?1')
+          .all(filePath) as Array<{ errors: string }>;
+        const parsed = errs[0]?.errors;
+        expect(parsed === null || parsed === '[]' || parsed === '').toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
   });
 });
