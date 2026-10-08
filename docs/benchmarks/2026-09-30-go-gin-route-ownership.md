@@ -97,3 +97,43 @@ it is not recommended. Product code stays read-only in this acceptance node;
 the product fix is dispatched to exploit node **1-6-3-1** (Rust extractor
 extension + Rust unit tests + real rust-hybrid e2e covering gorilla/mux
 chained `.Methods()` and grouped routes + 3-OS CI).
+
+## Fix outcome (roadmap 1-6-3-1, 2026-09-30)
+
+The fix landed in the Rust core as recommended (no TS-shell back-fill):
+
+- `parse_go_gin_route_call` (lib.rs) replaced the hard-coded five-verb table
+  with a 14-entry `VERB_SPELLINGS` list: Gin uppercase `GET/POST/PUT/DELETE/
+  PATCH/OPTIONS/HEAD`, Chi title-case `Get/Post/Put/Patch/Delete` (canonicalized
+  to uppercase), and `HandleFunc/Handle` → `ANY`. It selects the earliest verb
+  marker in the call text; the needle includes the opening paren, so `.Handle(`
+  can never match inside `.HandleFunc(` and a chained
+  `s.HandleFunc("/x", h).Methods("GET")` records the registration verb (ANY),
+  not the constraint verb. Group-prefix expansion and `&Handler{}` method
+  handlers are unchanged.
+- Five Rust unit tests lock the parser (seven verbs, Chi casing, stdlib/gorilla
+  ANY + the gorilla chain, group-prefix for the new verbs, and negative
+  non-route calls). `cargo test -p zcodegraph-core`: 124 passed.
+- One engine-agnostic TS-shell `rust-hybrid` e2e in
+  `frameworks-integration.test.ts` indexes a real temp Go module and asserts
+  the route names plus route→handler `references` edges (including
+  `listUsers` through the gorilla chain and the prefixed
+  `GET /api/v1/users`). ci.yml step2 `-t` and the ci-rust-packaged-path
+  contract were synced; no skips were added (ALLOWED_SKIPS stays empty).
+
+Re-running this exact 8-marker fixture with the rebuilt binary
+(`--engine rust --force`, direct SQLite read) moves recall from **4/8 to 8/8**
+with zero parse errors (nodes 16→20, edges 15→19):
+
+| # | Source marker | Before | After |
+| --- | --- | --- | --- |
+| 1–3 | Gin GET/POST/DELETE | ✓ | ✓ |
+| 4 | Gin OPTIONS | missing | `OPTIONS /opts` |
+| 5 | Gin HEAD | missing | `HEAD /healthz` |
+| 6 | grouped `v1.GET` | `GET /api/v1/users` | `GET /api/v1/users` |
+| 7 | stdlib `HandleFunc` | missing | `ANY /std` |
+| 8 | Chi `mux.Get` | missing | `GET /chi` |
+
+All eight routes carry a handler unresolved ref. The TS e2e and the three-OS
+verdict run on CI (this Windows clone has no node_modules/dist for a local
+vitest/tsc run).
