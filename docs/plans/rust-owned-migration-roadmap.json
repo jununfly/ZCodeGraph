@@ -1658,7 +1658,7 @@
     "1-6-3": {
       "id": "1-6-3",
       "label": "Go/Gin 路由所有权检查",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-6",
       "children": [
@@ -2292,7 +2292,7 @@
     "1-6-3-1": {
       "id": "1-6-3-1",
       "label": "[产品修复] 扩展 Rust core Go 路由抽取至 TS 覆盖范围：parse_go_gin_route_call 增 OPTIONS/HEAD、Chi 驼峰 Get/Post/Put/Patch/Delete、net/http HandleFunc/Handle(归 ANY)，保留 group 前缀；rust 单测 + 真实 rust-hybrid e2e(gorilla/mux 链式 .Methods + group) + 3-OS CI",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-6-3",
       "children": [],
@@ -2316,14 +2316,19 @@
           "q": "Q4 本机实证",
           "answer": "重建 zcodegraph-core.exe 后对 1-6-3 的 8 标记 .workbuddy/probe-go/ginapp 夹具 --engine rust --force 重索引直查 SQLite：route 4->8(召回 8/8)，OPTIONS /opts、HEAD /healthz、ANY /std、GET /chi、GET /api/v1/users 全在，8 条 route->handler refs 齐全，0 parse error，nodes 16->20、edges 15->19。本机无 node_modules/dist，TS e2e 与三 OS 归 CI。EXTRACTION_VERSION 维持 2(同未发布 v2 语义批，不 bump)。",
           "note": ""
+        },
+        {
+          "q": "CI 终裁",
+          "answer": "feat bdca3d2 + chore(docs) 277c9c0 push main，CI run 37721603975 三 OS(macos-14/ubuntu-latest/windows-2025) 全 success。Test Rust core 124 passed(含 5 新单测)。windows step2 日志确认真实 rust-hybrid Go e2e 运行：'Go route coverage on rust-hybrid (roadmap 1-6-3-1) > extracts OPTIONS/HEAD, Chi verbs, stdlib/gorilla ANY, and grouped routes, resolving handlers' 349ms ✓(非 skip，step2 14 passed/373 skipped)。skip-debt 护栏 + ci-rust-packaged-path 契约绿。1-6-3-1 闭环。",
+          "note": ""
         }
       ],
-      "notes": ""
+      "notes": "Rust core parse_go_gin_route_call 动词表 5→14 项(VERB_SPELLINGS)：Gin 7 大写含 OPTIONS/HEAD + Chi 5 驼峰(→大写) + HandleFunc/Handle→ANY；取最早动词标记，needle 含开括号消除 .Handle/HandleFunc 歧义，gorilla 链式 .Methods 不串；group 前缀/&Handler{} handler 复用。5 rust 单测 + 1 rust-hybrid TS e2e(7 路由名+6 references 边) + ci.yml step2 -t + ci-rust-packaged-path 契约；无新增 skip。本机 cargo test 124 passed、8 标记探针 route 4→8(8/8)、0 parse error。CI run 37721603975 三 OS 全 success，windows 日志确认 e2e 349ms 真实运行。feat bdca3d2 + docs 277c9c0。"
     }
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-09-30 19:25:19",
+    "updated": "2026-10-08 11:21:09",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
