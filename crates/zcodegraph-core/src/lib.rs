@@ -12,6 +12,7 @@ use tree_sitter::{Node as SyntaxNode, Parser, TreeCursor};
 
 mod csharp;
 mod index_options;
+mod php;
 mod profiling;
 use index_options::GraphWorkFeatures;
 pub use index_options::{GraphWorkProfile, IndexRequest, SqliteWriteMode};
@@ -7216,6 +7217,16 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                 )?;
+            } else if language.is_php() {
+                php::extract(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -7695,6 +7706,7 @@ enum SourceLanguage {
     Java,
     Kotlin,
     Csharp,
+    Php,
     Python,
     Rust,
 }
@@ -7716,6 +7728,10 @@ impl SourceLanguage {
             Some("java") => Some(Self::Java),
             Some("kt") | Some("kts") => Some(Self::Kotlin),
             Some("cs") => Some(Self::Csharp),
+            // Drupal ships PHP under four extra extensions (grammars.ts).
+            Some("php") | Some("module") | Some("install") | Some("theme") | Some("inc") => {
+                Some(Self::Php)
+            }
             Some("py") | Some("pyw") => Some(Self::Python),
             Some("rs") => Some(Self::Rust),
             _ => None,
@@ -7734,6 +7750,7 @@ impl SourceLanguage {
             Self::Java => "java",
             Self::Kotlin => "kotlin",
             Self::Csharp => "csharp",
+            Self::Php => "php",
             Self::Python => "python",
             Self::Rust => "rust",
         }
@@ -7752,6 +7769,7 @@ impl SourceLanguage {
             Self::Java => tree_sitter_java::LANGUAGE.into(),
             Self::Kotlin => tree_sitter_kotlin::LANGUAGE.into(),
             Self::Csharp => tree_sitter_c_sharp::LANGUAGE.into(),
+            Self::Php => tree_sitter_php::LANGUAGE_PHP.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
@@ -7797,6 +7815,10 @@ impl SourceLanguage {
 
     fn is_csharp(self) -> bool {
         matches!(self, Self::Csharp)
+    }
+
+    fn is_php(self) -> bool {
+        matches!(self, Self::Php)
     }
 
     fn is_python(self) -> bool {
