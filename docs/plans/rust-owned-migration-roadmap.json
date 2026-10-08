@@ -161,7 +161,7 @@
     "1-2-4": {
       "id": "1-2-4",
       "label": "C# 基线抽取迁移",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -170,17 +170,49 @@
         "1-2-4-3",
         "1-2-4-4"
       ],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "开工勘察（2026-10-08）",
+          "answer": "Rust 端 SourceLanguage 无 C#（lib.rs L7547 仅 13 语言；.cs 走 TS）。grammar 可用 tree-sitter-c-sharp 0.23.5（crates.io 官方 tree-sitter org，ABI 0.23/0.24 兼容，无需 git pin，区别于 kotlin 的 fwcd git rev）。TS 面：src/extraction/languages/csharp.ts 声明式 extractor（class/record/record struct/interface/enum/method+ctor/field/property/namespace×2/using/invocation/local，默认 private）；tree-sitter.ts 另有 extractCsharpTypeRefs（类型位置 refs：base/接口/字段/参数）+ extractCsharpPrimaryCtorParamRefs（C#12 主构造函数）；preParse blankCsharpPreprocessorDirectives（#if/#elif/#else/#endif 字节保偏移，#237 enum 内指令缺陷绕行）。TS shell 保留件：resolution/frameworks/csharp.ts ASP.NET resolver、razor-extractor（依赖 c_sharp wasm，wasm 文件不可删）。ownership 表 src/indexing/rust-hybrid-contract.ts RUST_HYBRID_RUST_OWNED_LANGUAGES 加 'csharp'；切换时删 languages/csharp.ts（模板 commit 81f1db9 删 kotlin.ts）。基线测试：extraction.test.ts L839 C# Extraction 3 例（class+可见性 / primary ctor+record / #if enum）；wave0 模板 __tests__/rust-owned-language-fixtures.test.ts。",
+          "note": ""
+        },
+        {
+          "q": "Q1 基线范围",
+          "answer": "全集对齐 TS：namespace(block+file-scoped) module、class/record class、struct/record struct、interface、enum+enum_member、method+constructor、field、property、using_directive(含 static/alias)、invocation calls、local variables、modifiers(C# 默认 private/static/async)、类型位置 refs（base/接口/字段/参数）、C#12 primary ctor 参数 refs、#if 预处理字节保偏移 blanking，一次做到位。record/primary ctor/#if 由 legacy 3 例锁定，不留 skip 债。",
+          "note": ""
+        },
+        {
+          "q": "Q2 探针方法",
+          "answer": "本机 rust-bin sqlite 探针先行：cargo build -p zcodegraph-core → 最小 .cs 夹具 --engine rust 直查 SQLite，before/after 校准 node kinds/qualifiedName/unresolved_refs，再固化 wave0 fixture 断言。grammar 节点名以 cargo fetch 后 registry src 中 node-types.json 为准，不靠记忆。",
+          "note": ""
+        },
+        {
+          "q": "Q3 切换时机",
+          "answer": "两阶段（对齐 Kotlin 58e7768→81f1db9）：1-2-4-1~3 Rust 新增能力但 src/extraction/languages/csharp.ts 保留；1-2-4-4 删 TS extractor + RUST_HYBRID_RUST_OWNED_LANGUAGES 加 csharp + legacy 用例迁移/激活、ALLOWED_SKIPS 清零。ASP.NET framework resolver 与 razor-extractor 永久留 TS shell（wasm 不删）。",
+          "note": ""
+        },
+        {
+          "q": "Q4 真实语料",
+          "answer": "真实 OSS 仓探针 + docs/benchmarks/2026-10-08-*.md：优先 Newtonsoft.Json（#237 多目标 #if 语料源）或中小 ASP.NET Core 样例子集；只解析源码，无需 .NET SDK；记录 parse error、符号召回、primary ctor/record/#if enum 命中。fair-coverage 完整测度留待框架语义节点。",
+          "note": ""
+        }
+      ],
       "notes": ""
     },
     "1-2-4-1": {
       "id": "1-2-4-1",
       "label": "C#: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-4",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Rust 基线抽取实现 + sqlite before/after 探针校准结论？",
+          "answer": "CLOSED：csharp.rs 单语义栈实现，8/8 fixture 复算全过",
+          "note": "新增 crates/zcodegraph-core/src/csharp.rs（单 Frame 语义栈，QN=栈上非 file 节点 name 用 :: 拼接，namespace 建 kind=module，点号名保持单段 -> App.Models::OrderService::Get）。lib.rs 注册 SourceLanguage::Csharp（扩展名 cs / codegraph_name csharp / tree_sitter_c_sharp::LANGUAGE）+ normalize_source 加 blank_csharp_preprocessor_directives（字节保偏移 #if/#elif/#else/#endif 空格替换）。grammar 精确 pin tree-sitter-c-sharp =0.23.1（0.23.5 跳 ABI15 需 tree-sitter ^0.25，与项目 ^0.24 runtime 不兼容会 LanguageError{version:15}）。探针修正的 4 个偏差：(1) 修饰符是具名 modifier 节点、其自身 text 即关键字（关键字为匿名子节点，遍历 named_children 取不到 -> 全落 private）；(2) 双轨 qualified_base+container_stack 在 file-scoped ns 双遍历时被同 id 覆盖丢前缀 -> 改 extract 入口一次性建 module frame 遍历顶层兄弟；(3) alias using 不建节点是错的，TS extractImport 取首个 qualified_name -> 右侧完整限定名 System.Collections.Generic.List<int>；(4) field/local/import 必须走语义栈 QN 不能挂文件路径。ExtractedNode 无 is_async 字段（与其他迁移语言一致，async 不进 Rust 基线结构）。record struct=record_declaration 带 struct 关键字子节点；base_list 混合基类接口统一发 extends；primary ctor parameter_list 是类型声明直接子节点，参数类型发 references 归类型，参数上的 FromKeyedServices attribute TS 也不捕获（parity）。固化 8 个 wave0 fixture 到 __tests__/rust-owned-language-fixtures.test.ts C# baseline describe（using 四态/block+file-scoped ns/类型分类/默认 private+field 归属/类型位置 refs/base_list+primary ctor+attribute/calls+instantiates+locals/#if enum #237），本机 rust bin 逐例复算 8/8 与断言一致。Task 非 builtin（TS BUILTIN_TYPES 不含）故 Task<Order> 发 Task+Order 两条。TS csharp.ts 保留（1-2-4-4 才删）。"
+        }
+      ],
       "notes": "范围：类/record/接口/struct/enum/using/调用/namespace 包抽取；ASP.NET/Razor 边界。grammar：tree-sitter-c-sharp（Rust crate）；TS 侧自 vendor ABI-15 wasm 0.23.5 支持主构造函数(#237)，Rust 侧需对齐。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
     },
     "1-2-4-2": {
@@ -2349,7 +2381,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-08 11:36:13",
+    "updated": "2026-10-08 12:51:43",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
