@@ -161,7 +161,7 @@
     "1-2-4": {
       "id": "1-2-4",
       "label": "C# 基线抽取迁移",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -270,7 +270,7 @@
     "1-2-4-4": {
       "id": "1-2-4-4",
       "label": "C#: 框架/运行时语义边界决策 + TS fallback 移除",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2-4",
       "children": [],
@@ -289,6 +289,11 @@
           "q": "Q: split cutover 的真实语料证据（route backfill 是否真能在 Rust 抽基线符号的同时保住 ASP.NET route）如何？",
           "answer": "A: 通过。真实语料 eShopOnWeb src/Web（dotnet-architecture/eShopOnWeb@4da8212，sparse 仅取 src/Web，64 .cs/2658 LOC）：真实 rust bin 索引 66 文件（64 cs+2 js）filesErrored=0、872 节点（120 method/63 module/62 class…）、Rust 图在 backfill 前 route=0；TS aspnetResolver.extract（transpile require hook 真跑，非 stub）对 64 .cs 抽 25 route（15 GET/10 POST，全 attribute-controller，0 minimal——Program.cs 用 MVC MapControllerRoute）+25 route→handler 引用；detect()=true；25/25 handler 全部 same-file 命中 Rust method 节点、0 missing。cutover 前后基线符号与 route 图等价（872 节点 / 25 route / 25 可解析），唯一变化是不再 schedule 64 个 .cs TS fallback 文件（cutover 前也只是 contentHash no-op）。minimal API 路径由新 frameworks-integration 夹具确定性覆盖。benchmark 落 docs/benchmarks/2026-10-08-rust-owned-csharp-aspnet-route-cutover.md（governance exit 0）。",
           "note": "note: 诚实限制（与 cutover 前 TS 行为一致，非本节点回归）：route 名保留原始 token 占位 /[controller]/[action]（运行时 SlugifyParameterTransformer 才替换）；MVC convention 路由 MapControllerRoute 不产 route 节点（extractor 只建模 attribute route + minimal API Map*）；sparse 语料不含被引用的 ApplicationCore/Infrastructure 等项目故不测跨项目边（1-2-4-2 夹具已覆盖跨文件）。route 归因 ManageController 20/OrderController 2/UserController 3。"
+        },
+        {
+          "q": "Q: 1-2-4-4 split cutover 的 CI 终判？",
+          "answer": "A: CLOSED。run 37747131134 三 OS（Rust packaged path ubuntu-latest/macos-14/windows-2025）全 success。三提交线性落 main：e5608de feat(ownership+csharp route backfill) → 556a14f test(契约+2 ASP.NET e2e+ci -t) → f504b4a docs(benchmark+decide)。",
+          "note": "note: windows-2025 日志实证（真跑非 skip）：Rust core 128 passed/0 failed；step1 wave0+护栏 2 files 46 passed(skip-debt 4 + rust-owned-language-fixtures 42) 0 skipped；step2 3 files 19 passed/0 failed（extraction 9 含翻转后的 ownership 契约 it 与 cross-file C# after-cutover 459ms；frameworks-integration 新 ASP.NET controller routes 465ms + minimal-API MapGet routes 527ms 两 e2e 均 ✓ 带耗时）；372 skipped 均为 -t 白名单外用例（护栏审计 23/23 分支各命中唯一真实标题）。真实语料 eShopOnWeb@4da8212 src/Web 64cs/2658LOC：872 Rust 节点 0 parse 错、backfill 25 route/25 handler 全命中（benchmark 2026-10-08-rust-owned-csharp-aspnet-route-cutover.md）。csharp.ts 保留供 razor @code 委托+纯 TS 引擎（split 第 2 条 decide）。"
         }
       ],
       "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
@@ -2429,7 +2434,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-08 15:52:52",
+    "updated": "2026-10-08 16:12:27",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
