@@ -109,6 +109,9 @@ describe('CI Rust packaged path coverage', () => {
     expect(workflow).toContain('creates a route->view edge from urls.py to view class on rust-hybrid');
     expect(workflow).toContain('extracts stacked @bp.route nodes and resolves them to the view on rust-hybrid');
     expect(workflow).toContain('extracts FastAPI @app.get/@app.post routes and resolves them to handlers on rust-hybrid');
+    // Roadmap 1-6-3-1: extended Rust Go route extraction (OPTIONS/HEAD, Chi
+    // title-case verbs, net/http + gorilla/mux HandleFunc/Handle -> ANY).
+    expect(workflow).toContain('extracts OPTIONS/HEAD, Chi verbs, stdlib/gorilla ANY, and grouped routes');
   });
 
   it('runs a rust-hybrid init/index/status/doctor smoke on the cross-platform CI path', () => {

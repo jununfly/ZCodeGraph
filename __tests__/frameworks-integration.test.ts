@@ -1131,3 +1131,92 @@ describe('Go gRPC stub→impl synthesis', () => {
     }
   });
 });
+
+// Roadmap 1-6-3-1: Go is rust-owned and the Rust core owns route extraction,
+// but its verb table used to cover only the five uppercase Gin verbs. The
+// 1-6-3 probe measured 4/8 recall vs the TypeScript goResolver surface:
+// OPTIONS/HEAD, Chi title-case verbs, and net/http + gorilla/mux
+// HandleFunc/Handle (recorded ANY) were lost on the default rust-hybrid
+// engine. These cases lock the extended surface end to end, including the
+// Rust-only group-prefix expansion (better than TS, which emitted the bare
+// path) and a chained gorilla/mux `.HandleFunc(...).Methods("GET")`.
+describe('Go route coverage on rust-hybrid (roadmap 1-6-3-1)', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  it('extracts OPTIONS/HEAD, Chi verbs, stdlib/gorilla ANY, and grouped routes, resolving handlers', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-go-routes-'));
+    fs.writeFileSync(path.join(tmpDir, 'go.mod'), 'module ginapp\n\ngo 1.21\n');
+    fs.writeFileSync(
+      path.join(tmpDir, 'routes.go'),
+      'package main\n\n' +
+        'func ListItems() {}\n' +
+        'func CreateItem() {}\n' +
+        'func OptionsH() {}\n' +
+        'func HeadH() {}\n' +
+        'func ChiList() {}\n' +
+        'func StdHandler() {}\n' +
+        'func listUsers() {}\n\n' +
+        'func setupRouter() {\n' +
+        '  r := newEngine()\n' +
+        '  r.GET("/items", ListItems)\n' +
+        '  r.POST("/items", CreateItem)\n' +
+        '  r.OPTIONS("/opts", OptionsH)\n' +
+        '  r.HEAD("/healthz", HeadH)\n' +
+        '  v1 := r.Group("/api/v1")\n' +
+        '  v1.GET("/users", ListItems)\n' +
+        '  mux := newMux()\n' +
+        '  mux.HandleFunc("/std", StdHandler)\n' +
+        '  mux.Get("/chi", ChiList)\n' +
+        '  s := mux.PathPrefix("/users").Subrouter()\n' +
+        '  s.HandleFunc("/users/{id}", listUsers).Methods("GET")\n' +
+        '}\n',
+    );
+
+    let cg: CodeGraph | undefined;
+    try {
+      cg = CodeGraph.initSync(tmpDir);
+      await cg.indexAll({ engine: 'rust-hybrid' });
+
+      const routes = cg.getNodesByKind('route').sort((a, b) => a.startLine - b.startLine);
+      const names = routes.map((r) => r.name);
+
+      // Pre-existing five-verb Gin coverage must not regress.
+      expect(names).toContain('GET /items');
+      expect(names).toContain('POST /items');
+      // The three gap shapes from the 1-6-3 probe.
+      expect(names).toContain('OPTIONS /opts');
+      expect(names).toContain('HEAD /healthz');
+      expect(names).toContain('GET /chi');
+      // net/http + gorilla/mux method-agnostic registrations record ANY.
+      expect(names).toContain('ANY /std');
+      expect(names).toContain('ANY /users/{id}');
+      // Rust-only advantage over the TS resolver: group prefix is expanded.
+      expect(names).toContain('GET /api/v1/users');
+
+      // Every newly covered route resolves to its handler function.
+      const handlerByName = (routeName: string): string | undefined => {
+        const route = routes.find((r) => r.name === routeName);
+        if (!route) return undefined;
+        const edge = cg!
+          .getOutgoingEdges(route.id)
+          .find((e) => e.kind === 'references');
+        const target = edge ? cg!.getNode(edge.target) : undefined;
+        return target?.name;
+      };
+      expect(handlerByName('OPTIONS /opts')).toBe('OptionsH');
+      expect(handlerByName('HEAD /healthz')).toBe('HeadH');
+      expect(handlerByName('GET /chi')).toBe('ChiList');
+      expect(handlerByName('ANY /std')).toBe('StdHandler');
+      // The chained gorilla/mux constraint does not corrupt handler capture.
+      expect(handlerByName('ANY /users/{id}')).toBe('listUsers');
+      // The grouped route resolves too.
+      expect(handlerByName('GET /api/v1/users')).toBe('ListItems');
+    } finally {
+      cg?.close();
+    }
+  });
+});

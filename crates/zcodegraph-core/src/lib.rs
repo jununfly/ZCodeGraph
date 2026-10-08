@@ -8357,31 +8357,73 @@ fn parse_go_gin_route_call(
     group_prefixes: &HashMap<String, String>,
     variable_types: &HashMap<String, String>,
 ) -> Option<GoGinRoute> {
-    const METHODS: [&str; 5] = ["GET", "POST", "PUT", "DELETE", "PATCH"];
-    for method in METHODS {
-        let needle = format!(".{method}(");
-        let Some(method_index) = call.find(&needle) else {
+    // Route method spellings, paired with the canonical HTTP method recorded on
+    // the route node. This mirrors the TypeScript goResolver.extract surface
+    // (src/resolution/frameworks/go.ts) so the rust-hybrid engine does not lose
+    // routes the TS engine found (roadmap 1-6-3 probe: Rust recall was 4/8):
+    //   - Gin/Echo/Fiber uppercase verbs, including OPTIONS and HEAD;
+    //   - Chi idiomatic exported-method casing (Get/Post/Put/Patch/Delete);
+    //   - net/http + gorilla/mux Handle/HandleFunc, which are method-agnostic and
+    //     therefore recorded as ANY (matching the TS resolver).
+    // Order matters only for call text that contains more than one verb marker
+    // (e.g. chained `.HandleFunc(...).Methods("GET")`): the route-registration
+    // verb is the FIRST marker, and `find` below takes the earliest match.
+    const VERB_SPELLINGS: [(&str, &str); 14] = [
+        ("GET", "GET"),
+        ("POST", "POST"),
+        ("PUT", "PUT"),
+        ("DELETE", "DELETE"),
+        ("PATCH", "PATCH"),
+        ("OPTIONS", "OPTIONS"),
+        ("HEAD", "HEAD"),
+        ("Get", "GET"),
+        ("Post", "POST"),
+        ("Put", "PUT"),
+        ("Patch", "PATCH"),
+        ("Delete", "DELETE"),
+        ("HandleFunc", "ANY"),
+        ("Handle", "ANY"),
+    ];
+
+    // Find the earliest verb marker in the call text. The needle includes the
+    // opening paren, so `.Handle(` can never match inside `.HandleFunc(` (the
+    // byte after "Handle" there is `F`, not `(`). Taking the earliest match
+    // handles chained gorilla/mux calls like
+    // `s.HandleFunc("/x", h).Methods("GET")`: the registration verb
+    // (HandleFunc), not the later constraint verb, wins.
+    let mut best: Option<(usize, usize, &str)> = None; // (dot_index, verb_len, method)
+    for (spelling, method) in VERB_SPELLINGS {
+        let needle = format!(".{spelling}(");
+        let Some(dot_index) = call.find(&needle) else {
             continue;
         };
-        let receiver = call[..method_index].trim();
-        if receiver.is_empty()
-            || !receiver
-                .chars()
-                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        if best
+            .map(|(best_dot, _, _)| dot_index < best_dot)
+            .unwrap_or(true)
         {
-            return None;
+            best = Some((dot_index, spelling.len(), method));
         }
-        let args = &call[method_index + needle.len()..];
-        let (path, after_path) = parse_first_go_string(args)?;
-        let handler = parse_second_go_arg(after_path, variable_types)?;
-        let full_path = format_route_path(group_prefixes.get(receiver).map(String::as_str), &path);
-        return Some(GoGinRoute {
-            method,
-            path: full_path,
-            handler,
-        });
     }
-    None
+
+    let (dot_index, verb_len, method) = best?;
+    let receiver = call[..dot_index].trim();
+    if receiver.is_empty()
+        || !receiver
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+    {
+        return None;
+    }
+    let args_start = dot_index + 1 + verb_len + 1; // dot + verb + '('
+    let args = &call[args_start..];
+    let (path, after_path) = parse_first_go_string(args)?;
+    let handler = parse_second_go_arg(after_path, variable_types)?;
+    let full_path = format_route_path(group_prefixes.get(receiver).map(String::as_str), &path);
+    Some(GoGinRoute {
+        method,
+        path: full_path,
+        handler,
+    })
 }
 
 fn collect_go_gin_group_prefixes(source: &str) -> HashMap<String, String> {
@@ -24465,5 +24507,109 @@ mod tests {
             .unwrap();
         assert_eq!(noise, 0, "lowercase `user.getName()` instance read must not emit references");
         cleanup_temp_dir(dir);
+    }
+
+    // Roadmap 1-6-3-1: Go route extraction must match the TypeScript
+    // goResolver.extract surface (Gin seven verbs incl. OPTIONS/HEAD, Chi
+    // title-case verbs, net/http + gorilla/mux Handle/HandleFunc -> ANY),
+    // while keeping the Rust-only group-prefix expansion.
+    #[test]
+    fn rust_core_parses_go_gin_seven_verbs_including_options_head() {
+        let groups = HashMap::new();
+        let vars = HashMap::new();
+        for (call, method, path, handler) in [
+            ("r.GET(\"/items\", ListItems)", "GET", "/items", "ListItems"),
+            ("r.POST(\"/items\", CreateItem)", "POST", "/items", "CreateItem"),
+            ("r.PUT(\"/items/:id\", UpdateItem)", "PUT", "/items/:id", "UpdateItem"),
+            ("r.DELETE(\"/items/:id\", DeleteItem)", "DELETE", "/items/:id", "DeleteItem"),
+            ("r.PATCH(\"/items/:id\", PatchItem)", "PATCH", "/items/:id", "PatchItem"),
+            ("r.OPTIONS(\"/opts\", CorsOpts)", "OPTIONS", "/opts", "CorsOpts"),
+            ("r.HEAD(\"/healthz\", Healthz)", "HEAD", "/healthz", "Healthz"),
+        ] {
+            let route = parse_go_gin_route_call(call, &groups, &vars)
+                .unwrap_or_else(|| panic!("route must parse: {call}"));
+            assert_eq!(route.method, method, "method for {call}");
+            assert_eq!(route.path, path, "path for {call}");
+            assert_eq!(route.handler, handler, "handler for {call}");
+        }
+    }
+
+    #[test]
+    fn rust_core_parses_go_chi_title_case_verbs() {
+        let groups = HashMap::new();
+        let vars = HashMap::new();
+        for (call, method) in [
+            ("r.Get(\"/chi\", ChiGet)", "GET"),
+            ("r.Post(\"/chi\", ChiPost)", "POST"),
+            ("r.Put(\"/chi\", ChiPut)", "PUT"),
+            ("r.Patch(\"/chi\", ChiPatch)", "PATCH"),
+            ("r.Delete(\"/chi\", ChiDelete)", "DELETE"),
+        ] {
+            let route = parse_go_gin_route_call(call, &groups, &vars)
+                .unwrap_or_else(|| panic!("chi route must parse: {call}"));
+            assert_eq!(route.method, method, "canonical method for {call}");
+            assert_eq!(route.path, "/chi", "path for {call}");
+        }
+    }
+
+    #[test]
+    fn rust_core_parses_go_stdlib_handlefunc_and_handle_as_any() {
+        let groups = HashMap::new();
+        let vars = HashMap::new();
+        let handle_func =
+            parse_go_gin_route_call("mux.HandleFunc(\"/std\", StdHandler)", &groups, &vars)
+                .unwrap();
+        assert_eq!((handle_func.method, handle_func.path.as_str(), handle_func.handler.as_str()),
+            ("ANY", "/std", "StdHandler"));
+
+        let handle =
+            parse_go_gin_route_call("mux.Handle(\"/h\", H)", &groups, &vars).unwrap();
+        assert_eq!((handle.method, handle.path.as_str(), handle.handler.as_str()),
+            ("ANY", "/h", "H"));
+
+        // gorilla/mux chained constraint: the registration verb (HandleFunc)
+        // is the FIRST marker; the trailing .Methods("GET") must not be read as
+        // the route verb, and the handler capture must ignore the chain.
+        let chained = parse_go_gin_route_call(
+            "s.HandleFunc(\"/users/{id}\", listUsers).Methods(\"GET\")",
+            &groups,
+            &vars,
+        )
+        .unwrap();
+        assert_eq!((chained.method, chained.path.as_str(), chained.handler.as_str()),
+            ("ANY", "/users/{id}", "listUsers"));
+    }
+
+    #[test]
+    fn rust_core_keeps_go_group_prefix_expansion_for_new_verbs() {
+        let mut groups = HashMap::new();
+        groups.insert("v1".to_string(), "/api/v1".to_string());
+        let vars = HashMap::new();
+        let grouped = parse_go_gin_route_call("v1.GET(\"/users\", ListUsers)", &groups, &vars)
+            .unwrap();
+        assert_eq!((grouped.method, grouped.path.as_str()), ("GET", "/api/v1/users"));
+
+        let chi_grouped = parse_go_gin_route_call("v1.Get(\"/posts\", ListPosts)", &groups, &vars)
+            .unwrap();
+        assert_eq!((chi_grouped.method, chi_grouped.path.as_str()), ("GET", "/api/v1/posts"));
+
+        let any_grouped =
+            parse_go_gin_route_call("v1.HandleFunc(\"/webhook\", Hook)", &groups, &vars)
+                .unwrap();
+        assert_eq!((any_grouped.method, any_grouped.path.as_str()), ("ANY", "/api/v1/webhook"));
+    }
+
+    #[test]
+    fn rust_core_rejects_non_route_go_calls() {
+        let groups = HashMap::new();
+        let vars = HashMap::new();
+        // Qualified receiver is not a simple var — no group var can match it.
+        assert!(parse_go_gin_route_call("pkg.Sub.GET(\"/x\", H)", &groups, &vars).is_none());
+        // Missing string path.
+        assert!(parse_go_gin_route_call("r.GET(ListItems, H)", &groups, &vars).is_none());
+        // Missing handler argument.
+        assert!(parse_go_gin_route_call("r.GET(\"/x\")", &groups, &vars).is_none());
+        // Unrelated call.
+        assert!(parse_go_gin_route_call("fmt.Println(\"GET\")", &groups, &vars).is_none());
     }
 }
