@@ -64,6 +64,8 @@ import { IndexEngine } from './indexing/engine-selection';
 import { runRustIndexer } from './indexing/rust-indexer';
 import { runPythonFrameworkRouteBackfill } from './indexing/rust-python-framework-routes';
 import type { PythonFrameworkRouteBackfillStats } from './indexing/rust-python-framework-routes';
+import { runCsharpFrameworkRouteBackfill } from './indexing/rust-csharp-framework-routes';
+import type { CsharpFrameworkRouteBackfillStats } from './indexing/rust-csharp-framework-routes';
 import {
   buildRustHybridMetadataFromPlan,
   mergeMissingFallbackDiagnostics,
@@ -1561,6 +1563,7 @@ export class CodeGraph {
       frameworkPostExtractMs: number;
       frameworkPostExtract: FrameworkPostExtractDiagnostics;
       pythonFrameworkRouteBackfill?: PythonFrameworkRouteBackfillStats;
+      csharpFrameworkRouteBackfill?: CsharpFrameworkRouteBackfillStats;
       referenceResolutionMs: number;
       referenceResolutionBreakdown: {
         importResolutionMs: number;
@@ -1698,6 +1701,13 @@ export class CodeGraph {
             readErrors: 0,
             extractErrors: 0,
           } as PythonFrameworkRouteBackfillStats,
+          csharpFrameworkRouteBackfill: {
+            filesScanned: 0,
+            routeNodes: 0,
+            routeReferences: 0,
+            readErrors: 0,
+            extractErrors: 0,
+          } as CsharpFrameworkRouteBackfillStats,
           referenceResolutionMs: 0,
           referenceResolutionBreakdown: {
             importResolutionMs: 0,
@@ -2003,6 +2013,26 @@ export class CodeGraph {
           this.resolver.clearCaches();
         }
         onCheckpoint?.('finalization.pythonFrameworkRouteBackfill.completed');
+
+        // Roadmap 1-2-4-4: the Rust core owns C# extraction but has no
+        // ASP.NET route extraction ([Route]/[HttpGet*] actions, minimal API
+        // app.Map*), so re-run the TypeScript aspnet framework route extractor
+        // for the rust-owned .cs files here. Inserted route nodes + unresolved
+        // refs are linked into route -> handler edges by the batched
+        // resolution directly below.
+        onCheckpoint?.('finalization.csharpFrameworkRouteBackfill.started');
+        const csharpRouteBackfill = runCsharpFrameworkRouteBackfill(
+          this.queries,
+          this.projectRoot,
+          this.resolver.getDetectedFrameworks(),
+        );
+        profile.csharpFrameworkRouteBackfill = csharpRouteBackfill;
+        if (csharpRouteBackfill.routeNodes > 0) {
+          // New route handler refs target existing rust-owned nodes; clear the
+          // symbol-name cache before resolution.
+          this.resolver.clearCaches();
+        }
+        onCheckpoint?.('finalization.csharpFrameworkRouteBackfill.completed');
 
         const resolutionStarted = Date.now();
         onCheckpoint?.('finalization.referenceResolution.started');
