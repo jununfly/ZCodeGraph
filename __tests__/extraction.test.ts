@@ -5994,19 +5994,19 @@ describe('Swift property wrappers / attributes (blast-radius recall)', () => {
 });
 
 // ===========================================================================
-// Roadmap 1-2-4-2 — C# reference-edge resolution on rust-hybrid BEFORE the
-// ownership-table cutover (which is deliberately deferred to 1-2-4-4).
+// Roadmap 1-2-4-2 / 1-2-4-4 — C# reference-edge resolution on rust-hybrid.
 //
-// Important mechanism these tests pin: after 1-2-4-1 the Rust core scans and
-// extracts every `.cs` (SourceLanguage::Csharp is registered), even though
-// 'csharp' is still absent from RUST_HYBRID_RUST_OWNED_LANGUAGES. In the
-// default rust-hybrid flow the TypeScript fallback lists those files, but
-// storeExtractionResult() sees the SAME sha256(raw disk content) the Rust core
-// wrote and short-circuits (no-op) — so the Rust-emitted `module` nodes and
-// unresolved refs survive and are resolved by the language-agnostic NameMatcher
-// during finalizeRustIndex. There must be NO duplicate module+namespace nodes.
-// The ownership cutover in 1-2-4-4 only removes the redundant TS parse + flips
-// the metadata label; graph shape is already Rust here.
+// Mechanism these tests pin: since 1-2-4-1 the Rust core scans and extracts
+// every `.cs` (SourceLanguage::Csharp is registered). Before the 1-2-4-4
+// cutover the TypeScript fallback also listed those files, but
+// storeExtractionResult() saw the SAME sha256(raw disk content) the Rust core
+// wrote and short-circuited (no-op) — so the graph was already Rust-shaped
+// (Rust `module` nodes, no duplicate TS `namespace`), resolved by the
+// language-agnostic NameMatcher during finalizeRustIndex. The 1-2-4-4 ownership
+// cutover adds 'csharp' to RUST_HYBRID_RUST_OWNED_LANGUAGES, which removes the
+// now-redundant TS fallback scheduling for .cs and flips the metadata label;
+// the retained csharp.ts config still backs the pure 'typescript' engine and
+// the Blazor razor @code delegation.
 // ===========================================================================
 describe('C# cross-file reference edges on rust-hybrid (roadmap 1-2-4-2)', () => {
   let tempDir: string;
@@ -6021,7 +6021,7 @@ describe('C# cross-file reference edges on rust-hybrid (roadmap 1-2-4-2)', () =>
     if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('resolves cross-file C# calls, extends, instantiates, references, and imports on rust-hybrid before the ownership cutover, roadmap 1-2-4-2', async () => {
+  it('resolves cross-file C# calls, extends, instantiates, references, and imports on rust-hybrid after the ownership cutover, roadmap 1-2-4-4', async () => {
     const write = (name: string, body: string): void =>
       fs.writeFileSync(path.join(tempDir, name), body);
 
@@ -6149,12 +6149,15 @@ public class OrderService
     );
   });
 
-  it('keeps C# on the typescript fallback side of the rust-hybrid plan before the ownership cutover, roadmap 1-2-4-2', () => {
-    // Delivery 3: lock the pre-cutover ownership contract. 'csharp' must stay
-    // OUT of RUST_HYBRID_RUST_OWNED_LANGUAGES until 1-2-4-4, so the hybrid plan
-    // routes .cs through the (hash-short-circuited) TypeScript fallback and the
-    // metadata labels it typescript. Flipping this early is a cutover-scope leak.
-    expect(isRustHybridOwnedLanguage('csharp')).toBe(false);
+  it('puts C# on the rust-owned side of the rust-hybrid plan after the ownership cutover, roadmap 1-2-4-4', () => {
+    // Ownership cutover (roadmap 1-2-4-4): 'csharp' now joins
+    // RUST_HYBRID_RUST_OWNED_LANGUAGES, so the hybrid plan routes .cs to Rust
+    // and lists ZERO TypeScript fallback files for the language. The TS
+    // extractor config (src/extraction/languages/csharp.ts) is deliberately
+    // RETAINED — it still backs the pure 'typescript' engine and the Blazor
+    // razor @code delegation — but the hybrid plan no longer schedules .cs
+    // through it.
+    expect(isRustHybridOwnedLanguage('csharp')).toBe(true);
     expect(isRustHybridOwnedLanguage('go')).toBe(true);
 
     const dir = createTempDir();
@@ -6163,11 +6166,12 @@ public class OrderService
       fs.writeFileSync(path.join(dir, 'server.go'), 'package main\nfunc main() {}\n');
 
       const plan = planRustHybridAssignments(dir);
-      expect(plan.engineByLanguage).toMatchObject({ csharp: 'typescript', go: 'rust' });
-      expect(plan.fallbackFiles).toContain('Model.cs');
+      expect(plan.engineByLanguage).toMatchObject({ csharp: 'rust', go: 'rust' });
+      expect(plan.rustOwnedFiles).toContain('Model.cs');
       expect(plan.rustOwnedFiles).toContain('server.go');
+      expect(plan.fallbackFiles).not.toContain('Model.cs');
       expect(plan.fallbackFiles).not.toContain('server.go');
-      expect(plan.fallbackByLanguage.csharp).toBe(1);
+      expect(plan.fallbackByLanguage.csharp ?? 0).toBe(0);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

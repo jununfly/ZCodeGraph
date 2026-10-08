@@ -221,6 +221,108 @@ describe('Python framework routes on rust-hybrid (roadmap 1-6-2-4 restored)', ()
   });
 });
 
+describe('ASP.NET framework routes on rust-hybrid (roadmap 1-2-4-4 cutover)', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  // Split cutover: C# baseline symbols are Rust-owned, but ASP.NET route
+  // extraction ([Route]/[HttpGet*], minimal API app.Map*) stays in the TS
+  // aspnetResolver and is back-filled during hybrid finalization. The route
+  // node (TS) must resolve to the handler method (Rust) as a references edge.
+  it('extracts [HttpGet] controller routes and resolves them to Rust-extracted handlers on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-aspnet-rh-'));
+    fs.mkdirSync(path.join(tmpDir, 'Controllers'));
+    fs.writeFileSync(
+      path.join(tmpDir, 'Controllers', 'UsersController.cs'),
+      '[ApiController]\n' +
+        '[Route("api/users")]\n' +
+        'public class UsersController : ControllerBase\n' +
+        '{\n' +
+        '    [HttpGet]\n' +
+        '    public string List() => "all";\n' +
+        '\n' +
+        '    [HttpGet("{id}")]\n' +
+        '    public string Get(int id) => "one";\n' +
+        '}\n'
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, 'Program.cs'),
+      'var builder = WebApplication.CreateBuilder(args);\n' +
+        'var app = builder.Build();\n' +
+        'app.MapControllers();\n' +
+        'app.Run();\n'
+    );
+
+    const cg = CodeGraph.initSync(tmpDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+
+    const routes = cg.getNodesByKind('route').map((r) => r.name).sort();
+    expect(routes).toEqual(['GET /api/users', 'GET /api/users/{id}']);
+
+    // The handler methods are Rust-extracted baseline symbols; the TS
+    // back-filled route nodes resolve to them.
+    for (const [routeName, handlerName] of [
+      ['GET /api/users', 'List'],
+      ['GET /api/users/{id}', 'Get'],
+    ] as const) {
+      const route = cg.getNodesByKind('route').find((r) => r.name === routeName);
+      expect(route, `route ${routeName}`).toBeDefined();
+      const handler = cg.getNodesByKind('method').find((m) => m.name === handlerName);
+      expect(handler, `handler ${handlerName}`).toBeDefined();
+      const edge = cg
+        .getOutgoingEdges(route!.id)
+        .find((e) => e.target === handler!.id && e.kind === 'references');
+      expect(edge, `route ${routeName} -> ${handlerName}`).toBeDefined();
+    }
+
+    cg.close();
+  });
+
+  it('extracts minimal-API app.MapGet routes and resolves them to Rust-extracted handlers on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-aspnet-min-rh-'));
+    fs.writeFileSync(
+      path.join(tmpDir, 'Program.cs'),
+      'var app = WebApplication.CreateBuilder().Build();\n' +
+        'app.MapGet("/ping", Pong);\n' +
+        'app.MapPost("/items", CreateItem);\n' +
+        'app.Run();\n'
+    );
+    // Handler methods live in their own file so they are Rust-extracted baseline
+    // symbols; the TS back-filled minimal-API route refs must resolve to them.
+    fs.writeFileSync(
+      path.join(tmpDir, 'Handlers.cs'),
+      'public static class ApiHandlers\n' +
+        '{\n' +
+        '    public static string Pong() => "pong";\n' +
+        '    public static string CreateItem(string name) => name;\n' +
+        '}\n'
+    );
+
+    const cg = CodeGraph.initSync(tmpDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+
+    const routes = cg.getNodesByKind('route').map((r) => r.name).sort();
+    expect(routes).toEqual(['GET /ping', 'POST /items']);
+    for (const [routeName, handlerName] of [['GET /ping', 'Pong'], ['POST /items', 'CreateItem']] as const) {
+      const route = cg.getNodesByKind('route').find((r) => r.name === routeName);
+      expect(route, `route ${routeName}`).toBeDefined();
+      const handler = cg.getNodesByKind('method').find((m) => m.name === handlerName);
+      expect(handler, `handler ${handlerName}`).toBeDefined();
+      const edge = cg
+        .getOutgoingEdges(route!.id)
+        .find((e) => e.target === handler!.id && e.kind === 'references');
+      expect(edge, `route ${routeName} -> ${handlerName}`).toBeDefined();
+    }
+
+    cg.close();
+  });
+});
+
 describe('NestJS end-to-end framework post-extract boundary', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
