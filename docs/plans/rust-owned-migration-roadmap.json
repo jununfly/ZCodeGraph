@@ -430,7 +430,7 @@
     "1-2-6": {
       "id": "1-2-6",
       "label": "Ruby 基线抽取迁移",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -439,38 +439,75 @@
         "1-2-6-3",
         "1-2-6-4"
       ],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Scope gate（2026-10-09）",
+          "answer": "Product execution（非验收/probe）。1-2-6 是 Rust 迁移主线产品实现节点，在目标项目内修改 crates/zcodegraph-core 与 TS shell。镜像 PHP 1-2-5 两阶段 split cutover：1-2-6-1~3 Rust 新增能力保留 TS ruby.ts，1-2-6-4 加入 RUST_HYBRID_RUST_OWNED_LANGUAGES（第14个）并 backfill Rails 路由后删 TS extractor。",
+          "note": ""
+        },
+        {
+          "q": "开工勘察（2026-10-09）",
+          "answer": "Rust 端 SourceLanguage 无 Ruby（lib.rs enum 14 变体：c/cpp/js/jsx/ts/tsx/mts/cts/go/java/kotlin/csharp/php/python/rust）；from_path 无 .rb/.rake；dispatch L7179 无 ruby 分支。grammar 选 tree-sitter-ruby 0.23.1（crates.io 官方 tree-sitter org，2024-11，tree-sitter-language 0.1 / ABI14，与全部现有 grammar 及 TS 端 tree-sitter-wasms@0.1.11 的 tree-sitter-ruby.wasm 同源；无需 pin）。TS 面：src/extraction/languages/ruby.ts 声明式 extractor（functionTypes=method，classTypes=class，methodTypes=method+singleton_method，importTypes/callTypes=call(+method_call)，variableTypes=assignment，nameField=name，bodyField=body，paramsField=parameters）。visitNode 两个特判：(a) include/extend/prepend 裸 call（无 receiver）→ enclosing class/module 发 implements refs（参数 constant 或 scope_resolution，跳过 extend self/动态参），return true 吃掉不当 call；(b) module 节点手建 module 符号 + pushScope + 遍历 body。getVisibility 回扫 previousNamedSibling 中 call 的 method 名 private/protected/public（默认 public）。extractImport 仅认 require/require_relative 的 string_content，返 moduleName=原始字符串（json / active_support/.../string / ../test_helper，无 .rb 后缀），非 require call 返 null。extractBareCall：仅 body_statement/then/else/do/begin/rescue/ensure/when 直系 identifier，跳过 true/false/nil/self/super/__FILE__/__LINE__/__dir__ 与大写开头常量。tree-sitter.ts Ruby 特殊分支一处：L1853 emitRubyRequireRefs（call：require/require_relative→文件路径 imports ref；require_relative 相对本文件目录 normalize；无 '/' 的裸 gem/stdlib 跳过；补 .rb 后缀）。另有 extractImport L1806 对每个 require import 节点再发一条 referenceName=moduleName(裸串) 的 imports ref（generic，非 ruby 专属）。TS shell 保留件：resolution/frameworks/ruby.ts（railsResolver，纯 regex on .rb：get/post.. to:'c#a' 与 resources/resource 展开 7/6 actions 建 route 节点 + controller#action references；Pattern1-4 Rails 约定 model/controller/helper/service 解析 + claimsReference controller#action）；import-resolver.ts L35 ruby:['.rb']；grammars.ts L31/86-87（.rb/.rake）。ownership：rust-hybrid-contract.ts L9 RUST_HYBRID_RUST_OWNED_LANGUAGES 现 13 语言无 ruby。基线测试：extraction.test.ts L1760 Ruby imports 5 例、L1816 modules 2 例（含 Discourse::Auth 嵌套限定）、L2889 mixins include/extend/prepend 跨文件 + require/require_relative 解析 2 e2e；wave0 模板 __tests__/rust-owned-language-fixtures.test.ts（PHP 块 L1686）。AST 经 tree-sitter-ruby 0.23.1 独立探针实测（temp/zcg-ruby-probe，离线 path dep）：class{name=constant|scope_resolution, superclass=superclass>constant, body=body_statement}；module 同；method{name=identifier,parameters=method_parameters,body}；singleton_method{object=self|constant, name=identifier}；call{method=identifier, receiver?=identifier|constant|scope_resolution, arguments?=argument_list, block?}（User.new→receiver=constant User + method new；u.authenticate→receiver identifier；puts hi→method=puts+arg；include M→method=identifier include + arg constant）；assignment{left=identifier|constant|instance_variable|class_variable,right}；module A::B 的 name=scope_resolution 文本即 'A::B'。",
+          "note": ""
+        },
+        {
+          "q": "Q1 基线范围",
+          "answer": "全集对齐 TS rubyExtractor + tree-sitter.ts emitRubyRequireRefs，一次做到位。符号节点(1-2-6-1)：(1) module（visitNode 手建，name 为 name 字段文本——constant 'App' 或 scope_resolution 'Foo::Bar' 扁平单帧）含嵌套 module，kind=module，push frame 遍历 body；(2) class（name 同 constant|scope_resolution；superclass 子节点内 constant/scope_resolution 发 extends 裸名/全文，取文本）；(3) method 与 singleton_method：在 class/module frame 内→kind=method，否则（file/其它）→kind=function（对齐 functionTypes=method + isInsideClassLikeNode 判定，module 算 class-like）；singleton_method 名取 name identifier（def self.create→'create'，def Foo.bar→'bar'）；visibility 回扫 previousNamedSibling 的裸 call(method=identifier private/protected/public)，默认 public（singleton 同样适用 getVisibility）；(4) 赋值变量：仅 file 顶层（不在 class/module frame 内）的 assignment，left=identifier 建 variable（left=constant/instance_variable/class_variable 不建符号——ruby 分支 L1477 只认 identifier；类内/模块内 assignment 一律不建，因 variableTypes 分发被 !isInsideClassLikeNode 门控；方法内 assignment 从不建）。import：require/require_relative 的 string_content 建 import 节点，moduleName=原始串（json/active_support/core_ext/string/../helper，不加 .rb）。边/refs(1-2-6-2)：(a) 每 require import 发一条 referenceName=裸串的 imports（generic extractImport L1806，file frame owner）；(b) emitRubyRequireRefs 文件路径 imports——require_relative 相对本文件目录 posix normalize，require 保持 load-path 原值，无 '/' 跳过（裸 gem/stdlib），补 .rb 后缀；owner=file（visitNode 只在声明层对 root-descendant call 触发，nodeStack head=file）；(c) include/extend/prepend 裸 call（method=identifier 三者之一、无 receiver，在 class/module 体内）→ enclosing class/module frame 发 implements，referenceName=参数 constant 文本或 scope_resolution 全文（多参数逐个），跳过 extend self/动态参，并吃掉该 call 不发 call；(d) calls：仅方法体(walkBody)内 call 节点，忠实复刻 extractCall 通用 else 分支取 func=getChildField(function)||namedChild(0) 文本——Ruby call 无 function 字段故 namedChild(0)=receiver(有 receiver 时：User.new/User.count/u.x/items.each→'User'/'User'/'u'/'items'，receiver 为 self 时 SKIP_RECEIVERS 折叠为 method 名) 或 method(无 receiver 裸 call：puts/helper→'puts'/'helper')，Ruby 无 member_expression 包装故不产生 receiver.method 点号形式；(e) bare calls：walkBody 中父类型∈{body_statement,then,else,do,begin,rescue,ensure,when} 的直系 identifier，跳过 true/false/nil/self/super/__FILE__/__LINE__/__dir__ 与大写开头，发 calls；(f) Ruby 不在 STATIC_MEMBER_LANGS，不发常量值读 references；.new 是 calls(receiver=类名) 非 instantiates；无类型系统故无 type-hint refs；无 field/property 节点（attr_reader 不建模）；无 extends 外的 interface 节点。Rails 路由/Rails 约定解析(model/controller/helper/service#action)永久留 TS shell（resolution/frameworks/ruby.ts），1-2-6-4 backfill。",
+          "note": ""
+        },
+        {
+          "q": "Q2 探针方法",
+          "answer": "沿用 C#/PHP playbook：(1) grammar 以 cargo fetch 后 registry src 的 node-types.json 为准（tree-sitter-ruby 0.23.1），不靠记忆；(2) 独立 AST dump 探针（%TEMP%/zcg-ruby-probe，path dep 指向已缓存 grammar crate，CARGO_NET_OFFLINE=true 只编 tree-sitter+ruby，离线 2.2s）实测 class/module/method/singleton_method/call/assignment/require/mixin/private/scope_resolution 的字段与父子序，探针不入仓（仓内仅留空 .workbuddy/probe-ruby 供 TS wasm 探针）；(3) rust-bin SQLite 端到端探针（%TEMP%/ruby-e2e 4 文件 trackable/fetcher/worker/boot，--engine rust 直查 nodes/edges/unresolved_refs）做 before/after 校准：13 节点 9 边 0 错误，extends BaseWorker/implements Trackable/imports(app/fetcher 裸串+.rb 双形态, boot require_relative→lib/app/fetcher.rb)/calls(User,Fetcher,Fetcher.new 链式双发,helper_call,save_record) 全部符合 TS 语义；(4) 13 个 Rust 单测锁符号+refs（嵌套限定/singleton/visibility/require/mixin/extends/calls/bare-call/assignment/scope module/扩展名）。contentHash/id 同构：Rust 复用 ExtractedNode generate_node_id(file,kind,name,line)，module/class/method/function/import/variable 各 kind 与 TS 对齐，切流后 fallback no-op。",
+          "note": ""
+        },
+        {
+          "q": "Q3 切换时机",
+          "answer": "两阶段 split cutover，完全对齐 PHP 1-2-5-4（先例 C# e5608de）：1-2-6-1~3 Rust 新增能力，src/extraction/languages/ruby.ts 保留（TS-direct legacy 用例继续在 TS 引擎）；1-2-6-4 把 ruby 加入 RUST_HYBRID_RUST_OWNED_LANGUAGES（第 14 个），hybrid 把 .rb/.rake 全部路由给 Rust，同时新增 src/indexing/rust-ruby-framework-routes.ts（镜像 rust-csharp/php-framework-routes），在 finalizeRustIndex 的 runPostExtract 后、批量 resolve 前 backfill Rails 路由（railsResolver.extract：get/post/put/patch/delete/match to:'c#a' 与 hashrocket 形态 + resources/resource 展开 7/6 actions with only/except），仅 .rb/.rake，复用现有 resolution/frameworks/ruby.ts 纯 regex extract 与 INSERT OR REPLACE/IGNORE 幂等语义，加 profile.rubyFrameworkRouteBackfill 计数。TS ruby.ts 与 EXTRACTORS barrel 在确认无第二消费者（grep 无其它复用 ruby grammar 者；切流前再 grep）后于 1-2-6-4 删除；frameworks/ruby.ts（railsResolver.detect/resolve/claimsPattern controller#action + Pattern1-4）、import-resolver ruby:['.rb'] 永久留 TS shell。",
+          "note": ""
+        },
+        {
+          "q": "Q4 真实语料",
+          "answer": "选真实 OSS Rails 项目（无需 Ruby 运行时、只解析源码）：优先含 config/routes.rb（resources + 显式 to:'c#a'）+ app/controllers（< BaseController、include concern）+ app/models（ActiveRecord class、module 命名空间 App::X）+ app/models/concerns（module + include 反向）+ lib/（require_relative 链）的发布 tag 快照子集，记录 SHA。度量：route 节点数（resources 展开）、controller#action ref 经 backfill+resolve 落 references 边、include/extend/prepend concern 跨文件 implements、require/require_relative 文件边、module 嵌套限定、superclass extends、fallbackByLanguage.ruby=0。证据落 docs/benchmarks/2026-10-xx-rust-owned-ruby-*.md（SHA、文件数/LOC、node/edge/unresolved/parse-gap）。fixture 确定性（固定内容入仓 wave0），CI 三 OS 跑；真实语料只做本机/CI ubuntu 一次性 benchmark，不入仓大文件。",
+          "note": ""
+        }
+      ],
       "notes": ""
     },
     "1-2-6-1": {
       "id": "1-2-6-1",
       "label": "Ruby: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-6",
       "children": [],
       "decisions": [],
-      "notes": "范围：方法/类/module/赋值/require 与 require_relative/调用；Rails 边界。grammar：tree-sitter-ruby；.rake 同路径。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+      "notes": "crates/zcodegraph-core/src/ruby.rs（949行，13单测）+ Cargo tree-sitter-ruby0.23.1 + lib.rs enum/from_path(.rb/.rake)/name/language/is_ruby/dispatch。符号 module/class/method/singleton_method/function/import/variable 全对齐 TS；cargo test --lib 151通过0回归；rust-bin e2e 4文件13节点9边0错误。"
     },
     "1-2-6-2": {
       "id": "1-2-6-2",
       "label": "Ruby: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-6",
       "children": [],
       "decisions": [],
-      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+      "notes": "Rust refs：calls（receiver/bare/链式双发忠实 extractCall namedChild(0)）、bare-call（BLOCK_PARENTS+SKIP+大写过滤）、extends(superclass)、implements(include/extend/prepend)、imports(require裸串+文件路径双形态,require_relative posix归一,无/跳过,补.rb)。单测+SQLite e2e 锁定。hybrid ownership 数组按 PHP 先例归 1-2-6-4。"
     },
     "1-2-6-3": {
       "id": "1-2-6-3",
       "label": "Ruby: 确定性 fixture 测试 + 真实语料验证",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-6",
       "children": [],
-      "decisions": [],
-      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+      "decisions": [
+        {
+          "q": "1-2-6-3 完成判定（2026-10-09）",
+          "answer": "确定性 fixture + CI 接线 + 真实语料三件齐，gate PASS。(1) wave0 确定性 fixture：__tests__/rust-owned-language-fixtures.test.ts 新增 describe('Ruby baseline (roadmap 1-2-6)') 3 例——嵌套 module/class 限定名 + superclass extends + include/extend implements + receiver 折叠/bare calls + singleton + private :secret visibility；require load-path 双形态 imports（裸串+.rb 路径）与 require_relative 归一化；file-scope assignment-only variable + 顶层 def=function + .rake 索引。node strip-types --check 通过；每条断言经 rust-bin 建库直查 SQLite 逐字核对。(2) rust-hybrid 跨文件 e2e：__tests__/extraction.test.ts 新增 describe('Ruby cross-file reference edges on rust-hybrid (roadmap 1-2-6-3)') 1 例（PRE-cutover，ruby 尚未入 RUST_HYBRID_RUST_OWNED，仍走 TS fallback shell，但 Rust 已扫抽全部 .rb）——UserService < BaseService 跨文件 extends；include Concerns::Authenticatable 跨文件解析到 module 目标 implements（resolver 不把 extends/implements 候选限死在 interface/protocol，module 可作 mixin 目标）；create 方法体内 User.new/User.find 折叠为 calls ref 'User'（from_node=method create，经 SQLite 核实）→ 解析命中 class 提升 instantiates；concern 爆炸半径 reaches service。(3) CI 接线：新 e2e 标题加入 .github/workflows/ci.yml step2 的 -t 白名单（第 27 分支），用 skip-debt-guardrail 同款正则跨全部 __tests__/*.test.ts 校验：27/27 分支均匹配真实 it 标题，0 dead、0 非法正则；wave0 fixture 走 step1 整文件无需 -t；ALLOWED_SKIPS 保持空（无 .skip/.only）。(4) Rust 单测：ruby.rs 13 例，cargo test --lib 全量 151 通过（138 旧 + 13 Ruby），0 回归。(5) 真实语料：docs/benchmarks/2026-10-09-rust-owned-ruby-rails-rack-validation.md。Rails(AS+AR+AM, sha 27ccca4a) 800 文件(799 .rb+1 .rake)/121,398 LOC：filesErrored 0、errors 列 0、ERROR 节点 0、13,519 节点、12,719 contains、35,537 unresolved(calls 32,641/imports 1,938/extends 522/implements 436)、742 文件含非 import ref；Rack lib(sha a9833c8f) 50 文件/8,901 LOC：0 错误、878 节点、2,294 refs(calls 2,050/imports 203/extends 24/implements 17)。关键 TS-parity 证据：前导根常量文本保留（::ActiveSupport::Concern / < ::Logger 80 条 Concern mixin）、深 module ClassMethods 限定名正确、两语料 0 自由 function（def 均在 class/module 帧内为 method）。诚实限制：pure-Rust 层不解析跨文件边，本文只报 node 形态 + unresolved-ref supply，resolved-edge recall 归 1-2-6-3 e2e / rust-hybrid finalizer；Rails DSL(has_many/routes) 永久留 TS finalization shell，1-2-6-4 backfill。EXTRACTION_VERSION 不 bump（未发布、未 cutover）。",
+          "note": ""
+        }
+      ],
+      "notes": "wave0 3例 + rust-hybrid 跨文件 e2e 1例 + ci.yml -t 白名单(27/27 匹配) + ruby.rs 13 单测(cargo test --lib 全量 151=138旧+13 过) + Rails(800文件/121K LOC)/Rack(50文件/8.9K LOC) 双语料 0 parse-gap benchmark(docs/benchmarks/2026-10-09-rust-owned-ruby-rails-rack-validation.md)。本地无 node_modules，vitest 仲裁与 3-OS matrix 委托 push 后 CI。"
     },
     "1-2-6-4": {
       "id": "1-2-6-4",
@@ -2508,7 +2545,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-09 11:51:41",
+    "updated": "2026-10-09 21:25:57",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
