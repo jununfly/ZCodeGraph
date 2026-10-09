@@ -66,6 +66,8 @@ import { runPythonFrameworkRouteBackfill } from './indexing/rust-python-framewor
 import type { PythonFrameworkRouteBackfillStats } from './indexing/rust-python-framework-routes';
 import { runCsharpFrameworkRouteBackfill } from './indexing/rust-csharp-framework-routes';
 import type { CsharpFrameworkRouteBackfillStats } from './indexing/rust-csharp-framework-routes';
+import { runPhpFrameworkRouteBackfill } from './indexing/rust-php-framework-routes';
+import type { PhpFrameworkRouteBackfillStats } from './indexing/rust-php-framework-routes';
 import {
   buildRustHybridMetadataFromPlan,
   mergeMissingFallbackDiagnostics,
@@ -1564,6 +1566,7 @@ export class CodeGraph {
       frameworkPostExtract: FrameworkPostExtractDiagnostics;
       pythonFrameworkRouteBackfill?: PythonFrameworkRouteBackfillStats;
       csharpFrameworkRouteBackfill?: CsharpFrameworkRouteBackfillStats;
+      phpFrameworkRouteBackfill?: PhpFrameworkRouteBackfillStats;
       referenceResolutionMs: number;
       referenceResolutionBreakdown: {
         importResolutionMs: number;
@@ -1708,6 +1711,14 @@ export class CodeGraph {
             readErrors: 0,
             extractErrors: 0,
           } as CsharpFrameworkRouteBackfillStats,
+          phpFrameworkRouteBackfill: {
+            filesScanned: 0,
+            routeNodes: 0,
+            routeReferences: 0,
+            hookReferences: 0,
+            readErrors: 0,
+            extractErrors: 0,
+          } as PhpFrameworkRouteBackfillStats,
           referenceResolutionMs: 0,
           referenceResolutionBreakdown: {
             importResolutionMs: 0,
@@ -2033,6 +2044,27 @@ export class CodeGraph {
           this.resolver.clearCaches();
         }
         onCheckpoint?.('finalization.csharpFrameworkRouteBackfill.completed');
+
+        // Roadmap 1-2-5-4: the Rust core owns PHP-family extraction (.php plus
+        // Drupal .module/.install/.theme/.inc) but has no Laravel route or
+        // Drupal hook extraction, so re-run the TypeScript laravel/drupal
+        // framework extractors for the rust-owned PHP files here. Laravel route
+        // nodes + route->handler refs and Drupal hook_* refs are linked by the
+        // batched resolution directly below (Drupal *.routing.yml routes stay
+        // on the TypeScript fallback because YAML is not rust-owned).
+        onCheckpoint?.('finalization.phpFrameworkRouteBackfill.started');
+        const phpRouteBackfill = runPhpFrameworkRouteBackfill(
+          this.queries,
+          this.projectRoot,
+          this.resolver.getDetectedFrameworks(),
+        );
+        profile.phpFrameworkRouteBackfill = phpRouteBackfill;
+        if (phpRouteBackfill.routeNodes > 0 || phpRouteBackfill.hookReferences > 0) {
+          // New route handler refs and Drupal hook refs target existing
+          // rust-owned nodes; clear the symbol-name cache before resolution.
+          this.resolver.clearCaches();
+        }
+        onCheckpoint?.('finalization.phpFrameworkRouteBackfill.completed');
 
         const resolutionStarted = Date.now();
         onCheckpoint?.('finalization.referenceResolution.started');
