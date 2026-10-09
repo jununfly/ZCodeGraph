@@ -2081,4 +2081,174 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
       }
     });
   });
+
+  describe('Ruby baseline (roadmap 1-2-6)', () => {
+    function rubyNodes(
+      cg: CodeGraph,
+      filePath: string,
+      kind: string,
+    ): Array<{ name: string; qualifiedName: string; visibility?: string | null }> {
+      return cg
+        .getNodesByKind(kind)
+        .filter((n) => n.language === 'ruby' && n.filePath === filePath)
+        .map((n) => ({ name: n.name, qualifiedName: n.qualifiedName, visibility: n.visibility }));
+    }
+
+    function rubyRefs(db: DbHandle, filePath: string, kind: string): string[] {
+      return unresolvedRefs(db, filePath)
+        .filter((r) => r.reference_kind === kind)
+        .map((r) => r.reference_name);
+    }
+
+    it('extracts nested modules/classes, qualified method names, superclass, mixins, calls, and visibility', () => {
+      const filePath = 'lib/auth.rb';
+      writeFile(
+        filePath,
+        [
+          'module App',
+          '  module Auth',
+          '    class AuthProvider < BaseProvider',
+          '      include Authenticatable',
+          '      extend Comparable',
+          '',
+          '      def self.create(user)',
+          '        u = User.new',
+          '        u.authenticate',
+          '      end',
+          '',
+          '      def authenticate(id)',
+          '        validate(id)',
+          '      end',
+          '',
+          '      private :secret',
+          '',
+          '      def secret',
+          '        1',
+          '      end',
+          '    end',
+          '  end',
+          'end',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.ruby).toBe(1);
+
+        expect(rubyNodes(cg, filePath, 'module').map((m) => m.qualifiedName).sort()).toEqual([
+          'App',
+          'App::Auth',
+        ]);
+        const provider = rubyNodes(cg, filePath, 'class');
+        expect(provider.map((c) => c.qualifiedName)).toEqual(['App::Auth::AuthProvider']);
+
+        // Both `def self.create` (singleton) and instance defs are methods once
+        // inside a class/module frame, qualified by the lexical stack.
+        const methods = rubyNodes(cg, filePath, 'method');
+        const qnames = methods.map((m) => m.qualifiedName).sort();
+        expect(qnames).toEqual([
+          'App::Auth::AuthProvider::authenticate',
+          'App::Auth::AuthProvider::create',
+          'App::Auth::AuthProvider::secret',
+        ]);
+
+        expect(rubyRefs(db, filePath, 'extends')).toEqual(['BaseProvider']);
+        expect(rubyRefs(db, filePath, 'implements').sort()).toEqual([
+          'Authenticatable',
+          'Comparable',
+        ]);
+
+        // Receiver calls collapse to the receiver text (User.new -> User,
+        // u.authenticate -> u); the statement-level bare call keeps its name.
+        const calls = rubyRefs(db, filePath, 'calls');
+        expect(new Set(calls)).toEqual(new Set(['User', 'u', 'validate']));
+
+        // Declaration-style `private :secret` (a call sibling) flips the next
+        // method's visibility; the others stay public.
+        const byName = new Map(methods.map((m) => [m.qualifiedName, m.visibility]));
+        expect(byName.get('App::Auth::AuthProvider::secret')).toBe('private');
+        expect(byName.get('App::Auth::AuthProvider::create')).toBe('public');
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('creates require import nodes plus raw and file-path imports refs (load path and require_relative)', () => {
+      const workerFile = 'lib/app/worker.rb';
+      const bootFile = 'lib/app/boot.rb';
+      const fetcherFile = 'lib/app/fetcher.rb';
+      writeFile(
+        fetcherFile,
+        ['module App', '  class Fetcher', '    def fetch', '    end', '  end', 'end', ''].join(
+          '\n',
+        ),
+      );
+      writeFile(workerFile, 'require "app/fetcher"\n');
+      writeFile(bootFile, 'require_relative "fetcher"\n');
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.ruby).toBe(3);
+        expect(importNames(cg, 'ruby').sort()).toEqual(['app/fetcher', 'fetcher']);
+
+        // load-path require: raw name + the ".rb"-suffixed file-path ref.
+        const workerRefs = unresolvedImportRefs(db, workerFile).map((r) => r.reference_name).sort();
+        expect(workerRefs).toEqual(['app/fetcher', 'app/fetcher.rb']);
+
+        // require_relative from lib/app/ resolves to lib/app/fetcher.rb; the
+        // raw name ('fetcher', no slash) is still emitted as a generic import.
+        const bootRefs = unresolvedImportRefs(db, bootFile).map((r) => r.reference_name).sort();
+        expect(bootRefs).toEqual(['fetcher', 'lib/app/fetcher.rb']);
+
+        // The leaf definition is indexed normally.
+        expect(rubyNodes(cg, fetcherFile, 'class').map((c) => c.name)).toEqual(['Fetcher']);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('treats only file-scope identifier assignments as variables, top-level defs as functions, and indexes .rake', () => {
+      const scriptFile = 'script.rb';
+      writeFile(
+        scriptFile,
+        [
+          'TOP = 1',
+          'top_var = 2',
+          '',
+          'def rake_helper',
+          '  do_thing',
+          'end',
+          '',
+        ].join('\n'),
+      );
+      // Rake tasks ship under .rake and parse/index as Ruby.
+      const rakeFile = 'tasks/deploy.rake';
+      writeFile(rakeFile, ['def deploy_step', '  run_deploy', 'end', ''].join('\n'));
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.ruby).toBe(2);
+
+        // Only the file-scope identifier LHS is a node; the constant TOP is not.
+        expect(rubyNodes(cg, scriptFile, 'variable').map((v) => v.name)).toEqual(['top_var']);
+        expect(rubyNodes(cg, scriptFile, 'constant')).toHaveLength(0);
+
+        // A def outside a class/module frame is a function, not a method.
+        expect(rubyNodes(cg, scriptFile, 'method')).toHaveLength(0);
+        expect(rubyNodes(cg, scriptFile, 'function').map((f) => f.name)).toEqual([
+          'rake_helper',
+        ]);
+        expect(new Set(rubyRefs(db, scriptFile, 'calls'))).toEqual(new Set(['do_thing']));
+
+        // The .rake file's def is also a file-scope function.
+        expect(rubyNodes(cg, rakeFile, 'function').map((f) => f.name)).toEqual(['deploy_step']);
+      } finally {
+        cg.close();
+      }
+    });
+  });
 });

@@ -6383,3 +6383,165 @@ class Service implements Logger {
     }
   });
 });
+
+// ===========================================================================
+// Roadmap 1-2-6-3 — Ruby reference-edge resolution on rust-hybrid (PRE-cutover).
+//
+// Mirrors the PHP 1-2-5-3 pre-cutover contract: Ruby has NOT joined
+// RUST_HYBRID_RUST_OWNED yet — '.rb' is still scheduled through the TypeScript
+// fallback shell. But the Rust core already scans/extracts every .rb (grammar
+// + SourceLanguage registered in 1-2-6-1 and reference edges emitted in
+// 1-2-6-2), so the resolved cross-file graph must be shaped identically
+// regardless of which shell scheduled the file. The ownership cutover
+// (1-2-6-4) adds 'ruby' to RUST_HYBRID_RUST_OWNED_LANGUAGES and adds a
+// plan-guard test; Rails routes stay a TypeScript finalization shell.
+// ===========================================================================
+describe('Ruby cross-file reference edges on rust-hybrid (roadmap 1-2-6-3)', () => {
+  let tempDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(() => {
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    if (cg) cg.close();
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('resolves cross-file Ruby superclass, mixin includes, instantiations, and qualified references on rust-hybrid before the ownership cutover, roadmap 1-2-6-3', async () => {
+    const write = (rel: string, body: string): void => {
+      const full = path.join(tempDir, rel);
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, body);
+    };
+
+    // A model the service news/calls (cross-file).
+    write(
+      'app/models/user.rb',
+      `module App
+  module Models
+    class User
+      def self.find(id)
+        new
+      end
+
+      def save
+        1
+      end
+    end
+  end
+end
+`,
+    );
+    // A module (concern) mixed into the service — Ruby's composition unit.
+    write(
+      'app/concerns/authenticatable.rb',
+      `module App
+  module Concerns
+    module Authenticatable
+      def authenticate
+        1
+      end
+    end
+  end
+end
+`,
+    );
+    // The superclass the service inherits from (cross-file).
+    write(
+      'app/services/base_service.rb',
+      `module App
+  module Services
+    class BaseService
+    end
+  end
+end
+`,
+    );
+    // Service: inherits BaseService, includes a cross-file concern, requires
+    // the model, then news/calls the cross-file User.
+    write(
+      'app/services/user_service.rb',
+      `require "app/models/user"
+
+module App
+  module Services
+    class UserService < BaseService
+      include Concerns::Authenticatable
+
+      def self.create(id)
+        u = User.new
+        User.find(id)
+        u.save
+      end
+    end
+  end
+end
+`,
+    );
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    cg.resolveReferences();
+
+    // Zero parse/extraction gaps on clean Ruby.
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+    expect(result.errors).toHaveLength(0);
+
+    const serviceFile = 'app/services/user_service.rb';
+
+    const service = cg
+      .getNodesByKind('class')
+      .find((n) => n.name === 'UserService' && path.basename(n.filePath ?? '') === 'user_service.rb');
+    expect(service, 'UserService extracted').toBeDefined();
+
+    // superclass: UserService --> cross-file BaseService (stays `extends`:
+    // the target is a class, not an interface/module).
+    const extendsTarget = cg
+      .getOutgoingEdges(service!.id)
+      .filter((e) => e.kind === 'extends')
+      .map((e) => cg.getNode(e.target))
+      .find((t) => t?.name === 'BaseService' && (t?.filePath ?? '').endsWith('base_service.rb'));
+    expect(extendsTarget, 'UserService extends cross-file BaseService').toBeDefined();
+
+    // mixin: UserService --> cross-file App::Concerns::Authenticatable.
+    // Ruby mixin targets are `module` nodes; the resolver does not restrict
+    // extends/implements candidates to interface/protocol kinds, so a module
+    // resolves here.
+    const concern = cg
+      .getNodesByKind('module')
+      .find((n) => n.qualifiedName === 'App::Concerns::Authenticatable');
+    expect(concern, 'Authenticatable concern extracted').toBeDefined();
+    const mixinTarget = cg
+      .getOutgoingEdges(service!.id)
+      .filter((e) => e.kind === 'implements' || e.kind === 'extends')
+      .map((e) => cg.getNode(e.target))
+      .find(
+        (t) => t?.name === 'Authenticatable' && (t?.filePath ?? '').endsWith('authenticatable.rb'),
+      );
+    expect(mixinTarget, 'UserService includes cross-file Authenticatable concern').toBeDefined();
+
+    // instantiates: Ruby has no `new` keyword for resolution purposes — the
+    // receiver calls `User.new` / `User.find` collapse to a `User` calls ref
+    // at extraction, and resolving to a class promotes calls -> instantiates.
+    const createMethod = cg
+      .getNodesByKind('method')
+      .find((n) => n.name === 'create' && path.basename(n.filePath ?? '') === 'user_service.rb');
+    expect(createMethod, 'UserService::create extracted').toBeDefined();
+    const newsUser = cg
+      .getOutgoingEdges(createMethod!.id)
+      .some((e) => e.kind === 'instantiates' && cg.getNode(e.target)?.name === 'User');
+    expect(newsUser, 'create body news/references the cross-file User class').toBe(true);
+
+    // Impact radius: editing the mixed-in concern must surface every class
+    // that includes it, across files.
+    const concernReaches = [...cg.getImpactRadius(concern!.id, 3).nodes.values()].some((n) =>
+      (n.filePath ?? '').endsWith(serviceFile),
+    );
+    expect(concernReaches, 'Authenticatable concern reaches the service that includes it').toBe(
+      true,
+    );
+  });
+});
