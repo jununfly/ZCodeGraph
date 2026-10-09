@@ -1671,4 +1671,414 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
       }
     });
   });
+
+  // =========================================================================
+  // PHP baseline (roadmap 1-2-5). Mirrors the legacy TS-engine PHP cases in
+  // extraction.test.ts ("PHP Extraction" L948, "PHP imports" L1700,
+  // "PHP namespace + import resolution" L2803) but runs end-to-end against
+  // the pure-Rust engine (--engine rust), reading nodes/unresolved refs back
+  // from SQLite. The resolved cross-file edges under rust-hybrid are gated
+  // separately in extraction.test.ts "PHP cross-file reference edges on
+  // rust-hybrid (roadmap 1-2-5-3)". Every expectation below was calibrated
+  // against actual Rust binary output (2026-10-08); the local clone cannot run
+  // vitest, so 3-OS arbitration happens on CI. No .skip (#692 lesson).
+  // =========================================================================
+  describe('PHP baseline (roadmap 1-2-5)', () => {
+    function phpNodes(
+      cg: CodeGraph,
+      filePath: string,
+      kind: string,
+    ): Array<{ name: string; qualifiedName: string }> {
+      return cg
+        .getNodesByKind(kind)
+        .filter((n) => n.language === 'php' && n.filePath === filePath)
+        .map((n) => ({ name: n.name, qualifiedName: n.qualifiedName }));
+    }
+
+    function phpRefs(db: DbHandle, filePath: string, kind: string): string[] {
+      return unresolvedRefs(db, filePath)
+        .filter((r) => r.reference_kind === kind)
+        .map((r) => r.reference_name);
+    }
+
+    it('extracts classes with extends/implements, param/return type refs, and calls (extraction.test.ts L948 shape)', () => {
+      // Mirrors the two legacy "PHP Extraction" cases: a controller with a
+      // promoted-style typed constructor param/return, and a child class with
+      // one extends + two implements.
+      const filePath = 'baseline.php';
+      writeFile(
+        filePath,
+        [
+          '<?php',
+          '',
+          'class UserController',
+          '{',
+          '    private UserService $userService;',
+          '',
+          '    public function __construct(UserService $userService)',
+          '    {',
+          '        $this->userService = $userService;',
+          '    }',
+          '',
+          '    public function show(string $id): User',
+          '    {',
+          '        return $this->userService->find($id);',
+          '    }',
+          '}',
+          '',
+          'class ChildController extends BaseController implements Serializable, JsonSerializable',
+          '{',
+          '    public function serialize(): string',
+          '    {',
+          '        return json_encode($this);',
+          '    }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.php).toBe(1);
+        expect(phpNodes(cg, filePath, 'class').map((n) => n.name).sort()).toEqual([
+          'ChildController',
+          'UserController',
+        ]);
+
+        expect(phpRefs(db, filePath, 'extends')).toEqual(['BaseController']);
+        expect(phpRefs(db, filePath, 'implements').sort()).toEqual([
+          'JsonSerializable',
+          'Serializable',
+        ]);
+
+        // Type-position refs come from the constructor PARAM (UserService) and
+        // the method RETURN (User) only. The `private UserService $userService`
+        // property type must NOT emit a ref — exact TS parity
+        // (extractField PHP branch early-returns; only Java/C# walk field
+        // types). `string` is a primitive/pseudo type and is filtered.
+        expect(phpRefs(db, filePath, 'references').sort()).toEqual(['User', 'UserService']);
+
+        // member_call: $this->userService->find(...) -> receiver-qualified
+        // `this->userService.find`; the global function_call json_encode keeps
+        // its bare name.
+        const calls = phpRefs(db, filePath, 'calls');
+        expect(calls).toContain('this->userService.find');
+        expect(calls).toContain('json_encode');
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('indexes all five use forms as import nodes and emits only namespaced NS::leaf import refs (extraction.test.ts L1700 shape)', () => {
+      writeFile('simple.php', '<?php use PHPUnit\\Framework\\TestCase;\n');
+      writeFile('alias.php', '<?php use Mockery as m;\n');
+      writeFile('fn.php', '<?php use function Illuminate\\Support\\env;\n');
+      writeFile('grouped.php', '<?php use Illuminate\\Database\\{Model, Builder};\n');
+      writeFile(
+        'multi.php',
+        '<?php\nuse Illuminate\\Support\\Collection;\nuse Illuminate\\Support\\Str;\nuse Closure;\n',
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.php).toBe(5);
+        // Import node names carry the raw FQN (grouped use expands to two
+        // nodes; the alias is keyed on the left-hand name Mockery).
+        expect(importNames(cg, 'php').sort()).toEqual(
+          [
+            'Closure',
+            'Illuminate\\Database\\Builder',
+            'Illuminate\\Database\\Model',
+            'Illuminate\\Support\\Collection',
+            'Illuminate\\Support\\Str',
+            'Illuminate\\Support\\env',
+            'Mockery',
+            'PHPUnit\\Framework\\TestCase',
+          ].sort(),
+        );
+
+        // The unresolved import ref rewrites a namespaced FQN to `NS::leaf`.
+        // Global single-segment names (Mockery, Closure) emit NO import ref —
+        // they cannot be disambiguated by namespace and match the TS
+        // pushPhpUseRef rule.
+        expect(unresolvedImportRefs(db, 'simple.php').map((r) => r.reference_name)).toEqual([
+          'PHPUnit\\Framework::TestCase',
+        ]);
+        expect(unresolvedImportRefs(db, 'alias.php')).toHaveLength(0);
+        expect(unresolvedImportRefs(db, 'fn.php').map((r) => r.reference_name)).toEqual([
+          'Illuminate\\Support::env',
+        ]);
+        expect(
+          unresolvedImportRefs(db, 'grouped.php').map((r) => r.reference_name).sort(),
+        ).toEqual(['Illuminate\\Database::Builder', 'Illuminate\\Database::Model']);
+        expect(
+          unresolvedImportRefs(db, 'multi.php').map((r) => r.reference_name).sort(),
+        ).toEqual(['Illuminate\\Support::Collection', 'Illuminate\\Support::Str']);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('qualifies same-named interfaces by namespace and pins the use-disambiguated import ref (extraction.test.ts L2803 Factory shape)', () => {
+      // The exact Laravel ambiguity (7+ same-named Factory): two interfaces
+      // named Factory in different namespaces; Service `use`s the Cache one.
+      const cacheFile = 'src/Contracts/Cache/Factory.php';
+      const mailFile = 'src/Contracts/Mail/Factory.php';
+      const serviceFile = 'src/App/Service.php';
+      writeFile(
+        cacheFile,
+        [
+          '<?php',
+          'namespace Contracts\\Cache;',
+          '',
+          'interface Factory {',
+          '    public function store(): object;',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      writeFile(
+        mailFile,
+        [
+          '<?php',
+          'namespace Contracts\\Mail;',
+          '',
+          'interface Factory {',
+          '    public function mailer(): object;',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      writeFile(
+        serviceFile,
+        [
+          '<?php',
+          'namespace App;',
+          '',
+          'use Contracts\\Cache\\Factory;',
+          '',
+          'class Service {',
+          '    public function make(): Factory {',
+          '        return resolve(Factory::class);',
+          '    }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        // Namespace captured into the qualified name — the two Factory are
+        // distinguishable; this is the precondition the NameMatcher relies on.
+        expect(phpNodes(cg, cacheFile, 'interface').map((n) => n.qualifiedName)).toEqual([
+          'Contracts\\Cache::Factory',
+        ]);
+        expect(phpNodes(cg, mailFile, 'interface').map((n) => n.qualifiedName)).toEqual([
+          'Contracts\\Mail::Factory',
+        ]);
+
+        // The Service import ref resolves to the CACHE Factory QN, never Mail.
+        expect(unresolvedImportRefs(db, serviceFile).map((r) => r.reference_name)).toEqual([
+          'Contracts\\Cache::Factory',
+        ]);
+        // Return type Factory + the Factory::class static value-read both emit
+        // a bare `Factory` reference, which the hybrid finalizer binds via the
+        // use import. resolve(...) is an unresolved bare function call.
+        expect(phpRefs(db, serviceFile, 'references')).toEqual(['Factory', 'Factory']);
+        expect(phpRefs(db, serviceFile, 'calls')).toEqual(['resolve']);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('emits the three call shapes and a fully-qualified instantiation', () => {
+      const filePath = 'calls.php';
+      writeFile(
+        filePath,
+        [
+          '<?php',
+          'namespace App\\Http;',
+          '',
+          'use App\\Models\\User;',
+          'use App\\Support\\Logger;',
+          '',
+          'class UserController',
+          '{',
+          '    public function show($id)',
+          '    {',
+          '        $user = User::find($id);',
+          '        $this->logger->log(\'show\', $user);',
+          '        \\App\\Support\\helper($id);',
+          '        return new \\App\\Models\\User($id);',
+          '    }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.php).toBe(1);
+        const mod = phpNodes(cg, filePath, 'module').find((n) => n.name === 'App\\Http');
+        expect(mod, 'namespace wrapped in module').toBeDefined();
+        expect(phpNodes(cg, filePath, 'class').map((n) => n.qualifiedName)).toEqual([
+          'App\\Http::UserController',
+        ]);
+
+        // scoped_call User::find -> User.find; member_call -> this->logger.log;
+        // the fully-qualified function_call keeps its leading-\NS\name text.
+        expect(phpRefs(db, filePath, 'calls').sort()).toEqual([
+          '\\App\\Support\\helper',
+          'User.find',
+          'this->logger.log',
+        ]);
+        // TS only splits on . and :: (not \), so the FQN in `new \NS\Class`
+        // is preserved verbatim as the instantiates ref.
+        expect(phpRefs(db, filePath, 'instantiates')).toEqual(['\\App\\Models\\User']);
+        expect(
+          unresolvedImportRefs(db, filePath).map((r) => r.reference_name).sort(),
+        ).toEqual(['App\\Models::User', 'App\\Support::Logger']);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('emits param/return and static value-read refs while filtering property types, pseudo types, and primitives', () => {
+      const filePath = 'types.php';
+      writeFile(
+        filePath,
+        [
+          '<?php',
+          'namespace App;',
+          '',
+          'use App\\Support\\Status;',
+          'use App\\Config;',
+          '',
+          'class Report',
+          '{',
+          '    private string $title;',
+          '',
+          '    public function build(Status $status, ?int $limit = null): User',
+          '    {',
+          '        $active = Status::ACTIVE;',
+          '        $driver = Config::$driver;',
+          '        $cls = User::class;',
+          '        return new User();',
+          '    }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        // The typed property is extracted as a field but emits NO reference
+        // (and no ref for its primitive `string`).
+        expect(phpNodes(cg, filePath, 'field').map((n) => n.name)).toEqual(['title']);
+
+        // Import refs come from the use FQNs; the App-relative one becomes
+        // App::Config, the deeper one App\Support::Status.
+        expect(
+          unresolvedImportRefs(db, filePath).map((r) => r.reference_name).sort(),
+        ).toEqual(['App::Config', 'App\\Support::Status']);
+
+        // references: param Status, return User (L11); Status::ACTIVE (L13);
+        // Config::$driver (L14); User::class (L15). The nullable primitive
+        // ?int is filtered; property type string is filtered (no field ref).
+        expect(phpRefs(db, filePath, 'references').sort()).toEqual([
+          'Config',
+          'Status',
+          'Status',
+          'User',
+          'User',
+        ]);
+        expect(phpRefs(db, filePath, 'instantiates')).toEqual(['User']);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('emits interface extends, enum implements, in-class trait use, and indexes Drupal .module files', () => {
+      const filePath = 'iface.php';
+      writeFile(
+        filePath,
+        [
+          '<?php',
+          'namespace App;',
+          '',
+          'interface BaseIface extends Countable',
+          '{',
+          '}',
+          '',
+          'trait HasTimestamps',
+          '{',
+          '}',
+          '',
+          'enum Suit: string implements \\BackedEnum',
+          '{',
+          '    case Hearts = \'H\';',
+          '}',
+          '',
+          'class UsesTrait',
+          '{',
+          '    use HasTimestamps;',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      // Drupal procedural extension: a .module file is scanned AS PHP and
+      // yields free functions plus fully-qualified refs from inside a hook.
+      const moduleFile = 'mymodule.module';
+      writeFile(
+        moduleFile,
+        [
+          '<?php',
+          '',
+          'function mymodule_user_load($uid)',
+          '{',
+          '    $user = new \\App\\Models\\User($uid);',
+          '    return \\App\\Support\\helper($user);',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        // .module counts toward the PHP file total (registered extensions:
+        // php/module/install/theme/inc).
+        expect(cg.getStats().filesByLanguage.php).toBe(2);
+
+        // An interface's `extends` also uses base_clause; an enum's
+        // `implements \BackedEnum` uses class_interface_clause (leading
+        // backslash stripped to the leaf); the in-class `use` trait is an
+        // implements ref from the class frame.
+        expect(phpRefs(db, filePath, 'extends')).toEqual(['Countable']);
+        expect(phpRefs(db, filePath, 'implements').sort()).toEqual([
+          'BackedEnum',
+          'HasTimestamps',
+        ]);
+        expect(phpNodes(cg, filePath, 'interface').map((n) => n.name)).toEqual(['BaseIface']);
+        expect(phpNodes(cg, filePath, 'trait').map((n) => n.name)).toEqual(['HasTimestamps']);
+        expect(phpNodes(cg, filePath, 'enum').map((n) => n.name)).toEqual(['Suit']);
+        expect(phpNodes(cg, filePath, 'enum_member').map((n) => n.name)).toEqual(['Hearts']);
+
+        // Drupal .module: a procedural hook function with fully-qualified
+        // instantiation/call refs whose owner is the free function frame.
+        expect(phpNodes(cg, moduleFile, 'function').map((n) => n.name)).toEqual([
+          'mymodule_user_load',
+        ]);
+        expect(phpRefs(db, moduleFile, 'instantiates')).toEqual(['\\App\\Models\\User']);
+        expect(phpRefs(db, moduleFile, 'calls')).toEqual(['\\App\\Support\\helper']);
+      } finally {
+        cg.close();
+      }
+    });
+  });
 });

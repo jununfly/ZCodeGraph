@@ -6177,3 +6177,204 @@ public class OrderService
     }
   });
 });
+
+// ===========================================================================
+// Roadmap 1-2-5-3 — PHP reference-edge resolution on rust-hybrid (PRE-cutover).
+//
+// Unlike C# (1-2-4-2/1-2-4-4), PHP has NOT joined RUST_HYBRID_RUST_OWNED yet:
+// 'php' is still scheduled through the TypeScript fallback shell. This test
+// pins the pre-cutover contract that the SAME sha256(raw content) mechanism
+// relies on — the Rust core already scans/extracts every .php (registered in
+// 1-2-5-1), so the resolved cross-file graph must be language-agnostic
+// NameMatcher shaped regardless of which shell scheduled the file. The
+// ownership cutover (1-2-5-4) adds 'php' to RUST_HYBRID_RUST_OWNED_LANGUAGES
+// and flips the plan-guard assertions below.
+// ===========================================================================
+describe('PHP cross-file reference edges on rust-hybrid (roadmap 1-2-5-3)', () => {
+  let tempDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(() => {
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    if (cg) cg.close();
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('resolves cross-file PHP calls, implements, instantiates, references, and imports on rust-hybrid with use-import disambiguation, roadmap 1-2-5-3', async () => {
+    const write = (rel: string, body: string): void =>
+      fs.writeFileSync(path.join(tempDir, rel), body);
+
+    // Two same-named interfaces in different namespaces (the Laravel Factory
+    // ambiguity): the `use` import must disambiguate Cache over Mail.
+    fs.mkdirSync(path.join(tempDir, 'src', 'Contracts', 'Cache'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'src', 'Contracts', 'Mail'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'src', 'App'), { recursive: true });
+    write(
+      'src/Contracts/Cache/Factory.php',
+      `<?php
+namespace Contracts\\Cache;
+
+interface Factory {
+    public function store(): object;
+}
+`
+    );
+    write(
+      'src/Contracts/Mail/Factory.php',
+      `<?php
+namespace Contracts\\Mail;
+
+interface Factory {
+    public function mailer(): object;
+}
+`
+    );
+    // A model and a cross-file interface the service implements/uses.
+    write(
+      'src/App/Logger.php',
+      `<?php
+namespace App;
+
+interface Logger {
+    public function log(string $msg): void;
+}
+`
+    );
+    write(
+      'src/App/FileLogger.php',
+      `<?php
+namespace App;
+
+class FileLogger implements Logger {
+    public function log(string $msg): void { }
+}
+`
+    );
+    write(
+      'src/Models/User.php',
+      `<?php
+namespace App\\Models;
+
+class User {
+    public static function find($id): User { return new User(); }
+}
+`
+    );
+    // Service: uses Cache Factory, type-hints the cross-file Logger,
+    // static-calls User::find, news the cross-file User.
+    write(
+      'src/App/Service.php',
+      `<?php
+namespace App;
+
+use Contracts\\Cache\\Factory;
+use App\\Models\\User;
+
+class Service implements Logger {
+    public function make(Factory $factory): User {
+        $user = User::find(1);
+        return new User();
+    }
+    public function log(string $msg): void { }
+}
+`
+    );
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    cg.resolveReferences();
+
+    // Zero parse/extraction gaps on clean PHP.
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+    expect(result.errors).toHaveLength(0);
+
+    // Namespaces are wrapped in Rust `module` nodes and captured into the
+    // qualified names, so the two Factory interfaces stay distinguishable.
+    const cacheFactory = cg
+      .getNodesByKind('interface')
+      .find((n) => n.qualifiedName === 'Contracts\\Cache::Factory');
+    const mailFactory = cg
+      .getNodesByKind('interface')
+      .find((n) => n.qualifiedName === 'Contracts\\Mail::Factory');
+    expect(cacheFactory).toBeDefined();
+    expect(mailFactory).toBeDefined();
+
+    const serviceFile = 'src/App/Service.php';
+
+    // implements: Service --> cross-file App\Logger (class->interface promotes
+    // extends to implements in the resolver, accept either kind).
+    const service = cg
+      .getNodesByKind('class')
+      .find((n) => n.name === 'Service' && path.basename(n.filePath ?? '') === 'Service.php');
+    expect(service, 'Service extracted').toBeDefined();
+    const implTarget = cg
+      .getOutgoingEdges(service!.id)
+      .filter((e) => e.kind === 'extends' || e.kind === 'implements')
+      .map((e) => cg.getNode(e.target))
+      .find((t) => t?.name === 'Logger' && (t?.filePath ?? '').endsWith('Logger.php'));
+    expect(implTarget, 'Service implements cross-file Logger').toBeDefined();
+
+    // calls: Service::make calls the cross-file User::find (scoped call
+    // User.find resolves through the use import).
+    const findNode = cg
+      .getNodesByKind('method')
+      .find((n) => n.name === 'find' && path.basename(n.filePath ?? '') === 'User.php');
+    expect(findNode, 'User::find extracted').toBeDefined();
+    const findCallers = cg
+      .getIncomingEdges(findNode!.id)
+      .filter((e) => e.kind === 'calls')
+      .map((e) => cg.getNode(e.source)?.filePath ?? '');
+    expect(
+      findCallers.some((p) => p.endsWith(serviceFile)),
+      'Service.make calls User::find cross-file',
+    ).toBe(true);
+
+    // instantiates: Service::make news the cross-file User.
+    const makeMethod = cg
+      .getNodesByKind('method')
+      .find((n) => n.name === 'make' && path.basename(n.filePath ?? '') === 'Service.php');
+    expect(makeMethod, 'Service::make extracted').toBeDefined();
+    const newsUser = cg
+      .getOutgoingEdges(makeMethod!.id)
+      .some((e) => e.kind === 'instantiates' && cg.getNode(e.target)?.name === 'User');
+    expect(newsUser, 'make body `new User()` instantiates cross-file User').toBe(true);
+
+    // Blast radius of the ambiguity: the use-import pins Cache Factory, so
+    // editing Cache Factory reaches Service.php but editing the same-named
+    // Mail Factory must NOT.
+    const cacheReaches = [...cg.getImpactRadius(cacheFactory!.id, 3).nodes.values()].some(
+      (n) => (n.filePath ?? '').endsWith(serviceFile),
+    );
+    const mailReaches = [...cg.getImpactRadius(mailFactory!.id, 3).nodes.values()].some(
+      (n) => (n.filePath ?? '').endsWith(serviceFile),
+    );
+    expect(cacheReaches, 'Cache Factory reaches the Service that uses it').toBe(true);
+    expect(mailReaches, 'Mail Factory must not reach Service').toBe(false);
+  });
+
+  it('keeps PHP on the TypeScript-fallback side of the rust-hybrid plan before the ownership cutover, roadmap 1-2-5-3', () => {
+    // Pre-cutover: 'php' is NOT a rust-owned language, so a .php file is
+    // scheduled through the TypeScript fallback (fallbackByLanguage.php > 0).
+    // Node 1-2-5-4 adds 'php' to RUST_HYBRID_RUST_OWNED_LANGUAGES and flips
+    // these assertions, mirroring the C# 1-2-4-4 cutover.
+    expect(isRustHybridOwnedLanguage('php')).toBe(false);
+    expect(isRustHybridOwnedLanguage('csharp')).toBe(true);
+
+    const dir = createTempDir();
+    try {
+      fs.writeFileSync(path.join(dir, 'page.php'), '<?php\nclass Page { }\n');
+
+      const plan = planRustHybridAssignments(dir);
+      expect(plan.engineByLanguage).toMatchObject({ php: 'typescript' });
+      expect(plan.fallbackFiles).toContain('page.php');
+      expect(plan.rustOwnedFiles).not.toContain('page.php');
+      expect(plan.fallbackByLanguage.php ?? 0).toBeGreaterThan(0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
