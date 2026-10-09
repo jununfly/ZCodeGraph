@@ -138,6 +138,25 @@ which it does. It is recorded here as an honest follow-up candidate
 (extending the sink's hook-file predicate), deliberately **not** silently
 fixed inside the ownership move.
 
+> **Addendum (2026-10-09, same day) — follow-up resolved.** The ceiling above
+> was closed directly after the cutover. The sink hook branch in
+> `src/resolution/frameworks/drupal.ts` now resolves in three tiers:
+> (1) a *different* concrete implementation `*_{suffix}` in a hook file
+> including `*.post_update.php` (private `_{module}_*` helpers excluded,
+> self-links suppressed); (2) the exact `hook_{suffix}` documentation
+> template declared in a `*.api.php` file; (3) the legacy `candidates[0]`
+> fallback for single-implementation corpora (unchanged graph result — such a
+> self edge is dropped by the edge writer). Re-running this benchmark's sink
+> probe against the identical Rust corpus DB moved the result from 31/33 to
+> **33/33 resolved**: the two `hook_removed_post_updates` refs now link
+> cross-module (`node.post_update.php` → `user_removed_post_updates` and vice
+> versa), and `hook_form_alter` resolves to the core template at
+> `core/lib/Drupal/Core/Form/form.api.php` when no peer implementation exists.
+> The 31 rows in the table above are preserved as the pre-follow-up snapshot.
+> Locked by two `drupalResolver.resolve` unit tests in `__tests__/drupal.test.ts`
+> and one rust-hybrid e2e in `__tests__/frameworks-integration.test.ts`
+> (follow-up commit `996cf4d`).
+
 ### Drupal `*.routing.yml` (untouched TS path)
 
 Five routing files under the two modules (`node.routing.yml`,
