@@ -1931,11 +1931,11 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
 
         // scoped_call User::find -> User.find; member_call -> this->logger.log;
         // the fully-qualified function_call keeps its leading-\NS\name text.
-        expect(phpRefs(db, filePath, 'calls').sort()).toEqual([
-          '\\App\\Support\\helper',
-          'User.find',
-          'this->logger.log',
-        ]);
+        // Compare as a set: JS code-point sort would order 'U' (85) before '\\'
+        // (92), which is easy to get wrong and carries no semantic meaning here.
+        expect(new Set(phpRefs(db, filePath, 'calls'))).toEqual(
+          new Set(['\\App\\Support\\helper', 'User.find', 'this->logger.log']),
+        );
         // TS only splits on . and :: (not \), so the FQN in `new \NS\Class`
         // is preserved verbatim as the instantiates ref.
         expect(phpRefs(db, filePath, 'instantiates')).toEqual(['\\App\\Models\\User']);
