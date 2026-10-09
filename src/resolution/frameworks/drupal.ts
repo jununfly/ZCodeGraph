@@ -12,8 +12,10 @@
  *    Drupal route, with `references` edges to the `_controller`, `_form`, or entity handler
  *    class/method.
  *
- * 3. **Hook detection** — scans `.module`, `.install`, `.theme`, and `.inc` files for Drupal
- *    hook implementations. Two strategies are used:
+ * 3. **Hook detection** — scans `.module`, `.install`, `.theme`, `.inc`, and (via
+ *    the `.php` branch) `*.post_update.php` files for Drupal hook implementations.
+ *    Resolution also accepts targets in `*.api.php` (core's canonical hook
+ *    documentation templates). Two strategies are used:
  *      a. Docblock: `@Implements hook_X()` → precise, no false positives.
  *      b. Name pattern: function `{moduleName}_{hookSuffix}()` → catches hooks without
  *         docblocks but may produce false positives on helper functions.
@@ -208,6 +210,20 @@ function isDrupalHookFile(filePath: string): boolean {
   return HOOK_FILE_EXTENSIONS.some((ext) => filePath.endsWith(ext));
 }
 
+// Sink-only: where a CONCRETE hook implementation can live when resolving a
+// `hook_*` reference. Broader than the source-side `isDrupalHookFile` because
+// `*.post_update.php` holds real `{module}_post_update_*` /
+// `{module}_removed_post_updates` implementations (the basename does not match
+// the module name, so Strategy A docblocks reach them and the resolver must be
+// able to link them too). `*.api.php` is deliberately excluded here: it only
+// contains canonical documentation templates (`function hook_foo()`), which are
+// matched by exact name separately so they can never shadow a real
+// implementation. (roadmap 1-2-5-4 follow-up — 2/33 real-corpus hook refs were
+// unresolved solely because `.post_update.php` was missing from this set.)
+function isDrupalHookImplementationFile(filePath: string): boolean {
+  return isDrupalHookFile(filePath) || filePath.endsWith('.post_update.php');
+}
+
 /**
  * Extract hook implementation references from a Drupal PHP file.
  *
@@ -381,16 +397,35 @@ export const drupalResolver: FrameworkResolver = {
       }
     }
 
-    // hook_X — find any function whose name ends in _{hookSuffix} in a hook file
+    // hook_X — link an implementation to a sibling implementation, falling
+    // back to the canonical hook documentation template. Resolution order:
+    //   1. a DIFFERENT concrete implementation `*_{suffix}` in a hook file
+    //      (incl. *.post_update.php), excluding private `_{module}_*` helpers;
+    //   2. the exact `hook_{suffix}` template declared in a *.api.php file
+    //      (this is what makes *.post_update.php hooks resolve when the core
+    //       tree is indexed, e.g. hook_removed_post_updates in module.api.php);
+    //   3. legacy fallback: any remaining `*_{suffix}` candidate, preserving
+    //      pre-follow-up behavior (a sole implementation may resolve to the
+    //      canonical name even without a peer — such a self edge is dropped by
+    //      the edge writer, so the graph is unaffected).
     if (name.startsWith('hook_')) {
       const hookSuffix = name.slice(5); // strip 'hook_'
-      const candidates = context.getNodesByKind('function').filter(
-        (n) => n.name.endsWith(`_${hookSuffix}`) && isDrupalHookFile(n.filePath)
+      const suffixTail = `_${hookSuffix}`;
+      const allFunctions = context.getNodesByKind('function');
+      const candidates = allFunctions.filter(
+        (n) => n.name.endsWith(suffixTail) && isDrupalHookImplementationFile(n.filePath)
       );
-      if (candidates.length > 0) {
+      const others = candidates.filter((n) => n.id !== ref.fromNodeId);
+      const concrete = others.find((n) => !n.name.startsWith('_'));
+      const canonicalTemplate = allFunctions.find(
+        (n) => n.name === name && n.filePath.endsWith('.api.php')
+      );
+      const legacyFallback = candidates[0];
+      const target = concrete ?? canonicalTemplate ?? legacyFallback;
+      if (target) {
         return {
           original: ref,
-          targetNodeId: candidates[0]!.id,
+          targetNodeId: target.id,
           confidence: 0.75,
           resolvedBy: 'framework',
         };

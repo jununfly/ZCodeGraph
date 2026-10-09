@@ -481,6 +481,59 @@ describe('Drupal hook back-fill on rust-hybrid (roadmap 1-2-5-4 cutover)', () =>
 
     cg.close();
   });
+
+  // Follow-up to the 1-2-5-4 cutover: *.post_update.php holds concrete hook
+  // implementations (the basename does not match the module name). Source
+  // extraction already scanned them (endsWith .php), but the resolver's sink
+  // candidate filter only accepted .module/.install/.theme/.inc, so the emitted
+  // hook_* refs stayed unresolved (2/33 on the real Drupal corpus). Two modules
+  // implementing the same post-update hook must now link across files.
+  it('links hooks declared in post update php files to other module implementations on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-drupal-pu-'));
+
+    fs.writeFileSync(
+      path.join(tmpDir, 'composer.json'),
+      JSON.stringify({ require: { 'drupal/core-recommended': '~10.5' } })
+    );
+
+    const writePostUpdate = (moduleName: string): void => {
+      const modDir = path.join(tmpDir, 'web', 'modules', 'custom', moduleName);
+      fs.mkdirSync(modDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(modDir, `${moduleName}.info.yml`),
+        `name: ${moduleName}\ntype: module\ncore_version_requirement: ^10\n`
+      );
+      fs.writeFileSync(
+        path.join(modDir, `${moduleName}.post_update.php`),
+        '<?php\n' +
+          '/**\n' +
+          ' * Implements hook_removed_post_updates().\n' +
+          ' */\n' +
+          `function ${moduleName}_removed_post_updates() {\n` +
+          '  return [];\n' +
+          '}\n'
+      );
+    };
+    writePostUpdate('alpha');
+    writePostUpdate('beta');
+
+    const cg = CodeGraph.initSync(tmpDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+
+    const functions = cg.getNodesByKind('function');
+    const alphaHook = functions.find((f) => f.name === 'alpha_removed_post_updates');
+    const betaHook = functions.find((f) => f.name === 'beta_removed_post_updates');
+    expect(alphaHook, 'alpha_removed_post_updates Rust function node').toBeDefined();
+    expect(betaHook, 'beta_removed_post_updates Rust function node').toBeDefined();
+
+    const edgeBetween = (a: { id: string }, b: { id: string }): boolean =>
+      cg.getOutgoingEdges(a.id).some((e) => e.target === b.id && e.kind === 'references');
+    const linked = edgeBetween(alphaHook!, betaHook!) || edgeBetween(betaHook!, alphaHook!);
+    expect(linked, 'post_update.php hook implementations linked across modules').toBe(true);
+
+    cg.close();
+  });
 });
 
 describe('NestJS end-to-end framework post-extract boundary', () => {

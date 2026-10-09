@@ -526,6 +526,97 @@ describe('drupalResolver.resolve', () => {
     expect(resolved).not.toBeNull();
     expect(resolved!.targetNodeId).toBe('method:nojs1');
   });
+
+  // Roadmap 1-2-5-4 follow-up: *.post_update.php holds concrete hook
+  // implementations the sink candidate filter previously excluded. A hook ref
+  // emitted in one module's post-update file must resolve to a DIFFERENT
+  // module's concrete implementation (tier 1), not to itself.
+  it('links a hook ref in a post update php file to another module implementation', () => {
+    const mkFn = (id: string, name: string, filePath: string) => ({
+      id,
+      kind: 'function' as const,
+      name,
+      qualifiedName: name,
+      filePath,
+      language: 'php' as const,
+      startLine: 1,
+      endLine: 3,
+      startColumn: 0,
+      endColumn: 0,
+      updatedAt: 0,
+    });
+    const nodeImpl = mkFn(
+      'function:node-pu',
+      'node_removed_post_updates',
+      'core/modules/node/node.post_update.php'
+    );
+    const userImpl = mkFn(
+      'function:user-pu',
+      'user_removed_post_updates',
+      'core/modules/user/user.post_update.php'
+    );
+    const allFunctions = [nodeImpl, userImpl];
+    const ctx = makeContext({
+      getNodesByKind: (kind) => (kind === 'function' ? allFunctions : []),
+    });
+    const ref = {
+      fromNodeId: nodeImpl.id,
+      referenceName: 'hook_removed_post_updates',
+      referenceKind: 'references' as const,
+      line: 1,
+      column: 0,
+      filePath: 'core/modules/node/node.post_update.php',
+      language: 'php' as const,
+    };
+    const resolved = drupalResolver.resolve(ref, ctx);
+    expect(resolved).not.toBeNull();
+    expect(resolved!.targetNodeId).toBe(userImpl.id); // peer implementation, never self
+    expect(resolved!.confidence).toBe(0.75);
+  });
+
+  // Tier 2: when no peer concrete implementation exists but Drupal core's
+  // *.api.php documents the canonical `hook_X` template, the ref resolves to
+  // that exact-name definition instead of staying unresolved.
+  it('falls back to the exact hook template declared in an api php file', () => {
+    const mkFn = (id: string, name: string, filePath: string) => ({
+      id,
+      kind: 'function' as const,
+      name,
+      qualifiedName: name,
+      filePath,
+      language: 'php' as const,
+      startLine: 1,
+      endLine: 3,
+      startColumn: 0,
+      endColumn: 0,
+      updatedAt: 0,
+    });
+    const emitter = mkFn(
+      'function:custom',
+      'custom_form_alter',
+      'web/modules/custom/custom/custom.module'
+    );
+    const template = mkFn(
+      'function:hook-template',
+      'hook_form_alter',
+      'core/lib/Drupal/Core/Form/form.api.php'
+    );
+    const ctx = makeContext({
+      getNodesByKind: (kind) => (kind === 'function' ? [emitter, template] : []),
+    });
+    const ref = {
+      fromNodeId: emitter.id,
+      referenceName: 'hook_form_alter',
+      referenceKind: 'references' as const,
+      line: 1,
+      column: 0,
+      filePath: 'web/modules/custom/custom/custom.module',
+      language: 'php' as const,
+    };
+    const resolved = drupalResolver.resolve(ref, ctx);
+    expect(resolved).not.toBeNull();
+    expect(resolved!.targetNodeId).toBe(template.id);
+  });
 });
 
 // ---------------------------------------------------------------------------
