@@ -144,6 +144,14 @@ Dated release snapshots, language validations, and the current-state decision pa
   is available on crates.io (tree-sitter-swift 0.7.x, no git pin), but three
   framework extract passes + property-wrapper metatype refs would regress
   without a finalize back-fill; node stays gated pending iOS/bridge priority.
+- [2026-10-09-rust-owned-php-laravel-drupal-validation.md](benchmarks/2026-10-09-rust-owned-php-laravel-drupal-validation.md)
+  — PHP real-corpus validation under the pre-cutover Rust extractor (roadmap
+  1-2-5-3): Laravel `src/Illuminate` (1,742 files / 275K LOC, PSR-4 OOP) and a
+  Drupal core subset (2,859 files / 329K LOC, PSR-4 + procedural
+  `.module`/`.install` hooks) both parse with 0 parse/extraction errors and 0
+  ERROR nodes, yielding 126,472 unresolved refs across 3,900 coupled files;
+  namespace/use Factory disambiguation holds at scale; ownership cutover is
+  1-2-5-4.
 
 All items above are `authority: historical` (JSON companions are data
 evidence, not standalone pages).
