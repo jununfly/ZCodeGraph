@@ -6360,12 +6360,13 @@ class Service implements Logger {
     expect(mailReaches, 'Mail Factory must not reach Service').toBe(false);
   });
 
-  it('keeps PHP on the TypeScript-fallback side of the rust-hybrid plan before the ownership cutover, roadmap 1-2-5-3', () => {
-    // Pre-cutover: 'php' is NOT a rust-owned language, so a .php file is
-    // scheduled through the TypeScript fallback (fallbackByLanguage.php > 0).
-    // Node 1-2-5-4 adds 'php' to RUST_HYBRID_RUST_OWNED_LANGUAGES and flips
-    // these assertions, mirroring the C# 1-2-4-4 cutover.
-    expect(isRustHybridOwnedLanguage('php')).toBe(false);
+  it('routes PHP through the Rust core with zero TypeScript fallback after the ownership cutover, roadmap 1-2-5-4', () => {
+    // Post-cutover: 'php' is a rust-owned language, so a .php file is
+    // scheduled through the Rust core (fallbackByLanguage.php === 0).
+    // Node 1-2-5-4 added 'php' to RUST_HYBRID_RUST_OWNED_LANGUAGES, mirroring
+    // the C# 1-2-4-4 cutover; Laravel routes + Drupal hooks are back-filled in
+    // finalization rather than via the per-file TypeScript fallback.
+    expect(isRustHybridOwnedLanguage('php')).toBe(true);
     expect(isRustHybridOwnedLanguage('csharp')).toBe(true);
 
     const dir = createTempDir();
@@ -6373,10 +6374,10 @@ class Service implements Logger {
       fs.writeFileSync(path.join(dir, 'page.php'), '<?php\nclass Page { }\n');
 
       const plan = planRustHybridAssignments(dir);
-      expect(plan.engineByLanguage).toMatchObject({ php: 'typescript' });
-      expect(plan.fallbackFiles).toContain('page.php');
-      expect(plan.rustOwnedFiles).not.toContain('page.php');
-      expect(plan.fallbackByLanguage.php ?? 0).toBeGreaterThan(0);
+      expect(plan.engineByLanguage).toMatchObject({ php: 'rust' });
+      expect(plan.rustOwnedFiles).toContain('page.php');
+      expect(plan.fallbackFiles).not.toContain('page.php');
+      expect(plan.fallbackByLanguage.php ?? 0).toBe(0);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

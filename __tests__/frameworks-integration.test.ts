@@ -323,6 +323,166 @@ describe('ASP.NET framework routes on rust-hybrid (roadmap 1-2-4-4 cutover)', ()
   });
 });
 
+describe('Laravel framework routes on rust-hybrid (roadmap 1-2-5-4 cutover)', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  // Split cutover: PHP baseline symbols (classes/methods) are Rust-owned, but
+  // Laravel Route::* extraction stays in the TS laravelResolver and is
+  // back-filled during hybrid finalization (src/indexing/rust-php-framework-routes.ts).
+  // The TS route node must resolve to the Rust-extracted controller method.
+  it('extracts Route::get routes and resolves them to Rust-extracted controller methods on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-laravel-rh-'));
+
+    // artisan file is the unmistakable Laravel detection signature.
+    fs.writeFileSync(path.join(tmpDir, 'artisan'), '#!/usr/bin/env php\n');
+
+    fs.mkdirSync(path.join(tmpDir, 'app', 'Http', 'Controllers'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'app', 'Http', 'Controllers', 'UserController.php'),
+      '<?php\n' +
+        'namespace App\\Http\\Controllers;\n' +
+        'class UserController\n' +
+        '{\n' +
+        '    public function index() { return []; }\n' +
+        '    public function show($id) { return $id; }\n' +
+        '}\n'
+    );
+
+    // Both handler spellings must resolve: [Class::class, 'method'] and the
+    // namespaced 'Class@method' string. The routes file itself is Rust-extracted;
+    // only the back-fill turns these calls into route nodes.
+    fs.mkdirSync(path.join(tmpDir, 'routes'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'routes', 'web.php'),
+      '<?php\n' +
+        'use App\\Http\\Controllers\\UserController;\n' +
+        "Route::get('/users', [UserController::class, 'index']);\n" +
+        "Route::get('/users/{id}', 'App\\Http\\Controllers\\UserController@show');\n"
+    );
+
+    const cg = CodeGraph.initSync(tmpDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+
+    const routes = cg.getNodesByKind('route').map((r) => r.name).sort();
+    expect(routes).toEqual(['GET /users', 'GET /users/{id}']);
+
+    for (const [routeName, handlerName] of [
+      ['GET /users', 'index'],
+      ['GET /users/{id}', 'show'],
+    ] as const) {
+      const route = cg.getNodesByKind('route').find((r) => r.name === routeName);
+      expect(route, `route ${routeName}`).toBeDefined();
+      const handler = cg.getNodesByKind('method').find((m) => m.name === handlerName);
+      expect(handler, `handler ${handlerName}`).toBeDefined();
+      const edge = cg
+        .getOutgoingEdges(route!.id)
+        .find((e) => e.target === handler!.id && e.kind === 'references');
+      expect(edge, `route ${routeName} -> ${handlerName}`).toBeDefined();
+    }
+
+    cg.close();
+  });
+});
+
+describe('Drupal hook back-fill on rust-hybrid (roadmap 1-2-5-4 cutover)', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  // Split cutover: .module/.install/.theme/.inc are now classified PHP and
+  // Rust-extracted, so the TS drupalResolver hook extraction would be lost
+  // unless back-filled. Hook refs attach to the SHARED Rust function node
+  // (nodes: []), unlike Laravel route nodes. Two modules implement the same
+  // hook; the back-filled hook_* refs resolve across files, and the YAML route
+  // path is untouched (YAML still flows through the TS fallback).
+  it('back-fills hook refs from Rust-indexed module files and keeps routing routes on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-drupal-rh-'));
+
+    fs.writeFileSync(
+      path.join(tmpDir, 'composer.json'),
+      JSON.stringify({ require: { 'drupal/core-recommended': '~10.5' } })
+    );
+
+    const writeModule = (moduleName: string, hookBody: string): void => {
+      const modDir = path.join(tmpDir, 'web', 'modules', 'custom', moduleName);
+      fs.mkdirSync(modDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(modDir, `${moduleName}.info.yml`),
+        `name: ${moduleName}\ntype: module\ncore_version_requirement: ^10\n`
+      );
+      fs.writeFileSync(
+        path.join(modDir, `${moduleName}.module`),
+        '<?php\n' +
+          '/**\n' +
+          ` * Implements hook_form_alter().\n` +
+          ' */\n' +
+          `function ${moduleName}_form_alter(&$form, $form_state, $form_id) {\n` +
+          `${hookBody}\n` +
+          '}\n'
+      );
+    };
+    writeModule('alpha', "  $form['a'] = [];");
+    writeModule('beta', "  $form['b'] = [];");
+
+    // A routing.yml route: YAML is NOT rust-owned, so its route node must still
+    // be produced by the normal TypeScript fallback (no back-fill involved).
+    const alphaDir = path.join(tmpDir, 'web', 'modules', 'custom', 'alpha');
+    fs.mkdirSync(path.join(alphaDir, 'src', 'Controller'), { recursive: true });
+    fs.writeFileSync(
+      path.join(alphaDir, 'alpha.routing.yml'),
+      [
+        'alpha.hello:',
+        "  path: '/alpha-hello'",
+        '  defaults:',
+        "    _controller: '\\Drupal\\alpha\\Controller\\HelloController::build'",
+      ].join('\n') + '\n'
+    );
+    fs.writeFileSync(
+      path.join(alphaDir, 'src', 'Controller', 'HelloController.php'),
+      '<?php\n' +
+        'namespace Drupal\\alpha\\Controller;\n' +
+        'class HelloController {\n' +
+        '  public function build() { return []; }\n' +
+        '}\n'
+    );
+
+    const cg = CodeGraph.initSync(tmpDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+
+    // (1) The .module hook functions are Rust baseline symbols (cutover moved
+    // PHP-family procedural files off the TypeScript fallback).
+    const functions = cg.getNodesByKind('function');
+    const alphaHook = functions.find((f) => f.name === 'alpha_form_alter');
+    const betaHook = functions.find((f) => f.name === 'beta_form_alter');
+    expect(alphaHook, 'alpha_form_alter function').toBeDefined();
+    expect(betaHook, 'beta_form_alter function').toBeDefined();
+
+    // (2) The back-filled hook_* refs resolve across implementations. Ordering
+    // follows node/file order, so assert a references edge exists in either
+    // direction between the two hook functions rather than pinning the head.
+    const edgeBetween = (a: { id: string }, b: { id: string }): boolean => {
+      const out = cg.getOutgoingEdges(a.id);
+      return out.some((e) => e.target === b.id && e.kind === 'references');
+    };
+    const linked = edgeBetween(alphaHook!, betaHook!) || edgeBetween(betaHook!, alphaHook!);
+    expect(linked, 'hook_form_alter implementations linked via back-filled hook ref').toBe(true);
+
+    // (3) routing.yml route still present (YAML TS-fallback path non-regression).
+    const route = cg.getNodesByKind('route').find((r) => r.name.includes('/alpha-hello'));
+    expect(route, 'routing.yml route node').toBeDefined();
+
+    cg.close();
+  });
+});
+
 describe('NestJS end-to-end framework post-extract boundary', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
