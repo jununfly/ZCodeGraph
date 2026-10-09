@@ -31,6 +31,9 @@ tree-sitter-kotlin = { git = "https://github.com/fwcd/tree-sitter-kotlin", rev =
 # grammar here; LANGUAGE is the full grammar (PHP + inline HTML).
 tree-sitter-php = "0.23"
 tree-sitter-python = "0.23"
+# 0.23.1 builds against tree-sitter ^0.24 (ABI 14), matching every other
+# grammar here and the TS-side vendored wasm (tree-sitter-wasms 0.1.11).
+tree-sitter-ruby = "0.23"
 tree-sitter-rust = "0.23"
 tree-sitter-typescript = "0.23"
 
