@@ -152,6 +152,15 @@ Dated release snapshots, language validations, and the current-state decision pa
   ERROR nodes, yielding 126,472 unresolved refs across 3,900 coupled files;
   namespace/use Factory disambiguation holds at scale; ownership cutover is
   1-2-5-4.
+- [2026-10-09-rust-owned-php-laravel-drupal-cutover.md](benchmarks/2026-10-09-rust-owned-php-laravel-drupal-cutover.md)
+  — PHP framework/runtime split cutover (roadmap 1-2-5-4): `php` becomes the
+  13th Rust-owned language with a finalization back-fill. Drupal shared-node
+  `hook_*` refs: 33 back-filled, 0/33 Rust owner-miss, 31 resolve (the 2
+  `.post_update.php` residuals are a pre-existing retained-resolver ceiling);
+  27 `*.routing.yml` routes stay on the untouched TS YAML path. Laravel
+  dedicated route nodes: framework library 0 app routes by design; real
+  artisan app 2/2 `Controller@method` refs resolve to Rust methods (conf 0.9),
+  closure emits nothing, resource goes to the NameMatcher.
 
 All items above are `authority: historical` (JSON companions are data
 evidence, not standalone pages).
