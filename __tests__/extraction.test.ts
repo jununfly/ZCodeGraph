@@ -6204,8 +6204,11 @@ describe('PHP cross-file reference edges on rust-hybrid (roadmap 1-2-5-3)', () =
   });
 
   it('resolves cross-file PHP calls, implements, instantiates, references, and imports on rust-hybrid with use-import disambiguation, roadmap 1-2-5-3', async () => {
-    const write = (rel: string, body: string): void =>
-      fs.writeFileSync(path.join(tempDir, rel), body);
+    const write = (rel: string, body: string): void => {
+      const full = path.join(tempDir, rel);
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, body);
+    };
 
     // Two same-named interfaces in different namespaces (the Laravel Factory
     // ambiguity): the `use` import must disambiguate Cache over Mail.
@@ -6272,6 +6275,7 @@ namespace App;
 
 use Contracts\\Cache\\Factory;
 use App\\Models\\User;
+use App\\Logger;
 
 class Service implements Logger {
     public function make(Factory $factory): User {
