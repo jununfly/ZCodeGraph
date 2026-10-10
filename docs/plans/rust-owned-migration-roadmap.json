@@ -430,7 +430,7 @@
     "1-2-6": {
       "id": "1-2-6",
       "label": "Ruby 基线抽取迁移",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -517,7 +517,7 @@
     "1-2-6-4": {
       "id": "1-2-6-4",
       "label": "Ruby: 框架/运行时语义边界决策 + TS fallback 移除",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-6",
       "children": [],
@@ -536,6 +536,11 @@
           "q": "实现与验证结果：cutover 接线了哪些点？测试如何裁决？",
           "answer": "已接线：(1) rust-hybrid-contract.ts 将 ruby 加为第 14 个 RUST_HYBRID_RUST_OWNED_LANGUAGES；(2) 新建 src/indexing/rust-ruby-framework-routes.ts（镜像 C# ASP.NET dedicated-route backfill，复用 railsResolver，5 字段 stats，幂等 per-file kind=route 清理 + 确定性 id + clearCaches 仅在有 route 时）；(3) src/index.ts 在 PHP backfill checkpoint 之后、batched resolution 之前接线 import/profile 类型/默认零值/backfill 调用；(4) 同步 rust-index-engine-cli-engine status golden 的 14 语言数组。ruby.ts 与 barrel 保留。测试：extraction.test.ts post-cutover plan 守卫（isRustHybridOwnedLanguage('ruby')、engineByLanguage.ruby=rust、user.rb 入 rustOwnedFiles、fallbackByLanguage.ruby=0）；frameworks-integration.test.ts 新增 Rails e2e（Gemfile+config/routes.rb+articles/pages controller，resources 7 路由 + 显式 GET /dashboard，断言 route→Rust action references 边）。ci.yml step2 -t 追加两分支，本地复刻 skip-debt guard 审计 33/33 分支命中真实 it，ALLOWED_SKIPS 仍空。纯 regex 逻辑复刻探针确认夹具产出精确的 8 个 route 名与 controller#action refs。真实 Rails 框架源码无 config/routes.rb（gem 不定义应用路由表），故路由语义由确定性 e2e 裁决，benchmark baseline 符号数不变。全部 TS 文件 strip-types 语法通过；最终 tsc/vitest 三 OS CI 裁决。EXTRACTION_VERSION 不 bump。",
           "note": "本地无 node_modules，权威 TS 类型/端到端裁决在三 OS CI。"
+        },
+        {
+          "q": "Q: 1-2-6-4 split cutover 的 CI 终判？",
+          "answer": "A: CLOSED。run 38018454785（head 6ac4698）三 OS（rust-packaged-path：ubuntu-latest / macos-14 / windows-2025）全 success，Windows 首跑即绿、无 EBUSY flaky。三线性提交落 main：6e384b4 feat(ruby 进 owned 表成第14语言 + rust-ruby-framework-routes.ts finalize 回填 + index.ts 接线) -> bb92c22 test(post-cutover plan 守卫 + Rails resources/显式路由 rust-hybrid e2e + status golden 13->14 + ci -t 两分支) -> 6ac4698 docs(3 decision/render + benchmark cutover addendum)。Windows 日志确证新用例真跑非 skip：Rails e2e 'extracts explicit and resources routes...' 491ms ✓；extraction.test.ts 306 tests/0 fail（13 ran，含 post-cutover 守卫与 1-2-6-3 e2e）；frameworks-integration.test.ts 29 tests/0 fail（13 ran，含新 Rails，16 skipped 为 -t 白名单外）；step1 rust-owned fixtures + skip-debt 55 passed（33/33 -t 分支命中真实 it、ALLOWED_SKIPS 空）；Test Rust core 151 passed/0 failed（18.55s）。ubuntu/macos job 级同步 success。fallbackByLanguage.ruby=0 由 plan 守卫锁定；ruby.ts+barrel 保留供纯 typescript 引擎；frameworks/ruby.ts 永久 TS shell。EXTRACTION_VERSION 不 bump（Ruby 1-2-6-1..4 同一未发布批）。",
+          "note": "证据：gh run view 38018454785 三 job conclusion=success；Windows step2 各 Test Files 汇总与 Rails e2e ✓ 491ms 行；cargo test 151。"
         }
       ],
       "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
@@ -2566,7 +2571,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-09 22:13:47",
+    "updated": "2026-10-10 10:58:40",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
