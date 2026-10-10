@@ -6385,18 +6385,24 @@ class Service implements Logger {
 });
 
 // ===========================================================================
-// Roadmap 1-2-6-3 — Ruby reference-edge resolution on rust-hybrid (PRE-cutover).
+// Roadmap 1-2-6-3/1-2-6-4 — Ruby on rust-hybrid.
 //
-// Mirrors the PHP 1-2-5-3 pre-cutover contract: Ruby has NOT joined
-// RUST_HYBRID_RUST_OWNED yet — '.rb' is still scheduled through the TypeScript
-// fallback shell. But the Rust core already scans/extracts every .rb (grammar
-// + SourceLanguage registered in 1-2-6-1 and reference edges emitted in
-// 1-2-6-2), so the resolved cross-file graph must be shaped identically
-// regardless of which shell scheduled the file. The ownership cutover
-// (1-2-6-4) adds 'ruby' to RUST_HYBRID_RUST_OWNED_LANGUAGES and adds a
-// plan-guard test; Rails routes stay a TypeScript finalization shell.
+// The cross-file edge test below was written PRE-cutover (1-2-6-3): even while
+// '.rb' was still scheduled through the TypeScript fallback shell, the Rust
+// core already scanned/extracted every .rb (grammar + SourceLanguage
+// registered in 1-2-6-1, reference edges emitted in 1-2-6-2), so the resolved
+// cross-file graph had to be shaped identically regardless of which shell
+// scheduled the file.
+//
+// The ownership cutover (1-2-6-4) then added 'ruby' to
+// RUST_HYBRID_RUST_OWNED_LANGUAGES (mirroring the PHP 1-2-5-4 / C# 1-2-4-4
+// cutover): every .rb/.rake is scheduled through Rust with zero TypeScript
+// fallback, and Rails routes are back-filled in finalization by
+// rust-ruby-framework-routes.ts rather than via the per-file fallback. The
+// post-cutover plan-guard test pins that contract. ruby.ts is retained for
+// the pure --engine typescript engine.
 // ===========================================================================
-describe('Ruby cross-file reference edges on rust-hybrid (roadmap 1-2-6-3)', () => {
+describe('Ruby on rust-hybrid (roadmap 1-2-6-3 cross-file edges, 1-2-6-4 cutover)', () => {
   let tempDir: string;
   let cg: CodeGraph;
 
@@ -6543,5 +6549,29 @@ end
     expect(concernReaches, 'Authenticatable concern reaches the service that includes it').toBe(
       true,
     );
+  });
+
+  it('routes Ruby through the Rust core with zero TypeScript fallback after the ownership cutover, roadmap 1-2-6-4', () => {
+    // Post-cutover: 'ruby' is a rust-owned language, so a .rb file is
+    // scheduled through the Rust core (fallbackByLanguage.ruby === 0).
+    // Node 1-2-6-4 added 'ruby' to RUST_HYBRID_RUST_OWNED_LANGUAGES, mirroring
+    // the PHP 1-2-5-4 / C# 1-2-4-4 cutover; Rails routes are back-filled in
+    // finalization rather than via the per-file TypeScript fallback. The
+    // ruby.ts extractor is retained for the pure --engine typescript engine.
+    expect(isRustHybridOwnedLanguage('ruby')).toBe(true);
+    expect(isRustHybridOwnedLanguage('php')).toBe(true);
+
+    const dir = createTempDir();
+    try {
+      fs.writeFileSync(path.join(dir, 'user.rb'), "class User\nend\n");
+
+      const plan = planRustHybridAssignments(dir);
+      expect(plan.engineByLanguage).toMatchObject({ ruby: 'rust' });
+      expect(plan.rustOwnedFiles).toContain('user.rb');
+      expect(plan.fallbackFiles).not.toContain('user.rb');
+      expect(plan.fallbackByLanguage.ruby ?? 0).toBe(0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

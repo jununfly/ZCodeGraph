@@ -389,6 +389,101 @@ describe('Laravel framework routes on rust-hybrid (roadmap 1-2-5-4 cutover)', ()
   });
 });
 
+describe('Rails framework routes on rust-hybrid (roadmap 1-2-6-4 cutover)', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  // Split cutover: Ruby baseline symbols (classes/methods) are Rust-owned, but
+  // Rails route extraction stays in the TS railsResolver and is back-filled
+  // during hybrid finalization (src/indexing/rust-ruby-framework-routes.ts).
+  // Both the explicit `get '/p', to: 'c#a'` form and the RESTful `resources`
+  // expansion must produce route nodes whose `controller#action` refs resolve
+  // to the Rust-extracted action methods.
+  it('extracts explicit and resources routes and resolves them to Rust-extracted controller actions on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-rails-rh-'));
+
+    // Gemfile + config/routes.rb are unmistakable Rails detection signatures.
+    fs.writeFileSync(path.join(tmpDir, 'Gemfile'), "source 'https://rubygems.org'\ngem 'rails'\n");
+    fs.mkdirSync(path.join(tmpDir, 'config'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'config', 'routes.rb'), '');
+
+    fs.mkdirSync(path.join(tmpDir, 'app', 'controllers'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'app', 'controllers', 'articles_controller.rb'),
+      [
+        'class ArticlesController < ApplicationController',
+        '  def index; end',
+        '  def show; end',
+        'end',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, 'app', 'controllers', 'pages_controller.rb'),
+      [
+        'class PagesController < ApplicationController',
+        '  def home; end',
+        'end',
+      ].join('\n') + '\n',
+    );
+
+    // One RESTful `resources` (expands to seven action routes) plus one
+    // explicit hashrocket route. The routes file itself is Rust-extracted;
+    // only the back-fill turns the draw block into route nodes.
+    fs.writeFileSync(
+      path.join(tmpDir, 'config', 'routes.rb'),
+      [
+        "Rails.application.routes.draw do",
+        "  resources :articles",
+        "  get '/dashboard' => 'pages#home'",
+        "end",
+      ].join('\n') + '\n',
+    );
+
+    const cg = CodeGraph.initSync(tmpDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+
+    const routeNames = cg.getNodesByKind('route').map((r) => r.name);
+    // Explicit route.
+    expect(routeNames).toContain('GET /dashboard');
+    // Representative actions from the `resources :articles` expansion.
+    expect(routeNames).toContain('GET /articles');
+    expect(routeNames).toContain('POST /articles');
+    expect(routeNames).toContain('GET /articles/:id');
+    expect(routeNames).toContain('DELETE /articles/:id');
+
+    const findMethod = (file: string, name: string) =>
+      cg
+        .getNodesByKind('method')
+        .find((m) => m.name === name && (m.filePath ?? '').endsWith(file));
+
+    // Explicit route -> pages#home.
+    const dashboard = cg.getNodesByKind('route').find((r) => r.name === 'GET /dashboard');
+    expect(dashboard, 'route GET /dashboard').toBeDefined();
+    const home = findMethod('pages_controller.rb', 'home');
+    expect(home, 'handler PagesController#home').toBeDefined();
+    expect(
+      cg.getOutgoingEdges(dashboard!.id).some((e) => e.target === home!.id && e.kind === 'references'),
+      'GET /dashboard -> pages#home',
+    ).toBe(true);
+
+    // resources index route -> articles#index.
+    const indexRoute = cg.getNodesByKind('route').find((r) => r.name === 'GET /articles');
+    expect(indexRoute, 'route GET /articles').toBeDefined();
+    const index = findMethod('articles_controller.rb', 'index');
+    expect(index, 'handler ArticlesController#index').toBeDefined();
+    expect(
+      cg.getOutgoingEdges(indexRoute!.id).some((e) => e.target === index!.id && e.kind === 'references'),
+      'GET /articles -> articles#index',
+    ).toBe(true);
+
+    cg.close();
+  });
+});
+
 describe('Drupal hook back-fill on rust-hybrid (roadmap 1-2-5-4 cutover)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {

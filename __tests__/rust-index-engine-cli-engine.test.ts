@@ -508,7 +508,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
     expect(status.index.engine).toBe('rust-hybrid');
     expect(status.index.hybrid).toMatchObject({
       phase: 'phase-6-rust-owned-per-file-gap-fallback',
-      rustOwnedLanguages: ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'java', 'kotlin', 'python', 'rust', 'c', 'cpp', 'csharp', 'php'],
+      rustOwnedLanguages: ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'java', 'kotlin', 'python', 'rust', 'c', 'cpp', 'csharp', 'php', 'ruby'],
       engineByLanguage: { typescript: 'rust' },
       engineByFileCount: { rust: 1 },
       fallbackByLanguage: {},
