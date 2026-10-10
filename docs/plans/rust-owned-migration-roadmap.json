@@ -675,7 +675,7 @@
     "1-2-9": {
       "id": "1-2-9",
       "label": "Dart 基线抽取迁移",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -684,23 +684,54 @@
         "1-2-9-3",
         "1-2-9-4"
       ],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Scope gate（2026-10-10）",
+          "answer": "Product execution（非验收/probe）。1-2-9 是 Rust 迁移主线产品实现节点，在目标项目内修改 crates/zcodegraph-core 与 TS shell。镜像 Ruby 1-2-6 两阶段 split cutover：1-2-9-1~3 Rust 新增能力保留 TS dart.ts，1-2-9-4 加入 RUST_HYBRID_RUST_OWNED_LANGUAGES（第15个）后删 TS extractor。Dart 无 framework route resolver（src/resolution/frameworks/ 无 dart），故无 backfill 模块，这是与 C#/PHP/Ruby 首个结构差异。",
+          "note": ""
+        },
+        {
+          "q": "开工勘察（2026-10-10）",
+          "answer": "Rust 端 SourceLanguage 无 Dart（enum 16 变体，from_path 无 .dart，dispatch 无 dart 分支）。TS 面 dart.ts 声明式 extractor：functionTypes=function_signature；classTypes=class_definition；methodTypes=method_signature；enumTypes=enum_declaration/enum_constant；typeAliasTypes=type_alias；importTypes=import_or_export；callTypes=空（Dart 调用=identifier+selector，全走 extractBareCall）；variableTypes=空；extraClassNodeTypes=mixin_declaration+extension_declaration。resolveBody 特殊：function_signature/method_signature 的 body 是 nextNamedSibling function_body（非字段）；class/mixin/extension 用 class_body/extension_body。getVisibility 下划线前缀=private（method 走内层 function/getter/setter signature 的 identifier name）。isAsync 看 function_body 直系 async 子节点；isStatic 看 method_signature 直系 static。getSignature 处理 method_signature 内层 function/getter/setter signature 的 formal_parameter_list + 返回类型。tree-sitter.ts Dart 特殊分支：(1) L2532 extractStaticMemberRef——selector 无 argument_part 且 prev sibling 大写 identifier 发 references（Enum.value/Colors.red）；(2) L3037 superclass 节点——class C extends B with M1,M2：直系 type_identifier 发 extends，mixins 子节点的 type_identifier 各发 implements；class C with M（无 extends）同路径；(3) L3106 interfaces 子句（implements Disposable）通用路径发 implements；(4) L3429 type refs——method_signature 内层签名（function/getter/setter/constructor/factory_constructor signature）走 extractTypeRefsFromSubtree，参数名/方法名是 identifier 不发，只 type_identifier 上浮；(5) 无独立 dart framework route resolver（src/resolution/frameworks/ 无 dart），故 cutover 无 backfill 模块（14 语言中首例）；import-resolver 无 EXTENSION_RESOLUTION.dart，相对 import 走 generic as-is 命中（'models.dart'/'../x.dart' 自带后缀），dart:/package: 非相对→null 不解析，语义正确。ownership：contract L9 现 14 语言无 dart。基线测试 extraction.test.ts L1134 Dart Extraction 7 例、L1885 imports 5 例、L3214 mixins+跨文件 type ref e2e 1 例；wave0 模板 rust-owned-language-fixtures.test.ts。",
+          "note": ""
+        },
+        {
+          "q": "Q1 基线范围",
+          "answer": "全集对齐 TS dartExtractor + tree-sitter.ts 四处 Dart 特殊分支，一次到位。符号(1-2-9-1)：class_definition→class；mixin_declaration/extension_declaration→class（extraClassNodeTypes，name 字段 identifier）；enum_declaration→enum + enum_constant→enum_member（enum_body 内，field=name 的 identifier）；type_alias→type_alias（typedef，name=首个 type_identifier 文本）；function_signature 顶层→function；method_signature（class/mixin/extension body 内，含内层 function/getter/setter/constructor/factory_constructor signature）→method；factory 构造与普通构造 constructor_signature→method（名为类名/工厂名 UserService.create）；import_or_export→import（library_import 走 import_specification>configurable_uri>uri>string_literal；library_export 同路径；moduleName=去引号裸串 dart:async/package:foo/x.dart/相对路径；export 同样建 import 节点）；body 解析：signature 的 function_body 是 nextNamedSibling（非字段），节点跨度须覆盖 body；class/mixin class_body、extension extension_body。visibility：name 下划线前缀→private（method 取内层 signature 的 identifier name）。isAsync：function_body 直系 async 子节点；isStatic：method_signature 直系 static。signature：formal_parameter_list + 返回类型（type_identifier/void_type）。无边/refs 在 -1。",
+          "note": ""
+        },
+        {
+          "q": "Q2 探针与 grammar 选型（选 B）",
+          "answer": "三方对拍实证（2026-10-10）：代表性样本（class/mixin/extension/enum/typedef/import/export/factory/getter/setter/selector 调用全形态）+ Dart3 样本（sealed class/records/patterns/switch expr/extension type 用法）。crates.io tree-sitter-dart 0.0.4（ast-grep fork 2024-05）：与生产 wasm 9 类节点差异（class_member_definition 包装、typedef function_type、member_access 形状等），Dart3 14 ERROR，否决。UserNobody14 master ABI15（d4d8f3e 2025-10-04 起，tree-sitter 0.25/0.26，links 冲突）否决。选定 UserNobody14/tree-sitter-dart c1222f5a65aba7e0175cc0cc6f88d198d9fe2b02（ABI14 最后 commit 2025-10-03 update pubspecs）：与 tree-sitter-wasms@0.1.13 生产 wasm AST EXACT MATCH（0 节点差异），Dart3 0 ERROR，仅差后续 #89 commit（set/get 上下文关键字），实测该语法两版 0 ERROR 无抽取影响。集成：git dep pin rev（镜像 fwcd kotlin 先例）；c1222f5 Cargo.toml 要求 tree-sitter=0.22.6 与仓内 0.24 links 冲突（probe 中 sed 0.24 后 10.8s 编译通过，ABI14 兼容），git dep 无法改写故 fork jununfly/tree-sitter-dart 建 rust-0.24 分支（基于 c1222f5 仅一行 dep bump 0.22.6→0.24，与本地 probe 验证产物逐字一致），Cargo.toml pin fork rev + 注释说明。",
+          "note": ""
+        },
+        {
+          "q": "Q3 切换时机",
+          "answer": "两阶段 split cutover（对齐 Ruby/PHP，首例无 framework backfill）。1-2-9-1~3 Rust 新增 dart 能力，src/extraction/languages/dart.ts 保留（TS-direct 用例继续走 TS 引擎）；1-2-9-4 把 dart 加入 RUST_HYBRID_RUST_OWNED_LANGUAGES（第15个），hybrid 把 .dart 全量路由 Rust。与 C#/PHP/Ruby 差异：src/resolution/frameworks/ 无 dart resolver，Dart 无框架路由/约定式符号 backfill，故不新建 rust-dart-framework-routes.ts（finalizeRustIndex 无注入点）。TS shell 永久保留件：grammars.ts（.dart→dart、wasm 文件名——TS-direct 引擎仍用）、import 解析走 generic relative as-is（无需加 EXTENSION_RESOLUTION.dart，因 import 串自带 .dart 后缀）。dart.ts 与 EXTRACTORS barrel 在确认无第二消费者（grep；无 razor 类复用）后于 -4 删除。同步三件套：rust-hybrid-contract L9、cli-engine status golden array、ci.yml -t。",
+          "note": ""
+        },
+        {
+          "q": "Q4 真实语料",
+          "answer": "选真实 Flutter/Dart OSS 项目发布 tag 快照子集（无需 Dart SDK，只解析源码），优先覆盖：class extends+with mixins+implements 组合、mixin on 约束、extension on、enum（增强 enum with members）、sealed class + records/patterns（Dart3）、factory 构造、getter/setter、import 'dart:'/'package:'/'相对' 与 export 三形态、selector 链式调用、static-member 值读。度量：符号节点数、extends/implements/calls/references/imports 边数、unresolved 中 package:/dart: 外部 URI 占比（预期不解析）、相对 import 文件边命中率、fallbackByLanguage.dart=0、parse ERROR=0。证据落 docs/benchmarks/2026-10-xx-rust-owned-dart-*.md（repo+SHA、文件数/LOC、node/edge/unresolved/parse-gap、与 TS 引擎同语料差分=0 为验收线）。fixture 固定内容入仓 wave0，CI 三 OS 跑；真实语料仅本机/CI ubuntu 一次性 benchmark，不入仓大文件。",
+          "note": ""
+        }
+      ],
       "notes": ""
     },
     "1-2-9-1": {
       "id": "1-2-9-1",
       "label": "Dart: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-9",
       "children": [],
       "decisions": [],
-      "notes": "范围：函数/类/enum/typealias/import 与 export/调用策略。grammar：tree-sitter-dart；Flutter widget 语义不在基线范围。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+      "notes": "已完成（2026-10-10）：grammar=git dep jununfly/tree-sitter-dart@03b552c fork rust-024（c1222f5+一行 dep bump 0.24，ABI14，与生产 wasm AST EXACT MATCH/0 ERROR）。lib.rs 注册 SourceLanguage::Dart + from_path/codegraph_name/tree_sitter_language/is_dart/dispatch；新建 dart.rs（~600行+8 单测全绿）。符号集 e2e 31节点/29边/0错误对齐 TS：class_definition/mixin_declaration/extension_declaration→class、enum+enum_constant、type_alias、顶层 function_signature→function、method_signature→method（getter/setter/factory/static/private）。关键 parity：mixin 名无 name field 回退首个 identifier；factory/redirecting-factory 边界（factory 建 method 名取首个内层 identifier=类名，redirecting 在 declaration 内不建符号；generative ctor 不建）；无名 extension 整子树跳过；field 不建符号；body 为 sibling function_body 扩展跨度；visibility 精确对齐 TS hook（class/enum/extension/function/method 下划线 private 否则 public；mixin 恒 public；factory 恒 public；type_alias/enum_member/import 恒 null）；qn 过滤 file frame 与 TS buildQualifiedName 一致。159 全 lib 测试通过。refs/边与 cutover 留 1-2-9-2/-4。"
     },
     "1-2-9-2": {
       "id": "1-2-9-2",
       "label": "Dart: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2-9",
       "children": [],
@@ -2571,7 +2602,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-10 10:58:40",
+    "updated": "2026-10-10 12:21:17",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
