@@ -23,8 +23,24 @@ jobs:
       CODEGRAPH_ALLOW_UNSAFE_NODE: "1"
       CODEGRAPH_NO_DAEMON: "1"
       CODEGRAPH_NO_RELAUNCH: "1"
+      # Pinned git grammar deps (e.g. jununfly/tree-sitter-dart) vendor
+      # tree-sitter as a submodule fetched over SSH; make cargo delegate those
+      # recursive fetches to the system git so the insteadOf rewrite below and
+      # the runner's HTTPS credentials apply (libgit2's default transport does
+      # not honour url.insteadOf).
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
       - uses: actions/checkout@v6
+      - name: Redirect SSH submodule URLs to public HTTPS for cargo git deps
+        shell: bash
+        run: |
+          # The pinned tree-sitter-dart fork's .gitmodules points its tree-sitter
+          # submodule at git@github.com:tree-sitter/tree-sitter (SSH), but CI has
+          # no SSH key, so the recursive cargo fetch fails to authenticate on all
+          # three OSes. Rewrite the SSH URL to anonymous HTTPS (the submodule repo
+          # is public); with CARGO_NET_GIT_FETCH_WITH_CLI the system git applies it.
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global --get-regexp 'url\..*\.insteadof'
       - uses: actions/setup-node@v6
         with:
           node-version: 22
