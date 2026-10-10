@@ -752,12 +752,18 @@
     "1-2-9-3": {
       "id": "1-2-9-3",
       "label": "Dart: 确定性 fixture 测试 + 真实语料验证",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-9",
       "children": [],
-      "decisions": [],
-      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+      "decisions": [
+        {
+          "q": "真实 Dart/Flutter 语料在 cutover 前暴露了哪些 Rust 侧阻断项，如何修？",
+          "answer": "两个，均已在 1-2-9-3 修复并加确定性护栏：(1) parse gate 过严——c1222f5 grammar 对合法的无名库指令 library;(Dart 2.19) 插 MISSING identifier、对 contextual keyword 作 receiver 的 set.add(x) 误判为 setter 声明，硬 has_error gate 会丢 collection 7/29、Flutter 509/695 文件；Dart 加入 tolerates_parse_errors（与 Kotlin 同，TS 从不 gate on has_error）。(2) 栈溢出——递归 walker 在 Flutter 深嵌套 widget 树上溢出 Windows debug 主线程 1MiB 栈致整索引中止；dart::extract 改在 std::thread::scope + DART_EXTRACT_STACK_SIZE=128MiB worker 跑，panic 仍 resume_unwind，输出字节不变。",
+          "note": "证据 docs/benchmarks/2026-10-10-rust-owned-dart-flutter-validation.md；护栏 lib.rs 两集成测试；cargo --lib 171 passed。"
+        }
+      ],
+      "notes": "CLOSED 2026-10-10. fixture: __tests__/rust-owned-language-fixtures.test.ts 新增 describe('Dart baseline (roadmap 1-2-9)') 3 用例(service 符号+继承+签名type refs / app 四形态import / calls selector-new-const+capitalized value reads)，body 双遍历用 Set 断言；本地无 vitest，用纯 rust bin 对逐字 fixture 内容 e2e + SQLite 直查逐条机械核对全过；CI 随 step1 全文件跑（非跨文件 e2e 故不进 step2 -t），ALLOWED_SKIPS 保持空、33 个 -t 分支 0 dead、无 .only/.skip，ci.yml/skip-debt/packaged-path 契约零改动。真实语料 docs/benchmarks/2026-10-10-rust-owned-dart-flutter-validation.md：Flutter 3.47.7(abaf9c5) packages/flutter/lib 695 files/568203 LOC + collection v1.19.0(9354f38) lib 29 files/6050 LOC，两语料 filesErrored=0/0 ERROR 节点/errors 列空；落盘节点 flutter 29002/collection 680(引擎 nodesCreated 29013/681 含 in-memory 计数差，文档已注)，五种 ref 全供给(flutter 209475、collection 2892 unresolved)。语料倒逼两修复见决策：tolerates_parse_errors 加 Dart + 128MiB scoped worker；lib.rs 两集成测试锁定；cargo --lib 171 passed 0 fail；18 dart.rs 单测仍绿。EXTRACTION_VERSION 不 bump(unreleased，cutover 在 1-2-9-4)。下一步 1-2-9-4 cutover：RUST_HYBRID_RUST_OWNED_LANGUAGES 加第 15 个 dart + 删 TS dart.ts fallback 调度 + 同步契约 L9/cli-engine status golden/3-OS CI。"
     },
     "1-2-9-4": {
       "id": "1-2-9-4",
@@ -2613,7 +2619,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-10 13:24:38",
+    "updated": "2026-10-10 14:44:53",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
