@@ -731,12 +731,23 @@
     "1-2-9-2": {
       "id": "1-2-9-2",
       "label": "Dart: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-9",
       "children": [],
-      "decisions": [],
-      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+      "decisions": [
+        {
+          "q": "Q1 引用边精确边界（AST 探针锁定 2026-10-10）",
+          "answer": "全集镜像 TS，逐形态实测确认：(1) imports ref 从 import 节点发 referenceKind=imports，名为去引号裸串；(2) class_definition superclass field 内直系 type_identifier→extends，mixins 子节点每个 type_identifier→implements；interfaces field 内 type_identifier→implements；class C with M（无 extends）只有 mixins；mixin 的 'on Base' 与 extension 的 'on String' 是裸 type_identifier（非 superclass/interfaces clause），TS extractInheritance 子句循环不匹配→不发边，Rust 同样跳过；(3) selector calls：member_access=identifier+selector(argument_part)，简单 identifier→calls 名=identifier；链式/obj.method/Navigator.push accessor selector 前是 identifier 发 receiver.method；super.method/this.method accessor 直接是 method_signature 的 prev 发方法名；每个带参 selector 独立发（TS 逐 selector 节点发，允许同名重复，如 Navigator.push 形态会发 Navigator.push 两次）；(4) new_expression/const_object_expression 是独立分支（Dart 不在 INSTANTIATION_KINDS）发 calls 非 instantiates：new User.named→'User.named'(type_identifier+identifier)、new Foo()→'Foo'、const EdgeInsets.all→'EdgeInsets.all'、const Foo()→'Foo'；(5) static-member value-read：无 argument_part 的 selector 且 prev named sibling=大写 identifier ^[A-Z] 发 references（Enum.value/Colors.red/C.STATIC）；带参 selector 不发（calls 已覆盖）；(6) method_signature 内层签名(function/getter/setter/constructor/factory_constructor signature)全 subtree type_identifier→references，过滤 BUILTIN；(7) type_alias RHS（typedef X = Map<...> function_type）type_identifier→references 过滤 BUILTIN；(8) local var：Dart local_variable_declaration/initialized_variable_definition 非 TS 的 variable_declarator，extractVariableTypeAnnotation 不触发，故 local 类型注解(final Shape s/List<User> users)不发 ref——Rust 保持一致（但 initializer 里的调用仍经 selector/new 发 calls）。",
+          "note": ""
+        },
+        {
+          "q": "Q1 修正：type_alias RHS 不发 refs（grammar 无 value field）",
+          "answer": "探针实证：tree-sitter-dart c1222f5 的 type_alias 节点（typedef X = List<int>/Map<...>/void Function(...)）RHS 是名为 function_type 的 named child，但 grammar 不打 value field。TS extractTypeAlias 用 getChildByField(node,'value') 取 RHS，Dart 永远取不到→不调 extractTypeRefsFromSubtree→typedef RHS 实际零 refs（与 TS 一致）。故 Rust 对 type_alias 也不发任何 type refs，推翻上一决策第(7)点。method 内层签名 refs 不受影响（走 extractTypeAnnotations 的 Dart 专用分支）。另确认 BUILTIN 过滤复用 TS 共享集合：小写 string/number/boolean/void/null/never/any/object + Rust/Java/C#/Go 原语（含 int/double/bool/num? 实测 num 不在集合→会发 refs；List/Map/Future/Iterable 不在→发 refs；String 因 Scala 在集合→被过滤不发）。",
+          "note": ""
+        }
+      ],
+      "notes": "已完成（2026-10-10）：dart.rs 引用边全量镜像 TS，新增 BUILTIN_TYPES 共享集合 + 7 辅助（is_builtin_type/is_capitalized/emit_type_refs/emit_inheritance_refs/bare_call_name/new_call_name/const_call_name），10 个 refs 单测（共 18 Dart 单测，全 lib 169 绿）。e2e refs 全对：imports×4、extends(Repository)+mixins(Loggable,Trackable)→implements+implements(Disposable)、method 内层签名 type refs(Future/User/Database，过滤 String/int/bool)、selector calls(runApp/MyApp/Navigator.push/User/EdgeInsets.all/_db.query/print/super.find)、new→calls 仅 type_identifier(User 非 User.named)、const→calls Type.name、static value-read(Navigator/EdgeInsets 大写 receiver→references)。gap 诊断（探针实证）：(a) typedef RHS function_type 无 value field→TS 零 refs，Rust 对齐；(b) enum 不支持 with、enum implements 在 c1222f5 解析为 ERROR（与生产 wasm EXACT）→无 field 可读零产出；(c) local var(local_variable_declaration)非 TS variable_declarator→不发 local 类型 refs，只发 initializer calls；(d) mixin on/extension on 裸 type_identifier 非 clause→不发继承边；(e) body 双遍历（method frame + wrapper class frame 各发一次 unresolved，最终 edge_key 幂等去重）忠实镜像 TS 时序。hybrid ownership 数组 + 元数据切 rust 按 Ruby/PHP 先例归 -4 cutover（本节点不碰 TS shell，dart.ts 保留）。"
     },
     "1-2-9-3": {
       "id": "1-2-9-3",
@@ -2602,7 +2613,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-10 12:21:17",
+    "updated": "2026-10-10 13:24:38",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
