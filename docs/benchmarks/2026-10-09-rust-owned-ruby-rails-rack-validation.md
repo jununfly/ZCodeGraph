@@ -194,9 +194,9 @@ unreleased semantic batch.
   to `instantiates` on the `create` method, and the concern blast radius
   (Authenticatable reaches the including service). The title is registered in
   `.github/workflows/ci.yml` step2's `-t` filter and passes the skip-debt
-  guardrail's "every branch matches a real title" check (27/27 branches match).
-  The post-cutover plan guard (`ruby` in RUST_HYBRID_RUST_OWNED_LANGUAGES) is
-  added in 1-2-6-4.
+  guardrail's "every branch matches a real title" check. The post-cutover plan
+  guard (`ruby` in RUST_HYBRID_RUST_OWNED_LANGUAGES) ships in 1-2-6-4 (see
+  addendum below).
 - Rust unit tests: 13 cases in `crates/zcodegraph-core/src/ruby.rs`
   (`cargo test --lib` — full suite 151 passing = 138 prior + 13 Ruby,
   0 regressions).
@@ -220,3 +220,65 @@ The Rails-concern mixin and root-constant/`::` parity preconditions hold at
 scale. The ownership cutover (adding `ruby` to
 `RUST_HYBRID_RUST_OWNED_LANGUAGES` and adding the Rails route back-fill)
 proceeds in node 1-2-6-4.
+
+---
+
+## Addendum — 1-2-6-4 ownership cutover (same date)
+
+Node 1-2-6-4 performs the split cutover, mirroring the PHP 1-2-5-4 / C#
+1-2-4-4 boundary exactly:
+
+- **Routing.** `ruby` becomes the 14th entry in
+  `RUST_HYBRID_RUST_OWNED_LANGUAGES` (`src/indexing/rust-hybrid-contract.ts`).
+  The hybrid plan therefore schedules every `.rb`/`.rake` file through Rust
+  and records **`fallbackByLanguage.ruby === 0`** (pinned by a post-cutover
+  plan guard in `__tests__/extraction.test.ts`).
+- **Extractor retained, scheduling removed.** `src/extraction/languages/ruby.ts`
+  and the barrel entry stay, serving only the pure `--engine typescript`
+  engine. The cutover removes hybrid fallback *scheduling*, not the extractor
+  — the same conservative boundary used for C#/python/go/PHP.
+- **Rails routes back-filled in finalization.** A new
+  `src/indexing/rust-ruby-framework-routes.ts` re-runs the retained,
+  regex-only `railsResolver.extract` inside `finalizeRustIndex`, after
+  `runPostExtract()` and before batched reference resolution. It inserts only
+  dedicated `route` nodes plus `controller#action` unresolved refs (the
+  resolver's `claimsReference(/^[\w/]+#\w+$/)` routes them to Pattern 0, which
+  locates `app/controllers/<path>_controller.rb`'s action method). There is no
+  PHP/Drupal shared-node hook shape, so the backfill is the dedicated-route
+  form (five-field stats, no `hookReferences`) — structurally identical to the
+  C# ASP.NET back-fill. Per-file `kind === 'route'` cleanup + deterministic
+  `route:<file>:<line>:...` ids make it idempotent and incremental/`--force`
+  safe; `resolver.clearCaches()` is called only when route nodes were added.
+- **Framework shell stays TypeScript.** `resolution/frameworks/ruby.ts` and
+  the import resolver are permanent TS shells; the Rust core never extracts
+  Rails routes.
+
+### Why the framework corpus adds no route rows
+
+The Rails corpus above is the framework's own source (`activesupport` /
+`activerecord` / `activemodel` `lib`): a gem defines no application
+`Rails.application.routes.draw` table, so it ships **no** `config/routes.rb`
+and the back-fill inserts zero route nodes for it (baseline Ruby symbols are
+unchanged — the 13,519 / 878 node counts stand). Rails routing is *application*
+semantics, so the cutover's route behaviour is validated deterministically by
+a new rust-hybrid end-to-end case in
+`__tests__/frameworks-integration.test.ts`
+(`describe('Rails framework routes on rust-hybrid (roadmap 1-2-6-4 cutover)')`):
+a Gemfile-flagged app with `app/controllers/articles_controller.rb` +
+`pages_controller.rb` and a `config/routes.rb` containing
+`resources :articles` and `get '/dashboard' => 'pages#home'`. A standalone
+replication of the extractor regexes confirms the fixture yields exactly the
+eight asserted shapes — seven `resources` actions
+(`GET/POST /articles`, `GET /articles/new`, `GET/PATCH/DELETE /articles/:id`,
+`GET /articles/:id/edit`) plus `GET /dashboard`, with precise
+`articles#<action>` / `pages#home` refs — and the test asserts the resolved
+`route -> Rust action method` `references` edges for the explicit route and
+the `index` resource route, with zero parse errors. Both new test titles are
+registered in ci.yml step2's `-t` filter; the local skip-debt guardrail audit
+reports 33/33 branches matching a real `it()` title and an empty
+`ALLOWED_SKIPS`.
+
+`EXTRACTION_VERSION` is **not** bumped — Ruby remains inside the same
+unreleased semantic batch (1-2-6-1 through 1-2-6-4 ship together), matching
+the PHP/C# precedent.
+
