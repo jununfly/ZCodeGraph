@@ -68,6 +68,8 @@ import { runCsharpFrameworkRouteBackfill } from './indexing/rust-csharp-framewor
 import type { CsharpFrameworkRouteBackfillStats } from './indexing/rust-csharp-framework-routes';
 import { runPhpFrameworkRouteBackfill } from './indexing/rust-php-framework-routes';
 import type { PhpFrameworkRouteBackfillStats } from './indexing/rust-php-framework-routes';
+import { runRubyFrameworkRouteBackfill } from './indexing/rust-ruby-framework-routes';
+import type { RubyFrameworkRouteBackfillStats } from './indexing/rust-ruby-framework-routes';
 import {
   buildRustHybridMetadataFromPlan,
   mergeMissingFallbackDiagnostics,
@@ -1567,6 +1569,7 @@ export class CodeGraph {
       pythonFrameworkRouteBackfill?: PythonFrameworkRouteBackfillStats;
       csharpFrameworkRouteBackfill?: CsharpFrameworkRouteBackfillStats;
       phpFrameworkRouteBackfill?: PhpFrameworkRouteBackfillStats;
+      rubyFrameworkRouteBackfill?: RubyFrameworkRouteBackfillStats;
       referenceResolutionMs: number;
       referenceResolutionBreakdown: {
         importResolutionMs: number;
@@ -1719,6 +1722,13 @@ export class CodeGraph {
             readErrors: 0,
             extractErrors: 0,
           } as PhpFrameworkRouteBackfillStats,
+          rubyFrameworkRouteBackfill: {
+            filesScanned: 0,
+            routeNodes: 0,
+            routeReferences: 0,
+            readErrors: 0,
+            extractErrors: 0,
+          } as RubyFrameworkRouteBackfillStats,
           referenceResolutionMs: 0,
           referenceResolutionBreakdown: {
             importResolutionMs: 0,
@@ -2065,6 +2075,25 @@ export class CodeGraph {
           this.resolver.clearCaches();
         }
         onCheckpoint?.('finalization.phpFrameworkRouteBackfill.completed');
+
+        // Roadmap 1-2-6-4: the Rust core owns Ruby extraction (.rb/.rake) but
+        // has no Rails route extraction, so re-run the TypeScript rails
+        // framework extractor for the rust-owned .rb files here. Explicit and
+        // RESTful `resources` route nodes + `controller#action` refs are linked
+        // by the batched resolution directly below.
+        onCheckpoint?.('finalization.rubyFrameworkRouteBackfill.started');
+        const rubyRouteBackfill = runRubyFrameworkRouteBackfill(
+          this.queries,
+          this.projectRoot,
+          this.resolver.getDetectedFrameworks(),
+        );
+        profile.rubyFrameworkRouteBackfill = rubyRouteBackfill;
+        if (rubyRouteBackfill.routeNodes > 0) {
+          // New route handler refs target existing rust-owned nodes; clear the
+          // symbol-name cache before resolution.
+          this.resolver.clearCaches();
+        }
+        onCheckpoint?.('finalization.rubyFrameworkRouteBackfill.completed');
 
         const resolutionStarted = Date.now();
         onCheckpoint?.('finalization.referenceResolution.started');
