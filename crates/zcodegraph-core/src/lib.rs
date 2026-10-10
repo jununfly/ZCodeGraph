@@ -7240,15 +7240,41 @@ fn index_javascript_files(
                     &mut unresolved_refs,
                 )?;
             } else if language.is_dart() {
-                dart::extract(
-                    parsed.root_node(),
-                    content.as_bytes(),
-                    &relative_path,
-                    &file_node_id,
-                    &mut nodes,
-                    &mut edges,
-                    &mut unresolved_refs,
-                )?;
+                // Flutter widget trees nest very deeply (some framework files
+                // are ~30K LOC of nested constructors); the recursive Dart AST
+                // walker's frame overflows the default Windows main-thread stack
+                // (1 MiB) in a debug build, aborting the whole index. Run ONLY
+                // this per-file extraction on a large-stack worker. The output is
+                // byte-identical (no logic change), and a walker panic still
+                // unwinds the process via resume_unwind. (roadmap 1-2-9-3)
+                std::thread::scope(|scope| {
+                    let handle = std::thread::Builder::new()
+                        .stack_size(DART_EXTRACT_STACK_SIZE)
+                        .spawn_scoped(
+                            scope,
+                            || {
+                                // Box<dyn Error> is not Send; stringify inside the
+                                // worker and re-box on the caller thread.
+                                dart::extract(
+                                    parsed.root_node(),
+                                    content.as_bytes(),
+                                    &relative_path,
+                                    &file_node_id,
+                                    &mut nodes,
+                                    &mut edges,
+                                    &mut unresolved_refs,
+                                )
+                                .map_err(|err| err.to_string())
+                            },
+                        )
+                        .expect("spawn dart extraction worker");
+                    match handle.join() {
+                        Ok(result) => result.map_err(|msg| -> Box<dyn std::error::Error> {
+                            std::io::Error::other(msg).into()
+                        }),
+                        Err(payload) => std::panic::resume_unwind(payload),
+                    }
+                })?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -7735,6 +7761,12 @@ enum SourceLanguage {
     Rust,
 }
 
+/// Stack size for the per-file Dart extraction worker. Flutter's deeply nested
+/// widget trees (e.g. ~30K-LOC icon tables and framework files) overflow the
+/// default ~1 MiB Windows main-thread stack under the recursive walker; 128
+/// MiB matches the headroom other toolchains reserve for recursive AST passes.
+const DART_EXTRACT_STACK_SIZE: usize = 128 * 1024 * 1024;
+
 impl SourceLanguage {
     fn from_path(path: &Path) -> Option<Self> {
         match path.extension().and_then(|ext| ext.to_str()) {
@@ -7833,8 +7865,17 @@ impl SourceLanguage {
     /// constructs (Kotlin: a bodyless interface `fun x(): T` under some
     /// layouts). The TS orchestrator never gated on has_error for ANY language,
     /// so tolerant traversal is the parity behavior (roadmap 1-6-1).
+    ///
+    /// Dart's pinned c1222f5 grammar (the last ABI-14 build, matching the
+    /// production wasm) flags two *legal* Dart constructs observed in real
+    /// corpora (roadmap 1-2-9-3, dart-lang/collection v1.19.0): the unnamed
+    /// library directive `library;` (Dart 2.19) inserts a MISSING identifier,
+    /// and a receiver named with the contextual keyword `set` (`set.add(x)`)
+    /// misparses as a setter declaration. Dropping the whole file would lose
+    /// the barrel `export` shims that use `library;`, so Dart is tolerant like
+    /// Kotlin; the walker itself never panics on error-recovery nodes.
     fn tolerates_parse_errors(self) -> bool {
-        self.is_c_family() || matches!(self, Self::Kotlin)
+        self.is_c_family() || matches!(self, Self::Kotlin | Self::Dart)
     }
 
     fn is_java(self) -> bool {
@@ -15791,6 +15832,68 @@ mod tests {
         );
 
         drop(conn);
+        cleanup_temp_dir(dir);
+    }
+
+    // Dart real-corpus parse-tolerance guards (roadmap 1-2-9-3). The pinned
+    // tree-sitter-dart grammar (c1222f5, ABI 14 — matching the production wasm)
+    // flags a few *legal* Dart constructs; Dart is parse-error tolerant like
+    // Kotlin because the TS orchestrator never gated on has_error.
+    #[test]
+    fn dart_tolerates_unnamed_library_directive_and_keeps_export_shim() {
+        let dir = temp_dir("dart-unnamed-library");
+        // Dart 2.19 allows a name-less `library;` directive, which makes c1222f5
+        // insert a MISSING identifier (has_error=true). These barrel shims carry
+        // the `export` graph, so the whole file must not be dropped.
+        write_file(
+            &dir,
+            "lib/shim.dart",
+            "library;\n\nexport 'src/foo.dart';\n\nclass A {}\n",
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 1);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='dart' AND kind='import' AND name='src/foo.dart'"
+            ),
+            1
+        );
+        drop(conn);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn dart_extracts_deeply_nested_widget_tree_on_large_stack_worker() {
+        let dir = temp_dir("dart-deep-widget-nesting");
+        // Flutter widget trees nest constructor calls via named `child:` args.
+        // 2,000 levels parse cleanly but the recursive walker overflows a
+        // default ~1-2 MiB stack in a debug build (observed on the real Flutter
+        // corpus); extraction runs on DART_EXTRACT_STACK_SIZE worker. If that
+        // worker is removed, this test aborts with "has overflowed its stack".
+        let mut expr = "SizedBox()".to_string();
+        for _ in 0..2_000 {
+            expr = format!("Padding(child: {expr})");
+        }
+        let code = format!(
+            "class WidgetPage {{\n  Widget build() {{\n    return {expr};\n  }}\n}}\n"
+        );
+        write_file(&dir, "lib/deep.dart", &code);
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+        // file + class + method survive even though the expression is deep.
+        assert!(result.nodes_created >= 3);
         cleanup_temp_dir(dir);
     }
 

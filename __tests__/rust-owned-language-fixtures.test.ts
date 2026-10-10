@@ -2251,4 +2251,209 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
       }
     });
   });
+
+  describe('Dart baseline (roadmap 1-2-9)', () => {
+    function dartNodes(
+      cg: CodeGraph,
+      filePath: string,
+      kind: string,
+    ): Array<{ name: string; qualifiedName: string; visibility?: string | null; isStatic?: boolean }> {
+      return cg
+        .getNodesByKind(kind)
+        .filter((n) => n.language === 'dart' && n.filePath === filePath)
+        .map((n) => ({
+          name: n.name,
+          qualifiedName: n.qualifiedName,
+          visibility: n.visibility,
+          isStatic: n.isStatic,
+        }));
+    }
+
+    function dartRefs(db: DbHandle, filePath: string, kind: string): string[] {
+      return unresolvedRefs(db, filePath)
+        .filter((r) => r.reference_kind === kind)
+        .map((r) => r.reference_name);
+    }
+
+    it('extracts classes/mixin/enum/typedef/methods/functions with inheritance and signature type refs', () => {
+      const filePath = 'lib/service.dart';
+      writeFile(
+        filePath,
+        [
+          "import 'models.dart';",
+          '',
+          'enum Status { active, inactive }',
+          '',
+          'typedef Holder = Container;',
+          '',
+          'mixin Loggable on Base {}',
+          '',
+          'class UserService extends Repository with Loggable, Trackable implements Disposable {',
+          '  Future<User> findById(String id, int count) async {',
+          '    return User();',
+          '  }',
+          '',
+          '  void _private() {}',
+          '',
+          '  static void doWork() {}',
+          '}',
+          '',
+          'void topLevel(String name) {}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.dart).toBe(1);
+
+        // mixin and class are both `class` nodes; qualified names drop the file
+        // frame (Dart has no lexical namespace), matching the TS buildQualifiedName.
+        expect(dartNodes(cg, filePath, 'class').map((c) => c.name).sort()).toEqual([
+          'Loggable',
+          'UserService',
+        ]);
+
+        expect(dartNodes(cg, filePath, 'enum').map((e) => e.name)).toEqual(['Status']);
+        expect(
+          dartNodes(cg, filePath, 'enum_member').map((m) => m.qualifiedName).sort(),
+        ).toEqual(['Status::active', 'Status::inactive']);
+
+        expect(dartNodes(cg, filePath, 'type_alias').map((t) => t.name)).toEqual(['Holder']);
+
+        const methods = dartNodes(cg, filePath, 'method');
+        expect(methods.map((m) => m.name).sort()).toEqual(['_private', 'doWork', 'findById']);
+        expect(methods.map((m) => m.qualifiedName).sort()).toEqual([
+          'UserService::_private',
+          'UserService::doWork',
+          'UserService::findById',
+        ]);
+        const byName = new Map(methods.map((m) => [m.name, m]));
+        // Visibility mirrors the TS getVisibility node-kind matrix: underscore
+        // method is private; a mixin's name (no `name` field) is always public.
+        expect(byName.get('_private')?.visibility).toBe('private');
+        expect(byName.get('findById')?.visibility).toBe('public');
+        expect(byName.get('doWork')?.isStatic).toBe(true);
+        expect(
+          dartNodes(cg, filePath, 'class').find((c) => c.name === 'Loggable')?.visibility,
+        ).toBe('public');
+
+        expect(dartNodes(cg, filePath, 'function').map((f) => f.name)).toEqual(['topLevel']);
+
+        // Inheritance: extends base, with-mixins and implements all recorded.
+        expect(dartRefs(db, filePath, 'extends')).toEqual(['Repository']);
+        expect(new Set(dartRefs(db, filePath, 'implements'))).toEqual(
+          new Set(['Disposable', 'Loggable', 'Trackable']),
+        );
+        // A mixin's `on Base` is a bare type_identifier (no clause) -> no edge.
+        expect(dartRefs(db, filePath, 'extends')).not.toContain('Base');
+        expect(dartRefs(db, filePath, 'implements')).not.toContain('Base');
+
+        // Method signature type refs: Future/User surface; String/int are
+        // cross-language builtins and are filtered. Parameter NAMES never
+        // surface, and the typedef RHS (`Container`) carries no `value` field,
+        // so it emits no type refs.
+        const typeRefs = new Set(dartRefs(db, filePath, 'references'));
+        expect(typeRefs.has('Future')).toBe(true);
+        expect(typeRefs.has('User')).toBe(true);
+        for (const dropped of ['String', 'int', 'Container', 'id', 'count', 'name']) {
+          expect(typeRefs.has(dropped), `unexpected type ref ${dropped}`).toBe(false);
+        }
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('creates import nodes and imports refs for dart:/package:/relative/export', () => {
+      const filePath = 'lib/app.dart';
+      writeFile(
+        filePath,
+        [
+          "import 'dart:async';",
+          "import 'package:flutter/material.dart';",
+          "import 'models.dart' as models;",
+          "export 'src/foo.dart';",
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(importNames(cg, 'dart').sort()).toEqual([
+          'dart:async',
+          'models.dart',
+          'package:flutter/material.dart',
+          'src/foo.dart',
+        ]);
+        const refs = unresolvedImportRefs(db, filePath).map((r) => r.reference_name).sort();
+        expect(refs).toEqual([
+          'dart:async',
+          'models.dart',
+          'package:flutter/material.dart',
+          'src/foo.dart',
+        ]);
+        // The pure-Rust engine leaves every unresolved ref tagged `dart`.
+        expect(unresolvedImportRefs(db, filePath).every((r) => r.language === 'dart')).toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('emits selector/new/const calls and capitalized static value reads', () => {
+      const filePath = 'lib/calls.dart';
+      writeFile(
+        filePath,
+        [
+          'class C {',
+          '  void m() {',
+          '    runApp(MyApp());',
+          '    Navigator.push(c, r);',
+          '    thing.sub();',
+          '    super.cleanup();',
+          '    final a = new User.named(1);',
+          '    final b = const SizedBox.shrink();',
+          '    final v = Color.red;',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        // Body refs are visited under both the method and (via the member
+        // wrapper descent) the class frame, so compare as a Set.
+        const calls = new Set(dartRefs(db, filePath, 'calls'));
+        // identifier+selector -> bare name; direct-identifier receiver ->
+        // receiver.method; super -> method name.
+        for (const expected of [
+          'runApp',
+          'MyApp',
+          'Navigator.push',
+          'thing.sub',
+          'cleanup',
+        ]) {
+          expect(calls.has(expected), `missing call ${expected}`).toBe(true);
+        }
+        // new_expression reports only the type_identifier; const_object_
+        // expression reports Type.name.
+        expect(calls.has('User')).toBe(true);
+        expect(calls.has('User.named')).toBe(false);
+        expect(calls.has('SizedBox.shrink')).toBe(true);
+
+        // A no-arg selector on a Capitalized receiver is a value read. The
+        // `.push` accessor on capitalized Navigator is visited the same way;
+        // lowercase `thing` is excluded.
+        const valueReads = new Set(dartRefs(db, filePath, 'references'));
+        expect(valueReads.has('Color')).toBe(true);
+        expect(valueReads.has('Navigator')).toBe(true);
+        expect(valueReads.has('thing')).toBe(false);
+      } finally {
+        cg.close();
+      }
+    });
+  });
 });
