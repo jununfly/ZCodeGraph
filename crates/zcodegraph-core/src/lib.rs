@@ -11,6 +11,7 @@ use std::time::{Duration, Instant, SystemTime};
 use tree_sitter::{Node as SyntaxNode, Parser, TreeCursor};
 
 mod csharp;
+mod dart;
 mod index_options;
 mod php;
 mod ruby;
@@ -7238,6 +7239,16 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                 )?;
+            } else if language.is_dart() {
+                dart::extract(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -7719,6 +7730,7 @@ enum SourceLanguage {
     Csharp,
     Php,
     Ruby,
+    Dart,
     Python,
     Rust,
 }
@@ -7747,6 +7759,7 @@ impl SourceLanguage {
             // Ruby also ships under .rake (Rake tasks), aligned with
             // grammars.ts (.rb/.rake both classify as 'ruby').
             Some("rb") | Some("rake") => Some(Self::Ruby),
+            Some("dart") => Some(Self::Dart),
             Some("py") | Some("pyw") => Some(Self::Python),
             Some("rs") => Some(Self::Rust),
             _ => None,
@@ -7767,6 +7780,7 @@ impl SourceLanguage {
             Self::Csharp => "csharp",
             Self::Php => "php",
             Self::Ruby => "ruby",
+            Self::Dart => "dart",
             Self::Python => "python",
             Self::Rust => "rust",
         }
@@ -7787,6 +7801,7 @@ impl SourceLanguage {
             Self::Csharp => tree_sitter_c_sharp::LANGUAGE.into(),
             Self::Php => tree_sitter_php::LANGUAGE_PHP.into(),
             Self::Ruby => tree_sitter_ruby::LANGUAGE.into(),
+            Self::Dart => tree_sitter_dart::language(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
@@ -7840,6 +7855,10 @@ impl SourceLanguage {
 
     fn is_ruby(self) -> bool {
         matches!(self, Self::Ruby)
+    }
+
+    fn is_dart(self) -> bool {
+        matches!(self, Self::Dart)
     }
 
     fn is_python(self) -> bool {

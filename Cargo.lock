@@ -505,6 +505,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter-dart"
+version = "0.0.1"
+source = "git+https://github.com/jununfly/tree-sitter-dart?rev=03b552c516f2adb6e84c3858427f5fa0124b3d95#03b552c516f2adb6e84c3858427f5fa0124b3d95"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
 name = "tree-sitter-go"
 version = "0.23.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -644,6 +653,7 @@ dependencies = [
  "tree-sitter-c",
  "tree-sitter-c-sharp",
  "tree-sitter-cpp",
+ "tree-sitter-dart",
  "tree-sitter-go",
  "tree-sitter-java",
  "tree-sitter-javascript",
