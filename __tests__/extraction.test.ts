@@ -6575,3 +6575,177 @@ end
     }
   });
 });
+
+// ===========================================================================
+// Roadmap 1-2-9-4 — Dart on rust-hybrid (ownership cutover).
+//
+// Unlike C#/PHP/Ruby, Dart has NO framework-route back-fill and NO permanent
+// TypeScript framework shell: Flutter navigation is an imperative, in-widget-
+// tree API (Navigator.push / MaterialPageRoute / Navigator.pushNamed), which
+// extraction already records as ordinary calls/references refs. There is no
+// file-level route table (no routes.rb / Drupal hook / ASP.NET attribute
+// route), and src/resolution/frameworks/ has no dart resolver. So 1-2-9-4 is
+// the cleanest cutover (closest to Go): the only ownership change is adding
+// 'dart' to RUST_HYBRID_RUST_OWNED_LANGUAGES. Every .dart file is scheduled
+// through Rust with zero TypeScript fallback; dart.ts is retained only for the
+// pure --engine typescript engine. The cross-file e2e below pins that the
+// resolved Dart graph (extends / with-mixin / instantiation / calls) is shaped
+// identically through Rust, and the plan-guard test pins zero TS fallback.
+// ===========================================================================
+describe('Dart on rust-hybrid (roadmap 1-2-9-4 cutover)', () => {
+  let tempDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(() => {
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    if (cg) cg.close();
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('resolves cross-file Dart superclass, with-mixin, instantiations, and static/instance calls on rust-hybrid after the ownership cutover, roadmap 1-2-9-4', async () => {
+    const write = (rel: string, body: string): void => {
+      const full = path.join(tempDir, rel);
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, body);
+    };
+
+    // Cross-file model: a class with a static finder and an instance saver.
+    write(
+      'lib/models.dart',
+      `class User {
+  static User findById(String id) {
+    return User();
+  }
+
+  bool save() {
+    return true;
+  }
+}
+
+mixin Authenticatable {
+  void authenticate() {}
+}
+
+abstract class BaseService {
+  void boot() {}
+}
+`,
+    );
+    // Service: extends a cross-file base class, mixes in a cross-file mixin,
+    // imports the model, then constructs the cross-file User and calls its
+    // static/instance members.
+    write(
+      'lib/user_service.dart',
+      `import 'models.dart';
+
+class UserService extends BaseService with Authenticatable {
+  User create(String id) {
+    final u = User();
+    User.findById(id);
+    u.save();
+    return u;
+  }
+}
+`,
+    );
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    cg.resolveReferences();
+
+    // Zero parse/extraction gaps on clean Dart.
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+    expect(result.errors).toHaveLength(0);
+
+    const serviceFile = 'lib/user_service.dart';
+
+    const service = cg
+      .getNodesByKind('class')
+      .find((n) => n.name === 'UserService' && path.basename(n.filePath ?? '') === 'user_service.dart');
+    expect(service, 'UserService extracted').toBeDefined();
+
+    // superclass: UserService --> cross-file BaseService (target is a class,
+    // not an interface/protocol, so the edge stays `extends`).
+    const extendsTarget = cg
+      .getOutgoingEdges(service!.id)
+      .filter((e) => e.kind === 'extends')
+      .map((e) => cg.getNode(e.target))
+      .find((t) => t?.name === 'BaseService' && (t?.filePath ?? '').endsWith('models.dart'));
+    expect(extendsTarget, 'UserService extends cross-file BaseService').toBeDefined();
+
+    // mixin: the `with Authenticatable` clause emits an implements ref; the
+    // target is a Dart mixin (indexed as a class-like node) in another file.
+    const mixin = cg
+      .getNodesByKind('class')
+      .find((n) => n.name === 'Authenticatable' && (n.filePath ?? '').endsWith('models.dart'));
+    expect(mixin, 'Authenticatable mixin extracted').toBeDefined();
+    const mixinTarget = cg
+      .getOutgoingEdges(service!.id)
+      .filter((e) => e.kind === 'implements' || e.kind === 'extends')
+      .map((e) => cg.getNode(e.target))
+      .find((t) => t?.name === 'Authenticatable' && (t?.filePath ?? '').endsWith('models.dart'));
+    expect(mixinTarget, 'UserService mixes in cross-file Authenticatable').toBeDefined();
+
+    // instantiation: Dart has no mandatory `new` — `User()` is extracted as a
+    // `User` calls ref, and resolving it to the User class promotes calls ->
+    // instantiates. Body refs are visited under the method and (via the member
+    // wrapper) the class frame, so inspect both endpoints.
+    const createMethod = cg
+      .getNodesByKind('method')
+      .find((n) => n.name === 'create' && path.basename(n.filePath ?? '') === 'user_service.dart');
+    expect(createMethod, 'UserService::create extracted').toBeDefined();
+    const endpoints = [service!.id, createMethod!.id];
+    const instantiatesUser = endpoints.some((id) =>
+      cg
+        .getOutgoingEdges(id)
+        .some((e) => e.kind === 'instantiates' && cg.getNode(e.target)?.name === 'User'),
+    );
+    expect(instantiatesUser, 'create body instantiates the cross-file User class').toBe(true);
+
+    // Impact radius: editing the mixed-in mixin must surface the class that
+    // mixes it in, across files.
+    const mixinReaches = [...cg.getImpactRadius(mixin!.id, 3).nodes.values()].some((n) =>
+      (n.filePath ?? '').endsWith(serviceFile),
+    );
+    expect(mixinReaches, 'Authenticatable reaches the service that mixes it in').toBe(true);
+
+    // And editing the instantiated cross-file model surfaces the service.
+    const user = cg
+      .getNodesByKind('class')
+      .find((n) => n.name === 'User' && (n.filePath ?? '').endsWith('models.dart'));
+    expect(user, 'User extracted').toBeDefined();
+    const userReaches = [...cg.getImpactRadius(user!.id, 3).nodes.values()].some((n) =>
+      (n.filePath ?? '').endsWith(serviceFile),
+    );
+    expect(userReaches, 'User reaches the service that news/calls it').toBe(true);
+  });
+
+  it('routes Dart through the Rust core with zero TypeScript fallback after the ownership cutover, roadmap 1-2-9-4', () => {
+    // Post-cutover: 'dart' is the 15th rust-owned language, so a .dart file is
+    // scheduled through the Rust core (fallbackByLanguage.dart === 0). Node
+    // 1-2-9-4 added 'dart' to RUST_HYBRID_RUST_OWNED_LANGUAGES, mirroring the
+    // Ruby 1-2-6-4 / PHP 1-2-5-4 / C# 1-2-4-4 cutover. Dart needs no framework
+    // route back-fill (Flutter navigation is in-widget-tree imperative calls),
+    // so there is no rust-dart-framework-routes shell; the dart.ts extractor is
+    // retained only for the pure --engine typescript engine.
+    expect(isRustHybridOwnedLanguage('dart')).toBe(true);
+    expect(isRustHybridOwnedLanguage('ruby')).toBe(true);
+
+    const dir = createTempDir();
+    try {
+      fs.writeFileSync(path.join(dir, 'main.dart'), "void main() {\n}\n");
+
+      const plan = planRustHybridAssignments(dir);
+      expect(plan.engineByLanguage).toMatchObject({ dart: 'rust' });
+      expect(plan.rustOwnedFiles).toContain('main.dart');
+      expect(plan.fallbackFiles).not.toContain('main.dart');
+      expect(plan.fallbackByLanguage.dart ?? 0).toBe(0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
