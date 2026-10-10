@@ -39,9 +39,31 @@
 
 use tree_sitter::Node as SyntaxNode;
 
-use crate::{ExtractedEdge, ExtractedNode, UnresolvedRef};
+use crate::{push_ref, ExtractedEdge, ExtractedNode, SourceLanguage, UnresolvedRef};
 
 const LANG: &str = "dart";
+
+/// Mirrors the TS extractor's shared BUILTIN_TYPES set (the Dart path reuses
+/// the same cross-language set, not a Dart-specific one). A `type_identifier`
+/// leaf whose text is in this set emits no `references` ref. Note `String` is
+/// present (added for Scala) but `num`/`List`/`Map`/`Future`/`Iterable`/
+/// `dynamic` are not, so those DO surface as refs — reproduced verbatim.
+const BUILTIN_TYPES: &[&str] = &[
+    // JS/TS
+    "string", "number", "boolean", "void", "null", "undefined", "never", "any", "unknown",
+    "object", "symbol", "bigint", "true", "false",
+    // Rust
+    "str", "bool", "i8", "i16", "i32", "i64", "i128", "isize", "u8", "u16", "u32", "u64",
+    "u128", "usize", "f32", "f64", "char",
+    // Java/C#
+    "int", "long", "short", "byte", "float", "double",
+    // Go
+    "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32",
+    "float64", "complex64", "complex128", "rune", "error",
+    // Scala (capitalized primitives + aliases)
+    "Int", "Long", "Short", "Byte", "Float", "Double", "Boolean", "Char", "Unit", "String",
+    "Any", "AnyRef", "AnyVal", "Nothing", "Null",
+];
 
 /// Inner signature node kinds that carry a method's real name/params/return.
 const INNER_SIGNATURES: &[&str] = &[
@@ -258,6 +280,207 @@ fn import_uri<'a>(node: SyntaxNode<'a>, source: &'a [u8]) -> Option<String> {
     }
 }
 
+/// Whether a type name is filtered out as a cross-language built-in (mirrors
+/// the TS extractor's BUILTIN_TYPES membership test).
+fn is_builtin_type(name: &str) -> bool {
+    BUILTIN_TYPES.contains(&name)
+}
+
+/// A capitalized simple identifier `^[A-Z][A-Za-z0-9_]*$` (the
+/// extractStaticMemberRef receiver gate for `Enum.value` / `Colors.red`).
+fn is_capitalized(name: &str) -> bool {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(first) if first.is_ascii_uppercase() => {
+            name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        }
+        _ => false,
+    }
+}
+
+/// Walk a subtree and emit a `references` ref for every non-built-in
+/// `type_identifier` leaf. Mirrors extractTypeRefsFromSubtree: parameter
+/// NAMES and method names are `identifier` (not `type_identifier`) and never
+/// surface; generic/union wrappers simply recurse.
+fn emit_type_refs(
+    node: SyntaxNode,
+    from_id: &str,
+    relative_path: &str,
+    source: &[u8],
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) {
+    if node.kind() == "type_identifier" {
+        if let Some(name) = node_text(node, source) {
+            if !is_builtin_type(&name) {
+                push_ref(
+                    unresolved_refs,
+                    from_id,
+                    &name,
+                    "references",
+                    node,
+                    relative_path,
+                    SourceLanguage::Dart,
+                );
+            }
+        }
+        return; // type_identifier is a leaf
+    }
+    for child in named_children(node) {
+        emit_type_refs(child, from_id, relative_path, source, unresolved_refs);
+    }
+}
+
+/// Inheritance refs for a class-like node. Mirrors the Dart branches in
+/// extractInheritance:
+/// * `superclass` field — a direct `type_identifier` child -> `extends`;
+///   each type_identifier inside a `mixins` child -> `implements`.
+/// * `interfaces` field (`implements …`) — each type_identifier -> `implements`.
+/// A mixin's `on Base` constraint and an extension's `on String` clause are
+/// BARE type_identifiers (not superclass/interfaces clauses) and match no
+/// branch, so they intentionally emit nothing.
+fn emit_inheritance_refs(
+    node: SyntaxNode,
+    class_id: &str,
+    relative_path: &str,
+    source: &[u8],
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) {
+    if let Some(superclass) = node.child_by_field_name("superclass") {
+        for child in named_children(superclass) {
+            match child.kind() {
+                "mixins" => {
+                    for m in named_children(child) {
+                        if m.kind() == "type_identifier" {
+                            if let Some(name) = node_text(m, source) {
+                                push_ref(
+                                    unresolved_refs,
+                                    class_id,
+                                    &name,
+                                    "implements",
+                                    m,
+                                    relative_path,
+                                    SourceLanguage::Dart,
+                                );
+                            }
+                        }
+                    }
+                }
+                "type_identifier" => {
+                    if let Some(name) = node_text(child, source) {
+                        push_ref(
+                            unresolved_refs,
+                            class_id,
+                            &name,
+                            "extends",
+                            child,
+                            relative_path,
+                            SourceLanguage::Dart,
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    if let Some(interfaces) = node.child_by_field_name("interfaces") {
+        for child in named_children(interfaces) {
+            if child.kind() == "type_identifier" {
+                if let Some(name) = node_text(child, source) {
+                    push_ref(
+                        unresolved_refs,
+                        class_id,
+                        &name,
+                        "implements",
+                        child,
+                        relative_path,
+                        SourceLanguage::Dart,
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Resolve the callee name for a Dart call `selector` node (a selector whose
+/// named children include an `argument_part`), mirroring
+/// dartExtractor.extractBareCall. Returns the name to emit a `calls` ref for,
+/// or None. Each call-bearing selector is visited independently, so chained
+/// calls may emit multiple refs.
+fn bare_call_name(selector: SyntaxNode, source: &[u8]) -> Option<String> {
+    let has_args = named_children(selector)
+        .iter()
+        .any(|c| c.kind() == "argument_part");
+    if !has_args {
+        return None;
+    }
+    let prev = selector.prev_named_sibling()?;
+    match prev.kind() {
+        // runApp(...), MyApp(...), User('x') — the bare identifier is callee.
+        "identifier" => node_text(prev, source),
+        // Navigator.push(...), obj.method(...): prev is the `.method` selector.
+        "selector" => {
+            let accessor = named_children(prev).into_iter().find(|c| {
+                c.kind() == "unconditional_assignable_selector"
+                    || c.kind() == "conditional_assignable_selector"
+            })?;
+            let method = named_children(accessor)
+                .into_iter()
+                .find(|c| c.kind() == "identifier")?;
+            let method_text = node_text(method, source)?;
+            // Include receiver for the first call in a chain whose receiver is
+            // a direct identifier (`Navigator.push`); deeper links report the
+            // method name only.
+            if let Some(accessor_prev) = prev.prev_named_sibling() {
+                if accessor_prev.kind() == "identifier" {
+                    if let Some(recv) = node_text(accessor_prev, source) {
+                        return Some(format!("{recv}.{method_text}"));
+                    }
+                }
+            }
+            Some(method_text)
+        }
+        // super.method(...), this.method(...): prev is the bare `.method`
+        // accessor itself.
+        "unconditional_assignable_selector" | "conditional_assignable_selector" => {
+            let method = named_children(prev)
+                .into_iter()
+                .find(|c| c.kind() == "identifier")?;
+            node_text(method, source)
+        }
+        _ => None,
+    }
+}
+
+/// Callee name for `new Foo(...)` / `new Foo.named(...)`. tree-sitter-dart
+/// models new_expression with a `type_identifier` (+ optional named
+/// constructor `identifier`) and an `arguments` child. Mirrors extractBareCall's
+/// new_expression branch.
+fn new_call_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
+    let type_id = named_children(node)
+        .into_iter()
+        .find(|c| c.kind() == "type_identifier")
+        .and_then(|n| node_text(n, source))?;
+    Some(type_id)
+}
+
+/// Callee name for `const T(...)` / `const T.named(...)` (const_object_
+/// expression): `type_identifier` + optional `identifier` -> `T.name`.
+fn const_call_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
+    let type_id = named_children(node)
+        .into_iter()
+        .find(|c| c.kind() == "type_identifier")
+        .and_then(|n| node_text(n, source))?;
+    let name = named_children(node)
+        .into_iter()
+        .find(|c| c.kind() == "identifier")
+        .and_then(|n| node_text(n, source));
+    match name {
+        Some(named) => Some(format!("{type_id}.{named}")),
+        None => Some(type_id),
+    }
+}
+
 pub(crate) fn extract(
     root: SyntaxNode,
     source: &[u8],
@@ -306,6 +529,73 @@ fn walk_decl(
     let kind = node.kind();
     let parent_id = stack[stack.len() - 1].id.clone();
 
+    // ---- expression refs: selector calls / value reads / new / const ------
+    // Mirrors the TS body walker, which runs extractBareCall then
+    // extractStaticMemberRef against every visited node, attributing the ref
+    // to the current stack top (the enclosing method/function, or the file).
+    // These nodes fall through to generic descent afterwards so nested calls
+    // inside arguments are still visited.
+    if kind == "selector" {
+        let has_args = named_children(node)
+            .iter()
+            .any(|c| c.kind() == "argument_part");
+        if has_args {
+            if let Some(name) = bare_call_name(node, source) {
+                push_ref(
+                    unresolved_refs,
+                    &parent_id,
+                    &name,
+                    "calls",
+                    node,
+                    relative_path,
+                    SourceLanguage::Dart,
+                );
+            }
+        } else if let Some(prev) = node.prev_named_sibling() {
+            // Value-read selector (no args) with a capitalized identifier
+            // receiver: `Enum.value`, `Colors.red`, `C.STATIC`.
+            if prev.kind() == "identifier" {
+                if let Some(recv) = node_text(prev, source) {
+                    if is_capitalized(&recv) {
+                        push_ref(
+                            unresolved_refs,
+                            &parent_id,
+                            &recv,
+                            "references",
+                            prev,
+                            relative_path,
+                            SourceLanguage::Dart,
+                        );
+                    }
+                }
+            }
+        }
+    } else if kind == "new_expression" {
+        if let Some(name) = new_call_name(node, source) {
+            push_ref(
+                unresolved_refs,
+                &parent_id,
+                &name,
+                "calls",
+                node,
+                relative_path,
+                SourceLanguage::Dart,
+            );
+        }
+    } else if kind == "const_object_expression" {
+        if let Some(name) = const_call_name(node, source) {
+            push_ref(
+                unresolved_refs,
+                &parent_id,
+                &name,
+                "calls",
+                node,
+                relative_path,
+                SourceLanguage::Dart,
+            );
+        }
+    }
+
     // ---- import_or_export -> import node (no frame) -----------------------
     if kind == "import_or_export" {
         if let Some(module_name) = import_uri(node, source) {
@@ -322,7 +612,18 @@ fn walk_decl(
             let id = import.id.clone();
             edges.push(contains_edge(&parent_id, &id, node));
             nodes.push(import);
-            // imports ref is added in 1-2-9-2.
+            // `imports` unresolved ref from the import node, mirroring the TS
+            // extractImport hook (relative imports later resolve file->file;
+            // dart:/package: URIs stay unresolved by design).
+            push_ref(
+                unresolved_refs,
+                &id,
+                &module_name,
+                "imports",
+                node,
+                relative_path,
+                SourceLanguage::Dart,
+            );
         }
         return Ok(());
     }
@@ -428,15 +729,19 @@ fn walk_decl(
             );
             let id = extracted.id.clone();
             edges.push(contains_edge(&parent_id, &id, node));
-
-            // Inheritance (extends/with/implements), type refs and decorators
-            // are added in 1-2-9-2.
             nodes.push(extracted);
             stack.push(Frame {
                 id: id.clone(),
                 name: name.clone(),
                 kind: "class",
             });
+
+            // extends / with-mixins / implements refs. Only a class_definition
+            // carries superclass/interfaces fields; a mixin's `on T` and an
+            // extension's `on T` are bare type_identifiers that emit nothing.
+            if kind == "class_definition" {
+                emit_inheritance_refs(node, &id, relative_path, source, unresolved_refs);
+            }
 
             // class_definition / mixin use a class_body child; extension uses
             // extension_body. resolveBody prefers the body field then scans for
@@ -513,6 +818,9 @@ fn walk_decl(
                 name: name.clone(),
                 kind: "function",
             });
+            // Parameter/return type refs (a top-level signature IS the inner
+            // signature; the Dart type-annotation branch walks it directly).
+            emit_type_refs(node, &id, relative_path, source, unresolved_refs);
             if let Some(body) = sibling_function_body(node) {
                 for child in named_children(body) {
                     walk_decl(
@@ -549,13 +857,18 @@ fn walk_decl(
             method = extend_span_over_body(method, sibling_function_body(node));
             let id = method.id.clone();
             edges.push(contains_edge(&parent_id, &id, node));
-            // Parameter/return type refs added in 1-2-9-2.
             nodes.push(method);
             stack.push(Frame {
                 id: id.clone(),
                 name: name.clone(),
                 kind: "method",
             });
+            // Parameter/return type refs: a method_signature wraps the real
+            // inner signature (where params/return type live); walk it, falling
+            // back to the node itself (mirrors the TS Dart type-annotation
+            // branch).
+            let sig = inner_signature(node).unwrap_or(node);
+            emit_type_refs(sig, &id, relative_path, source, unresolved_refs);
             if let Some(body) = sibling_function_body(node) {
                 for child in named_children(body) {
                     walk_decl(
@@ -650,6 +963,26 @@ mod tests {
             .iter()
             .find(|n| n.kind == kind && n.name == name)
             .unwrap_or_else(|| panic!("{kind} named {name:?}"))
+    }
+
+    /// All reference names of a kind (with multiplicity, in emission order).
+    fn refs_of<'a>(refs: &'a [UnresolvedRef], kind: &str) -> Vec<&'a str> {
+        refs.iter()
+            .filter(|r| r.reference_kind == kind)
+            .map(|r| r.reference_name.as_str())
+            .collect()
+    }
+
+    /// Reference names of a kind attributed to a specific source node.
+    fn refs_from<'a>(
+        refs: &'a [UnresolvedRef],
+        kind: &str,
+        from_id: &str,
+    ) -> Vec<&'a str> {
+        refs.iter()
+            .filter(|r| r.reference_kind == kind && r.from_node_id == from_id)
+            .map(|r| r.reference_name.as_str())
+            .collect()
     }
 
     #[test]
@@ -886,6 +1219,196 @@ void top() {
         let top = find(&nodes, "function", "top");
         assert_eq!(top.start_line, 9);
         assert_eq!(top.end_line, 11);
+    }
+
+    #[test]
+    fn import_refs_fire_from_import_nodes() {
+        let code = "\
+import 'dart:async';
+import 'models.dart' as models;
+export 'src/foo.dart';
+";
+        let (_nodes, _edges, refs) = extract_all("imp.dart", code);
+        let imports = refs_of(&refs, "imports");
+        assert_eq!(imports, ["dart:async", "models.dart", "src/foo.dart"]);
+        // Each import ref originates from its own import node id.
+        for r in refs.iter().filter(|r| r.reference_kind == "imports") {
+            let owner = _nodes.iter().find(|n| n.id == r.from_node_id);
+            assert_eq!(owner.map(|n| n.kind.as_str()), Some("import"));
+        }
+    }
+
+    #[test]
+    fn extends_mixins_and_implements_refs() {
+        let code = "\
+class C extends Base with MixA, MixB implements Iface {
+}
+";
+        let (nodes, _edges, refs) = extract_all("inh.dart", code);
+        let c = find(&nodes, "class", "C");
+        assert_eq!(refs_from(&refs, "extends", &c.id), ["Base"]);
+        let mut implements = refs_from(&refs, "implements", &c.id);
+        implements.sort();
+        assert_eq!(implements, ["Iface", "MixA", "MixB"]);
+    }
+
+    #[test]
+    fn mixin_on_constraint_and_extension_on_emit_no_inheritance_refs() {
+        // A mixin's `on Base` and an extension's `on String` are bare
+        // type_identifiers (not superclass/interfaces clauses); the TS
+        // extractInheritance clause loop never matches them.
+        let code = "\
+mixin Loggable on Base {}
+
+extension X on String {}
+";
+        let (nodes, _edges, refs) = extract_all("on.dart", code);
+        assert!(refs_of(&refs, "extends").is_empty());
+        assert!(refs_of(&refs, "implements").is_empty());
+        // No stray type refs either (these positions are not walked as type
+        // annotations).
+        let x = find(&nodes, "class", "X");
+        assert!(refs_from(&refs, "references", &x.id).is_empty());
+    }
+
+    #[test]
+    fn selector_calls_cover_simple_chain_and_super_shapes() {
+        let code = "\
+class C {
+  void m() {
+    runApp(MyApp());
+    Navigator.push(context, route);
+    thing.sub();
+    super.cleanup();
+  }
+}
+";
+        let (nodes, _edges, refs) = extract_all("calls.dart", code);
+        let m = find(&nodes, "method", "m");
+        let mut calls = refs_from(&refs, "calls", &m.id);
+        calls.sort();
+        // runApp(...) -> runApp; MyApp() -> MyApp; Navigator.push(...) /
+        // thing.sub() both have a direct-identifier receiver, so the accessor
+        // path returns receiver.method (no capitalization check here — that
+        // gate is only for static-member value reads); super.cleanup() ->
+        // cleanup.
+        assert_eq!(calls, ["MyApp", "Navigator.push", "cleanup", "runApp", "thing.sub"]);
+    }
+
+    #[test]
+    fn new_and_const_calls_use_type_names() {
+        let code = "\
+class C {
+  void m() {
+    final a = new User.named(1);
+    final b = new Plain();
+    final c = const EdgeInsets.all(8.0);
+    final d = const SizedBox();
+  }
+}
+";
+        let (nodes, _edges, refs) = extract_all("nc.dart", code);
+        let m = find(&nodes, "method", "m");
+        let mut calls = refs_from(&refs, "calls", &m.id);
+        calls.sort();
+        // TS new_expression returns ONLY the type_identifier (it does not
+        // append the named constructor), so `new User.named(1)` -> `User`.
+        // const_object_expression returns type + name -> `EdgeInsets.all`.
+        assert_eq!(
+            calls,
+            ["EdgeInsets.all", "Plain", "SizedBox", "User"]
+        );
+    }
+
+    #[test]
+    fn static_member_value_reads_reference_capitalized_receiver() {
+        let code = "\
+enum Color { red, green }
+
+class C {
+  void m() {
+    plain(Color.red);
+    palette(Colors.blue);
+    lower(obj.field);
+  }
+}
+void plain(Object? x) {}
+";
+        let (nodes, _edges, refs) = extract_all("statics.dart", code);
+        let m = find(&nodes, "method", "m");
+        // No-arg value reads on a Capitalized receiver -> references.
+        let value_reads = refs_from(&refs, "references", &m.id);
+        assert!(value_reads.contains(&"Color"), "Color value read: {value_reads:?}");
+        assert!(value_reads.contains(&"Colors"), "Colors value read: {value_reads:?}");
+        // A lowercase receiver (obj.field) is excluded.
+        assert!(!value_reads.contains(&"obj"));
+    }
+
+    #[test]
+    fn capitalized_static_call_emits_both_call_and_receiver_read() {
+        // `Enum.ctor()`: the arg-bearing `()` selector emits a `calls` ref via
+        // the accessor path (receiver is a direct identifier -> `Enum.ctor`),
+        // while the preceding no-arg `.ctor` selector independently matches
+        // the capitalized-receiver value-read gate -> `references` Enum. This
+        // mirrors the TS body walker visiting both selector nodes.
+        let code = "\
+class C {
+  void m() {
+    factory(Enum2.ctor());
+  }
+}
+void factory(Object? x) {}
+";
+        let (nodes, _edges, refs) = extract_all("callform.dart", code);
+        let m = find(&nodes, "method", "m");
+        assert!(refs_from(&refs, "calls", &m.id).contains(&"Enum2.ctor"));
+        assert!(refs_from(&refs, "references", &m.id).contains(&"Enum2"));
+    }
+
+    #[test]
+    fn method_signature_type_refs_filter_builtins() {
+        let code = "\
+class C {
+  Future<User> findById(String id, int count, bool flag) {}
+}
+";
+        let (nodes, _edges, refs) = extract_all("types.dart", code);
+        let m = find(&nodes, "method", "findById");
+        let type_refs = refs_from(&refs, "references", &m.id);
+        // Future/User surface; String/int/bool are BUILTIN and are dropped.
+        assert!(type_refs.contains(&"Future"), "{type_refs:?}");
+        assert!(type_refs.contains(&"User"), "{type_refs:?}");
+        for builtin in ["String", "int", "bool"] {
+            assert!(!type_refs.contains(&builtin), "{builtin} should be filtered");
+        }
+        // Parameter NAMES never surface as refs.
+        assert!(!type_refs.contains(&"id"));
+        assert!(!type_refs.contains(&"count"));
+        assert!(!type_refs.contains(&"flag"));
+    }
+
+    #[test]
+    fn top_level_function_signature_type_refs() {
+        let code = "Future<Order> load(OrderId id) {\n  return Future.value();\n}\n";
+        let (nodes, _edges, refs) = extract_all("fn.dart", code);
+        let f = find(&nodes, "function", "load");
+        let type_refs = refs_from(&refs, "references", &f.id);
+        assert!(type_refs.contains(&"Future"), "{type_refs:?}");
+        assert!(type_refs.contains(&"Order"), "{type_refs:?}");
+        assert!(type_refs.contains(&"OrderId"), "{type_refs:?}");
+    }
+
+    #[test]
+    fn typedef_rhs_emits_no_type_refs() {
+        // Dart's type_alias RHS (`function_type`) carries no `value` field, so
+        // the TS extractTypeAlias getChildByField('value') misses it and emits
+        // nothing. Reproduce that exactly (no RHS refs).
+        let code = "\
+typedef MyList = List<int>;
+typedef StringMap = Map<String, String>;
+";
+        let (_nodes, _edges, refs) = extract_all("alias.dart", code);
+        assert!(refs_of(&refs, "references").is_empty(), "{:?}", refs);
     }
 }
 
