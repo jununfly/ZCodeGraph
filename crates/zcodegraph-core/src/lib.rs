@@ -7892,8 +7892,20 @@ impl SourceLanguage {
     /// misparses as a setter declaration. Dropping the whole file would lose
     /// the barrel `export` shims that use `library;`, so Dart is tolerant like
     /// Kotlin; the walker itself never panics on error-recovery nodes.
+    ///
+    /// Swift's pinned tree-sitter-swift 0.6.0 (last ABI-14 release, matching
+    /// the production wasm) flags several *legal* Swift constructs observed in
+    /// real corpora (roadmap 1-6-4-4: Kingfisher 8.13.0, Vapor 4.122.2): the
+    /// external scanner marks the leaf identifier of a void tuple literal
+    /// `.succeed(())` / `.success(())` with `has_error` but no ERROR node;
+    /// `nonisolated(unsafe)` (Swift 5.10/6) and `#expect`/`#require` macros are
+    /// unknown to this grammar; and `@_silgen_name` C-interop declarations,
+    /// extended regex `#/…/#` and complex switch patterns produce local
+    /// error-recovery nodes. Dropping the file would lose otherwise-productive
+    /// types/methods, so Swift is tolerant too; swift.rs's production walker
+    /// has no `unwrap`/`expect`/indexing and never panics on such nodes.
     fn tolerates_parse_errors(self) -> bool {
-        self.is_c_family() || matches!(self, Self::Kotlin | Self::Dart)
+        self.is_c_family() || matches!(self, Self::Kotlin | Self::Dart | Self::Swift)
     }
 
     fn is_java(self) -> bool {
@@ -16144,6 +16156,144 @@ mod tests {
             assert!(calls.contains(&expected.to_string()), "missing call {expected}: {calls:?}");
         }
 
+        drop(conn);
+        cleanup_temp_dir(dir);
+    }
+
+    // Swift real-corpus parse-tolerance guard (roadmap 1-6-4-4). The pinned
+    // tree-sitter-swift 0.6.0 grammar (ABI 14, matching the production wasm)
+    // flags a legal Void tuple literal `()`: its external scanner marks the
+    // argument's leaf identifier with has_error but emits NO error node. The
+    // pattern is pervasive in promise/event-loop APIs (e.g. Vapor's
+    // `promise.succeed(())` and Kingfisher's `.success(())`), so dropping the
+    // whole file would discard otherwise-productive types and methods. Swift is
+    // parse-error tolerant like Kotlin/Dart because the TS orchestrator never
+    // gated on has_error. If tolerance is removed, this file is reported as a
+    // rust-owned-parse-gap and files_errored becomes 1.
+    #[test]
+    fn swift_tolerates_void_tuple_literal_calls_and_keeps_enclosing_type() {
+        let dir = temp_dir("swift-void-tuple");
+        write_file(
+            &dir,
+            "Sources/App/Promise.swift",
+            &[
+                "final class PromiseStore {",
+                "    func finish() {",
+                "        promise.succeed(())",
+                "        result = CacheStoreResult(value: .success(()))",
+                "    }",
+                "}",
+            ]
+            .join("\n"),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 1);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        // The enclosing type and method still extract despite the void-tuple
+        // token error, and no ERROR-kind node is persisted.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='swift' AND kind='class' AND name='PromiseStore'"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='swift' AND kind='method' AND name='finish'"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(&conn, "SELECT COUNT(*) FROM nodes WHERE kind='ERROR'"),
+            0
+        );
+        // The call sites still supply calls refs. `promise.succeed(())` keeps
+        // its receiver; the `.success(())` call is nested inside the
+        // `CacheStoreResult(…)` argument, so its call-expression receiver is
+        // dropped and the outer bare callee `CacheStoreResult` is what lands
+        // (same call-receiver collapse rule as the baseline Kotlin grammar).
+        let calls: Vec<String> = conn
+            .prepare(
+                "SELECT reference_name FROM unresolved_refs WHERE language='swift' AND reference_kind='calls' ORDER BY reference_name",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        assert_eq!(
+            calls,
+            vec!["CacheStoreResult".to_string(), "promise.succeed".to_string()]
+        );
+        drop(conn);
+        cleanup_temp_dir(dir);
+    }
+
+    // Second real-corpus tolerance case (roadmap 1-6-4-4): `nonisolated(unsafe)`
+    // (a legal Swift 5.10/6 global-actor isolation modifier) is unknown to the
+    // 0.6.0 grammar and produces an ERROR + MISSING pair. The global itself is
+    // not a baseline node (top-level `let` -> value_binding_pattern), but the
+    // file's class/method must not be dropped along with it (the Kingfisher
+    // Image.swift case).
+    #[test]
+    fn swift_tolerates_nonisolated_unsafe_modifier_and_keeps_rest_of_file() {
+        let dir = temp_dir("swift-nonisolated");
+        write_file(
+            &dir,
+            "Sources/App/Registry.swift",
+            &[
+                "import Foundation",
+                "",
+                "nonisolated(unsafe) var sharedRegistry: Registry?",
+                "",
+                "final class Registry {",
+                "    func register() { bind() }",
+                "}",
+            ]
+            .join("\n"),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='swift' AND kind='class' AND name='Registry'"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='swift' AND kind='method' AND name='register'"
+            ),
+            1
+        );
+        // The import survives too; no persisted ERROR node.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='swift' AND kind='import' AND name='Foundation'"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(&conn, "SELECT COUNT(*) FROM nodes WHERE kind='ERROR'"),
+            0
+        );
         drop(conn);
         cleanup_temp_dir(dir);
     }
