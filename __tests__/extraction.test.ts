@@ -6970,32 +6970,31 @@ describe('Objective-C on rust-hybrid (roadmap 1-2-14-4 cutover)', () => {
     // Post-cutover: 'objc' is the 17th rust-owned language.
     expect(isRustHybridOwnedLanguage('objc')).toBe(true);
 
-    const dir = createTempDir();
-    try {
-      fs.writeFileSync(path.join(dir, 'Imp.m'),
-        '#import <Foundation/Foundation.h>\n@implementation Imp\n- (void)run {}\n@end\n');
-      fs.writeFileSync(path.join(dir, 'Imp.mm'),
-        '#import <Foundation/Foundation.h>\n@implementation ImpMM\n- (void)run {}\n@end\n');
-      fs.writeFileSync(path.join(dir, 'View.h'), '@interface View : NSObject\n@end\n');
+    // Reuse the describe-level tempDir/cg so afterEach closes the sqlite
+    // handle BEFORE removing the directory. A local dir removed in a finally
+    // races the still-open cg handle and throws EBUSY on Windows (the handle
+    // is only closed in afterEach, which runs after the finally).
+    fs.writeFileSync(path.join(tempDir, 'Imp.m'),
+      '#import <Foundation/Foundation.h>\n@implementation Imp\n- (void)run {}\n@end\n');
+    fs.writeFileSync(path.join(tempDir, 'Imp.mm'),
+      '#import <Foundation/Foundation.h>\n@implementation ImpMM\n- (void)run {}\n@end\n');
+    fs.writeFileSync(path.join(tempDir, 'View.h'), '@interface View : NSObject\n@end\n');
 
-      const plan = planRustHybridAssignments(dir);
-      expect(plan.engineByLanguage).toMatchObject({ objc: 'rust' });
-      expect(plan.rustOwnedFiles).toContain('Imp.m');
-      expect(plan.rustOwnedFiles).toContain('Imp.mm');
-      expect(plan.rustOwnedFiles).toContain('View.h');
-      expect(plan.fallbackFiles).not.toContain('Imp.m');
-      expect(plan.fallbackFiles).not.toContain('View.h');
-      expect(plan.fallbackByLanguage.objc ?? 0).toBe(0);
+    const plan = planRustHybridAssignments(tempDir);
+    expect(plan.engineByLanguage).toMatchObject({ objc: 'rust' });
+    expect(plan.rustOwnedFiles).toContain('Imp.m');
+    expect(plan.rustOwnedFiles).toContain('Imp.mm');
+    expect(plan.rustOwnedFiles).toContain('View.h');
+    expect(plan.fallbackFiles).not.toContain('Imp.m');
+    expect(plan.fallbackFiles).not.toContain('View.h');
+    expect(plan.fallbackByLanguage.objc ?? 0).toBe(0);
 
-      // And the pure-Rust engine now indexes the ObjC header (previously
-      // skipped) with the class baseline present.
-      cg = CodeGraph.initSync(dir);
-      const result = await cg.indexAll({ engine: 'rust-hybrid' });
-      expect(result.success, JSON.stringify(result.errors)).toBe(true);
-      expect(result.filesErrored).toBe(0);
-      expect(cg.getNodesByKind('class').some((n) => n.name === 'View')).toBe(true);
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+    // And the pure-Rust engine now indexes the ObjC header (previously
+    // skipped) with the class baseline present.
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+    expect(cg.getNodesByKind('class').some((n) => n.name === 'View')).toBe(true);
   });
 });
