@@ -1824,7 +1824,7 @@
     "1-6": {
       "id": "1-6",
       "label": "排序与调度",
-      "status": "completed",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -1972,10 +1972,16 @@
     "1-6-4": {
       "id": "1-6-4",
       "label": "Swift 基线迁移（移动桥接成为产品优先级时启动）",
-      "status": "completed",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1-6",
-      "children": [],
+      "children": [
+        "1-6-4-1",
+        "1-6-4-2",
+        "1-6-4-3",
+        "1-6-4-4",
+        "1-6-4-5"
+      ],
       "decisions": [
         {
           "q": "Q1 当前所有权边界（实证）",
@@ -1995,6 +2001,11 @@
         {
           "q": "Q4 范围结论与调度建议",
           "answer": "explore/read-only 结论：Swift 当前健康(TS-owned)，无现网断层，迁移是性能/一致性收益(去 TS fallback、统一 rust-hybrid)而非修 bug，且 gate 条件(iOS/桥接产品优先级)未由产品侧明确触发。建议：本节点保持 gate，不现在启动从无到有的 exploit 迁移。若要推进，推荐拆成与 1-6-1 同型的 5 子节点 wave(grammar 接入→baseline visitor→wave0 夹具→真实语料 gate→TS fallback 归零+框架/property-wrapper finalize 补跑)，其中框架 resolver 与 @Siblings metatype 引用必须用 1-6-2-4 的 TS-shell finalize 模式保留，bridge/callback synthesizer 不动。本 explore 产出基准文档后闭环；真正开工等移动桥接产品优先级确认。",
+          "note": ""
+        },
+        {
+          "q": "Gate 解除确认（2026-10-12）",
+          "answer": "Human 显式确认移动桥接/iOS 成为产品优先级，1-6-4 由 explore gate 探针转为 exploit 产品实现。按 Kotlin 1-6-1 同型 5 子节点 wave 推进：1 grammar 接入 → 2 baseline visitor → 3 wave0 夹具 → 4 真实语料 gate → 5 TS fallback 归零+框架 finalize。硬约束：swiftUI/uikit/vapor 三 resolver.extract 与 @Siblings property-wrapper metatype 引用必须按 1-6-2-4 TS-shell finalize 模式保留（对标 rust-python-framework-routes / rust-ruby-framework-routes）；swift-objc bridge resolver 与 callback-synthesizer 为 resolve/DB-consumer 不动；swift.ts 保留纯 TS（框架 finalize 与 setState 类 TS e2e 仍走 typescript engine 模式）。",
           "note": ""
         }
       ],
@@ -2631,11 +2642,67 @@
         }
       ],
       "notes": "Rust core parse_go_gin_route_call 动词表 5→14 项(VERB_SPELLINGS)：Gin 7 大写含 OPTIONS/HEAD + Chi 5 驼峰(→大写) + HandleFunc/Handle→ANY；取最早动词标记，needle 含开括号消除 .Handle/HandleFunc 歧义，gorilla 链式 .Methods 不串；group 前缀/&Handler{} handler 复用。5 rust 单测 + 1 rust-hybrid TS e2e(7 路由名+6 references 边) + ci.yml step2 -t + ci-rust-packaged-path 契约；无新增 skip。本机 cargo test 124 passed、8 标记探针 route 4→8(8/8)、0 parse error。CI run 37721603975 三 OS 全 success，windows 日志确认 e2e 349ms 真实运行。feat bdca3d2 + docs 277c9c0。"
+    },
+    "1-6-4-1": {
+      "id": "1-6-4-1",
+      "label": "接入 tree-sitter-swift grammar：Cargo dep(crates.io 0.7.x，先 ABI14 探针实证，不兼容则 git rev-pin ABI14 末版) + SourceLanguage::Swift + .swift + tree_sitter_language + 分派 extract_swift_symbols 空骨架",
+      "status": "completed",
+      "mode": "exploit",
+      "parent": "1-6-4",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Grammar 版本/ABI 实证结论（修正 Q2）",
+          "answer": "10-08 评估称 0.7.x 兼容 tree-sitter 0.24，实证不成立。crates.io tree-sitter-swift：0.7.0~0.7.4 全系 parser.c 为 ABI15（tree-sitter 0.25 生成），set_language 报 LanguageError{version:15}；tree-sitter-language ^0.1 只是 ABI 透传 shim，不做版本转换。0.5.0 直接依赖旧 tree-sitter 无法与 workspace 0.24 共存。**0.6.0(2024-09-06) 是最后 ABI14 发布**，经 tree-sitter-language 0.1 桥接 LANGUAGE.into() 成功，与生产 tree-sitter-swift.wasm(tree-sitter-wasms 0.1.13) 是同代 grammar：节点形态吻合(class/struct/enum 全 parse 为 class_declaration+内联 struct/enum 关键字子节点、enum_entry、protocol_function_declaration、value_binding_pattern)，现代 Swift(async/throws、@Published/@Siblings(through:) property wrapper、闭包/$0、guard/if-let 多绑定、actor、extension+some View opaque、关联值 enum case、@resultBuilder)全部 0 ERROR。决定：Cargo pin =0.6.0（与 tree-sitter-c-sharp =0.23.1 同类 ABI14 pin），external scanner 纯 C 走 cc，Windows cargo check/test 编译通过。无 git fork 需要。",
+          "note": ""
+        }
+      ],
+      "notes": "tree-sitter-swift =0.6.0 ABI14 pin（最后 ABI14 版，与生产 wasm tree-sitter-wasms 0.1.13 同代）；tree-sitter-language 0.1 桥接 LANGUAGE.into()。SourceLanguage::Swift + .swift + tree_sitter_language + swift::extract 分派（grammar 骨架）。2 rust test 绿：swift.rs grammar ABI smoke（Swift5 全特性 0 ERROR）+ lib.rs e2e 接线（.swift 被 Rust 接管/files_errored 0/profile.swift=1）。Windows cargo check/test 编译纯 C external scanner 通过。关键修正：0.7.x 全系 ABI15，否定 10-08 评估的 0.7.x 兼容判断。无 git fork。"
+    },
+    "1-6-4-2": {
+      "id": "1-6-4-2",
+      "label": "Swift baseline visitor：imports/class/struct/enum/protocol(->interface)/extension/func/init/typealias/property(let/var)/泛型/extension conformance+extends，参照 dart.rs 1414 行规模",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-6-4-3": {
+      "id": "1-6-4-3",
+      "label": "wave0 确定性 fixture：Swift 基线段落落入 rust-owned-language-fixtures.test.ts（#692 夹具模式），rust unit + 引擎无关 TS shell e2e(engine: rust-hybrid)",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-6-4-4": {
+      "id": "1-6-4-4",
+      "label": "真实语料 gate：iOS UIKit/SwiftUI + Vapor 小型真实仓库 Rust-owned 索引通过（filesErrored 0），新增 docs/benchmarks Swift 验证文档记录 f/LOC/0-gap 基线",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-6-4-5": {
+      "id": "1-6-4-5",
+      "label": "TS fallback 归零 + 框架 finalize 补跑：.swift->Rust 0 fallback；swiftUI/uikit/vapor + @Siblings metatype 按 1-6-2-4 TS-shell finalize 保留(rust-swift-framework-routes.ts)；bridge resolver/callback-synthesizer 不动；RUST_OWNED 加 swift + ALLOWED_SKIPS/ci.yml -t + contract/cli-engine golden 同步；3-OS CI 绿 + Windows 首过日志核对",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-6-4",
+      "children": [],
+      "decisions": [],
+      "notes": ""
     }
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-10 16:31:44",
+    "updated": "2026-10-12 11:32:44",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
