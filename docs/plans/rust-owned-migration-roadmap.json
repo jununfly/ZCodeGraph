@@ -1104,12 +1104,23 @@
     "1-2-14-3": {
       "id": "1-2-14-3",
       "label": "Objective-C: 确定性 fixture 测试 + 真实语料验证",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-14",
       "children": [],
-      "decisions": [],
-      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+      "decisions": [
+        {
+          "q": "真实语料选什么、如何检出、规模与 0-gap 结果？",
+          "answer": "仓库外 sparse 检出（C://workspace//objc-corpus，不 vendor）两语料：(1) AFNetworking/AFNetworking tag 3.2.1 commit 746f6c3a1e2c3a3dfbac1c3d18c08a5d121c8df3（选 3.2.1 而非 4.x=纯 ObjC 最后形态，AFNetworking+UIKit+AFNetworking 两目录，15 .m/6280 LOC + 19 .h/3082 LOC）；(2) SDWebImage/SDWebImage tag 5.21.7 commit 2de3a496eaf6df9a1312862adcfd54acd73c39c0（SDWebImage+SDWebImageMapKit，73 .m/16377 LOC + 139 .h/8773 LOC；5.21.x 主体已无 .mm）。--depth1 --filter=blob:none --sparse。纯 --engine rust 索引：AFNetworking filesIndexed=18（objc .m 15 + C .h 3）filesErrored=0 errors=[] ERROR 节点=0 258ms，objc 非 file 节点 627；SDWebImage filesIndexed=147（objc .m 73 + C .h 72 + cpp .h 1 + Package.swift swift 1）filesErrored=0 errors=[] ERROR=0 585ms，objc 非 file 节点 1414。双双 0 parse gap/0 ERROR。ObjC 已在 1-2-14-1 加入 tolerates_parse_errors 但实际未触发（无需像 Swift 那样因语料新增加容忍）；无需 128MiB 大栈 worker（两语料 <1s、ObjC 消息/表达式树远浅于 Flutter widget 树）。",
+          "note": "benchmark 文档 docs/benchmarks/2026-10-12-rust-owned-objc-afnetworking-sdwebimage-validation.md"
+        },
+        {
+          "q": "真实语料逼出的 class/category/implementation 语义如何对齐 TS？.h 为何这波不索引？",
+          "answer": "tree-sitter-objc 3.0.2 无独立 category 节点：公开 @interface、命名分类 @interface Foo(Bar)、匿名扩展 @interface Foo () 全是 class_interface（可选 category field 区分），@implementation 是 class_implementation。TS createNode 按 (file,kind,name,startLine) 生成 id 且不去重，故同一 .m 内公开 @interface Foo 与匿名 @interface Foo () 产两行 class（startLine 不同）；@implementation visitNode 复用 find 到的首个同文件 class，找不到则 createNode 兜底。objc.rs 精确复刻：每 class_interface 建 class；class_implementation 不新建、复用首个同文件 (name,class,objc) 节点，找不到在 .m 内 back-fill（AFNetworking 的 @interface 全在被跳过的 .h，正是此路径）；匿名扩展 <Proto> 仍发 implements、: Super 发 extends。实证 AFURLRequestSerialization.m 的 AFHTTPBodyPart(625/1024)、AFMultipartBodyStream(643/845) 各两 class 行，@implementation 不产第三行。新增确定性夹具 Box.m 锁此 triple（两 class 行/两 property/单 method Box::open/extends NSObject/implements NSCopying），并用 debug binary 直接实测三夹具样本断言全中。.h 边界：本波保持 cutover 前现状（looks_like_cpp→Cpp、looks_like_objc→continue skip、否则 C），ObjC 头不索引；AFNetworking 19 .h=3C/16skip，SDWebImage 139 .h=72C/1cpp/66skip。.h 改 ObjC 分派 + RUST_OWNED 加 objc + rust-objc-framework-routes.ts(RN RCT_EXPORT 宏 finalize) 全部归 1-2-14-4。wave0 夹具落 __tests__/rust-owned-language-fixtures.test.ts Objective-C baseline 3 it（纯 --engine rust #692 契约，无 .skip），node strip-types --check 通过，vitest/3-OS 待 CI。EXTRACTION_VERSION 不 bump（unreleased）。",
+          "note": "验证文档含完整多集合表（method/property/import/class/function + calls/references/imports/extends/implements）"
+        }
+      ],
+      "notes": "wave0 确定性夹具 + 双真实语料 gate 双 0，无 Rust 产品代码改动（visitor 在 -2 已覆盖语料形态）。夹具：__tests__/rust-owned-language-fixtures.test.ts 新增 Objective-C baseline describe 3 it（纯 --engine rust #692 契约，无 .skip）=金标准多集合(self/super 折叠并入主用例)+message receiver 折叠(thing.sub:/Worker.make)+class/extension/implementation triple(Box.m 两 class 行不产第三行)；node strip-types --check 通过，三夹具样本经 debug binary 实测断言全中，vitest/3-OS 待 CI。真实语料（仓库外 C:/workspace/objc-corpus 不 vendor）：AFNetworking tag 3.2.1 746f6c3a（15 .m/6280 LOC+19 .h）18 indexed/0 error/0 ERROR/258ms/627 objc 节点；SDWebImage tag 5.21.7 2de3a496（73 .m/16377 LOC+139 .h）147 indexed/0 error/0 ERROR/585ms/1414 objc 节点。无需新 tolerates（ObjC 已在 -1 入容忍集合但未触发）、无需大栈 worker。关键语义=class/category/extension 全 class_interface 不去重(startLine id)、@implementation 复用/back-fill，与 TS createNode 精确对齐。.h 维持 cutover 前 skip 现状，改 ObjC 分派+RUST_OWNED+rust-objc-framework-routes.ts(RN RCT_EXPORT) 全归 1-2-14-4。benchmark 文档 docs/benchmarks/2026-10-12-rust-owned-objc-afnetworking-sdwebimage-validation.md（含 SHA/f/LOC/多集合表）。EXTRACTION_VERSION 不 bump。"
     },
     "1-2-14-4": {
       "id": "1-2-14-4",
@@ -2768,7 +2779,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-12 20:12:12",
+    "updated": "2026-10-12 20:29:04",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
