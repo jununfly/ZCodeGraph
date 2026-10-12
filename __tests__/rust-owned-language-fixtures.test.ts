@@ -2456,4 +2456,252 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
       }
     });
   });
+
+  describe('Swift baseline (roadmap 1-6-4-3)', () => {
+    function swiftNodes(
+      cg: CodeGraph,
+      filePath: string,
+      kind: string,
+    ): Array<{ name: string; qualifiedName: string; visibility?: string | null; isStatic?: boolean }> {
+      return cg
+        .getNodesByKind(kind)
+        .filter((n) => n.language === 'swift' && n.filePath === filePath)
+        .map((n) => ({
+          name: n.name,
+          qualifiedName: n.qualifiedName,
+          visibility: n.visibility,
+          isStatic: n.isStatic,
+        }));
+    }
+
+    function swiftRefs(db: DbHandle, filePath: string, kind: string): string[] {
+      return unresolvedRefs(db, filePath)
+        .filter((r) => r.reference_kind === kind)
+        .map((r) => r.reference_name);
+    }
+
+    // Same sample/contract as the Rust golden test
+    // `swift_baseline_visitor_extracts_symbols_inheritance_and_calls`
+    // (crates/zcodegraph-core/src/lib.rs): class/struct/enum share
+    // class_declaration (inner keyword), extension -> class, protocol ->
+    // interface, multi-identifier enum cases, and properties/init/protocol
+    // requirements are NOT symbols.
+    it('extracts types, methods, enum cases, inheritance and calls; properties and protocol requirements are absent', () => {
+      const filePath = 'Sources/App/Sample.swift';
+      writeFile(
+        filePath,
+        [
+          'import Foundation',
+          'import Vapor',
+          '',
+          'protocol Repository {',
+          '    associatedtype Element',
+          '    func find(_ id: String) async throws -> Element?',
+          '}',
+          '',
+          'typealias Handler = (Int) -> String',
+          '',
+          'func topLevel(x: Int) -> String {',
+          '    return helper(x)',
+          '}',
+          '',
+          'class Animal {',
+          '    var name: String = ""',
+          '    func speak() -> String { return emit() }',
+          '    static func make() -> Animal { return Animal() }',
+          '}',
+          '',
+          'struct Point {',
+          '    var x: Int',
+          '    func distance() -> Double { return calc() }',
+          '}',
+          '',
+          'enum Color {',
+          '    case red',
+          '    case green, blue',
+          '    func describe() -> String { return label() }',
+          '}',
+          '',
+          'final class Dog: Animal, Repository {',
+          '    override func speak() -> String { return bark() }',
+          '}',
+          '',
+          'extension Dog {',
+          '    func fetch() { run() }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.swift).toBe(1);
+
+        // Import nodes + raw unresolved import refs.
+        expect(importNames(cg, 'swift').sort()).toEqual(['Foundation', 'Vapor']);
+        expect(
+          unresolvedImportRefs(db, filePath).map((r) => r.reference_name).sort(),
+        ).toEqual(['Foundation', 'Vapor']);
+        expect(
+          unresolvedImportRefs(db, filePath).every((r) => r.language === 'swift'),
+        ).toBe(true);
+
+        // class_declaration is reused: class/struct/enum classified by the
+        // inner keyword, and `extension Dog` surfaces as a second `Dog` class.
+        expect(swiftNodes(cg, filePath, 'class').map((c) => c.name).sort()).toEqual([
+          'Animal',
+          'Dog',
+          'Dog',
+        ]);
+        expect(swiftNodes(cg, filePath, 'struct').map((s) => s.name)).toEqual(['Point']);
+        expect(swiftNodes(cg, filePath, 'enum').map((e) => e.name)).toEqual(['Color']);
+        expect(swiftNodes(cg, filePath, 'interface').map((i) => i.name)).toEqual([
+          'Repository',
+        ]);
+        expect(swiftNodes(cg, filePath, 'type_alias').map((t) => t.name)).toEqual([
+          'Handler',
+        ]);
+
+        // One top-level function; in-type declarations are methods qualified
+        // by their type frame (Swift has no lexical namespace frame).
+        expect(swiftNodes(cg, filePath, 'function').map((f) => f.name)).toEqual([
+          'topLevel',
+        ]);
+        const methods = swiftNodes(cg, filePath, 'method');
+        expect(methods.map((m) => m.qualifiedName).sort()).toEqual([
+          'Animal::make',
+          'Animal::speak',
+          'Color::describe',
+          'Dog::fetch',
+          'Dog::speak',
+          'Point::distance',
+        ]);
+        // `static func make` is the only static member; `override` is not static.
+        expect(methods.filter((m) => m.isStatic).map((m) => m.qualifiedName)).toEqual([
+          'Animal::make',
+        ]);
+
+        // `case green, blue` yields two enum_member nodes.
+        expect(
+          swiftNodes(cg, filePath, 'enum_member').map((m) => m.qualifiedName).sort(),
+        ).toEqual(['Color::blue', 'Color::green', 'Color::red']);
+
+        // Stored properties/init never become symbols; parameter names and
+        // protocol requirements (`find`) are absent too.
+        expect(swiftNodes(cg, filePath, 'property')).toHaveLength(0);
+        expect(swiftNodes(cg, filePath, 'field')).toHaveLength(0);
+        const allNames = (
+          db
+            .prepare(
+              "SELECT name FROM nodes WHERE language = 'swift' AND file_path = ?1",
+            )
+            .all(filePath) as Array<{ name: string }>
+        ).map((row) => row.name);
+        for (const absent of ['x', 'name', 'find']) {
+          expect(allNames, `unexpected node ${absent}`).not.toContain(absent);
+        }
+
+        // Superclass and protocol conformance both emit `extends` (the TS
+        // path makes no class-vs-protocol distinction).
+        expect(swiftRefs(db, filePath, 'extends').sort()).toEqual(['Animal', 'Repository']);
+
+        // Bare callees keep their name; `Animal()` in the factory is a bare
+        // simple_identifier call. Compare as a Set (bodies are visited once
+        // per method frame).
+        expect(new Set(swiftRefs(db, filePath, 'calls'))).toEqual(
+          new Set(['helper', 'emit', 'Animal', 'calc', 'label', 'bark', 'run']),
+        );
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('collapses self/super navigation calls to the selector, keeps receiver.method otherwise', () => {
+      const filePath = 'Sources/App/Calls.swift';
+      writeFile(
+        filePath,
+        [
+          'class Calls {',
+          '    func go() {',
+          '        helper()',
+          '        self.run()',
+          '        super.cleanup()',
+          '        thing.sub()',
+          '        Animal.make()',
+          '    }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const calls = new Set(swiftRefs(db, filePath, 'calls'));
+        // Bare simple_identifier callee.
+        expect(calls.has('helper')).toBe(true);
+        // self./super. receivers are dropped.
+        expect(calls.has('run')).toBe(true);
+        expect(calls.has('self.run')).toBe(false);
+        expect(calls.has('cleanup')).toBe(true);
+        expect(calls.has('super.cleanup')).toBe(false);
+        // Other receivers stay qualified.
+        expect(calls.has('thing.sub')).toBe(true);
+        expect(calls.has('Animal.make')).toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('maps modifiers to visibility (open/public -> public, fileprivate/private -> private, default internal)', () => {
+      const filePath = 'Sources/App/Vis.swift';
+      writeFile(
+        filePath,
+        [
+          'open class OpenType {',
+          '    public func exposed() {}',
+          '    internal func withinModule() {}',
+          '    fileprivate func hidden() {}',
+          '    private func secret() {}',
+          '}',
+          '',
+          'public struct PubType {}',
+          '',
+          'enum DefaultType {',
+          '    case a',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        const classes = new Map(
+          swiftNodes(cg, filePath, 'class').map((c) => [c.name, c.visibility]),
+        );
+        expect(classes.get('OpenType')).toBe('public');
+
+        const structs = swiftNodes(cg, filePath, 'struct');
+        expect(structs.map((s) => s.name)).toEqual(['PubType']);
+        expect(structs[0].visibility).toBe('public');
+
+        // No modifier -> internal (both the enum and its members' container).
+        expect(
+          swiftNodes(cg, filePath, 'enum').map((e) => e.visibility),
+        ).toEqual(['internal']);
+
+        const methods = new Map(
+          swiftNodes(cg, filePath, 'method').map((m) => [m.name, m.visibility]),
+        );
+        expect(methods.get('exposed')).toBe('public');
+        expect(methods.get('withinModule')).toBe('internal');
+        expect(methods.get('hidden')).toBe('private');
+        expect(methods.get('secret')).toBe('private');
+      } finally {
+        cg.close();
+      }
+    });
+  });
 });
