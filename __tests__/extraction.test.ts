@@ -6749,3 +6749,128 @@ class UserService extends BaseService with Authenticatable {
     }
   });
 });
+
+// ===========================================================================
+// Swift ownership cutover (1-6-4-5) — adds 'swift' (the 16th language) to
+// RUST_HYBRID_RUST_OWNED_LANGUAGES. Every .swift file is scheduled through
+// Rust with zero TypeScript fallback; swift.ts (the declarative extractor
+// config) is retained only for the pure --engine typescript engine. The Rust
+// swift.rs walker owns baseline symbols/calls/extends but, by design, emits no
+// framework nodes and no in-type stored-property refs (swift.rs:26-34 defers
+// them to this node). The tests below pin that the rust-swift-framework-routes
+// finalize back-fill restores, on the default rust-hybrid engine:
+//   - @Siblings(through: Pivot.self) metatype  -> pivot blast radius,
+//   - @Argument property wrapper               -> wrapper blast radius,
+//   - SwiftUI View / @main App and Vapor route -> framework nodes/edges,
+// and the plan-guard test pins zero TS fallback for .swift.
+// ===========================================================================
+describe('Swift on rust-hybrid (roadmap 1-6-4-5 cutover)', () => {
+  let tempDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(() => {
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    if (cg) cg.close();
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('links a Fluent @Siblings through Pivot.self metatype to the pivot type on rust-hybrid, roadmap 1-6-4-5', async () => {
+    // rust-hybrid twin of the typescript-engine test in the
+    // "Swift property-wrapper attribute type references" describe. The pivot
+    // is reached ONLY through the relationship wrapper's metatype argument,
+    // which the Rust walker skips and the finalize back-fill restores.
+    fs.writeFileSync(path.join(tempDir, 'Pivot.swift'),
+      `import Fluent\nfinal class AcronymCategoryPivot: Model {\n  static let schema = "acronym-category"\n}\n`);
+    fs.writeFileSync(path.join(tempDir, 'Acronym.swift'),
+      `import Fluent\nfinal class Acronym: Model {\n` +
+      `  @Siblings(through: AcronymCategoryPivot.self, from: \\.$acronym, to: \\.$category)\n` +
+      `  var categories: [Category]\n}\n`);
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+    cg.resolveReferences();
+
+    const pivot = cg.getNodesByKind('class').find((n) => n.name === 'AcronymCategoryPivot');
+    expect(pivot, 'pivot model class').toBeDefined();
+    const deps = [...cg.getImpactRadius(pivot!.id, 2).nodes.values()].map((n) => n.filePath ?? '');
+    expect(deps.some((p) => p.endsWith('Acronym.swift')), '@Siblings metatype arg links Acronym to the pivot').toBe(true);
+  });
+
+  it('links a @propertyWrapper usage to the wrapper type on rust-hybrid, roadmap 1-6-4-5', async () => {
+    // rust-hybrid twin of the typescript-engine @Argument blast-radius test.
+    fs.mkdirSync(path.join(tempDir, 'Sources', 'M'), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, 'Sources', 'M', 'Wrap.swift'),
+      `@propertyWrapper\npublic struct Argument<T> { public var wrappedValue: T }\n`);
+    fs.writeFileSync(path.join(tempDir, 'Sources', 'M', 'Cmd.swift'),
+      `public struct MyCommand {\n  @Argument var name: String\n  @Argument var count: Int\n}\n`);
+
+    cg = CodeGraph.initSync(tempDir, { config: { include: ['Sources/**/*.swift'], exclude: [] } });
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+    cg.resolveReferences();
+    expect(cg.getFileDependents('Sources/M/Wrap.swift')).toContain('Sources/M/Cmd.swift');
+  });
+
+  it('restores SwiftUI View/@main App nodes and a Vapor route -> handler edge on rust-hybrid, roadmap 1-6-4-5', async () => {
+    fs.mkdirSync(path.join(tempDir, 'Sources', 'App'), { recursive: true });
+    // SwiftUI view + @main App.
+    fs.writeFileSync(path.join(tempDir, 'Sources', 'App', 'ContentView.swift'),
+      `import SwiftUI\nstruct ContentView: View {\n  var body: some View { Text("hi") }\n}\n`);
+    fs.writeFileSync(path.join(tempDir, 'Sources', 'App', 'DemoApp.swift'),
+      `import SwiftUI\n@main\nstruct DemoApp: App {\n  var body: some Scene { WindowGroup { ContentView() } }\n}\n`);
+    // Vapor route registering a handler method.
+    fs.writeFileSync(path.join(tempDir, 'Sources', 'App', 'TodoController.swift'),
+      `import Vapor\nstruct TodoController {\n  func boot(routes: RoutesBuilder) throws {\n` +
+      `    routes.get("todos", use: index)\n  }\n  func index(req: Request) async throws -> [Todo] { [] }\n}\n`);
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+    cg.resolveReferences();
+
+    const view = cg.getNodesByKind('component').find((n) => n.name === 'ContentView');
+    expect(view, 'SwiftUI View back-filled as component').toBeDefined();
+    const app = cg
+      .getNodesByKind('class')
+      .find((n) => n.name === 'DemoApp' && (n.filePath ?? '').endsWith('DemoApp.swift'));
+    expect(app, '@main App back-filled as class').toBeDefined();
+
+    const route = cg.getNodesByKind('route').find((n) => n.name === 'GET /todos');
+    expect(route, 'Vapor GET /todos route back-filled').toBeDefined();
+    const routeTarget = cg
+      .getOutgoingEdges(route!.id)
+      .map((e) => cg.getNode(e.target))
+      .find((t) => t?.name === 'index');
+    expect(routeTarget, 'Vapor route resolves to the index handler').toBeDefined();
+  });
+
+  it('routes Swift through the Rust core with zero TypeScript fallback after the ownership cutover, roadmap 1-6-4-5', () => {
+    // Post-cutover: 'swift' is the 16th rust-owned language, so a .swift file
+    // is scheduled through Rust (fallbackByLanguage.swift === 0). Swift needs
+    // the rust-swift-framework-routes finalize back-fill (SwiftUI/UIKit/Vapor +
+    // stored-property modelling); swift.ts is retained for the pure typescript
+    // engine only.
+    expect(isRustHybridOwnedLanguage('swift')).toBe(true);
+    expect(isRustHybridOwnedLanguage('dart')).toBe(true);
+
+    const dir = createTempDir();
+    try {
+      fs.writeFileSync(path.join(dir, 'main.swift'), "import Foundation\nprint(\"hi\")\n");
+
+      const plan = planRustHybridAssignments(dir);
+      expect(plan.engineByLanguage).toMatchObject({ swift: 'rust' });
+      expect(plan.rustOwnedFiles).toContain('main.swift');
+      expect(plan.fallbackFiles).not.toContain('main.swift');
+      expect(plan.fallbackByLanguage.swift ?? 0).toBe(0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

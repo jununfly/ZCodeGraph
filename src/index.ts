@@ -70,6 +70,8 @@ import { runPhpFrameworkRouteBackfill } from './indexing/rust-php-framework-rout
 import type { PhpFrameworkRouteBackfillStats } from './indexing/rust-php-framework-routes';
 import { runRubyFrameworkRouteBackfill } from './indexing/rust-ruby-framework-routes';
 import type { RubyFrameworkRouteBackfillStats } from './indexing/rust-ruby-framework-routes';
+import { runSwiftFrameworkRouteBackfill } from './indexing/rust-swift-framework-routes';
+import type { SwiftFrameworkRouteBackfillStats } from './indexing/rust-swift-framework-routes';
 import {
   buildRustHybridMetadataFromPlan,
   mergeMissingFallbackDiagnostics,
@@ -1570,6 +1572,7 @@ export class CodeGraph {
       csharpFrameworkRouteBackfill?: CsharpFrameworkRouteBackfillStats;
       phpFrameworkRouteBackfill?: PhpFrameworkRouteBackfillStats;
       rubyFrameworkRouteBackfill?: RubyFrameworkRouteBackfillStats;
+      swiftFrameworkRouteBackfill?: SwiftFrameworkRouteBackfillStats;
       referenceResolutionMs: number;
       referenceResolutionBreakdown: {
         importResolutionMs: number;
@@ -1729,6 +1732,16 @@ export class CodeGraph {
             readErrors: 0,
             extractErrors: 0,
           } as RubyFrameworkRouteBackfillStats,
+          swiftFrameworkRouteBackfill: {
+            filesScanned: 0,
+            frameworkNodes: 0,
+            routeReferences: 0,
+            propertyDecorates: 0,
+            propertyTypeReferences: 0,
+            propertyMetatypeReferences: 0,
+            readErrors: 0,
+            extractErrors: 0,
+          } as SwiftFrameworkRouteBackfillStats,
           referenceResolutionMs: 0,
           referenceResolutionBreakdown: {
             importResolutionMs: 0,
@@ -2094,6 +2107,34 @@ export class CodeGraph {
           this.resolver.clearCaches();
         }
         onCheckpoint?.('finalization.rubyFrameworkRouteBackfill.completed');
+
+        // Roadmap 1-6-4-5: the Rust core owns Swift extraction (.swift) but has
+        // no SwiftUI/UIKit/Vapor extraction and no in-type stored-property
+        // modelling, so re-run the TypeScript swift framework extractors and
+        // replicate the @Wrapper/declared-type/@Siblings metatype refs for the
+        // rust-owned .swift files here. Component/class/route nodes plus the
+        // route -> handler and property references are linked by the batched
+        // resolution directly below.
+        onCheckpoint?.('finalization.swiftFrameworkRouteBackfill.started');
+        const swiftRouteBackfill = runSwiftFrameworkRouteBackfill(
+          this.queries,
+          this.projectRoot,
+          this.resolver.getDetectedFrameworks(),
+        );
+        profile.swiftFrameworkRouteBackfill = swiftRouteBackfill;
+        if (
+          swiftRouteBackfill.frameworkNodes > 0 ||
+          swiftRouteBackfill.routeReferences > 0 ||
+          swiftRouteBackfill.propertyDecorates > 0 ||
+          swiftRouteBackfill.propertyTypeReferences > 0 ||
+          swiftRouteBackfill.propertyMetatypeReferences > 0
+        ) {
+          // New framework handler refs and property wrapper/type/metatype refs
+          // target existing rust-owned nodes; clear the symbol-name cache
+          // before resolution.
+          this.resolver.clearCaches();
+        }
+        onCheckpoint?.('finalization.swiftFrameworkRouteBackfill.completed');
 
         const resolutionStarted = Date.now();
         onCheckpoint?.('finalization.referenceResolution.started');
