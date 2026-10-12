@@ -1120,7 +1120,7 @@
           "note": "验证文档含完整多集合表（method/property/import/class/function + calls/references/imports/extends/implements）"
         }
       ],
-      "notes": "wave0 确定性夹具 + 双真实语料 gate 双 0，无 Rust 产品代码改动（visitor 在 -2 已覆盖语料形态）。夹具：__tests__/rust-owned-language-fixtures.test.ts 新增 Objective-C baseline describe 3 it（纯 --engine rust #692 契约，无 .skip）=金标准多集合(self/super 折叠并入主用例)+message receiver 折叠(thing.sub:/Worker.make)+class/extension/implementation triple(Box.m 两 class 行不产第三行)；node strip-types --check 通过，三夹具样本经 debug binary 实测断言全中，vitest/3-OS 待 CI。真实语料（仓库外 C:/workspace/objc-corpus 不 vendor）：AFNetworking tag 3.2.1 746f6c3a（15 .m/6280 LOC+19 .h）18 indexed/0 error/0 ERROR/258ms/627 objc 节点；SDWebImage tag 5.21.7 2de3a496（73 .m/16377 LOC+139 .h）147 indexed/0 error/0 ERROR/585ms/1414 objc 节点。无需新 tolerates（ObjC 已在 -1 入容忍集合但未触发）、无需大栈 worker。关键语义=class/category/extension 全 class_interface 不去重(startLine id)、@implementation 复用/back-fill，与 TS createNode 精确对齐。.h 维持 cutover 前 skip 现状，改 ObjC 分派+RUST_OWNED+rust-objc-framework-routes.ts(RN RCT_EXPORT) 全归 1-2-14-4。benchmark 文档 docs/benchmarks/2026-10-12-rust-owned-objc-afnetworking-sdwebimage-validation.md（含 SHA/f/LOC/多集合表）。EXTRACTION_VERSION 不 bump。"
+      "notes": "wave0 确定性夹具 + 双真实语料 gate 双 0，无 Rust 产品代码改动（visitor 在 -2 已覆盖语料形态）。夹具：__tests__/rust-owned-language-fixtures.test.ts 新增 Objective-C baseline describe 3 it（纯 --engine rust #692 契约，无 .skip）=金标准多集合(self/super 折叠并入主用例)+message receiver 折叠(thing.sub:/Worker.make)+class/extension/implementation triple(Box.m 两 class 行不产第三行)；node strip-types --check 通过，三夹具样本经 debug binary 实测断言全中。真实语料（仓库外 C:/workspace/objc-corpus 不 vendor）：AFNetworking tag 3.2.1 746f6c3a（15 .m/6280 LOC+19 .h）18 indexed/0 error/0 ERROR/258ms/627 objc 节点；SDWebImage tag 5.21.7 2de3a496（73 .m/16377 LOC+139 .h）147 indexed/0 error/0 ERROR/585ms/1414 objc 节点。无需新 tolerates（ObjC 已在 -1 入容忍集合但未触发）、无需大栈 worker。关键语义=class/category/extension 全 class_interface 不去重(startLine id)、@implementation 复用/back-fill，与 TS createNode 精确对齐。.h 维持 cutover 前 skip 现状，改 ObjC 分派+RUST_OWNED+rust-objc-framework-routes.ts(RN RCT_EXPORT) 全归 1-2-14-4。benchmark 文档 docs/benchmarks/2026-10-12-rust-owned-objc-afnetworking-sdwebimage-validation.md（含 SHA/f/LOC/多集合表）。EXTRACTION_VERSION 不 bump。3-OS CI run 38249746660 最终 success（windows-2025/ubuntu-latest/macos-14）：Windows 首跑 rust-owned-language-fixtures.test.ts 60 tests passed（含 Objective-C baseline 3 it）+ skip-debt-guardrail 4 passed；唯一红为既有 Dart 1-2-9-4 cutover 测试 EBUSY 临时 sqlite 文件锁 + 5000ms 超时偶发（同 commit mac/ubuntu 通过），gh run rerun --failed 后 Windows success，非本波 ObjC 改动引入。commits 06b7bbe test(objc) + 47d1354 docs 已推 main。"
     },
     "1-2-14-4": {
       "id": "1-2-14-4",
@@ -2779,7 +2779,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-12 20:29:04",
+    "updated": "2026-10-12 20:52:08",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
