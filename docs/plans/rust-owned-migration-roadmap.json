@@ -2694,12 +2694,18 @@
     "1-6-4-4": {
       "id": "1-6-4-4",
       "label": "真实语料 gate：iOS UIKit/SwiftUI + Vapor 小型真实仓库 Rust-owned 索引通过（filesErrored 0），新增 docs/benchmarks Swift 验证文档记录 f/LOC/0-gap 基线",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-6-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "真实语料暴露的 parse gap 如何处理？Swift 是否加入 tolerates_parse_errors？是否需要像 Dart 的 128MiB 大栈 worker？",
+          "answer": "Swift 加入 tolerates_parse_errors（同 Dart/Kotlin）；不加 大栈 worker",
+          "note": "两真实语料（Kingfisher 8.13.0 98f/22430LOC 3 gap；Vapor 4.122.2 Sources 243f/23286LOC 18 gap）的 ERROR 经独立 0.6.0 parse 探针逐类定位，全是 grammar 对合法 Swift 的误报：(1)~11 文件空元组 () 字面量 .succeed(())/.success(())) 的 external scanner 叶子 simple_identifier 标 has_error 但无 ERROR 节点；(2)Image.swift nonisolated(unsafe)（Swift5.10/6 合法并发修饰，0.6.0 不认）；(3)少数真 ERROR 恢复节点来自 @_silgen_name C-interop、#expect/#require 测试宏、extended 正则 #/.../#、复杂 switch 模式。TS orchestrator 从不对任何语言 gate has_error（best-effort），故容忍对齐 TS 行为。swift.rs 生产 walker 0 unwrap/expect/索引，error-recovery 节点不会 panic。大栈 worker 不需要：两语料无栈溢出，Kingfisher 566ms/Vapor 843ms debug 总时长，深 SwiftUI builder 树未超 1MiB 主线程栈（Dart 溢出源于 Flutter widget 表达式树特殊深 + walk_decl 递归，Swift 形态未触发）。grammar 升级超出 ABI14/0.24 约束，记为已知 grammar ceiling 非 Rust 提取 gap。"
+        }
+      ],
+      "notes": "真实语料 gate 通过。双语料仓库外 sparse 检出（C:/workspace/swift-corpus，不 vendor）：Kingfisher tag 8.13.0 98f/22430 LOC（UIKit+SwiftUI，extension/property wrapper/深 builder），Vapor tag 4.122.2 Sources 239 swift f/23286 LOC + CVaporBcrypt 4 C 文件（async/promise/generics/C interop 混合形态）。首次索引逼出 over-strict parse gate：3/98 + 18/239 文件被 drop。独立 0.6.0 parse 探针逐类定性全是合法 Swift grammar 误报：空元组 () 字面量（.succeed(()))/.success(())，external scanner 叶子 token has_error 无 ERROR 节点，14 文件）、nonisolated(unsafe)（5.10/6 修饰，1 文件 6 处）、@_silgen_name/#expect 宏/extended 正则/复杂 switch 的局部 error-recovery（6 文件）。修复=Swift 加入 tolerates_parse_errors（同 Kotlin/Dart）；swift.rs 生产 walker 0 unwrap。不加 128MiB worker（两语料 <1s 无栈溢出，SwiftUI builder 树深度远不及 Flutter）。修复后双 0：filesErrored=0 / errors 列 0 / ERROR 节点 0；Swift 持久化节点 Kingfisher 1434、Vapor 2241（excl file）。新增 2 rust 集成测试锁定（void-tuple、nonisolated），全 lib 176 passed（+2）。新增 docs/benchmarks/2026-10-12-rust-owned-swift-kingfisher-vapor-validation.md。EXTRACTION_VERSION 不 bump（unreleased，cutover 在 1-6-4-5）。"
     },
     "1-6-4-5": {
       "id": "1-6-4-5",
@@ -2714,7 +2720,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-12 14:04:35",
+    "updated": "2026-10-12 14:42:18",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
