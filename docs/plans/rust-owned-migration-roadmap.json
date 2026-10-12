@@ -143,7 +143,7 @@
     "1-2-3": {
       "id": "1-2-3",
       "label": "C++ 基线抽取（已完成, #678）",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -156,7 +156,7 @@
           "note": "skip != complete；#692 是唯一后续债，非 Mac 专属"
         }
       ],
-      "notes": "函数/类/struct/enum/typedef 与 alias/include/call/namespace 成员边界。证据：2026-07-13-rust-owned-cpp-fmt-validation.md。TS 侧无 wasm grammar，完全 Rust-owned。"
+      "notes": "C++ 基线 #678 + #692 夹具债（1-2-3-1 G10/G1-G4）全部清零，三 OS 绿（G4 c7991f0 run 36558114423）。节点对账关闭 2026-10-12。"
     },
     "1-2-4": {
       "id": "1-2-4",
@@ -548,7 +548,7 @@
     "1-2-7": {
       "id": "1-2-7",
       "label": "Swift 基线抽取迁移",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -564,47 +564,47 @@
           "note": "启动条件仍为移动桥接成为产品优先级（1-6-4）"
         }
       ],
-      "notes": ""
+      "notes": "Swift 迁移由调度波次 1-6-4（5 子节点）于 2026-10-12 全量 CLOSED，本节点 4 子节点对账同步关闭。第 16 个 rust-owned 语言。CI run 38227597118 3-OS green。"
     },
     "1-2-7-1": {
       "id": "1-2-7-1",
       "label": "Swift: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-7",
       "children": [],
       "decisions": [],
-      "notes": "范围：函数/类/protocol/struct/enum/typealias/import/调用；SwiftUI/UIKit/Vapor 边界。grammar：tree-sitter-swift；移动桥接语义属 Goal2。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+      "notes": "由调度波次 1-6-4-1 完成（9d4bd25/f5260f1）：tree-sitter-swift =0.6.0 pin（末版 ABI14；0.7.x 全 ABI15 LanguageError v15），SourceLanguage::Swift 注册，同 shipped wasm 0.1.13 grammar。"
     },
     "1-2-7-2": {
       "id": "1-2-7-2",
       "label": "Swift: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-7",
       "children": [],
       "decisions": [],
-      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+      "notes": "由 1-6-4-2 完成（2f06e0f/7d54f32）：swift.rs ~460 行 Frame-name-stack visitor；class_decl 按内联 keyword 分流 class/struct/enum/extension；protocol->interface；enum_entry->enum_member；inheritance_specifier 一律 extends；self/super receiver 去重同 Kotlin。"
     },
     "1-2-7-3": {
       "id": "1-2-7-3",
       "label": "Swift: 确定性 fixture 测试 + 真实语料验证",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-7",
       "children": [],
       "decisions": [],
-      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+      "notes": "由 1-6-4-3/4 完成：wave0 纯 --engine rust 夹具（58->61，+3 swift，CI 38211101200）；真实语料 Kingfisher 8.13.0 98f/22K LOC + Vapor 4.122.2 239f/23K LOC 0 gap、filesErrored 0；Swift 入 tolerates_parse_errors（0.6.0 对空元组()字面量等 external scanner 误标，非 ERROR 节点）。"
     },
     "1-2-7-4": {
       "id": "1-2-7-4",
-      "label": "Swift: 框架/运行时语义边界决策 + TS fallback 移除",
-      "status": "pending",
+      "label": "Swift cutover CLOSED：第 16 个 rust-owned（3-OS 绿 run 38227597118，Win e2e 首过 684/780/732ms）",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2-7",
       "children": [],
       "decisions": [],
-      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+      "notes": "由 1-6-4-5 完成（3304a63/b0100d3）：.swift->Rust 0 fallback；新建 rust-swift-framework-routes.ts 两段 back-fill（A swiftUI/uikit/vapor 框架门控 component/class/route；B 不门控 regex 复刻 tree-sitter.ts:459 三类 property 边 @Wrapper->decorates/声明类型->references/@Siblings(through:) metatype，owner 限 class/struct 排除 protocol）；幂等=swift.rs 只产 imports/calls/extends；swift-objc bridge resolver + callback-synthesizer 不动；swift.ts 保留纯 TS；EXTRACTION_VERSION 不 bump（unreleased）；ALLOWED_SKIPS 空。"
     },
     "1-2-8": {
       "id": "1-2-8",
@@ -1026,7 +1026,7 @@
     "1-2-14": {
       "id": "1-2-14",
       "label": "Objective-C 基线抽取迁移",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -1040,19 +1040,45 @@
           "q": "Objective-C 排序？",
           "answer": "排到 Swift（1-2-7）之后：Swift 迁移带出 SwiftUI/UIKit/Vapor 边界，ObjC 紧随，桥接三 resolver（Swift-ObjC / RN bridge / Expo Modules）一次性收敛",
           "note": "节点位置不动，执行顺序由本决策表达；.h 启发式分类仍与 C 共用"
+        },
+        {
+          "q": "Q1 当前所有权边界（实证 2026-10-12）",
+          "answer": "ObjC 当前完全 TS-owned，Rust 侧零符号抽取。TS 层：①src/extraction/languages/objc.ts（137 行声明式 LanguageExtractor，含 ObjC 特有 visitNode=class_implementation 复用 @interface 的 class 节点+递归 implementation_definition、resolveName=selector 拼接 doThing:with:、property_declaration 内层 struct_declarator 取名、extractImport 双形态 system_lib_string<>/string_literal、isStatic=/^\\s*\\+/）；②grammar 运行时 tree-sitter-wasms 的 tree-sitter-objc.wasm（.m/.mm 映射 objc，.h 启发式 looksLikeObjc 在前 8KB 扫 @ 指令，grammars.ts:105/272/290）；③extract 阶段框架 resolver=react-native.ts 的 parseObjcRNExports（RCT_EXPORT_MODULE/RCT_EXPORT_METHOD/RCT_REMAP_METHOD 宏 regex，文件门控 .m/.mm，languages:['js','ts','tsx','jsx','objc']，产 rn-export: 前缀 method 节点）；④resolve/DB-consumer：swift-objc.ts(299)+swift-objc-bridge.ts(276 双向 selector 桥)、callback-synthesizer.ts（NATIVE 集合含 objc，rnEventEdges/fabricNativeImplEdges/rnCrossPlatformEdges 三槽位门控 objc）。Rust 侧：SourceLanguage 枚举无 ObjC（lib.rs:7755 17 变体）、from_path 无 .m/.mm 分派（lib.rs:7810 _ => None）、looks_like_objc_header 仅用于 .h 跳过（lib.rs:7110/7964，命中即不索引=TS fallback）、RUST_OWNED 16 语言不含 objc。与 Swift 不同：ObjC property_declaration 在 TS 编排器走通用 propertyTypes 分支产真实 property 节点（tree-sitter.ts:438），非 Swift 那种仅边不产节点。",
+          "note": "探针只读，未改任何代码"
+        },
+        {
+          "q": "Q2 grammar 可得性",
+          "answer": "tree-sitter-objc（tree-sitter-grammars/tree-sitter-objc，crates.io 同名，官方组织维护）可直接 crates.io 依赖无需 git fork：最新 3.0.2（2024-12-16），依赖形态=tree-sitter-language ^0.1 normal + tree-sitter ^0.24 dev，与 Swift 0.6.0 同模式（LANGUAGE.into() passthrough）；旧 2.1.0 钉 ~0.20 不可用。上游 tags v3.0.0/3.0.1/3.0.2。硬前置无障碍，但 parser ABI 版本必须在 wave1（1-2-14-1）用探针实证 set_language 不报 LanguageError{version:15}——dev-dep ^0.24 强烈指示 ABI14（0.24 生成），与 workspace tree-sitter 0.24 native links 兼容；若实测 ABI15 则回退方案=像 Dart 一样 fork 钉末版 ABI14 rev（v2.1.0 grammar 太老 AST 差异大，优先找 v3.0.x 内 ABI14 rev 或 fork 改 Cargo.toml 不行就降 parser 重生成）。AST 一致性：TS 侧 wasm 来自 tree-sitter-wasms 0.1.11 打包的 objc grammar（具体上游 commit 未在包内标注），wave2/wave3 fixture 需多集合比对 TS-wasm vs Rust-native，预期 node shape 同属 objc grammar 3.x 世代、风险低；external scanner 为纯 C（cc build.rs），三 OS C 编译链先例充分（c/cpp/kotlin/swift 已验证）。",
+          "note": "crates.io API 实证 2026-10-12；ABI 待 wave1 探针"
+        },
+        {
+          "q": "Q3 迁移工作量与断层风险",
+          "answer": "工作量与 Kotlin/Swift 同量级（~400-500 行 visitor），ObjC 特有 4 个必须手工覆盖的语义点：①双类声明结构——class_interface(@interface XXX : NSObject <Proto>)产 class，class_implementation(@implementation XXX)不新建而按 (name,file) 复用同 class 节点再下挂 method，category @interface Foo (Bar) 形态需决定归属；②method selector 命名——- (void)doThing:(id)a with:(id)b 节点名必须是 doThing:with:（多段 identifier 拼冒号），class method 前缀 + vs instance -（TS isStatic）；③property_declaration 内层 struct_declaration>struct_declarator 取名（@property (strong, nonatomic) UIWindow *window 走通用 propertyTypes 产真实 property 节点，与 Swift 仅产边不同，Rust 要产节点）；④message_expression [obj method:arg] 是 calls 边的主要来源，selector receiver 解析规则需对齐。断层（切 rust-owned 后不跑 TS）：react-native.ts extract 在 .m/.mm 产 RCT_EXPORT_* rn-export: method 节点（regex 扫描宏，grammar 不产 AST），必须按 1-6-4-5 同模式新建 rust-objc-framework-routes.ts TS-shell finalize 保留——这是与 Swift back-fill 对等的强制项；callback-synthesizer 的 NATIVE 集合/rnEventEdges/fabric 三槽依赖这些节点，节点形状（id 前缀 rn-export:、language='objc'、kind=method、name=JS 名）必须对齐。低风险引擎无关 consumer：swift-objc 双向桥 resolver（resolve-only 读 DB）+ callback-synthesizer，只要 Rust 节点 kind/name/qualifiedName 对齐即继续工作，不动。.h 启发式：Rust 现有 looks_like_objc_header 是 skip 语义，迁移后要改为 ObjC 分派而非跳过（与 grammars.ts detectLanguageForFile 对齐），这是易漏点。",
+          "note": "参照 objc.ts 137 行声明式 + RN extract 481 行"
+        },
+        {
+          "q": "Q4 范围结论与调度",
+          "answer": "explore 探针结论（2026-10-12）：ObjC 完全 TS-owned 且功能正常（含 RN native module、Swift↔ObjC 桥），无现网断层；迁移收益=去 TS fallback、统一 rust-hybrid（第 17 个 owned 语言）、iOS 仓库索引路径与 Swift 一致走 Rust。启动条件已满足：ObjC 排序决策早落盘=紧随 Swift 之后一次性收敛桥接三 resolver；Swift 1-6-4 全波 10-12 CLOSED 意味着产品优先级（移动桥接/iOS）已由 Human 显式确认且仍成立，无需二次 gate。建议直接 exploit，按 4 子节点推进：1-2-14-1 grammar 接入（crate 3.0.2 先 ABI14 探针）→1-2-14-2 baseline visitor（4 个 ObjC 特有语义点）→1-2-14-3 wave0 fixture+真实语料 gate（候选：AFNetworking 纯 ObjC 老牌库 ~300f、SDWebImage ~250f；混合语料可选 Wikipedia-iOS 子集验证桥接）→1-2-14-4 cutover（.m/.mm/.h(objc)→Rust 0 fallback + 新建 rust-objc-framework-routes.ts 保 RN RCT_EXPORT extract + RUST_OWNED 加 objc + contract/cli-engine golden + 3-OS CI + Win 首过日志）。硬约束：RN macro extract 必须 TS-shell finalize 保留；swift-objc bridge/callback-synthesizer 不动；objc.ts 保留纯 TS（fallback 与 e2e 参照）；EXTRACTION_VERSION 不 bump（unreleased 批次未发布）。.mm（ObjC++）首波按 objc grammar 解析（TS 现状即如此），C++ 语法片段容忍误差记入 fixture 已知缺口。",
+          "note": "等 Human 确认后开工 1-2-14-1"
         }
       ],
       "notes": ""
     },
     "1-2-14-1": {
       "id": "1-2-14-1",
-      "label": "Objective-C: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
-      "status": "pending",
+      "label": "Objective-C: Rust SourceLanguage 注册 + grammar 3.0.2 接入（ABI14 实证）",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-14",
       "children": [],
-      "decisions": [],
-      "notes": "范围：函数/interface 与 class/protocol/struct/enum/typedef/include/消息表达式；Swift-ObjC 与 RN 桥接边界。grammar：tree-sitter-objc；.m/.mm；.h 启发式分类与 C 共用。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+      "decisions": [
+        {
+          "q": "ABI 探针结论",
+          "answer": "tree-sitter-objc 3.0.2（crates.io，rsproxy 镜像）实证 ABI14 兼容 workspace tree-sitter 0.24：crate 导出 tree_sitter_language::LanguageFn 常量 LANGUAGE，经 LANGUAGE.into() 桥接（同 Swift 0.6.0 passthrough 模式），cargo check/test 全程无 LanguageError；external scanner 纯 C 由 cc build.rs 编译，Windows 6.88s 通过，无需 git fork。Cargo.toml 加 tree-sitter-objc = \"3.0\"（锁定 3.0.2，无 ABI15 风险——3.0.x 系列 dep 声明 tree-sitter ^0.24 dev；2.x 钉 0.20 不可用）。",
+          "note": "rsproxy-sparse 拉取，local cargo test 绿"
+        }
+      ],
+      "notes": "CLOSED(local green, pending CI)：Cargo.toml tree-sitter-objc=3.0(锁3.0.2 ABI14实证)；新 crates/zcodegraph-core/src/objc.rs extract 空骨架(签名对齐 swift::extract，1-2-14-2 填充)；lib.rs=mod objc + SourceLanguage::Objc(第18变体) + from_path .m/.mm + codegraph_name objc + tree_sitter_objc::LANGUAGE.into() + is_objc() + dispatch 分支 + tolerates_parse_errors 加 Objc；family objc 早已存在(lib.rs:1228)。e2e test objc_parses_and_dispatches_through_rust_pipeline_grammar_wiring（.m+.mm 两文件 files_errored 0、parse_by_language objc=2）绿；cpp header matrix 回归绿；cargo 测试数 176→177。.h ObjC 启发式本波保持 skip 语义不改（cutover 波 1-2-14-4 再改分派）。未 commit，等显式触发。"
     },
     "1-2-14-2": {
       "id": "1-2-14-2",
@@ -2731,7 +2757,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-12 17:14:20",
+    "updated": "2026-10-12 17:36:06",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
