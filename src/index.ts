@@ -72,6 +72,8 @@ import { runRubyFrameworkRouteBackfill } from './indexing/rust-ruby-framework-ro
 import type { RubyFrameworkRouteBackfillStats } from './indexing/rust-ruby-framework-routes';
 import { runSwiftFrameworkRouteBackfill } from './indexing/rust-swift-framework-routes';
 import type { SwiftFrameworkRouteBackfillStats } from './indexing/rust-swift-framework-routes';
+import { runObjcFrameworkRouteBackfill } from './indexing/rust-objc-framework-routes';
+import type { ObjcFrameworkRouteBackfillStats } from './indexing/rust-objc-framework-routes';
 import {
   buildRustHybridMetadataFromPlan,
   mergeMissingFallbackDiagnostics,
@@ -1573,6 +1575,7 @@ export class CodeGraph {
       phpFrameworkRouteBackfill?: PhpFrameworkRouteBackfillStats;
       rubyFrameworkRouteBackfill?: RubyFrameworkRouteBackfillStats;
       swiftFrameworkRouteBackfill?: SwiftFrameworkRouteBackfillStats;
+      objcFrameworkRouteBackfill?: ObjcFrameworkRouteBackfillStats;
       referenceResolutionMs: number;
       referenceResolutionBreakdown: {
         importResolutionMs: number;
@@ -1742,6 +1745,12 @@ export class CodeGraph {
             readErrors: 0,
             extractErrors: 0,
           } as SwiftFrameworkRouteBackfillStats,
+          objcFrameworkRouteBackfill: {
+            filesScanned: 0,
+            frameworkNodes: 0,
+            readErrors: 0,
+            extractErrors: 0,
+          } as ObjcFrameworkRouteBackfillStats,
           referenceResolutionMs: 0,
           referenceResolutionBreakdown: {
             importResolutionMs: 0,
@@ -2135,6 +2144,28 @@ export class CodeGraph {
           this.resolver.clearCaches();
         }
         onCheckpoint?.('finalization.swiftFrameworkRouteBackfill.completed');
+
+        // Roadmap 1-2-14-4: the Rust core owns Objective-C extraction (.m/.mm
+        // plus content-detected ObjC .h) but has no React Native macro
+        // awareness, so re-run the TypeScript react-native-bridge and
+        // fabric-view extractors for the rust-owned .m/.mm files here. They
+        // restore the RCT_EXPORT_* method nodes and legacy Paper
+        // RCT_EXPORT_VIEW_PROPERTY component/property nodes; the resolvers'
+        // resolve() halves then pair JS callers with these nodes in the
+        // batched resolution directly below.
+        onCheckpoint?.('finalization.objcFrameworkRouteBackfill.started');
+        const objcRouteBackfill = runObjcFrameworkRouteBackfill(
+          this.queries,
+          this.projectRoot,
+          this.resolver.getDetectedFrameworks(),
+        );
+        profile.objcFrameworkRouteBackfill = objcRouteBackfill;
+        if (objcRouteBackfill.frameworkNodes > 0) {
+          // Newly inserted RN/Fabric nodes are resolution targets read through
+          // resolver symbol caches; clear before the resolution pass.
+          this.resolver.clearCaches();
+        }
+        onCheckpoint?.('finalization.objcFrameworkRouteBackfill.completed');
 
         const resolutionStarted = Date.now();
         onCheckpoint?.('finalization.referenceResolution.started');

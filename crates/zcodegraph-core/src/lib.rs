@@ -7103,13 +7103,15 @@ fn index_javascript_files(
         counts
             .profile
             .add_parse_language_source_read(language.codegraph_name(), source_read_ms);
-        // Reclassify .h headers: C → Cpp or skip (ObjC), aligned with TS
-        // looksLikeCpp/looksLikeObjc in src/extraction/grammars.ts.
+        // Reclassify .h headers: C → Cpp or ObjC by content, aligned with TS
+        // looksLikeCpp/looksLikeObjc in src/extraction/grammars.ts (cpp wins on
+        // both sides when both patterns match). Roadmap 1-2-14-4: ObjC headers
+        // are now dispatched to the ObjC walker instead of being skipped.
         if language.is_c() && file_path.extension().and_then(|e| e.to_str()) == Some("h") {
             if looks_like_cpp_header(&content) {
                 language = SourceLanguage::Cpp;
             } else if looks_like_objc_header(&content) {
-                continue;
+                language = SourceLanguage::Objc;
             }
         }
         let language_name = language.codegraph_name().to_string();
@@ -25027,11 +25029,20 @@ mod tests {
         );
         assert_eq!(c_count, 1, "plain_c.h should be indexed as C");
         assert_eq!(cpp_count, 1, "cpp_header.h should be indexed as C++");
-        let objc_count = sqlite_count(
+        // Roadmap 1-2-14-4: ObjC headers joined Rust ownership — a content-
+        // detected ObjC .h is dispatched to the ObjC walker (previously
+        // skipped for the TypeScript fallback), so its file node exists and
+        // its @interface class baseline is extracted.
+        let objc_file_count = sqlite_count(
             &conn,
-            "SELECT count(*) FROM nodes WHERE name='objc_header.h'",
+            "SELECT count(*) FROM nodes WHERE language='objc' AND kind='file'",
         );
-        assert_eq!(objc_count, 0, "objc_header.h should be skipped (TS fallback)");
+        assert_eq!(objc_file_count, 1, "objc_header.h should be indexed as objc (1-2-14-4)");
+        let objc_class_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE language='objc' AND kind='class' AND name='MyView'",
+        );
+        assert_eq!(objc_class_count, 1, "objc_header.h @interface should yield a class");
         cleanup_temp_dir(dir);
     }
 
