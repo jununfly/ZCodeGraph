@@ -1078,7 +1078,7 @@
           "note": "rsproxy-sparse 拉取，local cargo test 绿"
         }
       ],
-      "notes": "CLOSED(local green, pending CI)：Cargo.toml tree-sitter-objc=3.0(锁3.0.2 ABI14实证)；新 crates/zcodegraph-core/src/objc.rs extract 空骨架(签名对齐 swift::extract，1-2-14-2 填充)；lib.rs=mod objc + SourceLanguage::Objc(第18变体) + from_path .m/.mm + codegraph_name objc + tree_sitter_objc::LANGUAGE.into() + is_objc() + dispatch 分支 + tolerates_parse_errors 加 Objc；family objc 早已存在(lib.rs:1228)。e2e test objc_parses_and_dispatches_through_rust_pipeline_grammar_wiring（.m+.mm 两文件 files_errored 0、parse_by_language objc=2）绿；cpp header matrix 回归绿；cargo 测试数 176→177。.h ObjC 启发式本波保持 skip 语义不改（cutover 波 1-2-14-4 再改分派）。未 commit，等显式触发。"
+      "notes": "CLOSED 3-OS green (CI run 38231254594, commits feat 3e671f2 + docs a682da9)：Cargo tree-sitter-objc=3.0(锁3.0.2 ABI14实证，LanguageFn passthrough，纯C scanner cc 三OS编译无需fork)；objc.rs extract 空骨架(对齐 swift::extract，visitor 在 -2)；lib.rs=mod objc + SourceLanguage::Objc(第18变体) + .m/.mm + codegraph_name objc + LANGUAGE.into() + is_objc() + dispatch + tolerates_parse_errors；family apple 早有。e2e objc_parses_and_dispatches... .m+.mm files_errored 0/objc=2；Windows 首过全套 177 passed 20.50s 含新测试非 skip；cpp header matrix 回归绿(176→177)。.h ObjC 启发式本波保持 skip，cutover 1-2-14-4 改分派。"
     },
     "1-2-14-2": {
       "id": "1-2-14-2",
@@ -2757,7 +2757,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-12 17:36:06",
+    "updated": "2026-10-12 17:46:57",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
