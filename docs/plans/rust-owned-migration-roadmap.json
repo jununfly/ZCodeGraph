@@ -2678,12 +2678,18 @@
     "1-6-4-3": {
       "id": "1-6-4-3",
       "label": "wave0 确定性 fixture：Swift 基线段落落入 rust-owned-language-fixtures.test.ts（#692 夹具模式），rust unit + 引擎无关 TS shell e2e(engine: rust-hybrid)",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-6-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "wave0 夹具用哪个引擎：rust 还是 label 里写的 rust-hybrid？",
+          "answer": "纯 --engine rust，与该文件 #692 契约及最近 Dart 1-2-9 / Kotlin 1-6-1 同型块一致",
+          "note": "文件头注释明确：纯 rust 引擎隔离 TS shell finalizer，断言聚焦 Rust 提取自身产物（import 节点/未解析 ref/符号命名）。Swift describe 块复用 indexWithRust()=spawnSync RUST_CORE_BIN --engine rust。label 提到的 rust-hybrid 端到端解析（框架 finalize、边解析）归属 1-6-4-5 的 3-OS CI，不在 wave0。"
+        }
+      ],
+      "notes": "Swift baseline describe 块落入 __tests__/rust-owned-language-fixtures.test.ts（3 it：金标准主用例同 lib.rs 同一样本契约；self/super→selector 折叠；visibility 修饰符映射）。纯 --engine rust（#692 契约，决策已落盘）；rust-hybrid 端到端归属 1-6-4-5。TS 语法 strip-types --check 通过；本地无 node_modules 无法跑 vitest，数据流由 1-6-4-2 cargo test 金标准 + 静态审计保证，待 3-OS CI。"
     },
     "1-6-4-4": {
       "id": "1-6-4-4",
@@ -2708,7 +2714,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-12 12:06:35",
+    "updated": "2026-10-12 14:04:35",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
