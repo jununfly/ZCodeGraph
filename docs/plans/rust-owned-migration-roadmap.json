@@ -1026,7 +1026,7 @@
     "1-2-14": {
       "id": "1-2-14",
       "label": "Objective-C 基线抽取迁移",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -1062,7 +1062,7 @@
           "note": "等 Human 确认后开工 1-2-14-1"
         }
       ],
-      "notes": ""
+      "notes": "ObjC 成第 17 个 rust-owned 语言，全波 CLOSED 10-12（-1/-2/-3/-4 全 completed，最终 3-OS CI run 38255993639 green）。tree-sitter-objc 3.0.2 ABI14 纯 C scanner 无 fork；objc.rs Frame-name-stack visitor 持全 baseline；.h 内容分派 cutover（Cpp 优先 / ObjC / 否则 C）；RN/Paper 注册宏以 finalize backfill 保留在 TS shell（split）。"
     },
     "1-2-14-1": {
       "id": "1-2-14-1",
@@ -1125,12 +1125,23 @@
     "1-2-14-4": {
       "id": "1-2-14-4",
       "label": "Objective-C: 框架/运行时语义边界决策 + TS fallback 移除",
-      "status": "pending",
-      "mode": "explore",
+      "status": "completed",
+      "mode": "exploit",
       "parent": "1-2-14",
       "children": [],
-      "decisions": [],
-      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+      "decisions": [
+        {
+          "q": "框架/运行时边界三选一：migrate / keep TS-shell / split？",
+          "answer": "选 split（对齐 Swift 1-6-4-5/C#/Ruby）。ObjC baseline 符号（class/protocol/method/property/function/struct/enum/typedef/import/calls/extends/implements，.m/.mm + ObjC .h）全部归 Rust objc.rs；TS objc.ts 声明式 extractor 保留仅供纯 --engine typescript。两个在 .m/.mm 上产 objc 节点的 framework extractor 留 TS shell 并在 rust-hybrid finalization backfill：(1) react-native.ts 的 RCT_EXPORT_MODULE/RCT_EXPORT_METHOD/RCT_REMAP_METHOD 产 rn-export: 前缀 method 节点；(2) fabric.ts legacy Paper RCT_EXPORT_VIEW_PROPERTY 产 fabric-component: component + fabric-prop: property 节点。二者均 regex 读源码、不依赖 AST，cutover 后 .m 不过 TS parse 管线会静默丢节点，故新建 rust-objc-framework-routes.ts（对标 rust-csharp 单段 framework-gated，无 Swift (B) property 段——objc.rs 已产 property 节点且这两个 extractor 只返 nodes 不返 references）。swift-objc-bridge resolver 纯 resolve() 无 extract()，读 DB objc method 节点工作，不受影响；react-native resolver.resolve 只重定向 JS caller、buildRNMaps 读 DB + readFile regex，backfill 后 rn-export 节点入 DB 照常配对。不选 migrate（宏是 preprocessor 展开 tree-sitter-objc 不建模，Rust 无法 AST 抽取，regex 宏扫描本就属 shell）；不选 keep TS-shell（baseline 已在 -2/-3 双 0 gate，无理由保留整语言 TS fallback）。",
+          "note": "新建 rust-objc-framework-routes.ts"
+        },
+        {
+          "q": ".h 改 ObjC 分派后真实语料是否保持 0-gap？RN 宏在 Rust 下什么形态？",
+          "answer": "纯 --engine rust debug binary 重索引两语料到新 DB（cutover-*.db）：AFNetworking objc 15→31（+16 头）filesIndexed=34、SDWebImage objc 73→139（+66 头）filesIndexed=213，与 -3 记录的 skip 头数(16/66)精确吻合；双双 success/0 filesErrored/errors=[]（304ms/700ms）。头只贡献 class/property/import/protocol/type_alias/struct（method 总数不变 367/836），因头里是 method_declaration 非符号（objc.rs 与 TS 一致不产 method）。AFNetworking objc-in-.h: import51/property29/class17(16 文件,有分类)/protocol2/type_alias1；SDWebImage: property209/import149/class84/type_alias35/protocol15/struct1/function1。RCT_EXPORT 宏实证（临时 sexp probe 已删）：tree-sitter-objc 把 RCT_EXPORT_METHOD(...) 连同整个 @implementation..@end 解析成一个 ERROR 子树（method 变体连 class baseline 一起吞），RCT_EXPORT_MODULE() 单独不破坏结构；这与旧 TS parse 路径同构（同 AST，objcExtractor 也只认 class_implementation），RN 节点本就靠 regex framework extractor 独立救回——故 objc.rs 无需改、非新增 parse gap，backfill 是唯一补救点。0 fallback 核对：objc 入 RUST_HYBRID_RUST_OWNED_LANGUAGES 后 .m/.mm/ObjC .h 全归 rust（plan 测 View.h→rust），TS objc.ts 保留仅供纯 typescript engine。EXTRACTION_VERSION 不 bump（unreleased）。",
+          "note": "Rust cargo 178 passed（header matrix 测试改为断言 ObjC 头被索引）"
+        }
+      ],
+      "notes": "CLOSED 3-OS green（CI run 38255993639, head 1ed6335；windows-2025/macos-14/ubuntu-latest success）。split 边界（对齐 Swift 1-6-4-5/C#/Ruby，决策见本节点 2 条）：ObjC baseline 符号（class/protocol/method/property/function/struct/enum/typedef/import/calls/extends/implements，.m/.mm + ObjC .h）全归 Rust objc.rs；TS objc.ts 保留仅供纯 --engine typescript。cutover 改动：lib.rs .h 分派由 skip 改为内容启发式（looks_like_cpp_header 优先 Cpp，否则 looks_like_objc_header 前 8KB @interface/@implementation/@protocol/@synthesize → Objc）；objc 入 RUST_HYBRID_RUST_OWNED_LANGUAGES（第 17 个 owned lang，契约 L9 + cli-engine golden + fallback 测试同步）。新建 src/indexing/rust-objc-framework-routes.ts 单段 finalize backfill（framework-gated，无 Swift(B) stored-property refs 段）：react-native-bridge（RCT_EXPORT_MODULE/METHOD → rn-export: method）+ fabric-view（legacy Paper RCT_EXPORT_VIEW_PROPERTY/CUSTOM/REMAP → fabric-component:/fabric-prop:），仅读 .m/.mm objc 文件、extract 返 nodes 不返 references；按 id 前缀清旧重建幂等，接入 index.ts finalization（frameworkNodes>0 时 clearCaches）。cutover e2e extraction.test.ts 新增 3 it；双语料 0-gap：AFNetworking objc 15→31(+16 头) filesIndexed=34、SDWebImage 73→139(+66 头) filesIndexed=213，与 -3 skip 头数精确吻合，双 success/0 error，method 总数不变(367/836)。Windows cargo --lib 178 passed 0 failed 30.97s；三 ObjC e2e Windows 首过 534/519/592ms。commits 65eb3d3 feat(objc) + 9e0913b test(objc) + 1ed6335 test(objc)（修 Windows EBUSY：plan-guard 复用 describe 级 tempDir/cg，afterEach 先 close 后 rm，避免删打开的 sqlite 句柄）。EXTRACTION_VERSION 不 bump（unreleased）。run 38255993639 首次 ubuntu 红=既有性能 flake rust_index_bulk_write_rebuilds_search_index（纯 TS 4 万符号 bulk 写，sqliteWriteMs 2441 vs 阈值 2302 擦边超 6%，与 ObjC 路径无关，macOS/Windows 同断言均过），gh run rerun --failed 后绿。"
     },
     "1-3": {
       "id": "1-3",
@@ -2779,7 +2790,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-12 20:52:08",
+    "updated": "2026-10-12 21:16:55",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }

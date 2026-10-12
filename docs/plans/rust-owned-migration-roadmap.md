@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-12 20:52:08
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-12 21:16:55
 
 [~][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
@@ -23,7 +23,7 @@
 │   ├── [ ][Y+] 1-2-11. Scala 基线抽取迁移
 │   ├── [ ][Y+] 1-2-12. Lua 基线抽取迁移
 │   ├── [ ][Y+] 1-2-13. Luau 基线抽取迁移
-│   └── [~][Y+] 1-2-14. Objective-C 基线抽取迁移
+│   └── [x][Y+] 1-2-14. Objective-C 基线抽取迁移
 ├── [ ][X+] 1-3. Goal1: 自定义与文件级语言 Rust 化可行性
 │   ├── [ ][X+] 1-3-1. Svelte Rust 化可行性与落地
 │   ├── [ ][X+] 1-3-2. Vue Rust 化可行性与落地
