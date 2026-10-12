@@ -1099,7 +1099,7 @@
           "note": "下一步 1-2-14-3 wave0 fixture + 真实语料（AFNetworking/SDWebImage）做 TS-wasm vs Rust-native 多集合 gap gate"
         }
       ],
-      "notes": "objc.rs Frame-name-stack visitor 全量填充：class_interface(@implementation 复用/分头文件兜底)、protocol、method selector 拼接+/- is_static、class-only property、message_expression calls+class receiver references、C function/struct/enum/typedef/import。qname 对齐 Swift 约定。正式 SQLite 多集合测试 objc_baseline_visitor_extracts_symbols_inheritance_and_messages 替换临时 probe；本地 cargo test --lib 178 passed 0 failed、clippy 对 objc.rs 零 warning。AST 形态与验证证据见两条 decisions。未做（归 1-2-14-3/4）：wave0 fixture+真实语料 gap gate、cutover/框架路由。"
+      "notes": "objc.rs Frame-name-stack visitor 全量填充：class_interface(@implementation 复用/分头文件兜底)、protocol、method selector 拼接+/- is_static、class-only property、message_expression calls+class receiver references、C function/struct/enum/typedef/import。qname 对齐 Swift 约定。正式 SQLite 多集合测试 objc_baseline_visitor_extracts_symbols_inheritance_and_messages 替换临时 probe；本地 cargo test --lib 178 passed 0 failed、clippy 对 objc.rs 零 warning。AST 形态与验证证据见两条 decisions。commits 7154517 feat(objc) + c400bd6 chore(docs)，已推 main。3-OS CI run 38246600004 success（windows-2025/ubuntu-latest/macos-14）；Windows 日志实证 objc baseline+grammar wiring 两测试 ok、全套 178 passed 26.65s。未做（归 1-2-14-3/4）：wave0 fixture+真实语料 gap gate、cutover/框架路由。"
     },
     "1-2-14-3": {
       "id": "1-2-14-3",
@@ -2768,7 +2768,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-12 18:18:31",
+    "updated": "2026-10-12 20:12:12",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
