@@ -15975,6 +15975,179 @@ mod tests {
         cleanup_temp_dir(dir);
     }
 
+    // Swift baseline visitor (roadmap 1-6-4-2). Asserts the node multiset and
+    // reference multiset the TS swiftExtractor produced over the same grammar
+    // generation: class/struct/enum share class_declaration (inner keyword),
+    // protocol -> interface, multi-identifier enum cases, extension-as-class,
+    // and that properties/init/protocol-requirements are NOT symbols.
+    #[test]
+    fn swift_baseline_visitor_extracts_symbols_inheritance_and_calls() {
+        let dir = temp_dir("swift-baseline");
+        write_file(
+            &dir,
+            "Sources/App/Sample.swift",
+            &[
+                "import Foundation",
+                "import Vapor",
+                "",
+                "protocol Repository {",
+                "    associatedtype Element",
+                "    func find(_ id: String) async throws -> Element?",
+                "}",
+                "",
+                "typealias Handler = (Int) -> String",
+                "",
+                "func topLevel(x: Int) -> String {",
+                "    return helper(x)",
+                "}",
+                "",
+                "class Animal {",
+                "    var name: String = \"\"",
+                "    func speak() -> String { return emit() }",
+                "    static func make() -> Animal { return Animal() }",
+                "}",
+                "",
+                "struct Point {",
+                "    var x: Int",
+                "    func distance() -> Double { return calc() }",
+                "}",
+                "",
+                "enum Color {",
+                "    case red",
+                "    case green, blue",
+                "    func describe() -> String { return label() }",
+                "}",
+                "",
+                "final class Dog: Animal, Repository {",
+                "    override func speak() -> String { return bark() }",
+                "}",
+                "",
+                "extension Dog {",
+                "    func fetch() { run() }",
+                "}",
+            ]
+            .join("\n"),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let names = |sql: &str| -> Vec<String> {
+            conn.prepare(sql)
+                .unwrap()
+                .query_map([], |row| row.get::<_, String>(0))
+                .unwrap()
+                .map(|r| r.unwrap())
+                .collect()
+        };
+
+        // Imports.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='swift' AND kind='import'"
+            ),
+            2
+        );
+        assert!(names("SELECT name FROM nodes WHERE kind='import' ORDER BY name").contains(&"Foundation".to_string()));
+        assert!(names("SELECT name FROM nodes WHERE kind='import' ORDER BY name").contains(&"Vapor".to_string()));
+
+        // Type-like symbols.
+        for (kind, expected) in [
+            ("class", vec!["Animal", "Dog", "Dog"]),
+            ("struct", vec!["Point"]),
+            ("enum", vec!["Color"]),
+            ("interface", vec!["Repository"]),
+            ("type_alias", vec!["Handler"]),
+        ] {
+            let mut got = names(&format!(
+                "SELECT name FROM nodes WHERE language='swift' AND kind='{kind}' ORDER BY name"
+            ));
+            got.sort();
+            let mut want = expected.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+            want.sort();
+            assert_eq!(got, want, "kind={kind}");
+        }
+
+        // Top-level function + in-type methods, disambiguated by qualified name.
+        assert_eq!(
+            sqlite_count(&conn, "SELECT COUNT(*) FROM nodes WHERE language='swift' AND kind='function'"),
+            1
+        );
+        assert!(names("SELECT qualified_name FROM nodes WHERE kind='function'").contains(&"topLevel".to_string()));
+        let mut methods = names(
+            "SELECT qualified_name FROM nodes WHERE language='swift' AND kind='method' ORDER BY qualified_name",
+        );
+        methods.sort();
+        assert_eq!(
+            methods,
+            vec![
+                "Animal::make".to_string(),
+                "Animal::speak".to_string(),
+                "Color::describe".to_string(),
+                "Dog::fetch".to_string(),
+                "Dog::speak".to_string(),
+                "Point::distance".to_string(),
+            ]
+        );
+        // Static marker on the class factory only.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE kind='method' AND name='make' AND is_static=1"
+            ),
+            1
+        );
+
+        // Enum members: `case green, blue` yields two members.
+        let mut members = names(
+            "SELECT name FROM nodes WHERE language='swift' AND kind='enum_member' ORDER BY name",
+        );
+        members.sort();
+        assert_eq!(
+            members,
+            vec!["blue".to_string(), "green".to_string(), "red".to_string()]
+        );
+
+        // Properties, initializers and protocol requirements are NOT symbols.
+        for absent in &["property", "field"] {
+            assert_eq!(
+                sqlite_count(
+                    &conn,
+                    &format!("SELECT COUNT(*) FROM nodes WHERE language='swift' AND kind='{absent}'")
+                ),
+                0,
+                "unexpected {absent} nodes"
+            );
+        }
+        assert!(!names("SELECT name FROM nodes WHERE language='swift'").contains(&"x".to_string()));
+        assert!(!names("SELECT name FROM nodes WHERE language='swift'").contains(&"name".to_string()));
+        // `find` is a protocol requirement (protocol_function_declaration).
+        assert!(!names("SELECT name FROM nodes WHERE language='swift'").contains(&"find".to_string()));
+
+        // Inheritance: Dog: Animal, Repository both emit `extends`.
+        let mut extends = names(
+            "SELECT u.reference_name FROM unresolved_refs u JOIN nodes n ON n.id=u.from_node_id \
+             WHERE u.reference_kind='extends' AND n.name='Dog' ORDER BY u.reference_name",
+        );
+        extends.sort();
+        assert_eq!(extends, vec!["Animal".to_string(), "Repository".to_string()]);
+
+        // Calls resolve by simple name (bare callee) and receiver.method.
+        let calls = names(
+            "SELECT reference_name FROM unresolved_refs WHERE language='swift' AND reference_kind='calls' ORDER BY reference_name",
+        );
+        for expected in ["helper", "emit", "Animal", "calc", "label", "bark", "run"] {
+            assert!(calls.contains(&expected.to_string()), "missing call {expected}: {calls:?}");
+        }
+
+        drop(conn);
+        cleanup_temp_dir(dir);
+    }
+
     // BEGIN ownership bucket: Rust language semantic tests.
     //
     // These tests cover Rust programming-language semantic support evidence:
