@@ -2704,4 +2704,239 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
       }
     });
   });
+
+  describe('Objective-C baseline (roadmap 1-2-14-3)', () => {
+    function objcNodes(
+      cg: CodeGraph,
+      filePath: string,
+      kind: string,
+    ): Array<{ name: string; qualifiedName: string; isStatic?: boolean }> {
+      return cg
+        .getNodesByKind(kind)
+        .filter((n) => n.language === 'objc' && n.filePath === filePath)
+        .map((n) => ({
+          name: n.name,
+          qualifiedName: n.qualifiedName,
+          isStatic: n.isStatic,
+        }));
+    }
+
+    function objcRefs(db: DbHandle, filePath: string, kind: string): string[] {
+      return unresolvedRefs(db, filePath)
+        .filter((r) => r.reference_kind === kind)
+        .map((r) => r.reference_name);
+    }
+
+    // Same sample/contract as the Rust golden test
+    // `objc_baseline_visitor_extracts_symbols_inheritance_and_messages`
+    // (crates/zcodegraph-core/src/lib.rs): @interface -> class
+    // (@implementation reuses it), protocol -> protocol (kind string
+    // 'protocol', not Swift's 'interface'), multi-keyword selectors, +/-
+    // is_static, in-class property only, superclass `extends` +
+    // parameterized_arguments `implements`, capitalized class-message
+    // receiver `references`, and message/C calls.
+    it('extracts classes, protocol, selector methods, property, inheritance and messages; protocol @property is absent', () => {
+      const filePath = 'Sources/Greeter.m';
+      writeFile(
+        filePath,
+        [
+          '#import <Foundation/Foundation.h>',
+          '#import "Greeter.h"',
+          '',
+          '@protocol Drivable <NSObject>',
+          '- (void)drive;',
+          '@required',
+          '@property (nonatomic, assign) NSInteger speed;',
+          '@end',
+          '',
+          '@interface Greeter : NSObject <Drivable, NSCopying>',
+          '@property (strong, nonatomic) NSString *name;',
+          '+ (instancetype)shared;',
+          '- (NSString *)greet:(NSString *)name withTitle:(NSString *)title;',
+          '@end',
+          '',
+          '@implementation Greeter',
+          '+ (instancetype)shared { return [Greeter new]; }',
+          '- (NSString *)greet:(NSString *)name withTitle:(NSString *)title {',
+          '    NSLog(@"%@ %@", title, name);',
+          '    return [NSString stringWithFormat:@"hi %@ %@", title, name];',
+          '}',
+          '- (void)drive { [self runLoop]; }',
+          '@end',
+          '',
+          'static int helper(int a) { return c_func(a) + 1; }',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.objc).toBe(1);
+
+        // Import nodes: system framework + quoted header.
+        expect(importNames(cg, 'objc').sort()).toEqual([
+          'Foundation/Foundation.h',
+          'Greeter.h',
+        ]);
+        expect(
+          unresolvedImportRefs(db, filePath).map((r) => r.reference_name).sort(),
+        ).toEqual(['Foundation/Foundation.h', 'Greeter.h']);
+        expect(
+          unresolvedImportRefs(db, filePath).every((r) => r.language === 'objc'),
+        ).toBe(true);
+
+        // One class (the @implementation must NOT create a duplicate) and one
+        // protocol (ObjC uses kind 'protocol').
+        expect(objcNodes(cg, filePath, 'class').map((c) => c.name)).toEqual([
+          'Greeter',
+        ]);
+        expect(objcNodes(cg, filePath, 'protocol').map((p) => p.name)).toEqual([
+          'Drivable',
+        ]);
+
+        // Methods carry the full multi-keyword selector and attach to Greeter.
+        expect(
+          objcNodes(cg, filePath, 'method').map((m) => m.qualifiedName).sort(),
+        ).toEqual(['Greeter::drive', 'Greeter::greet:withTitle:', 'Greeter::shared']);
+        // Only the leading-`+` factory is static.
+        expect(
+          objcNodes(cg, filePath, 'method')
+            .filter((m) => m.isStatic)
+            .map((m) => m.qualifiedName),
+        ).toEqual(['Greeter::shared']);
+
+        // The class @property `name` is a node; the protocol @property
+        // requirement `speed` is NOT (a protocol frame is not class-like).
+        expect(objcNodes(cg, filePath, 'property').map((p) => p.name)).toEqual([
+          'name',
+        ]);
+
+        // The file-scope C function.
+        expect(objcNodes(cg, filePath, 'function').map((f) => f.qualifiedName)).toEqual([
+          'helper',
+        ]);
+
+        // Superclass -> extends (one), conformance list -> implements.
+        expect(objcRefs(db, filePath, 'extends')).toEqual(['NSObject']);
+        expect(objcRefs(db, filePath, 'implements').sort()).toEqual([
+          'Drivable',
+          'NSCopying',
+        ]);
+
+        // Messages join into the selector and keep the receiver unless
+        // self/super; plain C calls keep their callee. Compare as a Set
+        // (method bodies are visited once per frame).
+        expect(new Set(objcRefs(db, filePath, 'calls'))).toEqual(
+          new Set([
+            'NSString.stringWithFormat:',
+            'Greeter.new',
+            'runLoop',
+            'NSLog',
+            'c_func',
+          ]),
+        );
+        // A capitalized class-message receiver also gets a references edge.
+        expect(new Set(objcRefs(db, filePath, 'references'))).toEqual(
+          new Set(['NSString', 'Greeter']),
+        );
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('folds self/super message receivers to the selector; keeps receiver.selector otherwise', () => {
+      const filePath = 'Sources/Calls.m';
+      writeFile(
+        filePath,
+        [
+          '@interface Calls : NSObject',
+          '- (void)go;',
+          '@end',
+          '',
+          '@implementation Calls',
+          '- (void)go {',
+          '    [self run];',
+          '    [super cleanup];',
+          '    [thing sub:1];',
+          '    [Worker make];',
+          '}',
+          '@end',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const calls = new Set(objcRefs(db, filePath, 'calls'));
+        // self/super receivers are dropped to the bare selector.
+        expect(calls.has('run')).toBe(true);
+        expect(calls.has('self.run')).toBe(false);
+        expect(calls.has('cleanup')).toBe(true);
+        expect(calls.has('super.cleanup')).toBe(false);
+        // Other receivers stay qualified (note the argument-taking colon).
+        expect(calls.has('thing.sub:')).toBe(true);
+        expect(calls.has('Worker.make')).toBe(true);
+        // Capitalized class receiver also references the class.
+        expect(objcRefs(db, filePath, 'references')).toContain('Worker');
+      } finally {
+        cg.close();
+      }
+    });
+
+    // Real-corpus shape (AFNetworking): a .m may hold a private @interface,
+    // an anonymous class extension `@interface Foo ()`, and then the
+    // @implementation. tree-sitter-objc models all three as class_interface/
+    // class_implementation; the TS extractor creates a class row per
+    // class_interface (id includes the start line, no dedup) and the
+    // @implementation visitNode reuses the first same-file class. The Rust
+    // visitor mirrors this exactly: two class rows from the two
+    // class_interface nodes, no third row from @implementation.
+    it('reuses the class for @implementation across a private @interface and anonymous () extension', () => {
+      const filePath = 'Sources/Box.m';
+      writeFile(
+        filePath,
+        [
+          '@interface Box : NSObject',
+          '@property (nonatomic, assign) NSInteger count;',
+          '@end',
+          '',
+          '@interface Box () <NSCopying>',
+          '@property (nonatomic, strong) NSMutableArray *items;',
+          '@end',
+          '',
+          '@implementation Box',
+          '- (void)open { [self refresh]; }',
+          '@end',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        // Two class_interface nodes (public + anonymous extension), but the
+        // @implementation adds no third row.
+        expect(objcNodes(cg, filePath, 'class').map((c) => c.name)).toEqual([
+          'Box',
+          'Box',
+        ]);
+        // Both @property declarations (one per class frame) are nodes.
+        expect(objcNodes(cg, filePath, 'property').map((p) => p.name).sort()).toEqual([
+          'count',
+          'items',
+        ]);
+        // The single implementation method attaches to the reused Box class.
+        expect(objcNodes(cg, filePath, 'method').map((m) => m.qualifiedName)).toEqual([
+          'Box::open',
+        ]);
+        // Anonymous extension conformance still emits implements.
+        expect(objcRefs(db, filePath, 'extends')).toEqual(['NSObject']);
+        expect(objcRefs(db, filePath, 'implements')).toEqual(['NSCopying']);
+      } finally {
+        cg.close();
+      }
+    });
+  });
 });
