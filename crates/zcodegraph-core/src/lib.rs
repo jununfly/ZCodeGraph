@@ -16015,13 +16015,192 @@ mod tests {
         cleanup_temp_dir(dir);
     }
 
-    // Objective-C grammar wiring (roadmap 1-2-14-1). tree-sitter-objc 3.0.2
-    // bridges through tree-sitter-language 0.1 (LANGUAGE.into()); a successful
-    // parse here proves the published crate is ABI-14 against the workspace's
-    // tree-sitter 0.24 — set_language would fail with LanguageError{version:15}
-    // at parser setup otherwise. The baseline visitor is 1-2-14-2, so this
-    // gate asserts only parse/dispatch plumbing: a .m file plus a .mm file are
-    // claimed by Rust, parse without a parse gap, and are profiled as "objc".
+    // Objective-C baseline visitor (roadmap 1-2-14-2). Asserts the node and
+    // reference multisets the TS objcExtractor produced over the same grammar:
+    // @interface -> class (@implementation reuses it), protocol, selector
+    // joining (`greet:withTitle:`), +/- is_static, in-class property only,
+    // superclass `extends` + parameterized_arguments `implements`, class
+    // message receiver `references`, and message/C calls.
+    #[test]
+    fn objc_baseline_visitor_extracts_symbols_inheritance_and_messages() {
+        let dir = temp_dir("objc-baseline");
+        write_file(
+            &dir,
+            "Sources/Greeter.m",
+            &[
+                "#import <Foundation/Foundation.h>",
+                "#import \"Greeter.h\"",
+                "",
+                "@protocol Drivable <NSObject>",
+                "- (void)drive;",
+                "@required",
+                "@property (nonatomic, assign) NSInteger speed;",
+                "@end",
+                "",
+                "@interface Greeter : NSObject <Drivable, NSCopying>",
+                "@property (strong, nonatomic) NSString *name;",
+                "+ (instancetype)shared;",
+                "- (NSString *)greet:(NSString *)name withTitle:(NSString *)title;",
+                "@end",
+                "",
+                "@implementation Greeter",
+                "+ (instancetype)shared { return [Greeter new]; }",
+                "- (NSString *)greet:(NSString *)name withTitle:(NSString *)title {",
+                "    NSLog(@\"%@ %@\", title, name);",
+                "    return [NSString stringWithFormat:@\"hi %@ %@\", title, name];",
+                "}",
+                "- (void)drive { [self runLoop]; }",
+                "@end",
+                "",
+                "static int helper(int a) { return c_func(a) + 1; }",
+            ]
+            .join("\n"),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let names = |sql: &str| -> Vec<String> {
+            conn.prepare(sql)
+                .unwrap()
+                .query_map([], |row| row.get::<_, String>(0))
+                .unwrap()
+                .map(|r| r.unwrap())
+                .collect()
+        };
+
+        // Imports: system framework + quoted header.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='objc' AND kind='import'"
+            ),
+            2
+        );
+        let imports =
+            names("SELECT name FROM nodes WHERE language='objc' AND kind='import' ORDER BY name");
+        assert!(imports.contains(&"Foundation/Foundation.h".to_string()), "{imports:?}");
+        assert!(imports.contains(&"Greeter.h".to_string()), "{imports:?}");
+
+        // One class (the @implementation must NOT create a duplicate).
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='objc' AND kind='class'"
+            ),
+            1
+        );
+        // Protocol.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='objc' AND kind='protocol'"
+            ),
+            1
+        );
+
+        // Methods carry the full multi-keyword selector and attach to Greeter.
+        let mut methods = names(
+            "SELECT qualified_name FROM nodes WHERE language='objc' AND kind='method' ORDER BY qualified_name",
+        );
+        methods.sort();
+        assert_eq!(
+            methods,
+            vec![
+                "Greeter::drive".to_string(),
+                "Greeter::greet:withTitle:".to_string(),
+                "Greeter::shared".to_string(),
+            ]
+        );
+        // Only the leading-`+` factory is static.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE kind='method' AND name='shared' AND is_static=1"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE kind='method' AND is_static=1"
+            ),
+            1
+        );
+
+        // Property: the @interface @property `name` is a node; the protocol
+        // @property `speed` is NOT (protocol is not a class-like frame).
+        let props = names(
+            "SELECT name FROM nodes WHERE language='objc' AND kind='property' ORDER BY name",
+        );
+        assert_eq!(props, vec!["name".to_string()]);
+
+        // Top-level C function.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='objc' AND kind='function'"
+            ),
+            1
+        );
+        assert!(names("SELECT qualified_name FROM nodes WHERE language='objc' AND kind='function'")
+            .contains(&"helper".to_string()));
+
+        // Inheritance: superclass -> extends, parameterized protocols ->
+        // implements (one each).
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM unresolved_refs WHERE language='objc' AND reference_kind='extends'"
+            ),
+            1
+        );
+        let mut implements = names(
+            "SELECT u.reference_name FROM unresolved_refs u WHERE u.language='objc' AND u.reference_kind='implements' ORDER BY u.reference_name",
+        );
+        implements.sort();
+        assert_eq!(
+            implements,
+            vec!["Drivable".to_string(), "NSCopying".to_string()]
+        );
+        assert!(names(
+            "SELECT u.reference_name FROM unresolved_refs u WHERE u.language='objc' AND u.reference_kind='extends'"
+        )
+        .contains(&"NSObject".to_string()));
+
+        // Calls: multi-keyword message joins into the selector; a class
+        // message receiver (NSString/Greeter) emits a `references` edge; self
+        // messages use the bare selector; the plain C call keeps its callee.
+        let calls = names(
+            "SELECT reference_name FROM unresolved_refs WHERE language='objc' AND reference_kind='calls' ORDER BY reference_name",
+        );
+        for expected in [
+            "NSString.stringWithFormat:",
+            "Greeter.new",
+            "runLoop",
+            "c_func",
+            "NSLog",
+        ] {
+            assert!(calls.contains(&expected.to_string()), "missing call {expected}: {calls:?}");
+        }
+        // Capitalized class-message receivers get a references edge.
+        let class_refs = names(
+            "SELECT reference_name FROM unresolved_refs WHERE language='objc' AND reference_kind='references' ORDER BY reference_name",
+        );
+        for expected in ["NSString", "Greeter"] {
+            assert!(
+                class_refs.contains(&expected.to_string()),
+                "missing class reference {expected}: {class_refs:?}"
+            );
+        }
+
+        drop(conn);
+        cleanup_temp_dir(dir);
+    }
+
     #[test]
     fn objc_parses_and_dispatches_through_rust_pipeline_grammar_wiring() {
         let dir = temp_dir("objc-grammar-wiring");
