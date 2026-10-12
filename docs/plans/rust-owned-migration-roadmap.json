@@ -2662,12 +2662,18 @@
     "1-6-4-2": {
       "id": "1-6-4-2",
       "label": "Swift baseline visitor：imports/class/struct/enum/protocol(->interface)/extension/func/init/typealias/property(let/var)/泛型/extension conformance+extends，参照 dart.rs 1414 行规模",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-6-4",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "Baseline 节点/边契约（镜像 TS orchestrator + swiftExtractor，grammar 0.6.0 实测 AST）",
+          "answer": "节点：import_declaration→import(name=identifier); class_declaration 按 declaration_kind 关键字分流 struct/enum，class 与 extension 都→class(extension 产出以被扩展类型命名的 class); protocol_declaration→interface; typealias_declaration→type_alias; function_declaration 在 class-like 内→method 否则 function; enum_entry 内每个 simple_identifier→enum_member(多 case 多个)。**不产节点**：类内/顶层 property_declaration(let/var；类内 wrapper/@Siblings metatype 归属属 1-6-4-5 finalize)、init_declaration、protocol_function_declaration/protocol_property_declaration、associatedtype_declaration。边：contains 走语义栈(非 file frame)，qualifiedName=栈名::名；inheritance_specifier>user_type>type_identifier 一律 extends(class 继承/protocol 遵循/protocol 继承不区分，对齐 Inheritance.swift 测试)；call_expression 首命名子 simple_identifier→直接 callee，navigation_expression→receiver.method(self/super 去接收者，嵌套/调用接收者只留方法名)，复用 Kotlin navigation 模式。函数参数(裸 parameter 子节点)与返回(裸 user_type)在 function_declaration 上无 field，TS getChildByField('parameter'/'return_type') 取不到→baseline 不发签名类型引用，保守对齐。visibility 从 modifiers 子树(public/internal/private/fileprivate→private，默认 internal)；isStatic=modifiers 含 static/class；async 是裸关键字不在 modifiers→baseline isAsync=false。",
+          "note": ""
+        }
+      ],
+      "notes": "swift.rs baseline visitor 完成（~460 行，Frame 语义栈）。节点：import/class(classifyClassNode: struct/enum 关键字分流, extension→class)/struct/enum/interface(protocol)/type_alias/function/method/enum_member(多 case)。不产节点：property/field、init、protocol requirement、associatedtype、顶层 let/var 不发节点但遍历初始化器 call。边：contains(语义栈)/extends(inheritance_specifier>user_type>type_identifier 不区分父类与协议)/calls(simple_identifier 与 navigation_expression receiver.method，self/super/嵌套去接收者，复用 Kotlin 规则)。visibility(modifiers: public/open→public,private/fileprivate→private,默认 internal),is_static(static/class)。参数/返回类型无 field 不发类型 ref（保守对齐）。3 rust test 绿（grammar smoke + 接线 + 完整 baseline e2e 金标准：节点 multiset/qualifiedName/extends/calls 全断言），cargo check 0 warning。"
     },
     "1-6-4-3": {
       "id": "1-6-4-3",
@@ -2702,7 +2708,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-12 11:32:44",
+    "updated": "2026-10-12 12:06:35",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
