@@ -1082,13 +1082,24 @@
     },
     "1-2-14-2": {
       "id": "1-2-14-2",
-      "label": "Objective-C: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
-      "status": "pending",
+      "label": "Objective-C: baseline visitor（节点/引用多集合对齐 TS objcExtractor）",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-14",
       "children": [],
-      "decisions": [],
-      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+      "decisions": [
+        {
+          "q": "tree-sitter-objc 3.0.2 AST 形态（node-types 普查 + 运行时 sexp probe 双证）与 visitor 映射？",
+          "answer": "class_interface=class：类名是 @interface 后第一个裸 identifier（无 field），superclass field 发 extends，parameterized_arguments(<Proto,..>) 内 type_name>type_identifier/裸 type_identifier 每个发 implements；class_implementation 不新建节点，按 (file_path+name+kind=class+language=objc) 复用 @interface 节点，同文件找不到则本文件兜底建 class（对标 TS ctx.createNode 兜底，覆盖 @interface 在 .h、@implementation 在 .m 的分头文件形态）；method_definition 的 selector keyword 是裸直接 identifier 子节点（注意：与 message_expression 不同，method 字段标签只存在于 message_expression！），method_parameter 出现即多参 selector 按 keyword+: 拼接（greet:withTitle:），无参为裸名（drive），named_children 不递归天然排除参数名 identifier；首子 token '+'=is_static；protocol_declaration=protocol(kind 字符串用 'protocol'，非 Swift 的 interface)，其 protocol_reference_list 不发边（TS extractInheritance 无 ObjC-protocol 分支）；property_declaration 仅 class frame 产 property（protocol frame 非 class-like，其 @property 是需求非符号），名取自 struct_declaration>struct_declarator 递归 c_declarator_name；message_expression：receiver field(REQ)+method field 每关键字一个，':' token 区分单参 vs 一元，receiver 非 self/super/嵌套 message 时 callee=receiver.selector 且 Capitalized 纯字母数字 receiver 额外发 references；call_expression 走 function field 同 C 提取器；顶层 function_definition/struct_specifier/enum_specifier(带 body, file scope)+enumerator/type_definition 复刻 C。method_declaration(;原型) 不产符号。",
+          "note": "objc.rs 顶部模块文档同步记录该契约"
+        },
+        {
+          "q": "baseline visitor 完成判据与本地验证证据？",
+          "answer": "objc.rs 从空骨架填成 ~560 行 Frame-name-stack visitor，qname 对齐 Swift 约定（qualified_name(stack,name)：顶层符号 bare name、方法 Type::selector，不带 relative_path:: 前缀）。新增正式 SQLite 多集合断言测试 objc_baseline_visitor_extracts_symbols_inheritance_and_messages（替换临时 AST probe zz_objc_ast_probe_tmp，probe 已删）：单文件 Greeter.m 覆盖 importx2(系统框架+引号头)、class 去重(@implementation 不重复建)、protocol 1、method qname {drive,greet:withTitle:,shared} 挂 Greeter、is_static 仅 shared=1、property 仅 class 内 name（protocol speed 非符号）、顶层 C function helper、extends NSObject=1、implements [Drivable,NSCopying]、calls {NSString.stringWithFormat:,Greeter.new,runLoop(裸 self),c_func,NSLog}、references {NSString,Greeter}。cargo test -p zcodegraph-core --lib 全套 178 passed 0 failed 9.07s（净 +1：删 probe 加 baseline，grammar wiring 已含）；cargo clippy 对 objc.rs 零 warning（修掉一个多余 lifetime）。",
+          "note": "下一步 1-2-14-3 wave0 fixture + 真实语料（AFNetworking/SDWebImage）做 TS-wasm vs Rust-native 多集合 gap gate"
+        }
+      ],
+      "notes": "objc.rs Frame-name-stack visitor 全量填充：class_interface(@implementation 复用/分头文件兜底)、protocol、method selector 拼接+/- is_static、class-only property、message_expression calls+class receiver references、C function/struct/enum/typedef/import。qname 对齐 Swift 约定。正式 SQLite 多集合测试 objc_baseline_visitor_extracts_symbols_inheritance_and_messages 替换临时 probe；本地 cargo test --lib 178 passed 0 failed、clippy 对 objc.rs 零 warning。AST 形态与验证证据见两条 decisions。未做（归 1-2-14-3/4）：wave0 fixture+真实语料 gap gate、cutover/框架路由。"
     },
     "1-2-14-3": {
       "id": "1-2-14-3",
@@ -2757,7 +2768,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-12 17:46:57",
+    "updated": "2026-10-12 18:18:31",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
