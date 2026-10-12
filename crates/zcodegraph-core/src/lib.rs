@@ -12,6 +12,7 @@ use tree_sitter::{Node as SyntaxNode, Parser, TreeCursor};
 
 mod csharp;
 mod dart;
+mod swift;
 mod index_options;
 mod php;
 mod ruby;
@@ -7275,6 +7276,16 @@ fn index_javascript_files(
                         Err(payload) => std::panic::resume_unwind(payload),
                     }
                 })?;
+            } else if language.is_swift() {
+                swift::extract(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -7757,6 +7768,7 @@ enum SourceLanguage {
     Php,
     Ruby,
     Dart,
+    Swift,
     Python,
     Rust,
 }
@@ -7792,6 +7804,7 @@ impl SourceLanguage {
             // grammars.ts (.rb/.rake both classify as 'ruby').
             Some("rb") | Some("rake") => Some(Self::Ruby),
             Some("dart") => Some(Self::Dart),
+            Some("swift") => Some(Self::Swift),
             Some("py") | Some("pyw") => Some(Self::Python),
             Some("rs") => Some(Self::Rust),
             _ => None,
@@ -7813,6 +7826,7 @@ impl SourceLanguage {
             Self::Php => "php",
             Self::Ruby => "ruby",
             Self::Dart => "dart",
+            Self::Swift => "swift",
             Self::Python => "python",
             Self::Rust => "rust",
         }
@@ -7834,6 +7848,10 @@ impl SourceLanguage {
             Self::Php => tree_sitter_php::LANGUAGE_PHP.into(),
             Self::Ruby => tree_sitter_ruby::LANGUAGE.into(),
             Self::Dart => tree_sitter_dart::language(),
+            // alex-pinkus/tree-sitter-swift bridges via tree-sitter-language
+            // 0.1 (like the git-pinned Kotlin grammar); LANGUAGE.into() yields
+            // an ABI-14 Language for the workspace's tree-sitter 0.24.
+            Self::Swift => tree_sitter_swift::LANGUAGE.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
@@ -7900,6 +7918,10 @@ impl SourceLanguage {
 
     fn is_dart(self) -> bool {
         matches!(self, Self::Dart)
+    }
+
+    fn is_swift(self) -> bool {
+        matches!(self, Self::Swift)
     }
 
     fn is_python(self) -> bool {
@@ -15894,6 +15916,62 @@ mod tests {
         assert_eq!(result.files_errored, 0, "{:?}", result.errors);
         // file + class + method survive even though the expression is deep.
         assert!(result.nodes_created >= 3);
+        cleanup_temp_dir(dir);
+    }
+
+    // Swift grammar wiring (roadmap 1-6-4-1). tree-sitter-swift is pinned to
+    // =0.6.0, the last ABI-14 release (same grammar generation as the
+    // production tree-sitter-swift.wasm). The baseline visitor is 1-6-4-2, so
+    // this gate asserts only the parse/dispatch plumbing: a .swift file is
+    // claimed by Rust, parses through the bridged language without a parse
+    // gap, and is profiled under "swift".
+    #[test]
+    fn swift_parses_and_dispatches_through_rust_pipeline_grammar_wiring() {
+        let dir = temp_dir("swift-grammar-wiring");
+        write_file(
+            &dir,
+            "Sources/App/User.swift",
+            &[
+                "import Foundation",
+                "",
+                "protocol Repository {",
+                "    associatedtype Element",
+                "    func find(_ id: String) async throws -> Element?",
+                "}",
+                "",
+                "struct User: Codable {",
+                "    let id: String",
+                "    var name: String",
+                "}",
+                "",
+                "enum AppError: Error {",
+                "    case notFound",
+                "}",
+                "",
+                "final class UserService {",
+                "    func get(_ id: String) async throws -> User {",
+                "        guard let user = users[id] else { throw AppError.notFound }",
+                "        return user",
+                "    }",
+                "}",
+            ]
+            .join("\n"),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 1);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .parse_by_language
+                .get("swift")
+                .map(|profile| profile.files),
+            Some(1)
+        );
         cleanup_temp_dir(dir);
     }
 

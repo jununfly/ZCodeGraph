@@ -48,6 +48,22 @@ tree-sitter-python = "0.23"
 # grammar here and the TS-side vendored wasm (tree-sitter-wasms 0.1.11).
 tree-sitter-ruby = "0.23"
 tree-sitter-rust = "0.23"
+# alex-pinkus/tree-sitter-swift. PINNED to =0.6.0: it is the last ABI-14
+# release, generated against tree-sitter 0.23 and bridged into this
+# workspace's tree-sitter 0.24 via tree-sitter-language 0.1 (LANGUAGE.into()).
+# Every 0.7.x (0.7.0..0.7.4) regenerated parser.c as ABI 15 and fails
+# set_language with LanguageError{version:15} despite still declaring
+# tree-sitter-language ^0.1 (that crate is a transparent ABI shim, it does
+# NOT convert versions). 0.6.0 is the same grammar generation as the
+# production tree-sitter-swift.wasm in tree-sitter-wasms 0.1.13 — its node
+# shapes match (class/struct/enum all parse as class_declaration with an
+# inner `struct`/`enum` keyword, enum_entry, protocol_function_declaration,
+# value_binding_pattern), and a modern-Swift sample (async/throws, property
+# wrappers incl. @Siblings(through:), closures, guard/if-let, actor,
+# extension+opaque some View, associated-value enum cases, result builders)
+# parses with zero ERROR nodes (roadmap 1-6-4-1). The external scanner is
+# plain C built by `cc`.
+tree-sitter-swift = "=0.6.0"
 tree-sitter-typescript = "0.23"
 
 [features]
