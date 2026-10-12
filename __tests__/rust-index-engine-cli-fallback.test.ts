@@ -76,11 +76,15 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
 
     const plan = planRustHybridAssignments(tempDir);
 
+    // Roadmap 1-2-14-4: ObjC headers joined Rust ownership (objc is the 17th
+    // rust-owned language); the ObjC .h is content-detected and scheduled
+    // through Rust with zero TypeScript fallback.
     expect(plan.rustOwnedFiles).toContain('plain.h');
     expect(plan.rustOwnedFiles).toContain('widget.h');
-    expect(plan.fallbackFiles).toContain('View.h');
-    expect(plan.engineByLanguage).toMatchObject({ c: 'rust', cpp: 'rust', objc: 'typescript' });
-    expect(plan.fallbackByLanguage).toMatchObject({ objc: 1 });
+    expect(plan.rustOwnedFiles).toContain('View.h');
+    expect(plan.engineByLanguage).toMatchObject({ c: 'rust', cpp: 'rust', objc: 'rust' });
+    expect(plan.fallbackFiles).not.toContain('View.h');
+    expect(plan.fallbackByLanguage.objc ?? 0).toBe(0);
   });
 
   it('records Rust-owned per-file gap diagnostics without same-language TypeScript fallback append', () => {

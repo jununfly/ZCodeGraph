@@ -6874,3 +6874,128 @@ describe('Swift on rust-hybrid (roadmap 1-6-4-5 cutover)', () => {
     }
   });
 });
+
+// ===========================================================================
+// Objective-C ownership cutover (1-2-14-4) — adds 'objc' (the 17th language)
+// to RUST_HYBRID_RUST_OWNED_LANGUAGES. Every .m/.mm file and every content-
+// detected ObjC .h is scheduled through Rust with zero TypeScript fallback;
+// objc.ts (the declarative extractor config) is retained only for the pure
+// --engine typescript engine. The Rust objc.rs walker owns baseline
+// symbols/calls/extends but, by design, cannot see React Native registration
+// macros — tree-sitter-objc parses RCT_EXPORT_METHOD(...) as an ERROR subtree
+// that swallows the surrounding @implementation (identically on the old TS
+// parse path), so the objc baseline deliberately never made nodes for them.
+// The tests below pin that the rust-objc-framework-routes finalize back-fill
+// restores, on the default rust-hybrid engine:
+//   - RCT_EXPORT_MODULE/RCT_EXPORT_METHOD -> rn-export: method nodes,
+//   - legacy Paper RCT_EXPORT_VIEW_PROPERTY -> fabric-component: component,
+// and the plan-guard tests pin zero TS fallback for .m/.mm and ObjC .h.
+// ===========================================================================
+describe('Objective-C on rust-hybrid (roadmap 1-2-14-4 cutover)', () => {
+  let tempDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(() => {
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    if (cg) cg.close();
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('back-fills RCT_EXPORT_MODULE/RCT_EXPORT_METHOD macro methods after the Rust cutover, roadmap 1-2-14-4', async () => {
+    // react-native dep activates BOTH the react-native-bridge and fabric-view
+    // resolvers (shared detect signal), mirroring a real RN library.
+    fs.writeFileSync(path.join(tempDir, 'package.json'), '{"dependencies":{"react-native":"^0.73"}}');
+    // Header carries the @interface so the class baseline survives even though
+    // the macro-corrupted @implementation below parses as an ERROR subtree.
+    fs.writeFileSync(path.join(tempDir, 'RCTGeolocation.h'),
+      '#import <Foundation/Foundation.h>\n' +
+      '@interface RCTGeolocation : NSObject\n' +
+      '- (void)nativeHelper;\n' +
+      '@end\n');
+    fs.writeFileSync(path.join(tempDir, 'RCTGeolocation.m'),
+      '#import <Foundation/Foundation.h>\n' +
+      '#import "RCTGeolocation.h"\n' +
+      '@implementation RCTGeolocation\n' +
+      'RCT_EXPORT_MODULE()\n' +
+      'RCT_EXPORT_METHOD(getCurrentPosition:(RCTResponseSenderBlock)cb) {}\n' +
+      '@end\n');
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+
+    // The JS-callable native method is invisible to the objc AST walker (the
+    // macro is an ERROR), so it exists ONLY because the finalize back-fill ran
+    // the regex react-native extractor for this rust-owned .m file.
+    const exported = cg.getNodesByKind('method').find((n) => n.name === 'getCurrentPosition');
+    expect(exported, 'RCT_EXPORT_METHOD back-filled as an rn-export method node').toBeDefined();
+    expect(exported!.id.startsWith('rn-export:')).toBe(true);
+    expect(exported!.language).toBe('objc');
+  });
+
+  it('back-fills a legacy Paper ViewManager component + view props after the Rust cutover, roadmap 1-2-14-4', async () => {
+    fs.writeFileSync(path.join(tempDir, 'package.json'), '{"dependencies":{"react-native":"^0.73"}}');
+    fs.writeFileSync(path.join(tempDir, 'RCTFooManager.m'),
+      '#import <Foundation/Foundation.h>\n' +
+      '@implementation RCTFooManager\n' +
+      'RCT_EXPORT_MODULE()\n' +
+      'RCT_EXPORT_VIEW_PROPERTY(values, NSArray)\n' +
+      'RCT_EXPORT_VIEW_PROPERTY(onChange, RCTBubblingEventBlock)\n' +
+      '@end\n');
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+
+    // Legacy Paper manager RCTFooManager -> JS component 'Foo' (Manager suffix
+    // stripped), plus one property node per RCT_EXPORT_VIEW_PROPERTY macro.
+    const component = cg.getNodesByKind('component').find((n) => n.filePath?.endsWith('RCTFooManager.m'));
+    expect(component, 'legacy Paper ViewManager back-filled as a fabric-component node').toBeDefined();
+    expect(component!.id.startsWith('fabric-component:')).toBe(true);
+    expect(component!.language).toBe('objc');
+    const propNames = cg
+      .getNodesByKind('property')
+      .filter((n) => n.id.startsWith('fabric-prop:'))
+      .map((n) => n.name)
+      .sort();
+    expect(propNames).toEqual(['onChange', 'values']);
+  });
+
+  it('routes Objective-C (.m/.mm and content-detected .h) through Rust with zero TypeScript fallback, roadmap 1-2-14-4', async () => {
+    // Post-cutover: 'objc' is the 17th rust-owned language.
+    expect(isRustHybridOwnedLanguage('objc')).toBe(true);
+
+    const dir = createTempDir();
+    try {
+      fs.writeFileSync(path.join(dir, 'Imp.m'),
+        '#import <Foundation/Foundation.h>\n@implementation Imp\n- (void)run {}\n@end\n');
+      fs.writeFileSync(path.join(dir, 'Imp.mm'),
+        '#import <Foundation/Foundation.h>\n@implementation ImpMM\n- (void)run {}\n@end\n');
+      fs.writeFileSync(path.join(dir, 'View.h'), '@interface View : NSObject\n@end\n');
+
+      const plan = planRustHybridAssignments(dir);
+      expect(plan.engineByLanguage).toMatchObject({ objc: 'rust' });
+      expect(plan.rustOwnedFiles).toContain('Imp.m');
+      expect(plan.rustOwnedFiles).toContain('Imp.mm');
+      expect(plan.rustOwnedFiles).toContain('View.h');
+      expect(plan.fallbackFiles).not.toContain('Imp.m');
+      expect(plan.fallbackFiles).not.toContain('View.h');
+      expect(plan.fallbackByLanguage.objc ?? 0).toBe(0);
+
+      // And the pure-Rust engine now indexes the ObjC header (previously
+      // skipped) with the class baseline present.
+      cg = CodeGraph.initSync(dir);
+      const result = await cg.indexAll({ engine: 'rust-hybrid' });
+      expect(result.success, JSON.stringify(result.errors)).toBe(true);
+      expect(result.filesErrored).toBe(0);
+      expect(cg.getNodesByKind('class').some((n) => n.name === 'View')).toBe(true);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
