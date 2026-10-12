@@ -12,6 +12,7 @@ use tree_sitter::{Node as SyntaxNode, Parser, TreeCursor};
 
 mod csharp;
 mod dart;
+mod objc;
 mod swift;
 mod index_options;
 mod php;
@@ -7286,6 +7287,18 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                 )?;
+            } else if language.is_objc() {
+                // Roadmap 1-2-14-1: grammar/dispatch wiring only; the
+                // baseline visitor lands in 1-2-14-2.
+                objc::extract(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -7769,6 +7782,7 @@ enum SourceLanguage {
     Ruby,
     Dart,
     Swift,
+    Objc,
     Python,
     Rust,
 }
@@ -7805,6 +7819,10 @@ impl SourceLanguage {
             Some("rb") | Some("rake") => Some(Self::Ruby),
             Some("dart") => Some(Self::Dart),
             Some("swift") => Some(Self::Swift),
+            // Objective-C / Objective-C++ sources, aligned with grammars.ts
+            // (.m/.mm both map to 'objc'). ObjC .h headers are detected by
+            // content heuristic at the call site, not by extension.
+            Some("m") | Some("mm") => Some(Self::Objc),
             Some("py") | Some("pyw") => Some(Self::Python),
             Some("rs") => Some(Self::Rust),
             _ => None,
@@ -7827,6 +7845,7 @@ impl SourceLanguage {
             Self::Ruby => "ruby",
             Self::Dart => "dart",
             Self::Swift => "swift",
+            Self::Objc => "objc",
             Self::Python => "python",
             Self::Rust => "rust",
         }
@@ -7852,6 +7871,10 @@ impl SourceLanguage {
             // 0.1 (like the git-pinned Kotlin grammar); LANGUAGE.into() yields
             // an ABI-14 Language for the workspace's tree-sitter 0.24.
             Self::Swift => tree_sitter_swift::LANGUAGE.into(),
+            // tree-sitter-grammars/tree-sitter-objc 3.0.2 bridges via
+            // tree-sitter-language 0.1 (LANGUAGE.into()), the same ABI-14
+            // passthrough as tree-sitter-swift (roadmap 1-2-14-1).
+            Self::Objc => tree_sitter_objc::LANGUAGE.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
@@ -7905,7 +7928,8 @@ impl SourceLanguage {
     /// types/methods, so Swift is tolerant too; swift.rs's production walker
     /// has no `unwrap`/`expect`/indexing and never panics on such nodes.
     fn tolerates_parse_errors(self) -> bool {
-        self.is_c_family() || matches!(self, Self::Kotlin | Self::Dart | Self::Swift)
+        self.is_c_family()
+            || matches!(self, Self::Kotlin | Self::Dart | Self::Swift | Self::Objc)
     }
 
     fn is_java(self) -> bool {
@@ -7934,6 +7958,10 @@ impl SourceLanguage {
 
     fn is_swift(self) -> bool {
         matches!(self, Self::Swift)
+    }
+
+    fn is_objc(self) -> bool {
+        matches!(self, Self::Objc)
     }
 
     fn is_python(self) -> bool {
@@ -15983,6 +16011,66 @@ mod tests {
                 .get("swift")
                 .map(|profile| profile.files),
             Some(1)
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    // Objective-C grammar wiring (roadmap 1-2-14-1). tree-sitter-objc 3.0.2
+    // bridges through tree-sitter-language 0.1 (LANGUAGE.into()); a successful
+    // parse here proves the published crate is ABI-14 against the workspace's
+    // tree-sitter 0.24 — set_language would fail with LanguageError{version:15}
+    // at parser setup otherwise. The baseline visitor is 1-2-14-2, so this
+    // gate asserts only parse/dispatch plumbing: a .m file plus a .mm file are
+    // claimed by Rust, parse without a parse gap, and are profiled as "objc".
+    #[test]
+    fn objc_parses_and_dispatches_through_rust_pipeline_grammar_wiring() {
+        let dir = temp_dir("objc-grammar-wiring");
+        write_file(
+            &dir,
+            "Sources/Greeter.m",
+            &[
+                "#import <Foundation/Foundation.h>",
+                "",
+                "@interface Greeter : NSObject",
+                "- (NSString *)greet:(NSString *)name;",
+                "@end",
+                "",
+                "@implementation Greeter",
+                "- (NSString *)greet:(NSString *)name {",
+                "    return [NSString stringWithFormat:@\"hi %@\", name];",
+                "}",
+                "@end",
+            ]
+            .join("\n"),
+        );
+        write_file(
+            &dir,
+            "Sources/Greeter+Ext.mm",
+            &[
+                "#import \"Greeter.h\"",
+                "",
+                "@implementation Greeter (Ext)",
+                "- (void)shout:(NSString *)name {",
+                "    NSLog(@\"%@\", name);",
+                "}",
+                "@end",
+            ]
+            .join("\n"),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 2);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .parse_by_language
+                .get("objc")
+                .map(|profile| profile.files),
+            Some(2)
         );
         cleanup_temp_dir(dir);
     }
