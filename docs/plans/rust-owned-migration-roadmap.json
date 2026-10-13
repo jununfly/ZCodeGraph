@@ -946,7 +946,7 @@
     "1-2-12-2": {
       "id": "1-2-12-2",
       "label": "Lua: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-12",
       "children": [],
@@ -957,7 +957,7 @@
           "note": "cargo test -p zcodegraph-core --lib 180 passed（178→180，新增 baseline+原 wiring）；lua.rs clippy 零新增。决策依据：TS lua.ts 152 行 + tree-sitter.ts extractFunction/extractMethod/extractCall/extractVariable(Lua 分支)/createNode + 0.2.0 grammar field 标签探针（C:/workspace/lua-abi-probe）。-3 真实语料 gate 负责更深 multiset/error-recovery 漂移。"
         }
       ],
-      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+      "notes": "CLOSED 10-13: lua.rs Frame-name-stack baseline visitor 对齐 TS luaExtractor 多集合（function_declaration 按 name field 三态 identifier→function 叠栈 qname / dot·method index→method qname=table::name 且 contains 挂栈头；require function_call→import+imports 剪枝防重复，variable initializer 显式挖 require；其余 call→calls 取 name field 全文本点/冒号保留且递归参数；variable_declaration 按 identifier 产 variable(=init 截100)整子树剪枝，匿名 function_definition 不产符号；file 初始压栈故顶层 call caller=file）。无 class/struct/interface/enum/typeAlias；无 128MiB worker（AST 浅，同 Go/Java）。cargo test --lib 180 passed(178→180)，lua.rs clippy 零新增；SQLite 多集合测试锁 function3/method1/variable7/import6/calls9，匿名 init lost() 被剪枝排除。commits eabe95d feat + 498b13a docs；CI run 38352750507 3-OS 一次全绿（Win cargo 180/22.97s，lua_baseline 127ms，无 EBUSY flake）。1 decision(visitor 契约)。父 1-2-12 仍 pending（-3 fixture+真实语料 / -4 cutover 未完）。"
     },
     "1-2-12-3": {
       "id": "1-2-12-3",
@@ -2807,7 +2807,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-13 12:27:19",
+    "updated": "2026-10-13 13:50:02",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
