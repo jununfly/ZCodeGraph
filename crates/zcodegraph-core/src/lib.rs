@@ -13,6 +13,7 @@ use tree_sitter::{Node as SyntaxNode, Parser, TreeCursor};
 mod csharp;
 mod dart;
 mod objc;
+mod lua;
 mod swift;
 mod index_options;
 mod php;
@@ -7301,6 +7302,18 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                 )?;
+            } else if language.is_lua() {
+                // Roadmap 1-2-12-1: grammar/dispatch wiring only; the
+                // baseline visitor lands in 1-2-12-2.
+                lua::extract(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -7785,6 +7798,7 @@ enum SourceLanguage {
     Dart,
     Swift,
     Objc,
+    Lua,
     Python,
     Rust,
 }
@@ -7825,6 +7839,8 @@ impl SourceLanguage {
             // (.m/.mm both map to 'objc'). ObjC .h headers are detected by
             // content heuristic at the call site, not by extension.
             Some("m") | Some("mm") => Some(Self::Objc),
+            // Lua sources, aligned with grammars.ts ('.lua' -> 'lua').
+            Some("lua") => Some(Self::Lua),
             Some("py") | Some("pyw") => Some(Self::Python),
             Some("rs") => Some(Self::Rust),
             _ => None,
@@ -7848,6 +7864,7 @@ impl SourceLanguage {
             Self::Dart => "dart",
             Self::Swift => "swift",
             Self::Objc => "objc",
+            Self::Lua => "lua",
             Self::Python => "python",
             Self::Rust => "rust",
         }
@@ -7877,6 +7894,10 @@ impl SourceLanguage {
             // tree-sitter-language 0.1 (LANGUAGE.into()), the same ABI-14
             // passthrough as tree-sitter-swift (roadmap 1-2-14-1).
             Self::Objc => tree_sitter_objc::LANGUAGE.into(),
+            // MunifTanjim/tree-sitter-lua 0.2.0 (last ABI-14 release) bridges
+            // via tree-sitter-language 0.1 (LANGUAGE.into()), the same passthrough
+            // as tree-sitter-objc / tree-sitter-swift (roadmap 1-2-12-1).
+            Self::Lua => tree_sitter_lua::LANGUAGE.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
@@ -7964,6 +7985,10 @@ impl SourceLanguage {
 
     fn is_objc(self) -> bool {
         matches!(self, Self::Objc)
+    }
+
+    fn is_lua(self) -> bool {
+        matches!(self, Self::Lua)
     }
 
     fn is_python(self) -> bool {
@@ -16250,6 +16275,62 @@ mod tests {
                 .profile
                 .parse_by_language
                 .get("objc")
+                .map(|profile| profile.files),
+            Some(2)
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    // Lua grammar/dispatch wiring (roadmap 1-2-12-1). tree-sitter-lua 0.2.0
+    // (last ABI-14 release) must set onto tree-sitter 0.24 and parse `.lua`
+    // files with zero parse-gap drops. 1-2-12-1 walks no symbols, so this pins
+    // parse/dispatch/profile only; the baseline node multiset arrives in
+    // 1-2-12-2.
+    #[test]
+    fn lua_parses_and_dispatches_through_rust_pipeline_grammar_wiring() {
+        let dir = temp_dir("lua-grammar-wiring");
+        write_file(
+            &dir,
+            "src/module.lua",
+            &[
+                "local M = {}",
+                "",
+                "function M.greet(name)",
+                "  return 'hi ' .. name",
+                "end",
+                "",
+                "function M:shout() return self.greet('!') end",
+                "",
+                "return M",
+            ]
+            .join("\n"),
+        );
+        write_file(
+            &dir,
+            "src/main.lua",
+            &[
+                "local module = require('module')",
+                "local function main()",
+                "  for i = 1, 3 do",
+                "    print(module.greet('x' .. i))",
+                "  end",
+                "end",
+                "main()",
+            ]
+            .join("\n"),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 2);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .parse_by_language
+                .get("lua")
                 .map(|profile| profile.files),
             Some(2)
         );

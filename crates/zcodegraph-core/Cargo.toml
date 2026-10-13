@@ -27,6 +27,16 @@ tree-sitter-javascript = "0.23"
 # tree-sitter-language 0.1 and builds against tree-sitter 0.24; pin the rev
 # until a 0.4.x is published. Verified ABI-compatible (LANGUAGE.into()).
 tree-sitter-kotlin = { git = "https://github.com/fwcd/tree-sitter-kotlin", rev = "1852ea17b7f60fb3f9d84e0b1555d56b46b39fb1" }
+# Lua (roadmap 1-2-12-1). MunifTanjim/tree-sitter-lua. PINNED to =0.2.0: it is
+# the last ABI-14 release, bridging into the workspace's tree-sitter 0.24 via
+# tree-sitter-language 0.1 (LANGUAGE.into()) exactly like tree-sitter-objc 3.0.
+# 0.4.1 and 0.5.0 regenerated parser.c as ABI 15 and fail set_language with
+# LanguageError{version:15}; 0.1.0 predates the LANGUAGE const. The extractor's
+# node names + field labels match this grammar generation (node-types census +
+# runtime SEXP probe); a deeper old/new-grammar multiset delta, if any, is
+# gated on real corpora in roadmap 1-2-12-3 (fallback = regenerate an ABI-14
+# parser from the TS-side grammar on a fork, the Dart rust-024 pattern).
+tree-sitter-lua = "=0.2.0"
 # Objective-C (roadmap 1-2-14-1). tree-sitter-grammars/tree-sitter-objc; 3.0.2
 # declares tree-sitter-language ^0.1 + tree-sitter ^0.24(dev), bridging via
 # LANGUAGE.into() exactly like tree-sitter-swift 0.6.0. ABI 14 verified by the
