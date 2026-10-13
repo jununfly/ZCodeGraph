@@ -925,12 +925,23 @@
     "1-2-12-1": {
       "id": "1-2-12-1",
       "label": "Lua: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-12",
       "children": [],
-      "decisions": [],
-      "notes": "范围：函数/table 风格值/require/调用。grammar：自 vendor ABI-15 wasm：tree-sitter-wasms 的 ABI-13 构建在 web-tree-sitter 0.25 下破坏共享 WASM 堆。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+      "decisions": [
+        {
+          "q": "tree-sitter-lua crate 选哪个版本/形态？ABI14 是否成立？",
+          "answer": "独立探针 crate（tree-sitter 0.24 + tree-sitter-language 0.1 + crate，不碰 core）实测：0.5.0 与 0.4.1 的生成 parser.c 均为 ABI15（set_language LanguageError{version:15}，shim 只透传不转版本，与 Swift 0.7/C# 0.23.5 同款）；0.1.0 无 tree_sitter_lua::LANGUAGE 常量（旧 API）。=0.2.0 是最后一个 ABI14 版本：language_version=14，set_language OK，简单/modern(goto+numeric for+多赋值)/table+method 三样本 0 ERROR/0 missing。故 pin =0.2.0 直引 crates.io 无 fork（像 objc3.0/swift0.6），normal 依赖仅 cc+tree-sitter-language^0.1，dev 才引 tree-sitter（不参与）。",
+          "note": ""
+        },
+        {
+          "q": "0.2.0（旧 MunifTanjim grammar）与 TS 生产 wasm（新 tree-sitter-grammars ABI15 grammar）节点形态是否一致？",
+          "answer": "TS lua.ts 注释明确生产 wasm 用 @tree-sitter-grammars 新 grammar（tree-sitter-wasms 旧 ABI13 版破坏共享堆）。核对 0.2.0 src/node-types.json + 运行期 SEXP：extractor 依赖的节点名全部存在（function_declaration 覆盖 global/table/method/local、function_call、variable_declaration 内嵌 assignment_statement、dot/method_index_expression、parameters、table_constructor），field 标签也对齐（function_declaration: name+body+parameters；dot_index: table+field；method_index: table+method；call: name+arguments；name 子节点 identifier/dot/method_index 三态）。节点+字段层面与 TS extractor 假设一致，足以支撑 -1 接线。新 vs 旧 grammar 更深的 multiset/error-recovery 漂移属 -3 真实语料 gate（若有 Dart 式 9 节点差异，则走 fork 用新 grammar grammar/ 重生成 ABI14 parser.c，与 Dart rust-024 同套路），不阻塞 -1。",
+          "note": ""
+        }
+      ],
+      "notes": "CLOSED 3-OS green（CI run 38342563677, feat 8567a53；windows-2025/macos-14/ubuntu-latest success）。Lua 为第 18 个 rust-owned 语言的 -1 波（grammar/dispatch 接线，baseline visitor 归 -2）。grammar 选型证据见 2 decisions：pin tree-sitter-lua =0.2.0（最后 ABI14，0.4.1/0.5.0 均 ABI15 LanguageError{version:15}，0.1.0 无 LANGUAGE 常量），经 tree-sitter-language 0.1 LANGUAGE.into() 透传直引 crates.io 无 fork（同 objc3.0/swift0.6）；extractor 依赖节点名+field 标签 node-types/SEXP 双核对全部对齐，新旧 grammar 深 multiset 漂移归 -3 语料 gate（后备 fork 重生成 ABI14 parser，Dart rust-024 套路）。改动：Cargo.toml/lock 加依赖，lib.rs 6 处（mod lua/enum Lua/.lua 扩展名/name lua/LANGUAGE/is_lua/dispatch 在 objc 后 python 前），新 lua.rs extract 空骨架（文档固化 -2 契约）；未入 tolerates、无 family。新增 lua_parses_and_dispatches...grammar_wiring 测试（2 .lua indexed/0 error/lua profile=2）。本地 cargo test --lib 179 passed 0 failed 9.42s（178→179），clippy 无 lua 新增 warning；Windows CI cargo test 179 passed 22.85s 含新测试 ok。CI 前两次 Windows 红均为既有 TS e2e sqlite 临时文件锁 flake（zcodegraph.db/.rust-tmp-* EBUSY+vitest 5000ms 超时），失败测试随机漂移（C++/ASP.NET→Ruby/Dart/Drupal/C++），与纯 Rust 本波无关，cargo test 三 OS 全绿，--failed 第 3 次重跑全绿。"
     },
     "1-2-12-2": {
       "id": "1-2-12-2",
@@ -2790,7 +2801,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-12 21:16:55",
+    "updated": "2026-10-13 11:59:11",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
