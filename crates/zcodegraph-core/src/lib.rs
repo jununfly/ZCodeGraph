@@ -16281,6 +16281,170 @@ mod tests {
         cleanup_temp_dir(dir);
     }
 
+    // Lua baseline visitor (roadmap 1-2-12-2). Asserts the node multiset and
+    // reference multiset the TS luaExtractor produced over the 0.2.0 grammar:
+    // function_declaration splits by the `name` field child (identifier ->
+    // function with stacked qname; dot/method index -> method with a forced
+    // `table::name` qname and no class owner); require is a function_call that
+    // becomes an import (+imports ref) and is never double-counted as a call;
+    // other calls keep the full callee text (`M.greet`, `self:add`, colon
+    // intact); variable_declaration yields one variable per identifier with a
+    // capped `= <init>` signature and prunes its initializer (so an anonymous
+    // `function() … end` emits no symbol and its body calls are not walked).
+    #[test]
+    fn lua_baseline_visitor_extracts_functions_methods_requires_and_calls() {
+        let dir = temp_dir("lua-baseline");
+        write_file(
+            &dir,
+            "src/sample.lua",
+            &[
+                "local net = require('net.http')",
+                "local m = require([[mod.long]])",
+                "local s = require(script.Parent.Signal)",
+                "local a, b = 1, require('two')",
+                "require(\"bare.mod\")",
+                "local f = function() return lost() end",
+                "",
+                "local M = {}",
+                "function M.greet(who)",
+                "  print(who)",
+                "  return 'hi ' .. who",
+                "end",
+                "",
+                "local function helper(x)",
+                "  local function inner(y)",
+                "    return inner2(y)",
+                "  end",
+                "  wrap(require('dep'))",
+                "  return inner(x)",
+                "end",
+                "",
+                "function top()",
+                "  acct:deposit(5)",
+                "  selfish:nest(foo(bar()))",
+                "end",
+                "",
+                "helper(1)",
+            ]
+            .join("\n"),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let names = |sql: &str| -> Vec<String> {
+            conn.prepare(sql)
+                .unwrap()
+                .query_map([], |row| row.get::<_, String>(0))
+                .unwrap()
+                .map(|r| r.unwrap())
+                .collect()
+        };
+
+        // Functions: helper (local), helper::inner (nested local), top
+        // (global). Table method M.greet is a method, not a function.
+        let mut functions = names(
+            "SELECT qualified_name FROM nodes WHERE language='lua' AND kind='function' ORDER BY qualified_name",
+        );
+        functions.sort();
+        assert_eq!(
+            functions,
+            vec![
+                "helper".to_string(),
+                "helper::inner".to_string(),
+                "top".to_string(),
+            ]
+        );
+        let methods =
+            names("SELECT qualified_name FROM nodes WHERE language='lua' AND kind='method'");
+        assert_eq!(methods, vec!["M::greet".to_string()]);
+
+        // Locals: net, m, s, a, b, f, M — seven variable nodes.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='lua' AND kind='variable'"
+            ),
+            7
+        );
+        // The anonymous-function local is named by its identifier and carries
+        // the initializer as its signature; the anonymous function itself is
+        // NOT a node.
+        let f_sig: String = conn
+            .query_row(
+                "SELECT signature FROM nodes WHERE language='lua' AND kind='variable' AND name='f'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(f_sig.starts_with("= function()"), "{f_sig}");
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='lua' AND name LIKE '%anonymous%'"
+            ),
+            0
+        );
+
+        // Imports: string, long-bracket, Roblox instance trailing field,
+        // positional multi-var, bare global, and a require nested in args.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='lua' AND kind='import'"
+            ),
+            6
+        );
+        let imports =
+            names("SELECT name FROM nodes WHERE language='lua' AND kind='import' ORDER BY name");
+        for expected in [
+            "net.http",
+            "mod.long",
+            "Signal",
+            "two",
+            "bare.mod",
+            "dep",
+        ] {
+            assert!(imports.contains(&expected.to_string()), "missing import {expected}: {imports:?}");
+        }
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM unresolved_refs WHERE language='lua' AND reference_kind='imports'"
+            ),
+            6
+        );
+
+        // Calls: dotted/colon callees keep their exact spelling; nested calls
+        // in arguments are captured; a top-level call attributes to the file.
+        // `lost()` inside the pruned anonymous initializer must NOT appear.
+        let mut calls = names(
+            "SELECT reference_name FROM unresolved_refs WHERE language='lua' AND reference_kind='calls' ORDER BY reference_name",
+        );
+        calls.sort();
+        assert_eq!(
+            calls,
+            vec![
+                "acct:deposit".to_string(),
+                "bar".to_string(),
+                "foo".to_string(),
+                "helper".to_string(),
+                "inner".to_string(),
+                "inner2".to_string(),
+                "print".to_string(),
+                "selfish:nest".to_string(),
+                "wrap".to_string(),
+            ]
+        );
+        assert!(!calls.contains(&"lost".to_string()));
+
+        drop(conn);
+        cleanup_temp_dir(dir);
+    }
+
     // Lua grammar/dispatch wiring (roadmap 1-2-12-1). tree-sitter-lua 0.2.0
     // (last ABI-14 release) must set onto tree-sitter 0.24 and parse `.lua`
     // files with zero parse-gap drops. 1-2-12-1 walks no symbols, so this pins
