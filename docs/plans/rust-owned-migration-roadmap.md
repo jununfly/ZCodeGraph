@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-13 11:59:11
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-13 12:27:19
 
 [~][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
@@ -48,4 +48,11 @@
     ├── [x][X+] 1-6-3. Go/Gin 路由所有权检查
     ├── [x][X+] 1-6-4. Swift 基线迁移（移动桥接成为产品优先级时启动）
     └── [x][Y+] 1-6-5. 波次0: #692 夹具债清零（新语言迁移前置）
+
+### 当前施工：1-2-12-2. Lua: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust
+
+import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。
+
+**决策：**
+- Q: Lua baseline visitor 如何对齐 TS luaExtractor 多集合（function/method 分流、callee 拼写、variable 剪枝、无 128MiB worker） → lua.rs Frame-name-stack visitor：function_declaration 按 name field 子节点三态分流——identifier→function（qname 叠栈 outer::inner），dot/method_index→method（简单名取尾 field/method，qname 强制 table::name，Lua 无 class 故 contains 挂栈头）；require=name 是 identifier 且文本 require 的 function_call→import(string_content/剥[[ ]]与引号/Roblox 实例路径尾字段)+imports 并剪枝防重复计 call，variable_declaration 的 expression_list 顶层 require 显式挖出；其余 function_call 发 calls 取 name field 全文本（print/M.greet 点保留/self:add 冒号保留），参数继续递归抓嵌套 call/require；variable_declaration 按 variable_list identifier 位置产 variable（signature== 截100）后整子树剪枝，匿名 function_definition 不产符号也不遍历 body（与 TS skipChildren 同构）；file 节点初始即压栈故顶层调用 caller=file。Lua AST 浅无 128MiB worker（同 Go/Java）。SQLite 多集合测试 lua_baseline_visitor... 锁 function[helper,helper::inner,top]/method[M::greet]/7 variable/6 import/9 calls，lost 被剪枝排除。 (cargo test -p zcodegraph-core --lib 180 passed（178→180，新增 baseline+原 wiring）；lua.rs clippy 零新增。决策依据：TS lua.ts 152 行 + tree-sitter.ts extractFunction/extractMethod/extractCall/extractVariable(Lua 分支)/createNode + 0.2.0 grammar field 标签探针（C:/workspace/lua-abi-probe）。-3 真实语料 gate 负责更深 multiset/error-recovery 漂移。)
 <!-- ROADMAP_SECTION_END -->
