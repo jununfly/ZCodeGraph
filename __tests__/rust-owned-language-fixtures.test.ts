@@ -2939,4 +2939,174 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
       }
     });
   });
+
+  // Lua has no classes/structs/interfaces/enums — tables are used for
+  // everything — so the baseline surface is functions, table methods,
+  // locals and require-imports only. Same contract as the Rust golden test
+  // `lua_baseline_visitor_extracts_functions_methods_requires_and_calls`
+  // (crates/zcodegraph-core/src/lib.rs), asserted here end-to-end through the
+  // pure-Rust engine (roadmap 1-2-12-3).
+  describe('Lua baseline (roadmap 1-2-12-3)', () => {
+    function luaNodes(
+      cg: CodeGraph,
+      filePath: string,
+      kind: string,
+    ): Array<{ name: string; qualifiedName: string; signature?: string | null }> {
+      return cg
+        .getNodesByKind(kind)
+        .filter((n) => n.language === 'lua' && n.filePath === filePath)
+        .map((n) => ({
+          name: n.name,
+          qualifiedName: n.qualifiedName,
+          signature: n.signature,
+        }));
+    }
+
+    function luaRefs(db: DbHandle, filePath: string, kind: string): string[] {
+      return unresolvedRefs(db, filePath)
+        .filter((r) => r.reference_kind === kind)
+        .map((r) => r.reference_name);
+    }
+
+    it('extracts functions/table methods, require imports, locals and calls', () => {
+      const filePath = 'src/module.lua';
+      writeFile(
+        filePath,
+        [
+          "local net = require('net.http')",
+          'local M = {}',
+          '',
+          'function M.greet(who)',
+          '  print(who)',
+          "  return 'hi ' .. who",
+          'end',
+          '',
+          'local function helper(x)',
+          '  local function inner(y)',
+          '    return deeper(y)',
+          '  end',
+          '  return inner(x)',
+          'end',
+          '',
+          'function top()',
+          '  acct:deposit(5)',
+          'end',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.lua).toBe(1);
+
+        // Plain functions stack qualified names over enclosing functions;
+        // the table function is a method whose qname is forced to M::greet.
+        expect(luaNodes(cg, filePath, 'function').map((f) => f.qualifiedName).sort()).toEqual([
+          'helper',
+          'helper::inner',
+          'top',
+        ]);
+        expect(luaNodes(cg, filePath, 'method').map((m) => m.qualifiedName)).toEqual([
+          'M::greet',
+        ]);
+
+        // Locals: net (require-initialized) and M (table). Function params and
+        // the function declarations themselves are not variables.
+        expect(luaNodes(cg, filePath, 'variable').map((v) => v.name).sort()).toEqual([
+          'M',
+          'net',
+        ]);
+
+        // require is an import (never a call), plus an imports ref.
+        expect(importNames(cg, 'lua')).toEqual(['net.http']);
+        expect(unresolvedImportRefs(db, filePath).map((r) => r.reference_name)).toEqual([
+          'net.http',
+        ]);
+        expect(
+          unresolvedImportRefs(db, filePath).every((r) => r.language === 'lua'),
+        ).toBe(true);
+
+        // Calls compare as a Set (each body frame is walked once): dotted
+        // table call keeps the dot, colon call keeps the colon.
+        expect(new Set(luaRefs(db, filePath, 'calls'))).toEqual(
+          new Set(['print', 'deeper', 'inner', 'acct:deposit']),
+        );
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('keeps dotted/colon callee spelling and captures nested calls and a require in arguments', () => {
+      const filePath = 'src/calls.lua';
+      writeFile(
+        filePath,
+        [
+          'local function f()',
+          "  M.greet('y')",
+          '  selfish:nest(foo(bar()))',
+          "  wrap(require('dep'))",
+          '  self:add(1)',
+          'end',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const calls = new Set(luaRefs(db, filePath, 'calls'));
+        // Full name-field text: dot and colon both preserved verbatim; self is
+        // NOT folded (Lua calls bypass the member-expression receiver branch).
+        for (const expected of [
+          'M.greet',
+          'selfish:nest',
+          'foo',
+          'bar',
+          'wrap',
+          'self:add',
+        ]) {
+          expect(calls.has(expected), `missing call ${expected}`).toBe(true);
+        }
+        // The require nested in wrap(...) is an import, not a call.
+        expect(calls.has('require')).toBe(false);
+        expect(importNames(cg, 'lua')).toEqual(['dep']);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('extracts multi-name locals, prunes an anonymous function initializer, and digs its require', () => {
+      const filePath = 'src/locals.lua';
+      writeFile(
+        filePath,
+        [
+          'local a, b = 1, 2',
+          'local f = function()',
+          '  return lost()',
+          'end',
+          "local s = require('mod.s')",
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const vars = luaNodes(cg, filePath, 'variable');
+        expect(vars.map((v) => v.name).sort()).toEqual(['a', 'b', 'f', 's']);
+        // The local is named by its identifier; the anonymous
+        // `function() … end` itself is NOT a symbol node.
+        expect(vars.find((v) => v.name === 'f')?.signature?.startsWith('= function()')).toBe(true);
+        expect(cg.getNodesByKind('function').filter((n) => n.language === 'lua')).toHaveLength(0);
+
+        // The variable initializer subtree is pruned, so lost() is not a call;
+        // the require initializer is dug out explicitly as an import.
+        expect(luaRefs(db, filePath, 'calls')).not.toContain('lost');
+        expect(importNames(cg, 'lua')).toEqual(['mod.s']);
+      } finally {
+        cg.close();
+      }
+    });
+  });
 });
