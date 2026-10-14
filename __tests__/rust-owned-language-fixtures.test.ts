@@ -1279,6 +1279,117 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
         cg.close();
       }
     });
+
+    // Roadmap 1-2-8-5 semantics wave. `fun interface` (class_declaration with
+    // direct `fun`+`interface` keyword children) classifies as `interface`;
+    // `suspend`/`expect`/`actual` become signature prefixes; `companion object`
+    // emits a `Companion` class container; and `expect`/`actual` persist onto
+    // the `decorators` column so the full-graph `kotlin-expect-actual`
+    // synthesizer (query layer, runs on rust-hybrid too) can pair same-FQN
+    // platform impls. The synthesized expect→actual `calls` edge itself is
+    // exercised by the e2e suite, which runs the full synthesis pipeline.
+    it('classifies a fun interface as interface, not class (1-2-8-5)', () => {
+      const filePath = 'com/example/demo/Mapper.kt';
+      writeFile(
+        filePath,
+        [
+          'package com.example.demo',
+          '',
+          'fun interface StringMapper {',
+          '    fun map(input: String): Int',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        expect(
+          ktNodes(cg, filePath, 'interface').map((n) => n.name),
+        ).toContain('StringMapper');
+        expect(
+          ktNodes(cg, filePath, 'class').some((n) => n.name === 'StringMapper'),
+        ).toBe(false);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('prefixes suspend on the signature and nests companion-object members (1-2-8-5)', () => {
+      const filePath = 'com/example/demo/Repo.kt';
+      writeFile(
+        filePath,
+        [
+          'package com.example.demo',
+          '',
+          'class Repo {',
+          '    suspend fun fetch(id: String): String = id',
+          '    companion object {',
+          '        fun create(): Repo = Repo()',
+          '    }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const fetch = ktNodes(cg, filePath, 'method').find((n) => n.name === 'fetch');
+        expect(fetch, 'suspend fun still a method').toBeDefined();
+
+        // companion object → Companion class container; create() nests under it.
+        expect(
+          ktNodes(cg, filePath, 'class').some((n) => n.name === 'Companion'),
+        ).toBe(true);
+        const create = ktNodes(cg, filePath, 'method').find((n) => n.name === 'create');
+        expect(create?.qualifiedName).toContain('Companion::create');
+
+        // signature prefix lives in the nodes table, not the typed helper.
+        const sig = db
+          .prepare("SELECT signature FROM nodes WHERE language='kotlin' AND name='fetch'")
+          .get() as { signature: string };
+        expect(sig.signature.startsWith('suspend fun')).toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('persists expect/actual markers onto the decorators column (1-2-8-5)', () => {
+      writeFile(
+        'com/example/demo/Core.kt',
+        ['package com.example.demo', '', 'expect fun platformName(): String', ''].join('\n'),
+      );
+      writeFile(
+        'com/example/demo/Platform.kt',
+        ['package com.example.demo', '', 'actual fun platformName(): String = "win"', ''].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const dec = (file: string) =>
+          (
+            db
+              .prepare(
+                "SELECT decorators FROM nodes WHERE language='kotlin' AND name='platformName' AND file_path = ?1",
+              )
+              .get(file) as { decorators: string | null }
+          ).decorators ?? '';
+        expect(dec('com/example/demo/Core.kt')).toContain('expect');
+        expect(dec('com/example/demo/Platform.kt')).toContain('actual');
+        // Both sides share the FQN the synthesizer matches on.
+        const fqn = cg
+          .getNodesByKind('function')
+          .filter((n) => n.language === 'kotlin' && n.name === 'platformName')
+          .map((n) => n.qualifiedName);
+        expect(new Set(fqn).size).toBe(1);
+        expect(fqn[0]).toContain('platformName');
+      } finally {
+        cg.close();
+      }
+    });
   });
 
   // C# baseline (roadmap 1-2-4). Pure-Rust extraction over

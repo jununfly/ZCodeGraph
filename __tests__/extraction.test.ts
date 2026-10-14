@@ -2710,14 +2710,13 @@ end`;
   });
 });
 
-// Kotlin Multiplatform expect/actual linking ran only on the legacy TypeScript
-// engine (`engine: 'typescript'`) and depended on the TS extractor tagging
-// expect/actual decorators plus the kotlin-expect-actual synthesizer. Kotlin is
-// now Rust-owned on the rust-hybrid path (roadmap 1-6-1); expect/actual is
-// deliberately outside the Rust baseline, so this describe was deleted (not
-// skipped -- the skip-debt allowlist is kept empty). Re-introduce against the
-// Rust engine in rust-owned-language-fixtures.test.ts if a future wave models
-// expect/actual.
+// Kotlin Multiplatform expect/actual is now modeled on the Rust engine
+// (roadmap 1-2-8-5): the Rust extractor tags `expect`/`actual` onto the
+// node's `decorators` column and the existing full-graph
+// `kotlin-expect-actual` synthesizer (query layer, runs on rust-hybrid too)
+// pairs each `actual` impl with its same-FQN `expect` declaration. The
+// fixture coverage lives in rust-owned-language-fixtures.test.ts; the legacy
+// typescript-only describe stays deleted (the skip-debt allowlist is empty).
 
 describe('Scala cross-file dependencies', () => {
   let tempDir: string;
@@ -3812,11 +3811,11 @@ describe('Same-directory #include resolution', () => {
     expect(appleDeps.some((p) => p.endsWith('Provider.cpp')), 'other-platform header does NOT').toBe(false);
   });
 
-  // Kotlin Multiplatform expect/actual resolution ran only on the legacy
-  // TypeScript engine (`engine: 'typescript'`). Kotlin is now Rust-owned on
-  // the rust-hybrid path (roadmap 1-6-1); expect/actual markers are outside
-  // the Rust baseline, so this typescript-only case was deleted rather than
-  // skipped. The same-directory C/C++ #include case above stays active.
+  // Kotlin Multiplatform expect/actual resolution is now modeled on the Rust
+  // engine (roadmap 1-2-8-5): the Rust extractor tags `expect`/`actual` onto
+  // the node's `decorators` column and the `kotlin-expect-actual` synthesizer
+  // pairs them by fully-qualified name. The typescript-only case stays
+  // deleted; the same-directory C/C++ #include case above stays active.
 });
 
 describe('Delphi form code-behind pairing', () => {
@@ -6747,6 +6746,110 @@ class UserService extends BaseService with Authenticatable {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+// ===========================================================================
+// Kotlin Multiplatform expect/actual (roadmap 1-2-8-5) on rust-hybrid.
+//
+// The Rust extractor tags `expect`/`actual` platform modifiers onto the node's
+// `decorators` column (a JSON string array). The pre-existing full-graph
+// `kotlin-expect-actual` synthesizer — a query-layer pass that runs on the
+// rust-hybrid path too — then pairs each `actual` impl with the same-FQN,
+// kind-compatible, different-file, non-`actual` `expect` declaration and
+// synthesizes an expect→actual `calls` edge, so editing a platform impl
+// surfaces the common declaration and its callers. Kotlin has no dedicated TS
+// extractor, so `extractModifiers` never tagged these markers and the pair
+// never formed on either engine before this wave. The e2e below builds a
+// commonMain/jvmMain/androidMain layout and pins that the synthesized edges
+// connect every platform `actual` back to the single common `expect`.
+// ===========================================================================
+describe('Kotlin expect/actual on rust-hybrid (roadmap 1-2-8-5)', () => {
+  let tempDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(() => {
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    if (cg) cg.close();
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('synthesizes expect->actual calls edges from the common declaration to every platform impl', async () => {
+    const write = (rel: string, body: string): void => {
+      const full = path.join(tempDir, rel);
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, body);
+    };
+
+    write(
+      'shared/src/commonMain/kotlin/com/demo/Platform.kt',
+      `package com.demo
+
+expect fun platformName(): String
+`,
+    );
+    write(
+      'shared/src/jvmMain/kotlin/com/demo/Platform.jvm.kt',
+      `package com.demo
+
+actual fun platformName(): String = "jvm"
+`,
+    );
+    write(
+      'shared/src/androidMain/kotlin/com/demo/Platform.android.kt',
+      `package com.demo
+
+actual fun platformName(): String = "android"
+`,
+    );
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    cg.resolveReferences();
+
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+
+    const expectDecl = cg
+      .getNodesByKind('function')
+      .find((n) => n.name === 'platformName' && (n.filePath ?? '').includes('commonMain'));
+    expect(expectDecl, 'common expect declaration extracted').toBeDefined();
+
+    const db = (
+      cg as unknown as {
+        db: { getDb(): { prepare(sql: string): { all(): unknown[] } } };
+      }
+    ).db.getDb();
+    const rows = db
+      .prepare(
+        `SELECT s.file_path source_file, t.file_path target_file
+         FROM edges e
+         JOIN nodes s ON s.id = e.source
+         JOIN nodes t ON t.id = e.target
+         WHERE e.kind = 'calls'
+           AND json_extract(e.metadata, '$.synthesizedBy') = 'kotlin-expect-actual'
+           AND s.name = 'platformName'`,
+      )
+      .all() as Array<{ source_file: string; target_file: string }>;
+
+    // One edge per platform impl, each originating at the common declaration.
+    const targets = rows.map((r) => r.target_file).sort();
+    expect(rows.every((r) => r.source_file.includes('commonMain'))).toBe(true);
+    expect(targets.some((f) => f.includes('jvmMain'))).toBe(true);
+    expect(targets.some((f) => f.includes('androidMain'))).toBe(true);
+
+    // Editing a platform impl surfaces the common declaration (blast radius).
+    const jvmImpl = cg
+      .getNodesByKind('function')
+      .find((n) => n.name === 'platformName' && (n.filePath ?? '').includes('jvmMain'));
+    expect(jvmImpl, 'jvm actual impl extracted').toBeDefined();
+    const reaches = [...cg.getImpactRadius(jvmImpl!.id, 2).nodes.values()].some((n) =>
+      (n.filePath ?? '').includes('commonMain'),
+    );
+    expect(reaches, 'editing the jvm actual reaches the common expect').toBe(true);
   });
 });
 

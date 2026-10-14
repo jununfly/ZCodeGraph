@@ -11146,6 +11146,40 @@ fn visit_kotlin_node(
             visibility,
             qualified_name,
         );
+        // Roadmap 1-2-8-5: persist `expect`/`actual` platform markers onto the
+        // node's `decorators` column (a JSON string array). The TS
+        // `kotlin-expect-actual` synthesizer is a full-graph query-layer pass
+        // (runs on rust-hybrid too) that pairs a same-FQN, kind-compatible,
+        // different-file, non-`actual` declaration against each `actual` impl
+        // and synthesizes the expect→actual `calls` edge — but it reads the
+        // marker from `decorators`. Kotlin has no dedicated TS extractor, so
+        // `extractModifiers` never ran for it and the column stayed NULL: the
+        // pair never formed on either engine. Populating it here activates the
+        // existing qualified-name-aware mechanism (no basename routing).
+        {
+            let mut markers: Vec<&str> = Vec::new();
+            let mut mc = node.walk();
+            for child in node.children(&mut mc) {
+                if child.kind() == "modifiers" {
+                    let mut mmc = child.walk();
+                    for m in child.children(&mut mmc) {
+                        if m.kind() == "platform_modifier" {
+                            if let Ok(text) = m.utf8_text(source) {
+                                match text.trim() {
+                                    "expect" => markers.push("expect"),
+                                    "actual" => markers.push("actual"),
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if !markers.is_empty() {
+                extracted.decorators =
+                    Some(format!("[{}]", markers.iter().map(|m| format!("\"{m}\"")).collect::<Vec<_>>().join(",")));
+            }
+        }
         // Extension functions (`fun Int.x()`) are qualified through their
         // receiver type (`Int::x`), mirroring the TS getReceiverType override
         // of qualifiedName, rather than through the package/container stack.
@@ -11302,9 +11336,16 @@ fn kotlin_extension_receiver(
     Ok(name.filter(|n| !n.is_empty()))
 }
 
-fn extract_kotlin_class_kind(node: SyntaxNode) -> Option<&'static str> {    if node.kind() != "class_declaration" {
+fn extract_kotlin_class_kind(node: SyntaxNode) -> Option<&'static str> {
+    if node.kind() != "class_declaration" {
         return None;
     }
+    // Roadmap 1-2-8-5: `fun interface` is a class_declaration whose direct
+    // children include both a `fun` and an `interface` keyword; a plain
+    // `interface` has only the `interface` keyword. Both map to kind
+    // `interface` — the previous implementation already returned `interface`
+    // for the `interface` keyword child, so `fun interface` was never
+    // misclassified; the loop below is unchanged and documented here.
     let mut c = node.walk();
     for child in node.children(&mut c) {
         match child.kind() {
@@ -11314,6 +11355,37 @@ fn extract_kotlin_class_kind(node: SyntaxNode) -> Option<&'static str> {    if n
         }
     }
     Some("class")
+}
+
+/// Roadmap 1-2-8-5: platform (`expect`/`actual`) and `suspend` modifiers live
+/// under `modifiers > platform_modifier` / `modifiers > function_modifier`
+/// (AST-verified). Only these three are collected as a signature prefix (e.g.
+/// `expect fun`, `suspend fun`); the other function modifiers (`inline`,
+/// `operator`, `infix`, `tailrec`, `external`) are deliberately excluded to
+/// keep the baseline signature shape stable. No change to kind, qualified
+/// name, or edge emission.
+fn kotlin_modifier_prefix(node: SyntaxNode, source: &[u8]) -> String {
+    let mut out = String::new();
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        if child.kind() == "modifiers" {
+            let mut mc = child.walk();
+            for m in child.children(&mut mc) {
+                if matches!(m.kind(), "platform_modifier" | "function_modifier") {
+                    if let Ok(text) = m.utf8_text(source) {
+                        let t = text.trim();
+                        if matches!(t, "expect" | "actual" | "suspend") {
+                            if !out.is_empty() {
+                                out.push(' ');
+                            }
+                            out.push_str(t);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    out
 }
 
 #[allow(clippy::type_complexity)]
@@ -11327,6 +11399,21 @@ fn kotlin_named_symbol(
             .named_children(&mut node.walk())
             .find(|c| c.kind() == "type_identifier")
             .map(|n| ("class", n.utf8_text(source).unwrap_or("").trim().to_string())),
+        // Roadmap 1-2-8-5: `companion object { ... }` is its own
+        // `companion_object` node kind (NOT `object_declaration`), so it was
+        // invisible before. Its named form (`companion object Factory {}`)
+        // carries a `type_identifier`; the common anonymous form
+        // (`companion object {}`) does not. Emit a `Companion` container so
+        // member functions/properties nest under it (companion-static
+        // semantics: `Repo.Companion.create`).
+        "companion_object" => {
+            let named = node
+                .named_children(&mut node.walk())
+                .find(|c| c.kind() == "type_identifier")
+                .map(|n| n.utf8_text(source).unwrap_or("").trim().to_string())
+                .filter(|n| !n.is_empty());
+            Some(("class", named.unwrap_or_else(|| "Companion".to_string())))
+        }
         "class_declaration" => {
             let kind = extract_kotlin_class_kind(node).unwrap_or("class");
             node.named_children(&mut node.walk())
@@ -11421,6 +11508,11 @@ fn kotlin_function_signature(
             sig = format!("{sig}: {}", child.utf8_text(source)?.trim());
             break;
         }
+    }
+    // Roadmap 1-2-8-5: prefix suspend/expect/actual modifiers (signature only).
+    let prefix = kotlin_modifier_prefix(node, source);
+    if !prefix.is_empty() {
+        sig = format!("{prefix} fun {sig}");
     }
     Ok(Some(sig))
 }
@@ -14391,6 +14483,11 @@ struct ExtractedNode {
     visibility: Option<String>,
     is_static: bool,
     signature: Option<String>,
+    /// Roadmap 1-2-8-5: symbol-level modifier markers persisted into the
+    /// `decorators` column (a JSON string array), consumed by the TS
+    /// `kotlin-expect-actual` synthesizer. Only Kotlin expect/actual sets this
+    /// today; every other node leaves it `None` (stored as NULL).
+    decorators: Option<String>,
     start_line: i64,
     end_line: i64,
     start_column: i64,
@@ -14425,6 +14522,7 @@ impl ExtractedNode {
             visibility: None,
             is_static: false,
             signature: None,
+            decorators: None,
             start_line: 1,
             end_line,
             start_column: 0,
@@ -14502,6 +14600,7 @@ impl ExtractedNode {
             visibility,
             is_static: false,
             signature: None,
+            decorators: None,
             start_line: (start.row + 1) as i64,
             end_line: (end.row + 1) as i64,
             start_column: start.column as i64,
@@ -14530,6 +14629,7 @@ impl ExtractedNode {
             visibility: None,
             is_static: false,
             signature: None,
+            decorators: None,
             start_line,
             end_line,
             start_column,
@@ -14772,7 +14872,7 @@ fn insert_nodes(conn: &Connection, nodes: &[ExtractedNode]) -> rusqlite::Result<
           ?7, ?8, ?9, ?10,
           NULL, ?11, ?12,
           0, 0, ?13, 0,
-          NULL, NULL, ?14
+          ?15, NULL, ?14
         )",
     )?;
 
@@ -14792,6 +14892,7 @@ fn insert_nodes(conn: &Connection, nodes: &[ExtractedNode]) -> rusqlite::Result<
             node.visibility,
             node.is_static as i64,
             node.updated_at,
+            node.decorators,
         ])?;
     }
     Ok(())
@@ -25474,6 +25575,128 @@ mod tests {
 
         assert!(result.success, "{:?}", result.errors);
         assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_kotlin_semantics_fun_interface_suspend_companion_expect_actual() {
+        // Roadmap 1-2-8-5 (fwcd grammar AST shapes verified by dump):
+        //  1. `fun interface` → kind `interface` (class_declaration with direct
+        //     `fun`+`interface` keyword children);
+        //  2. `suspend`/`expect`/`actual` → signature prefix only;
+        //  3. `companion object {}` → a `Companion` class container nesting its
+        //     members (companion-static semantics);
+        //  4. `expect`/`actual` persist onto the node's `decorators` column so
+        //     the TS `kotlin-expect-actual` synthesizer (full-graph query
+        //     layer, runs on rust-hybrid) can pair same-FQN impls.
+        let dir = temp_dir("rust-kotlin-semantics");
+        let src = dir.join("com").join("example").join("demo");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(
+            src.join("Core.kt"),
+            [
+                "package com.example.demo",
+                "",
+                "fun interface StringMapper {",
+                "    fun map(input: String): Int",
+                "}",
+                "",
+                "class Repo {",
+                "    suspend fun fetch(id: String): String = id",
+                "    companion object {",
+                "        fun create(): Repo = Repo()",
+                "    }",
+                "}",
+                "",
+                "expect fun platformName(): String",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            src.join("Platform.kt"),
+            [
+                "package com.example.demo",
+                "",
+                "actual fun platformName(): String = \"win\"",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(db_path(&dir)).unwrap();
+
+        // (1) fun interface → interface (NOT class).
+        let mapper_iface = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE language='kotlin' AND kind='interface' AND name='StringMapper'",
+        );
+        assert_eq!(mapper_iface, 1, "`fun interface` must classify as interface");
+        let mapper_class = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE language='kotlin' AND kind='class' AND name='StringMapper'",
+        );
+        assert_eq!(mapper_class, 0, "`fun interface` must NOT classify as class");
+
+        // (2) suspend → signature prefix, kind stays method.
+        let fetch_sig: String = conn
+            .query_row(
+                "SELECT coalesce(signature,'') FROM nodes WHERE language='kotlin' AND name='fetch'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_default();
+        assert!(
+            fetch_sig.starts_with("suspend fun"),
+            "suspend must prefix the signature, got: {fetch_sig}"
+        );
+
+        // (3) companion object → Companion class container; create() nests in it.
+        let companion_class = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE language='kotlin' AND kind='class' AND name='Companion'",
+        );
+        assert_eq!(companion_class, 1, "companion object must emit a Companion class container");
+        let create_qname: String = conn
+            .query_row(
+                "SELECT qualified_name FROM nodes WHERE language='kotlin' AND kind='method' AND name='create'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_default();
+        assert!(
+            create_qname.contains("Companion::create"),
+            "create() must nest under Companion, got: {create_qname}"
+        );
+
+        // (4) expect/actual → decorators markers.
+        let expect_dec: String = conn
+            .query_row(
+                "SELECT coalesce(decorators,'') FROM nodes WHERE language='kotlin' AND name='platformName' AND file_path LIKE '%Core.kt'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_default();
+        assert!(
+            expect_dec.contains("expect"),
+            "expect declaration must carry the `expect` decorator, got: {expect_dec}"
+        );
+        let actual_dec: String = conn
+            .query_row(
+                "SELECT coalesce(decorators,'') FROM nodes WHERE language='kotlin' AND name='platformName' AND file_path LIKE '%Platform.kt'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_default();
+        assert!(
+            actual_dec.contains("actual"),
+            "actual definition must carry the `actual` decorator, got: {actual_dec}"
+        );
         cleanup_temp_dir(dir);
     }
 
