@@ -610,7 +610,7 @@
     "1-2-8": {
       "id": "1-2-8",
       "label": "Kotlin 基线抽取迁移",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -2852,7 +2852,7 @@
     "1-2-8-5": {
       "id": "1-2-8-5",
       "label": "Kotlin 增强：fun interface / suspend / expect-actual 语义（backlog，baseline 外）",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2-8",
       "children": [],
@@ -2871,6 +2871,11 @@
           "q": "Implementation + key mechanism finding",
           "answer": "Implemented in lib.rs (single SoT):\n(1) ExtractedNode.decorators: Option<String> new field + insert_nodes writes decorators column. Only Kotlin expect/actual sets it; all other nodes NULL.\n(2) fun interface → kind interface: extract_kotlin_class_kind already returned 'interface' for the interface keyword child (fun interface is a class_declaration with direct fun+interface keyword children), so it was never misclassified — documented.\n(3) suspend/expect/actual → signature prefixes via kotlin_modifier_prefix (collects ONLY expect/actual/suspend, excludes inline/operator/infix to keep baseline signature stable); kotlin_function_signature prefixes 'X fun ...'.\n(4) companion_object → Companion class container (anonymous form), members nest under it (Repo.Companion.create).\n(5) expect/actual → decorators JSON markers read from platform_modifier in visit_kotlin_node.\n\nKEY FINDING (refutes scope-decision assumption (4)): NO new resolver was needed. The kotlin-expect-actual synthesizer (callback-synthesizer.ts) is a full-graph query-layer pass that RUNS on rust-hybrid and pairs by FQN-exact + kind-compatible (kmpKindsCompatible) + different-file + non-actual — already the qualified-name-aware, basename-safe logic. But Kotlin has NO dedicated TS extractor (EXTRACTORS map has no kotlin key), so extractModifiers never tagged the markers and the synthesizer was a no-op on BOTH engines. Populating the decorators column in Rust ACTIVATES the existing mechanism — zero resolver change, zero basename-misrouting risk.\n\nValidation: cargo 182 PASS; wave0 fixture 64→67 its (binary+sqlite replication PASS); real KMP corpus ktor (ktorio/ktor sparse utils/io/client) 984 kt files 0 errored, 116 expect + 497 actual markers, 112 pairable FQNs, 149 fun-interface, 709 suspend sigs, 86 Companion classes — zero grammar drift. Evidence: docs/benchmarks/2026-10-14-rust-owned-kotlin-expect-actual-validation.md. e2e describe 'Kotlin expect/actual on rust-hybrid' added + registered in ci.yml -t. Pending 3-OS CI green before CLOSE.",
           "note": ""
+        },
+        {
+          "q": "CLOSE (3-OS CI green)",
+          "answer": "CI run 38533725969 3-OS GREEN (final). First Windows run failed on PRE-EXISTING flake 'does not link a static-member read across language families' 6055ms timeout (same random-drift class as C++ wave EBUSY, unrelated to this wave — the new Kotlin e2e PASSED on that very run at 660ms); gh run rerun --failed → all 3 OS success.\nWindows log mechanical verification (non-skip): cargo rust_kotlin_semantics_fun_interface_suspend_companion_expect_actual ok + rust_core_kotlin_baseline ok; e2e 'Kotlin expect/actual on rust-hybrid > synthesizes expect->actual calls edges from the common declaration to every platform impl' REAL-RUN 513ms (Win) / 325ms (ubuntu), macos success.\nCommits: feat e88f82f + docs 5bde7bb pushed to main. Fixture file 64→67 its. Evidence docs/benchmarks/2026-10-14-rust-owned-kotlin-expect-actual-validation.md (ktor real KMP corpus: 984 kt files 0 errored, 116 expect + 497 actual markers, 112 pairable FQNs, 149 fun-interface, 709 suspend sigs, 86 Companion classes, zero grammar drift).\nCLOSED: Kotlin fun-interface/suspend/expect-actual backlog cleared. EXTRACTION_VERSION stays 2 (unreleased batch). kotlin.ts retained pure-TS for the --engine typescript path. Parent 1-2-8 unchanged.",
+          "note": ""
         }
       ],
       "notes": ""
@@ -2878,7 +2883,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-14 16:13:21",
+    "updated": "2026-10-14 16:29:01",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }

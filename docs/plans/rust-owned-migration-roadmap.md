@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-14 15:18:44
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-14 16:29:01
 
 [~][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
@@ -17,7 +17,7 @@
 │   ├── [x][Y+] 1-2-5. PHP 基线抽取迁移
 │   ├── [x][Y+] 1-2-6. Ruby 基线抽取迁移
 │   ├── [x][Y+] 1-2-7. Swift 基线抽取迁移
-│   ├── [~][Y+] 1-2-8. Kotlin 基线抽取迁移
+│   ├── [x][Y+] 1-2-8. Kotlin 基线抽取迁移
 │   ├── [x][Y+] 1-2-9. Dart 基线抽取迁移
 │   ├── [ ][Y+] 1-2-10. Pascal/Delphi 基线抽取迁移
 │   ├── [ ][Y+] 1-2-11. Scala 基线抽取迁移
