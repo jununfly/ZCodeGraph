@@ -6998,3 +6998,103 @@ describe('Objective-C on rust-hybrid (roadmap 1-2-14-4 cutover)', () => {
     expect(cg.getNodesByKind('class').some((n) => n.name === 'View')).toBe(true);
   });
 });
+
+// ===========================================================================
+// Roadmap 1-2-12-4 — Lua on rust-hybrid (ownership cutover).
+//
+// Like Dart/Go this is one of the cleanest cutovers: Lua has no file-level
+// route table (no routes.rb / Drupal hook / ASP.NET attribute route), no
+// macros, and src/resolution/frameworks/ has no lua resolver; require module
+// resolution is language-agnostic logic in the shell's resolveReferences
+// phase, so there is NO rust-lua-framework-routes shell and no src/index.ts
+// finalization wiring. The only ownership change is adding 'lua' (the 18th
+// rust-owned language) to RUST_HYBRID_RUST_OWNED_LANGUAGES; every .lua file is
+// scheduled through Rust with zero TypeScript fallback, and lua.ts is retained
+// only for the pure --engine typescript engine.
+//
+// Split boundary: '.luau' is a SEPARATE detected language and the Rust enum has
+// no Luau variant (the 0.2.0 grammar wave 1-2-12-1 wired only Language::Lua),
+// so .luau is intentionally left on the TypeScript fallback. The cross-file
+// e2e below pins that the dotted-require -> module edge and the function/method
+// graph are shaped identically through Rust, and the plan-guard test pins both
+// zero TS fallback for .lua AND the retained .luau TypeScript scheduling.
+// ===========================================================================
+describe('Lua on rust-hybrid (roadmap 1-2-12-4 cutover)', () => {
+  let tempDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(() => {
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    if (cg) cg.close();
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('resolves a dotted cross-file Lua require and indexes functions/methods on rust-hybrid after the ownership cutover, roadmap 1-2-12-4', async () => {
+    // Cross-file model: a module exposes a table method; an init module requires
+    // it via a dotted path and calls it. The require is the cross-file link,
+    // and the table method proves the Rust method split (M.setup -> method
+    // qualifiedName M::setup) survives the cutover.
+    fs.mkdirSync(path.join(tempDir, 'lua/myapp'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'lua/myapp/config.lua'),
+      `local M = {}\nfunction M.setup(opts) return opts end\nreturn M\n`,
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'lua/myapp/init.lua'),
+      `local config = require("myapp.config")\nlocal function boot()\n  return config.setup({ a = 1 })\nend\nreturn boot\n`,
+    );
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    cg.resolveReferences();
+
+    // Zero parse/extraction gaps on clean Lua.
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+    expect(result.errors).toHaveLength(0);
+
+    // Table method split through Rust: M.setup -> method "setup" (M::setup).
+    const setup = cg
+      .getNodesByKind('method')
+      .find((n) => n.name === 'setup' && (n.filePath ?? '').endsWith('myapp/config.lua'));
+    expect(setup, 'M.setup indexed as a method through Rust').toBeDefined();
+    expect(setup?.qualifiedName).toBe('M::setup');
+
+    // Cross-file dotted require edge survives the Rust cutover: init.lua is a
+    // dependent of config.lua.
+    const configFile = cg.getNodesByKind('file').find((n) => n.filePath.endsWith('myapp/config.lua'));
+    expect(configFile, 'config.lua file node').toBeDefined();
+    const deps = cg.getFileDependents(configFile!.filePath);
+    expect(deps.some((p) => p.endsWith('myapp/init.lua')), 'dotted Lua require resolves to the module').toBe(true);
+  });
+
+  it('routes .lua through the Rust core with zero TypeScript fallback but keeps .luau on TypeScript after the split cutover, roadmap 1-2-12-4', () => {
+    // Post-cutover: 'lua' is the 18th rust-owned language, so a .lua file is
+    // scheduled through the Rust core (fallbackByLanguage.lua === 0). '.luau'
+    // is a distinct detected language with no Rust enum variant, so it remains
+    // on the TypeScript fallback by design.
+    expect(isRustHybridOwnedLanguage('lua')).toBe(true);
+    expect(isRustHybridOwnedLanguage('luau')).toBe(false);
+
+    const dir = createTempDir();
+    try {
+      fs.writeFileSync(path.join(dir, 'main.lua'), 'local function main()\n  return 1\nend\n');
+      fs.writeFileSync(path.join(dir, 'util.luau'), 'local function util(): number\n  return 2\nend\n');
+
+      const plan = planRustHybridAssignments(dir);
+      expect(plan.engineByLanguage).toMatchObject({ lua: 'rust', luau: 'typescript' });
+      expect(plan.rustOwnedFiles).toContain('main.lua');
+      expect(plan.fallbackFiles).not.toContain('main.lua');
+      expect(plan.fallbackByLanguage.lua ?? 0).toBe(0);
+      // .luau is deliberately NOT Rust-owned: it stays a TS fallback file.
+      expect(plan.rustOwnedFiles).not.toContain('util.luau');
+      expect(plan.fallbackFiles).toContain('util.luau');
+      expect(plan.fallbackByLanguage.luau).toBe(1);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
