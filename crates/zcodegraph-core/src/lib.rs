@@ -7972,9 +7972,23 @@ impl SourceLanguage {
     /// error-recovery nodes. Dropping the file would lose otherwise-productive
     /// types/methods, so Swift is tolerant too; swift.rs's production walker
     /// has no `unwrap`/`expect`/indexing and never panics on such nodes.
+    /// Luau's pinned tree-sitter-luau 1.2.0 (2024-12, the last release) lags
+    /// the language: it flags *legal* modern-Luau type syntax observed in the
+    /// luau-lang/lute + Sleitnick/RbxUtil corpora (roadmap 1-2-13-3) — the
+    /// `@native` function attribute, `const function`, leading-pipe unions
+    /// (`type T = | A | B`), `typeof(...)` return types, generic variadic
+    /// packs (`T...`), and nested generic casts (`{} :: Hash<"md5">`). The
+    /// error-recovery nodes are local to the offending declaration, so the
+    /// rest of the file still yields productive functions/methods/imports;
+    /// dropping the whole file would lose ~10% of lute (55/525) and
+    /// RbxUtil (7/69). Luau is tolerant like Kotlin/Dart/Swift; the luau.rs
+    /// walker has no `unwrap`/indexing on error-recovery shapes.
     fn tolerates_parse_errors(self) -> bool {
         self.is_c_family()
-            || matches!(self, Self::Kotlin | Self::Dart | Self::Swift | Self::Objc)
+            || matches!(
+                self,
+                Self::Kotlin | Self::Dart | Self::Swift | Self::Objc | Self::Luau
+            )
     }
 
     fn is_java(self) -> bool {
