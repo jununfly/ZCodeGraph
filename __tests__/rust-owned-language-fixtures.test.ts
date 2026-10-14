@@ -444,8 +444,8 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
         }
         expect(
           methods.filter((n) => n.name === 'Processing').length,
-          'both out-of-class Processing defs are methods',
-        ).toBe(2);
+          'header decls (1-2-3-2) + both out-of-class Processing defs are methods',
+        ).toBe(4);
 
         const variables = cg.getNodesByKind('variable');
         expect(
@@ -455,6 +455,90 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
         expect(variables.some((n) => n.name === 'r'), 'the declared variable r is extracted').toBe(
           true,
         );
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('emits method/field nodes for bodyless header declarations (1-2-3-2)', () => {
+      // 1-2-3-2 at the pure-Rust layer: a bodyless header must surface the
+      // declaration symbols the TS shell resolves against — in-class method
+      // declarations (kind `method`, qname `file::[ns::]Class::name`), free
+      // prototypes (kind `function`), and member fields (kind `field`,
+      // signature `Type name`). Declaration/definition coexist by design;
+      // resolveMethodOnType disambiguates by qname suffix.
+      writeFile(
+        'include/detect.hpp',
+        [
+          '#pragma once',
+          'class CDetect;',
+          'class CDetector {',
+          'public:',
+          '  int Processing();',
+          '  static void reset();',
+          '  virtual ~CDetector();',
+          'private:',
+          '  CDetect* m_cpAlg;',
+          '  int m_count;',
+          '};',
+          'int helper(int x);',
+          'namespace gfx {',
+          'class Canvas {',
+          'public:',
+          '  void draw();',
+          '};',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      writeFile('include/plain.hpp', 'int topLevel;\n');
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        const methods = cg.getNodesByKind('method');
+        const processing = methods.find(
+          (n) => n.name === 'Processing' && n.filePath === 'include/detect.hpp',
+        );
+        expect(processing, 'in-class declaration is a method').toBeDefined();
+        expect(processing!.qualifiedName).toContain('CDetector::Processing');
+        expect(
+          methods.some((n) => n.name === 'reset'),
+          'static member declaration is a method',
+        ).toBe(true);
+        expect(
+          methods.some((n) => n.name === 'CDetector'),
+          'destructor declaration is a method named after the class leaf',
+        ).toBe(true);
+        const draw = methods.find((n) => n.name === 'draw');
+        expect(draw, 'namespace-scoped class member declaration').toBeDefined();
+        expect(draw!.qualifiedName).toContain('gfx::Canvas::draw');
+
+        const functions = cg.getNodesByKind('function');
+        expect(
+          functions.some((n) => n.name === 'helper'),
+          'free prototype is a function, not a variable',
+        ).toBe(true);
+
+        const fields = cg.getNodesByKind('field');
+        const alg = fields.find((n) => n.name === 'm_cpAlg');
+        expect(alg, 'member pointer declaration is a field').toBeDefined();
+        expect(alg!.signature, 'field signature carries the declared type').toBe(
+          'CDetect* m_cpAlg',
+        );
+        expect(fields.some((n) => n.name === 'm_count'), 'plain member field').toBe(true);
+
+        const variables = cg.getNodesByKind('variable');
+        expect(
+          variables.some((n) => n.name === 'topLevel'),
+          'file-scope declaration stays a variable',
+        ).toBe(true);
+        for (const promoted of ['Processing', 'reset', 'helper', 'm_cpAlg', 'm_count', 'draw']) {
+          expect(
+            variables.some((n) => n.name === promoted),
+            `no spurious variable for promoted declarator ${promoted}`,
+          ).toBe(false);
+        }
       } finally {
         cg.close();
       }

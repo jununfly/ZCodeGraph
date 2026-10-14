@@ -9420,7 +9420,7 @@ fn visit_cpp_node(
     let node = cursor.node();
     let mut child_from_node_id: Cow<'_, str> = Cow::Borrowed(current_from_node_id);
 
-    if let Some((kind, name, qualified_name, _name_node)) =
+    if let Some((kind, name, qualified_name, _name_node, signature)) =
         extract_cpp_named_symbol(node, source, relative_path)?
     {
         if kind == "function" && cpp_is_misparsed_function(&name) {
@@ -9428,7 +9428,7 @@ fn visit_cpp_node(
             // to misparse namespace blocks as function_definitions. Skip the
             // symbol but still visit children.
         } else {
-            let extracted = if let Some(ref qn) = qualified_name {
+            let mut extracted = if let Some(ref qn) = qualified_name {
                 ExtractedNode::symbol_with_qualified_name(
                     relative_path,
                     kind,
@@ -9440,6 +9440,9 @@ fn visit_cpp_node(
             } else {
                 ExtractedNode::symbol(relative_path, kind, &name, node, "cpp")
             };
+            if signature.is_some() {
+                extracted.signature = signature;
+            }
             let extracted_id = extracted.id.clone();
             let contains_source = if current_from_node_id != file_node_id {
                 current_from_node_id
@@ -9516,17 +9519,25 @@ fn visit_cpp_node(
     Ok(())
 }
 
-/// Returns (kind, name, Option<qualified_name>, name_node).
+/// (kind, name, Option<qualified_name>, name_node, Option<signature>).
 /// `qualified_name` is Some only for out-of-class method definitions where
 /// the declarator contains a `qualified_identifier` (e.g., `ns::Foo::bar`).
+/// `signature` is currently populated only for class/struct member FIELD
+/// declarations (`Type name`, mirroring the TS shell's extractField shape so
+/// a Java-style field receiver inference can read it).
+type CppNamedSymbol<'a> = (
+    &'static str,
+    String,
+    Option<String>,
+    SyntaxNode<'a>,
+    Option<String>,
+);
+
 fn extract_cpp_named_symbol<'a>(
     node: SyntaxNode<'a>,
     source: &[u8],
     relative_path: &str,
-) -> Result<
-    Option<(&'static str, String, Option<String>, SyntaxNode<'a>)>,
-    Box<dyn std::error::Error>,
-> {
+) -> Result<Option<CppNamedSymbol<'a>>, Box<dyn std::error::Error>> {
     match node.kind() {
         "function_definition" => {
             if let Some(declarator) = node.child_by_field_name("declarator") {
@@ -9541,7 +9552,7 @@ fn extract_cpp_named_symbol<'a>(
                     {
                         let qualified_name =
                             format!("{}::{}::{}", relative_path, class_scope, name);
-                        return Ok(Some(("method", name, Some(qualified_name), name_node)));
+                        return Ok(Some(("method", name, Some(qualified_name), name_node, None)));
                     }
                     // An OUT-OF-CLASS definition whose declarator is qualified
                     // (`int CDetect::Processing() {}` in a .cpp while the class
@@ -9557,9 +9568,9 @@ fn extract_cpp_named_symbol<'a>(
                     // no class so it never misroutes.
                     if let Some(qn) = qualified {
                         let qualified_name = format!("{}::{}", relative_path, qn);
-                        return Ok(Some(("method", name, Some(qualified_name), name_node)));
+                        return Ok(Some(("method", name, Some(qualified_name), name_node, None)));
                     }
-                    return Ok(Some(("function", name, None, name_node)));
+                    return Ok(Some(("function", name, None, name_node, None)));
                 }
             }
         }
@@ -9570,6 +9581,7 @@ fn extract_cpp_named_symbol<'a>(
                     name_node.utf8_text(source)?.to_string(),
                     None,
                     name_node,
+                    None,
                 )));
             }
         }
@@ -9580,6 +9592,7 @@ fn extract_cpp_named_symbol<'a>(
                     name_node.utf8_text(source)?.to_string(),
                     None,
                     name_node,
+                    None,
                 )));
             }
         }
@@ -9590,6 +9603,7 @@ fn extract_cpp_named_symbol<'a>(
                     name_node.utf8_text(source)?.to_string(),
                     None,
                     name_node,
+                    None,
                 )));
             }
         }
@@ -9603,6 +9617,7 @@ fn extract_cpp_named_symbol<'a>(
                     name_node.utf8_text(source)?.to_string(),
                     None,
                     name_node,
+                    None,
                 )));
             }
         }
@@ -9617,6 +9632,7 @@ fn extract_cpp_named_symbol<'a>(
                     name_node.utf8_text(source)?.to_string(),
                     None,
                     name_node,
+                    None,
                 )));
             }
         }
@@ -9628,6 +9644,7 @@ fn extract_cpp_named_symbol<'a>(
                     name_node.utf8_text(source)?.to_string(),
                     None,
                     name_node,
+                    None,
                 )));
             }
         }
@@ -9638,26 +9655,239 @@ fn extract_cpp_named_symbol<'a>(
                     name_node.utf8_text(source)?.to_string(),
                     None,
                     name_node,
+                    None,
                 )));
             }
             // Anonymous namespace: no name, just a scope — visit children
         }
-        "declaration" => {
-            if let Some(name_node) = node
-                .child_by_field_name("declarator")
-                .and_then(c_declarator_name_node)
-            {
+        // Bodyless declarations (G4 backlog, roadmap 1-2-3-2). tree-sitter-cpp
+        // uses TWO node kinds here: `declaration` at namespace/file scope and
+        // `field_declaration` inside a class/struct body (which covers BOTH
+        // method declarations `int Processing();` and member fields
+        // `CDetect* m_cpAlg;`). Pre-1-2-3-2 every one of these fell through
+        // to a `variable` node (file scope) or no node at all (class scope),
+        // so a header-only method had NO node and the TS shell's
+        // resolveMethodOnType (hard-filtered to kind == 'method') could never
+        // associate a typed-pointer call with the header declaration. Both
+        // kinds share the same shape — type + declarator — so one handler
+        // splits by declarator:
+        "declaration" | "field_declaration" => {
+            // The declarator is the last named child that is not the type /
+            // storage-class specifier (tree-sitter-cpp does NOT tag it with a
+            // `declarator` field label on these nodes).
+            let Some(declarator) = cpp_declaration_declarator(node) else {
+                return Ok(None);
+            };
+            let declarator = unwrap_cpp_declarator(declarator);
+
+            // (a) Function declarators -> function/method. The name resolution
+            // reuses cpp_declarator_name so qualified identifiers
+            // (`void ns::Foo::reset();`) keep their scope.
+            if cpp_declarator_has_parameter_list(declarator) {
+                if let Some((name, qualified, name_node)) =
+                    cpp_declarator_name(declarator, source)?
+                {
+                    // Inside a class/struct body the declaration is a METHOD
+                    // (mirrors G3 inline definitions); destructors (`~Foo();`)
+                    // also land here — their declarator's last identifier is
+                    // the class-leaf name, same as constructors.
+                    if let Some(class_scope) = cpp_enclosing_class_scope(node, source)? {
+                        let qualified_name =
+                            format!("{}::{}::{}", relative_path, class_scope, name);
+                        return Ok(Some((
+                            "method",
+                            name,
+                            Some(qualified_name),
+                            name_node,
+                            None,
+                        )));
+                    }
+                    // Namespace/file-scope declaration with a qualified
+                    // declarator promotes to method, mirroring the G4
+                    // definition-side rule (it matches no class -> never
+                    // misroutes; when it does match, the association is the
+                    // point of this wave).
+                    if let Some(qn) = qualified {
+                        let qualified_name = format!("{}::{}", relative_path, qn);
+                        return Ok(Some((
+                            "method",
+                            name,
+                            Some(qualified_name),
+                            name_node,
+                            None,
+                        )));
+                    }
+                    return Ok(Some(("function", name, None, name_node, None)));
+                }
+                return Ok(None);
+            }
+
+            // (b) Non-function declarator inside a class/struct body is a
+            // member FIELD (`CDetect* m_cpAlg;`, `int count;`). kind `field`
+            // with signature `Type name` — the same shape the TS shell's
+            // extractField emits for Java/C#, so field-receiver type
+            // inference can read it without regex-scanning the header.
+            if cpp_enclosing_class_scope(node, source)?.is_some() {
+                if let Some(name_node) = c_declarator_name_node(declarator) {
+                    let name = name_node.utf8_text(source)?.to_string();
+                    // Pointer/reference markers live on the wrapper declarator
+                    // (`pointer_declarator` for `CDetect* m_cpAlg`), not on
+                    // the type child — prepend them so the signature keeps
+                    // the declared shape `CDetect* m_cpAlg` (TS extractField
+                    // parity: `<Type> <name>`).
+                    let ptr_prefix = cpp_declarator_ptr_prefix(node);
+                    let signature = node
+                        .child_by_field_name("type")
+                        .map(|t| {
+                            format!(
+                                "{}{} {}",
+                                t.utf8_text(source).unwrap_or("").trim(),
+                                ptr_prefix,
+                                name
+                            )
+                        })
+                        .filter(|s| s.len() > name.len() + 1);
+                    return Ok(Some(("field", name, None, name_node, signature)));
+                }
+                return Ok(None);
+            }
+
+            // (c) Everything else keeps the legacy shape: a plain variable.
+            if let Some(name_node) = c_declarator_name_node(declarator) {
                 return Ok(Some((
                     "variable",
                     name_node.utf8_text(source)?.to_string(),
                     None,
                     name_node,
+                    None,
                 )));
             }
         }
         _ => {}
     }
     Ok(None)
+}
+
+/// Collect the contiguous `*` / `&` prefix carried by pointer/reference
+/// declarator wrappers inside a declaration node (`CDetect* m_cpAlg` ->
+/// `"*"`, `int** pp` -> `"**"`, `int& r` -> `"&"`). Anonymous (non-field)
+/// children of `pointer_declarator` / `reference_declarator` hold the
+/// marker tokens.
+fn cpp_declarator_ptr_prefix(node: SyntaxNode) -> String {
+    let mut prefix = String::new();
+    let mut cursor = node.walk();
+    let mut stack: Vec<SyntaxNode> = node.children(&mut cursor).collect();
+    while let Some(current) = stack.pop() {
+        if matches!(
+            current.kind(),
+            "pointer_declarator" | "reference_declarator"
+        ) {
+            for i in 0..current.child_count() {
+                if let Some(child) = current.child(i) {
+                    if !child.is_named() && matches!(child.kind(), "*" | "&") {
+                        prefix.push_str(child.kind());
+                    }
+                }
+            }
+            let mut inner = current.walk();
+            for child in current.children(&mut inner) {
+                if matches!(
+                    child.kind(),
+                    "pointer_declarator" | "reference_declarator"
+                ) {
+                    stack.push(child);
+                }
+            }
+        }
+    }
+    prefix
+}
+
+/// Locate the declarator child of a C++ `declaration` / `field_declaration`
+/// node. tree-sitter-cpp does NOT label it with a `declarator` field on
+/// these nodes (unlike `function_definition`); the declarator is the named
+/// child that is neither the type (`type` field) nor a storage-class
+/// specifier / qualifier.
+fn cpp_declaration_declarator(node: SyntaxNode) -> Option<SyntaxNode> {
+    const NON_DECLARATOR: &[&str] = &[
+        "primitive_type",
+        "type_identifier",
+        "qualified_identifier",
+        "template_type",
+        "sized_type_specifier",
+        "auto",
+        "storage_class_specifier",
+        "type_qualifier",
+        "virtual",
+        "virtual_specifier",
+        "ms_call_modifier",
+        "attribute_declaration",
+        "attribute_specifier",
+        "access_specifier",
+    ];
+    let type_child = node.child_by_field_name("type");
+    let mut declarator = None;
+    for child in node.named_children(&mut node.walk()) {
+        if Some(child.id()) == type_child.map(|t| t.id()) {
+            continue;
+        }
+        if NON_DECLARATOR.contains(&child.kind()) {
+            continue;
+        }
+        declarator = Some(child);
+    }
+    declarator
+}
+
+/// Unwrap reference/pointer wrapper layers of a declarator
+/// (`&r`, `*p`, `**pp`) down to the declarator that carries the name.
+/// tree-sitter-cpp nests `reference_declarator` / `pointer_declarator`
+/// around the inner declarator (or around a `function_declarator` for
+/// `int& f();` / `int (*fp)(int);`).
+fn unwrap_cpp_declarator(node: SyntaxNode) -> SyntaxNode {
+    let mut current = node;
+    loop {
+        match current.kind() {
+            "reference_declarator" | "pointer_declarator" => {
+                let mut next = None;
+                for child in current.named_children(&mut current.walk()) {
+                    if matches!(
+                        child.kind(),
+                        "reference_declarator"
+                            | "pointer_declarator"
+                            | "function_declarator"
+                            | "init_declarator"
+                            | "array_declarator"
+                            | "parenthesized_declarator"
+                            | "identifier"
+                            | "field_identifier"
+                            | "qualified_identifier"
+                            | "destructor_name"
+                            | "template_function"
+                            | "operator_name"
+                    ) {
+                        next = Some(child);
+                        break;
+                    }
+                }
+                match next {
+                    Some(inner) => current = inner,
+                    None => return current,
+                }
+            }
+            _ => return current,
+        }
+    }
+}
+
+/// Whether this declarator (after reference/pointer unwrapping) is a
+/// FUNCTION declarator. `parenthesized_declarator` wraps function pointers
+/// `int (*fp)(int)`: the inner function_declarator belongs to the
+/// POINTED-TO signature, not to a function declaration — the declared
+/// entity stays a variable, so only the bare `function_declarator` kind
+/// qualifies.
+fn cpp_declarator_has_parameter_list(node: SyntaxNode) -> bool {
+    node.kind() == "function_declarator"
 }
 
 /// Extract name from a C++ declarator. Returns (name, Option<qualified_name>, name_node).
@@ -17563,7 +17793,14 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(proc_kinds, 2, "both out-of-class Processing defs are methods");
+        // 1-2-3-2: header declarations now ALSO emit method nodes (CDetect::
+        // Processing + CWidget::Processing in detect.hpp) alongside the two
+        // out-of-class definitions in detect.cpp — declaration/definition
+        // coexist by design and resolveMethodOnType disambiguates by qname.
+        assert_eq!(
+            proc_kinds, 4,
+            "header decls + both out-of-class Processing defs are methods"
+        );
 
         // The initialized local is `r`, with no spurious `Processing` variable.
         let spurious = sqlite_count(
@@ -25237,6 +25474,137 @@ mod tests {
 
         assert!(result.success, "{:?}", result.errors);
         assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_cpp_bodyless_header_declarations_symbols() {
+        // Roadmap 1-2-3-2: a bodyless header must emit method nodes for
+        // in-class declarations, a function node for the free prototype, and
+        // field nodes (signature `Type name`) for member fields — so the TS
+        // shell's resolveMethodOnType (`Class::method` suffix, kind-filtered
+        // to `method`) can associate typed-pointer calls across the .hpp/.cpp
+        // split even when the declaration is the only node a class member
+        // has. Declaration and definition coexist by design (resolver picks
+        // matches[0]).
+        let dir = temp_dir("cpp-bodyless");
+        write_file(
+            &dir,
+            "detect.hpp",
+            "#pragma once\nclass CDetect;\nclass CDetector {\npublic:\n  int Processing();\n  static void reset();\n  virtual ~CDetector();\nprivate:\n  CDetect* m_cpAlg;\n  int m_count;\n};\nint helper(int x);\nnamespace gfx {\nclass Canvas {\npublic:\n  void draw();\n};\n}\n",
+        );
+        write_file(
+            &dir,
+            "plain.hpp",
+            "int topLevel;\n",
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+
+        // In-class bodyless declarations -> method with class-scoped qname.
+        let processing: String = conn
+            .query_row(
+                "SELECT qualified_name FROM nodes WHERE kind='method' AND name='Processing' AND file_path='detect.hpp'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| String::new());
+        assert!(
+            processing.contains("CDetector::Processing"),
+            "Processing should be a method under CDetector, got: {}",
+            processing
+        );
+
+        let reset_kind: String = conn
+            .query_row(
+                "SELECT kind FROM nodes WHERE name='reset' AND file_path='detect.hpp'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| String::new());
+        assert_eq!(reset_kind, "method", "static member declaration is a method");
+
+        // Destructor declaration `~CDetector();` -> method named after the
+        // class leaf (same naming rule as constructors).
+        let dtor_kind: String = conn
+            .query_row(
+                "SELECT kind FROM nodes WHERE name='CDetector' AND file_path='detect.hpp' AND kind='method'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| String::new());
+        assert_eq!(dtor_kind, "method", "destructor declaration is a method");
+
+        // Namespace-scoped class member.
+        let draw: String = conn
+            .query_row(
+                "SELECT qualified_name FROM nodes WHERE kind='method' AND name='draw' AND file_path='detect.hpp'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| String::new());
+        assert!(
+            draw.contains("gfx::Canvas::draw"),
+            "draw should carry gfx::Canvas::draw, got: {}",
+            draw
+        );
+
+        // Free function prototype -> function (NOT variable).
+        let helper_kind: String = conn
+            .query_row(
+                "SELECT kind FROM nodes WHERE name='helper' AND file_path='detect.hpp'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| String::new());
+        assert_eq!(helper_kind, "function", "free prototype is a function");
+
+        // Member fields -> kind field with `Type name` signature.
+        let (field_kind, field_sig): (String, Option<String>) = conn
+            .query_row(
+                "SELECT kind, signature FROM nodes WHERE name='m_cpAlg' AND file_path='detect.hpp'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap_or_else(|_| (String::new(), None));
+        assert_eq!(field_kind, "field", "member pointer declaration is a field");
+        assert_eq!(
+            field_sig.as_deref(),
+            Some("CDetect* m_cpAlg"),
+            "field signature carries the declared type"
+        );
+
+        let count_kind: String = conn
+            .query_row(
+                "SELECT kind FROM nodes WHERE name='m_count' AND file_path='detect.hpp'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| String::new());
+        assert_eq!(count_kind, "field");
+
+        // Regression guard: a file-scope plain declaration is STILL a
+        // variable, and no spurious variable is emitted for declarators that
+        // became method/field/function nodes.
+        let top_kind: String = conn
+            .query_row(
+                "SELECT kind FROM nodes WHERE name='topLevel' AND file_path='plain.hpp'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| String::new());
+        assert_eq!(top_kind, "variable", "file-scope declaration stays variable");
+
+        let spurious = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes WHERE kind='variable' AND name IN ('Processing','reset','helper','m_cpAlg','m_count','draw')",
+        );
+        assert_eq!(spurious, 0, "no spurious variables for promoted declarators");
+
         cleanup_temp_dir(dir);
     }
 
