@@ -996,7 +996,7 @@
     "1-2-13": {
       "id": "1-2-13",
       "label": "Luau 基线抽取迁移",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -1070,7 +1070,7 @@
     "1-2-13-4": {
       "id": "1-2-13-4",
       "label": "Luau: 框架/运行时语义边界决策 + TS fallback 移除",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2-13",
       "children": [],
@@ -2912,7 +2912,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-14 19:57:35",
+    "updated": "2026-10-14 20:25:35",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
