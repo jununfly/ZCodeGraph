@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-14 19:54:19
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-14 19:57:35
 
 [~][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
@@ -48,4 +48,11 @@
     ├── [x][X+] 1-6-3. Go/Gin 路由所有权检查
     ├── [x][X+] 1-6-4. Swift 基线迁移（移动桥接成为产品优先级时启动）
     └── [x][Y+] 1-6-5. 波次0: #692 夹具债清零（新语言迁移前置）
+
+### 当前施工：1-2-13-4. Luau: 框架/运行时语义边界决策 + TS fallback 移除
+
+三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。
+
+**决策：**
+- Q: Luau 框架/运行时语义走 migrate / keep TS-shell / split 哪条边界？ → SPLIT（镜像 Dart 1-2-9-4 / Lua 1-2-12-4 最干净 cutover）：hybrid 调度把 luau 加入 RUST_HYBRID_RUST_OWNED_LANGUAGES（第 19 个），每个 .luau 文件走 Rust、fallbackByLanguage.luau=0；保留 src/extraction/languages/luau.ts 声明式 extractor + barrel 条目只服务纯 --engine typescript 引擎。cutover 移除的是 hybrid fallback 调度，不是 extractor。无框架 back-fill——Luau/Roblox 无文件级路由表（无 routes.rb / Drupal hook / ASP.NET attribute route），src/resolution/frameworks/ 无 luau/lua resolver；require 模块解析是 shell resolveReferences 阶段语言无关逻辑，故省略 rust-luau-framework-routes.ts、src/index.ts wiring、frameworks-integration 三块。EXTRACTION_VERSION 不 bump（与 C#/PHP/Ruby/Dart/Swift/ObjC/Lua 同属未发布批次）。 (1-2-13-1~3 已证实纯 Rust 符号/引用边在真实语料（lute 688f 0 errored 14878 nodes、rbxutil 91f 0 errored 2292 nodes）零丢失，纯 TS 引擎仍需 luau extractor 保持多语言可用。)
 <!-- ROADMAP_SECTION_END -->
