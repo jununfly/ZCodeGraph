@@ -1017,11 +1017,22 @@
     "1-2-13-1": {
       "id": "1-2-13-1",
       "label": "Luau: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2-13",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "grammar 供应链三选一 (crates.io 版本 / fork / rust-024 重生成)",
+          "answer": "crates.io tree-sitter-luau 1.2 (最新, 2024-12)：ABI14 实证 + LANGUAGE 常量 + tree-sitter-language 0.1 passthrough，同 objc3.0/swift0.6 型，无 fork 无 pin 降级",
+          "note": "独立探针 C://workspace//luau-abi-probe 实证：1.0.0/1.1.0 同为 ABI14 但旧式 language() + tree-sitter 0.20 绑定（links 冲突不可用），1.2.0 parser.c LANGUAGE_VERSION=14 直编直过。Lua-parity 节点/field 逐字对齐 lua.rs 依赖（chunk root、function_declaration @name 三态、variable_declaration>assignment_statement、function_call @name/@arguments、require 形状）；Luau 增量=type_definition(export 关键字在节点文本内，对齐 TS isExported 切片)、返回类型=parameters 后无名类型节点、generic_type_list、update_statement、if_expression。边界：Luau 无 Lua5.3 位运算符(&,|,<<,>>,~)→混入文件 has_error=true，非漂移（Luau 语义本不支持）；tolerates_parse_errors 默认严格（同 Go/Java/Lua），归 -3 语料 gate。extractVariable 类型注解 local x: number 无碍（TS/Rust 均只从 variable_list @name=identifier 产 variable）。"
+        },
+        {
+          "q": "Luau/Lua 抽取器复用边界 (复用 lua.rs / 独立 luau.rs)",
+          "answer": "独立 luau.rs 模块，-1 空骨架；-2 visitor 复用 lua.rs walker 形状但独立实现（加 type_definition→type_alias + typed signature）",
+          "note": "理由：(1) TS 侧 luauExtractor 本就独立注册、继承 luaExtractor 仅加 typeAliasTypes/isExported/getSignature 三处；(2) Rust 侧 lua.rs 的 LANG 常量、signature 生成、type_definition 处理需分叉，共享单文件会引入语言分支噪音；(3) 镜像 objc.rs/swift.rs 独立模块惯例。接线：lib.rs 6 处（mod luau、enum 变体 Luau(Lua 后 Python 前)、.luau 扩展名、codegraph_name 'luau'、LANGUAGE.into()、is_luau()、dispatch 分支 lua 后 python 前）；不入 tolerates_parse_errors；无跨语言 family（Luau 不进 jvm/apple map）；无 128MiB worker（Luau AST 与 Lua 同浅）。新增 lib.rs 测试 luau_parses_and_dispatches_through_rust_pipeline_grammar_wiring（2 .luau 含类型表面，files_indexed=2/errored=0/parse_by_language luau=2）。本地 cargo 183 passed（182→183）、clippy luau 零新增。"
+        }
+      ],
       "notes": "范围：Lua 兼容抽取 + Luau 类型定义。grammar：tree-sitter-luau（自 vendor wasm）；应最大化复用 Lua Rust 抽取。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
     },
     "1-2-13-2": {
@@ -2883,7 +2894,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-14 16:29:01",
+    "updated": "2026-10-14 16:52:13",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
