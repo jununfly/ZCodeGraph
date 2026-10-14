@@ -14,6 +14,7 @@ mod csharp;
 mod dart;
 mod objc;
 mod lua;
+mod luau;
 mod swift;
 mod index_options;
 mod php;
@@ -7314,6 +7315,18 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                 )?;
+            } else if language.is_luau() {
+                // Roadmap 1-2-13-1: grammar/dispatch wiring only; the
+                // baseline visitor lands in 1-2-13-2.
+                luau::extract(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -7799,6 +7812,7 @@ enum SourceLanguage {
     Swift,
     Objc,
     Lua,
+    Luau,
     Python,
     Rust,
 }
@@ -7841,6 +7855,8 @@ impl SourceLanguage {
             Some("m") | Some("mm") => Some(Self::Objc),
             // Lua sources, aligned with grammars.ts ('.lua' -> 'lua').
             Some("lua") => Some(Self::Lua),
+            // Luau sources, aligned with grammars.ts ('.luau' -> 'luau').
+            Some("luau") => Some(Self::Luau),
             Some("py") | Some("pyw") => Some(Self::Python),
             Some("rs") => Some(Self::Rust),
             _ => None,
@@ -7865,6 +7881,7 @@ impl SourceLanguage {
             Self::Swift => "swift",
             Self::Objc => "objc",
             Self::Lua => "lua",
+            Self::Luau => "luau",
             Self::Python => "python",
             Self::Rust => "rust",
         }
@@ -7898,6 +7915,11 @@ impl SourceLanguage {
             // via tree-sitter-language 0.1 (LANGUAGE.into()), the same passthrough
             // as tree-sitter-objc / tree-sitter-swift (roadmap 1-2-12-1).
             Self::Lua => tree_sitter_lua::LANGUAGE.into(),
+            // tree-sitter/tree-sitter-luau 1.2.0 (latest, ABI 14) bridges via
+            // tree-sitter-language 0.1 (LANGUAGE.into()), the same passthrough
+            // as tree-sitter-objc / tree-sitter-swift / tree-sitter-lua
+            // (roadmap 1-2-13-1). Direct crates.io, no fork.
+            Self::Luau => tree_sitter_luau::LANGUAGE.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
@@ -7989,6 +8011,10 @@ impl SourceLanguage {
 
     fn is_lua(self) -> bool {
         matches!(self, Self::Lua)
+    }
+
+    fn is_luau(self) -> bool {
+        matches!(self, Self::Luau)
     }
 
     fn is_python(self) -> bool {
@@ -16826,6 +16852,67 @@ mod tests {
                 .profile
                 .parse_by_language
                 .get("lua")
+                .map(|profile| profile.files),
+            Some(2)
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    // Luau grammar/dispatch wiring (roadmap 1-2-13-1). tree-sitter-luau 1.2.0
+    // (latest, ABI 14) must set onto tree-sitter 0.24 and parse `.luau` files
+    // with zero parse-gap drops, including the Luau-only type-system surface
+    // (type_definition, typed params/returns, generics, update_statement,
+    // if_expression). 1-2-13-1 walks no symbols, so this pins
+    // parse/dispatch/profile only; the baseline node multiset arrives in
+    // 1-2-13-2.
+    #[test]
+    fn luau_parses_and_dispatches_through_rust_pipeline_grammar_wiring() {
+        let dir = temp_dir("luau-grammar-wiring");
+        write_file(
+            &dir,
+            "src/types.luau",
+            &[
+                "export type Config = { name: string, retries: number? }",
+                "type Handler = (Config) -> boolean",
+                "",
+                "local M = {}",
+                "",
+                "function M.load(name: string): Config",
+                "  local cfg: Config = { name = name }",
+                "  return cfg",
+                "end",
+                "",
+                "return M",
+            ]
+            .join("\n"),
+        );
+        write_file(
+            &dir,
+            "src/main.luau",
+            &[
+                "local types = require('types')",
+                "local function boot(count: number): boolean",
+                "  local n = if count > 0 then count else 1",
+                "  n += 1",
+                "  print(types.load('app').name, n)",
+                "  return true",
+                "end",
+                "boot(1)",
+            ]
+            .join("\n"),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 2);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .parse_by_language
+                .get("luau")
                 .map(|profile| profile.files),
             Some(2)
         );

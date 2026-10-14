@@ -37,6 +37,21 @@ tree-sitter-kotlin = { git = "https://github.com/fwcd/tree-sitter-kotlin", rev =
 # gated on real corpora in roadmap 1-2-12-3 (fallback = regenerate an ABI-14
 # parser from the TS-side grammar on a fork, the Dart rust-024 pattern).
 tree-sitter-lua = "=0.2.0"
+# Luau (roadmap 1-2-13-1). tree-sitter/tree-sitter-luau (Amaan Qureshi).
+# 1.2.0 (latest, 2024-12) is ABI 14 bridging via tree-sitter-language 0.1
+# (LANGUAGE.into()) exactly like tree-sitter-objc 3.0 / tree-sitter-swift 0.6.0
+# — direct crates.io, no pin-down, no fork. 1.0.0/1.1.0 are also ABI 14 but
+# ship the legacy `language()` + tree-sitter 0.20 binding, which conflicts
+# with the workspace's single tree-sitter 0.24 (native `links`). The grammar
+# keeps every Lua-parity node name/field label the lua.rs visitor relies on
+# (chunk root, function_declaration @name three-state, variable_declaration >
+# assignment_statement, function_call @name/@arguments) and adds the Luau
+# type-system surface (type_definition, typed parameters, return types,
+# generic_type_list, update_statement, if_expression) — runtime SEXP-probed in
+# C:\workspace\luau-abi-probe. Luau has no Lua 5.3 bitwise operators (&, |,
+# <<, >>); files mixing them parse with ERROR nodes — the
+# tolerates_parse_errors decision is gated on real corpora in 1-2-13-3.
+tree-sitter-luau = "1.2"
 # Objective-C (roadmap 1-2-14-1). tree-sitter-grammars/tree-sitter-objc; 3.0.2
 # declares tree-sitter-language ^0.1 + tree-sitter ^0.24(dev), bridging via
 # LANGUAGE.into() exactly like tree-sitter-swift 0.6.0. ABI 14 verified by the
