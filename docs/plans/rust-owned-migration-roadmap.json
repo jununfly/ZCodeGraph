@@ -796,7 +796,7 @@
     "1-2-10": {
       "id": "1-2-10",
       "label": "Pascal/Delphi 基线抽取迁移",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -805,28 +805,61 @@
         "1-2-10-3",
         "1-2-10-4"
       ],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Q1: tree-sitter grammar 选型？",
+          "answer": "A: crates.io tree-sitter-pascal 系 crate probe（需验证 ABI≤14，参考 Dart fork/Swift =0.6.0 模式）",
+          "note": "已关闭波次先例：Dart fork jununfly/tree-sitter-dart@03b552c；Swift =0.6.0 pin；Lua =0.2.0 pin；ObjC 3.0.2 crates.io"
+        },
+        {
+          "q": "Q2: DFM extractor 处理边界？",
+          "answer": "A: DFM 留 TS 不动，1-2-10 只迁 .pas/.pp/.dpr 源文件",
+          "note": "dfm-extractor.ts 是独立非 tree-sitter extractor，与 rust 化主线解耦"
+        },
+        {
+          "q": "Q3: 框架/运行时语义边界（1-2-10-4 范围）？",
+          "answer": "沿用已关闭波次模式：rust 只发基线符号/边，published/property/VCL 语义如需要走 TS back-fill（rust-pascal-framework-routes.ts 类比 ASP.NET/Laravel）",
+          "note": "1-2-10-4 阶段再决策，1-2-10-1/-2/-3 按无框架语义完成"
+        },
+        {
+          "q": "Q4: 真实语料？",
+          "answer": "C: mORMot（现代 Object Pascal + 框架用法，覆盖 VCL/RTTI 场景）",
+          "note": "备选 Lazarus IDE / FPC RTL"
+        }
+      ],
       "notes": ""
     },
     "1-2-10-1": {
       "id": "1-2-10-1",
       "label": "Pascal/Delphi: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-10",
       "children": [],
-      "decisions": [],
-      "notes": "范围：过程/函数/类/接口/enum/类型声明/uses/调用；DFM/FMX 边界。grammar：tree-sitter-pascal（自 vendor wasm）；.pas/.dpr/.dpk/.lpr/.dfm/.fmx。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+      "decisions": [
+        {
+          "q": "tree-sitter-pascal crate 版本？",
+          "answer": "crates.io tree-sitter-pascal 0.10.2 直接用，无需 pin/fork",
+          "note": "probe (C:/workspace/pascal-abi-probe)：tree-sitter-language 0.1 桥接 ABI-14，与 swift/objc/lua/luau 同款；set_language OK；样例 unit 全 AST 节点类型与 pascal.ts/tree-sitter.ts 对齐（root/unit/interface/implementation/declUses/declTypes/declType/declClass/declIntf/declEnum/declEnumValue/declConsts/declConst/declVars/declVar/declSection+kPrivate/kProtected/kPublic/declField/declProp/declProc/defProc/block/exprCall/exprDot/exprArgs/typeref/moduleName/defaultValue/declArgs/declArg/procAttribute+kOverride）。grammar 覆盖 Delphi+FPC 方言（类/记录/接口/类助手/嵌套/变体记录/泛型/匿名函数/RTTI 属性/PasCocoa）"
+        }
+      ],
+      "notes": "Rust 侧 SourceLanguage::Pascal 注册 (.pas/.dpr/.dpk/.lpr) + tree-sitter-pascal 0.10.2 ABI-14 桥接 + pascal.rs 基线 walker (module/import/class/interface/record/enum/enum_member/field/method/property/constant/type_alias/variable + extends/implements/imports/calls refs + visibility/is_static/signature/qualified_name)。Smoke：UAuth.pas 17 nodes + UTypes.pas 27 nodes 与 TS 测试期望对齐。DFM/FMX 仍走 TS DfmExtractor（Q2=A）。"
     },
     "1-2-10-2": {
       "id": "1-2-10-2",
       "label": "Pascal/Delphi: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-10",
       "children": [],
-      "decisions": [],
-      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+      "decisions": [
+        {
+          "q": "extends ref 解析失败根因？",
+          "answer": "PASCAL_BUILT_INS 含 TInterfacedObject，isBuiltInOrExternal 在 name-matcher 前过滤",
+          "note": "修复：加 knownNames 守护（与 C/C++ stdlib shadowing 一致），仅在 codebase 无同名节点时才过滤"
+        }
+      ],
+      "notes": "import/call/reference 的 unresolved-ref 发射完成；extends/implements/calls 边全部正确解析；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入 pascal（第 20 个 rust-owned 语言）；3/3 rust-hybrid 测试通过。修复 PASCAL_BUILT_INS 过度过滤 TInterfacedObject 的 bug（加 knownNames 守护）。"
     },
     "1-2-10-3": {
       "id": "1-2-10-3",
@@ -2912,7 +2945,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-14 20:25:35",
+    "updated": "2026-10-14 21:09:57",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
