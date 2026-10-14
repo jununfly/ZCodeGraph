@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-13 14:30:02
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-13 14:39:11
 
 [~][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
@@ -48,4 +48,11 @@
     ├── [x][X+] 1-6-3. Go/Gin 路由所有权检查
     ├── [x][X+] 1-6-4. Swift 基线迁移（移动桥接成为产品优先级时启动）
     └── [x][Y+] 1-6-5. 波次0: #692 夹具债清零（新语言迁移前置）
+
+### 当前施工：1-2-12-4. Lua: 框架/运行时语义边界决策 + TS fallback 移除
+
+三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。
+
+**决策：**
+- Q: cutover 边界三选一 (migrate / keep TS-shell / split) → split: .lua 全量 rust-owned，.luau 保留 TS-shell (Rust enum 只有 Language::Lua(.lua)，无 Luau 变体——.luau 是独立 detect 语言，从 -1 grammar 波起就未纳入 Rust，本波不改。对 .lua 同 Dart/Go 最干净型：无文件级路由表、无宏、frameworks/ 无 lua resolver、require 解析是 shell resolveReferences 语言无关逻辑；-2 lua.rs 全 multiset，-3 Penlight+plenary 0 errored/0 ERROR 零漂移。改动：把 lua 加入 RUST_HYBRID_RUST_OWNED_LANGUAGES 第18语言，.lua 经 Rust、fallbackByLanguage.lua=0；.luau 不在列表、继续按 TS fallback 调度。lua.ts+barrel 保留供纯 typescript engine（含 .luau 与既有 Lua/Luau resolver e2e）；无 rust-lua-framework-routes、不动 src/index.ts；EXTRACTION_VERSION 不 bump。)
 <!-- ROADMAP_SECTION_END -->
