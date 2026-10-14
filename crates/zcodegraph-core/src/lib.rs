@@ -7099,7 +7099,8 @@ fn index_javascript_files(
             .ok_or_else(|| format!("Unsupported source file: {}", file_path.display()))?;
         let relative_path = relative_slash_path(project_path, &file_path)?;
         let source_read_started = Instant::now();
-        let content = fs::read_to_string(&file_path)?;
+        let content = fs::read(&file_path)
+            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())?;
         let metadata = fs::metadata(&file_path)?;
         let source_read_ms = source_read_started.elapsed().as_millis();
         counts.profile.parse_source_read_ms += source_read_ms;
@@ -7334,15 +7335,34 @@ fn index_javascript_files(
                 // src/extraction/tree-sitter.ts. .dfm/.fmx form files never
                 // reach this branch — they are excluded from
                 // SourceLanguage::from_path and stay on the TS DfmExtractor.
-                pascal::extract(
-                    parsed.root_node(),
-                    content.as_bytes(),
-                    &relative_path,
-                    &file_node_id,
-                    &mut nodes,
-                    &mut edges,
-                    &mut unresolved_refs,
-                )?;
+                //
+                // mORMot corpus (roadmap 1-2-10-3): some large units nest
+                // deep enough to overflow the default Windows 1 MiB stack
+                // (same as Dart/Flutter). Run extraction on a large-stack
+                // worker, identical pattern to Dart's DART_EXTRACT_STACK_SIZE.
+                std::thread::scope(|scope| {
+                    let handle = std::thread::Builder::new()
+                        .stack_size(DART_EXTRACT_STACK_SIZE)
+                        .spawn_scoped(scope, || {
+                            pascal::extract(
+                                parsed.root_node(),
+                                content.as_bytes(),
+                                &relative_path,
+                                &file_node_id,
+                                &mut nodes,
+                                &mut edges,
+                                &mut unresolved_refs,
+                            )
+                            .map_err(|err| err.to_string())
+                        })
+                        .expect("spawn pascal extraction worker");
+                    match handle.join() {
+                        Ok(result) => result.map_err(|msg| -> Box<dyn std::error::Error> {
+                            std::io::Error::other(msg).into()
+                        }),
+                        Err(payload) => std::panic::resume_unwind(payload),
+                    }
+                })?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -8013,11 +8033,18 @@ impl SourceLanguage {
     /// dropping the whole file would lose ~10% of lute (55/525) and
     /// RbxUtil (7/69). Luau is tolerant like Kotlin/Dart/Swift; the luau.rs
     /// walker has no `unwrap`/indexing on error-recovery shapes.
+    /// Pascal's tree-sitter-pascal 0.10.2 grammar flags *legal* Delphi
+    /// constructs observed in the mORMot corpus (roadmap 1-2-10-3):
+    /// 216/433 files trigger `has_error()` with MISSING nodes (not ERROR
+    /// nodes) on constructs like assembler blocks, compiler directives,
+    /// and legacy Delphi idioms. The TS orchestrator never gated on
+    /// has_error, so tolerant traversal is the parity behavior. The
+    /// pascal.rs walker has no `unwrap`/`expect` on error-recovery paths.
     fn tolerates_parse_errors(self) -> bool {
         self.is_c_family()
             || matches!(
                 self,
-                Self::Kotlin | Self::Dart | Self::Swift | Self::Objc | Self::Luau
+                Self::Kotlin | Self::Dart | Self::Swift | Self::Objc | Self::Luau | Self::Pascal
             )
     }
 
