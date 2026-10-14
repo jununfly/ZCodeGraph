@@ -3304,4 +3304,246 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
       }
     });
   });
+
+  describe('Luau baseline (roadmap 1-2-13-3)', () => {
+    function luauNodes(
+      cg: CodeGraph,
+      filePath: string,
+      kind: string,
+    ): Array<{ name: string; qualifiedName: string; signature?: string | null }> {
+      return cg
+        .getNodesByKind(kind)
+        .filter((n) => n.language === 'luau' && n.filePath === filePath)
+        .map((n) => ({
+          name: n.name,
+          qualifiedName: n.qualifiedName,
+          signature: n.signature,
+        }));
+    }
+
+    function luauRefs(db: DbHandle, filePath: string, kind: string): string[] {
+      return unresolvedRefs(db, filePath)
+        .filter((r) => r.reference_kind === kind)
+        .map((r) => r.reference_name);
+    }
+
+    it('extracts type aliases, typed functions/methods, require imports, locals and calls', () => {
+      const filePath = 'src/module.luau';
+      writeFile(
+        filePath,
+        [
+          'export type Config = { name: string, retries: number? }',
+          'type Handler = (cfg: Config) -> boolean',
+          '',
+          "local net = require('net.http')",
+          'local M = {}',
+          '',
+          'function M.greet(who: string): string',
+          '  print(who)',
+          "  return 'hi ' .. who",
+          'end',
+          '',
+          'local function helper(x: number): number',
+          '  local function inner(y)',
+          '    return deeper(y)',
+          '  end',
+          '  return inner(x)',
+          'end',
+          '',
+          'function top()',
+          '  acct:deposit(5)',
+          'end',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.luau).toBe(1);
+
+        // `type X = …` / `export type X = …` both land as type_alias; the
+        // export keyword leads the node text but never yields an exports ref.
+        expect(luauNodes(cg, filePath, 'type_alias').map((t) => t.name).sort()).toEqual([
+          'Config',
+          'Handler',
+        ]);
+        expect(luauRefs(db, filePath, 'exports')).toHaveLength(0);
+
+        // Plain functions stack qualified names; the table function is a
+        // method whose qname is forced to M::greet. Typed declarations carry
+        // parameters + `: <return type>`; untyped keeps bare parameters.
+        expect(luauNodes(cg, filePath, 'function').map((f) => f.qualifiedName).sort()).toEqual([
+          'helper',
+          'helper::inner',
+          'top',
+        ]);
+        const methods = luauNodes(cg, filePath, 'method');
+        expect(methods.map((m) => m.qualifiedName)).toEqual(['M::greet']);
+        expect(methods[0]?.signature).toBe('(who: string): string');
+        expect(
+          luauNodes(cg, filePath, 'function').find((f) => f.name === 'helper')?.signature,
+        ).toBe('(x: number): number');
+        expect(
+          luauNodes(cg, filePath, 'function').find((f) => f.name === 'inner')?.signature,
+        ).toBe('(y)');
+
+        // Locals: net (require-initialized) and M (table).
+        expect(luauNodes(cg, filePath, 'variable').map((v) => v.name).sort()).toEqual([
+          'M',
+          'net',
+        ]);
+
+        // require is an import (never a call), plus an imports ref.
+        expect(importNames(cg, 'luau')).toEqual(['net.http']);
+        expect(unresolvedImportRefs(db, filePath).map((r) => r.reference_name)).toEqual([
+          'net.http',
+        ]);
+        expect(
+          unresolvedImportRefs(db, filePath).every((r) => r.language === 'luau'),
+        ).toBe(true);
+
+        // Calls: dotted table call keeps the dot, colon call keeps the colon.
+        expect(new Set(luauRefs(db, filePath, 'calls'))).toEqual(
+          new Set(['print', 'deeper', 'inner', 'acct:deposit']),
+        );
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('still extracts symbols around grammar-lagged Luau syntax (@native, const fn, leading-pipe union)', () => {
+      // tree-sitter-luau 1.2.0 (2024-12) lags the language: the `@native`
+      // attribute, `const function`, and leading-pipe union types
+      // (`type T = | A | B`) produce local error-recovery nodes. Luau is in
+      // tolerates_parse_errors (roadmap 1-2-13-3), so the file still yields
+      // every symbol the grammar COULD parse instead of being dropped.
+      const filePath = 'src/modern.luau';
+      writeFile(
+        filePath,
+        [
+          'type Result<T> = | { ok: true, value: T } | { ok: false, err: string }',
+          '',
+          "local net = require('net.http')",
+          '',
+          '@native',
+          'local function encode(input: string): string',
+          '  return input',
+          'end',
+          '',
+          'const function version(): number',
+          '  return 1',
+          'end',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        // The file is indexed (not dropped): require import + type alias
+        // survive even though the file has grammar-lagged syntax.
+        expect(cg.getStats().filesByLanguage.luau).toBe(1);
+        expect(importNames(cg, 'luau')).toEqual(['net.http']);
+        expect(luauNodes(cg, filePath, 'type_alias').map((t) => t.name)).toEqual(['Result']);
+        // At least one of the grammar-lagged functions is recovered; the
+        // exact recovery shape is grammar-defined, so assert non-empty.
+        expect(
+          luauNodes(cg, filePath, 'function').length +
+            luauNodes(cg, filePath, 'method').length,
+        ).toBeGreaterThan(0);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('keeps Luau-only syntax inert: update_statement, if_expression and generics emit no symbols', () => {
+      const filePath = 'src/typed.luau';
+      writeFile(
+        filePath,
+        [
+          'local M = { balance = 0 }',
+          '',
+          'function M:deposit(amount: number): boolean',
+          '  self.balance += amount',
+          '  notify(self.balance)',
+          '  return true',
+          'end',
+          '',
+          'local function map<T, U>(fn: (T) -> U, xs: { T }): { U }',
+          '  local out = if #xs > 0 then fn(xs[1]) else nil',
+          '  return { out }',
+          'end',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        // Only the method and the generic function are symbols; the
+        // update_statement target and the if_expression add no nodes.
+        expect(luauNodes(cg, filePath, 'method').map((m) => m.qualifiedName)).toEqual([
+          'M::deposit',
+        ]);
+        const fns = luauNodes(cg, filePath, 'function');
+        expect(fns.map((f) => f.qualifiedName)).toEqual(['map']);
+        expect(fns[0]?.signature).toBe('(fn: (T) -> U, xs: { T }): { U }');
+        expect(
+          luauNodes(cg, filePath, 'method').find((m) => m.name === 'deposit')?.signature,
+        ).toBe('(amount: number): boolean');
+
+        // Locals: M and out; the if_expression initializer keeps the
+        // `= <init>` signature contract.
+        const vars = luauNodes(cg, filePath, 'variable');
+        expect(vars.map((v) => v.name).sort()).toEqual(['M', 'out']);
+        expect(vars.find((v) => v.name === 'out')?.signature).toBe(
+          '= if #xs > 0 then fn(xs[1]) else nil',
+        );
+
+        // A call in the function BODY (not inside a pruned initializer) is
+        // captured; the update_statement emits none.
+        const calls = luauRefs(db, filePath, 'calls');
+        expect(calls).toContain('notify');
+        expect(calls).not.toContain('fn');
+        expect(calls).not.toContain('lost');
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('extracts multi-name locals, prunes an anonymous function initializer, and digs its require', () => {
+      const filePath = 'src/locals.luau';
+      writeFile(
+        filePath,
+        [
+          'local a, b = 1, 2',
+          'local x: number = 3',
+          'local f = function()',
+          '  return lost()',
+          'end',
+          "local s = require('mod.s')",
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        // A typed local (`local x: number`) still yields exactly one variable
+        // named by its identifier; the annotation adds no node.
+        const vars = luauNodes(cg, filePath, 'variable');
+        expect(vars.map((v) => v.name).sort()).toEqual(['a', 'b', 'f', 's', 'x']);
+        expect(vars.find((v) => v.name === 'f')?.signature?.startsWith('= function()')).toBe(true);
+        expect(cg.getNodesByKind('function').filter((n) => n.language === 'luau')).toHaveLength(0);
+
+        // The variable initializer subtree is pruned, so lost() is not a
+        // call; the require initializer is dug out explicitly as an import.
+        expect(luauRefs(db, filePath, 'calls')).not.toContain('lost');
+        expect(importNames(cg, 'luau')).toEqual(['mod.s']);
+      } finally {
+        cg.close();
+      }
+    });
+  });
 });
