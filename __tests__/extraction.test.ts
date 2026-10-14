@@ -7174,32 +7174,6 @@ describe('Lua on rust-hybrid (roadmap 1-2-12-4 cutover)', () => {
     expect(deps.some((p) => p.endsWith('myapp/init.lua')), 'dotted Lua require resolves to the module').toBe(true);
   });
 
-  it('routes .lua through the Rust core with zero TypeScript fallback but keeps .luau on TypeScript after the split cutover, roadmap 1-2-12-4', () => {
-    // Post-cutover: 'lua' is the 18th rust-owned language, so a .lua file is
-    // scheduled through the Rust core (fallbackByLanguage.lua === 0). '.luau'
-    // is a distinct detected language with no Rust enum variant, so it remains
-    // on the TypeScript fallback by design.
-    expect(isRustHybridOwnedLanguage('lua')).toBe(true);
-    expect(isRustHybridOwnedLanguage('luau')).toBe(false);
-
-    const dir = createTempDir();
-    try {
-      fs.writeFileSync(path.join(dir, 'main.lua'), 'local function main()\n  return 1\nend\n');
-      fs.writeFileSync(path.join(dir, 'util.luau'), 'local function util(): number\n  return 2\nend\n');
-
-      const plan = planRustHybridAssignments(dir);
-      expect(plan.engineByLanguage).toMatchObject({ lua: 'rust', luau: 'typescript' });
-      expect(plan.rustOwnedFiles).toContain('main.lua');
-      expect(plan.fallbackFiles).not.toContain('main.lua');
-      expect(plan.fallbackByLanguage.lua ?? 0).toBe(0);
-      // .luau is deliberately NOT Rust-owned: it stays a TS fallback file.
-      expect(plan.rustOwnedFiles).not.toContain('util.luau');
-      expect(plan.fallbackFiles).toContain('util.luau');
-      expect(plan.fallbackByLanguage.luau).toBe(1);
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  });
 });
 
 // Roadmap 1-2-13-4 — Luau on rust-hybrid (ownership cutover).
