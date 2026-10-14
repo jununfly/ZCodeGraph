@@ -1038,7 +1038,7 @@
     "1-2-13-2": {
       "id": "1-2-13-2",
       "label": "Luau: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-13",
       "children": [],
@@ -1049,7 +1049,7 @@
           "note": "多集合契约（lib.rs 测试锁定）：type_alias 2[Config,Handler]、function 4[helper,helper::inner,map,top]、method 2[M::deposit,M::greet]、variable 8、import 6+imports ref 6、calls 9 精确 multiset、exports ref 恒 0；typed sig 逐字断言 (who: string): string / (amount: number): boolean / (fn: (T) -> U, xs: { T }): { U } / 无类型 (y)；匿名剪枝 f signature 起 '= function()'、lost 不在 calls、无 anonymous 节点；if_expression 初始化值入 sig '= if #xs > 0 then fn(xs[1]) else nil'。关键边界实证：(1) isExported 对 Luau 无下游——luau 不在 TS TYPE_ANNOTATION_LANGUAGES（无 extractTypeRefsFromSubtree）、createNode 仅 extra spread 无列无 exports ref、Rust insert_nodes 硬编码 is_exported=0 → 本波零 schema/TS 改动；(2) TS extractTypeAlias 返 false 不剪枝、type 值子树纯类型节点 → Rust type_definition 分支产节点后递归子节点同构无害；(3) generic_type_list/update_statement/if_expression 走默认递归不产符号（对齐 TS orchestrator）；(4) Luau 无 Lua5.3 位运算 → 维持严格 gating（归 -3 语料 gate）。本地 cargo 184 passed（183→184，baseline 0.26s）、clippy luau 零新增。"
         }
       ],
-      "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
+      "notes": "CLOSED：CI run 38541795088 3-OS 全绿（ubuntu/windows-2025/macos-14 全 success，无 flake）。Windows 日志机械验证非 skip：luau_baseline_visitor_extracts_lua_parity_types_and_typed_signatures ... ok；cargo 184 passed 50.46s（183→184）。commits feat(luau) c0d8f65 + chore(docs) c382aaf 推 main（7d8437a..c382aaf）。1 decision 保留。多集合锁定：type_alias 2/function 4/method 2/variable 8/import 6+imports 6/calls 9 精确/exports 0 + typed sig 逐字。下一步 1-2-13-3：wave0 fixture（rust-owned-language-fixtures.test.ts 加 Luau describe）+ 真实语料 gate（Roblox 生态，重点验位运算缺失是否触发 strict gating）。"
     },
     "1-2-13-3": {
       "id": "1-2-13-3",
@@ -2900,7 +2900,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-14 17:15:53",
+    "updated": "2026-10-14 17:30:11",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
