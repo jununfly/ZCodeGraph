@@ -864,12 +864,23 @@
     "1-2-10-3": {
       "id": "1-2-10-3",
       "label": "Pascal/Delphi: 确定性 fixture 测试 + 真实语料验证",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-10",
       "children": [],
-      "decisions": [],
-      "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
+      "decisions": [
+        {
+          "q": "mORMot 语料 parse-gap 率？",
+          "answer": "216/433 (49.9%) has_error=true 但无 ERROR 节点（MISSING 节点）",
+          "note": "加入 tolerates_parse_errors（与 Kotlin/Dart/Swift/Luau 同模式）；同时发现大 unit 栈溢出，加 128MiB scoped thread（同 Dart 先例）"
+        },
+        {
+          "q": "非 UTF-8 文件处理？",
+          "answer": "8/433 文件为 Windows-1252/Latin-1 编码",
+          "note": "fs::read_to_string → fs::read + String::from_utf8_lossy，通用修复适用所有语言"
+        }
+      ],
+      "notes": "mORMot 语料验证通过：433 文件全部索引成功，0 parse-gap，44,382 Pascal 节点（method 9800, field 7327, function 4976, constant 4442, import 3995, class 1921, enum 404, interface 94），87,605 unresolved refs（calls 82,469, extends 1,063, implements 78）。修复：tolerates_parse_errors + 128MiB scoped thread + lossy UTF-8 读取。3/3 rust-hybrid fixture 测试通过，321/322 全量回归通过（1 个预存失败与 Pascal 无关）。"
     },
     "1-2-10-4": {
       "id": "1-2-10-4",
