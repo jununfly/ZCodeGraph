@@ -3445,7 +3445,10 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
         // survive even though the file has grammar-lagged syntax.
         expect(cg.getStats().filesByLanguage.luau).toBe(1);
         expect(importNames(cg, 'luau')).toEqual(['net.http']);
-        expect(luauNodes(cg, filePath, 'type_alias').map((t) => t.name)).toEqual(['Result']);
+        // The leading-pipe union is grammar-lagged, so the generic_type_list
+        // leaks into the captured name text (`Result<T>`) rather than the
+        // clean `Result` a fully-supported grammar would yield.
+        expect(luauNodes(cg, filePath, 'type_alias').map((t) => t.name)).toEqual(['Result<T>']);
         // At least one of the grammar-lagged functions is recovered; the
         // exact recovery shape is grammar-defined, so assert non-empty.
         expect(
