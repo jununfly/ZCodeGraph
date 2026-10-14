@@ -1054,7 +1054,7 @@
     "1-2-13-3": {
       "id": "1-2-13-3",
       "label": "Luau: 确定性 fixture 测试 + 真实语料验证",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-13",
       "children": [],
@@ -2906,7 +2906,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-14 19:27:49",
+    "updated": "2026-10-14 19:54:19",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
