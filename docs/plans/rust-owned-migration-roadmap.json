@@ -1017,7 +1017,7 @@
     "1-2-13-1": {
       "id": "1-2-13-1",
       "label": "Luau: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-13",
       "children": [],
@@ -1033,7 +1033,7 @@
           "note": "理由：(1) TS 侧 luauExtractor 本就独立注册、继承 luaExtractor 仅加 typeAliasTypes/isExported/getSignature 三处；(2) Rust 侧 lua.rs 的 LANG 常量、signature 生成、type_definition 处理需分叉，共享单文件会引入语言分支噪音；(3) 镜像 objc.rs/swift.rs 独立模块惯例。接线：lib.rs 6 处（mod luau、enum 变体 Luau(Lua 后 Python 前)、.luau 扩展名、codegraph_name 'luau'、LANGUAGE.into()、is_luau()、dispatch 分支 lua 后 python 前）；不入 tolerates_parse_errors；无跨语言 family（Luau 不进 jvm/apple map）；无 128MiB worker（Luau AST 与 Lua 同浅）。新增 lib.rs 测试 luau_parses_and_dispatches_through_rust_pipeline_grammar_wiring（2 .luau 含类型表面，files_indexed=2/errored=0/parse_by_language luau=2）。本地 cargo 183 passed（182→183）、clippy luau 零新增。"
         }
       ],
-      "notes": "范围：Lua 兼容抽取 + Luau 类型定义。grammar：tree-sitter-luau（自 vendor wasm）；应最大化复用 Lua Rust 抽取。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
+      "notes": "CLOSED：CI run 38538462615 3-OS 一次全绿 6m（macos-14/windows-2025/ubuntu-latest 全 success，无 flake）。Windows 日志机械验证非 skip：luau_parses_and_dispatches_through_rust_pipeline_grammar_wiring ... ok；cargo 183 passed 20.98s（182→183）。commits feat(luau) 7aef781 + chore(docs) 4ce5640 推 main（d8bb077..4ce5640）。grammar=crates.io tree-sitter-luau 1.2 直引无 fork。2 decisions 保留。下一步 1-2-13-2：luau.rs baseline visitor（复用 lua.rs walker 形状 + type_definition→type_alias + typed signature），对齐 TS luauExtractor 多集合，cargo 单元 + SQLite 多集合测试。"
     },
     "1-2-13-2": {
       "id": "1-2-13-2",
@@ -2894,7 +2894,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-14 16:52:13",
+    "updated": "2026-10-14 17:01:40",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
