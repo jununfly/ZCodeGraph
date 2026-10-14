@@ -1054,11 +1054,17 @@
     "1-2-13-3": {
       "id": "1-2-13-3",
       "label": "Luau: 确定性 fixture 测试 + 真实语料验证",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2-13",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "语料 gate 结论：strict 还是 tolerant？",
+          "answer": "Luau 进 tolerates_parse_errors——grammar 1.2.0（2024-12 已最新）系统性落后于语言演进，不是抽取器漂移",
+          "note": "实证（C://workspace//luau-abi-probe argv 模式对 566 文件逐文件 SEXP 归因）：strict 下 lute 55/525 + rbxutil 7/69 文件 rust-owned-parse-gap，根因全部是合法现代 Luau 语法——@native 属性、const function、前导竖线联合 type T<V> = |A|B、typeof(...) 返回类型、泛型可变参 T...、嵌套泛型断言 {} :: Hash<\"md5\">。error-recovery 局部于声明，walker 无 unwrap/indexing 不 panic。属 Kotlin/Dart/Swift 型（合法语法被 pinned grammar 标 ERROR），非 Lua -3 型（0 漂移）。tolerant 后 lute 688f 0 errored 14878 nodes 3.0s（strict 13086→+1792，type_alias 187→633 definitions/ 全类型文件被 strict 整丢）、rbxutil 91f 0 errored 2292 nodes 375ms；736/997 lute fn/method 带 typed sig。fixture 4 case（golden 多集合 / Luau-only 语法 inert / 多名 local+匿名剪枝 / grammar-lagged 语法恢复）全部 debug binary+sqlite 逐字验证。语料取舍：luau-lang/luau tests 含故意非法+非 UTF-8 文件（parser torture 非生产码）弃用；luau-lsp 26 .luau 埋 C++ 大树（walker 扫整树 13min+ 无产出）弃用。无 fork 无 rust-024（1.2.0 已最新，除非上游出 ABI14 新 grammar）。benchmark docs/benchmarks/2026-10-14-rust-owned-luau-lute-rbxutil-validation.md。EXTRACTION_VERSION 保持 2。"
+        }
+      ],
       "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
     },
     "1-2-13-4": {
@@ -2900,7 +2906,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-14 17:30:11",
+    "updated": "2026-10-14 19:27:49",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
