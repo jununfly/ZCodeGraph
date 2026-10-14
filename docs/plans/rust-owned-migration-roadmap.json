@@ -143,11 +143,12 @@
     "1-2-3": {
       "id": "1-2-3",
       "label": "C++ 基线抽取（已完成, #678）",
-      "status": "completed",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
-        "1-2-3-1"
+        "1-2-3-1",
+        "1-2-3-2"
       ],
       "decisions": [
         {
@@ -609,14 +610,15 @@
     "1-2-8": {
       "id": "1-2-8",
       "label": "Kotlin 基线抽取迁移",
-      "status": "completed",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
         "1-2-8-1",
         "1-2-8-2",
         "1-2-8-3",
-        "1-2-8-4"
+        "1-2-8-4",
+        "1-2-8-5"
       ],
       "decisions": [
         {
@@ -1010,7 +1012,7 @@
           "note": "若 Luau grammar 对纯 Lua 文件解析验证不通过，回退为独立完整迁移"
         }
       ],
-      "notes": ""
+      "notes": "边界注记（1-2-12-4 Lua cutover 时确认）：.luau 当前走 TS-shell fallback（rust-hybrid contract 未含 luau），Rust enum 无 Luau 变体。'Rust enum 扩展'属本子波 1-2-13-1（SourceLanguage 注册 + grammar 接入）前置——需新增 Language::Luau 变体、tree-sitter-luau ABI14 grammar 接入、dispatch 与 is_lua 旁路。沿用 4 子节点结构，启动时先 decide Luau 与 Lua 抽取器复用/分叉边界。"
     },
     "1-2-13-1": {
       "id": "1-2-13-1",
@@ -2815,11 +2817,43 @@
         }
       ],
       "notes": "CLOSED 2026-10-12. feat 3304a63 direct-to-main; 3-OS CI run 38227597118 green (win-2025/macos-14/ubuntu): Rust 176, wave0 61, extraction step2 35 passed (prev Dart 31 -> +4 = the new Swift e2e: @Siblings pivot, @Argument wrapper, SwiftUI View/@main App+Vapor route, 0-fallback guard). New rust-swift-framework-routes.ts: framework-gated swiftUI/uikit/vapor extract + ungated property @Wrapper decorates/declared-type/@Siblings metatype refs on rust baseline type nodes; multiline-attribute continuation climb; prefix/rowid idempotency (swift.rs emits only imports/calls/extends). swift.ts kept for pure typescript engine; bridge resolver + callback synthesizer untouched; EXTRACTION_VERSION not bumped (unreleased)."
+    },
+    "1-2-3-2": {
+      "id": "1-2-3-2",
+      "label": "C++ 增强：bodyless 头文件声明符号与定义关联（backlog）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "backlog 编排：C++ bodyless headers 归属",
+          "answer": "新增子节点 1-2-3-2 挂到 CLOSED 波 1-2-3 下，作独立增强波",
+          "note": "C++ 1-2-3 已 CLOSED（#678+1-2-3-1 夹具清零），bodyless 头（纯声明 .h 无对应 .cpp 实现体）符号与定义关联属 baseline 外增强，非回归；独立 explore 节点，不阻塞、不 bump EXTRACTION_VERSION，待产品优先级排波。"
+        }
+      ],
+      "notes": ""
+    },
+    "1-2-8-5": {
+      "id": "1-2-8-5",
+      "label": "Kotlin 增强：fun interface / suspend / expect-actual 语义（backlog，baseline 外）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-8",
+      "children": [],
+      "decisions": [
+        {
+          "q": "backlog 编排：Kotlin fun-interface/suspend/expect-actual 归属",
+          "answer": "新增子节点 1-2-8-5 挂到 CLOSED 波 1-2-8 下，作独立增强波",
+          "note": "Kotlin 1-6-1/1-2-8 已 CLOSED；kotlin.rs 注释明确 fun interface ERROR recovery、expect/actual markers、companion-object static semantics 'intentionally OUT of baseline'。suspend 函数调用语义同属 baseline 外。独立 explore 节点，不阻塞、不 bump EXTRACTION_VERSION，待产品优先级排波。"
+        }
+      ],
+      "notes": ""
     }
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-14 11:22:06",
+    "updated": "2026-10-14 11:27:27",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
