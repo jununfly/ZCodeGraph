@@ -16919,6 +16919,230 @@ mod tests {
         cleanup_temp_dir(dir);
     }
 
+    // Luau baseline visitor (roadmap 1-2-13-2). Asserts the TS luauExtractor
+    // multiset: the full Lua-parity surface (function/method three-state
+    // split, require -> import + imports ref, dotted/colon callees kept,
+    // variable-per-identifier with a capped `= <init>` signature, anonymous
+    // initializer pruning) plus the Luau delta — `type_definition` ->
+    // type_alias, and luauExtractor.getSignature's typed parameters +
+    // `: <return type>` suffix. Luau-only syntax without baseline symbols
+    // (update_statement, if_expression, generics) flows through the default
+    // recursion without emitting or dropping anything.
+    #[test]
+    fn luau_baseline_visitor_extracts_lua_parity_types_and_typed_signatures() {
+        let dir = temp_dir("luau-baseline");
+        write_file(
+            &dir,
+            "src/sample.luau",
+            &[
+                "export type Config = { name: string, retries: number? }",
+                "type Handler = (cfg: Config) -> boolean",
+                "",
+                "local net = require('net.http')",
+                "local m = require([[mod.long]])",
+                "local s = require(script.Parent.Signal)",
+                "local a, b = 1, require('two')",
+                "require(\"bare.mod\")",
+                "local f = function() return lost() end",
+                "",
+                "local M = {}",
+                "function M.greet(who: string): string",
+                "  print(who)",
+                "  return 'hi ' .. who",
+                "end",
+                "",
+                "function M:deposit(amount: number): boolean",
+                "  self.balance += amount",
+                "  return true",
+                "end",
+                "",
+                "local function helper(x: number): number",
+                "  local function inner(y)",
+                "    return inner2(y)",
+                "  end",
+                "  wrap(require('dep'))",
+                "  return inner(x)",
+                "end",
+                "",
+                "local function map<T, U>(fn: (T) -> U, xs: { T }): { U }",
+                "  local out = if #xs > 0 then fn(xs[1]) else nil",
+                "  return { out }",
+                "end",
+                "",
+                "function top()",
+                "  acct:deposit(5)",
+                "  selfish:nest(foo(bar()))",
+                "end",
+                "",
+                "helper(1)",
+            ]
+            .join("\n"),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let names = |sql: &str| -> Vec<String> {
+            conn.prepare(sql)
+                .unwrap()
+                .query_map([], |row| row.get::<_, String>(0))
+                .unwrap()
+                .map(|r| r.unwrap())
+                .collect()
+        };
+
+        // Type aliases: `export type` and plain `type` both land as
+        // type_alias nodes; no exports ref is ever emitted for Luau.
+        let mut aliases = names(
+            "SELECT name FROM nodes WHERE language='luau' AND kind='type_alias' ORDER BY name",
+        );
+        aliases.sort();
+        assert_eq!(aliases, vec!["Config".to_string(), "Handler".to_string()]);
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM unresolved_refs WHERE language='luau' AND reference_kind='exports'"
+            ),
+            0
+        );
+
+        // Functions: helper, helper::inner, map (generic), top. Table members
+        // M.greet / M:deposit are methods, not functions.
+        let mut functions = names(
+            "SELECT qualified_name FROM nodes WHERE language='luau' AND kind='function' ORDER BY qualified_name",
+        );
+        functions.sort();
+        assert_eq!(
+            functions,
+            vec![
+                "helper".to_string(),
+                "helper::inner".to_string(),
+                "map".to_string(),
+                "top".to_string(),
+            ]
+        );
+        let mut methods =
+            names("SELECT qualified_name FROM nodes WHERE language='luau' AND kind='method'");
+        methods.sort();
+        assert_eq!(methods, vec!["M::deposit".to_string(), "M::greet".to_string()]);
+
+        // Typed signatures: parameters text + `: <return type>`; an untyped
+        // declaration keeps the bare parameters text.
+        let greet_sig: String = conn
+            .query_row(
+                "SELECT signature FROM nodes WHERE language='luau' AND kind='method' AND name='greet'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(greet_sig, "(who: string): string");
+        let deposit_sig: String = conn
+            .query_row(
+                "SELECT signature FROM nodes WHERE language='luau' AND kind='method' AND name='deposit'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(deposit_sig, "(amount: number): boolean");
+        let map_sig: String = conn
+            .query_row(
+                "SELECT signature FROM nodes WHERE language='luau' AND kind='function' AND name='map'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(map_sig, "(fn: (T) -> U, xs: { T }): { U }");
+        let inner_sig: String = conn
+            .query_row(
+                "SELECT signature FROM nodes WHERE language='luau' AND kind='function' AND name='inner'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(inner_sig, "(y)");
+
+        // Locals: net, m, s, a, b, f, M, out — eight variable nodes; the
+        // if_expression initializer keeps the prune + signature contract.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='luau' AND kind='variable'"
+            ),
+            8
+        );
+        let out_sig: String = conn
+            .query_row(
+                "SELECT signature FROM nodes WHERE language='luau' AND kind='variable' AND name='out'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(out_sig, "= if #xs > 0 then fn(xs[1]) else nil");
+        let f_sig: String = conn
+            .query_row(
+                "SELECT signature FROM nodes WHERE language='luau' AND kind='variable' AND name='f'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(f_sig.starts_with("= function()"), "{f_sig}");
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='luau' AND name LIKE '%anonymous%'"
+            ),
+            0
+        );
+
+        // Imports: string, long-bracket, Roblox instance trailing field,
+        // positional multi-var, bare global, and a require nested in args.
+        let imports =
+            names("SELECT name FROM nodes WHERE language='luau' AND kind='import' ORDER BY name");
+        assert_eq!(imports.len(), 6);
+        for expected in ["net.http", "mod.long", "Signal", "two", "bare.mod", "dep"] {
+            assert!(
+                imports.contains(&expected.to_string()),
+                "missing import {expected}: {imports:?}"
+            );
+        }
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM unresolved_refs WHERE language='luau' AND reference_kind='imports'"
+            ),
+            6
+        );
+
+        // Calls: dotted/colon callees keep their exact spelling; nested calls
+        // in arguments are captured; the pruned anonymous-function body call
+        // (`lost`) is absent.
+        let mut calls = names(
+            "SELECT reference_name FROM unresolved_refs WHERE language='luau' AND reference_kind='calls' ORDER BY reference_name",
+        );
+        calls.sort();
+        assert_eq!(
+            calls,
+            vec![
+                "acct:deposit".to_string(),
+                "bar".to_string(),
+                "foo".to_string(),
+                "helper".to_string(),
+                "inner".to_string(),
+                "inner2".to_string(),
+                "print".to_string(),
+                "selfish:nest".to_string(),
+                "wrap".to_string(),
+            ]
+        );
+        assert!(!calls.contains(&"lost".to_string()));
+
+        drop(conn);
+        cleanup_temp_dir(dir);
+    }
+
     // Swift baseline visitor (roadmap 1-6-4-2). Asserts the node multiset and
     // reference multiset the TS swiftExtractor produced over the same grammar
     // generation: class/struct/enum share class_declaration (inner keyword),
