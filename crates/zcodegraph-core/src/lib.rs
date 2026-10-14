@@ -15,6 +15,7 @@ mod dart;
 mod objc;
 mod lua;
 mod luau;
+mod pascal;
 mod swift;
 mod index_options;
 mod php;
@@ -7327,6 +7328,21 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                 )?;
+            } else if language.is_pascal() {
+                // Roadmap 1-2-10-1: Pascal/Delphi baseline visitor, mirrors
+                // src/extraction/languages/pascal.ts + visitPascalNode in
+                // src/extraction/tree-sitter.ts. .dfm/.fmx form files never
+                // reach this branch — they are excluded from
+                // SourceLanguage::from_path and stay on the TS DfmExtractor.
+                pascal::extract(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -7813,6 +7829,7 @@ enum SourceLanguage {
     Objc,
     Lua,
     Luau,
+    Pascal,
     Python,
     Rust,
 }
@@ -7857,6 +7874,13 @@ impl SourceLanguage {
             Some("lua") => Some(Self::Lua),
             // Luau sources, aligned with grammars.ts ('.luau' -> 'luau').
             Some("luau") => Some(Self::Luau),
+            // Pascal/Delphi sources (roadmap 1-2-10-1). Aligned with
+            // grammars.ts ('.pas/.dpr/.dpk/.lpr' -> 'pascal'). .dfm/.fmx are
+            // INTENTIONALLY EXCLUDED: they are Delphi form files (text-encoded
+            // component trees), not Pascal source; the TS side dispatches
+            // them to the dedicated DfmExtractor (dfm-extractor.ts), which
+            // stays on the TS side per the 1-2-10 Q2 decision.
+            Some("pas") | Some("dpr") | Some("dpk") | Some("lpr") => Some(Self::Pascal),
             Some("py") | Some("pyw") => Some(Self::Python),
             Some("rs") => Some(Self::Rust),
             _ => None,
@@ -7882,6 +7906,7 @@ impl SourceLanguage {
             Self::Objc => "objc",
             Self::Lua => "lua",
             Self::Luau => "luau",
+            Self::Pascal => "pascal",
             Self::Python => "python",
             Self::Rust => "rust",
         }
@@ -7920,6 +7945,11 @@ impl SourceLanguage {
             // as tree-sitter-objc / tree-sitter-swift / tree-sitter-lua
             // (roadmap 1-2-13-1). Direct crates.io, no fork.
             Self::Luau => tree_sitter_luau::LANGUAGE.into(),
+            // Isopod/tree-sitter-pascal 0.10.2 bridges via tree-sitter-language
+            // 0.1 (LANGUAGE.into()), the same ABI-14 passthrough as
+            // tree-sitter-swift/objc/lua/luau (roadmap 1-2-10-1, verified in
+            // C:\workspace\pascal-abi-probe).
+            Self::Pascal => tree_sitter_pascal::LANGUAGE.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
@@ -8029,6 +8059,10 @@ impl SourceLanguage {
 
     fn is_luau(self) -> bool {
         matches!(self, Self::Luau)
+    }
+
+    fn is_pascal(self) -> bool {
+        matches!(self, Self::Pascal)
     }
 
     fn is_python(self) -> bool {

@@ -58,6 +58,18 @@ tree-sitter-luau = "1.2"
 # grammar-wiring smoke test; the TS-side grammar is tree-sitter-objc.wasm in
 # tree-sitter-wasms.
 tree-sitter-objc = "3.0"
+# Pascal/Delphi (roadmap 1-2-10-1). Isopod/tree-sitter-pascal 0.10.2 (latest).
+# Grammar covers Pascal + Delphi + FreePascal dialects: classes, records,
+# interfaces, class helpers, nested declarations, variant records, generics
+# (Delphi & FPC flavors), anonymous procs, inline assembler, extended RTTI
+# attributes, FPC PasCocoa. tree-sitter-language ^0.1 + tree-sitter ^0.24
+# (dev) bridges via LANGUAGE.into() exactly like tree-sitter-swift/objc/lua/
+# luau — ABI 14 verified in C:\workspace\pascal-abi-probe (set_language OK,
+# sample unit AST node kinds match src/extraction/languages/pascal.ts +
+# visitPascalNode in src/extraction/tree-sitter.ts node-for-node). The
+# production tree-sitter-pascal.wasm in tree-sitter-wasms is built from the
+# same upstream repo, so this is the same grammar generation on both sides.
+tree-sitter-pascal = "0.10"
 # Dart: crates.io tree-sitter-dart 0.0.4 is a stale ast-grep fork snapshot
 # (2024-05) whose AST diverges from the grammar the TS side ships (9 node-shape
 # diffs, 14 ERRORs on Dart 3). The production tree-sitter-dart.wasm

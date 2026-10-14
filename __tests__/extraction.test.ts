@@ -7277,3 +7277,270 @@ describe('Luau on rust-hybrid (roadmap 1-2-13-4 cutover)', () => {
     }
   });
 });
+
+// =============================================================================
+// Roadmap 1-2-10-2 / 1-2-10-3 — Pascal/Delphi on rust-hybrid (ownership cutover).
+//
+// Pascal is one of the clean cutovers: no framework route table, no macros,
+// no src/resolution/frameworks/ resolver, no shell-side post-extract — the
+// baseline symbol/reference graph is the entire surface. .dfm/.fmx form files
+// stay on the TS DfmExtractor (roadmap 1-2-10 Q2 decision), so the only
+// ownership change is adding 'pascal' (the 20th rust-owned language) to
+// RUST_HYBRID_RUST_OWNED_LANGUAGES: .pas/.dpr/.dpk/.lpr files are scheduled
+// through Rust with zero TypeScript fallback, and pascal.ts is retained only
+// for the pure --engine typescript engine.
+//
+// The cross-file e2e below pins that (a) the baseline visitor survives the
+// cutover with the exact TS node shape (module/class/record/method/property/
+// field/enum/constant/type_alias/imports/extends/implements/calls), and (b)
+// cross-unit `uses` resolution + dotted `TClass.Method` calls link across
+// files through Rust the same way they did through TS.
+// =============================================================================
+describe('Pascal on rust-hybrid (roadmap 1-2-10-2/1-2-10-3 cutover)', () => {
+  let tempDir: string;
+  let cg: CodeGraph;
+
+  beforeEach(() => {
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    if (cg) cg.close();
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('indexes the baseline Pascal graph on rust-hybrid after the ownership cutover, roadmap 1-2-10-3', async () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'UAuth.pas'),
+      `unit UAuth;
+
+interface
+
+uses
+  System.SysUtils,
+  System.Classes;
+
+type
+  ITokenValidator = interface
+    ['{11111111-1111-1111-1111-111111111111}']
+    function Validate(const AToken: string): Boolean;
+  end;
+
+  TInterfacedObject = class
+  end;
+
+  TAuthService = class(TInterfacedObject, ITokenValidator)
+  private
+    FToken: string;
+    FLoginCount: Integer;
+    procedure IncLoginCount;
+  protected
+    function GetToken: string;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function Validate(const AToken: string): Boolean;
+    function Login(const AUser, APass: string): string;
+    property Token: string read GetToken;
+    property LoginCount: Integer read FLoginCount;
+  end;
+
+implementation
+
+constructor TAuthService.Create;
+begin
+  inherited Create;
+  FToken := '';
+  FLoginCount := 0;
+end;
+
+procedure TAuthService.IncLoginCount;
+begin
+  Inc(FLoginCount);
+end;
+
+function TAuthService.Login(const AUser, APass: string): string;
+begin
+  IncLoginCount;
+  if Validate(AUser + ':' + APass) then
+    FToken := AUser;
+end;
+
+end.
+`,
+    );
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    cg.resolveReferences();
+
+    // Zero parse/extraction gaps on clean Object Pascal.
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+    expect(result.errors).toHaveLength(0);
+
+    // Module node.
+    const moduleNode = cg.getNodesByKind('module').find((n) => n.name === 'UAuth');
+    expect(moduleNode, 'UAuth module node').toBeDefined();
+    expect(moduleNode?.language).toBe('pascal');
+
+    // Imports from uses clause.
+    const imports = cg.getNodesByKind('import').filter((n) => (n.filePath ?? '').endsWith('UAuth.pas'));
+    expect(imports.length).toBe(2);
+    expect(imports.map((n) => n.name)).toContain('System.SysUtils');
+    expect(imports.map((n) => n.name)).toContain('System.Classes');
+
+    // Interface.
+    const iface = cg.getNodesByKind('interface').find((n) => n.name === 'ITokenValidator');
+    expect(iface, 'ITokenValidator interface node').toBeDefined();
+    expect(iface?.qualifiedName).toBe('UAuth::ITokenValidator');
+
+    // Class with inheritance.
+    const cls = cg.getNodesByKind('class').find((n) => n.name === 'TAuthService');
+    expect(cls, 'TAuthService class node').toBeDefined();
+    expect(cls?.qualifiedName).toBe('UAuth::TAuthService');
+
+    // Methods incl. visibility + signature.
+    const create = cg.getNodesByKind('method').find((n) => n.name === 'Create');
+    expect(create?.visibility).toBe('public');
+    const login = cg.getNodesByKind('method').find((n) => n.name === 'Login');
+    expect(login?.visibility).toBe('public');
+    expect(login?.signature).toBe('(const AUser, APass: string): string');
+    const incLogin = cg.getNodesByKind('method').find((n) => n.name === 'IncLoginCount');
+    expect(incLogin?.visibility).toBe('private');
+    const getToken = cg.getNodesByKind('method').find((n) => n.name === 'GetToken');
+    expect(getToken?.visibility).toBe('protected');
+
+    // Fields (private) and properties (public).
+    const fToken = cg.getNodesByKind('field').find((n) => n.name === 'FToken');
+    expect(fToken?.visibility).toBe('private');
+    const tokenProp = cg.getNodesByKind('property').find((n) => n.name === 'Token');
+    expect(tokenProp?.visibility).toBe('public');
+
+    // Cross-node references survive the Rust cutover: extends + implements
+    // edges hang off the class, calls hang off the right method (defProc
+    // body resolution against the declProc index).
+    const classId = cls!.id;
+    const extendsEdges = cg.getOutgoingEdges(classId).filter((e) => e.kind === 'extends');
+    expect(
+      extendsEdges.some((e) => cg.getNode(e.target)?.name === 'TInterfacedObject'),
+      'TAuthService --extends--> TInterfacedObject',
+    ).toBe(true);
+    const implementsEdges = cg.getOutgoingEdges(classId).filter((e) => e.kind === 'implements');
+    expect(
+      implementsEdges.some((e) => cg.getNode(e.target)?.name === 'ITokenValidator'),
+      'TAuthService --implements--> ITokenValidator',
+    ).toBe(true);
+  });
+
+  it('indexes records, enums, static class functions, and nested types on rust-hybrid, roadmap 1-2-10-3', async () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'UTypes.pas'),
+      `unit UTypes;
+
+interface
+
+const
+  C_MAX_RETRIES = 3;
+
+type
+  TUserRole = (urAdmin, urEditor, urViewer);
+
+  TPoint2D = record
+    X: Double;
+    Y: Double;
+  end;
+
+  TUserName = string;
+
+  TUserInfo = class
+  public
+    type
+      TAddress = record
+        Street: string;
+        City: string;
+      end;
+  private
+    FName: TUserName;
+  public
+    constructor Create(const AName: TUserName);
+    class function CreateAdmin(const AName: TUserName): TUserInfo; static;
+    property Name: TUserName read FName write FName;
+  end;
+
+implementation
+
+constructor TUserInfo.Create(const AName: TUserName);
+begin
+  FName := AName;
+end;
+
+class function TUserInfo.CreateAdmin(const AName: TUserName): TUserInfo;
+begin
+  Result := TUserInfo.Create(AName);
+end;
+
+end.
+`,
+    );
+
+    cg = CodeGraph.initSync(tempDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+    expect(result.filesErrored).toBe(0);
+
+    // Record -> class node (matches the TS pascal.ts declClass arm).
+    const point = cg.getNodesByKind('class').find((n) => n.name === 'TPoint2D');
+    expect(point, 'TPoint2D record as class').toBeDefined();
+    const xField = cg.getNodesByKind('field').find((n) => n.name === 'X');
+    expect(xField, 'TPoint2D.X field').toBeDefined();
+
+    // Enum + enum_member.
+    const role = cg.getNodesByKind('enum').find((n) => n.name === 'TUserRole');
+    expect(role).toBeDefined();
+    const members = cg.getNodesByKind('enum_member').filter((n) => (n.filePath ?? '').endsWith('UTypes.pas'));
+    expect(members.map((m) => m.name)).toEqual(['urAdmin', 'urEditor', 'urViewer']);
+
+    // Constant.
+    const constant = cg.getNodesByKind('constant').find((n) => n.name === 'C_MAX_RETRIES');
+    expect(constant).toBeDefined();
+    expect(constant?.signature).toBe('= 3');
+
+    // Type alias.
+    const alias = cg.getNodesByKind('type_alias').find((n) => n.name === 'TUserName');
+    expect(alias).toBeDefined();
+
+    // Nested record -> nested class with qualified name.
+    const address = cg.getNodesByKind('class').find((n) => n.name === 'TAddress');
+    expect(address, 'nested TAddress record as class').toBeDefined();
+    expect(address?.qualifiedName).toBe('UTypes::TUserInfo::TAddress');
+
+    // Static class function: isStatic survives the cutover.
+    const createAdmin = cg.getNodesByKind('method').find((n) => n.name === 'CreateAdmin');
+    expect(createAdmin?.isStatic).toBe(true);
+    expect(createAdmin?.signature).toBe('(const AName: TUserName): TUserInfo');
+  });
+
+  it('routes Pascal through the Rust core with zero TypeScript fallback after the ownership cutover, roadmap 1-2-10-2', () => {
+    // Post-cutover: 'pascal' is the 20th rust-owned language. .pas/.dpr/.dpk/
+    // .lpr files schedule through Rust (fallbackByLanguage.pascal === 0);
+    // .dfm/.fmx stay TS-only by design (DfmExtractor, roadmap 1-2-10 Q2).
+    expect(isRustHybridOwnedLanguage('pascal')).toBe(true);
+
+    const dir = createTempDir();
+    try {
+      fs.writeFileSync(path.join(dir, 'App.dpr'), 'program App;\nbegin\nend.\n');
+      fs.writeFileSync(path.join(dir, 'UUtil.pas'), 'unit UUtil;\ninterface\nimplementation\nend.\n');
+
+      const plan = planRustHybridAssignments(dir);
+      expect(plan.engineByLanguage).toMatchObject({ pascal: 'rust' });
+      expect(plan.rustOwnedFiles).toContain('App.dpr');
+      expect(plan.rustOwnedFiles).toContain('UUtil.pas');
+      expect(plan.fallbackFiles).not.toContain('App.dpr');
+      expect(plan.fallbackFiles).not.toContain('UUtil.pas');
+      expect(plan.fallbackByLanguage.pascal ?? 0).toBe(0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

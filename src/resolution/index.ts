@@ -1686,12 +1686,18 @@ export class ReferenceResolver {
       }
     }
 
-    // Pascal/Delphi built-ins and standard library units
+    // Pascal/Delphi built-ins and standard library units.
+    // Unit-prefix names (System.*, Vcl.*, …) are safe to filter
+    // unconditionally — user code never defines `System.SysUtils`.
+    // Bare type/function names (TObject, TInterfacedObject, Create, …)
+    // follow the same rule as C/C++ stdlib shadowing: only filter when
+    // no user node declares that name, so a codebase that subclasses
+    // `TInterfacedObject` still resolves its extends edge.
     if (ref.language === 'pascal') {
       if (PASCAL_UNIT_PREFIXES.some((p) => name.startsWith(p))) {
         return true;
       }
-      if (PASCAL_BUILT_INS.has(name)) {
+      if (PASCAL_BUILT_INS.has(name) && !this.knownNames?.has(name)) {
         return true;
       }
     }
