@@ -906,7 +906,7 @@
     "1-2-11": {
       "id": "1-2-11",
       "label": "Scala 基线抽取迁移",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -921,31 +921,59 @@
     "1-2-11-1": {
       "id": "1-2-11-1",
       "label": "Scala: Rust SourceLanguage 注册 + grammar 接入 + 基线符号对齐 TS extractor",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-11",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Scala grammar 选型 (crates.io 直连 vs fork)",
+          "answer": "tree-sitter-scala =0.24.1 直连（最后 ABI14；同 Lua/Luau/ObjC/Swift/Pascal pattern）",
+          "note": "0.25.x 起 dev-dep 跳到 tree-sitter 0.25=ABI15 被 0.24 拒；0.24.1 通过 LANGUAGE.into() 桥接 tree-sitter-language 0.1 与 workspace tree-sitter 0.24 对齐。Probe 验证 C://workspace//scala-abi-probe 22 个用例（class/object/trait/enum/type/val/var/def/call/import/package/extension/case class/generic/lambda/implicit val）0 ERROR，node kind 与 TS extractor scala.ts 完全匹配（class_definition/object_definition/trait_definition/enum_definition/type_definition/function_definition/function_declaration/val_definition/var_definition/import_declaration/call_expression/extension_definition/enum_case_definitions，字段 @name/@parameters/@return_type/@body/@pattern/@type/@value/@path 全部对齐）。无需 fork、无需 pin 到非 0.24 的 tree-sitter runtime。"
+        },
+        {
+          "q": "scala.rs extractor 骨架",
+          "answer": "417 行 scala.rs 落地；SourceLanguage::Scala 注册 + .scala/.sc 扩展名 + extractor 分发全接入",
+          "note": "对齐 scala.ts 178 行：class_definition/object_definition->class, trait_definition->trait, enum_definition->enum, function_definition/function_declaration->function|method（inside_class_like 判别）, val_definition/var_definition->field(constant|variable; @pattern 提取 identifier; tuple_pattern 回退到首 identifier 子节点）, type_definition->type_alias, import_declaration（@path 多段 identifier join '.'；过滤 '.' 分隔符 token——tree-sitter-scala 0.24.1 把 '.' 也打 @path 标签）, enum_case_definitions 展开为 enum_member, extension_definition 无容器节点直访 body。extends_clause 提 @type type_identifier 作 extends ref；val/var @type 子树递归 emit references（跳过 SCALA_BUILTIN_TYPES）；call_expression 经 field_expression 取 @value/@field 组合 receiver.method（this/super/self 去前缀）。冒烟：fixture Greeter.scala 19 节点 / 18 边 / 10 refs 全对（trait/class/method/field/enum/enum_member/import/type_alias/constant 全齐，extends Greeter+Serializable+App、calls println/g.greet/xs.foreach、references Greeter+List）。"
+        },
+        {
+          "q": "Rust 端单测覆盖",
+          "answer": "2 个 in-rust 测试：scala_parses_and_dispatches_through_rust_pipeline_grammar_wiring + scala_baseline_visitor_extracts_symbols_inheritance_and_calls",
+          "note": "wiring 测试 pin 双文件 .scala 索引零 parse-gap；baseline 测试 pin scala.ts 多集（trait/class/enum/enum_member/method/field/constant/type_alias/import 全 kind、extends/references/calls 三类 ref、private visibility、extension body 提升、@path identifier 过滤）。踩坑：extension 单 def 时 @body 直接是 function_definition（不是 template_body 包装），需在 visit 里区分 bare-def 与 block 两种形态。全量 186/186 通过（含 scala 2 个新增）。"
+        }
+      ],
       "notes": "范围：类/object/trait/enum/类型定义/import/调用/val 与 var；Play 边界。grammar：tree-sitter-scala（自 vendor wasm）；.sc 脚本同路径。交付：扩展名检测、parser 初始化、file/module 节点与 schema 兼容、基线符号节点逐项对齐 TS extractor。"
     },
     "1-2-11-2": {
       "id": "1-2-11-2",
       "label": "Scala: 引用边发射 + Rust gap 诊断 + rust-hybrid 元数据切 rust",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-11",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "1-2-11-2 范围对齐 Lua/Pascal -2 节奏",
+          "answer": "refs + gap 诊断在 -2 完成；RUST_HYBRID cutover 留到 1-2-11-4",
+          "note": "scala.rs 在 -1 已同步发出 extends/references/calls/imports 四类 refs 到 unresolved_refs（与 TS scala.ts 对齐）。Rust 端 rust_owned_parse_gap 诊断对 scala 自动生效：scala 不在 tolerates_parse_errors 列表，parsed.root_node().has_error() 即触发结构化错误（code=rust-owned-parse-gap, language=scala, severity=warning, writtenByRust=false），坏文件单独 filesErrored+=1 不阻塞其他文件。冒烟验证：Broken.scala（不完整 def）触发 1 个 parse-gap error，Greeter.scala 仍 19 节点；删 Broken 后 0 errored 0 errors。RUST_HYBRID_RUST_OWNED_LANGUAGES 暂不加 scala，留到 1-2-11-4 cutover（对齐 Lua 1-2-12-2/-4 与 Pascal 1-2-10-2/-4 节奏：-2 只发 refs 和诊断，-4 才切 rust-hybrid 元数据）。"
+        }
+      ],
       "notes": "import/call/reference 的 unresolved-ref 发射（该语言支持范畴）；parse-gap/extraction-gap 诊断；RUST_HYBRID_RUST_OWNED_LANGUAGES 加入后元数据显示 rust。"
     },
     "1-2-11-3": {
       "id": "1-2-11-3",
       "label": "Scala: 确定性 fixture 测试 + 真实语料验证",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2-11",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "真实语料 gate 结果 + parse tolerance 决策",
+          "answer": "PASS on apache/spark de2035f (sparse core+common/utils = 681 .scala / 162,045 LOC). Index 690 files, 0 errored, 26,866 nodes / 26,176 contains / 32,248 unresolved refs (calls 24,888, imports 4,618, extends 1,395, references 1,347) ~3.7s debug. 42 initial parse gaps = 3 grammar classes (XML literals, enum-as-identifier, lambda-with-ascription) — all legal Scala, grammar-limited. Scala ADDED to tolerates_parse_errors() for TS parity (+2,109 nodes to 0 errored). 3 fixture tests in rust-owned-language-fixtures.test.ts. Evidence docs/benchmarks/2026-10-15-rust-owned-scala-spark-validation.md. cargo test --lib 186/186; vitest Scala 3/3 (CI 3-OS). No EXTRACTION_VERSION bump, no RUST_HYBRID cutover (reserved for 1-2-11-4).",
+          "note": "grammar stays =0.24.1 crates.io pin (no fork); tolerance handles the 3 gap classes"
+        }
+      ],
       "notes": "聚焦 fixture（对齐 __tests__/extraction 既有夹具）+ 一个中等规模真实项目语料；benchmark 证据落 docs/benchmarks/（含 SHA 与 gap 计数）；#692 教训：夹具须 CI 三 OS 可跑，禁止 .skip 充当完成。"
     },
     "1-2-11-4": {
@@ -2967,7 +2995,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-15 14:28:30",
+    "updated": "2026-10-15 16:01:40",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
