@@ -58,6 +58,7 @@ jobs:
           npx vitest run
           __tests__/rust-owned-language-fixtures.test.ts
           __tests__/skip-debt-guardrail.test.ts
+          __tests__/file-level-language-ownership-guard.test.ts
       - name: Verify wave-0 activated include, C++ free-function, inheritance, override, typed-pointer receiver, Java G7/G9 e2e, and cross-language cases (#692)
         run: >
           npx vitest run

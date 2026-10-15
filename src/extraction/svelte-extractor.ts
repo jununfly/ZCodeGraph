@@ -12,6 +12,15 @@ const SVELTE_RUNES = new Set([
 /**
  * SvelteExtractor - Extracts code relationships from Svelte component files
  *
+ * OWNERSHIP (roadmap 1-3-1-1, decision: keep / TS-shell): Svelte is
+ * deliberately TypeScript-shell owned, NOT rust-owned. Reason: there is no
+ * ABI-14-compatible tree-sitter-svelte grammar (0.10.2 is stale,
+ * tree-sitter-svelte-next is ABI-15, arborium uses a patched tree-sitter
+ * fork), and this extractor's core value is <script>-block delegation to the
+ * full TS/JS TreeSitterExtractor — a mechanism the Rust core does not have.
+ * Guard: __tests__/file-level-language-ownership-guard.test.ts fails if
+ * 'svelte' is ever added to RUST_HYBRID_RUST_OWNED_LANGUAGES.
+ *
  * Svelte files are multi-language (script + template + style). Rather than
  * parsing the full Svelte grammar, we extract the <script> block content
  * and delegate it to the TypeScript/JavaScript TreeSitterExtractor.

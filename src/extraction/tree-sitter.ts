@@ -3638,7 +3638,13 @@ export function extractFromSource(
 
   let result: ExtractionResult;
 
-  // Use custom extractor for Svelte
+  // Use custom extractor for Svelte.
+  // OWNERSHIP (roadmap 1-3-1-1, keep/TS-shell): Svelte is deliberately NOT
+  // rust-owned. It is a regex-based custom extractor (not a tree-sitter grammar
+  // language) whose core value is delegating the <script> block to the full
+  // TS/JS extractor — which the Rust core cannot replicate without an ABI-14
+  // grammar + a sub-tree delegation mechanism it does not have. Guarded by
+  // __tests__/file-level-language-ownership-guard.test.ts.
   if (detectedLanguage === 'svelte') {
     const extractor = new SvelteExtractor(filePath, source);
     result = extractor.extract();
