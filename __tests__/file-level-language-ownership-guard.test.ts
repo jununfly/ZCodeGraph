@@ -28,4 +28,20 @@ describe('File-level language ownership guard (roadmap 1-3 keep decisions)', () 
     expect(isRustHybridOwnedLanguage('svelte')).toBe(false);
     expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('svelte');
   });
+
+  it('vue stays TypeScript-shell owned (1-3-2-1 keep)', () => {
+    // 1-3-2-1 keep rationale: same delegation architecture as Svelte —
+    // vue-extractor.ts delegates <script>/<script setup> blocks to the full
+    // TS/JS TreeSitterExtractor with line-offset remapping, plus regex-based
+    // template-component extraction (kebabToPascal + builtin filter). Grammar
+    // supply is inadequate: tree-sitter-vue 0.0.1 is a placeholder crate;
+    // tree-sitter-vue-next extends tree-sitter-html 0.23.2 as a base grammar
+    // with a C external scanner and only parses SFC structure markup — it
+    // cannot replicate the script-block delegation value (Rust core has no
+    // grammar + no sub-tree delegation mechanism) and drags in an html base
+    // grammar + C scanner dependency. Rust core (26 modules) has zero vue.
+    // Vue/Nuxt file-convention routing stays in src/resolution/frameworks/vue.ts.
+    expect(isRustHybridOwnedLanguage('vue')).toBe(false);
+    expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('vue');
+  });
 });

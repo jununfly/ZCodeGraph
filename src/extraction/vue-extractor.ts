@@ -34,6 +34,17 @@ function kebabToPascal(name: string): string {
  * and delegate it to the TypeScript/JavaScript TreeSitterExtractor.
  *
  * Every .vue file produces a component node (Vue components are always importable).
+ *
+ * OWNERSHIP (roadmap 1-3-2-1, keep/TS-shell): Vue is deliberately NOT
+ * rust-owned. Its value is <script>-block delegation to the full TS/JS
+ * extractor (with line-offset remapping) plus regex template-component
+ * extraction (kebabToPascal + VUE_BUILTIN_COMPONENTS filter) — which the
+ * Rust core cannot replicate without an ABI-14 grammar + a sub-tree
+ * delegation mechanism it does not have. Grammar supply is inadequate
+ * (tree-sitter-vue is a placeholder crate; tree-sitter-vue-next extends
+ * tree-sitter-html with a C external scanner and parses only SFC markup).
+ * Guarded by __tests__/file-level-language-ownership-guard.test.ts.
+ * Vue/Nuxt file-convention routing lives in src/resolution/frameworks/vue.ts.
  */
 export class VueExtractor {
   private filePath: string;

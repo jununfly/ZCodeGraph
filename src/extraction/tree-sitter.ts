@@ -3649,7 +3649,14 @@ export function extractFromSource(
     const extractor = new SvelteExtractor(filePath, source);
     result = extractor.extract();
   } else if (detectedLanguage === 'vue') {
-    // Use custom extractor for Vue
+    // Use custom extractor for Vue.
+    // OWNERSHIP (roadmap 1-3-2-1, keep/TS-shell): Vue is deliberately NOT
+    // rust-owned. It is a regex-based custom extractor (not a tree-sitter
+    // grammar language) whose core value is delegating the <script> block to
+    // the full TS/JS extractor + regex template-component extraction — which
+    // the Rust core cannot replicate without an ABI-14 grammar + a sub-tree
+    // delegation mechanism it does not have. Guarded by
+    // __tests__/file-level-language-ownership-guard.test.ts.
     const extractor = new VueExtractor(filePath, source);
     result = extractor.extract();
   } else if (detectedLanguage === 'liquid') {
