@@ -30,6 +30,17 @@ import { isLanguageSupported } from './grammars';
  *
  * Out of scope (data-flow / low-value): `asp-for`/`th:field` property-string
  * bindings; the C# inside `@code { }` / `@{ }` blocks (noisy regex on embedded C#).
+ *
+ * OWNERSHIP (roadmap 1-3-4-1, keep/TS-shell): Razor/Blazor is deliberately
+ * NOT rust-owned. Its core value is delegating `@code`/`@functions`/`@{}`
+ * blocks to the full C# TreeSitterExtractor (synthetic `class __RazorCode__`
+ * wrapper + line-offset remapping) — the Blazor analog of Svelte's <script>
+ * block, which the Rust core cannot replicate without a grammar + a sub-tree
+ * delegation mechanism. Framework semantics are dense (37-entry builtin
+ * component filter, dotnet language-family sharing with csharp, directive
+ * refs, string/comment-aware brace matching), so a rewrite is high regression
+ * risk for no capability gain. Guarded by
+ * __tests__/file-level-language-ownership-guard.test.ts.
  */
 
 /**

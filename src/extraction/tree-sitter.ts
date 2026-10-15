@@ -3670,7 +3670,13 @@ export function extractFromSource(
     const extractor = new LiquidExtractor(filePath, source);
     result = extractor.extract();
   } else if (detectedLanguage === 'razor') {
-    // Use custom extractor for ASP.NET Razor (.cshtml) / Blazor (.razor) markup
+    // Use custom extractor for ASP.NET Razor (.cshtml) / Blazor (.razor) markup.
+    // OWNERSHIP (roadmap 1-3-4-1, keep/TS-shell): Razor/Blazor is deliberately
+    // NOT rust-owned. Its value is delegating @code/@functions/@{} blocks to
+    // the full C# extractor (synthetic-class wrapper + line-offset remap) —
+    // the Blazor analog of Svelte's <script> delegation, which the Rust core
+    // cannot replicate without a grammar + sub-tree delegation mechanism.
+    // Guarded by __tests__/file-level-language-ownership-guard.test.ts.
     const extractor = new RazorExtractor(filePath, source);
     result = extractor.extract();
   } else if (detectedLanguage === 'xml') {

@@ -61,4 +61,21 @@ describe('File-level language ownership guard (roadmap 1-3 keep decisions)', () 
     expect(isRustHybridOwnedLanguage('liquid')).toBe(false);
     expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('liquid');
   });
+
+  it('razor stays TypeScript-shell owned (1-3-4-1 keep)', () => {
+    // 1-3-4-1 keep rationale: same delegation architecture as Svelte/Vue —
+    // razor-extractor.ts delegates @code/@functions/@{} blocks to the full C#
+    // TreeSitterExtractor (wrapped in a synthetic `class __RazorCode__` so the
+    // block parses in a class context) with line-offset remapping; the Rust
+    // core cannot replicate this without a grammar + a sub-tree delegation
+    // mechanism. Framework-semantics dense: 37-entry BLAZOR_BUILTIN_COMPONENTS
+    // filter, dotnet language-family sharing with csharp (Rust lib.rs:1236),
+    // directive refs (@model/@inherits/@inject/@typeof), and a brace matcher
+    // that skips string literals/comments. Grammar supply (tree-sitter-blazor
+    // 0.2.0 / tree-sitter-razor 0.1.0 via tree-sitter-language bridge) parses
+    // only markup structure — not the delegation value. Rust core has zero
+    // razor extraction (only the language-family mapping in lib.rs).
+    expect(isRustHybridOwnedLanguage('razor')).toBe(false);
+    expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('razor');
+  });
 });
