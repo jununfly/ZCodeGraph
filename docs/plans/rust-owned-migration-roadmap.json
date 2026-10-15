@@ -1415,7 +1415,7 @@
     "1-3-3": {
       "id": "1-3-3",
       "label": "Liquid Rust 化可行性与落地",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3",
       "children": [
@@ -1428,21 +1428,33 @@
     "1-3-3-1": {
       "id": "1-3-3-1",
       "label": "Liquid: 可行性评估与 migrate/keep/split 决策",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3-3",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Liquid 是否迁移到 Rust 核心？",
+          "answer": "keep — Liquid 保留在 TypeScript shell（parser-free 更易审计）",
+          "note": "证据：(1) liquid-extractor.ts 393 行纯 regex——4 类提取（render/include snippet 引用 + section 引用 + schema 块 + assign 变量）+ isShopifyLiquidJson 特例（.json Shopify OS 2.0 模板把 section type 链接到 sections/<type>.liquid）。(2) 无嵌入语言委托（与 Svelte/Vue script-block 不同）——Liquid 无函数/类概念，regex 自足。(3) 引用解析走通用 path-like 后缀匹配（name-matcher.ts:47/index.ts:861），resolution/frameworks/ 无 liquid.ts。(4) 语法供给薄弱：Shopify/tree-sitter-liquid 2023-11 后停更未发 crate；RayGuo-ergou 0.0.1 依赖 tree-sitter ~0.20 陈旧；linearforest 未发布。(5) Rust 核心 26 模块零 liquid。决策理由：migrate 技术可行但无收益——regex 提取在 TS 侧零依赖、parser-free 更易审计（节点 notes 明示倾向）、易随 Shopify 主题演进调整；Rust 重写仅换取形态统一，无性能/能力增量，反而对 isShopifyLiquidJson JSON 特例（含 #383 安全注释：不 dump schema JSON）+4 类 regex 边界引入回归风险并需新 fixture+corpus 波次。split 无天然边界（单一 regex 单元）。keep 审计边界：liquid-extractor.ts + grammars.ts isShopifyLiquidJson + tree-sitter.ts:3662 分派点；护栏=扩展 file-level-language-ownership-guard.test.ts。"
+        }
+      ],
       "notes": "决策范围：移植正则抽取与 Shopify JSON template/section 链接，或因 parser-free 更易审计而留 TS shell。现状：liquid-extractor.ts + isShopifyLiquidJson 特例。产出：决策与理由；keep 也要写明审计边界与护栏。"
     },
     "1-3-3-2": {
       "id": "1-3-3-2",
       "label": "Liquid: 决策落地（Rust 实现 或 TS-shell 归属固化）",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-3-3",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Liquid keep 决策以何种形式落地？",
+          "answer": "扩展 file-level-language-ownership-guard.test.ts 加 liquid 用例 + 在 liquid-extractor.ts 头部与 tree-sitter.ts 分派点加 OWNERSHIP 标记（与 Svelte/Vue 同模式）",
+          "note": "三处改动：(1) 守卫测试新增 'liquid stays TypeScript-shell owned (1-3-3-1 keep)' 用例，断言 isRustHybridOwnedLanguage('liquid')===false 且列表不含 liquid，注释写明 keep 理由（自足 parser-free regex 无委托/迁移无收益/parser-free 更易审计/语法供给薄弱/无专属 resolver）；(2) liquid-extractor.ts 类头 doc 追加 OWNERSHIP 块；(3) tree-sitter.ts:3662 liquid 分派点加 OWNERSHIP 注释块。守卫文件已在 ci.yml L61 注册无需改 ci。strip-types --check 三文件通过；grep 确认 contract 21 项无 liquid。"
+        }
+      ],
       "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
     },
     "1-3-4": {
@@ -3030,7 +3042,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-15 18:17:48",
+    "updated": "2026-10-15 20:16:16",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
