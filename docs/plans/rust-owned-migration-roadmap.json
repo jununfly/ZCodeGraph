@@ -1505,7 +1505,7 @@
     "1-3-5": {
       "id": "1-3-5",
       "label": "XML/MyBatis Rust 化可行性与落地",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3",
       "children": [
@@ -1518,21 +1518,33 @@
     "1-3-5-1": {
       "id": "1-3-5-1",
       "label": "XML/MyBatis: 可行性评估与 migrate/keep/split 决策",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3-5",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "XML/MyBatis 是否迁移到 Rust 核心？",
+          "answer": "keep — XML/MyBatis 保留在 TypeScript shell（与 1-4 mybatis synthesizer 决策同层评估）",
+          "note": "证据：(1) mybatis-extractor.ts 198 行自足 regex——<mapper namespace> 根检测 → <select|insert|update|delete|sql id> 发射 method 形节点（qualifiedName=<namespace>::<id>）+ <include refid> refs；非 mapper XML 只回 file 节点；无嵌入语言委托（SQL 不作为嵌入语言解析）。(2) 消费契约：mybatisJavaXmlEdges（callback-synthesizer.ts:1425）——Java/Kotlin method ClassName::methodName 与 XML <namespace>::<id> 后缀匹配桥接（precision over recall，ambiguous 丢弃，synthesizedBy=mybatis-java-xml），属 1-4 波次 23 framework resolvers 之一、有自己的 ownership 决策。(3) 语法供给：tree-sitter-xml 只给通用 XML 结构，MyBatis <mapper namespace> 语义发射与 Java 后缀匹配桥是领域契约与 grammar 无关。(4) Rust 核心 26 模块零 xml。决策理由：migrate 纯 regex 可移植但无收益——提取器 parser-free 自足，且抽取形状（<namespace>::<id> 契约）与 TS 侧 synthesizer 紧耦合，现在迁 Rust 会在 1-4 造成跨层协调负担；split 无边界。keep 审计边界：mybatis-extractor.ts + tree-sitter.ts:3676 分派点 + callback-synthesizer.ts:1425 mybatisJavaXmlEdges；护栏=扩展 file-level-language-ownership-guard.test.ts。"
+        }
+      ],
       "notes": "决策范围：移植 mapper 语句抽取与 MyBatis resolver 契约，或显式保留 TS shell。现状：mybatis-extractor.ts：<mapper namespace> 形状发射 SQL 语句节点；其他 XML 返回空。产出：决策与理由；keep 也要写明审计边界与护栏。"
     },
     "1-3-5-2": {
       "id": "1-3-5-2",
       "label": "XML/MyBatis: 决策落地（Rust 实现 或 TS-shell 归属固化）",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-3-5",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "XML/MyBatis keep 决策以何种形式落地？",
+          "answer": "扩展 file-level-language-ownership-guard.test.ts 加 xml 用例 + 在 mybatis-extractor.ts 头部与 tree-sitter.ts 分派点加 OWNERSHIP 标记（与前 4 语言同模式）",
+          "note": "三处改动：(1) 守卫测试新增 'xml (MyBatis) stays TypeScript-shell owned (1-3-5-1 keep)' 用例（现 5 条），注释写明 keep 理由（自足 regex 无委托/<namespace>::<id> 契约被 TS synthesizer 消费/1-4 同层评估/grammar 只给通用 XML 结构）；(2) mybatis-extractor.ts 类头 doc 追加 OWNERSHIP 块；(3) tree-sitter.ts:3682 xml 分派点加 OWNERSHIP 注释块。strip-types --check 三文件通过；grep 确认 contract 21 项无 xml。"
+        }
+      ],
       "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
     },
     "1-3-6": {
@@ -3054,7 +3066,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-15 20:31:26",
+    "updated": "2026-10-15 20:57:18",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
