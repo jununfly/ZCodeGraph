@@ -796,7 +796,7 @@
     "1-2-10": {
       "id": "1-2-10",
       "label": "Pascal/Delphi 基线抽取迁移",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -827,7 +827,7 @@
           "note": "备选 Lazarus IDE / FPC RTL"
         }
       ],
-      "notes": ""
+      "notes": "Pascal/Delphi 基线抽取迁移完成（第 20 个 rust-owned 语言）。tree-sitter-pascal 0.10.2 ABI14 直连，Rust 全量基线抽取（pascal.rs ~600行），rust-hybrid 切换，mORMot 433 文件 0 gap 44K 节点，TS fallback 净删 966 行。tolerates_parse_errors + 128MiB scoped thread + lossy UTF-8。"
     },
     "1-2-10-1": {
       "id": "1-2-10-1",
@@ -885,12 +885,23 @@
     "1-2-10-4": {
       "id": "1-2-10-4",
       "label": "Pascal/Delphi: 框架/运行时语义边界决策 + TS fallback 移除",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2-10",
       "children": [],
-      "decisions": [],
-      "notes": "三选一决策落本节点：migrate / keep TS-shell / split；边界明确且 fixture+语料通过后，才删除 TS 该语言 fallback 抽取路径。"
+      "decisions": [
+        {
+          "q": "框架/运行时语义边界？",
+          "answer": "无需框架 back-fill：Delphi published/RTTI 语义已由 Rust extractor kPublished visibility 覆盖；DfmExtractor 独立非 tree-sitter 保留 TS 侧；无 Laravel/Rails/Vapor 式 framework resolver 需求",
+          "note": "Pascal 是第 20 个 rust-owned 语言中少数无 TS framework back-fill 的语言（同 Go/Dart/Lua）"
+        },
+        {
+          "q": "TS fallback 移除策略？",
+          "answer": "移除 EXTRACTORS 注册 + visitPascalNode/extractPascal* 方法；保留 DfmExtractor 独立 extractor + PASCAL_BUILT_INS 过滤表",
+          "note": "pascal.ts 无其他消费者（无 razor 式二次消费），可完全移除；tree-sitter.ts 中 ~400 行 Pascal-specific walker 变为 dead code 可删"
+        }
+      ],
+      "notes": "TS fallback 移除完成：pascal.ts 删除（63行），tree-sitter.ts Pascal visitor 清除（~400行），27 个旧 TS 引擎测试移除（489行），保留 DfmExtractor + PASCAL_BUILT_INS。净删 966 行。294/295 通过（1 预存）。"
     },
     "1-2-11": {
       "id": "1-2-11",
@@ -2956,7 +2967,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-14 21:09:57",
+    "updated": "2026-10-15 14:28:30",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
