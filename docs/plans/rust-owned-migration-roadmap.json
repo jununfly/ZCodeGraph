@@ -84,7 +84,7 @@
     "1-2": {
       "id": "1-2",
       "label": "Goal1: Grammar 语言基线抽取迁移到 Rust",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1",
       "children": [
@@ -906,7 +906,7 @@
     "1-2-11": {
       "id": "1-2-11",
       "label": "Scala 基线抽取迁移",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-2",
       "children": [
@@ -979,7 +979,7 @@
     "1-2-11-4": {
       "id": "1-2-11-4",
       "label": "Scala: 框架/运行时语义边界决策 + TS fallback 移除",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2-11",
       "children": [],
@@ -3006,7 +3006,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-15 17:01:02",
+    "updated": "2026-10-15 17:25:55",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
