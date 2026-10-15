@@ -1370,7 +1370,7 @@
     "1-3-2": {
       "id": "1-3-2",
       "label": "Vue Rust 化可行性与落地",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3",
       "children": [
@@ -1383,21 +1383,33 @@
     "1-3-2-1": {
       "id": "1-3-2-1",
       "label": "Vue: 可行性评估与 migrate/keep/split 决策",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3-2",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Vue 是否迁移到 Rust 核心？",
+          "answer": "keep — Vue 保留在 TypeScript shell",
+          "note": "证据：(1) vue-extractor.ts 290 行，纯委托架构——createComponentNode + extractScriptBlocks/processScriptBlock 把 <script>/<script setup> 内容委托给完整 TreeSitterExtractor(TS/JS) 并做行号回映；extractTemplateComponents 用正则提取 PascalCase/kebab 模板组件经 kebabToPascal 转换 + VUE_BUILTIN_COMPONENTS(7 项)过滤。(2) 语法供给：tree-sitter-vue 0.0.1 是占位 crate；tree-sitter-vue-next 用 tree-sitter-language 0.1 桥接但扩展 tree-sitter-html 0.23.2 基语法 + 自带 C external scanner、针对 tree-sitter 0.26 测试——即便 ABI 兼容也只解析 SFC 结构标记，无法复刻 script-block 委托价值（Rust 核心无 grammar 也无 sub-tree 委托机制），且引入 html 基语法 + C scanner 依赖。(3) Rust 核心 26 个模块零 vue 痕迹。(4) src/resolution/frameworks/vue.ts（Vue/Nuxt 文件约定路由）在节点范围内保留。架构结论与 Svelte 1-3-1-1 一致：提取器价值 = script 委托，Rust 无法复刻 → keep；split 不成立因模板组件 ref 锚定 script 上下文的 component 节点。keep 护栏：扩展 file-level-language-ownership-guard.test.ts 加 vue 用例 + 在 vue-extractor.ts 头部与 tree-sitter.ts:3651 分派点加 OWNERSHIP 标记。"
+        }
+      ],
       "notes": "决策范围：保留 script-block 委托与 Vue/Nuxt 文件约定路由；决策 Rust 是否拥有 SFC 结构。现状：vue-extractor.ts 同 Svelte 委托模式。产出：决策与理由；keep 也要写明审计边界与护栏。"
     },
     "1-3-2-2": {
       "id": "1-3-2-2",
       "label": "Vue: 决策落地（Rust 实现 或 TS-shell 归属固化）",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-3-2",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Vue keep 决策以何种形式落地？",
+          "answer": "扩展 file-level-language-ownership-guard.test.ts 加 vue 用例 + 在 vue-extractor.ts 头部与 tree-sitter.ts 分派点加 OWNERSHIP 标记（与 Svelte 1-3-1-2 同模式）",
+          "note": "三处改动：(1) 守卫测试新增 'vue stays TypeScript-shell owned (1-3-2-1 keep)' 用例，断言 isRustHybridOwnedLanguage('vue')===false 且 RUST_HYBRID_RUST_OWNED_LANGUAGES 不含 vue，注释写明 4 点 keep 理由（委托架构/语法供给不足/Rust 零 vue/Nuxt resolver 保留）；(2) vue-extractor.ts 类头 doc 追加 OWNERSHIP 块说明 keep 理由与护栏指针；(3) tree-sitter.ts:3651 vue 分派点加 OWNERSHIP 注释块。守卫文件已在 ci.yml L61 (#692 guardrails step) 注册，无需改 ci。strip-types --check 三文件语法通过；验证 RUST_HYBRID_RUST_OWNED_LANGUAGES 21 项无 vue。"
+        }
+      ],
       "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
     },
     "1-3-3": {
@@ -3018,7 +3030,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-15 17:56:50",
+    "updated": "2026-10-15 18:17:48",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
