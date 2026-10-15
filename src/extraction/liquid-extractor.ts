@@ -9,6 +9,16 @@ import { generateNodeId } from './tree-sitter-helpers';
  * - Section references ({% section 'name' %})
  * - Snippet references ({% render 'name' %} and {% include 'name' %})
  * - Schema blocks ({% schema %}...{% endschema %})
+ *
+ * OWNERSHIP (roadmap 1-3-3-1, keep/TS-shell): Liquid is deliberately NOT
+ * rust-owned. It is a self-contained parser-free regex extractor — no
+ * embedded-language delegation (unlike Svelte/Vue), no grammar needed.
+ * Migration to Rust is technically possible but buys nothing: regex
+ * extraction here is zero-dependency and easier to audit/evolve with Shopify
+ * theme conventions, while a rewrite would risk regressions around the
+ * isShopifyLiquidJson JSON special case (incl. the #383 security note below)
+ * and the 4 regex families. Guarded by
+ * __tests__/file-level-language-ownership-guard.test.ts.
  */
 export class LiquidExtractor {
   private filePath: string;

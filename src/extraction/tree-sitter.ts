@@ -3660,7 +3660,13 @@ export function extractFromSource(
     const extractor = new VueExtractor(filePath, source);
     result = extractor.extract();
   } else if (detectedLanguage === 'liquid') {
-    // Use custom extractor for Liquid
+    // Use custom extractor for Liquid.
+    // OWNERSHIP (roadmap 1-3-3-1, keep/TS-shell): Liquid is deliberately NOT
+    // rust-owned. Self-contained parser-free regex extractor (no embedded
+    // delegation); parser-free on the TS side is easier to audit and evolve
+    // with Shopify theme conventions, and a Rust rewrite buys nothing while
+    // risking regressions on the isShopifyLiquidJson JSON special case.
+    // Guarded by __tests__/file-level-language-ownership-guard.test.ts.
     const extractor = new LiquidExtractor(filePath, source);
     result = extractor.extract();
   } else if (detectedLanguage === 'razor') {

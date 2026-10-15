@@ -44,4 +44,21 @@ describe('File-level language ownership guard (roadmap 1-3 keep decisions)', () 
     expect(isRustHybridOwnedLanguage('vue')).toBe(false);
     expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('vue');
   });
+
+  it('liquid stays TypeScript-shell owned (1-3-3-1 keep)', () => {
+    // 1-3-3-1 keep rationale: unlike Svelte/Vue (script-block delegation the
+    // Rust core can't replicate), Liquid is a self-contained parser-free regex
+    // extractor (no embedded-language delegation, no functions/classes).
+    // Migration is technically possible but buys nothing — regex extraction on
+    // the TS side is zero-dependency, easier to audit (per node notes), and
+    // easier to evolve with Shopify theme conventions; a Rust rewrite only
+    // unifies form while adding regression risk around the isShopifyLiquidJson
+    // JSON special case (incl. the #383 security note: never dump schema JSON
+    // into docstrings) and the 4 regex families. Grammar supply is weak
+    // (Shopify/tree-sitter-liquid unmaintained since 2023-11, no published
+    // crate). No dedicated framework resolver — references resolve via the
+    // generic path-like suffix matcher. Rust core (26 modules) has zero liquid.
+    expect(isRustHybridOwnedLanguage('liquid')).toBe(false);
+    expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('liquid');
+  });
 });
