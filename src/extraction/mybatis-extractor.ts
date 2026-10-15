@@ -23,6 +23,15 @@ import { generateNodeId } from './tree-sitter-helpers';
  * etc.) is detected by the absence of a `<mapper namespace="...">` root and
  * returns just a file node — we still need the file row so the watcher can
  * track it, but we emit no symbols.
+ *
+ * OWNERSHIP (roadmap 1-3-5-1, keep/TS-shell): XML/MyBatis is deliberately
+ * NOT rust-owned. The extractor is self-contained parser-free regex (no
+ * embedded-language delegation), and its emission shape (qualifiedName
+ * `<namespace>::<id>`) is a domain contract consumed by the TS-side
+ * mybatisJavaXmlEdges synthesizer — one of the 1-4 wave's 23 framework
+ * resolvers with its own ownership decision. Keeping the extractor here
+ * lets the Java↔XML bridge be evaluated in one layer in 1-4. Guarded by
+ * __tests__/file-level-language-ownership-guard.test.ts.
  */
 export class MyBatisExtractor {
   private filePath: string;

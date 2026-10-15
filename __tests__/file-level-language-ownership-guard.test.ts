@@ -78,4 +78,20 @@ describe('File-level language ownership guard (roadmap 1-3 keep decisions)', () 
     expect(isRustHybridOwnedLanguage('razor')).toBe(false);
     expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('razor');
   });
+
+  it('xml (MyBatis) stays TypeScript-shell owned (1-3-5-1 keep)', () => {
+    // 1-3-5-1 keep rationale: mybatis-extractor.ts is a self-contained
+    // parser-free regex extractor (no embedded-language delegation — SQL is
+    // not parsed as an embedded language). Its emission shape (qualifiedName
+    // `<namespace>::<id>`) is a domain contract consumed by the TS-side
+    // mybatisJavaXmlEdges synthesizer (callback-synthesizer.ts:1425), which
+    // suffix-matches Java/Kotlin `ClassName::methodName` → XML statement.
+    // That synthesizer is one of the 1-4 wave's 23 framework resolvers with
+    // its own ownership decision, so the extractor must stay on the TS shell
+    // to keep the Java↔XML bridge contract evaluable in one layer. A generic
+    // tree-sitter-xml grammar would only give XML structure, not the MyBatis
+    // semantics. Rust core (26 modules) has zero xml.
+    expect(isRustHybridOwnedLanguage('xml')).toBe(false);
+    expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('xml');
+  });
 });

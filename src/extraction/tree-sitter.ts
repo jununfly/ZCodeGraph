@@ -3682,6 +3682,11 @@ export function extractFromSource(
   } else if (detectedLanguage === 'xml') {
     // Custom extractor for MyBatis mapper XML. Non-mapper XML returns just a
     // file node so the watcher tracks it without emitting symbols.
+    // OWNERSHIP (roadmap 1-3-5-1, keep/TS-shell): XML/MyBatis is deliberately
+    // NOT rust-owned — self-contained parser-free regex whose emission shape
+    // (`<namespace>::<id>`) is a contract consumed by the TS-side
+    // mybatisJavaXmlEdges synthesizer, itself a 1-4-wave ownership decision.
+    // Guarded by __tests__/file-level-language-ownership-guard.test.ts.
     const extractor = new MyBatisExtractor(filePath, source);
     result = extractor.extract();
   } else if (isFileLevelOnlyLanguage(detectedLanguage)) {
