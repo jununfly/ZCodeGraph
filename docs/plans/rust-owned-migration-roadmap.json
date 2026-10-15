@@ -1325,7 +1325,7 @@
     "1-3-1": {
       "id": "1-3-1",
       "label": "Svelte Rust 化可行性与落地",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3",
       "children": [
@@ -1338,21 +1338,33 @@
     "1-3-1-1": {
       "id": "1-3-1-1",
       "label": "Svelte: 可行性评估与 migrate/keep/split 决策",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Svelte: migrate / keep / split 边界决策（Rust 拥有 markup 扫描 vs 仅 script 事实）",
+          "answer": "选 keep（TS-shell），不迁移 Rust。理由（可行性评估结论）：(1) Grammar 不可用——tree-sitter-svelte 0.10.2 crates.io 陈旧；tree-sitter-svelte-next 0.1.1 = tree-sitter 0.25/ABI15 与我们 tree-sitter 0.24/ABI14 pin 冲突；arborium-svelte 依赖 tree-sitter-patched-arborium patched fork，与 vanilla 0.24 workspace 不兼容；三条供给路径全堵，无 ABI14 直连选项。(2) 架构错配——Svelte 核心价值不是 markup grammar，而是 svelte-extractor.ts 把 <script> 块委托给完整 TS/JS TreeSitterExtractor（复用全部 TS/JS 符号/引用抽取 + line offset 回填）+ regex 模板扫描（{fn(...)} calls + <PascalCase> component refs）；Rust 迁移须先有 grammar + 子树再解析委托机制（Rust 侧没有），+ 移植 3 块 regex 扫描，高成本低收益。(3) split 的'Rust 仅 markup 扫描'不可行——markup 扫描（模板 calls/components）只是 4 块中的 2 块 regex，脱离 script 委托上下文后 ref 归属到 component node 的语义链断裂，单独 Rust 化无意义。审计边界：svelte-extractor.ts 4 块职责（component node / script 委托 / 模板 calls / 模板 components）+ frameworks/svelte.ts 279 行 SvelteKit resolver（route/action 语义）全留 TS；护栏 = 不宣称 svelte 任何部分 Rust-owned，RUST_HYBRID_RUST_OWNED_LANGUAGES 永不含 'svelte'（除非未来出现 ABI14 grammar + Rust 子树委托机制）。",
+          "note": "Svelte 是 4-part regex 自定义抽取器（非 tree-sitter grammar 语言，grammars.ts L13 显式排除）；dispatch 在 tree-sitter.ts:3642 TS orchestrator 层；Rust core 零 svelte。keep 决策下 1-3-1-2 落地 = 固化 TS-shell 归属 + 写明审计边界，无代码改动"
+        }
+      ],
       "notes": "决策范围：保留 script-block 委托与 SvelteKit route/action 语义；决策 Rust 拥有 markup 扫描还是仅 script 事实。现状：svelte-extractor.ts：抽出 script 块委托 tree-sitter。产出：决策与理由；keep 也要写明审计边界与护栏。"
     },
     "1-3-1-2": {
       "id": "1-3-1-2",
       "label": "Svelte: 决策落地（Rust 实现 或 TS-shell 归属固化）",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-3-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "keep 决策的落地形态",
+          "answer": "按节点 notes 'keep → 代码与文档显式标注 TS-shell owned 并加防回退测试'落地，零功能改动。三件 artifact：(1) 新建 __tests__/file-level-language-ownership-guard.test.ts——专属 ownership 护栏，首条 it('svelte stays TypeScript-shell owned') 断言 isRustHybridOwnedLanguage('svelte')===false 且 RUST_HYBRID_RUST_OWNED_LANGUAGES 不含 'svelte'，注释写明 keep 理由 + 兄弟语言决策后追加；设计为每语言一条 it，失败名即定位被违反的 keep 决策。(2) tree-sitter.ts:3642 svelte dispatch 处加 OWNERSHIP 注释块（标注 1-3-1-1 keep + 指向 guard test）。(3) svelte-extractor.ts 文件头加 OWNERSHIP banner（keep 理由 + guard 指针）。全部 strip-types 校验通过。",
+          "note": "guard 不复用 rust-hybrid-baseline（subprocess runner 测试）也不塞 extraction.test.ts（已 6k+ 行）；独立文件随 1-3 兄弟语言（vue/liquid/razor/xml/yaml/twig/properties）决策逐个扩充"
+        }
+      ],
       "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
     },
     "1-3-2": {
@@ -3006,7 +3018,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-15 17:25:55",
+    "updated": "2026-10-15 17:56:50",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
