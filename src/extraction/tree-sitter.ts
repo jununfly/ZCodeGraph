@@ -117,38 +117,6 @@ function extractName(node: SyntaxNode, source: string, extractor: LanguageExtrac
 }
 
 /**
- * Resolve a Scala type node to its base type NAME for name-matching — unwrapping
- * `generic_type` (`Monoid[Int]` → `Monoid`), taking the last segment of a
- * qualified `stable_type_identifier` (`cats.Functor` → `Functor`), and falling
- * back to a descendant `type_identifier`. Returns null for non-type nodes.
- * Shared by Scala inheritance and type-reference extraction.
- */
-function scalaBaseTypeName(node: SyntaxNode | null, source: string): string | null {
-  if (!node) return null;
-  switch (node.type) {
-    case 'type_identifier':
-    case 'identifier':
-      return getNodeText(node, source);
-    case 'generic_type':
-      // `<base> type_arguments` — the base type is the first named child.
-      return scalaBaseTypeName(node.namedChild(0), source);
-    case 'stable_type_identifier':
-    case 'stable_identifier': {
-      // Qualified `a.b.C` — match on the simple (last) segment.
-      const ids = node.namedChildren.filter(
-        (c: SyntaxNode) => c.type === 'type_identifier' || c.type === 'identifier'
-      );
-      const last = ids[ids.length - 1];
-      return last ? getNodeText(last, source) : null;
-    }
-    default: {
-      const id = node.namedChildren.find((c: SyntaxNode) => c.type === 'type_identifier');
-      return id ? getNodeText(id, source) : null;
-    }
-  }
-}
-
-/**
  * PHP type-position wrapper node kinds (a type-hint is `named_type`,
  * `?Foo` is `optional_type`, `A|B` is `union_type`, `A&B` is
  * `intersection_type`). Used to find the type subtree inside a parameter /
@@ -171,7 +139,7 @@ const MEMBER_ACCESS_TYPES: ReadonlySet<string> = new Set([
   'field_access',                       // java (`Foo.BAR`)
   'member_access_expression',           // c#  (`Foo.Bar`)
   'navigation_expression',              // kotlin / swift (`Foo.bar`)
-  'field_expression',                   // scala (`Foo.bar`)
+  'field_expression',                   // c/c++ (`Foo.bar`, `ptr->bar`)
   'class_constant_access_expression',   // php (`Foo::CONST`, `Foo::class`)
   'scoped_property_access_expression',  // php (`Foo::$bar`)
   'qualified_identifier',               // c++ (`Foo::bar`)
@@ -190,7 +158,7 @@ const MEMBER_ACCESS_TYPES: ReadonlySet<string> = new Set([
  * already-covered types). Don't re-add `member_expression`/`attribute` here.
  */
 const STATIC_MEMBER_LANGS: ReadonlySet<string> = new Set([
-  'java', 'csharp', 'kotlin', 'swift', 'scala', 'dart', 'php',
+  'java', 'csharp', 'kotlin', 'swift', 'dart', 'php',
 ]);
 
 /**
@@ -204,7 +172,6 @@ const INSTANTIATION_KINDS: ReadonlySet<string> = new Set([
   'instance_creation_expression',    // some grammars
   'composite_literal',               // go — `Widget{...}` / `pkga.Widget{...}`
   'struct_expression',               // rust — `Widget { n: 1 }` / `m::Widget { .. }`
-  'instance_expression',             // scala — `new Monoid[Int] { ... }`
 ]);
 
 /**
@@ -2459,23 +2426,6 @@ export class TreeSitterExtractor {
       return;
     }
 
-    // Scala: `new Monoid[Int] { ... }` — the constructor is a `generic_type`
-    // (or qualified `stable_type_identifier`) using `[...]` type args, which the
-    // generic `<...>` strip below misses. Unwrap to the base type name.
-    if (node.type === 'instance_expression') {
-      const name = scalaBaseTypeName(ctor, this.source);
-      if (name) {
-        this.unresolvedReferences.push({
-          fromNodeId: fromId,
-          referenceName: name,
-          referenceKind: 'instantiates',
-          line: node.startPosition.row + 1,
-          column: node.startPosition.column,
-        });
-      }
-      return;
-    }
-
     let className = getNodeText(ctor, this.source);
     // Strip type-argument suffix first: `new Map<K, V>()` would
     // otherwise produce className 'Map<K, V>' (the constructor
@@ -2999,28 +2949,6 @@ export class TreeSitterExtractor {
         child.type === 'base_clause' || // PHP class extends
         child.type === 'extends_interfaces' // Java interface extends
       ) {
-        // Scala: `extends A[X] with B with C` packs EVERY supertype into the
-        // one extends_clause (separated by `with`), each a `generic_type` /
-        // `type_identifier` / `stable_type_identifier`. The generic path below
-        // takes only namedChild(0) and keeps the full text (`A[X]`), so a
-        // parameterized supertype — every typeclass in cats/algebra — never
-        // matched and `with`-mixed traits past the first were dropped. Iterate
-        // all supertypes and unwrap each to its base type name.
-        if (this.language === 'scala') {
-          for (const target of child.namedChildren) {
-            const name = scalaBaseTypeName(target, this.source);
-            if (name) {
-              this.unresolvedReferences.push({
-                fromNodeId: classId,
-                referenceName: name,
-                referenceKind: 'extends',
-                line: target.startPosition.row + 1,
-                column: target.startPosition.column,
-              });
-            }
-          }
-          continue;
-        }
         // Dart: `class C extends Base with M1, M2` — the `superclass` node holds
         // the extends type as a direct `type_identifier` AND a `mixins` child
         // listing the `with` mixins (and `class C with M` has ONLY mixins, no
@@ -3354,7 +3282,7 @@ export class TreeSitterExtractor {
    * Languages that support type annotations (TypeScript, etc.)
    */
   private readonly TYPE_ANNOTATION_LANGUAGES = new Set([
-    'typescript', 'tsx', 'dart', 'kotlin', 'swift', 'rust', 'go', 'java', 'csharp', 'scala', 'php',
+    'typescript', 'tsx', 'dart', 'kotlin', 'swift', 'rust', 'go', 'java', 'csharp', 'php',
   ]);
 
   /**
@@ -3380,9 +3308,6 @@ export class TreeSitterExtractor {
     // Go
     'int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64',
     'float32', 'float64', 'complex64', 'complex128', 'rune', 'error',
-    // Scala (capitalized primitives + ubiquitous stdlib aliases)
-    'Int', 'Long', 'Short', 'Byte', 'Float', 'Double', 'Boolean', 'Char', 'Unit',
-    'String', 'Any', 'AnyRef', 'AnyVal', 'Nothing', 'Null',
   ]);
 
   /**
@@ -3436,41 +3361,16 @@ export class TreeSitterExtractor {
       return;
     }
 
-    // Extract parameter type annotations. Scala curries — `def f(a)(implicit
-    // M: TC)` has MULTIPLE `parameters` siblings, and the typeclass is almost
-    // always in the trailing implicit list — so walk every parameter list, not
-    // just getChildByField's first match.
-    if (this.language === 'scala') {
-      for (const pc of node.namedChildren) {
-        if (pc.type === 'parameters') this.extractTypeRefsFromSubtree(pc, nodeId);
-      }
-    } else {
-      const params = getChildByField(node, this.extractor.paramsField || 'parameters');
-      if (params) {
-        this.extractTypeRefsFromSubtree(params, nodeId);
-      }
+    // Extract parameter type annotations.
+    const params = getChildByField(node, this.extractor.paramsField || 'parameters');
+    if (params) {
+      this.extractTypeRefsFromSubtree(params, nodeId);
     }
 
     // Extract return type annotation
     const returnType = getChildByField(node, this.extractor.returnField || 'return_type');
     if (returnType) {
       this.extractTypeRefsFromSubtree(returnType, nodeId);
-    }
-
-    // Scala context bounds / type-parameter bounds: `def f[A: Monoid]`,
-    // `[F[_]: Monad]`, `[A <: Foo]` carry the bound type inside `type_parameters`.
-    // This is THE pervasive way a typeclass is required in Scala, yet the bound
-    // never appears in the value parameters. Param NAMES are `identifier` (not
-    // `type_identifier`), so only the bound types surface. Scala-only: in other
-    // languages a `type_parameters` child holds declaration names as
-    // `type_identifier` (TS `<T>`), which would wrongly surface as refs.
-    if (this.language === 'scala') {
-      const typeParams = node.namedChildren.find(
-        (c: SyntaxNode) => c.type === 'type_parameters'
-      );
-      if (typeParams) {
-        this.extractTypeRefsFromSubtree(typeParams, nodeId);
-      }
     }
 
     // Extract direct type annotation (for class fields like `model: ITextModel`)

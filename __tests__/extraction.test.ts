@@ -2231,86 +2231,12 @@ end`;
 // fixture coverage lives in rust-owned-language-fixtures.test.ts; the legacy
 // typescript-only describe stays deleted (the skip-debt allowlist is empty).
 
-describe('Scala cross-file dependencies', () => {
-  let tempDir: string;
-  let cg: CodeGraph;
-
-  beforeEach(() => {
-    tempDir = createTempDir();
-  });
-
-  afterEach(() => {
-    if (cg) cg.close();
-    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
-  });
-
-  it('links parameterized supertypes, type annotations, and implicit params across files', async () => {
-    const src = path.join(tempDir, 'src', 'main', 'scala', 'demo');
-    fs.mkdirSync(src, { recursive: true });
-
-    fs.writeFileSync(
-      path.join(src, 'Semigroup.scala'),
-      `package demo
-
-trait Semigroup[A] {
-  def combine(x: A, y: A): A
-}
-`
-    );
-    fs.writeFileSync(
-      path.join(src, 'Monoid.scala'),
-      `package demo
-
-trait Monoid[A] extends Semigroup[A] {
-  def empty: A
-}
-`
-    );
-    fs.writeFileSync(
-      path.join(src, 'Instances.scala'),
-      `package demo
-
-object Instances {
-  implicit val intMonoid: Monoid[Int] = new Monoid[Int] {
-    def empty: Int = 0
-    def combine(x: Int, y: Int): Int = x + y
-  }
-}
-`
-    );
-    fs.writeFileSync(
-      path.join(src, 'Folding.scala'),
-      `package demo
-
-object Folding {
-  def fold[A](xs: List[A])(implicit M: Monoid[A]): A =
-    xs.foldLeft(M.empty)(M.combine)
-}
-`
-    );
-
-    cg = CodeGraph.initSync(tempDir);
-    await cg.indexAll({ engine: 'typescript' });
-    cg.resolveReferences();
-
-    const monoid = cg.getNodesByKind('trait').find((n) => n.name === 'Monoid');
-    const semigroup = cg.getNodesByKind('trait').find((n) => n.name === 'Semigroup');
-    expect(monoid).toBeDefined();
-    expect(semigroup).toBeDefined();
-    expect(monoid!.filePath).not.toBe(semigroup!.filePath);
-
-    // Parameterized supertype `extends Semigroup[A]` must create an extends edge —
-    // the whole point of the fix (the `[A]` used to defeat name matching).
-    const semaImpact = cg.getImpactRadius(semigroup!.id, 3);
-    expect([...semaImpact.nodes.values()].map((n) => n.name)).toContain('Monoid');
-
-    // Editing Monoid surfaces the cross-file users: the instance val typed
-    // `Monoid[Int]` and the method taking it as an implicit (curried) param.
-    const impacted = [...cg.getImpactRadius(monoid!.id, 3).nodes.values()].map((n) => n.name);
-    expect(impacted).toContain('intMonoid'); // field type annotation
-    expect(impacted).toContain('fold'); // trailing implicit parameter list
-  });
-});
+// Scala is fully Rust-owned on the supported rust-hybrid path (roadmap 1-2-11-4);
+// the legacy TS scala extractor + orchestrator type-annotation enrichment
+// (curried implicit-param + context-bound references) was removed. The former
+// "Scala cross-file dependencies" describe asserted that TS-only enrichment and
+// is retired with it; baseline symbol/inheritance/call coverage is locked
+// engine-agnostically in rust-owned-language-fixtures.test.ts (#692).
 
 describe('PHP namespace + import resolution', () => {
   let tempDir: string;
@@ -4168,6 +4094,10 @@ describe('Nested non-submodule git repos', () => {
 // =============================================================================
 
 describe('Scala Extraction', () => {
+  // Scala is fully Rust-owned on the supported rust-hybrid path (roadmap
+  // 1-2-11-4); the legacy TS scala extractor was removed. Only language
+  // detection is asserted here (engine-agnostic); baseline symbol/inheritance/
+  // call coverage is locked in rust-owned-language-fixtures.test.ts (#692).
   describe('Language detection', () => {
     it('should detect Scala files', () => {
       expect(detectLanguage('Main.scala')).toBe('scala');
@@ -4180,256 +4110,63 @@ describe('Scala Extraction', () => {
       expect(getSupportedLanguages()).toContain('scala');
     });
   });
+});
 
-  describe('Class extraction', () => {
-    it('should extract class definitions', () => {
-      const code = `
-class UserService(private val repo: UserRepository) {
-  def findUser(id: String): Option[String] = Some(id)
-}
-`;
-      const result = extractFromSource('UserService.scala', code);
-      const cls = result.nodes.find((n) => n.kind === 'class' && n.name === 'UserService');
-      expect(cls).toBeDefined();
-      expect(cls?.language).toBe('scala');
-    });
+// End-to-end rust-hybrid contract for roadmap 1-2-11-4. Scala is now in
+// RUST_HYBRID_RUST_OWNED_LANGUAGES, so the pure-Rust engine emits baseline
+// symbols + extends refs and the rust-hybrid shell resolves them into real
+// extends edges (same shape as the C++ describe above). Baseline coverage is
+// engine-agnostic in rust-owned-language-fixtures.test.ts (#692).
+describe('Scala trait inheritance (rust-hybrid) (1-2-11-4)', () => {
+  let tempDir: string;
+  let cg: CodeGraph;
 
-    it('should extract object definitions as class kind', () => {
-      const code = `
-object DatabaseConfig {
-  val url = "jdbc:postgresql://localhost/mydb"
-}
-`;
-      const result = extractFromSource('Config.scala', code);
-      const obj = result.nodes.find((n) => n.kind === 'class' && n.name === 'DatabaseConfig');
-      expect(obj).toBeDefined();
-    });
-
-    it('should extract trait definitions as trait kind', () => {
-      const code = `
-trait Repository[A] {
-  def findById(id: String): Option[A]
-  def save(entity: A): Unit
-}
-`;
-      const result = extractFromSource('Repository.scala', code);
-      const trait_ = result.nodes.find((n) => n.kind === 'trait' && n.name === 'Repository');
-      expect(trait_).toBeDefined();
-    });
+  beforeEach(() => {
+    tempDir = createTempDir();
   });
 
-  describe('Method and function extraction', () => {
-    it('should extract method definitions inside a class', () => {
-      const code = `
-class Calculator {
-  def add(a: Int, b: Int): Int = a + b
-  def divide(a: Double, b: Double): Double = a / b
-}
-`;
-      const result = extractFromSource('Calculator.scala', code);
-      const methods = result.nodes.filter((n) => n.kind === 'method');
-      expect(methods.find((m) => m.name === 'add')).toBeDefined();
-      expect(methods.find((m) => m.name === 'divide')).toBeDefined();
-    });
-
-    it('should extract method signatures', () => {
-      const code = `
-class Greeter {
-  def greet(name: String): String = s"Hello, \${name}!"
-}
-`;
-      const result = extractFromSource('Greeter.scala', code);
-      const method = result.nodes.find((n) => n.name === 'greet');
-      expect(method?.signature).toContain('name: String');
-      expect(method?.signature).toContain('String');
-    });
-
-    it('should extract top-level function definitions as functions', () => {
-      const code = `
-def factorial(n: Int): Int = if (n <= 1) 1 else n * factorial(n - 1)
-def greet(name: String): String = s"Hello, \${name}!"
-`;
-      const result = extractFromSource('utils.scala', code);
-      const fns = result.nodes.filter((n) => n.kind === 'function');
-      expect(fns.find((f) => f.name === 'factorial')).toBeDefined();
-      expect(fns.find((f) => f.name === 'greet')).toBeDefined();
-    });
+  afterEach(() => {
+    if (cg) cg.close();
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  describe('Val and var extraction', () => {
-    it('should extract val inside a class as field', () => {
-      const code = `
-class Config {
-  val timeout: Int = 30
-  val host: String = "localhost"
+  it('resolves cross-file trait extends edges end-to-end', async () => {
+    const src = path.join(tempDir, 'src', 'main', 'scala', 'demo');
+    fs.mkdirSync(src, { recursive: true });
+    fs.writeFileSync(
+      path.join(src, 'Semigroup.scala'),
+      `package demo
+
+trait Semigroup[A] {
+  def combine(x: A, y: A): A
 }
-`;
-      const result = extractFromSource('Config.scala', code);
-      const fields = result.nodes.filter((n) => n.kind === 'field');
-      expect(fields.find((f) => f.name === 'timeout')).toBeDefined();
-      expect(fields.find((f) => f.name === 'host')).toBeDefined();
-    });
+`
+    );
+    fs.writeFileSync(
+      path.join(src, 'Monoid.scala'),
+      `package demo
 
-    it('should extract var inside a class as field', () => {
-      const code = `
-class Counter {
-  var count: Int = 0
+trait Monoid[A] extends Semigroup[A] {
+  def empty: A
 }
-`;
-      const result = extractFromSource('Counter.scala', code);
-      const field = result.nodes.find((n) => n.kind === 'field' && n.name === 'count');
-      expect(field).toBeDefined();
-    });
+`
+    );
 
-    it('should extract top-level val as constant', () => {
-      const code = `
-val MaxConnections: Int = 100
-val DefaultTimeout = 30
-`;
-      const result = extractFromSource('constants.scala', code);
-      const consts = result.nodes.filter((n) => n.kind === 'constant');
-      expect(consts.find((c) => c.name === 'MaxConnections')).toBeDefined();
-    });
+    cg = CodeGraph.initSync(tempDir);
+    await cg.indexAll({ engine: 'rust-hybrid' });
+    cg.resolveReferences();
 
-    it('should extract top-level var as variable', () => {
-      const code = `
-var retries: Int = 3
-`;
-      const result = extractFromSource('state.scala', code);
-      const v = result.nodes.find((n) => n.kind === 'variable' && n.name === 'retries');
-      expect(v).toBeDefined();
-    });
+    const monoid = cg.getNodesByKind('trait').find((n) => n.name === 'Monoid');
+    const semigroup = cg.getNodesByKind('trait').find((n) => n.name === 'Semigroup');
+    expect(monoid, 'Monoid trait extracted').toBeDefined();
+    expect(semigroup, 'Semigroup trait extracted').toBeDefined();
+    expect(monoid!.filePath).not.toBe(semigroup!.filePath);
 
-    it('should include type in val/var signature', () => {
-      const code = `
-class Service {
-  val timeout: Int = 30
-}
-`;
-      const result = extractFromSource('Service.scala', code);
-      const field = result.nodes.find((n) => n.name === 'timeout');
-      expect(field?.signature).toContain('timeout');
-      expect(field?.signature).toContain('Int');
-    });
-  });
-
-  describe('Enum extraction', () => {
-    it('should extract enum definitions', () => {
-      const code = `
-enum Color:
-  case Red
-  case Green
-  case Blue
-`;
-      const result = extractFromSource('Color.scala', code);
-      const enumNode = result.nodes.find((n) => n.kind === 'enum' && n.name === 'Color');
-      expect(enumNode).toBeDefined();
-    });
-
-    it('should extract enum cases as enum_member', () => {
-      const code = `
-enum Direction:
-  case North
-  case South
-  case East
-  case West
-`;
-      const result = extractFromSource('Direction.scala', code);
-      const members = result.nodes.filter((n) => n.kind === 'enum_member');
-      expect(members.find((m) => m.name === 'North')).toBeDefined();
-      expect(members.find((m) => m.name === 'South')).toBeDefined();
-      expect(members.length).toBeGreaterThanOrEqual(4);
-    });
-  });
-
-  describe('Type alias extraction', () => {
-    it('should extract type aliases', () => {
-      const code = `
-type UserId = String
-type UserMap = Map[String, String]
-`;
-      const result = extractFromSource('types.scala', code);
-      const aliases = result.nodes.filter((n) => n.kind === 'type_alias');
-      expect(aliases.find((a) => a.name === 'UserId')).toBeDefined();
-      expect(aliases.find((a) => a.name === 'UserMap')).toBeDefined();
-    });
-  });
-
-  describe('Import extraction', () => {
-    it('should extract import declarations', () => {
-      const code = `
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.Future
-`;
-      const result = extractFromSource('imports.scala', code);
-      const imports = result.nodes.filter((n) => n.kind === 'import');
-      expect(imports.length).toBeGreaterThanOrEqual(2);
-    });
-  });
-
-  describe('Visibility modifiers', () => {
-    it('should extract private visibility', () => {
-      const code = `
-class Service {
-  private val secret: String = "abc"
-  private def helper(): Unit = {}
-}
-`;
-      const result = extractFromSource('Service.scala', code);
-      const secretField = result.nodes.find((n) => n.name === 'secret');
-      expect(secretField?.visibility).toBe('private');
-      const helperMethod = result.nodes.find((n) => n.name === 'helper');
-      expect(helperMethod?.visibility).toBe('private');
-    });
-
-    it('should extract protected visibility', () => {
-      const code = `
-class Base {
-  protected def helperMethod(): Unit = {}
-}
-`;
-      const result = extractFromSource('Base.scala', code);
-      const method = result.nodes.find((n) => n.name === 'helperMethod');
-      expect(method?.visibility).toBe('protected');
-    });
-
-    it('should default to public visibility', () => {
-      const code = `
-class Greeter {
-  def hello(): Unit = {}
-}
-`;
-      const result = extractFromSource('Greeter.scala', code);
-      const method = result.nodes.find((n) => n.name === 'hello');
-      expect(method?.visibility).toBe('public');
-    });
-  });
-
-  describe('Inheritance', () => {
-    it('should extract extends relationships', () => {
-      const code = `
-class AdminUser extends User {
-  def adminAction(): Unit = {}
-}
-`;
-      const result = extractFromSource('AdminUser.scala', code);
-      const extendsRefs = result.unresolvedReferences.filter((r) => r.referenceKind === 'extends');
-      expect(extendsRefs.find((r) => r.referenceName === 'User')).toBeDefined();
-    });
-  });
-
-  describe('Call extraction', () => {
-    it('should extract function call expressions', () => {
-      const code = `
-def processData(): Unit = {
-  val result = computeResult()
-  println(result)
-}
-`;
-      const result = extractFromSource('processor.scala', code);
-      const calls = result.unresolvedReferences.filter((r) => r.referenceKind === 'calls');
-      expect(calls.length).toBeGreaterThan(0);
-    });
+    // Parameterized supertype `extends Semigroup[A]` resolves by leaf name.
+    const ext = cg
+      .getOutgoingEdges(monoid!.id)
+      .some((e) => e.kind === 'extends' && cg.getNode(e.target)?.name === 'Semigroup');
+    expect(ext, 'Monoid --extends--> cross-file Semigroup').toBe(true);
   });
 });
 

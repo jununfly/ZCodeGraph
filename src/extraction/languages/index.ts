@@ -18,7 +18,6 @@ import { phpExtractor } from './php';
 import { rubyExtractor } from './ruby';
 import { swiftExtractor } from './swift';
 import { dartExtractor } from './dart';
-import { scalaExtractor } from './scala';
 import { luaExtractor } from './lua';
 import { luauExtractor } from './luau';
 import { objcExtractor } from './objc';
@@ -36,7 +35,6 @@ export const EXTRACTORS: Partial<Record<Language, LanguageExtractor>> = {
   ruby: rubyExtractor,
   swift: swiftExtractor,
   dart: dartExtractor,
-  scala: scalaExtractor,
   lua: luaExtractor,
   luau: luauExtractor,
   objc: objcExtractor,
