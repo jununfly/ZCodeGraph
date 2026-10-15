@@ -4130,7 +4130,7 @@ describe('Scala trait inheritance (rust-hybrid) (1-2-11-4)', () => {
     if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('resolves cross-file trait extends edges end-to-end', async () => {
+  it('resolves cross-file Scala trait extends edges on rust-hybrid after the ownership cutover, roadmap 1-2-11-4', async () => {
     const src = path.join(tempDir, 'src', 'main', 'scala', 'demo');
     fs.mkdirSync(src, { recursive: true });
     fs.writeFileSync(
