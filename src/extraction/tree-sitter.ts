@@ -3694,6 +3694,11 @@ export function extractFromSource(
     // level only. Framework extractors (Drupal routing yml, Spring `@Value`
     // resolution against application.yml/application.properties) run later and
     // add per-file nodes/references when they apply.
+    // OWNERSHIP (roadmap 1-3-6-1 yaml / 1-3-7-1 twig / 1-3-8-1 properties,
+    // keep/TS-shell): file-level-only languages are deliberately NOT
+    // rust-owned — the extraction layer is a no-op by design and all symbols
+    // come from TS framework resolvers (1-4-wave ownership decisions).
+    // Guarded by __tests__/file-level-language-ownership-guard.test.ts.
     result = { nodes: [], edges: [], unresolvedReferences: [], errors: [], durationMs: 0 };
   } else if (
     detectedLanguage === 'pascal' &&

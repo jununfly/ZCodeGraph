@@ -94,4 +94,21 @@ describe('File-level language ownership guard (roadmap 1-3 keep decisions)', () 
     expect(isRustHybridOwnedLanguage('xml')).toBe(false);
     expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('xml');
   });
+
+  it('yaml stays TypeScript-shell owned (1-3-6-1 keep)', () => {
+    // 1-3-6-1 keep rationale: yaml is a file-level-only language
+    // (isFileLevelOnlyLanguage, grammars.ts:333) — the extraction layer is a
+    // deliberate no-op (empty result, file row kept for the watcher); there is
+    // NO yaml-extractor.ts and zero symbol extraction to migrate. All symbols
+    // are back-filled by TS framework resolvers — drupal.ts (*.routing.yml
+    // route nodes), play.ts (conf/routes via detectLanguage→yaml), java.ts
+    // (Spring application.yml leaf-key nodes + @Value resolution) — each a
+    // 1-4-wave resolver with its own ownership decision. Migrating an empty
+    // extraction layer would be pure formalism; the per-use-case split
+    // (Drupal routing / Spring config / Play routes) belongs to each
+    // resolver's 1-4 decision. Rust core's only yaml mentions are
+    // pnpm-workspace detection + config-file classification (not extraction).
+    expect(isRustHybridOwnedLanguage('yaml')).toBe(false);
+    expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('yaml');
+  });
 });
