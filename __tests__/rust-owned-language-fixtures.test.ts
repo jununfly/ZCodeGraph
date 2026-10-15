@@ -3549,4 +3549,223 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
       }
     });
   });
+
+  describe('Scala baseline (roadmap 1-2-11-3)', () => {
+    function scalaNodes(
+      cg: CodeGraph,
+      filePath: string,
+      kind: string,
+    ): Array<{ name: string; qualifiedName: string; signature?: string | null }> {
+      return cg
+        .getNodesByKind(kind)
+        .filter((n) => n.language === 'scala' && n.filePath === filePath)
+        .map((n) => ({
+          name: n.name,
+          qualifiedName: n.qualifiedName,
+          signature: n.signature,
+        }));
+    }
+
+    function scalaRefs(db: DbHandle, filePath: string, kind: string): string[] {
+      return unresolvedRefs(db, filePath)
+        .filter((r) => r.reference_kind === kind)
+        .map((r) => r.reference_name);
+    }
+
+    it('extracts trait/class/object/enum members with extends refs and imports', () => {
+      const filePath = 'src/main/scala/Greeter.scala';
+      writeFile(
+        filePath,
+        [
+          'package com.example',
+          '',
+          'import scala.collection.mutable',
+          'import java.util.{List, Map}',
+          '',
+          'trait Greeter {',
+          '  def greet(name: String): String',
+          '}',
+          '',
+          'class FriendlyGreeter extends Greeter with Serializable {',
+          '  private val prefix: String = "Hello"',
+          '  override def greet(name: String): String = {',
+          '    val msg = s"$prefix, $name"',
+          '    println(msg)',
+          '    msg',
+          '  }',
+          '}',
+          '',
+          'object Main extends App {',
+          '  def run(): Unit = ()',
+          '}',
+          '',
+          'enum Color {',
+          '  case Red, Green, Blue',
+          '}',
+          '',
+          'type UserId = Long',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        expect(cg.getStats().filesByLanguage.scala).toBe(1);
+
+        // Containers: trait, two `class` (FriendlyGreeter + Main object),
+        // one enum, three enum_member (via enum_case_definitions unwrap),
+        // one type_alias.
+        expect(scalaNodes(cg, filePath, 'trait').map((n) => n.qualifiedName)).toEqual([
+          'Greeter',
+        ]);
+        expect(
+          scalaNodes(cg, filePath, 'class')
+            .map((n) => n.qualifiedName)
+            .sort(),
+        ).toEqual(['FriendlyGreeter', 'Main']);
+        expect(scalaNodes(cg, filePath, 'enum').map((n) => n.qualifiedName)).toEqual([
+          'Color',
+        ]);
+        expect(
+          scalaNodes(cg, filePath, 'enum_member')
+            .map((n) => n.qualifiedName)
+            .sort(),
+        ).toEqual(['Color::Blue', 'Color::Green', 'Color::Red']);
+        expect(scalaNodes(cg, filePath, 'type_alias').map((n) => n.name)).toEqual(['UserId']);
+
+        // Imports: dotted segments joined with '.', selector/wildcard tails
+        // trimmed to the head.
+        expect(importNames(cg, 'scala').sort()).toEqual([
+          'java.util',
+          'scala.collection.mutable',
+        ]);
+        expect(
+          unresolvedImportRefs(db, filePath).every((r) => r.language === 'scala'),
+        ).toBe(true);
+
+        // Extends refs: FriendlyGreeter -> Greeter + Serializable; Main -> App.
+        expect(scalaRefs(db, filePath, 'extends').sort()).toEqual([
+          'App',
+          'Greeter',
+          'Serializable',
+        ]);
+
+        // Methods inside a class-like frame: trait's greet, class's greet,
+        // object's run.
+        expect(
+          scalaNodes(cg, filePath, 'method')
+            .map((m) => m.qualifiedName)
+            .sort(),
+        ).toEqual(['FriendlyGreeter::greet', 'Greeter::greet', 'Main::run']);
+
+        // Field: FriendlyGreeter.prefix is a private field; local msg inside
+        // the greet body is a constant.
+        expect(scalaNodes(cg, filePath, 'field').map((f) => f.qualifiedName)).toEqual([
+          'FriendlyGreeter::prefix',
+        ]);
+        expect(scalaNodes(cg, filePath, 'constant').map((c) => c.qualifiedName)).toEqual([
+          'FriendlyGreeter::greet::msg',
+        ]);
+
+        // Calls inside the greet body: println is captured; the nested
+        // `msg` reference is a local-read (not a call).
+        expect(scalaRefs(db, filePath, 'calls')).toContain('println');
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('emits references for val/var type subtrees (skipping Scala builtins) and keeps receiver-qualified calls', () => {
+      const filePath = 'src/main/scala/Instances.scala';
+      writeFile(
+        filePath,
+        [
+          'package com.example',
+          '',
+          'trait Monoid[A] {',
+          '  def empty: A',
+          '}',
+          '',
+          'object Instances {',
+          '  implicit val intM: Monoid[Int] = ???',
+          '  val names: List[String] = Nil',
+          '  var counter: Int = 0',
+          '',
+          '  def run(): Unit = {',
+          '    intM.empty',
+          '    this.help()',
+          '    super.toString()',
+          '  }',
+          '  private def help(): Unit = ()',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        // references from val/var @type subtrees, skipping SCALA_BUILTIN_TYPES:
+        // intM: Monoid[Int] -> Monoid (Int skipped); names: List[String] ->
+        // List (String skipped); counter: Int (skipped entirely).
+        expect(scalaRefs(db, filePath, 'references').sort()).toEqual(['List', 'Monoid']);
+
+        // Calls: this.help() and super.toString() drop the receiver prefix.
+        // Bare `intM.empty` (no parens) parses as a field_expression, not a
+        // call_expression, so it emits NO `calls` ref under the baseline
+        // (scala.ts treats only call_expression as a call).
+        const calls = scalaRefs(db, filePath, 'calls');
+        expect(calls).toContain('help');
+        expect(calls).toContain('toString');
+        expect(calls).not.toContain('this.help');
+        expect(calls).not.toContain('super.toString');
+        expect(calls).not.toContain('intM.empty');
+
+        // val/var kind: implicit val intM is a field (inside object Main);
+        // names/counter are also fields; the object-level `private def help`
+        // is a method.
+        expect(
+          scalaNodes(cg, filePath, 'field')
+            .map((f) => f.qualifiedName)
+            .sort(),
+        ).toEqual(['Instances::counter', 'Instances::intM', 'Instances::names']);
+        expect(scalaNodes(cg, filePath, 'method').map((m) => m.qualifiedName).sort()).toEqual([
+          'Instances::help',
+          'Instances::run',
+          'Monoid::empty',
+        ]);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('hoists extension body children without a container node', () => {
+      const filePath = 'src/main/scala/extensions.scala';
+      writeFile(
+        filePath,
+        [
+          'package com.example',
+          '',
+          'extension (s: String)',
+          '  def yell: String = s.toUpperCase',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+
+      const { cg } = openGraph();
+      try {
+        // extension_definition carries no baseline node; the body child is
+        // visited directly, attaching to the file (inside_class_like=false)
+        // so it classifies as `function` (not method).
+        expect(scalaNodes(cg, filePath, 'function').map((f) => f.qualifiedName)).toEqual([
+          'yell',
+        ]);
+        expect(scalaNodes(cg, filePath, 'method')).toHaveLength(0);
+      } finally {
+        cg.close();
+      }
+    });
+  });
 });

@@ -16,6 +16,7 @@ mod objc;
 mod lua;
 mod luau;
 mod pascal;
+mod scala;
 mod swift;
 mod index_options;
 mod php;
@@ -7363,6 +7364,18 @@ fn index_javascript_files(
                         Err(payload) => std::panic::resume_unwind(payload),
                     }
                 })?;
+            } else if language.is_scala() {
+                // Roadmap 1-2-11-1: Scala baseline visitor, mirrors
+                // src/extraction/languages/scala.ts (178 LoC).
+                scala::extract(
+                    parsed.root_node(),
+                    content.as_bytes(),
+                    &relative_path,
+                    &file_node_id,
+                    &mut nodes,
+                    &mut edges,
+                    &mut unresolved_refs,
+                )?;
             } else if language.is_python() {
                 extract_python_symbols(
                     parsed.root_node(),
@@ -7850,6 +7863,7 @@ enum SourceLanguage {
     Lua,
     Luau,
     Pascal,
+    Scala,
     Python,
     Rust,
 }
@@ -7901,6 +7915,9 @@ impl SourceLanguage {
             // them to the dedicated DfmExtractor (dfm-extractor.ts), which
             // stays on the TS side per the 1-2-10 Q2 decision.
             Some("pas") | Some("dpr") | Some("dpk") | Some("lpr") => Some(Self::Pascal),
+            // Scala sources, aligned with grammars.ts ('.scala' -> 'scala',
+            // '.sc' -> Ammonite scripts; same extractor, same grammar).
+            Some("scala") | Some("sc") => Some(Self::Scala),
             Some("py") | Some("pyw") => Some(Self::Python),
             Some("rs") => Some(Self::Rust),
             _ => None,
@@ -7927,6 +7944,7 @@ impl SourceLanguage {
             Self::Lua => "lua",
             Self::Luau => "luau",
             Self::Pascal => "pascal",
+            Self::Scala => "scala",
             Self::Python => "python",
             Self::Rust => "rust",
         }
@@ -7970,6 +7988,12 @@ impl SourceLanguage {
             // tree-sitter-swift/objc/lua/luau (roadmap 1-2-10-1, verified in
             // C:\workspace\pascal-abi-probe).
             Self::Pascal => tree_sitter_pascal::LANGUAGE.into(),
+            // tree-sitter/tree-sitter-scala 0.24.1 (last ABI-14 release)
+            // bridges via tree-sitter-language 0.1 (LANGUAGE.into()), the
+            // same passthrough as swift/objc/lua/luau/pascal; 0.25.x jumped
+            // to tree-sitter 0.25/ABI 15 (roadmap 1-2-11-1, verified in
+            // C:\workspace\scala-abi-probe).
+            Self::Scala => tree_sitter_scala::LANGUAGE.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),
         }
@@ -8040,11 +8064,33 @@ impl SourceLanguage {
     /// and legacy Delphi idioms. The TS orchestrator never gated on
     /// has_error, so tolerant traversal is the parity behavior. The
     /// pascal.rs walker has no `unwrap`/`expect` on error-recovery paths.
+    /// Scala's tree-sitter-scala 0.24.1 grammar flags *legal* Scala 2
+    /// constructs observed in the apache/spark corpus (roadmap 1-2-11-3):
+    /// 42/690 files trigger `has_error()` on (a) XML literals — Spark UI
+    /// pages build HTML via `<meta … />` / `<link … />` / `<script>…</script>`
+    /// expressions, a Scala 2 surface the grammar does not implement
+    /// (Scala 3 dropped them); (b) `enum` used as an identifier — Scala 2
+    /// allows `case Some(enum) => enum` in match arms, the grammar
+    /// reserves `enum` as a Scala 3 keyword; (c) lambda-with-ascription
+    /// patterns like `{ v: T => v.toString }` — parsed as an
+    /// `ascription_expression` whose `=>` lands in an ERROR subtree.
+    /// The ERROR nodes are local to the offending expression, so the rest
+    /// of the file still yields productive classes/traits/methods/imports;
+    /// dropping whole files would lose ~6% of spark core. The TS
+    /// orchestrator never gated on has_error, so tolerant traversal is the
+    /// parity behavior. The scala.rs walker has no `unwrap`/`expect`/
+    /// indexing on error-recovery paths.
     fn tolerates_parse_errors(self) -> bool {
         self.is_c_family()
             || matches!(
                 self,
-                Self::Kotlin | Self::Dart | Self::Swift | Self::Objc | Self::Luau | Self::Pascal
+                Self::Kotlin
+                    | Self::Dart
+                    | Self::Swift
+                    | Self::Objc
+                    | Self::Luau
+                    | Self::Pascal
+                    | Self::Scala
             )
     }
 
@@ -8090,6 +8136,10 @@ impl SourceLanguage {
 
     fn is_pascal(self) -> bool {
         matches!(self, Self::Pascal)
+    }
+
+    fn is_scala(self) -> bool {
+        matches!(self, Self::Scala)
     }
 
     fn is_python(self) -> bool {
@@ -26908,5 +26958,331 @@ mod tests {
         assert!(out.contains("B,"));
         assert!(!out.contains("#if"));
         assert!(!out.contains("#endif"));
+    }
+
+    // Scala grammar/dispatch wiring (roadmap 1-2-11-1). tree-sitter-scala
+    // 0.24.1 (last ABI-14 release) must set onto tree-sitter 0.24 and parse
+    // `.scala` files with zero parse-gap drops. This pins the grammar wiring
+    // only; the baseline node multiset arrives in the dedicated baseline
+    // visitor test below.
+    #[test]
+    fn scala_parses_and_dispatches_through_rust_pipeline_grammar_wiring() {
+        let dir = temp_dir("scala-grammar-wiring");
+        write_file(
+            &dir,
+            "src/main/scala/Hello.scala",
+            &[
+                "package com.example",
+                "",
+                "object Hello {",
+                "  def main(args: Array[String]): Unit = println(\"hi\")",
+                "}",
+            ]
+            .join("\n"),
+        );
+        write_file(
+            &dir,
+            "src/main/scala/Util.scala",
+            &[
+                "package com.example",
+                "",
+                "trait Util {",
+                "  def id(x: Int): Int",
+                "}",
+            ]
+            .join("\n"),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_indexed, 2);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+        assert_eq!(
+            result
+                .profile
+                .parse_by_language
+                .get("scala")
+                .map(|profile| profile.files),
+            Some(2)
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    // Scala baseline visitor (roadmap 1-2-11-1). Asserts the TS scala.ts
+    // multiset: class/object/trait/enum containers, methods (inside
+    // class-like frames) vs functions (top level), val/var (field inside a
+    // class-like frame, constant/variable otherwise), type_alias, import
+    // (dotted path joined, selector/wildcard tail trimmed to head), enum
+    // members via enum_case_definitions unwrap, extension body children
+    // hoisted without a container node, extends refs from extends_clause,
+    // references refs from val/var type subtrees (skipping
+    // SCALA_BUILTIN_TYPES), and call refs with field_expression receivers
+    // (kept as `recv.method`; `this`/`super`/`self` prefixes trimmed).
+    #[test]
+    fn scala_baseline_visitor_extracts_symbols_inheritance_and_calls() {
+        let dir = temp_dir("scala-baseline");
+        write_file(
+            &dir,
+            "src/main/scala/Greeter.scala",
+            &[
+                "package com.example",
+                "",
+                "import scala.collection.mutable",
+                "import java.util.{List, Map}",
+                "import foo.bar._",
+                "",
+                "trait Greeter {",
+                "  def greet(name: String): String",
+                "}",
+                "",
+                "class FriendlyGreeter extends Greeter with Serializable {",
+                "  private val prefix: String = \"Hello\"",
+                "  var counter: Int = 0",
+                "",
+                "  override def greet(name: String): String = {",
+                "    val msg = s\"$prefix, $name\"",
+                "    println(msg)",
+                "    msg",
+                "  }",
+                "",
+                "  def shout(name: String): String = greet(name).toUpperCase",
+                "}",
+                "",
+                "object Main extends App {",
+                "  val g: Greeter = new FriendlyGreeter()",
+                "  val xs: List[Int] = List(1, 2, 3)",
+                "",
+                "  def run(): Unit = {",
+                "    g.greet(\"world\")",
+                "    xs.foreach(println)",
+                "    this.help()",
+                "    super.run()",
+                "  }",
+                "  private def help(): Unit = ()",
+                "}",
+                "",
+                "enum Color {",
+                "  case Red, Green, Blue",
+                "}",
+                "",
+                "type UserId = Long",
+                "",
+                "extension (s: String)",
+                "  def yell: String = s.toUpperCase",
+                "",
+                "def helper(x: Int): Int = x + 1",
+            ]
+            .join("\n"),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let names = |sql: &str| -> Vec<String> {
+            conn.prepare(sql)
+                .unwrap()
+                .query_map([], |row| row.get::<_, String>(0))
+                .unwrap()
+                .map(|r| r.unwrap())
+                .collect()
+        };
+
+        // Imports: dotted segments joined with '.', selector/wildcard tails
+        // trimmed to the head (scala.collection.mutable / java.util /
+        // foo.bar). NOT 'scala...collection...mutable' — tree-sitter-scala
+        // 0.24.1 also tags the '.' separators with @path; we filter by
+        // kind == "identifier".
+        let mut imports =
+            names("SELECT name FROM nodes WHERE language='scala' AND kind='import' ORDER BY name");
+        imports.sort();
+        assert_eq!(
+            imports,
+            vec![
+                "foo.bar".to_string(),
+                "java.util".to_string(),
+                "scala.collection.mutable".to_string(),
+            ]
+        );
+
+        // Containers: trait Greeter, class FriendlyGreeter, object Main
+        // (object_definition -> class), enum Color. Exactly one trait, one
+        // enum, two `class` rows (FriendlyGreeter + Main).
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='scala' AND kind='trait'"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='scala' AND kind='enum'"
+            ),
+            1
+        );
+        let mut classes = names(
+            "SELECT qualified_name FROM nodes WHERE language='scala' AND kind='class' ORDER BY qualified_name",
+        );
+        classes.sort();
+        assert_eq!(
+            classes,
+            vec![
+                "FriendlyGreeter".to_string(),
+                "Main".to_string(),
+            ]
+        );
+
+        // Enum members via enum_case_definitions unwrap.
+        let mut enum_members = names(
+            "SELECT qualified_name FROM nodes WHERE language='scala' AND kind='enum_member' ORDER BY qualified_name",
+        );
+        enum_members.sort();
+        assert_eq!(
+            enum_members,
+            vec![
+                "Color::Blue".to_string(),
+                "Color::Green".to_string(),
+                "Color::Red".to_string(),
+            ]
+        );
+
+        // type alias
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='scala' AND kind='type_alias' AND name='UserId'"
+            ),
+            1
+        );
+
+        // Methods: trait's abstract greet, FriendlyGreeter.greet + shout,
+        // Main.run + help. Extension body child `yell` attaches to the file
+        // (extension_definition has no container frame, so it classifies as
+        // `function` per inside_class_like = false on the file root).
+        // Top-level `helper` is also a function.
+        let mut methods = names(
+            "SELECT qualified_name FROM nodes WHERE language='scala' AND kind='method' ORDER BY qualified_name",
+        );
+        methods.sort();
+        assert_eq!(
+            methods,
+            vec![
+                "FriendlyGreeter::greet".to_string(),
+                "FriendlyGreeter::shout".to_string(),
+                "Greeter::greet".to_string(),
+                "Main::help".to_string(),
+                "Main::run".to_string(),
+            ]
+        );
+
+        let mut functions = names(
+            "SELECT qualified_name FROM nodes WHERE language='scala' AND kind='function' ORDER BY qualified_name",
+        );
+        functions.sort();
+        assert_eq!(
+            functions,
+            vec!["helper".to_string(), "yell".to_string(),]
+        );
+
+        // Visibility: FriendlyGreeter.prefix is private; Main.help is
+        // private; others default to public.
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='scala' AND kind='field' AND name='prefix' AND visibility='private'"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='scala' AND kind='method' AND name='help' AND visibility='private'"
+            ),
+            1
+        );
+
+        // val/var: inside a class-like frame they are `field`; top-level
+        // `val msg` inside the method body is a `constant` (val) attached to
+        // the enclosing function frame.
+        let mut fields = names(
+            "SELECT qualified_name FROM nodes WHERE language='scala' AND kind='field' ORDER BY qualified_name",
+        );
+        fields.sort();
+        assert_eq!(
+            fields,
+            vec![
+                "FriendlyGreeter::counter".to_string(),
+                "FriendlyGreeter::prefix".to_string(),
+                "Main::g".to_string(),
+                "Main::xs".to_string(),
+            ]
+        );
+
+        let mut constants = names(
+            "SELECT qualified_name FROM nodes WHERE language='scala' AND kind='constant' ORDER BY qualified_name",
+        );
+        constants.sort();
+        assert_eq!(
+            constants,
+            vec!["FriendlyGreeter::greet::msg".to_string()]
+        );
+
+        // Extends: FriendlyGreeter -> Greeter + Serializable; Main -> App.
+        let mut extends = names(
+            "SELECT reference_name FROM unresolved_refs WHERE language='scala' AND reference_kind='extends' ORDER BY reference_name",
+        );
+        extends.sort();
+        assert_eq!(
+            extends,
+            vec![
+                "App".to_string(),
+                "Greeter".to_string(),
+                "Serializable".to_string(),
+            ]
+        );
+
+        // Type refs from val/var @type subtrees, skipping SCALA_BUILTIN_TYPES:
+        // Main.g: Greeter (user trait), Main.xs: List[Int] -> List
+        // (Int skipped as builtin), FriendlyGreeter.prefix: String (skipped
+        // as builtin -> no row), FriendlyGreeter.counter: Int (skipped).
+        let mut references = names(
+            "SELECT reference_name FROM unresolved_refs WHERE language='scala' AND reference_kind='references' ORDER BY reference_name",
+        );
+        references.sort();
+        assert_eq!(
+            references,
+            vec!["Greeter".to_string(), "List".to_string(),]
+        );
+
+        // Calls: println(msg) inside greet, greet(name) inside shout,
+        // g.greet / xs.foreach inside Main.run, helper top-level call is
+        // not present (helper is only defined, never called in fixture).
+        // `this.help()` and `super.run()` must drop the receiver prefix.
+        let mut calls = names(
+            "SELECT reference_name FROM unresolved_refs WHERE language='scala' AND reference_kind='calls' ORDER BY reference_name",
+        );
+        calls.sort();
+        for expected in [
+            "println".to_string(),
+            "greet".to_string(),
+            "g.greet".to_string(),
+            "xs.foreach".to_string(),
+            "help".to_string(),
+            "run".to_string(),
+        ] {
+            assert!(calls.contains(&expected), "missing call {expected}: {calls:?}");
+        }
+        // No `this.help` / `super.run` qualified spellings.
+        assert!(!calls.contains(&"this.help".to_string()));
+        assert!(!calls.contains(&"super.run".to_string()));
+
+        drop(conn);
+        cleanup_temp_dir(dir);
     }
 }

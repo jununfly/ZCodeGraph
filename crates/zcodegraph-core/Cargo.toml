@@ -91,6 +91,17 @@ tree-sitter-python = "0.23"
 # grammar here and the TS-side vendored wasm (tree-sitter-wasms 0.1.11).
 tree-sitter-ruby = "0.23"
 tree-sitter-rust = "0.23"
+# Scala (roadmap 1-2-11-1). tree-sitter/tree-sitter-scala 0.24.1 is the last
+# ABI-14 release; 0.25.x regenerated parser.c as ABI 15 and is rejected by
+# the workspace's tree-sitter 0.24 (same LanguageError{version:15} class as
+# the pinned tree-sitter-c-sharp 0.23.1 / tree-sitter-lua 0.2.0 /
+# tree-sitter-swift 0.6.0). Bridges via tree-sitter-language 0.1
+# (LANGUAGE.into()) exactly like tree-sitter-swift/objc/lua/luau/pascal.
+# Node kind / field-label parity with the TS-side tree-sitter-scala.wasm is
+# verified by probe in C:\workspace\scala-abi-probe (22 cases, 0 ERROR;
+# class/object/trait/enum/type/val/var/def/call/import/package/extension/
+# case class/generic/lambda/implicit val).
+tree-sitter-scala = "=0.24.1"
 # alex-pinkus/tree-sitter-swift. PINNED to =0.6.0: it is the last ABI-14
 # release, generated against tree-sitter 0.23 and bridged into this
 # workspace's tree-sitter 0.24 via tree-sitter-language 0.1 (LANGUAGE.into()).
