@@ -3474,12 +3474,12 @@
     "1-6-6-3": {
       "id": "1-6-6-3",
       "label": "frameworks-integration.test.ts 新增 'Express on rust-hybrid' + 'NestJS extract() on rust-hybrid' + 'React on rust-hybrid' describe：Express(app.get/post+router.METHOD+inline arrow+named handler+middleware) + NestJS(@Controller+@Get/@Resolver+@Query/@MessagePattern/@WebSocketGateway+@SubscribeMessage 各一例) + React(function component+arrow component+custom hook+<Route> JSX+createBrowserRouter+pages/ 文件约定+app/ page.tsx 文件约定)，engine: rust-hybrid + ci.yml step2 -t 同步",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-6-6",
       "children": [],
       "decisions": [],
-      "notes": ""
+      "notes": "2026-10-16 落地：frameworks-integration.test.ts +3 describe（Express/NestJS/React on rust-hybrid roadmap 1-6-6-3）。Express=app.get inline+router.get named+router.post middleware 链（last-arg wins）+router.put inline-arrow calls 归因（route calls auditLog）；NestJS=四传输各一例（HTTP GET /users+POST /users/invite 前缀 join、QUERY allUsers 显式 name、MESSAGE user.created、WS chat:sendMessage 命名空间前缀）+5 条 route→method references；React=function/arrow component+custom hook（hook: id 前缀 function 节点）+Route JSX v6 element+createBrowserRouter data-router+pages/（/ 与 /blog/:slug）+app/（/settings）+2 条 route→component references。ci.yml -t 同步（RAW RegExp 括号转义）。本地 vitest 4/4 通过（含 1-4-2-9 幂等 e2e 无回归）；全量 32/35=3 个 JVM EBUSY flake pre-existing（干净工作区同样复现）；顺带修复 1-4-2-9 pre-existing tsc 缺口（src/index.ts 补 4 个 backfill stats 类型 import + profile 字面量初始化）。"
     },
     "1-6-6-4": {
       "id": "1-6-6-4",
@@ -3535,7 +3535,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-16 20:51:06",
+    "updated": "2026-10-16 21:07:08",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
