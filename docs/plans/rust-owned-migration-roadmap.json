@@ -2077,7 +2077,7 @@
     "1-4-1-17": {
       "id": "1-4-1-17",
       "label": "SwiftUI resolver（app/view 链接）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
@@ -2091,6 +2091,11 @@
           "q": "SwiftUI resolver 归属（事实修正）",
           "answer": "split：extract 迁 Rust（落 swift.rs framework-routes 段，需新增 Rust 代码），resolve() 延迟到 1-4-2",
           "note": "事实修正 2026-10-16：原决策误判为『同 Go 模式』。验证后发现 SwiftUI extract **不在 Rust 端**（lib.rs 无 swiftui/struct.*View/@main 匹配）——rust-swift-framework-routes.ts 是 TS 侧 backfill 模块，在 rust-hybrid 下重放 TS resolver 的 extract 逻辑。剩余工作 = 迁移动作：a) 在 swift.rs 新增 framework-routes 段（struct (\\w+) : ... View + @main struct (\\w+) : App regex）；b) extract_swift_symbols 调用链中串行触发；c) 删 TS extract + 测试；d) 删 rust-swift-framework-routes.ts 中 swiftui case（或保留作幂等校验）；e) e2e 护栏 + ci -t 同步。resolve() 延迟到 1-4-2 不变。"
+        },
+        {
+          "q": "执行完成",
+          "answer": "已完成：swift.rs 新增 SwiftUI 抽取（struct V: View -> component 节点 + @main struct A: App -> class 节点），TS extract 删除，backfill 段 A 退役",
+          "note": "证据：swift.rs class_declaration 分支用 attribute_names(modifiers>attribute>user_type>type_identifier) 检测 @main，inheritance_specifier>user_type>type_identifier 检测 View；发第二个 framework-typed 节点（baseline struct/class 不动）。swift.ts swiftUIResolver.extract 删除（-52 行）。rust-swift-framework-routes.ts 段 A（swiftui case）退役，段 B（stored-property refs）保留。cargo test --lib 196/196；e2e 'restores SwiftUI View/@main App' 全绿；幂等 e2e 'keeps Swift framework nodes idempotent across a rust-hybrid close-and-reindex cycle, roadmap 1-4-1-17~19' 通过；ci.yml -t 同步。resolve() 延迟 1-4-2 不变。"
         }
       ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
@@ -2098,7 +2103,7 @@
     "1-4-1-18": {
       "id": "1-4-1-18",
       "label": "UIKit resolver（view-controller/view 关系）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
@@ -2112,6 +2117,11 @@
           "q": "UIKit resolver 归属（事实修正）",
           "answer": "split：extract 迁 Rust（落 swift.rs framework-routes 段，需新增 Rust 代码），resolve() 延迟到 1-4-2",
           "note": "事实修正 2026-10-16：原决策误判为『同 Go 模式』。验证后发现 UIKit extract **不在 Rust 端**（lib.rs 无 uikit/UIViewController 匹配）——rust-swift-framework-routes.ts 是 TS 侧 backfill 模块。剩余工作 = 迁移动作：a) 在 swift.rs 新增 framework-routes 段（class (\\w+) : ... UIViewController + class (\\w+) : ... UIView[^C] regex）；b) extract_swift_symbols 调用链中串行触发；c) 删 TS extract + 测试；d) 删 rust-swift-framework-routes.ts 中 uikit case（或保留作幂等校验）；e) e2e 护栏 + ci -t 同步。resolve() 延迟到 1-4-2 不变。"
+        },
+        {
+          "q": "执行完成",
+          "answer": "已完成：swift.rs 新增 UIKit 抽取（UIViewController/UIView 子类 -> framework class 节点），TS extract 删除，backfill 段 A 退役",
+          "note": "证据：swift.rs class_declaration 分支检测 inheritance_specifier 链尾为 UIViewController/UIView，发第二个 framework-typed class 节点（baseline 不动）。swift.ts uikitResolver.extract 删除（-47 行）。rust-swift-framework-routes.ts 段 A（uikit case）退役，段 B（stored-property refs）保留。cargo test --lib 196/196；幂等 e2e 通过；ci.yml -t 同步。resolve() 延迟 1-4-2 不变。"
         }
       ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
@@ -2119,7 +2129,7 @@
     "1-4-1-19": {
       "id": "1-4-1-19",
       "label": "Vapor resolver（Swift 服务端路由）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
@@ -2133,6 +2143,11 @@
           "q": "Vapor resolver 归属（事实修正）",
           "answer": "split：extract 迁 Rust（落 swift.rs framework-routes 段，需新增 Rust 代码），resolve() 延迟到 1-4-2",
           "note": "事实修正 2026-10-16：原决策误判为『同 Go 模式』。验证后发现 Vapor extract **不在 Rust 端**（lib.rs 无 vapor 路由抽取匹配；lib.rs:8040/17284/17349/17448 的 vapor 引用是测试注释/字符串常量，非路由抽取逻辑）——rust-swift-framework-routes.ts 是 TS 侧 backfill 模块。剩余工作 = 迁移动作：a) 在 swift.rs 新增 framework-routes 段（两阶段：先 let X = Y.grouped(\"...\") / Y.group(\"...\") { X in 建 group 前缀表，再 receiver.(get|post|...|delete|head|options)(..., use: handler) 收集 route 节点 + handler reference）；b) extract_swift_symbols 调用链中串行触发；c) 删 TS extract + 测试；d) 删 rust-swift-framework-routes.ts 中 vapor case（或保留作幂等校验）；e) e2e 护栏 + ci -t 同步。resolve() 延迟到 1-4-2 不变。"
+        },
+        {
+          "q": "执行完成",
+          "answer": "已完成：swift.rs 新增 Vapor 路由抽取（两阶段：grouped/group closure 前缀表 + builder.METHOD(..., use: h) -> route 节点 + handler references），TS extract 删除，backfill 段 A 退役",
+          "note": "证据：swift.rs call_expression 分支用 vapor_route_method(7 动词)+vapor_route_segments(use: 前字符串段)+use_label_handler(value_argument_label==use 门控 + tail ident)；VaporGroupPrefixes HashMap 贯穿 visit 递归；vapor_grouped_let(let x = recv.grouped(...)) + vapor_closure_group(recv.group(...) { x in }) 注册前缀；route 节点挂文件 frame + handler references。AST 真实结构 call_suffix > lambda_literal > lambda_function_type > lambda_function_type_parameters > lambda_parameter（first_descendant_of_kind 深度搜索）。swift.ts vaporResolver.extract 删除（-94 行）。rust-swift-framework-routes.ts 段 A（vapor case）退役，段 B 保留。cargo test --lib 196/196；e2e 'restores ... Vapor route -> handler edge' 全绿；幂等 e2e 通过（route -> index handler references 边恰好 1 条）；ci.yml -t 同步。resolve() 延迟 1-4-2 不变。"
         }
       ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
@@ -3431,7 +3446,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-16 16:01:48",
+    "updated": "2026-10-16 16:53:08",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
