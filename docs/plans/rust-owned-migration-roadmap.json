@@ -1595,7 +1595,7 @@
     "1-3-7": {
       "id": "1-3-7",
       "label": "Twig Rust 化可行性与落地",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3",
       "children": [
@@ -1608,22 +1608,34 @@
     "1-3-7-1": {
       "id": "1-3-7-1",
       "label": "Twig: 可行性评估与 migrate/keep/split 决策",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3-7",
       "children": [],
-      "decisions": [],
-      "notes": "决策范围：决策文件级跟踪是否足够，或先补真正的 Twig 抽取故事。现状：twig 现为文件级零符号。产出：决策与理由；keep 也要写明审计边界与护栏。"
+      "decisions": [
+        {
+          "q": "Twig 是否迁移到 Rust 核心？是否需先补真正的 Twig 抽取故事？",
+          "answer": "keep — Twig 保留在 TypeScript shell（文件级零符号语言，抽取层是 deliberate no-op，无可迁移对象；补抽取故事是独立新功能决策，不属本迁移波次）",
+          "note": "证据：(1) twig 是 file-level-only 语言（grammars.ts:338 isFileLevelOnlyLanguage=yaml|twig|properties）——tree-sitter.ts:3692 对其走空结果分支（nodes/edges/refs 全空）只保留文件行供 watcher 跟踪；没有 twig-extractor.ts，零符号提取；Rust core 零 twig 痕迹（crates/ 与 Cargo.toml grep 无匹配）。(2) drupal.ts 头部明确将 .twig 标注为 v1 out-of-scope：'tracked as file nodes but no symbol extraction (no tree-sitter Twig grammar)'，并留 TODO 'Add Twig symbol extraction when a tree-sitter Twig grammar becomes available'——即当前无任何 resolver 消费 .twig 文件。(3) Grammar 供给核实（2026-10-15）：crates.io 无通用 tree-sitter-twig 直连 crate；webrgp/tree-sitter-twig 0.4.0（GitHub fork 系，支持 extends/block/if/for/filters/interpolation）仅 npm + git 源，且活跃线基于 tree-sitter 0.25/ABI15，与我们 tree-sitter 0.24/ABI14 pin 冲突；tree-sitter-shopware-twig 0.2.0 是 Shopware 6 admin markup 专用方言（330 downloads，非通用 Twig）。ABI14 直连路径不存在，migrate 硬性阻塞；走 git fork 属额外工程投入，须由真实抽取需求驱动。(4) 决策理由：migrate 无可迁移对象——twig 在提取层是无操作（空结果），迁'空'到 Rust 是纯形式主义；split 无意义——不存在'部分在 Rust'的候选，因为两侧都无任何符号逻辑；节点 notes 的'先补真正的 Twig 抽取故事'=新功能建设（extends/block 继承节点 + include/embed 引用边 + Drupal/Laravel 模板接线），不是本次 Rust 化迁移的前提，如需做应另立节点并先解决 ABI14 grammar 供给。keep 语义=twig 保持文件级跟踪 + 未来抽取故事在 TS 侧起步（与 svelte/vue/liquid 自定义抽取器同族）。审计边界：grammars.ts 文件级判定（L338/L357/L380 三处）+ tree-sitter.ts 空结果分支（L3692）+ drupal.ts out-of-scope 注释与 TODO；护栏=1-3-7-2 落地时扩展 file-level-language-ownership-guard.test.ts 追加 twig 专属 it（仿 yaml it 模式），断言 RUST_HYBRID_RUST_OWNED_LANGUAGES 永不含 'twig'。"
+        }
+      ],
+      "notes": "决策=keep（TS-shell）。twig 是 file-level-only 零符号语言，抽取层 deliberate no-op 无可迁移对象；ABI14 grammar 供给不存在（webrgp 0.4.0 为 ABI15/npm-only，shopware-twig 为方言），migrate 硬性阻塞。补真正 Twig 抽取故事=新功能建设，另立节点另议。审计边界与护栏（guard test 追加 twig it）由 1-3-7-2 落地。"
     },
     "1-3-7-2": {
       "id": "1-3-7-2",
       "label": "Twig: 决策落地（Rust 实现 或 TS-shell 归属固化）",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-3-7",
       "children": [],
-      "decisions": [],
-      "notes": "migrate → Rust 实现 + fixture + 语料 + 元数据；keep → 代码与文档显式标注 TS-shell owned 并加防回退测试；split → 写明边界协议。"
+      "decisions": [
+        {
+          "q": "Twig keep 决策以何种形式落地？",
+          "answer": "扩展 file-level-language-ownership-guard.test.ts 加 twig 用例 + 更新两处既有 OWNERSHIP 注释标记（twig 无专属 extractor 文件、无 resolver 消费，标记落在文件级判定与空结果分支——tree-sitter.ts:3697 注释已预写 1-3-7-1 twig 标记位，grammars.ts:332 注释按 yaml 先例补齐 twig/properties 引用）",
+          "note": "落地范围（仿 yaml 1-3-6-2 三处改动模式，实际两处+测试）：(1) 守卫测试新增 'twig stays TypeScript-shell owned (1-3-7-1 keep)' 用例（第 7 条），注释写明 keep 理由（文件级零符号无 extractor/无 resolver 消费 drupal.ts 标注 out-of-scope/ABI14 grammar 供给不存在 webrgp 0.4.0 ABI15+npm-only、shopware-twig 方言/migrate 空层是形式主义/补抽取故事=新功能另立节点）；(2) grammars.ts isFileLevelOnlyLanguage doc 的 OWNERSHIP 块补齐 '1-3-7-1 twig / 1-3-8-1 properties' 引用（现仅写 yaml，但函数集合已含三者——注释与代码事实对齐）；(3) tree-sitter.ts:3697 OWNERSHIP 注释已含 1-3-7-1 twig（yaml 落地时预写），无需改动。无 drupal.ts 改动——其头部 out-of-scope 注释与 TODO 已是审计边界的一部分，保持原样。"
+        }
+      ],
+      "notes": "keep 落地完成（TS-shell 归属固化）：(1) 守卫测试新增 twig it（7/7 通过），注释含完整 keep 理由（无 extractor/无 resolver 消费/ABI14 grammar 供给不存在/migrate 空层形式主义/补抽取故事另立节点）；(2) grammars.ts isFileLevelOnlyLanguage doc OWNERSHIP 块补齐 1-3-7-1 twig / 1-3-8-1 properties 引用；(3) tree-sitter.ts:3697 OWNERSHIP 注释已预含 twig 无需改动。strip-types --check 两文件通过；grep 确认 contract 无 twig。改动未 commit（feat/chore 分离，等显式触发）。"
     },
     "1-3-8": {
       "id": "1-3-8",
@@ -3078,7 +3090,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-15 21:19:40",
+    "updated": "2026-10-16 10:58:35",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }

@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-15 21:19:40
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-16 10:58:35
 
 [~][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
@@ -31,7 +31,7 @@
 │   ├── [x][X+] 1-3-4. Razor/Blazor Rust 化可行性与落地
 │   ├── [x][X+] 1-3-5. XML/MyBatis Rust 化可行性与落地
 │   ├── [x][X+] 1-3-6. YAML Rust 化可行性与落地
-│   ├── [ ][X+] 1-3-7. Twig Rust 化可行性与落地
+│   ├── [x][X+] 1-3-7. Twig Rust 化可行性与落地
 │   └── [ ][X+] 1-3-8. Properties Rust 化可行性与落地
 ├── [ ][X+] 1-4. Goal2: TS shell 共享层 migrate/keep/split 决策
 │   ├── [ ][X+] 1-4-1. Framework resolvers 逐项归属决策（23 项）
