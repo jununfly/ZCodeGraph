@@ -1886,3 +1886,323 @@ describe('Go route coverage on rust-hybrid (roadmap 1-6-3-1)', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// JS/TS framework matrix on rust-hybrid (roadmap 1-6-6-3)
+//
+// The rust-js-framework-routes.ts backfill replays the TypeScript emitters
+// (emitExpressRouteNodes / emitNestjsRouteNodes / emitReactComponentNodes)
+// during hybrid finalization for rust-owned .js/.ts/.tsx files. These
+// describes pin the per-framework semantic matrix end-to-end: the 1-4-2-9
+// e2e above only covers Express basic verbs, so NestJS's four transports and
+// React's five semantics get their own fixtures here.
+// ---------------------------------------------------------------------------
+
+describe('Express on rust-hybrid (roadmap 1-6-6-3)', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  it('extracts app.METHOD, router.METHOD, inline-arrow calls, named-handler refs, and middleware chains on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-express-matrix-'));
+    fs.writeFileSync(
+      path.join(tmpDir, 'package.json'),
+      '{"dependencies":{"express":"^4.0.0"}}'
+    );
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'src', 'server.ts'),
+      [
+        "import express, { Router } from 'express';",
+        'const app = express();',
+        'const router = Router();',
+        '',
+        'function listUsers(req: any, res: any) { res.json([]); }',
+        'function createUser(req: any, res: any) { res.status(201).send(); }',
+        'function authMiddleware(req: any, res: any, next: any) { next(); }',
+        'function auditLog(entry: string) { return entry; }',
+        '',
+        "app.get('/health', (req, res) => { res.send('ok'); });",
+        "router.get('/users', listUsers);",
+        "router.post('/users', authMiddleware, createUser);",
+        "router.put('/users/:id', (req, res) => { auditLog('update'); res.send(); });",
+        '',
+        'export default app;',
+      ].join('\n')
+    );
+
+    const cg = CodeGraph.initSync(tmpDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+
+    const routeNames = cg.getNodesByKind('route').map((r) => r.name);
+    expect(routeNames).toEqual(
+      expect.arrayContaining([
+        'GET /health',
+        'GET /users',
+        'POST /users',
+        'PUT /users/:id',
+      ])
+    );
+
+    const routeByName = (name: string) =>
+      cg.getNodesByKind('route').find((r) => r.name === name);
+
+    // Named handler: route -> references edge to the Rust-extracted function.
+    // Middleware earlier in the arg list is skipped; the LAST arg wins.
+    for (const [routeName, handlerName] of [
+      ['GET /users', 'listUsers'],
+      ['POST /users', 'createUser'],
+    ] as const) {
+      const route = routeByName(routeName);
+      const handler = cg
+        .getNodesByKind('function')
+        .find((f) => f.name === handlerName);
+      expect(route, `route ${routeName}`).toBeDefined();
+      expect(handler, `handler ${handlerName}`).toBeDefined();
+      const refs = cg
+        .getOutgoingEdges(route!.id)
+        .filter((e) => e.target === handler!.id && e.kind === 'references');
+      expect(refs, `${routeName} -> ${handlerName}`).toHaveLength(1);
+    }
+
+    // Inline arrow handler: body calls are attributed to the route as `calls`
+    // edges so trace(route, service) connects through the anonymous body.
+    const putRoute = routeByName('PUT /users/:id');
+    expect(putRoute).toBeDefined();
+    const audit = cg
+      .getNodesByKind('function')
+      .find((f) => f.name === 'auditLog');
+    expect(audit).toBeDefined();
+    const calls = cg
+      .getOutgoingEdges(putRoute!.id)
+      .filter((e) => e.target === audit!.id && e.kind === 'calls');
+    expect(calls, 'PUT /users/:id calls auditLog').toHaveLength(1);
+
+    cg.close();
+  });
+});
+
+describe('NestJS extract() on rust-hybrid (roadmap 1-6-6-3)', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  it('extracts all four transports (HTTP / GraphQL / Microservice / WebSocket) on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-nestjs-matrix-'));
+    fs.writeFileSync(
+      path.join(tmpDir, 'package.json'),
+      '{"dependencies":{"@nestjs/common":"^10.0.0","@nestjs/graphql":"^12.0.0","@nestjs/microservices":"^10.0.0","@nestjs/websockets":"^10.0.0"}}'
+    );
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'src', 'transports.ts'),
+      [
+        "import { Controller, Get, Post } from '@nestjs/common';",
+        "import { Resolver, Query } from '@nestjs/graphql';",
+        "import { MessagePattern } from '@nestjs/microservices';",
+        "import { WebSocketGateway, SubscribeMessage } from '@nestjs/websockets';",
+        '',
+        "@Controller('users')",
+        'export class UsersController {',
+        "  @Get()",
+        '  listUsers() { return []; }',
+        '',
+        "  @Post('invite')",
+        '  inviteUser() { return true; }',
+        '}',
+        '',
+        '@Resolver()',
+        'export class UsersResolver {',
+        "  @Query(() => [String], { name: 'allUsers' })",
+        '  getUsers() { return []; }',
+        '',
+        "  @MessagePattern('user.created')",
+        '  onUserCreated() { return true; }',
+        '}',
+        '',
+        "@WebSocketGateway({ namespace: 'chat' })",
+        'export class ChatGateway {',
+        "  @SubscribeMessage('sendMessage')",
+        '  onSendMessage() { return true; }',
+        '}',
+      ].join('\n')
+    );
+
+    const cg = CodeGraph.initSync(tmpDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+
+    const routeNames = cg.getNodesByKind('route').map((r) => r.name);
+    expect(routeNames).toEqual(
+      expect.arrayContaining([
+        // HTTP: controller prefix joined onto the (empty / sub) method path.
+        'GET /users',
+        'POST /users/invite',
+        // GraphQL: explicit { name: 'allUsers' } wins over the method name;
+        // only @Resolver classes produce QUERY routes (REST @Query() param
+        // decorator is disambiguated away).
+        'QUERY allUsers',
+        // Microservice: pattern string as the route path.
+        'MESSAGE user.created',
+        // WebSocket: gateway namespace prefixes the event.
+        'WS chat:sendMessage',
+      ])
+    );
+
+    const routeByName = (name: string) =>
+      cg.getNodesByKind('route').find((r) => r.name === name);
+    for (const [routeName, handlerName] of [
+      ['GET /users', 'listUsers'],
+      ['POST /users/invite', 'inviteUser'],
+      ['QUERY allUsers', 'getUsers'],
+      ['MESSAGE user.created', 'onUserCreated'],
+      ['WS chat:sendMessage', 'onSendMessage'],
+    ] as const) {
+      const route = routeByName(routeName);
+      const handler = cg
+        .getNodesByKind('method')
+        .find((m) => m.name === handlerName);
+      expect(route, `route ${routeName}`).toBeDefined();
+      expect(handler, `handler ${handlerName}`).toBeDefined();
+      const refs = cg
+        .getOutgoingEdges(route!.id)
+        .filter((e) => e.target === handler!.id && e.kind === 'references');
+      expect(refs, `${routeName} -> ${handlerName}`).toHaveLength(1);
+    }
+
+    cg.close();
+  });
+});
+
+describe('React on rust-hybrid (roadmap 1-6-6-3)', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  it('extracts components, hooks, Route JSX, data-router objects, and Next.js file conventions on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-react-matrix-'));
+    fs.writeFileSync(
+      path.join(tmpDir, 'package.json'),
+      '{"dependencies":{"react":"^18.0.0","react-router-dom":"^6.4.0","next":"^14.0.0"}}'
+    );
+
+    // (1)+(2) function & arrow components, (3) custom hook, (4) <Route> JSX.
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'src', 'App.tsx'),
+      [
+        "import { Route, Routes } from 'react-router-dom';",
+        '',
+        'export function HomePage() {',
+        '  return <div>Home</div>;',
+        '}',
+        '',
+        'export const AboutPage = () => {',
+        '  return <div>About</div>;',
+        '};',
+        '',
+        'export function useCurrentUser() {',
+        '  return { name: "z" };',
+        '}',
+        '',
+        'export default function App() {',
+        '  return (',
+        '    <Routes>',
+        '      <Route path="/home" element={<HomePage />} />',
+        '      <Route path="/about" element={<AboutPage />} />',
+        '    </Routes>',
+        '  );',
+        '}',
+      ].join('\n')
+    );
+
+    // (5) data-router objects (createBrowserRouter).
+    fs.writeFileSync(
+      path.join(tmpDir, 'src', 'router.tsx'),
+      [
+        "import { createBrowserRouter } from 'react-router-dom';",
+        "import { HomePage } from './App';",
+        '',
+        'export const router = createBrowserRouter([',
+        "  { path: '/dashboard', element: <HomePage /> },",
+        ']);',
+      ].join('\n')
+    );
+
+    // (6) Next.js pages/ convention.
+    fs.mkdirSync(path.join(tmpDir, 'pages', 'blog'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'pages', 'index.tsx'),
+      'export default function Index() { return <div>index</div>; }\n'
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, 'pages', 'blog', '[slug].tsx'),
+      'export default function Post() { return <div>post</div>; }\n'
+    );
+
+    // (7) Next.js app/ convention.
+    fs.mkdirSync(path.join(tmpDir, 'app', 'settings'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'app', 'settings', 'page.tsx'),
+      'export default function Settings() { return <div>settings</div>; }\n'
+    );
+
+    const cg = CodeGraph.initSync(tmpDir);
+    const result = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(result.success, JSON.stringify(result.errors)).toBe(true);
+
+    // Components & hook (back-filled component kind; hook is emitted as a
+    // function node with a `hook:` id prefix).
+    const componentNames = cg.getNodesByKind('component').map((c) => c.name);
+    expect(componentNames).toEqual(
+      expect.arrayContaining(['HomePage', 'AboutPage', 'App'])
+    );
+    const hook = cg
+      .getNodesByKind('function')
+      .find((f) => f.id.startsWith('hook:') && f.name === 'useCurrentUser');
+    expect(hook, 'hook useCurrentUser').toBeDefined();
+
+    const routeNames = cg.getNodesByKind('route').map((r) => r.name);
+    expect(routeNames).toEqual(
+      expect.arrayContaining([
+        // <Route> JSX (v6 element form).
+        '/home',
+        '/about',
+        // Data-router object.
+        '/dashboard',
+        // Next.js pages/ + app/ file conventions.
+        '/',
+        '/blog/:slug',
+        '/settings',
+      ])
+    );
+
+    // <Route> JSX -> component references resolve to the component nodes.
+    const routeByName = (name: string) =>
+      cg.getNodesByKind('route').find((r) => r.name === name);
+    for (const [routeName, compName] of [
+      ['/home', 'HomePage'],
+      ['/about', 'AboutPage'],
+    ] as const) {
+      const route = routeByName(routeName);
+      const comp = cg
+        .getNodesByKind('component')
+        .find((c) => c.name === compName);
+      expect(route, `route ${routeName}`).toBeDefined();
+      expect(comp, `component ${compName}`).toBeDefined();
+      const refs = cg
+        .getOutgoingEdges(route!.id)
+        .filter((e) => e.target === comp!.id && e.kind === 'references');
+      expect(refs, `${routeName} -> ${compName}`).toHaveLength(1);
+    }
+
+    cg.close();
+  });
+});
