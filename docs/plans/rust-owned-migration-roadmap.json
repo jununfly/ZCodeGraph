@@ -2039,7 +2039,13 @@
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Rust 框架 resolver（Rocket/Axum）归属",
+          "answer": "split with 部分迁移已完成：Axum 已在 Rust 端（extract_rust_axum_routes）；Actix/Rocket attribute 形态需迁 Rust 补全；resolve() 延迟到 1-4-2",
+          "note": "证据：a) Rust 端 extract_rust_axum_routes（lib.rs:12452）已覆盖 Axum .route() 链式调用 + get()/post() 等方法表达式 + group prefix + handler references，rust_axum_route_taxonomy_counts 追踪覆盖率；b) Actix-web 和 Rocket 的 #[get(\"/path\")] fn handler attribute 形态**不在 Rust 端**（lib.rs 无 actix/rocket 匹配），TS rustResolver.extract() 的 attrRegex 覆盖三框架（Actix/Rocket/Axum）；c) src/indexing/ 无 rust-rust-framework-routes.ts backfill——rust-hybrid 下 Actix/Rocket 路由断层；d) rust baseline 已 rust-owned。结论：Axum 部分已 migrate（同 Go 模式，可关闭 TS extract 中 axum 分支）；Actix/Rocket 部分需迁 Rust 补全（在 rust.rs 或共享段新增 attribute regex 路径）；resolve() 用 getNodesByName + getCargoWorkspaceCrateMap（cargo workspace crate 映射）等 1-4-2。落实计划：a) 在 Rust 端新增 Actix/Rocket attribute 抽取（参考 extract_rust_axum_routes 模式）；b) 删 TS extract 中已覆盖的 Axum 分支；c) 补 rust-hybrid e2e 护栏（Actix/Rocket/Axum 三框架 fixture）；d) 删 TS extract 中 Actix/Rocket 分支。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-16": {
@@ -2049,7 +2055,13 @@
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "ASP.NET resolver 归属",
+          "answer": "split（同 Go 模式）：extract 已由 rust-csharp-framework-routes.ts backfill 覆盖，关闭 TS extract；resolve() 延迟到 1-4-2",
+          "note": "证据：extract 是纯正则（[HttpGet]/[HttpPost] attribute regex + app.MapGet/MapPost minimal API regex + class-level [Route] 前缀 regex，先 stripCommentsForRegex），只扫 .cs 文件；csharp baseline 已 rust-owned；rust-csharp-framework-routes.ts backfill 已存在（含 aspnet case）——与 Go 同形态（Rust backfill 已覆盖 extract 面），剩余工作 = 关闭动作：删 TS extract + 同步删 frameworks.test.ts 对应用例。Razor/Blazor 链接边界：.razor/.cshtml 由独立的 razor-extractor.ts（文件级语言，1-3 已决策 keep TS shell）负责产 component 节点和 component-tag 引用，aspnetResolver 不触碰这些文件——边界清晰。resolve() 用 getNodesByName（按 name + kind + 目录前缀过滤），等 1-4-2。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-17": {
@@ -2059,7 +2071,13 @@
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "SwiftUI resolver 归属",
+          "answer": "split：extract() 迁 Rust（落 swift.rs framework-routes 段），resolve() 延迟到 1-4-2",
+          "note": "证据：extract 是纯正则（struct (\\w+) : ... View + @main struct (\\w+) : App regex，先 stripCommentsForRegex），只扫 .swift；swift baseline 已 rust-owned；rust-swift-framework-routes.ts backfill 已存在（含 swiftui case）。view 链接靠 *View 命名约定 + kind 过滤（struct/component 双 kind 容忍 Rust/TS 两种来源）。resolve() 用 getNodesByName（kind struct/component/class + 目录 /Views/、/ViewModels/、/Models/ 等），等 1-4-2。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-18": {
@@ -2069,7 +2087,13 @@
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "UIKit resolver 归属",
+          "answer": "split：extract() 迁 Rust（落 swift.rs framework-routes 段），resolve() 延迟到 1-4-2",
+          "note": "证据：extract 是纯正则（class (\\w+) : ... UIViewController + class (\\w+) : ... UIView[^C] regex，先 stripCommentsForRegex），只扫 .swift；swift baseline 已 rust-owned；rust-swift-framework-routes.ts backfill 已存在（含 uikit case）。view-controller/view 关系靠 *ViewController/*View/*Cell/*Delegate/*DataSource 命名后缀。resolve() 用 getNodesByName（kind class/protocol + 目录 /ViewControllers/、/Views/、/Cells/），等 1-4-2。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-19": {
@@ -2079,7 +2103,13 @@
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Vapor resolver 归属",
+          "answer": "split：extract() 迁 Rust（落 swift.rs framework-routes 段），resolve() 延迟到 1-4-2",
+          "note": "证据：extract 是纯正则两阶段（先 let X = Y.grouped(\"...\") / Y.group(\"...\") { X in 建 group 前缀表，再 receiver.(get|post|...|delete|head|options)(..., use: handler) 收集 route 节点 + handler reference），只扫 .swift；swift baseline 已 rust-owned；rust-swift-framework-routes.ts backfill 已存在（含 vapor case）。resolve() 用 getNodesByName（kind class/struct + 目录 /Controllers/、/Models/、/Middleware/），等 1-4-2。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-20": {
@@ -2089,7 +2119,13 @@
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Swift-ObjC bridge resolver 归属",
+          "answer": "纯 resolve 层：无 extract，整体延迟到 1-4-2（不属 split/migrate/keep 三选一）",
+          "note": "证据：swiftObjcBridgeResolver 无 extract()，只挂 detect/claimsReference/resolve。resolve() 重度依赖 baseline method 节点（objc 的 selector 形如 downloadURL:completion:、swift 的 @objc 方法），靠 swiftBaseNamesForObjcSelector 做反向名称推导；用 getNodesByKind('method')/getNodesByName/readFile（读 Swift 声明前后 3 行检查 @objc/@nonobjc 注解）/getAllFiles——全部是 DB 查询 + 文件读取，与 AST 无关。Swift→ObjC 用预计算反向 map（WeakMap 缓存 ResolutionContext → map），ObjC→Swift 用候选名 + 源窗口 @objc 注解验证。内部用 WeakMap 缓存不写图。逻辑集中在 src/resolution/swift-objc-bridge.ts。结论：整体延迟到 1-4-2（ResolutionContext/name-matcher 迁移后统一处理），不属三选一。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-21": {
@@ -2099,7 +2135,13 @@
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "React Native bridge resolver 归属",
+          "answer": "split with 部分 keep：ObjC 宏 extract 已由 rust-objc-framework-routes.ts backfill 覆盖（关闭 TS extract）；TS spec + JVM @ReactMethod 在 resolve 阶段现扫源码，属 resolve 层 ad-hoc 扫描，延迟到 1-4-2",
+          "note": "证据：跨语言桥接（javascript/typescript/tsx/jsx/objc/java/kotlin）。extract 仅对 ObjC .m/.mm 跑 RCT_EXPORT_MODULE/RCT_EXPORT_METHOD/RCT_REMAP_METHOD regex 合成 method 节点（标 language objc）——该面已由 rust-objc-framework-routes.ts case A backfill 覆盖，与 Go 同形态可关闭 TS extract。TS spec（TurboModuleRegistry.get<Spec>('Name')）和 JVM（@ReactMethod + getName() 字面量）**不在 extract 阶段产出节点**，而在 resolve 阶段现扫所有 .m/.mm/.java/.kt/.ts/.tsx 文件源码跑 regex 建 (moduleName, jsName) → native node 映射——这属 resolve 层 ad-hoc 扫描（非 extract），等 1-4-2 决策 ResolutionContext/readFile 后统一处理。resolve() 用 getAllFiles/readFile/getNodesByKind('method')，WeakMap 缓存不写图。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-22": {
@@ -2109,7 +2151,13 @@
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Expo Modules resolver 归属",
+          "answer": "split：extract() 迁 Rust（落 swift.rs + kotlin.rs 共享 framework-routes 段），需新建 rust backfill 模块；resolve() 延迟到 1-4-2",
+          "note": "证据：extract 是纯正则（对 .swift/.kt 跑 \\b(Function|AsyncFunction|Property|Constants)\\s*(?:<...>)?\\s*(\"name\") regex 容忍 Kotlin 泛型参数，合成 method 节点；Name(\"X\") 提取 JS-visible 模块名，class X : Module 作 fallback）。Swift/Kotlin DSL 共享同一组 regex（仅 language tag 切换），Rust 迁移时两侧可共享实现。swift/kotlin baseline 已 rust-owned；**但无 rust-swift- 或 rust-kotlin-framework-routes.ts 处理 expo case**——需新建（参考 1-4-2-9）。resolve() 直接 return null——合成节点靠通用 name-matcher 命中 JS Foo.takePictureAsync() 调用，不依赖 framework resolver 自己的 resolve。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-23": {
@@ -2119,7 +2167,13 @@
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Fabric view resolver 归属",
+          "answer": "split with 部分 keep：ObjC 侧 extract 已由 rust-objc-framework-routes.ts backfill 覆盖（关闭 TS extract）；TS spec + JVM extract 迁 Rust，需新建 rust backfill 模块；跨语言 component→native-class 边由独立 synthesizer 承担（不在本 resolver）",
+          "note": "证据：跨语言（typescript/tsx/objc/java/kotlin）。extract 三条独立 regex 路径按扩展名分派：(a) .ts/.tsx 解 codegenNativeComponent<Props>('Name') 产 component 节点 + NativeProps interface 每行 prop 产 property 节点；(b) .m/.mm 解 @implementation FooManager + RCT_(EXPORT|CUSTOM|REMAP)_VIEW_PROPERTY 产 component/property 节点；(c) .java/.kt 解 class FooManager + @ReactProp(\"name\") 产 component/property 节点。ObjC 侧已由 rust-objc-framework-routes.ts case B backfill 覆盖（与 Go 同形态可关闭）；TS spec 侧和 JVM 侧无 backfill——需新建 rust-<js>-framework-routes.ts fabric case + rust-<java>-framework-routes.ts fabric case。resolve() 直接 return null——跨语言 component→native-class 边由独立的 fabricNativeImplEdges synthesizer（callback-synthesizer.ts）按名称约定（MyComponent ↔ MyComponentView|MyComponentComponentView|MyComponentManager|MyComponentViewManager）产出，不在本 resolver。TS/ObjC/JVM 三侧通过同一组名称约定 deriveComponentNameFromManager 对齐。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-2": {
@@ -3327,7 +3381,7 @@
       "parent": "1-4-2",
       "children": [],
       "decisions": [],
-      "notes": "来源：1-4-1-12(Spring)/1-4-1-13(Play) 决策点名。2026-10-16 1-4-1-1~13 re-decide 后，本节点范围扩大——除 scala/java 外，新增 js/ts（express/nestjs/react 共用）+ kotlin（spring 跨语言）。**go 已于 2026-10-16 关闭**：Go framework extract 已在 Rust 端完整实现（1-6-3-1 extract_go_gin_route），rust-hybrid 直接调用 Rust extract，无需 backfill（参考 1-4-1-24）。现状：scala/java/js/ts/kotlin baseline 已 rust-owned，但 src/indexing/ 只有 6 个 rust-*-framework-routes.ts backfill 模块（csharp/objc/php/python/ruby/swift），缺 scala/java/js/ts/kotlin 对应物 → rust-hybrid 引擎下 Play conf/routes、Spring 路由与 @Value 键绑定、Express/NestJS/React 路由全部断层（TS framework resolver 在 rust-hybrid 下不跑 extract）。先例：rust-python-framework-routes.ts（1-6-2-4，index.ts:2046 runPythonFrameworkRouteBackfill 在 finalization 阶段跑）——直接可仿。范围（按 1-4-1-1~13 re-decide 结论对齐）：a) rust-scala-framework-routes.ts（Play routes 行解析）；b) rust-java-framework-routes.ts（Spring verb-specific mapping + @RequestMapping prefix + 配置键绑定后补——但 yaml/properties 文件解析仍 keep TS，backfill 仅消费已存在的 constant 节点）；c) rust-js-framework-routes.ts（Express app/router.method + NestJS 装饰器 + React JSX component——三者可共用一模块或按框架拆，decide 时定）；d) kotlin backfill 是否并入 java 模块或单列，decide 时定。完成定义：① backfill 模块落地并在 rust-hybrid 引擎下产出 route 节点+references；② e2e 护栏用例（rust-hybrid 引擎断言 route 节点存在且 references 解析到 controller method）；③ ci.yml -t 同步；④ 三 OS CI 绿。前置：无（不阻塞 1-4-1 剩余决策项，可并行）。注意：1-4-1-1~13 的 split 迁移（extract 迁 Rust）落地后，对应 backfill 模块职能演变为『Rust extract 未完成前的过渡』或『与 Rust extract 对齐的幂等校验』，执行时需按当时 Rust extract 进度决定 backfill 是否仍需要。"
+      "notes": "来源：1-4-1-12(Spring)/1-4-1-13(Play) 决策点名。2026-10-16 1-4-1-1~13 + 1-4-1-16~23 re-decide 后，本节点范围最终定型——覆盖 scala/java/js/ts/kotlin 五语言共 7 个 framework resolver 的 backfill 缺口。**go/objc 已关闭**：Go framework extract 已在 Rust 端完整实现（1-6-3-1 extract_go_gin_route）；ObjC RN bridge + Fabric 已由 rust-objc-framework-routes.ts case A/B 覆盖。现状：scala/java/js/ts/kotlin baseline 已 rust-owned，但 src/indexing/ 只有 6 个 rust-*-framework-routes.ts backfill 模块（csharp/objc/php/python/ruby/swift），缺 scala/java/js/ts/kotlin 对应物 → rust-hybrid 引擎下 Play conf/routes、Spring 路由与 @Value 键绑定、Express/NestJS/React 路由、Expo Modules DSL、Fabric TS spec/JVM 全部断层（TS framework resolver 在 rust-hybrid 下不跑 extract）。先例：rust-python-framework-routes.ts（1-6-2-4，index.ts:2046 runPythonFrameworkRouteBackfill 在 finalization 阶段跑）——直接可仿。范围（按 re-decide 结论对齐）：a) rust-scala-framework-routes.ts（Play routes 行解析）；b) rust-java-framework-routes.ts（Spring verb-specific mapping + @RequestMapping prefix + 配置键绑定后补 + **Fabric JVM @ReactProp**——但 yaml/properties 文件解析仍 keep TS，backfill 仅消费已存在的 constant 节点）；c) rust-js-framework-routes.ts（Express app/router.method + NestJS 装饰器 + React JSX component + **Fabric TS codegenNativeComponent + NativeProps**——四者可共用一模块或按框架拆，decide 时定）；d) rust-kotlin-framework-routes.ts（**Expo Modules DSL Function/AsyncFunction/Property/Constants**——Kotlin 泛型参数容忍；Swift 侧已有 backfill，Kotlin 侧需新建；e) kotlin 是否并入 java 模块或单列，decide 时定。完成定义：① backfill 模块落地并在 rust-hybrid 引擎下产出 route/component/method 节点+references；② e2e 护栏用例（rust-hybrid 引擎断言节点存在且 references 解析到目标）；③ ci.yml -t 同步；④ 三 OS CI 绿。前置：无（不阻塞 1-4-1 剩余决策项，可并行）。注意：1-4-1-16~23 中 ASP.NET/SwiftUI/UIKit/Vapor 的 backfill 已存在（rust-csharp-framework-routes.ts + rust-swift-framework-routes.ts），不在本节点范围；RN bridge 的 ObjC 侧已由 rust-objc-framework-routes.ts 覆盖，TS spec/JVM 在 resolve 阶段现扫属 1-4-2 范围。"
     },
     "1-4-1-24": {
       "id": "1-4-1-24",
@@ -3352,7 +3406,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-16 14:55:42",
+    "updated": "2026-10-16 15:11:57",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
