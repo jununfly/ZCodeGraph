@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-16 11:10:28
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-16 14:55:42
 
 [~][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
@@ -33,8 +33,8 @@
 │   ├── [x][X+] 1-3-6. YAML Rust 化可行性与落地
 │   ├── [x][X+] 1-3-7. Twig Rust 化可行性与落地
 │   └── [x][X+] 1-3-8. Properties Rust 化可行性与落地
-├── [ ][X+] 1-4. Goal2: TS shell 共享层 migrate/keep/split 决策
-│   ├── [ ][X+] 1-4-1. Framework resolvers 逐项归属决策（23 项）
+├── [~][X+] 1-4. Goal2: TS shell 共享层 migrate/keep/split 决策
+│   ├── [~][X+] 1-4-1. Framework resolvers 逐项归属决策（23 项）
 │   └── [ ][X+] 1-4-2. 引用解析与终结层逐项决策（8 项）
 ├── [ ][Y+] 1-5. 验收标准与所有权护栏
 │   ├── [ ][Y+] 1-5-1. 迁移语言在 rust-hybrid 元数据中 TS fallback 归零
@@ -42,10 +42,11 @@
 │   ├── [ ][Y+] 1-5-3. 每个未迁移共享层项有 keep/split/migrate 决策与理由
 │   ├── [ ][Y+] 1-5-4. Status/doctor 在混合所有权下六态健康输出不回归
 │   └── [ ][Y+] 1-5-5. 所有权护栏：文件 Rust-owned 不自动宣称框架/运行时语义 Rust-owned
-└── [x][X+] 1-6. 排序与调度
+└── [~][X+] 1-6. 排序与调度
     ├── [x][Y+] 1-6-1. 波次1: Kotlin 基线迁移（#692 夹具模式落地后首个新语言）
     ├── [x][X+] 1-6-2. Python 框架充分性检查（Django/Flask/FastAPI 边界实证）
     ├── [x][X+] 1-6-3. Go/Gin 路由所有权检查
     ├── [x][X+] 1-6-4. Swift 基线迁移（移动桥接成为产品优先级时启动）
-    └── [x][Y+] 1-6-5. 波次0: #692 夹具债清零（新语言迁移前置）
+    ├── [x][Y+] 1-6-5. 波次0: #692 夹具债清零（新语言迁移前置）
+    └── [ ][X+] 1-6-6. [产品修复] rust-hybrid 下恢复 JS/TS framework 抽取（Express + NestJS extract() + React backfill 补全）
 <!-- ROADMAP_SECTION_END -->

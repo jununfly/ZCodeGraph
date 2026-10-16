@@ -1685,7 +1685,7 @@
     "1-4": {
       "id": "1-4",
       "label": "Goal2: TS shell 共享层 migrate/keep/split 决策",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -1704,7 +1704,7 @@
     "1-4-1": {
       "id": "1-4-1",
       "label": "Framework resolvers 逐项归属决策（23 项）",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1-4",
       "children": [
@@ -1730,150 +1730,307 @@
         "1-4-1-20",
         "1-4-1-21",
         "1-4-1-22",
-        "1-4-1-23"
+        "1-4-1-23",
+        "1-4-1-24",
+        "1-4-1-25"
       ],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Framework resolver 归属判据的元原则",
+          "answer": "keep 必须有必须理由（精度丢失 / 仅 TS 能做），否则一律迁 Rust",
+          "note": "用户于 2026-10-16 在 1-4-1-14 上下文确立。之前 1-4-1-1~1-4-1-13 共 13 个节点统一用『纯正则 + DB 查询，无 AST 增益』论证 keep，该论证在新原则下失效：无 AST 增益不等于必须 keep——正则和 strip-comments 在 Rust 完全可重写。影响：a) 自 1-4-1-14 起，所有 framework resolver 归属判断按新原则执行；b) 1-4-1-1~13 历史决策保留作为可追溯记录，但其结论按新原则不再成立，统一在 1-4-1-25 重新过一遍；c) 新增 backlog 1-4-1-24 关闭 rust-go-framework-routes.ts 缺口（该缺口在 1-4-1-14 决策中点名）。本决策不 retroactive 改写已 completed 节点的 decision 记录，只追加新子节点。"
+        }
+      ],
       "notes": "每项必须落 migrate / keep TS-shell / split 三选一决策 + 理由；基线 Rust-owned 不自动带出框架所有权。resolver 均在 src/resolution/frameworks/。"
     },
     "1-4-1-1": {
       "id": "1-4-1-1",
       "label": "Laravel resolver（路由/resource/控制器解析）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Laravel resolver 归属（migrate/keep/split）？",
+          "answer": "keep TS-shell",
+          "note": "理由：1) 抽取层为纯正则(stripCommentsForRegex + route regex + handler-expr 解析)，不依赖 tree-sitter AST，迁移 Rust 无精度收益。2) 已有 TS shell 消费者 rust-php-framework-routes.ts(1-2-5-4 split cutover 建立)，迁移后仍需保留 TS 入口等同做两遍。3) 与 1-2-4-4(ASP.NET) / 1-6-2-4(Django/Flask/FastAPI) / 1-6-4-5(SwiftUI/UIKit/Vapor) 已固化 split 模式一致。4) 现 1-2-5-4 三 OS 绿稳定，迁移引入回归风险无对等收益。备择：migrate=重写 298 行正则+Facade 表为 Rust 无收益；split=Laravel 已是 split 状态无需再切。"
+        },
+        {
+          "q": "Laravel resolver 归属 re-decide（按新元原则）",
+          "answer": "split：extract() 迁 Rust（落 php.rs framework-routes 段），resolve() 延迟到 1-4-2",
+          "note": "re-decide：原 keep 论证『纯正则+DB 查询无 AST 增益』在新元原则下失效。证据：extract 是纯正则（Route::get/post/resource/apiResource + stripCommentsForRegex），不读非源码文件，无 TS-only 依赖；php baseline 已 rust-owned，rust-php-framework-routes.ts backfill 已存在（同时承载 laravel+drupal），迁移后与现有 backfill 模式完全对齐。resolve() 用 fileExists/getNodesInFile/getNodesByName 全部是 DB 查询，等 1-4-2。claimsReference 认领 XxxController@method 形态防预过滤，该机制属 reference-claim 通道，随 extract 一起迁。落实计划参考 1-4-1-14。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-2": {
       "id": "1-4-1-2",
       "label": "Drupal resolver（routing YAML 与 hook 抽取）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Drupal resolver 归属（migrate/keep/split）？",
+          "answer": "keep TS-shell",
+          "note": "理由：1) 抽取层纯正则+行解析(routing YAML 行扫描/docblock regex/function-name regex/generateNodeId 纯哈希复算)，不依赖 tree-sitter AST，迁移 Rust 无精度收益。2) 已有 TS shell 消费者 rust-php-framework-routes.ts(1-2-5-4 split cutover 建立)，迁移后仍需 TS 入口等同做两遍。3) 跨语言边界复杂：同时产 language=yaml 的 route 节点(挂 YAML 文件)和挂 Rust baseline PHP function 的 hook 引用，迁移需 Rust 侧同时处理 YAML 行解析+与 PHP function 节点 ID 互认，边界复杂度远超 Laravel。4) hook 3 级回退(concrete→canonical template→legacy)+*.post_update.php sink-only 扩展+composer.json detect 是 Drupal 特殊语义，TS 侧已稳定。5) YAML 已独立 keep TS-shell(1-3-6-1)，Drupal 的 .routing.yml 抽取自然留在 TS 侧。6) 与 1-4-1-1 Laravel/1-2-4-4 ASP.NET/1-6-2-4 Django-Flask-FastAPI/1-6-4-5 Swift* 同模式。备择：migrate=重写 449 行正则+YAML 行解析+hook 3 级回退为 Rust 无收益且引入跨语言边界复杂度；split=Drupal 已是 split 状态(baseline=Rust, framework=TS)无需再切。"
+        },
+        {
+          "q": "Drupal resolver 归属 re-decide（按新元原则）",
+          "answer": "split with 部分 keep：PHP hook 部分 extract 迁 Rust（落 php.rs），routing.yml 部分必须 keep TS-shell，resolve() 延迟到 1-4-2",
+          "note": "re-decide：跨语言混合（php + yaml）。a) PHP hook extract（.module/.install/.theme/.inc/*.post_update.php 的 docblock Implements hook_X() 正则 + name-pattern fallback）纯正则可迁，与 laravel 同形态；现有 rust-php-framework-routes.ts 已 backfill hook refs，迁 Rust 后通道对齐。b) routing.yml extract 必须 keep——yaml 是 1-3 已 keep 的文件级语言（ownership-guard test 断言永不入 RUST_HYBRID），现有 backfill 注释明确 routing.yml 不在 Rust 通道；YAML 解析迁 Rust 需要先重开 1-3 yaml 决策，超出本节点范围。c) resolve() 用 readFile/getAllFiles/getNodesByName/getNodesInFile/getNodesByKind，等 1-4-2。d) emitHookRef 通过 generateNodeId 重建 PHP baseline 函数节点 ID 作为 fromNodeId，该 ID 算法在 Rust 侧一致即可（已对齐，因为 rust-php-framework-routes.ts 已在工作）。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-3": {
       "id": "1-4-1-3",
       "label": "Express resolver（路由与中间件）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Express resolver 归属（migrate/keep/split）？",
+          "answer": "keep TS-shell",
+          "note": "理由：1) 抽取层为纯正则(stripCommentsForRegex + route-head regex + matchDelim 平衡括号扫描 + 调用名收集 + RESERVED_CALLS 过滤)，不依赖 tree-sitter AST，迁移 Rust 无精度收益。2) 已有 TS shell 调用入口 tree-sitter.ts:3715-3738 framework extract 调度点+frameworks/index.ts registry，迁移后仍需 TS 入口。3) 与 1-4-1-1 Laravel/1-4-1-2 Drupal/1-2-4-4 ASP.NET/1-6-2-4 Django-Flask-FastAPI/1-6-4-5 Swift* 同模式。4) resolve() 完全依赖 DB 层接口(getNodesByName/getNodesInFile)，与 AST 无关。已知产品缺口（独立 backlog 不入本节点）：rust-hybrid 下 JavaScript/TypeScript 已 rust-owned 但没有对应 rust-javascript-framework-routes.ts backfill 模块（对照 csharp/php/python/ruby/swift/objc 六语言均有），导致 Express 路由节点在 rust-hybrid 下断层；该缺口修复=新增 rust-javascript-framework-routes.ts + e2e 护栏（仿 1-6-2-4 Python 恢复模式），与本节点 keep 决策正交。备择：migrate=重写 337 行正则+平衡括号扫描为 Rust 无 AST 收益；split=Express 已是 split 倾向(baseline=Rust, framework=TS 但 backfill 模块缺失)无需再切。"
+        },
+        {
+          "q": "Express resolver 归属 re-decide（按新元原则）",
+          "answer": "split：extract() 迁 Rust（落 js/ts 段，位置待定—— crates/zcodegraph-core 当前无独立 js.rs，需新增或在 lib.rs 内嵌），resolve() 延迟到 1-4-2",
+          "note": "re-decide：原 keep 论证失效。证据：extract 是纯正则（app/router.get/post + balanced-paren handler 参数解析 + inline arrow 体内调用扫描），不读非源码文件，无 TS-only 依赖；javascript/typescript baseline 已 rust-owned；但 rust-<js>-framework-routes.ts backfill 当前不存在，需配套新建（参考 1-4-1-24 go 模式）。resolve() 用 readFile/getAllFiles/getNodesByName/getNodesInFile，等 1-4-2。inline arrow handler 会发 calls 边挂到 route node，该机制随 extract 一起迁。特殊点：crates/zcodegraph-core 当前按语言分文件（csharp.rs/dart.rs/...），无 js.rs；落地时需先决定 js/ts 是否合文件还是按语言拆。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-4": {
       "id": "1-4-1-4",
       "label": "NestJS resolver（控制器路由、模块前缀 post-extract、GraphQL/gateway/class 装饰器）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "NestJS resolver 归属（migrate/keep/split）？",
+          "answer": "split（既有形态固化：extract=TS-shell / postExtract=Rust 已迁）",
+          "note": "理由：1) NestJS 已是事实上的 split——postExtract(RouterModule 跨文件前缀)已迁 Rust(produce_nestjs_framework_post_extract_updates, lib.rs:15150)，extract()四传输层(HTTP/GraphQL/Microservice/WebSocket)仍在 TS。2) extract() 部分 keep TS-shell 同 Express/Laravel/Drupal 模式：纯正则(comment-strip+平衡括号扫描+类作用域配对+RouterModule 递归树解析 767 行)无 AST 收益。3) postExtract 部分已 migrate Rust 是合理边界：跨文件操作需 DB 内 JOIN files+nodes 两表，适合 Rust 处理。4) split 协议边界已稳定运行：extract 产 route 节点保留 qualifiedName=`file::method:path` 原始形态，postExtract 幂等重写 name 字段加 RouterModule prefix，两者通过 route.id 契约解耦。已知产品缺口（独立 backlog 入 1-6-6 JS/TS backfill 模块覆盖范围）：rust-hybrid 下 NestJS extract() 四传输层路由节点断层(无 backfill 调用 extract)，仅 postExtract 在跑——修复时与 Express 共享 rust-javascript-framework-routes.ts，一次修两个。备择：migrate=四传输层全部迁 Rust 需重写 767 行+四 decorator 体系+作用域配对，无 AST 收益；keep=忽略 postExtract 已迁 Rust 的现实，不符合事实。"
+        },
+        {
+          "q": "NestJS resolver 归属 re-decide（按新元原则）",
+          "answer": "split：extract() 迁 Rust（落 ts 段），postExtract 暂留 TS（等 1-4-2 决策 ResolutionContext 写接口），resolve() 延迟到 1-4-2",
+          "note": "re-decide：原 keep 论证失效。证据：extract 是纯正则（findDecorators 扫 @Get/@Post/@Resolver/@MessagePattern/@SubscribeMessage + string-aware balanced-paren 读 args），不依赖 TS extractor 的 decorators 列（自己 regex 找装饰器+方法名）；typescript/javascript baseline 已 rust-owned；backfill 不存在，需配套新建 rust-<ts>-framework-routes.ts。特殊点：postExtract 跨文件 RouterModule.register([...]) 前缀合并，依赖 updateNode by id（DB 写操作）——比 readOnly 的 resolve 更依赖 TS 基建，等 1-4-2 决策 ResolutionContext 写接口后统一处理；在 1-4-2 前 postExtract 必须留 TS。resolve() 用 getNodesByName/readFile/getAllFiles/getNodesInFile，等 1-4-2。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-5": {
       "id": "1-4-1-5",
       "label": "React resolver（组件/context/router 语义与 dynamic-dispatch 交互）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "React resolver 归属（migrate/keep/split）？",
+          "answer": "keep TS-shell",
+          "note": "理由：1) 抽取层为纯正则+文件路径约定(componentPattern×4+hookPattern+<Route> tag window scan+data-router object scan+pages//app/ 文件路径→路由转换 403 行)，不依赖 tree-sitter AST，迁移 Rust 无精度收益。2) 语义异质性极高：component/hook/React Router JSX/data-router/Next.js 文件约定 5 种语义在同一 resolver 内，重写 Rust 需复刻 5 套独立启发式规则（含 JSX 启发式 afterMatch.includes(<) 弱信号），复杂度高。3) JSX 启发式天然弱：hasJSX 判断是字符串窗口猜测，迁 Rust 无法变精确，保留 TS 便于快速调优。4) 文件路径→路由转换(pages/blog/[slug].tsx→/blog/:slug)是纯字符串处理，与 AST 无关。5) 与 1-4-1-1/1-4-1-2/1-4-1-3 同模式（Laravel/Drupal/Express 全 keep）。6) resolve() 完全依赖 DB 层接口(getNodesByName+目录前缀偏好)。已知产品缺口（入 1-6-6 JS/TS backfill 覆盖范围）：rust-hybrid 下 extract() 5 种语义全断层，需纳入 1-6-6-1 补跑列表（express+nestjs+react）。备择：migrate=重写 403 行+5 套启发式为 Rust 无 AST 收益；split=React 单职责 TS resolver 无已迁 Rust 部分无需 split。"
+        },
+        {
+          "q": "React resolver 归属 re-decide（按新元原则）",
+          "answer": "split：extract() 迁 Rust（落 jsx/tsx 段），resolve() 延迟到 1-4-2",
+          "note": "re-decide：原 keep 论证失效。证据：extract 是纯正则（4 个 componentPattern 函数/箭头/forwardRef/memo + hook pattern + <Route 窗口扫描 + createBrowserRouter data-router + Next.js 文件路径推断 pages/app），不读非源码文件；jsx/tsx baseline 已 rust-owned；backfill 不存在，需配套新建。特殊点：resolveComponent 优先匹配 kind='component'——该 kind 由 framework 自己 extract 发（forwardRef/memo/JSX 检测后），不是 TS baseline 节点，随 extract 一起迁 Rust 后该 kind 节点仍在；hook 发 kind='function' 节点同样随 extract 迁。resolve() 用 readFile/getAllFiles/getNodesByName，等 1-4-2。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-6": {
       "id": "1-4-1-6",
       "label": "Svelte resolver（SvelteKit routes 与 form actions）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Svelte resolver 归属（migrate/keep/split）？",
+          "answer": "keep TS-shell",
+          "note": "理由：1) extract() 极简且纯路径约定：不读 content(_content 前缀下划线)，只看文件路径(getSvelteKitRouteInfo 查 12 个 SvelteKit 特殊文件名 + filePathToSvelteKitRoute 目录结构→路由转换)，无 AST 依赖，迁移 Rust 零收益。2) resolve() 4 pattern 全是 Svelte/SvelteKit 特殊语义：Svelte 5 runes（state/derived/effect 系）+store auto-subscription（$storeName 语法）+$app/$env/$lib module prefix+PascalCase component lookup，全部依赖 DB 层 name 查询，与 AST 无关。3) 无 rust-hybrid 断层问题：svelte 语言已 keep TS-shell(1-3-1)，svelte 文件仍走 TS 解析管线，tree-sitter.ts framework extract 调度点正常工作——与 Express/NestJS/React 不同，无需入 1-6-6 backfill 范围。4) 与语言级决策一致：Svelte language 在 1-3-1 keep TS-shell，framework resolver 在 1-4-1-6 keep TS-shell——同层同决策。5) Svelte 5 runes 是活跃演进：runes 系统仍在演进(state.raw/effect.tracking 等子方法可能新增)，保留 TS 便于快速跟进。备择：migrate=重写 280 行纯路径约定+4 pattern 为 Rust 无 AST 收益；split=Svelte 单职责 TS resolver 无已迁 Rust 部分无需 split。"
+        },
+        {
+          "q": "Svelte resolver 归属 re-decide（按新元原则）",
+          "answer": "keep TS-shell（有『仅 TS 能做』硬理由）",
+          "note": "re-decide：在新元原则下仍 keep。证据：a) resolveComponent 强依赖 kind='component' 节点，该节点由 src/extraction/svelte-extractor.ts 发出——svelte-extractor 是 1-3 已决策 keep 的文件级语言（ownership-guard test 显式断言永不入 RUST_HYBRID），其 component 节点永不会出现在 Rust 侧；b) extract 本身只扫 filePath（13 种 SvelteKit 文件名模式），不读 content，迁 Rust 无技术阻塞但与 svelte-extractor 强耦合，分离会导致 SvelteKit 路由节点与 component 节点跨引擎割裂；c) rune 引用（$state 等）和 $app/$env 虚拟模块被就地 resolve 成 self-edge（confidence 1.0），同样依赖 svelte-extractor 的节点 ID 一致性。结论：keep，直到 svelte-extractor 本身重开 1-3 决策。这是新元原则下的合法 keep——『仅 TS 能做』成立。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-7": {
       "id": "1-4-1-7",
       "label": "Vue/Nuxt resolver（文件约定路由与中间件）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Vue/Nuxt resolver 归属（migrate/keep/split）？",
+          "answer": "keep TS-shell",
+          "note": "理由：1) extract() 纯文件路径约定：不读 content(_content 前缀下划线)，只检测 /pages/ / /server/api/ / /middleware/ 三个目录产 route/function 节点，无 AST 依赖，迁移 Rust 零收益。2) resolve() 6 pattern 全是 Vue/Nuxt 特殊语义：Vue compiler macros(defineProps 等 7 个)+Nuxt auto-imports(useRoute/useFetch 等 30+)+Nuxt virtual modules(#imports/#components 等)+双 alias 约定(@/+~/)→src/+PascalCase .vue component lookup，全部依赖 DB 层 name/file 查询，与 AST 无关。3) 无 rust-hybrid 断层问题：vue 语言已 keep TS-shell(1-3-2)，.vue 文件仍走 TS 解析管线，tree-sitter.ts framework extract 调度点正常工作——与 Svelte 同形态，无需入 1-6-6 backfill 范围。4) 与语言级决策一致：Vue language 在 1-3-2 keep TS-shell，framework resolver 在 1-4-1-7 keep TS-shell——同层同决策。5) Nuxt 是活跃演进：Nuxt 3/4 auto-imports 列表仍在扩张，保留 TS 便于快速跟进。6) universal languages 字段未声明不影响决策：extract 内部有文件后缀/路径过滤，rust-owned JS/TS 文件不会因此 resolver 被误处理。备择：migrate=重写 338 行纯路径约定+6 pattern 为 Rust 无 AST 收益；split=Vue 单职责 TS resolver 无已迁 Rust 部分无需 split。"
+        },
+        {
+          "q": "Vue/Nuxt resolver 归属 re-decide（按新元原则）",
+          "answer": "keep TS-shell（有『仅 TS 能做』硬理由）",
+          "note": "re-decide：在新元原则下仍 keep，理由与 svelte 同构。证据：a) resolveComponent 扫所有 .vue 文件并要求文件内存在 kind='component' 节点，该节点由 src/extraction/vue-extractor.ts 发出——vue-extractor 是 1-3 已决策 keep 的文件级语言（ownership-guard test 显式断言），其 component 节点永不会出现在 Rust 侧；b) extract 本身只扫 filePath（pages/server/api/middleware 目录约定），不读 content，迁 Rust 无技术阻塞但与 vue-extractor 强耦合；c) @/~/alias import 和 Nuxt auto-imports/#imports 虚拟模块 self-edge 同样依赖 vue-extractor 的节点 ID 一致性。结论：keep，直到 vue-extractor 本身重开 1-3 决策。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-8": {
       "id": "1-4-1-8",
       "label": "Django resolver（URL/view/model 与 ORM descriptor 语义）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Django resolver 归属（migrate/keep/split）？",
+          "answer": "keep TS-shell",
+          "note": "理由：1) 抽取层为纯正则(path/re_path/url 路由 regex + DRF router.register regex + handler 表达式解析)，不依赖 tree-sitter AST，迁移 Rust 无精度收益。2) 已有 TS shell backfill 消费者 rust-python-framework-routes.ts(1-6-2-4 建立)，迁移后等同做两遍。3) Django ORM dynamic dispatch(_iterable_class→ModelIterable.__iter__ 桥接)+include(app.urls) 模块路径映射是 Python/Django 特有语义，TS 侧已稳定。4) claimsReference 特殊处理(_iterable_class + *.urls)让非常规 ref 通过 pre-filter，与 resolve() 配对，重写 Rust 需复刻整对逻辑。5) 与 1-6-2-4 split 模式一致：Rust 管 baseline，TS 管 framework 语义后补（同 1-4-1-1 Laravel/1-4-1-2 Drupal/1-4-1-3 Express）。6) 无新断层：1-6-2-4 已修复 rust-hybrid 下 Django 断层，无需入 1-6-6 backfill 范围。备择：migrate=重写 140 行 Django 部分正则+ORM dynamic dispatch 为 Rust 无 AST 收益；split=Django 已是 split 状态(baseline=Rust, framework=TS)无需再切。"
+        },
+        {
+          "q": "Django resolver 归属 re-decide（按新元原则）",
+          "answer": "split：extract() 迁 Rust（落 python.rs framework-routes 段，与 flask/fastapi 共用通道），resolve() 延迟到 1-4-2",
+          "note": "re-decide：原 keep 论证失效。证据：extract 是纯正则（path/re_path/url 行解析 + DRF router.register + include/View.as_view handler 形态），不读非源码文件，无 TS-only 依赖；python baseline 已 rust-owned，rust-python-framework-routes.ts backfill 已存在（同时承载 django+flask+fastapi），迁移后与现有 backfill 模式完全对齐。claimsReference 认领 _iterable_class（QuerySet 动态 dispatch）+ *.urls（include 模块路径）形态，随 extract 一起迁。resolve() 用 readFile/fileExists/getNodesByName，等 1-4-2。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-9": {
       "id": "1-4-1-9",
       "label": "Flask resolver（装饰器路由与 Flask-RESTful resources）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Flask resolver 归属（migrate/keep/split）？",
+          "answer": "keep TS-shell",
+          "note": "理由：1) 抽取层为纯正则（共享 extractDecoratorRoutes 装饰器 regex + Flask 专属 extractFlaskRestful add_resource regex），不依赖 tree-sitter AST，迁移 Rust 无精度收益。2) 已有 TS shell backfill 消费者 rust-python-framework-routes.ts(1-6-2-4 建立)，与 Django 共享——迁移后等同做两遍。3) Flask 特有语义在 TS 侧已稳定：stacked 装饰器跳过（@bp.route 上方可有 @login_required 介入，findHandler 用 \\n\\s*(?:async\\s+)?def\\s+(\\w+) 跳过中间装饰器）+ app-factory pattern 检测（entrypoint 文件同时含 import flask + Flask(...) 实例化）+ Flask-RESTful add_resource 变体兼容（add\\w*[Rr]esource 模糊匹配覆盖 redash add_org_resource）+ methods list/tuple 双语法兼容（[[(]...[\\])]）。4) 与 1-6-2-4 split 模式一致：Rust 管 baseline，TS 管 framework 语义后补（同 1-4-1-1/1-4-1-2/1-4-1-3/1-4-1-8）。5) 无新断层：1-6-2-4 已修复 rust-hybrid 下 Flask 断层，无需入 1-6-6 backfill 范围。备择：migrate=重写 52 行 resolver 本体+53 行共享 decorator 抽取+38 行 Flask-RESTful 抽取为 Rust 无 AST 收益；split=Flask 已是 split 状态(baseline=Rust, framework=TS)无需再切。"
+        },
+        {
+          "q": "Flask resolver 归属 re-decide（按新元原则）",
+          "answer": "split：extract() 迁 Rust（落 python.rs framework-routes 段，与 django/fastapi 共用通道），resolve() 延迟到 1-4-2",
+          "note": "re-decide：原 keep 论证失效。证据：extract 是纯正则（@x.route decorator + api.add_resource Flask-RESTful，共享 extractDecoratorRoutes helper），不读非源码文件；python baseline 已 rust-owned，rust-python-framework-routes.ts backfill 已存在；detect 兜底扫 (app|application|main|wsgi|__init__).py 入口文件查 Flask(+import flask——detect 不在索引路径上，不影响归属。resolve() 用 readFile/getAllFiles/getNodesByName，等 1-4-2。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-10": {
       "id": "1-4-1-10",
       "label": "FastAPI resolver（装饰器路由与依赖注入语义）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "FastAPI resolver 归属（migrate/keep/split）？",
+          "answer": "keep TS-shell",
+          "note": "理由：1) 抽取层为纯正则——完全复用共享 extractDecoratorRoutes（与 Flask 共享同一函数，仅传不同 regex/参数），不依赖 tree-sitter AST，迁移 Rust 无精度收益。2) 已有 TS shell backfill 消费者 rust-python-framework-routes.ts(1-6-2-4 建立)，与 Django/Flask 共享——迁移后等同做两遍。3) FastAPI 特有语义在 TS 侧已稳定：依赖注入模式（resolve() 处理 get_*/Depends* 前缀 + /dependencies//deps//core/ 目录偏好，是 FastAPI 核心 dependency injection 模式）+ 空 path 支持（regex 用 [^\\\"]* 允许空，路由挂在 router prefix 根）+ HTTP method 直接作 decorator 名（@app.get/@app.post/...，regex 捕获 (get|post|put|patch|delete|options|head)）。4) 与 1-6-2-4 split 模式一致：Rust 管 baseline，TS 管 framework 语义后补（同 1-4-1-1/1-4-1-2/1-4-1-3/1-4-1-8/1-4-1-9）。5) 无新断层：1-6-2-4 已修复 rust-hybrid 下 FastAPI 断层，无需入 1-6-6 backfill 范围。备择：migrate=重写 42 行 resolver+复用共享 extractDecoratorRoutes 为 Rust 无 AST 收益；split=FastAPI 已是 split 状态(baseline=Rust, framework=TS)无需再切。"
+        },
+        {
+          "q": "FastAPI resolver 归属 re-decide（按新元原则）",
+          "answer": "split：extract() 迁 Rust（落 python.rs framework-routes 段，与 django/flask 共用通道），resolve() 延迟到 1-4-2",
+          "note": "re-decide：原 keep 论证失效。证据：extract 是纯正则（@x.get/post/put/patch/delete/options/head decorator + 下一行 def 提 handler，共享 extractDecoratorRoutes helper），不读非源码文件；python baseline 已 rust-owned，rust-python-framework-routes.ts backfill 已存在。resolve() 用 readFile/getNodesByName，等 1-4-2。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-11": {
       "id": "1-4-1-11",
       "label": "Rails resolver（routes、controller/model/helper/service 约定）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Rails resolver 归属（migrate/keep/split）？",
+          "answer": "keep TS-shell",
+          "note": "理由：1) 抽取层为纯正则(stripCommentsForRegex + route regex + resources/resource 展开)，不依赖 tree-sitter AST，迁移 Rust 无精度收益——与 Laravel/Drupal/Express/Django/Flask/FastAPI 同一形态。2) 已有 TS shell backfill 消费者 rust-ruby-framework-routes.ts(1-2-6-4 split cutover 建立，镜像 rust-csharp/php-framework-routes)，迁移后等同做两遍。3) Rails 特有语义在 TS 侧已稳定：RESTful resources/resource 展开 7/6 actions with only/except 过滤 + naive pluralize + controller#action 精确 refs(claimsReference 认领 /controller#action/ 形态，confidence 0.85) + Pattern1-4 约定解析(model/controller/helper/service 目录约定 + camelize/snake_case 双向转换)。4) resolve() 依赖 ResolutionContext 的 fileExists/getNodesInFile/getNodesByName 全套 DB 查询接口，属跨文件语义后补层，不适合 Rust 抽取层。5) 与 1-2-4-4(ASP.NET) / 1-6-2-4(Django/Flask/FastAPI) / 1-6-4-5(SwiftUI/UIKit/Vapor) / 1-2-5-4(Laravel) 已固化 split 模式一致：Rust 管 baseline 符号抽取，TS 管 framework 语义后补。6) 现 1-2-6-4 三 OS 绿稳定，迁移引入回归风险无对等收益。7) ruby.rs 头注释明确写死 'routes/models stay in the TS Rails shell'——边界已在 Rust 侧自我声明。备择：migrate=重写 337 行 resolver+resources 展开+pluralize 表为 Rust 无 AST 收益；split=Rails 已是 split 状态(baseline=Rust, framework=TS)无需再切。"
+        },
+        {
+          "q": "Rails resolver 归属 re-decide（按新元原则）",
+          "answer": "split：extract() 迁 Rust（落 ruby.rs framework-routes 段），resolve() 延迟到 1-4-2",
+          "note": "re-decide：原 keep 论证失效。证据：extract 是纯正则（get/post/put/patch/delete/match + resources/resource 展开 7 个 RESTful action + pluralize/camelize 简易变形），不读非源码文件；ruby baseline 已 rust-owned，rust-ruby-framework-routes.ts backfill 已存在；claimsReference 认领 controller#action 形态，随 extract 一起迁。resolve() 用 readFile/fileExists/getNodesByName/getNodesInFile，按 rails 目录约定 app/controllers/x_controller.rb 查 class/method/module，等 1-4-2。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-12": {
       "id": "1-4-1-12",
       "label": "Spring resolver（控制器路由与配置键绑定）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Spring resolver 归属（migrate/keep/split）？",
+          "answer": "keep TS-shell",
+          "note": "理由：1) 抽取层为纯正则(stripCommentsForRegex + mapping regex + method regex + YAML/properties 行解析)，不依赖 tree-sitter AST，迁移 Rust 无精度收益——与 Laravel/Drupal/Express/Django/Flask/FastAPI/Rails 同一形态。2) Spring 特有语义在 TS 侧已稳定：@GetMapping/@PostMapping 等 verb-specific mapping + 类级 @RequestMapping prefix 拼接 + BARE method mapping(path 在类上) + @RequestMapping(method=RequestMethod.X) 老风格 + **Spring 配置键绑定**(@Value('${key}') + @ConfigurationProperties(prefix) + relaxed binding canonicalConfigKey(kebab/camel/snake 折叠) + profile 优先级排序 application.yml > application-dev.yml) + Spring 配置文件抽取(application*.yml/properties 叶键发 constant 节点，值不入库防 #383 泄密)。3) resolve() 完全依赖 DB 层接口(getNodesByName/getNodesByKind/fileExists/getNodesInFile)，与 AST 无关。4) 与 1-4-1-1 Laravel/1-4-1-2 Drupal/1-4-1-3 Express/1-2-4-4 ASP.NET/1-6-2-4 Django-Flask-FastAPI/1-6-4-5 Swift*/1-2-5-4 PHP/1-2-6-4 Ruby 同模式。5) Spring 跨 4 语言(languages=['java','kotlin','yaml','properties'])——yaml/properties 是文件级语言已 1-3-7/1-3-8 keep TS-shell，java/kotlin baseline 已 rust-owned，framework 层留 TS 是天然 split。已知产品缺口（独立 backlog 不入本节点）：rust-hybrid 下 java/kotlin 已 rust-owned 但没有对应 rust-java-framework-routes.ts / rust-kotlin-framework-routes.ts backfill 模块（对照 csharp/php/python/ruby/swift/objc 六语言均有），导致 Spring 路由节点+@Value/@ConfigurationProperties 配置键绑定在 rust-hybrid 下断层；该缺口修复=新增 rust-java-framework-routes.ts + rust-kotlin-framework-routes.ts + e2e 护栏（仿 1-6-2-4 Python 恢复模式），与本节点 keep 决策正交。备择：migrate=重写 543 行 resolver+YAML/properties 解析+relaxed binding 为 Rust 无 AST 收益；split=Spring 已是 split 倾向(baseline=Rust, framework=TS 但 backfill 模块缺失)无需再切。"
+        },
+        {
+          "q": "Spring resolver 归属 re-decide（按新元原则）",
+          "answer": "split with 部分 keep：Java/Kotlin 源码正则部分 extract 迁 Rust（落 java.rs + kotlin.rs 共享段），yaml/properties 文件解析部分必须 keep TS-shell，resolve() 延迟到 1-4-2",
+          "note": "re-decide：跨 4 种语言（java/kotlin/yaml/properties）。a) Java/Kotlin 源码 extract（@GetMapping/@PostMapping/@RequestMapping 正则 + @Value(${k}) + @ConfigurationProperties(prefix)）纯正则可迁，java/kotlin baseline 已 rust-owned，rust-<java>-framework-routes.ts backfill 不存在需新建。b) yaml/properties 文件解析部分必须 keep——yaml/properties 都是 1-3 已决策 keep 的文件级语言，extract 把每个 leaf key 变成 kind='constant' 节点供 @Value resolve 反查；迁 Rust 需先重开 1-3 yaml + 1-3 properties 两个决策，超出本节点范围。c) @Value(${k}) resolve 强依赖 yaml/properties 发的 constant 节点——这条依赖链跨越文件级语言 keep 边界，是合法的『仅 TS 能做』论据，但仅限于 yaml/properties 侧；java/kotlin 侧的源码 extract 不受此阻塞。d) claimsReference 用 :prefix 哨兵标记让 @ConfigurationProperties 子树引用穿过预过滤，该机制随 java/kotlin extract 一起迁。e) resolve() 用 readFile/getAllFiles/getNodesByName/getNodesByKind('constant')，等 1-4-2。"
+        }
+      ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
     },
     "1-4-1-13": {
       "id": "1-4-1-13",
       "label": "Play resolver（无扩展名 conf/routes 抽取）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
-      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+      "decisions": [
+        {
+          "q": "Play resolver 归属（migrate/keep/split）？",
+          "answer": "keep TS-shell",
+          "note": "理由：1) 抽取层为纯正则（ROUTE_LINE 行解析 + action FQN 截尾两段），conf/routes 是无扩展名文件、无 tree-sitter grammar，detectLanguage 显式路由到 no-grammar(yaml) 路径（grammars.ts:262），迁移 Rust 无 AST 收益——与 Laravel/Drupal/Express/Django/Flask/FastAPI/Rails/Spring 同一形态。2) Play 特有语义在 TS 侧已稳定：extensionless conf/routes + conf/*.routes 通过 isPlayRoutesFile 特判进索引（grammars.ts:122/145）；-> 子路由挂载跳过；action 参数列表剥离取末两段 Controller.method；claimsReference 认领 Class.method 形态防 pre-filter 丢弃；resolve 用 getNodesByName(class)+getNodesInFile 限定 controller 文件内查 method，confidence 0.9。3) resolve() 完全依赖 ResolutionContext 的 DB 查询接口（readFile/fileExists/getNodesByName/getNodesInFile），与 AST 无关，属跨文件语义后补层。4) yaml 已按 1-3-6-1 keep TS-shell（guard 断言），conf/routes 复用该 no-grammar 通道；play.ts 正是 yaml keep 决策中点名的三个 yaml 符号后补消费者之一（drupal/play/java spring），其归属由各 resolver 1-4 决策决定——本节点即该决策，结论 keep。5) 与 1-4-1 已关闭的 12 个兄弟节点（Laravel/Drupal/Express/NestJS/React/Svelte/Vue/Django/Flask/FastAPI/Rails/Spring）结论一致。已知产品缺口（独立 backlog 不入本节点）：scala/java baseline 已 rust-owned，但无 rust-scala-framework-routes.ts / rust-java-framework-routes.ts backfill 模块（对照 csharp/php/ruby/swift/objc 五语言均有），rust-hybrid 下 conf/routes 的 route 节点与 Controller.method references 断层；修复=新增两个 backfill 模块 + e2e 护栏（仿 1-6-2-4 Python 恢复模式），与本节点 keep 决策正交。备择：migrate=把行级正则路由解析重写为 Rust 无 grammar 可用、无精度收益；split=Play 已是 split 倾向（baseline=Rust，framework=TS 但 backfill 缺失）无需再切。"
+        },
+        {
+          "q": "Play resolver 归属 re-decide（按新元原则）",
+          "answer": "split：extract() 迁 Rust（落 scala.rs framework-routes 段，复用 no-grammar 通道），resolve() 延迟到 1-4-2",
+          "note": "re-decide：原 keep 论证失效。证据：extract 是纯正则（conf/routes 行解析 GET|POST|... 跳 # 注释和 -> 子路由），不读源码 AST；scala baseline 已 rust-owned，rust-<scala>-framework-routes.ts backfill 不存在需新建；conf/routes 是无扩展名文件，由 isPlayRoutesFile 特判纳入索引（grammars.ts:122/145），走 no-grammar(yaml) 通道——迁 Rust 时需在 scala.rs 或共享段复刻该文件识别 + 行解析逻辑；action 参数剥离取末两段 Controller.method + claimsReference 认领 Class.method 形态防预过滤，随 extract 一起迁。resolve() 用 readFile/fileExists/getNodesByName/getNodesInFile，等 1-4-2。"
+        }
+      ],
+      "notes": "decide 已记录：keep TS-shell。纯正则行解析+无 grammar 文件（conf/routes 走 no-grammar/yaml 通道），无 AST 收益；与 1-4-1 前 12 个兄弟节点同结论。rust-scala/java framework-routes backfill 缺口记入独立 backlog（与本决策正交）。"
     },
     "1-4-1-14": {
       "id": "1-4-1-14",
       "label": "Go/Gin resolver（路由抽取与 handler 解析）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
-      "decisions": [],
-      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+      "decisions": [
+        {
+          "q": "Go/Gin resolver 归属（migrate/keep/split）？",
+          "answer": "split：extract() 迁 Rust（落 crates/zcodegraph-core/src/go.rs 的 framework-routes 段），resolve() 暂留 TS 延迟到 1-4-2",
+          "note": "理由：1) 用户原则——keep 必须有必须理由（精度丢失/仅 TS 能做），否则一律迁 Rust；之前 13 个兄弟节点统一用『纯正则+DB 查询』论证 keep，在新原则下失效。2) extract()（go.ts:83-135）是纯正则 routeRegex 扫 <var>.METHOD(\"path\", handler)，发 route 节点 + handler references edge，迁 Rust 无精度损失也无增益（本来就不用 AST），但『仅 TS 能做』不成立——正则和 strip-comments 在 Rust 完全可重写，应迁。3) resolve()（go.ts:27-81）是 4 个 name-pattern + 目录约定的 DB 索引查询（ResolutionContext.getNodesByName/getNodesInFile/readFile/fileExists），完全不碰 AST；迁 Rust 需要先把 ResolutionContext/name-matcher 迁过去，阻塞在 1-4-2（name-matcher/import-resolver/终结层 8 项归属未定）。单独先迁 resolve() 会导致 Rust 侧仍需调 TS 提供的 DB 接口（FFI 桥接），或复制一套 DB 查询逻辑，1-4-2 决策后必然返工。4) Go baseline 已 rust-owned（lib.rs:7191 extract_go_symbols + RUST_HYBRID_RUST_OWNED_LANGUAGES），extract() 迁移后与 Rust baseline 串行触发，同时删除 TS 侧 goResolver.extract()。备择：migrate 全迁=resolve() 被 1-4-2 阻塞不可行；keep=违反用户原则。落实计划：a) 在 go.rs 内新增 framework-routes 抽取段（路由正则 + handler 尾标识提取）；b) extract_go_symbols 调用链中串行触发该段；c) 删 TS 侧 goResolver.extract() 保留 resolve()；d) e2e 护栏（对照 gin-vue-admin 之类语料）+ ci -t 同步；e) resolve() 的最终归属等 1-4-2 决策后统一处理。关联节点：1-4-1-24 关闭 rust-go-framework-routes.ts 缺口（独立 backlog，与本节点正交可并行）。"
+        }
+      ],
+      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。已完成 2026-10-16：decide 落 split（extract 迁 Rust，resolve 延迟 1-4-2）。执行时发现 Rust extract 已在 1-6-3-1 阶段完整落地（extract_go_gin_route lib.rs:8797-9014，14 动词 + group prefix 拼接 + variable type 解析，比 TS 端更强——Rust-only advantage），rust-hybrid e2e 已存在（frameworks-integration.test.ts Go route coverage）。剩余工作 = 关闭动作：a) 删 TS 侧 goResolver.extract() + 辅助函数 extractGoTailIdent + stripCommentsForRegex import（go.ts 185 行 → 108 行，保留 detect + resolve + 目录常量 + resolveByNameAndKind）；b) 删 frameworks.test.ts 5 个 goResolver.extract 测试用例 + import（含 gorilla/mux chained .Methods 形态 + 注释过滤形态）；c) 验证 cargo test --lib go 9/9 + vitest frameworks.test.ts 90/90 + frameworks-integration.test.ts Go rust-hybrid 1/1 全绿。post-extract 协议边界：resolve() 保留 TS 侧（name-pattern DB 查询：Handler/Service/Repository/Store/Middleware/PascalCase struct + 目录约定），最终归属等 1-4-2 决策 ResolutionContext/name-matcher 后统一处理。"
     },
     "1-4-1-15": {
       "id": "1-4-1-15",
@@ -1979,7 +2136,8 @@
         "1-4-2-5",
         "1-4-2-6",
         "1-4-2-7",
-        "1-4-2-8"
+        "1-4-2-8",
+        "1-4-2-9"
       ],
       "decisions": [],
       "notes": ""
@@ -2133,7 +2291,7 @@
     "1-6": {
       "id": "1-6",
       "label": "排序与调度",
-      "status": "completed",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -2141,7 +2299,8 @@
         "1-6-2",
         "1-6-3",
         "1-6-4",
-        "1-6-5"
+        "1-6-5",
+        "1-6-6"
       ],
       "decisions": [
         {
@@ -3098,11 +3257,102 @@
         }
       ],
       "notes": ""
+    },
+    "1-6-6": {
+      "id": "1-6-6",
+      "label": "[产品修复] rust-hybrid 下恢复 JS/TS framework 抽取（Express + NestJS extract() + React backfill 补全）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-6",
+      "children": [
+        "1-6-6-1",
+        "1-6-6-2",
+        "1-6-6-3",
+        "1-6-6-4"
+      ],
+      "decisions": [
+        {
+          "q": "Express 路由断层修复策略？",
+          "answer": "新增 rust-javascript-framework-routes.ts backfill 模块（仿 1-6-2-4 Python 恢复模式）",
+          "note": "理由：1) 与六语言已有 backfill 模块形态一致（csharp/php/python/ruby/swift/objc），复用成熟模式降低实现风险。2) 保持 1-4-1-3 已固化的 Express resolver keep TS-shell 决策——backfill 只是让既有 TS resolver 在 rust-hybrid 下被调用，不改 resolver 本身。3) NestJS 在 Rust core 已走 produce_nestjs_framework_post_extract_updates 不同路径（读 .module.ts 从 DB 做 post-extract update），与 Express 不冲突，可独立推进。4) 与 1-4-1-3 decide note 中已声明的缺口修复路径一致。范围外：NestJS 在 Rust core 已有部分覆盖（模块 prefix），完整 NestJS 归属决策在 1-4-1-4；其他 JS/TS 框架（React/Svelte/Vue 等非路由语义）不在本节点。"
+        }
+      ],
+      "notes": ""
+    },
+    "1-6-6-1": {
+      "id": "1-6-6-1",
+      "label": "新建 src/indexing/rust-javascript-framework-routes.ts：仿 rust-php/python/csharp 六语言 backfill 模式，rust-hybrid finalize 阶段对 rust-owned .js/.jsx/.ts/.tsx/.mjs/.cjs/.mts/.cts 文件补跑 expressResolver.extract() + nestjsResolver.extract()（HTTP/GraphQL/Microservice/WebSocket 四传输层）+ reactResolver.extract()（component/hook/React Router JSX/data-router/Next.js pages+app 文件约定 5 种语义），产 component/hook/route 节点 + 关联 references；幂等性（确定性 id + delete-then-replace by kind）；postExtract(RouterModule prefix)已在 Rust core 不再补",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-6-6",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-6-6-2": {
+      "id": "1-6-6-2",
+      "label": "index.ts finalizeRustIndex 接线：import runJavascriptFrameworkRouteBackfill + 在 python/csharp/php/ruby/swift/objc 之后调度 + FrameworkRouteBackfillStats 类型 + profile 字段",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-6-6",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-6-6-3": {
+      "id": "1-6-6-3",
+      "label": "frameworks-integration.test.ts 新增 'Express on rust-hybrid' + 'NestJS extract() on rust-hybrid' + 'React on rust-hybrid' describe：Express(app.get/post+router.METHOD+inline arrow+named handler+middleware) + NestJS(@Controller+@Get/@Resolver+@Query/@MessagePattern/@WebSocketGateway+@SubscribeMessage 各一例) + React(function component+arrow component+custom hook+<Route> JSX+createBrowserRouter+pages/ 文件约定+app/ page.tsx 文件约定)，engine: rust-hybrid + ci.yml step2 -t 同步",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-6-6",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-6-6-4": {
+      "id": "1-6-6-4",
+      "label": "真实语料 gate：小型 Express 仓库（如 expressjs/example 或真实开源 Express 项目）rust-hybrid 索引通过 + docs/benchmarks Express 验证文档 + 3-OS CI 绿 + Windows 首过日志核对",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-6-6",
+      "children": [],
+      "decisions": [],
+      "notes": ""
+    },
+    "1-4-2-9": {
+      "id": "1-4-2-9",
+      "label": "rust-hybrid framework backfill 缺口补齐（Play/Spring：rust-scala/java-framework-routes 模块）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4-2",
+      "children": [],
+      "decisions": [],
+      "notes": "来源：1-4-1-12(Spring)/1-4-1-13(Play) 决策点名。2026-10-16 1-4-1-1~13 re-decide 后，本节点范围扩大——除 scala/java 外，新增 js/ts（express/nestjs/react 共用）+ kotlin（spring 跨语言）。**go 已于 2026-10-16 关闭**：Go framework extract 已在 Rust 端完整实现（1-6-3-1 extract_go_gin_route），rust-hybrid 直接调用 Rust extract，无需 backfill（参考 1-4-1-24）。现状：scala/java/js/ts/kotlin baseline 已 rust-owned，但 src/indexing/ 只有 6 个 rust-*-framework-routes.ts backfill 模块（csharp/objc/php/python/ruby/swift），缺 scala/java/js/ts/kotlin 对应物 → rust-hybrid 引擎下 Play conf/routes、Spring 路由与 @Value 键绑定、Express/NestJS/React 路由全部断层（TS framework resolver 在 rust-hybrid 下不跑 extract）。先例：rust-python-framework-routes.ts（1-6-2-4，index.ts:2046 runPythonFrameworkRouteBackfill 在 finalization 阶段跑）——直接可仿。范围（按 1-4-1-1~13 re-decide 结论对齐）：a) rust-scala-framework-routes.ts（Play routes 行解析）；b) rust-java-framework-routes.ts（Spring verb-specific mapping + @RequestMapping prefix + 配置键绑定后补——但 yaml/properties 文件解析仍 keep TS，backfill 仅消费已存在的 constant 节点）；c) rust-js-framework-routes.ts（Express app/router.method + NestJS 装饰器 + React JSX component——三者可共用一模块或按框架拆，decide 时定）；d) kotlin backfill 是否并入 java 模块或单列，decide 时定。完成定义：① backfill 模块落地并在 rust-hybrid 引擎下产出 route 节点+references；② e2e 护栏用例（rust-hybrid 引擎断言 route 节点存在且 references 解析到 controller method）；③ ci.yml -t 同步；④ 三 OS CI 绿。前置：无（不阻塞 1-4-1 剩余决策项，可并行）。注意：1-4-1-1~13 的 split 迁移（extract 迁 Rust）落地后，对应 backfill 模块职能演变为『Rust extract 未完成前的过渡』或『与 Rust extract 对齐的幂等校验』，执行时需按当时 Rust extract 进度决定 backfill 是否仍需要。"
+    },
+    "1-4-1-24": {
+      "id": "1-4-1-24",
+      "label": "关闭 rust-go-framework-routes.ts 缺口（独立 backlog）",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "已关闭 2026-10-16：backfill 不需要。Go framework extract 已在 Rust 端完整实现（1-6-3-1 extract_go_gin_route，lib.rs:8797-9014），rust-hybrid 引擎直接调用 Rust extract 产出 route 节点 + handler references，无需 TS backfill 模块。与 csharp/php/ruby/swift/objc/python 六语言不同——那些语言的 framework extract 仍在 TS 侧，rust-hybrid 下需要 backfill 重放；Go 是首个 framework extract 已完整在 Rust 的语言，backfill 模式不适用。1-4-2-9 跨语言 backfill 批量补齐节点中 go 实例同步关闭。"
+    },
+    "1-4-1-25": {
+      "id": "1-4-1-25",
+      "label": "重开 1-4-1-1~1-4-1-13 按新元原则 re-decide（13 项批量）",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-4-1",
+      "children": [],
+      "decisions": [],
+      "notes": "已完成 2026-10-16：1-4-1-1~13 全部按新元原则 re-decide，决策追加到各节点 decisions 数组（保留原 keep 决策记录）。结果分布：A 类 split 9 项（1-4-1-1 laravel / 1-4-1-3 express / 1-4-1-4 nestjs / 1-4-1-5 react / 1-4-1-8 django / 1-4-1-9 flask / 1-4-1-10 fastapi / 1-4-1-11 rails / 1-4-1-13 play），B 类 keep 2 项（1-4-1-6 svelte / 1-4-1-7 vue——合法 keep，依赖 1-3 已 keep 的 svelte-extractor/vue-extractor 发的 component 节点），C 类 split with 部分 keep 2 项（1-4-1-2 drupal PHP hook 迁 Rust + routing.yml keep；1-4-1-12 spring java/kotlin 源码迁 Rust + yaml/properties 文件解析 keep）。所有 split 项的 resolve() 统一延迟到 1-4-2 决策 ResolutionContext/name-matcher 归属后处理；nestjs 的 postExtract 因依赖 updateNode 写接口单独标注等 1-4-2。配套需新建的 backfill 模块：rust-<js/ts>-framework-routes.ts（express/nestjs/react 共用）、rust-<java>-framework-routes.ts（spring java/kotlin）、rust-<scala>-framework-routes.ts（play）；已有 backfill 模块（php/ruby/python）路径对齐无需新建。"
     }
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-16 11:10:28",
+    "updated": "2026-10-16 14:55:42",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
