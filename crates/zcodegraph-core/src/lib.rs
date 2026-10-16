@@ -12307,6 +12307,15 @@ fn extract_rust_symbols(
         unresolved_refs,
         rust_axum_route_taxonomy_counts,
     )?;
+    extract_rust_actix_builder_routes(
+        source,
+        relative_path,
+        file_node_id,
+        nodes,
+        edges,
+        unresolved_refs,
+        rust_axum_route_taxonomy_counts,
+    )?;
     record_rust_route_like_macro_taxonomy(source, rust_axum_route_taxonomy_counts);
     let mut cursor = root.walk();
     visit_rust_node(
@@ -12469,6 +12478,17 @@ fn extract_rust_axum_routes(
         };
         increment_count(counts, "axum-route-call-detected");
         let args = &source_text[args_start..args_end];
+        // Actix builder style `.route("/path", web::get().to(handler))` shares
+        // the same `.route` substring and contains `web::`. Resource-internal
+        // `.route(web::get().to(h))` (no leading string path) also contains
+        // `web::` but is owned by extract_rust_actix_builder_routes shape 1 —
+        // axum's parse would fail on it anyway (no string literal first arg),
+        // so only delegate when the args start with a string literal.
+        let args_trimmed = args.trim_start();
+        if args_trimmed.starts_with('"') && args.contains("web::") {
+            increment_count(counts, "axum-route-actix-builder-delegated");
+            continue;
+        }
         let Some((path, method_expr)) = parse_rust_axum_route_args(args, counts) else {
             continue;
         };
@@ -12708,6 +12728,474 @@ fn parse_rust_route_attribute_method(args_after_path: &str) -> Option<&'static s
     } else {
         None
     }
+}
+
+/// Actix-web builder API routes (1-4-1-15).
+///
+/// Two shapes live here; the axum extractor explicitly delegates the second one
+/// via `axum-route-actix-builder-delegated` so route nodes are not duplicated:
+///
+/// 1. `web::resource("/path")` chains — `.route(web::METHOD().to(handler))` for
+///    explicit verbs, or bare `.to(handler)` (emitted as `ANY /path`) when the
+///    resource has no explicit verb route. The chain window is bounded by the
+///    next `web::resource` or `;`, mirroring the TS extractor.
+/// 2. App-level `.route("/path", web::METHOD().to(handler))`.
+fn extract_rust_actix_builder_routes(
+    source: &[u8],
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+    counts: &mut BTreeMap<String, u32>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let source_text = std::str::from_utf8(source).unwrap_or("");
+
+    // Shape 1: web::resource("/path") chains. Accept both `web::resource` and
+    // the fully-qualified `actix_web::web::resource` spelling.
+    let mut search_start = 0usize;
+    const RESOURCE_NEEDLE: &str = "web::resource";
+    while let Some(offset) = source_text[search_start..].find(RESOURCE_NEEDLE) {
+        let resource_start = search_start + offset;
+        // Ensure the match is either bare `web::resource` or part of the
+        // `actix_web::web::resource` path — reject `my_web::resource` and
+        // similar. Walk back to the start of the full path segment.
+        let mut path_start = resource_start;
+        while path_start > 0 {
+            let prev = source_text.as_bytes()[path_start - 1];
+            if prev.is_ascii_alphanumeric() || matches!(prev, b'_' | b':') {
+                path_start -= 1;
+            } else {
+                break;
+            }
+        }
+        let prefix = &source_text[path_start..resource_start];
+        if !(prefix.is_empty() || prefix == "actix_web::") {
+            search_start = resource_start + RESOURCE_NEEDLE.len();
+            continue;
+        }
+        search_start = resource_start + RESOURCE_NEEDLE.len();
+        let Some((args_start, args_end)) = rust_call_args_span(source_text, search_start) else {
+            increment_count(counts, "actix-builder-resource-unsupported-deferred");
+            continue;
+        };
+        let args = &source_text[args_start..args_end];
+        let Some((path, _)) = parse_rust_string_literal(args.trim_start()) else {
+            increment_count(counts, "actix-builder-resource-dynamic-path-deferred");
+            continue;
+        };
+        increment_count(counts, "actix-builder-resource-detected");
+
+        // Bound the chain window at the next web::resource, the next
+        // App-builder chain entry (`.service(`/`.route(`/`.to(` at paren
+        // depth 0 relative to the resource chain), or the next top-level `;`.
+        // Without this, the window would bleed across subsequent builder
+        // calls and mis-attribute their handlers to this resource's path.
+        let chain_start = args_end + 1;
+        let mut chain_end = source_text.len();
+        if let Some(next_resource) = source_text[chain_start..].find(RESOURCE_NEEDLE) {
+            chain_end = chain_start + next_resource;
+        }
+        if let Some(next_builder) =
+            find_actix_builder_chain_boundary(source_text, chain_start)
+        {
+            if next_builder < chain_end {
+                chain_end = next_builder;
+            }
+        }
+        if let Some(semicolon) = find_top_level_semicolon(source_text, chain_start) {
+            if semicolon < chain_end {
+                chain_end = semicolon;
+            }
+        }
+        let chain = &source_text[chain_start..chain_end];
+
+        let mut found_explicit = false;
+        let mut cursor = 0usize;
+        const METHOD_TO_NEEDLE: &str = "web::";
+        while let Some(rel) = chain[cursor..].find(METHOD_TO_NEEDLE) {
+            let web_start = cursor + rel;
+            // Accept bare `web::` and `actix_web::web::` — walk back to the
+            // path start and require the prefix to be empty or `actix_web::`.
+            let mut path_start = web_start;
+            while path_start > 0 {
+                let prev = chain.as_bytes()[path_start - 1];
+                if prev.is_ascii_alphanumeric() || matches!(prev, b'_' | b':') {
+                    path_start -= 1;
+                } else {
+                    break;
+                }
+            }
+            let prefix = &chain[path_start..web_start];
+            if !(prefix.is_empty() || prefix == "actix_web::") {
+                cursor = web_start + METHOD_TO_NEEDLE.len();
+                continue;
+            }
+            let method_kw_start = web_start + METHOD_TO_NEEDLE.len();
+            let Some((method_name, name_end)) =
+                parse_rust_actix_web_method_name(chain, method_kw_start)
+            else {
+                cursor = method_kw_start;
+                continue;
+            };
+            // Expect `().to(` after the method name.
+            let after_name = skip_ascii_whitespace_str(chain, name_end);
+            if !chain[after_name..].starts_with("()") {
+                cursor = name_end;
+                continue;
+            }
+            let after_parens = skip_ascii_whitespace_str(chain, after_name + 2);
+            if !chain[after_parens..].starts_with(".to") {
+                cursor = name_end;
+                continue;
+            }
+            let Some((to_args_start, to_args_end)) =
+                rust_call_args_span(chain, after_parens + ".to".len())
+            else {
+                cursor = name_end;
+                continue;
+            };
+            let handler_arg = chain[to_args_start..to_args_end].trim();
+            let Some(handler) = parse_rust_actix_handler_path(handler_arg) else {
+                increment_count(counts, "actix-builder-handler-unsupported-deferred");
+                cursor = to_args_end;
+                continue;
+            };
+            let line_col = line_col_for_index(source_text, chain_start + method_kw_start);
+            push_actix_builder_route(
+                relative_path,
+                file_node_id,
+                nodes,
+                edges,
+                unresolved_refs,
+                &path,
+                method_name,
+                &handler,
+                line_col,
+                counts,
+            );
+            found_explicit = true;
+            cursor = to_args_end;
+        }
+
+        if !found_explicit {
+            // Bare `.to(handler)` directly on the resource — all verbs.
+            if let Some(to_rel) = chain.find(".to") {
+                if let Some((to_args_start, to_args_end)) =
+                    rust_call_args_span(chain, to_rel + ".to".len())
+                {
+                    let handler_arg = chain[to_args_start..to_args_end].trim();
+                    if let Some(handler) = parse_rust_actix_handler_path(handler_arg) {
+                        let line_col = line_col_for_index(source_text, chain_start + to_rel);
+                        push_actix_builder_route(
+                            relative_path,
+                            file_node_id,
+                            nodes,
+                            edges,
+                            unresolved_refs,
+                            &path,
+                            "ANY",
+                            &handler,
+                            line_col,
+                            counts,
+                        );
+                    } else {
+                        increment_count(counts, "actix-builder-handler-unsupported-deferred");
+                    }
+                }
+            }
+        }
+    }
+
+    // Shape 2: app-level `.route("/path", web::METHOD().to(handler))`.
+    let mut route_search_start = 0usize;
+    const ROUTE_NEEDLE: &str = ".route";
+    while let Some(offset) = source_text[route_search_start..].find(ROUTE_NEEDLE) {
+        let route_start = route_search_start + offset;
+        route_search_start = route_start + ROUTE_NEEDLE.len();
+        let Some((args_start, args_end)) = rust_call_args_span(source_text, route_search_start) else {
+            continue;
+        };
+        let args = &source_text[args_start..args_end];
+        let trimmed = args.trim_start();
+        let Some((path, after_path)) = parse_rust_string_literal(trimmed) else {
+            continue;
+        };
+        let after_path = after_path.trim_start();
+        let Some(method_expr_raw) = after_path.strip_prefix(',') else {
+            continue;
+        };
+        let method_expr = method_expr_raw.trim_start();
+        // Accept both `web::METHOD()` and the fully-qualified
+        // `actix_web::web::METHOD()` spelling.
+        let method_name_offset = if method_expr.starts_with("web::") {
+            5
+        } else if let Some(stripped) = method_expr.strip_prefix("actix_web::web::") {
+            let _ = stripped;
+            "actix_web::web::".len()
+        } else {
+            continue;
+        };
+        let Some((method_name, name_end)) =
+            parse_rust_actix_web_method_name(method_expr, method_name_offset)
+        else {
+            increment_count(counts, "actix-builder-method-unsupported-deferred");
+            continue;
+        };
+        let after_name = skip_ascii_whitespace_str(method_expr, name_end);
+        if !method_expr[after_name..].starts_with("()") {
+            increment_count(counts, "actix-builder-method-unsupported-deferred");
+            continue;
+        }
+        let after_parens = skip_ascii_whitespace_str(method_expr, after_name + 2);
+        if !method_expr[after_parens..].starts_with(".to") {
+            increment_count(counts, "actix-builder-method-unsupported-deferred");
+            continue;
+        }
+        let Some((to_args_start, to_args_end)) =
+            rust_call_args_span(method_expr, after_parens + ".to".len())
+        else {
+            increment_count(counts, "actix-builder-method-unsupported-deferred");
+            continue;
+        };
+        let handler_arg = method_expr[to_args_start..to_args_end].trim();
+        let Some(handler) = parse_rust_actix_handler_path(handler_arg) else {
+            increment_count(counts, "actix-builder-handler-unsupported-deferred");
+            continue;
+        };
+        increment_count(counts, "actix-builder-app-route-detected");
+        let line_col = line_col_for_index(source_text, route_start);
+        push_actix_builder_route(
+            relative_path,
+            file_node_id,
+            nodes,
+            edges,
+            unresolved_refs,
+            &path,
+            method_name,
+            &handler,
+            line_col,
+            counts,
+        );
+    }
+
+    Ok(())
+}
+
+fn parse_rust_actix_web_method_name(input: &str, start: usize) -> Option<(&'static str, usize)> {
+    const METHODS: [(&str, &str); 6] = [
+        ("get", "GET"),
+        ("post", "POST"),
+        ("put", "PUT"),
+        ("patch", "PATCH"),
+        ("delete", "DELETE"),
+        ("head", "HEAD"),
+    ];
+    let bytes = input.as_bytes();
+    if start >= bytes.len() || !rust_identifier_start(bytes[start] as char) {
+        return None;
+    }
+    let mut index = start + 1;
+    while index < bytes.len() && rust_identifier_char(bytes[index] as char) {
+        index += 1;
+    }
+    let name = &input[start..index];
+    METHODS
+        .iter()
+        .find(|(method, _)| *method == name)
+        .map(|(_, upper)| (*upper, index))
+}
+
+fn parse_rust_actix_handler_path(arg: &str) -> Option<String> {
+    if arg.is_empty()
+        || arg.starts_with('|')
+        || arg.starts_with("async ")
+        || arg.contains("||")
+        || arg.contains('{')
+        || arg.contains('(')
+    {
+        return None;
+    }
+    let first_arg = arg.split(',').next()?.trim();
+    if first_arg.is_empty() || first_arg.contains('<') {
+        return None;
+    }
+    let handler = first_arg
+        .split("::")
+        .filter(|part| !part.is_empty())
+        .last()?
+        .trim();
+    if handler.chars().next().is_some_and(rust_identifier_start)
+        && handler.chars().all(rust_identifier_char)
+    {
+        Some(handler.to_string())
+    } else {
+        None
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn push_actix_builder_route(
+    relative_path: &str,
+    file_node_id: &str,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+    path: &str,
+    method: &str,
+    handler: &str,
+    line_col: (i64, i64),
+    counts: &mut BTreeMap<String, u32>,
+) {
+    let route_name = format!("{} {}", method, path);
+    let route_node = ExtractedNode::manual_symbol(
+        relative_path,
+        "route",
+        &route_name,
+        "rust",
+        line_col.0,
+        line_col.0,
+        line_col.1,
+        line_col.1,
+    );
+    let route_node_id = route_node.id.clone();
+    edges.push(ExtractedEdge {
+        source: file_node_id.to_string(),
+        target: route_node_id.clone(),
+        kind: "contains".to_string(),
+        line: route_node.start_line,
+        col: route_node.start_column,
+    });
+    nodes.push(route_node);
+    push_manual_ref(
+        unresolved_refs,
+        &route_node_id,
+        handler,
+        "references",
+        line_col.0,
+        line_col.1,
+        relative_path,
+        SourceLanguage::Rust,
+    );
+    increment_count(counts, "actix-builder-route-emitted");
+}
+
+/// Find the next App-builder chain boundary at paren depth 0 relative to
+/// `start`. A `web::resource(...)` chain continues with resource-level
+/// methods (`.route(web::METHOD().to(h))`, `.to(h)`, `.guard(...)`,
+/// `.name(...)`, etc.) and terminates when the App builder resumes with one
+/// of its own methods (`.service(...)`, `.route("/path", ...)`,
+/// `.default_service(...)`, `.configure(...)`, `.app_data(...)`, `.wrap(...)`,
+/// `.data(...)`). We identify `.route(...)` as App-level when its first
+/// argument is a string literal (vs resource-level `.route(web::...)`).
+fn find_actix_builder_chain_boundary(source: &str, start: usize) -> Option<usize> {
+    const APP_METHODS: [&str; 7] = [
+        "service",
+        "default_service",
+        "configure",
+        "app_data",
+        "wrap",
+        "data",
+        "service_factory",
+    ];
+    let bytes = source.as_bytes();
+    let mut depth = 0usize;
+    let mut index = start;
+    let mut in_string = false;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if in_string {
+            match byte {
+                b'\\' => index += 2,
+                b'"' => {
+                    in_string = false;
+                    index += 1;
+                }
+                _ => index += 1,
+            }
+            continue;
+        }
+        match byte {
+            b'"' => {
+                in_string = true;
+                index += 1;
+            }
+            b'(' | b'[' | b'{' => {
+                depth += 1;
+                index += 1;
+            }
+            b')' | b']' | b'}' => {
+                depth = depth.saturating_sub(1);
+                index += 1;
+            }
+            b'.' if depth == 0 => {
+                let name_start = index + 1;
+                let mut name_end = name_start;
+                while name_end < bytes.len() && rust_identifier_char(bytes[name_end] as char)
+                {
+                    name_end += 1;
+                }
+                let name = &source[name_start..name_end];
+                if APP_METHODS.contains(&name) {
+                    return Some(index);
+                }
+                if name == "route" {
+                    let mut probe = skip_ascii_whitespace_str(source, name_end);
+                    if source[probe..].starts_with('(') {
+                        probe = skip_ascii_whitespace_str(source, probe + 1);
+                        if source[probe..].starts_with('"') {
+                            // App-level .route("...") — boundary.
+                            return Some(index);
+                        }
+                        // Resource-level .route(web::...) — keep scanning.
+                    }
+                }
+                index = name_end.max(index + 1);
+            }
+            _ => index += 1,
+        }
+    }
+    None
+}
+
+/// Find the next `;` at paren depth 0 starting from `start`. Actix resource
+/// chains are statements, so the first top-level semicolon closes the chain.
+fn find_top_level_semicolon(source: &str, start: usize) -> Option<usize> {
+    let bytes = source.as_bytes();
+    let mut depth = 0usize;
+    let mut index = start;
+    let mut in_string = false;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if in_string {
+            match byte {
+                b'\\' => index += 2,
+                b'"' => {
+                    in_string = false;
+                    index += 1;
+                }
+                _ => index += 1,
+            }
+            continue;
+        }
+        match byte {
+            b'"' => {
+                in_string = true;
+                index += 1;
+            }
+            b'(' | b'[' | b'{' => {
+                depth += 1;
+                index += 1;
+            }
+            b')' | b']' | b'}' => {
+                depth = depth.saturating_sub(1);
+                index += 1;
+            }
+            b';' if depth == 0 => return Some(index),
+            _ => index += 1,
+        }
+    }
+    None
 }
 
 fn next_rust_non_attribute_line<'a>(lines: &'a [&str], start: usize) -> Option<(usize, &'a str)> {
@@ -19255,6 +19743,130 @@ mod tests {
             vec![
                 ("GET /users".to_string(), "list_users".to_string()),
                 ("POST /users".to_string(), "create_user".to_string())
+            ]
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_core_classifies_actix_builder_routes_without_axum_duplication() {
+        let dir = temp_dir("rust-actix-builder-route-wiring");
+        fs::write(
+            dir.join("main.rs"),
+            [
+                "use actix_web::{web, App, HttpServer};",
+                "",
+                "async fn list_users() {}",
+                "async fn create_user() {}",
+                "async fn get_user() {}",
+                "async fn health() {}",
+                "async fn index() {}",
+                "",
+                "fn main() {",
+                "    let _ = App::new()",
+                "        .service(",
+                "            web::resource(\"/users\")",
+                "                .route(web::get().to(list_users))",
+                "                .route(web::post().to(create_user))",
+                "        )",
+                "        .service(web::resource(\"/health\").to(health))",
+                "        .route(\"/\", actix_web::web::get().to(index))",
+                "        .route(\"/users/{id}\", web::get().to(get_user));",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        let taxonomy = &result.profile.rust_axum_route_taxonomy_counts;
+        // Two web::resource blocks detected ("/users" chain + "/health" .to).
+        assert_eq!(
+            taxonomy.get("actix-builder-resource-detected"),
+            Some(&2)
+        );
+        // The two app-level `.route("/...", web::METHOD().to(...))` calls are
+        // delegated away from the axum extractor (which sees the same `.route`
+        // substring) and emitted exactly once by the actix builder extractor.
+        assert_eq!(
+            taxonomy.get("axum-route-actix-builder-delegated"),
+            Some(&2)
+        );
+        assert_eq!(
+            taxonomy.get("actix-builder-app-route-detected"),
+            Some(&2)
+        );
+        // Total actix-builder emissions: 2 (users chain) + 1 (health ANY) + 2
+        // (app-level) = 5.
+        assert_eq!(taxonomy.get("actix-builder-route-emitted"), Some(&5));
+        // The axum extractor must NOT emit route nodes for the delegated
+        // `.route("/...", web::...)` calls (only the resource-internal
+        // `.route(web::...)` calls, which are not `.route("path", ...)` shape).
+        assert_eq!(taxonomy.get("axum-route-static-path"), None);
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        let route_names: Vec<String> = conn
+            .prepare(
+                "SELECT name FROM nodes WHERE kind = 'route' ORDER BY name",
+            )
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(
+            route_names,
+            vec![
+                "ANY /health".to_string(),
+                "GET /".to_string(),
+                "GET /users".to_string(),
+                "GET /users/{id}".to_string(),
+                "POST /users".to_string(),
+            ]
+        );
+
+        let route_edges: Vec<(String, String)> = conn
+            .prepare(
+                "SELECT source.name, target.name
+                 FROM edges
+                 JOIN nodes source ON source.id = edges.source
+                 JOIN nodes target ON target.id = edges.target
+                 WHERE source.kind = 'route'
+                   AND edges.kind = 'references'
+                   AND edges.edgeOrigin = 'rust-finalization'
+                 ORDER BY source.name, target.name",
+            )
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(
+            route_edges,
+            vec![
+                ("ANY /health".to_string(), "health".to_string()),
+                ("GET /".to_string(), "index".to_string()),
+                ("GET /users".to_string(), "list_users".to_string()),
+                ("GET /users/{id}".to_string(), "get_user".to_string()),
+                ("POST /users".to_string(), "create_user".to_string()),
             ]
         );
         cleanup_temp_dir(dir);

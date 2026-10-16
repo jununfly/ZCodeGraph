@@ -375,6 +375,90 @@ describe('ASP.NET framework routes on rust-hybrid (roadmap 1-2-4-4 cutover)', ()
   });
 });
 
+describe('Rust framework routes on rust-hybrid (roadmap 1-4-1-15)', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  // Rust-side route extraction owns all three shapes (Axum .route chain,
+  // Actix/Rocket attribute macros, Actix builder API) since 1-4-1-15. A
+  // close-and-reindex cycle must NOT duplicate or orphan route nodes — the
+  // Rust extractor is the single producer and a rebuild is idempotent by
+  // construction.
+  it('extracts Axum/Actix/Rocket routes and keeps them idempotent across close-and-reindex', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-rust-fw-reidx-'));
+    fs.writeFileSync(path.join(tmpDir, 'Cargo.toml'), '[package]\nname = "app"\nversion = "0.1.0"\n');
+    fs.mkdirSync(path.join(tmpDir, 'src'));
+    fs.writeFileSync(
+      path.join(tmpDir, 'src', 'main.rs'),
+      [
+        'use axum::{routing::get, Router};',
+        '',
+        'async fn list_users() {}',
+        'async fn create_user() {}',
+        'async fn health() {}',
+        'async fn index() {}',
+        '',
+        '#[get("/rocket")]',
+        'async fn rocket_handler() {}',
+        '',
+        'fn main() {',
+        '    let _ = Router::new()',
+        '        .route("/users", get(list_users).post(create_user));',
+        '    let _ = actix_web::App::new()',
+        '        .service(actix_web::web::resource("/health").to(health))',
+        '        .route("/", actix_web::web::get().to(index));',
+        '}',
+        '',
+      ].join('\n')
+    );
+
+    let cg = CodeGraph.initSync(tmpDir);
+    const first = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(first.success, JSON.stringify(first.errors)).toBe(true);
+    const routesFirst = cg.getNodesByKind('route').map((r) => r.name).sort();
+    expect(routesFirst).toEqual([
+      'ANY /health',
+      'GET /',
+      'GET /rocket',
+      'GET /users',
+      'POST /users',
+    ]);
+    cg.close();
+
+    cg = CodeGraph.openSync(tmpDir);
+    const second = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(second.success, JSON.stringify(second.errors)).toBe(true);
+    const routesSecond = cg.getNodesByKind('route').map((r) => r.name).sort();
+    expect(routesSecond).toEqual(routesFirst);
+
+    // Route -> handler references edges survive the rebuild exactly once for
+    // each route.
+    for (const [routeName, handlerName] of [
+      ['GET /users', 'list_users'],
+      ['POST /users', 'create_user'],
+      ['ANY /health', 'health'],
+      ['GET /', 'index'],
+      ['GET /rocket', 'rocket_handler'],
+    ] as const) {
+      const route = cg.getNodesByKind('route').find((r) => r.name === routeName);
+      const handler = cg
+        .getNodesByKind('function')
+        .find((f) => f.name === handlerName);
+      expect(route, `route ${routeName}`).toBeDefined();
+      expect(handler, `handler ${handlerName}`).toBeDefined();
+      const refs = cg
+        .getOutgoingEdges(route!.id)
+        .filter((e) => e.target === handler!.id && e.kind === 'references');
+      expect(refs, `${routeName} -> ${handlerName}`).toHaveLength(1);
+    }
+
+    cg.close();
+  });
+});
+
 describe('Laravel framework routes on rust-hybrid (roadmap 1-2-5-4 cutover)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
