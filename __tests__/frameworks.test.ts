@@ -919,31 +919,6 @@ describe('Play routes file detection', () => {
   });
 });
 
-import { goResolver } from '../src/resolution/frameworks/go';
-
-describe('goResolver.extract', () => {
-  it('extracts route from r.GET', () => {
-    const src = `r.GET("/users", listUsers)\n`;
-    const { nodes, references } = goResolver.extract!('main.go', src);
-    expect(nodes[0].name).toBe('GET /users');
-    expect(references[0].referenceName).toBe('listUsers');
-  });
-
-  it('extracts route from router.HandleFunc', () => {
-    const src = `router.HandleFunc("/items", createItem)\n`;
-    const { nodes, references } = goResolver.extract!('main.go', src);
-    expect(references[0].referenceName).toBe('createItem');
-  });
-
-  it('extracts gorilla/mux HandleFunc on a subrouter var, ignoring chained .Methods()', () => {
-    // `s` is a PathPrefix().Subrouter() var — any receiver is matched; the
-    // trailing .Methods("GET") doesn't break the handler capture.
-    const src = `s.HandleFunc("/users/{id}", listUsers).Methods("GET")\n`;
-    const { references } = goResolver.extract!('routes.go', src);
-    expect(references[0].referenceName).toBe('listUsers');
-  });
-});
-
 import { rustResolver } from '../src/resolution/frameworks/rust';
 
 describe('rustResolver.extract', () => {
@@ -1527,17 +1502,6 @@ get '/real', to: 'real#index'
 public List<User> listUsers() { return users; }
 `;
     const { nodes, references } = springResolver.extract!('UserController.java', src);
-    expect(nodes.map((n) => n.name)).toEqual(['GET /real']);
-    expect(references.map((r) => r.referenceName)).toEqual(['listUsers']);
-  });
-
-  it('go: skips // and /* */ commented router.METHOD calls', () => {
-    const src = `
-// r.GET("/fake", fakeHandler)
-/* r.POST("/also-fake", anotherHandler) */
-r.GET("/real", listUsers)
-`;
-    const { nodes, references } = goResolver.extract!('main.go', src);
     expect(nodes.map((n) => n.name)).toEqual(['GET /real']);
     expect(references.map((r) => r.referenceName)).toEqual(['listUsers']);
   });

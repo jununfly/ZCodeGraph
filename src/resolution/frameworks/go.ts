@@ -2,11 +2,16 @@
  * Go Framework Resolver
  *
  * Handles Gin, Echo, Fiber, Chi, and standard library patterns.
+ *
+ * Route extraction (`extract`) was migrated to the Rust engine in roadmap
+ * 1-6-3-1 (`extract_go_gin_route` in crates/zcodegraph-core/src/lib.rs), which
+ * also covers group-prefix expansion and variable-type-aware handler capture
+ * beyond the old TS regex surface. The resolver retains only `detect` and
+ * `resolve` (name-pattern DB lookups) — the final ownership of `resolve` is
+ * deferred to roadmap 1-4-2 (ResolutionContext/name-matcher migration).
  */
 
-import { Node } from '../../types';
 import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types';
-import { stripCommentsForRegex } from '../strip-comments';
 
 export const goResolver: FrameworkResolver = {
   name: 'go',
@@ -79,68 +84,7 @@ export const goResolver: FrameworkResolver = {
 
     return null;
   },
-
-  extract(filePath, content) {
-    if (!filePath.endsWith('.go')) return { nodes: [], references: [] };
-    const nodes: Node[] = [];
-    const references: UnresolvedRef[] = [];
-    const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'go');
-
-    // <anyVar>.METHOD("/path", handler) — Gin (GET/POST/...), Chi (Get/Post/...),
-    // net/http (HandleFunc/Handle). The receiver is ANY identifier, not just
-    // router|r|mux|app|e: real apps route on GROUP vars (`v1.GET`, `PublicGroup.GET`,
-    // `userRouter.POST`), which the fixed name list missed (gin-vue-admin: 4 routes
-    // for 625 files). The verb + string-path + handler-arg gates keep it route-specific.
-    const routeRegex = /\b\w+\.(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|Get|Post|Put|Patch|Delete|Handle|HandleFunc)\s*\(\s*"([^"]+)"\s*,\s*([^)]+)\)/g;
-    let match: RegExpExecArray | null;
-    while ((match = routeRegex.exec(safe)) !== null) {
-      const [, rawMethod, routePath, handlerExpr] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
-      const method =
-        rawMethod === 'Handle' || rawMethod === 'HandleFunc'
-          ? 'ANY'
-          : rawMethod!.toUpperCase();
-
-      const routeNode: Node = {
-        id: `route:${filePath}:${line}:${method}:${routePath}`,
-        kind: 'route',
-        name: `${method} ${routePath}`,
-        qualifiedName: `${filePath}::route:${routePath}`,
-        filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: match[0].length,
-        language: 'go',
-        updatedAt: now,
-      };
-      nodes.push(routeNode);
-
-      const handlerName = extractGoTailIdent(handlerExpr!);
-      if (handlerName) {
-        references.push({
-          fromNodeId: routeNode.id,
-          referenceName: handlerName,
-          referenceKind: 'references',
-          line,
-          column: 0,
-          filePath,
-          language: 'go',
-        });
-      }
-    }
-
-    return { nodes, references };
-  },
 };
-
-/** Extract the last identifier from an expression like `pkg.Sub.handler` or `handler`. */
-function extractGoTailIdent(expr: string): string | null {
-  const cleaned = expr.trim().replace(/\s+/g, '').replace(/\(\)$/, '');
-  const m = cleaned.match(/(?:\.|^)([A-Za-z_][A-Za-z0-9_]*)$/);
-  return m ? m[1]! : null;
-}
 
 // Directory patterns for framework resolution
 const HANDLER_DIRS = ['handler', 'handlers', 'api', 'routes', 'controller', 'controllers'];
