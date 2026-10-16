@@ -1727,13 +1727,10 @@ export class CodeGraph {
           } as RubyFrameworkRouteBackfillStats,
           swiftFrameworkRouteBackfill: {
             filesScanned: 0,
-            frameworkNodes: 0,
-            routeReferences: 0,
             propertyDecorates: 0,
             propertyTypeReferences: 0,
             propertyMetatypeReferences: 0,
             readErrors: 0,
-            extractErrors: 0,
           } as SwiftFrameworkRouteBackfillStats,
           objcFrameworkRouteBackfill: {
             filesScanned: 0,
@@ -2092,12 +2089,12 @@ export class CodeGraph {
         }
         onCheckpoint?.('finalization.rubyFrameworkRouteBackfill.completed');
 
-        // Roadmap 1-6-4-5: the Rust core owns Swift extraction (.swift) but has
-        // no SwiftUI/UIKit/Vapor extraction and no in-type stored-property
-        // modelling, so re-run the TypeScript swift framework extractors and
-        // replicate the @Wrapper/declared-type/@Siblings metatype refs for the
-        // rust-owned .swift files here. Component/class/route nodes plus the
-        // route -> handler and property references are linked by the batched
+        // Roadmap 1-6-4-5 + 1-4-1-17~19: the Rust core owns Swift extraction
+        // (.swift) INCLUDING SwiftUI/UIKit/Vapor framework nodes and Vapor
+        // route -> handler refs (swift::extract); this back-fill now only
+        // replicates the in-type stored-property modelling
+        // (@Wrapper/declared-type/@Siblings metatype refs) for the rust-owned
+        // .swift files here. Property references are linked by the batched
         // resolution directly below.
         onCheckpoint?.('finalization.swiftFrameworkRouteBackfill.started');
         const swiftRouteBackfill = runSwiftFrameworkRouteBackfill(
@@ -2107,15 +2104,12 @@ export class CodeGraph {
         );
         profile.swiftFrameworkRouteBackfill = swiftRouteBackfill;
         if (
-          swiftRouteBackfill.frameworkNodes > 0 ||
-          swiftRouteBackfill.routeReferences > 0 ||
           swiftRouteBackfill.propertyDecorates > 0 ||
           swiftRouteBackfill.propertyTypeReferences > 0 ||
           swiftRouteBackfill.propertyMetatypeReferences > 0
         ) {
-          // New framework handler refs and property wrapper/type/metatype refs
-          // target existing rust-owned nodes; clear the symbol-name cache
-          // before resolution.
+          // New property wrapper/type/metatype refs target existing
+          // rust-owned nodes; clear the symbol-name cache before resolution.
           this.resolver.clearCaches();
         }
         onCheckpoint?.('finalization.swiftFrameworkRouteBackfill.completed');

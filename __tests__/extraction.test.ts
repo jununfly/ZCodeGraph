@@ -6107,15 +6107,17 @@ actual fun platformName(): String = "android"
 // Swift ownership cutover (1-6-4-5) — adds 'swift' (the 16th language) to
 // RUST_HYBRID_RUST_OWNED_LANGUAGES. Every .swift file is scheduled through
 // Rust with zero TypeScript fallback; swift.ts (the declarative extractor
-// config) is retained only for the pure --engine typescript engine. The Rust
-// swift.rs walker owns baseline symbols/calls/extends but, by design, emits no
-// framework nodes and no in-type stored-property refs (swift.rs:26-34 defers
-// them to this node). The tests below pin that the rust-swift-framework-routes
-// finalize back-fill restores, on the default rust-hybrid engine:
-//   - @Siblings(through: Pivot.self) metatype  -> pivot blast radius,
-//   - @Argument property wrapper               -> wrapper blast radius,
-//   - SwiftUI View / @main App and Vapor route -> framework nodes/edges,
-// and the plan-guard test pins zero TS fallback for .swift.
+// config) is retained only for the pure --engine typescript engine.
+//
+// Roadmap 1-4-1-17~19 moved the framework extraction INTO the Rust walker:
+// swift.rs now emits SwiftUI `component` / @main App `class` / UIKit
+// framework `class` nodes and Vapor `route` nodes with route -> handler
+// references; the TypeScript replay in rust-swift-framework-routes.ts is
+// retired. That module still owns ONLY the in-type stored-property refs
+// (swift.rs:26-34 defers them): @Siblings(through: Pivot.self) metatype ->
+// pivot blast radius, @Argument property wrapper -> wrapper blast radius.
+// The tests below pin both halves plus a single-producer rebuild idempotency
+// guard, and the plan-guard test pins zero TS fallback for .swift.
 // ===========================================================================
 describe('Swift on rust-hybrid (roadmap 1-6-4-5 cutover)', () => {
   let tempDir: string;
@@ -6202,6 +6204,56 @@ describe('Swift on rust-hybrid (roadmap 1-6-4-5 cutover)', () => {
       .map((e) => cg.getNode(e.target))
       .find((t) => t?.name === 'index');
     expect(routeTarget, 'Vapor route resolves to the index handler').toBeDefined();
+  });
+
+  // Roadmap 1-4-1-17~19: framework extraction is Rust-owned inside
+  // swift::extract and the TS replay (1-6-4-5 job A) is retired, so a
+  // close-and-reindex cycle must NOT duplicate or orphan framework nodes —
+  // the Rust extractor is the single producer and a rebuild is idempotent by
+  // construction.
+  it('keeps Swift framework nodes idempotent across a rust-hybrid close-and-reindex cycle, roadmap 1-4-1-17~19', async () => {
+    fs.mkdirSync(path.join(tempDir, 'Sources', 'App'), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, 'Sources', 'App', 'ContentView.swift'),
+      `import SwiftUI\nstruct ContentView: View {\n  var body: some View { Text("hi") }\n}\n`);
+    fs.writeFileSync(path.join(tempDir, 'Sources', 'App', 'DemoApp.swift'),
+      `import SwiftUI\n@main\nstruct DemoApp: App {\n  var body: some Scene { WindowGroup { ContentView() } }\n}\n`);
+    fs.writeFileSync(path.join(tempDir, 'Sources', 'App', 'TodoController.swift'),
+      `import Vapor\nstruct TodoController {\n  func boot(routes: RoutesBuilder) throws {\n` +
+      `    routes.get("todos", use: index)\n  }\n  func index(req: Request) async throws -> [Todo] { [] }\n}\n`);
+
+    const snapshot = () => ({
+      components: cg.getNodesByKind('component').map((n) => n.name).sort(),
+      apps: cg
+        .getNodesByKind('class')
+        .filter((n) => n.name === 'DemoApp')
+        .map((n) => n.name)
+        .sort(),
+      routes: cg.getNodesByKind('route').map((n) => n.name).sort(),
+    });
+
+    cg = CodeGraph.initSync(tempDir);
+    const first = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(first.success, JSON.stringify(first.errors)).toBe(true);
+    cg.resolveReferences();
+    const before = snapshot();
+    expect(before.components).toEqual(['ContentView']);
+    expect(before.routes).toEqual(['GET /todos']);
+    // @main App: one baseline struct + one framework class, no duplicates.
+    expect(before.apps).toHaveLength(1);
+    cg.close();
+
+    cg = CodeGraph.openSync(tempDir);
+    const second = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(second.success, JSON.stringify(second.errors)).toBe(true);
+    cg.resolveReferences();
+    expect(snapshot()).toEqual(before);
+
+    // Route -> handler references edge survives the rebuild exactly once.
+    const route = cg.getNodesByKind('route').find((n) => n.name === 'GET /todos');
+    const handlerRefs = cg
+      .getOutgoingEdges(route!.id)
+      .filter((e) => e.kind === 'references' && cg.getNode(e.target)?.name === 'index');
+    expect(handlerRefs).toHaveLength(1);
   });
 
   it('routes Swift through the Rust core with zero TypeScript fallback after the ownership cutover, roadmap 1-6-4-5', () => {

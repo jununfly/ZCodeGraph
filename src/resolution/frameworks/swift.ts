@@ -2,11 +2,17 @@
  * Swift Framework Resolver
  *
  * Handles SwiftUI, UIKit, and Vapor (server-side Swift) patterns.
+ *
+ * Roadmap 1-4-1-17~19: framework EXTRACTION (SwiftUI `struct V: View` /
+ * `@main struct A: App`, UIKit `UIViewController`/`UIView` subclasses, Vapor
+ * `builder.METHOD(…, use: h)` routes + group prefixes) is Rust-owned inside
+ * swift::extract (crates/zcodegraph-core/src/swift.rs); the former regex
+ * extract() implementations here are retired. These resolvers keep `detect` +
+ * `resolve` only; resolve() ownership is deferred to 1-4-2 like every other
+ * split framework resolver.
  */
 
-import { Node } from '../../types';
 import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types';
-import { stripCommentsForRegex } from '../strip-comments';
 
 export const swiftUIResolver: FrameworkResolver = {
   name: 'swiftui',
@@ -75,61 +81,6 @@ export const swiftUIResolver: FrameworkResolver = {
     }
 
     return null;
-  },
-
-  extract(filePath, content) {
-    if (!filePath.endsWith('.swift')) return { nodes: [], references: [] };
-    const nodes: Node[] = [];
-    const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'swift');
-
-    // Extract SwiftUI View structs
-    // struct ContentView: View { ... }
-    const viewPattern = /struct\s+(\w+)\s*:\s*(?:\w+\s*,\s*)*View/g;
-
-    let match: RegExpExecArray | null;
-    while ((match = viewPattern.exec(safe)) !== null) {
-      const [, viewName] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
-
-      nodes.push({
-        id: `view:${filePath}:${viewName}:${line}`,
-        kind: 'component',
-        name: viewName!,
-        qualifiedName: `${filePath}::${viewName}`,
-        filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: match[0].length,
-        language: 'swift',
-        updatedAt: now,
-      });
-    }
-
-    // Extract @main App entry point
-    const appPattern = /@main\s+struct\s+(\w+)\s*:\s*App/g;
-
-    while ((match = appPattern.exec(safe)) !== null) {
-      const [, appName] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
-
-      nodes.push({
-        id: `app:${filePath}:${appName}:${line}`,
-        kind: 'class',
-        name: appName!,
-        qualifiedName: `${filePath}::${appName}`,
-        filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: match[0].length,
-        language: 'swift',
-        updatedAt: now,
-      });
-    }
-
-    return { nodes, references: [] };
   },
 };
 
@@ -210,60 +161,6 @@ export const uikitResolver: FrameworkResolver = {
 
     return null;
   },
-
-  extract(filePath, content) {
-    if (!filePath.endsWith('.swift')) return { nodes: [], references: [] };
-    const nodes: Node[] = [];
-    const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'swift');
-
-    // Extract UIViewController subclasses
-    const vcPattern = /class\s+(\w+)\s*:\s*(?:\w+\s*,\s*)*UIViewController/g;
-
-    let match: RegExpExecArray | null;
-    while ((match = vcPattern.exec(safe)) !== null) {
-      const [, vcName] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
-
-      nodes.push({
-        id: `viewcontroller:${filePath}:${vcName}:${line}`,
-        kind: 'class',
-        name: vcName!,
-        qualifiedName: `${filePath}::${vcName}`,
-        filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: match[0].length,
-        language: 'swift',
-        updatedAt: now,
-      });
-    }
-
-    // Extract UIView subclasses
-    const viewPattern = /class\s+(\w+)\s*:\s*(?:\w+\s*,\s*)*UIView[^C]/g;
-
-    while ((match = viewPattern.exec(safe)) !== null) {
-      const [, viewName] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
-
-      nodes.push({
-        id: `uiview:${filePath}:${viewName}:${line}`,
-        kind: 'class',
-        name: viewName!,
-        qualifiedName: `${filePath}::${viewName}`,
-        filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: match[0].length,
-        language: 'swift',
-        updatedAt: now,
-      });
-    }
-
-    return { nodes, references: [] };
-  },
 };
 
 export const vaporResolver: FrameworkResolver = {
@@ -332,80 +229,6 @@ export const vaporResolver: FrameworkResolver = {
     }
 
     return null;
-  },
-
-  extract(filePath, content) {
-    if (!filePath.endsWith('.swift')) return { nodes: [], references: [] };
-    const nodes: Node[] = [];
-    const references: UnresolvedRef[] = [];
-    const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'swift');
-
-    // Build a group-var → path-prefix map first. Modern Vapor routes live on a
-    // grouped builder (`let todos = routes.grouped("todos"); todos.get(use: index)`
-    // or `routes.group("todos") { todos in todos.get(use: index) }`), so the path
-    // comes from the group, not the call. Roots (app/routes/router) have no prefix.
-    const groupPrefix = new Map<string, string>();
-    const segJoin = (existing: string, segsStr: string): string => {
-      const segs = (segsStr.match(/"([^"]*)"/g) || []).map((s) => s.slice(1, -1));
-      return existing + segs.map((s) => '/' + s).join('');
-    };
-    let gm: RegExpExecArray | null;
-    // let X = Y.grouped("a", "b")
-    const groupedRegex = /\blet\s+(\w+)\s*=\s*(\w+)\.grouped\s*\(([^)]*)\)/g;
-    while ((gm = groupedRegex.exec(safe)) !== null) {
-      groupPrefix.set(gm[1]!, segJoin(groupPrefix.get(gm[2]!) ?? '', gm[3]!));
-    }
-    // Y.group("a") { X in ... }
-    const groupClosureRegex = /\b(\w+)\.group\s*\(([^)]*)\)\s*\{\s*(\w+)\s+in/g;
-    while ((gm = groupClosureRegex.exec(safe)) !== null) {
-      groupPrefix.set(gm[3]!, segJoin(groupPrefix.get(gm[1]!) ?? '', gm[2]!));
-    }
-
-    // Vapor: <builder>.METHOD([path segs,] use: handler). Any receiver (app,
-    // routes, or a grouped var); path segments optional and may be non-string
-    // (`BlogUser.parameter`, `:id`, a path constant) so accept any comma-separated
-    // args before `use:` — the label keeps only the string parts. `use:`
-    // discriminates a real route from Environment.get("X")/req.parameters.get("X").
-    const routeRegex = /\b(\w+)\.(get|post|put|patch|delete|head|options)\s*\(\s*((?:[^,()]+,\s*)*)use:\s*([A-Za-z_][\w.]*)/g;
-    let match: RegExpExecArray | null;
-    while ((match = routeRegex.exec(safe)) !== null) {
-      const [, receiver, method, segsStr, handlerExpr] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
-      const upper = method!.toUpperCase();
-      const routePath = (groupPrefix.get(receiver!) ?? '') + segJoin('', segsStr!) || '/';
-
-      const routeNode: Node = {
-        id: `route:${filePath}:${line}:${upper}:${routePath}`,
-        kind: 'route',
-        name: `${upper} ${routePath}`,
-        qualifiedName: `${filePath}::route:${routePath}`,
-        filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: match[0].length,
-        language: 'swift',
-        updatedAt: now,
-      };
-      nodes.push(routeNode);
-
-      // Last segment of a dotted handler (self.list / UserController.list -> list)
-      const handlerName = handlerExpr!.split('.').pop();
-      if (handlerName) {
-        references.push({
-          fromNodeId: routeNode.id,
-          referenceName: handlerName,
-          referenceKind: 'references',
-          line,
-          column: 0,
-          filePath,
-          language: 'swift',
-        });
-      }
-    }
-
-    return { nodes, references };
   },
 };
 
