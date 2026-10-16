@@ -3441,11 +3441,22 @@
     "1-4-2-9": {
       "id": "1-4-2-9",
       "label": "rust-hybrid framework backfill 缺口补齐（Play/Spring：rust-scala/java-framework-routes 模块）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-2",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "模块组织形态（2026-10-16）",
+          "answer": "决定：a) rust-js-framework-routes.ts 单模块多 case（参考 rust-php-framework-routes.ts Laravel+Drupal 形态）——Express/NestJS/React/Fabric-TS 四 case 共存，按 detect() 框架名激活；b) kotlin 单列 rust-kotlin-framework-routes.ts（不并入 java）——Kotlin Expo DSL 与 Java Spring/Fabric JVM 语法差异大（Kotlin 无 @Annotation 前缀语义，DSL 是声明式函数字面量），合模块会让 dispatch 逻辑复杂化；c) Scala Play 单模块 rust-scala-framework-routes.ts（只一个 case）；d) Java 单模块 rust-java-framework-routes.ts 含 Spring + Fabric JVM 两 case（都注解驱动，可共享注解解析工具）。最终 4 个新模块：rust-scala- / rust-java- / rust-js- / rust-kotlin-framework-routes.ts。",
+          "note": "沿用 rust-php-framework-routes.ts 单模块多 case 先例。模块边界以「语法同构性」划分而非「JVM 语言」划分。"
+        },
+        {
+          "q": "勘察结论与 backfill 设计定稿（2026-10-16）：7 个 framework resolver 的 extract 全部正则实现，无 AST 依赖。各模块产出形态：(1) rust-scala: play conf/routes 行解析，节点 id 'route:{fp}:{line}:{METHOD}:{path}' kind=route，1 ref→'Controller.method'。(2) rust-java: spring 三段——verb mapping 节点 id 'route:{fp}:{line}:{M}:{path}' ref→handler method；@Value/@ConfigurationProperties 绑定节点 id 'spring-value:/spring-cp:' kind=constant ref→key / prefix:prefix（仅 java/kotlin 源码侧迁 Rust，yaml/properties 文件解析 keep TS）；fabric JVM @ReactProp 节点 id 'fabric-component:/fabric-prop:' kind=component/property。(3) rust-js: 4 case——express/nestjs/react/fabric-ts，节点前缀 route:/component:/hook:/fabric-component:/fabric-prop:。(4) rust-kotlin: expo-modules 节点 id 'expo-module:{fp}:{module}:{method}:{line}' kind=method（无 ref，靠 name-matcher）。幂等模式：按专属 id 前缀 wipe，不整文件 wipe，resolved edges INSERT OR IGNORE，finalization 在 resolveReferencesBatched 前运行。",
+          "answer": "backfill 设计定稿：4 模块/7 resolver/各 id 前缀 + 幂等 wipe 前缀清单",
+          "note": ""
+        }
+      ],
       "notes": "来源：1-4-1-12(Spring)/1-4-1-13(Play) 决策点名。2026-10-16 1-4-1-1~13 + 1-4-1-16~23 re-decide 后，本节点范围最终定型——覆盖 scala/java/js/ts/kotlin 五语言共 7 个 framework resolver 的 backfill 缺口。**go/objc 已关闭**：Go framework extract 已在 Rust 端完整实现（1-6-3-1 extract_go_gin_route）；ObjC RN bridge + Fabric 已由 rust-objc-framework-routes.ts case A/B 覆盖。现状：scala/java/js/ts/kotlin baseline 已 rust-owned，但 src/indexing/ 只有 6 个 rust-*-framework-routes.ts backfill 模块（csharp/objc/php/python/ruby/swift），缺 scala/java/js/ts/kotlin 对应物 → rust-hybrid 引擎下 Play conf/routes、Spring 路由与 @Value 键绑定、Express/NestJS/React 路由、Expo Modules DSL、Fabric TS spec/JVM 全部断层（TS framework resolver 在 rust-hybrid 下不跑 extract）。先例：rust-python-framework-routes.ts（1-6-2-4，index.ts:2046 runPythonFrameworkRouteBackfill 在 finalization 阶段跑）——直接可仿。范围（按 re-decide 结论对齐）：a) rust-scala-framework-routes.ts（Play routes 行解析）；b) rust-java-framework-routes.ts（Spring verb-specific mapping + @RequestMapping prefix + 配置键绑定后补 + **Fabric JVM @ReactProp**——但 yaml/properties 文件解析仍 keep TS，backfill 仅消费已存在的 constant 节点）；c) rust-js-framework-routes.ts（Express app/router.method + NestJS 装饰器 + React JSX component + **Fabric TS codegenNativeComponent + NativeProps**——四者可共用一模块或按框架拆，decide 时定）；d) rust-kotlin-framework-routes.ts（**Expo Modules DSL Function/AsyncFunction/Property/Constants**——Kotlin 泛型参数容忍；Swift 侧已有 backfill，Kotlin 侧需新建；e) kotlin 是否并入 java 模块或单列，decide 时定。完成定义：① backfill 模块落地并在 rust-hybrid 引擎下产出 route/component/method 节点+references；② e2e 护栏用例（rust-hybrid 引擎断言节点存在且 references 解析到目标）；③ ci.yml -t 同步；④ 三 OS CI 绿。前置：无（不阻塞 1-4-1 剩余决策项，可并行）。注意：1-4-1-16~23 中 ASP.NET/SwiftUI/UIKit/Vapor 的 backfill 已存在（rust-csharp-framework-routes.ts + rust-swift-framework-routes.ts），不在本节点范围；RN bridge 的 ObjC 侧已由 rust-objc-framework-routes.ts 覆盖，TS spec/JVM 在 resolve 阶段现扫属 1-4-2 范围。"
     },
     "1-4-1-24": {
@@ -3471,7 +3482,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-16 18:05:40",
+    "updated": "2026-10-16 18:53:09",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
