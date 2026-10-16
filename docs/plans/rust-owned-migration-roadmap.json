@@ -2051,7 +2051,7 @@
     "1-4-1-16": {
       "id": "1-4-1-16",
       "label": "ASP.NET resolver（路由与 Razor/Blazor 链接边界）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
@@ -2060,6 +2060,16 @@
           "q": "ASP.NET resolver 归属",
           "answer": "split（同 Go 模式）：extract 已由 rust-csharp-framework-routes.ts backfill 覆盖，关闭 TS extract；resolve() 延迟到 1-4-2",
           "note": "证据：extract 是纯正则（[HttpGet]/[HttpPost] attribute regex + app.MapGet/MapPost minimal API regex + class-level [Route] 前缀 regex，先 stripCommentsForRegex），只扫 .cs 文件；csharp baseline 已 rust-owned；rust-csharp-framework-routes.ts backfill 已存在（含 aspnet case）——与 Go 同形态（Rust backfill 已覆盖 extract 面），剩余工作 = 关闭动作：删 TS extract + 同步删 frameworks.test.ts 对应用例。Razor/Blazor 链接边界：.razor/.cshtml 由独立的 razor-extractor.ts（文件级语言，1-3 已决策 keep TS shell）负责产 component 节点和 component-tag 引用，aspnetResolver 不触碰这些文件——边界清晰。resolve() 用 getNodesByName（按 name + kind + 目录前缀过滤），等 1-4-2。"
+        },
+        {
+          "q": "ASP.NET resolver 归属（事实修正）",
+          "answer": "split：extract 迁 Rust（落 csharp.rs framework-routes 段，需新增 Rust 代码），resolve() 延迟到 1-4-2",
+          "note": "事实修正 2026-10-16：原决策误判为『同 Go 模式（Rust backfill 已覆盖）』。验证后发现 ASP.NET extract **不在 Rust 端**（lib.rs 无 aspnet/HttpGet/MapGet 匹配）——rust-csharp-framework-routes.ts 是 TS 侧 backfill 模块，在 rust-hybrid 下重放 TS resolver 的 extract 逻辑（与 Go 的 Rust 端原生 extract 不同）。因此剩余工作不是『关闭动作』而是『迁移动作』：a) 在 csharp.rs 新增 framework-routes 段（[HttpGet]/[HttpPost] attribute regex + app.MapGet/MapPost minimal API regex + class-level [Route] 前缀 regex）；b) extract_csharp_symbols 调用链中串行触发；c) 删 TS extract + 测试；d) 删 rust-csharp-framework-routes.ts 中 aspnet case（或保留作幂等校验，decide 时定）；e) e2e 护栏 + ci -t 同步。resolve() 延迟到 1-4-2 不变。"
+        },
+        {
+          "q": "1-4-1-16 执行完成（2026-10-16）",
+          "answer": "CLOSED：ASP.NET extract 已迁 Rust（csharp.rs AST 原生实现），TS extract + backfill 模块双删",
+          "note": "落地内容：a) csharp.rs +410 行——Frame.route_prefix 传 class-level [Route] 前缀；method_declaration 分支接 [HttpGet|HttpPost|HttpPut|HttpPatch|HttpDelete]（bare/带 path，join prefix，route 节点 + handler method references）；invocation_expression 分支接 app.MapGet|MapPost|MapPut|MapPatch|MapDelete minimal API（lambda handler 不发 ref，TS parity）；attribute 参数走 attribute_argument_list→string_literal_content AST 遍历（不用 regex）；b) 删 aspnetResolver.extract() + joinCsPath/extractCSharpTailIdent（-108 行），保留 detect+resolve（resolve 延迟 1-4-2）；c) 删 rust-csharp-framework-routes.ts 整个 backfill 模块（-169 行）+ index.ts 调用点/profile 字段（-33 行）——backfill 按文件删全部 route 节点再 TS 重插，与 Rust 原生抽取并存会删 Rust 产物，必须整体退役；d) frameworks.test.ts 删 2 用例（-33 行）；e) 新幂等 e2e 护栏『keeps ASP.NET routes idempotent across a rust-hybrid close-and-reindex cycle』+ ci.yml -t 同步。验证：cargo test --lib 191/191（5 新单测）；frameworks+strip-comments 105/105；frameworks-integration -t rust-hybrid 14/14（旧 backfill e2e 在无 backfill 后仍全绿）。坑：target/debug/zcodegraph-core.exe 是旧二进制（Oct 15），e2e 初跑 route 全空——cargo build 后过。全量 frameworks-integration 有 3 个 JVM FQN 失败 = pre-existing（clean main stash 复现同样失败），与本改动无关。"
         }
       ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
@@ -2076,6 +2086,11 @@
           "q": "SwiftUI resolver 归属",
           "answer": "split：extract() 迁 Rust（落 swift.rs framework-routes 段），resolve() 延迟到 1-4-2",
           "note": "证据：extract 是纯正则（struct (\\w+) : ... View + @main struct (\\w+) : App regex，先 stripCommentsForRegex），只扫 .swift；swift baseline 已 rust-owned；rust-swift-framework-routes.ts backfill 已存在（含 swiftui case）。view 链接靠 *View 命名约定 + kind 过滤（struct/component 双 kind 容忍 Rust/TS 两种来源）。resolve() 用 getNodesByName（kind struct/component/class + 目录 /Views/、/ViewModels/、/Models/ 等），等 1-4-2。"
+        },
+        {
+          "q": "SwiftUI resolver 归属（事实修正）",
+          "answer": "split：extract 迁 Rust（落 swift.rs framework-routes 段，需新增 Rust 代码），resolve() 延迟到 1-4-2",
+          "note": "事实修正 2026-10-16：原决策误判为『同 Go 模式』。验证后发现 SwiftUI extract **不在 Rust 端**（lib.rs 无 swiftui/struct.*View/@main 匹配）——rust-swift-framework-routes.ts 是 TS 侧 backfill 模块，在 rust-hybrid 下重放 TS resolver 的 extract 逻辑。剩余工作 = 迁移动作：a) 在 swift.rs 新增 framework-routes 段（struct (\\w+) : ... View + @main struct (\\w+) : App regex）；b) extract_swift_symbols 调用链中串行触发；c) 删 TS extract + 测试；d) 删 rust-swift-framework-routes.ts 中 swiftui case（或保留作幂等校验）；e) e2e 护栏 + ci -t 同步。resolve() 延迟到 1-4-2 不变。"
         }
       ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
@@ -2092,6 +2107,11 @@
           "q": "UIKit resolver 归属",
           "answer": "split：extract() 迁 Rust（落 swift.rs framework-routes 段），resolve() 延迟到 1-4-2",
           "note": "证据：extract 是纯正则（class (\\w+) : ... UIViewController + class (\\w+) : ... UIView[^C] regex，先 stripCommentsForRegex），只扫 .swift；swift baseline 已 rust-owned；rust-swift-framework-routes.ts backfill 已存在（含 uikit case）。view-controller/view 关系靠 *ViewController/*View/*Cell/*Delegate/*DataSource 命名后缀。resolve() 用 getNodesByName（kind class/protocol + 目录 /ViewControllers/、/Views/、/Cells/），等 1-4-2。"
+        },
+        {
+          "q": "UIKit resolver 归属（事实修正）",
+          "answer": "split：extract 迁 Rust（落 swift.rs framework-routes 段，需新增 Rust 代码），resolve() 延迟到 1-4-2",
+          "note": "事实修正 2026-10-16：原决策误判为『同 Go 模式』。验证后发现 UIKit extract **不在 Rust 端**（lib.rs 无 uikit/UIViewController 匹配）——rust-swift-framework-routes.ts 是 TS 侧 backfill 模块。剩余工作 = 迁移动作：a) 在 swift.rs 新增 framework-routes 段（class (\\w+) : ... UIViewController + class (\\w+) : ... UIView[^C] regex）；b) extract_swift_symbols 调用链中串行触发；c) 删 TS extract + 测试；d) 删 rust-swift-framework-routes.ts 中 uikit case（或保留作幂等校验）；e) e2e 护栏 + ci -t 同步。resolve() 延迟到 1-4-2 不变。"
         }
       ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
@@ -2108,6 +2128,11 @@
           "q": "Vapor resolver 归属",
           "answer": "split：extract() 迁 Rust（落 swift.rs framework-routes 段），resolve() 延迟到 1-4-2",
           "note": "证据：extract 是纯正则两阶段（先 let X = Y.grouped(\"...\") / Y.group(\"...\") { X in 建 group 前缀表，再 receiver.(get|post|...|delete|head|options)(..., use: handler) 收集 route 节点 + handler reference），只扫 .swift；swift baseline 已 rust-owned；rust-swift-framework-routes.ts backfill 已存在（含 vapor case）。resolve() 用 getNodesByName（kind class/struct + 目录 /Controllers/、/Models/、/Middleware/），等 1-4-2。"
+        },
+        {
+          "q": "Vapor resolver 归属（事实修正）",
+          "answer": "split：extract 迁 Rust（落 swift.rs framework-routes 段，需新增 Rust 代码），resolve() 延迟到 1-4-2",
+          "note": "事实修正 2026-10-16：原决策误判为『同 Go 模式』。验证后发现 Vapor extract **不在 Rust 端**（lib.rs 无 vapor 路由抽取匹配；lib.rs:8040/17284/17349/17448 的 vapor 引用是测试注释/字符串常量，非路由抽取逻辑）——rust-swift-framework-routes.ts 是 TS 侧 backfill 模块。剩余工作 = 迁移动作：a) 在 swift.rs 新增 framework-routes 段（两阶段：先 let X = Y.grouped(\"...\") / Y.group(\"...\") { X in 建 group 前缀表，再 receiver.(get|post|...|delete|head|options)(..., use: handler) 收集 route 节点 + handler reference）；b) extract_swift_symbols 调用链中串行触发；c) 删 TS extract + 测试；d) 删 rust-swift-framework-routes.ts 中 vapor case（或保留作幂等校验）；e) e2e 护栏 + ci -t 同步。resolve() 延迟到 1-4-2 不变。"
         }
       ],
       "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
@@ -3406,7 +3431,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-16 15:11:57",
+    "updated": "2026-10-16 16:01:48",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
