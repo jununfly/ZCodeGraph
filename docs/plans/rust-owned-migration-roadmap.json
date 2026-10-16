@@ -2035,7 +2035,7 @@
     "1-4-1-15": {
       "id": "1-4-1-15",
       "label": "Rust 框架 resolver（Rocket/Axum 类路由，core 未覆盖部分）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-1",
       "children": [],
@@ -2044,9 +2044,14 @@
           "q": "Rust 框架 resolver（Rocket/Axum）归属",
           "answer": "split with 部分迁移已完成：Axum 已在 Rust 端（extract_rust_axum_routes）；Actix/Rocket attribute 形态需迁 Rust 补全；resolve() 延迟到 1-4-2",
           "note": "证据：a) Rust 端 extract_rust_axum_routes（lib.rs:12452）已覆盖 Axum .route() 链式调用 + get()/post() 等方法表达式 + group prefix + handler references，rust_axum_route_taxonomy_counts 追踪覆盖率；b) Actix-web 和 Rocket 的 #[get(\"/path\")] fn handler attribute 形态**不在 Rust 端**（lib.rs 无 actix/rocket 匹配），TS rustResolver.extract() 的 attrRegex 覆盖三框架（Actix/Rocket/Axum）；c) src/indexing/ 无 rust-rust-framework-routes.ts backfill——rust-hybrid 下 Actix/Rocket 路由断层；d) rust baseline 已 rust-owned。结论：Axum 部分已 migrate（同 Go 模式，可关闭 TS extract 中 axum 分支）；Actix/Rocket 部分需迁 Rust 补全（在 rust.rs 或共享段新增 attribute regex 路径）；resolve() 用 getNodesByName + getCargoWorkspaceCrateMap（cargo workspace crate 映射）等 1-4-2。落实计划：a) 在 Rust 端新增 Actix/Rocket attribute 抽取（参考 extract_rust_axum_routes 模式）；b) 删 TS extract 中已覆盖的 Axum 分支；c) 补 rust-hybrid e2e 护栏（Actix/Rocket/Axum 三框架 fixture）；d) 删 TS extract 中 Actix/Rocket 分支。"
+        },
+        {
+          "q": "1-4-1-15 现状修正（2026-10-16 勘察）",
+          "answer": "维持 split 结论，但修正迁移面：Rust 端已覆盖 Axum .route() 链 + Actix/Rocket attribute 宏（extract_rust_axum_routes lib.rs:12452、extract_rust_attribute_routes lib.rs:12514，后者覆盖 #[get/post/put/delete/patch/head/options] 与 #[route(...,method=...)]）；真正缺口只剩 Actix builder API——web::resource(\"/path\") 链（.route(web::METHOD().to(h)) 与 .to(h) 全动词）和 App 级 .route(\"/path\", web::METHOD().to(h))（TS rust.ts:190-252 两段 regex）。落实：a) Rust 端新增 extract_rust_actix_builder_routes（覆盖上述两形态，注意与 axum .route 子串搜索去重——web:: 前缀识别）；b) 删 TS rust.ts extract 全部（Axum + attribute + builder 三段），resolve() 保留等 1-4-2；c) 删 frameworks.test.ts 中 rustResolver.extract 用例（行 924-975），保留 resolve 用例；d) 幂等 e2e（close-and-reindex 三框架 fixture）+ ci -t 同步。模式沿用 1-4-1-16 ASP.NET 模板。",
+          "note": "证据：git show 5469af1 'Add Rust Axum route wiring slice' 已落地 attr+axum 双抽取；lib.rs:12292-12309 在 visit 前依次调用两抽取器；record_rust_route_like_macro_taxonomy 已把未识别的 route-like proc-macro 计入 deferred。attribute 抽取覆盖 Actix #[get] 与 Rocket #[get]（两者语法同形），route( 变体支持 method= 解析。"
         }
       ],
-      "notes": "完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。"
+      "notes": "CLOSED 2026-10-16。决策修正：勘察时发现 Rust 端已覆盖 Axum .route + Actix/Rocket attribute（5469af1），真正缺口只剩 Actix builder API（web::resource 链 + app.route web:: 形式）。落地：a) lib.rs 新增 extract_rust_actix_builder_routes（两形态 + find_actix_builder_chain_boundary 解决 resource chain 窗口跨 builder 链 bleeding），axum 路径 delegated（仅当 args 第一参数为字符串且含 web::，taxonomy=axum-route-actix-builder-delegated）；b) 支持 actix_web::web:: 全限定前缀；c) TS rust.ts extract 全删（336→176 行），保留 resolve() 等 1-4-2；d) frameworks.test.ts 删 6 个 extract 用例 + 1 个 stripComments 用例，frameworks-integration.test.ts 加三框架幂等 e2e；e) ci.yml -t 同步。测试：cargo test --lib 197/197 全绿；frameworks.test.ts 76/76；frameworks-integration 仅 3 个 pre-existing JVM FQN Windows EBUSY flake（与本改动无关，main 上同样失败）。坑：a) axum .route 裸子串匹配会撞 Actix 形态，须先 delegated 判断再 parse args 否则 taxonomy 虚高；b) resource chain 窗口若只用 ; 收尾会跨越 .service/.route 边界误配 handler 到错误 path。"
     },
     "1-4-1-16": {
       "id": "1-4-1-16",
@@ -3446,7 +3451,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-16 16:53:08",
+    "updated": "2026-10-16 17:45:50",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
