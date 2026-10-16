@@ -142,7 +142,13 @@ function extractPropNames(body: string): string[] {
  * Returns `[]` if the file doesn't look like a ViewManager (no
  * RCT_EXPORT_VIEW_PROPERTY macros).
  */
-function extractLegacyViewManagerNodes(filePath: string, source: string): Node[] {
+/**
+ * Exported for `src/indexing/rust-objc-framework-routes.ts` (roadmap
+ * 1-4-1-23): the rust-hybrid backfill replays this scan directly so the
+ * resolver's ObjC `extract()` branch can be retired without losing the
+ * backfill's ViewManager macro detection.
+ */
+export function extractLegacyViewManagerNodes(filePath: string, source: string): Node[] {
   // Cheap gate: no view-property macros at all → not a view manager.
   if (!source.includes('RCT_EXPORT_VIEW_PROPERTY') &&
       !source.includes('RCT_CUSTOM_VIEW_PROPERTY') &&
@@ -389,13 +395,14 @@ export const fabricViewResolver: FrameworkResolver = {
   },
 
   extract(filePath, source): FrameworkExtractionResult {
-    // Pick the right extractor by file language. The framework registry
-    // already filters by `languages` so we only see relevant files.
+    // ObjC (.m/.mm) branch removed in 1-4-1-23 — those macros are replayed
+    // by rust-objc-framework-routes.ts on the rust-hybrid engine via the
+    // exported extractLegacyViewManagerNodes helper. TS spec + JVM branches
+    // stay here pending the 1-4-2-9 backfill (rust-js-framework-routes /
+    // rust-java-framework-routes fabric cases).
     let nodes: Node[] = [];
     if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) {
       nodes = extractFabricNodes(filePath, source);
-    } else if (filePath.endsWith('.m') || filePath.endsWith('.mm')) {
-      nodes = extractLegacyViewManagerNodes(filePath, source);
     } else if (filePath.endsWith('.java') || filePath.endsWith('.kt')) {
       nodes = extractJvmViewManagerNodes(filePath, source);
     }

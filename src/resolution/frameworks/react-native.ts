@@ -95,8 +95,13 @@ function defaultObjcModuleName(className: string): string {
  * Regex-based scan is sufficient — these macros are highly stylized and
  * appear at top level. Pulling them out of the full AST would require a
  * macro-aware ObjC parse the tree-sitter grammar doesn't provide.
+ *
+ * Exported for `src/indexing/rust-objc-framework-routes.ts` (roadmap
+ * 1-4-1-21): the rust-hybrid backfill replays this parser directly so the
+ * resolver's own `extract()` hook can be retired without losing the
+ * backfill's macro scan.
  */
-function parseObjcRNExports(
+export function parseObjcRNExports(
   source: string,
   className: string | null
 ): Array<{ moduleName: string; jsName: string; nativeSelectorFirstKw: string; line: number }> {
@@ -149,9 +154,46 @@ function parseObjcRNExports(
  * captured here as `Foo`, but a category file probably isn't where a
  * fresh `RCT_EXPORT_MODULE` lives anyway.)
  */
-function findObjcClassName(source: string): string | null {
+export function findObjcClassName(source: string): string | null {
   const m = source.match(/@implementation\s+([A-Za-z_][A-Za-z0-9_]*)/);
   return m?.[1] ?? null;
+}
+
+/**
+ * Emit `rn-export:` method nodes for a single ObjC `.m`/`.mm` source. This
+ * is the node-synthesis half of the retired `reactNativeBridgeResolver.extract`
+ * hook (1-4-1-21). Called by `src/indexing/rust-objc-framework-routes.ts`
+ * during rust-hybrid finalization; the resolver itself no longer carries an
+ * extract step.
+ */
+export function emitReactNativeObjcExportNodes(filePath: string, source: string): Node[] {
+  if (!filePath.endsWith('.m') && !filePath.endsWith('.mm')) return [];
+  if (!/RCT_EXPORT_MODULE\b/.test(source)) return [];
+  const exports = parseObjcRNExports(source, findObjcClassName(source));
+  const now = Date.now();
+  const nodes: Node[] = [];
+  const seen = new Set<string>();
+  for (const e of exports) {
+    if (seen.has(e.jsName)) continue;
+    seen.add(e.jsName);
+    nodes.push({
+      id: `rn-export:${filePath}:${e.moduleName}.${e.jsName}`,
+      kind: 'method',
+      name: e.jsName,
+      qualifiedName: `${filePath}::${e.moduleName}.${e.jsName}`,
+      filePath,
+      language: 'objc',
+      startLine: e.line,
+      endLine: e.line,
+      startColumn: 0,
+      endColumn: 0,
+      isExported: true,
+      docstring: `RCT_EXPORT_METHOD ${e.nativeSelectorFirstKw} (module ${e.moduleName})`,
+      signature: `RCT_EXPORT_METHOD(${e.nativeSelectorFirstKw}:…)`,
+      updatedAt: now,
+    });
+  }
+  return nodes;
 }
 
 /**
@@ -361,48 +403,16 @@ function buildRNMaps(context: ResolutionContext): { byJsName: Map<string, Native
 
 export const reactNativeBridgeResolver: FrameworkResolver = {
   name: 'react-native-bridge',
-  // objc/mm included so `extract()` sees the native files — `resolve()` still
+  // objc/mm kept so `detect()` sees the native files — `resolve()` still
   // only redirects JS callers (it returns null for native languages).
   languages: ['javascript', 'typescript', 'tsx', 'jsx', 'objc'],
 
-  /**
-   * Extract `RCT_EXPORT_METHOD` / `RCT_REMAP_METHOD` declarations as method
-   * nodes. These macros parse as a macro-expression (an ERROR node), NOT a
-   * `method_definition`, so the ObjC extractor never made a node for them — the
-   * iOS half of a native module was invisible, so a JS call couldn't resolve to
-   * it and the cross-platform pairing had nothing to pair. The node is named by
-   * the JS-visible name (the selector's first keyword, or the explicit
-   * `RCT_REMAP_METHOD` JS name) so it matches the Android `@ReactMethod` method.
-   */
-  extract(filePath, source) {
-    if (!filePath.endsWith('.m') && !filePath.endsWith('.mm')) return { nodes: [], references: [] };
-    if (!/RCT_EXPORT_MODULE\b/.test(source)) return { nodes: [], references: [] };
-    const exports = parseObjcRNExports(source, findObjcClassName(source));
-    const now = Date.now();
-    const nodes: Node[] = [];
-    const seen = new Set<string>();
-    for (const e of exports) {
-      if (seen.has(e.jsName)) continue;
-      seen.add(e.jsName);
-      nodes.push({
-        id: `rn-export:${filePath}:${e.moduleName}.${e.jsName}`,
-        kind: 'method',
-        name: e.jsName,
-        qualifiedName: `${filePath}::${e.moduleName}.${e.jsName}`,
-        filePath,
-        language: 'objc',
-        startLine: e.line,
-        endLine: e.line,
-        startColumn: 0,
-        endColumn: 0,
-        isExported: true,
-        docstring: `RCT_EXPORT_METHOD ${e.nativeSelectorFirstKw} (module ${e.moduleName})`,
-        signature: `RCT_EXPORT_METHOD(${e.nativeSelectorFirstKw}:…)`,
-        updatedAt: now,
-      });
-    }
-    return { nodes, references: [] };
-  },
+  // extract() removed in 1-4-1-21: the ObjC macro scan is replayed by
+  // rust-objc-framework-routes.ts on the rust-hybrid engine via the
+  // exported parseObjcRNExports / findObjcClassName helpers, and the
+  // resolve() map build re-parses sources itself. JVM (@ReactMethod) and
+  // TS TurboModule spec scans stay in resolve()-side map building pending
+  // 1-4-2.
 
   /**
    * Detect: package.json depends on `react-native`, OR any source file

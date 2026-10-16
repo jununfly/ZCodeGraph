@@ -17,15 +17,16 @@
  *
  *   (A) react-native-bridge:  RCT_EXPORT_MODULE / RCT_EXPORT_METHOD /
  *       RCT_REMAP_METHOD -> a `method` node per JS-callable native method
- *       (id prefix `rn-export:`). These are what a JS NativeModules call
- *       resolves to; without them the iOS half of a native module is
- *       invisible (see src/resolution/frameworks/react-native.ts).
+ *       (id prefix `rn-export:`). Emitted via
+ *       `emitReactNativeObjcExportNodes` (1-4-1-21 retired the resolver's
+ *       extract hook).
  *
  *   (B) fabric-view (legacy Paper): RCT_EXPORT_VIEW_PROPERTY /
  *       RCT_CUSTOM_VIEW_PROPERTY / RCT_REMAP_VIEW_PROPERTY on a *Manager
  *       @implementation -> one `component` node (id `fabric-component:`)
- *       plus one `property` node per view property (id `fabric-prop:`)
- *       (see src/resolution/frameworks/fabric.ts).
+ *       plus one `property` node per view property (id `fabric-prop:`).
+ *       Emitted via `extractLegacyViewManagerNodes` (1-4-1-23 retired the
+ *       resolver's ObjC extract branch).
  *
  * Both extractors return NODES ONLY (no references) and are pure source-text
  * regex scans — no web-tree-sitter initialisation — so this mirrors the
@@ -57,23 +58,25 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { QueryBuilder } from '../db/queries';
 import type { Node } from '../types';
-import type { FrameworkResolver } from '../resolution/types';
-import { reactNativeBridgeResolver } from '../resolution/frameworks/react-native';
-import { fabricViewResolver } from '../resolution/frameworks/fabric';
+import { emitReactNativeObjcExportNodes } from '../resolution/frameworks/react-native';
+import { extractLegacyViewManagerNodes } from '../resolution/frameworks/fabric';
 import { logWarn } from '../errors';
 
 /**
- * The two ObjC-touching frameworks whose node extraction lives in the
- * TypeScript shell. Imported directly (not via getAllFrameworkResolvers) so
- * this finalization path does not pull in the full resolver registry and its
- * tree-sitter grammar dependency chain.
+ * Node emitters for the two ObjC-touching frameworks. These used to live
+ * behind `resolver.extract`; 1-4-1-21 and 1-4-1-23 retired those hooks and
+ * moved the node synthesis to exported pure functions this finalization
+ * pass can call directly. The resolvers' detect() names still gate whether
+ * each emitter runs on this project.
  */
-const OBJC_FRAMEWORK_RESOLVERS: Record<string, FrameworkResolver> = {
-  'react-native-bridge': reactNativeBridgeResolver,
-  'fabric-view': fabricViewResolver,
+type ObjcFrameworkEmitter = (filePath: string, source: string) => Node[];
+
+const OBJC_FRAMEWORK_EMITTERS: Record<string, ObjcFrameworkEmitter> = {
+  'react-native-bridge': emitReactNativeObjcExportNodes,
+  'fabric-view': extractLegacyViewManagerNodes,
 };
 
-const OBJC_FRAMEWORK_NAMES = new Set(Object.keys(OBJC_FRAMEWORK_RESOLVERS));
+const OBJC_FRAMEWORK_NAMES = new Set(Object.keys(OBJC_FRAMEWORK_EMITTERS));
 
 /** Back-fill-exclusive node id prefixes (see module doc). */
 const BACKFILL_NODE_PREFIXES = ['rn-export:', 'fabric-component:', 'fabric-prop:'] as const;
@@ -113,10 +116,10 @@ export function runObjcFrameworkRouteBackfill(
   const activeNames = frameworkNames.filter((name) => OBJC_FRAMEWORK_NAMES.has(name));
   if (activeNames.length === 0) return stats;
 
-  const resolvers = activeNames
-    .map((name) => OBJC_FRAMEWORK_RESOLVERS[name])
-    .filter((r): r is FrameworkResolver => !!r && typeof r.extract === 'function');
-  if (resolvers.length === 0) return stats;
+  const emitters = activeNames
+    .map((name) => ({ name, emit: OBJC_FRAMEWORK_EMITTERS[name]! }))
+    .filter((entry) => typeof entry.emit === 'function');
+  if (emitters.length === 0) return stats;
 
   const objcFiles = queries
     .getAllFiles()
@@ -144,10 +147,9 @@ export function runObjcFrameworkRouteBackfill(
     }
 
     const newNodes: Node[] = [];
-    for (const resolver of resolvers) {
+    for (const { name, emit } of emitters) {
       try {
-        const result = resolver.extract!(file.path, content);
-        for (const node of result.nodes) {
+        for (const node of emit(file.path, content)) {
           if (node.id && node.kind && node.name && node.filePath && node.language) {
             newNodes.push(node);
           }
@@ -155,7 +157,7 @@ export function runObjcFrameworkRouteBackfill(
       } catch (err) {
         stats.extractErrors++;
         logWarn('ObjC framework extractor failed', {
-          framework: resolver.name,
+          framework: name,
           file: file.path,
           error: err instanceof Error ? err.message : String(err),
         });
