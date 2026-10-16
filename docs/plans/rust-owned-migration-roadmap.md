@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-16 17:45:50
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-16 18:05:38
 
 [~][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
@@ -49,4 +49,12 @@
     ├── [x][X+] 1-6-4. Swift 基线迁移（移动桥接成为产品优先级时启动）
     ├── [x][Y+] 1-6-5. 波次0: #692 夹具债清零（新语言迁移前置）
     └── [ ][X+] 1-6-6. [产品修复] rust-hybrid 下恢复 JS/TS framework 抽取（Express + NestJS extract() + React backfill 补全）
+
+### 当前施工：1-4-1-21. React Native bridge resolver（JS-to-native 桥接）
+
+完成定义：decide 记录三选一结论与理由；split 需写明 post-extract 协议边界。
+
+**决策：**
+- Q: React Native bridge resolver 归属 → split with 部分 keep：ObjC 宏 extract 已由 rust-objc-framework-routes.ts backfill 覆盖（关闭 TS extract）；TS spec + JVM @ReactMethod 在 resolve 阶段现扫源码，属 resolve 层 ad-hoc 扫描，延迟到 1-4-2 (证据：跨语言桥接（javascript/typescript/tsx/jsx/objc/java/kotlin）。extract 仅对 ObjC .m/.mm 跑 RCT_EXPORT_MODULE/RCT_EXPORT_METHOD/RCT_REMAP_METHOD regex 合成 method 节点（标 language objc）——该面已由 rust-objc-framework-routes.ts case A backfill 覆盖，与 Go 同形态可关闭 TS extract。TS spec（TurboModuleRegistry.get<Spec>('Name')）和 JVM（@ReactMethod + getName() 字面量）**不在 extract 阶段产出节点**，而在 resolve 阶段现扫所有 .m/.mm/.java/.kt/.ts/.tsx 文件源码跑 regex 建 (moduleName, jsName) → native node 映射——这属 resolve 层 ad-hoc 扫描（非 extract），等 1-4-2 决策 ResolutionContext/readFile 后统一处理。resolve() 用 getAllFiles/readFile/getNodesByKind('method')，WeakMap 缓存不写图。)
+- Q: 1-4-1-21 关闭形式（2026-10-16） → 关闭动作 = 删除 TS extract hook，逻辑挪至 rust-objc-framework-routes.ts backfill。落地：a) react-native.ts 删整个 extract() 函数，把 parseObjcRNExports / findObjcClassName 改为 export，新增 emitReactNativeObjcExportNodes 纯函数（节点合成与原 extract 等价）；b) rust-objc-framework-routes.ts 把 OBJC_FRAMEWORK_RESOLVERS map 换成 OBJC_FRAMEWORK_EMITTERS map，直接调导出函数而非 resolver.extract!()——消除对 resolver 接口 extract 钩子的依赖。resolve()（JVM @ReactMethod 与 TS TurboModule spec 现扫）保留在 resolver 内，等 1-4-2。测试：react-native-bridge.test.ts 16/16 全绿；extraction.test.ts 'back-fills RCT_EXPORT_MODULE/RCT_EXPORT_METHOD macro methods' 通过。 (前置 decide 的 ObjC backfill 覆盖判断已验证——rust-objc-framework-routes.ts case A 与此 extract 节点合成逻辑完全等价，只是调用方从 resolver.extract! 改为直接函数调用。)
 <!-- ROADMAP_SECTION_END -->
