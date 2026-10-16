@@ -221,12 +221,12 @@ async def create_article():
   });
 });
 
-import { expressResolver } from '../src/resolution/frameworks/express';
+import { emitExpressRouteNodes } from '../src/resolution/frameworks/express';
 
 describe('expressResolver.extract', () => {
   it('extracts route with inline handler reference', () => {
     const src = `app.get('/users', listUsers);\n`;
-    const { nodes, references } = expressResolver.extract!('routes.ts', src);
+    const { nodes, references } = emitExpressRouteNodes('routes.ts', src);
     expect(nodes).toHaveLength(1);
     expect(nodes[0].name).toBe('GET /users');
     expect(references[0].referenceName).toBe('listUsers');
@@ -234,7 +234,7 @@ describe('expressResolver.extract', () => {
 
   it('extracts route with router.post and middleware chain', () => {
     const src = `router.post('/items', auth, createItem);\n`;
-    const { nodes, references } = expressResolver.extract!('items.ts', src);
+    const { nodes, references } = emitExpressRouteNodes('items.ts', src);
     expect(nodes[0].name).toBe('POST /items');
     // Multiple handlers: prefer the LAST one (convention: middleware first, handler last)
     expect(references[0].referenceName).toBe('createItem');
@@ -242,12 +242,12 @@ describe('expressResolver.extract', () => {
 
   it('extracts route with controller method reference', () => {
     const src = `app.get('/x', userController.list);\n`;
-    const { nodes, references } = expressResolver.extract!('routes.ts', src);
+    const { nodes, references } = emitExpressRouteNodes('routes.ts', src);
     expect(references[0].referenceName).toBe('list');
   });
 });
 
-import { nestjsResolver } from '../src/resolution/frameworks/nestjs';
+import { nestjsResolver, emitNestjsRouteNodes } from '../src/resolution/frameworks/nestjs';
 
 describe('nestjsResolver.extract — HTTP', () => {
   it('joins @Controller prefix with @Get and links the handler', () => {
@@ -258,7 +258,7 @@ export class UsersController {
   findAll() { return []; }
 }
 `;
-    const { nodes, references } = nestjsResolver.extract!('users.controller.ts', src);
+    const { nodes, references } = emitNestjsRouteNodes('users.controller.ts', src);
     expect(nodes).toHaveLength(1);
     expect(nodes[0].kind).toBe('route');
     expect(nodes[0].name).toBe('GET /users');
@@ -275,7 +275,7 @@ export class CatsController {
   findOne(@Param('id') id: string) { return id; }
 }
 `;
-    const { nodes, references } = nestjsResolver.extract!('cats.controller.ts', src);
+    const { nodes, references } = emitNestjsRouteNodes('cats.controller.ts', src);
     expect(nodes[0].name).toBe('GET /cats/:id');
     expect(references[0].referenceName).toBe('findOne');
   });
@@ -288,7 +288,7 @@ export class AppController {
   create() {}
 }
 `;
-    const { nodes, references } = nestjsResolver.extract!('app.controller.ts', src);
+    const { nodes, references } = emitNestjsRouteNodes('app.controller.ts', src);
     expect(nodes[0].name).toBe('POST /');
     expect(references[0].referenceName).toBe('create');
   });
@@ -305,7 +305,7 @@ export class TodosController {
   async remove(@Param('id') id: string) {}
 }
 `;
-    const { nodes, references } = nestjsResolver.extract!('todos.controller.ts', src);
+    const { nodes, references } = emitNestjsRouteNodes('todos.controller.ts', src);
     expect(nodes.map((n) => n.name)).toEqual(['PUT /todos/:id', 'DELETE /todos/:id']);
     expect(references.map((r) => r.referenceName)).toEqual(['update', 'remove']);
   });
@@ -324,7 +324,7 @@ export class BController {
   by() {}
 }
 `;
-    const { nodes } = nestjsResolver.extract!('multi.controller.ts', src);
+    const { nodes } = emitNestjsRouteNodes('multi.controller.ts', src);
     expect(nodes.map((n) => n.name)).toEqual(['GET /a/x', 'GET /b/y']);
   });
 });
@@ -341,7 +341,7 @@ export class UsersResolver {
   createUser(@Args('input') input: CreateUserInput) {}
 }
 `;
-    const { nodes, references } = nestjsResolver.extract!('users.resolver.ts', src);
+    const { nodes, references } = emitNestjsRouteNodes('users.resolver.ts', src);
     expect(nodes.map((n) => n.name)).toEqual(['QUERY users', 'MUTATION createUser']);
     expect(references.map((r) => r.referenceName)).toEqual(['users', 'createUser']);
   });
@@ -354,7 +354,7 @@ export class CatsResolver {
   getCat() {}
 }
 `;
-    const { nodes } = nestjsResolver.extract!('cats.resolver.ts', src);
+    const { nodes } = emitNestjsRouteNodes('cats.resolver.ts', src);
     expect(nodes[0].name).toBe('QUERY cat');
   });
 
@@ -366,7 +366,7 @@ export class SearchController {
   search(@Query() query: SearchDto) { return query; }
 }
 `;
-    const { nodes } = nestjsResolver.extract!('search.controller.ts', src);
+    const { nodes } = emitNestjsRouteNodes('search.controller.ts', src);
     // Only the HTTP route — the @Query() param decorator must be ignored.
     expect(nodes.map((n) => n.name)).toEqual(['GET /search']);
   });
@@ -384,7 +384,7 @@ export class MathController {
   handleUserCreated(data: any) {}
 }
 `;
-    const { nodes, references } = nestjsResolver.extract!('math.controller.ts', src);
+    const { nodes, references } = emitNestjsRouteNodes('math.controller.ts', src);
     expect(nodes.map((n) => n.name)).toEqual(['MESSAGE sum', 'EVENT user.created']);
     expect(references.map((r) => r.referenceName)).toEqual(['accumulate', 'handleUserCreated']);
   });
@@ -397,7 +397,7 @@ export class ChatGateway {
   handleMessage(@MessageBody() data: string) {}
 }
 `;
-    const { nodes, references } = nestjsResolver.extract!('chat.gateway.ts', src);
+    const { nodes, references } = emitNestjsRouteNodes('chat.gateway.ts', src);
     expect(nodes[0].name).toBe('WS chat:message');
     expect(references[0].referenceName).toBe('handleMessage');
   });
@@ -410,12 +410,12 @@ export class EventsGateway {
   onEvent() {}
 }
 `;
-    const { nodes } = nestjsResolver.extract!('events.gateway.ts', src);
+    const { nodes } = emitNestjsRouteNodes('events.gateway.ts', src);
     expect(nodes[0].name).toBe('WS events');
   });
 
   it('returns empty for a non-JS/TS file', () => {
-    const { nodes, references } = nestjsResolver.extract!('thing.py', '@Controller("x")');
+    const { nodes, references } = emitNestjsRouteNodes('thing.py', '@Controller("x")');
     expect(nodes).toEqual([]);
     expect(references).toEqual([]);
   });
@@ -834,7 +834,7 @@ describe('railsResolver.extract', () => {
   });
 });
 
-import { springResolver } from '../src/resolution/frameworks/java';
+import { emitSpringJavaKotlinNodes } from '../src/resolution/frameworks/java';
 
 describe('springResolver.extract', () => {
   it('extracts route with @GetMapping and next method', () => {
@@ -844,7 +844,7 @@ public List<User> listUsers() {
   return users;
 }
 `;
-    const { nodes, references } = springResolver.extract!('UserController.java', src);
+    const { nodes, references } = emitSpringJavaKotlinNodes('UserController.java', src);
     expect(nodes[0].name).toBe('GET /users');
     expect(references[0].referenceName).toBe('listUsers');
   });
@@ -856,7 +856,7 @@ fun showVetList(model: MutableMap<String, Any>): String {
   return "vets"
 }
 `;
-    const { nodes, references } = springResolver.extract!('VetController.kt', src);
+    const { nodes, references } = emitSpringJavaKotlinNodes('VetController.kt', src);
     expect(nodes[0].name).toBe('GET /vets');
     expect(references[0].referenceName).toBe('showVetList');
     expect(nodes[0].language).toBe('kotlin');
@@ -874,13 +874,13 @@ class OwnerController {
   }
 }
 `;
-    const { nodes, references } = springResolver.extract!('OwnerController.kt', src);
+    const { nodes, references } = emitSpringJavaKotlinNodes('OwnerController.kt', src);
     expect(nodes[0].name).toBe('GET /owners/{ownerId}');
     expect(references[0].referenceName).toBe('showOwner');
   });
 });
 
-import { playResolver } from '../src/resolution/frameworks/play';
+import { emitPlayRouteNodes } from '../src/resolution/frameworks/play';
 import { isSourceFile, isPlayRoutesFile } from '../src/extraction/grammars';
 
 describe('playResolver.extract (conf/routes)', () => {
@@ -891,7 +891,7 @@ GET     /computers           controllers.Application.list(p: Int ?= 0, s: Int ?=
 POST    /computers           controllers.Application.save
 -> /v1/posts                 v1.post.PostRouter
 `;
-    const { nodes, references } = playResolver.extract!('conf/routes', src);
+    const { nodes, references } = emitPlayRouteNodes('conf/routes', src);
     expect(nodes.map((n) => n.name)).toEqual([
       'GET /',
       'GET /computers',
@@ -905,7 +905,7 @@ POST    /computers           controllers.Application.save
   });
 
   it('only runs on Play routes files', () => {
-    expect(playResolver.extract!('app/Foo.scala', 'GET / controllers.X.y').nodes).toHaveLength(0);
+    expect(emitPlayRouteNodes('app/Foo.scala', 'GET / controllers.X.y').nodes).toHaveLength(0);
   });
 });
 
@@ -1233,13 +1233,13 @@ version = "0.1.0"
   });
 });
 
-import { reactResolver } from '../src/resolution/frameworks/react';
+import { emitReactComponentNodes } from '../src/resolution/frameworks/react';
 import { svelteResolver } from '../src/resolution/frameworks/svelte';
 
 describe('reactResolver.extract — React Router', () => {
   it('extracts a v6 <Route path element={<Comp/>}>', () => {
     const src = `<Route path="/users" element={<UsersPage/>}/>`;
-    const { nodes, references } = reactResolver.extract!('App.tsx', src);
+    const { nodes, references } = emitReactComponentNodes('App.tsx', src);
     const route = nodes.find((n) => n.kind === 'route');
     expect(route?.name).toBe('/users');
     expect(references[0]?.referenceName).toBe('UsersPage');
@@ -1247,7 +1247,7 @@ describe('reactResolver.extract — React Router', () => {
 
   it('extracts a v5 <Route path component={Comp}> with attributes in any order', () => {
     const src = `<Route exact path="/login" component={Login} />`;
-    const { nodes, references } = reactResolver.extract!('App.jsx', src);
+    const { nodes, references } = emitReactComponentNodes('App.jsx', src);
     const route = nodes.find((n) => n.kind === 'route');
     expect(route?.name).toBe('/login');
     expect(references[0]?.referenceName).toBe('Login');
@@ -1255,7 +1255,7 @@ describe('reactResolver.extract — React Router', () => {
 
   it('does not treat the <Routes> container as a route', () => {
     const src = `<Routes><Route path="/x" element={<X/>}/></Routes>`;
-    const routes = reactResolver.extract!('App.tsx', src).nodes.filter((n) => n.kind === 'route');
+    const routes = emitReactComponentNodes('App.tsx', src).nodes.filter((n) => n.kind === 'route');
     expect(routes).toHaveLength(1);
     expect(routes[0]?.name).toBe('/x');
   });
@@ -1265,19 +1265,19 @@ describe('reactResolver.extract — React Router', () => {
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/login", Component: Login },
     ]);`;
-    const { nodes, references } = reactResolver.extract!('router.tsx', src);
+    const { nodes, references } = emitReactComponentNodes('router.tsx', src);
     const routes = nodes.filter((n) => n.kind === 'route');
     expect(routes.map((n) => n.name).sort()).toEqual(['/dashboard', '/login']);
     expect(references.map((r) => r.referenceName).sort()).toEqual(['Dashboard', 'Login']);
   });
 
   it('does not treat config files or a nextjs-pages dir as Next.js routes', () => {
-    const cfg = reactResolver.extract!('apps/nextjs-pages/next.config.mjs', 'export default {}');
+    const cfg = emitReactComponentNodes('apps/nextjs-pages/next.config.mjs', 'export default {}');
     expect(cfg.nodes.filter((n) => n.kind === 'route')).toHaveLength(0);
-    const vite = reactResolver.extract!('src/pages/vite.config.ts', 'export default {}');
+    const vite = emitReactComponentNodes('src/pages/vite.config.ts', 'export default {}');
     expect(vite.nodes.filter((n) => n.kind === 'route')).toHaveLength(0);
     // a real page still works
-    const page = reactResolver.extract!('src/pages/about.tsx', 'export default function About(){return null}');
+    const page = emitReactComponentNodes('src/pages/about.tsx', 'export default function About(){return null}');
     expect(page.nodes.filter((n) => n.kind === 'route').map((n) => n.name)).toEqual(['/about']);
   });
 });
@@ -1347,7 +1347,7 @@ async def real_handler():
 /* router.post('/also-fake', otherHandler); */
 app.get('/real', realHandler);
 `;
-    const { nodes, references } = expressResolver.extract!('routes.ts', src);
+    const { nodes, references } = emitExpressRouteNodes('routes.ts', src);
     expect(nodes.map((n) => n.name)).toEqual(['GET /real']);
     expect(references.map((r) => r.referenceName)).toEqual(['realHandler']);
   });
@@ -1388,7 +1388,7 @@ get '/real', to: 'real#index'
 @GetMapping("/real")
 public List<User> listUsers() { return users; }
 `;
-    const { nodes, references } = springResolver.extract!('UserController.java', src);
+    const { nodes, references } = emitSpringJavaKotlinNodes('UserController.java', src);
     expect(nodes.map((n) => n.name)).toEqual(['GET /real']);
     expect(references.map((r) => r.referenceName)).toEqual(['listUsers']);
   });
@@ -1405,7 +1405,7 @@ export class UsersController {
   real() {}
 }
 `;
-    const { nodes, references } = nestjsResolver.extract!('users.controller.ts', src);
+    const { nodes, references } = emitNestjsRouteNodes('users.controller.ts', src);
     expect(nodes.map((n) => n.name)).toEqual(['GET /users/real']);
     expect(references.map((r) => r.referenceName)).toEqual(['real']);
   });

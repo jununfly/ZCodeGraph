@@ -74,91 +74,151 @@ export const reactResolver: FrameworkResolver = {
     return null;
   },
 
+  // extract() kept for the typescript engine; on rust-hybrid the backfill
+  // (rust-js-framework-routes.ts) replays `emitReactComponentNodes` directly.
   extract(filePath, content) {
-    const nodes: Node[] = [];
-    const references: UnresolvedRef[] = [];
-    const now = Date.now();
+    return emitReactComponentNodes(filePath, content);
+  },
+};
 
-    // Extract component definitions
-    // function Component() or const Component = () =>
-    const componentPatterns = [
-      // Function components
-      /(?:export\s+)?function\s+([A-Z][a-zA-Z0-9]*)\s*\(/g,
-      // Arrow function components
-      /(?:export\s+)?(?:const|let)\s+([A-Z][a-zA-Z0-9]*)\s*=\s*(?:\([^)]*\)|[a-zA-Z_][a-zA-Z0-9_]*)\s*=>/g,
-      // forwardRef components
-      /(?:export\s+)?(?:const|let)\s+([A-Z][a-zA-Z0-9]*)\s*=\s*(?:React\.)?forwardRef/g,
-      // memo components
-      /(?:export\s+)?(?:const|let)\s+([A-Z][a-zA-Z0-9]*)\s*=\s*(?:React\.)?memo/g,
-    ];
+/**
+ * Parse a JSX/TSX React source file and emit component/hook/route nodes plus
+ * component references (Route element/component, createBrowserRouter objects,
+ * Next.js pages). Pure source-text regex scan (no resolver context), exported
+ * for `src/indexing/rust-js-framework-routes.ts` (roadmap 1-4-2-9): the
+ * rust-hybrid backfill replays this scan directly so the resolver's
+ * `extract()` hook can be retired on the rust-owned path.
+ */
+export function emitReactComponentNodes(
+  filePath: string,
+  content: string,
+): { nodes: Node[]; references: UnresolvedRef[] } {
+  const nodes: Node[] = [];
+  const references: UnresolvedRef[] = [];
+  const now = Date.now();
 
-    for (const pattern of componentPatterns) {
-      let match;
-      while ((match = pattern.exec(content)) !== null) {
-        const [fullMatch, name] = match;
-        const line = content.slice(0, match.index).split('\n').length;
+  // Extract component definitions
+  // function Component() or const Component = () =>
+  const componentPatterns = [
+    // Function components
+    /(?:export\s+)?function\s+([A-Z][a-zA-Z0-9]*)\s*\(/g,
+    // Arrow function components
+    /(?:export\s+)?(?:const|let)\s+([A-Z][a-zA-Z0-9]*)\s*=\s*(?:\([^)]*\)|[a-zA-Z_][a-zA-Z0-9_]*)\s*=>/g,
+    // forwardRef components
+    /(?:export\s+)?(?:const|let)\s+([A-Z][a-zA-Z0-9]*)\s*=\s*(?:React\.)?forwardRef/g,
+    // memo components
+    /(?:export\s+)?(?:const|let)\s+([A-Z][a-zA-Z0-9]*)\s*=\s*(?:React\.)?memo/g,
+  ];
 
-        // Check if it returns JSX (rough heuristic)
-        const afterMatch = content.slice(match.index + fullMatch.length, match.index + fullMatch.length + 500);
-        const hasJSX = afterMatch.includes('<') && (afterMatch.includes('/>') || afterMatch.includes('</'));
+  for (const pattern of componentPatterns) {
+    let match;
+    while ((match = pattern.exec(content)) !== null) {
+      const [fullMatch, name] = match;
+      const line = content.slice(0, match.index).split('\n').length;
 
-        if (hasJSX) {
-          nodes.push({
-            id: `component:${filePath}:${name}:${line}`,
-            kind: 'component',
-            name: name!,
-            qualifiedName: `${filePath}::${name}`,
-            filePath,
-            startLine: line,
-            endLine: line,
-            startColumn: 0,
-            endColumn: fullMatch.length,
-            language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
-            isExported: fullMatch.includes('export'),
-            updatedAt: now,
-          });
-        }
+      // Check if it returns JSX (rough heuristic)
+      const afterMatch = content.slice(match.index + fullMatch.length, match.index + fullMatch.length + 500);
+      const hasJSX = afterMatch.includes('<') && (afterMatch.includes('/>') || afterMatch.includes('</'));
+
+      if (hasJSX) {
+        nodes.push({
+          id: `component:${filePath}:${name}:${line}`,
+          kind: 'component',
+          name: name!,
+          qualifiedName: `${filePath}::${name}`,
+          filePath,
+          startLine: line,
+          endLine: line,
+          startColumn: 0,
+          endColumn: fullMatch.length,
+          language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
+          isExported: fullMatch.includes('export'),
+          updatedAt: now,
+        });
       }
     }
+  }
 
-    // Extract custom hooks
-    const hookPattern = /(?:export\s+)?(?:function|const|let)\s+(use[A-Z][a-zA-Z0-9]*)\s*[=(]/g;
-    let hookMatch;
-    while ((hookMatch = hookPattern.exec(content)) !== null) {
-      const [fullMatch, name] = hookMatch;
-      const line = content.slice(0, hookMatch.index).split('\n').length;
+  // Extract custom hooks
+  const hookPattern = /(?:export\s+)?(?:function|const|let)\s+(use[A-Z][a-zA-Z0-9]*)\s*[=(]/g;
+  let hookMatch;
+  while ((hookMatch = hookPattern.exec(content)) !== null) {
+    const [fullMatch, name] = hookMatch;
+    const line = content.slice(0, hookMatch.index).split('\n').length;
 
-      nodes.push({
-        id: `hook:${filePath}:${name}:${line}`,
-        kind: 'function',
-        name: name!,
-        qualifiedName: `${filePath}::${name}`,
+    nodes.push({
+      id: `hook:${filePath}:${name}:${line}`,
+      kind: 'function',
+      name: name!,
+      qualifiedName: `${filePath}::${name}`,
+      filePath,
+      startLine: line,
+      endLine: line,
+      startColumn: 0,
+      endColumn: fullMatch.length,
+      language: filePath.endsWith('.ts') || filePath.endsWith('.tsx') ? 'typescript' : 'javascript',
+      isExported: fullMatch.includes('export'),
+      updatedAt: now,
+    });
+  }
+
+  // React Router: <Route path="/x" component={Comp}/> (v5) or
+  // <Route path="/x" element={<Comp/>}/> (v6). Attributes appear in any order,
+  // and element={...} contains a nested `>`, so scan a window after each
+  // <Route rather than trying to match the whole (possibly multi-line) tag.
+  const routeTagRegex = /<Route\b/g;
+  let routeMatch: RegExpExecArray | null;
+  while ((routeMatch = routeTagRegex.exec(content)) !== null) {
+    const window = content.slice(routeMatch.index, routeMatch.index + 400);
+    const pathMatch = window.match(/\bpath\s*=\s*["']([^"']+)["']/);
+    if (!pathMatch) continue; // index/layout routes without a path
+    const routePath = pathMatch[1]!;
+    const compMatch =
+      window.match(/\bcomponent\s*=\s*\{\s*([A-Z][A-Za-z0-9_]*)/) ||
+      window.match(/\belement\s*=\s*\{\s*<\s*([A-Z][A-Za-z0-9_]*)/);
+    const line = content.slice(0, routeMatch.index).split('\n').length;
+    const routeNode: Node = {
+      id: `route:${filePath}:${line}:${routePath}`,
+      kind: 'route',
+      name: routePath,
+      qualifiedName: `${filePath}::route:${routePath}`,
+      filePath,
+      startLine: line,
+      endLine: line,
+      startColumn: 0,
+      endColumn: 0,
+      language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
+      updatedAt: now,
+    };
+    nodes.push(routeNode);
+    if (compMatch) {
+      references.push({
+        fromNodeId: routeNode.id,
+        referenceName: compMatch[1]!,
+        referenceKind: 'references',
+        line,
+        column: 0,
         filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: fullMatch.length,
-        language: filePath.endsWith('.ts') || filePath.endsWith('.tsx') ? 'typescript' : 'javascript',
-        isExported: fullMatch.includes('export'),
-        updatedAt: now,
+        language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
       });
     }
+  }
 
-    // React Router: <Route path="/x" component={Comp}/> (v5) or
-    // <Route path="/x" element={<Comp/>}/> (v6). Attributes appear in any order,
-    // and element={...} contains a nested `>`, so scan a window after each
-    // <Route rather than trying to match the whole (possibly multi-line) tag.
-    const routeTagRegex = /<Route\b/g;
-    let routeMatch: RegExpExecArray | null;
-    while ((routeMatch = routeTagRegex.exec(content)) !== null) {
-      const window = content.slice(routeMatch.index, routeMatch.index + 400);
-      const pathMatch = window.match(/\bpath\s*=\s*["']([^"']+)["']/);
-      if (!pathMatch) continue; // index/layout routes without a path
-      const routePath = pathMatch[1]!;
+  // React Router data-router (v6.4+): createBrowserRouter([{ path, element }]).
+  // Only scan files that use the data-router API, then pull each route object's
+  // `path` + `element={<Comp/>}` / `Component: Comp` (a forward window confirms
+  // it's a route object, not a stray `path:` field).
+  if (/\b(?:createBrowserRouter|createHashRouter|createMemoryRouter|createRoutesFromElements)\b/.test(content)) {
+    const objPathRe = /\bpath\s*:\s*['"]([^'"]*)['"]/g;
+    let om: RegExpExecArray | null;
+    while ((om = objPathRe.exec(content)) !== null) {
+      const win = content.slice(om.index, om.index + 300);
       const compMatch =
-        window.match(/\bcomponent\s*=\s*\{\s*([A-Z][A-Za-z0-9_]*)/) ||
-        window.match(/\belement\s*=\s*\{\s*<\s*([A-Z][A-Za-z0-9_]*)/);
-      const line = content.slice(0, routeMatch.index).split('\n').length;
+        win.match(/\belement\s*:\s*<\s*([A-Z][A-Za-z0-9_]*)/) ||
+        win.match(/\bComponent\s*:\s*([A-Z][A-Za-z0-9_]*)/);
+      if (!compMatch) continue; // require a component → it's a real route object
+      const routePath = om[1] || '/';
+      const line = content.slice(0, om.index).split('\n').length;
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${routePath}`,
         kind: 'route',
@@ -173,89 +233,46 @@ export const reactResolver: FrameworkResolver = {
         updatedAt: now,
       };
       nodes.push(routeNode);
-      if (compMatch) {
-        references.push({
-          fromNodeId: routeNode.id,
-          referenceName: compMatch[1]!,
-          referenceKind: 'references',
-          line,
-          column: 0,
-          filePath,
-          language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
-        });
-      }
+      references.push({
+        fromNodeId: routeNode.id,
+        referenceName: compMatch[1]!,
+        referenceKind: 'references',
+        line,
+        column: 0,
+        filePath,
+        language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
+      });
     }
+  }
 
-    // React Router data-router (v6.4+): createBrowserRouter([{ path, element }]).
-    // Only scan files that use the data-router API, then pull each route object's
-    // `path` + `element={<Comp/>}` / `Component: Comp` (a forward window confirms
-    // it's a route object, not a stray `path:` field).
-    if (/\b(?:createBrowserRouter|createHashRouter|createMemoryRouter|createRoutesFromElements)\b/.test(content)) {
-      const objPathRe = /\bpath\s*:\s*['"]([^'"]*)['"]/g;
-      let om: RegExpExecArray | null;
-      while ((om = objPathRe.exec(content)) !== null) {
-        const win = content.slice(om.index, om.index + 300);
-        const compMatch =
-          win.match(/\belement\s*:\s*<\s*([A-Z][A-Za-z0-9_]*)/) ||
-          win.match(/\bComponent\s*:\s*([A-Z][A-Za-z0-9_]*)/);
-        if (!compMatch) continue; // require a component → it's a real route object
-        const routePath = om[1] || '/';
-        const line = content.slice(0, om.index).split('\n').length;
-        const routeNode: Node = {
-          id: `route:${filePath}:${line}:${routePath}`,
+  // Extract Next.js pages/routes (pages directory convention)
+  if (filePath.includes('pages/') || filePath.includes('app/')) {
+    // Default export in pages becomes a route
+    if (content.includes('export default')) {
+      const routePath = filePathToRoute(filePath);
+      if (routePath) {
+        const line = content.indexOf('export default');
+        const lineNum = content.slice(0, line).split('\n').length;
+
+        nodes.push({
+          id: `route:${filePath}:${routePath}:${lineNum}`,
           kind: 'route',
           name: routePath,
           qualifiedName: `${filePath}::route:${routePath}`,
           filePath,
-          startLine: line,
-          endLine: line,
+          startLine: lineNum,
+          endLine: lineNum,
           startColumn: 0,
           endColumn: 0,
-          language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
+          language: filePath.endsWith('.tsx') ? 'tsx' : filePath.endsWith('.ts') ? 'typescript' : 'javascript',
           updatedAt: now,
-        };
-        nodes.push(routeNode);
-        references.push({
-          fromNodeId: routeNode.id,
-          referenceName: compMatch[1]!,
-          referenceKind: 'references',
-          line,
-          column: 0,
-          filePath,
-          language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
         });
       }
     }
+  }
 
-    // Extract Next.js pages/routes (pages directory convention)
-    if (filePath.includes('pages/') || filePath.includes('app/')) {
-      // Default export in pages becomes a route
-      if (content.includes('export default')) {
-        const routePath = filePathToRoute(filePath);
-        if (routePath) {
-          const line = content.indexOf('export default');
-          const lineNum = content.slice(0, line).split('\n').length;
-
-          nodes.push({
-            id: `route:${filePath}:${routePath}:${lineNum}`,
-            kind: 'route',
-            name: routePath,
-            qualifiedName: `${filePath}::route:${routePath}`,
-            filePath,
-            startLine: lineNum,
-            endLine: lineNum,
-            startColumn: 0,
-            endColumn: 0,
-            language: filePath.endsWith('.tsx') ? 'tsx' : filePath.endsWith('.ts') ? 'typescript' : 'javascript',
-            updatedAt: now,
-          });
-        }
-      }
-    }
-
-    return { nodes, references };
-  },
-};
+  return { nodes, references };
+}
 
 /**
  * Check if string is PascalCase

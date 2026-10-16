@@ -110,86 +110,10 @@ export const nestjsResolver: FrameworkResolver = {
     return null;
   },
 
+  // extract() kept for the typescript engine; on rust-hybrid the backfill
+  // (rust-js-framework-routes.ts) replays `emitNestjsRouteNodes` directly.
   extract(filePath, content) {
-    if (!/\.(m?js|tsx?|cjs)$/.test(filePath)) return { nodes: [], references: [] };
-    const nodes: Node[] = [];
-    const references: UnresolvedRef[] = [];
-    const now = Date.now();
-    const lang = detectLanguage(filePath);
-    const safe = stripCommentsForRegex(content, lang);
-
-    const addRoute = (
-      index: number,
-      method: string,
-      path: string,
-      length: number,
-      handler: string | null
-    ): void => {
-      const line = lineAt(safe, index);
-      const node: Node = {
-        id: `route:${filePath}:${line}:${method}:${path}`,
-        kind: 'route',
-        name: `${method} ${path}`,
-        qualifiedName: `${filePath}::${method}:${path}`,
-        filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: length,
-        language: lang,
-        updatedAt: now,
-      };
-      nodes.push(node);
-      if (handler) {
-        references.push({
-          fromNodeId: node.id,
-          referenceName: handler,
-          referenceKind: 'references',
-          line,
-          column: 0,
-          filePath,
-          language: lang,
-        });
-      }
-    };
-
-    const scopes = buildClassScopes(safe);
-
-    // HTTP routes: method decorator path joined onto the enclosing controller's prefix.
-    for (const hit of findDecorators(safe, HTTP_METHODS)) {
-      const scope = scopeFor(scopes, hit.index);
-      const prefix = scope && scope.kind === 'controller' ? scope.prefix : '';
-      const path = joinHttpPath(prefix, parseStringArg(hit.args));
-      addRoute(hit.index, hit.name.toUpperCase(), path, hit.length, methodNameAfter(safe, hit.end));
-    }
-
-    // GraphQL operations: only inside an @Resolver class (disambiguates the
-    // REST `@Query()` parameter decorator, which lives inside @Controller classes).
-    for (const hit of findDecorators(safe, GQL_OPS)) {
-      const scope = scopeFor(scopes, hit.index);
-      if (!scope || scope.kind !== 'resolver') continue;
-      const handler = methodNameAfter(safe, hit.end);
-      const name = parseGraphqlName(hit.args, handler);
-      addRoute(hit.index, hit.name.toUpperCase(), name, hit.length, handler);
-    }
-
-    // Microservice message/event handlers.
-    for (const hit of findDecorators(safe, ['MessagePattern', 'EventPattern'])) {
-      const verb = hit.name === 'EventPattern' ? 'EVENT' : 'MESSAGE';
-      const handler = methodNameAfter(safe, hit.end);
-      addRoute(hit.index, verb, parseStringArg(hit.args) || handler || '', hit.length, handler);
-    }
-
-    // WebSocket message handlers, prefixed with the gateway namespace when present.
-    for (const hit of findDecorators(safe, ['SubscribeMessage'])) {
-      const scope = scopeFor(scopes, hit.index);
-      const namespace = scope && scope.kind === 'gateway' ? scope.prefix : '';
-      const handler = methodNameAfter(safe, hit.end);
-      const event = parseStringArg(hit.args) || handler || '';
-      addRoute(hit.index, 'WS', namespace ? `${namespace}:${event}` : event, hit.length, handler);
-    }
-
-    return { nodes, references };
+    return emitNestjsRouteNodes(filePath, content);
   },
 
   /**
@@ -763,4 +687,102 @@ function parseArrayField(obj: string, name: string): string | null {
   const close = matchingClose(obj, open);
   if (close < 0) return null;
   return obj.slice(open + 1, close);
+}
+
+/**
+ * Parse a NestJS source file and emit `route` nodes (HTTP / GraphQL /
+ * microservice / WebSocket) plus their handler references. Pure source-text
+ * regex scan (no resolver context), exported for
+ * `src/indexing/rust-js-framework-routes.ts` (roadmap 1-4-2-9): the
+ * rust-hybrid backfill replays this scan directly so the resolver's
+ * `extract()` hook can be retired on the rust-owned path.
+ *
+ * The cross-file `RouterModule.register` prefix pass stays in
+ * `postExtract` (it needs the resolver context's file list) and is NOT
+ * replicated here — it runs after this back-fill in the same finalization
+ * pass.
+ */
+export function emitNestjsRouteNodes(
+  filePath: string,
+  content: string,
+): { nodes: Node[]; references: UnresolvedRef[] } {
+  if (!/\.(m?js|tsx?|cjs)$/.test(filePath)) return { nodes: [], references: [] };
+  const nodes: Node[] = [];
+  const references: UnresolvedRef[] = [];
+  const now = Date.now();
+  const lang = detectLanguage(filePath);
+  const safe = stripCommentsForRegex(content, lang);
+
+  const addRoute = (
+    index: number,
+    method: string,
+    path: string,
+    length: number,
+    handler: string | null
+  ): void => {
+    const line = lineAt(safe, index);
+    const node: Node = {
+      id: `route:${filePath}:${line}:${method}:${path}`,
+      kind: 'route',
+      name: `${method} ${path}`,
+      qualifiedName: `${filePath}::${method}:${path}`,
+      filePath,
+      startLine: line,
+      endLine: line,
+      startColumn: 0,
+      endColumn: length,
+      language: lang,
+      updatedAt: now,
+    };
+    nodes.push(node);
+    if (handler) {
+      references.push({
+        fromNodeId: node.id,
+        referenceName: handler,
+        referenceKind: 'references',
+        line,
+        column: 0,
+        filePath,
+        language: lang,
+      });
+    }
+  };
+
+  const scopes = buildClassScopes(safe);
+
+  // HTTP routes: method decorator path joined onto the enclosing controller's prefix.
+  for (const hit of findDecorators(safe, HTTP_METHODS)) {
+    const scope = scopeFor(scopes, hit.index);
+    const prefix = scope && scope.kind === 'controller' ? scope.prefix : '';
+    const path = joinHttpPath(prefix, parseStringArg(hit.args));
+    addRoute(hit.index, hit.name.toUpperCase(), path, hit.length, methodNameAfter(safe, hit.end));
+  }
+
+  // GraphQL operations: only inside an @Resolver class (disambiguates the
+  // REST `@Query()` parameter decorator, which lives inside @Controller classes).
+  for (const hit of findDecorators(safe, GQL_OPS)) {
+    const scope = scopeFor(scopes, hit.index);
+    if (!scope || scope.kind !== 'resolver') continue;
+    const handler = methodNameAfter(safe, hit.end);
+    const name = parseGraphqlName(hit.args, handler);
+    addRoute(hit.index, hit.name.toUpperCase(), name, hit.length, handler);
+  }
+
+  // Microservice message/event handlers.
+  for (const hit of findDecorators(safe, ['MessagePattern', 'EventPattern'])) {
+    const verb = hit.name === 'EventPattern' ? 'EVENT' : 'MESSAGE';
+    const handler = methodNameAfter(safe, hit.end);
+    addRoute(hit.index, verb, parseStringArg(hit.args) || handler || '', hit.length, handler);
+  }
+
+  // WebSocket message handlers, prefixed with the gateway namespace when present.
+  for (const hit of findDecorators(safe, ['SubscribeMessage'])) {
+    const scope = scopeFor(scopes, hit.index);
+    const namespace = scope && scope.kind === 'gateway' ? scope.prefix : '';
+    const handler = methodNameAfter(safe, hit.end);
+    const event = parseStringArg(hit.args) || handler || '';
+    addRoute(hit.index, 'WS', namespace ? `${namespace}:${event}` : event, hit.length, handler);
+  }
+
+  return { nodes, references };
 }

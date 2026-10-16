@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { CodeGraph } from '../src';
-import { expoModulesResolver } from '../src/resolution/frameworks/expo-modules';
+import { extractExpoMethods } from '../src/resolution/frameworks/expo-modules';
 
 describe('Expo Modules framework extractor', () => {
   it('extracts AsyncFunction / Function / Property literals as method nodes', () => {
@@ -32,7 +32,7 @@ public class HapticsModule: Module {
   }
 }
 `;
-    const result = expoModulesResolver.extract?.('ios/HapticsModule.swift', source);
+    const result = { nodes: extractExpoMethods('ios/HapticsModule.swift', source, 'swift'), references: [] };
     expect(result).toBeDefined();
     const names = result!.nodes.map((n) => n.name);
     expect(names).toEqual(
@@ -50,7 +50,7 @@ public class BareModule: Module {
   }
 }
 `;
-    const result = expoModulesResolver.extract?.('ios/BareModule.swift', source);
+    const result = { nodes: extractExpoMethods('ios/BareModule.swift', source, 'swift'), references: [] };
     // BareModule is used as the qualifier since there's no Name() literal.
     expect(result!.nodes[0]?.qualifiedName).toContain('BareModule.doX');
   });
@@ -61,7 +61,7 @@ class Helper {
   func doX() { }
 }
 `;
-    const result = expoModulesResolver.extract?.('Helper.swift', source);
+    const result = { nodes: extractExpoMethods('Helper.swift', source, 'swift'), references: [] };
     expect(result?.nodes).toHaveLength(0);
   });
 
@@ -75,7 +75,7 @@ class FooModule : Module() {
     }
 }
 `;
-    const result = expoModulesResolver.extract?.('FooModule.kt', source);
+    const result = { nodes: extractExpoMethods('FooModule.kt', source, 'kotlin'), references: [] };
     expect(result?.nodes.length).toBe(2);
     expect(result?.nodes.map((n) => n.name).sort()).toEqual(['doAsync', 'doSync']);
     expect(result?.nodes.every((n) => n.language === 'kotlin')).toBe(true);

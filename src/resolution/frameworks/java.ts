@@ -190,111 +190,135 @@ export const springResolver: FrameworkResolver = {
     // Spring config files (application.yml / application.properties /
     // bootstrap.yml + per-profile variants) are extracted on the framework
     // path, not in the language extractor, so the keys become first-class
-    // nodes a `@Value("${k}")` reference can resolve to.
+    // nodes a `@Value("${k}")` reference can resolve to. These stay on the
+    // TypeScript path — yaml/properties are deliberately NOT rust-owned
+    // (1-3 keep decision, isFileLevelOnlyLanguage).
     if (isSpringConfigFile(filePath)) {
       return extractSpringConfig(filePath, content);
     }
-    // Spring Boot is used from both Java and Kotlin (identical @GetMapping etc.
-    // annotations); the difference is method syntax — Kotlin `fun name(...)` vs
-    // Java `public X name(...)` — handled in the method regex below.
-    if (!filePath.endsWith('.java') && !filePath.endsWith('.kt')) return { nodes: [], references: [] };
-    const nodes: Node[] = [];
-    const references: UnresolvedRef[] = [];
-    const now = Date.now();
-    const lang: 'java' | 'kotlin' = filePath.endsWith('.kt') ? 'kotlin' : 'java';
-    const safe = stripCommentsForRegex(content, 'java');
+    // extract() kept for the typescript engine; on rust-hybrid the backfill
+    // (rust-java-framework-routes.ts) replays `emitSpringJavaKotlinNodes`.
+    return emitSpringJavaKotlinNodes(filePath, content);
+  },
+};
 
-    // Class-level @RequestMapping prefix (an @RequestMapping whose tail leads to a
-    // `class`). Joined onto each method's path — and, crucially, NOT treated as a
-    // route itself (the old regex did, creating one bogus class route and missing
-    // every BARE method mapping like `@PostMapping` with the path on the class).
-    let classPrefix = '';
-    const cls = /@RequestMapping\s*\(([^)]*)\)\s*(?:@[\w.]+(?:\([^)]*\))?\s*)*(?:public\s+|final\s+|abstract\s+|open\s+|data\s+|sealed\s+)*class\b/.exec(safe);
-    if (cls) classPrefix = parseMappingPath(cls[1]!);
+/**
+ * Parse a Java/Kotlin Spring source file and emit the framework nodes the
+ * rust-hybrid backfill needs (roadmap 1-4-2-9): HTTP verb-mapping routes,
+ * method-level @RequestMapping routes, and @Value/@ConfigurationProperties
+ * config-key binding nodes + references. Pure source-text regex scan (no
+ * resolver context), exported for `src/indexing/rust-java-framework-routes.ts`
+ * and `src/indexing/rust-kotlin-framework-routes.ts` so the resolver's
+ * `extract()` hook can be retired on the rust-owned path.
+ *
+ * Spring config FILES (application.yml / .properties) stay on the TypeScript
+ * path via `extractSpringConfig` above — yaml/properties are deliberately
+ * not rust-owned (1-3 keep decision).
+ */
+export function emitSpringJavaKotlinNodes(
+  filePath: string,
+  content: string,
+): { nodes: Node[]; references: UnresolvedRef[] } {
+  // Spring Boot is used from both Java and Kotlin (identical @GetMapping etc.
+  // annotations); the difference is method syntax — Kotlin `fun name(...)` vs
+  // Java `public X name(...)` — handled in the method regex below.
+  if (!filePath.endsWith('.java') && !filePath.endsWith('.kt')) return { nodes: [], references: [] };
+  const nodes: Node[] = [];
+  const references: UnresolvedRef[] = [];
+  const now = Date.now();
+  const lang: 'java' | 'kotlin' = filePath.endsWith('.kt') ? 'kotlin' : 'java';
+  const safe = stripCommentsForRegex(content, 'java');
 
-    const VERB: Record<string, string> = {
-      GetMapping: 'GET', PostMapping: 'POST', PutMapping: 'PUT', PatchMapping: 'PATCH', DeleteMapping: 'DELETE',
+  // Class-level @RequestMapping prefix (an @RequestMapping whose tail leads to a
+  // `class`). Joined onto each method's path — and, crucially, NOT treated as a
+  // route itself (the old regex did, creating one bogus class route and missing
+  // every BARE method mapping like `@PostMapping` with the path on the class).
+  let classPrefix = '';
+  const cls = /@RequestMapping\s*\(([^)]*)\)\s*(?:@[\w.]+(?:\([^)]*\))?\s*)*(?:public\s+|final\s+|abstract\s+|open\s+|data\s+|sealed\s+)*class\b/.exec(safe);
+  if (cls) classPrefix = parseMappingPath(cls[1]!);
+
+  const VERB: Record<string, string> = {
+    GetMapping: 'GET', PostMapping: 'POST', PutMapping: 'PUT', PatchMapping: 'PATCH', DeleteMapping: 'DELETE',
+  };
+  // Verb-specific method mappings — always method-level, BARE or with a path.
+  const mappingRegex = /@(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping)\b\s*(\([^)]*\))?/g;
+  let match: RegExpExecArray | null;
+  while ((match = mappingRegex.exec(safe)) !== null) {
+    const method = VERB[match[1]!]!;
+    const sub = parseMappingPath((match[2] || '').replace(/^\(|\)$/g, ''));
+    const routePath = joinPath(classPrefix, sub);
+    const line = safe.slice(0, match.index).split('\n').length;
+    const routeNode: Node = {
+      id: `route:${filePath}:${line}:${method}:${routePath}`,
+      kind: 'route',
+      name: `${method} ${routePath}`,
+      qualifiedName: `${filePath}::route:${routePath}`,
+      filePath,
+      startLine: line,
+      endLine: line,
+      startColumn: 0,
+      endColumn: match[0].length,
+      language: lang,
+      updatedAt: now,
     };
-    // Verb-specific method mappings — always method-level, BARE or with a path.
-    const mappingRegex = /@(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping)\b\s*(\([^)]*\))?/g;
-    let match: RegExpExecArray | null;
-    while ((match = mappingRegex.exec(safe)) !== null) {
-      const method = VERB[match[1]!]!;
-      const sub = parseMappingPath((match[2] || '').replace(/^\(|\)$/g, ''));
-      const routePath = joinPath(classPrefix, sub);
-      const line = safe.slice(0, match.index).split('\n').length;
-      const routeNode: Node = {
-        id: `route:${filePath}:${line}:${method}:${routePath}`,
-        kind: 'route',
-        name: `${method} ${routePath}`,
-        qualifiedName: `${filePath}::route:${routePath}`,
-        filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: match[0].length,
-        language: lang,
-        updatedAt: now,
-      };
-      nodes.push(routeNode);
+    nodes.push(routeNode);
 
-      // Method it decorates: first declared method after (skip stacked annotations;
-      // Java puts the return type before the name). Bounded so we don't grab a far one.
-      const tail = safe.slice(match.index + match[0].length, match.index + match[0].length + 600);
-      const methodMatch = tail.match(/\bfun\s+(\w+)\s*\(|\b(?:public|private|protected)\s+[^;{=]*?\s+(\w+)\s*\(/);
-      if (methodMatch) {
-        references.push({
-          fromNodeId: routeNode.id,
-          referenceName: (methodMatch[1] ?? methodMatch[2])!,
-          referenceKind: 'references',
-          line,
-          column: 0,
-          filePath,
-          language: lang,
-        });
-      }
-    }
-
-    // Method-level @RequestMapping (older style: `@RequestMapping(value="/x",
-    // method=RequestMethod.GET)` on a method). The class-level @RequestMapping is
-    // the prefix (handled above) — skip it here so it isn't double-counted.
-    const reqRe = /@RequestMapping\b\s*(\([^)]*\))?/g;
-    while ((match = reqRe.exec(safe)) !== null) {
-      const args = (match[1] || '').replace(/^\(|\)$/g, '');
-      const after = safe.slice(match.index + match[0].length, match.index + match[0].length + 600);
-      if (/^\s*(?:@[\w.]+(?:\([^)]*\))?\s*)*(?:public\s+|final\s+|abstract\s+|open\s+|data\s+|sealed\s+)*class\b/.test(after)) continue; // class-level prefix
-      const methodMatch = after.match(/\bfun\s+(\w+)\s*\(|\b(?:public|private|protected)\s+[^;{=]*?\s+(\w+)\s*\(/);
-      if (!methodMatch) continue;
-      const verbM = args.match(/method\s*=\s*(?:RequestMethod\.)?(\w+)/);
-      const method = verbM ? verbM[1]!.toUpperCase() : 'ANY';
-      const routePath = joinPath(classPrefix, parseMappingPath(args));
-      const line = safe.slice(0, match.index).split('\n').length;
-      const routeNode: Node = {
-        id: `route:${filePath}:${line}:${method}:${routePath}`,
-        kind: 'route',
-        name: `${method} ${routePath}`,
-        qualifiedName: `${filePath}::route:${routePath}`,
-        filePath, startLine: line, endLine: line, startColumn: 0, endColumn: match[0].length, language: lang, updatedAt: now,
-      };
-      nodes.push(routeNode);
+    // Method it decorates: first declared method after (skip stacked annotations;
+    // Java puts the return type before the name). Bounded so we don't grab a far one.
+    const tail = safe.slice(match.index + match[0].length, match.index + match[0].length + 600);
+    const methodMatch = tail.match(/\bfun\s+(\w+)\s*\(|\b(?:public|private|protected)\s+[^;{=]*?\s+(\w+)\s*\(/);
+    if (methodMatch) {
       references.push({
         fromNodeId: routeNode.id,
         referenceName: (methodMatch[1] ?? methodMatch[2])!,
         referenceKind: 'references',
-        line, column: 0, filePath, language: lang,
+        line,
+        column: 0,
+        filePath,
+        language: lang,
       });
     }
+  }
 
-    // @Value("${key}") and @ConfigurationProperties(prefix="...") — bind
-    // Spring config-key references in Java/Kotlin source. The reference target
-    // is the corresponding YAML/properties leaf-key node emitted by
-    // extractSpringConfig; springResolver.resolve looks it up with relaxed
-    // binding (kebab/camel/snake collapse).
-    extractSpringValueBindings(filePath, safe, lang, now, nodes, references);
+  // Method-level @RequestMapping (older style: `@RequestMapping(value="/x",
+  // method=RequestMethod.GET)` on a method). The class-level @RequestMapping is
+  // the prefix (handled above) — skip it here so it isn't double-counted.
+  const reqRe = /@RequestMapping\b\s*(\([^)]*\))?/g;
+  while ((match = reqRe.exec(safe)) !== null) {
+    const args = (match[1] || '').replace(/^\(|\)$/g, '');
+    const after = safe.slice(match.index + match[0].length, match.index + match[0].length + 600);
+    if (/^\s*(?:@[\w.]+(?:\([^)]*\))?\s*)*(?:public\s+|final\s+|abstract\s+|open\s+|data\s+|sealed\s+)*class\b/.test(after)) continue; // class-level prefix
+    const methodMatch = after.match(/\bfun\s+(\w+)\s*\(|\b(?:public|private|protected)\s+[^;{=]*?\s+(\w+)\s*\(/);
+    if (!methodMatch) continue;
+    const verbM = args.match(/method\s*=\s*(?:RequestMethod\.)?(\w+)/);
+    const method = verbM ? verbM[1]!.toUpperCase() : 'ANY';
+    const routePath = joinPath(classPrefix, parseMappingPath(args));
+    const line = safe.slice(0, match.index).split('\n').length;
+    const routeNode: Node = {
+      id: `route:${filePath}:${line}:${method}:${routePath}`,
+      kind: 'route',
+      name: `${method} ${routePath}`,
+      qualifiedName: `${filePath}::route:${routePath}`,
+      filePath, startLine: line, endLine: line, startColumn: 0, endColumn: match[0].length, language: lang, updatedAt: now,
+    };
+    nodes.push(routeNode);
+    references.push({
+      fromNodeId: routeNode.id,
+      referenceName: (methodMatch[1] ?? methodMatch[2])!,
+      referenceKind: 'references',
+      line, column: 0, filePath, language: lang,
+    });
+  }
 
-    return { nodes, references };
-  },
-};
+  // @Value("${key}") and @ConfigurationProperties(prefix="...") — bind
+  // Spring config-key references in Java/Kotlin source. The reference target
+  // is the corresponding YAML/properties leaf-key node emitted by
+  // extractSpringConfig; springResolver.resolve looks it up with relaxed
+  // binding (kebab/camel/snake collapse).
+  extractSpringValueBindings(filePath, safe, lang, now, nodes, references);
+
+  return { nodes, references };
+}
 
 /** Spring config file patterns: application(-profile)?.{yml,yaml,properties} +
  * bootstrap variants. Matches the basename, not the path, so a project that

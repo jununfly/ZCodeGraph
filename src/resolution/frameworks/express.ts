@@ -131,95 +131,112 @@ export const expressResolver: FrameworkResolver = {
     return null;
   },
 
+  // extract() kept for the typescript engine; on rust-hybrid the backfill
+  // (rust-js-framework-routes.ts) replays `emitExpressRouteNodes` directly.
   extract(filePath, content) {
-    if (!/\.(m?js|tsx?|cjs)$/.test(filePath)) return { nodes: [], references: [] };
-    const nodes: Node[] = [];
-    const references: UnresolvedRef[] = [];
-    const now = Date.now();
-    const lang = detectLanguage(filePath);
-    const safe = stripCommentsForRegex(content, lang);
-    // Match the route head up to the first arg: (app|router).METHOD('/path',
-    // (NOT the whole call — handlers are often inline arrows whose `)`/`{}` the
-    // old single-regex couldn't span, so inline-handler routes connected to nothing.)
-    const head = /\b(app|router)\.(get|post|put|patch|delete|all|use)\s*\(\s*['"]([^'"]+)['"]\s*,/g;
-    let match: RegExpExecArray | null;
-    while ((match = head.exec(safe)) !== null) {
-      const method = match[2]!;
-      const routePath = match[3]!;
-      if (method === 'use' && !routePath.startsWith('/')) continue;
-      const line = safe.slice(0, match.index).split('\n').length;
-      const routeNode: Node = {
-        id: `route:${filePath}:${line}:${method.toUpperCase()}:${routePath}`,
-        kind: 'route',
-        name: `${method.toUpperCase()} ${routePath}`,
-        qualifiedName: `${filePath}::${method.toUpperCase()}:${routePath}`,
-        filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: match[0].length,
-        language: lang,
-        updatedAt: now,
-      };
-      nodes.push(routeNode);
-
-      // The full argument list = balanced parens from the route call's open paren.
-      const openParen = safe.indexOf('(', match.index);
-      const closeParen = openParen >= 0 ? matchDelim(safe, openParen, '(', ')') : -1;
-      const args = closeParen > openParen ? safe.slice(openParen + 1, closeParen) : '';
-      const arrowAt = args.indexOf('=>');
-
-      if (arrowAt >= 0) {
-        // Inline arrow handler (`router.post('/x', async (req,res) => {…})`). The
-        // arrow is anonymous, so its body — the actual request→service flow — would
-        // be lost. Attribute the body's calls to the route node as `calls` edges so
-        // `trace(route, service)` connects. Body = balanced `{…}` after `=>`, or the
-        // single-expression tail for `=> expr` arrows.
-        const afterArrow = args.slice(arrowAt + 2);
-        const braceAt = afterArrow.indexOf('{');
-        let body = afterArrow;
-        if (braceAt >= 0 && afterArrow.slice(0, braceAt).trim() === '') {
-          const end = matchDelim(afterArrow, braceAt, '{', '}');
-          if (end > braceAt) body = afterArrow.slice(braceAt + 1, end);
-        }
-        const callRe = /\b([A-Za-z_$][\w$]*)\s*\(/g;
-        const seen = new Set<string>();
-        let cm: RegExpExecArray | null;
-        while ((cm = callRe.exec(body)) !== null) {
-          const name = cm[1]!;
-          if (seen.has(name) || RESERVED_CALLS.has(name)) continue;
-          seen.add(name);
-          references.push({
-            fromNodeId: routeNode.id,
-            referenceName: name,
-            referenceKind: 'calls',
-            line,
-            column: 0,
-            filePath,
-            language: lang,
-          });
-        }
-      } else {
-        // Named handler: the LAST comma-separated arg (earlier ones are middleware).
-        const parts = args.split(',').map((s) => s.trim()).filter(Boolean);
-        const last = parts[parts.length - 1];
-        const handlerName = last ? extractTailIdent(last) : null;
-        if (handlerName) {
-          references.push({
-            fromNodeId: routeNode.id,
-            referenceName: handlerName,
-            referenceKind: 'references',
-            line,
-            column: 0,
-            filePath,
-            language: lang,
-          });
-        }
-      }
-    }
-    return { nodes, references };
+    return emitExpressRouteNodes(filePath, content);
   },
 };
+
+/**
+ * Parse a JS/TS Express source file and emit `route` nodes plus handler
+ * references (named-handler `references` and inline-arrow-body `calls`).
+ * Pure source-text regex scan (no resolver context), exported for
+ * `src/indexing/rust-js-framework-routes.ts` (roadmap 1-4-2-9): the
+ * rust-hybrid backfill replays this scan directly so the resolver's
+ * `extract()` hook can be retired on the rust-owned path.
+ */
+export function emitExpressRouteNodes(
+  filePath: string,
+  content: string,
+): { nodes: Node[]; references: UnresolvedRef[] } {
+  if (!/\.(m?js|tsx?|cjs)$/.test(filePath)) return { nodes: [], references: [] };
+  const nodes: Node[] = [];
+  const references: UnresolvedRef[] = [];
+  const now = Date.now();
+  const lang = detectLanguage(filePath);
+  const safe = stripCommentsForRegex(content, lang);
+  // Match the route head up to the first arg: (app|router).METHOD('/path',
+  // (NOT the whole call — handlers are often inline arrows whose `)`/`{}` the
+  // old single-regex couldn't span, so inline-handler routes connected to nothing.)
+  const head = /\b(app|router)\.(get|post|put|patch|delete|all|use)\s*\(\s*['"]([^'"]+)['"]\s*,/g;
+  let match: RegExpExecArray | null;
+  while ((match = head.exec(safe)) !== null) {
+    const method = match[2]!;
+    const routePath = match[3]!;
+    if (method === 'use' && !routePath.startsWith('/')) continue;
+    const line = safe.slice(0, match.index).split('\n').length;
+    const routeNode: Node = {
+      id: `route:${filePath}:${line}:${method.toUpperCase()}:${routePath}`,
+      kind: 'route',
+      name: `${method.toUpperCase()} ${routePath}`,
+      qualifiedName: `${filePath}::${method.toUpperCase()}:${routePath}`,
+      filePath,
+      startLine: line,
+      endLine: line,
+      startColumn: 0,
+      endColumn: match[0].length,
+      language: lang,
+      updatedAt: now,
+    };
+    nodes.push(routeNode);
+
+    // The full argument list = balanced parens from the route call's open paren.
+    const openParen = safe.indexOf('(', match.index);
+    const closeParen = openParen >= 0 ? matchDelim(safe, openParen, '(', ')') : -1;
+    const args = closeParen > openParen ? safe.slice(openParen + 1, closeParen) : '';
+    const arrowAt = args.indexOf('=>');
+
+    if (arrowAt >= 0) {
+      // Inline arrow handler (`router.post('/x', async (req,res) => {…})`). The
+      // arrow is anonymous, so its body — the actual request→service flow — would
+      // be lost. Attribute the body's calls to the route node as `calls` edges so
+      // `trace(route, service)` connects. Body = balanced `{…}` after `=>`, or the
+      // single-expression tail for `=> expr` arrows.
+      const afterArrow = args.slice(arrowAt + 2);
+      const braceAt = afterArrow.indexOf('{');
+      let body = afterArrow;
+      if (braceAt >= 0 && afterArrow.slice(0, braceAt).trim() === '') {
+        const end = matchDelim(afterArrow, braceAt, '{', '}');
+        if (end > braceAt) body = afterArrow.slice(braceAt + 1, end);
+      }
+      const callRe = /\b([A-Za-z_$][\w$]*)\s*\(/g;
+      const seen = new Set<string>();
+      let cm: RegExpExecArray | null;
+      while ((cm = callRe.exec(body)) !== null) {
+        const name = cm[1]!;
+        if (seen.has(name) || RESERVED_CALLS.has(name)) continue;
+        seen.add(name);
+        references.push({
+          fromNodeId: routeNode.id,
+          referenceName: name,
+          referenceKind: 'calls',
+          line,
+          column: 0,
+          filePath,
+          language: lang,
+        });
+      }
+    } else {
+      // Named handler: the LAST comma-separated arg (earlier ones are middleware).
+      const parts = args.split(',').map((s) => s.trim()).filter(Boolean);
+      const last = parts[parts.length - 1];
+      const handlerName = last ? extractTailIdent(last) : null;
+      if (handlerName) {
+        references.push({
+          fromNodeId: routeNode.id,
+          referenceName: handlerName,
+          referenceKind: 'references',
+          line,
+          column: 0,
+          filePath,
+          language: lang,
+        });
+      }
+    }
+  }
+  return { nodes, references };
+}
 
 /**
  * Check if a name looks like middleware

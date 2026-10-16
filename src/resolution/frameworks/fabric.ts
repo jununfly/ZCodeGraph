@@ -228,7 +228,14 @@ export function extractLegacyViewManagerNodes(filePath: string, source: string):
  *
  * Returns `[]` if no @ReactProp annotations are found.
  */
-function extractJvmViewManagerNodes(filePath: string, source: string): Node[] {
+/**
+ * Exported for `src/indexing/rust-java-framework-routes.ts` and
+ * `src/indexing/rust-kotlin-framework-routes.ts` (roadmap 1-4-2-9): the
+ * rust-hybrid backfill replays this scan directly so the resolver's JVM
+ * `extract()` branch can be retired without losing the `@ReactProp`
+ * component/prop extraction.
+ */
+export function extractJvmViewManagerNodes(filePath: string, source: string): Node[] {
   if (!source.includes('@ReactProp')) return [];
 
   // Class name — looking for `class FooManager [extends ViewManager...]`
@@ -296,7 +303,13 @@ function extractJvmViewManagerNodes(filePath: string, source: string): Node[] {
   return nodes;
 }
 
-function extractFabricNodes(filePath: string, source: string): Node[] {
+/**
+ * Exported for `src/indexing/rust-js-framework-routes.ts` (roadmap 1-4-2-9):
+ * the rust-hybrid backfill replays this scan directly so the resolver's
+ * TypeScript-spec `extract()` branch can be retired without losing the
+ * Codegen `codegenNativeComponent` component/prop extraction.
+ */
+export function extractFabricNodes(filePath: string, source: string): Node[] {
   if (!isFabricSpec(source)) return [];
 
   const now = Date.now();
@@ -394,12 +407,11 @@ export const fabricViewResolver: FrameworkResolver = {
     return false;
   },
 
+  // extract() kept for the typescript engine; on rust-hybrid the backfills
+  // (rust-js / rust-java / rust-kotlin-framework-routes.ts) replay
+  // `extractFabricNodes` / `extractJvmViewManagerNodes` directly. ObjC branch
+  // removed in 1-4-1-23 (replayed by rust-objc-framework-routes.ts).
   extract(filePath, source): FrameworkExtractionResult {
-    // ObjC (.m/.mm) branch removed in 1-4-1-23 — those macros are replayed
-    // by rust-objc-framework-routes.ts on the rust-hybrid engine via the
-    // exported extractLegacyViewManagerNodes helper. TS spec + JVM branches
-    // stay here pending the 1-4-2-9 backfill (rust-js-framework-routes /
-    // rust-java-framework-routes fabric cases).
     let nodes: Node[] = [];
     if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) {
       nodes = extractFabricNodes(filePath, source);

@@ -98,7 +98,13 @@ function isExpoModuleSource(source: string): boolean {
  * `Property("X") { … }` literal becomes a method node named `X`,
  * attributed to the file at the line of the literal.
  */
-function extractExpoMethods(filePath: string, source: string, language: 'swift' | 'kotlin'): Node[] {
+/**
+ * Exported for `src/indexing/rust-kotlin-framework-routes.ts` (roadmap
+ * 1-4-2-9): the rust-hybrid backfill replays this scan directly so the
+ * resolver's `extract()` hook can be retired without losing the Expo Module
+ * method-node extraction.
+ */
+export function extractExpoMethods(filePath: string, source: string, language: 'swift' | 'kotlin'): Node[] {
   if (!isExpoModuleSource(source)) return [];
   const nodes: Node[] = [];
 
@@ -173,11 +179,8 @@ export const expoModulesResolver: FrameworkResolver = {
     return false;
   },
 
-  /**
-   * Per-file extraction — the orchestrator invokes this for every
-   * `.swift` / `.kt` file in the project. We only emit nodes when the
-   * file looks like an Expo Module; otherwise return empty.
-   */
+  // extract() kept for the typescript engine; on rust-hybrid the backfill
+  // (rust-kotlin-framework-routes.ts) replays `extractExpoMethods` directly.
   extract(filePath, source): FrameworkExtractionResult {
     const language = filePath.endsWith('.kt') ? 'kotlin' : 'swift';
     return {
@@ -188,7 +191,7 @@ export const expoModulesResolver: FrameworkResolver = {
 
   /**
    * No bespoke resolution needed — the synthetic method nodes emitted by
-   * `extract()` get picked up by the standard name-matcher when a JS
+   * the backfill get picked up by the standard name-matcher when a JS
    * callsite like `Foo.takePictureAsync(args)` resolves. Returning null
    * here is correct.
    */

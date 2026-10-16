@@ -59,54 +59,71 @@ export const playResolver: FrameworkResolver = {
     return null;
   },
 
+  // extract() kept for the typescript engine; on rust-hybrid the backfill
+  // (rust-scala-framework-routes.ts) replays `emitPlayRouteNodes` directly.
   extract(filePath: string, content: string): { nodes: Node[]; references: UnresolvedRef[] } {
-    if (!isPlayRoutesFile(filePath)) return { nodes: [], references: [] };
-    const nodes: Node[] = [];
-    const references: UnresolvedRef[] = [];
-    const now = Date.now();
-
-    const lines = content.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!.trim();
-      // Skip comments and `->` route includes (a sub-router mount, not an action).
-      if (!line || line.startsWith('#') || line.startsWith('->')) continue;
-      const m = line.match(ROUTE_LINE);
-      if (!m) continue;
-      const [, method, routePath, action] = m;
-
-      // action: `controllers.Application.list(p: Int ?= 0)` → drop args, keep the
-      // last `Controller.method` segment (package prefix is irrelevant for lookup).
-      const fqn = action!.split('(')[0]!.trim();
-      const parts = fqn.split('.').filter(Boolean);
-      if (parts.length < 2) continue;
-      const handlerRef = parts.slice(-2).join('.'); // Application.list
-
-      const lineNum = i + 1;
-      const routeNode: Node = {
-        id: `route:${filePath}:${lineNum}:${method}:${routePath}`,
-        kind: 'route',
-        name: `${method} ${routePath}`,
-        qualifiedName: `${filePath}::${method}:${routePath}`,
-        filePath,
-        startLine: lineNum,
-        endLine: lineNum,
-        startColumn: 0,
-        endColumn: 0,
-        language: 'scala',
-        updatedAt: now,
-      };
-      nodes.push(routeNode);
-      references.push({
-        fromNodeId: routeNode.id,
-        referenceName: handlerRef,
-        referenceKind: 'references',
-        line: lineNum,
-        column: 0,
-        filePath,
-        language: 'scala',
-      });
-    }
-
-    return { nodes, references };
+    return emitPlayRouteNodes(filePath, content);
   },
 };
+
+/**
+ * Parse a Play `conf/routes` file and emit one `route` node per line plus a
+ * `Controller.method` handler reference. Pure source-text regex scan (no
+ * resolver context), exported for `src/indexing/rust-scala-framework-routes.ts`
+ * (roadmap 1-4-2-9): the rust-hybrid backfill replays this scan directly so
+ * the resolver's `extract()` hook can be retired without losing the route
+ * extraction on the rust-owned scala path.
+ */
+export function emitPlayRouteNodes(
+  filePath: string,
+  content: string,
+): { nodes: Node[]; references: UnresolvedRef[] } {
+  if (!isPlayRoutesFile(filePath)) return { nodes: [], references: [] };
+  const nodes: Node[] = [];
+  const references: UnresolvedRef[] = [];
+  const now = Date.now();
+
+  const lines = content.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!.trim();
+    // Skip comments and `->` route includes (a sub-router mount, not an action).
+    if (!line || line.startsWith('#') || line.startsWith('->')) continue;
+    const m = line.match(ROUTE_LINE);
+    if (!m) continue;
+    const [, method, routePath, action] = m;
+
+    // action: `controllers.Application.list(p: Int ?= 0)` → drop args, keep the
+    // last `Controller.method` segment (package prefix is irrelevant for lookup).
+    const fqn = action!.split('(')[0]!.trim();
+    const parts = fqn.split('.').filter(Boolean);
+    if (parts.length < 2) continue;
+    const handlerRef = parts.slice(-2).join('.'); // Application.list
+
+    const lineNum = i + 1;
+    const routeNode: Node = {
+      id: `route:${filePath}:${lineNum}:${method}:${routePath}`,
+      kind: 'route',
+      name: `${method} ${routePath}`,
+      qualifiedName: `${filePath}::${method}:${routePath}`,
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      startColumn: 0,
+      endColumn: 0,
+      language: 'scala',
+      updatedAt: now,
+    };
+    nodes.push(routeNode);
+    references.push({
+      fromNodeId: routeNode.id,
+      referenceName: handlerRef,
+      referenceKind: 'references',
+      line: lineNum,
+      column: 0,
+      filePath,
+      language: 'scala',
+    });
+  }
+
+  return { nodes, references };
+}

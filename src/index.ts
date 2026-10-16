@@ -71,6 +71,10 @@ import type { RubyFrameworkRouteBackfillStats } from './indexing/rust-ruby-frame
 import { runSwiftFrameworkRouteBackfill } from './indexing/rust-swift-framework-routes';
 import type { SwiftFrameworkRouteBackfillStats } from './indexing/rust-swift-framework-routes';
 import { runObjcFrameworkRouteBackfill } from './indexing/rust-objc-framework-routes';
+import { runScalaFrameworkRouteBackfill } from './indexing/rust-scala-framework-routes';
+import { runJavaFrameworkRouteBackfill } from './indexing/rust-java-framework-routes';
+import { runJsFrameworkRouteBackfill } from './indexing/rust-js-framework-routes';
+import { runKotlinFrameworkRouteBackfill } from './indexing/rust-kotlin-framework-routes';
 import type { ObjcFrameworkRouteBackfillStats } from './indexing/rust-objc-framework-routes';
 import {
   buildRustHybridMetadataFromPlan,
@@ -2020,6 +2024,62 @@ export class CodeGraph {
           rustCoreProfile,
         );
         this.resolver.initialize();
+
+        // Roadmap 1-4-2-9: the Rust core owns scala/java/js/ts/kotlin
+        // extraction but has no Play/Spring/Express/NestJS/React/Expo/Fabric-TS
+        // extraction, so re-run the TypeScript framework emitters for the
+        // rust-owned files here. These run BEFORE `runPostExtract()` so the
+        // NestJS RouterModule prefix pass (and any other postExtract consumer)
+        // sees the back-filled route nodes. Inserted nodes + unresolved refs
+        // are linked by the batched resolution further below.
+        onCheckpoint?.('finalization.scalaFrameworkRouteBackfill.started');
+        const scalaRouteBackfill = runScalaFrameworkRouteBackfill(
+          this.queries,
+          this.projectRoot,
+          this.resolver.getDetectedFrameworks(),
+        );
+        profile.scalaFrameworkRouteBackfill = scalaRouteBackfill;
+        if (scalaRouteBackfill.routeNodes > 0) {
+          this.resolver.clearCaches();
+        }
+        onCheckpoint?.('finalization.scalaFrameworkRouteBackfill.completed');
+
+        onCheckpoint?.('finalization.javaFrameworkRouteBackfill.started');
+        const javaRouteBackfill = runJavaFrameworkRouteBackfill(
+          this.queries,
+          this.projectRoot,
+          this.resolver.getDetectedFrameworks(),
+        );
+        profile.javaFrameworkRouteBackfill = javaRouteBackfill;
+        if (javaRouteBackfill.frameworkNodes > 0) {
+          this.resolver.clearCaches();
+        }
+        onCheckpoint?.('finalization.javaFrameworkRouteBackfill.completed');
+
+        onCheckpoint?.('finalization.jsFrameworkRouteBackfill.started');
+        const jsRouteBackfill = runJsFrameworkRouteBackfill(
+          this.queries,
+          this.projectRoot,
+          this.resolver.getDetectedFrameworks(),
+        );
+        profile.jsFrameworkRouteBackfill = jsRouteBackfill;
+        if (jsRouteBackfill.frameworkNodes > 0) {
+          this.resolver.clearCaches();
+        }
+        onCheckpoint?.('finalization.jsFrameworkRouteBackfill.completed');
+
+        onCheckpoint?.('finalization.kotlinFrameworkRouteBackfill.started');
+        const kotlinRouteBackfill = runKotlinFrameworkRouteBackfill(
+          this.queries,
+          this.projectRoot,
+          this.resolver.getDetectedFrameworks(),
+        );
+        profile.kotlinFrameworkRouteBackfill = kotlinRouteBackfill;
+        if (kotlinRouteBackfill.frameworkNodes > 0) {
+          this.resolver.clearCaches();
+        }
+        onCheckpoint?.('finalization.kotlinFrameworkRouteBackfill.completed');
+
         this.resolver.runPostExtract();
         profile.frameworkPostExtractMs = Date.now() - frameworkStarted;
         onCheckpoint?.('finalization.frameworkPostExtract.completed');

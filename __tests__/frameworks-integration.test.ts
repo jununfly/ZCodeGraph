@@ -459,6 +459,126 @@ describe('Rust framework routes on rust-hybrid (roadmap 1-4-1-15)', () => {
   });
 });
 
+describe('Framework route backfills on rust-hybrid (roadmap 1-4-2-9)', () => {
+  let tmpDir: string | undefined;
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  // The 1-4-2-9 backfills (scala/java/js/kotlin) re-run the TypeScript
+  // framework emitters during hybrid finalization. A close-and-reindex cycle
+  // must NOT duplicate or orphan framework nodes — each backfill wipes only
+  // its own id-prefixed nodes before re-emitting, so a rebuild is idempotent
+  // by construction.
+  it('extracts Spring/Express/Expo routes on rust-hybrid and keeps them idempotent across close-and-reindex', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-fw-backfill-'));
+    // Spring (Java)
+    fs.writeFileSync(
+      path.join(tmpDir, 'pom.xml'),
+      '<project><dependencies><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency></dependencies></project>\n'
+    );
+    fs.mkdirSync(path.join(tmpDir, 'src/main/java/com/example'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'src/main/java/com/example', 'UserController.java'),
+      [
+        'package com.example;',
+        'import org.springframework.web.bind.annotation.*;',
+        '@RestController',
+        '@RequestMapping("/api")',
+        'public class UserController {',
+        '  @GetMapping("/users")',
+        '  public String listUsers() { return "users"; }',
+        '  @PostMapping("/users")',
+        '  public String createUser() { return "created"; }',
+        '}',
+      ].join('\n')
+    );
+    // Express (JS)
+    fs.writeFileSync(
+      path.join(tmpDir, 'package.json'),
+      '{"dependencies":{"express":"^4.0.0","expo-modules-core":"^1.0.0"}}'
+    );
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'src', 'routes.ts'),
+      [
+        "import { Router } from 'express';",
+        'const router = Router();',
+        "router.get('/items', (req, res) => { res.json([]); });",
+        "router.post('/items', createItem);",
+        'function createItem(req: any, res: any) { res.status(201).send(); }',
+        'export default router;',
+      ].join('\n')
+    );
+    // Expo Modules (Kotlin)
+    fs.mkdirSync(path.join(tmpDir, 'android'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'android', 'BatteryModule.kt'),
+      [
+        'import expo.modules.kotlin.modules.Module',
+        'class BatteryModule : Module() {',
+        '  override fun definition() = ModuleDefinition {',
+        '    Name("ExpoBattery")',
+        '    AsyncFunction<Float>("getBatteryLevelAsync") { 1.0f }',
+        '  }',
+        '}',
+      ].join('\n')
+    );
+
+    let cg = CodeGraph.initSync(tmpDir);
+    const first = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(first.success, JSON.stringify(first.errors)).toBe(true);
+
+    const routesFirst = cg.getNodesByKind('route').map((r) => r.name).sort();
+    expect(routesFirst).toEqual(
+      expect.arrayContaining([
+        'GET /api/users',
+        'POST /api/users',
+        'GET /items',
+        'POST /items',
+      ])
+    );
+    const expoFirst = cg
+      .getNodesByKind('method')
+      .filter((n) => n.id.startsWith('expo-module:'))
+      .map((n) => n.name);
+    expect(expoFirst).toContain('getBatteryLevelAsync');
+    cg.close();
+
+    cg = CodeGraph.openSync(tmpDir);
+    const second = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(second.success, JSON.stringify(second.errors)).toBe(true);
+
+    const routesSecond = cg.getNodesByKind('route').map((r) => r.name).sort();
+    expect(routesSecond).toEqual(routesFirst);
+    const expoSecond = cg
+      .getNodesByKind('method')
+      .filter((n) => n.id.startsWith('expo-module:'))
+      .map((n) => n.name);
+    expect(expoSecond).toEqual(expoFirst);
+
+    // Spring route -> handler references survive the rebuild exactly once.
+    for (const [routeName, handlerName] of [
+      ['GET /api/users', 'listUsers'],
+      ['POST /api/users', 'createUser'],
+    ] as const) {
+      const route = cg.getNodesByKind('route').find((r) => r.name === routeName);
+      const handler = cg
+        .getNodesByKind('method')
+        .find((f) => f.name === handlerName);
+      expect(route, `route ${routeName}`).toBeDefined();
+      expect(handler, `handler ${handlerName}`).toBeDefined();
+      const refs = cg
+        .getOutgoingEdges(route!.id)
+        .filter((e) => e.target === handler!.id && e.kind === 'references');
+      expect(refs, `${routeName} -> ${handlerName}`).toHaveLength(1);
+    }
+
+    cg.close();
+  });
+});
+
 describe('Laravel framework routes on rust-hybrid (roadmap 1-2-5-4 cutover)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
