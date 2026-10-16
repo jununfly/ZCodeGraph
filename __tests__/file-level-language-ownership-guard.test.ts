@@ -111,4 +111,26 @@ describe('File-level language ownership guard (roadmap 1-3 keep decisions)', () 
     expect(isRustHybridOwnedLanguage('yaml')).toBe(false);
     expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('yaml');
   });
+
+  it('twig stays TypeScript-shell owned (1-3-7-1 keep)', () => {
+    // 1-3-7-1 keep rationale: twig is a file-level-only language
+    // (isFileLevelOnlyLanguage, grammars.ts:338) — the extraction layer is a
+    // deliberate no-op (empty result, file row kept for the watcher); there is
+    // NO twig-extractor.ts and zero symbol extraction to migrate. Unlike yaml,
+    // no framework resolver consumes .twig at all — drupal.ts explicitly marks
+    // Twig templates v1 out-of-scope ('tracked as file nodes but no symbol
+    // extraction') with a TODO gated on a tree-sitter Twig grammar. Grammar
+    // supply verified 2026-10-15: no generic tree-sitter-twig crate on
+    // crates.io; webrgp/tree-sitter-twig 0.4.0 is npm+git only and its active
+    // line targets tree-sitter 0.25/ABI-15 (conflicts with our 0.24/ABI-14
+    // pin); tree-sitter-shopware-twig 0.2.0 is a Shopware 6 dialect, not
+    // generic Twig. No ABI-14 direct path exists, so migrate is hard-blocked;
+    // migrating an empty extraction layer would be pure formalism anyway.
+    // Building a real Twig extraction story (extends/block inheritance nodes +
+    // include/embed reference edges) is new-feature work, not a migration
+    // prerequisite — it needs its own node and an ABI-14 grammar first. Rust
+    // core has zero twig mentions.
+    expect(isRustHybridOwnedLanguage('twig')).toBe(false);
+    expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('twig');
+  });
 });

@@ -329,10 +329,10 @@ export function isGrammarLoaded(language: Language): boolean {
  * MyBatis extractor emits a file node. Callers use this to count such files as
  * indexed rather than skipped, so it must stay in sync with that branch.
  *
- * OWNERSHIP (roadmap 1-3-6-1 yaml keep/TS-shell): file-level-only languages
- * are deliberately NOT rust-owned — the extraction layer is a no-op by
- * design and all symbols come from TS framework resolvers (1-4-wave
- * ownership decisions). Guarded by
+ * OWNERSHIP (roadmap 1-3-6-1 yaml / 1-3-7-1 twig / 1-3-8-1 properties,
+ * keep/TS-shell): file-level-only languages are deliberately NOT rust-owned
+ * — the extraction layer is a no-op by design and all symbols come from TS
+ * framework resolvers (1-4-wave ownership decisions). Guarded by
  * __tests__/file-level-language-ownership-guard.test.ts.
  */
 export function isFileLevelOnlyLanguage(language: Language): boolean {
