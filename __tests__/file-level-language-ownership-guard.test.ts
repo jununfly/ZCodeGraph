@@ -133,4 +133,26 @@ describe('File-level language ownership guard (roadmap 1-3 keep decisions)', () 
     expect(isRustHybridOwnedLanguage('twig')).toBe(false);
     expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('twig');
   });
+
+  it('properties stays TypeScript-shell owned (1-3-8-1 keep)', () => {
+    // 1-3-8-1 keep rationale: properties is a file-level-only language
+    // (isFileLevelOnlyLanguage, grammars.ts:339) — the extraction layer is a
+    // deliberate no-op (empty result, file row kept for the watcher); there is
+    // NO properties-extractor.ts and zero symbol extraction to migrate, and
+    // .properties is a line format, not a grammar language (no tree-sitter /
+    // ABI-14 concept applies). Unlike twig, properties HAS a real resolver
+    // consumer: java.ts extractSpringConfig (an inline .properties line
+    // parser — `=`/`:` separators, `#`/`!` comments, no continuation joins)
+    // emits one `constant` node per leaf key (qualifiedName = dotted path;
+    // KEY only, never the value — #383 security constraint: config files
+    // routinely hold secrets), and extractSpringValueBindings resolves
+    // Java/Kotlin `@Value("${k}")` / `@ConfigurationProperties(prefix=...)`
+    // into references onto those leaf nodes. That Spring resolver is one of
+    // the 1-4 wave's 23 framework resolvers with its own ownership decision,
+    // so the line parser's fate rides with java.ts — it cannot be split off
+    // here. Migrating the empty extraction layer would be pure formalism.
+    // Rust core has zero properties extraction mentions.
+    expect(isRustHybridOwnedLanguage('properties')).toBe(false);
+    expect(RUST_HYBRID_RUST_OWNED_LANGUAGES).not.toContain('properties');
+  });
 });
