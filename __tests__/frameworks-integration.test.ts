@@ -321,6 +321,58 @@ describe('ASP.NET framework routes on rust-hybrid (roadmap 1-2-4-4 cutover)', ()
 
     cg.close();
   });
+
+  // Roadmap 1-4-1-16: ASP.NET route extraction is Rust-owned inside
+  // csharp::extract and the TS back-fill (1-2-4-4) is retired, so a
+  // close-and-reindex cycle must NOT duplicate or orphan route nodes — the
+  // Rust extractor is the single producer and a rebuild is idempotent by
+  // construction.
+  it('keeps ASP.NET routes idempotent across a rust-hybrid close-and-reindex cycle', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-aspnet-reidx-'));
+    fs.mkdirSync(path.join(tmpDir, 'Controllers'));
+    fs.writeFileSync(
+      path.join(tmpDir, 'Controllers', 'UsersController.cs'),
+      '[ApiController]\n' +
+        '[Route("api/users")]\n' +
+        'public class UsersController : ControllerBase\n' +
+        '{\n' +
+        '    [HttpGet]\n' +
+        '    public string List() => "all";\n' +
+        '    [HttpGet("{id}")]\n' +
+        '    public string Get(int id) => "one";\n' +
+        '}\n'
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, 'Program.cs'),
+      'var app = WebApplication.CreateBuilder().Build();\n' +
+        'app.MapGet("/ping", Pong);\n' +
+        'app.Run();\n' +
+        'public static class Handlers { public static string Pong() => "pong"; }\n'
+    );
+
+    let cg = CodeGraph.initSync(tmpDir);
+    const first = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(first.success, JSON.stringify(first.errors)).toBe(true);
+    const routesFirst = cg.getNodesByKind('route').map((r) => r.name).sort();
+    expect(routesFirst).toEqual(['GET /api/users', 'GET /api/users/{id}', 'GET /ping']);
+    cg.close();
+
+    cg = CodeGraph.openSync(tmpDir);
+    const second = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(second.success, JSON.stringify(second.errors)).toBe(true);
+    const routesSecond = cg.getNodesByKind('route').map((r) => r.name).sort();
+    expect(routesSecond).toEqual(routesFirst);
+
+    // Route -> handler references edges survive the rebuild exactly once.
+    const listHandler = cg.getNodesByKind('method').find((m) => m.name === 'List');
+    const listRoute = cg.getNodesByKind('route').find((r) => r.name === 'GET /api/users');
+    const refs = cg
+      .getOutgoingEdges(listRoute!.id)
+      .filter((e) => e.target === listHandler!.id && e.kind === 'references');
+    expect(refs).toHaveLength(1);
+
+    cg.close();
+  });
 });
 
 describe('Laravel framework routes on rust-hybrid (roadmap 1-2-5-4 cutover)', () => {

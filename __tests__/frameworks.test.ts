@@ -1281,23 +1281,6 @@ version = "0.1.0"
   });
 });
 
-import { aspnetResolver } from '../src/resolution/frameworks/csharp';
-
-describe('aspnetResolver.extract', () => {
-  it('extracts route from [HttpGet] attribute', () => {
-    const src = `
-[HttpGet("/users")]
-public IActionResult ListUsers()
-{
-  return Ok();
-}
-`;
-    const { nodes, references } = aspnetResolver.extract!('UserController.cs', src);
-    expect(nodes[0].name).toBe('GET /users');
-    expect(references[0].referenceName).toBe('ListUsers');
-  });
-});
-
 import { vaporResolver } from '../src/resolution/frameworks/swift';
 
 describe('vaporResolver.extract', () => {
@@ -1515,22 +1498,6 @@ let app = Router::new().route("/real", get(list_users));
     const { nodes, references } = rustResolver.extract!('main.rs', src);
     expect(nodes.map((n) => n.name)).toEqual(['GET /real']);
     expect(references.map((r) => r.referenceName)).toEqual(['list_users']);
-  });
-
-  it('aspnet: skips // and /* */ commented [HttpGet] attributes', () => {
-    const src = `
-// [HttpGet("/fake")]
-// public IActionResult Fake() { return Ok(); }
-
-/* [HttpPost("/also-fake")]
-   public IActionResult AlsoFake() { return Ok(); } */
-
-[HttpGet("/real")]
-public IActionResult ListUsers() { return Ok(); }
-`;
-    const { nodes, references } = aspnetResolver.extract!('UserController.cs', src);
-    expect(nodes.map((n) => n.name)).toEqual(['GET /real']);
-    expect(references.map((r) => r.referenceName)).toEqual(['ListUsers']);
   });
 
   it('vapor: skips // and /* */ commented app.METHOD calls', () => {

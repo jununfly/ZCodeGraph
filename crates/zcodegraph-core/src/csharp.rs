@@ -188,6 +188,158 @@ struct Frame {
     id: String,
     name: String,
     kind: &'static str,
+    /// Class-level `[Route("prefix")]` — propagated to method-level route
+    /// extraction so `[HttpGet]` on a method joins with the class prefix.
+    route_prefix: Option<String>,
+}
+
+/// Extract the string argument of a class-level `[Route("...")]` attribute.
+/// Returns `None` when no Route attribute (or no positional string argument)
+/// is present.
+fn extract_route_prefix(node: SyntaxNode, source: &[u8]) -> Option<String> {
+    for list in node
+        .named_children(&mut node.walk())
+        .filter(|c| c.kind() == "attribute_list")
+    {
+        for attr in list
+            .named_children(&mut list.walk())
+            .filter(|c| c.kind() == "attribute")
+        {
+            let is_route = attr
+                .child_by_field_name("name")
+                .and_then(|n| type_leaf_names(n, source).into_iter().last())
+                .map(|(leaf, _)| {
+                    let base = leaf.strip_suffix("Attribute").unwrap_or(&leaf);
+                    base == "Route"
+                })
+                .unwrap_or(false);
+            if !is_route {
+                continue;
+            }
+            // First positional string-literal argument is the route template.
+            let prefix = attr
+                .named_children(&mut attr.walk())
+                .find(|c| c.kind() == "attribute_argument_list")
+                .and_then(|args| {
+                    args.named_children(&mut args.walk())
+                        .filter(|c| c.kind() == "attribute_argument")
+                        .find_map(|a| first_string_literal_content(a, source))
+                });
+            if prefix.is_some() {
+                return prefix;
+            }
+        }
+    }
+    None
+}
+
+/// Text content of the first `string_literal_content` descendant of `node`
+/// (verbatim `$"..."`/raw strings still surface a string_literal_content leaf
+/// for their literal part; interpolated holes simply do not contribute).
+fn first_string_literal_content(node: SyntaxNode, source: &[u8]) -> Option<String> {
+    if node.kind() == "string_literal_content" {
+        return node.utf8_text(source).ok().map(ToString::to_string);
+    }
+    let mut cursor = node.walk();
+    for child in node.named_children(&mut cursor) {
+        if let Some(s) = first_string_literal_content(child, source) {
+            return Some(s);
+        }
+    }
+    None
+}
+
+/// Join a class-level `[Route]` prefix and an action's path into one
+/// normalized `/path` (mirrors TS joinCsPath).
+fn join_cs_path(prefix: &str, sub: &str) -> String {
+    let mut parts: Vec<&str> = Vec::new();
+    for p in [prefix, sub] {
+        let trimmed = p.trim_matches('/');
+        if !trimmed.is_empty() {
+            parts.push(trimmed);
+        }
+    }
+    format!("/{}", parts.join("/"))
+}
+
+/// Last identifier of an expression like `MyService.Handler` or `Handler`
+/// (mirrors TS extractCSharpTailIdent). Returns None for lambdas/empties.
+fn extract_csharp_tail_ident(expr: &str) -> Option<String> {
+    let cleaned: String = expr.split_whitespace().collect();
+    let tail = cleaned
+        .rsplit('.')
+        .next()
+        .unwrap_or("");
+    if tail.is_empty()
+        || !tail
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_alphabetic() || c == '_')
+            .unwrap_or(false)
+        || !tail.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+    {
+        return None;
+    }
+    Some(tail.to_string())
+}
+
+/// HTTP verb attributes handled by the ASP.NET route extractor, paired with
+/// the canonical method recorded on the route node.
+const ASPNET_VERB_ATTRS: [(&str, &str); 5] = [
+    ("HttpGet", "GET"),
+    ("HttpPost", "POST"),
+    ("HttpPut", "PUT"),
+    ("HttpPatch", "PATCH"),
+    ("HttpDelete", "DELETE"),
+];
+
+/// Minimal-API `app.Map*` method names.
+const ASPNET_MAP_METHODS: [(&str, &str); 5] = [
+    ("MapGet", "GET"),
+    ("MapPost", "POST"),
+    ("MapPut", "PUT"),
+    ("MapPatch", "PATCH"),
+    ("MapDelete", "DELETE"),
+];
+
+/// Push a `route` node + file-level contains edge + optional handler
+/// `references` ref. The route node is owned by the FILE frame (mirrors the
+/// TS aspnetResolver, whose regex scan has no enclosing-scope concept).
+#[allow(clippy::too_many_arguments)]
+fn push_aspnet_route(
+    method: &str,
+    path: &str,
+    at: SyntaxNode,
+    relative_path: &str,
+    file_node_id: &str,
+    handler: Option<String>,
+    handler_at: SyntaxNode,
+    nodes: &mut Vec<ExtractedNode>,
+    edges: &mut Vec<ExtractedEdge>,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) {
+    let route_name = format!("{} {}", method, path);
+    let route_node = ExtractedNode::symbol(relative_path, "route", &route_name, at, LANG);
+    let route_id = route_node.id.clone();
+    edges.push(ExtractedEdge {
+        source: file_node_id.to_string(),
+        target: route_id.clone(),
+        kind: "contains".to_string(),
+        line: route_node.start_line,
+        col: route_node.start_column,
+    });
+    nodes.push(route_node);
+    if let Some(handler) = handler {
+        push_ref(
+            unresolved_refs,
+            &route_id,
+            &handler,
+            "references",
+            handler_at,
+            relative_path,
+            SourceLanguage::Csharp,
+        );
+    }
 }
 
 impl Frame {
@@ -345,6 +497,7 @@ pub(crate) fn extract(
         id: file_node_id.to_string(),
         name: file_name,
         kind: "file",
+        route_prefix: None,
     }];
 
     // File-scoped namespace (`namespace Foo;`): its types are SIBLINGS under
@@ -373,6 +526,7 @@ pub(crate) fn extract(
                 id: module_id,
                 name: pkg,
                 kind: "module",
+                route_prefix: None,
             });
             for child in root.named_children(&mut root.walk()) {
                 if child.kind() == "file_scoped_namespace_declaration" {
@@ -474,6 +628,7 @@ fn walk(
                 id: module_id,
                 name: pkg,
                 kind: "module",
+                route_prefix: None,
             });
             if let Some(decl_list) = node
                 .named_children(&mut node.walk())
@@ -611,6 +766,54 @@ fn walk(
                     SourceLanguage::Csharp,
                 );
             }
+
+            // ASP.NET minimal APIs: `app.MapGet("/path", handler)`. The
+            // handler is the second positional argument (identifier or
+            // member-access leaf; lambdas emit no handler ref — TS parity).
+            if function.kind() == "member_access_expression" {
+                if let Some(map_method) = function
+                    .child_by_field_name("name")
+                    .and_then(|n| n.utf8_text(source).ok())
+                    .map(str::trim)
+                {
+                    if let Some((_, http_method)) = ASPNET_MAP_METHODS
+                        .iter()
+                        .find(|(verb, _)| map_method == *verb)
+                    {
+                        if let Some(args) = node.child_by_field_name("arguments") {
+                            let mut args_cursor = args.walk();
+                            let mut positional = args
+                                .named_children(&mut args_cursor)
+                                .filter(|c| c.kind() == "argument");
+                            let path_arg = positional.next();
+                            let handler_arg = positional.next();
+                            if let Some(path_arg) = path_arg {
+                                if let Some(route_path) =
+                                    first_string_literal_content(path_arg, source)
+                                {
+                                    let handler = handler_arg.and_then(|h| {
+                                        h.utf8_text(source)
+                                            .ok()
+                                            .and_then(extract_csharp_tail_ident)
+                                    });
+                                    push_aspnet_route(
+                                        http_method,
+                                        &route_path,
+                                        function,
+                                        relative_path,
+                                        &stack[0].id,
+                                        handler,
+                                        node,
+                                        nodes,
+                                        edges,
+                                        unresolved_refs,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     } else if kind == "object_creation_expression" {
         if let Some(type_node) = node.child_by_field_name("type") {
@@ -717,10 +920,19 @@ fn walk(
 
             nodes.push(extracted);
 
+            // Class-level `[Route("prefix")]` becomes the route prefix seen by
+            // method-level `[HttpGet]`/`[HttpPost]`/... attributes inside this
+            // type (ASP.NET controller convention).
+            let route_prefix = if sym_kind == "class" {
+                extract_route_prefix(node, source)
+            } else {
+                None
+            };
             stack.push(Frame {
                 id: id.clone(),
                 name: name.clone(),
                 kind: sym_kind,
+                route_prefix,
             });
             for child in node.named_children(&mut node.walk()) {
                 walk(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
@@ -812,11 +1024,67 @@ fn walk(
                 );
             }
 
+            // ASP.NET controller actions: `[HttpGet]`, `[HttpGet("{id}")]`,
+            // `[HttpPost("path", Name = "x")]`. The route path joins the
+            // enclosing class's `[Route("prefix")]` (TS aspnetResolver parity).
+            // Route nodes are owned by the FILE frame (stack[0]).
+            if kind == "method_declaration" {
+                let class_prefix = class_like_frame(stack)
+                    .and_then(|f| f.route_prefix.clone());
+                for list in node
+                    .named_children(&mut node.walk())
+                    .filter(|c| c.kind() == "attribute_list")
+                {
+                    for attr in list
+                        .named_children(&mut list.walk())
+                        .filter(|c| c.kind() == "attribute")
+                    {
+                        let Some((leaf, at)) = attr
+                            .child_by_field_name("name")
+                            .and_then(|n| type_leaf_names(n, source).into_iter().last())
+                        else {
+                            continue;
+                        };
+                        let leaf_base = leaf.strip_suffix("Attribute").unwrap_or(&leaf);
+                        let Some((_, http_method)) = ASPNET_VERB_ATTRS
+                            .iter()
+                            .find(|(verb, _)| leaf_base == *verb)
+                        else {
+                            continue;
+                        };
+                        let sub_path = attr
+                            .named_children(&mut attr.walk())
+                            .find(|c| c.kind() == "attribute_argument_list")
+                            .and_then(|args| {
+                                args.named_children(&mut args.walk())
+                                    .filter(|c| c.kind() == "attribute_argument")
+                                    .find_map(|a| first_string_literal_content(a, source))
+                            })
+                            .unwrap_or_default();
+                        let route_path =
+                            join_cs_path(class_prefix.as_deref().unwrap_or(""), &sub_path);
+                        push_aspnet_route(
+                            http_method,
+                            &route_path,
+                            at,
+                            relative_path,
+                            &stack[0].id,
+                            Some(name.clone()),
+                            node,
+                            nodes,
+                            edges,
+                            unresolved_refs,
+                        );
+                    }
+                }
+            }
+
             nodes.push(method);
             stack.push(Frame {
                 id: id.clone(),
                 name: name.clone(),
                 kind: "method",
+                route_prefix: None,
             });
             if let Some(body) = node.child_by_field_name("body") {
                 for child in body.named_children(&mut body.walk()) {
@@ -885,4 +1153,146 @@ fn walk(
         walk(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn run_extract(src: &str) -> (Vec<ExtractedNode>, Vec<ExtractedEdge>, Vec<UnresolvedRef>) {
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&tree_sitter_c_sharp::LANGUAGE.into())
+            .unwrap();
+        let tree = parser.parse(src, None).unwrap();
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        let mut refs = Vec::new();
+        extract(
+            tree.root_node(),
+            src.as_bytes(),
+            "Controllers/UsersController.cs",
+            "file:test",
+            &mut nodes,
+            &mut edges,
+            &mut refs,
+        )
+        .unwrap();
+        (nodes, edges, refs)
+    }
+
+    #[test]
+    fn aspnet_controller_attribute_routes_join_class_route_prefix() {
+        let src = r#"
+[ApiController]
+[Route("api/users")]
+public class UsersController : ControllerBase
+{
+    [HttpGet]
+    public string List() => "all";
+
+    [HttpGet("{id}")]
+    public string Get(int id) => "one";
+
+    [HttpPost("create", Name = "CreateUser")]
+    public string Create() => "ok";
+}
+"#;
+        let (nodes, _edges, refs) = run_extract(src);
+        let mut route_names: Vec<String> = nodes
+            .iter()
+            .filter(|n| n.kind == "route")
+            .map(|n| n.name.clone())
+            .collect();
+        route_names.sort();
+        assert_eq!(
+            route_names,
+            vec![
+                "GET /api/users".to_string(),
+                "GET /api/users/{id}".to_string(),
+                "POST /api/users/create".to_string(),
+            ]
+        );
+        let handler_refs: Vec<&str> = refs
+            .iter()
+            .filter(|r| r.reference_kind == "references")
+            .map(|r| r.reference_name.as_str())
+            .collect();
+        assert!(handler_refs.contains(&"List"));
+        assert!(handler_refs.contains(&"Get"));
+        assert!(handler_refs.contains(&"Create"));
+    }
+
+    #[test]
+    fn aspnet_controller_without_class_route_prefix_uses_action_path_only() {
+        let src = r#"
+public class UsersController : ControllerBase
+{
+    [HttpDelete("/users/{id}")]
+    public string Delete(int id) => "gone";
+}
+"#;
+        let (nodes, _edges, refs) = run_extract(src);
+        let route_names: Vec<String> = nodes
+            .iter()
+            .filter(|n| n.kind == "route")
+            .map(|n| n.name.clone())
+            .collect();
+        assert_eq!(route_names, vec!["DELETE /users/{id}".to_string()]);
+        assert!(refs.iter().any(|r| r.reference_kind == "references" && r.reference_name == "Delete"));
+    }
+
+    #[test]
+    fn aspnet_minimal_api_map_routes() {
+        let src = r#"
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+app.MapGet("/ping", Pong);
+app.MapPost("/items/{id}", Handlers.CreateItem);
+app.MapGet("/lambda", () => "hi");
+"#;
+        let (nodes, _edges, refs) = run_extract(src);
+        let mut route_names: Vec<String> = nodes
+            .iter()
+            .filter(|n| n.kind == "route")
+            .map(|n| n.name.clone())
+            .collect();
+        route_names.sort();
+        assert_eq!(
+            route_names,
+            vec![
+                "GET /lambda".to_string(),
+                "GET /ping".to_string(),
+                "POST /items/{id}".to_string(),
+            ]
+        );
+        let handler_refs: Vec<&str> = refs
+            .iter()
+            .filter(|r| r.reference_kind == "references")
+            .map(|r| r.reference_name.as_str())
+            .collect();
+        // Identifier and dotted member-access handlers resolve to their tail
+        // ident; the lambda form emits NO handler ref (TS parity).
+        assert!(handler_refs.contains(&"Pong"));
+        assert!(handler_refs.contains(&"CreateItem"));
+        assert_eq!(handler_refs.len(), 2);
+    }
+
+    #[test]
+    fn join_cs_path_normalizes_slashes() {
+        assert_eq!(join_cs_path("api/users", "{id}"), "/api/users/{id}");
+        assert_eq!(join_cs_path("/api/users/", "/{id}/"), "/api/users/{id}");
+        assert_eq!(join_cs_path("", "ping"), "/ping");
+        assert_eq!(join_cs_path("api/users", ""), "/api/users");
+    }
+
+    #[test]
+    fn extract_csharp_tail_ident_takes_last_dotted_ident() {
+        assert_eq!(
+            extract_csharp_tail_ident("Handlers.CreateItem"),
+            Some("CreateItem".to_string())
+        );
+        assert_eq!(extract_csharp_tail_ident("Pong"), Some("Pong".to_string()));
+        assert_eq!(extract_csharp_tail_ident("() => \"hi\""), None);
+    }
 }

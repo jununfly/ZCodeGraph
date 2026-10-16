@@ -2,11 +2,16 @@
  * C# Framework Resolver
  *
  * Handles ASP.NET Core, ASP.NET MVC, and common C# patterns.
+ *
+ * Roadmap 1-4-1-16: route EXTRACTION ([Route] class prefix, [HttpGet]/...
+ * action attributes, minimal-API app.Map*) is Rust-owned inside
+ * csharp::extract (crates/zcodegraph-core/src/csharp.rs); the former regex
+ * `extract()` here and the rust-hybrid back-fill module are retired. This
+ * resolver keeps `detect` + `resolve` only; resolve() ownership is deferred
+ * to 1-4-2 like every other split framework resolver.
  */
 
-import { Node } from '../../types';
 import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types';
-import { stripCommentsForRegex } from '../strip-comments';
 
 export const aspnetResolver: FrameworkResolver = {
   name: 'aspnet',
@@ -129,114 +134,7 @@ export const aspnetResolver: FrameworkResolver = {
 
     return null;
   },
-
-  extract(filePath, content) {
-    if (!filePath.endsWith('.cs')) return { nodes: [], references: [] };
-    const nodes: Node[] = [];
-    const references: UnresolvedRef[] = [];
-    const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'csharp');
-
-    // Class-level [Route("api/[controller]")] prefix — joined onto each action.
-    let classPrefix = '';
-    const cls = /\[Route\s*\(\s*"([^"]+)"[^)]*\)\]\s*(?:\[[^\]]*\]\s*)*(?:public\s+|sealed\s+|abstract\s+|partial\s+)*class\b/.exec(safe);
-    if (cls) classPrefix = cls[1]!;
-
-    // [HttpGet], [HttpGet("path")], [HttpPost("path", Name="x")] — BARE or with a
-    // path. (The old regex required a string, so bare attributes — with the route
-    // on the class [Route] — were missed; eShopOnWeb was 24 bare / 2 string.)
-    const attrRegex = /\[(HttpGet|HttpPost|HttpPut|HttpPatch|HttpDelete)(?:\s*\(\s*"([^"]+)"[^)]*\))?\s*\]/g;
-    let match: RegExpExecArray | null;
-    while ((match = attrRegex.exec(safe)) !== null) {
-      const verb = match[1]!;
-      const method = verb.replace(/^Http/, '').toUpperCase();
-      const routePath = joinCsPath(classPrefix, match[2] || '');
-      const line = safe.slice(0, match.index).split('\n').length;
-
-      const routeNode: Node = {
-        id: `route:${filePath}:${line}:${method}:${routePath}`,
-        kind: 'route',
-        name: `${method} ${routePath}`,
-        qualifiedName: `${filePath}::route:${routePath}`,
-        filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: match[0].length,
-        language: 'csharp',
-        updatedAt: now,
-      };
-      nodes.push(routeNode);
-
-      // Next method declaration (skip stacked attributes; C# puts the return type
-      // before the name). Bounded so we don't grab a far one.
-      const tail = safe.slice(match.index + match[0].length, match.index + match[0].length + 600);
-      const methodMatch = tail.match(/(?:public|private|protected|internal)\s+[\w<>,\s\[\]?.]+?\s+(\w+)\s*\(/);
-      if (methodMatch) {
-        references.push({
-          fromNodeId: routeNode.id,
-          referenceName: methodMatch[1]!,
-          referenceKind: 'references',
-          line,
-          column: 0,
-          filePath,
-          language: 'csharp',
-        });
-      }
-    }
-
-    // Minimal APIs: app.MapGet("/path", handler)
-    const minimalRegex = /\.Map(Get|Post|Put|Patch|Delete)\s*\(\s*"([^"]+)"\s*,\s*([^,)]+)/g;
-    while ((match = minimalRegex.exec(safe)) !== null) {
-      const [, verb, routePath, handlerExpr] = match;
-      const method = verb!.toUpperCase();
-      const line = safe.slice(0, match.index).split('\n').length;
-
-      const routeNode: Node = {
-        id: `route:${filePath}:${line}:${method}:${routePath}`,
-        kind: 'route',
-        name: `${method} ${routePath}`,
-        qualifiedName: `${filePath}::route:${routePath}`,
-        filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: match[0].length,
-        language: 'csharp',
-        updatedAt: now,
-      };
-      nodes.push(routeNode);
-
-      const handlerName = extractCSharpTailIdent(handlerExpr!);
-      if (handlerName) {
-        references.push({
-          fromNodeId: routeNode.id,
-          referenceName: handlerName,
-          referenceKind: 'references',
-          line,
-          column: 0,
-          filePath,
-          language: 'csharp',
-        });
-      }
-    }
-
-    return { nodes, references };
-  },
 };
-
-/** Join a class-level [Route] prefix and an action's path into one normalized `/path`. */
-function joinCsPath(prefix: string, sub: string): string {
-  const parts = [prefix, sub].map((p) => p.replace(/^\/+|\/+$/g, '')).filter(Boolean);
-  return '/' + parts.join('/');
-}
-
-/** Extract last identifier from an expression like `MyService.Handler` or `Handler`. */
-function extractCSharpTailIdent(expr: string): string | null {
-  const cleaned = expr.trim().replace(/\s+/g, '');
-  const m = cleaned.match(/(?:\.|^)([A-Za-z_][A-Za-z0-9_]*)$/);
-  return m ? m[1]! : null;
-}
 
 // Directory patterns
 const CONTROLLER_DIRS = ['/Controllers/'];
