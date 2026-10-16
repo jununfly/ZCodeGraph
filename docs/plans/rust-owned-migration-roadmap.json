@@ -3428,7 +3428,7 @@
     "1-6-6": {
       "id": "1-6-6",
       "label": "[产品修复] rust-hybrid 下恢复 JS/TS framework 抽取（Express + NestJS extract() + React backfill 补全）",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1-6",
       "children": [
@@ -3442,6 +3442,11 @@
           "q": "Express 路由断层修复策略？",
           "answer": "新增 rust-javascript-framework-routes.ts backfill 模块（仿 1-6-2-4 Python 恢复模式）",
           "note": "理由：1) 与六语言已有 backfill 模块形态一致（csharp/php/python/ruby/swift/objc），复用成熟模式降低实现风险。2) 保持 1-4-1-3 已固化的 Express resolver keep TS-shell 决策——backfill 只是让既有 TS resolver 在 rust-hybrid 下被调用，不改 resolver 本身。3) NestJS 在 Rust core 已走 produce_nestjs_framework_post_extract_updates 不同路径（读 .module.ts 从 DB 做 post-extract update），与 Express 不冲突，可独立推进。4) 与 1-4-1-3 decide note 中已声明的缺口修复路径一致。范围外：NestJS 在 Rust core 已有部分覆盖（模块 prefix），完整 NestJS 归属决策在 1-4-1-4；其他 JS/TS 框架（React/Svelte/Vue 等非路由语义）不在本节点。"
+        },
+        {
+          "q": "1-6-6 与 1-4-2-9 的关系复核（2026-10-16）：1-4-2-9 交付物是否已覆盖 1-6-6 的 -1/-2/-3？",
+          "answer": "是——1-6-6-1/-2/-3 已由 1-4-2-9 覆盖完成，1-6-6 剩余工作=Node-3 的 per-framework 细粒度矩阵测试 + Node-4 真实语料 benchmark gate",
+          "note": "依据（代码勘察，非推测）：(1) Node-1 要求新建 src/indexing/rust-javascript-framework-routes.ts 含 express/nestjs/react/fabric-ts 四 case——实际交付为 src/indexing/rust-js-framework-routes.ts（runJsFrameworkRouteBackfill，JS_ROUTE_FRAMEWORKS={'express','nestjs','react','fabric-view'}），仅文件名少 'ava'，功能完全对齐：emitExpressRouteNodes/emitNestjsRouteNodes/emitReactComponentNodes/extractFabricNodes 全接入，幂等 id 前缀 wipe + INSERT OR IGNORE。(2) Node-2 要求 index.ts finalizeRustIndex 接线——已落地（src/index.ts:76 import + :2060 调用，时序在 postExtract 前，与 1-4-2-9 日志记录的 NestJS RouterModule 依赖一致）。(3) Node-3 要求 Express/NestJS/React 三 describe 细粒度矩阵——现有覆盖是单 e2e『extracts Spring/Express/Expo routes on rust-hybrid...』（frameworks-integration.test.ts:474，已入 ci.yml -t），只含 Express 基本动词，缺 NestJS 四传输层与 React 五语义的 per-framework 矩阵 → 未覆盖部分保留在 1-6-6-3。(4) Node-4 真实语料 benchmark + 3-OS CI gate 未做 → 保留在 1-6-6-4。结论：1-6-6-1/-2 关闭，-3/-4 保留，1-6-6 保持 in_progress。"
         }
       ],
       "notes": ""
@@ -3449,22 +3454,22 @@
     "1-6-6-1": {
       "id": "1-6-6-1",
       "label": "新建 src/indexing/rust-javascript-framework-routes.ts：仿 rust-php/python/csharp 六语言 backfill 模式，rust-hybrid finalize 阶段对 rust-owned .js/.jsx/.ts/.tsx/.mjs/.cjs/.mts/.cts 文件补跑 expressResolver.extract() + nestjsResolver.extract()（HTTP/GraphQL/Microservice/WebSocket 四传输层）+ reactResolver.extract()（component/hook/React Router JSX/data-router/Next.js pages+app 文件约定 5 种语义），产 component/hook/route 节点 + 关联 references；幂等性（确定性 id + delete-then-replace by kind）；postExtract(RouterModule prefix)已在 Rust core 不再补",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-6-6",
       "children": [],
       "decisions": [],
-      "notes": ""
+      "notes": "2026-10-16 复核：已由 1-4-2-9 交付——实际模块 src/indexing/rust-js-framework-routes.ts（runJsFrameworkRouteBackfill），四 case（express/nestjs/react/fabric-view）+ 幂等 id 前缀 wipe + INSERT OR IGNORE 全落地，功能与本节点 spec 完全对齐（仅文件名 rust-js- 而非 rust-javascript-）。"
     },
     "1-6-6-2": {
       "id": "1-6-6-2",
       "label": "index.ts finalizeRustIndex 接线：import runJavascriptFrameworkRouteBackfill + 在 python/csharp/php/ruby/swift/objc 之后调度 + FrameworkRouteBackfillStats 类型 + profile 字段",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-6-6",
       "children": [],
       "decisions": [],
-      "notes": ""
+      "notes": "2026-10-16 复核：已由 1-4-2-9 交付——src/index.ts:76 import runJsFrameworkRouteBackfill + :2060 调用，时序在 postExtract 前（NestJS RouterModule 依赖）。"
     },
     "1-6-6-3": {
       "id": "1-6-6-3",
@@ -3530,7 +3535,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-16 20:31:21",
+    "updated": "2026-10-16 20:51:06",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }

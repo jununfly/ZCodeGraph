@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-16 20:31:21
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-16 20:51:06
 
 [~][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
@@ -48,5 +48,5 @@
     ├── [x][X+] 1-6-3. Go/Gin 路由所有权检查
     ├── [x][X+] 1-6-4. Swift 基线迁移（移动桥接成为产品优先级时启动）
     ├── [x][Y+] 1-6-5. 波次0: #692 夹具债清零（新语言迁移前置）
-    └── [ ][X+] 1-6-6. [产品修复] rust-hybrid 下恢复 JS/TS framework 抽取（Express + NestJS extract() + React backfill 补全）
+    └── [~][X+] 1-6-6. [产品修复] rust-hybrid 下恢复 JS/TS framework 抽取（Express + NestJS extract() + React backfill 补全）
 <!-- ROADMAP_SECTION_END -->
