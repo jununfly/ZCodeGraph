@@ -76,6 +76,10 @@ import { runJavaFrameworkRouteBackfill } from './indexing/rust-java-framework-ro
 import { runJsFrameworkRouteBackfill } from './indexing/rust-js-framework-routes';
 import { runKotlinFrameworkRouteBackfill } from './indexing/rust-kotlin-framework-routes';
 import type { ObjcFrameworkRouteBackfillStats } from './indexing/rust-objc-framework-routes';
+import type { ScalaFrameworkRouteBackfillStats } from './indexing/rust-scala-framework-routes';
+import type { JavaFrameworkRouteBackfillStats } from './indexing/rust-java-framework-routes';
+import type { JsFrameworkRouteBackfillStats } from './indexing/rust-js-framework-routes';
+import type { KotlinFrameworkRouteBackfillStats } from './indexing/rust-kotlin-framework-routes';
 import {
   buildRustHybridMetadataFromPlan,
   mergeMissingFallbackDiagnostics,
@@ -1577,6 +1581,10 @@ export class CodeGraph {
       rubyFrameworkRouteBackfill?: RubyFrameworkRouteBackfillStats;
       swiftFrameworkRouteBackfill?: SwiftFrameworkRouteBackfillStats;
       objcFrameworkRouteBackfill?: ObjcFrameworkRouteBackfillStats;
+      scalaFrameworkRouteBackfill?: ScalaFrameworkRouteBackfillStats;
+      javaFrameworkRouteBackfill?: JavaFrameworkRouteBackfillStats;
+      jsFrameworkRouteBackfill?: JsFrameworkRouteBackfillStats;
+      kotlinFrameworkRouteBackfill?: KotlinFrameworkRouteBackfillStats;
       referenceResolutionMs: number;
       referenceResolutionBreakdown: {
         importResolutionMs: number;
@@ -1742,6 +1750,33 @@ export class CodeGraph {
             readErrors: 0,
             extractErrors: 0,
           } as ObjcFrameworkRouteBackfillStats,
+          scalaFrameworkRouteBackfill: {
+            filesScanned: 0,
+            routeNodes: 0,
+            routeReferences: 0,
+            readErrors: 0,
+            extractErrors: 0,
+          } as ScalaFrameworkRouteBackfillStats,
+          javaFrameworkRouteBackfill: {
+            filesScanned: 0,
+            frameworkNodes: 0,
+            frameworkReferences: 0,
+            readErrors: 0,
+            extractErrors: 0,
+          } as JavaFrameworkRouteBackfillStats,
+          jsFrameworkRouteBackfill: {
+            filesScanned: 0,
+            frameworkNodes: 0,
+            frameworkReferences: 0,
+            readErrors: 0,
+            extractErrors: 0,
+          } as JsFrameworkRouteBackfillStats,
+          kotlinFrameworkRouteBackfill: {
+            filesScanned: 0,
+            frameworkNodes: 0,
+            readErrors: 0,
+            extractErrors: 0,
+          } as KotlinFrameworkRouteBackfillStats,
           referenceResolutionMs: 0,
           referenceResolutionBreakdown: {
             importResolutionMs: 0,
