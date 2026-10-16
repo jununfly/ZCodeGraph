@@ -1685,7 +1685,7 @@
     "1-4": {
       "id": "1-4",
       "label": "Goal2: TS shell 共享层 migrate/keep/split 决策",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -2244,7 +2244,7 @@
     "1-4-2": {
       "id": "1-4-2",
       "label": "引用解析与终结层逐项决策（8 项）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4",
       "children": [
@@ -2259,87 +2259,135 @@
         "1-4-2-9"
       ],
       "decisions": [],
-      "notes": ""
+      "notes": "2026-10-16 全部 9 子项关闭（-9 早前完成 backfill 缺口补齐）。决策汇总：-1 ReferenceResolver 编排 keep TS（跨语言总编排+confidence 仲裁+跨语言桥单实例）；-2 name matcher split 已落地（produce-candidates/match-name 两 Rust 子命令+replay 双轨）；-3 synthesizers keep TS（全图 query 层，精度证据未齐，解除条件按 coverage-playbook）；-4 framework registry keep TS（resolve/postExtract 全留 TS，extract 走 backfill 通道）；-5 cleanup keep TS（finalization 事务边界，无计算主体）；-6 健康词汇六词冻结（用户侧契约横切约束）；-7 MCP 表面冻结（server-instructions.ts 唯一事实源）；-8 gap 诊断 split 边界（Rust 生产/TS 呈现）。总体格局：解析与终结层保持 TS 编排，Rust 只承担 per-file 抽取+单点匹配计算，无新增代码动作。"
     },
     "1-4-2-1": {
       "id": "1-4-2-1",
       "label": "ReferenceResolver 编排",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-2",
       "children": [],
-      "decisions": [],
-      "notes": "决策项：决策保持 TS shell（协调全部语言）还是 Rust 拥有语言局部子集；现状为跨语言总编排。 完成定义：decide 落 migrate/keep/split + 理由。"
+      "decisions": [
+        {
+          "q": "ReferenceResolver 编排：TS shell 总编排 vs Rust 语言局部子集？",
+          "answer": "keep TS shell（跨语言总编排）",
+          "note": "理由：(1) 架构现实——resolveAll/resolveReferencesBatched 是跨语言批处理管线（hydrate→prewarm→resolveOne×N→edge materialize→cleanup→callback synthesis），resolveOne 内部对 framework→import→name-matcher 三策略按 confidence 做全局仲裁，三策略的候选会互相竞争（candidates.reduce）；按语言切 Rust 子集会破坏这个统一仲裁点，同一 ref 不可能同时走两套编排。(2) 已有 Rust 子模块挂载点成熟且走 JSON 子进程协议（main.rs match-name / produce-candidates，TS 侧 rust-name-matcher.ts + rust-candidate-producer.ts 带 replay/shadow 诊断），把单点能力推给 Rust 不需要动编排层——继续沿用『能力下沉、编排上浮』。(3) 跨语言桥接要求单编排实例：Drupal routing.yml→PHP、RN JS→native、Swift↔ObjC、Expo TS spec→Swift/Kotlin 这些 framework bridge 依赖同一 ResolutionContext（同一 knownNames/缓存/文件视图），拆子集会让跨族引用拿不到对端语言候选。(4) 1-4-1 元原则不适用于本层：元原则约束的是『纯正则+DB 查询无 AST 增益』的迁移论证，编排层的核心职责是策略仲裁+缓存+批处理事务边界（finalization-tail-boundary 契约），不是 AST/正则计算，没有可下沉的计算主体。迁移代价：1841 行 index.ts 强耦合 QueryBuilder/LRU 缓存/19 个 framework resolver 注册表，整层迁 Rust 等价重写整个解析子系统，收益不抵风险。"
+        }
+      ],
+      "notes": "2026-10-16 勘察后决策：keep TS shell 跨语言总编排。勘察依据：resolution/ 总 17964 行，index.ts 1841 行为编排主干（resolveAll→resolveOne 三策略 confidence 仲裁 + resolveReferencesBatched 批处理 + cleanup + synthesis）；Rust 已有 match-name/produce-candidates 两个 JSON 子进程挂载点（main.rs），TS 侧带 replay 诊断；19 个 framework resolver 注册表含 4 个跨语言桥（swift-objc/react-native/expo/fabric），要求单编排实例。后续单点能力（name-matcher/import 片段）仍可通过 rust-name-matcher.ts 通道下沉，不影响本决策。"
     },
     "1-4-2-2": {
       "id": "1-4-2-2",
       "label": "Name matcher",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-2",
       "children": [],
-      "decisions": [],
-      "notes": "决策项：决策移植通用 matcher / 留 TS / 拆分候选生产与决策逻辑。 完成定义：decide 落 migrate/keep/split + 理由。"
+      "decisions": [
+        {
+          "q": "Name matcher：通用 matcher 移植 / 留 TS / 拆分候选生产与决策逻辑？",
+          "answer": "split（已完成，维持现状）",
+          "note": "拆分形态已落地并带双轨验证：(1) 候选生产侧——rust-candidate-producer.ts 调 Rust produce-candidates 子命令（main.rs:27，lib.rs:635 candidate_producer_json），5 种 lookup shape（ExactName/LowerName/QualifiedName/FileNodes/KnownNamePresence），带 shadow-mode replay 对比 TS/Rust 候选集（mismatch 采样+理由计数）；(2) 决策侧——rust-name-matcher.ts 调 match-name 子命令（main.rs:12），Rust 端 lib.rs 有 6 组单测覆盖 exact/qualified/method/function-member/fallback-reason/unhandled；TS 保留 matchReference（name-matcher.ts:797）作 fallback 与 replay 基线。(3) TS 侧 825 行 name-matcher.ts 保留为完整实现，但 resolveViaGuardedNameMatcher（index.ts:995）优先消费 rustDecision，无 decision 时才走 TS matchReference 并跑 candidate replay A/B。这个 split 满足 1-4-1 元原则——候选生产和匹配决策是『纯正则+DB 查询』计算主体，已下沉 Rust；TS 只留编排胶水（candidateProvider 路由、replay 诊断、fallback）。维持现状即完成，无需再迁 TS 侧残余逻辑（language-family gating 等编排职责属 1-4-2-1 层）。"
+        }
+      ],
+      "notes": "2026-10-16：split 已落地（候选生产 produce-candidates + 决策 match-name 两个 Rust 子命令，TS 侧 replay/shadow 双轨），维持现状。TS name-matcher.ts 825 行保留为 fallback/replay 基线，不再下迁。"
     },
     "1-4-2-3": {
       "id": "1-4-2-3",
       "label": "Dynamic-dispatch synthesizers",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-2",
       "children": [],
-      "decisions": [],
-      "notes": "决策项：保持 TS shell，直到每个机制有端到端流证明与精度证据（见 docs/designs/dynamic-dispatch-coverage-playbook.md）。 完成定义：decide 落 migrate/keep/split + 理由。"
+      "decisions": [
+        {
+          "q": "Dynamic-dispatch synthesizers：保持 TS shell，直到每个机制有端到端流证明与精度证据？",
+          "answer": "keep TS shell（条件成熟前不迁）",
+          "note": "理由：(1) 节点 notes 已锚定条件——docs/designs/dynamic-dispatch-coverage-playbook.md 要求每个机制先有端到端流证明+精度证据，当前不满足。(2) 机制形态决定迁移门槛：callback-synthesizer.ts 1749 行 22 个导出合成器，全部是『全图 query 层』——goImplementsEdges/kotlinExpectActualEdges/interfaceOverrideEdges 等直接在 resolveReferencesBatched 收尾阶段对全图跑 SQL 查询合成边（callback-synthesizer.ts:1680 synthesizeCallbackEdges 统一入口，index.ts:1568 调用），不是 per-file 抽取逻辑。Rust 侧没有等价的全图 query 通道（现有 match-name/produce-candidates 是 per-reference 请求-响应），迁过去要先在 Rust 建全图查询层+边物化层，等于把 1-4-2-5 cleanup/edge-write 也一起迁了，超出本节点范围。(3) 精度证据未齐：dynamic-dispatch-heuristic-edge-protocol.ts 只有 189 行诊断协议（graph parity 采样），各合成器尚无 per-mechanism 精度基线；在没有基线的情况下迁语言等于盲迁。(4) 1-4-1 元原则触发条件不满足：这些合成器不是『纯正则+DB 查询无 AST 增益』，而是依赖全图边/节点视图的图算法（如 expect-actual FQN 配对、interface→impl 结构匹配），属于『仅 TS 能做』的当前事实——因为 Rust 端图查询能力未建。前置解除条件：任一合成器具备端到端精度证据 + Rust 侧建出全图 query/edge-write 通道后，可按 playbook 单机制迁。"
+        }
+      ],
+      "notes": "2026-10-16：keep TS shell。22 个合成器是全图 query 层（synthesizeCallbackEdges 统一入口，resolveReferencesBatched 收尾调用），Rust 无全图 query/edge-write 通道，精度基线未齐；解除条件=单机制端到端精度证据+Rust 全图通道，按 dynamic-dispatch-coverage-playbook 单机制迁。"
     },
     "1-4-2-4": {
       "id": "1-4-2-4",
       "label": "Framework resolver registry",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-2",
       "children": [],
-      "decisions": [],
-      "notes": "决策项：决策 Rust 暴露 post-extract 协议 vs 直接拥有框架 registry。 完成定义：decide 落 migrate/keep/split + 理由。"
+      "decisions": [
+        {
+          "q": "Framework resolver registry：Rust 暴露 post-extract 协议 vs 直接拥有框架 registry？",
+          "answer": "keep TS（registry 属编排层；Rust 侧只接 extract backfill，不接 resolve/postExtract 编排）",
+          "note": "理由：(1) 与 1-4-2-1 同构——frameworks/index.ts 是 19 resolver 的注册表+detectFrameworks+detect→resolve→postExtract 三钩子编排，属 ReferenceResolver 编排面的一部分，不是计算主体。registry 本身无可下沉的计算（只是数组+filter+dispatch）。(2) resolve() 全保留 TS 是 1-4-1 已确立的模式：1-4-1-14 Go/Gin、1-4-1-16 ASP.NET 的关闭动作都明确『resolve() 保留 TS 等 1-4-2』，1-4-1 各 split 项统一『extract 迁 Rust、resolve 留 TS』，本节点只是确认这一格局不在 1-4-2 翻案——resolve 阶段所有 framework resolver 共享 ResolutionContext（knownNames/caches/文件视图）且跨语言桥（swift-objc/react-native/expo/fabric 4 个）要求单注册表实例。(3) postExtract 同理：runPostExtract（index.ts:440）循环 fw.postExtract(ctx) 后 queries.updateNode 落库，nestjs 等依赖此写接口；它是编排+DB 写，不是抽取计算。(4) Rust 侧职责已由另一条路径承载：framework extract 产物经 rust-*-framework-routes.ts backfill 模块（1-4-2-9 已补齐 scala/java/js/kotlin 四模块，合计 6+4=10 个 backfill 模块）在 finalization 阶段注入，无需 Rust 拥有 registry。(5) 若未来某 framework 的 resolve 逻辑被证明是『纯正则+DB 查询』热点，可按 rust-name-matcher 先例加专用子命令下沉单点，registry 编排仍不动。nestjs postExtract 依赖 updateNode 写接口的迁移也在本决策下明确不做。"
+        }
+      ],
+      "notes": "2026-10-16：keep TS。19 resolver 注册表+detect/resolve/postExtract 三钩子属编排层；1-4-1 既定『extract 迁 Rust、resolve 留 TS』格局不翻案；nestjs postExtract updateNode 写接口迁移明确不做。"
     },
     "1-4-2-5": {
       "id": "1-4-2-5",
       "label": "Cleanup protocol 执行",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-2",
       "children": [],
-      "decisions": [],
-      "notes": "决策项：决策 TS 继续做 executor，还是 Rust 安全拥有 resolved/unresolved cleanup（注意 finalization-tail-boundary 契约）。 完成定义：decide 落 migrate/keep/split + 理由。"
+      "decisions": [
+        {
+          "q": "Cleanup protocol 执行：TS 继续做 executor，还是 Rust 安全拥有 resolved/unresolved cleanup？",
+          "answer": "keep TS（cleanup 是 finalization 事务边界的一部分，随编排层）",
+          "note": "理由：(1) cleanup 与批处理事务边界强耦合——deleteResolvedOriginals（index.ts:1589）在 resolveReferencesBatched 每批循环内按 rowid 范围批量删（preferRowIdRanges→deleteUnresolvedReferencesByRowIdRanges），删完立即进入下一批；它是『resolve→edge 物化→cleanup』三段事务的收尾段，与 finalization-tail-boundary 契约同层。把 cleanup 单独迁 Rust 会把一个原子批事务拆成跨进程两段，边界契约反而更难守。(2) 无计算主体：cleanup 是 DELETE by rowid/rowid-range（SQL 直发），没有正则/AST/匹配计算，不存在『纯正则可下沉』的部分；1-4-1 元原则在此无适用对象。(3) 正确性依赖编排态：哪些 ref 是 terminal（resolved + intentionally-unresolved）由 resolveAll 的当批结果决定，TS 编排层持有这个上下文；Rust 端无对应状态通道。(4) 性能上 cleanup 已是最优路径（rowid 范围批删），迁语言无收益。结论：TS 继续做 executor。"
+        }
+      ],
+      "notes": "2026-10-16：keep TS。cleanup 属 finalization 事务边界（resolve→edge 物化→cleanup 三段收尾），DELETE by rowid-range 无计算主体，terminal 判定依赖编排态。"
     },
     "1-4-2-6": {
       "id": "1-4-2-6",
       "label": "Status/doctor 降级诊断",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-2",
       "children": [],
-      "decisions": [],
-      "notes": "决策项：即使底层所有权变更，用户侧健康词汇（healthy/degraded/failed/unavailable/stale/corrupted）保持稳定。 完成定义：decide 落 migrate/keep/split + 理由。"
+      "decisions": [
+        {
+          "q": "Status/doctor 降级诊断：即使底层所有权变更，用户侧健康词汇是否保持稳定？",
+          "answer": "keep TS（健康词汇表是用户侧契约，与实现层所有权解耦）",
+          "note": "理由：(1) 本节点本质是兼容性约束而非迁移候选——healthy/degraded/failed/unavailable/stale/corrupted 六词是 zcodegraph status/doctor 对用户的承诺词汇，无论底层引擎（纯 TS / rust-hybrid / 未来更多 Rust owned）如何变，词汇表不变。这不是『迁不迁』的问题，而是『任何迁移都不得改词汇』的护栏，decide 落 keep 即锁定。(2) status/doctor 的诊断聚合逻辑（读 DB 状态+引擎能力+gap 计数→映射到健康词汇）是薄编排，无计算主体可下沉；Rust 侧只需把自身 gap/失败信息按既有 contract（rust-owned-parse-gap 等，见 1-4-2-8）写进 DB/输出，词汇映射留在 TS。结论：keep，词汇表稳定性作为全 1-4 系列的横切约束生效。"
+        }
+      ],
+      "notes": "2026-10-16：keep。六词健康词汇=用户侧契约，任何底层所有权变更不得改词汇，作为全 1-4 横切约束锁定。"
     },
     "1-4-2-7": {
       "id": "1-4-2-7",
       "label": "MCP/read API 表面",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-2",
       "children": [],
-      "decisions": [],
-      "notes": "决策项：迁移不得改变 agent 工具语义；src/mcp/server-instructions.ts 是 agent 指引唯一事实源。 完成定义：decide 落 migrate/keep/split + 理由。"
+      "decisions": [
+        {
+          "q": "MCP/read API 表面：迁移不得改变 agent 工具语义；server-instructions.ts 是否保持 agent 指引唯一事实源？",
+          "answer": "keep TS（MCP/read API 表面冻结，server-instructions.ts 保持唯一事实源）",
+          "note": "理由：(1) 与 1-4-2-6 同类的兼容性约束——MCP 工具语义（searchNodes/getCallers/getCallees/getImpactRadius/collectContext 等）是 agent 侧契约，任何解析/抽取层迁移不得改变其输入输出语义；src/mcp/server-instructions.ts 经 MCP initialize 下发，是 agent 工具指引的唯一事实源（#529 起 installer 不再写重复块），其地位不因迁移改变。(2) MCP server 层（src/mcp/）与 GraphQueryManager/GraphTraverser 读路径是 TS 库内 API 消费者，读的是同一份 SQLite；引擎所有权变更只影响写入侧，读取面天然与实现解耦，无需迁移动作。(3) 无计算主体：MCP 工具层是薄 transport+query 转发。结论：keep，作为冻结面锁定；未来任何 1-4 后续迁移的验收标准都含『MCP 工具语义不变+server-instructions.ts 不因此改写』。"
+        }
+      ],
+      "notes": "2026-10-16：keep。MCP 工具语义+server-instructions.ts 唯一事实源地位冻结，读取面与实现解耦；作为后续所有迁移的验收横切约束。"
     },
     "1-4-2-8": {
       "id": "1-4-2-8",
       "label": "Rust-owned gap 诊断",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4-2",
       "children": [],
-      "decisions": [],
-      "notes": "决策项：每个新迁移语言必须保留 per-file parse/extraction-gap 上报（contract: rust-owned-parse-gap / extraction-gap / partial-write-blocked）。 完成定义：decide 落 migrate/keep/split + 理由。"
+      "decisions": [
+        {
+          "q": "Rust-owned gap 诊断：每个新迁移语言必须保留 per-file parse/extraction-gap 上报——该契约的归属？",
+          "answer": "split（契约保留+格式 TS 拥有，数据生产 Rust 拥有——已是既定模式，本节点确认为永久边界）",
+          "note": "理由：(1) 现状即正确形态：rust-owned-parse-gap / extraction-gap / partial-write-blocked 三 contract 的数据由 Rust 侧在 index 时随 result_json/DB 写入生产（Rust 是唯一知道 per-file parse 成败的一方），TS 侧负责消费、聚合、映射到 status/doctor 健康词汇（1-4-2-6）与 CLI 呈现。这个 split 不是待办而是已运行中的模式——21 个 rust-owned 语言全部遵循，每波 cutover 的验收都含 gap 计数核对（如 mORMot 433f 0 gap、spark 690f 0 errored）。(2) 数据生产不可迁 TS：TS 无从知道 Rust tree-sitter parse 的 per-file MISSING/ERROR 细节。(3) 呈现与词汇映射不可迁 Rust：与 1-4-2-6 健康词汇、1-4-2-7 MCP 表面同属用户侧契约层。(4) 本节点的完成动作=把这一 split 边界写成显式契约：任何新迁移语言的验收清单固定含『per-file gap 上报未退化』一项，数据格式变更需双端同步。结论：split（Rust 生产/TS 消费呈现），确认为永久边界，无代码动作。"
+        }
+      ],
+      "notes": "2026-10-16：split 边界确认——Rust 生产 per-file gap 数据，TS 消费/聚合/呈现；作为新迁移语言验收清单固定项，无代码动作。"
     },
     "1-5": {
       "id": "1-5",
@@ -3482,7 +3530,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-16 18:53:09",
+    "updated": "2026-10-16 20:31:21",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }

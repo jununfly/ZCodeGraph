@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-16 18:53:09
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-16 20:31:21
 
 [~][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
@@ -33,9 +33,9 @@
 │   ├── [x][X+] 1-3-6. YAML Rust 化可行性与落地
 │   ├── [x][X+] 1-3-7. Twig Rust 化可行性与落地
 │   └── [x][X+] 1-3-8. Properties Rust 化可行性与落地
-├── [~][X+] 1-4. Goal2: TS shell 共享层 migrate/keep/split 决策
+├── [x][X+] 1-4. Goal2: TS shell 共享层 migrate/keep/split 决策
 │   ├── [x][X+] 1-4-1. Framework resolvers 逐项归属决策（23 项）
-│   └── [ ][X+] 1-4-2. 引用解析与终结层逐项决策（8 项）
+│   └── [x][X+] 1-4-2. 引用解析与终结层逐项决策（8 项）
 ├── [ ][Y+] 1-5. 验收标准与所有权护栏
 │   ├── [ ][Y+] 1-5-1. 迁移语言在 rust-hybrid 元数据中 TS fallback 归零
 │   ├── [ ][Y+] 1-5-2. 每个迁移语言有确定性 fixture 与真实语料证据
