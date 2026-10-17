@@ -2458,7 +2458,7 @@
     "1-6": {
       "id": "1-6",
       "label": "排序与调度",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -3428,7 +3428,7 @@
     "1-6-6": {
       "id": "1-6-6",
       "label": "[产品修复] rust-hybrid 下恢复 JS/TS framework 抽取（Express + NestJS extract() + React backfill 补全）",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-6",
       "children": [
@@ -3484,12 +3484,18 @@
     "1-6-6-4": {
       "id": "1-6-6-4",
       "label": "真实语料 gate：小型 Express 仓库（如 expressjs/example 或真实开源 Express 项目）rust-hybrid 索引通过 + docs/benchmarks Express 验证文档 + 3-OS CI 绿 + Windows 首过日志核对",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-6-6",
       "children": [],
-      "decisions": [],
-      "notes": ""
+      "decisions": [
+        {
+          "q": "真实语料选哪个?",
+          "answer": "expressjs/express 官方仓库（含 examples/ 目录）",
+          "note": "权威对齐 roadmap label；examples/ 是天然真实 route 用法库；浅克隆+稀疏检出控制规模"
+        }
+      ],
+      "notes": "expressjs/express lib+examples (49 JS / 4899 LOC @ a419aa7 shallow+sparse) rust-hybrid 0 errored, 57 route vs 0 rust-only, 13/57 routes linked to handler business calls (POST /login -> authenticate, GET / -> User.count); inline function(){} extractor gap closed (44/54 corpus pattern); benchmark docs/benchmarks/2026-10-17-rust-owned-express-expressjs-validation.md; commits 8a58038 feat + 3ddfe9e docs; 3-OS CI run 39049170535 全绿，Windows Express test 630ms ✓"
     },
     "1-4-2-9": {
       "id": "1-4-2-9",
@@ -3535,7 +3541,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-16 21:07:08",
+    "updated": "2026-10-18 00:31:00",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
