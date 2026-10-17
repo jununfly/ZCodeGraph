@@ -577,6 +577,80 @@ describe('Framework route backfills on rust-hybrid (roadmap 1-4-2-9)', () => {
 
     cg.close();
   });
+
+  // Play declares HTTP routes in the extensionless `conf/routes` file, which the
+  // Rust core does not parse. `rust-scala-framework-routes.ts` replays
+  // `emitPlayRouteNodes` during hybrid finalization. This is the rust-hybrid
+  // guardrail for the Scala half of 1-4-2-9 (Spring/Express/Expo above cover
+  // java/js/kotlin).
+  it('extracts Play conf/routes routes and resolves them to Rust-extracted controller actions on rust-hybrid', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-play-backfill-'));
+
+    // build.sbt is the Play detection signature (playResolver.detect).
+    fs.writeFileSync(
+      path.join(tmpDir, 'build.sbt'),
+      'name := "playapp"\nlibraryDependencies += "com.typesafe.play" %% "play" % "2.8.0"\n'
+    );
+
+    fs.mkdirSync(path.join(tmpDir, 'app', 'controllers'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'app', 'controllers', 'HomeController.scala'),
+      [
+        'package controllers',
+        '',
+        'class HomeController {',
+        '  def index() = "ok"',
+        '  def show(id: Long) = id.toString',
+        '  def create() = "created"',
+        '}',
+        '',
+      ].join('\n')
+    );
+
+    fs.mkdirSync(path.join(tmpDir, 'conf'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'conf', 'routes'),
+      [
+        'GET   /           controllers.HomeController.index()',
+        'GET   /users/:id  controllers.HomeController.show(id: Long)',
+        'POST  /users      controllers.HomeController.create()',
+        '',
+      ].join('\n')
+    );
+
+    let cg = CodeGraph.initSync(tmpDir);
+    const first = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(first.success, JSON.stringify(first.errors)).toBe(true);
+
+    const routesFirst = cg.getNodesByKind('route').map((r) => r.name).sort();
+    expect(routesFirst).toEqual(['GET /', 'GET /users/:id', 'POST /users']);
+
+    // route -> controller action references survive resolution exactly once.
+    for (const [routeName, handlerName] of [
+      ['GET /', 'index'],
+      ['GET /users/:id', 'show'],
+      ['POST /users', 'create'],
+    ] as const) {
+      const route = cg.getNodesByKind('route').find((r) => r.name === routeName);
+      const handler = cg.getNodesByKind('method').find((m) => m.name === handlerName);
+      expect(route, `route ${routeName}`).toBeDefined();
+      expect(handler, `handler ${handlerName}`).toBeDefined();
+      const refs = cg
+        .getOutgoingEdges(route!.id)
+        .filter((e) => e.target === handler!.id && e.kind === 'references');
+      expect(refs, `${routeName} -> ${handlerName}`).toHaveLength(1);
+    }
+    cg.close();
+
+    // Idempotency: a close-and-reindex cycle must not duplicate route nodes.
+    cg = CodeGraph.openSync(tmpDir);
+    const second = await cg.indexAll({ engine: 'rust-hybrid' });
+    expect(second.success, JSON.stringify(second.errors)).toBe(true);
+    const routesSecond = cg.getNodesByKind('route').map((r) => r.name).sort();
+    expect(routesSecond).toEqual(routesFirst);
+
+    cg.close();
+  });
 });
 
 describe('Laravel framework routes on rust-hybrid (roadmap 1-2-5-4 cutover)', () => {
