@@ -161,6 +161,14 @@ Dated release snapshots, language validations, and the current-state decision pa
   dedicated route nodes: framework library 0 app routes by design; real
   artisan app 2/2 `Controller@method` refs resolve to Rust methods (conf 0.9),
   closure emits nothing, resource goes to the NameMatcher.
+- [2026-10-17-rust-owned-express-expressjs-validation.md](benchmarks/2026-10-17-rust-owned-express-expressjs-validation.md)
+  — Express real-corpus gate on rust-hybrid (roadmap 1-6-6-4): expressjs/express
+  `lib/`+`examples/` (49 JS / 4,899 LOC), 0 files errored, 57 `route` nodes
+  vs 0 on rust-only, 13/57 routes carry business handler links
+  (`POST /login → authenticate`, `GET / → User.count`, …). Surfaced a real
+  extractor gap — inline `function(){}` handlers (44/54 in this corpus) lost
+  body calls; fixed in `src/resolution/frameworks/express.ts` and covered by
+  the existing `Express on rust-hybrid` e2e with no `ci.yml` `-t` edit.
 
 All items above are `authority: historical` (JSON companions are data
 evidence, not standalone pages).
