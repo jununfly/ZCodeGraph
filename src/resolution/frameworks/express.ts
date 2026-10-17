@@ -186,19 +186,38 @@ export function emitExpressRouteNodes(
     const closeParen = openParen >= 0 ? matchDelim(safe, openParen, '(', ')') : -1;
     const args = closeParen > openParen ? safe.slice(openParen + 1, closeParen) : '';
     const arrowAt = args.indexOf('=>');
+    // Real-world Express (expressjs/express examples) overwhelmingly uses
+    // `function(req,res){…}` inline handlers instead of arrows — both forms
+    // are anonymous and lose the body unless we emit `calls` from it.
+    const inlineFnMatch = /\bfunction\s*\(/.exec(args);
 
-    if (arrowAt >= 0) {
-      // Inline arrow handler (`router.post('/x', async (req,res) => {…})`). The
-      // arrow is anonymous, so its body — the actual request→service flow — would
-      // be lost. Attribute the body's calls to the route node as `calls` edges so
-      // `trace(route, service)` connects. Body = balanced `{…}` after `=>`, or the
-      // single-expression tail for `=> expr` arrows.
-      const afterArrow = args.slice(arrowAt + 2);
-      const braceAt = afterArrow.indexOf('{');
-      let body = afterArrow;
-      if (braceAt >= 0 && afterArrow.slice(0, braceAt).trim() === '') {
-        const end = matchDelim(afterArrow, braceAt, '{', '}');
-        if (end > braceAt) body = afterArrow.slice(braceAt + 1, end);
+    if (arrowAt >= 0 || inlineFnMatch) {
+      // Inline handler (arrow `=> {…}` or `function(){…}`). Attribute body
+      // calls to the route node as `calls` edges so `trace(route, service)`
+      // connects through the anonymous body. Body = balanced `{…}` after
+      // `=>` / `function(…)`, or the single-expression tail for `=> expr`.
+      const bodyStart = arrowAt >= 0 ? arrowAt + 2 : (inlineFnMatch!.index + inlineFnMatch![0].length - 1);
+      const afterHead = args.slice(bodyStart);
+      const braceAt = afterHead.indexOf('{');
+      let body = afterHead;
+      if (arrowAt < 0) {
+        // function (…) {…}: skip past the parameter list before hunting the brace.
+        const parenAt = afterHead.indexOf('(');
+        const parenEnd = parenAt >= 0 ? matchDelim(afterHead, parenAt, '(', ')') : -1;
+        if (parenEnd > parenAt) {
+          const afterParams = afterHead.slice(parenEnd + 1);
+          const fnBraceAt = afterParams.indexOf('{');
+          if (fnBraceAt >= 0) {
+            const end = matchDelim(afterParams, fnBraceAt, '{', '}');
+            if (end > fnBraceAt) body = afterParams.slice(fnBraceAt + 1, end);
+            else body = afterParams.slice(fnBraceAt + 1);
+          } else {
+            body = '';
+          }
+        }
+      } else if (braceAt >= 0 && afterHead.slice(0, braceAt).trim() === '') {
+        const end = matchDelim(afterHead, braceAt, '{', '}');
+        if (end > braceAt) body = afterHead.slice(braceAt + 1, end);
       }
       const callRe = /\b([A-Za-z_$][\w$]*)\s*\(/g;
       const seen = new Set<string>();

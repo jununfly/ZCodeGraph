@@ -1928,6 +1928,7 @@ describe('Express on rust-hybrid (roadmap 1-6-6-3)', () => {
         "router.get('/users', listUsers);",
         "router.post('/users', authMiddleware, createUser);",
         "router.put('/users/:id', (req, res) => { auditLog('update'); res.send(); });",
+        "router.delete('/users/:id', function (req, res) { auditLog('delete'); res.send(); });",
         '',
         'export default app;',
       ].join('\n')
@@ -1944,6 +1945,7 @@ describe('Express on rust-hybrid (roadmap 1-6-6-3)', () => {
         'GET /users',
         'POST /users',
         'PUT /users/:id',
+        'DELETE /users/:id',
       ])
     );
 
@@ -1980,6 +1982,17 @@ describe('Express on rust-hybrid (roadmap 1-6-6-3)', () => {
       .getOutgoingEdges(putRoute!.id)
       .filter((e) => e.target === audit!.id && e.kind === 'calls');
     expect(calls, 'PUT /users/:id calls auditLog').toHaveLength(1);
+
+    // Inline `function(){}` handler (real-world expressjs/express style):
+    // body calls are attributed to the route as `calls` edges — same as
+    // arrows. Without this the extractor dropped 44/54 handlers on the
+    // official Express examples corpus (roadmap 1-6-6-4 finding).
+    const deleteRoute = routeByName('DELETE /users/:id');
+    expect(deleteRoute).toBeDefined();
+    const deleteCalls = cg
+      .getOutgoingEdges(deleteRoute!.id)
+      .filter((e) => e.target === audit!.id && e.kind === 'calls');
+    expect(deleteCalls, 'DELETE /users/:id calls auditLog via inline function(){}').toHaveLength(1);
 
     cg.close();
   });
