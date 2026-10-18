@@ -1,9 +1,9 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-18 01:10:52
+> 数据文件: `rust-owned-migration-roadmap.json` | 最后更新: 2026-10-18 15:36:59
 
-[~][X+] 1. Rust-Owned 索引迁移路线图
+[x][X+] 1. Rust-Owned 索引迁移路线图
 ├── [x][Y+] 1-1. 现状基线校准（2026-09-28 代码核对）
 │   ├── [x][Y+] 1-1-1. Rust-owned 语言清单核对（rust-hybrid-contract.ts）
 │   ├── [x][Y+] 1-1-2. C++ 已迁移事实校准（PRD 状态过期项）
@@ -36,12 +36,12 @@
 ├── [x][X+] 1-4. Goal2: TS shell 共享层 migrate/keep/split 决策
 │   ├── [x][X+] 1-4-1. Framework resolvers 逐项归属决策（23 项）
 │   └── [x][X+] 1-4-2. 引用解析与终结层逐项决策（8 项）
-├── [ ][Y+] 1-5. 验收标准与所有权护栏
-│   ├── [ ][Y+] 1-5-1. 迁移语言在 rust-hybrid 元数据中 TS fallback 归零
-│   ├── [ ][Y+] 1-5-2. 每个迁移语言有确定性 fixture 与真实语料证据
-│   ├── [ ][Y+] 1-5-3. 每个未迁移共享层项有 keep/split/migrate 决策与理由
-│   ├── [ ][Y+] 1-5-4. Status/doctor 在混合所有权下六态健康输出不回归
-│   └── [ ][Y+] 1-5-5. 所有权护栏：文件 Rust-owned 不自动宣称框架/运行时语义 Rust-owned
+├── [x][Y+] 1-5. 验收标准与所有权护栏
+│   ├── [x][Y+] 1-5-1. 迁移语言在 rust-hybrid 元数据中 TS fallback 归零
+│   ├── [x][Y+] 1-5-2. 每个迁移语言有确定性 fixture 与真实语料证据
+│   ├── [x][Y+] 1-5-3. 每个未迁移共享层项有 keep/split/migrate 决策与理由
+│   ├── [x][Y+] 1-5-4. Status/doctor 在混合所有权下六态健康输出不回归
+│   └── [x][Y+] 1-5-5. 所有权护栏：文件 Rust-owned 不自动宣称框架/运行时语义 Rust-owned
 └── [x][X+] 1-6. 排序与调度
     ├── [x][Y+] 1-6-1. 波次1: Kotlin 基线迁移（#692 夹具模式落地后首个新语言）
     ├── [x][X+] 1-6-2. Python 框架充分性检查（Django/Flask/FastAPI 边界实证）

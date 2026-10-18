@@ -6,7 +6,7 @@
     "1": {
       "id": "1",
       "label": "Rust-Owned 索引迁移路线图",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": null,
       "children": [
@@ -2392,7 +2392,7 @@
     "1-5": {
       "id": "1-5",
       "label": "验收标准与所有权护栏",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1",
       "children": [
@@ -2408,51 +2408,81 @@
     "1-5-1": {
       "id": "1-5-1",
       "label": "迁移语言在 rust-hybrid 元数据中 TS fallback 归零",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-5",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "迁移语言在 rust-hybrid 元数据中 TS fallback 是否已归零？",
+          "answer": "是。RUST_HYBRID_RUST_OWNED_LANGUAGES 含全部 21 个已迁移语言（src/indexing/rust-hybrid-contract.ts:9）。",
+          "note": "证据：(1) TS extractors 目录只剩 14 个 .ts，全部对应 keep 决策或共享 backfill 消费者，无被删除语言的 fallback 残留。(2) fallbackReasonTaxonomy 在 rust-hybrid-contract.ts:11-14 定义三类 rust-owned gap，与 language-level-typescript-fallback 明确区分（:66），gap 计数独立报告不误计入 fallback。(3) 一次性对账：每语言 1-2-N 节点 completed + 真实语料 benchmark 落 docs/benchmarks/ 共 30 篇 dated。"
+        }
+      ],
       "notes": "RUST_HYBRID_RUST_OWNED_LANGUAGES 含该语言，fallbackReasonTaxonomy 无该语言 TS 追加；gap 计数独立报告。"
     },
     "1-5-2": {
       "id": "1-5-2",
       "label": "每个迁移语言有确定性 fixture 与真实语料证据",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-5",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "每个迁移语言是否有确定性 fixture 与真实语料证据？",
+          "answer": "是。__tests__/rust-owned-language-fixtures.test.ts 覆盖 C/C++/Java baseline 与 G1-G9 语义 gap 共 ≥14 describe 块；__tests__/ 下 it.skip/describe.skip 计数为 0（#692 教训守住）；docs/benchmarks/ 30 篇 dated 真实语料验证文档覆盖全部已迁移语言。",
+          "note": "证据明细：(1) rust-owned-language-fixtures.test.ts 含 C/C++ baseline（G1-G4 + bodyless header 1-2-3-2）+ Java imports/package/annotation/anon-class + Java G5-G9 语义 gap 等确定性 fixture。(2) grep __tests__ -E '(it|describe).skip' 计数 0。(3) docs/benchmarks/ 按语言分组：c/cjson 2026-07-03、cpp/fmt 2026-07-13+bodyless 2026-10-14、csharp/aspnet+newtonsoft 2026-10-08、php/laravel-drupal 2026-10-09、ruby/rails-rack 2026-10-09、dart/flutter 2026-10-10、swift/kingfisher-vapor 2026-10-12、objc/afnetworking-sdwebimage 2026-10-12、lua/penlight-plenary 2026-10-13、luau/lute-rbxutil 2026-10-14、kotlin/koans 2026-09-30+expect-actual 2026-10-14、scala/spark 2026-10-15、java/spring-petclinic 2026-07-03、go/gin 2026-09-30、python django/flask/fastapi 1-6-2-4 系列、rust axum 等。(4) 三 OS CI 在 .github/workflows/ci.yml 跑 npx vitest run 全量（非 -t 过滤）。"
+        }
+      ],
       "notes": "fixture 进 __tests__ 且 CI 三 OS 运行（禁止 .skip 充数，#692 教训）；语料 benchmark 落 docs/benchmarks/ 含 SHA。"
     },
     "1-5-3": {
       "id": "1-5-3",
       "label": "每个未迁移共享层项有 keep/split/migrate 决策与理由",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-5",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "每个未迁移共享层项是否有 keep/split/migrate 决策与理由？",
+          "answer": "是。1-4-1 共 23 项 framework resolver + 1-4-2 共 9 项 reference-resolution/finalization slice 全部 completed 且决策落盘；keep 项在代码注释 + 防回退测试双重显式标注。",
+          "note": "证据：(1) 23 项 framework resolver 决策（1-4-1-1 至 1-4-1-23）全部 completed 并附 keep/split 理由（如 1-4-1-3 Express keep TS、1-4-1-14 Go/Gin split extract 迁 Rust resolve 留 TS、1-4-1-4 NestJS split extract=TS postExtract=Rust）。(2) 9 项 reference-resolution 决策（1-4-2-1 至 1-4-2-9）全部 completed（如 1-4-2-1 ReferenceResolver orchestration keep TS、1-4-2-4 Framework resolver registry keep TS、1-4-2-9 backfill 缺口补齐）。(3) 8 个 file-level 语言 keep 决策（1-3-N-1）由 __tests__/file-level-language-ownership-guard.test.ts 8 用例防回退锁定。(4) 框架边界汇总在 docs/designs/rust-framework-ownership-matrix-v1.md（primary, DES-framework-ownership-v1）由 __tests__/graph-semantics-guardrail-doc.test.ts 第 6 用例锁定。"
+        }
+      ],
       "notes": "决策挂 roadmap 节点；keep 项在代码注释/文档显式标注归属并加防回退测试。"
     },
     "1-5-4": {
       "id": "1-5-4",
       "label": "Status/doctor 在混合所有权下六态健康输出不回归",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-5",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Status/doctor 在混合所有权下六态健康输出是否不回归？",
+          "answer": "是。GraphHealthState 六态（healthy/degraded/failed/unavailable/stale/corrupted）在 src/diagnostics/graph-health.ts:1 显式定义；__tests__/rust-hybrid-doctor.test.ts 9 用例覆盖 degraded bundle / failure bundle / corrupted db bundle / source-selection 等关键路径；fallbackState 4 态（healthy/partial/degraded/pending）在 rust-hybrid-contract.ts:10 定义并由 zcodegraph.ts:116-153,913,939-941 在 CLI status 输出。",
+          "note": "证据：(1) 六态定义 src/diagnostics/graph-health.ts:1 'GraphHealthState = healthy | degraded | failed | unavailable | stale | corrupted'。(2) rust-hybrid-doctor.test.ts 用例：degraded bundle (1)、--json machine-readable (1)、last-run fallback taxonomy (1)、failure bundle Rust process failure (1)、corrupted database bundle without opening malformed DB (1)、rejects source slices (1)、last-run source-selection command when missing (1)、last-failure source-selection (1) 等 ≥9。(3) CLI status 在 zcodegraph.ts:939-941 按 healthy/degraded/corrupted/failed 渲染颜色 + 'Graph health: unavailable' :957/:966 文案。(4) 决策 1-4-2-6 明确 status/doctor 健康词汇是用户侧契约，与实现层所有权解耦——六态不随混合所有权切换而变化。(5) 决策 1-4-2-7 冻结 MCP/read API 表面，server-instructions.ts 保持唯一事实源。"
+        }
+      ],
       "notes": "healthy/degraded/failed/unavailable/stale/corrupted；引擎切换（engine-selection）对用户可解释。"
     },
     "1-5-5": {
       "id": "1-5-5",
       "label": "所有权护栏：文件 Rust-owned 不自动宣称框架/运行时语义 Rust-owned",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-5",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "所有权护栏是否保证文件 Rust-owned 不自动宣称框架/运行时语义 Rust-owned？",
+          "answer": "是。docs/designs/rust-framework-ownership-matrix-v1.md（primary, DES-framework-ownership-v1）作为唯一事实源，逐语言锚定 21 个 grammar-baseline Rust-owned 语言的框架边界 verdict（rust/typescript/split/n/a），每行挂到决策节点 1-2-N / 1-3-N-1 / 1-4-1-N / 1-4-2-N。",
+          "note": "证据：(1) 矩阵文档 11 节，含 Ownership Verdicts 词汇表（4 态）+ Grammar-baseline Rust-owned 语言表（21 行）+ File-level 语言表（8 行）+ Framework resolver verdicts 表（23 行）+ Reference resolution verdicts 表（9 行）+ Update Protocol + Out Of Scope + Relationship To Other Ledgers + Pass/Fail Interpretation。(2) 由 __tests__/graph-semantics-guardrail-doc.test.ts 第 6 用例锁定——21+8 个语言行、5 个交叉引用、'roadmap node **1-5-5**' 锚点、pass/fail/needs-human-review 三态词全部 assert 在场。(3) 已在 docs/README.md designs 表登记为 primary，标注 'existence + content locked by graph-semantics-guardrail-doc.test.ts — do not delete'。(4) 与 8 个 file-level keep 决策护栏 file-level-language-ownership-guard.test.ts 配套——文件级与框架级双层护栏就位。(5) Update Protocol 强制：任何代码改动若改变 ownership verdict，必须同 commit 更新矩阵 + 测试，且需先在对应 roadmap 节点 decide。"
+        }
+      ],
       "notes": "每语言迁移节点必须单独回答框架边界（如 Python Rust-owned 但 Django/Flask/FastAPI resolver 仍 TS shell）。"
     },
     "1-6": {
@@ -3551,7 +3581,7 @@
   },
   "metadata": {
     "created": "2026-09-28 16:09:10",
-    "updated": "2026-10-18 01:10:52",
+    "updated": "2026-10-18 15:36:59",
     "md_file": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\docs\\plans\\rust-owned-migration-roadmap.md"
   }
 }
