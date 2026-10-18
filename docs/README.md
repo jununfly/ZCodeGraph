@@ -69,6 +69,7 @@ retained as historical context for their slice.
 | primary | DES-architecture-roadmap | [architecture-roadmap.md](designs/architecture-roadmap.md) | Current architecture roadmap |
 | primary | DES-sqlite-contract | [rust-indexing-core-sqlite-contract.md](designs/rust-indexing-core-sqlite-contract.md) | Rust indexing core SQLite contract |
 | primary | DES-finalization-tail | [finalization-tail-boundary-contract.md](designs/finalization-tail-boundary-contract.md) | Finalization-tail ownership, diagnostic, edge-write & unresolved-refs contracts |
+| primary | DES-framework-ownership-v1 | [rust-framework-ownership-matrix-v1.md](designs/rust-framework-ownership-matrix-v1.md) | Per-language framework/runtime semantics ownership matrix (roadmap 1-5-5); existence + content locked by `graph-semantics-guardrail-doc.test.ts` — do not delete |
 | supporting | DES-plan-closeout | [plan-artifact-consolidated-closeout.md](designs/plan-artifact-consolidated-closeout.md) | Durable process-consolidation navigation (ADR-0005); **existence + content locked by two vitest contracts — do not delete** |
 | supporting | — | [architecture-roadmap-validation.md](designs/architecture-roadmap-validation.md) | Validation report for the roadmap |
 | supporting | — | [index-pipeline.md](designs/index-pipeline.md) | Index pipeline design |

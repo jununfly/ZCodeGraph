@@ -20,6 +20,10 @@ const RESOLVER_SEMANTIC_RESIDUALS_DOC = path.join(
   REPO_ROOT,
   'docs/designs/resolver-semantic-residuals-ledger.md',
 );
+const FRAMEWORK_OWNERSHIP_MATRIX_DOC = path.join(
+  REPO_ROOT,
+  'docs/designs/rust-framework-ownership-matrix-v1.md',
+);
 
 describe('Graph semantics guardrail documentation', () => {
   it('defines the hard evidence contract for graph-semantic closeouts', () => {
@@ -204,5 +208,86 @@ describe('Graph semantics guardrail documentation', () => {
     expect(roadmap).toContain('Rust indexing core');
     expect(roadmap).toContain('Rust-native TypeScript module resolution');
     expect(roadmap).toContain('guarded, evidence-backed');
+  });
+
+  it('locks the Rust framework ownership matrix contract (roadmap 1-5-5)', () => {
+    expect(fs.existsSync(FRAMEWORK_OWNERSHIP_MATRIX_DOC)).toBe(true);
+
+    const doc = fs.readFileSync(FRAMEWORK_OWNERSHIP_MATRIX_DOC, 'utf8');
+
+    for (const section of [
+      '# Rust Framework Ownership Matrix v1',
+      '## Purpose',
+      '## Ownership Verdicts (vocabulary)',
+      '## Grammar-baseline Rust-owned languages (21)',
+      '## File-level languages (kept TypeScript shell)',
+      '## Framework resolver verdicts (1-4-1-*)',
+      '## Reference resolution & finalization verdicts (1-4-2-*)',
+      '## Update Protocol',
+      '## Out Of Scope',
+      '## Relationship To Other Ledgers',
+      '## Pass/Fail Interpretation',
+    ]) {
+      expect(doc).toContain(section);
+    }
+
+    for (const verdict of ['`rust`', '`typescript`', '`split`', '`n/a`']) {
+      expect(doc).toContain(verdict);
+    }
+
+    // All 21 grammar-baseline Rust-owned languages must appear in the matrix.
+    for (const lang of [
+      'javascript',
+      'jsx',
+      'typescript',
+      'tsx',
+      'go',
+      'java',
+      'kotlin',
+      'python',
+      'rust',
+      'c',
+      'cpp',
+      'csharp',
+      'php',
+      'ruby',
+      'dart',
+      'swift',
+      'objc',
+      'lua',
+      'luau',
+      'pascal',
+      'scala',
+    ]) {
+      expect(doc).toContain(`| ${lang} |`);
+    }
+
+    // All 8 file-level keep languages must appear in the matrix.
+    for (const lang of [
+      'svelte',
+      'vue',
+      'liquid',
+      'razor',
+      'xml (MyBatis)',
+      'yaml',
+      'twig',
+      'properties',
+    ]) {
+      expect(doc).toContain(`| ${lang} |`);
+    }
+
+    // Cross-references that must hold for the matrix to stay navigable.
+    expect(doc).toContain('resolver-semantic-residuals-ledger.md');
+    expect(doc).toContain('graph-semantics-guardrail-v1.md');
+    expect(doc).toContain('baseline-indexing-performance-v1.md');
+    expect(doc).toContain('plan-artifact-consolidated-closeout.md');
+    expect(doc).toContain('file-level-language-ownership-guard.test.ts');
+    expect(doc).toContain('RUST_HYBRID_RUST_OWNED_LANGUAGES');
+    expect(doc).toContain('roadmap node **1-5-5**');
+
+    // Pass/fail vocabulary must be the canonical tri-state.
+    for (const outcome of ['pass', 'fail', 'needs-human-review']) {
+      expect(doc).toContain(outcome);
+    }
   });
 });
