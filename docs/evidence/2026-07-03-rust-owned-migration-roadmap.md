@@ -8,6 +8,14 @@ bounded-question: "What evidence does 2026-07-03-rust-owned-migration-roadmap pr
 
 Date: 2026-07-03
 
+> **Closeout note (2026-10-19).** The campaign this PRD initiated is closed
+> (166/166 nodes completed 2026-10-18). Its process SoT
+> (`docs/plans/rust-owned-migration-roadmap.{json,md}`) has been absorbed
+> into [`ledgers/rust-owned-migration-roadmap-closeout.md`](../ledgers/rust-owned-migration-roadmap-closeout.md)
+> and removed from `plans/` per ADR ZJ-0005. This PRD is preserved as the
+> point-in-time scope snapshot; the closeout ledger is the campaign's
+> durable record.
+
 ## Purpose
 
 Move ZCodeGraph toward Rust-owned indexing for every supported source language
