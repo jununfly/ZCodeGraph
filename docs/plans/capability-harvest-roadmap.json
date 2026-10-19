@@ -1,0 +1,532 @@
+{
+  "title": "ZCodeGraph 能力汇集路线图",
+  "description": "依据 discussions/capability-harvest-refinement/REFINED-PLAN.md（v2）编排：P-1 验证冲刺 → P0 好用性+质量分析 → P1 高价值理解增量 → P2 可选本地混合语义检索。目标：汇集同类项目有用/好用之处，先做到足够有用好用，保住 SQLite 内嵌零配置架构。",
+  "version": 1,
+  "nodes": {
+    "1": {
+      "id": "1",
+      "uid": "01a153ab9092-dc86bebc10",
+      "label": "ZCodeGraph 能力汇集路线图",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": null,
+      "children": [
+        "1-1",
+        "1-2",
+        "1-3",
+        "1-4"
+      ],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-1": {
+      "id": "1-1",
+      "uid": "01a153ac1fce-915839b899",
+      "label": "P-1 验证冲刺（先行 gate）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-1-1",
+        "1-1-2",
+        "1-1-3",
+        "1-1-4",
+        "1-1-5"
+      ],
+      "decisions": [
+        {
+          "q": "为什么 P-1 验证冲刺是所有后续阶段的硬入口？",
+          "answer": "5 角色评审一致：v1 最大缺陷是成本被低估。archify/codeflow 两条 Unknown 不回填、测量基础设施不落地，P0/P1 全部指标（覆盖率、recall、token）都无可裁决基线。",
+          "note": "REFINED-PLAN §2; B/A/T/O 评审共识"
+        }
+      ],
+      "notes": "",
+      "layer": "plan"
+    },
+    "1-2": {
+      "id": "1-2",
+      "uid": "01a153ac21fb-c3c319311b",
+      "label": "P0 好用性优先（agent 高频缺口）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-2-1",
+        "1-2-2",
+        "1-2-3",
+        "1-2-4",
+        "1-2-5",
+        "1-2-6",
+        "1-2-7",
+        "1-2-8"
+      ],
+      "decisions": [
+        {
+          "q": "为什么 P0 拆 P0a/P0b 而不是 v1 的单批？",
+          "answer": "B 与 C 的张力按『P0b rubric 先行』裁决：死代码判定先冻结 rubric v1 并限 3-5 语言，避免 C 担忧的『未验证就大铺』，也保住 B 的『高价值不推迟到 P1』。",
+          "note": "REFINED-PLAN §0 变更表 P-2"
+        }
+      ],
+      "notes": "",
+      "layer": "plan"
+    },
+    "1-3": {
+      "id": "1-3",
+      "uid": "01a153ac241e-1080cca96e",
+      "label": "P1 高价值理解增量",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-3-1",
+        "1-3-2",
+        "1-3-3",
+        "1-3-4"
+      ],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan"
+    },
+    "1-4": {
+      "id": "1-4",
+      "uid": "01a153ac2642-c06d38cfcf",
+      "label": "P2 可选本地混合语义检索",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-4-1",
+        "1-4-2"
+      ],
+      "decisions": [
+        {
+          "q": "为什么 P2 语义检索默认关闭且要先过三问？",
+          "answer": "T/O 评审：embedding 若依赖 Ollama 进程则破坏零配置；必须 bundle 内嵌模型、复用 sqlite-vec、status 第 7 态可观测，任一答『否』不立项。",
+          "note": "REFINED-PLAN §5 三问硬验收"
+        }
+      ],
+      "notes": "",
+      "layer": "plan"
+    },
+    "1-1-1": {
+      "id": "1-1-1",
+      "uid": "01a153ad2f44-92c4fcdfbe",
+      "label": "archify hands-on 验证并回填 Unknown",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "1 个真实仓库跑通 图谱→archify IR→HTML",
+        "确认 IR schema 匹配",
+        "回填 archify 技术/差异化两条 Unknown"
+      ]
+    },
+    "1-1-2": {
+      "id": "1-1-2",
+      "uid": "01a153ad3619-ae306b678d",
+      "label": "codeflow hands-on 验证并回填 Unknown",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "跑通 PR 影响+健康分",
+        "确认规则可移植为 SQL/图遍历",
+        "回填 codeflow product-positioning Unknown"
+      ]
+    },
+    "1-1-3": {
+      "id": "1-1-3",
+      "uid": "01a153ad3cec-2b947cc5e5",
+      "label": "固化测量基础设施脚本",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "复用 docs/evidence real-corpus gate 流程为脚本",
+        "dead-code/complexity/setup 三 metric 测量脚本先落地"
+      ]
+    },
+    "1-1-4": {
+      "id": "1-1-4",
+      "uid": "01a153ad41ec-3d9200c13e",
+      "label": "测 token 消耗稳定 baseline",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "复用现有 A/B harness",
+        "≥3 语料 × ≥3 次取中位",
+        "只出 baseline 报告不设压缩目标"
+      ]
+    },
+    "1-1-5": {
+      "id": "1-1-5",
+      "uid": "01a153ad48e3-c141c8bcf3",
+      "label": "测现有 PR 影响 recall 基线",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "3 仓 × ≥20 条已合并 PR 回放",
+        "现有 impact/affected recall 基线入库存档"
+      ]
+    },
+    "1-2-1": {
+      "id": "1-2-1",
+      "uid": "01a153ad4de6-4e8999074b",
+      "label": "P0a 诊断增强（MCP 初始化失败可恢复提示）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "agent 首次成功调用 MCP 工具率 ≥95%",
+        "≥5 新用户干净环境走查 ≤30min 成功",
+        "不用遥测，与 100% 本地自洽"
+      ]
+    },
+    "1-2-2": {
+      "id": "1-2-2",
+      "uid": "01a153ad5498-c4f456652f",
+      "label": "P0a 索引进度回调",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "确定性事件序列断言通过"
+      ]
+    },
+    "1-2-3": {
+      "id": "1-2-3",
+      "uid": "01a153ad57ee-2e6afd75b3",
+      "label": "P0a token 输出优化（GCF 式压缩）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "基于 P-1 baseline 做压缩",
+        "固定探针集上统计显著下降",
+        "不承诺 ~62%"
+      ]
+    },
+    "1-2-4": {
+      "id": "1-2-4",
+      "uid": "01a153ad5e9a-27f28b1f97",
+      "label": "P0b 冻结《死代码判定 rubric v1》",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "判定规则清单（注解白名单/框架入口/动态分派）",
+        "语料=现有5仓+≥1 Spring仓固定commit",
+        "每仓≥30条双人独立标注+仲裁"
+      ]
+    },
+    "1-2-5": {
+      "id": "1-2-5",
+      "uid": "01a153ad6554-b54a1493e3",
+      "label": "P0b find_dead_code 首版（限 3-5 语言）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "只承诺 TS/JS/Python/Go/Java",
+        "含注解排除+框架入口排除",
+        "标注一致率≥85% 且 precision≥80%（只报 precision）"
+      ]
+    },
+    "1-2-6": {
+      "id": "1-2-6",
+      "uid": "01a153ad6c23-99767a1006",
+      "label": "P0b 圈复杂度（查询时计算，零 schema 变更）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "不预计算落库",
+        "complexity-coverage 按语言分列 ≥90%",
+        "分母=成功索引 function 节点，附豁免清单"
+      ]
+    },
+    "1-3-1": {
+      "id": "1-3-1",
+      "uid": "01a153ad72f3-1232f64e8f",
+      "label": "P1 准入：图质量门禁（degraded 降个位数）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "5 个 release 语料 degraded 文件降到个位数",
+        "VS Code sparse 214→<20"
+      ]
+    },
+    "1-3-2": {
+      "id": "1-3-2",
+      "uid": "01a153ad77f7-2b86e83286",
+      "label": "P1-1 PR 影响分析（复用 impact/affected）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "不新增独立 MCP 工具",
+        "受影响文件+blast radius",
+        "README 健康 SVG Card 走 CLI/CI 出口",
+        "recall ≥85% 且 ≥基线−2pp"
+      ]
+    },
+    "1-3-3": {
+      "id": "1-3-3",
+      "uid": "01a153ad807a-c9bb617f9e",
+      "label": "P1-2 Spring bean/DI 语义扩展（剔除数据源）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "为什么把 datasource 语义从默认路径剔除？",
+          "answer": "评审认定其为低频低价值且 schema 污染面大；P1-2 只保留 Spring bean/DI，datasource 如需再做单独立项。",
+          "note": "REFINED-PLAN §0 变更表 P-9"
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "只做 Spring bean/DI",
+        "数据源节点(SQL/Redis)移出默认路径降级待验证",
+        "1 个真实 Spring 仓 sufficiency 探针通过"
+      ]
+    },
+    "1-3-4": {
+      "id": "1-3-4",
+      "uid": "01a153ad8724-90a843c5c5",
+      "label": "P1-3 可视化出口（archify 纯数据契约）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "为什么可视化走 archify 纯数据契约而非内嵌渲染？",
+          "answer": "守住架构不变量（SQLite 嵌入式、零配置、100% 本地）。zcodegraph export --format archify 只出 IR JSON，渲染交给 archify 外部完成，不引入前端依赖。",
+          "note": "REFINED-PLAN §4 P1-3"
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "只产出 archify IR JSON（export --format archify）",
+        "渲染交用户侧，零新依赖零新进程",
+        "IR schema 校验通过+快照确定性重渲染一致"
+      ]
+    },
+    "1-4-1": {
+      "id": "1-4-1",
+      "uid": "01a153ad8e0e-566bcd87f1",
+      "label": "P2 立项前三问硬验收",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "embedding 可内嵌 bundle（非 Ollama 外部进程）？",
+        "向量索引复用同一 SQLite+watcher（sqlite-vec）？",
+        "status 六态是否需第七态/degraded 子原因？",
+        "任一答否则不立项"
+      ]
+    },
+    "1-4-2": {
+      "id": "1-4-2",
+      "uid": "01a153ad9678-b7cc387500",
+      "label": "P2 量化阈值实测（5 语料端到端）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "额外磁盘 ≤ 纯结构索引体积 50%",
+        "首次索引时间增幅 ≤2×",
+        "watch 单文件增量 ≤5s"
+      ]
+    },
+    "1-2-7": {
+      "id": "1-2-7",
+      "uid": "01a153ad9d52-c3c53a2bdc",
+      "label": "横切：schema 演进条款 + MCP 工具收口 ≤12",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "为什么 MCP 工具总数硬性收口 ≤12？",
+          "answer": "AGENTS.md 记录『新工具极少被采纳』（zcodegraph_trace/context 已退役）。新分析能力一律折进 explore/status；SVG/archify 只作 CLI/CI 出口，不进 MCP。",
+          "note": "REFINED-PLAN §0 变更表 P-5"
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "新增 NodeKind/EdgeKind 走 migrations+bump CURRENT_SCHEMA_VERSION",
+        "写旧 CLI 打开新库兼容策略",
+        "新分析折叠进 explore/status，SVG/archify 走 CLI/CI 出口"
+      ]
+    },
+    "1-2-8": {
+      "id": "1-2-8",
+      "uid": "01a153ada445-e71cc0d263",
+      "label": "横切：架构回归红线 + 能力健康探针",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "index-time-regression ≤15%",
+        "explore-latency-regression 红线定值",
+        "每能力域健康探针+doctor capabilities.json+--upstream-check"
+      ]
+    }
+  },
+  "metadata": {
+    "created": "2026-10-19 18:18:35",
+    "updated": "2026-10-19 18:25:01",
+    "md_file": "capability-harvest-roadmap.md"
+  },
+  "edges": [
+    {
+      "id": "e1",
+      "from": "01a153ac1fce-915839b899",
+      "to": "01a153ac21fb-c3c319311b",
+      "type": "blocks"
+    },
+    {
+      "id": "e2",
+      "from": "01a153ac1fce-915839b899",
+      "to": "01a153ac241e-1080cca96e",
+      "type": "blocks"
+    },
+    {
+      "id": "e3",
+      "from": "01a153ac1fce-915839b899",
+      "to": "01a153ac2642-c06d38cfcf",
+      "type": "blocks"
+    },
+    {
+      "id": "e4",
+      "from": "01a153ad9d52-c3c53a2bdc",
+      "to": "01a153ad6554-b54a1493e3",
+      "type": "blocks"
+    },
+    {
+      "id": "e5",
+      "from": "01a153ad9d52-c3c53a2bdc",
+      "to": "01a153ad6c23-99767a1006",
+      "type": "blocks"
+    },
+    {
+      "id": "e6",
+      "from": "01a153ad9d52-c3c53a2bdc",
+      "to": "01a153ad807a-c9bb617f9e",
+      "type": "blocks"
+    },
+    {
+      "id": "e7",
+      "from": "01a153ad5e9a-27f28b1f97",
+      "to": "01a153ad6554-b54a1493e3",
+      "type": "blocks"
+    },
+    {
+      "id": "e8",
+      "from": "01a153ad72f3-1232f64e8f",
+      "to": "01a153ad77f7-2b86e83286",
+      "type": "blocks"
+    },
+    {
+      "id": "e9",
+      "from": "01a153ad72f3-1232f64e8f",
+      "to": "01a153ad807a-c9bb617f9e",
+      "type": "blocks"
+    },
+    {
+      "id": "e10",
+      "from": "01a153ad72f3-1232f64e8f",
+      "to": "01a153ad8724-90a843c5c5",
+      "type": "blocks"
+    },
+    {
+      "id": "e11",
+      "from": "01a153ada445-e71cc0d263",
+      "to": "01a153ad72f3-1232f64e8f",
+      "type": "blocks"
+    },
+    {
+      "id": "e12",
+      "from": "01a153ad8e0e-566bcd87f1",
+      "to": "01a153ad9678-b7cc387500",
+      "type": "blocks"
+    }
+  ],
+  "edge_seq": 12
+}
