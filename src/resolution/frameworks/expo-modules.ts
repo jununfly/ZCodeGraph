@@ -39,10 +39,7 @@
  *   Fabric (Phase 6) and is left to that phase.
  */
 import type { Node } from '../../types';
-import {
-  FrameworkExtractionResult,
-  FrameworkResolver,
-} from '../types';
+import { FrameworkResolver } from '../types';
 
 /**
  * Match `Function("name")`, `AsyncFunction("name")`, or `Property("name")`
@@ -179,15 +176,9 @@ export const expoModulesResolver: FrameworkResolver = {
     return false;
   },
 
-  // extract() kept for the typescript engine; on rust-hybrid the backfill
-  // (rust-kotlin-framework-routes.ts) replays `extractExpoMethods` directly.
-  extract(filePath, source): FrameworkExtractionResult {
-    const language = filePath.endsWith('.kt') ? 'kotlin' : 'swift';
-    return {
-      nodes: extractExpoMethods(filePath, source, language),
-      references: [],
-    };
-  },
+  // extract() removed after 1-4-2-9: Swift and Kotlin are both rust-owned,
+  // and the backfill (rust-kotlin-framework-routes.ts) replays
+  // `extractExpoMethods` directly during hybrid finalization.
 
   /**
    * No bespoke resolution needed — the synthetic method nodes emitted by

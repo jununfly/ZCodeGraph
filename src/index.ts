@@ -2067,53 +2067,28 @@ export class CodeGraph {
         // NestJS RouterModule prefix pass (and any other postExtract consumer)
         // sees the back-filled route nodes. Inserted nodes + unresolved refs
         // are linked by the batched resolution further below.
-        onCheckpoint?.('finalization.scalaFrameworkRouteBackfill.started');
-        const scalaRouteBackfill = runScalaFrameworkRouteBackfill(
-          this.queries,
-          this.projectRoot,
-          this.resolver.getDetectedFrameworks(),
-        );
-        profile.scalaFrameworkRouteBackfill = scalaRouteBackfill;
-        if (scalaRouteBackfill.routeNodes > 0) {
-          this.resolver.clearCaches();
+        // Framework route backfills (1-4-2-9) — each replays a TypeScript
+        // framework extractor for rust-owned files during hybrid finalization.
+        // Adding a new backfill: push a descriptor here, add the import above,
+        // and add the profile field to the type declaration.
+        {
+          const backfillArgs = [this.queries, this.projectRoot, this.resolver.getDetectedFrameworks()] as const;
+          const runAndProfile = <T>(
+            name: string,
+            run: (...args: typeof backfillArgs) => T,
+            hasNewNodes: (stats: T) => boolean,
+          ) => {
+            onCheckpoint?.(`finalization.${name}FrameworkRouteBackfill.started`);
+            const stats = run(...backfillArgs);
+            (profile as Record<string, unknown>)[`${name}FrameworkRouteBackfill`] = stats;
+            if (hasNewNodes(stats)) this.resolver.clearCaches();
+            onCheckpoint?.(`finalization.${name}FrameworkRouteBackfill.completed`);
+          };
+          runAndProfile('scala', runScalaFrameworkRouteBackfill, (s) => s.routeNodes > 0);
+          runAndProfile('java', runJavaFrameworkRouteBackfill, (s) => s.frameworkNodes > 0);
+          runAndProfile('js', runJsFrameworkRouteBackfill, (s) => s.frameworkNodes > 0);
+          runAndProfile('kotlin', runKotlinFrameworkRouteBackfill, (s) => s.frameworkNodes > 0);
         }
-        onCheckpoint?.('finalization.scalaFrameworkRouteBackfill.completed');
-
-        onCheckpoint?.('finalization.javaFrameworkRouteBackfill.started');
-        const javaRouteBackfill = runJavaFrameworkRouteBackfill(
-          this.queries,
-          this.projectRoot,
-          this.resolver.getDetectedFrameworks(),
-        );
-        profile.javaFrameworkRouteBackfill = javaRouteBackfill;
-        if (javaRouteBackfill.frameworkNodes > 0) {
-          this.resolver.clearCaches();
-        }
-        onCheckpoint?.('finalization.javaFrameworkRouteBackfill.completed');
-
-        onCheckpoint?.('finalization.jsFrameworkRouteBackfill.started');
-        const jsRouteBackfill = runJsFrameworkRouteBackfill(
-          this.queries,
-          this.projectRoot,
-          this.resolver.getDetectedFrameworks(),
-        );
-        profile.jsFrameworkRouteBackfill = jsRouteBackfill;
-        if (jsRouteBackfill.frameworkNodes > 0) {
-          this.resolver.clearCaches();
-        }
-        onCheckpoint?.('finalization.jsFrameworkRouteBackfill.completed');
-
-        onCheckpoint?.('finalization.kotlinFrameworkRouteBackfill.started');
-        const kotlinRouteBackfill = runKotlinFrameworkRouteBackfill(
-          this.queries,
-          this.projectRoot,
-          this.resolver.getDetectedFrameworks(),
-        );
-        profile.kotlinFrameworkRouteBackfill = kotlinRouteBackfill;
-        if (kotlinRouteBackfill.frameworkNodes > 0) {
-          this.resolver.clearCaches();
-        }
-        onCheckpoint?.('finalization.kotlinFrameworkRouteBackfill.completed');
 
         this.resolver.runPostExtract();
         profile.frameworkPostExtractMs = Date.now() - frameworkStarted;
@@ -2132,9 +2107,6 @@ export class CodeGraph {
         );
         profile.pythonFrameworkRouteBackfill = pythonRouteBackfill;
         if (pythonRouteBackfill.routeNodes > 0) {
-          // Resolution caches symbol names for its pre-filter; the newly
-          // inserted route handler refs target existing rust-owned nodes, but
-          // clear to be safe before the resolution pass.
           this.resolver.clearCaches();
         }
         onCheckpoint?.('finalization.pythonFrameworkRouteBackfill.completed');
@@ -2159,8 +2131,6 @@ export class CodeGraph {
         );
         profile.phpFrameworkRouteBackfill = phpRouteBackfill;
         if (phpRouteBackfill.routeNodes > 0 || phpRouteBackfill.hookReferences > 0) {
-          // New route handler refs and Drupal hook refs target existing
-          // rust-owned nodes; clear the symbol-name cache before resolution.
           this.resolver.clearCaches();
         }
         onCheckpoint?.('finalization.phpFrameworkRouteBackfill.completed');
@@ -2178,8 +2148,6 @@ export class CodeGraph {
         );
         profile.rubyFrameworkRouteBackfill = rubyRouteBackfill;
         if (rubyRouteBackfill.routeNodes > 0) {
-          // New route handler refs target existing rust-owned nodes; clear the
-          // symbol-name cache before resolution.
           this.resolver.clearCaches();
         }
         onCheckpoint?.('finalization.rubyFrameworkRouteBackfill.completed');
@@ -2203,8 +2171,6 @@ export class CodeGraph {
           swiftRouteBackfill.propertyTypeReferences > 0 ||
           swiftRouteBackfill.propertyMetatypeReferences > 0
         ) {
-          // New property wrapper/type/metatype refs target existing
-          // rust-owned nodes; clear the symbol-name cache before resolution.
           this.resolver.clearCaches();
         }
         onCheckpoint?.('finalization.swiftFrameworkRouteBackfill.completed');
@@ -2225,8 +2191,6 @@ export class CodeGraph {
         );
         profile.objcFrameworkRouteBackfill = objcRouteBackfill;
         if (objcRouteBackfill.frameworkNodes > 0) {
-          // Newly inserted RN/Fabric nodes are resolution targets read through
-          // resolver symbol caches; clear before the resolution pass.
           this.resolver.clearCaches();
         }
         onCheckpoint?.('finalization.objcFrameworkRouteBackfill.completed');

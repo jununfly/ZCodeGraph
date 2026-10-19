@@ -7295,8 +7295,8 @@ fn index_javascript_files(
                     &mut unresolved_refs,
                 )?;
             } else if language.is_objc() {
-                // Roadmap 1-2-14-1: grammar/dispatch wiring only; the
-                // baseline visitor lands in 1-2-14-2.
+                // Roadmap 1-2-14: ObjC baseline visitor + RN/Fabric macro
+                // back-fill (cutover in 1-2-14-4).
                 objc::extract(
                     parsed.root_node(),
                     content.as_bytes(),
@@ -7307,8 +7307,7 @@ fn index_javascript_files(
                     &mut unresolved_refs,
                 )?;
             } else if language.is_lua() {
-                // Roadmap 1-2-12-1: grammar/dispatch wiring only; the
-                // baseline visitor lands in 1-2-12-2.
+                // Roadmap 1-2-12: Lua baseline visitor (cutover in 1-2-12-4).
                 lua::extract(
                     parsed.root_node(),
                     content.as_bytes(),
@@ -7319,8 +7318,7 @@ fn index_javascript_files(
                     &mut unresolved_refs,
                 )?;
             } else if language.is_luau() {
-                // Roadmap 1-2-13-1: grammar/dispatch wiring only; the
-                // baseline visitor lands in 1-2-13-2.
+                // Roadmap 1-2-13: Luau baseline visitor (cutover in 1-2-13-4).
                 luau::extract(
                     parsed.root_node(),
                     content.as_bytes(),
@@ -7985,14 +7983,14 @@ impl SourceLanguage {
             Self::Luau => tree_sitter_luau::LANGUAGE.into(),
             // Isopod/tree-sitter-pascal 0.10.2 bridges via tree-sitter-language
             // 0.1 (LANGUAGE.into()), the same ABI-14 passthrough as
-            // tree-sitter-swift/objc/lua/luau (roadmap 1-2-10-1, verified in
-            // C:\workspace\pascal-abi-probe).
+            // tree-sitter-swift/objc/lua/luau (roadmap 1-2-10-1; ABI verified
+            // via SEXP probe, see docs/evidence/2026-10-14-rust-owned-pascal-mormot-validation.md).
             Self::Pascal => tree_sitter_pascal::LANGUAGE.into(),
             // tree-sitter/tree-sitter-scala 0.24.1 (last ABI-14 release)
             // bridges via tree-sitter-language 0.1 (LANGUAGE.into()), the
             // same passthrough as swift/objc/lua/luau/pascal; 0.25.x jumped
-            // to tree-sitter 0.25/ABI 15 (roadmap 1-2-11-1, verified in
-            // C:\workspace\scala-abi-probe).
+            // to tree-sitter 0.25/ABI 15 (roadmap 1-2-11-1; ABI verified
+            // via SEXP probe, see docs/evidence/2026-10-15-rust-owned-scala-spark-validation.md).
             Self::Scala => tree_sitter_scala::LANGUAGE.into(),
             Self::Python => tree_sitter_python::LANGUAGE.into(),
             Self::Rust => tree_sitter_rust::LANGUAGE.into(),

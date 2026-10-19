@@ -44,10 +44,7 @@
  * `<MyComponent>` edges naturally chain through.
  */
 import type { Node } from '../../types';
-import {
-  FrameworkExtractionResult,
-  FrameworkResolver,
-} from '../types';
+import { FrameworkResolver } from '../types';
 
 const CODEGEN_DECL_RE =
   /codegenNativeComponent\s*(?:<[^>]+>)?\s*\(\s*['"]([A-Za-z_][A-Za-z0-9_]*)['"]/g;
@@ -407,19 +404,10 @@ export const fabricViewResolver: FrameworkResolver = {
     return false;
   },
 
-  // extract() kept for the typescript engine; on rust-hybrid the backfills
-  // (rust-js / rust-java / rust-kotlin-framework-routes.ts) replay
-  // `extractFabricNodes` / `extractJvmViewManagerNodes` directly. ObjC branch
-  // removed in 1-4-1-23 (replayed by rust-objc-framework-routes.ts).
-  extract(filePath, source): FrameworkExtractionResult {
-    let nodes: Node[] = [];
-    if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) {
-      nodes = extractFabricNodes(filePath, source);
-    } else if (filePath.endsWith('.java') || filePath.endsWith('.kt')) {
-      nodes = extractJvmViewManagerNodes(filePath, source);
-    }
-    return { nodes, references: [] };
-  },
+  // extract() removed after 1-4-2-9: all supported languages (TypeScript,
+  // Java, Kotlin, ObjC) are now rust-owned, and the backfill modules replay
+  // `extractFabricNodes` / `extractJvmViewManagerNodes` /
+  // `extractLegacyViewManagerNodes` directly during hybrid finalization.
 
   resolve() {
     // The companion synthesizer (`fabricNativeImplEdges`) handles

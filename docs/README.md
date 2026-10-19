@@ -167,6 +167,8 @@ Per-language real-corpus validation, ordered by date:
   — Kotlin expect→actual semantic enhancement (roadmap 1-2-8-5).
 - [2026-10-14-rust-owned-luau-lute-rbxutil-validation.md](evidence/2026-10-14-rust-owned-luau-lute-rbxutil-validation.md)
   — Luau (lute + RbxUtil) real-corpus validation (roadmap 1-2-13-3).
+- [2026-10-14-rust-owned-pascal-mormot-validation.md](evidence/2026-10-14-rust-owned-pascal-mormot-validation.md)
+  — Pascal (mORMot) real-corpus validation: 433 files, 0 errors, 44K nodes (roadmap 1-2-10-3).
 - [2026-10-15-rust-owned-scala-spark-validation.md](evidence/2026-10-15-rust-owned-scala-spark-validation.md)
   — Scala (apache/spark) real-corpus validation.
 - [2026-10-17-rust-owned-express-expressjs-validation.md](evidence/2026-10-17-rust-owned-express-expressjs-validation.md)
