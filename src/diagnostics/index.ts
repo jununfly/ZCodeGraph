@@ -8,6 +8,7 @@ import { isGeneratedFile } from '../extraction/generated-detection';
 import {
   buildRustHybridFallbackSummary,
   formatRustHybridFallbackHealthLines,
+  type RustHybridAggregatedFinding,
 } from './fallback-summary';
 import { classifyGraphHealth, type GraphHealthDiagnosticRecord } from './graph-health';
 
@@ -373,6 +374,60 @@ function corpusFingerprint(projectRoot: string): unknown {
   };
 }
 
+// #686: cap the per-finding sample of path hashes so the aggregate row stays
+// scannable even when the raw population is large (the original report had
+// 136 identical Vue parser errors).
+const AGGREGATED_FINDING_SAMPLE_LIMIT = 3;
+
+type AggregatedFindingWithSamples = RustHybridAggregatedFinding & {
+  samplePathHashes: string[];
+};
+
+/**
+ * #686: collapse per-file diagnostics that share the same
+ * (language, code, message) triple into a single aggregate finding with a
+ * count and a small sample of path hashes. The raw `errors[]` array is kept
+ * verbatim alongside; the aggregate is a triage view over it, not a
+ * replacement. Grouping preserves the replay-safe contract — we carry only
+ * path hashes, never plaintext paths or source slices.
+ */
+function aggregatePerFileDiagnostics(
+  errors: DiagnosticRunRecord['errors'],
+): AggregatedFindingWithSamples[] {
+  const byKey = new Map<string, {
+    language: string;
+    code: string;
+    message: string;
+    count: number;
+    samplePathHashes: string[];
+  }>();
+  for (const err of errors) {
+    const language = err.language ?? 'unknown';
+    const code = err.code ?? 'unknown';
+    const message = err.message ?? '';
+    const pathHash = err.pathHash ?? '';
+    const key = `${language}${code}${message}`;
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.count += 1;
+      if (pathHash && existing.samplePathHashes.length < AGGREGATED_FINDING_SAMPLE_LIMIT) {
+        existing.samplePathHashes.push(pathHash);
+      }
+    } else {
+      byKey.set(key, {
+        language,
+        code,
+        message,
+        count: 1,
+        samplePathHashes: pathHash ? [pathHash] : [],
+      });
+    }
+  }
+  return [...byKey.values()].sort(
+    (a, b) => b.count - a.count || a.language.localeCompare(b.language) || a.code.localeCompare(b.code),
+  );
+}
+
 function perFileDiagnostics(record: DiagnosticRunRecord): unknown {
   const fallbackSummary = (record.statusSummary as { index?: { hybrid?: {
     fallbackState?: string;
@@ -397,6 +452,10 @@ function perFileDiagnostics(record: DiagnosticRunRecord): unknown {
         missingFallbackByLanguage: fallbackSummary.missingFallbackByLanguage ?? {},
         fallbackByLanguage: fallbackSummary.fallbackByLanguage ?? {},
       } : null,
+      // #686: identical (language, code, message) per-file diagnostics are
+      // collapsed here with a count + sample path hashes. The full un-grouped
+      // errors[] below stays as the replay-safe record referenced by samples.
+      aggregatedFindings: aggregatePerFileDiagnostics(record.errors),
     },
     errors: record.errors.map((err) => ({
       pathHash: err.pathHash,
@@ -545,6 +604,14 @@ export function buildDiagnosticBundleSummary(projectRoot: string, relativeBundle
         missingFallbackFileCount?: number | null;
         missingFallbackByLanguage?: Record<string, number>;
       } | null;
+      // #686: per-bundle aggregate grouped from errors[] at write time.
+      aggregatedFindings?: Array<{
+        language: string;
+        code: string;
+        message: string;
+        count: number;
+        samplePathHashes?: string[];
+      }>;
     };
     errors?: Array<{ severity?: string; code?: string }>;
   };
@@ -594,6 +661,17 @@ export function buildDiagnosticBundleSummary(projectRoot: string, relativeBundle
   fallbackSummary.fallbackState = (aggregateTaxonomy.fallbackState === 'degraded' || aggregateTaxonomy.fallbackState === 'partial')
     ? aggregateTaxonomy.fallbackState as typeof fallbackSummary.fallbackState
     : fallbackSummary.fallbackState;
+  // #686: forward the per-bundle aggregated findings so any non-healthy
+  // branch of formatRustHybridFallbackHealthLines renders the
+  // `Top aggregated findings:` block alongside the health line.
+  if (perFile.classification?.aggregatedFindings) {
+    fallbackSummary.aggregatedFindings = perFile.classification.aggregatedFindings.map((finding) => ({
+      language: finding.language,
+      code: finding.code,
+      message: finding.message,
+      count: finding.count,
+    }));
+  }
   const graphHealth = source === 'last-failure' ? 'failed' : fallbackSummary.fallbackState;
   lines.push(`Graph health: ${graphHealth}`);
   if (fallbackSummary.fallbackState === 'degraded') {

@@ -20,6 +20,19 @@ export type RustHybridFallbackReasonCount = {
   count: number;
 };
 
+/**
+ * #686: one row per distinct (language, code, message) triple observed across
+ * the per-file diagnostics — the aggregate collapses N identical entries
+ * (e.g. 136 Vue files all reporting the same parser_error) into a single
+ * scannable first-screen finding.
+ */
+export type RustHybridAggregatedFinding = {
+  language: string;
+  code: string;
+  message: string;
+  count: number;
+};
+
 export type RustHybridFallbackSummary = {
   fallbackState: RustHybridFallbackState;
   fallbackFileCount: number;
@@ -29,6 +42,13 @@ export type RustHybridFallbackSummary = {
   fallbackReasonTaxonomy: Record<string, number>;
   topFallbackReasons: RustHybridFallbackReasonCount[];
   graphUsabilityMessage: string;
+  /**
+   * #686: populated by the doctor bundle builder after grouping per-file
+   * diagnostics; rendered by formatRustHybridFallbackHealthLines for any
+   * non-healthy state. Optional so existing callers that never see per-file
+   * diagnostics keep their current output byte-identical.
+   */
+  aggregatedFindings?: RustHybridAggregatedFinding[];
 };
 
 const DEGRADED_GRAPH_USABILITY_MESSAGE =
@@ -102,6 +122,27 @@ function formatReasonCount(reason: RustHybridFallbackReasonCount): string {
   return `${reason.count} ${rustHybridFallbackReasonLabel(reason.code)}`;
 }
 
+// #686: keep first-screen aggregate lines short enough to scan. The full
+// un-truncated message lives in per-file-diagnostics.json; the first screen
+// only needs enough to classify the finding.
+const AGGREGATED_MESSAGE_BUDGET = 80;
+
+function formatAggregatedFinding(finding: RustHybridAggregatedFinding): string {
+  const message = finding.message.length > AGGREGATED_MESSAGE_BUDGET
+    ? `${finding.message.slice(0, AGGREGATED_MESSAGE_BUDGET)}…`
+    : finding.message;
+  return `${finding.count} ${finding.language} ${finding.code} "${message}"`;
+}
+
+function formatAggregatedFindingsBlock(findings: RustHybridAggregatedFinding[] | undefined): string {
+  if (!findings || findings.length === 0) return '';
+  const sorted = [...findings].sort(
+    (a, b) => b.count - a.count || a.language.localeCompare(b.language) || a.code.localeCompare(b.code),
+  );
+  const lines = sorted.slice(0, 3).map((finding) => `  ${formatAggregatedFinding(finding)}`);
+  return `\nTop aggregated findings:\n${lines.join('\n')}`;
+}
+
 export function formatRustHybridFallbackHealthLines(summary: RustHybridFallbackSummary): string[] {
   if (summary.fallbackState === 'healthy') return ['Fallback health: healthy'];
   if (summary.fallbackState === 'partial') {
@@ -112,7 +153,7 @@ export function formatRustHybridFallbackHealthLines(summary: RustHybridFallbackS
       : '';
     return [
       'Fallback health: partial',
-      `${summary.graphUsabilityMessage}\n${summary.fallbackFileCount} files indexed via TypeScript fallback (non-Rust-owned languages)${langBlock}`,
+      `${summary.graphUsabilityMessage}\n${summary.fallbackFileCount} files indexed via TypeScript fallback (non-Rust-owned languages)${langBlock}${formatAggregatedFindingsBlock(summary.aggregatedFindings)}`,
     ];
   }
   const reasons = summary.topFallbackReasons.slice(0, 3).map(formatReasonCount);
@@ -126,7 +167,7 @@ export function formatRustHybridFallbackHealthLines(summary: RustHybridFallbackS
     : '';
   return [
     'Fallback health: degraded',
-    `${summary.graphUsabilityMessage}\n${reasonBlock}${langBlock}`,
+    `${summary.graphUsabilityMessage}\n${reasonBlock}${langBlock}${formatAggregatedFindingsBlock(summary.aggregatedFindings)}`,
   ];
 }
 

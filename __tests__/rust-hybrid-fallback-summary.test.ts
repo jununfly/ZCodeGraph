@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildRustHybridFallbackSummary,
   formatRustHybridFallbackDoctorHint,
+  formatRustHybridFallbackHealthLines,
 } from '../src/diagnostics/fallback-summary';
 
 describe('rust-hybrid fallback summary contract', () => {
@@ -92,5 +93,95 @@ describe('rust-hybrid fallback summary contract', () => {
 
     expect(summary.fallbackState).toBe('healthy');
     expect(formatRustHybridFallbackDoctorHint(summary)).toEqual([]);
+  });
+});
+
+// #686: repeated identical per-file parser diagnostics (e.g. 136 Vue files all
+// failing with "Failed to get parser for language: typescript") must collapse
+// into one aggregate finding surfaced alongside the `partial` health line —
+// not be silently listed only in per-file-diagnostics.json.
+describe('rust-hybrid aggregated per-file findings (#686)', () => {
+  it('surfaces aggregated findings on the partial branch of formatRustHybridFallbackHealthLines', () => {
+    const summary = buildRustHybridFallbackSummary({
+      success: true,
+      profile: {
+        typescriptFallbackAppend: {
+          fallbackFileCount: 148,
+          fallbackByLanguage: { vue: 136, yaml: 12 },
+        },
+      },
+      errors: [],
+    });
+    summary.aggregatedFindings = [
+      {
+        language: 'vue',
+        code: 'parser_error',
+        message: 'Failed to get parser for language: typescript',
+        count: 136,
+      },
+      {
+        language: 'yaml',
+        code: 'parser_error',
+        message: 'Failed to get parser for language: yaml',
+        count: 12,
+      },
+    ];
+
+    const lines = formatRustHybridFallbackHealthLines(summary);
+    const rendered = lines.join('\n');
+
+    expect(lines[0]).toBe('Fallback health: partial');
+    expect(rendered).toContain('Top aggregated findings:');
+    expect(rendered).toContain('136 vue parser_error "Failed to get parser for language: typescript"');
+    expect(rendered).toContain('12 yaml parser_error "Failed to get parser for language: yaml"');
+  });
+
+  it('omits the aggregated-findings block when no findings are supplied (partial)', () => {
+    const summary = buildRustHybridFallbackSummary({
+      success: true,
+      profile: { typescriptFallbackAppend: { fallbackFileCount: 1 } },
+      errors: [],
+    });
+
+    const rendered = formatRustHybridFallbackHealthLines(summary).join('\n');
+    expect(rendered).toContain('Fallback health: partial');
+    expect(rendered).not.toContain('Top aggregated findings:');
+  });
+
+  it('truncates long messages in aggregate lines to keep the first screen scannable', () => {
+    const longMessage = 'Failed to get parser for language: typescript — this is an unusually long explanation that should be trimmed for the first-screen rendering because it would overflow the line budget';
+    const summary = buildRustHybridFallbackSummary({
+      success: true,
+      profile: { typescriptFallbackAppend: { fallbackFileCount: 5 } },
+      errors: [],
+    });
+    summary.aggregatedFindings = [
+      { language: 'vue', code: 'parser_error', message: longMessage, count: 5 },
+    ];
+
+    const rendered = formatRustHybridFallbackHealthLines(summary).join('\n');
+    const aggLine = rendered.split('\n').find((l) => l.includes('vue parser_error'));
+    expect(aggLine).toBeDefined();
+    // First-screen line budget: truncated to <= 100 chars total.
+    expect(aggLine!.length).toBeLessThanOrEqual(120);
+    expect(aggLine).toContain('…');
+  });
+
+  it('keeps degraded branch unchanged when aggregated findings are supplied', () => {
+    const summary = buildRustHybridFallbackSummary({
+      success: true,
+      profile: { typescriptFallbackAppend: { fallbackFileCount: 2 } },
+      errors: [{ severity: 'warning', code: 'rust-owned-parse-gap' }],
+    });
+    summary.aggregatedFindings = [
+      { language: 'rust', code: 'parser_error', message: 'rust parse failure', count: 1 },
+    ];
+
+    const rendered = formatRustHybridFallbackHealthLines(summary).join('\n');
+    expect(rendered).toContain('Fallback health: degraded');
+    expect(rendered).toContain('Top fallback reasons:');
+    // Degraded branch already surfaces top fallback reasons; aggregated
+    // findings are additive — they must still appear.
+    expect(rendered).toContain('Top aggregated findings:');
   });
 });

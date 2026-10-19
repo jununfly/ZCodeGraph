@@ -43,6 +43,55 @@ function latestBundlePath(stdout: string): string {
   return line!.slice(line!.indexOf('.zcodegraph/diagnostics/bundles/'));
 }
 
+// #686: fabricate a Rust core that emits N identical (language, code, message)
+// per-file diagnostics — mirroring the original issue report (136 Vue files
+// all failing with the same parser_error). The doctor bundle must collapse
+// these into ONE aggregated finding instead of listing N raw entries.
+function writeFakeRustCoreWithRepeatedDiagnostics(dir: string, opts: {
+  language: string;
+  code: string;
+  message: string;
+  count: number;
+}): string {
+  const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-core-repeat.cjs' : 'fake-rust-core-repeat');
+  const errors: string[] = [];
+  for (let i = 0; i < opts.count; i += 1) {
+    errors.push(`    {
+      filePath: ${JSON.stringify(`file-${i}.${opts.language}`)},
+      language: ${JSON.stringify(opts.language)},
+      code: ${JSON.stringify(opts.code)},
+      severity: "error",
+      writtenByRust: false,
+      line: 1,
+      column: 1,
+      message: ${JSON.stringify(opts.message)}
+    }`);
+  }
+  fs.writeFileSync(
+    script,
+    [
+      '#!/usr/bin/env node',
+      'const args = process.argv.slice(2);',
+      'if (!args.includes("index")) process.exit(2);',
+      'process.stdout.write(JSON.stringify({',
+      '  type: "result",',
+      '  success: true,',
+      `  filesIndexed: ${opts.count},`,
+      '  filesSkipped: 0,',
+      `  filesErrored: ${opts.count},`,
+      '  nodesCreated: 0,',
+      '  edgesCreated: 0,',
+      '  errors: [',
+      errors.join(',\n'),
+      '  ],',
+      '  durationMs: 1',
+      '}) + "\\n");',
+    ].join('\n') + '\n',
+  );
+  fs.chmodSync(script, 0o755);
+  return script;
+}
+
 function writeFakeRustCoreWithPerFileGap(dir: string, filePath: string): string {
   const script = path.join(dir, process.platform === 'win32' ? 'fake-rust-core-gap.cjs' : 'fake-rust-core-gap');
   fs.writeFileSync(
@@ -375,4 +424,93 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     expect(result.stderr).toContain('zcodegraph index --engine rust-hybrid');
     expect(result.stderr).toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-failure');
   });
+
+  // #686: the original issue report — 136 Vue files all failing with the
+  // identical parser_error must collapse into ONE aggregated finding in the
+  // bundle JSON, not 136 ungrouped entries. Per-file detail must remain
+  // available and replay-safe (path-hash-only).
+  it('collapses repeated identical per-file diagnostics into one aggregated finding (#686)', () => {
+    const rustCore = writeFakeRustCoreWithRepeatedDiagnostics(tempDir, {
+      language: 'vue',
+      code: 'parser_error',
+      message: 'Failed to get parser for language: typescript',
+      count: 5,
+    });
+
+    const index = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+    expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
+
+    const doctor = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-run']);
+    expect(doctor.status, `stdout:\n${doctor.stdout}\nstderr:\n${doctor.stderr}`).toBe(0);
+    // Accept either path separator — the CLI prints whatever `path.relative`
+    // yields for the current platform, so on Windows the bundle path uses `\`.
+    const bundleLine = doctor.stdout.trim().split('\n').find((entry) => entry.includes('.zcodegraph'));
+    expect(bundleLine, doctor.stdout).toBeDefined();
+    const bundleRelative = bundleLine!.slice(bundleLine!.indexOf('.zcodegraph'));
+    const bundleDir = path.resolve(tempDir, bundleRelative);
+
+    const perFile = readJson(path.join(bundleDir, 'per-file-diagnostics.json'));
+
+    // The aggregated findings block groups identical (language, code, message)
+    // triples with a count and a small sample of path hashes for triage.
+    expect(perFile.classification.aggregatedFindings).toEqual([
+      expect.objectContaining({
+        language: 'vue',
+        code: 'parser_error',
+        message: 'Failed to get parser for language: typescript',
+        count: 5,
+        samplePathHashes: expect.any(Array),
+      }),
+    ]);
+    expect(perFile.classification.aggregatedFindings[0].samplePathHashes.length).toBeGreaterThan(0);
+    expect(perFile.classification.aggregatedFindings[0].samplePathHashes.length).toBeLessThanOrEqual(3);
+    for (const hash of perFile.classification.aggregatedFindings[0].samplePathHashes) {
+      expect(hash).toMatch(/^[a-f0-9]{16,}$/);
+    }
+
+    // Per-file detail is preserved (one entry per file) and stays replay-safe.
+    expect(perFile.errors).toHaveLength(5);
+    for (const err of perFile.errors) {
+      expect(err.pathHash).toMatch(/^[a-f0-9]{16,}$/);
+      expect(err.language).toBe('vue');
+      expect(err.code).toBe('parser_error');
+    }
+    // Replay-safe: no plaintext paths leak.
+    const diagnosticsText = fs.readFileSync(path.join(bundleDir, 'per-file-diagnostics.json'), 'utf-8');
+    expect(diagnosticsText).not.toContain('file-0.vue');
+    expect(diagnosticsText).not.toContain(tempDir);
+  }, 30_000);
+
+  // #686 acceptance #2: when fallback state is `partial` and the bundle carries
+  // aggregated per-file findings, the doctor stdout must surface the aggregate
+  // (not just leave it inside the JSON artifact) — otherwise the diagnostics
+  // that exist read as more severe than the aggregate outcome.
+  it('surfaces aggregated findings on the doctor stdout for partial state (#686)', () => {
+    // Seed a project whose plan yields partial: real fixture has non-Rust-owned
+    // files (e.g. .vue) that plan as TypeScript fallback, and the fake rust
+    // core additionally reports identical per-file parser errors that do NOT
+    // enter the fallbackReasonTaxonomy (severity:error parser_error, not
+    // rust-owned-*), so the state stays partial.
+    fs.writeFileSync(path.join(tempDir, 'Component.vue'), '<template><div/></template>\n');
+    const rustCore = writeFakeRustCoreWithRepeatedDiagnostics(tempDir, {
+      language: 'vue',
+      code: 'parser_error',
+      message: 'Failed to get parser for language: typescript',
+      count: 4,
+    });
+
+    const index = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
+      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    });
+    expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
+
+    const doctor = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-run']);
+    expect(doctor.status, `stdout:\n${doctor.stdout}\nstderr:\n${doctor.stderr}`).toBe(0);
+
+    expect(doctor.stdout).toContain('Fallback health: partial');
+    expect(doctor.stdout).toContain('Top aggregated findings:');
+    expect(doctor.stdout).toMatch(/4 vue parser_error "Failed to get parser for language: typescript"/);
+  }, 30_000);
 });
