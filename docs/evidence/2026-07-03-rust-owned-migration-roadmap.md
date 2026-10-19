@@ -68,7 +68,7 @@ and should be migrated language by language:
 - [x] C: functions, structs, enums, typedefs, includes, calls, header
       classification boundary. Baseline migration completed with
       `DaveGamble/cJSON` corpus evidence recorded in
-      `docs/benchmarks/2026-07-03-rust-owned-c-cjson-validation.md`;
+      `docs/evidence/2026-07-03-rust-owned-c-cjson-validation.md`;
       `libuv/libuv` remains a future macro-heavy C stress corpus.
 - [ ] C++: functions, classes, structs, enums, typedefs/aliases, includes,
       calls, namespace/member boundary.
@@ -212,7 +212,7 @@ Near-term clean candidates from the current map:
 - Kotlin baseline migration, because Spring resolver boundaries are already
   explicit. Java baseline migration is complete; Spring/Play framework semantics
   remain TypeScript-shell owned, with corpus evidence recorded in
-  `docs/benchmarks/2026-07-03-rust-owned-java-spring-petclinic-validation.md`.
+  `docs/evidence/2026-07-03-rust-owned-java-spring-petclinic-validation.md`.
 - Swift baseline migration, if mobile bridge ownership becomes product priority.
 
 ## Completed Migration Notes

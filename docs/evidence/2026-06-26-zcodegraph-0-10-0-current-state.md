@@ -67,8 +67,8 @@ The default user path is `rust-hybrid`. Rust-owned languages in this build are J
 
 ## Long-Lived Artifacts
 
-- `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-current-state-summary.json`
-- `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab.md`
-- `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab-summary.json`
+- `docs/evidence/2026-06-26-zcodegraph-0-10-0-current-state-summary.json`
+- `docs/evidence/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab.md`
+- `docs/evidence/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab-summary.json`
 
 The roadmap, raw profile files, probe output logs, status snapshots, and baseline runner output were process artifacts. Their durable conclusions are merged into this document and the summary JSON.

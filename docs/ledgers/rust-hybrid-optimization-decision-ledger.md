@@ -22,9 +22,9 @@ Cleanup rule:
   first-user and performance routing decisions;
 - long-lived theme evidence remains separate when it is a useful knowledge
   entry point:
-  - `docs/designs/finalization-tail-boundary-contract.md`
-  - `docs/designs/rust-hybrid-parse-extraction-decision-ledger.md`
-  - `docs/designs/resolver-semantic-residuals-ledger.md`
+  - `docs/contracts/finalization-tail-boundary-contract.md`
+  - `docs/ledgers/rust-hybrid-parse-extraction-decision-ledger.md`
+  - `docs/ledgers/resolver-semantic-residuals-ledger.md`
 - raw result JSON, profile directories, generated experiment summaries, and
   issue-scoped closeout files are deleted once their durable facts are absorbed
   here or in the theme evidence files;
@@ -48,13 +48,13 @@ durable conclusion is:
 
 Absorbed files:
 
-- `docs/benchmarks/2026-06-24-rust-hybrid-candidate-protocol-routing-ab-result.md`
-- `docs/benchmarks/2026-06-24-rust-hybrid-candidate-protocol-routing-result.json`
-- `docs/benchmarks/2026-06-24-rust-hybrid-candidate-protocol-routing-vscode-disabled-result.json`
-- `docs/benchmarks/2026-06-24-rust-hybrid-candidate-protocol-shape-diagnostics-decision.md`
-- `docs/benchmarks/2026-06-24-rust-hybrid-comprehensive-performance-baseline-result.json`
-- `docs/benchmarks/2026-06-24-rust-hybrid-comprehensive-performance-baseline-result.md`
-- `docs/benchmarks/2026-06-24-rust-hybrid-comprehensive-performance-closeout-decision.md`
+- `docs/evidence/2026-06-24-rust-hybrid-candidate-protocol-routing-ab-result.md`
+- `docs/evidence/2026-06-24-rust-hybrid-candidate-protocol-routing-result.json`
+- `docs/evidence/2026-06-24-rust-hybrid-candidate-protocol-routing-vscode-disabled-result.json`
+- `docs/evidence/2026-06-24-rust-hybrid-candidate-protocol-shape-diagnostics-decision.md`
+- `docs/evidence/2026-06-24-rust-hybrid-comprehensive-performance-baseline-result.json`
+- `docs/evidence/2026-06-24-rust-hybrid-comprehensive-performance-baseline-result.md`
+- `docs/evidence/2026-06-24-rust-hybrid-comprehensive-performance-closeout-decision.md`
 
 ### First-User Performance Closeout
 
@@ -86,14 +86,14 @@ Key current-repo medians:
 
 Absorbed files and directories:
 
-- `docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-baseline-closeout-decision.md`
-- `docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-baseline-result.json`
-- `docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-candidate-routing-closeout-decision.md`
-- `docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-closeout-decision.md`
-- `docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-diagnostic-closeout-decision.md`
-- `docs/benchmarks/2026-06-25-rust-hybrid-first-user-performance-diagnostic-result.json`
-- `docs/benchmarks/2026-06-25-rust-hybrid-cleanup-edge-write-optimization-closeout-decision.md`
-- `docs/benchmarks/2026-06-25-rust-hybrid-cleanup-edge-write-optimization-result.json`
+- `docs/evidence/2026-06-25-rust-hybrid-first-user-performance-baseline-closeout-decision.md`
+- `docs/evidence/2026-06-25-rust-hybrid-first-user-performance-baseline-result.json`
+- `docs/evidence/2026-06-25-rust-hybrid-first-user-performance-candidate-routing-closeout-decision.md`
+- `docs/evidence/2026-06-25-rust-hybrid-first-user-performance-closeout-decision.md`
+- `docs/evidence/2026-06-25-rust-hybrid-first-user-performance-diagnostic-closeout-decision.md`
+- `docs/evidence/2026-06-25-rust-hybrid-first-user-performance-diagnostic-result.json`
+- `docs/evidence/2026-06-25-rust-hybrid-cleanup-edge-write-optimization-closeout-decision.md`
+- `docs/evidence/2026-06-25-rust-hybrid-cleanup-edge-write-optimization-result.json`
 - `docs/benchmarks/tmp-2026-06-25-rust-hybrid-first-user-performance-baseline-result/`
 - `docs/benchmarks/tmp-2026-06-25-rust-hybrid-first-user-performance-diagnostic-result/`
 - `docs/benchmarks/tmp-2026-06-25-rust-hybrid-cleanup-edge-write-optimization-result/`
@@ -111,55 +111,55 @@ artifacts were absorbed as lifecycle decisions:
 
 Absorbed files:
 
-- `docs/benchmarks/2026-06-25-rust-hybrid-research-oracle-needed-routes-closeout-decision.md`
-- `docs/benchmarks/2026-06-25-rust-hybrid-tail-diagnostic-bucket-contract.md`
+- `docs/evidence/2026-06-25-rust-hybrid-research-oracle-needed-routes-closeout-decision.md`
+- `docs/evidence/2026-06-25-rust-hybrid-tail-diagnostic-bucket-contract.md`
 
 ## Source Files
-- `docs/benchmarks/2026-06-18-rust-hybrid-phase-2-gin-smoke-evidence.md`
-- `docs/benchmarks/2026-06-18-rust-hybrid-phase-3-gin-examples-smoke-evidence.md`
-- `docs/benchmarks/2026-06-18-rust-hybrid-phase-4-diagnostic-bundle-smoke-evidence.md`
-- `docs/benchmarks/2026-06-18-rust-hybrid-phase-5-packaged-smoke-evidence.md`
-- `docs/benchmarks/2026-06-18-rust-hybrid-phase-6-per-file-gap-fallback-evidence.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-indexing-performance-ab-after-vscode-sparse.profile.json`
-- `docs/benchmarks/2026-06-19-rust-hybrid-indexing-performance-ab-after-zcodegraph.profile.json`
-- `docs/benchmarks/2026-06-19-rust-hybrid-indexing-performance-ab-after.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-indexing-performance-ab-baseline-vscode-sparse.profile.json`
-- `docs/benchmarks/2026-06-19-rust-hybrid-indexing-performance-ab-baseline-zcodegraph.profile.json`
-- `docs/benchmarks/2026-06-19-rust-hybrid-indexing-performance-ab-baseline.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-issue-281-gin-route-query-sufficiency.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-optimization-big-picture-decision.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-phase-7-sdk-alignment-evidence.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-phase-8-packaged-smoke-recheck-evidence.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-phase-8-prd-gate-audit.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-phase-8-real-gin-smoke-evidence.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-pre-release-agent-sufficiency.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-pre-release-api-cleanup-evidence.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-pre-release-smoke-evidence.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-wall-clock-ab-v2-after-vscode-sparse.profile.json`
-- `docs/benchmarks/2026-06-19-rust-hybrid-wall-clock-ab-v2-after-zcodegraph.profile.json`
-- `docs/benchmarks/2026-06-19-rust-hybrid-wall-clock-ab-v2-after.md`
-- `docs/benchmarks/2026-06-19-rust-hybrid-wall-clock-ab-v2-baseline-vscode-sparse.profile.json`
-- `docs/benchmarks/2026-06-19-rust-hybrid-wall-clock-ab-v2-baseline-zcodegraph.profile.json`
-- `docs/benchmarks/2026-06-19-rust-hybrid-wall-clock-ab-v2-baseline.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-candidate-lookup-cache-protocol-plan.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-candidate-producer-routing-closeout-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-candidate-protocol-closeout-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-complete-candidate-producer-routing-boundary-closeout-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-finalization-architecture-map.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-finalization-cleanup-closeout-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-finalization-edge-write-bulk-insert-closeout-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-js-ts-file-import-target-parity-closeout-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-legacy-env-flag-config-audit.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-lowername-default-on-routing-closeout-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-resolver-migration-closeout-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-resolver-migration-ownership-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-rust-candidate-producer-closeout-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-rust-candidate-producer-complete-shape-coverage-closeout-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-rust-candidate-producer-lowername-closeout-decision.md`
-- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/evidence/2026-06-18-rust-hybrid-phase-2-gin-smoke-evidence.md`
+- `docs/evidence/2026-06-18-rust-hybrid-phase-3-gin-examples-smoke-evidence.md`
+- `docs/evidence/2026-06-18-rust-hybrid-phase-4-diagnostic-bundle-smoke-evidence.md`
+- `docs/evidence/2026-06-18-rust-hybrid-phase-5-packaged-smoke-evidence.md`
+- `docs/evidence/2026-06-18-rust-hybrid-phase-6-per-file-gap-fallback-evidence.md`
+- `docs/evidence/2026-06-19-rust-hybrid-indexing-performance-ab-after-vscode-sparse.profile.json`
+- `docs/evidence/2026-06-19-rust-hybrid-indexing-performance-ab-after-zcodegraph.profile.json`
+- `docs/evidence/2026-06-19-rust-hybrid-indexing-performance-ab-after.md`
+- `docs/evidence/2026-06-19-rust-hybrid-indexing-performance-ab-baseline-vscode-sparse.profile.json`
+- `docs/evidence/2026-06-19-rust-hybrid-indexing-performance-ab-baseline-zcodegraph.profile.json`
+- `docs/evidence/2026-06-19-rust-hybrid-indexing-performance-ab-baseline.md`
+- `docs/evidence/2026-06-19-rust-hybrid-issue-281-gin-route-query-sufficiency.md`
+- `docs/evidence/2026-06-19-rust-hybrid-optimization-big-picture-decision.md`
+- `docs/evidence/2026-06-19-rust-hybrid-phase-7-sdk-alignment-evidence.md`
+- `docs/evidence/2026-06-19-rust-hybrid-phase-8-packaged-smoke-recheck-evidence.md`
+- `docs/evidence/2026-06-19-rust-hybrid-phase-8-prd-gate-audit.md`
+- `docs/evidence/2026-06-19-rust-hybrid-phase-8-real-gin-smoke-evidence.md`
+- `docs/evidence/2026-06-19-rust-hybrid-pre-release-agent-sufficiency.md`
+- `docs/evidence/2026-06-19-rust-hybrid-pre-release-api-cleanup-evidence.md`
+- `docs/evidence/2026-06-19-rust-hybrid-pre-release-smoke-evidence.md`
+- `docs/evidence/2026-06-19-rust-hybrid-wall-clock-ab-v2-after-vscode-sparse.profile.json`
+- `docs/evidence/2026-06-19-rust-hybrid-wall-clock-ab-v2-after-zcodegraph.profile.json`
+- `docs/evidence/2026-06-19-rust-hybrid-wall-clock-ab-v2-after.md`
+- `docs/evidence/2026-06-19-rust-hybrid-wall-clock-ab-v2-baseline-vscode-sparse.profile.json`
+- `docs/evidence/2026-06-19-rust-hybrid-wall-clock-ab-v2-baseline-zcodegraph.profile.json`
+- `docs/evidence/2026-06-19-rust-hybrid-wall-clock-ab-v2-baseline.md`
+- `docs/evidence/2026-06-20-rust-hybrid-candidate-lookup-cache-protocol-plan.md`
+- `docs/evidence/2026-06-20-rust-hybrid-candidate-producer-routing-closeout-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-candidate-protocol-closeout-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-complete-candidate-producer-routing-boundary-closeout-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-finalization-architecture-map.md`
+- `docs/evidence/2026-06-20-rust-hybrid-finalization-cleanup-closeout-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-finalization-edge-write-bulk-insert-closeout-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-js-ts-file-import-target-parity-closeout-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-legacy-env-flag-config-audit.md`
+- `docs/evidence/2026-06-20-rust-hybrid-lowername-default-on-routing-closeout-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-resolver-migration-closeout-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-resolver-migration-ownership-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-rust-candidate-producer-closeout-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-rust-candidate-producer-complete-shape-coverage-closeout-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-rust-candidate-producer-lowername-closeout-decision.md`
+- `docs/evidence/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/evidence/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 
-### 1. `docs/benchmarks/2026-06-18-rust-hybrid-phase-2-gin-smoke-evidence.md
+### 1. `docs/evidence/2026-06-18-rust-hybrid-phase-2-gin-smoke-evidence.md
 
 **Interpretation**
 
@@ -181,7 +181,7 @@ The selected real fixture does not contain a same-package helper call inside `up
 - Agent A/B was not run.
 - First-user release readiness is not claimed.
 
-### 2. `docs/benchmarks/2026-06-18-rust-hybrid-phase-3-gin-examples-smoke-evidence.md
+### 2. `docs/evidence/2026-06-18-rust-hybrid-phase-3-gin-examples-smoke-evidence.md
 
 **Summary**
 
@@ -198,7 +198,7 @@ Result: pass.
 - Performance gates remain out of scope for this phase.
 - First-user release readiness is not claimed by this evidence.
 
-### 3. `docs/benchmarks/2026-06-18-rust-hybrid-phase-4-diagnostic-bundle-smoke-evidence.md
+### 3. `docs/evidence/2026-06-18-rust-hybrid-phase-4-diagnostic-bundle-smoke-evidence.md
 
 **Summary**
 
@@ -216,7 +216,7 @@ Result: pass.
 - SDK behavior remains out of scope.
 - First-user release readiness is not claimed by this evidence.
 
-### 4. `docs/benchmarks/2026-06-18-rust-hybrid-phase-5-packaged-smoke-evidence.md
+### 4. `docs/evidence/2026-06-18-rust-hybrid-phase-5-packaged-smoke-evidence.md
 
 **Summary**
 
@@ -234,7 +234,7 @@ Result: pass.
 - No npm publish, GitHub Release workflow trigger, or tag push was performed.
 - Final first-user release readiness is not claimed by this evidence alone.
 
-### 5. `docs/benchmarks/2026-06-18-rust-hybrid-phase-6-per-file-gap-fallback-evidence.md
+### 5. `docs/evidence/2026-06-18-rust-hybrid-phase-6-per-file-gap-fallback-evidence.md
 
 **Summary**
 
@@ -253,7 +253,7 @@ This evidence does not validate:
 - performance or #165,
 - final first-user release readiness.
 
-### 8. `docs/benchmarks/2026-06-19-rust-hybrid-indexing-performance-ab-after.md
+### 8. `docs/evidence/2026-06-19-rust-hybrid-indexing-performance-ab-after.md
 
 **Candidate Tried**
 
@@ -298,7 +298,7 @@ Remaining bottleneck:
 
 This does not solve the overall indexing target alone. After the change, the VS Code sparse run is still dominated by TypeScript finalization and reference-resolution work (`typescriptFinalizationMs` 126,161ms, `referenceResolutionMs` 108,595ms). Continue tracking deeper long-run performance work in #165. The parse-extraction candidate #224 remains valid but was not the best first candidate in this A/B slice.
 
-### 11. `docs/benchmarks/2026-06-19-rust-hybrid-indexing-performance-ab-baseline.md
+### 11. `docs/evidence/2026-06-19-rust-hybrid-indexing-performance-ab-baseline.md
 
 **Scope**
 
@@ -325,7 +325,7 @@ Non-selected candidates:
 
 Decision for #287: proceed to #288 with the single bulk-transaction Rust write candidate.
 
-### 12. `docs/benchmarks/2026-06-19-rust-hybrid-issue-281-gin-route-query-sufficiency.md
+### 12. `docs/evidence/2026-06-19-rust-hybrid-issue-281-gin-route-query-sufficiency.md
 
 **Scope**
 
@@ -362,7 +362,7 @@ The mechanism is now available and the real targeted A/B converted to a clean su
 
 This does not claim broad Go/Gin benchmark replacement or complete Go framework coverage. It only closes the release-prep gap for tested Gin route lookup questions.
 
-### 13. `docs/benchmarks/2026-06-19-rust-hybrid-optimization-big-picture-decision.md
+### 13. `docs/evidence/2026-06-19-rust-hybrid-optimization-big-picture-decision.md
 
 **Decision**
 
@@ -400,7 +400,7 @@ from architectural bottlenecks."
 - This does not prescribe a Rust rewrite of TypeScript finalization; it only
   says the topic is now architectural rather than a small patch.
 
-### 14. `docs/benchmarks/2026-06-19-rust-hybrid-phase-7-sdk-alignment-evidence.md
+### 14. `docs/evidence/2026-06-19-rust-hybrid-phase-7-sdk-alignment-evidence.md
 
 **Summary**
 
@@ -429,7 +429,7 @@ This evidence does not validate:
 - npm publish,
 - final first-user release readiness.
 
-### 15. `docs/benchmarks/2026-06-19-rust-hybrid-phase-8-packaged-smoke-recheck-evidence.md
+### 15. `docs/evidence/2026-06-19-rust-hybrid-phase-8-packaged-smoke-recheck-evidence.md
 
 **Summary**
 
@@ -458,7 +458,7 @@ The targeted packaged smoke satisfies the Phase 8 packaging release gate:
 - Real Gin packaged smoke remains out of scope; real Gin source-build smoke and targeted package smoke are separate Phase 8 gates.
 - RSS was not available from this smoke command.
 
-### 16. `docs/benchmarks/2026-06-19-rust-hybrid-phase-8-prd-gate-audit.md
+### 16. `docs/evidence/2026-06-19-rust-hybrid-phase-8-prd-gate-audit.md
 
 **Gate Matrix**
 
@@ -482,7 +482,7 @@ The targeted packaged smoke satisfies the Phase 8 packaging release gate:
 | gRPC/protobuf generated Go flow coverage | Non-blocker | None | Explicit PRD non-goal; generated Go files can be skipped and counted. |
 | Broader Go generics edge support | Non-blocker | None | Explicit PRD non-goal for first-user release. |
 
-### 17. `docs/benchmarks/2026-06-19-rust-hybrid-phase-8-real-gin-smoke-evidence.md
+### 17. `docs/evidence/2026-06-19-rust-hybrid-phase-8-real-gin-smoke-evidence.md
 
 **Summary**
 
@@ -510,7 +510,7 @@ The degraded state is expected for this mixed repository because YAML fallback i
 - RSS was unavailable for this run due to sandboxed `/usr/bin/time -l` behavior.
 - Full Go module import resolution, gRPC/protobuf generated flows, and broad Go generics remain out of scope for the first-user release.
 
-### 18. `docs/benchmarks/2026-06-19-rust-hybrid-pre-release-agent-sufficiency.md
+### 18. `docs/evidence/2026-06-19-rust-hybrid-pre-release-agent-sufficiency.md
 
 **Scope**
 
@@ -547,7 +547,7 @@ README should not claim that current Go/Gin sufficiency is uniformly better. The
 - Go/Gin route lookup sufficiency is strong on the two targeted release-readiness prompts.
 - This was a targeted pre-release spot-check, not a full benchmark replacement.
 
-### 19. `docs/benchmarks/2026-06-19-rust-hybrid-pre-release-api-cleanup-evidence.md
+### 19. `docs/evidence/2026-06-19-rust-hybrid-pre-release-api-cleanup-evidence.md
 
 **Scope**
 
@@ -586,7 +586,7 @@ Result:
 
 #276 and #277 are complete from an implementation and documentation perspective. The remaining validation belongs to #278 packaged smoke, #279 Agent Sufficiency refresh, and #280 closeout.
 
-### 20. `docs/benchmarks/2026-06-19-rust-hybrid-pre-release-smoke-evidence.md
+### 20. `docs/evidence/2026-06-19-rust-hybrid-pre-release-smoke-evidence.md
 
 **Scope**
 
@@ -609,7 +609,7 @@ Summary files:
 
 #278 is complete. The first-user source and packaged smoke paths match the pre-release API polish requirements.
 
-### 23. `docs/benchmarks/2026-06-19-rust-hybrid-wall-clock-ab-v2-after.md
+### 23. `docs/evidence/2026-06-19-rust-hybrid-wall-clock-ab-v2-after.md
 
 **Candidate Tried**
 
@@ -686,7 +686,7 @@ Next recommendation:
   the largest end-to-end blocker, but require a narrow low-semantic-risk
   candidate before implementing there.
 
-### 26. `docs/benchmarks/2026-06-19-rust-hybrid-wall-clock-ab-v2-baseline.md
+### 26. `docs/evidence/2026-06-19-rust-hybrid-wall-clock-ab-v2-baseline.md
 
 **Scope**
 
@@ -728,7 +728,7 @@ Non-selected candidates:
 
 Decision for #291: proceed to #292 with the single parser reuse candidate.
 
-### 27. `docs/benchmarks/2026-06-20-rust-hybrid-candidate-lookup-cache-protocol-plan.md
+### 27. `docs/evidence/2026-06-20-rust-hybrid-candidate-lookup-cache-protocol-plan.md
 
 **Decision**
 
@@ -859,7 +859,7 @@ Fallback paths after no-go:
 3. local exact references slice;
 4. broad disambiguation migration plan only when evidence points there.
 
-### 28. `docs/benchmarks/2026-06-20-rust-hybrid-candidate-producer-routing-closeout-decision.md
+### 28. `docs/evidence/2026-06-20-rust-hybrid-candidate-producer-routing-closeout-decision.md
 
 **Decision**
 
@@ -909,7 +909,7 @@ Continue resolver migration through dedicated slices. Candidate producer routing
 can stay available as an experimental local config while the architecture work
 migrates finalization/reference-resolution ownership deliberately.
 
-### 29. `docs/benchmarks/2026-06-20-rust-hybrid-candidate-protocol-closeout-decision.md
+### 29. `docs/evidence/2026-06-20-rust-hybrid-candidate-protocol-closeout-decision.md
 
 **Decision**
 
@@ -953,7 +953,7 @@ Recommended next step: add a follow-up slice for a Rust producer or deeper resol
 
 Do not treat this slice as a speed win. Its value is decision quality: lookup shape vocabulary, graph-stability tests, profile diagnostics, and clean equivalence evidence.
 
-### 30. `docs/benchmarks/2026-06-20-rust-hybrid-complete-candidate-producer-routing-boundary-closeout-decision.md
+### 30. `docs/evidence/2026-06-20-rust-hybrid-complete-candidate-producer-routing-boundary-closeout-decision.md
 
 **Decision**
 
@@ -981,7 +981,7 @@ The complete routing boundary is safe to keep behind local config because it sta
 
 The performance profile is not a greenlight for default enablement. The VS Code sparse profile still shows `candidateLookupMs` and TypeScript finalization/reference-resolution as the dominant cost centers. Those are inputs for the resolver migration and architecture/performance PRD, not blockers for this local-config boundary.
 
-### 31. `docs/benchmarks/2026-06-20-rust-hybrid-finalization-architecture-map.md
+### 31. `docs/evidence/2026-06-20-rust-hybrid-finalization-architecture-map.md
 
 **Rust-Owned Work Already Visible At The Boundary**
 
@@ -1037,7 +1037,7 @@ candidate lookup/cache slice. The first slice may change how candidate sets are
 collected, cached, measured, or transported. It must not change how the final
 target is selected for a reference.
 
-### 32. `docs/benchmarks/2026-06-20-rust-hybrid-finalization-cleanup-closeout-decision.md
+### 32. `docs/evidence/2026-06-20-rust-hybrid-finalization-cleanup-closeout-decision.md
 
 **Decision**
 
@@ -1100,13 +1100,13 @@ Result:
 Command:
 
 ```bash
-/usr/bin/time -l env CODEGRAPH_ALLOW_UNSAFE_NODE=1 CODEGRAPH_NO_DAEMON=1 CODEGRAPH_NO_RELAUNCH=1 ZCODEGRAPH_INDEX_PROFILE_OUT=docs/benchmarks/2026-06-20-finalization-cleanup-current.profile.json node dist/bin/zcodegraph.js index . --force --quiet --engine rust-hybrid
+/usr/bin/time -l env CODEGRAPH_ALLOW_UNSAFE_NODE=1 CODEGRAPH_NO_DAEMON=1 CODEGRAPH_NO_RELAUNCH=1 ZCODEGRAPH_INDEX_PROFILE_OUT=docs/evidence/2026-06-20-finalization-cleanup-current.profile.json node dist/bin/zcodegraph.js index . --force --quiet --engine rust-hybrid
 ```
 
 Result:
 
 - profile artifact:
-  `docs/benchmarks/2026-06-20-finalization-cleanup-current.profile.json`;
+  `docs/evidence/2026-06-20-finalization-cleanup-current.profile.json`;
 - wall time: 4.51s;
 - maximum resident set size: 348782592;
 - peak memory footprint: 296807088;
@@ -1167,7 +1167,7 @@ Recommended next direction:
 - decide whether the next slice should target edge write ownership/protocol or
   broader per-reference disambiguation execution.
 
-### 33. `docs/benchmarks/2026-06-20-rust-hybrid-finalization-edge-write-bulk-insert-closeout-decision.md
+### 33. `docs/evidence/2026-06-20-rust-hybrid-finalization-edge-write-bulk-insert-closeout-decision.md
 
 **Scope**
 
@@ -1201,7 +1201,7 @@ This evidence supports keeping the simpler pre-serialized row path, but future p
 - The local environment used Node 26 with `CODEGRAPH_ALLOW_UNSAFE_NODE=1`, so the CLI emitted the existing unsafe Node warning. The run completed successfully.
 - RSS baseline was not available in the cleanup baseline artifacts, so RSS is recorded for the after runs only.
 
-### 34. `docs/benchmarks/2026-06-20-rust-hybrid-js-ts-file-import-target-parity-closeout-decision.md
+### 34. `docs/evidence/2026-06-20-rust-hybrid-js-ts-file-import-target-parity-closeout-decision.md
 
 **Decision**
 
@@ -1269,7 +1269,7 @@ The deterministic fixtures prove:
 - If continuing resolver migration, return to binding-level import/export symbol
   disambiguation because it remains the largest known unsupported category.
 
-### 35. `docs/benchmarks/2026-06-20-rust-hybrid-legacy-env-flag-config-audit.md
+### 35. `docs/evidence/2026-06-20-rust-hybrid-legacy-env-flag-config-audit.md
 
 **Decision**
 
@@ -1335,7 +1335,7 @@ Create a future technical-debt slice only when one of these becomes necessary:
 
 No runtime behavior changed as part of this audit.
 
-### 36. `docs/benchmarks/2026-06-20-rust-hybrid-lowername-default-on-routing-closeout-decision.md
+### 36. `docs/evidence/2026-06-20-rust-hybrid-lowername-default-on-routing-closeout-decision.md
 
 **Scope**
 
@@ -1416,7 +1416,7 @@ the `candidateLookupMs` regression. Plausible candidates:
   CLI emitted the existing unsafe Node warning. The runs completed
   successfully.
 
-### 37. `docs/benchmarks/2026-06-20-rust-hybrid-resolver-migration-closeout-decision.md
+### 37. `docs/evidence/2026-06-20-rust-hybrid-resolver-migration-closeout-decision.md
 
 **Decision**
 
@@ -1447,7 +1447,7 @@ decisions.
 
 Artifact:
 
-`docs/benchmarks/2026-06-20-rust-hybrid-finalization-architecture-map.md`
+`docs/evidence/2026-06-20-rust-hybrid-finalization-architecture-map.md`
 
 Result:
 
@@ -1463,7 +1463,7 @@ Result:
 
 Artifact:
 
-`docs/benchmarks/2026-06-20-rust-hybrid-resolver-migration-ownership-decision.md`
+`docs/evidence/2026-06-20-rust-hybrid-resolver-migration-ownership-decision.md`
 
 Result:
 
@@ -1480,7 +1480,7 @@ Result:
 
 Artifact:
 
-`docs/benchmarks/2026-06-20-rust-hybrid-candidate-lookup-cache-protocol-plan.md`
+`docs/evidence/2026-06-20-rust-hybrid-candidate-lookup-cache-protocol-plan.md`
 
 Result:
 
@@ -1511,7 +1511,7 @@ It must not change:
 Every-reference disambiguation remains TypeScript-owned until a later migration
 plan satisfies the preconditions in the ownership decision artifact.
 
-### 38. `docs/benchmarks/2026-06-20-rust-hybrid-resolver-migration-ownership-decision.md
+### 38. `docs/evidence/2026-06-20-rust-hybrid-resolver-migration-ownership-decision.md
 
 **Decision**
 
@@ -1586,7 +1586,7 @@ Rules:
 - Do not move raw benchmark evidence into ADRs. ADRs record durable architecture
   decisions; benchmark artifacts remain supporting evidence.
 
-### 39. `docs/benchmarks/2026-06-20-rust-hybrid-rust-candidate-producer-closeout-decision.md
+### 39. `docs/evidence/2026-06-20-rust-hybrid-rust-candidate-producer-closeout-decision.md
 
 **Decision**
 
@@ -1646,7 +1646,7 @@ disambiguation or route producer output into the resolver main path until
 multiple producer shapes have clean shadow evidence and a separate decision
 accepts that semantic risk.
 
-### 40. `docs/benchmarks/2026-06-20-rust-hybrid-rust-candidate-producer-complete-shape-coverage-closeout-decision.md
+### 40. `docs/evidence/2026-06-20-rust-hybrid-rust-candidate-producer-complete-shape-coverage-closeout-decision.md
 
 **Decision**
 
@@ -1714,7 +1714,7 @@ behavior without adding new diagnostic fields.
 
 Artifact:
 
-- `docs/benchmarks/2026-06-20-rust-candidate-producer-complete-shapes-zcodegraph.profile.json`
+- `docs/evidence/2026-06-20-rust-candidate-producer-complete-shapes-zcodegraph.profile.json`
 
 Status snapshot:
 
@@ -1814,7 +1814,7 @@ The next decision should be a separate discussion about whether to:
 
 Do not implicitly start main-path routing from this closeout.
 
-### 41. `docs/benchmarks/2026-06-20-rust-hybrid-rust-candidate-producer-lowername-closeout-decision.md
+### 41. `docs/evidence/2026-06-20-rust-hybrid-rust-candidate-producer-lowername-closeout-decision.md
 
 **Decision**
 
@@ -1873,7 +1873,7 @@ validated by the targeted current-repo and VS Code sparse evidence below.
 
 Artifact:
 
-- `docs/benchmarks/2026-06-20-rust-candidate-producer-lowername-zcodegraph.profile.json`
+- `docs/evidence/2026-06-20-rust-candidate-producer-lowername-zcodegraph.profile.json`
 
 Status snapshot:
 
@@ -1956,13 +1956,13 @@ Continue resolver migration in shadow-only slices. The next implementation
 slice should still avoid main-path routing unless a separate decision explicitly
 accepts that risk.
 
-### 42. `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md
+### 42. `docs/evidence/2026-06-24-rust-hybrid-consolidated-benchmarks.md
 
 **Scope**
 
 This closes the architecture/performance PRD:
 
-- PRD: `docs/prds/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
+- PRD: `docs/evidence/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
 - PRD tracker: #295
 - Overall optimization tracker: #165
 - Resolver migration decision tracker: #296
@@ -1992,8 +1992,8 @@ split:
 Relevant artifacts:
 
 - `docs/plans/2026-06-20-rust-hybrid-resolver-migration-decision-plan.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-resolver-migration-ownership-decision.md`
-- `docs/benchmarks/2026-06-20-rust-hybrid-resolver-migration-closeout-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-resolver-migration-ownership-decision.md`
+- `docs/evidence/2026-06-20-rust-hybrid-resolver-migration-closeout-decision.md`
 
 ### Architecture-Backed Implementation Slices
 
@@ -2014,14 +2014,14 @@ work exceeded that requirement with multiple bounded slices, including:
 The latest production routing slice resolved guarded TypeScript overload
 implementation candidates and recorded deterministic evidence:
 
-- `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+- `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 ### Final Semantic Decision Slice
 
 The final #295 slice classified the remaining dominant
 type/value/namespace-collision fallback class:
 
-- `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+- `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 VS Code sparse evidence at commit `4a6e32fc1f0` shows the capped remaining
 collision samples are dominated by `value-token-plus-interface`:
@@ -2057,7 +2057,7 @@ The PRD produced deterministic profile/taxonomy evidence and production
 learning, including no-go boundaries and successor candidates. It did not run a
 full scoreboard or agent A/B campaign for the closeout.
 
-### 43. `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md
+### 43. `docs/evidence/2026-06-24-rust-hybrid-consolidated-benchmarks.md
 
 **Decision**
 

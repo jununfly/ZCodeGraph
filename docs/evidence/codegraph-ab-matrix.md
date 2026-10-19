@@ -21,7 +21,7 @@ savings compound, while the with-arm pays fixed MCP overhead (tool definitions i
 tool-loading) that short tasks don't amortize. The win is **fewer tool calls (189 vs 321, −41%)
 + lower wall-clock** (mean **38s vs 48s**), which is the design target. On harder multi-turn
 investigations cost flips to a net saving as the without-arm's accumulated context balloons —
-see `docs/benchmarks/call-sequence-analysis.md`.
+see `docs/evidence/call-sequence-analysis.md`.
 
 The gap widens with repo size and flow complexity: on medium/large repos the without-codegraph
 arm often **thrashes** — many greps/globs, shell `find`/`grep` (Bash), and occasionally spawning
@@ -37,7 +37,7 @@ when the whole flow fits in one or two files) — but reads still drop.
 - **reads saved** = without-reads − with-reads.
 - One run per arm (a **snapshot** — run-to-run variance is real; treat ±1–2 reads and ±10s as
   noise, look at the pattern across cells). 2-runs/arm headline numbers for several of these flows
-  live in `docs/designs/dynamic-dispatch-coverage-playbook.md` §7.
+  live in `docs/methods/dynamic-dispatch-coverage-playbook.md` §7.
 
 ## Results
 

@@ -7,7 +7,7 @@ Status: release snapshot, partial corpus coverage
 This artifact records the current `rust-hybrid` release-readiness snapshot for
 0.10.0. It is not a full benchmark campaign and should not be used as a broad
 performance claim. The machine-readable result is
-`docs/benchmarks/2026-06-25-zcodegraph-0-10-0-release-snapshot-result.json`.
+`docs/evidence/2026-06-25-zcodegraph-0-10-0-release-snapshot-result.json`.
 
 ## Scope
 
@@ -17,7 +17,7 @@ Command:
 
 ```bash
 CODEGRAPH_ALLOW_UNSAFE_NODE=1 node scripts/rust-hybrid-baseline.mjs \
-  --out docs/benchmarks/2026-06-25-zcodegraph-0-10-0-release-snapshot-result.json \
+  --out docs/evidence/2026-06-25-zcodegraph-0-10-0-release-snapshot-result.json \
   --repo current-repo=. --runs 3 \
   --repo ts-js-zustand=/private/tmp/codegraph-corpus/zustand \
   --repo go-gin=/private/tmp/codegraph-corpus/gin-examples \

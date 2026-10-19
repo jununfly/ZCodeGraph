@@ -11,10 +11,11 @@ Process files are useful while a roadmap is active, but they must not become
 the project's long-term source of truth. Durable memory belongs in:
 
 - `ZJ-CONTEXT.md` for domain vocabulary;
-- `docs/zj-adr/` for hard-to-reverse architectural trade-offs;
-- `docs/prds/` for product requirements;
-- `docs/designs/` for stable designs and closeout navigation;
-- `docs/benchmarks/` for consolidated evidence.
+- `docs/decisions/` for hard-to-reverse architectural trade-offs (ADRs);
+- `docs/contracts/` for stable design contracts and baselines;
+- `docs/ledgers/` for decision ledgers and closeout navigation;
+- `docs/evidence/` for consolidated benchmarks, validation results, and PRDs;
+- `docs/methods/` for methodology and process documentation.
 
 The removed `docs/plans/` files are now treated as absorbed process artifacts:
 their stable decisions are summarized here or already live in the design,
@@ -147,12 +148,12 @@ planner, renderer, evidence scope, output budget, flow spine, and source depth.
 Durable home:
 
 - `ZJ-CONTEXT.md`
-- `docs/zj-adr/ZJ-0001-agent-sufficiency-as-architecture-north-star.md`
-- `docs/designs/architecture-roadmap.md`
-- `docs/designs/architecture-roadmap-validation.md`
-- `docs/designs/adaptive-explore-sizing.md`
-- `docs/benchmarks/call-sequence-analysis.md`
-- `docs/benchmarks/baseline-agent-sufficiency-v1.md`
+- `docs/decisions/ZJ-0001-agent-sufficiency-as-architecture-north-star.md`
+- `docs/contracts/architecture-roadmap.md`
+- `docs/methods/architecture-roadmap-validation.md`
+- `docs/methods/adaptive-explore-sizing.md`
+- `docs/evidence/call-sequence-analysis.md`
+- `docs/contracts/baseline-agent-sufficiency-v1.md`
 
 Former process files:
 
@@ -168,9 +169,9 @@ unexplained.
 
 Durable home:
 
-- `docs/designs/dynamic-dispatch-coverage-playbook.md`
-- `docs/designs/callback-edge-synthesis.md`
-- `docs/designs/mixed-ios-and-react-native-bridging.md`
+- `docs/methods/dynamic-dispatch-coverage-playbook.md`
+- `docs/methods/callback-edge-synthesis.md`
+- `docs/methods/mixed-ios-and-react-native-bridging.md`
 - `README.md`
 - relevant framework resolver tests
 
@@ -189,14 +190,14 @@ and failure safety while moving ownership by bounded slices.
 
 Durable home:
 
-- `docs/prds/2026-06-12-rust-indexing-core-vertical-slice.md`
-- `docs/prds/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
-- `docs/zj-adr/ZJ-0002-rust-owned-finalization-reference-resolution.md`
-- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
-- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
-- `docs/designs/rust-indexing-core-sqlite-contract.md`
-- `docs/designs/rust-indexing-finalization-boundary.md`
-- `docs/designs/rust-indexing-core-decision-ledger.md`
+- `docs/evidence/2026-06-12-rust-indexing-core-vertical-slice.md`
+- `docs/evidence/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
+- `docs/decisions/ZJ-0002-rust-owned-finalization-reference-resolution.md`
+- `docs/decisions/ZJ-0003-evidence-gated-indexing-optimization.md`
+- `docs/decisions/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+- `docs/contracts/rust-indexing-core-sqlite-contract.md`
+- `docs/methods/rust-indexing-finalization-boundary.md`
+- `docs/ledgers/rust-indexing-core-decision-ledger.md`
 
 Former process files:
 
@@ -213,10 +214,10 @@ fallback appends.
 
 Durable home:
 
-- `docs/prds/2026-06-18-rust-hybrid-first-user-release.md`
-- `docs/prds/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
-- `docs/designs/rust-hybrid-optimization-decision-ledger.md`
-- `docs/benchmarks/2026-06-24-current-state-decision-pack.md`
+- `docs/evidence/2026-06-18-rust-hybrid-first-user-release.md`
+- `docs/evidence/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
+- `docs/ledgers/rust-hybrid-optimization-decision-ledger.md`
+- `docs/evidence/2026-06-24-current-state-decision-pack.md`
 - `src/indexing/rust-hybrid-contract.ts`
 - `__tests__/rust-index-engine-cli-fallback.test.ts`
 - `__tests__/sdk-rust-hybrid.test.ts`
@@ -237,8 +238,8 @@ classification.
 
 Durable home:
 
-- `docs/designs/rust-native-ts-module-resolution-ledger.md`
-- `docs/zj-adr/ZJ-0002-rust-owned-finalization-reference-resolution.md`
+- `docs/ledgers/rust-native-ts-module-resolution-ledger.md`
+- `docs/decisions/ZJ-0002-rust-owned-finalization-reference-resolution.md`
 - `src/indexing/`
 - `crates/zcodegraph-core/`
 - Rust-native module-resolution tests
@@ -267,7 +268,7 @@ claims them.
 Durable home:
 
 - `ZJ-CONTEXT.md`
-- `docs/prds/2026-06-26-rust-language-semantic-support.md`
+- `docs/evidence/2026-06-26-rust-language-semantic-support.md`
 - `README.md`
 - Rust language tests
 
@@ -289,7 +290,7 @@ Durable home:
 - `scripts/prepare-release.mjs`
 - `scripts/pack-npm.sh`
 - `scripts/build-bundle.sh`
-- `docs/benchmarks/2026-06-25-zcodegraph-0-10-0-release-critical-validation.md`
+- `docs/evidence/2026-06-25-zcodegraph-0-10-0-release-critical-validation.md`
 
 Former process file:
 
@@ -301,8 +302,8 @@ Future work should start from these durable entry points instead of resurrecting
 deleted process files:
 
 - Agent sufficiency or Explore Answer quality: start from `ZJ-CONTEXT.md`,
-  `docs/zj-adr/ZJ-0001-agent-sufficiency-as-architecture-north-star.md`, and
-  `docs/benchmarks/call-sequence-analysis.md`.
+  `docs/decisions/ZJ-0001-agent-sufficiency-as-architecture-north-star.md`, and
+  `docs/evidence/call-sequence-analysis.md`.
 - Rust indexing architecture: start from the Rust indexing PRDs, ADRs
   `ZJ-0002` through `ZJ-0004`, and the consolidated benchmark artifacts.
 - Diagnostic trust and CLI health: start from README troubleshooting,
@@ -338,7 +339,7 @@ per-file indexing via `tree-sitter-cpp` crate. The TS extractor and
 ### Durable home
 
 - `CHANGELOG.md` — Unreleased entry
-- `docs/benchmarks/2026-07-13-rust-owned-cpp-fmt-validation.md` — corpus evidence
+- `docs/evidence/2026-07-13-rust-owned-cpp-fmt-validation.md` — corpus evidence
 - `crates/zcodegraph-core/src/lib.rs` — `extract_cpp_symbols` and related functions
 - `src/indexing/rust-hybrid-contract.ts` — `RUST_HYBRID_RUST_OWNED_LANGUAGES` includes `'cpp'`
 

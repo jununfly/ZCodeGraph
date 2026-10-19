@@ -2,7 +2,7 @@
 doc-kind: design
 authority: supporting
 authority-id: DES-parse-extraction-ledger
-distilled-from: docs/benchmarks/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md
+distilled-from: docs/evidence/2026-06-24-rust-hybrid-parse-extraction-consolidated-evidence.md
 distill-date: 2026-09-21
 -->
 

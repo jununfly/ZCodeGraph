@@ -143,8 +143,8 @@ Available benchmark infrastructure:
 - `scripts/agent-eval/run-all.sh`
 - `scripts/agent-eval/arms-matrix.sh`
 - `scripts/agent-eval/parse-*.mjs`
-- `docs/benchmarks/call-sequence-analysis.md`
-- `docs/benchmarks/answer-directly-vs-explore-agent.md`
+- `docs/evidence/call-sequence-analysis.md`
+- `docs/evidence/answer-directly-vs-explore-agent.md`
 
 Running the real agent A/B suite requires:
 

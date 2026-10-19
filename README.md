@@ -153,8 +153,8 @@ Notes:
   `CODEGRAPH_ALLOW_UNSAFE_NODE=1`; release users should use the bundled runtime
   or a supported embedding runtime.
 
-Full evidence: `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-current-state.md`
-and `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab.md`.
+Full evidence: `docs/evidence/2026-06-26-zcodegraph-0-10-0-current-state.md`
+and `docs/evidence/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab.md`.
 
 <details>
 <summary><strong>Historical benchmark context</strong></summary>
@@ -162,9 +162,9 @@ and `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab.md`.
 Previous agent A/B and coverage measurements remain useful for understanding
 how ZCodeGraph reduces file-scanning behavior, but they are not the 0.10.0
 release current-state source of truth. See
-`docs/benchmarks/call-sequence-analysis.md`,
-`docs/benchmarks/baseline-agent-sufficiency-v1.md`, and
-`docs/designs/dynamic-dispatch-coverage-playbook.md` for the historical
+`docs/evidence/call-sequence-analysis.md`,
+`docs/contracts/baseline-agent-sufficiency-v1.md`, and
+`docs/methods/dynamic-dispatch-coverage-playbook.md` for the historical
 methodology and mechanism notes.
 
 </details>
@@ -622,7 +622,7 @@ Impact and blast-radius queries are only as good as the dependency graph behind
 them, so coverage is measured rather than asserted. The 0.10.0 README uses the
 current-state release snapshot above as its displayed metric set. Historical
 cross-file and framework coverage methodology is kept in
-`docs/designs/dynamic-dispatch-coverage-playbook.md` so it can evolve without
+`docs/methods/dynamic-dispatch-coverage-playbook.md` so it can evolve without
 mixing old benchmark numbers into the release snapshot.
 
 ## Troubleshooting

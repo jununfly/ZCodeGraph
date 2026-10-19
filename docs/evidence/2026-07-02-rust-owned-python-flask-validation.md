@@ -67,7 +67,7 @@ coverage initiative.
 | Roadmap decision | Classification | Durable location |
 | --- | --- | --- |
 | Use a dedicated roadmap branch and roadmap-sliced development loop | PR only | Branch commits and PR body |
-| Scope Python support as practical Rust-owned extraction plus real-corpus evidence, not duplicate language registration | durable doc | This file and `docs/benchmarks/2026-06-24-current-state-decision-pack.md` |
+| Scope Python support as practical Rust-owned extraction plus real-corpus evidence, not duplicate language registration | durable doc | This file and `docs/evidence/2026-06-24-current-state-decision-pack.md` |
 | Use `/Users/bilibili/Documents/workspace/github/jununfly/ZAgenticLoop/docs/designs/roadmap-sliced-development-pattern.md` as the pattern source | discarded process note | Relevant only to this run's process |
 | Select `pallets/flask` as the real Python validation corpus | durable doc | Corpus section above |
 

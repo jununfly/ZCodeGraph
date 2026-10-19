@@ -458,7 +458,7 @@ Positive coverage exists in
 Fallback/no-go evidence exists in:
 
 - `__tests__/rust-import-target-taxonomy.test.ts`
-- `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+- `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 The fallback classifier separates query/hash targets, asset-like targets,
 extensionless/index candidates, declaration targets, and ignored non-relative
@@ -898,14 +898,14 @@ Targeted current repo evidence:
 ```bash
 CODEGRAPH_ALLOW_UNSAFE_NODE=1 CODEGRAPH_NO_DAEMON=1 CODEGRAPH_NO_RELAUNCH=1 \
 ZCODEGRAPH_RUST_CORE_BINARY=target/debug/zcodegraph-core \
-ZCODEGRAPH_INDEX_PROFILE_OUT=docs/benchmarks/2026-06-22-paths-rootdirs-parity-current.profile.json \
+ZCODEGRAPH_INDEX_PROFILE_OUT=docs/evidence/2026-06-22-paths-rootdirs-parity-current.profile.json \
 node scripts/targeted-profile-evidence.mjs \
-  --out docs/benchmarks/2026-06-22-paths-rootdirs-parity-current.evidence.json \
+  --out docs/evidence/2026-06-22-paths-rootdirs-parity-current.evidence.json \
   --cwd . -- node dist/bin/zcodegraph.js index . --force --quiet --engine rust-hybrid
 
 node scripts/ts-module-resolution-oracle.mjs \
   --project . \
-  --profile docs/benchmarks/2026-06-22-paths-rootdirs-parity-current.profile.json \
+  --profile docs/evidence/2026-06-22-paths-rootdirs-parity-current.profile.json \
   --out-dir docs/benchmarks \
   --prefix 2026-06-22-paths-rootdirs-parity-current-oracle
 ```
@@ -1128,7 +1128,7 @@ Default graph behavior did not change:
 
 Generated profile, evidence, status, and oracle artifacts were absorbed into:
 
-- `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
+- `docs/evidence/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
 
 Rust profile summary:
 
@@ -1336,7 +1336,7 @@ only. It does not change production indexing behavior and does not move
 
 Generated oracle artifacts were absorbed into:
 
-- `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
+- `docs/evidence/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
 
 VS Code sparse corpus: `/private/tmp/codegraph-corpus/vscode-sparse`
 
@@ -1397,10 +1397,10 @@ This closeout does not claim full TypeScript `moduleResolution` completion.
 
 | Issue | Slice | Decision | Artifact |
 | --- | --- | --- | --- |
-| #431 | TypeScript moduleResolution oracle diagnostic map | keep | `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md` |
-| #432 | oracle-selected repo-local package self-name resolution | no-go | `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md` |
-| #433 | oracle-selected package exports/imports repo-local slice | no-go | `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md` |
-| #434 | Node/runtime and third-party package boundary taxonomy | keep | `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md` |
+| #431 | TypeScript moduleResolution oracle diagnostic map | keep | `docs/evidence/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md` |
+| #432 | oracle-selected repo-local package self-name resolution | no-go | `docs/evidence/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md` |
+| #433 | oracle-selected package exports/imports repo-local slice | no-go | `docs/evidence/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md` |
+| #434 | Node/runtime and third-party package boundary taxonomy | keep | `docs/evidence/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md` |
 
 **Remaining Residual Classification**
 
@@ -1532,10 +1532,10 @@ Decision: `consolidate-and-delete-process-artifacts`.
 
 Durable decisions remain in:
 
-- `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
-- `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
-- `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
-- `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
+- `docs/evidence/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
+- `docs/evidence/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
+- `docs/evidence/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
+- `docs/evidence/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md`
 
 Generated oracle JSON/Markdown, profile JSON, status JSON, and targeted
 evidence JSON artifacts can be deleted after this cleanup because the reusable
@@ -1654,7 +1654,7 @@ The current VS Code sparse bounded profile evidence for this roadmap has an
 unavailable reason recorded in:
 
 ```text
-docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md
+docs/evidence/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md
 ```
 
 **Next Recommended Plan**

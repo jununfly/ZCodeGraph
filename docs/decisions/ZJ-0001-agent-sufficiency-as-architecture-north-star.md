@@ -23,10 +23,10 @@ Without a shared decision criterion, those candidates can optimize different thi
 Relevant durable docs:
 
 - `ZJ-CONTEXT.md`
-- `docs/designs/architecture-roadmap.md`
-- `docs/designs/adaptive-explore-sizing.md`
-- `docs/benchmarks/call-sequence-analysis.md`
-- `docs/benchmarks/answer-directly-vs-explore-agent.md`
+- `docs/contracts/architecture-roadmap.md`
+- `docs/methods/adaptive-explore-sizing.md`
+- `docs/evidence/call-sequence-analysis.md`
+- `docs/evidence/answer-directly-vs-explore-agent.md`
 
 ## Decision
 
@@ -44,7 +44,7 @@ The project adopts these supporting concepts:
 
 This ADR intentionally records the conceptual frame as one decision. Sub-decisions about these concepts should only become separate ADRs when they introduce independently reversible implementation trade-offs.
 
-The first tech-design artifact for this direction is `docs/designs/architecture-roadmap.md`, which keeps implementation-oriented tiers and benchmark classifications out of the domain glossary.
+The first tech-design artifact for this direction is `docs/contracts/architecture-roadmap.md`, which keeps implementation-oriented tiers and benchmark classifications out of the domain glossary.
 
 ## Consequences
 

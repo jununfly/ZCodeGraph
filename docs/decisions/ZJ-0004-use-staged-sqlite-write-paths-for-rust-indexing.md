@@ -13,9 +13,9 @@ had to be preserved.
 
 Supporting evidence:
 
-- `docs/designs/rust-indexing-core-decision-ledger.md`
-- `docs/designs/rust-hybrid-optimization-decision-ledger.md`
-- `docs/benchmarks/2026-06-24-current-state-decision-pack.md`
+- `docs/ledgers/rust-indexing-core-decision-ledger.md`
+- `docs/ledgers/rust-hybrid-optimization-decision-ledger.md`
+- `docs/evidence/2026-06-24-current-state-decision-pack.md`
 
 ## Decision
 

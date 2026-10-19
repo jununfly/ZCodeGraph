@@ -16,10 +16,10 @@ TypeScript product shell.
 
 Supporting evidence:
 
-- `docs/designs/rust-hybrid-optimization-decision-ledger.md`
-- `docs/designs/plan-artifact-consolidated-closeout.md`
+- `docs/ledgers/rust-hybrid-optimization-decision-ledger.md`
+- `docs/ledgers/plan-artifact-consolidated-closeout.md`
 - #296 resolver migration decision plan
-- `docs/benchmarks/2026-06-24-current-state-decision-pack.md`
+- `docs/evidence/2026-06-24-current-state-decision-pack.md`
 
 ## Decision
 

@@ -157,10 +157,10 @@ Results:
 
 Artifacts:
 
-- `docs/benchmarks/2026-06-21-esm-direct-export-burndown-current.profile.json`
-- `docs/benchmarks/2026-06-21-esm-direct-export-burndown-current.measurement.json`
-- `docs/benchmarks/2026-06-21-esm-direct-export-burndown-current-taxonomy.json`
-- `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+- `docs/evidence/2026-06-21-esm-direct-export-burndown-current.profile.json`
+- `docs/evidence/2026-06-21-esm-direct-export-burndown-current.measurement.json`
+- `docs/evidence/2026-06-21-esm-direct-export-burndown-current-taxonomy.json`
+- `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 Observed:
 
@@ -289,14 +289,14 @@ Results:
 
 Artifacts:
 
-- `docs/benchmarks/2026-06-21-esm-direct-export-candidate-multiple-current-taxonomy.json`
-- `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
-- `docs/benchmarks/2026-06-21-esm-direct-export-candidate-multiple-current-taxonomy.measurement.json`
+- `docs/evidence/2026-06-21-esm-direct-export-candidate-multiple-current-taxonomy.json`
+- `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+- `docs/evidence/2026-06-21-esm-direct-export-candidate-multiple-current-taxonomy.measurement.json`
 
 Inputs:
 
 - Profile:
-  `docs/benchmarks/2026-06-21-esm-direct-export-burndown-current.profile.json`
+  `docs/evidence/2026-06-21-esm-direct-export-burndown-current.profile.json`
 - Database:
   `.zcodegraph/zcodegraph.db`
 
@@ -458,19 +458,19 @@ Coverage:
 
 Artifacts:
 
-- `docs/benchmarks/2026-06-21-esm-named-fallback-diagnostics-current.profile.json`
-- `docs/benchmarks/2026-06-21-esm-named-fallback-diagnostics-current.measurement.json`
-- `docs/benchmarks/2026-06-21-esm-named-fallback-diagnostics-current-taxonomy.json`
-- `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+- `docs/evidence/2026-06-21-esm-named-fallback-diagnostics-current.profile.json`
+- `docs/evidence/2026-06-21-esm-named-fallback-diagnostics-current.measurement.json`
+- `docs/evidence/2026-06-21-esm-named-fallback-diagnostics-current-taxonomy.json`
+- `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 Command:
 
 ```bash
 CODEGRAPH_ALLOW_UNSAFE_NODE=1 CODEGRAPH_NO_DAEMON=1 CODEGRAPH_NO_RELAUNCH=1 \
-  ZCODEGRAPH_INDEX_PROFILE_OUT=docs/benchmarks/2026-06-21-esm-named-fallback-diagnostics-current.profile.json \
+  ZCODEGRAPH_INDEX_PROFILE_OUT=docs/evidence/2026-06-21-esm-named-fallback-diagnostics-current.profile.json \
   /Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node \
   scripts/targeted-profile-evidence.mjs \
-  --out docs/benchmarks/2026-06-21-esm-named-fallback-diagnostics-current.measurement.json \
+  --out docs/evidence/2026-06-21-esm-named-fallback-diagnostics-current.measurement.json \
   --cwd . \
   -- /Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node \
   dist/bin/zcodegraph.js index . --force --quiet --engine rust-hybrid
@@ -628,18 +628,18 @@ The tests prove:
 
 Profile artifact:
 
-- `docs/benchmarks/2026-06-21-import-fallback-samples-current.profile.json`
+- `docs/evidence/2026-06-21-import-fallback-samples-current.profile.json`
 
 Taxonomy artifacts:
 
-- `docs/benchmarks/2026-06-21-import-fallback-samples-current-taxonomy.json`
-- `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+- `docs/evidence/2026-06-21-import-fallback-samples-current-taxonomy.json`
+- `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 Command:
 
 ```bash
 env CODEGRAPH_ALLOW_UNSAFE_NODE=1 CODEGRAPH_NO_DAEMON=1 CODEGRAPH_NO_RELAUNCH=1 \
-  ZCODEGRAPH_INDEX_PROFILE_OUT=docs/benchmarks/2026-06-21-import-fallback-samples-current.profile.json \
+  ZCODEGRAPH_INDEX_PROFILE_OUT=docs/evidence/2026-06-21-import-fallback-samples-current.profile.json \
   /usr/bin/time -l /Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node \
   dist/bin/zcodegraph.js index . --force --quiet --engine rust-hybrid
 ```
@@ -795,19 +795,19 @@ Coverage:
 
 Artifacts:
 
-- `docs/benchmarks/2026-06-21-relative-file-node-diagnostics-current.profile.json`
-- `docs/benchmarks/2026-06-21-relative-file-node-diagnostics-current.measurement.json`
-- `docs/benchmarks/2026-06-21-relative-file-node-diagnostics-current-taxonomy.json`
-- `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+- `docs/evidence/2026-06-21-relative-file-node-diagnostics-current.profile.json`
+- `docs/evidence/2026-06-21-relative-file-node-diagnostics-current.measurement.json`
+- `docs/evidence/2026-06-21-relative-file-node-diagnostics-current-taxonomy.json`
+- `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 Command:
 
 ```bash
 CODEGRAPH_ALLOW_UNSAFE_NODE=1 CODEGRAPH_NO_DAEMON=1 CODEGRAPH_NO_RELAUNCH=1 \
-  ZCODEGRAPH_INDEX_PROFILE_OUT=docs/benchmarks/2026-06-21-relative-file-node-diagnostics-current.profile.json \
+  ZCODEGRAPH_INDEX_PROFILE_OUT=docs/evidence/2026-06-21-relative-file-node-diagnostics-current.profile.json \
   /Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node \
   scripts/targeted-profile-evidence.mjs \
-  --out docs/benchmarks/2026-06-21-relative-file-node-diagnostics-current.measurement.json \
+  --out docs/evidence/2026-06-21-relative-file-node-diagnostics-current.measurement.json \
   --cwd . \
   -- /Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node \
   dist/bin/zcodegraph.js index . --force --quiet --engine rust-hybrid
@@ -991,11 +991,11 @@ category exists.
 - Plan:
   `docs/plans/2026-06-24-rust-hybrid-consolidated-plans.md`
 - VS Code sparse taxonomy before profile rerun:
-  `docs/benchmarks/2026-06-21-relative-import-target-taxonomy-vscode-sparse.json`
+  `docs/evidence/2026-06-21-relative-import-target-taxonomy-vscode-sparse.json`
 - VS Code sparse taxonomy after profile rerun:
-  `docs/benchmarks/2026-06-21-relative-import-target-taxonomy-vscode-sparse-after-profile.json`
+  `docs/evidence/2026-06-21-relative-import-target-taxonomy-vscode-sparse-after-profile.json`
 - Current repo taxonomy:
-  `docs/benchmarks/2026-06-21-relative-import-target-taxonomy-current-repo.json`
+  `docs/evidence/2026-06-21-relative-import-target-taxonomy-current-repo.json`
 
 **Category Choice**
 
@@ -1138,24 +1138,24 @@ The integration fixture proves:
 
 Before artifacts reused from the import fallback samples closeout:
 
-- `docs/benchmarks/2026-06-21-import-fallback-samples-current.profile.json`
-- `docs/benchmarks/2026-06-21-import-fallback-samples-current-taxonomy.json`
+- `docs/evidence/2026-06-21-import-fallback-samples-current.profile.json`
+- `docs/evidence/2026-06-21-import-fallback-samples-current-taxonomy.json`
 
 After artifacts:
 
-- `docs/benchmarks/2026-06-21-relative-js-source-fallback-current-after.profile.json`
-- `docs/benchmarks/2026-06-21-relative-js-source-fallback-current-after-taxonomy.json`
-- `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
-- `docs/benchmarks/2026-06-21-relative-js-source-fallback-current-after.measurement.json`
+- `docs/evidence/2026-06-21-relative-js-source-fallback-current-after.profile.json`
+- `docs/evidence/2026-06-21-relative-js-source-fallback-current-after-taxonomy.json`
+- `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
+- `docs/evidence/2026-06-21-relative-js-source-fallback-current-after.measurement.json`
 
 After command:
 
 ```bash
 env CODEGRAPH_ALLOW_UNSAFE_NODE=1 CODEGRAPH_NO_DAEMON=1 CODEGRAPH_NO_RELAUNCH=1 \
-  ZCODEGRAPH_INDEX_PROFILE_OUT=docs/benchmarks/2026-06-21-relative-js-source-fallback-current-after.profile.json \
+  ZCODEGRAPH_INDEX_PROFILE_OUT=docs/evidence/2026-06-21-relative-js-source-fallback-current-after.profile.json \
   /Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node \
   scripts/targeted-profile-evidence.mjs \
-  --out docs/benchmarks/2026-06-21-relative-js-source-fallback-current-after.measurement.json \
+  --out docs/evidence/2026-06-21-relative-js-source-fallback-current-after.measurement.json \
   --cwd . \
   -- /Users/bilibili/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node \
   dist/bin/zcodegraph.js index . --force --quiet --engine rust-hybrid
@@ -2123,11 +2123,11 @@ Package/runtime resolution is not solved by Part 1. It is handed to Part 2.
 
 | Issue | Slice | Decision | Artifact |
 | --- | --- | --- | --- |
-| #424 | completion map and fallback taxonomy baseline | keep-baseline | `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md` |
-| #425 | repo-local file-level import target burndown | no-go | `docs/benchmarks/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md` |
-| #426 | direct ESM named import/export residual burndown | keep | `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md` |
-| #427 | one-hop barrel re-export residual burndown | keep | `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md` |
-| #428 | source-file fallback and FileNodes integration | keep | `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md` |
+| #424 | completion map and fallback taxonomy baseline | keep-baseline | `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md` |
+| #425 | repo-local file-level import target burndown | no-go | `docs/evidence/2026-06-24-rust-native-typescript-module-resolution-consolidated-evidence.md` |
+| #426 | direct ESM named import/export residual burndown | keep | `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md` |
+| #427 | one-hop barrel re-export residual burndown | keep | `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md` |
+| #428 | source-file fallback and FileNodes integration | keep | `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md` |
 
 **Final Classification**
 
@@ -2344,8 +2344,8 @@ pick-first, overload, namespace, or type/value tie-break behavior.
 
 Targeted profile artifacts:
 
-- `docs/benchmarks/2026-06-22-qualifiedname-routing-current.profile.json`
-- `docs/benchmarks/2026-06-22-qualifiedname-routing-vscode-sparse.profile.json`
+- `docs/evidence/2026-06-22-qualifiedname-routing-current.profile.json`
+- `docs/evidence/2026-06-22-qualifiedname-routing-vscode-sparse.profile.json`
 
 Additional deterministic validation:
 
@@ -2400,8 +2400,8 @@ No production code was changed in the PlanB closeout.
 
 | Residual | State | Evidence |
 | --- | --- | --- |
-| Complete local-config candidate producer routing boundary | keep | `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md` |
-| `QualifiedName` candidate-producer on-demand routing | keep | `docs/benchmarks/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md` |
+| Complete local-config candidate producer routing boundary | keep | `docs/evidence/2026-06-24-rust-hybrid-consolidated-benchmarks.md` |
+| `QualifiedName` candidate-producer on-demand routing | keep | `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md` |
 | `LowerName` local-config routing | keep-with-caveat | Mechanism is safe behind local config; default-on was no-go due candidate lookup cost. |
 
 ### Closed / Handoff

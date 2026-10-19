@@ -35,15 +35,15 @@ Reasoning:
 
 Use these before reading older evidence:
 
-- `docs/prds/2026-06-18-rust-hybrid-first-user-release.md`
-- `docs/prds/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
-- `docs/designs/plan-artifact-consolidated-closeout.md`
-- `docs/designs/rust-indexing-core-decision-ledger.md`
-- `docs/designs/rust-hybrid-optimization-decision-ledger.md`
-- `docs/zj-adr/ZJ-0001-agent-sufficiency-as-architecture-north-star.md`
-- `docs/zj-adr/ZJ-0002-rust-owned-finalization-reference-resolution.md`
-- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
-- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+- `docs/evidence/2026-06-18-rust-hybrid-first-user-release.md`
+- `docs/evidence/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
+- `docs/ledgers/plan-artifact-consolidated-closeout.md`
+- `docs/ledgers/rust-indexing-core-decision-ledger.md`
+- `docs/ledgers/rust-hybrid-optimization-decision-ledger.md`
+- `docs/decisions/ZJ-0001-agent-sufficiency-as-architecture-north-star.md`
+- `docs/decisions/ZJ-0002-rust-owned-finalization-reference-resolution.md`
+- `docs/decisions/ZJ-0003-evidence-gated-indexing-optimization.md`
+- `docs/decisions/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
 
 ## Durable Decisions
 
@@ -51,7 +51,7 @@ Use these before reading older evidence:
 
 Decision source:
 
-- `docs/zj-adr/ZJ-0001-agent-sufficiency-as-architecture-north-star.md`
+- `docs/decisions/ZJ-0001-agent-sufficiency-as-architecture-north-star.md`
 
 Current interpretation:
 
@@ -63,7 +63,7 @@ Current interpretation:
 
 Decision source:
 
-- `docs/designs/plan-artifact-consolidated-closeout.md`
+- `docs/ledgers/plan-artifact-consolidated-closeout.md`
 
 Current interpretation:
 
@@ -79,7 +79,7 @@ Current interpretation:
 
 Decision source:
 
-- `docs/zj-adr/ZJ-0002-rust-owned-finalization-reference-resolution.md`
+- `docs/decisions/ZJ-0002-rust-owned-finalization-reference-resolution.md`
 
 Current interpretation:
 
@@ -94,7 +94,7 @@ Current interpretation:
 
 Decision source:
 
-- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
+- `docs/decisions/ZJ-0003-evidence-gated-indexing-optimization.md`
 
 Current interpretation:
 
@@ -107,7 +107,7 @@ Current interpretation:
 
 Decision source:
 
-- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+- `docs/decisions/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
 
 Current interpretation:
 
@@ -141,7 +141,7 @@ This pass uses three classes:
 
 Deleted as stale process files:
 
-- `docs/benchmarks/2026-06-20-benchmark-decision-adr-audit.md`
+- `docs/evidence/2026-06-20-benchmark-decision-adr-audit.md`
 - `docs/benchmarks/rust-indexing-core-phase-14-experiment.md`
 - `docs/benchmarks/rust-indexing-core-phase-14.experiment.json`
 
@@ -152,8 +152,8 @@ Why:
   history.
 - The Phase 14 experiment manifest and runner note are historical process
   files. The useful Rust indexing history has already been consolidated into
-  `docs/designs/plan-artifact-consolidated-closeout.md` and
-  `docs/designs/rust-indexing-core-decision-ledger.md`.
+  `docs/ledgers/plan-artifact-consolidated-closeout.md` and
+  `docs/ledgers/rust-indexing-core-decision-ledger.md`.
 
 ## Issue State Audit Queue
 
@@ -171,7 +171,7 @@ Next triage pass should verify:
   open, because its durable decisions are now in ADRs and this decision pack.
 - #475-#487: should be closed or marked completed if still open; their
   implementation/closeout state is consolidated in
-  `docs/designs/plan-artifact-consolidated-closeout.md`.
+  `docs/ledgers/plan-artifact-consolidated-closeout.md`.
 
 ## Recommended Next Candidate Queue
 
@@ -182,7 +182,7 @@ decision pack. Do not create a new implementation roadmap yet.
 
 ### 2. Performance Optimization
 
-Resume `docs/prds/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
+Resume `docs/evidence/2026-06-19-rust-hybrid-architecture-and-performance-optimization.md`
 from the current ADR-backed state:
 
 - use `ZJ-0002` for finalization/reference-resolution ownership;
@@ -191,7 +191,7 @@ from the current ADR-backed state:
 
 ### 3. Python Framework Sufficiency Boundary
 
-Use `docs/benchmarks/2026-07-02-rust-owned-python-flask-validation.md` as the
+Use `docs/evidence/2026-07-02-rust-owned-python-flask-validation.md` as the
 current Rust-owned Python real-corpus baseline. A separate framework sufficiency
 roadmap should decide whether Django/DRF, Flask, or FastAPI need deeper
 dynamic-dispatch validation beyond baseline extraction and decorator edges.

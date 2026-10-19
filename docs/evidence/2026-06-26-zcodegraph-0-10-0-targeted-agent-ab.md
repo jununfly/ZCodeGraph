@@ -46,4 +46,4 @@ For 0.10.0 README copy, the supported claim is narrower:
 
 ## Machine Artifact
 
-- `docs/benchmarks/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab-summary.json`
+- `docs/evidence/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab-summary.json`

@@ -14,100 +14,100 @@ slice. It is the durable record referenced by the evidence-gated indexing
 optimization decisions.
 
 ## Source Files
-- `docs/benchmarks/2026-06-13-rust-indexing-core-agent-sufficiency.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-1-decision.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-1-performance.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-2-decision.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-2-results.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-3-results.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-large-target-readiness.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-optimization-trial.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-profile-baseline.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-readiness-refresh.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-reference-resolution-investigation.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-results-and-decision.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-supported-node-rerun.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-node22-profile.raw.json`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-node22-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-parse-error-taxonomy.md`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-profile.raw.json`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-reference-resolution-profile.raw.json`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-reference-resolution-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-sufficiency-prompts.json`
-- `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-10-results-and-decision.md`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-10-vs1-probe.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-10-vs1-target-validation.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-10-vscode-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-4-reference-resolution-optimization-vscode-profile.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-4-reference-resolution-optimization-vscode-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-4-reference-resolution-optimization.md`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-full-rerun.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-rerun.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-resolution.md`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-5-issue94-grouped-name-rowid-cleanup.md`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-5-issue94-hardgate-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-5-issue94-reduced-after.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-5-issue94-reduced-before.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-5-issue94-vscode-profile.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-5-issue94-vscode-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-5-results-and-decision.md`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-issue105-vscode-sufficiency-node24.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-results-and-decision.md`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-vscode-profile.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-6-vscode-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-7-reduced-profile.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-7-results-and-decision.md`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-7-vscode-profile.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-7-vscode-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-8-reduced-profile.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-8-results-and-decision.md`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-8-vscode-profile.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-8-vscode-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-9-results-and-decision.md`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-9-vs1-probe.raw.json`
-- `docs/benchmarks/2026-06-14-rust-indexing-core-phase-9-vscode-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-15-rust-indexing-core-phase-11-results-and-decision.md`
-- `docs/benchmarks/2026-06-15-rust-indexing-core-phase-11-vs1-target-validation.raw.json`
-- `docs/benchmarks/2026-06-15-rust-indexing-core-phase-11-vscode-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-15-rust-indexing-core-phase-12-results-and-decision.md`
-- `docs/benchmarks/2026-06-15-rust-indexing-core-phase-12-vs1-target-validation.raw.json`
-- `docs/benchmarks/2026-06-15-rust-indexing-core-phase-12-vscode-sufficiency-attempt1.raw.json`
-- `docs/benchmarks/2026-06-15-rust-indexing-core-phase-12-vscode-sufficiency-attempt2.raw.json`
-- `docs/benchmarks/2026-06-15-rust-indexing-core-phase-13-results-and-decision.md`
-- `docs/benchmarks/2026-06-15-rust-indexing-core-phase-13-vs1-target-validation.raw.json`
-- `docs/benchmarks/2026-06-15-rust-indexing-core-phase-13-vscode-ab.raw.json`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-cleanup-ab.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-issue-205-vscode-finalization-profile-selection.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-results-and-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-19-completion-gate-audit.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-19-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-19-targeted-smoke.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-boundary-protocol-status.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-completion.experiment.json`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-fallback-audit.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.experiment.json`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.raw.json`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-vscode-sparse-sufficiency.raw.json`
-- `docs/benchmarks/2026-06-18-rust-indexing-core-issue-206-finalization-diagnostics-decision.md`
-- `docs/benchmarks/2026-06-18-rust-indexing-core-issue-207-disambiguation-equivalence-decision.md`
-- `docs/benchmarks/2026-06-18-rust-indexing-core-issue-208-candidate-replay-ab-decision.md`
-- `docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-edge-write-batching-decision.md`
-- `docs/benchmarks/2026-06-18-rust-indexing-core-issue-210-post-209-scoreboard-decision.md`
-- `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md`
-- `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-decision.md`
-- `docs/benchmarks/2026-06-18-rust-indexing-core-phase-23-closeout-decision.md`
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-agent-sufficiency.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-1-decision.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-1-performance.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-2-decision.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-2-results.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-3-results.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-large-target-readiness.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-optimization-trial.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-profile-baseline.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-readiness-refresh.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-reference-resolution-investigation.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-results-and-decision.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-supported-node-rerun.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-vscode-node22-profile.raw.json`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-vscode-node22-sufficiency.raw.json`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-vscode-parse-error-taxonomy.md`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-vscode-profile.raw.json`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-vscode-reference-resolution-profile.raw.json`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-vscode-reference-resolution-sufficiency.raw.json`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-vscode-sufficiency-prompts.json`
+- `docs/evidence/2026-06-13-rust-indexing-core-phase-4-vscode-sufficiency.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-10-results-and-decision.md`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-10-vs1-probe.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-10-vs1-target-validation.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-10-vscode-sufficiency.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-4-reference-resolution-optimization-vscode-profile.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-4-reference-resolution-optimization-vscode-sufficiency.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-4-reference-resolution-optimization.md`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-full-rerun.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-rerun.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-resolution.md`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-5-issue94-grouped-name-rowid-cleanup.md`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-5-issue94-hardgate-sufficiency.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-5-issue94-reduced-after.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-5-issue94-reduced-before.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-5-issue94-vscode-profile.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-5-issue94-vscode-sufficiency.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-5-results-and-decision.md`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-6-issue105-vscode-sufficiency-node24.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-6-results-and-decision.md`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-6-vscode-profile.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-6-vscode-sufficiency.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-7-reduced-profile.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-7-results-and-decision.md`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-7-vscode-profile.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-7-vscode-sufficiency.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-8-reduced-profile.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-8-results-and-decision.md`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-8-vscode-profile.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-8-vscode-sufficiency.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-9-results-and-decision.md`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-9-vs1-probe.raw.json`
+- `docs/evidence/2026-06-14-rust-indexing-core-phase-9-vscode-sufficiency.raw.json`
+- `docs/evidence/2026-06-15-rust-indexing-core-phase-11-results-and-decision.md`
+- `docs/evidence/2026-06-15-rust-indexing-core-phase-11-vs1-target-validation.raw.json`
+- `docs/evidence/2026-06-15-rust-indexing-core-phase-11-vscode-sufficiency.raw.json`
+- `docs/evidence/2026-06-15-rust-indexing-core-phase-12-results-and-decision.md`
+- `docs/evidence/2026-06-15-rust-indexing-core-phase-12-vs1-target-validation.raw.json`
+- `docs/evidence/2026-06-15-rust-indexing-core-phase-12-vscode-sufficiency-attempt1.raw.json`
+- `docs/evidence/2026-06-15-rust-indexing-core-phase-12-vscode-sufficiency-attempt2.raw.json`
+- `docs/evidence/2026-06-15-rust-indexing-core-phase-13-results-and-decision.md`
+- `docs/evidence/2026-06-15-rust-indexing-core-phase-13-vs1-target-validation.raw.json`
+- `docs/evidence/2026-06-15-rust-indexing-core-phase-13-vscode-ab.raw.json`
+- `docs/evidence/2026-06-17-rust-indexing-core-issue-193-cleanup-ab.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-issue-205-vscode-finalization-profile-selection.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-16-results-and-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-19-completion-gate-audit.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-19-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-19-targeted-smoke.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-20-boundary-protocol-status.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-20-completion.experiment.json`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-20-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-20-fallback-audit.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-20-required-only.experiment.json`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-20-required-only.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-20-required-only.raw.json`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-20-vscode-sparse-sufficiency.raw.json`
+- `docs/evidence/2026-06-18-rust-indexing-core-issue-206-finalization-diagnostics-decision.md`
+- `docs/evidence/2026-06-18-rust-indexing-core-issue-207-disambiguation-equivalence-decision.md`
+- `docs/evidence/2026-06-18-rust-indexing-core-issue-208-candidate-replay-ab-decision.md`
+- `docs/evidence/2026-06-18-rust-indexing-core-issue-209-edge-write-batching-decision.md`
+- `docs/evidence/2026-06-18-rust-indexing-core-issue-210-post-209-scoreboard-decision.md`
+- `docs/evidence/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md`
+- `docs/evidence/2026-06-18-rust-indexing-core-phase-22-decision.md`
+- `docs/evidence/2026-06-18-rust-indexing-core-phase-23-closeout-decision.md`
+- `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
-### 1. `docs/benchmarks/2026-06-13-rust-indexing-core-agent-sufficiency.md
+### 1. `docs/evidence/2026-06-13-rust-indexing-core-agent-sufficiency.md
 
 **Summary**
 
@@ -166,7 +166,7 @@ contains enough graph evidence that an agent should not need generic Read/Grep
 recovery. A future release/default-rollout decision should still run real
 headless agent sessions over the same prompt matrix.
 
-### 2. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-1-decision.md
+### 2. `docs/evidence/2026-06-13-rust-indexing-core-phase-1-decision.md
 
 **Decision**
 
@@ -245,7 +245,7 @@ experimental opt-in path.
 Phase 1 does not justify default rollout because wall-clock indexing is slower
 and release packaging for the Rust binary is not complete.
 
-### 3. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-1-performance.md
+### 3. `docs/evidence/2026-06-13-rust-indexing-core-phase-1-performance.md
 
 **Summary**
 
@@ -281,7 +281,7 @@ gate alternatives. This run passed with `gateFailures=[]`.
   overhead, SQLite write batching, and the TypeScript finalization cost that
   still runs after Rust extraction.
 
-### 4. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-2-decision.md
+### 4. `docs/evidence/2026-06-13-rust-indexing-core-phase-2-decision.md
 
 **Decision**
 
@@ -367,7 +367,7 @@ Keep Rust opt-in. Do not change the default engine in this phase. The next plan
 should continue hardening the Rust path behind explicit `--engine rust` before
 any default-rollout preparation.
 
-### 5. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-2-results.md
+### 5. `docs/evidence/2026-06-13-rust-indexing-core-phase-2-results.md
 
 **Summary**
 
@@ -398,7 +398,7 @@ The Phase 2 benchmark/profile/sufficiency rerun for #68 is complete:
 - The #69 stop/continue decision keeps default rollout blocked and keeps Rust
   opt-in for the next hardening phase.
 
-### 6. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-3-results.md
+### 6. `docs/evidence/2026-06-13-rust-indexing-core-phase-3-results.md
 
 **Summary**
 
@@ -464,7 +464,7 @@ optimization measurable and reversible.
 - [x] No npm package, GitHub Release, tag, or default rollout has been
   performed.
 
-### 7. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-large-target-readiness.md
+### 7. `docs/evidence/2026-06-13-rust-indexing-core-phase-4-large-target-readiness.md
 
 **Target**
 
@@ -490,7 +490,7 @@ supports keeping Rust opt-in while Phase 4 focuses on the dominant
 finalization-side reference-resolution bottleneck before any default-rollout
 decision.
 
-### 8. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-optimization-trial.md
+### 8. `docs/evidence/2026-06-13-rust-indexing-core-phase-4-optimization-trial.md
 
 **Summary**
 
@@ -548,7 +548,7 @@ Result:
   synthesis time from reference-resolution time instead of treating the shared
   resolver window as one opaque bottleneck.
 
-### 9. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-profile-baseline.md
+### 9. `docs/evidence/2026-06-13-rust-indexing-core-phase-4-profile-baseline.md
 
 **Summary**
 
@@ -574,7 +574,7 @@ the Phase 4 data-driven optimization trial.
   Rust remains opt-in while Phase 4 gathers optimization and rollout-readiness
   evidence.
 
-### 10. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-readiness-refresh.md
+### 10. `docs/evidence/2026-06-13-rust-indexing-core-phase-4-readiness-refresh.md
 
 **Summary**
 
@@ -584,7 +584,7 @@ failure safety, diagnostics, and default TypeScript safety.
 
 This refresh does not make Rust the default engine.
 
-### 11. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-reference-resolution-investigation.md
+### 11. `docs/evidence/2026-06-13-rust-indexing-core-phase-4-reference-resolution-investigation.md
 
 **Scope**
 
@@ -626,7 +626,7 @@ This remains a default-rollout blocker. Phase 4 must stay on the
 that the large-repo reference-resolution database-access cost is reduced while
 preserving Explore sufficiency and graph quality.
 
-### 12. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-results-and-decision.md
+### 12. `docs/evidence/2026-06-13-rust-indexing-core-phase-4-results-and-decision.md
 
 **Decision**
 
@@ -769,7 +769,7 @@ smoke, failure-safety, diagnostics, and a positive bounded optimization trial.
 The evidence supports continued hardening rather than stopping Rust expansion
 or reassessing the Rust-core/TypeScript-shell boundary.
 
-### 13. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-supported-node-rerun.md
+### 13. `docs/evidence/2026-06-13-rust-indexing-core-phase-4-supported-node-rerun.md
 
 **Summary**
 
@@ -788,7 +788,7 @@ end.
 - Indexed file count: 11,291 JS/TS/JSX/TSX files.
 - Runtime: Node v22.21.1.
 
-### 16. `docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-parse-error-taxonomy.md
+### 16. `docs/evidence/2026-06-13-rust-indexing-core-phase-4-vscode-parse-error-taxonomy.md
 
 **Summary**
 
@@ -869,7 +869,7 @@ Rust still is not ready for default rollout because #87 identified the
 large-repo reference-resolution database-access bottleneck as a remaining
 default-rollout blocker.
 
-### 22. `docs/benchmarks/2026-06-14-rust-indexing-core-phase-10-results-and-decision.md
+### 22. `docs/evidence/2026-06-14-rust-indexing-core-phase-10-results-and-decision.md
 
 **Decision**
 
@@ -917,7 +917,7 @@ Probe command:
 ```bash
 node scripts/phase9-vs1-graph-probe.mjs \
   --repo /private/tmp/codegraph-corpus/vscode-sparse \
-  --out docs/benchmarks/2026-06-14-rust-indexing-core-phase-10-vs1-probe.raw.json
+  --out docs/evidence/2026-06-14-rust-indexing-core-phase-10-vs1-probe.raw.json
 ```
 
 Probe result:
@@ -952,7 +952,7 @@ The remaining useful follow-up is not "VS Code `VS-1` lacks Flow section" as sta
 
 Phase 10 re-baselined `VS-1` against a target that actually contains the expected symbols. Deterministic graph evidence now connects the flow, so the original #113 graph gap is not reproduced on the corrected target. The next blocker is operational sufficiency-smoke runtime/completion, not symbol coverage or deterministic Explore Flow connectivity.
 
-### 28. `docs/benchmarks/2026-06-14-rust-indexing-core-phase-4-reference-resolution-optimization.md
+### 28. `docs/evidence/2026-06-14-rust-indexing-core-phase-4-reference-resolution-optimization.md
 
 **Scope**
 
@@ -988,7 +988,7 @@ Recommended next blockers:
 - keep Rust JS/TS indexing opt-in until a later profile reduces
   `referenceResolutionMs` without Explore sufficiency regression.
 
-### 31. `docs/benchmarks/2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-resolution.md
+### 31. `docs/evidence/2026-06-14-rust-indexing-core-phase-4-vscode-syntax-gap-resolution.md
 
 **Summary**
 
@@ -1008,7 +1008,7 @@ application source.
 the `continue opt-in + targeted blockers` path because the #87
 reference-resolution database-access bottleneck remains unresolved.
 
-### 32. `docs/benchmarks/2026-06-14-rust-indexing-core-phase-5-issue94-grouped-name-rowid-cleanup.md
+### 32. `docs/evidence/2026-06-14-rust-indexing-core-phase-5-issue94-grouped-name-rowid-cleanup.md
 
 **Change Under Test**
 
@@ -1029,7 +1029,7 @@ reference resolution as the dominant finalization blocker. The target
 sub-buckets did not drop by at least 15% on the large target, so #94 should not
 unlock the optional bounded second-candidate issue.
 
-### 38. `docs/benchmarks/2026-06-14-rust-indexing-core-phase-5-results-and-decision.md
+### 38. `docs/evidence/2026-06-14-rust-indexing-core-phase-5-results-and-decision.md
 
 **Decision**
 
@@ -1060,7 +1060,7 @@ Phase 4 remains historical Branch B evidence: continue opt-in hardening with
 targeted blockers. Phase 5 does not rewrite that decision; it adds evidence
 that the reference-resolution blocker remains after #94.
 
-### 44. `docs/benchmarks/2026-06-14-rust-indexing-core-phase-7-results-and-decision.md
+### 44. `docs/evidence/2026-06-14-rust-indexing-core-phase-7-results-and-decision.md
 
 **Classification**
 
@@ -1130,7 +1130,7 @@ Follow-up work should focus on:
 - deciding whether to keep expanding the matcher prototype or pivot back to
   TypeScript resolver/data-model optimization.
 
-### 48. `docs/benchmarks/2026-06-14-rust-indexing-core-phase-8-results-and-decision.md
+### 48. `docs/evidence/2026-06-14-rust-indexing-core-phase-8-results-and-decision.md
 
 **Decision**
 
@@ -1162,7 +1162,7 @@ No schema changes, direct Rust SQLite reads, Rust edge writes, import resolution
 
 Continue only as an opt-in matcher prototype. The next matcher-specific work should focus on reducing the 12 semantic mismatches and deciding whether the remaining `rust-unresolved` bucket has enough true matcher gaps to justify another bounded Rust slice. If that does not produce a stronger trend, pivot to TypeScript resolver optimization instead of expanding Rust resolver ownership.
 
-### 51. `docs/benchmarks/2026-06-14-rust-indexing-core-phase-9-results-and-decision.md
+### 51. `docs/evidence/2026-06-14-rust-indexing-core-phase-9-results-and-decision.md
 
 **Decision**
 
@@ -1197,7 +1197,7 @@ Full same-scope sufficiency rerun was attempted with:
 ```bash
 ZCODEGRAPH_RUST_NAME_MATCHER=1 node scripts/rust-sufficiency-guardrail.mjs \
   --repo vscode=/tmp/zcodegraph-phase7-vscode-sparse \
-  --prompts docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-sufficiency-prompts.json
+  --prompts docs/evidence/2026-06-13-rust-indexing-core-phase-4-vscode-sufficiency-prompts.json
 ```
 
 That run did not produce machine-readable output before the extended wait limit and was interrupted with SIGINT. The raw validation artifact records this as:
@@ -1230,7 +1230,7 @@ Recommended follow-up:
 
 Phase 9 produced a useful correction to the validation harness and a deterministic probe for future VS Code flow work. It did not prove a graph coverage fix is needed yet; it proved the current sparse validation target is insufficient for `VS-1`.
 
-### 54. `docs/benchmarks/2026-06-15-rust-indexing-core-phase-11-results-and-decision.md
+### 54. `docs/evidence/2026-06-15-rust-indexing-core-phase-11-results-and-decision.md
 
 **Decision**
 
@@ -1304,7 +1304,7 @@ Do not start resolver, matcher, Explore planner, or Rust extraction changes from
 
 Phase 11 fixed the evidence pipeline problem that caused Phase 10 to end with a manually written no-output unavailable artifact. Large-target smoke attempts now produce structured, staged JSON. The corrected exact VS Code target is valid, but TypeScript-vs-Rust sufficiency remains unavailable until the smoke is rerun under a supported runtime or with reusable indexed pairs.
 
-### 57. `docs/benchmarks/2026-06-15-rust-indexing-core-phase-12-results-and-decision.md
+### 57. `docs/evidence/2026-06-15-rust-indexing-core-phase-12-results-and-decision.md
 
 **Decision**
 
@@ -1359,7 +1359,7 @@ Do not start resolver, matcher, Explore planner, or Rust extraction changes from
 
 Phase 12 successfully advanced the evidence beyond Phase 11's Node.js 26 `unsupported-runtime` blocker. Under Node.js 22, the corrected exact target passes validation and the smoke reaches TypeScript indexing, but TypeScript indexing does not complete within the bounded attempts. TypeScript-vs-Rust sufficiency remains unavailable until the TypeScript indexing stage completes or a reuse-indexed pair is used to isolate comparison.
 
-### 61. `docs/benchmarks/2026-06-15-rust-indexing-core-phase-13-results-and-decision.md
+### 61. `docs/evidence/2026-06-15-rust-indexing-core-phase-13-results-and-decision.md
 
 **Summary**
 
@@ -1369,8 +1369,8 @@ Decision: do not change the default indexing path or Rust matcher/default rollou
 
 **Artifacts**
 
-- Target validation raw: `docs/benchmarks/2026-06-15-rust-indexing-core-phase-13-vs1-target-validation.raw.json`
-- Phase 13 A/B raw: `docs/benchmarks/2026-06-15-rust-indexing-core-phase-13-vscode-ab.raw.json`
+- Target validation raw: `docs/evidence/2026-06-15-rust-indexing-core-phase-13-vs1-target-validation.raw.json`
+- Phase 13 A/B raw: `docs/evidence/2026-06-15-rust-indexing-core-phase-13-vscode-ab.raw.json`
 
 **Target validation**
 
@@ -1398,7 +1398,7 @@ This is the expected Phase 13 outcome for the current Windows environment: TypeS
 
 Before any Rust default rollout claim, produce a Rust graph for the same exact VS Code target and rerun Phase 13 so both arms are available. Only then should `comparison.status=completed` be used for a readiness decision.
 
-### 64. `docs/benchmarks/2026-06-17-rust-indexing-core-issue-193-cleanup-ab.md
+### 64. `docs/evidence/2026-06-17-rust-indexing-core-issue-193-cleanup-ab.md
 
 **Scope**
 
@@ -1417,7 +1417,7 @@ This candidate:
 
 Generated manifests, raw experiment output, and generated summaries were absorbed into:
 
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 Validation commands:
 
@@ -1454,7 +1454,7 @@ Do not expand #193 into name-matching optimization in the same issue. Name match
 
 No Rust default rollout readiness is claimed.
 
-### 65. `docs/benchmarks/2026-06-17-rust-indexing-core-issue-205-vscode-finalization-profile-selection.md
+### 65. `docs/evidence/2026-06-17-rust-indexing-core-issue-205-vscode-finalization-profile-selection.md
 
 **Decision**
 
@@ -1466,8 +1466,8 @@ The post-PRD optimization gate remains open. This record does not claim Rust def
 
 **Artifacts**
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- Historical Phase 18 comparison: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- Consolidated cleanup evidence: `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- Historical Phase 18 comparison: `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 **Fallback Taxonomy**
 
@@ -1497,7 +1497,7 @@ Total fallbacks: 231858.
 
 This fits #205's rule for a remaining dominant name-matching cluster: diagnose first, then decide. It also avoids over-claiming from one stress-target run.
 
-### 66. `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-results-and-decision.md
+### 66. `docs/evidence/2026-06-17-rust-indexing-core-phase-16-results-and-decision.md
 
 **Scope**
 
@@ -1511,14 +1511,14 @@ This phase does not claim default Rust indexer readiness or full-profile rollout
 
 Architecture record:
 
-- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+- `docs/decisions/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
 
 **Artifacts**
 
 | Artifact | Path |
 |---|---|
 | Plan | `docs/plans/2026-06-17-rust-indexing-core-phase-16-architecture-reassessment.md` |
-| Consolidated cleanup evidence | `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
+| Consolidated cleanup evidence | `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
 
 **Decision**
 
@@ -1538,7 +1538,7 @@ The PRD required-target gate remains open. This phase should not close #165 as "
 - No ReferenceResolver migration.
 - No production schema change.
 
-### 67. `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md
+### 67. `docs/evidence/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md
 
 **Scope**
 
@@ -1548,7 +1548,7 @@ This phase does not claim default rollout readiness.
 
 Architecture record:
 
-- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+- `docs/decisions/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
 
 **Implementation Summary**
 
@@ -1566,7 +1566,7 @@ The production `final-flush` path currently uses the existing temp on-disk SQLit
 | Artifact | Path |
 |---|---|
 | Plan | `docs/plans/2026-06-17-rust-indexing-core-phase-17-production-final-flush-scoreboard.md` |
-| Consolidated cleanup evidence | `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
+| Consolidated cleanup evidence | `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
 
 **Matched-TS-JS Scoreboard**
 
@@ -1639,7 +1639,7 @@ Phase 17 completes the production final-flush default work for Rust opt-in index
 
 Decision: continue Rust as opt-in, keep `final-flush` as the default Rust write mode, keep `disk` as the debug escape hatch, keep `memory-final-flush` experimental, and move to result-oriented full-chain bottleneck segmentation.
 
-### 68. `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md
+### 68. `docs/evidence/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md
 
 **Scope**
 
@@ -1649,8 +1649,8 @@ This phase does not claim default rollout readiness and does not close #165.
 
 Architecture records:
 
-- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
-- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+- `docs/decisions/ZJ-0003-evidence-gated-indexing-optimization.md`
+- `docs/decisions/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
 
 **Candidate**
 
@@ -1670,7 +1670,7 @@ No SQLite schema change was made. No resolver/finalization optimization was impl
 | Artifact | Path |
 |---|---|
 | Plan | `docs/plans/2026-06-17-rust-indexing-core-phase-18-full-profile-bottleneck-ab.md` |
-| Consolidated cleanup evidence | `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
+| Consolidated cleanup evidence | `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md` |
 
 **Validation**
 
@@ -1696,7 +1696,7 @@ Next largest blocker: TypeScript finalization/reference resolution in the full-p
 
 Recommended next slice: bounded full-profile finalization/reference-resolution segmentation and first A/B optimization, with resolver semantics and sufficiency protected by tests.
 
-### 69. `docs/benchmarks/2026-06-17-rust-indexing-core-phase-19-completion-gate-audit.md
+### 69. `docs/evidence/2026-06-17-rust-indexing-core-phase-19-completion-gate-audit.md
 
 **Scope**
 
@@ -1724,7 +1724,7 @@ Phase 18 required-target after evidence is the latest full-profile required-targ
 | zcodegraph | 4,679 ms | 5,877 ms | +25.60% | pass | 57,835,520 | 58,048,512 | +0.37% | pass | passed | yes | pass |
 | excalidraw | 3,307 ms | 3,756 ms | +13.58% | pass | 58,277,888 | 55,820,288 | -4.22% | pass | passed | yes | pass |
 
-### 70. `docs/benchmarks/2026-06-17-rust-indexing-core-phase-19-decision.md
+### 70. `docs/evidence/2026-06-17-rust-indexing-core-phase-19-decision.md
 
 **Scope**
 
@@ -1737,9 +1737,9 @@ This decision does not claim Rust default rollout readiness. Rust remains opt-in
 | Artifact | Path |
 |---|---|
 | Plan | `docs/plans/2026-06-17-rust-indexing-core-phase-19-prd-completion-gate.md` |
-| Audit | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-19-completion-gate-audit.md` |
-| Targeted smoke note | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-19-targeted-smoke.md` |
-| Phase 18 decision | `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md` |
+| Audit | `docs/evidence/2026-06-17-rust-indexing-core-phase-19-completion-gate-audit.md` |
+| Targeted smoke note | `docs/evidence/2026-06-17-rust-indexing-core-phase-19-targeted-smoke.md` |
+| Phase 18 decision | `docs/evidence/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md` |
 
 **Tracker Decisions**
 
@@ -1755,7 +1755,7 @@ The Rust indexing core vertical slice PRD is complete under the clarified comple
 
 Continue with Rust as opt-in and move remaining performance work to post-PRD optimization through #165 and #193.
 
-### 71. `docs/benchmarks/2026-06-17-rust-indexing-core-phase-19-targeted-smoke.md
+### 71. `docs/evidence/2026-06-17-rust-indexing-core-phase-19-targeted-smoke.md
 
 **Scope**
 
@@ -1771,7 +1771,7 @@ No VS Code sparse rerun was required. VS Code sparse remains stress evidence, no
 
 No release/npm smoke was required. Phase 19 did not touch packaging, CLI status, or release paths.
 
-### 72. `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-boundary-protocol-status.md
+### 72. `docs/evidence/2026-06-17-rust-indexing-core-phase-20-boundary-protocol-status.md
 
 **Scope**
 
@@ -1808,7 +1808,7 @@ Both passed.
 
 No Rust default rollout readiness is claimed.
 
-### 74. `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-decision.md
+### 74. `docs/evidence/2026-06-17-rust-indexing-core-phase-20-decision.md
 
 **Scope**
 
@@ -1834,8 +1834,8 @@ Commands run:
 - `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "one-hop ESM named re-exports"`
 - `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "paths-alias one-hop ESM named re-exports"`
 - `npx vitest run __tests__/rust-index-engine-cli.test.ts`
-- `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-indexing-experiment.mjs --experiment docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.experiment.json --out docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.raw.json --summary-out docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.md`
-- `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-sufficiency-guardrail.mjs --repo vscode=/private/tmp/codegraph-corpus/vscode-sparse --prompts docs/benchmarks/2026-06-13-rust-indexing-core-phase-4-vscode-sufficiency-prompts.json --prompt-id VS-1 --timeout-ms 900000 --out docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-vscode-sparse-sufficiency.raw.json`
+- `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-indexing-experiment.mjs --experiment docs/evidence/2026-06-17-rust-indexing-core-phase-20-required-only.experiment.json --out docs/evidence/2026-06-17-rust-indexing-core-phase-20-required-only.raw.json --summary-out docs/evidence/2026-06-17-rust-indexing-core-phase-20-required-only.md`
+- `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-sufficiency-guardrail.mjs --repo vscode=/private/tmp/codegraph-corpus/vscode-sparse --prompts docs/evidence/2026-06-13-rust-indexing-core-phase-4-vscode-sufficiency-prompts.json --prompt-id VS-1 --timeout-ms 900000 --out docs/evidence/2026-06-17-rust-indexing-core-phase-20-vscode-sparse-sufficiency.raw.json`
 
 The latest required-target and VS Code sparse smoke artifacts used Node `v22.21.1`.
 
@@ -1850,9 +1850,9 @@ Fallback is visible and non-zero.
 
 Issue #204 resolved 279 one-hop ESM named re-export references on ZCodeGraph and reduced its binding-level fallback from 1460 to 1445. Excalidraw had no matching one-hop direct named re-export hits in this required-only slice, so its binding-level fallback stayed at 1705.
 
-The fallback taxonomy artifact is `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.md`.
+The fallback taxonomy artifact is `docs/evidence/2026-06-17-rust-indexing-core-phase-20-required-only.md`.
 
-Follow-up fallback audit: `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-fallback-audit.md`.
+Follow-up fallback audit: `docs/evidence/2026-06-17-rust-indexing-core-phase-20-fallback-audit.md`.
 
 **Decision**
 
@@ -1885,7 +1885,7 @@ The fallback audit found no strong next import/export micro-slice after #204. It
 
 No Rust default rollout readiness is claimed.
 
-### 75. `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-fallback-audit.md
+### 75. `docs/evidence/2026-06-17-rust-indexing-core-phase-20-fallback-audit.md
 
 **Boundary Taxonomy After #204**
 
@@ -1965,7 +1965,7 @@ Recommended answer: choose option 1 unless the maintainer requires Phase 20 to o
 
 No Rust default rollout readiness is claimed.
 
-### 77. `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-required-only.md
+### 77. `docs/evidence/2026-06-17-rust-indexing-core-phase-20-required-only.md
 
 **Target matrix**
 
@@ -2021,7 +2021,7 @@ Rust core: available (/Users/bilibili/Documents/workspace/jununfly/ZCodeGraph/ta
 Performance gate is not satisfied for required targets whose TypeScript and Rust arms both completed.
 Rust default rollout readiness is not claimed by this generated draft.
 
-### 80. `docs/benchmarks/2026-06-18-rust-indexing-core-issue-206-finalization-diagnostics-decision.md
+### 80. `docs/evidence/2026-06-18-rust-indexing-core-issue-206-finalization-diagnostics-decision.md
 
 **Decision**
 
@@ -2033,8 +2033,8 @@ The post-PRD optimization gate remains open. This record does not claim Rust def
 
 **Artifacts**
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- Prior comparison: `docs/benchmarks/2026-06-17-rust-indexing-core-issue-205-vscode-finalization-profile-selection.md`
+- Consolidated cleanup evidence: `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- Prior comparison: `docs/evidence/2026-06-17-rust-indexing-core-issue-205-vscode-finalization-profile-selection.md`
 
 **Interpretation**
 
@@ -2083,7 +2083,7 @@ Required constraints for that issue:
 
 This keeps the post-PRD optimization work data-driven without hiding a semantic change inside a performance issue.
 
-### 81. `docs/benchmarks/2026-06-18-rust-indexing-core-issue-207-disambiguation-equivalence-decision.md
+### 81. `docs/evidence/2026-06-18-rust-indexing-core-issue-207-disambiguation-equivalence-decision.md
 
 **Decision**
 
@@ -2115,7 +2115,7 @@ Required constraints for that issue:
 
 Runner-up paths remain `edgeWriteDbMs` and `unresolvedCleanupDbMs`, but they are not selected by #207 because #206 identified `perReferenceDisambiguationMs` as the largest single semantic path and #207 found a plausible equivalence seam for that path.
 
-### 82. `docs/benchmarks/2026-06-18-rust-indexing-core-issue-208-candidate-replay-ab-decision.md
+### 82. `docs/evidence/2026-06-18-rust-indexing-core-issue-208-candidate-replay-ab-decision.md
 
 **Decision**
 
@@ -2141,8 +2141,8 @@ The post-PRD optimization gate remains open. This record does not claim Rust def
 
 **Artifacts**
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- Prior comparison: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-206-finalization-diagnostics-decision.md`
+- Consolidated cleanup evidence: `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- Prior comparison: `docs/evidence/2026-06-18-rust-indexing-core-issue-206-finalization-diagnostics-decision.md`
 
 **Interpretation**
 
@@ -2173,7 +2173,7 @@ Reason:
 
 #165 should remain open for post-PRD optimization. The next optimization selection should use the existing tracker rather than automatically continuing candidate replay.
 
-### 83. `docs/benchmarks/2026-06-18-rust-indexing-core-issue-209-edge-write-batching-decision.md
+### 83. `docs/evidence/2026-06-18-rust-indexing-core-issue-209-edge-write-batching-decision.md
 
 **Decision**
 
@@ -2194,8 +2194,8 @@ The post-PRD optimization gate remains open. This record does not claim Rust def
 
 **Artifacts**
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- Prior VS Code comparison: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-206-finalization-diagnostics-decision.md`
+- Consolidated cleanup evidence: `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- Prior VS Code comparison: `docs/evidence/2026-06-18-rust-indexing-core-issue-206-finalization-diagnostics-decision.md`
 
 **Validation**
 
@@ -2256,7 +2256,7 @@ Do not continue this exact candidate as the next #165 optimization path because:
 
 No Rust default rollout readiness is claimed.
 
-### 84. `docs/benchmarks/2026-06-18-rust-indexing-core-issue-210-post-209-scoreboard-decision.md
+### 84. `docs/evidence/2026-06-18-rust-indexing-core-issue-210-post-209-scoreboard-decision.md
 
 **Scope**
 
@@ -2273,7 +2273,7 @@ No Rust default rollout readiness is claimed.
 
 **Scoreboard Run**
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- Consolidated cleanup evidence: `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 - Node: `v22.21.1`
 - Rust core: `target/debug/zcodegraph-core`
 - SQLite write mode: `final-flush`
@@ -2308,7 +2308,7 @@ Expected scope:
 
 Do not select default rollout readiness from this evidence. Keep #165 open.
 
-### 85. `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md
+### 85. `docs/evidence/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md
 
 **Scope**
 
@@ -2318,13 +2318,13 @@ No Rust default rollout readiness is claimed.
 
 Architecture records:
 
-- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
-- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+- `docs/decisions/ZJ-0003-evidence-gated-indexing-optimization.md`
+- `docs/decisions/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
 
 **Final After Scoreboard**
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
-- Before artifact: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-210-post-209-scoreboard-decision.md`
+- Consolidated cleanup evidence: `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- Before artifact: `docs/evidence/2026-06-18-rust-indexing-core-issue-210-post-209-scoreboard-decision.md`
 
 | Target | Sufficiency | Rust graphStats | Before sqliteWriteMs | After sqliteWriteMs | Delta | Before Rust ms | After Rust ms | Rust wall delta |
 |---|---|---|---:|---:|---:|---:|---:|---:|
@@ -2356,7 +2356,7 @@ Keep #165 open. The next performance issue should select a different dominant bu
 
 #185 remains unchanged because this issue did not touch packaging, CLI status, release, or npm smoke paths.
 
-### 86. `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-decision.md
+### 86. `docs/evidence/2026-06-18-rust-indexing-core-phase-22-decision.md
 
 **Scope**
 
@@ -2366,14 +2366,14 @@ No Rust default rollout readiness is claimed.
 
 Architecture record:
 
-- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
+- `docs/decisions/ZJ-0003-evidence-gated-indexing-optimization.md`
 
 **Pipeline Artifacts**
 
 - Plan: `docs/plans/2026-06-18-rust-indexing-core-phase-22-evidence-pipeline-and-optimization-loop.md`
 - Evidence tool: `scripts/rust-indexing-evidence.mjs`
 - Tool tests: `__tests__/rust-indexing-evidence.test.ts`
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- Consolidated cleanup evidence: `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 The evidence tool is local-only. It does not call GitHub, update issues, close issues, edit labels, or require network access.
 
@@ -2389,9 +2389,9 @@ The selected optimization reuses same-file local exact candidate lookup results 
 
 **Final After Scoreboard**
 
-- Consolidated cleanup evidence: `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- Consolidated cleanup evidence: `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
-Comparison baseline: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md`.
+Comparison baseline: `docs/evidence/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md`.
 
 | Target | Sufficiency | Rust graphStats | Before localExactMs | After localExactMs | Delta | Before Rust ms | After Rust ms | Rust wall delta |
 |---|---|---|---:|---:|---:|---:|---:|---:|
@@ -2426,7 +2426,7 @@ Keep #165 open.
 
 The next post-Phase 22 optimization should use the new evidence tool rather than hand-written comparison tables. Based on the Phase 22 final comparison, `parseExtractionMs` is the next highest Rust-owned ranked bucket, but it should be confirmed against the latest artifact pair before creating the next implementation issue.
 
-### 87. `docs/benchmarks/2026-06-18-rust-indexing-core-phase-23-closeout-decision.md
+### 87. `docs/evidence/2026-06-18-rust-indexing-core-phase-23-closeout-decision.md
 
 **Scope**
 
@@ -2436,13 +2436,13 @@ No Rust default rollout readiness is claimed. #165 remains open.
 
 Architecture record:
 
-- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
+- `docs/decisions/ZJ-0003-evidence-gated-indexing-optimization.md`
 
 **Inventory Classification**
 
 Inventory details were absorbed into:
 
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 Classification summary:
 
@@ -2482,12 +2482,12 @@ Commands run:
 
 Targeted smoke/profile artifacts generated from existing Phase 22 evidence:
 
-- `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
+- `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 Smoke source artifacts:
 
-- Before: `docs/benchmarks/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md`
-- After: `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-decision.md`
+- Before: `docs/evidence/2026-06-18-rust-indexing-core-issue-211-rust-core-sqlite-write-decision.md`
+- After: `docs/evidence/2026-06-18-rust-indexing-core-phase-22-decision.md`
 
 Smoke result:
 
@@ -2514,7 +2514,7 @@ Rationale:
 
 The next issue should be diagnostic/profiling first, not a bounded optimization implementation issue.
 
-### 88. `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md
+### 88. `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md
 
 **Decision**
 
@@ -2536,10 +2536,10 @@ This cleanup deletes:
 
 Keep these as the reusable architecture/performance trail:
 
-- `docs/zj-adr/ZJ-0003-evidence-gated-indexing-optimization.md`
-- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
-- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
-- `docs/benchmarks/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/decisions/ZJ-0003-evidence-gated-indexing-optimization.md`
+- `docs/decisions/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+- `docs/evidence/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
+- `docs/evidence/2026-06-24-rust-hybrid-consolidated-benchmarks.md`
 
 **Cleanup Boundary**
 
@@ -2547,7 +2547,7 @@ This cleanup does not delete the durable issue decision documents themselves.
 It only removes generated process evidence whose reusable facts are captured in
 those decision documents and in the ADRs above.
 
-### 89. `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md
+### 89. `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md
 
 **Decision**
 
@@ -2575,10 +2575,10 @@ decision trail:
 
 - `docs/plans/2026-06-16-rust-indexing-core-phase-15e-rss-gate.md`
 - `docs/plans/2026-06-17-rust-indexing-core-phase-15f-production-like-rss-gate-cleanup.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-results-and-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-20-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-16-results-and-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-20-decision.md`
 
 **Cleanup Boundary**
 
@@ -2586,7 +2586,7 @@ This cleanup does not delete active release, resolver, or Rust-hybrid
 architecture evidence. It only removes process artifacts whose decision value is
 captured above or superseded by later durable documents.
 
-### 90. `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md
+### 90. `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md
 
 **Decision**
 
@@ -2613,8 +2613,8 @@ Keep these as the reusable decision trail:
 
 - `docs/plans/2026-06-16-rust-indexing-core-phase-15e-rss-gate.md`
 - `docs/plans/2026-06-17-rust-indexing-core-phase-15f-production-like-rss-gate-cleanup.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-results-and-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-16-results-and-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md`
 
 **Cleanup Boundary**
 
@@ -2622,7 +2622,7 @@ This cleanup only removes local process evidence for the old RSS-gate
 investigation. It does not remove the profiling implementation, tests, scripts,
 or later architecture/performance decision artifacts.
 
-### 91. `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md
+### 91. `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md
 
 **Decision**
 
@@ -2646,10 +2646,10 @@ This cleanup deletes:
 
 Keep these as the reusable decision trail:
 
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-16-results-and-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md`
-- `docs/benchmarks/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md`
-- `docs/zj-adr/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-16-results-and-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-17-validation-and-decision.md`
+- `docs/evidence/2026-06-17-rust-indexing-core-phase-18-results-and-decision.md`
+- `docs/decisions/ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing.md`
 
 **Cleanup Boundary**
 
@@ -2657,7 +2657,7 @@ This cleanup does not remove the durable decision artifacts, plans, ADRs, or
 later optimization evidence. It only removes generated files whose reusable
 facts are already summarized above and in the kept decision artifacts.
 
-### 92. `docs/benchmarks/2026-06-24-rust-indexing-core-consolidated-benchmarks.md
+### 92. `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md
 
 **Decision**
 
@@ -2665,8 +2665,8 @@ Decision: `consolidate-and-delete-process-artifacts`.
 
 Phase 22 and Phase 23 durable decisions remain in:
 
-- `docs/benchmarks/2026-06-18-rust-indexing-core-phase-22-decision.md`
-- `docs/benchmarks/2026-06-18-rust-indexing-core-phase-23-closeout-decision.md`
+- `docs/evidence/2026-06-18-rust-indexing-core-phase-22-decision.md`
+- `docs/evidence/2026-06-18-rust-indexing-core-phase-23-closeout-decision.md`
 
 Generated comparison output, generated decision drafts, experiment manifests,
 raw artifacts, summaries, and temporary inventory files can be deleted after

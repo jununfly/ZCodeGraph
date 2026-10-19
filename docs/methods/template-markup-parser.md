@@ -138,7 +138,7 @@ resolve to a `csharp` symbol, so add `razor` to the `web`/dotnet family or treat
    repos (cs-mediatr/cs-polly unchanged).
 4. Record in this doc. The fair-coverage methodology (denominator exclusions, the
    honest sub-95% reflection ceiling) lives in
-   [`references/language-verification-guide.md`](../references/language-verification-guide.md#measuring-cross-file-coverage-fair-coverage),
+   [`methods/language-verification-guide.md`](language-verification-guide.md#measuring-cross-file-coverage-fair-coverage),
    not in the old campaign handoff (distilled there 2026-09-28).
 
 ## Effort
