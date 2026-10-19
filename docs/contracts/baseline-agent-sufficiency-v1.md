@@ -1,3 +1,9 @@
+---
+doc-kind: contract
+authority: primary
+authority-id: DES-baseline-agent-sufficiency-v1
+bounded-question: "What stable contract does baseline-agent-sufficiency-v1 define?"
+---
 # Baseline: Agent Sufficiency v1
 
 Status: active

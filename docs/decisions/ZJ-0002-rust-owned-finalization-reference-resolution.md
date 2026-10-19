@@ -1,3 +1,9 @@
+---
+doc-kind: decision
+authority: primary
+authority-id: ADR-0002
+bounded-question: "What architectural trade-off does ZJ-0002-rust-owned-finalization-reference-resolution resolve?"
+---
 # ZJ-0002: Move finalization and reference resolution toward Rust ownership
 
 ## Status

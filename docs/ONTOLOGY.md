@@ -1,5 +1,5 @@
 ---
-doc-kind: design
+doc-kind: contract
 authority: primary
 authority-id: ONT-docs-ontology-v1
 bounded-question: What are the entity classes, attributes, relationships, and rules that govern every document under docs/?

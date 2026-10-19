@@ -1,3 +1,9 @@
+---
+doc-kind: contract
+authority: primary
+authority-id: DES-rust-framework-ownership-matrix-v1
+bounded-question: "What stable contract does rust-framework-ownership-matrix-v1 define?"
+---
 # Rust Framework Ownership Matrix v1
 
 > Per-language framework/runtime semantics ownership ledger — distilled 2026-10-18

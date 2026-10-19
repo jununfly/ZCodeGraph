@@ -1,3 +1,9 @@
+---
+doc-kind: method
+authority: supporting
+authority-id: MET-rust-indexing-finalization-boundary
+bounded-question: "What methodology does rust-indexing-finalization-boundary describe?"
+---
 # Rust Indexing Finalization Boundary
 
 ## Scope

@@ -1,3 +1,9 @@
+---
+doc-kind: decision
+authority: primary
+authority-id: ADR-0006
+bounded-question: "What architectural trade-off does ZJ-0006-lazy-sqlite-corruption-recovery resolve?"
+---
 # ZJ-0006: Lazy SQLite corruption recovery for MCP daemon
 
 ## Status

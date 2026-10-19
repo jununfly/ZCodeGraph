@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-08-swift-rust-ownership-assessmen
+bounded-question: "What evidence does 2026-10-08-swift-rust-ownership-assessment provide?"
+---
 # Swift Baseline Migration Ownership Assessment
 
 Date: 2026-10-08

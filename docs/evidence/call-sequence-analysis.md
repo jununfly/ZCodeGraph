@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-call-sequence-analysis
+bounded-question: "What evidence does call-sequence-analysis provide?"
+---
 # Call-sequence analysis — why read savings don't convert to wall-clock
 
 **Date:** 2026-05-23 · **Branch:** `architectural-improvements` · **Source data:** the surviving

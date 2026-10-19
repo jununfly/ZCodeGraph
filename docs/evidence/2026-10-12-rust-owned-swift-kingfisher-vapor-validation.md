@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-12-rust-owned-swift-kingfisher-va
+bounded-question: "What evidence does 2026-10-12-rust-owned-swift-kingfisher-vapor-validation provide?"
+---
 # Rust-Owned Swift Corpus Validation (Kingfisher UIKit/SwiftUI + Vapor server)
 
 Date: 2026-10-12

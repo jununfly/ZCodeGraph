@@ -1,3 +1,9 @@
+---
+doc-kind: contract
+authority: primary
+authority-id: DES-baseline-indexing-performance-v1
+bounded-question: "What stable contract does baseline-indexing-performance-v1 define?"
+---
 # Baseline: Indexing Performance v1
 
 Status: active

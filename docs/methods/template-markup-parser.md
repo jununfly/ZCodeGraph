@@ -1,3 +1,9 @@
+---
+doc-kind: method
+authority: supporting
+authority-id: MET-template-markup-parser
+bounded-question: "What methodology does template-markup-parser describe?"
+---
 # Scope: Template-markup parser (Razor / Blazor / Thymeleaf)
 
 Status: **P1+P2+@code IMPLEMENTED** (commits 59b8de2 directives/tags, 90c5f39 @code

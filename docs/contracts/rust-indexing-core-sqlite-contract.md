@@ -1,3 +1,9 @@
+---
+doc-kind: contract
+authority: primary
+authority-id: DES-rust-indexing-core-sqlite-contract
+bounded-question: "What stable contract does rust-indexing-core-sqlite-contract define?"
+---
 # Rust Indexing Core SQLite Contract
 
 This document records the Phase 1 Rust indexing core's SQLite write contract.

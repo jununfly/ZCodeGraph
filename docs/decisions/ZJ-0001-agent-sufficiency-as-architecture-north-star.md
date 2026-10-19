@@ -1,3 +1,9 @@
+---
+doc-kind: decision
+authority: primary
+authority-id: ADR-0001
+bounded-question: "What architectural trade-off does ZJ-0001-agent-sufficiency-as-architecture-north-star resolve?"
+---
 # ZJ-0001: Use Agent Sufficiency as the architecture north star
 
 ## Status

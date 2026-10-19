@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-10-rust-owned-dart-flutter-valida
+bounded-question: "What evidence does 2026-10-10-rust-owned-dart-flutter-validation provide?"
+---
 # Rust-Owned Dart Corpus Validation (Flutter framework + dart-lang/collection)
 
 Date: 2026-10-10

@@ -1,3 +1,9 @@
+---
+doc-kind: ledger
+authority: supporting
+authority-id: LED-rust-native-ts-module-resolution-ledger
+bounded-question: "What decision history does rust-native-ts-module-resolution-ledger record?"
+---
 # Rust-Native TypeScript Module Resolution — Decision Ledger
 
 > Decision ledger distilled 2026-09-21 from the 3,097-line

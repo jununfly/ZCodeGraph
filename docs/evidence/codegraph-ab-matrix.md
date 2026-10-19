@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-codegraph-ab-matrix
+bounded-question: "What evidence does codegraph-ab-matrix provide?"
+---
 # CodeGraph A/B benchmark — with vs without, every language × S/M/L
 
 **Date:** 2026-05-24 · **Branch:** `main` · **codegraph 0.9.4**

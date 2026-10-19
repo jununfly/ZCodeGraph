@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-answer-directly-vs-explore-agent
+bounded-question: "What evidence does answer-directly-vs-explore-agent provide?"
+---
 # Answer directly vs. delegate to an Explore agent (interactive A/B)
 
 **Question:** Does answering a "how does X work?" question *directly* with CodeGraph in the

@@ -1,3 +1,9 @@
+---
+doc-kind: method
+authority: supporting
+authority-id: MET-index-pipeline
+bounded-question: "What methodology does index-pipeline describe?"
+---
 # Index Pipeline Design
 
 ## Purpose

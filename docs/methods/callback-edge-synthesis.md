@@ -1,3 +1,9 @@
+---
+doc-kind: method
+authority: supporting
+authority-id: MET-callback-edge-synthesis
+bounded-question: "What methodology does callback-edge-synthesis describe?"
+---
 # Design + status: general callback / observer edge synthesis
 
 **Status:** SHIPPED (the synthesizer in `callback-synthesizer.ts` is merged and on

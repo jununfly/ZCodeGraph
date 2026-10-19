@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-09-30-go-gin-route-ownership
+bounded-question: "What evidence does 2026-09-30-go-gin-route-ownership provide?"
+---
 # Go / Gin Route Ownership under Rust-Owned Indexing
 
 Date: 2026-09-30

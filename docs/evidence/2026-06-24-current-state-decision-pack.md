@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-06-24-current-state-decision-pack
+bounded-question: "What evidence does 2026-06-24-current-state-decision-pack provide?"
+---
 # Current State Decision Pack
 
 Date: 2026-06-24

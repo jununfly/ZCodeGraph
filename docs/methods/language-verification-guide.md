@@ -1,3 +1,9 @@
+---
+doc-kind: method
+authority: supporting
+authority-id: MET-language-verification-guide
+bounded-question: "What methodology does language-verification-guide describe?"
+---
 # CodeGraph Language Verification Guide
 
 You are verifying that CodeGraph fully supports a specific programming language. The user will give you a path to a real-world, popular open-source codebase cloned locally. Your job is to run a battery of realistic prompts against it using CodeGraph's API and verify the results are good enough to say that language is **covered and supported**.

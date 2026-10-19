@@ -1,3 +1,9 @@
+---
+doc-kind: method
+authority: supporting
+authority-id: MET-mixed-ios-and-react-native-bridging
+bounded-question: "What methodology does mixed-ios-and-react-native-bridging describe?"
+---
 # Mixed iOS + React Native Bridging — Coverage Design
 
 **Audience:** a Claude agent (or human) continuing this work after #165 landed

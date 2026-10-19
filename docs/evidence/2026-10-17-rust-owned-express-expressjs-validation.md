@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-17-rust-owned-express-expressjs-v
+bounded-question: "What evidence does 2026-10-17-rust-owned-express-expressjs-validation provide?"
+---
 # Rust-Owned Express Corpus Validation (expressjs/express)
 
 Date: 2026-10-17

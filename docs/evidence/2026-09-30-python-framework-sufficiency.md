@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-09-30-python-framework-sufficiency
+bounded-question: "What evidence does 2026-09-30-python-framework-sufficiency provide?"
+---
 # Python Framework Sufficiency under Rust-Owned Indexing
 
 Date: 2026-09-30

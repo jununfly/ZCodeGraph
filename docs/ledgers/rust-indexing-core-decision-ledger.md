@@ -1,3 +1,9 @@
+---
+doc-kind: ledger
+authority: supporting
+authority-id: LED-rust-indexing-core-decision-ledger
+bounded-question: "What decision history does rust-indexing-core-decision-ledger record?"
+---
 # Rust Indexing Core — Decision Ledger
 
 > Decision ledger distilled 2026-09-21 from the 16,104-line

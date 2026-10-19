@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-13-rust-owned-lua-penlight-plenar
+bounded-question: "What evidence does 2026-10-13-rust-owned-lua-penlight-plenary-validation provide?"
+---
 # Rust-Owned Lua Corpus Validation (Penlight + plenary.nvim)
 
 Date: 2026-10-13

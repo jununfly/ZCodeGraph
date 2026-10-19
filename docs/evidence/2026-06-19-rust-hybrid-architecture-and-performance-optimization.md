@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-06-19-rust-hybrid-architecture-and-p
+bounded-question: "What evidence does 2026-06-19-rust-hybrid-architecture-and-performance-optimization provide?"
+---
 # Rust-Hybrid Architecture And Performance Optimization PRD
 
 Date: 2026-06-19

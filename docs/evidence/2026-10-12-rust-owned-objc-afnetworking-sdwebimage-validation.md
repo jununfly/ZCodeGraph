@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-12-rust-owned-objc-afnetworking-s
+bounded-question: "What evidence does 2026-10-12-rust-owned-objc-afnetworking-sdwebimage-validation provide?"
+---
 # Rust-Owned Objective-C Corpus Validation (AFNetworking + SDWebImage)
 
 Date: 2026-10-12

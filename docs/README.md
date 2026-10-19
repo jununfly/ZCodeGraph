@@ -242,6 +242,12 @@ What this pass did:
    `decisions/` section above.
 6. **Rewrote this map** as the entity registry, replacing the previous
    category-by-folder navigation.
+7. **Added YAML frontmatter** (4 required + 4 optional fields) to all 66
+   markdown entities across `decisions/`, `contracts/`, `ledgers/`,
+   `evidence/`, and `methods/`.
+8. **Created** `__tests__/docs-ontology.test.ts` (138 tests) validating
+   frontmatter schema, authority vocabulary, folder/class matching, unique
+   authority-ids, dated-evidence rules, and relationship field format.
 
 What this pass deliberately did **not** do:
 

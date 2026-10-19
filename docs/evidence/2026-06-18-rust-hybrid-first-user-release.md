@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-06-18-rust-hybrid-first-user-release
+bounded-question: "What evidence does 2026-06-18-rust-hybrid-first-user-release provide?"
+---
 # Rust-Hybrid First-User Release PRD
 
 ## Superseding Note: 2026-06-19 Pre-Release API Polish

@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-06-25-zcodegraph-0-10-0-release-snap
+bounded-question: "What evidence does 2026-06-25-zcodegraph-0-10-0-release-snapshot provide?"
+---
 # ZCodeGraph 0.10.0 Release Snapshot
 
 Date: 2026-06-25

@@ -1,3 +1,9 @@
+---
+doc-kind: ledger
+authority: supporting
+authority-id: LED-rust-hybrid-parse-extraction-decision-le
+bounded-question: "What decision history does rust-hybrid-parse-extraction-decision-ledger record?"
+---
 <!--
 doc-kind: design
 authority: supporting

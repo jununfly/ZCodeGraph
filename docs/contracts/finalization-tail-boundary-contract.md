@@ -1,3 +1,9 @@
+---
+doc-kind: contract
+authority: primary
+authority-id: DES-finalization-tail-boundary-contract
+bounded-question: "What stable contract does finalization-tail-boundary-contract define?"
+---
 # Finalization Tail Boundary Contract
 
 Date: 2026-06-21 (contracts) · consolidated as durable design 2026-09-21

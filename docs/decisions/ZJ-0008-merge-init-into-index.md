@@ -1,3 +1,9 @@
+---
+doc-kind: decision
+authority: primary
+authority-id: ADR-0008
+bounded-question: "What architectural trade-off does ZJ-0008-merge-init-into-index resolve?"
+---
 # ZJ-0008: Merge `init` into `index` (hard command merge with auto-bootstrap)
 
 ## Status

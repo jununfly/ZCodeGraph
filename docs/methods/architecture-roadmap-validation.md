@@ -1,3 +1,9 @@
+---
+doc-kind: method
+authority: supporting
+authority-id: MET-architecture-roadmap-validation
+bounded-question: "What methodology does architecture-roadmap-validation describe?"
+---
 # Architecture Roadmap — Validation Report
 
 **Date:** 2026-06-11 · **Branch:** `main` · **ZCodeGraph 0.9.9**

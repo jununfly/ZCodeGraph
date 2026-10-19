@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-06-25-zcodegraph-0-10-0-release-crit
+bounded-question: "What evidence does 2026-06-25-zcodegraph-0-10-0-release-critical-validation provide?"
+---
 # ZCodeGraph 0.10.0 Release-Critical Local Validation
 
 Date: 2026-06-25

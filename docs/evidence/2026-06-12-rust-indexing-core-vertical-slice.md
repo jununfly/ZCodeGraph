@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-06-12-rust-indexing-core-vertical-sl
+bounded-question: "What evidence does 2026-06-12-rust-indexing-core-vertical-slice provide?"
+---
 # Rust Indexing Core Vertical Slice PRD
 
 Published issue: [#49 — PRD: Rust indexing core vertical slice](https://github.com/jununfly/ZCodeGraph/issues/49)

@@ -1,3 +1,9 @@
+---
+doc-kind: decision
+authority: primary
+authority-id: ADR-0003
+bounded-question: "What architectural trade-off does ZJ-0003-evidence-gated-indexing-optimization resolve?"
+---
 # ZJ-0003: Gate indexing performance changes with evidence artifacts
 
 ## Status

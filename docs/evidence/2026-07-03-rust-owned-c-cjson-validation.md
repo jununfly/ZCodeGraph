@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-07-03-rust-owned-c-cjson-validation
+bounded-question: "What evidence does 2026-07-03-rust-owned-c-cjson-validation provide?"
+---
 # Rust-Owned C Corpus Validation
 
 Date: 2026-07-03

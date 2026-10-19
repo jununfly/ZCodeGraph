@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-14-rust-owned-kotlin-expect-actua
+bounded-question: "What evidence does 2026-10-14-rust-owned-kotlin-expect-actual-validation provide?"
+---
 # Kotlin 语义增强验证（roadmap 1-2-8-5）
 
 日期：2026-10-14

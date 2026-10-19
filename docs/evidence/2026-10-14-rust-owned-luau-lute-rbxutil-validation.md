@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-14-rust-owned-luau-lute-rbxutil-v
+bounded-question: "What evidence does 2026-10-14-rust-owned-luau-lute-rbxutil-validation provide?"
+---
 # Luau rust-owned baseline validation — lute + RbxUtil corpora (roadmap 1-2-13-3)
 
 **Date**: 2026-10-14 · **Scope**: real-corpus gate for the Luau baseline visitor

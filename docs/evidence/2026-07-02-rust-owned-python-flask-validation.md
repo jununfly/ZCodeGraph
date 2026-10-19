@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-07-02-rust-owned-python-flask-valida
+bounded-question: "What evidence does 2026-07-02-rust-owned-python-flask-validation provide?"
+---
 # Rust-Owned Python Flask Validation
 
 Date: 2026-07-02

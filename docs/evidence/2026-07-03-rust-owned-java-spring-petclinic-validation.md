@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-07-03-rust-owned-java-spring-petclin
+bounded-question: "What evidence does 2026-07-03-rust-owned-java-spring-petclinic-validation provide?"
+---
 # Rust-Owned Java Corpus Validation
 
 Date: 2026-07-03

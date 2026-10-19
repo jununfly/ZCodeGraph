@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-06-26-zcodegraph-0-10-0-targeted-age
+bounded-question: "What evidence does 2026-06-26-zcodegraph-0-10-0-targeted-agent-ab provide?"
+---
 # ZCodeGraph 0.10.0 Targeted Agent A/B Smoke
 
 Date: 2026-06-26

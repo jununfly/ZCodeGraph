@@ -1,3 +1,9 @@
+---
+doc-kind: ledger
+authority: supporting
+authority-id: LED-resolver-semantic-residuals-ledger
+bounded-question: "What decision history does resolver-semantic-residuals-ledger record?"
+---
 # Resolver Semantic Residuals — Decision & Taxonomy Ledger
 
 > Decision/taxonomy ledger distilled 2026-09-21 from the 5,721-line

@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-09-rust-owned-ruby-rails-rack-val
+bounded-question: "What evidence does 2026-10-09-rust-owned-ruby-rails-rack-validation provide?"
+---
 # Rust-Owned Ruby Corpus Validation (Rails gems + Rack)
 
 Date: 2026-10-09

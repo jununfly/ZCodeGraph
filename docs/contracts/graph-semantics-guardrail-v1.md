@@ -1,3 +1,9 @@
+---
+doc-kind: contract
+authority: primary
+authority-id: DES-graph-semantics-guardrail-v1
+bounded-question: "What stable contract does graph-semantics-guardrail-v1 define?"
+---
 # Graph Semantics Guardrail v1
 
 Status: active

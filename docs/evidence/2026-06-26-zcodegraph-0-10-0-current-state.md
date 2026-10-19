@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-06-26-zcodegraph-0-10-0-current-stat
+bounded-question: "What evidence does 2026-06-26-zcodegraph-0-10-0-current-state provide?"
+---
 # ZCodeGraph 0.10.0 Current-State Metrics
 
 Date: 2026-06-26

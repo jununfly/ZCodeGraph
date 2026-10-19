@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-09-rust-owned-php-laravel-drupal-validation
+bounded-question: "What evidence does 2026-10-09-rust-owned-php-laravel-drupal-validation provide?"
+---
 # Rust-Owned PHP Corpus Validation (Laravel + Drupal)
 
 Date: 2026-10-09

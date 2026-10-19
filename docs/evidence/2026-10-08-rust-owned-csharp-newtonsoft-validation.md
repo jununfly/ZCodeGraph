@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-08-rust-owned-csharp-newtonsoft-v
+bounded-question: "What evidence does 2026-10-08-rust-owned-csharp-newtonsoft-validation provide?"
+---
 # Rust-Owned C# Corpus Validation (Newtonsoft.Json)
 
 Date: 2026-10-08

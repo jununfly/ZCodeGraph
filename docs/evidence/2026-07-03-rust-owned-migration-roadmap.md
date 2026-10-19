@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-07-03-rust-owned-migration-roadmap
+bounded-question: "What evidence does 2026-07-03-rust-owned-migration-roadmap provide?"
+---
 # Rust-Owned Migration Roadmap PRD
 
 Date: 2026-07-03

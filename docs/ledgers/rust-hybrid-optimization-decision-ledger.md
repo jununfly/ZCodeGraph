@@ -1,3 +1,9 @@
+---
+doc-kind: ledger
+authority: supporting
+authority-id: LED-rust-hybrid-optimization-decision-ledger
+bounded-question: "What decision history does rust-hybrid-optimization-decision-ledger record?"
+---
 # Rust-Hybrid Optimization — Decision Ledger
 
 > Decision ledger distilled 2026-09-21 from the 6,647-line

@@ -1,3 +1,9 @@
+---
+doc-kind: decision
+authority: primary
+authority-id: ADR-0007
+bounded-question: "What architectural trade-off does ZJ-0007-three-tier-fallback-health-state resolve?"
+---
 # ZJ-0007: Three-tier fallback health state (healthy/partial/degraded)
 
 ## Status

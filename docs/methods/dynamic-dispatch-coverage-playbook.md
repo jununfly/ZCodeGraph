@@ -1,3 +1,9 @@
+---
+doc-kind: method
+authority: supporting
+authority-id: MET-dynamic-dispatch-coverage-playbook
+bounded-question: "What methodology does dynamic-dispatch-coverage-playbook describe?"
+---
 # Dynamic-Dispatch Coverage Playbook
 
 **Audience:** a Claude agent continuing this work.

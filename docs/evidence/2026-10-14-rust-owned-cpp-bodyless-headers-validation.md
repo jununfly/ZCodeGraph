@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-14-rust-owned-cpp-bodyless-header
+bounded-question: "What evidence does 2026-10-14-rust-owned-cpp-bodyless-headers-validation provide?"
+---
 # Roadmap 1-2-3-2: C++ Bodyless Header Declarations — Validation Evidence
 
 **Date**: 2026-10-14

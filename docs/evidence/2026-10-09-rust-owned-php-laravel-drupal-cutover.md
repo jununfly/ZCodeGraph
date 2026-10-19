@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-09-rust-owned-php-laravel-drupal-cutover
+bounded-question: "What evidence does 2026-10-09-rust-owned-php-laravel-drupal-cutover provide?"
+---
 # Rust-Owned PHP Cutover — Laravel Route + Drupal Hook Back-Fill Validation
 
 Date: 2026-10-09

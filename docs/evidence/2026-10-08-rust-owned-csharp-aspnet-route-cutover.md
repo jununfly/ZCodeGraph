@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-08-rust-owned-csharp-aspnet-route
+bounded-question: "What evidence does 2026-10-08-rust-owned-csharp-aspnet-route-cutover provide?"
+---
 # Rust-Owned C# Cutover — ASP.NET Route Back-Fill Validation (eShopOnWeb Web)
 
 Date: 2026-10-08

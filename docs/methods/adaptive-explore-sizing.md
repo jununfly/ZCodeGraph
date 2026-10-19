@@ -1,3 +1,9 @@
+---
+doc-kind: method
+authority: supporting
+authority-id: MET-adaptive-explore-sizing
+bounded-question: "What methodology does adaptive-explore-sizing describe?"
+---
 # Design + status: adaptive `zcodegraph_explore` sizing (sibling skeletonization)
 
 **Status:** Implemented & validated, **default-on**, on branch

@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-10-15-rust-owned-scala-spark-validat
+bounded-question: "What evidence does 2026-10-15-rust-owned-scala-spark-validation provide?"
+---
 # Rust-Owned Scala Corpus Validation (apache/spark)
 
 Date: 2026-10-15

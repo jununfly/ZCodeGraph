@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-09-30-rust-owned-kotlin-koans-valida
+bounded-question: "What evidence does 2026-09-30-rust-owned-kotlin-koans-validation provide?"
+---
 # Rust-Owned Kotlin Corpus Validation
 
 Date: 2026-09-30

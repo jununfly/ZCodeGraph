@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-07-13-rust-owned-cpp-fmt-validation
+bounded-question: "What evidence does 2026-07-13-rust-owned-cpp-fmt-validation provide?"
+---
 # Issue #678: fmtlib/fmt Corpus Validation Evidence
 
 **Date**: 2026-07-13  

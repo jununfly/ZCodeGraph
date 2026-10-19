@@ -1,3 +1,9 @@
+---
+doc-kind: contract
+authority: primary
+authority-id: DES-architecture-roadmap
+bounded-question: "What stable contract does architecture-roadmap define?"
+---
 # ZCodeGraph Architecture Roadmap
 
 ## Purpose

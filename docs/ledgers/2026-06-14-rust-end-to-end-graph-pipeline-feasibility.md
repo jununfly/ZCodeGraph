@@ -1,3 +1,9 @@
+---
+doc-kind: ledger
+authority: supporting
+authority-id: LED-2026-06-14-rust-end-to-end-graph-pipelin
+bounded-question: "What decision history does 2026-06-14-rust-end-to-end-graph-pipeline-feasibility record?"
+---
 # Rust End-To-End Graph Pipeline Feasibility Decision
 
 Date: 2026-06-14

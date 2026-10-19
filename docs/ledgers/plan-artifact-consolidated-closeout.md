@@ -1,3 +1,9 @@
+---
+doc-kind: ledger
+authority: supporting
+authority-id: LED-plan-artifact-consolidated-closeout
+bounded-question: "What decision history does plan-artifact-consolidated-closeout record?"
+---
 # Plan Artifact Consolidated Closeout
 
 This document consolidates the durable decisions and future navigation facts

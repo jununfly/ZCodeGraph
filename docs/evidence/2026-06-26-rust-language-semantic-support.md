@@ -1,3 +1,9 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: BENCH-2026-06-26-rust-language-semantic-support
+bounded-question: "What evidence does 2026-06-26-rust-language-semantic-support provide?"
+---
 # Rust Language Semantic Support PRD
 
 Date: 2026-06-26
