@@ -149,8 +149,8 @@ source lines, export-list text, candidate names, or candidate source.
 Commands:
 
 ```bash
-npx vitest run __tests__/rust-index-engine-cli.test.ts -t "declaration-style ESM named exports|same-file ESM export specifiers|emits bounded ESM named binding fallback samples|resolves one-hop ESM named re-exports|resolves paths-alias one-hop ESM named re-exports|resolves direct ESM named imports"
-npx vitest run __tests__/rust-esm-fallback-taxonomy.test.ts
+npx vitest run tests/rust-index-engine-cli.test.ts -t "declaration-style ESM named exports|same-file ESM export specifiers|emits bounded ESM named binding fallback samples|resolves one-hop ESM named re-exports|resolves paths-alias one-hop ESM named re-exports|resolves direct ESM named imports"
+npx vitest run tests/rust-esm-fallback-taxonomy.test.ts
 cargo test -p zcodegraph-core
 npm run build
 ```
@@ -283,8 +283,8 @@ decision before routing any candidate into the main path.
 Commands:
 
 ```bash
-npx vitest run __tests__/rust-esm-candidate-multiple-taxonomy.test.ts
-npx vitest run __tests__/rust-esm-fallback-taxonomy.test.ts __tests__/rust-esm-candidate-multiple-taxonomy.test.ts
+npx vitest run tests/rust-esm-candidate-multiple-taxonomy.test.ts
+npx vitest run tests/rust-esm-fallback-taxonomy.test.ts tests/rust-esm-candidate-multiple-taxonomy.test.ts
 ```
 
 Results:
@@ -440,8 +440,8 @@ candidate names, or candidate source.
 Commands:
 
 ```bash
-npx vitest run __tests__/rust-index-engine-cli.test.ts -t "emits bounded ESM named binding fallback samples|resolves one-hop ESM named re-exports|resolves paths-alias one-hop ESM named re-exports"
-npx vitest run __tests__/rust-esm-fallback-taxonomy.test.ts
+npx vitest run tests/rust-index-engine-cli.test.ts -t "emits bounded ESM named binding fallback samples|resolves one-hop ESM named re-exports|resolves paths-alias one-hop ESM named re-exports"
+npx vitest run tests/rust-esm-fallback-taxonomy.test.ts
 cargo test -p zcodegraph-core import_fallback
 npm run build
 ```
@@ -612,8 +612,8 @@ Commands:
 ```bash
 cargo test -p zcodegraph-core import_fallback
 cargo test -p zcodegraph-core emits_machine_readable_result_json
-npx vitest run __tests__/rust-import-target-taxonomy.test.ts
-npx vitest run __tests__/rust-index-engine-cli.test.ts -t "emits bounded Rust import fallback samples"
+npx vitest run tests/rust-import-target-taxonomy.test.ts
+npx vitest run tests/rust-index-engine-cli.test.ts -t "emits bounded Rust import fallback samples"
 ```
 
 Results:
@@ -777,8 +777,8 @@ not a performance claim.
 Commands:
 
 ```bash
-npx vitest run __tests__/rust-index-engine-cli.test.ts -t "emits bounded Rust import fallback samples"
-npx vitest run __tests__/rust-import-target-taxonomy.test.ts
+npx vitest run tests/rust-index-engine-cli.test.ts -t "emits bounded Rust import fallback samples"
+npx vitest run tests/rust-import-target-taxonomy.test.ts
 npm run build
 ```
 
@@ -830,7 +830,7 @@ Observed:
 
 Sample:
 
-- `../package.json` from `__tests__/installer-isolation.test.ts` classified as
+- `../package.json` from `tests/installer-isolation.test.ts` classified as
   `targetKind: config`, `targetExtension: .json`.
 
 Measurement sidecar:
@@ -921,7 +921,7 @@ No production resolver behavior changed.
 Command:
 
 ```bash
-npx vitest run __tests__/rust-import-target-taxonomy.test.ts
+npx vitest run tests/rust-import-target-taxonomy.test.ts
 ```
 
 Result:
@@ -1122,8 +1122,8 @@ import, and symbol-level behavior were not intentionally changed.
 Commands:
 
 ```bash
-npx vitest run __tests__/rust-index-engine-cli.test.ts -t "resolves only relative JS source specifiers"
-npx vitest run __tests__/rust-index-engine-cli.test.ts -t "relative and paths-alias|conventional aliases|emits bounded Rust import fallback samples|resolves only relative JS source specifiers"
+npx vitest run tests/rust-index-engine-cli.test.ts -t "resolves only relative JS source specifiers"
+npx vitest run tests/rust-index-engine-cli.test.ts -t "relative and paths-alias|conventional aliases|emits bounded Rust import fallback samples|resolves only relative JS source specifiers"
 cargo test -p zcodegraph-core import_fallback
 ```
 
@@ -1882,7 +1882,7 @@ Kept fallback:
 
 **Deterministic Fixture Coverage**
 
-Coverage exists in `__tests__/rust-index-engine-cli.test.ts`:
+Coverage exists in `tests/rust-index-engine-cli.test.ts`:
 
 - direct ESM named imports;
 - paths-alias ESM named imports;
@@ -1892,8 +1892,8 @@ Coverage exists in `__tests__/rust-index-engine-cli.test.ts`:
 
 Fallback taxonomy coverage exists in:
 
-- `__tests__/rust-esm-fallback-taxonomy.test.ts`
-- `__tests__/rust-esm-candidate-multiple-taxonomy.test.ts`
+- `tests/rust-esm-fallback-taxonomy.test.ts`
+- `tests/rust-esm-candidate-multiple-taxonomy.test.ts`
 
 **Interpretation**
 
@@ -2181,8 +2181,8 @@ Package/runtime resolution is not solved by Part 1. It is handed to Part 2.
 Targeted deterministic validation for Part 1:
 
 ```bash
-npx vitest run __tests__/rust-index-engine-cli.test.ts -t "resolves JS/TS relative and paths-alias imports as Rust-owned file-level edges|resolves paths-alias ESM named imports to exported target-file symbols as Rust-owned edges|resolves one-hop ESM named re-exports to final leaf symbols as Rust-owned edges|resolves paths-alias one-hop ESM named re-exports to final leaf symbols as Rust-owned edges|emits bounded ESM named binding fallback samples in the profile artifact"
-npx vitest run __tests__/rust-esm-fallback-taxonomy.test.ts __tests__/rust-esm-candidate-multiple-taxonomy.test.ts __tests__/rust-import-target-taxonomy.test.ts
+npx vitest run tests/rust-index-engine-cli.test.ts -t "resolves JS/TS relative and paths-alias imports as Rust-owned file-level edges|resolves paths-alias ESM named imports to exported target-file symbols as Rust-owned edges|resolves one-hop ESM named re-exports to final leaf symbols as Rust-owned edges|resolves paths-alias one-hop ESM named re-exports to final leaf symbols as Rust-owned edges|emits bounded ESM named binding fallback samples in the profile artifact"
+npx vitest run tests/rust-esm-fallback-taxonomy.test.ts tests/rust-esm-candidate-multiple-taxonomy.test.ts tests/rust-import-target-taxonomy.test.ts
 ```
 
 ### 48. 2026-06-22-one-hop-barrel-reexport-part1-closeout.md
@@ -2221,7 +2221,7 @@ Kept fallback:
 
 **Deterministic Fixture Coverage**
 
-Coverage exists in `__tests__/rust-index-engine-cli.test.ts`:
+Coverage exists in `tests/rust-index-engine-cli.test.ts`:
 
 - `resolves one-hop ESM named re-exports to final leaf symbols as Rust-owned edges`
 - `resolves paths-alias one-hop ESM named re-exports to final leaf symbols as Rust-owned edges`
@@ -2356,7 +2356,7 @@ Targeted profile artifacts:
 Additional deterministic validation:
 
 ```bash
-npx vitest run __tests__/candidate-protocol.test.ts
+npx vitest run tests/candidate-protocol.test.ts
 ```
 
 Expected validation role:
@@ -2463,7 +2463,7 @@ Default exclusions for that route:
 Validation command:
 
 ```bash
-npx vitest run __tests__/candidate-protocol.test.ts
+npx vitest run tests/candidate-protocol.test.ts
 ```
 
 Result:

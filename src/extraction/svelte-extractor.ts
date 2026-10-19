@@ -18,7 +18,7 @@ const SVELTE_RUNES = new Set([
  * tree-sitter-svelte-next is ABI-15, arborium uses a patched tree-sitter
  * fork), and this extractor's core value is <script>-block delegation to the
  * full TS/JS TreeSitterExtractor — a mechanism the Rust core does not have.
- * Guard: __tests__/file-level-language-ownership-guard.test.ts fails if
+ * Guard: tests/file-level-language-ownership-guard.test.ts fails if
  * 'svelte' is ever added to RUST_HYBRID_RUST_OWNED_LANGUAGES.
  *
  * Svelte files are multi-language (script + template + style). Rather than

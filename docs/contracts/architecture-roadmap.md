@@ -120,9 +120,9 @@ Blast radius and staleness remain adapter-level concerns because they depend on
 tool-wide pending-file state and caller/test lookups shared with other MCP
 outputs.
 
-Tests: `__tests__/explore-planner.test.ts` (133 tests),
-`__tests__/explore-renderer.test.ts` (4 tests),
-`__tests__/explore-types.test.ts` (10 tests). All 147 pass.
+Tests: `tests/explore-planner.test.ts` (133 tests),
+`tests/explore-renderer.test.ts` (4 tests),
+`tests/explore-types.test.ts` (10 tests). All 147 pass.
 
 Design docs updated: see `docs/methods/adaptive-explore-sizing.md#current-code`.
 
@@ -169,7 +169,7 @@ Goal: turn callback/framework/language-specific edge synthesis into registry ent
   now `export function` (was private).
 - **`src/resolution/frameworks/index.ts`** — `registerFrameworkSynthesizers()`
   wraps 21 FrameworkResolvers into the unified registry.
-- **`__tests__/synthesizer-registry.test.ts`** — 22 tests (register, topo
+- **`tests/synthesizer-registry.test.ts`** — 22 tests (register, topo
   sort, language filter, precision threshold, enable/disable config).
 
 Relationship to Candidate 1:
@@ -196,7 +196,7 @@ Goal: move indexing lifecycle orchestration behind a testable pipeline interface
   - `ScanStage` — file discovery + framework detection
   - `ParseStage` — worker-thread tree-sitter parsing + DB storage
   - `RetryStage` — WASM memory error recovery with comment-stripping fallback
-- **`__tests__/index-pipeline.test.ts`** — 28 tests covering pipeline
+- **`tests/index-pipeline.test.ts`** — 28 tests covering pipeline
   lifecycle, stage ordering, abort handling, error accumulation, context
   propagation, and stage name contracts.
 
@@ -227,7 +227,7 @@ Goal: isolate parse execution behind worker and in-process adapters.
   Previously ~230 lines spread across ParseStage.
 - **`src/extraction/parse-executor-fallback.ts`** — `stripCommentLines()` and
   `isWasmMemoryError()` helpers, independently testable.
-- **`__tests__/parse-executor.test.ts`** — 32 tests covering
+- **`tests/parse-executor.test.ts`** — 32 tests covering
   InProcessParseExecutor lifecycle, parsing, error propagation,
   WorkerParseExecutor construction/config, stripCommentLines (10 cases),
   isWasmMemoryError (7 cases), and interface contract verification.
@@ -262,11 +262,11 @@ reusable `CommandContext` interface:
   Each accepts typed args + `CommandContext`, returns `CommandResult`.
   No `process.exit()`, no `console.log()` — all side effects through
   injected context.
-- **`__tests__/command-context.test.ts`** — 20 tests: `createTestContext`
+- **`tests/command-context.test.ts`** — 20 tests: `createTestContext`
   (stdout/stderr capture, log capture, TestExit throwing),
   `writeCommandOutput` (text/lines/json/empty), `writeCommandErrors`
   (error→stderr, warn/info→stdout, mixed).
-- **`__tests__/command-helpers.test.ts`** — 22 tests: `resolveProjectPath`
+- **`tests/command-helpers.test.ts`** — 22 tests: `resolveProjectPath`
   (cross-platform), `isProjectInitialized` (dir/file/nonexistent),
   `requireInitialized`/`requireNotInitialized` (ok/error paths),
   `formatNumber`, `formatDuration` (ms/s/min), `truncate`, `formatSize`.
@@ -296,10 +296,10 @@ InstallRenderer interface from the monolithic `runInstallerWithOptions()`:
   - `NonInteractiveRenderer` — writes to CommandContext (stdout/stderr),
     suitable for --yes / CI / scripting.
   - `TestRenderer` — captures all output in-memory for test assertions.
-- **`__tests__/install-plan.test.ts`** — 24 tests: non-interactive
+- **`tests/install-plan.test.ts`** — 24 tests: non-interactive
   defaults, explicit flags, interactive overrides, edge cases, plan
   shape contract, determinism.
-- **`__tests__/install-renderer.test.ts`** — 27 tests: NonInteractiveRenderer
+- **`tests/install-renderer.test.ts`** — 27 tests: NonInteractiveRenderer
   output capture (intro, planSummary, targetResult, warn/error to stderr,
   info/success/outro to stdout, notes, spinner), TestRenderer buffer
   capture (all methods, spinner lifecycle, clean initial state),
@@ -341,7 +341,7 @@ Goal: identify access-model boundaries by caller intent before splitting SQL sur
   all four interfaces. Backward compatible: existing callers that pass
   `QueryBuilder` still work; new code can depend on the narrowest
   interface it needs.
-- **`__tests__/access-models.test.ts`** — 11 tests: interface contract
+- **`tests/access-models.test.ts`** — 11 tests: interface contract
   verification (each model's methods exist and are callable),
   cross-model integration (write via MaintenanceAccessModel, read via
   AgentAccessModel), empty-db stats, interface isolation, and source module

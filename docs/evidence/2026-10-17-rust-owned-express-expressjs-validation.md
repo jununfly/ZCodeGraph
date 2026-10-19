@@ -123,7 +123,7 @@ Fix in `src/resolution/frameworks/express.ts`:
   to the route node as `calls` edges.
 - The arrow path is untouched; the named-identifier path is untouched.
 
-Regression coverage in `__tests__/frameworks-integration.test.ts` (existing
+Regression coverage in `tests/frameworks-integration.test.ts` (existing
 `Express on rust-hybrid (roadmap 1-6-6-3)` describe):
 
 ```

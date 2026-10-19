@@ -116,7 +116,7 @@ Intentionally out of scope:
 Commands run:
 
 - `cargo test -p zcodegraph-core`
-- `npx vitest run __tests__/ts-module-resolution-oracle.test.ts`
+- `npx vitest run tests/ts-module-resolution-oracle.test.ts`
 - `npm run build`
 - `cargo build -p zcodegraph-core`
 - current-repository `rust-hybrid` profile smoke with
@@ -359,7 +359,7 @@ Verification commands:
 
 - `cargo fmt`
 - `cargo test -p zcodegraph-core`
-- `npx vitest run __tests__/ts-module-resolution-oracle.test.ts`
+- `npx vitest run tests/ts-module-resolution-oracle.test.ts`
 - `npm run build`
 - `cargo build -p zcodegraph-core`
 - `git diff --check`
@@ -457,13 +457,13 @@ fallback, or any file-node selection behavior here would be speculative.
 **Deterministic Fixture Coverage**
 
 Positive coverage exists in
-`__tests__/rust-index-engine-cli.test.ts`:
+`tests/rust-index-engine-cli.test.ts`:
 
 - `resolves JS/TS relative and paths-alias imports as Rust-owned file-level edges`
 
 Fallback/no-go evidence exists in:
 
-- `__tests__/rust-import-target-taxonomy.test.ts`
+- `tests/rust-import-target-taxonomy.test.ts`
 - `docs/evidence/2026-06-24-rust-hybrid-resolver-semantic-residuals-consolidated-evidence.md`
 
 The fallback classifier separates query/hash targets, asset-like targets,
@@ -526,7 +526,7 @@ Resolved kind examples:
 Command:
 
 ```bash
-npx vitest run __tests__/ts-module-resolution-oracle.test.ts
+npx vitest run tests/ts-module-resolution-oracle.test.ts
 ```
 
 Result:
@@ -578,7 +578,7 @@ No production resolver behavior changed.
 Command:
 
 ```bash
-npx vitest run __tests__/ts-module-resolution-oracle.test.ts
+npx vitest run tests/ts-module-resolution-oracle.test.ts
 ```
 
 Result:
@@ -894,7 +894,7 @@ Commands:
 
 ```bash
 cargo test -p zcodegraph-core
-npx vitest run __tests__/ts-module-resolution-oracle.test.ts
+npx vitest run tests/ts-module-resolution-oracle.test.ts
 npm run build
 cargo build -p zcodegraph-core
 ```
@@ -1040,7 +1040,7 @@ The oracle script has deterministic fixture coverage proving it can identify
 repo-local package/self-name and package subpath targets when they exist:
 
 ```bash
-npx vitest run __tests__/ts-module-resolution-oracle.test.ts
+npx vitest run tests/ts-module-resolution-oracle.test.ts
 ```
 
 Result:
@@ -1174,7 +1174,7 @@ Commands:
 
 ```bash
 cargo test -p zcodegraph-core
-npx vitest run __tests__/ts-module-resolution-oracle.test.ts
+npx vitest run tests/ts-module-resolution-oracle.test.ts
 npm run build
 cargo build -p zcodegraph-core
 ```
@@ -1371,7 +1371,7 @@ corpus root.
 Command:
 
 ```bash
-npx vitest run __tests__/ts-module-resolution-oracle.test.ts
+npx vitest run tests/ts-module-resolution-oracle.test.ts
 ```
 
 Result:
@@ -1460,7 +1460,7 @@ Do not proceed directly to a production resolver rewrite without that evidence.
 Command:
 
 ```bash
-npx vitest run __tests__/ts-module-resolution-oracle.test.ts
+npx vitest run tests/ts-module-resolution-oracle.test.ts
 ```
 
 Result:

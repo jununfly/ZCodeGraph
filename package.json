@@ -20,8 +20,8 @@
     "cli": "npm run build && node dist/bin/zcodegraph.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:eval": "vitest run __tests__/evaluation/",
-    "eval": "npm run build && npx tsx __tests__/evaluation/runner.ts",
+    "test:eval": "vitest run tests/evaluation/",
+    "eval": "npm run build && npx tsx tests/evaluation/runner.ts",
     "clean": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\""
   },
   "keywords": [

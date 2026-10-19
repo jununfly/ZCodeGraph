@@ -191,7 +191,7 @@ Rust extraction gap.
 ## Verification gates
 
 - Deterministic wave0 fixtures in
-  `__tests__/rust-owned-language-fixtures.test.ts`,
+  `tests/rust-owned-language-fixtures.test.ts`,
   `describe('Dart baseline (roadmap 1-2-9)')`, three cases (CI runs the whole
   file with no name filter across ubuntu/macos/windows, no `.skip`):
   1. class/mixin/enum/typedef/method/function symbols + qualified names +

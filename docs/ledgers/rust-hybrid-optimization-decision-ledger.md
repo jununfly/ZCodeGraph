@@ -176,7 +176,7 @@ The deterministic smoke proves:
 - A direct Gin route node is created.
 - The Gin route links to its handler function.
 
-The selected real fixture does not contain a same-package helper call inside `uploadHandler`, so handler-to-helper evidence is not applicable for this corpus. Synthetic coverage in `__tests__/rust-index-engine-cli.test.ts` covers handler-to-helper and selector-method handler linkage.
+The selected real fixture does not contain a same-package helper call inside `uploadHandler`, so handler-to-helper evidence is not applicable for this corpus. Synthetic coverage in `tests/rust-index-engine-cli.test.ts` covers handler-to-helper and selector-method handler linkage.
 
 **Known Gaps**
 
@@ -346,7 +346,7 @@ This was a bounded pre-release hardening attempt for Go/Gin `METHOD path` lookup
 Test:
 
 ```bash
-npx vitest run __tests__/gin-route-explore-sufficiency.test.ts
+npx vitest run tests/gin-route-explore-sufficiency.test.ts
 ```
 
 Result:
@@ -578,8 +578,8 @@ This evidence covers the pre-release API polish slice:
 
 ```bash
 npm run build
-npx vitest run __tests__/rust-index-engine-cli.test.ts -t "environment|init --index"
-npx vitest run __tests__/rust-index-engine-cli.test.ts __tests__/rust-package-smoke.test.ts __tests__/status-json.test.ts __tests__/identity-residue.test.ts
+npx vitest run tests/rust-index-engine-cli.test.ts -t "environment|init --index"
+npx vitest run tests/rust-index-engine-cli.test.ts tests/rust-package-smoke.test.ts tests/status-json.test.ts tests/identity-residue.test.ts
 ```
 
 Result:
@@ -1089,9 +1089,9 @@ Commands:
 
 ```bash
 npm run build
-npx vitest run __tests__/rust-index-engine-cli.test.ts -t "writes a Rust-produced index and profile"
-npx vitest run __tests__/resolution.test.ts -t "unresolved cleanup contract"
-npx vitest run __tests__/access-models.test.ts -t "unresolved-reference row ids"
+npx vitest run tests/rust-index-engine-cli.test.ts -t "writes a Rust-produced index and profile"
+npx vitest run tests/resolution.test.ts -t "unresolved cleanup contract"
+npx vitest run tests/access-models.test.ts -t "unresolved-reference row ids"
 ```
 
 Result:
@@ -1252,7 +1252,7 @@ extensions, or binding-level symbol disambiguation was added.
   - Passed.
 - `cargo test emits_machine_readable_result_json`
   - Passed.
-- `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "relative and paths-alias|conventional aliases and workspace package"`
+- `npx vitest run tests/rust-index-engine-cli.test.ts -t "relative and paths-alias|conventional aliases and workspace package"`
   - Passed.
 - `npm run build`
   - Passed.
@@ -1691,8 +1691,8 @@ Commands:
 
 ```bash
 cargo test candidate_producer
-npx vitest run __tests__/candidate-protocol.test.ts
-npm run build && npx vitest run __tests__/rust-index-engine-cli.test.ts -t "Rust candidate producer shadow diagnostics|keeps resolved graph stable"
+npx vitest run tests/candidate-protocol.test.ts
+npm run build && npx vitest run tests/rust-index-engine-cli.test.ts -t "Rust candidate producer shadow diagnostics|keeps resolved graph stable"
 ```
 
 Results:
@@ -1849,8 +1849,8 @@ Commands:
 
 ```bash
 cargo test candidate_producer
-npx vitest run __tests__/candidate-protocol.test.ts
-npm run build && npx vitest run __tests__/rust-index-engine-cli.test.ts -t "Rust candidate producer shadow diagnostics|keeps resolved graph stable"
+npx vitest run tests/candidate-protocol.test.ts
+npm run build && npx vitest run tests/rust-index-engine-cli.test.ts -t "Rust candidate producer shadow diagnostics|keeps resolved graph stable"
 ```
 
 Results:

@@ -184,7 +184,7 @@ now-bypassed per-file TS framework step.
 ## Verification gates
 
 - New deterministic fixtures in
-  `__tests__/frameworks-integration.test.ts`,
+  `tests/frameworks-integration.test.ts`,
   `describe('ASP.NET framework routes on rust-hybrid (roadmap 1-2-4-4 cutover)')`:
   - `[HttpGet]` controller routes (class-level `[Route]` prefix + bare and
     `{id}` actions) resolve to Rust-extracted handler methods;
@@ -193,11 +193,11 @@ now-bypassed per-file TS framework step.
   Both titles are registered in `ci.yml` step2's `-t` filter; the
   `skip-debt-guardrail` audit confirms each `-t` branch matches exactly one
   real test (23/23 branches, zero dead filters).
-- Ownership contract flipped in `__tests__/extraction.test.ts`
+- Ownership contract flipped in `tests/extraction.test.ts`
   (`isRustHybridOwnedLanguage('csharp') === true`,
   `engineByLanguage.csharp === 'rust'`, `fallbackByLanguage.csharp === 0`) and
   the hardcoded language snapshot in
-  `__tests__/rust-index-engine-cli-engine.test.ts` extended to the 12th
+  `tests/rust-index-engine-cli-engine.test.ts` extended to the 12th
   language.
 - Blazor regression guard retained: the legacy TS-engine/razor delegation test
   `delegates Blazor @code block C# …` (`extraction.test.ts`) still passes

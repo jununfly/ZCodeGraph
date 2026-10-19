@@ -183,7 +183,7 @@ unreleased semantic batch.
 ## Verification gates
 
 - Deterministic wave0 fixtures in
-  `__tests__/rust-owned-language-fixtures.test.ts`,
+  `tests/rust-owned-language-fixtures.test.ts`,
   `describe('Ruby baseline (roadmap 1-2-6)')`, three cases (CI runs the whole
   file with no name filter, across ubuntu/macos/windows, no `.skip`):
   1. nested modules/class qualified names, superclass `extends`, include/extend
@@ -193,7 +193,7 @@ unreleased semantic batch.
      `require_relative` normalized to the sibling file;
   3. file-scope assignment-only variables, top-level `def` as `function`, and
      `.rake` indexing.
-- rust-hybrid cross-file end-to-end in `__tests__/extraction.test.ts`,
+- rust-hybrid cross-file end-to-end in `tests/extraction.test.ts`,
   `describe('Ruby cross-file reference edges on rust-hybrid (roadmap 1-2-6-3)')`,
   one case: resolved cross-file superclass (extends), mixin include into a
   `module` target (implements), `User.new`/`User.find` receiver calls promoted
@@ -238,7 +238,7 @@ Node 1-2-6-4 performs the split cutover, mirroring the PHP 1-2-5-4 / C#
   `RUST_HYBRID_RUST_OWNED_LANGUAGES` (`src/indexing/rust-hybrid-contract.ts`).
   The hybrid plan therefore schedules every `.rb`/`.rake` file through Rust
   and records **`fallbackByLanguage.ruby === 0`** (pinned by a post-cutover
-  plan guard in `__tests__/extraction.test.ts`).
+  plan guard in `tests/extraction.test.ts`).
 - **Extractor retained, scheduling removed.** `src/extraction/languages/ruby.ts`
   and the barrel entry stay, serving only the pure `--engine typescript`
   engine. The cutover removes hybrid fallback *scheduling*, not the extractor
@@ -268,7 +268,7 @@ and the back-fill inserts zero route nodes for it (baseline Ruby symbols are
 unchanged — the 13,519 / 878 node counts stand). Rails routing is *application*
 semantics, so the cutover's route behaviour is validated deterministically by
 a new rust-hybrid end-to-end case in
-`__tests__/frameworks-integration.test.ts`
+`tests/frameworks-integration.test.ts`
 (`describe('Rails framework routes on rust-hybrid (roadmap 1-2-6-4 cutover)')`):
 a Gemfile-flagged app with `app/controllers/articles_controller.rb` +
 `pages_controller.rb` and a `config/routes.rb` containing

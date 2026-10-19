@@ -162,7 +162,7 @@ language).
 
 ## Deterministic fixtures (wave 0)
 
-`__tests__/rust-owned-language-fixtures.test.ts` gains a
+`tests/rust-owned-language-fixtures.test.ts` gains a
 "Scala baseline (roadmap 1-2-11-3)" describe block (pure `--engine rust`, the
 #692 contract — no framework finalizers; Scala has none on this baseline), with
 three cases:

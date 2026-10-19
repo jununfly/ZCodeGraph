@@ -110,7 +110,7 @@ core gap, not part of the route-fix node.
 
 ## Frozen regression contract (test fixtures)
 
-`__tests__/frameworks-integration.test.ts` gains a tracked-skip describe
+`tests/frameworks-integration.test.ts` gains a tracked-skip describe
 "Python framework routes on rust-hybrid (roadmap 1-6-2 tracked gap)" with
 three `it.skip` cases asserting the intended seam:
 
@@ -173,7 +173,7 @@ Rust.
   all file nodes, so route deletion and incremental / `--force` re-indexes
   converge cleanly. Edges use `INSERT OR IGNORE`. Read/extractor failures are
   counted and skipped per file without aborting finalization.
-- Tests: the three `it.skip` cases in `__tests__/frameworks-integration.test.ts`
+- Tests: the three `it.skip` cases in `tests/frameworks-integration.test.ts`
   (describe renamed "...(roadmap 1-6-2-4 restored)") are active `it(...)`
   contracts; `skip-debt-guardrail.test.ts` `ALLOWED_SKIPS` is back to empty;
   `.github/workflows/ci.yml` step2's `-t` filter gains the three titles in the

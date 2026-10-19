@@ -18,7 +18,7 @@ import { generateNodeId } from './tree-sitter-helpers';
  * theme conventions, while a rewrite would risk regressions around the
  * isShopifyLiquidJson JSON special case (incl. the #383 security note below)
  * and the 4 regex families. Guarded by
- * __tests__/file-level-language-ownership-guard.test.ts.
+ * tests/file-level-language-ownership-guard.test.ts.
  */
 export class LiquidExtractor {
   private filePath: string;

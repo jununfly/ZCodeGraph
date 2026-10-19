@@ -266,7 +266,7 @@ the agent's real query — that mismatch is what this refinement corrects.)
     `definesPolymorphicSupertype()` (a node HAS ≥3 incoming `implements`/`extends`
     — i.e. the file is the family base). The skeleton branch:
     `off-spine && isPolymorphicSibling && !(namedInFile && !definesSupertype)`.
-- `__tests__/adaptive-explore-sizing.test.ts` — 7 cases incl. the named-callable
+- `tests/adaptive-explore-sizing.test.ts` — 7 cases incl. the named-callable
   spare (RealCall) and the supertype-family override (compiler.py).
 
 ## Frontier / future work
@@ -309,5 +309,5 @@ modules as part of the **Explore Answer Planner Seam** (Phase 1 / Candidate 1):
 - **`src/mcp/tools.ts`** — `handleExplore()` is now a 25-line adapter:
   validate args → `plan()` → `render()` → return.
 
-- **Tests**: `__tests__/explore-planner.test.ts` (133 tests) and
-  `__tests__/explore-renderer.test.ts` (4 tests) cover the extracted policy.
+- **Tests**: `tests/explore-planner.test.ts` (133 tests) and
+  `tests/explore-renderer.test.ts` (4 tests) cover the extracted policy.

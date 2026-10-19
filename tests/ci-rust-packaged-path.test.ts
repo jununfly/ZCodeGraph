@@ -43,31 +43,31 @@ describe('CI Rust packaged path coverage', () => {
     const workflow = readWorkflow();
 
     expect(workflow).toContain('Verify Rust CLI engine paths');
-    expect(workflow).toContain('__tests__/rust-index-engine-cli-engine.test.ts');
-    expect(workflow).toContain('__tests__/rust-index-engine-cli-failure-safety.test.ts');
-    expect(workflow).not.toContain('__tests__/rust-index-engine-cli.test.ts');
+    expect(workflow).toContain('tests/rust-index-engine-cli-engine.test.ts');
+    expect(workflow).toContain('tests/rust-index-engine-cli-failure-safety.test.ts');
+    expect(workflow).not.toContain('tests/rust-index-engine-cli.test.ts');
     expect(workflow).not.toContain('uses the TypeScript indexer by default');
     expect(workflow).toContain('uses the rust-hybrid indexer by default');
     expect(workflow).toContain('bootstraps an uninitialized project then indexes with rust-hybrid by default');
     expect(workflow).toContain('runs the packaged Rust subprocess from a bundle layout without an env override');
     expect(workflow).toContain('leaves the existing TypeScript index intact when the Rust binary is unavailable');
     expect(workflow).toContain('Verify release artifact contracts');
-    expect(workflow).toContain('__tests__/release-workflow-rust-core.test.ts');
-    expect(workflow).toContain('__tests__/rust-core-artifact-contract.test.ts');
+    expect(workflow).toContain('tests/release-workflow-rust-core.test.ts');
+    expect(workflow).toContain('tests/rust-core-artifact-contract.test.ts');
     // The EXTRACTION_VERSION release gate and its TS/Rust mirror contract must
     // actually run on CI — the workflow enumerates test files explicitly, so a
     // new test file left off the list silently never executes.
-    expect(workflow).toContain('__tests__/prepare-release.test.ts');
-    expect(workflow).toContain('__tests__/extraction-version-contract.test.ts');
+    expect(workflow).toContain('tests/prepare-release.test.ts');
+    expect(workflow).toContain('tests/extraction-version-contract.test.ts');
   });
 
   it('runs SQLite and file-lock regression guardrails on the cross-platform CI path', () => {
     const workflow = readWorkflow();
 
     expect(workflow).toContain('Verify SQLite and file-lock guardrails');
-    expect(workflow).toContain('__tests__/sqlite-backend.test.ts');
-    expect(workflow).toContain('__tests__/concurrent-locking.test.ts');
-    expect(workflow).toContain('__tests__/rust-index-engine-cli-failure-safety.test.ts');
+    expect(workflow).toContain('tests/sqlite-backend.test.ts');
+    expect(workflow).toContain('tests/concurrent-locking.test.ts');
+    expect(workflow).toContain('tests/rust-index-engine-cli-failure-safety.test.ts');
   });
 
   it('runs the #692 wave-0 rust-owned fixtures, skip-debt guardrail, and activated e2e cases', () => {
@@ -76,8 +76,8 @@ describe('CI Rust packaged path coverage', () => {
     // The pure-Rust fixtures (21 cases) + the skip-inventory/-t-sync audit
     // must run as a full-file step (no -t, so none are silently filtered out).
     expect(workflow).toContain('Verify wave-0 rust-owned fixtures and skip-debt guardrails (#692)');
-    expect(workflow).toContain('__tests__/rust-owned-language-fixtures.test.ts');
-    expect(workflow).toContain('__tests__/skip-debt-guardrail.test.ts');
+    expect(workflow).toContain('tests/rust-owned-language-fixtures.test.ts');
+    expect(workflow).toContain('tests/skip-debt-guardrail.test.ts');
 
     // The activated same-dir include (B), -I include-dir (C),
     // cross-family negative guard (E case 2), C++ free-function naming
@@ -94,7 +94,7 @@ describe('CI Rust packaged path coverage', () => {
     // miscompile), and the skip-debt guardrail keeps them in sync with the
     // real test titles.
     expect(workflow).toContain('Verify wave-0 activated include, C++ free-function, inheritance, override, typed-pointer receiver, Java G7/G9 e2e, and cross-language cases (#692)');
-    expect(workflow).toContain('__tests__/frameworks-integration.test.ts');
+    expect(workflow).toContain('tests/frameworks-integration.test.ts');
     expect(workflow).toContain('resolves to the same-directory header, not a same-named one elsewhere');
     expect(workflow).toContain('connects #include to the real header file via include-dir scan');
     expect(workflow).toContain('does not link a static-member read across language families');

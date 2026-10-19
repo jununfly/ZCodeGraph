@@ -233,7 +233,7 @@ Human confirmation.
    immediately sees where the campaign's durable content now lives.
 4. **Updated** the entity-class count table (Ledger 7→8, Plan 2→0) and the
    `## plans` section above to record the empty-folder state.
-5. **Re-validated** `__tests__/docs-ontology.test.ts` — all 138 tests still
+5. **Re-validated** `tests/docs-ontology.test.ts` — all 138 tests still
    pass.
 
 What this pass deliberately did **not** do:
@@ -286,7 +286,7 @@ What this pass did:
 7. **Added YAML frontmatter** (4 required + 4 optional fields) to all 66
    markdown entities across `decisions/`, `contracts/`, `ledgers/`,
    `evidence/`, and `methods/`.
-8. **Created** `__tests__/docs-ontology.test.ts` (138 tests) validating
+8. **Created** `tests/docs-ontology.test.ts` (138 tests) validating
    frontmatter schema, authority vocabulary, folder/class matching, unique
    authority-ids, dated-evidence rules, and relationship field format.
 
@@ -370,7 +370,7 @@ batch rollout.
    boundary, the unresolved-refs lifecycle taxonomy and fail-closed cleanup
    rules, and the #407–#411/#165 provenance. Dropped: one-off profile numbers,
    the generated module-resolution oracle table, and per-machine command logs.
-2. **Repointed** `__tests__/finalization-tail-boundary-doc.test.ts` (5 `it`
+2. **Repointed** `tests/finalization-tail-boundary-doc.test.ts` (5 `it`
    blocks) from the deleted evidence file to the new design; assertions kept
    semantically identical.
 3. **Deleted** the consolidated evidence file via `git rm` after extraction.
@@ -486,8 +486,8 @@ issues-check":
 4. **Reclassified** `ledgers/plan-artifact-consolidated-closeout.md` from
    `process` to `supporting`: it is the durable ADR-0005 navigation artifact,
    and its existence/content are enforced by
-   `__tests__/rust-indexing-core-consolidated-docs.test.ts` and
-   `__tests__/graph-semantics-guardrail-doc.test.ts`. It must not be deleted.
+   `tests/rust-indexing-core-consolidated-docs.test.ts` and
+   `tests/graph-semantics-guardrail-doc.test.ts`. It must not be deleted.
 5. **Deleted** `designs/domain-language-issues.md` via `git rm` after
    `issues-check` verified all nine items were implemented in source, had GitHub
    trackers, and were closed. Spot checks in source:

@@ -48,10 +48,10 @@ node /Users/bilibili/Documents/workspace/github/jununfly/ZCodeGraph/dist/bin/zco
 ## Verification Gates
 
 - C Rust-owned fixture and rust-hybrid metadata coverage:
-  `npx vitest run __tests__/rust-index-engine-cli-language-smoke.test.ts __tests__/rust-index-engine-cli-fallback.test.ts __tests__/rust-index-engine-cli-engine.test.ts`
+  `npx vitest run tests/rust-index-engine-cli-language-smoke.test.ts tests/rust-index-engine-cli-fallback.test.ts tests/rust-index-engine-cli-engine.test.ts`
   passed with 54 tests.
 - C++ and Objective-C TypeScript extraction guard:
-  `npx vitest run __tests__/extraction.test.ts -t "C/C\\+\\+ imports|Objective-C|detect language"`
+  `npx vitest run tests/extraction.test.ts -t "C/C\\+\\+ imports|Objective-C|detect language"`
   passed with 15 focused tests.
 
 ## Boundary Note

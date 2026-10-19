@@ -141,7 +141,7 @@ resolution and agent-facing retrieval.
 
 ### Deterministic Fixture
 
-`__tests__/frameworks-integration.test.ts` —
+`tests/frameworks-integration.test.ts` —
 "NestJS end-to-end framework post-extract boundary > applies RouterModule
 prefixes before the final graph is consumed". A small NestJS project indexed
 through the public `CodeGraph` interface proves the final graph exposes
@@ -326,7 +326,7 @@ Two later implementation slices were kept on the strength of this contract and
 left no durable process artifact: Plan A (#416–#419) unified resolved and
 intentionally-unresolved terminal cleanup on the existing rowid-range deletion
 helper (decision `keep`; mechanics-only, no semantic/schema change, verified by
-`__tests__/resolution.test.ts` "batched persistence cleans resolved"); the #445
+`tests/resolution.test.ts` "batched persistence cleans resolved"); the #445
 guarded edge-write slice added a fail-open per-edge guard for moduleResolution
 file-level import edges (relative imports, tsconfig `paths`, conventional
 aliases, workspace package imports, `rootDirs`, package self-name/exports,

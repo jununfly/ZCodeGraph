@@ -83,7 +83,7 @@ all-type files that strict mode dropped whole).
 
 ## Fixtures (wave0)
 
-`__tests__/rust-owned-language-fixtures.test.ts` → `describe('Luau baseline
+`tests/rust-owned-language-fixtures.test.ts` → `describe('Luau baseline
 (roadmap 1-2-13-3)')`, 4 cases: (1) module golden multiset incl. type_alias +
 typed signatures + require import + dot/colon calls; (2) Luau-only syntax inert
 (`update_statement`, `if_expression`, generics) — symbols/signatures exact, body

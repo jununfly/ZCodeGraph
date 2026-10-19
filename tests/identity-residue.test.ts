@@ -50,7 +50,7 @@ const RESIDUE_SCAN_EXCLUDE = new Set([
 ]);
 
 function isExcluded(relPath: string): boolean {
-  if (relPath.startsWith('__tests__')) return true;
+  if (relPath.startsWith('tests')) return true;
   if (relPath.startsWith('.workbuddy')) return true;
   if (relPath.startsWith('dist')) return true;
   if (relPath.startsWith('node_modules')) return true;

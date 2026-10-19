@@ -40,7 +40,7 @@ import { isLanguageSupported } from './grammars';
  * component filter, dotnet language-family sharing with csharp, directive
  * refs, string/comment-aware brace matching), so a rewrite is high regression
  * risk for no capability gain. Guarded by
- * __tests__/file-level-language-ownership-guard.test.ts.
+ * tests/file-level-language-ownership-guard.test.ts.
  */
 
 /**

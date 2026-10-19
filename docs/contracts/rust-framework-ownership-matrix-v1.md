@@ -11,7 +11,7 @@ bounded-question: "What stable contract does rust-framework-ownership-matrix-v1 
 > feasibility), `1-4-1-*` (framework resolvers), and `1-4-2-*` (reference
 > resolution & finalization). Companion to `graph-semantics-guardrail-v1.md` and
 > `resolver-semantic-residuals-ledger.md`. Existence and content locked by
-> `__tests__/graph-semantics-guardrail-doc.test.ts` — do not delete or rename
+> `tests/graph-semantics-guardrail-doc.test.ts` — do not delete or rename
 > without updating that test.
 >
 > doc-kind: design · authority: primary (DES-framework-ownership-v1).
@@ -101,7 +101,7 @@ files are **not** in `RUST_HYBRID_RUST_OWNED_LANGUAGES`.
 | twig | typescript | typescript | typescript | 1-3-7-1 | Deliberate no-op extraction; no migration target. |
 | properties | typescript | typescript | typescript | 1-3-8-1 | Symbols produced by `java.ts` Spring resolver `extractSpringConfig`; Spring resolver ownership decision governs. |
 
-The keep verdicts above are locked by `__tests__/file-level-language-ownership-guard.test.ts`
+The keep verdicts above are locked by `tests/file-level-language-ownership-guard.test.ts`
 (8 cases, one per language).
 
 ## Framework resolver verdicts (1-4-1-*)
@@ -160,12 +160,12 @@ guardrail test in the same commit:
 Update procedure:
 
 1. Edit the relevant row(s) in this file.
-2. Edit `__tests__/graph-semantics-guardrail-doc.test.ts` so its locked strings
+2. Edit `tests/graph-semantics-guardrail-doc.test.ts` so its locked strings
    still match the new content (the test asserts presence, not exact text, so
    updates are local).
 3. If a new roadmap node is created for the change, record the decision with
    `roadmap_cli.py decide` on that node **before** marking this matrix updated.
-4. Run `npx vitest run __tests__/graph-semantics-guardrail-doc.test.ts` to
+4. Run `npx vitest run tests/graph-semantics-guardrail-doc.test.ts` to
    confirm the lock still holds.
 
 ## Out Of Scope

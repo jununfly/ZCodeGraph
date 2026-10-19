@@ -190,7 +190,7 @@ unreleased C# semantic batch (v2).
   - `csharp_preproc_keeps_code_for_if_without_else` — #237 enum-member shape
     still keeps guarded code for a plain `#if/#endif`.
 - Deterministic wave0 fixtures in
-  `__tests__/rust-owned-language-fixtures.test.ts`,
+  `tests/rust-owned-language-fixtures.test.ts`,
   `describe('C# baseline (roadmap 1-2-4)')`, two new cases (CI runs this file
   with no name filter, across ubuntu/macos/windows, no `.skip`):
   - a column-1 `#if` guarded by a leading UTF-8 BOM

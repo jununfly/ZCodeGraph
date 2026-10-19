@@ -162,7 +162,7 @@ unreleased PHP semantic batch (v2).
 ## Verification gates
 
 - Deterministic wave0 fixtures in
-  `__tests__/rust-owned-language-fixtures.test.ts`,
+  `tests/rust-owned-language-fixtures.test.ts`,
   `describe('PHP baseline (roadmap 1-2-5)')`, six cases (CI runs the whole file
   with no name filter, across ubuntu/macos/windows, no `.skip`):
   1. class extraction + extends/implements + param/return type refs + calls
@@ -176,7 +176,7 @@ unreleased PHP semantic batch (v2).
      types, and primitives;
   6. interface `extends` (base_clause), enum `implements` (class_interface_clause),
      in-class trait `use`, and a Drupal `.module` procedural hook file.
-- rust-hybrid cross-file end-to-end in `__tests__/extraction.test.ts`,
+- rust-hybrid cross-file end-to-end in `tests/extraction.test.ts`,
   `describe('PHP cross-file reference edges on rust-hybrid (roadmap 1-2-5-3)')`,
   two cases: resolved cross-file calls/implements/instantiates/references/
   imports with the Factory use-import blast-radius (Cache reaches Service, Mail

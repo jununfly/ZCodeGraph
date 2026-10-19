@@ -3644,7 +3644,7 @@ export function extractFromSource(
   // language) whose core value is delegating the <script> block to the full
   // TS/JS extractor — which the Rust core cannot replicate without an ABI-14
   // grammar + a sub-tree delegation mechanism it does not have. Guarded by
-  // __tests__/file-level-language-ownership-guard.test.ts.
+  // tests/file-level-language-ownership-guard.test.ts.
   if (detectedLanguage === 'svelte') {
     const extractor = new SvelteExtractor(filePath, source);
     result = extractor.extract();
@@ -3656,7 +3656,7 @@ export function extractFromSource(
     // the full TS/JS extractor + regex template-component extraction — which
     // the Rust core cannot replicate without an ABI-14 grammar + a sub-tree
     // delegation mechanism it does not have. Guarded by
-    // __tests__/file-level-language-ownership-guard.test.ts.
+    // tests/file-level-language-ownership-guard.test.ts.
     const extractor = new VueExtractor(filePath, source);
     result = extractor.extract();
   } else if (detectedLanguage === 'liquid') {
@@ -3666,7 +3666,7 @@ export function extractFromSource(
     // delegation); parser-free on the TS side is easier to audit and evolve
     // with Shopify theme conventions, and a Rust rewrite buys nothing while
     // risking regressions on the isShopifyLiquidJson JSON special case.
-    // Guarded by __tests__/file-level-language-ownership-guard.test.ts.
+    // Guarded by tests/file-level-language-ownership-guard.test.ts.
     const extractor = new LiquidExtractor(filePath, source);
     result = extractor.extract();
   } else if (detectedLanguage === 'razor') {
@@ -3676,7 +3676,7 @@ export function extractFromSource(
     // the full C# extractor (synthetic-class wrapper + line-offset remap) —
     // the Blazor analog of Svelte's <script> delegation, which the Rust core
     // cannot replicate without a grammar + sub-tree delegation mechanism.
-    // Guarded by __tests__/file-level-language-ownership-guard.test.ts.
+    // Guarded by tests/file-level-language-ownership-guard.test.ts.
     const extractor = new RazorExtractor(filePath, source);
     result = extractor.extract();
   } else if (detectedLanguage === 'xml') {
@@ -3686,7 +3686,7 @@ export function extractFromSource(
     // NOT rust-owned — self-contained parser-free regex whose emission shape
     // (`<namespace>::<id>`) is a contract consumed by the TS-side
     // mybatisJavaXmlEdges synthesizer, itself a 1-4-wave ownership decision.
-    // Guarded by __tests__/file-level-language-ownership-guard.test.ts.
+    // Guarded by tests/file-level-language-ownership-guard.test.ts.
     const extractor = new MyBatisExtractor(filePath, source);
     result = extractor.extract();
   } else if (isFileLevelOnlyLanguage(detectedLanguage)) {
@@ -3698,7 +3698,7 @@ export function extractFromSource(
     // keep/TS-shell): file-level-only languages are deliberately NOT
     // rust-owned — the extraction layer is a no-op by design and all symbols
     // come from TS framework resolvers (1-4-wave ownership decisions).
-    // Guarded by __tests__/file-level-language-ownership-guard.test.ts.
+    // Guarded by tests/file-level-language-ownership-guard.test.ts.
     result = { nodes: [], edges: [], unresolvedReferences: [], errors: [], durationMs: 0 };
   } else if (
     detectedLanguage === 'pascal' &&

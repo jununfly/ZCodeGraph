@@ -22,7 +22,7 @@ import * as path from 'node:path';
  *     a ci.yml update or this guard fails.
  */
 const root = path.resolve(__dirname, '..');
-const testsDir = path.join(root, '__tests__');
+const testsDir = path.join(root, 'tests');
 const ciPath = path.join(root, '.github', 'workflows', 'ci.yml');
 
 // Matches a real (non-commented) describe.skip( / it.skip( line and captures

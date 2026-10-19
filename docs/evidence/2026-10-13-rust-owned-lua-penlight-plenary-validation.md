@@ -142,7 +142,7 @@ everything, so the reference multiset is exactly `calls` + `imports`.
 
 ## Deterministic fixtures (wave 0)
 
-`__tests__/rust-owned-language-fixtures.test.ts` gains a
+`tests/rust-owned-language-fixtures.test.ts` gains a
 "Lua baseline (roadmap 1-2-12-3)" describe block (pure `--engine rust`, the
 #692 contract — no framework finalizers; Lua has none), with three cases:
 

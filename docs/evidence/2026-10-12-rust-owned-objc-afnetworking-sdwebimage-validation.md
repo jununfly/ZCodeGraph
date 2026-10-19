@@ -140,7 +140,7 @@ The Rust visitor mirrors the TS extractor exactly:
 
 A deterministic fixture for this exact triple
 (`Box.m`: public `@interface` + `@interface Box ()` + `@implementation Box`)
-is in `__tests__/rust-owned-language-fixtures.test.ts`
+is in `tests/rust-owned-language-fixtures.test.ts`
 ("Objective-C baseline", roadmap 1-2-14-3), alongside the golden multiset
 sample and the message-receiver-folding sample. The same contract is locked
 in Rust by `objc_baseline_visitor_extracts_symbols_inheritance_and_messages`
@@ -171,7 +171,7 @@ This is the expected baseline BEFORE 1-2-14-4, not a gap in the ObjC visitor:
 
 ## Deterministic fixtures (wave 0)
 
-`__tests__/rust-owned-language-fixtures.test.ts` gains an
+`tests/rust-owned-language-fixtures.test.ts` gains an
 "Objective-C baseline (roadmap 1-2-14-3)" describe block (pure `--engine
 rust`, the #692 contract — no framework finalizers), with three cases:
 

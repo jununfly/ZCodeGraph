@@ -142,12 +142,12 @@ PASS.**
 
 ### Step 6 — Tests
 
-Add to `__tests__/extraction.test.ts`, modeled on the `Rust Extraction` block:
+Add to `tests/extraction.test.ts`, modeled on the `Rust Extraction` block:
 - a `detectLanguage` assertion in `describe('Language Detection')`
 - a `describe('<Lang> Extraction')` block asserting functions/classes/imports
   are extracted from an inline source string.
 ```bash
-npx vitest run __tests__/extraction.test.ts
+npx vitest run tests/extraction.test.ts
 ```
 Green before continuing.
 

@@ -9,7 +9,7 @@
  *
  * The state-machine itself mirrors what `MCPServer` used to do inline before
  * issue #411 split it out — the same regression tests in
- * `__tests__/mcp-initialize.test.ts` still drive this code path.
+ * `tests/mcp-initialize.test.ts` still drive this code path.
  */
 
 import * as path from 'path';

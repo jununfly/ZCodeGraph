@@ -202,7 +202,7 @@ extraction gap.
 ## Verification gates
 
 - Deterministic wave0 fixtures in
-  `__tests__/rust-owned-language-fixtures.test.ts`,
+  `tests/rust-owned-language-fixtures.test.ts`,
   `describe('Swift baseline (roadmap 1-6-4-3)')`, three cases; verified green
   on the 3-OS CI run for commit d258156 (wave0 step 58→61 passed, the exact +3
   of the Swift cases; ubuntu/windows-2025/macos all green).

@@ -274,7 +274,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "vitest",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -283,7 +283,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -292,7 +292,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -301,7 +301,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -310,7 +310,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -319,7 +319,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "afterEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -328,7 +328,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "fs",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 17,
                       "col": 0
@@ -337,7 +337,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "path",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 18,
                       "col": 0
@@ -346,7 +346,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "os",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 19,
                       "col": 0
@@ -355,7 +355,7 @@
                       "reason": "type-only-import",
                       "referenceName": "AgentAccessModel",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 22,
                       "col": 0
@@ -364,7 +364,7 @@
                       "reason": "type-only-import",
                       "referenceName": "MaintenanceAccessModel",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 22,
                       "col": 0
@@ -373,7 +373,7 @@
                       "reason": "type-only-import",
                       "referenceName": "ResolutionAccessModel",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 22,
                       "col": 0
@@ -382,7 +382,7 @@
                       "reason": "type-only-import",
                       "referenceName": "StatusAccessModel",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 22,
                       "col": 0
@@ -391,7 +391,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "vitest",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -400,7 +400,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -409,7 +409,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -418,7 +418,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -427,7 +427,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "beforeAll",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -436,7 +436,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "afterAll",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -445,7 +445,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -532,7 +532,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -543,7 +543,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -554,7 +554,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -565,7 +565,7 @@
                     {
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -576,7 +576,7 @@
                     {
                       "referenceName": "afterEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -587,7 +587,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -598,7 +598,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -609,7 +609,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -620,7 +620,7 @@
                     {
                       "referenceName": "beforeAll",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -631,7 +631,7 @@
                     {
                       "referenceName": "afterAll",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -642,7 +642,7 @@
                     {
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -653,7 +653,7 @@
                     {
                       "referenceName": "LoggingInterceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -664,7 +664,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -675,7 +675,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -686,7 +686,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -697,7 +697,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -708,7 +708,7 @@
                     {
                       "referenceName": "Formatter",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -719,7 +719,7 @@
                     {
                       "referenceName": "JsonCodec",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -730,7 +730,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -741,7 +741,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -752,7 +752,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -763,7 +763,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -774,7 +774,7 @@
                     {
                       "referenceName": "readFileSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -785,7 +785,7 @@
                     {
                       "referenceName": "resolve",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -796,7 +796,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -807,7 +807,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -818,7 +818,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -829,7 +829,7 @@
                     {
                       "referenceName": "execFileSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -840,7 +840,7 @@
                     {
                       "referenceName": "spawnSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -851,7 +851,7 @@
                     {
                       "referenceName": "spawnSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -862,7 +862,7 @@
                     {
                       "referenceName": "execFileSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -873,7 +873,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "filePath": "tests/callback-synthesizer-language-gating.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -884,7 +884,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "filePath": "tests/callback-synthesizer-language-gating.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -895,7 +895,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "filePath": "tests/callback-synthesizer-language-gating.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -906,7 +906,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "filePath": "tests/candidate-protocol.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -917,7 +917,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "filePath": "tests/candidate-protocol.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -928,7 +928,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "filePath": "tests/candidate-protocol.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -939,7 +939,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "filePath": "tests/ci-rust-packaged-path.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -950,7 +950,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "filePath": "tests/ci-rust-packaged-path.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -961,7 +961,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "filePath": "tests/ci-rust-packaged-path.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -972,7 +972,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -983,7 +983,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -994,7 +994,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1005,7 +1005,7 @@
                     {
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1016,7 +1016,7 @@
                     {
                       "referenceName": "afterEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1027,7 +1027,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1038,7 +1038,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1049,7 +1049,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1060,7 +1060,7 @@
                     {
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1071,7 +1071,7 @@
                     {
                       "referenceName": "vi",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1444,7 +1444,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "vitest",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -1453,7 +1453,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -1462,7 +1462,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -1471,7 +1471,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -1480,7 +1480,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -1489,7 +1489,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "afterEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -1498,7 +1498,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "fs",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 17,
                       "col": 0
@@ -1507,7 +1507,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "path",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 18,
                       "col": 0
@@ -1516,7 +1516,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "os",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 19,
                       "col": 0
@@ -1525,7 +1525,7 @@
                       "reason": "type-only-import",
                       "referenceName": "AgentAccessModel",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 22,
                       "col": 0
@@ -1534,7 +1534,7 @@
                       "reason": "type-only-import",
                       "referenceName": "MaintenanceAccessModel",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 22,
                       "col": 0
@@ -1543,7 +1543,7 @@
                       "reason": "type-only-import",
                       "referenceName": "ResolutionAccessModel",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 22,
                       "col": 0
@@ -1552,7 +1552,7 @@
                       "reason": "type-only-import",
                       "referenceName": "StatusAccessModel",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 22,
                       "col": 0
@@ -1561,7 +1561,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "vitest",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -1570,7 +1570,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -1579,7 +1579,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -1588,7 +1588,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -1597,7 +1597,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "beforeAll",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -1606,7 +1606,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "afterAll",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -1615,7 +1615,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -1702,7 +1702,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1713,7 +1713,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1724,7 +1724,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1735,7 +1735,7 @@
                     {
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1746,7 +1746,7 @@
                     {
                       "referenceName": "afterEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1757,7 +1757,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1768,7 +1768,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1779,7 +1779,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1790,7 +1790,7 @@
                     {
                       "referenceName": "beforeAll",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1801,7 +1801,7 @@
                     {
                       "referenceName": "afterAll",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1812,7 +1812,7 @@
                     {
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1823,7 +1823,7 @@
                     {
                       "referenceName": "LoggingInterceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1834,7 +1834,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1845,7 +1845,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1856,7 +1856,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1867,7 +1867,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1878,7 +1878,7 @@
                     {
                       "referenceName": "Formatter",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1889,7 +1889,7 @@
                     {
                       "referenceName": "JsonCodec",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1900,7 +1900,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1911,7 +1911,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1922,7 +1922,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1933,7 +1933,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1944,7 +1944,7 @@
                     {
                       "referenceName": "readFileSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1955,7 +1955,7 @@
                     {
                       "referenceName": "resolve",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1966,7 +1966,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1977,7 +1977,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1988,7 +1988,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -1999,7 +1999,7 @@
                     {
                       "referenceName": "execFileSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2010,7 +2010,7 @@
                     {
                       "referenceName": "spawnSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2021,7 +2021,7 @@
                     {
                       "referenceName": "spawnSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2032,7 +2032,7 @@
                     {
                       "referenceName": "execFileSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2043,7 +2043,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "filePath": "tests/callback-synthesizer-language-gating.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2054,7 +2054,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "filePath": "tests/callback-synthesizer-language-gating.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2065,7 +2065,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "filePath": "tests/callback-synthesizer-language-gating.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2076,7 +2076,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "filePath": "tests/candidate-protocol.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2087,7 +2087,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "filePath": "tests/candidate-protocol.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2098,7 +2098,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "filePath": "tests/candidate-protocol.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2109,7 +2109,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "filePath": "tests/ci-rust-packaged-path.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2120,7 +2120,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "filePath": "tests/ci-rust-packaged-path.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2131,7 +2131,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "filePath": "tests/ci-rust-packaged-path.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2142,7 +2142,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2153,7 +2153,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2164,7 +2164,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2175,7 +2175,7 @@
                     {
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2186,7 +2186,7 @@
                     {
                       "referenceName": "afterEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2197,7 +2197,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2208,7 +2208,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2219,7 +2219,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2230,7 +2230,7 @@
                     {
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2241,7 +2241,7 @@
                     {
                       "referenceName": "vi",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2614,7 +2614,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "vitest",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -2623,7 +2623,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -2632,7 +2632,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -2641,7 +2641,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -2650,7 +2650,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -2659,7 +2659,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "afterEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 16,
                       "col": 0
@@ -2668,7 +2668,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "fs",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 17,
                       "col": 0
@@ -2677,7 +2677,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "path",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 18,
                       "col": 0
@@ -2686,7 +2686,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "os",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 19,
                       "col": 0
@@ -2695,7 +2695,7 @@
                       "reason": "type-only-import",
                       "referenceName": "AgentAccessModel",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 22,
                       "col": 0
@@ -2704,7 +2704,7 @@
                       "reason": "type-only-import",
                       "referenceName": "MaintenanceAccessModel",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 22,
                       "col": 0
@@ -2713,7 +2713,7 @@
                       "reason": "type-only-import",
                       "referenceName": "ResolutionAccessModel",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 22,
                       "col": 0
@@ -2722,7 +2722,7 @@
                       "reason": "type-only-import",
                       "referenceName": "StatusAccessModel",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "line": 22,
                       "col": 0
@@ -2731,7 +2731,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "vitest",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -2740,7 +2740,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -2749,7 +2749,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -2758,7 +2758,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -2767,7 +2767,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "beforeAll",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -2776,7 +2776,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "afterAll",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -2785,7 +2785,7 @@
                       "reason": "package-or-runtime-binding",
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "line": 27,
                       "col": 0
@@ -2872,7 +2872,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2883,7 +2883,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2894,7 +2894,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2905,7 +2905,7 @@
                     {
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2916,7 +2916,7 @@
                     {
                       "referenceName": "afterEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/access-models.test.ts",
+                      "filePath": "tests/access-models.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2927,7 +2927,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2938,7 +2938,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2949,7 +2949,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2960,7 +2960,7 @@
                     {
                       "referenceName": "beforeAll",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2971,7 +2971,7 @@
                     {
                       "referenceName": "afterAll",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2982,7 +2982,7 @@
                     {
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -2993,7 +2993,7 @@
                     {
                       "referenceName": "LoggingInterceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3004,7 +3004,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3015,7 +3015,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3026,7 +3026,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3037,7 +3037,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3048,7 +3048,7 @@
                     {
                       "referenceName": "Formatter",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3059,7 +3059,7 @@
                     {
                       "referenceName": "JsonCodec",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3070,7 +3070,7 @@
                     {
                       "referenceName": "Interceptor",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/adaptive-explore-sizing.test.ts",
+                      "filePath": "tests/adaptive-explore-sizing.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3081,7 +3081,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3092,7 +3092,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3103,7 +3103,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3114,7 +3114,7 @@
                     {
                       "referenceName": "readFileSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3125,7 +3125,7 @@
                     {
                       "referenceName": "resolve",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/agent-eval-probes.test.ts",
+                      "filePath": "tests/agent-eval-probes.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3136,7 +3136,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3147,7 +3147,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3158,7 +3158,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3169,7 +3169,7 @@
                     {
                       "referenceName": "execFileSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3180,7 +3180,7 @@
                     {
                       "referenceName": "spawnSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3191,7 +3191,7 @@
                     {
                       "referenceName": "spawnSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3202,7 +3202,7 @@
                     {
                       "referenceName": "execFileSync",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/build-bundle-rust-core.test.ts",
+                      "filePath": "tests/build-bundle-rust-core.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3213,7 +3213,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "filePath": "tests/callback-synthesizer-language-gating.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3224,7 +3224,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "filePath": "tests/callback-synthesizer-language-gating.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3235,7 +3235,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/callback-synthesizer-language-gating.test.ts",
+                      "filePath": "tests/callback-synthesizer-language-gating.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3246,7 +3246,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "filePath": "tests/candidate-protocol.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3257,7 +3257,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "filePath": "tests/candidate-protocol.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3268,7 +3268,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/candidate-protocol.test.ts",
+                      "filePath": "tests/candidate-protocol.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3279,7 +3279,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "filePath": "tests/ci-rust-packaged-path.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3290,7 +3290,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "filePath": "tests/ci-rust-packaged-path.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3301,7 +3301,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/ci-rust-packaged-path.test.ts",
+                      "filePath": "tests/ci-rust-packaged-path.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3312,7 +3312,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3323,7 +3323,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3334,7 +3334,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3345,7 +3345,7 @@
                     {
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3356,7 +3356,7 @@
                     {
                       "referenceName": "afterEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/closure-collection-synthesizer.test.ts",
+                      "filePath": "tests/closure-collection-synthesizer.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3367,7 +3367,7 @@
                     {
                       "referenceName": "describe",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3378,7 +3378,7 @@
                     {
                       "referenceName": "it",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3389,7 +3389,7 @@
                     {
                       "referenceName": "expect",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3400,7 +3400,7 @@
                     {
                       "referenceName": "beforeEach",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,
@@ -3411,7 +3411,7 @@
                     {
                       "referenceName": "vi",
                       "referenceKind": "imports",
-                      "filePath": "__tests__/command-context.test.ts",
+                      "filePath": "tests/command-context.test.ts",
                       "language": "typescript",
                       "baselineTargetNodeId": null,
                       "baselineResolvedBy": null,

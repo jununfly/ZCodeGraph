@@ -49,7 +49,7 @@ Final commit on the campaign: `f9ca972 chore(roadmap): close rust-owned-migratio
 | Framework resolver decisions (1-4-1) | **25** leaves | Body of this ledger + per-decision rationale in the roadmap JSON history |
 | Finalization-layer decisions (1-4-2) | **9** leaves | Body of this ledger |
 | Real-corpus validation docs | **30** dated evidence files | `docs/evidence/2026-*.md` |
-| Skip-debt guardrail | **empty allowlist** | `__tests__/skip-debt-guardrail.test.ts` (`ALLOWED_SKIPS = []`) |
+| Skip-debt guardrail | **empty allowlist** | `tests/skip-debt-guardrail.test.ts` (`ALLOWED_SKIPS = []`) |
 | CI `-t` filters | **2 steps**, ~50 titles in sync | `.github/workflows/ci.yml` |
 
 ## Goal 1 — Language Baseline Extraction (1-2, 1-3)
@@ -125,9 +125,9 @@ All nine items decided and closed:
 | Node | Deliverable | Durable home |
 | --- | --- | --- |
 | 1-5-1 | TS fallback = 0 for migrated languages | `rust-hybrid-contract.ts` + per-language cutover evidence |
-| 1-5-2 | Deterministic fixture + real-corpus evidence per language | `__tests__/fixtures/` + `docs/evidence/` |
+| 1-5-2 | Deterministic fixture + real-corpus evidence per language | `tests/fixtures/` + `docs/evidence/` |
 | 1-5-3 | Every non-migrated shared-layer item has a recorded decision | this ledger + the JSON history |
-| 1-5-4 | Status/doctor six-state health output unchanged | `src/diagnostics/` + `__tests__/graph-health.test.ts` |
+| 1-5-4 | Status/doctor six-state health output unchanged | `src/diagnostics/` + `tests/graph-health.test.ts` |
 | 1-5-5 | File-level Rust-owned ≠ framework/runtime Rust-owned | [`contracts/rust-framework-ownership-matrix-v1.md`](../contracts/rust-framework-ownership-matrix-v1.md) |
 
 ## Wave Schedule (1-6)

@@ -70,9 +70,9 @@ Durable home:
 - `CHANGELOG.md`
 - `src/diagnostics/graph-health.ts`
 - `src/diagnostics/index.ts`
-- `__tests__/graph-health.test.ts`
-- `__tests__/status-json.test.ts`
-- `__tests__/rust-hybrid-doctor.test.ts`
+- `tests/graph-health.test.ts`
+- `tests/status-json.test.ts`
+- `tests/rust-hybrid-doctor.test.ts`
 
 Former process files:
 
@@ -111,9 +111,9 @@ Durable home:
 - `src/diagnostics/fallback-summary.ts`
 - `src/diagnostics/index.ts`
 - `src/bin/zcodegraph.ts`
-- `__tests__/rust-index-engine-cli-fallback.test.ts`
-- `__tests__/rust-hybrid-doctor.test.ts`
-- `__tests__/status-json.test.ts`
+- `tests/rust-index-engine-cli-fallback.test.ts`
+- `tests/rust-hybrid-doctor.test.ts`
+- `tests/status-json.test.ts`
 
 Former process files:
 
@@ -225,8 +225,8 @@ Durable home:
 - `docs/ledgers/rust-hybrid-optimization-decision-ledger.md`
 - `docs/evidence/2026-06-24-current-state-decision-pack.md`
 - `src/indexing/rust-hybrid-contract.ts`
-- `__tests__/rust-index-engine-cli-fallback.test.ts`
-- `__tests__/sdk-rust-hybrid.test.ts`
+- `tests/rust-index-engine-cli-fallback.test.ts`
+- `tests/sdk-rust-hybrid.test.ts`
 
 Former process files:
 

@@ -524,12 +524,12 @@ Targeted validation:
 ```bash
 npm run build
 npx vitest run \
-  __tests__/callback-synthesizer-language-gating.test.ts \
-  __tests__/field-channel-synthesizer.test.ts \
-  __tests__/closure-collection-synthesizer.test.ts \
-  __tests__/rust-index-engine-cli.test.ts \
-  __tests__/rust-parity.test.ts \
-  __tests__/rust-index-profile.test.ts
+  tests/callback-synthesizer-language-gating.test.ts \
+  tests/field-channel-synthesizer.test.ts \
+  tests/closure-collection-synthesizer.test.ts \
+  tests/rust-index-engine-cli.test.ts \
+  tests/rust-parity.test.ts \
+  tests/rust-index-profile.test.ts
 node scripts/rust-sufficiency-guardrail.mjs \
   --repo zcodegraph=. \
   --repo excalidraw=/private/tmp/codegraph-corpus/excalidraw \
@@ -1192,8 +1192,8 @@ The sufficiency guardrail now removes the `## Exploration: ...` heading before c
 Focused validation:
 
 ```bash
-npx vitest run __tests__/phase9-vs1-graph-probe.test.ts
-npx vitest run __tests__/rust-sufficiency-guardrail-prompts.test.ts -t "query echo"
+npx vitest run tests/phase9-vs1-graph-probe.test.ts
+npx vitest run tests/rust-sufficiency-guardrail-prompts.test.ts -t "query echo"
 ```
 
 **VS Code Validation**
@@ -1291,7 +1291,7 @@ Default stdout JSON behavior remains compatible when no new output file option i
 Focused validation:
 
 ```bash
-npx vitest run __tests__/rust-sufficiency-guardrail-prompts.test.ts
+npx vitest run tests/rust-sufficiency-guardrail-prompts.test.ts
 npm run build
 ```
 
@@ -1428,7 +1428,7 @@ Generated manifests, raw experiment output, and generated summaries were absorbe
 Validation commands:
 
 - `npm run build`
-- `npx vitest run __tests__/resolution.test.ts`
+- `npx vitest run tests/resolution.test.ts`
 - Reduced and required target experiment commands are represented by the consolidated cleanup artifact above.
 
 **Interpretation**
@@ -1683,7 +1683,7 @@ No SQLite schema change was made. No resolver/finalization optimization was impl
 | Check | Result |
 |---|---|
 | `cargo test --package zcodegraph-core` | passed |
-| `npx vitest run __tests__/rust-indexing-experiment.test.ts -t "records Rust index profile breakdown"` | passed |
+| `npx vitest run tests/rust-indexing-experiment.test.ts -t "records Rust index profile breakdown"` | passed |
 | Reduced full-profile A/B | completed |
 | Required-target full-profile after | completed |
 | VS Code sparse full-profile final after | completed |
@@ -1801,7 +1801,7 @@ Therefore #199 should not be closed until that Rust resolver substrate exists an
 
 Commands run:
 
-- `npx vitest run __tests__/rust-indexing-experiment.test.ts`
+- `npx vitest run tests/rust-indexing-experiment.test.ts`
 - `npm run build`
 
 Both passed.
@@ -1833,13 +1833,13 @@ Commands run:
 
 - `cargo test --package zcodegraph-core`
 - `npm run build`
-- `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "resolves JS/TS relative and paths-alias imports"`
-- `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "same-file exact callable"`
-- `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "direct ESM named imports"`
-- `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "paths-alias ESM named imports"`
-- `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "one-hop ESM named re-exports"`
-- `npx vitest run __tests__/rust-index-engine-cli.test.ts -t "paths-alias one-hop ESM named re-exports"`
-- `npx vitest run __tests__/rust-index-engine-cli.test.ts`
+- `npx vitest run tests/rust-index-engine-cli.test.ts -t "resolves JS/TS relative and paths-alias imports"`
+- `npx vitest run tests/rust-index-engine-cli.test.ts -t "same-file exact callable"`
+- `npx vitest run tests/rust-index-engine-cli.test.ts -t "direct ESM named imports"`
+- `npx vitest run tests/rust-index-engine-cli.test.ts -t "paths-alias ESM named imports"`
+- `npx vitest run tests/rust-index-engine-cli.test.ts -t "one-hop ESM named re-exports"`
+- `npx vitest run tests/rust-index-engine-cli.test.ts -t "paths-alias one-hop ESM named re-exports"`
+- `npx vitest run tests/rust-index-engine-cli.test.ts`
 - `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-indexing-experiment.mjs --experiment docs/evidence/2026-06-17-rust-indexing-core-phase-20-required-only.experiment.json --out docs/evidence/2026-06-17-rust-indexing-core-phase-20-required-only.raw.json --summary-out docs/evidence/2026-06-17-rust-indexing-core-phase-20-required-only.md`
 - `/private/tmp/node-v22.21.1-darwin-arm64/bin/node scripts/rust-sufficiency-guardrail.mjs --repo vscode=/private/tmp/codegraph-corpus/vscode-sparse --prompts docs/evidence/2026-06-13-rust-indexing-core-phase-4-vscode-sufficiency-prompts.json --prompt-id VS-1 --timeout-ms 900000 --out docs/evidence/2026-06-17-rust-indexing-core-phase-20-vscode-sparse-sufficiency.raw.json`
 
@@ -2208,8 +2208,8 @@ The post-PRD optimization gate remains open. This record does not claim Rust def
 Commands run:
 
 - `npm run build`
-- `npx vitest run __tests__/db-perf.test.ts __tests__/resolution.test.ts -t "prevalidated|edge materialization|insertEdges endpoint validation"`
-- `npx vitest run __tests__/db-perf.test.ts __tests__/resolution.test.ts __tests__/rust-name-matcher.test.ts __tests__/rust-index-profile.test.ts __tests__/rust-index-engine-cli.test.ts`
+- `npx vitest run tests/db-perf.test.ts tests/resolution.test.ts -t "prevalidated|edge materialization|insertEdges endpoint validation"`
+- `npx vitest run tests/db-perf.test.ts tests/resolution.test.ts tests/rust-name-matcher.test.ts tests/rust-index-profile.test.ts tests/rust-index-engine-cli.test.ts`
 - Generated experiment commands are represented by the consolidated cleanup artifact above.
 
 Focused tests passed. The broader focused suite passed: 5 files, 118 tests.
@@ -2378,7 +2378,7 @@ Architecture record:
 
 - Plan: `docs/plans/2026-06-18-rust-indexing-core-phase-22-evidence-pipeline-and-optimization-loop.md`
 - Evidence tool: `scripts/rust-indexing-evidence.mjs`
-- Tool tests: `__tests__/rust-indexing-evidence.test.ts`
+- Tool tests: `tests/rust-indexing-evidence.test.ts`
 - Consolidated cleanup evidence: `docs/evidence/2026-06-24-rust-indexing-core-consolidated-benchmarks.md`
 
 The evidence tool is local-only. It does not call GitHub, update issues, close issues, edit labels, or require network access.
@@ -2482,8 +2482,8 @@ Rust core production paths were not refactored in this phase because the invento
 
 Commands run:
 
-- `npx vitest run __tests__/rust-indexing-evidence.test.ts`
-- `npx vitest run __tests__/rust-indexing-evidence.test.ts __tests__/rust-indexing-experiment.test.ts`
+- `npx vitest run tests/rust-indexing-evidence.test.ts`
+- `npx vitest run tests/rust-indexing-evidence.test.ts tests/rust-indexing-experiment.test.ts`
 - `npm run build`
 
 Targeted smoke/profile artifacts generated from existing Phase 22 evidence:

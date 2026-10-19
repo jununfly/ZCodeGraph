@@ -9,7 +9,7 @@ last-reviewed: 2026-10-19
 # ZCodeGraph Documentation Ontology v1
 
 > Entity/attribute/relationship/rule contract for every document under
-> `docs/`. Existence and content locked by `__tests__/docs-ontology.test.ts` —
+> `docs/`. Existence and content locked by `tests/docs-ontology.test.ts` —
 > do not delete or rename without updating that test.
 >
 > doc-kind: design · authority: primary (ONT-docs-ontology-v1).
@@ -92,7 +92,7 @@ change under `git mv`, but authority-id is stable.
 
 ## Hard Rules
 
-The following rules are enforced by `__tests__/docs-ontology.test.ts`. They
+The following rules are enforced by `tests/docs-ontology.test.ts`. They
 are the only rules the test suite locks; everything else is convention.
 
 1. **Every document under `docs/` (except `README.md` and files under

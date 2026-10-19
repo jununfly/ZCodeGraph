@@ -42,16 +42,16 @@ which satisfies the project's `<25.0.0` engine range.
 
 Focused architecture-related suites are covered in the full run, including:
 
-- `__tests__/explore-planner.test.ts` — 133 tests
-- `__tests__/explore-renderer.test.ts` — 4 tests
-- `__tests__/explore-types.test.ts` — 11 tests
-- `__tests__/synthesizer-registry.test.ts` — 22 tests
-- `__tests__/index-pipeline.test.ts` — 28 tests
-- `__tests__/parse-executor.test.ts` — 32 tests
-- `__tests__/command-context.test.ts` — 20 tests
-- `__tests__/install-plan.test.ts` — 24 tests
-- `__tests__/install-renderer.test.ts` — 27 tests
-- `__tests__/access-models.test.ts` — 11 tests
+- `tests/explore-planner.test.ts` — 133 tests
+- `tests/explore-renderer.test.ts` — 4 tests
+- `tests/explore-types.test.ts` — 11 tests
+- `tests/synthesizer-registry.test.ts` — 22 tests
+- `tests/index-pipeline.test.ts` — 28 tests
+- `tests/parse-executor.test.ts` — 32 tests
+- `tests/command-context.test.ts` — 20 tests
+- `tests/install-plan.test.ts` — 24 tests
+- `tests/install-renderer.test.ts` — 27 tests
+- `tests/access-models.test.ts` — 11 tests
 
 ## Build Results
 
@@ -137,7 +137,7 @@ The generated graph captures the new architecture seams:
 - `zcodegraph affected src/mcp/explore-planner.ts` identifies 53 affected test
   files, matching the expected broad blast radius for the Explore planner seam.
 - `zcodegraph callers "plan"` includes `src/mcp/tools.ts:handleExplore` and
-  `__tests__/explore-planner.test.ts`.
+  `tests/explore-planner.test.ts`.
 
 ## Agent A/B Benchmark Status
 

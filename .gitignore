@@ -58,7 +58,7 @@ test_frameworks
 test-languages/
 
 # Local evaluation run outputs
-__tests__/evaluation/results/
+tests/evaluation/results/
 
 nul
 release/

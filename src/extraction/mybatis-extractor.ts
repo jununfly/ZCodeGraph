@@ -31,7 +31,7 @@ import { generateNodeId } from './tree-sitter-helpers';
  * mybatisJavaXmlEdges synthesizer — one of the 1-4 wave's 23 framework
  * resolvers with its own ownership decision. Keeping the extractor here
  * lets the Java↔XML bridge be evaluated in one layer in 1-4. Guarded by
- * __tests__/file-level-language-ownership-guard.test.ts.
+ * tests/file-level-language-ownership-guard.test.ts.
  */
 export class MyBatisExtractor {
   private filePath: string;

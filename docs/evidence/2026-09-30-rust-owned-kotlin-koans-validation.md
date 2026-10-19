@@ -96,7 +96,7 @@ no `node_modules`/`dist`, so the TS shell and vitest arbitration run on CI):
   `rust_core_kotlin_baseline_classification_typealias_and_extension` passes
   (locks object→class, `typealias` RHS references, and extension-receiver
   `Int::times2` qualification).
-- Deterministic wave0 fixtures: `__tests__/rust-owned-language-fixtures.test.ts`,
+- Deterministic wave0 fixtures: `tests/rust-owned-language-fixtures.test.ts`,
   `describe('Kotlin baseline (roadmap 1-6-1)')` — 8 cases / 27 assertions.
   Because the local clone cannot run vitest, every fixture sample was indexed
   end-to-end through the Rust binary and asserted directly against SQLite;

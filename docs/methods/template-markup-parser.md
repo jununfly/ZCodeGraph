@@ -134,7 +134,7 @@ resolve to a `csharp` symbol, so add `razor` to the `web`/dotnet family or treat
 
 ## Validation (per the engine's methodology)
 
-1. Build `RazorExtractor`; unit tests in `__tests__/extraction.test.ts` (a `.cshtml`
+1. Build `RazorExtractor`; unit tests in `tests/extraction.test.ts` (a `.cshtml`
    with `@model X` covers `X`; a `.razor` with `<ToastComponent/>` covers it; an HTML
    `<div>` does NOT create an edge).
 2. Re-measure eShopOnWeb FAIR coverage before/after (`/tmp/faircov.cjs`): target

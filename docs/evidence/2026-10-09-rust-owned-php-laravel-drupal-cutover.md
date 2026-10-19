@@ -159,8 +159,8 @@ fixed inside the ownership move.
 > versa), and `hook_form_alter` resolves to the core template at
 > `core/lib/Drupal/Core/Form/form.api.php` when no peer implementation exists.
 > The 31 rows in the table above are preserved as the pre-follow-up snapshot.
-> Locked by two `drupalResolver.resolve` unit tests in `__tests__/drupal.test.ts`
-> and one rust-hybrid e2e in `__tests__/frameworks-integration.test.ts`
+> Locked by two `drupalResolver.resolve` unit tests in `tests/drupal.test.ts`
+> and one rust-hybrid e2e in `tests/frameworks-integration.test.ts`
 > (follow-up commit `996cf4d`).
 
 ### Drupal `*.routing.yml` (untouched TS path)
@@ -258,7 +258,7 @@ is introduced.
 ## Verification gates
 
 - New deterministic fixtures in
-  `__tests__/frameworks-integration.test.ts`:
+  `tests/frameworks-integration.test.ts`:
   - `describe('Laravel framework routes on rust-hybrid (roadmap 1-2-5-4 cutover)')`
     — artisan detection; tuple + string handler routes resolve to Rust
     controller methods; resource + closure shapes behave as above.
@@ -269,7 +269,7 @@ is introduced.
   Titles avoid regex metacharacters and are registered in `ci.yml` step2's
   `-t` filter; the `skip-debt-guardrail` audit confirms every `-t` branch
   matches a real test (27 branches, zero dead filters).
-- Ownership contract flipped in `__tests__/extraction.test.ts`
+- Ownership contract flipped in `tests/extraction.test.ts`
   (`isRustHybridOwnedLanguage('php') === true`,
   `engineByLanguage.php === 'rust'`, zero PHP fallback files); the engine-CLI
   language snapshot in `rust-index-engine-cli-engine.test.ts` now lists 13

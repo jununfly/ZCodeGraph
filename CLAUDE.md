@@ -19,14 +19,14 @@ npm run clean           # rm -rf dist
 
 npm test                # vitest run (all)
 npm run test:watch
-npm run test:eval       # only __tests__/evaluation/
-npm run eval            # build then run __tests__/evaluation/runner.ts via tsx
+npm run test:eval       # only tests/evaluation/
+npm run eval            # build then run tests/evaluation/runner.ts via tsx
 
 npm run cli             # build then run the local dist binary
 
 # Single test file / pattern
-npx vitest run __tests__/installer-targets.test.ts
-npx vitest run __tests__/extraction.test.ts -t "TypeScript"
+npx vitest run tests/installer-targets.test.ts
+npx vitest run tests/extraction.test.ts -t "TypeScript"
 ```
 
 `copy-assets` (called from `build`) copies `src/db/schema.sql` and all `src/extraction/wasm/*.wasm` files into `dist/`. **Any new SQL or grammar wasm must be copied or it won't ship.**
@@ -81,7 +81,7 @@ Defined in `src/types.ts`. Both extractors and resolvers must use these exact st
 - `targets/toml.ts` is a hand-rolled TOML serializer scoped to `[mcp_servers.codegraph]` (used by Codex). Sibling tables and `[[array_of_tables]]` are preserved verbatim. No new dependency.
 - opencode reads `opencode.jsonc` by default; the installer prefers existing `.jsonc`, falls back to `.json`, and creates `.jsonc` for greenfield installs. Edits are surgical via `jsonc-parser` so user comments and formatting survive install/re-install/uninstall round-trips.
 - `instructions-template.ts` no longer holds an instructions body — it exports only the `<!-- CODEGRAPH_START -->`/`<!-- CODEGRAPH_END -->` markers. The installer **stopped writing** a `## CodeGraph` block into each agent's instructions file (`CLAUDE.md` / `~/.codex/AGENTS.md` / `~/.config/opencode/AGENTS.md` / `~/.gemini/GEMINI.md` / `.cursor/rules/codegraph.mdc` / Kiro steering doc) because it duplicated the MCP `initialize` instructions verbatim (issue #529). Each target's `install` (self-heal on upgrade) and `uninstall` use the markers to **strip** a block a previous install left behind. `server-instructions.ts` is the single source of truth for agent-facing guidance.
-- All installer changes need matching coverage in `__tests__/installer-targets.test.ts` — there are ~47 parameterized contract tests covering install idempotency, sibling preservation, uninstall reverses install, byte-equal re-runs returning `unchanged`, and partial-state recovery for Codex.
+- All installer changes need matching coverage in `tests/installer-targets.test.ts` — there are ~47 parameterized contract tests covering install idempotency, sibling preservation, uninstall reverses install, byte-equal re-runs returning `unchanged`, and partial-state recovery for Codex.
 
 ### Cursor MCP working-directory quirk
 
@@ -158,7 +158,7 @@ n=4 unhooked runs/stage, same prompt. After steering flow questions to `zcodegra
 
 ## Tests
 
-Tests live in `__tests__/` and mirror the module they cover. Notable ones beyond the obvious:
+Tests live in `tests/` and mirror the module they cover. Notable ones beyond the obvious:
 
 - `installer-targets.test.ts` — parameterized contract suite across all 4 agent targets (see installer notes above).
 - `evaluation/` — `runner.ts` + `test-cases.ts` exercise codegraph against synthetic projects and score the results; run via `npm run eval` (builds first). Not part of `npm test`.

@@ -43,7 +43,7 @@ function kebabToPascal(name: string): string {
  * delegation mechanism it does not have. Grammar supply is inadequate
  * (tree-sitter-vue is a placeholder crate; tree-sitter-vue-next extends
  * tree-sitter-html with a C external scanner and parses only SFC markup).
- * Guarded by __tests__/file-level-language-ownership-guard.test.ts.
+ * Guarded by tests/file-level-language-ownership-guard.test.ts.
  * Vue/Nuxt file-convention routing lives in src/resolution/frameworks/vue.ts.
  */
 export class VueExtractor {

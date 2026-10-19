@@ -20,7 +20,7 @@ Release workflow, or run the full cross-platform bundle matrix.
 |---|---|---|
 | `npm test` | Pass | `123` test files passed; `1920` tests passed; `2` skipped. |
 | `npm run build` | Pass | TypeScript build and asset copy completed. |
-| Targeted packaged smoke | Pass | `npx vitest run __tests__/rust-package-smoke.test.ts __tests__/ci-rust-packaged-path.test.ts __tests__/build-bundle-rust-core.test.ts __tests__/pack-npm-rust-core.test.ts` passed: `4` files, `10` tests. |
+| Targeted packaged smoke | Pass | `npx vitest run tests/rust-package-smoke.test.ts tests/ci-rust-packaged-path.test.ts tests/build-bundle-rust-core.test.ts tests/pack-npm-rust-core.test.ts` passed: `4` files, `10` tests. |
 | Local install/uninstall smoke | Pass | In a temporary `HOME`, `zcodegraph install --target codex --location global --yes` created `~/.codex/config.toml`; `zcodegraph uninstall --target codex --location global --yes` removed it. |
 | Local init/index/status/doctor smoke | Pass | Temporary TS+Go project initialized, indexed with `rust-hybrid`, reported healthy status, and created a last-run diagnostic bundle. |
 | Default `rust-hybrid` behavior | Pass | Temporary TS+Go project status showed `typescript` and `go` indexed by Rust, `fallbackFileCount: 0`, `fallbackState: healthy`. |
