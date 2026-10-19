@@ -20,6 +20,7 @@
  *   zcodegraph callees <symbol>   Find what a function/method calls
  *   zcodegraph impact <symbol>    Analyze what code is affected by changing a symbol
  *   zcodegraph affected [files]   Find test files affected by changes
+ *   zcodegraph visualize          Render the indexed graph to a single self-contained HTML
  *   zcodegraph upgrade [version]  Update ZCodeGraph to the latest release
  */
 
@@ -2263,6 +2264,77 @@ program
       cg.destroy();
     } catch (err) {
       error(`Affected analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+/**
+ * zcodegraph visualize
+ *
+ * Render the indexed knowledge graph to a single self-contained HTML file.
+ * Reads `.zcodegraph/index.db` directly via node:sqlite — does not require
+ * the CodeGraph class or any MCP server. Cytoscape.js is inlined, so the
+ * output works offline.
+ */
+program
+  .command('visualize')
+  .description('Render the indexed graph to a self-contained HTML file (offline, interactive)')
+  .option('-p, --path <path>', 'Project path')
+  .option('-d, --depth <depth>', 'Node depth: file | class | function', 'file')
+  .option('-o, --out <path>', 'Output HTML path (default: <project>/.zcodegraph/visualize.html)')
+  .option('-f, --filter <glob>', 'Only include nodes whose file_path matches this glob (e.g. "src/**")')
+  .option('--max-nodes <n>', 'Hard cap on exported nodes (deterministic: order by id)')
+  .action(async (options: { path?: string; depth?: string; out?: string; filter?: string; maxNodes?: string }) => {
+    const projectPath = resolveProjectPath(options.path);
+
+    try {
+      if (!isInitialized(projectPath)) {
+        error(`CodeGraph not initialized in ${projectPath}`);
+        process.exit(1);
+      }
+
+      const depthRaw = (options.depth || 'file').toLowerCase();
+      if (depthRaw !== 'file' && depthRaw !== 'class' && depthRaw !== 'function') {
+        error(`Unsupported depth "${options.depth}". Expected one of: file, class, function.`);
+        process.exit(1);
+      }
+      const depth = depthRaw as 'file' | 'class' | 'function';
+
+      let maxNodes: number | undefined;
+      if (options.maxNodes != null) {
+        const n = parseInt(options.maxNodes, 10);
+        if (!Number.isFinite(n) || n <= 0) {
+          error(`--max-nodes must be a positive integer, got "${options.maxNodes}"`);
+          process.exit(1);
+        }
+        maxNodes = n;
+      }
+
+      const { buildSnapshot } = await import('../visualize/snapshot');
+      const { renderSnapshotToHtml } = await import('../visualize/render');
+
+      const snapshot = buildSnapshot(projectPath, {
+        depth,
+        filter: options.filter,
+        maxNodes,
+      });
+
+      const outPath = options.out
+        ? path.resolve(options.out)
+        : path.join(projectPath, '.zcodegraph', 'visualize.html');
+
+      const written = renderSnapshotToHtml(snapshot, { outPath });
+
+      console.log(chalk.bold(`\nVisualization written:`));
+      console.log('  ' + chalk.cyan(written));
+      console.log(
+        chalk.dim(
+          `  ${snapshot.stats.exportedNodes}/${snapshot.stats.totalNodesInDb} nodes · ${snapshot.stats.exportedEdges}/${snapshot.stats.totalEdgesInDb} edges · depth=${depth}`,
+        ),
+      );
+      console.log();
+    } catch (err) {
+      error(`Visualize failed: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
     }
   });
