@@ -81,6 +81,11 @@ jobs:
           tests/sqlite-backend.test.ts
           tests/concurrent-locking.test.ts
           tests/rust-index-engine-cli-failure-safety.test.ts
+      - name: Verify visualize (self-contained HTML, isolated fixture)
+        run: >
+          npx vitest run
+          tests/visualize.test.ts
+          -t "renders a self-contained HTML at depth=file with fixture symbols inlined|exports monotonically more nodes as depth increases \(file < class < function\)|rejects an unsupported --depth value with a clear error|respects --max-nodes cap deterministically"
       - name: Verify release artifact contracts
         run: >
           npx vitest run

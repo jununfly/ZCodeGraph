@@ -83,11 +83,13 @@
         "1-3-1",
         "1-3-2",
         "1-3-3",
-        "1-3-4"
+        "1-3-5",
+        "1-3-6"
       ],
       "decisions": [],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "childSequence": 4
     },
     "1-4": {
       "id": "1-4",
@@ -113,19 +115,33 @@
     "1-1-1": {
       "id": "1-1-1",
       "uid": "01a153ad2f44-92c4fcdfbe",
-      "label": "archify hands-on 验证并回填 Unknown",
-      "status": "pending",
+      "label": "P-1 自研可视化引擎首版（zcodegraph visualize）",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-1",
       "children": [],
-      "decisions": [],
-      "notes": "",
+      "decisions": [
+        {
+          "q": "为什么推翻 archify 集成复用、改为 ZCodeGraph 自研可视化引擎？",
+          "answer": "用户 2026-10-19 裁决：archify 定位由'集成复用'改为'自研等效'。理由：(1) archify 本体 85k stars 但为外部进程，与 ZG'零外部依赖、本地内嵌'哲学存在根本张力；(2) 用户对可视化的真实诉求是'zcodegraph visualize 一条命令出 HTML'，而非'ZG 出 IR、archify 渲染'的两段式链路；(3) Cytoscape.js 单文件可内嵌，离线零外部进程，与 SQLite 内嵌零配置一致。",
+          "note": "用户 2026-10-19 A2 裁决；推翻 1-3-4 节点原有'archify 纯数据契约'决策；技术选型 Cytoscape.js"
+        },
+        {
+          "q": "visualize 数据源、依赖内嵌、默认范围、CLI 命名如何选？",
+          "answer": "(1) 数据源：直接 better-sqlite3 读 .zcodegraph/*.db——与现有 CLI（query/files/context）一致，不经过 CodeGraph API 层，快照快且解耦。(2) 依赖内嵌：npm i cytoscape，build 时 copy 进 dist/assets/，生成 HTML 时读文件内容塞进 <script>，与 schema.sql/*.wasm 同套路，产物单文件离线可用。(3) 默认范围：只画 file 节点 + 跨文件 contains 边，加 --depth file|class|function 参数下钻，避免 10w+ 节点卡死浏览器。(4) CLI 名：zcodegraph visualize，与节点 label 一致，与 query/files/context/affected 同风格。",
+          "note": "用户 2026-10-19 裁决 4 项；后续 1-3-5/1-3-6 在此切片上扩展"
+        }
+      ],
+      "notes": "2026-10-19 落地：zcodegraph visualize 子命令 + snapshot/render/template 三件套 + 4 e2e 用例全绿 + ci.yml -t 同步；fixture 3 TS 文件 17n/24e 跑通，单文件 455KB HTML 零 CDN。用户验收通过。",
       "layer": "plan",
       "exit_criteria": [
-        "1 个真实仓库跑通 图谱→archify IR→HTML",
-        "确认 IR schema 匹配",
-        "回填 archify 技术/差异化两条 Unknown"
-      ]
+        "支持：力导向布局 + NodeKind/EdgeKind 类型着色与过滤 + 节点搜索 + 点击查看详情",
+        "zcodegraph visualize 子命令落地，产单文件自包含 HTML（内嵌 Cytoscape.js）",
+        "1 个真实仓库（如 ZCodeGraph 自身或 express）跑通 zcodegraph index → visualize → HTML 渲染非空图",
+        "覆盖 1 个 vitest 集成用例 + ci.yml -t 同步",
+        "离线可用：HTML 不依赖任何外部 CDN/进程，Cytoscape.js 内嵌"
+      ],
+      "rounds": 1
     },
     "1-1-2": {
       "id": "1-1-2",
@@ -350,29 +366,6 @@
         "1 个真实 Spring 仓 sufficiency 探针通过"
       ]
     },
-    "1-3-4": {
-      "id": "1-3-4",
-      "uid": "01a153ad8724-90a843c5c5",
-      "label": "P1-3 可视化出口（archify 纯数据契约）",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-3",
-      "children": [],
-      "decisions": [
-        {
-          "q": "为什么可视化走 archify 纯数据契约而非内嵌渲染？",
-          "answer": "守住架构不变量（SQLite 嵌入式、零配置、100% 本地）。zcodegraph export --format archify 只出 IR JSON，渲染交给 archify 外部完成，不引入前端依赖。",
-          "note": "REFINED-PLAN §4 P1-3"
-        }
-      ],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "只产出 archify IR JSON（export --format archify）",
-        "渲染交用户侧，零新依赖零新进程",
-        "IR schema 校验通过+快照确定性重渲染一致"
-      ]
-    },
     "1-4-1": {
       "id": "1-4-1",
       "uid": "01a153ad8e0e-566bcd87f1",
@@ -447,11 +440,45 @@
         "explore-latency-regression 红线定值",
         "每能力域健康探针+doctor capabilities.json+--upstream-check"
       ]
+    },
+    "1-3-5": {
+      "id": "1-3-5",
+      "uid": "01a15423f55b-860ea8ef79",
+      "label": "P1-3 可视化多视图（模块/类/函数层）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "切换视图：模块（文件/包）/ 类（class/interface/struct）/ 函数（function/method）三层",
+        "vitest 集成用例 1 个 + ci.yml -t 同步",
+        "视图切换不丢状态（搜索关键字、过滤选择、视口位置）"
+      ]
+    },
+    "1-3-6": {
+      "id": "1-3-6",
+      "uid": "01a154246e4d-22a25d785a",
+      "label": "P1-4 可视化时间演化动画（git history）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "1 个真实仓库（含 ≥10 个 commit）跑通；集成用例 1 个 + ci -t 同步",
+        "节点/边的出现与消失随 commit 顺序播放，可暂停/拖动时间轴",
+        "zcodegraph visualize --since <commit|date> 产时间轴动画 HTML"
+      ]
     }
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-19 18:25:01",
+    "updated": "2026-10-19 20:54:43",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
@@ -510,12 +537,6 @@
       "type": "blocks"
     },
     {
-      "id": "e10",
-      "from": "01a153ad72f3-1232f64e8f",
-      "to": "01a153ad8724-90a843c5c5",
-      "type": "blocks"
-    },
-    {
       "id": "e11",
       "from": "01a153ada445-e71cc0d263",
       "to": "01a153ad72f3-1232f64e8f",
@@ -526,7 +547,19 @@
       "from": "01a153ad8e0e-566bcd87f1",
       "to": "01a153ad9678-b7cc387500",
       "type": "blocks"
+    },
+    {
+      "id": "e13",
+      "from": "01a153ad2f44-92c4fcdfbe",
+      "to": "01a15423f55b-860ea8ef79",
+      "type": "blocks"
+    },
+    {
+      "id": "e14",
+      "from": "01a153ad2f44-92c4fcdfbe",
+      "to": "01a154246e4d-22a25d785a",
+      "type": "blocks"
     }
   ],
-  "edge_seq": 12
+  "edge_seq": 14
 }
