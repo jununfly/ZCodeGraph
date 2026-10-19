@@ -1,0 +1,67 @@
+{
+  "markdownPath": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\research\\code-intelligence-landscape\\2026-10-19-harvest-draft.md",
+  "htmlPath": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\research\\code-intelligence-landscape\\2026-10-19-harvest-draft.html",
+  "reportHash": "ca2ec676b68d1f398403988bd5c8cb5c25dec255be42d125ae4f41faa858533d",
+  "publishCount": 1,
+  "evaluation": {
+    "reportHash": "ca2ec676b68d1f398403988bd5c8cb5c25dec255be42d125ae4f41faa858533d",
+    "reportFamily": "technical-c4/v1",
+    "compilerVersion": "research/v1",
+    "healthy": true,
+    "correctness": {
+      "revisionPinned": true,
+      "provenanceComplete": true,
+      "criticalClaimsEvidence": true,
+      "scoringAxesSeparated": true,
+      "publishExactlyOnce": true,
+      "receiptConsistent": true
+    },
+    "evidenceCount": 27,
+    "unknownCount": 3,
+    "navigationFailureCount": 0,
+    "collection": {
+      "filesRead": 23,
+      "sourceBytesRead": 217831,
+      "durationMs": 19121,
+      "cacheHit": false
+    }
+  },
+  "qualityGate": {
+    "healthy": true,
+    "schema": "technical-research-quality-gate/v1",
+    "briefSchema": "technical-decision-brief/v1",
+    "reportFamily": "technical-c4/v1",
+    "checks": {
+      "decisionFrame": true,
+      "diagramCoverage": true,
+      "candidateScoresFromLedger": true,
+      "criticalClaimsEvidence": true,
+      "comparisonTraceability": true,
+      "recommendationTraceability": true,
+      "metricCoverage": true,
+      "riskRegisterCoverage": true,
+      "unknownsSurfaced": true
+    },
+    "counts": {
+      "concepts": 7,
+      "candidates": 6,
+      "cards": 6,
+      "claims": 14,
+      "comparisons": 6,
+      "recommendations": 6,
+      "metrics": 6,
+      "riskRegister": 4,
+      "ledgerEvidence": 27,
+      "ledgerUnknownCriteria": 3,
+      "graduationCriteria": 2,
+      "versionSkew": false
+    },
+    "brief": {
+      "schema": "technical-decision-brief/v1",
+      "stage": "problem-discovery",
+      "constraintCount": 4,
+      "optionCount": 6,
+      "goalCount": 4
+    }
+  }
+}

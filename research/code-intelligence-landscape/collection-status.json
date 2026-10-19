@@ -1,0 +1,126 @@
+{
+  "schema": "zj-research-collection-status/v1",
+  "protocol": "zj-research-cli/v1",
+  "operation": "collect",
+  "state": "reused-sealed-ledger",
+  "brief": {
+    "schema": "zj-research-brief/v1",
+    "topic": "Local-first code intelligence / code knowledge graph tools for AI coding agents: product positioning, technical architecture, and target users",
+    "criteria": [
+      {
+        "id": "product-positioning",
+        "question": "What product problem does this project solve and what is its headline value proposition for AI coding agents?",
+        "critical": true,
+        "keywords": [
+          "MCP",
+          "knowledge graph",
+          "code intelligence",
+          "AI agent",
+          "context",
+          "indexing"
+        ]
+      },
+      {
+        "id": "technical-architecture",
+        "question": "What is the indexing/parsing/storage architecture (tree-sitter, vector embeddings, SQLite, Neo4j, in-browser), and which languages/frameworks are supported?",
+        "critical": true,
+        "keywords": [
+          "tree-sitter",
+          "SQLite",
+          "Neo4j",
+          "vector",
+          "embeddings",
+          "Rust",
+          "TypeScript",
+          "languages",
+          "frameworks"
+        ]
+      },
+      {
+        "id": "target-users",
+        "question": "Who are the target users (which AI agents/IDEs are supported, individual developers vs teams, local-first vs cloud)?",
+        "critical": true,
+        "keywords": [
+          "Claude Code",
+          "Cursor",
+          "Codex",
+          "MCP",
+          "IDE",
+          "local",
+          "install",
+          "agent"
+        ]
+      },
+      {
+        "id": "differentiation",
+        "question": "What differentiates this project from alternatives (auto-sync, framework routes, cross-language bridging, visualization, semantic search)?",
+        "critical": false,
+        "keywords": [
+          "auto-sync",
+          "watcher",
+          "framework",
+          "routes",
+          "cross-language",
+          "visualization",
+          "semantic search",
+          "impact analysis"
+        ]
+      },
+      {
+        "id": "maturity",
+        "question": "What is the project maturity (release cadence, documentation, benchmarks, ecosystem adoption)?",
+        "critical": false,
+        "keywords": [
+          "release",
+          "version",
+          "benchmark",
+          "documentation",
+          "stars",
+          "contributors"
+        ]
+      }
+    ],
+    "repositories": [
+      {
+        "owner": "jununfly",
+        "name": "ZCodeGraph"
+      },
+      {
+        "owner": "colbymchenry",
+        "name": "codegraph"
+      },
+      {
+        "owner": "tt-a1i",
+        "name": "archify"
+      },
+      {
+        "owner": "CodeGraphContext",
+        "name": "CodeGraphContext"
+      },
+      {
+        "owner": "braedonsaunders",
+        "name": "codeflow"
+      },
+      {
+        "owner": "zilliztech",
+        "name": "claude-context"
+      }
+    ],
+    "policyVersion": "v1",
+    "budget": {
+      "maxFiles": 24,
+      "maxBytes": 1000000,
+      "deadlineMs": 120000
+    }
+  },
+  "briefFingerprint": "0b46770b2a71879e027ee0e7235d467d0e32fda3ac3b4d3b630aea4c7d96b495",
+  "preflight": null,
+  "ledger": {
+    "relationship": "explicit-reuse",
+    "source": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\research\\code-intelligence-landscape\\ledger-response.json"
+  },
+  "fallback": {
+    "automatic": false,
+    "oldLedgerUsed": true
+  }
+}
