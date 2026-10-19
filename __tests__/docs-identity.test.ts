@@ -114,7 +114,7 @@ describe('ZCodeGraph docs and agent-facing identity', () => {
       'ZJ-CONTEXT.md',
       'src/mcp/tools.ts',
       'src/mcp/explore-types.ts',
-      'docs/designs/adaptive-explore-sizing.md',
+      'docs/methods/adaptive-explore-sizing.md',
     ].map(read).join('\n---\n');
 
     expect(docsAndComments).toContain('Explore Answer');

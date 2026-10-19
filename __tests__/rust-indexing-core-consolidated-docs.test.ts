@@ -5,15 +5,15 @@ import * as path from 'path';
 const REPO_ROOT = path.resolve(__dirname, '..');
 const CLOSEOUT = path.join(
   REPO_ROOT,
-  'docs/designs/plan-artifact-consolidated-closeout.md',
+  'docs/ledgers/plan-artifact-consolidated-closeout.md',
 );
 const BENCHMARK = path.join(
   REPO_ROOT,
-  'docs/designs/rust-indexing-core-decision-ledger.md',
+  'docs/ledgers/rust-indexing-core-decision-ledger.md',
 );
 const DESIGN = path.join(
   REPO_ROOT,
-  'docs/designs/2026-06-14-rust-end-to-end-graph-pipeline-feasibility.md',
+  'docs/ledgers/2026-06-14-rust-end-to-end-graph-pipeline-feasibility.md',
 );
 
 describe('Rust indexing core consolidated documentation', () => {

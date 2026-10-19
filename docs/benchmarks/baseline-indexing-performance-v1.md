@@ -10,8 +10,8 @@ for `rust-hybrid` indexing performance optimization.
 This baseline measures the default `rust-hybrid` full-index path. It is the
 comparison standard for #165 follow-up work and for the performance optimization
 history consolidated at
-`docs/designs/plan-artifact-consolidated-closeout.md` and the consolidated
-benchmark artifacts under `docs/benchmarks/`.
+`docs/ledgers/plan-artifact-consolidated-closeout.md` and the dated
+evidence artifacts under `docs/evidence/`.
 
 ## Scope
 
@@ -102,7 +102,7 @@ An ownership slice closeout should record:
 Use targeted fixture/profile evidence by default. Keep temporary profiles,
 intermediate measurements, and process evidence with the issue or plan closeout.
 Only durable result/decision artifact records that need long-term reference
-belong in `docs/benchmarks/`.
+belong in `docs/evidence/`.
 
 Upgrade to real repo smoke when any of these triggers apply:
 
@@ -154,7 +154,7 @@ guardrails are reported.
 Keep temporary profiles, intermediate measurements, and process evidence with
 the issue or plan closeout. Checked-in temporary files must use a `tmp-` prefix.
 Only a durable result/decision artifact that should remain useful after the
-issue closes belongs in `docs/benchmarks/`.
+issue closes belongs in `docs/evidence/`.
 
 ## Threshold Interpretation
 
@@ -176,7 +176,7 @@ Use the repository baseline runner:
 
 ```bash
 node scripts/rust-hybrid-baseline.mjs \
-  --out docs/benchmarks/<name>-result.json \
+  --out docs/evidence/<name>-result.json \
   --repo current-repo=. --runs 3 \
   --repo excalidraw=/private/tmp/codegraph-corpus/excalidraw \
   --repo vscode-sparse=/private/tmp/codegraph-corpus/vscode-sparse

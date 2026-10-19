@@ -3,26 +3,26 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
-const GUARDRAIL_DOC = path.join(REPO_ROOT, 'docs/benchmarks/graph-semantics-guardrail-v1.md');
+const GUARDRAIL_DOC = path.join(REPO_ROOT, 'docs/contracts/graph-semantics-guardrail-v1.md');
 const INDEXING_PERFORMANCE_DOC = path.join(
   REPO_ROOT,
-  'docs/benchmarks/baseline-indexing-performance-v1.md',
+  'docs/contracts/baseline-indexing-performance-v1.md',
 );
 const RESEARCH_ORACLE_CLOSEOUT_DOC = path.join(
   REPO_ROOT,
-  'docs/designs/rust-hybrid-optimization-decision-ledger.md',
+  'docs/ledgers/rust-hybrid-optimization-decision-ledger.md',
 );
 const OWNERSHIP_ROADMAP_DOC = path.join(
   REPO_ROOT,
-  'docs/designs/plan-artifact-consolidated-closeout.md',
+  'docs/ledgers/plan-artifact-consolidated-closeout.md',
 );
 const RESOLVER_SEMANTIC_RESIDUALS_DOC = path.join(
   REPO_ROOT,
-  'docs/designs/resolver-semantic-residuals-ledger.md',
+  'docs/ledgers/resolver-semantic-residuals-ledger.md',
 );
 const FRAMEWORK_OWNERSHIP_MATRIX_DOC = path.join(
   REPO_ROOT,
-  'docs/designs/rust-framework-ownership-matrix-v1.md',
+  'docs/contracts/rust-framework-ownership-matrix-v1.md',
 );
 
 describe('Graph semantics guardrail documentation', () => {
@@ -73,7 +73,7 @@ describe('Graph semantics guardrail documentation', () => {
 
   it('locks the Agent Sufficiency trigger matrix contract', () => {
     const agentDoc = fs.readFileSync(
-      path.join(REPO_ROOT, 'docs/benchmarks/baseline-agent-sufficiency-v1.md'),
+      path.join(REPO_ROOT, 'docs/contracts/baseline-agent-sufficiency-v1.md'),
       'utf8',
     );
     const graphDoc = fs.readFileSync(GUARDRAIL_DOC, 'utf8');
@@ -134,7 +134,7 @@ describe('Graph semantics guardrail documentation', () => {
 
     for (const requiredGuidance of [
       'Plan, Benchmark, and Evidence Lifecycle',
-      'Only durable baseline, result, and decision artifacts belong in `docs/benchmarks/`',
+      'Only durable baseline, result, and decision artifacts belong in `docs/evidence/`',
       'temporary profiles, intermediate measurements, and process evidence stay with the issue or plan closeout',
       'Checked-in temporary evidence files must use a `tmp-` prefix',
     ]) {

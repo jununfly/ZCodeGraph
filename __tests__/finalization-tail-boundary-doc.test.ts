@@ -7,7 +7,7 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 // archive (governance pass 2026-09-21).
 const BOUNDARY_DOC = path.join(
   REPO_ROOT,
-  'docs/designs/finalization-tail-boundary-contract.md',
+  'docs/contracts/finalization-tail-boundary-contract.md',
 );
 
 describe('Finalization tail boundary plan artifacts', () => {
