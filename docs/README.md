@@ -18,9 +18,9 @@
 | Class | Folder | Authority range | Count |
 | --- | --- | --- | --- |
 | Decision | [`decisions/`](decisions/) | primary | 8 |
-| Contract | [`contracts/`](contracts/) | primary | 8 |
+| Contract | [`contracts/`](contracts/) | primary | 9 |
 | Ledger | [`ledgers/`](ledgers/) | supporting | 8 |
-| Evidence | [`evidence/`](evidence/) | historical | 39 |
+| Evidence | [`evidence/`](evidence/) | historical | 40 |
 | Method | [`methods/`](methods/) | primary / supporting | 9 |
 | Plan | [`plans/`](plans/) | process | 0 (empty after 2026-10-19 closeout) |
 
@@ -62,6 +62,7 @@ are test-locked; see each note.
 | BENCH-indexing-perf-v1 | [baseline-indexing-performance-v1.md](contracts/baseline-indexing-performance-v1.md) | How is indexing performance measured? |
 | BENCH-graph-semantics-v1 | [graph-semantics-guardrail-v1.md](contracts/graph-semantics-guardrail-v1.md) | What graph-semantics guardrails must hold? |
 | DES-health-rubric-v1 | [health-rubric-v1.md](contracts/health-rubric-v1.md) | How is the zcodegraph health A-F grade computed? |
+| DES-token-baseline-tasks-v1 | [token-baseline-tasks-v1.md](contracts/token-baseline-tasks-v1.md) | What are the frozen task definitions for the Layer-1 token-consumption baseline ratio? |
 
 ## ledgers — distilled decision & closeout ledgers
 
@@ -182,6 +183,11 @@ Per-language real-corpus validation, ordered by date:
   alignment vs codeflow + N=2 single-file samples (100% recall/precision
   vs hand-derived ground truth); codeflow lacks scriptable commit-range
   blast radius, so literal "vs codeflow" recall is N/A.
+- [2026-10-20-token-baseline-layer1.md](evidence/2026-10-20-token-baseline-layer1.md)
+  — Layer-1 deterministic token-consumption baseline (roadmap 1-1-4): 9
+  tasks × 3 corpora × 3 reps, median ratio **0.1712** (min 0.0139 /
+  max 0.6649) — ZCodeGraph CLI payload ~17% the size of conservative
+  read-everything baseline. Frozen by `DES-token-baseline-tasks-v1`.
 
 ## methods — methods, playbooks, and how-to guides
 
