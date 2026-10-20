@@ -111,6 +111,11 @@ jobs:
           npx vitest run
           tests/index-scope.test.ts
           tests/cli-index-scope.test.ts
+      - name: Verify MCP progress notifications (roadmap 1-2-2)
+        run: >
+          npx vitest run
+          tests/mcp-progress-notification.test.ts
+          tests/mcp-progress-e2e.test.ts
       - name: Verify release artifact contracts
         run: >
           npx vitest run

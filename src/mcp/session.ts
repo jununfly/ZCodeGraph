@@ -106,6 +106,11 @@ export class MCPSession {
    * other sessions) or call `process.exit` (the daemon decides when to exit).
    */
   stop(): void {
+    // Detach our progress sink so the engine doesn't keep a stale reference
+    // to a closed transport. Daemon-mode: another session may have already
+    // overwritten the sink; that's fine, clearing a foreign sink is harmless
+    // because that session's `initialize` already ran and will re-register.
+    this.engine.setProgressSink(null);
     this.transport.stop();
   }
 
@@ -164,6 +169,19 @@ export class MCPSession {
     } | undefined;
 
     this.clientSupportsRoots = !!params?.capabilities?.roots;
+
+    // Register this session's transport as the engine's progress sink. The
+    // engine drives `notifications/progress` for its own background work
+    // (catch-up sync); whoever most recently initialized wins, which matches
+    // how daemon-mode already arbitrates the shared CodeGraph instance.
+    this.engine.setProgressSink((method, params) => {
+      try {
+        this.transport.notify(method, params);
+      } catch {
+        // Transport may already be closing — progress is best-effort, never
+        // worth crashing the session over.
+      }
+    });
 
     // Explicit project signal, strongest first: client-provided rootUri /
     // workspaceFolders (LSP-style), else the --path the server was launched

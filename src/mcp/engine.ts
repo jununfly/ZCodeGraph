@@ -15,6 +15,17 @@ import { findNearestCodeGraphRoot } from '../directory';
 import { watchDisabledReason } from '../sync';
 import { ToolHandler } from './tools';
 import { getUnavailableGrammarErrors } from '../extraction/grammars';
+import type { IndexProgress } from '../extraction';
+
+/**
+ * Server-side sink for MCP `notifications/progress`. The engine owns *when*
+ * progress fires (catch-up sync, watcher-driven re-sync); the session owns
+ * *where* it goes (its own transport). Decoupling via this signature lets
+ * the daemon reuse one engine for N sessions — the sink is just the latest
+ * session to have called `setProgressSink`, which matches how
+ * `ToolHandler.setDefaultCodeGraph` already handles the shared-state case.
+ */
+export type ProgressSink = (method: string, params?: unknown) => void;
 
 // Lazy-load the heavy CodeGraph chain (sqlite + query/graph/context layers) OFF
 // the MCP startup path. It's only needed once a tool actually opens a project —
@@ -52,10 +63,35 @@ export class MCPEngine {
   private watcherStarted = false;
   private opts: Required<MCPEngineOptions>;
   private closed = false;
+  // Latest session-provided transport for progress notifications. Null until
+  // a session calls setProgressSink (i.e. until `initialize` completes).
+  private progressSink: ProgressSink | null = null;
+  // Drives MCP `kind: 'begin' / 'end'` semantics — we only open a progress
+  // token once per catch-up sync, not once per IndexProgress event.
+  private progressTokenSeq = 0;
 
   constructor(opts: MCPEngineOptions = {}) {
     this.opts = { watch: opts.watch ?? true };
     this.toolHandler = new ToolHandler(null);
+  }
+
+  /**
+   * Register the transport used to push `notifications/progress` for
+   * engine-driven work (currently: catch-up sync after project open). The
+   * latest call wins — in daemon mode N sessions share one engine, and the
+   * sink is a property of "whoever is currently connected", not of the
+   * engine itself.
+   */
+  setProgressSink(sink: ProgressSink | null): void {
+    this.progressSink = sink;
+  }
+
+  /**
+   * Current progress sink — exposed for tests to assert that sessions
+   * register/deregister their transport correctly.
+   */
+  getProgressSink(): ProgressSink | null {
+    return this.progressSink;
   }
 
   /**
@@ -253,17 +289,61 @@ export class MCPEngine {
   private catchUpSync(): void {
     const cg = this.cg;
     if (!cg) return;
+
+    // MCP progress bridge. We open a single `progressToken` per catch-up
+    // sync and translate IndexProgress events into MCP `notifications/progress`
+    // begin/report/end messages. Phases are forwarded verbatim from the
+    // extraction pipeline so the agent can map them onto its own UX
+    // (scanning → parsing → storing → resolving).
+    const sink = this.progressSink;
+    const token = sink ? `zcodegraph-sync-${++this.progressTokenSeq}` : null;
+    let sawBegin = false;
+    const onProgress = sink && token
+      ? (evt: IndexProgress) => {
+          const title = 'Catching up index';
+          const message = `${evt.phase}: ${evt.current}/${evt.total}${evt.currentFile ? ` — ${evt.currentFile}` : ''}`;
+          const percentage = evt.total > 0 ? Math.round((evt.current / evt.total) * 100) : undefined;
+          if (!sawBegin) {
+            sawBegin = true;
+            sink('notifications/progress', {
+              progressToken: token,
+              value: { kind: 'begin', title, message, percentage },
+            });
+            return;
+          }
+          sink('notifications/progress', {
+            progressToken: token,
+            value: { kind: 'report', message, percentage },
+          });
+        }
+      : undefined;
+
     const p = cg
-      .sync()
+      .sync(onProgress ? { onProgress } : {})
       .then((result) => {
         const changed = result.filesAdded + result.filesModified + result.filesRemoved;
         if (changed > 0) {
           process.stderr.write(`[CodeGraph MCP] Caught up ${changed} file(s) changed since last run\n`);
         }
+        if (sink && token && sawBegin) {
+          sink('notifications/progress', {
+            progressToken: token,
+            value: {
+              kind: 'end',
+              message: changed > 0 ? `Caught up ${changed} file(s)` : 'Index already up to date',
+            },
+          });
+        }
       })
       .catch((err) => {
         const msg = err instanceof Error ? err.message : String(err);
         process.stderr.write(`[CodeGraph MCP] Catch-up sync failed: ${msg}\n`);
+        if (sink && token && sawBegin) {
+          sink('notifications/progress', {
+            progressToken: token,
+            value: { kind: 'end', message: `Catch-up sync failed: ${msg}` },
+          });
+        }
       });
     this.toolHandler.setCatchUpGate(p);
   }
