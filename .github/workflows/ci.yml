@@ -91,6 +91,11 @@ jobs:
           npx vitest run
           tests/cli-affected-pr.test.ts
           -t "reports blast radius for --pr <A>\.\.<B> in JSON mode with source/test partition|emits a quiet stream usable for piping \(affected files only, one per line\)|fails cleanly when the git range is invalid|legacy mode \(no --pr\) still returns only test files for backward compatibility"
+      - name: Verify health rubric + CLI (isolated fixture)
+        run: >
+          npx vitest run
+          tests/health-rubric.test.ts
+          tests/cli-health.test.ts
       - name: Verify release artifact contracts
         run: >
           npx vitest run

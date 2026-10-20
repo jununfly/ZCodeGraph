@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-20 11:54:58
+> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-20 12:30:26
 
 [~][X+] 1. ZCodeGraph 能力汇集路线图
 ├── [ ][X+] 1-1. P-1 验证冲刺（先行 gate）
@@ -10,9 +10,9 @@
 │   ├── [ ][X+] 1-1-3. 固化测量基础设施脚本
 │   ├── [ ][X+] 1-1-4. 测 token 消耗稳定 baseline
 │   ├── [!][X+] 1-1-5. 测现有 PR 影响 recall 基线
-│   ├── [ ][X+] 1-1-6. P-1 对照 codeflow 自研 A-F 健康分（health rubric v1）
+│   ├── [x][X+] 1-1-6. P-1 对照 codeflow 自研 A-F 健康分（health rubric v1）
 │   ├── [ ][X+] 1-1-7. P-1 对照 codeflow 自研 churn 热图（git history 驱动）
-│   └── [!][X+] 1-1-8. P-1 对照 codeflow 自研 README SVG Card（CI 出口）
+│   └── [ ][X+] 1-1-8. P-1 对照 codeflow 自研 README SVG Card（CI 出口）
 ├── [!][X+] 1-2. P0 好用性优先（agent 高频缺口）
 │   ├── [ ][X+] 1-2-1. P0a 诊断增强（MCP 初始化失败可恢复提示）
 │   ├── [ ][X+] 1-2-2. P0a 索引进度回调
@@ -32,14 +32,14 @@
 └── [!][X+] 1-4. P2 可选本地混合语义检索
     ├── [ ][X+] 1-4-1. P2 立项前三问硬验收
     └── [!][X+] 1-4-2. P2 量化阈值实测（5 语料端到端）
-<details><summary>阻塞链：11 个节点被阻塞</summary>
+<details><summary>阻塞链：10 个节点被阻塞</summary>
 
 - 1-1-5. 测现有 PR 影响 recall 基线 ← e17: 1-2-9. P0a 索引范围配置：默认排除 .workbuddy/ 等 agent 工作目录 [ ]
-- 1-1-8. P-1 对照 codeflow 自研 README SVG Card（CI 出口） ← e15: 1-1-6. P-1 对照 codeflow 自研 A-F 健康分（health rubric v1） [ ]
 - 1-2. P0 好用性优先（agent 高频缺口） ← e1: 1-1. P-1 验证冲刺（先行 gate） [ ]
 - 1-2-5. P0b find_dead_code 首版（限 3-5 语言） ← e4: 1-2-7. 横切：schema 演进条款 + MCP 工具收口 ≤12 [ ], e7: 1-2-4. P0b 冻结《死代码判定 rubric v1》 [ ]
 - 1-2-6. P0b 圈复杂度（查询时计算，零 schema 变更） ← e5: 1-2-7. 横切：schema 演进条款 + MCP 工具收口 ≤12 [ ]
-- ... 另有 6 个节点被阻塞未列出
+- 1-3. P1 高价值理解增量 ← e2: 1-1. P-1 验证冲刺（先行 gate） [ ]
+- ... 另有 5 个节点被阻塞未列出
 
 </details>
 

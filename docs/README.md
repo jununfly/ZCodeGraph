@@ -18,7 +18,7 @@
 | Class | Folder | Authority range | Count |
 | --- | --- | --- | --- |
 | Decision | [`decisions/`](decisions/) | primary | 8 |
-| Contract | [`contracts/`](contracts/) | primary | 7 |
+| Contract | [`contracts/`](contracts/) | primary | 8 |
 | Ledger | [`ledgers/`](ledgers/) | supporting | 8 |
 | Evidence | [`evidence/`](evidence/) | historical | 39 |
 | Method | [`methods/`](methods/) | primary / supporting | 9 |
@@ -61,6 +61,7 @@ are test-locked; see each note.
 | BENCH-agent-sufficiency-v1 | [baseline-agent-sufficiency-v1.md](contracts/baseline-agent-sufficiency-v1.md) | How is Agent Sufficiency measured? |
 | BENCH-indexing-perf-v1 | [baseline-indexing-performance-v1.md](contracts/baseline-indexing-performance-v1.md) | How is indexing performance measured? |
 | BENCH-graph-semantics-v1 | [graph-semantics-guardrail-v1.md](contracts/graph-semantics-guardrail-v1.md) | What graph-semantics guardrails must hold? |
+| DES-health-rubric-v1 | [health-rubric-v1.md](contracts/health-rubric-v1.md) | How is the zcodegraph health A-F grade computed? |
 
 ## ledgers — distilled decision & closeout ledgers
 
