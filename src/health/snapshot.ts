@@ -149,6 +149,20 @@ export function buildHealthSnapshot(projectRoot: string): HealthSnapshot {
   }
 }
 
+/**
+ * Internal hook for sibling modules (e.g. `src/badge/inputs.ts`) that need
+ * the health report but already own a DB handle for a different primary
+ * query. Callers MUST close the db themselves; we never close it here.
+ *
+ * Not part of the public API — `src/index.ts` does not re-export it.
+ */
+export function buildHealthSnapshotFromDbUnsafe(
+  db: SqliteDatabase,
+  projectRoot: string,
+): HealthSnapshot {
+  return buildHealthSnapshotFromDb(db, projectRoot);
+}
+
 function buildHealthSnapshotFromDb(db: SqliteDatabase, projectRoot: string): HealthSnapshot {
   // ---------- Pull raw rows ----------
   const rawFiles = db

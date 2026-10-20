@@ -23,6 +23,7 @@
  *   zcodegraph visualize          Render the indexed graph to a single self-contained HTML
  *   zcodegraph health             Compute the A-F health grade for the indexed graph
  *   zcodegraph churn              Git history-driven file churn heatmap (no index required)
+ *   zcodegraph badge              Self-contained SVG card (health + nodes + edges) for README/CI
  *   zcodegraph upgrade [version]  Update ZCodeGraph to the latest release
  */
 
@@ -2700,6 +2701,56 @@ program
       }
     } catch (err) {
       error(`Churn failed: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+/**
+ * zcodegraph badge
+ *
+ * README-ready SVG card (health grade + node/edge counts). Reuses the
+ * 1-1-6 health snapshot via `src/health/snapshot.ts` — no duplicate
+ * rubric logic. Output goes to `--output <path>` or stdout (default).
+ */
+program
+  .command('badge')
+  .description('Emit a self-contained SVG badge (health grade + node/edge counts) for README / CI')
+  .option('-p, --path <path>', 'Project path')
+  .option('-o, --output <path>', 'Write the SVG to this file instead of stdout')
+  .option('--stdout', 'Force stdout (redundant with no --output; kept for CI clarity)')
+  .action(async (options: { path?: string; output?: string; stdout?: boolean }) => {
+    const projectPath = resolveProjectPath(options.path);
+
+    try {
+      if (!isInitialized(projectPath)) {
+        error(`CodeGraph not initialized in ${projectPath}`);
+        process.exit(1);
+      }
+
+      const { buildBadgeInputs } = await import('../badge/inputs');
+      const { renderBadgeSvg } = await import('../badge/svg');
+
+      const inputs = buildBadgeInputs(projectPath);
+      const svg = renderBadgeSvg(inputs);
+
+      if (options.output) {
+        const outPath = path.resolve(options.output);
+        fs.mkdirSync(path.dirname(outPath), { recursive: true });
+        fs.writeFileSync(outPath, svg, 'utf-8');
+        console.log(chalk.bold('Badge written:'));
+        console.log('  ' + chalk.cyan(outPath));
+        console.log(
+          chalk.dim(
+            `  grade=${inputs.grade} score=${inputs.score} nodes=${inputs.nodes} edges=${inputs.edges}`,
+          ),
+        );
+      } else {
+        // --stdout (or default with no --output): print the raw SVG so CI
+        // can pipe it (`zcodegraph badge > badge.svg`).
+        process.stdout.write(svg + '\n');
+      }
+    } catch (err) {
+      error(`Badge failed: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
     }
   });

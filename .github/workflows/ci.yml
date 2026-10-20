@@ -96,6 +96,11 @@ jobs:
           npx vitest run
           tests/health-rubric.test.ts
           tests/cli-health.test.ts
+      - name: Verify badge SVG + CLI (isolated fixture)
+        run: >
+          npx vitest run
+          tests/badge-svg.test.ts
+          tests/cli-badge.test.ts
       - name: Verify churn (git log aggregation + CLI, isolated fixture)
         run: >
           npx vitest run
