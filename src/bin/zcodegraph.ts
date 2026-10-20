@@ -22,6 +22,7 @@
  *   zcodegraph affected [files]   Find test files affected by changes
  *   zcodegraph visualize          Render the indexed graph to a single self-contained HTML
  *   zcodegraph health             Compute the A-F health grade for the indexed graph
+ *   zcodegraph churn              Git history-driven file churn heatmap (no index required)
  *   zcodegraph upgrade [version]  Update ZCodeGraph to the latest release
  */
 
@@ -2530,6 +2531,115 @@ program
       console.log();
     } catch (err) {
       error(`Health failed: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+/**
+ * zcodegraph churn
+ *
+ * Git history-driven file churn heatmap. Reads git log via execSync, no
+ * .zcodegraph/index.db required — works on any git repo, indexed or not.
+ * Decoupled from `zcodegraph health` (1-1-6): churn is raw git facts, the
+ * health rubric is interpretation; the two modules do not import each other.
+ */
+program
+  .command('churn')
+  .description('Aggregate git log --numstat into a per-file churn report (text/JSON/HTML)')
+  .option('-p, --path <path>', 'Repository path (defaults to cwd)')
+  .option('--since <when>', 'Start of window (git --since; e.g. "90d", "2026-01-01")', '90d')
+  .option('--until <when>', 'End of window (git --until)')
+  .option('--path-filter <glob>', 'Limit to paths (passed verbatim after `--`; repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
+  .option('--max-commits <n>', 'Hard cap on commits walked (git log -n)')
+  .option('-j, --json', 'Emit the full JSON report to stdout (or --out)')
+  .option('--html', 'Emit a self-contained HTML heatmap (requires --out, or defaults to churn.html)')
+  .option('-o, --out <path>', 'Write output to a file instead of stdout')
+  .option('--top <n>', 'Rows in text/HTML output', '20')
+  .option('--sort <key>', 'Sort by churn | commits | path', 'churn')
+  .action(async (options: {
+    path?: string;
+    since?: string;
+    until?: string;
+    pathFilter?: string[];
+    maxCommits?: string;
+    json?: boolean;
+    html?: boolean;
+    out?: string;
+    top?: string;
+    sort?: string;
+  }) => {
+    // NOTE: intentionally NOT calling isInitialized() — churn only needs git.
+    const repoPath = resolveProjectPath(options.path);
+
+    try {
+      const sortRaw = (options.sort || 'churn').toLowerCase();
+      if (sortRaw !== 'churn' && sortRaw !== 'commits' && sortRaw !== 'path') {
+        error(`Unsupported --sort "${options.sort}". Expected one of: churn, commits, path.`);
+        process.exit(1);
+      }
+
+      let maxCommits: number | undefined;
+      if (options.maxCommits != null && options.maxCommits !== '') {
+        const n = parseInt(options.maxCommits, 10);
+        if (!Number.isFinite(n) || n <= 0) {
+          error(`--max-commits must be a positive integer, got "${options.maxCommits}"`);
+          process.exit(1);
+        }
+        maxCommits = n;
+      }
+
+      const top = Math.max(1, parseInt(options.top || '20', 10) || 20);
+
+      const { runGitLog } = await import('../churn/git-log');
+      const { aggregateChurn } = await import('../churn/aggregate');
+      const { renderChurnText, renderChurnHtml } = await import('../churn/render');
+
+      const commits = runGitLog(repoPath, {
+        since: options.since,
+        until: options.until,
+        paths: options.pathFilter && options.pathFilter.length > 0 ? options.pathFilter : undefined,
+        maxCommits,
+      });
+
+      const report = aggregateChurn(commits, {
+        repoRoot: repoPath,
+        generatedAt: new Date().toISOString(),
+        since: options.since,
+        until: options.until,
+        sortBy: sortRaw as 'churn' | 'commits' | 'path',
+      });
+
+      let output: string;
+      if (options.html) {
+        output = renderChurnHtml(report, Math.max(top, 50));
+      } else if (options.json) {
+        output = JSON.stringify(report, null, 2);
+      } else {
+        output = renderChurnText(report, top);
+      }
+
+      const outPath = options.out
+        ? path.resolve(options.out)
+        : options.html
+          ? path.join(repoPath, 'churn.html')
+          : null;
+
+      if (outPath) {
+        fs.mkdirSync(path.dirname(outPath), { recursive: true });
+        fs.writeFileSync(outPath, output, 'utf-8');
+        console.log(chalk.bold(`\nChurn report written:`));
+        console.log('  ' + chalk.cyan(outPath));
+        console.log(
+          chalk.dim(
+            `  ${report.totalCommits} commits · ${report.summary.totalFiles} files · +${report.summary.totalAdds}/-${report.summary.totalDels}`,
+          ),
+        );
+        console.log();
+      } else {
+        console.log(output);
+      }
+    } catch (err) {
+      error(`Churn failed: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
     }
   });
