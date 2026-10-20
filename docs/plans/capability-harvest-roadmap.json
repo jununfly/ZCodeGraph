@@ -301,7 +301,7 @@
       "id": "1-2-1",
       "uid": "01a153ad4de6-4e8999074b",
       "label": "P0a 诊断增强（MCP 初始化失败可恢复提示）",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2",
       "children": [],
@@ -769,7 +769,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-20 19:16:52",
+    "updated": "2026-10-20 19:32:36",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
