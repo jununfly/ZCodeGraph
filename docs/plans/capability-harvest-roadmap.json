@@ -301,18 +301,55 @@
       "id": "1-2-1",
       "uid": "01a153ad4de6-4e8999074b",
       "label": "P0a 诊断增强（MCP 初始化失败可恢复提示）",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1-2",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "覆盖哪 5 类首次接入失败？",
+          "answer": "①better-sqlite3 native 加载失败 → 提示 wasm fallback 已生效或建议 rebuild；②Node 版本不符 (<20 或 25.x) → 直接引用 node-version-check 的指引；③未 init/index 就 serve → 指向 zcodegraph index；④wasm 缺失/损坏 → 指向 reinstall/copy-assets；⑤.zcodegraph/ 权限或锁 → 提示关占用进程或删 lock",
+          "note": ""
+        },
+        {
+          "q": "改哪一层？",
+          "answer": "不新增 zcodegraph doctor 子命令，在现有 zcodegraph status 上扩展诊断输出（保持 MCP 工具面 ≤12 的收口）；MCP 侧在 initialize 失败路径返回 actionable 提示文本，server-instructions.ts 补一节『首次接入失败排查』保持单一事实源",
+          "note": ""
+        },
+        {
+          "q": "验证方式？",
+          "answer": "干净环境走查：① 新 clone 目录 + 无 node_modules；② 无 .zcodegraph/；③ 错 Node 版本（用 nvm 切 18/25 各一次）；④ 人为删 dist/*.wasm；⑤ 人为 chmod 000 .zcodegraph/。每类记录 stderr 是否含 actionable 提示。WSL 跑 Linux 场景，Win 本机跑 Windows 场景。",
+          "note": ""
+        },
+        {
+          "q": "现状覆盖度审计结论？",
+          "answer": "②Node 版本 (node-version-check.ts) 和 ③未 init (tools.ts:689) 已覆盖，不动。真正缺口：①better-sqlite3 加载失败 → MCP 无显式提示 agent 当前 backend；④wasm 缺失 → 无检测；⑤找到 .zcodegraph/ 但 open 失败 → engine.ts:173 只写 stderr，agent 在协议层看不到。本节点聚焦 ①④⑤ 三类。",
+          "note": ""
+        },
+        {
+          "q": "最小改动方案？",
+          "answer": "3 处实现 + 1 处新测试：① engine.ts doInitialize catch 里缓存 lastInitError + 新增 getLastInitError()；② tools.ts getCodeGraph 在 !this.cg 分支先检查 engine.lastInitError，若有则抛出带修复指引的错误；③ server-instructions.ts 新增『首次接入失败排查』一节（保持 agent 单一事实源）；④ 新建 tests/mcp-init-recovery.test.ts 3 用例：init 失败 → tools/call actionable / wasm grammar 不可用 → status 列出 / .zcodegraph 锁或权限 → 含修复指引",
+          "note": ""
+        },
+        {
+          "q": "5 场干净环境走查场景设计？",
+          "answer": "① .zcodegraph/ 存在但 DB 文件被锁（用 Python 持锁模拟）→ 验证 init open 失败提示；② .zcodegraph/ 存在但 DB 文件 0 字节（corrupt）→ 验证 init open 失败提示；③ .zcodegraph/ 存在但目录只读 → 验证权限错误提示；④ node_modules/tree-sitter-wasms 部分 wasm 被删 → 验证 status 输出 Unavailable grammars；⑤ 完全无 .zcodegraph/ → 验证现有『Run zcodegraph index』提示仍工作。每场干净 tmp 目录，dist 二进制直跑，断言 stderr 或 tool result 包含关键词。",
+          "note": ""
+        },
+        {
+          "q": "场景 3 修正：Windows 权限位无法可靠阻挡 sqlite",
+          "answer": "改为『DB 路径被目录占用』——chmod 444/555 在 Windows 下 sqlite 仍能 read（且 CodeGraph open 会自动 migrate 缺 schema 场景）。mkdir 替换 DB 文件触发 SQLITE_CANTOPEN 是 Windows 下最接近真实权限/锁失败的可重现路径。Linux/macOS 下仍可用 chmod 0555 dir，本走查在 Windows 主机上进行故选 mkdir 替换。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
         "agent 首次成功调用 MCP 工具率 ≥95%",
         "≥5 新用户干净环境走查 ≤30min 成功",
         "不用遥测，与 100% 本地自洽"
-      ]
+      ],
+      "rounds": 1
     },
     "1-2-2": {
       "id": "1-2-2",
@@ -732,7 +769,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-20 17:45:56",
+    "updated": "2026-10-20 19:16:52",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
