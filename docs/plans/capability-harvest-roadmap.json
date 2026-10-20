@@ -25,7 +25,7 @@
       "id": "1-1",
       "uid": "01a153ac1fce-915839b899",
       "label": "P-1 验证冲刺（先行 gate）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -637,11 +637,37 @@
       "id": "1-1-8",
       "uid": "01a1545aac99-95987361e4",
       "label": "P-1 对照 codeflow 自研 README SVG Card（CI 出口）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Q1: badge 如何拿 health 数据？",
+          "answer": "直接 import src/health 模块（或等价 in-process 函数），不 spawn 子进程。理由：避免双 process 开销 + 复用 DB 连接，单次调用完成。",
+          "note": ""
+        },
+        {
+          "q": "Q2: SVG 模板支持几款？",
+          "answer": "仅 flat-square 单模板，不引入 --style 维度。理由：exit criteria 最小满足，后续如需 shields.io 三经典款再以新节点扩展。",
+          "note": ""
+        },
+        {
+          "q": "Q3: badge 字段范围？",
+          "answer": "严格三字段：health score / nodes / edges。不加 indexed_at 等第四字段，不输出多 badge。",
+          "note": ""
+        },
+        {
+          "q": "Q4: 与 codeflow 对齐方式？",
+          "answer": "信息等价即可，不做像素级对齐；内部按 shields.io endpoint schema (label/message/color) 建模，便于将来换肤或接入 shields。",
+          "note": ""
+        },
+        {
+          "q": "实施记录：模块布局与 health 复用形态",
+          "answer": "新增 src/badge/svg.ts (pure renderer) + src/badge/inputs.ts (DB 一次性打开, 复用 buildHealthSnapshotFromDbUnsafe + 单 SELECT COUNT(*) FROM edges). health/snapshot.ts 暴露 internal-only buildHealthSnapshotFromDbUnsafe, 不走 src/index.ts. CLI 在 churn 命令后插入, banner usage 同步. 测试 tests/badge-svg.test.ts (9 单测) + tests/cli-badge.test.ts (6 e2e, 隔离夹具). ci.yml 加 'Verify badge SVG + CLI' 步骤, 紧跟 health 步骤. 真实跑 ZCodeGraph 仓库: grade=F score=27 nodes=20849 edges=50812.",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
@@ -649,7 +675,8 @@
         "支持 --output <path> 写文件 + --stdout 直接打印，供 CI 注入 README",
         "复用 1-1-6 health 输出，不重复计算",
         "单测 + e2e 绿，三 OS CI 通过"
-      ]
+      ],
+      "rounds": 1
     },
     "1-2-9": {
       "id": "1-2-9",
@@ -705,7 +732,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-20 17:19:28",
+    "updated": "2026-10-20 17:45:56",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
