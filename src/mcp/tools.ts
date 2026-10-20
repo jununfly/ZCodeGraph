@@ -510,6 +510,16 @@ export class ToolHandler {
   // once and every later tool call reuses the result — never shelling out to
   // git on the hot path. `undefined` = not computed yet; `null` = no mismatch.
   private worktreeMismatchCache: Map<string, WorktreeIndexMismatch | null> = new Map();
+  // Last init-time `CodeGraph.open()` failure on the default project, if any.
+  // Engine pokes this from its catch block so `getCodeGraph()` can surface
+  // the underlying message + a recovery hint to the agent instead of the
+  // misleading "working-directory detection" error. Cleared by
+  // `setDefaultCodeGraph` (a successful retry means the failure is stale).
+  private initFailure: { projectPath: string; message: string } | null = null;
+  // Tree-sitter grammars that failed to load (wasm missing, ABI mismatch).
+  // Surfaced in `zcodegraph_status` so the agent knows which languages have
+  // no parser, instead of silently getting degraded results.
+  private unavailableGrammars: Map<string, string> = new Map();
   // Gate that the MCP engine pokes after `cg.open()` so the first tool call
   // blocks on the post-open filesystem reconcile (catch-up sync). Without
   // this, a tool call that races past `catchUpSync()` serves rows for files
@@ -526,6 +536,74 @@ export class ToolHandler {
    */
   setDefaultCodeGraph(cg: CodeGraph): void {
     this.cg = cg;
+    // A successful (re)open means any cached init failure is stale — drop it
+    // so a later, unrelated tool error doesn't get mis-diagnosed as the old
+    // init failure.
+    this.initFailure = null;
+  }
+
+  /**
+   * Engine-only: record a failed `CodeGraph.open()` on the default project.
+   * `getCodeGraph()` prefers this over the generic "no project loaded"
+   * message when set, because the underlying error (lock / perms / corrupt /
+   * missing node:sqlite) is the actual diagnosis the agent needs.
+   */
+  setInitFailure(failure: { projectPath: string; message: string } | null): void {
+    this.initFailure = failure;
+  }
+
+  /**
+   * Engine-only: record tree-sitter grammar load failures (wasm missing,
+   * ABI mismatch). Surfaced in `zcodegraph_status` so the agent sees which
+   * languages are NOT being parsed.
+   */
+  setUnavailableGrammars(failures: Map<string, string>): void {
+    this.unavailableGrammars = new Map(failures);
+  }
+
+  /**
+   * On-disk wasm presence check, used by `zcodegraph_status` in addition to
+   * the runtime cache. A wasm deleted between install-time and now won't be
+   * in the runtime cache (no grammar load has been attempted yet), so we
+   * stat the expected path here.
+   *
+   * Mirrors the path resolution in `extraction/grammars.ts loadGrammarsForLanguages`:
+   * vendored ABI-15 wasm for pascal/scala/lua/luau/csharp lives at
+   * `<dist>/extraction/wasm/`; everything else resolves through
+   * `tree-sitter-wasms/out/`.
+   */
+  private checkMissingWasmOnDisk(): Map<string, string> {
+    const missing = new Map<string, string>();
+    // Vendored grammars — keep this list in sync with grammars.ts:207.
+    const vendored: Record<string, string> = {
+      pascal: 'tree-sitter-pascal.wasm',
+      scala: 'tree-sitter-scala.wasm',
+      lua: 'tree-sitter-lua.wasm',
+      luau: 'tree-sitter-luau.wasm',
+      csharp: 'tree-sitter-c_sharp.wasm',
+    };
+    // dist/mcp/tools.js lives at <pkg>/dist/mcp/, so the vendored wasm dir is
+    // a sibling at <pkg>/dist/extraction/wasm/.
+    const vendoredDir = resolvePath(__dirname, '..', 'extraction', 'wasm');
+    for (const [lang, file] of Object.entries(vendored)) {
+      const p = resolvePath(vendoredDir, file);
+      if (!existsSync(p)) {
+        missing.set(lang, `wasm file missing on disk: ${p}`);
+      }
+    }
+    // Non-vendored grammars resolve through tree-sitter-wasms. Probing every
+    // one of ~15 would add fs stat cost on each status call; the common
+    // install-corruption case is the whole tree-sitter-wasms package being
+    // missing, so we probe the package root only.
+    try {
+      require.resolve('tree-sitter-wasms/package.json');
+    } catch {
+      missing.set(
+        '(all non-vendored)',
+        'tree-sitter-wasms package not resolvable — run npm install or reinstall CodeGraph',
+      );
+    }
+    return missing;
   }
 
   /**
@@ -651,6 +729,20 @@ export class ToolHandler {
   private getCodeGraph(projectPath?: string): CodeGraph {
     if (!projectPath) {
       if (!this.cg) {
+        // Init-time open() failure takes precedence over the generic
+        // "no project loaded" hint — the .zcodegraph/ exists, we just
+        // couldn't open it. The agent needs the underlying cause plus a
+        // recovery command, not a working-directory diagnostic.
+        if (this.initFailure) {
+          throw new Error(
+            `CodeGraph found a project at ${this.initFailure.projectPath} but failed to open it.\n` +
+            `Underlying error: ${this.initFailure.message}\n` +
+            'Recovery (pick one):\n' +
+            '  • Re-run the indexer to rebuild the DB: zcodegraph index\n' +
+            '  • If the DB is locked by another process, close it and retry, or delete the .zcodegraph/ directory and re-run: zcodegraph index\n' +
+            '  • If the error mentions node:sqlite, upgrade to Node 22.5+ or use the self-contained CodeGraph release'
+          );
+        }
         const searched = this.defaultProjectHint ?? process.cwd();
         throw new Error(
           'No CodeGraph project is loaded for this session.\n' +
@@ -1561,6 +1653,30 @@ export class ToolHandler {
       if ((count as number) > 0) {
         lines.push(`- ${lang}: ${count}`);
       }
+    }
+
+    // Surface tree-sitter grammar load failures so the agent knows which
+    // languages have no parser instead of silently getting degraded results.
+    // Roadmap 1-2-1. Two sources of truth, merged:
+    //   (a) runtime cache — set by the engine after loadGrammarsForLanguages
+    //       reports a failure (ABI mismatch, corrupt wasm).
+    //   (b) on-disk presence — checked here so that a wasm deleted between
+    //       install-time and now still shows up even if no grammar load has
+    //       been attempted yet in this session.
+    const onDiskMissing = this.checkMissingWasmOnDisk();
+    const merged = new Map<string, string>(this.unavailableGrammars);
+    for (const [lang, reason] of onDiskMissing) {
+      if (!merged.has(lang)) merged.set(lang, reason);
+    }
+    if (merged.size > 0) {
+      lines.push('', '### Unavailable grammars (parsing unavailable for these languages):');
+      for (const [lang, reason] of merged) {
+        lines.push(`- ${lang}: ${reason}`);
+      }
+      lines.push(
+        '',
+        '> These languages are NOT parsed. Reinstall or run `npm rebuild` to restore their tree-sitter wasm grammars.'
+      );
     }
 
     // Per-file freshness — the inverse of the auto-prepended staleness banner

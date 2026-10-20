@@ -14,6 +14,7 @@ import type CodeGraph from '../index';
 import { findNearestCodeGraphRoot } from '../directory';
 import { watchDisabledReason } from '../sync';
 import { ToolHandler } from './tools';
+import { getUnavailableGrammarErrors } from '../extraction/grammars';
 
 // Lazy-load the heavy CodeGraph chain (sqlite + query/graph/context layers) OFF
 // the MCP startup path. It's only needed once a tool actually opens a project —
@@ -166,11 +167,22 @@ export class MCPEngine {
     try {
       this.cg = await loadCodeGraph().open(resolvedRoot);
       this.toolHandler.setDefaultCodeGraph(this.cg);
+      // Surface tree-sitter grammar load failures so zcodegraph_status can
+      // list languages that lost their parser (wasm missing / ABI mismatch).
+      // Roadmap 1-2-1.
+      const grammarFailures = getUnavailableGrammarErrors();
+      this.toolHandler.setUnavailableGrammars(
+        new Map(Object.entries(grammarFailures) as Array<[string, string]>),
+      );
       this.startWatching();
       this.catchUpSync();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       process.stderr.write(`[CodeGraph MCP] Failed to open project at ${resolvedRoot}: ${msg}\n`);
+      // Surface the failure to subsequent tool calls so the agent sees the
+      // underlying cause + recovery hint, not the misleading "no project
+      // loaded" working-directory diagnostic. Roadmap 1-2-1.
+      this.toolHandler.setInitFailure({ projectPath: resolvedRoot, message: msg });
     }
   }
 

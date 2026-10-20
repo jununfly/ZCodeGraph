@@ -67,4 +67,12 @@ typically one to a few calls; a grep/read exploration is dozens.
 - Index lags file writes by ~1 second.
 - Cross-file resolution is best-effort name matching; ambiguous calls may return multiple candidates.
 - No live correctness validation — that's still the TypeScript compiler / test suite / linter's job. Codegraph supplements those with structural context they don't have.
+
+## Troubleshooting first-run failures
+
+If your FIRST tool call after connecting fails, the error text is your playbook — read it before retrying:
+
+- **"failed to open it" + an underlying error** (SQLITE_CANTOPEN, lock, permission, node:sqlite missing): the project IS found but its DB can't be opened. Follow the recovery lines in the error — typically \`zcodegraph index\` to rebuild, closing the process holding the lock, or upgrading to Node 22.5+. Do NOT guess \`--path\` — this is not a working-directory problem.
+- **"No CodeGraph project is loaded"**: the server can't find \`.zcodegraph/\` from its cwd. Pass \`projectPath\` to the tool call, or add \`--path\` to the server's MCP config args. If the project has never been indexed, run \`zcodegraph index\` in it first.
+- **Some languages return no symbols even though the files exist**: ask \`zcodegraph_status\` — its "Unavailable grammars" section lists any tree-sitter languages whose wasm failed to load (missing file, ABI mismatch). Those languages are NOT parsed until the wasm is restored.
 `;
