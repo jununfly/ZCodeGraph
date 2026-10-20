@@ -86,6 +86,11 @@ jobs:
           npx vitest run
           tests/visualize.test.ts
           -t "renders a self-contained HTML at depth=file with fixture symbols inlined|exports monotonically more nodes as depth increases \(file < class < function\)|rejects an unsupported --depth value with a clear error|respects --max-nodes cap deterministically"
+      - name: Verify affected --pr blast radius (isolated git fixture)
+        run: >
+          npx vitest run
+          tests/cli-affected-pr.test.ts
+          -t "reports blast radius for --pr <A>\.\.<B> in JSON mode with source/test partition|emits a quiet stream usable for piping \(affected files only, one per line\)|fails cleanly when the git range is invalid|legacy mode \(no --pr\) still returns only test files for backward compatibility"
       - name: Verify release artifact contracts
         run: >
           npx vitest run

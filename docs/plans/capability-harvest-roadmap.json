@@ -150,7 +150,7 @@
       "id": "1-1-2",
       "uid": "01a153ad3619-ae306b678d",
       "label": "P-1 对照 codeflow 自研 PR 影响 blast radius",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-1",
       "children": [],
@@ -159,16 +159,42 @@
           "q": "节点性质修正：是验收 codeflow 还是对照自研？",
           "answer": "对照 codeflow 做等效自研实现（ZCodeGraph 产品实现路线，非 acceptance）",
           "note": "Human 2026-10-19 21:27 指令：岔路 C + 拆分兄弟节点满足小步快跑。codeflow 退化为参照物/规格来源。范围含 4 项：blast radius / A-F 健康分 / churn 热图 / README SVG Card。安全扫描与模式识别不在本波。"
+        },
+        {
+          "q": "Q1 CLI 接口形态？",
+          "answer": "A: 在现有 zcodegraph affected 上加 --pr <base>..<head> flag，复用 BFS 与 --json/--quiet，不加新子命令",
+          "note": "与 exit_criteria 字面一致；不破坏旧行为"
+        },
+        {
+          "q": "Q2 输出语义？",
+          "answer": "A: --pr 时切到全量 blast radius 模式（受影响所有文件，分类 tests/source，含 summary）；不加 --pr 保持旧行为向后兼容",
+          "note": "对齐 codeflow blast radius 语义；JSON 含 summary{totalFiles,testFiles,sourceFiles,maxDepthReached}"
+        },
+        {
+          "q": "Q3 fixture 与 recall 方法？",
+          "answer": "A: fixture 用 ZCodeGraph 自身（169 TS 文件），隔离目录 C:/tmp/codeflow-fixture 跑 codeflow；commit range = 6d58e32..d920147；recall = |交集|/|codeflow 集|；产出 docs/evidence/2026-10-20-blast-radius-recall.md",
+          "note": "证据一次性产物，不进 CI；真实语料 gate 模式"
+        },
+        {
+          "q": "Q4 单测 + e2e 边界？",
+          "answer": "A: 单测 mock git diff + mock getFileDependents 验证 BFS/分类/JSON schema；e2e mkdtemp fixture 真实 git init/commit/diff 跑 CLI；不调真 codeflow",
+          "note": "CI 不能依赖外部进程"
+        },
+        {
+          "q": "exit_criteria 'recall ≥ 90% vs codeflow' 在 codeflow 无 commit-range 能力下如何落地？",
+          "answer": "α+γ 组合：recall 证据降级为「语义对齐论证 + 单文件抽样对照（N≥2）+ 明确标注 codeflow 能力缺口」，不追求字面 90% 阈值；exit_criteria 字面保留不改，decide 记录重解释",
+          "note": "codeflow 是单文件 HTML 浏览器应用，不支持 commit range blast radius；逐文件点选手工操作无法脚本化；commit-range 能力恰好是我们的差异化价值"
         }
       ],
-      "notes": "",
+      "notes": "2026-10-20 完成。zcodegraph affected --pr 落地（src/bin/zcodegraph.ts），4 e2e + ci.yml 步骤同步；evidence doc docs/evidence/2026-10-20-blast-radius-recall.md（语义对齐+N=2 抽样 100%）；codeflow 无 commit-range 能力，recall 字面 vs codeflow 不可达成（decide 已记录重解释）。",
       "layer": "plan",
       "exit_criteria": [
         "新增 zcodegraph affected --pr <base>..<head> CLI 子命令，输出 blast radius（受影响节点+边+summary）",
         "在选定 fixture 上与 codeflow 输出对比，受影响文件集合 recall ≥ 90%",
         "共享 fixture 与 1-1-5（现有 PR 影响 recall 基线），不重复造",
         "单测 + e2e 绿，三 OS CI 通过"
-      ]
+      ],
+      "rounds": 1
     },
     "1-1-3": {
       "id": "1-1-3",
@@ -542,7 +568,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-19 21:30:28",
+    "updated": "2026-10-20 11:42:41",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [

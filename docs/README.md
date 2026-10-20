@@ -176,6 +176,11 @@ Per-language real-corpus validation, ordered by date:
   — Express real-corpus gate on rust-hybrid (roadmap 1-6-6-4): 49 JS /
   4,899 LOC, 57 route nodes, surfaced inline `function(){}` extractor gap
   (fixed in `src/resolution/frameworks/express.ts`).
+- [2026-10-20-blast-radius-recall.md](evidence/2026-10-20-blast-radius-recall.md)
+  — `zcodegraph affected --pr` recall evidence (roadmap 1-1-2): semantic
+  alignment vs codeflow + N=2 single-file samples (100% recall/precision
+  vs hand-derived ground truth); codeflow lacks scriptable commit-range
+  blast radius, so literal "vs codeflow" recall is N/A.
 
 ## methods — methods, playbooks, and how-to guides
 
