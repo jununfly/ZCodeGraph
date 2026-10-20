@@ -201,17 +201,34 @@
       "id": "1-1-3",
       "uid": "01a153ad3cec-2b947cc5e5",
       "label": "固化测量基础设施脚本",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "脚本布局与三 metric 定义？",
+          "answer": "scripts/measure/ 三入口 + lib/ 共享三模块（clone/index/probe）。统一 CLI：node scripts/measure/<metric>.mjs <github-url> [--ref sha] [--sparse path] [--out json] [--corpus-root dir]，stdout 出 JSON，exit 0/非 0。语料落 C:/workspace/measure-corpus/<repo>（与现有 express-corpus 同风格）。三 metric：① dead-code = 复用 1-1-6 D1 公式（dead/total function）；② complexity = avgCoupling + longFn density + P50/P95 函数行数；③ setup = git clone + zcodegraph index 完成的 wall-clock。零新 npm 依赖，纯 node 内置（node:sqlite + child_process + fs）。脚本不出 markdown evidence（那是下游 1-1-4/1-1-5 的职责）。",
+          "note": ""
+        },
+        {
+          "q": "Git clone 协议选什么？",
+          "answer": "默认 SSH（git@github.com:），可用 MEASURE_GIT_PROTOCOL=https 覆盖。理由：本机网络对 HTTPS github.com 直连 + Clash 7890 + WB proxy 全失败，只有 SSH 通（MEMORY 已记录）；让 HTTPS 作为可选回退以适配他机。clone.mjs 同时接受 httpsUrl 和 sshUrl 作为已存在 clone 的合法 remote。",
+          "note": ""
+        },
+        {
+          "q": "express 语料实测结果？",
+          "answer": "expressjs/express@0dee2c52 (sparse lib+examples, 51 files / 561 nodes / 916 edges) 三脚本实测：dead-code = 14% (6/43 function)；complexity = avgCoup 9.06, longFn 0%, godFiles 1, fnLines p50=6/p95=31/max=88；setup = clone 4.8s + index 0.94s ≈ 5.7s (reuse-cache 路径)。evidence 数字与 1-6-6-4 的 51/561/916 完全对齐，证明 probe SQL 正确。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
         "复用 docs/evidence real-corpus gate 流程为脚本",
         "dead-code/complexity/setup 三 metric 测量脚本先落地"
-      ]
+      ],
+      "rounds": 1
     },
     "1-1-4": {
       "id": "1-1-4",
@@ -606,7 +623,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-20 12:30:26",
+    "updated": "2026-10-20 13:57:57",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
