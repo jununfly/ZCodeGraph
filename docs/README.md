@@ -20,7 +20,7 @@
 | Decision | [`decisions/`](decisions/) | primary | 8 |
 | Contract | [`contracts/`](contracts/) | primary | 9 |
 | Ledger | [`ledgers/`](ledgers/) | supporting | 8 |
-| Evidence | [`evidence/`](evidence/) | historical | 40 |
+| Evidence | [`evidence/`](evidence/) | historical | 41 |
 | Method | [`methods/`](methods/) | primary / supporting | 9 |
 | Plan | [`plans/`](plans/) | process | 0 (empty after 2026-10-19 closeout) |
 
@@ -188,6 +188,12 @@ Per-language real-corpus validation, ordered by date:
   tasks × 3 corpora × 3 reps, median ratio **0.1712** (min 0.0139 /
   max 0.6649) — ZCodeGraph CLI payload ~17% the size of conservative
   read-everything baseline. Frozen by `DES-token-baseline-tasks-v1`.
+- [2026-10-20-pr-recall-baseline.md](evidence/2026-10-20-pr-recall-baseline.md)
+  — PR-level recall/precision baseline for `zcodegraph affected --pr`
+  (roadmap 1-1-5): 3 repos (express / flask / spring-petclinic) × 20
+  merged PRs, **45/45 indexable-applicable PRs = 100% recallUnionIndexable**,
+  zero false negatives. Companion JSON:
+  [`2026-10-20-pr-recall-baseline.json`](evidence/2026-10-20-pr-recall-baseline.json).
 
 ## methods — methods, playbooks, and how-to guides
 
