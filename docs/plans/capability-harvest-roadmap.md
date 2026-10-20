@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-20 16:12:07
+> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-20 17:19:28
 
 [~][X+] 1. ZCodeGraph 能力汇集路线图
 ├── [ ][X+] 1-1. P-1 验证冲刺（先行 gate）
@@ -9,7 +9,7 @@
 │   ├── [x][X+] 1-1-2. P-1 对照 codeflow 自研 PR 影响 blast radius
 │   ├── [x][X+] 1-1-3. 固化测量基础设施脚本
 │   ├── [x][X+] 1-1-4. 测 token 消耗稳定 baseline
-│   ├── [ ][X+] 1-1-5. 测现有 PR 影响 recall 基线
+│   ├── [x][X+] 1-1-5. 测现有 PR 影响 recall 基线
 │   ├── [x][X+] 1-1-6. P-1 对照 codeflow 自研 A-F 健康分（health rubric v1）
 │   ├── [x][X+] 1-1-7. P-1 对照 codeflow 自研 churn 热图（git history 驱动）
 │   └── [ ][X+] 1-1-8. P-1 对照 codeflow 自研 README SVG Card（CI 出口）
@@ -47,6 +47,6 @@
 ### 下一步可开工（ready 前 3）
 
 - 1-1. P-1 验证冲刺（先行 gate） [ ]
-- 1-1-5. 测现有 PR 影响 recall 基线 [ ]
 - 1-1-8. P-1 对照 codeflow 自研 README SVG Card（CI 出口） [ ]
+- 1-2-1. P0a 诊断增强（MCP 初始化失败可恢复提示） [ ]
 <!-- ROADMAP_SECTION_END -->

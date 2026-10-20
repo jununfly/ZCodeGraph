@@ -268,17 +268,34 @@
       "id": "1-1-5",
       "uid": "01a153ad48e3-c141c8bcf3",
       "label": "测现有 PR 影响 recall 基线",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-1",
       "children": [],
-      "decisions": [],
-      "notes": "",
+      "decisions": [
+        {
+          "q": "PR 发现用哪个 GitHub API？",
+          "answer": "A: search/issues + /pulls/<n>，不用 /pulls?state=closed。实测 /pulls 端点在慢节奏仓（flask）只返回 3 条 merged PR，search/issues 返回 30+；逐 PR 查 /pulls/<n> 拿 base_sha+merge_commit_sha",
+          "note": "脚本 scripts/measure/pr-recall-baseline.mjs fetchMergedPrs"
+        },
+        {
+          "q": "核心结论？",
+          "answer": "60 PRs（express 20 + flask 20 + petclinic 20）全部成功。45 个 indexable-applicable PR 的 recallUnionIndexable 全部=1.000（100%），零 false negative。15 个非 indexable PR 只改 README/.properties/.toml 等不进索引的文件，分母不适用。petclinic 的 strict recall 中位 0.72 是因 java PR 常同时改 src/main+src/test，strict 只算 source partition；union 口径回到 1.000。flask 的 precision 中位 0.10 是 blast radius 本职（含 dependents），非缺陷",
+          "note": "docs/evidence/2026-10-20-pr-recall-baseline.md 头条表"
+        },
+        {
+          "q": "ground truth 与 recall 口径？",
+          "answer": "A: ground truth = git diff --name-only base..merge（PR 真实改动文件）。recall 报 4 口径：strict（仅 affectedSource）/ indexable（仅索引源扩展名）/ union（affectedSource∪affectedTests）/ unionIndexable。headline = recallUnionIndexable。precision 同步报告但预期偏低（blast radius 含 transitive dependents，本就不在 PR diff 里）",
+          "note": "evidence md Metrics 节"
+        }
+      ],
+      "notes": "2026-10-20 完成。scripts/measure/pr-recall-baseline.mjs 落地（复用 1-1-3 ensureClone/runIndex/emitReport）。3 仓 × 20 已合并 PRs 全跑通：expressjs/express（10 indexable-applicable，10/10=100% recallUnionIndexable）、pallets/flask（18/18=100%）、spring-projects/spring-petclinic（17/17=100%）。零 false negative。evidence 入库 docs/evidence/2026-10-20-pr-recall-baseline.{md,json}，docs/README.md 登记并把 Evidence 计数 40→41。两条 exit_criteria 均达成（3 仓×≥20 PR 回放；recall 基线入库）。",
       "layer": "plan",
       "exit_criteria": [
         "3 仓 × ≥20 条已合并 PR 回放",
         "现有 impact/affected recall 基线入库存档"
-      ]
+      ],
+      "rounds": 1
     },
     "1-2-1": {
       "id": "1-2-1",
@@ -688,7 +705,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-20 16:12:07",
+    "updated": "2026-10-20 17:19:28",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
