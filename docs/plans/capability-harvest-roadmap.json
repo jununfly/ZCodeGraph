@@ -638,7 +638,7 @@
       "id": "1-2-9",
       "uid": "01a157701456-32237f10f3",
       "label": "P0a 索引范围配置：默认排除 .workbuddy/ 等 agent 工作目录",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2",
       "children": [],
@@ -647,6 +647,31 @@
           "q": "为什么这条坑必须显式立节点，不放 MEMORY.md？",
           "answer": "隐性记忆只对有 context 的 agent 有效；显式 roadmap 节点让所有 agent（含 CI / OPN 远程）都能看到同一地图，且可用 blocks 边表达调度依赖",
           "note": "Human 2026-10-20 11:51 指令。同时 .workbuddy 污染影响 1-1-5 真实语料 recall 基线（本仓库做 fixture 时 recall 全是噪音），需 blocks 边硬阻塞"
+        },
+        {
+          "q": "默认排除哪些 agent 工作目录？",
+          "answer": "新增 AGENT_WORK_DIRS 集合追加进 DEFAULT_IGNORE_DIRS：.workbuddy（本仓库污染源）、.claude、.cursor、.codex、.opencode、.gemini、.continue、.windsurf、.zed、.aider、.codeium、.cody、.tabnine、.amazonq。原则：只收' agent 在里面写代码/笔记/状态'的目录，纯配置目录（.vscode、.idea、.vs）沿用现有 'recognized source extensions' 隐式过滤，不进集合。同时这些目录对 git ls-files 路径也生效——buildDefaultIgnore 在两条枚举路径（git + filesystem walk）同一处生效，行为已对齐。用户要 opt-in 排除列表外的 agent 目录：在 zcodegraph.json exclude 里加；要 opt-out 默认排除：在 .gitignore 加 !.workbuddy/（ignore 引擎 negation 已支持，index.ts:176 注释）。本仓库自身 .workbuddy/ 会因此从索引消失——这是节点目的，不是 bug。",
+          "note": ""
+        },
+        {
+          "q": "配置文件名与 schema？",
+          "answer": "选 zcodegraph.json（项目根，非 .zcodegraph/ 内）理由：(1) .zcodegraph/ 是索引产物目录，不应放用户配置；(2) 不引新 dotfile 污染根目录；(3) 文件名与包名同构，agent 友好。schema 首版最小：{exclude?: string[]}，gitignore 语法 glob（与现有 ignore 引擎一致，复用 ignore 包）。其他字段（language overrides、max file size）后续节点按需再加，不在本节点冻结。读配置时机：buildDefaultIgnore 入口处一次性 load，失败静默 fallback 到默认（不给 index 加新失败模式）。",
+          "note": ""
+        },
+        {
+          "q": "status / affected --pr 感知如何落地？",
+          "answer": "(1) status：在现有 status 输出末尾加 'Index scope' 一节，列出命中的 exclude 规则计数（.workbuddy/ 若被排除、显示 N 个路径被过滤），实现方式是在 buildDefaultIgnore 返回的 Ignore 上挂一个 hitCounter（轻量包装），scan 阶段每次 ig.ignores 命中时累加。首版只统计 agent-work-dirs 命中数 + config exclude 命中数两桶，不做 per-rule 细分。(2) affected --pr：现有 e2e tests/cli-affected-pr.test.ts 加一个断言——在本仓库根 fixture 含 .workbuddy/notes.md 改动时，输出不含 .workbuddy/** 条目。不需要改 affected 实现——affected 从 graph query 出发，graph 里已经没有 .workbuddy/ 节点了（index 已排除），断言即可。(3) 测试：新增 tests/index-scope.test.ts 单测（fixture 含 .workbuddy/ + .claude/ + 自定义 zcodegraph.json exclude），e2e tests/cli-index-scope.test.ts 走真 CLI。ci.yml 加 Verify index-scope 步骤。",
+          "note": ""
+        },
+        {
+          "q": "Q3 修正：status 感知如何避免 scan 阶段挂钩？",
+          "answer": "原方案在 buildDefaultIgnore 挂 hitCounter 需穿透 scan 阶段，改动面大。修正为首版静态呈现：status 输出加 'Index scope' 节，列出 (a) 默认排除的 agent 工作目录清单（来自 AGENT_WORK_DIRS），(b) zcodegraph.json 是否存在 + 其 exclude 条数，(c) 提示 '.gitignore !negation 可 opt-out'。这足够让 agent 知道哪些路径不会进图，且实现零侵入 scan。命中计数留给后续节点（若真需要）。affected --pr 断言保持不变——graph 无 .workbuddy/ 节点，输出自然不含。",
+          "note": ""
+        },
+        {
+          "q": "施工中暴露的关键盲区：TS ignore 改了但 Rust core 没改导致双引擎行为漂移？",
+          "answer": "e2e 首跑 .claude/scratch.ts 仍进图——根因是默认 engine=rust-hybrid，Rust core 的 collect_supported_files (lib.rs:8188) 与 is_ignored_repo_local_package_dir (lib.rs:3802) 有自己的 ignore 集合，不含 agent work dirs。这暴露了一个横切风险：TS 和 Rust 双引擎各自维护 ignore 列表，未来加新排除容易漏一边。本节点处置：在 lib.rs 顶部新增 AGENT_WORK_DIRS const + is_agent_work_dir helper，两处 matches! 同步扩；TS 侧 AGENT_WORK_DIRS 在 index.ts + index-stages.ts 两处复制（既存技术债，标 'must be applied to both files' 注释）。长期方案（提取到单一 SoT，TS/Rust 共享）留待后续节点——本节点只保证行为对齐。",
+          "note": ""
         }
       ],
       "notes": "",
@@ -657,12 +682,13 @@
         "zcodegraph status 输出被排除目录计数（agent 可感知）",
         "zcodegraph affected --pr 在本仓库根运行时不再包含 .workbuddy/** 条目（e2e 断言）",
         "单测 + e2e 绿，三 OS CI 通过"
-      ]
+      ],
+      "rounds": 1
     }
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-20 15:32:29",
+    "updated": "2026-10-20 16:12:07",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [

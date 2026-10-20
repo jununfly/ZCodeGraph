@@ -101,6 +101,11 @@ jobs:
           npx vitest run
           tests/churn-aggregate.test.ts
           tests/cli-churn.test.ts
+      - name: Verify index scope (agent work dirs excluded, isolated fixture)
+        run: >
+          npx vitest run
+          tests/index-scope.test.ts
+          tests/cli-index-scope.test.ts
       - name: Verify release artifact contracts
         run: >
           npx vitest run
