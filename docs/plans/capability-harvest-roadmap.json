@@ -580,11 +580,32 @@
       "id": "1-1-7",
       "uid": "01a1545a4733-3e984fca31",
       "label": "P-1 对照 codeflow 自研 churn 热图（git history 驱动）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-1",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "输出契约长什么样？怎么对接 1-1-1 visualize？",
+          "answer": "输出双形态：(1) --json 输出结构化 JSON 到 stdout 或 --out 文件，schema 为 {version:1, generatedAt, since, until, totalCommits, files:[{path, commits, adds, dels, netChurn, authors, lastTouched}], summary:{topK, hotspots, totalAdds, totalDels}}；(2) 默认人类可读表（top N 热文件，类 codeflow card 风格）。(3) --html 复用 1-1-1 visualize/template.html 思路，注入 churn 数据 + 内嵌简单 canvas heatmap（不引入 Cytoscape，churn 是列表不是图），单文件离线。与 1-1-1 对接：JSON files[].path 与 visualize 的 file node id 同构（相对仓库根 POSIX path），后续 1-3-5/1-3-6 可把 churn 作为 file 节点的 size/color 维度；本节点只保证 path 规范一致，不直接改 visualize。与健康分（1-1-6）解耦：churn 是 git 原始事实，rubric 是解释；不互相 import。",
+          "note": ""
+        },
+        {
+          "q": "git 数据源如何拿？时间窗与路径过滤如何设计？",
+          "answer": "沿用 affected --pr 的 execSync git 模式（zcodegraph.ts:2182 先例），零新依赖。核心命令：git log --numstat --format=%H|%an|%ad --date=short，逐 commit 解析 numstat 行（adds\\tdels\\tpath），聚合到文件。参数：--since <date|relative>（默认 90d，同 codeflow 卡常规窗口）、--until、--path <glob>（可多次，透传给 git log -- <paths>）、--max-commits 防爆。merge commit 用 --no-merges 排除（numstat 对 merge 不可靠）。rename 处理：git log --follow 只适用于单文件，多文件场景用 -M50% 让 numstat 输出 old=>new 并在聚合时归一到 new path。二进制文件 numstat 输出 '-\\t-\\tpath'，跳过 adds/dels 但计入 commit 频次。性能：以 zcodegraph 自身 ~3k commits 为参考，--since=90d 通常 <500 commit，秒级完成。",
+          "note": ""
+        },
+        {
+          "q": "文件结构与测试策略？",
+          "answer": "新增 src/churn/{git-log.ts,aggregate.ts,render.ts}：git-log.ts 负责 spawn git + 解析 numstat；aggregate.ts 纯函数把 commit 列表聚合成 files 数组；render.ts 输出 text/json/html 三形态。CLI 接线在 src/bin/zcodegraph.ts 加 churn 子命令（仿 affected 模式）。测试：单测 tests/churn-aggregate.test.ts 用合成 commit 列表喂 aggregate（不走 git，纯函数）；e2e tests/cli-churn.test.ts 在临时 fixture repo（git init + 假 commit）跑真 zcodegraph churn，验证 JSON 结构 + 关键计数；ci.yml 加 -t churn 步骤。Windows 沙箱注意：fixture 用 python/node 写文件 + git 平 git add/commit（MEMORY 已确认 git C binary 免疫 shim），且避免嵌套 git ref（用普通 master/main 分支即可）。不引新 npm dep。",
+          "note": ""
+        },
+        {
+          "q": "施工过程中暴露的两个 Windows 平台坑如何解？",
+          "answer": "(1) execSync 拼字符串跑 git 在 Windows cmd 下会把 --format=%H|%an|%ad 的 | 当管道符，报 '%an' 不是内部命令 → 改 execFileSync('git', argv) 数组形式，绕过 cmd 解释。(2) 用户传 --since 90d 是直觉语法，但 git --since=90d 返回空结果（git 不识别裸 'Nd'），需要 normalizeGitDate 把 90d/2w/6m/1y/12h 翻译成 '90 days ago' 等 git 自然语言日期，绝对日期与已含自然语言的值透传。两点都已进 git-log.ts，单测覆盖 normalizeGitDate 3 例 + execFileSync 由 e2e 隐式覆盖（Windows runner 必现）。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
@@ -592,7 +613,8 @@
         "输出热图数据（JSON + 可对接 1-1-1 visualize 引擎渲染）",
         "与健康分 1-1-6 解耦：churn 是原始数据，健康分是解释",
         "单测 + e2e 绿，三 OS CI 通过"
-      ]
+      ],
+      "rounds": 1
     },
     "1-1-8": {
       "id": "1-1-8",
@@ -640,7 +662,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-20 14:59:28",
+    "updated": "2026-10-20 15:32:29",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
