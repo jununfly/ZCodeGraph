@@ -21,6 +21,7 @@ import { detectLanguage, isSourceFile, isLanguageSupported, isFileLevelOnlyLangu
 import { logDebug, logWarn } from '../errors';
 import { validatePathWithinRoot, normalizePath } from '../utils';
 import ignore, { Ignore } from 'ignore';
+import { loadProjectConfig } from '../config/project-config';
 import { detectFrameworks } from '../resolution/frameworks';
 import type { ResolutionContext } from '../resolution/types';
 
@@ -160,9 +161,36 @@ const DEFAULT_IGNORE_DIRS: ReadonlySet<string> = new Set([
   '.cache',
 ]);
 
+/**
+ * Agent working directories. Unlike `.vscode`/`.idea` (pure IDE config that
+ * the extension filter would skip anyway), these dirs hold agent-written
+ * code/notes/state that *would* be picked up as source files and pollute
+ * the graph — WorkBuddy memory logs, Claude scratch, Cursor state, etc.
+ * Indexed: nothing. Excluded here so both the git-ls-files and filesystem
+ * walk enumeration paths skip them. Users can opt back in by adding a
+ * `!.workbuddy/` negation to their root `.gitignore`.
+ */
+const AGENT_WORK_DIRS: ReadonlySet<string> = new Set([
+  '.workbuddy',
+  '.claude',
+  '.cursor',
+  '.codex',
+  '.opencode',
+  '.gemini',
+  '.continue',
+  '.windsurf',
+  '.zed',
+  '.aider',
+  '.codeium',
+  '.cody',
+  '.tabnine',
+  '.amazonq',
+]);
+
 /** Gitignore-style patterns for the `ignore` matcher: the dirs above plus a few globs. */
 const DEFAULT_IGNORE_PATTERNS: string[] = [
   ...Array.from(DEFAULT_IGNORE_DIRS, (d) => `${d}/`),
+  ...Array.from(AGENT_WORK_DIRS, (d) => `${d}/`),
   '*.egg-info/',     // Python packaging metadata
   'cmake-build-*/',  // CLion / CMake build trees
   'bazel-*/',        // Bazel output symlink trees
@@ -182,6 +210,13 @@ export function buildDefaultIgnore(rootDir: string): Ignore {
     if (fs.existsSync(rootGitignore)) ig.add(fs.readFileSync(rootGitignore, 'utf-8'));
   } catch {
     // Unreadable root .gitignore — the built-in defaults still apply.
+  }
+  // Optional project-level config: append user-supplied exclude globs last
+  // so they can narrow but not un-exclude the built-in defaults above
+  // (`.gitignore` `!negation` remains the opt-out mechanism for defaults).
+  const cfg = loadProjectConfig(rootDir);
+  if (cfg.exclude && cfg.exclude.length > 0) {
+    ig.add(cfg.exclude);
   }
   return ig;
 }

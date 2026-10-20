@@ -3794,13 +3794,37 @@ fn collect_repo_local_package_names(
     }
 }
 
+/// Agent working directories. Mirrors `AGENT_WORK_DIRS` in
+/// `src/extraction/index.ts` — both engines must skip the same set so the
+/// indexed file list does not depend on which engine ran. Keep in sync.
+const AGENT_WORK_DIRS: &[&str] = &[
+    ".workbuddy",
+    ".claude",
+    ".cursor",
+    ".codex",
+    ".opencode",
+    ".gemini",
+    ".continue",
+    ".windsurf",
+    ".zed",
+    ".aider",
+    ".codeium",
+    ".cody",
+    ".tabnine",
+    ".amazonq",
+];
+
+fn is_agent_work_dir(name: &str) -> bool {
+    AGENT_WORK_DIRS.contains(&name)
+}
+
 fn is_ignored_repo_local_package_dir(relative_dir: &Path) -> bool {
     relative_dir.components().any(|component| {
         let name = component.as_os_str().to_string_lossy();
         matches!(
             name.as_ref(),
             ".git" | ".zcodegraph" | "node_modules" | "vendor" | "generated"
-        )
+        ) || is_agent_work_dir(name.as_ref())
     })
 }
 
@@ -8186,7 +8210,8 @@ fn collect_supported_files(project_path: &Path) -> io::Result<Vec<PathBuf>> {
                 if matches!(
                     name.as_ref(),
                     ".git" | ".zcodegraph" | "node_modules" | "target" | "dist"
-                ) {
+                ) || is_agent_work_dir(name.as_ref())
+                {
                     continue;
                 }
                 walk(&path, out)?;

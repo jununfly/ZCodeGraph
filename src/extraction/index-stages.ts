@@ -21,6 +21,7 @@ import { extractFromSource } from './tree-sitter';
 import { logWarn } from '../errors';
 import { validatePathWithinRoot, normalizePath } from '../utils';
 import ignore, { Ignore } from 'ignore';
+import { loadProjectConfig } from '../config/project-config';
 import { detectFrameworks } from '../resolution/frameworks';
 import type { ResolutionContext } from '../resolution/types';
 import { hashContent } from './index';
@@ -55,8 +56,31 @@ const DEFAULT_IGNORE_DIRS: ReadonlySet<string> = new Set([
   '.cache',
 ]);
 
+/**
+ * Mirror of AGENT_WORK_DIRS in src/extraction/index.ts. Kept as a local copy
+ * so this stage module stays self-contained; any change must be applied to
+ * both files.
+ */
+const AGENT_WORK_DIRS: ReadonlySet<string> = new Set([
+  '.workbuddy',
+  '.claude',
+  '.cursor',
+  '.codex',
+  '.opencode',
+  '.gemini',
+  '.continue',
+  '.windsurf',
+  '.zed',
+  '.aider',
+  '.codeium',
+  '.cody',
+  '.tabnine',
+  '.amazonq',
+]);
+
 const DEFAULT_IGNORE_PATTERNS: string[] = [
   ...Array.from(DEFAULT_IGNORE_DIRS, (d) => `${d}/`),
+  ...Array.from(AGENT_WORK_DIRS, (d) => `${d}/`),
   '*.egg-info/',
   'cmake-build-*/',
   'bazel-*/',
@@ -69,6 +93,10 @@ function buildDefaultIgnore(rootDir: string): Ignore {
     if (fs.existsSync(rootGitignore)) ig.add(fs.readFileSync(rootGitignore, 'utf-8'));
   } catch {
     // Unreadable root .gitignore — the built-in defaults still apply.
+  }
+  const cfg = loadProjectConfig(rootDir);
+  if (cfg.exclude && cfg.exclude.length > 0) {
+    ig.add(cfg.exclude);
   }
   return ig;
 }

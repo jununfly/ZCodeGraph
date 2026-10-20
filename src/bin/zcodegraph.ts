@@ -1288,6 +1288,13 @@ program
       // JSON output mode
       if (options.json) {
         const lastIndexedMs = cg.getLastIndexedAt();
+        const agentWorkDirsExcluded = [
+          '.workbuddy', '.claude', '.cursor', '.codex', '.opencode',
+          '.gemini', '.continue', '.windsurf', '.zed', '.aider',
+          '.codeium', '.cody', '.tabnine', '.amazonq',
+        ].filter((d) => fs.existsSync(path.join(projectPath, d)));
+        const { loadProjectConfig } = await import('../config/project-config');
+        const projectCfg = loadProjectConfig(projectPath);
         console.log(JSON.stringify({
           initialized: true,
           version: packageJson.version,
@@ -1323,6 +1330,11 @@ program
           },
           fallbackDiagnostics: statusFallbackDiagnostics(buildInfo.hybrid),
           rust: getRustReadinessDiagnostics(projectPath, buildInfo),
+          indexScope: {
+            agentWorkDirsExcluded,
+            projectConfigPresent: fs.existsSync(path.join(projectPath, 'zcodegraph.json')),
+            projectConfigExcludeCount: projectCfg.exclude?.length ?? 0,
+          },
         }));
         cg.destroy();
         return;
@@ -1378,6 +1390,43 @@ program
       for (const [lang, count] of filesByLang) {
         console.log(`  ${lang.padEnd(15)} ${formatNumber(count)}`);
       }
+      console.log();
+
+      // Index scope: surface which directories are excluded from indexing
+      // (built-in defaults for agent working dirs + user config exclude globs)
+      // so an agent can tell at a glance whether a path it cares about will
+      // ever make it into the graph. Static listing only — we do not hook
+      // the scan stage for hit counts in v1.
+      console.log(chalk.bold('Index Scope:'));
+      const agentWorkDirsExcluded = [
+        '.workbuddy', '.claude', '.cursor', '.codex', '.opencode',
+        '.gemini', '.continue', '.windsurf', '.zed', '.aider',
+        '.codeium', '.cody', '.tabnine', '.amazonq',
+      ];
+      const presentAgentDirs = agentWorkDirsExcluded.filter((d) =>
+        fs.existsSync(path.join(projectPath, d)),
+      );
+      if (presentAgentDirs.length > 0) {
+        console.log(
+          `  Agent work dirs excluded: ${presentAgentDirs.map((d) => chalk.dim(d + '/')).join(', ')}`,
+        );
+      } else {
+        console.log(`  Agent work dirs excluded: ${chalk.dim('(none present)')}`);
+      }
+      const { loadProjectConfig } = await import('../config/project-config');
+      const projectCfg = loadProjectConfig(projectPath);
+      const configPath = path.join(projectPath, 'zcodegraph.json');
+      if (fs.existsSync(configPath)) {
+        const n = projectCfg.exclude?.length ?? 0;
+        console.log(
+          `  zcodegraph.json:           ${n > 0 ? `${n} exclude glob${n === 1 ? '' : 's'}` : chalk.dim('(no exclude globs)')}`,
+        );
+      } else {
+        console.log(`  zcodegraph.json:           ${chalk.dim('(not present)')}`);
+      }
+      console.log(
+        chalk.dim('  Opt out of a default exclusion via a `!<dir>/` negation in the root .gitignore.'),
+      );
       console.log();
 
       // Pending changes
@@ -2196,6 +2245,17 @@ program
           .map(f => f.trim())
           .filter(Boolean);
         changedFiles.push(...prFiles);
+      }
+
+      // Filter out paths the index would exclude anyway (agent work dirs,
+      // node_modules/, user-supplied zcodegraph.json exclude globs). Without
+      // this the --pr blast-radius output would echo .workbuddy/ entries
+      // straight back to the caller even though the graph has no nodes for
+      // them — which leaks noise into PR reviews (roadmap 1-2-9).
+      {
+        const { buildDefaultIgnore } = await import('../extraction/index');
+        const ig = buildDefaultIgnore(projectPath);
+        changedFiles = changedFiles.filter((f) => !ig.ignores(f));
       }
 
       if (changedFiles.length === 0) {
