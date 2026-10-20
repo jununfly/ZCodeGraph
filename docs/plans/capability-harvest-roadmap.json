@@ -63,7 +63,8 @@
         "1-2-5",
         "1-2-6",
         "1-2-7",
-        "1-2-8"
+        "1-2-8",
+        "1-2-9"
       ],
       "decisions": [
         {
@@ -564,11 +565,36 @@
         "复用 1-1-6 health 输出，不重复计算",
         "单测 + e2e 绿，三 OS CI 通过"
       ]
+    },
+    "1-2-9": {
+      "id": "1-2-9",
+      "uid": "01a157701456-32237f10f3",
+      "label": "P0a 索引范围配置：默认排除 .workbuddy/ 等 agent 工作目录",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "为什么这条坑必须显式立节点，不放 MEMORY.md？",
+          "answer": "隐性记忆只对有 context 的 agent 有效；显式 roadmap 节点让所有 agent（含 CI / OPN 远程）都能看到同一地图，且可用 blocks 边表达调度依赖",
+          "note": "Human 2026-10-20 11:51 指令。同时 .workbuddy 污染影响 1-1-5 真实语料 recall 基线（本仓库做 fixture 时 recall 全是噪音），需 blocks 边硬阻塞"
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "新增 zcodegraph.json（或 .zcodegraphrc）支持 exclude glob 列表，默认含 .workbuddy/**、.claude/**、.cursor/** 等 agent 工作目录",
+        "index 时按 exclude 列表过滤文件，不进 SQLite",
+        "zcodegraph status 输出被排除目录计数（agent 可感知）",
+        "zcodegraph affected --pr 在本仓库根运行时不再包含 .workbuddy/** 条目（e2e 断言）",
+        "单测 + e2e 绿，三 OS CI 通过"
+      ]
     }
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-20 11:42:41",
+    "updated": "2026-10-20 11:54:58",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
@@ -661,7 +687,13 @@
       "from": "01a1545a4733-3e984fca31",
       "to": "01a15459dbc6-e4e0ed0663",
       "type": "informs"
+    },
+    {
+      "id": "e17",
+      "from": "01a157701456-32237f10f3",
+      "to": "01a153ad48e3-c141c8bcf3",
+      "type": "blocks"
     }
   ],
-  "edge_seq": 16
+  "edge_seq": 17
 }
