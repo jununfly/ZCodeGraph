@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-20 19:32:36
+> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-20 21:26:33
 
 [~][X+] 1. ZCodeGraph 能力汇集路线图
 ├── [x][X+] 1-1. P-1 验证冲刺（先行 gate）
@@ -15,14 +15,15 @@
 │   └── [x][X+] 1-1-8. P-1 对照 codeflow 自研 README SVG Card（CI 出口）
 ├── [ ][X+] 1-2. P0 好用性优先（agent 高频缺口）
 │   ├── [x][X+] 1-2-1. P0a 诊断增强（MCP 初始化失败可恢复提示）
-│   ├── [ ][X+] 1-2-2. P0a 索引进度回调
+│   ├── [x][X+] 1-2-2. P0a 索引进度回调
 │   ├── [ ][X+] 1-2-3. P0a token 输出优化（GCF 式压缩）
 │   ├── [ ][X+] 1-2-4. P0b 冻结《死代码判定 rubric v1》
 │   ├── [!][X+] 1-2-5. P0b find_dead_code 首版（限 3-5 语言）
 │   ├── [!][X+] 1-2-6. P0b 圈复杂度（查询时计算，零 schema 变更）
 │   ├── [ ][X+] 1-2-7. 横切：schema 演进条款 + MCP 工具收口 ≤12
 │   ├── [ ][X+] 1-2-8. 横切：架构回归红线 + 能力健康探针
-│   └── [x][X+] 1-2-9. P0a 索引范围配置：默认排除 .workbuddy/ 等 agent 工作目录
+│   ├── [x][X+] 1-2-9. P0a 索引范围配置：默认排除 .workbuddy/ 等 agent 工作目录
+│   └── [ ][X+] 1-2-10. P0a 测试基础设施加固（Windows flake 治理）
 ├── [ ][X+] 1-3. P1 高价值理解增量
 │   ├── [!][X+] 1-3-1. P1 准入：图质量门禁（degraded 降个位数）
 │   ├── [!][X+] 1-3-2. P1-1 PR 影响分析（复用 impact/affected）
@@ -47,6 +48,6 @@
 ### 下一步可开工（ready 前 3）
 
 - 1-2. P0 好用性优先（agent 高频缺口） [ ]
-- 1-2-2. P0a 索引进度回调 [ ]
+- 1-2-10. P0a 测试基础设施加固（Windows flake 治理） [ ]
 - 1-2-3. P0a token 输出优化（GCF 式压缩） [ ]
 <!-- ROADMAP_SECTION_END -->
