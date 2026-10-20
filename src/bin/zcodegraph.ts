@@ -27,6 +27,7 @@
 import { Command } from 'commander';
 import * as path from 'path';
 import * as fs from 'fs';
+import { execSync } from 'child_process';
 import { getCodeGraphDir, isInitialized } from '../directory';
 import { getDatabasePath } from '../db';
 import { detectWorktreeIndexMismatch, worktreeMismatchWarning } from '../sync/worktree';
@@ -2139,17 +2140,24 @@ program
  * Usage:
  *   git diff --name-only | zcodegraph affected --stdin
  *   zcodegraph affected src/lib/components/Editor.svelte src/routes/+page.svelte
+ *   zcodegraph affected --pr origin/main..HEAD          # blast radius of a PR range
+ *   zcodegraph affected --pr HEAD~3..HEAD --json        # machine-readable blast radius
+ *
+ * With --pr, the command switches to "blast radius" mode: it resolves the git
+ * range to a changed-file list, runs the same transitive-dependent BFS, and
+ * reports ALL affected files (not just tests) partitioned into source vs test.
  */
 program
   .command('affected [files...]')
-  .description('Find test files affected by changed source files')
+  .description('Find test files affected by changed source files; with --pr, report full blast radius')
   .option('-p, --path <path>', 'Project path')
   .option('--stdin', 'Read file list from stdin (one per line)')
+  .option('--pr <range>', 'Git commit range (e.g. "origin/main..HEAD"); resolves via `git diff --name-only`')
   .option('-d, --depth <number>', 'Max dependency traversal depth', '5')
   .option('-f, --filter <glob>', 'Custom glob filter for test files (e.g. "e2e/*.spec.ts")')
   .option('-j, --json', 'Output as JSON')
   .option('-q, --quiet', 'Only output file paths, no decoration')
-  .action(async (fileArgs: string[], options: { path?: string; stdin?: boolean; depth?: string; filter?: string; json?: boolean; quiet?: boolean }) => {
+  .action(async (fileArgs: string[], options: { path?: string; stdin?: boolean; pr?: string; depth?: string; filter?: string; json?: boolean; quiet?: boolean }) => {
     const projectPath = resolveProjectPath(options.path);
 
     try {
@@ -2158,7 +2166,7 @@ program
         process.exit(1);
       }
 
-      // Collect changed files from args or stdin
+      // Collect changed files from args, stdin, or --pr git range
       let changedFiles: string[] = [...(fileArgs || [])];
 
       if (options.stdin) {
@@ -2167,14 +2175,36 @@ program
         changedFiles.push(...stdinFiles);
       }
 
+      if (options.pr) {
+        let diffOut: string;
+        try {
+          diffOut = execSync(`git diff --name-only ${options.pr}`, {
+            cwd: projectPath,
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+            windowsHide: true,
+            maxBuffer: 32 * 1024 * 1024,
+          }) as string;
+        } catch (gitErr) {
+          error(`git diff --name-only ${options.pr} failed in ${projectPath}: ${gitErr instanceof Error ? gitErr.message : String(gitErr)}`);
+          process.exit(1);
+        }
+        const prFiles = diffOut!
+          .split('\n')
+          .map(f => f.trim())
+          .filter(Boolean);
+        changedFiles.push(...prFiles);
+      }
+
       if (changedFiles.length === 0) {
-        if (!options.quiet) info('No files provided. Use file arguments or --stdin.');
+        if (!options.quiet) info('No files provided. Use file arguments, --stdin, or --pr <range>.');
         process.exit(0);
       }
 
       const { default: CodeGraph } = await loadCodeGraph();
       const cg = await CodeGraph.open(projectPath);
       const maxDepth = parseInt(options.depth || '5', 10);
+      const blastRadiusMode = Boolean(options.pr);
 
       // Common test file patterns
       const defaultTestPatterns = [
@@ -2203,13 +2233,19 @@ program
         return defaultTestPatterns.some(p => p.test(filePath));
       }
 
-      // BFS to find all transitive dependents of changed files, filtered to test files
+      // BFS to find all transitive dependents of changed files
       const affectedTests = new Set<string>();
+      const affectedSource = new Set<string>();
       const allDependents = new Set<string>();
+      let maxDepthReached = 0;
 
       for (const file of changedFiles) {
-        // If the changed file is itself a test file, include it
-        if (isTestFile(file)) {
+        const isTest = isTestFile(file);
+        if (blastRadiusMode) {
+          // In blast-radius mode the changed file itself is part of the report
+          if (isTest) affectedTests.add(file); else affectedSource.add(file);
+        } else if (isTest) {
+          // Legacy mode: changed test files are included as affected tests
           affectedTests.add(file);
           continue;
         }
@@ -2228,10 +2264,12 @@ program
             if (visited.has(dep)) continue;
             visited.add(dep);
             allDependents.add(dep);
+            maxDepthReached = Math.max(maxDepthReached, current.depth + 1);
 
             if (isTestFile(dep)) {
               affectedTests.add(dep);
             } else {
+              if (blastRadiusMode) affectedSource.add(dep);
               queue.push({ file: dep, depth: current.depth + 1 });
             }
           }
@@ -2239,25 +2277,61 @@ program
       }
 
       const sortedTests = Array.from(affectedTests).sort();
+      const sortedSource = Array.from(affectedSource).sort();
 
       // Output
       if (options.json) {
-        console.log(JSON.stringify({
-          changedFiles,
-          affectedTests: sortedTests,
-          totalDependentsTraversed: allDependents.size,
-        }, null, 2));
-      } else if (options.quiet) {
-        for (const t of sortedTests) console.log(t);
-      } else {
-        if (sortedTests.length === 0) {
-          info('No test files affected by the changed files.');
+        if (blastRadiusMode) {
+          console.log(JSON.stringify({
+            mode: 'blast-radius',
+            prRange: options.pr,
+            changedFiles,
+            affectedSource: sortedSource,
+            affectedTests: sortedTests,
+            summary: {
+              totalAffected: sortedSource.length + sortedTests.length,
+              sourceFiles: sortedSource.length,
+              testFiles: sortedTests.length,
+              totalDependentsTraversed: allDependents.size,
+              maxDepthReached,
+              maxDepthLimit: maxDepth,
+            },
+          }, null, 2));
         } else {
-          console.log(chalk.bold(`\nAffected test files (${sortedTests.length}):\n`));
-          for (const t of sortedTests) {
-            console.log('  ' + chalk.cyan(t));
+          console.log(JSON.stringify({
+            changedFiles,
+            affectedTests: sortedTests,
+            totalDependentsTraversed: allDependents.size,
+          }, null, 2));
+        }
+      } else if (options.quiet) {
+        const all = blastRadiusMode ? [...sortedSource, ...sortedTests] : sortedTests;
+        for (const t of all) console.log(t);
+      } else {
+        if (blastRadiusMode) {
+          console.log(chalk.bold(`\nBlast radius of ${chalk.cyan(options.pr ?? '')} — ${sortedSource.length + sortedTests.length} affected files:\n`));
+          if (sortedSource.length > 0) {
+            console.log(chalk.bold(`  Source (${sortedSource.length}):`));
+            for (const f of sortedSource) console.log('    ' + chalk.yellow(f));
+          }
+          if (sortedTests.length > 0) {
+            console.log(chalk.bold(`  Tests (${sortedTests.length}):`));
+            for (const t of sortedTests) console.log('    ' + chalk.cyan(t));
+          }
+          if (sortedSource.length === 0 && sortedTests.length === 0) {
+            info('No files affected by the PR range.');
           }
           console.log();
+        } else {
+          if (sortedTests.length === 0) {
+            info('No test files affected by the changed files.');
+          } else {
+            console.log(chalk.bold(`\nAffected test files (${sortedTests.length}):\n`));
+            for (const t of sortedTests) {
+              console.log('  ' + chalk.cyan(t));
+            }
+            console.log();
+          }
         }
       }
 
