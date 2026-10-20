@@ -21,6 +21,7 @@
  *   zcodegraph impact <symbol>    Analyze what code is affected by changing a symbol
  *   zcodegraph affected [files]   Find test files affected by changes
  *   zcodegraph visualize          Render the indexed graph to a single self-contained HTML
+ *   zcodegraph health             Compute the A-F health grade for the indexed graph
  *   zcodegraph upgrade [version]  Update ZCodeGraph to the latest release
  */
 
@@ -2409,6 +2410,126 @@ program
       console.log();
     } catch (err) {
       error(`Visualize failed: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+/**
+ * zcodegraph health
+ */
+program
+  .command('health')
+  .description('Compute the A-F health grade for the indexed graph (rubric v1, no LLM)')
+  .option('-p, --path <path>', 'Project path')
+  .option('-j, --json', 'Output as JSON')
+  .option('--md', 'Output as Markdown report')
+  .action(async (options: { path?: string; json?: boolean; md?: boolean }) => {
+    const projectPath = resolveProjectPath(options.path);
+
+    try {
+      if (!isInitialized(projectPath)) {
+        error(`CodeGraph not initialized in ${projectPath}`);
+        process.exit(1);
+      }
+
+      const { buildHealthSnapshot } = await import('../health/snapshot');
+      const snapshot = buildHealthSnapshot(projectPath);
+      const { report, scale, hiddenCosts } = snapshot;
+
+      if (options.json) {
+        const payload = {
+          projectRoot: snapshot.projectRoot,
+          generatedAt: new Date(snapshot.generatedAt).toISOString(),
+          score: report.score,
+          grade: report.grade,
+          dimensions: report.dimensions,
+          scale,
+          hiddenCosts,
+        };
+        console.log(JSON.stringify(payload, null, 2));
+        return;
+      }
+
+      if (options.md) {
+        const lines: string[] = [];
+        lines.push('# ZCodeGraph Health Report');
+        lines.push('');
+        lines.push(`**Project:** \`${snapshot.projectRoot}\``);
+        lines.push(`**Generated:** ${new Date(snapshot.generatedAt).toISOString()}`);
+        lines.push('');
+        lines.push(`## Grade: **${report.grade}** (${report.score}/100)`);
+        lines.push('');
+        lines.push('| Dimension | Raw | Deduction | Cap | Suggestion |');
+        lines.push('| --- | --- | --- | --- | --- |');
+        for (const d of report.dimensions) {
+          const rawStr =
+            d.unit === 'percent' ? `${d.raw}%` : d.unit === 'ratio' ? `${d.raw}` : `${d.raw}`;
+          lines.push(
+            `| ${d.label} | ${rawStr} | -${d.deduction} | ${d.cap} | ${d.suggestion || '—'} |`,
+          );
+        }
+        lines.push('');
+        lines.push('## Scale');
+        lines.push('');
+        lines.push(`- Files: ${scale.files}`);
+        lines.push(`- Functions: ${scale.functions}`);
+        lines.push(`- Total size: ${scale.totalBytes.toLocaleString()} bytes`);
+        lines.push(`- Languages: ${scale.languages}`);
+        lines.push('');
+        lines.push('## Hidden costs (lower is better)');
+        lines.push('');
+        lines.push(`- Circular import SCCs: ${hiddenCosts.circularIssues}`);
+        lines.push(`- Dead code: ${hiddenCosts.deadPct}%`);
+        lines.push(`- Avg coupling: ${hiddenCosts.avgCoupling}`);
+        lines.push('');
+        console.log(lines.join('\n'));
+        return;
+      }
+
+      // Default human-readable output.
+      const gradeColor =
+        report.grade === 'A'
+          ? chalk.green
+          : report.grade === 'B'
+            ? chalk.cyan
+            : report.grade === 'C'
+              ? chalk.yellow
+              : chalk.red;
+
+      console.log();
+      console.log(
+        chalk.bold('Health: ') +
+          gradeColor(chalk.bold(`${report.grade}`)) +
+          chalk.dim(` (${report.score}/100)`),
+      );
+      console.log();
+      console.log(chalk.bold('Dimensions'));
+      for (const d of report.dimensions) {
+        if (d.deduction === 0) {
+          console.log(`  ${chalk.green('✓')} ${d.label}: ${d.raw}${d.unit === 'percent' ? '%' : ''}`);
+        } else {
+          console.log(
+            `  ${chalk.yellow('⚠')} ${d.label}: ${d.raw}${d.unit === 'percent' ? '%' : ''} ` +
+              chalk.dim(`(-${d.deduction}/${d.cap})`),
+          );
+          if (d.suggestion) {
+            console.log(`    ${chalk.dim(d.suggestion)}`);
+          }
+        }
+      }
+      console.log();
+      console.log(chalk.bold('Scale'));
+      console.log(
+        `  ${scale.files} files · ${scale.functions} functions · ${scale.totalBytes.toLocaleString()} bytes · ${scale.languages} languages`,
+      );
+      console.log();
+      console.log(chalk.bold('Hidden costs ') + chalk.dim('(lower is better)'));
+      console.log(
+        `  circular=${hiddenCosts.circularIssues} · dead=${hiddenCosts.deadPct}% · coupling=${hiddenCosts.avgCoupling}`,
+      );
+      console.log();
+    } catch (err) {
+      error(`Health failed: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
     }
   });
