@@ -2184,6 +2184,119 @@ program
   });
 
 /**
+ * zcodegraph explore <query>
+ *
+ * Deep exploration in a single call — the CLI twin of the MCP
+ * `zcodegraph_explore` tool. Runs the same planner + renderer pipeline and
+ * prints the final markdown to stdout, so scripts (and the token-baseline
+ * harness) can measure exactly the bytes an agent would receive over MCP.
+ *
+ * Introduced for roadmap 1-2-3 (token-baseline contract v2 numerator):
+ * the v1 numerator was a CLI cliCalls sequence (query/callers/impact);
+ * the v2 numerator is the explore output that agents actually consume.
+ */
+program
+  .command('explore <query>')
+  .description('Deep exploration in a single call (CLI twin of zcodegraph_explore)')
+  .option('-p, --path <path>', 'Project path')
+  .option('--max-files <number>', 'Maximum number of files to include')
+  .action(async (query: string, options: { path?: string; maxFiles?: string }) => {
+    const projectPath = resolveProjectPath(options.path);
+
+    try {
+      if (!isInitialized(projectPath)) {
+        error(`CodeGraph not initialized in ${projectPath}`);
+        process.exit(1);
+      }
+
+      const { default: CodeGraph } = await loadCodeGraph();
+      const cg = await CodeGraph.open(projectPath);
+
+      // Inline-composition of MCP handleExplore: plan + blastRadius + render.
+      // We do NOT reuse ToolsHandler.handleExplore directly because it is a
+      // private instance method on the MCP server; instead we re-use the two
+      // exported seams (explore-planner.plan, explore-renderer.render) and
+      // a local copy of buildBlastRadiusSection so the byte-level output
+      // matches the MCP channel exactly.
+      const { plan } = await import('../mcp/explore-planner.js');
+      const { render } = await import('../mcp/explore-renderer.js');
+      const { isTestFile } = await import('../search/query-utils.js');
+
+      const maxFiles = options.maxFiles ? Math.max(1, parseInt(options.maxFiles, 10)) : undefined;
+      const planResult = await plan(cg, query, { maxFiles });
+
+      if (planResult.subgraph.nodes.size === 0) {
+        console.log(`No relevant code found for "${query}"`);
+        cg.destroy();
+        return;
+      }
+
+      // buildBlastRadiusSection — verbatim copy of the ToolsHandler private
+      // method, kept in sync by code review. Uses isTestFile + cg.getCallers.
+      const buildBlastRadiusSection = (cgArg: typeof cg, subgraph: typeof planResult.subgraph): string => {
+        const ROOT_CAP = 5;
+        const FILE_CAP = 4;
+        const MEANINGFUL = new Set<string>([
+          'function', 'method', 'class', 'interface', 'struct', 'trait', 'protocol',
+          'enum', 'type_alias', 'component', 'constant', 'variable', 'property', 'field',
+        ]);
+        const rel = (p: string) => p.replace(/\\/g, '/');
+
+        const entryNodes = subgraph.entryNodes
+          .map((id) => subgraph.nodes.get(id))
+          .filter((n): n is NonNullable<typeof n> => !!n && MEANINGFUL.has(n.kind))
+          .slice(0, ROOT_CAP);
+        if (entryNodes.length === 0) return '';
+
+        const entries: string[] = [];
+        for (const entryNode of entryNodes) {
+          let callers: Array<{ node: NonNullable<typeof entryNode> }> = [];
+          try { callers = cgArg.getCallers(entryNode.id) as Array<{ node: NonNullable<typeof entryNode> }>; } catch { /* skip */ }
+
+          const seen = new Set<string>();
+          const uniq: Array<NonNullable<typeof entryNode>> = [];
+          for (const c of callers) {
+            if (c?.node && !seen.has(c.node.id)) { seen.add(c.node.id); uniq.push(c.node); }
+          }
+          if (uniq.length === 0) continue;
+
+          const callerFiles = [...new Set(uniq.map((n) => rel(n.filePath)))];
+          const testFiles = callerFiles.filter((f) => isTestFile(f));
+          const nonTest = callerFiles.filter((f) => !isTestFile(f));
+
+          const shown = nonTest.slice(0, FILE_CAP).map((f) => `\`${f}\``).join(', ');
+          const more = nonTest.length > FILE_CAP ? ` +${nonTest.length - FILE_CAP} more` : '';
+          const where = nonTest.length > 0 ? ` in ${shown}${more}` : '';
+          const tests = testFiles.length > 0
+            ? `; tests: ${testFiles.slice(0, FILE_CAP).map((f) => `\`${f}\``).join(', ')}${testFiles.length > FILE_CAP ? ` +${testFiles.length - FILE_CAP}` : ''}`
+            : '; ⚠️ no covering tests found';
+
+          entries.push(
+            `- \`${entryNode.name}\` (${rel(entryNode.filePath)}:${entryNode.startLine}) — ${uniq.length} caller${uniq.length === 1 ? '' : 's'}${where}${tests}`,
+          );
+        }
+        if (entries.length === 0) return '';
+
+        return [
+          '### Blast radius — what depends on these (update/verify before editing)',
+          '',
+          ...entries,
+          '',
+        ].join('\n');
+      };
+
+      const blastRadius = buildBlastRadiusSection(cg, planResult.subgraph);
+      const output = render(planResult, cg, planResult.spine, blastRadius);
+      console.log(output);
+
+      cg.destroy();
+    } catch (err) {
+      error(`explore failed: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+/**
  * zcodegraph affected [files...]
  *
  * Find test files affected by the given source files.
