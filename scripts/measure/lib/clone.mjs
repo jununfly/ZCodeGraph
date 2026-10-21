@@ -67,12 +67,24 @@ export function ensureClone({ repo, ref, sparse, corpusRoot, quiet }) {
     git(['-C', repoDir, 'sparse-checkout', 'set', ...sparse]);
   }
 
-  // Resolve ref (default: origin/HEAD) and check out.
-  const targetRef = ref ?? 'origin/HEAD';
-  log(args, `checkout ${targetRef}`);
-  git(['-C', repoDir, 'fetch', 'origin', '--depth=1', targetRef === 'origin/HEAD' ? 'HEAD' : targetRef]);
-  git(['-C', repoDir, 'checkout', '--detach', 'FETCH_HEAD']);
-  const sha = git(['-C', repoDir, 'rev-parse', 'HEAD']);
+  // When reusing an existing clone AND the caller explicitly opts out via
+  // MEASURE_SKIP_FETCH=1, skip the network fetch + checkout and just take the
+  // current HEAD sha. This keeps A/B baseline runs hermetic (no .ssh reads,
+  // no network) when the corpus is already pinned on disk. Fresh clones
+  // always fetch; reused clones default to fetching unless the env var is set.
+  const skipFetch = reusedClone && process.env.MEASURE_SKIP_FETCH === '1';
+  let sha;
+  if (skipFetch) {
+    log(args, `skipping fetch (MEASURE_SKIP_FETCH=1, reused clone)`);
+    sha = git(['-C', repoDir, 'rev-parse', 'HEAD']);
+  } else {
+    // Resolve ref (default: origin/HEAD) and check out.
+    const targetRef = ref ?? 'origin/HEAD';
+    log(args, `checkout ${targetRef}`);
+    git(['-C', repoDir, 'fetch', 'origin', '--depth=1', targetRef === 'origin/HEAD' ? 'HEAD' : targetRef]);
+    git(['-C', repoDir, 'checkout', '--detach', 'FETCH_HEAD']);
+    sha = git(['-C', repoDir, 'rev-parse', 'HEAD']);
+  }
 
   return {
     repoDir,

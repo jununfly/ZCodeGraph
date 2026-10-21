@@ -36,7 +36,7 @@ import { log, fail } from './lib/args.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..', '..');
 const BIN = path.join(REPO_ROOT, 'dist', 'bin', 'zcodegraph.js');
-const CONTRACT_PATH = path.join(REPO_ROOT, 'docs', 'contracts', 'token-baseline-tasks-v1.md');
+const DEFAULT_CONTRACT_PATH = path.join(REPO_ROOT, 'docs', 'contracts', 'token-baseline-tasks-v1.md');
 
 function parseArgs(argv) {
   const args = {
@@ -45,6 +45,7 @@ function parseArgs(argv) {
     out: null,
     quiet: false,
     keepDb: true,
+    contract: DEFAULT_CONTRACT_PATH,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -52,6 +53,7 @@ function parseArgs(argv) {
     else if (a === '--corpus-root') args.corpusRoot = argv[++i];
     else if (a === '--out') args.out = argv[++i];
     else if (a === '--quiet') args.quiet = true;
+    else if (a === '--contract') args.contract = path.resolve(argv[++i]);
     else throw new Error(`unknown flag: ${a}`);
   }
   return args;
@@ -63,7 +65,7 @@ function loadContract(contractPath) {
   const m = text.match(/```json\s*\n([\s\S]*?)\n```/);
   if (!m) throw new Error(`no fenced json block in ${contractPath}`);
   const parsed = JSON.parse(m[1]);
-  if (parsed.version !== 1) {
+  if (parsed.version !== 1 && parsed.version !== 2) {
     throw new Error(`unsupported contract version ${parsed.version}`);
   }
   return parsed;
@@ -96,14 +98,27 @@ function fileBytes(repoDir, rel) {
   return fs.statSync(p).size;
 }
 
-function measureTaskOnce(task, repoDir) {
+function measureTaskOnce(task, repoDir, contractVersion) {
   let numerator = 0;
   const callBreakdown = [];
-  for (const cliArgs of task.cliCalls) {
-    const payload = runCli(repoDir, cliArgs);
-    const bytes = payload.length;
-    numerator += bytes;
-    callBreakdown.push({ call: cliArgs.join(' '), bytes });
+  if (contractVersion === 2) {
+    // v2: numerator is the explore payload an agent actually consumes.
+    // Each task carries 1-2 exploreQueries; we concatenate per-query bytes
+    // to mirror how v1 concatenated cliCalls.
+    for (const q of task.exploreQueries) {
+      const payload = runCli(repoDir, ['explore', q]);
+      const bytes = payload.length;
+      numerator += bytes;
+      callBreakdown.push({ call: `explore "${q}"`, bytes });
+    }
+  } else {
+    // v1: numerator is a fixed cliCalls sequence (query/callers/impact).
+    for (const cliArgs of task.cliCalls) {
+      const payload = runCli(repoDir, cliArgs);
+      const bytes = payload.length;
+      numerator += bytes;
+      callBreakdown.push({ call: cliArgs.join(' '), bytes });
+    }
   }
   let denominator = 0;
   const fileBreakdown = [];
@@ -122,11 +137,11 @@ function median(xs) {
   return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
 }
 
-function measureTask(task, repoDir, repetitions, args) {
+function measureTask(task, repoDir, repetitions, args, contractVersion) {
   log(args, `task ${task.id}: ${repetitions} repetitions`);
   const runs = [];
   for (let i = 0; i < repetitions; i++) {
-    const r = measureTaskOnce(task, repoDir);
+    const r = measureTaskOnce(task, repoDir, contractVersion);
     runs.push(r);
     log(args, `  run ${i + 1}: num=${r.numerator} den=${r.denominator}`);
   }
@@ -162,10 +177,10 @@ function main() {
   if (!fs.existsSync(BIN)) {
     fail(`dist/bin/zcodegraph.js not found at ${BIN}. Run \`npm run build\` first.`);
   }
-  if (!fs.existsSync(CONTRACT_PATH)) {
-    fail(`contract not found at ${CONTRACT_PATH}`);
+  if (!fs.existsSync(args.contract)) {
+    fail(`contract not found at ${args.contract}`);
   }
-  const contract = loadContract(CONTRACT_PATH);
+  const contract = loadContract(args.contract);
   const repetitions = contract.repetitions ?? 3;
 
   let tasks = contract.tasks;
@@ -216,7 +231,7 @@ function main() {
       indexDurationMs: indexInfo.durationMs,
     });
     for (const task of repoTasks) {
-      const r = measureTask(task, cloneInfo.repoDir, repetitions, args);
+      const r = measureTask(task, cloneInfo.repoDir, repetitions, args, contract.version);
       results.push(r);
     }
   }
@@ -235,18 +250,21 @@ function main() {
     tasks: results,
   };
 
+  const numeratorDefinition = contract.version === 2
+    ? 'concatenated stdout bytes of `zcodegraph explore "<query>"` for each exploreQueries entry (CLI twin of MCP zcodegraph_explore, byte-identical render)'
+    : 'concatenated stdout bytes of the task\'s cliCalls against dist/bin/zcodegraph.js';
+
   emitReport({
     metric: 'token-baseline-layer1',
     repo: { slug: 'multi-corpus' },
     ref: repoMeta.map((m) => `${m.repo}@${m.sha.slice(0, 12)}`).join(','),
     value,
     evidence: {
-      contract: 'docs/contracts/token-baseline-tasks-v1.md',
+      contract: path.relative(REPO_ROOT, args.contract),
       contractVersion: contract.version,
       repetitions,
       repos: repoMeta,
-      numeratorDefinition:
-        'concatenated stdout bytes of the task\'s cliCalls against dist/bin/zcodegraph.js',
+      numeratorDefinition,
       denominatorDefinition:
         'sum of byte-size of the task\'s equivalentFiles[] inside the cloned repo',
     },
