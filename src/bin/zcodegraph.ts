@@ -2590,6 +2590,107 @@ program
   });
 
 /**
+ * zcodegraph dead-code
+ *
+ * Three-bucket dead-code verdicts (dead / alive / unknown) per
+ * dead-code-rubric-v1 (docs/contracts/dead-code-rubric-v1.md, incl. the
+ * mandatory A1+A2 amendments). Report-only; no auto-fix.
+ */
+program
+  .command('dead-code')
+  .description('Find dead functions/methods (rubric v1 three-bucket verdict, no LLM)')
+  .option('-p, --path <path>', 'Project path')
+  .option('-j, --json', 'Output as JSON')
+  .option('--md', 'Output as Markdown report')
+  .option('--bucket <bucket>', 'Only list verdicts in this bucket (dead|alive|unknown)', 'dead')
+  .option('--limit <n>', 'Max rows to list in text/md output (default 50)', '50')
+  .action(async (options: { path?: string; json?: boolean; md?: boolean; bucket?: string; limit?: string }) => {
+    const projectPath = resolveProjectPath(options.path);
+
+    try {
+      if (!isInitialized(projectPath)) {
+        error(`CodeGraph not initialized in ${projectPath}`);
+        process.exit(1);
+      }
+
+      const { buildDeadCodeReport } = await import('../dead-code/report');
+      const report = buildDeadCodeReport(projectPath);
+      const limit = Math.max(1, Number.parseInt(options.limit ?? '50', 10) || 50);
+
+      if (options.json) {
+        console.log(JSON.stringify({
+          projectRoot: report.projectRoot,
+          generatedAt: new Date(report.generatedAt).toISOString(),
+          rubric: 'DES-dead-code-rubric-v1',
+          candidates: report.candidates,
+          buckets: report.buckets,
+          unknownRatio: report.unknownRatio,
+          pathExcludedFunctions: report.pathExcludedFunctions,
+          verdicts: report.verdicts,
+        }, null, 2));
+        return;
+      }
+
+      const bucket = (options.bucket ?? 'dead') as 'dead' | 'alive' | 'unknown';
+      const listed = report.verdicts.filter((v) => v.bucket === bucket).slice(0, limit);
+
+      if (options.md) {
+        const lines: string[] = [];
+        lines.push('# ZCodeGraph Dead-Code Report');
+        lines.push('');
+        lines.push(`**Project:** \`${report.projectRoot}\``);
+        lines.push(`**Generated:** ${new Date(report.generatedAt).toISOString()}`);
+        lines.push(`**Rubric:** dead-code-rubric-v1 (A1+A2 applied)`);
+        lines.push('');
+        lines.push(`## Summary`);
+        lines.push('');
+        lines.push(`- Candidates (zero-calls function/method nodes, path exclusions applied): ${report.candidates}`);
+        lines.push(`- **dead**: ${report.buckets.dead} · **alive**: ${report.buckets.alive} · **unknown**: ${report.buckets.unknown}`);
+        lines.push(`- unknown_ratio: ${report.unknownRatio}`);
+        lines.push('');
+        lines.push(`## ${bucket} (first ${listed.length})`);
+        lines.push('');
+        lines.push('| Symbol | File:Line | Rule | Evidence |');
+        lines.push('| --- | --- | --- | --- |');
+        for (const v of listed) {
+          const ev = v.evidence.via ? `${v.evidence.via}${v.evidence.hit ? ':' + v.evidence.hit : ''}` : '—';
+          lines.push(`| \`${v.qualified_name}\` | ${v.file_path}:${v.start_line} | ${v.rule_id} | ${ev} |`);
+        }
+        lines.push('');
+        lines.push('> precision is only meaningful for the `dead` bucket; unknowns are a v2 backlog signal, not a failure.');
+        console.log(lines.join('\n'));
+        return;
+      }
+
+      // Default human-readable output.
+      console.log();
+      console.log(chalk.bold('Dead-code report ') + chalk.dim(`(rubric v1, A1+A2 applied)`));
+      console.log(
+        `  candidates=${report.candidates} · ` +
+        `${chalk.red('dead=' + report.buckets.dead)} · ` +
+        `${chalk.green('alive=' + report.buckets.alive)} · ` +
+        `${chalk.yellow('unknown=' + report.buckets.unknown)} ` +
+        chalk.dim(`(unknown_ratio=${report.unknownRatio})`),
+      );
+      console.log();
+      console.log(chalk.bold(`${bucket} bucket`) + chalk.dim(` (first ${listed.length})`));
+      for (const v of listed) {
+        const ev = v.evidence.via ? chalk.dim(` [${v.rule_id} ${v.evidence.via}${v.evidence.hit ? ':' + v.evidence.hit : ''}]`) : chalk.dim(` [${v.rule_id}]`);
+        console.log(`  ${v.qualified_name} ${chalk.dim(`${v.file_path}:${v.start_line}`)}${ev}`);
+      }
+      if (report.verdicts.filter((v) => v.bucket === bucket).length > listed.length) {
+        console.log(chalk.dim(`  … ${report.verdicts.filter((v) => v.bucket === bucket).length - listed.length} more (use --limit or --json)`));
+      }
+      console.log();
+      console.log(chalk.dim('precision is only meaningful for the dead bucket; unknowns are a v2 backlog signal.'));
+      console.log();
+    } catch (err) {
+      error(`Dead-code failed: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+/**
  * zcodegraph health
  */
 program
