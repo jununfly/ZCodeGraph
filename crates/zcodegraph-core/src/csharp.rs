@@ -102,6 +102,32 @@ fn type_leaf_names<'a>(
     out
 }
 
+/// Strip a trailing `<...>` type-argument list from a call-site name so the
+/// callee resolves by its declared (non-generic) symbol name. The C# grammar
+/// hands `FromHttpResponseMessage<T>` to the call extractor verbatim; no
+/// declared node carries the suffix, and the TS resolver's pre-filter drops
+/// any ref whose name has no known symbol (roadmap 1-2-12-2 root cause 1).
+fn strip_generic_args(name: &str) -> &str {
+    if !name.ends_with('>') {
+        return name;
+    }
+    let bytes = name.as_bytes();
+    let mut depth = 0i32;
+    for i in (0..bytes.len()).rev() {
+        match bytes[i] {
+            b'>' => depth += 1,
+            b'<' => {
+                depth -= 1;
+                if depth == 0 {
+                    return if i == 0 { name } else { &name[..i] };
+                }
+            }
+            _ => {}
+        }
+    }
+    name
+}
+
 fn emit_type_refs(
     type_node: SyntaxNode,
     from_id: &str,
@@ -752,6 +778,50 @@ fn walk(
         // Fall through to generic descent so initializer calls/new are captured.
     }
 
+    // ---- event subscription: `Countdown.Elapsed += HideToast` -------------
+    // The handler is registered by name at runtime (delegate invocation) and
+    // never appears as an invocation_expression, so a handler used ONLY via
+    // `+=`/`-=` looked dead (roadmap 1-2-12-2 root cause 2). Emit a `calls`
+    // ref to the handler name; resolution's exact-name matcher links it.
+    if kind == "assignment_expression" {
+        let has_subscribe_op = node
+            .children(&mut node.walk())
+            .any(|c| c.kind() == "+=" || c.kind() == "-=");
+        if has_subscribe_op {
+            if let Some(right) = node
+                .child_by_field_name("right")
+                .or_else(|| node.named_children(&mut node.walk()).last())
+            {
+                let handler: Option<String> = match right.kind() {
+                    "identifier" => right
+                        .utf8_text(source)
+                        .ok()
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .map(ToString::to_string),
+                    "member_access_expression" => right
+                        .child_by_field_name("name")
+                        .and_then(|n| n.utf8_text(source).ok())
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .map(ToString::to_string),
+                    _ => None,
+                };
+                if let Some(handler) = handler {
+                    push_ref(
+                        unresolved_refs,
+                        ref_owner(stack),
+                        &handler,
+                        "calls",
+                        right,
+                        relative_path,
+                        SourceLanguage::Csharp,
+                    );
+                }
+            }
+        }
+    }
+
     // ---- call / object-creation refs (owner = method, else class/file) ----
     if kind == "invocation_expression" {
         if let Some(function) = node.child_by_field_name("function") {
@@ -759,7 +829,7 @@ fn walk(
                 push_ref(
                     unresolved_refs,
                     ref_owner(stack),
-                    &name,
+                    strip_generic_args(&name),
                     "calls",
                     node,
                     relative_path,
@@ -1294,5 +1364,99 @@ app.MapGet("/lambda", () => "hi");
         );
         assert_eq!(extract_csharp_tail_ident("Pong"), Some("Pong".to_string()));
         assert_eq!(extract_csharp_tail_ident("() => \"hi\""), None);
+    }
+
+    #[test]
+    fn generic_call_refs_are_stripped_of_type_args() {
+        // Roadmap 1-2-12-2 root cause 1: `FromHttpResponseMessage<T>(result)`
+        // must resolve to the method named `FromHttpResponseMessage`.
+        let src = r#"
+public class HttpService
+{
+    public async System.Threading.Tasks.Task<T> HttpGet<T>(string uri)
+    {
+        return await FromHttpResponseMessage<T>(result);
+    }
+    private async System.Threading.Tasks.Task<T> FromHttpResponseMessage<T>(System.Net.Http.HttpResponseMessage result)
+    {
+        return default;
+    }
+}
+"#;
+        let (_nodes, _edges, refs) = run_extract(src);
+        let calls: Vec<&str> = refs
+            .iter()
+            .filter(|r| r.reference_kind == "calls")
+            .map(|r| r.reference_name.as_str())
+            .collect();
+        assert!(
+            calls.contains(&"FromHttpResponseMessage"),
+            "expected stripped generic callee, got: {calls:?}"
+        );
+        assert!(!calls.iter().any(|c| c.contains('<')));
+    }
+
+    #[test]
+    fn event_subscription_emits_calls_ref_to_handler() {
+        // Roadmap 1-2-12-2 root cause 2: `Countdown.Elapsed += HideToast`
+        // registers the handler by name; emit a calls ref so it isn't dead.
+        let src = r#"
+public class ToastService
+{
+    private System.Timers.Timer Countdown;
+
+    public void StartCountdown()
+    {
+        Countdown.Elapsed += HideToast;
+    }
+
+    private void HideToast(object source, System.Timers.ElapsedEventArgs args)
+    {
+    }
+}
+"#;
+        let (_nodes, _edges, refs) = run_extract(src);
+        let calls: Vec<&str> = refs
+            .iter()
+            .filter(|r| r.reference_kind == "calls")
+            .map(|r| r.reference_name.as_str())
+            .collect();
+        assert!(
+            calls.contains(&"HideToast"),
+            "expected event-subscription handler ref, got: {calls:?}"
+        );
+    }
+
+    #[test]
+    fn event_subscription_lambda_emits_no_handler_ref() {
+        // `Elapsed += (s, e) => Run()` — the lambda is anonymous; only the
+        // inner call (Run) should surface, no synthetic handler name.
+        let src = r#"
+public class T
+{
+    public void A()
+    {
+        this.Elapsed += (s, e) => Run();
+    }
+    private void Run() { }
+}
+"#;
+        let (_nodes, _edges, refs) = run_extract(src);
+        let calls: Vec<&str> = refs
+            .iter()
+            .filter(|r| r.reference_kind == "calls")
+            .map(|r| r.reference_name.as_str())
+            .collect();
+        assert!(calls.contains(&"Run"));
+        assert!(!calls.iter().any(|c| c.contains("lambda") || c.contains('>')));
+    }
+
+    #[test]
+    fn strip_generic_args_handles_nested_and_plain() {
+        assert_eq!(strip_generic_args("FromHttpResponseMessage<T>"), "FromHttpResponseMessage");
+        assert_eq!(strip_generic_args("obj.Helper<int, string>"), "obj.Helper");
+        assert_eq!(strip_generic_args("Map<K, V>"), "Map");
+        assert_eq!(strip_generic_args("NormalCall"), "NormalCall");
+        assert_eq!(strip_generic_args("JsonSerializer.Deserialize<Dictionary<string, int>>"), "JsonSerializer.Deserialize");
     }
 }

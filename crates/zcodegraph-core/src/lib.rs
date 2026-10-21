@@ -12010,6 +12010,14 @@ fn visit_python_node(
         current_from_node_id,
         unresolved_refs,
     )?;
+    extract_python_closure_return_refs(
+        node,
+        source,
+        relative_path,
+        current_from_node_id,
+        nodes,
+        unresolved_refs,
+    )?;
     extract_python_decorator_refs(
         node,
         source,
@@ -12066,6 +12074,50 @@ fn extract_python_statement_refs(
         relative_path,
         SourceLanguage::Python,
     );
+    Ok(())
+}
+
+/// Python closure-return: `return _model_admin_wrapper` where the named value
+/// is a NESTED function declared in the same file — the idiomatic
+/// decorator-factory shape. The factory returns the closure so callers can
+/// invoke it; attribute a `calls` ref from the enclosing function to the
+/// returned nested function so it is not orphaned. TS parity:
+/// src/extraction/tree-sitter.ts visitFunctionBody (roadmap 1-2-12-2).
+fn extract_python_closure_return_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    from_node_id: &str,
+    nodes: &[ExtractedNode],
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() != "return_statement" {
+        return Ok(());
+    }
+    let Some(value) = node.named_child(0) else {
+        return Ok(());
+    };
+    if value.kind() != "identifier" {
+        return Ok(());
+    }
+    let returned_name = value.utf8_text(source)?;
+    let matches_nested = nodes.iter().any(|n| {
+        matches!(n.kind.as_str(), "function" | "method")
+            && n.name == returned_name
+            && n.file_path == relative_path
+            && n.id != from_node_id
+    });
+    if matches_nested {
+        push_ref(
+            unresolved_refs,
+            from_node_id,
+            returned_name,
+            "calls",
+            value,
+            relative_path,
+            SourceLanguage::Python,
+        );
+    }
     Ok(())
 }
 
@@ -16911,6 +16963,64 @@ mod tests {
         assert!(decorator_refs.contains(&("Service.health".to_string(), "route".to_string())));
         assert!(
             decorator_refs.contains(&("Service.health".to_string(), "staticmethod".to_string()))
+        );
+
+        drop(conn);
+        cleanup_temp_dir(dir);
+    }
+
+    // Roadmap 1-2-12-2: decorator-factory closure return. `return wrap` inside
+    // the factory body must emit a `calls` ref from the factory to the nested
+    // function so the closure is not orphaned (django `_model_admin_wrapper`).
+    #[test]
+    fn rust_index_emits_python_closure_return_refs() {
+        let dir = temp_dir("python-closure-return");
+        write_file(
+            &dir,
+            "admin.py",
+            [
+                "def register(admin_class):",
+                "    def _model_admin_wrapper(cls):",
+                "        return cls",
+                "    return _model_admin_wrapper",
+                "",
+                "def plain():",
+                "    return 42",
+                "",
+            ]
+            .join("\n")
+            .as_str(),
+        );
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_errored, 0);
+
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let call_refs: Vec<(String, String)> = conn
+            .prepare(
+                "SELECT source.name, unresolved_refs.reference_name
+                 FROM unresolved_refs
+                 JOIN nodes source ON source.id = unresolved_refs.from_node_id
+                 WHERE unresolved_refs.reference_kind = 'calls'
+                 ORDER BY source.name, unresolved_refs.reference_name",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(
+            call_refs.contains(&(
+                "register".to_string(),
+                "_model_admin_wrapper".to_string()
+            )),
+            "expected register -> _model_admin_wrapper calls ref, got {:?}",
+            call_refs
         );
 
         drop(conn);

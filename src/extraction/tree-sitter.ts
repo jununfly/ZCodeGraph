@@ -2863,6 +2863,70 @@ export class TreeSitterExtractor {
         }
       }
 
+      // C# event subscription: `Countdown.Elapsed += HideToast` — the handler
+      // method is registered by name at runtime (delegate invocation), so it
+      // has a caller even though no `invocation_expression` ever names it.
+      // Without this, handler methods used ONLY via `+=`/`-=` looked dead.
+      // Emit a `calls` ref from the enclosing method to the handler name;
+      // resolution's exact-name matcher links it like any other call.
+      if (this.language === 'csharp' && nodeType === 'assignment_expression') {
+        const operatorNode = node.children.find(
+          (c: SyntaxNode) => c.type === '+=' || c.type === '-='
+        );
+        if (operatorNode) {
+          const ownerId = this.nodeStack[this.nodeStack.length - 1];
+          const right = getChildByField(node, 'right') ?? node.namedChild(node.namedChildCount - 1);
+          if (ownerId && right && (right.type === 'identifier' || right.type === 'member_access_expression')) {
+            const handlerName =
+              right.type === 'identifier'
+                ? getNodeText(right, this.source)
+                : (() => {
+                    const nameField = getChildByField(right, 'name');
+                    return nameField ? getNodeText(nameField, this.source) : '';
+                  })();
+            if (handlerName) {
+              this.unresolvedReferences.push({
+                fromNodeId: ownerId,
+                referenceName: handlerName,
+                referenceKind: 'calls',
+                line: right.startPosition.row + 1,
+                column: right.startPosition.column,
+              });
+            }
+          }
+        }
+      }
+
+      // Python closure-return: `return _model_admin_wrapper` where the named
+      // value is a NESTED function declared in the same body — the idiomatic
+      // decorator-factory shape. The factory returns the closure so callers
+      // can invoke it; attribute a `calls` edge from the enclosing function
+      // to the returned nested function so it is not orphaned.
+      if (this.language === 'python' && nodeType === 'return_statement') {
+        const value = node.namedChild(0);
+        if (value && value.type === 'identifier') {
+          const returnedName = getNodeText(value, this.source);
+          const ownerId = this.nodeStack[this.nodeStack.length - 1];
+          if (ownerId) {
+            const nested = this.nodes.find(
+              (n) =>
+                (n.kind === 'function' || n.kind === 'method') &&
+                n.name === returnedName &&
+                n.filePath === this.filePath
+            );
+            if (nested && nested.id !== ownerId) {
+              this.unresolvedReferences.push({
+                fromNodeId: ownerId,
+                referenceName: returnedName,
+                referenceKind: 'calls',
+                line: value.startPosition.row + 1,
+                column: value.startPosition.column,
+              });
+            }
+          }
+        }
+      }
+
       // Extract structural nodes found inside function bodies.
       // Each extract method visits its own children, so we return after extracting.
       if (this.extractor!.classTypes.includes(nodeType)) {

@@ -4812,6 +4812,51 @@ define(['dep'], function (dep) {
     expect(fns).toContain('compute');
   });
 
+  it('emits a calls ref for a C# event-subscription handler (roadmap 1-2-12-2)', () => {
+    // `Countdown.Elapsed += HideToast` registers the handler by name — the
+    // graph must see it as called, or handler-only-via-delegate methods look dead.
+    const code = `
+public class ToastService
+{
+    private System.Timers.Timer Countdown;
+
+    public void StartCountdown()
+    {
+        Countdown.Elapsed += HideToast;
+    }
+
+    private void HideToast(object source, System.Timers.ElapsedEventArgs args)
+    {
+    }
+}
+`;
+    const result = extractFromSource('ToastService.cs', code);
+    const callsRefs = result.unresolvedReferences.filter((r) => r.referenceKind === 'calls');
+    const sub = callsRefs.find((r) => r.referenceName === 'HideToast');
+    expect(sub).toBeDefined();
+    // The caller must be the enclosing method (StartCountdown), not the class.
+    const startNode = result.nodes.find((n) => n.name === 'StartCountdown');
+    expect(sub?.fromNodeId).toBe(startNode?.id);
+  });
+
+  it('emits a calls ref for a Python closure returned by name (roadmap 1-2-12-2)', () => {
+    // `return _model_admin_wrapper` — decorator-factory idiom; the returned
+    // nested function is reachable via the factory and must not be orphaned.
+    const code = `
+def register(*models, site=None):
+    def _model_admin_wrapper(admin_class):
+        admin_site.register(models, admin_class=admin_class)
+        return admin_class
+    return _model_admin_wrapper
+`;
+    const result = extractFromSource('decorators.py', code);
+    const callsRefs = result.unresolvedReferences.filter((r) => r.referenceKind === 'calls');
+    const closureRef = callsRefs.find((r) => r.referenceName === '_model_admin_wrapper');
+    expect(closureRef).toBeDefined();
+    const registerNode = result.nodes.find((n) => n.name === 'register');
+    expect(closureRef?.fromNodeId).toBe(registerNode?.id);
+  });
+
   it('attaches Go methods on generic receivers to their type (#583)', () => {
     const code = `
 package main

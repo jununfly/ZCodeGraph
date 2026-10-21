@@ -168,13 +168,48 @@ function applyLanguageGate(candidates: Node[], ref: UnresolvedRef): Node[] {
 }
 
 /**
+ * Strip a generic type-argument suffix from a CALL reference name so the
+ * callee can be looked up by its declared (non-generic) symbol name.
+ * Extraction keeps the source text verbatim (`FromHttpResponseMessage<T>`,
+ * `obj.Helper<int, string>`, `JsonSerializer.Deserialize<ErrorDetails>`),
+ * but no node is ever named with the angle-bracket suffix — so every
+ * name-based strategy (exact / method-call / fuzzy) and the resolver's
+ * knownNames pre-filter would miss. Only applied to `calls` refs:
+ * `references` refs name types whose `Foo<Bar>` form never reaches here
+ * (type-position generics are unwrapped at extraction), and a `Name<T>`
+ * string in any other kind is not a call-site generic.
+ *
+ * Returns the name unchanged when no top-level `<...>` suffix exists.
+ * Nested generics (`Foo<Bar<Baz>>`) are handled by depth tracking.
+ */
+export function stripGenericTypeArgs(referenceName: string): string {
+  if (!referenceName.endsWith('>')) return referenceName;
+  let depth = 0;
+  for (let i = referenceName.length - 1; i >= 0; i--) {
+    const ch = referenceName[i];
+    if (ch === '>') depth++;
+    else if (ch === '<') {
+      depth--;
+      if (depth === 0) {
+        // The '<' must belong to a name directly before it (no space).
+        if (i === 0) return referenceName;
+        return referenceName.slice(0, i);
+      }
+    }
+  }
+  return referenceName;
+}
+
+/**
  * Try to resolve a reference by exact name match
  */
 export function matchByExactName(
   ref: UnresolvedRef,
   context: ResolutionContext
 ): ResolvedRef | null {
-  const candidates = applyLanguageGate(context.getNodesByName(ref.referenceName), ref);
+  const lookupName =
+    ref.referenceKind === 'calls' ? stripGenericTypeArgs(ref.referenceName) : ref.referenceName;
+  const candidates = applyLanguageGate(context.getNodesByName(lookupName), ref);
 
   if (candidates.length === 0) {
     return null;
@@ -471,8 +506,13 @@ export function matchMethodCall(
   // (with its existing single-candidate / receiver-overlap guards). Without this
   // a multi-dot extension-method call (C# DI `builder.Services.AddCoreServices()`,
   // `Guard.Against.X()`) matched no pattern and never resolved.
-  const dotMatch = ref.referenceName.match(/^([\w.]+)\.(\w+:?(?:\w+:)*)$/);
-  const colonMatch = ref.referenceName.match(/^(\w+)::(\w+)$/);
+  // Generic call-sites (`obj.Helper<int>()`) carry a type-argument suffix that
+  // matches neither the `\w+` method pattern nor any declared node name —
+  // strip it before pattern parsing (see stripGenericTypeArgs).
+  const effectiveName =
+    ref.referenceKind === 'calls' ? stripGenericTypeArgs(ref.referenceName) : ref.referenceName;
+  const dotMatch = effectiveName.match(/^([\w.]+)\.(\w+:?(?:\w+:)*)$/);
+  const colonMatch = effectiveName.match(/^(\w+)::(\w+)$/);
 
   const match = dotMatch || colonMatch;
   if (!match) {
@@ -765,7 +805,9 @@ export function matchFuzzy(
   ref: UnresolvedRef,
   context: ResolutionContext
 ): ResolvedRef | null {
-  const lowerName = ref.referenceName.toLowerCase();
+  const effectiveName =
+    ref.referenceKind === 'calls' ? stripGenericTypeArgs(ref.referenceName) : ref.referenceName;
+  const lowerName = effectiveName.toLowerCase();
 
   // Use pre-built lowercase index for O(1) lookup instead of scanning all nodes
   const candidates = context.getNodesByLowerName(lowerName);

@@ -11,7 +11,7 @@ import * as os from 'os';
 import { CodeGraph } from '../src';
 import { Edge, Node, UnresolvedReference } from '../src/types';
 import { ReferenceResolver, createResolver, ResolutionContext } from '../src/resolution';
-import { matchReference } from '../src/resolution/name-matcher';
+import { matchReference, stripGenericTypeArgs } from '../src/resolution/name-matcher';
 import { resolveImportPath, extractImportMappings, resolveJvmImport, loadCppIncludeDirs, clearCppIncludeDirCache } from '../src/resolution/import-resolver';
 import type { UnresolvedRef } from '../src/resolution/types';
 import { detectFrameworks, getAllFrameworkResolvers } from '../src/resolution/frameworks';
@@ -1577,6 +1577,67 @@ func main() {
 
       const result = matchReference(ref, baseContext([variable, decorator]));
       expect(result?.targetNodeId).toBe('func:di.ts:Inject:10');
+    });
+  });
+
+  describe('Name Matcher: generic call-site type-argument stripping (roadmap 1-2-12-2)', () => {
+    const baseContext = (candidates: Node[]): ResolutionContext => ({
+      getNodesInFile: (filePath) => candidates.filter((c) => c.filePath === filePath),
+      getNodesByName: (name) => candidates.filter((c) => c.name === name),
+      getNodesByQualifiedName: () => [],
+      getNodesByKind: () => [],
+      fileExists: () => true,
+      readFile: () => null,
+      getProjectRoot: () => '/test',
+      getAllFiles: () => [],
+      getNodesByLowerName: (lower) => candidates.filter((c) => c.name.toLowerCase() === lower),
+      getImportMappings: () => [],
+    });
+
+    const genericMethod: Node = {
+      id: 'method:HttpService.cs:HttpService::FromHttpResponseMessage:89', kind: 'method',
+      name: 'FromHttpResponseMessage',
+      qualifiedName: 'BlazorAdmin.Services::HttpService::FromHttpResponseMessage',
+      filePath: 'src/BlazorAdmin/Services/HttpService.cs', language: 'csharp',
+      startLine: 89, endLine: 95, startColumn: 0, endColumn: 0, updatedAt: Date.now(),
+    };
+
+    it('resolves an unqualified generic call `FromHttpResponseMessage<T>` by its stripped name', () => {
+      const ref = {
+        fromNodeId: 'method:HttpService.cs:HttpService::HttpGet:25',
+        referenceName: 'FromHttpResponseMessage<T>',
+        referenceKind: 'calls' as const,
+        line: 34, column: 22, filePath: 'src/BlazorAdmin/Services/HttpService.cs',
+        language: 'csharp' as const,
+      };
+      const result = matchReference(ref, baseContext([genericMethod]));
+      expect(result).not.toBeNull();
+      expect(result?.targetNodeId).toBe(genericMethod.id);
+    });
+
+    it('resolves a receiver-qualified generic call `svc.Helper<int, string>`', () => {
+      const helper: Node = {
+        id: 'method:Svc.cs:Svc::Helper:40', kind: 'method', name: 'Helper',
+        qualifiedName: 'App::Svc::Helper', filePath: 'Svc.cs', language: 'csharp',
+        startLine: 40, endLine: 50, startColumn: 0, endColumn: 0, updatedAt: Date.now(),
+      };
+      const ref = {
+        fromNodeId: 'method:Svc.cs:Svc::A:10',
+        referenceName: 'svc.Helper<int, string>',
+        referenceKind: 'calls' as const,
+        line: 12, column: 16, filePath: 'Svc.cs', language: 'csharp' as const,
+      };
+      const result = matchReference(ref, baseContext([helper]));
+      expect(result).not.toBeNull();
+      expect(result?.targetNodeId).toBe(helper.id);
+    });
+
+    it('does not strip non-call refs or names without a generic suffix', () => {
+      expect(stripGenericTypeArgs('FromHttpResponseMessage<T>')).toBe('FromHttpResponseMessage');
+      expect(stripGenericTypeArgs('obj.Helper<int, string>')).toBe('obj.Helper');
+      expect(stripGenericTypeArgs('NormalCall')).toBe('NormalCall');
+      expect(stripGenericTypeArgs('Map<K, V>')).toBe('Map');
+      expect(stripGenericTypeArgs('a.Compare(x, y)')).toBe('a.Compare(x, y)');
     });
   });
 

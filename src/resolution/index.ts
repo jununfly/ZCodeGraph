@@ -18,7 +18,7 @@ import {
   FrameworkResolver,
   ImportMapping,
 } from './types';
-import { matchReference, sameLanguageFamily, crossesKnownFamily } from './name-matcher';
+import { matchReference, sameLanguageFamily, crossesKnownFamily, stripGenericTypeArgs } from './name-matcher';
 import {
   resolveViaImport,
   resolveJvmImport,
@@ -822,6 +822,14 @@ export class ReferenceResolver {
       ? this.candidateProvider.hasKnownName(name)
       : this.knownNames.has(name);
     if (directPresence) return true;
+
+    // Generic call-site: `FromHttpResponseMessage<T>` / `obj.Helper<int>` —
+    // extraction keeps the type-argument suffix but no declared node carries
+    // it. Retry with the suffix stripped before the part-based fallbacks.
+    if (name.endsWith('>')) {
+      const stripped = stripGenericTypeArgs(name);
+      if (stripped !== name && this.hasAnyPossibleMatch(stripped)) return true;
+    }
 
     // For qualified names like "obj.method" or "Class::method", check the parts
     const dotIdx = name.indexOf('.');
