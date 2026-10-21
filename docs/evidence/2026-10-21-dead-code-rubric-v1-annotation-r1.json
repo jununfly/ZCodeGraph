@@ -1,0 +1,4682 @@
+{
+  "metric": "dead-code-annotate-r1",
+  "rubric": "DES-dead-code-rubric-v1",
+  "startedAt": "2026-10-21T05:27:34.873Z",
+  "seed": 20261021,
+  "sampleDead": 30,
+  "sampleMin": 30,
+  "corpora": [
+    {
+      "slug": "spring-projects/spring-petclinic",
+      "language": "java",
+      "pinned_sha": "500158f732419217507c7656904b8e6aa1bcc0d6",
+      "sparse": [
+        "src"
+      ],
+      "candidates": 25,
+      "buckets": {
+        "dead": 1,
+        "alive": 7,
+        "unknown": 17
+      },
+      "unknown_ratio": 0.68,
+      "sample_size": 25,
+      "sample": [
+        {
+          "id": "method:272848d71c705dc59de23b00a985501b",
+          "name": "findAll",
+          "qualified_name": "org.springframework.samples.petclinic.vet::VetRepository::findAll",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/vet/VetRepository.java",
+          "start_line": 54,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#1"
+          },
+          "arbitration": {
+            "corpus": "spring-projects/spring-petclinic",
+            "id": "method:272848d71c705dc59de23b00a985501b",
+            "qualified_name": "org.springframework.samples.petclinic.vet::VetRepository::findAll",
+            "file_path": "src/main/java/org/springframework/samples/petclinic/vet/VetRepository.java",
+            "start_line": 54,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: spring-data repository proxy (frontier)"
+          }
+        },
+        {
+          "id": "method:086013a4e2d12a60594b9ba4bfd258af",
+          "name": "VetController",
+          "qualified_name": "org.springframework.samples.petclinic.vet::VetController::VetController",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/vet/VetController.java",
+          "start_line": 40,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:8fdc0747ac6e0f04ad2f8928a41d72b4",
+          "name": "Visit",
+          "qualified_name": "org.springframework.samples.petclinic.owner::Visit::Visit",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/Visit.java",
+          "start_line": 48,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:0ca7d0d6c927040d074a2b95f0b9fbd9",
+          "name": "localeResolver",
+          "qualified_name": "org.springframework.samples.petclinic.system::WebConfiguration::localeResolver",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/system/WebConfiguration.java",
+          "start_line": 32,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:c987962ed62ce4d530f64158eced0a43",
+          "name": "initPetBinder",
+          "qualified_name": "org.springframework.samples.petclinic.owner::PetController::initPetBinder",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+          "start_line": 93,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:6fbc99eb2990bb102a0384597552e234",
+          "name": "initNewVisitForm",
+          "qualified_name": "org.springframework.samples.petclinic.owner::VisitController::initNewVisitForm",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+          "start_line": 84,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "route-link"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:a9cc5aa06c1df2a53760036f06bd94bb",
+          "name": "main",
+          "qualified_name": "org.springframework.samples.petclinic::PetClinicApplication::main",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/PetClinicApplication.java",
+          "start_line": 32,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "entry-name",
+            "name": "main"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:99393f42e0cfbbb26f8117781f56a4c1",
+          "name": "initCreationForm",
+          "qualified_name": "org.springframework.samples.petclinic.owner::OwnerController::initCreationForm",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+          "start_line": 72,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "route-link"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:6cd3d58cd3f30a1013369ae525c0452d",
+          "name": "initUpdateOwnerForm",
+          "qualified_name": "org.springframework.samples.petclinic.owner::OwnerController::initUpdateOwnerForm",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+          "start_line": 136,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "route-link"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:af16979862534f206843779b871f6ca5",
+          "name": "getDescription",
+          "qualified_name": "org.springframework.samples.petclinic.owner::Visit::getDescription",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/Visit.java",
+          "start_line": 60,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:fda478cbd299a64a203bc37647243d55",
+          "name": "welcome",
+          "qualified_name": "org.springframework.samples.petclinic.system::WelcomeController::welcome",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/system/WelcomeController.java",
+          "start_line": 25,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "route-link"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:ebd72ce23ca5cc03dc8c72b12c2e7709",
+          "name": "setAllowedFields",
+          "qualified_name": "org.springframework.samples.petclinic.owner::VisitController::setAllowedFields",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+          "start_line": 50,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:d202a5bd473acbcf586b7f286cb31e74",
+          "name": "setAllowedFields",
+          "qualified_name": "org.springframework.samples.petclinic.owner::OwnerController::setAllowedFields",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+          "start_line": 59,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:568eb99681c4d6ecf1b1e9c5528ee4e0",
+          "name": "OwnerController",
+          "qualified_name": "org.springframework.samples.petclinic.owner::OwnerController::OwnerController",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+          "start_line": 55,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:5c7433d400f1a4736e32ad70a65b75c9",
+          "name": "PetTypeFormatter",
+          "qualified_name": "org.springframework.samples.petclinic.owner::PetTypeFormatter::PetTypeFormatter",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/PetTypeFormatter.java",
+          "start_line": 41,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:7ef59c6d75c3ac6f5852dee73a3457d9",
+          "name": "getTelephone",
+          "qualified_name": "org.springframework.samples.petclinic.owner::Owner::getTelephone",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+          "start_line": 85,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:fa2ec9d1da0d2ac6d839c878c3dcc3a6",
+          "name": "initFindForm",
+          "qualified_name": "org.springframework.samples.petclinic.owner::OwnerController::initFindForm",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+          "start_line": 89,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "route-link"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:a9417192dc7bc450ec2d1dbbd7800496",
+          "name": "getDate",
+          "qualified_name": "org.springframework.samples.petclinic.owner::Visit::getDate",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/Visit.java",
+          "start_line": 52,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:25ca53929fd51b3c0a6960bbb39d0bef",
+          "name": "getCity",
+          "qualified_name": "org.springframework.samples.petclinic.owner::Owner::getCity",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+          "start_line": 77,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:1900fef459683938a7806cbdc1608510",
+          "name": "PetController",
+          "qualified_name": "org.springframework.samples.petclinic.owner::PetController::PetController",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+          "start_line": 56,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:b9f42838915e9fb942dc090ed20a284f",
+          "name": "initUpdateForm",
+          "qualified_name": "org.springframework.samples.petclinic.owner::PetController::initUpdateForm",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+          "start_line": 129,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "route-link"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:22e5bd7ef7bf5ece9ac9dd0bf4d2da3f",
+          "name": "initOwnerBinder",
+          "qualified_name": "org.springframework.samples.petclinic.owner::PetController::initOwnerBinder",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+          "start_line": 88,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:7a9c1f9835ced26afccaa16fbab96751",
+          "name": "VisitController",
+          "qualified_name": "org.springframework.samples.petclinic.owner::VisitController::VisitController",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+          "start_line": 46,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:c86f90442b757e96bfbb54b21bd6a434",
+          "name": "getAddress",
+          "qualified_name": "org.springframework.samples.petclinic.owner::Owner::getAddress",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+          "start_line": 69,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:cffe9b791bda5701d1fb145ed2c20ad4",
+          "name": "supports",
+          "qualified_name": "org.springframework.samples.petclinic.owner::PetValidator::supports",
+          "file_path": "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+          "start_line": 59,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        }
+      ]
+    },
+    {
+      "slug": "dotnet-architecture/eShopOnWeb",
+      "language": "csharp",
+      "pinned_sha": "4da8212117e87d808d4bbc7da6286fd2147ce606",
+      "sparse": [
+        "src"
+      ],
+      "candidates": 161,
+      "buckets": {
+        "dead": 17,
+        "alive": 15,
+        "unknown": 129
+      },
+      "unknown_ratio": 0.801,
+      "sample_size": 34,
+      "sample": [
+        {
+          "id": "method:8bcaac46114b5861f9a728df766e09de",
+          "name": "Buyer",
+          "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Entities.BuyerAggregate::Buyer::Buyer",
+          "file_path": "src/ApplicationCore/Entities/BuyerAggregate/Buyer.cs",
+          "start_line": 16,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#2"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:8bcaac46114b5861f9a728df766e09de",
+            "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Entities.BuyerAggregate::Buyer::Buyer",
+            "file_path": "src/ApplicationCore/Entities/BuyerAggregate/Buyer.cs",
+            "start_line": 16,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: EF-core/DDD ctor via reflection or app code outside indexed surface"
+          }
+        },
+        {
+          "id": "method:0cc1159e2a8501c2a8ebf60e8bb25e67",
+          "name": "Address",
+          "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Entities.OrderAggregate::Address::Address",
+          "file_path": "src/ApplicationCore/Entities/OrderAggregate/Address.cs",
+          "start_line": 16,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#3"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:0cc1159e2a8501c2a8ebf60e8bb25e67",
+            "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Entities.OrderAggregate::Address::Address",
+            "file_path": "src/ApplicationCore/Entities/OrderAggregate/Address.cs",
+            "start_line": 16,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: EF-core/DDD ctor via reflection or app code outside indexed surface"
+          }
+        },
+        {
+          "id": "method:830a1ed48aa668edc40e9aca17fb565a",
+          "name": "CatalogItemOrdered",
+          "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Entities.OrderAggregate::CatalogItemOrdered::CatalogItemOrdered",
+          "file_path": "src/ApplicationCore/Entities/OrderAggregate/CatalogItemOrdered.cs",
+          "start_line": 23,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#4"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:830a1ed48aa668edc40e9aca17fb565a",
+            "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Entities.OrderAggregate::CatalogItemOrdered::CatalogItemOrdered",
+            "file_path": "src/ApplicationCore/Entities/OrderAggregate/CatalogItemOrdered.cs",
+            "start_line": 23,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: EF-core/DDD ctor via reflection or app code outside indexed surface"
+          }
+        },
+        {
+          "id": "method:df2b5de494c1dca2885865ab12460108",
+          "name": "Order",
+          "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Entities.OrderAggregate::Order::Order",
+          "file_path": "src/ApplicationCore/Entities/OrderAggregate/Order.cs",
+          "start_line": 11,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#5"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:df2b5de494c1dca2885865ab12460108",
+            "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Entities.OrderAggregate::Order::Order",
+            "file_path": "src/ApplicationCore/Entities/OrderAggregate/Order.cs",
+            "start_line": 11,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: EF-core/DDD ctor via reflection or app code outside indexed surface"
+          }
+        },
+        {
+          "id": "method:3c9559c0f2eb625bf8e9a2d01f728688",
+          "name": "OrderItem",
+          "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Entities.OrderAggregate::OrderItem::OrderItem",
+          "file_path": "src/ApplicationCore/Entities/OrderAggregate/OrderItem.cs",
+          "start_line": 10,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#6"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:3c9559c0f2eb625bf8e9a2d01f728688",
+            "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Entities.OrderAggregate::OrderItem::OrderItem",
+            "file_path": "src/ApplicationCore/Entities/OrderAggregate/OrderItem.cs",
+            "start_line": 10,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: EF-core/DDD ctor via reflection or app code outside indexed surface"
+          }
+        },
+        {
+          "id": "method:54798d0f2118a3d52c2d0d4c7268f678",
+          "name": "EmptyBasketOnCheckoutException",
+          "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Exceptions::EmptyBasketOnCheckoutException::EmptyBasketOnCheckoutException",
+          "file_path": "src/ApplicationCore/Exceptions/EmptyBasketOnCheckoutException.cs",
+          "start_line": 12,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#7"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:54798d0f2118a3d52c2d0d4c7268f678",
+            "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Exceptions::EmptyBasketOnCheckoutException::EmptyBasketOnCheckoutException",
+            "file_path": "src/ApplicationCore/Exceptions/EmptyBasketOnCheckoutException.cs",
+            "start_line": 12,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: EF-core/DDD ctor via reflection or app code outside indexed surface"
+          }
+        },
+        {
+          "id": "method:6e11cbe4c8076dd1478afe5a4d1c06f1",
+          "name": "DoRefresh",
+          "qualified_name": "BlazorAdmin.Helpers::BlazorComponent::DoRefresh",
+          "file_path": "src/BlazorAdmin/Helpers/BlazorComponent.cs",
+          "start_line": 20,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-auto:java-csharp-public-method"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:6e11cbe4c8076dd1478afe5a4d1c06f1",
+            "qualified_name": "BlazorAdmin.Helpers::BlazorComponent::DoRefresh",
+            "file_path": "src/BlazorAdmin/Helpers/BlazorComponent.cs",
+            "start_line": 20,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "rubric-gap: blazor markup/lifecycle entry (R2 framework-entry missing)"
+          }
+        },
+        {
+          "id": "method:4784620996db33521b76ef032790d849",
+          "name": "DoRefresh",
+          "qualified_name": "BlazorAdmin.Helpers::BlazorLayoutComponent::DoRefresh",
+          "file_path": "src/BlazorAdmin/Helpers/BlazorLayoutComponent.cs",
+          "start_line": 20,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-auto:java-csharp-public-method"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:4784620996db33521b76ef032790d849",
+            "qualified_name": "BlazorAdmin.Helpers::BlazorLayoutComponent::DoRefresh",
+            "file_path": "src/BlazorAdmin/Helpers/BlazorLayoutComponent.cs",
+            "start_line": 20,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "rubric-gap: blazor markup/lifecycle entry (R2 framework-entry missing)"
+          }
+        },
+        {
+          "id": "method:d63a93539372e38d3529a76a6ad37868",
+          "name": "RefreshBroadcast",
+          "qualified_name": "BlazorAdmin.Helpers::RefreshBroadcast::RefreshBroadcast",
+          "file_path": "src/BlazorAdmin/Helpers/RefreshBroadcast.cs",
+          "start_line": 14,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#8"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:d63a93539372e38d3529a76a6ad37868",
+            "qualified_name": "BlazorAdmin.Helpers::RefreshBroadcast::RefreshBroadcast",
+            "file_path": "src/BlazorAdmin/Helpers/RefreshBroadcast.cs",
+            "start_line": 14,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: same-file call edge missed by extractor"
+          }
+        },
+        {
+          "id": "method:94ed877dbd01cff5a9d7cc0fa46029a6",
+          "name": "OnInitialized",
+          "qualified_name": "BlazorAdmin.Helpers::ToastComponent::OnInitialized",
+          "file_path": "src/BlazorAdmin/Helpers/ToastComponent.cs",
+          "start_line": 40,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#9"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:94ed877dbd01cff5a9d7cc0fa46029a6",
+            "qualified_name": "BlazorAdmin.Helpers::ToastComponent::OnInitialized",
+            "file_path": "src/BlazorAdmin/Helpers/ToastComponent.cs",
+            "start_line": 40,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: blazor markup/lifecycle entry (R2 framework-entry missing)"
+          }
+        },
+        {
+          "id": "method:a35a6d81aa58d1fa4eaa01eef49eb357",
+          "name": "HideToast",
+          "qualified_name": "BlazorAdmin.Helpers::ToastComponent::HideToast",
+          "file_path": "src/BlazorAdmin/Helpers/ToastComponent.cs",
+          "start_line": 51,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#10"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:a35a6d81aa58d1fa4eaa01eef49eb357",
+            "qualified_name": "BlazorAdmin.Helpers::ToastComponent::HideToast",
+            "file_path": "src/BlazorAdmin/Helpers/ToastComponent.cs",
+            "start_line": 51,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: blazor markup/lifecycle entry (R2 framework-entry missing)"
+          }
+        },
+        {
+          "id": "method:78721e2bfc2f57b126b4a4e5372931bf",
+          "name": "DetailsClick",
+          "qualified_name": "BlazorAdmin.Pages.CatalogItemPage::List::DetailsClick",
+          "file_path": "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+          "start_line": 43,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#11"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:78721e2bfc2f57b126b4a4e5372931bf",
+            "qualified_name": "BlazorAdmin.Pages.CatalogItemPage::List::DetailsClick",
+            "file_path": "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+            "start_line": 43,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: blazor markup/lifecycle entry (R2 framework-entry missing)"
+          }
+        },
+        {
+          "id": "method:6ba5e2a20e84c6587321e3ce6e2a7ab5",
+          "name": "CreateClick",
+          "qualified_name": "BlazorAdmin.Pages.CatalogItemPage::List::CreateClick",
+          "file_path": "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+          "start_line": 48,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#12"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:6ba5e2a20e84c6587321e3ce6e2a7ab5",
+            "qualified_name": "BlazorAdmin.Pages.CatalogItemPage::List::CreateClick",
+            "file_path": "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+            "start_line": 48,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: blazor markup/lifecycle entry (R2 framework-entry missing)"
+          }
+        },
+        {
+          "id": "method:ec67dd89ff66579b2ea1e4f2d571a18c",
+          "name": "EditClick",
+          "qualified_name": "BlazorAdmin.Pages.CatalogItemPage::List::EditClick",
+          "file_path": "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+          "start_line": 53,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#13"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:ec67dd89ff66579b2ea1e4f2d571a18c",
+            "qualified_name": "BlazorAdmin.Pages.CatalogItemPage::List::EditClick",
+            "file_path": "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+            "start_line": 53,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: blazor markup/lifecycle entry (R2 framework-entry missing)"
+          }
+        },
+        {
+          "id": "method:5aea461ddec24a88d496dbca37163f59",
+          "name": "DeleteClick",
+          "qualified_name": "BlazorAdmin.Pages.CatalogItemPage::List::DeleteClick",
+          "file_path": "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+          "start_line": 58,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#14"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:5aea461ddec24a88d496dbca37163f59",
+            "qualified_name": "BlazorAdmin.Pages.CatalogItemPage::List::DeleteClick",
+            "file_path": "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+            "start_line": 58,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: blazor markup/lifecycle entry (R2 framework-entry missing)"
+          }
+        },
+        {
+          "id": "method:0fa6a9baa4e1334fda80222ab2aac86c",
+          "name": "FromHttpResponseMessage",
+          "qualified_name": "BlazorAdmin.Services::HttpService::FromHttpResponseMessage",
+          "file_path": "src/BlazorAdmin/Services/HttpService.cs",
+          "start_line": 89,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#15"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:0fa6a9baa4e1334fda80222ab2aac86c",
+            "qualified_name": "BlazorAdmin.Services::HttpService::FromHttpResponseMessage",
+            "file_path": "src/BlazorAdmin/Services/HttpService.cs",
+            "start_line": 89,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: same-file call edge missed by extractor"
+          }
+        },
+        {
+          "id": "method:aeaf31aa72a8aea6366575f35bf91399",
+          "name": "HideToast",
+          "qualified_name": "BlazorAdmin.Services::ToastService::HideToast",
+          "file_path": "src/BlazorAdmin/Services/ToastService.cs",
+          "start_line": 46,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#16"
+          },
+          "arbitration": {
+            "corpus": "dotnet-architecture/eShopOnWeb",
+            "id": "method:aeaf31aa72a8aea6366575f35bf91399",
+            "qualified_name": "BlazorAdmin.Services::ToastService::HideToast",
+            "file_path": "src/BlazorAdmin/Services/ToastService.cs",
+            "start_line": 46,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: same-file call edge missed by extractor"
+          }
+        },
+        {
+          "id": "method:105ef2ab14ea789b9563974e9047ba11",
+          "name": "CatalogItemGetByIdEndpoint",
+          "qualified_name": "Microsoft.eShopWeb.PublicApi.CatalogItemEndpoints::CatalogItemGetByIdEndpoint::CatalogItemGetByIdEndpoint",
+          "file_path": "src/PublicApi/CatalogItemEndpoints/CatalogItemGetByIdEndpoint.cs",
+          "start_line": 18,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "interface-dispatch",
+            "owner": "class:ef4d28b66e403f0a4de31c7c11f036ee"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:5b3e36020f46f8ccacb3544464f43ff8",
+          "name": "CatalogBrandListEndpoint",
+          "qualified_name": "Microsoft.eShopWeb.PublicApi.CatalogBrandEndpoints::CatalogBrandListEndpoint::CatalogBrandListEndpoint",
+          "file_path": "src/PublicApi/CatalogBrandEndpoints/CatalogBrandListEndpoint.cs",
+          "start_line": 20,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "interface-dispatch",
+            "owner": "class:ab663d933cd8c649c66445bc7ed78bb0"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:490d504fbd5ff8f085a98ffae830b555",
+          "name": "AuthenticateEndpoint",
+          "qualified_name": "Microsoft.eShopWeb.PublicApi.AuthEndpoints::AuthenticateEndpoint::AuthenticateEndpoint",
+          "file_path": "src/PublicApi/AuthEndpoints/AuthenticateEndpoint.cs",
+          "start_line": 22,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:05a66906de13a25a3f5e8e9dc984b539",
+          "name": "UserNotFoundException",
+          "qualified_name": "Microsoft.eShopWeb.Infrastructure.Identity::UserNotFoundException::UserNotFoundException",
+          "file_path": "src/Infrastructure/Identity/UserNotFoundException.cs",
+          "start_line": 7,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:f3c130f7eb127ba2039daf94fe7a92ac",
+          "name": "Dispose",
+          "qualified_name": "BlazorAdmin.Helpers::ToastComponent::Dispose",
+          "file_path": "src/BlazorAdmin/Helpers/ToastComponent.cs",
+          "start_line": 83,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "callback-name",
+            "name": "Dispose"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:a9ef9cea57030fa169914ca22e7e616a",
+          "name": "EmptyBasketOnCheckoutException",
+          "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Exceptions::EmptyBasketOnCheckoutException::EmptyBasketOnCheckoutException",
+          "file_path": "src/ApplicationCore/Exceptions/EmptyBasketOnCheckoutException.cs",
+          "start_line": 20,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:766b06835111c03fde5c033f1c960b0b",
+          "name": "HttpGet",
+          "qualified_name": "BlazorAdmin.Services::HttpService::HttpGet",
+          "file_path": "src/BlazorAdmin/Services/HttpService.cs",
+          "start_line": 25,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:26449bdfc9a27cef554e5673b1cad111",
+          "name": "CustomAuthStateProvider",
+          "qualified_name": "BlazorAdmin::CustomAuthStateProvider::CustomAuthStateProvider",
+          "file_path": "src/BlazorAdmin/CustomAuthStateProvider.cs",
+          "start_line": 24,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:accfeacc62a72da1a1ea906ca69cc64d",
+          "name": "BasketNotFoundException",
+          "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Exceptions::BasketNotFoundException::BasketNotFoundException",
+          "file_path": "src/ApplicationCore/Exceptions/BasketNotFoundException.cs",
+          "start_line": 7,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:f0e36e6f1b1d8c7007013d89af618d46",
+          "name": "UriComposer",
+          "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Services::UriComposer::UriComposer",
+          "file_path": "src/ApplicationCore/Services/UriComposer.cs",
+          "start_line": 9,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "interface-dispatch",
+            "owner": "class:776f214cabf4d5ce8b92ff480b128e7e"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:87fe05a0fd9171f65a72394887994e73",
+          "name": "Basket",
+          "qualified_name": "Microsoft.eShopWeb.ApplicationCore.Entities.BasketAggregate::Basket::Basket",
+          "file_path": "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+          "start_line": 17,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:10d951610e070ab999bfe5ad0940bff3",
+          "name": "HttpDelete",
+          "qualified_name": "BlazorAdmin.Services::HttpService::HttpDelete",
+          "file_path": "src/BlazorAdmin/Services/HttpService.cs",
+          "start_line": 37,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:36761ac0f03e061b71d596fc0f007a9e",
+          "name": "ListCatalogBrandsResponse",
+          "qualified_name": "Microsoft.eShopWeb.PublicApi.CatalogBrandEndpoints::ListCatalogBrandsResponse::ListCatalogBrandsResponse",
+          "file_path": "src/PublicApi/CatalogBrandEndpoints/CatalogBrandListEndpoint.ListCatalogBrandsResponse.cs",
+          "start_line": 12,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:bc9f049ab75891c6979b8c1042b8d200",
+          "name": "ListCatalogBrandsResponse",
+          "qualified_name": "Microsoft.eShopWeb.PublicApi.CatalogBrandEndpoints::ListCatalogBrandsResponse::ListCatalogBrandsResponse",
+          "file_path": "src/PublicApi/CatalogBrandEndpoints/CatalogBrandListEndpoint.ListCatalogBrandsResponse.cs",
+          "start_line": 8,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:4fa6336a1b24faec0d9981f1102fcf14",
+          "name": "CatalogContext",
+          "qualified_name": "Microsoft.eShopWeb.Infrastructure.Data::CatalogContext::CatalogContext",
+          "file_path": "src/Infrastructure/Data/CatalogContext.cs",
+          "start_line": 12,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "reflection_context",
+            "file": "src/Infrastructure/Data/CatalogContext.cs"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:caedf0274e2fb0e2b92adc5f8623ae60",
+          "name": "ExternalLogins",
+          "qualified_name": "Microsoft.eShopWeb.Web.Controllers::ManageController::ExternalLogins",
+          "file_path": "src/Web/Controllers/ManageController.cs",
+          "start_line": 233,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "httpget",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:2770ad96e12139b5d9776afbbe93c598",
+          "name": "RevokeAuthenticationEvents",
+          "qualified_name": "Microsoft.eShopWeb.Web.Configuration::RevokeAuthenticationEvents::RevokeAuthenticationEvents",
+          "file_path": "src/Web/Configuration/RevokeAuthenticationEvents.cs",
+          "start_line": 17,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        }
+      ]
+    },
+    {
+      "slug": "drupal/drupal",
+      "language": "php",
+      "pinned_sha": "d3cbca3f02c76a159f1e9210f366f3c92b4474a2",
+      "sparse": [
+        "core/lib",
+        "core/modules"
+      ],
+      "candidates": 22763,
+      "buckets": {
+        "dead": 3949,
+        "alive": 2498,
+        "unknown": 16316
+      },
+      "unknown_ratio": 0.717,
+      "sample_size": 60,
+      "sample": [
+        {
+          "id": "function:f9d7c1d2149228385a3585dcd93d139d",
+          "name": "filterBlockList",
+          "qualified_name": "core/modules/block/js/block.admin.js::filterBlockList",
+          "file_path": "core/modules/block/js/block.admin.js",
+          "start_line": 35,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#17"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:f9d7c1d2149228385a3585dcd93d139d",
+            "qualified_name": "core/modules/block/js/block.admin.js::filterBlockList",
+            "file_path": "core/modules/block/js/block.admin.js",
+            "start_line": 35,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:4d9d0f68062d0a643cebe271c47bff42",
+          "name": "toggleBlockEntry",
+          "qualified_name": "core/modules/block/js/block.admin.js::toggleBlockEntry",
+          "file_path": "core/modules/block/js/block.admin.js",
+          "start_line": 46,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#18"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:4d9d0f68062d0a643cebe271c47bff42",
+            "qualified_name": "core/modules/block/js/block.admin.js::toggleBlockEntry",
+            "file_path": "core/modules/block/js/block.admin.js",
+            "start_line": 46,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:e6d34a69c3036b6ef2ab1872503c0b21",
+          "name": "checkboxesSummary",
+          "qualified_name": "core/modules/block/js/block.js::checkboxesSummary",
+          "file_path": "core/modules/block/js/block.js",
+          "start_line": 33,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#19"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:e6d34a69c3036b6ef2ab1872503c0b21",
+            "qualified_name": "core/modules/block/js/block.js::checkboxesSummary",
+            "file_path": "core/modules/block/js/block.js",
+            "start_line": 33,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:c6783e8a7476e724da0f34251d48dcf2",
+          "name": "i",
+          "qualified_name": "core/modules/ckeditor5/js/build/drupalEntityLinkSuggestions.js::i",
+          "file_path": "core/modules/ckeditor5/js/build/drupalEntityLinkSuggestions.js",
+          "start_line": 1,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#20"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:c6783e8a7476e724da0f34251d48dcf2",
+            "qualified_name": "core/modules/ckeditor5/js/build/drupalEntityLinkSuggestions.js::i",
+            "file_path": "core/modules/ckeditor5/js/build/drupalEntityLinkSuggestions.js",
+            "start_line": 1,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "corpus-noise: minified js bundle symbols"
+          }
+        },
+        {
+          "id": "function:f91c546ff919792544d1e79f0612da39",
+          "name": "s",
+          "qualified_name": "core/modules/ckeditor5/js/build/drupalEntityLinkSuggestions.js::s",
+          "file_path": "core/modules/ckeditor5/js/build/drupalEntityLinkSuggestions.js",
+          "start_line": 1,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#21"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:f91c546ff919792544d1e79f0612da39",
+            "qualified_name": "core/modules/ckeditor5/js/build/drupalEntityLinkSuggestions.js::s",
+            "file_path": "core/modules/ckeditor5/js/build/drupalEntityLinkSuggestions.js",
+            "start_line": 1,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "corpus-noise: minified js bundle symbols"
+          }
+        },
+        {
+          "id": "function:cea695085451498fde86de942ac7d20d",
+          "name": "u",
+          "qualified_name": "core/modules/ckeditor5/js/build/drupalEntityLinkSuggestions.js::u",
+          "file_path": "core/modules/ckeditor5/js/build/drupalEntityLinkSuggestions.js",
+          "start_line": 1,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#22"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:cea695085451498fde86de942ac7d20d",
+            "qualified_name": "core/modules/ckeditor5/js/build/drupalEntityLinkSuggestions.js::u",
+            "file_path": "core/modules/ckeditor5/js/build/drupalEntityLinkSuggestions.js",
+            "start_line": 1,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "corpus-noise: minified js bundle symbols"
+          }
+        },
+        {
+          "id": "function:7793def4a17411dd3bbcb5a10c74acf7",
+          "name": "_",
+          "qualified_name": "core/modules/ckeditor5/js/build/drupalMedia.js::_",
+          "file_path": "core/modules/ckeditor5/js/build/drupalMedia.js",
+          "start_line": 1,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#23"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:7793def4a17411dd3bbcb5a10c74acf7",
+            "qualified_name": "core/modules/ckeditor5/js/build/drupalMedia.js::_",
+            "file_path": "core/modules/ckeditor5/js/build/drupalMedia.js",
+            "start_line": 1,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "corpus-noise: minified js bundle symbols"
+          }
+        },
+        {
+          "id": "function:4b8ac95a27845e18539df137b7ea1744",
+          "name": "i",
+          "qualified_name": "core/modules/ckeditor5/js/build/drupalMedia.js::i",
+          "file_path": "core/modules/ckeditor5/js/build/drupalMedia.js",
+          "start_line": 1,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#24"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:4b8ac95a27845e18539df137b7ea1744",
+            "qualified_name": "core/modules/ckeditor5/js/build/drupalMedia.js::i",
+            "file_path": "core/modules/ckeditor5/js/build/drupalMedia.js",
+            "start_line": 1,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "corpus-noise: minified js bundle symbols"
+          }
+        },
+        {
+          "id": "function:4b000d92e9e45c25cbe9837f519fd33e",
+          "name": "F",
+          "qualified_name": "core/modules/ckeditor5/js/build/drupalMedia.js::F",
+          "file_path": "core/modules/ckeditor5/js/build/drupalMedia.js",
+          "start_line": 1,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#25"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:4b000d92e9e45c25cbe9837f519fd33e",
+            "qualified_name": "core/modules/ckeditor5/js/build/drupalMedia.js::F",
+            "file_path": "core/modules/ckeditor5/js/build/drupalMedia.js",
+            "start_line": 1,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "corpus-noise: minified js bundle symbols"
+          }
+        },
+        {
+          "id": "function:17829f150451a89d921a76a1b4168e76",
+          "name": "Observable",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::Observable",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+          "start_line": 39,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#26"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:17829f150451a89d921a76a1b4168e76",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::Observable",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+            "start_line": 39,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:c557aeb21a3e543bdfa382ccbaab8391",
+          "name": "toolbarHelpText",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::toolbarHelpText",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+          "start_line": 247,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#27"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:c557aeb21a3e543bdfa382ccbaab8391",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::toolbarHelpText",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+            "start_line": 247,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:e9891a0ed28adae7dba1640a41b305b5",
+          "name": "toolbarAvailableButtons",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::toolbarAvailableButtons",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+          "start_line": 306,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#28"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:e9891a0ed28adae7dba1640a41b305b5",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::toolbarAvailableButtons",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+            "start_line": 306,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:06dbb33dc9f4b07b9111e5ea87524095",
+          "name": "expandButton",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::expandButton",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+          "start_line": 346,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#29"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:06dbb33dc9f4b07b9111e5ea87524095",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::expandButton",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+            "start_line": 346,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:1e3100dd671a717e16ba016401e387c5",
+          "name": "retractButton",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::retractButton",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+          "start_line": 353,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#30"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:1e3100dd671a717e16ba016401e387c5",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::retractButton",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+            "start_line": 353,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:6253eb48f84df7a0242c4a743da94919",
+          "name": "announceChange",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::announceChange",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+          "start_line": 385,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#31"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:6253eb48f84df7a0242c4a743da94919",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::announceChange",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+            "start_line": 385,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:9caabb6dbde06cb09db5fbe14c377c65",
+          "name": "announceChange",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::announceChange",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+          "start_line": 452,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#32"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:9caabb6dbde06cb09db5fbe14c377c65",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::announceChange",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+            "start_line": 452,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:65413dabae6f14ff0c45a05ac35c5b66",
+          "name": "announceChange",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::announceChange",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+          "start_line": 492,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#33"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:65413dabae6f14ff0c45a05ac35c5b66",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::announceChange",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+            "start_line": 492,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:a1e31ddea576e6edb19baa766e399f45",
+          "name": "available",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::available",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+          "start_line": 541,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#34"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:a1e31ddea576e6edb19baa766e399f45",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::available",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+            "start_line": 541,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:656da91cd3366fb613ff46e023422555",
+          "name": "selected",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::selected",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+          "start_line": 564,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#35"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:656da91cd3366fb613ff46e023422555",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5.admin.js::selected",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5.admin.js",
+            "start_line": 564,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:bbea61ebe573fd093a15372d8871e0d6",
+          "name": "redirectTextareaFragmentToCKEditor5Instance",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5.js::redirectTextareaFragmentToCKEditor5Instance",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5.js",
+          "start_line": 681,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#36"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:bbea61ebe573fd093a15372d8871e0d6",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5.js::redirectTextareaFragmentToCKEditor5Instance",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5.js",
+            "start_line": 681,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:8dc68ecd2fc3606d669bb022b404db07",
+          "name": "styleCount",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5.style.admin.js::styleCount",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5.style.admin.js",
+          "start_line": 22,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#37"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:8dc68ecd2fc3606d669bb022b404db07",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5.style.admin.js::styleCount",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5.style.admin.js",
+            "start_line": 22,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:126b65d489ed1750e7f88e9cb3b1874f",
+          "name": "renderItem",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js::renderItem",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js",
+          "start_line": 16,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#38"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:126b65d489ed1750e7f88e9cb3b1874f",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js::renderItem",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js",
+            "start_line": 16,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:9e8e97d2ac3a24eff908bc93e887a344",
+          "name": "renderMenu",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js::renderMenu",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js",
+          "start_line": 42,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#39"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:9e8e97d2ac3a24eff908bc93e887a344",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js::renderMenu",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js",
+            "start_line": 42,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:09f7d40a6172144d9bb94f13466feda2",
+          "name": "sourceData",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js::sourceData",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js",
+          "start_line": 89,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#40"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:09f7d40a6172144d9bb94f13466feda2",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js::sourceData",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js",
+            "start_line": 89,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:3bd5750620658bdec9050a287b0f5b19",
+          "name": "sourceCallbackHandler",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js::sourceCallbackHandler",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js",
+          "start_line": 99,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#41"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:3bd5750620658bdec9050a287b0f5b19",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js::sourceCallbackHandler",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js",
+            "start_line": 99,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:2f7ce1ec3b557a38f30fc2b85a9d11ae",
+          "name": "options",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js::options",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js",
+          "start_line": 120,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#42"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:2f7ce1ec3b557a38f30fc2b85a9d11ae",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js::options",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalEntityLinkSuggestions/src/autocomplete.js",
+            "start_line": 120,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:b33ce2b055ac273ac45633a1afaaba45",
+          "name": "converter",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js::converter",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js",
+          "start_line": 92,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#43"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:b33ce2b055ac273ac45633a1afaaba45",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js::converter",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js",
+            "start_line": 92,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:b3b8679fd1e6558b0a0c389766a17fb3",
+          "name": "imageInFigure",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js::imageInFigure",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js",
+          "start_line": 101,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#44"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:b3b8679fd1e6558b0a0c389766a17fb3",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js::imageInFigure",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js",
+            "start_line": 101,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:284065dde3e5d998ce5ce130b7305877",
+          "name": "converter",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js::converter",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js",
+          "start_line": 253,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#45"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:284065dde3e5d998ce5ce130b7305877",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js::converter",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js",
+            "start_line": 253,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "function:3a406e79328227267f9332cc577a9396",
+          "name": "imageInFigure",
+          "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js::imageInFigure",
+          "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js",
+          "start_line": 262,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#46"
+          },
+          "arbitration": {
+            "corpus": "drupal/drupal",
+            "id": "function:3a406e79328227267f9332cc577a9396",
+            "qualified_name": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js::imageInFigure",
+            "file_path": "core/modules/ckeditor5/js/ckeditor5_plugins/drupalImage/src/drupalimageediting.js",
+            "start_line": 262,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "rubric-gap: js closure/jquery callback in drupal behaviors (extractor missed closure-local calls edges)"
+          }
+        },
+        {
+          "id": "method:8c46a584c6ea46ae9328d861d5479d61",
+          "name": "deleteAll",
+          "qualified_name": "Drupal\\Core\\Config::AutoloadingStorage::deleteAll",
+          "file_path": "core/lib/Drupal/Core/Config/AutoloadingStorage.php",
+          "start_line": 125,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:6d6716d26eb1ec7382f333c57c47fcc8",
+          "name": "locale_translation_status_save",
+          "qualified_name": "locale_translation_status_save",
+          "file_path": "core/modules/locale/locale.module",
+          "start_line": 568,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:1d1046d1fa434fd5030a4b4132a9ee25",
+          "name": "listAll",
+          "qualified_name": "Drupal\\Core\\Config::ConfigFactoryInterface::listAll",
+          "file_path": "core/lib/Drupal/Core/Config/ConfigFactoryInterface.php",
+          "start_line": 109,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:b72561542a3a62c5ad1bfb19c5c87b2d",
+          "name": "onConfigTransformExport",
+          "qualified_name": "Drupal\\Core\\EventSubscriber::ExcludedModulesEventSubscriber::onConfigTransformExport",
+          "file_path": "core/lib/Drupal/Core/EventSubscriber/ExcludedModulesEventSubscriber.php",
+          "start_line": 96,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "callback-name",
+            "name": "onConfigTransformExport"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:1f48c9cb93ba922bf50c4df2b5c25a56",
+          "name": "exists",
+          "qualified_name": "Drupal\\Core\\Config::StorageInterface::exists",
+          "file_path": "core/lib/Drupal/Core/Config/StorageInterface.php",
+          "start_line": 32,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:fbf9c5c84a99398b65fb17533664283b",
+          "name": "getCacheTags",
+          "qualified_name": "Drupal\\views\\Plugin\\views\\sort::SortPluginBase::getCacheTags",
+          "file_path": "core/modules/views/src/Plugin/views/sort/SortPluginBase.php",
+          "start_line": 309,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:b4441908f909163e1affb2e83f78f593",
+          "name": "getAllFieldTableNames",
+          "qualified_name": "Drupal\\Core\\Entity\\Sql::DefaultTableMapping::getAllFieldTableNames",
+          "file_path": "core/lib/Drupal/Core/Entity/Sql/DefaultTableMapping.php",
+          "start_line": 404,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:94e46cdfe3f2ce9f7bddf2e405383513",
+          "name": "setFetchMode",
+          "qualified_name": "Drupal\\Core\\Database::StatementInterface::setFetchMode",
+          "file_path": "core/lib/Drupal/Core/Database/StatementInterface.php",
+          "start_line": 83,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:664831b851ea3f113d02b5f1eed3d9eb",
+          "name": "invalidate",
+          "qualified_name": "Drupal\\Core\\Cache::ChainedFastBackend::invalidate",
+          "file_path": "core/lib/Drupal/Core/Cache/ChainedFastBackend.php",
+          "start_line": 268,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:cc25dedd56bc97c15dffde25dd9cf625",
+          "name": "__construct",
+          "qualified_name": "Drupal\\Core\\Ajax::AjaxResponseAttachmentsProcessor::__construct",
+          "file_path": "core/lib/Drupal/Core/Ajax/AjaxResponseAttachmentsProcessor.php",
+          "start_line": 52,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "entry-name",
+            "name": "__construct"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:2937759a4ec730af9d17bce9764f8ea1",
+          "name": "__construct",
+          "qualified_name": "Drupal\\Core\\Entity\\Sql::SqlContentEntityStorage::__construct",
+          "file_path": "core/lib/Drupal/Core/Entity/Sql/SqlContentEntityStorage.php",
+          "start_line": 198,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "entry-name",
+            "name": "__construct"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:8f6f1dc4535d718c1a17b0137889ead2",
+          "name": "blockSubmit",
+          "qualified_name": "Drupal\\Core\\Menu\\Plugin\\Block::LocalTasksBlock::blockSubmit",
+          "file_path": "core/lib/Drupal/Core/Menu/Plugin/Block/LocalTasksBlock.php",
+          "start_line": 148,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:f35fd022f781a5771795c1f32dc13675",
+          "name": "setThirdPartySetting",
+          "qualified_name": "Drupal\\Core\\Config\\Entity::ThirdPartySettingsInterface::setThirdPartySetting",
+          "file_path": "core/lib/Drupal/Core/Config/Entity/ThirdPartySettingsInterface.php",
+          "start_line": 27,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:a7089a27f5feeae712b2e9d7769e0b4c",
+          "name": "getViaUri",
+          "qualified_name": "Drupal\\Core\\StreamWrapper::StreamWrapperManager::getViaUri",
+          "file_path": "core/lib/Drupal/Core/StreamWrapper/StreamWrapperManager.php",
+          "start_line": 105,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:62709fd3410b95da3bd7c3d801186a77",
+          "name": "__construct",
+          "qualified_name": "Drupal\\Core\\Validation::ConstraintViolationBuilder::__construct",
+          "file_path": "core/lib/Drupal/Core/Validation/ConstraintViolationBuilder.php",
+          "start_line": 59,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "entry-name",
+            "name": "__construct"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:5a892a5e178cd0730bdd53cba63a584a",
+          "name": "getParentSelectOptions",
+          "qualified_name": "Drupal\\Core\\Menu::MenuParentFormSelector::getParentSelectOptions",
+          "file_path": "core/lib/Drupal/Core/Menu/MenuParentFormSelector.php",
+          "start_line": 52,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:699ff2aa76bfb6b3e0e0da46c9e59a63",
+          "name": "selectPluralForm",
+          "qualified_name": "Drupal\\Core\\StringTranslation::TranslationInterface::selectPluralForm",
+          "file_path": "core/lib/Drupal/Core/StringTranslation/TranslationInterface.php",
+          "start_line": 128,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:e12b4fdf6e21d7bd5036028803b926b7",
+          "name": "getUpdatedParameters",
+          "qualified_name": "Drupal\\Core\\Pager::PagerManager::getUpdatedParameters",
+          "file_path": "core/lib/Drupal/Core/Pager/PagerManager.php",
+          "start_line": 78,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:d3e5051920caa7a5fa20ad073012e391",
+          "name": "getInstance",
+          "qualified_name": "Drupal\\Core\\Validation::ConstraintValidatorFactory::getInstance",
+          "file_path": "core/lib/Drupal/Core/Validation/ConstraintValidatorFactory.php",
+          "start_line": 36,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:415e206423eb19c5f6baefd14b8ccde2",
+          "name": "loadOverrideFree",
+          "qualified_name": "Drupal\\Core\\Config\\Entity::ConfigEntityStorageInterface::loadOverrideFree",
+          "file_path": "core/lib/Drupal/Core/Config/Entity/ConfigEntityStorageInterface.php",
+          "start_line": 71,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:c548be0e3c189f34a665067399062e2b",
+          "name": "hook_entity_type_build",
+          "qualified_name": "hook_entity_type_build",
+          "file_path": "core/lib/Drupal/Core/Entity/entity.api.php",
+          "start_line": 810,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:386669686603e98adcc12028029c1720",
+          "name": "deleteMultipleOverrides",
+          "qualified_name": "Drupal\\Core\\Menu::StaticMenuLinkOverrides::deleteMultipleOverrides",
+          "file_path": "core/lib/Drupal/Core/Menu/StaticMenuLinkOverrides.php",
+          "start_line": 83,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:857061c4c2d2adbd9c57e12c9ac8c9be",
+          "name": "loadMultipleOverrides",
+          "qualified_name": "Drupal\\Core\\Menu::StaticMenuLinkOverrides::loadMultipleOverrides",
+          "file_path": "core/lib/Drupal/Core/Menu/StaticMenuLinkOverrides.php",
+          "start_line": 109,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:7c5d704fb7fa5b43aeb7ec28b9046379",
+          "name": "deleteAll",
+          "qualified_name": "Drupal\\Core\\Config::CachedStorage::deleteAll",
+          "file_path": "core/lib/Drupal/Core/Config/CachedStorage.php",
+          "start_line": 215,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:a402730330a9e28c18ba790d130451b4",
+          "name": "clearStaticCache",
+          "qualified_name": "Drupal\\Core\\Config::ConfigFactoryInterface::clearStaticCache",
+          "file_path": "core/lib/Drupal/Core/Config/ConfigFactoryInterface.php",
+          "start_line": 95,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:b47b51835ff0626ef859f62493c4f884",
+          "name": "getAllCollectionNames",
+          "qualified_name": "Drupal\\Core\\Config::AutoloadingStorage::getAllCollectionNames",
+          "file_path": "core/lib/Drupal/Core/Config/AutoloadingStorage.php",
+          "start_line": 152,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:f9493c6808ddd585fa12dbba61be4b9c",
+          "name": "dumpToUri",
+          "qualified_name": "Drupal\\Core\\Asset::AssetDumper::dumpToUri",
+          "file_path": "core/lib/Drupal/Core/Asset/AssetDumper.php",
+          "start_line": 51,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:b245c8d158b0a9aaf6f9ab1df0b82798",
+          "name": "messagesByType",
+          "qualified_name": "Drupal\\Core\\Messenger::MessengerInterface::messagesByType",
+          "file_path": "core/lib/Drupal/Core/Messenger/MessengerInterface.php",
+          "start_line": 110,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:b2a0dada19d4a4abaabdde8b5db47331",
+          "name": "getViewModeOptions",
+          "qualified_name": "Drupal\\Core\\Entity::EntityDisplayRepository::getViewModeOptions",
+          "file_path": "core/lib/Drupal/Core/Entity/EntityDisplayRepository.php",
+          "start_line": 156,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:98b74e9b469001574a43be13d7c1cbf4",
+          "name": "comment_install",
+          "qualified_name": "comment_install",
+          "file_path": "core/modules/comment/comment.install",
+          "start_line": 37,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "pub-residual"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        }
+      ]
+    },
+    {
+      "slug": "django/django",
+      "language": "python",
+      "pinned_sha": "2fff3e9f493a9c85fb8a2294358c6751575ee4bf",
+      "sparse": [
+        "django"
+      ],
+      "candidates": 6148,
+      "buckets": {
+        "dead": 5659,
+        "alive": 242,
+        "unknown": 247
+      },
+      "unknown_ratio": 0.04,
+      "sample_size": 60,
+      "sample": [
+        {
+          "id": "function:822dca3e96ace479842057de89addbc1",
+          "name": "i18n_patterns",
+          "qualified_name": "django/conf/urls/i18n.py::i18n_patterns",
+          "file_path": "django/conf/urls/i18n.py",
+          "start_line": 8,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#47"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:822dca3e96ace479842057de89addbc1",
+            "qualified_name": "django/conf/urls/i18n.py::i18n_patterns",
+            "file_path": "django/conf/urls/i18n.py",
+            "start_line": 8,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: django registry/decorator callback (checks framework, docutils roles, admin register)"
+          }
+        },
+        {
+          "id": "function:0a979b5df9d2d84958258477334864c6",
+          "name": "check_admin_app",
+          "qualified_name": "django/contrib/admin/checks.py::check_admin_app",
+          "file_path": "django/contrib/admin/checks.py",
+          "start_line": 47,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#48"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:0a979b5df9d2d84958258477334864c6",
+            "qualified_name": "django/contrib/admin/checks.py::check_admin_app",
+            "file_path": "django/contrib/admin/checks.py",
+            "start_line": 47,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: django registry/decorator callback (checks framework, docutils roles, admin register)"
+          }
+        },
+        {
+          "id": "function:b4585f72a1e3bd09cdeb133a19dd2afd",
+          "name": "_model_admin_wrapper",
+          "qualified_name": "django/contrib/admin/decorators.py::_model_admin_wrapper",
+          "file_path": "django/contrib/admin/decorators.py",
+          "start_line": 112,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#49"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:b4585f72a1e3bd09cdeb133a19dd2afd",
+            "qualified_name": "django/contrib/admin/decorators.py::_model_admin_wrapper",
+            "file_path": "django/contrib/admin/decorators.py",
+            "start_line": 112,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: django registry/decorator callback (checks framework, docutils roles, admin register)"
+          }
+        },
+        {
+          "id": "function:2aaf5ce6a39bde54ffc6e57729100858",
+          "name": "targetIndex",
+          "qualified_name": "django/contrib/admin/static/admin/js/actions.js::targetIndex",
+          "file_path": "django/contrib/admin/static/admin/js/actions.js",
+          "start_line": 158,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#50"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:2aaf5ce6a39bde54ffc6e57729100858",
+            "qualified_name": "django/contrib/admin/static/admin/js/actions.js::targetIndex",
+            "file_path": "django/contrib/admin/static/admin/js/actions.js",
+            "start_line": 158,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "corpus-noise: static admin js, dom-driven"
+          }
+        },
+        {
+          "id": "function:9da574143e276a79755c01ebef1e8081",
+          "name": "lastCheckedIndex",
+          "qualified_name": "django/contrib/admin/static/admin/js/actions.js::lastCheckedIndex",
+          "file_path": "django/contrib/admin/static/admin/js/actions.js",
+          "start_line": 159,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#51"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:9da574143e276a79755c01ebef1e8081",
+            "qualified_name": "django/contrib/admin/static/admin/js/actions.js::lastCheckedIndex",
+            "file_path": "django/contrib/admin/static/admin/js/actions.js",
+            "start_line": 159,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "corpus-noise: static admin js, dom-driven"
+          }
+        },
+        {
+          "id": "function:0bf7cd1505179be347b75050642ae603",
+          "name": "filtered",
+          "qualified_name": "django/contrib/admin/static/admin/js/actions.js::filtered",
+          "file_path": "django/contrib/admin/static/admin/js/actions.js",
+          "start_line": 164,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#52"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:0bf7cd1505179be347b75050642ae603",
+            "qualified_name": "django/contrib/admin/static/admin/js/actions.js::filtered",
+            "file_path": "django/contrib/admin/static/admin/js/actions.js",
+            "start_line": 164,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "corpus-noise: static admin js, dom-driven"
+          }
+        },
+        {
+          "id": "function:2b61f0be7841e21a07311d024a563045",
+          "name": "Calendar",
+          "qualified_name": "django/contrib/admin/static/admin/js/calendar.js::Calendar",
+          "file_path": "django/contrib/admin/static/admin/js/calendar.js",
+          "start_line": 274,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#53"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:2b61f0be7841e21a07311d024a563045",
+            "qualified_name": "django/contrib/admin/static/admin/js/calendar.js::Calendar",
+            "file_path": "django/contrib/admin/static/admin/js/calendar.js",
+            "start_line": 274,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "corpus-noise: static admin js, dom-driven"
+          }
+        },
+        {
+          "id": "function:3d52351c7c0e413783fd0013337368bb",
+          "name": "pagination",
+          "qualified_name": "django/contrib/admin/templatetags/admin_list.py::pagination",
+          "file_path": "django/contrib/admin/templatetags/admin_list.py",
+          "start_line": 57,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:3d52351c7c0e413783fd0013337368bb",
+            "qualified_name": "django/contrib/admin/templatetags/admin_list.py::pagination",
+            "file_path": "django/contrib/admin/templatetags/admin_list.py",
+            "start_line": 57,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:2f3136832e0b38cbd132c65d56d9d223",
+          "name": "pagination_tag",
+          "qualified_name": "django/contrib/admin/templatetags/admin_list.py::pagination_tag",
+          "file_path": "django/contrib/admin/templatetags/admin_list.py",
+          "start_line": 77,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:2f3136832e0b38cbd132c65d56d9d223",
+            "qualified_name": "django/contrib/admin/templatetags/admin_list.py::pagination_tag",
+            "file_path": "django/contrib/admin/templatetags/admin_list.py",
+            "start_line": 77,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:ea7ea6c01825e40ac153ed18cc945c05",
+          "name": "result_list_tag",
+          "qualified_name": "django/contrib/admin/templatetags/admin_list.py::result_list_tag",
+          "file_path": "django/contrib/admin/templatetags/admin_list.py",
+          "start_line": 368,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:ea7ea6c01825e40ac153ed18cc945c05",
+            "qualified_name": "django/contrib/admin/templatetags/admin_list.py::result_list_tag",
+            "file_path": "django/contrib/admin/templatetags/admin_list.py",
+            "start_line": 368,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:05bf99c040cc28be09844275de1b7676",
+          "name": "date_hierarchy_tag",
+          "qualified_name": "django/contrib/admin/templatetags/admin_list.py::date_hierarchy_tag",
+          "file_path": "django/contrib/admin/templatetags/admin_list.py",
+          "start_line": 489,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:05bf99c040cc28be09844275de1b7676",
+            "qualified_name": "django/contrib/admin/templatetags/admin_list.py::date_hierarchy_tag",
+            "file_path": "django/contrib/admin/templatetags/admin_list.py",
+            "start_line": 489,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:78fe9d52bad0f78d7d0a9ff5ca5d9ad0",
+          "name": "search_form",
+          "qualified_name": "django/contrib/admin/templatetags/admin_list.py::search_form",
+          "file_path": "django/contrib/admin/templatetags/admin_list.py",
+          "start_line": 500,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:78fe9d52bad0f78d7d0a9ff5ca5d9ad0",
+            "qualified_name": "django/contrib/admin/templatetags/admin_list.py::search_form",
+            "file_path": "django/contrib/admin/templatetags/admin_list.py",
+            "start_line": 500,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:a0195b2e867e587aeb234069bf6fa227",
+          "name": "search_form_tag",
+          "qualified_name": "django/contrib/admin/templatetags/admin_list.py::search_form_tag",
+          "file_path": "django/contrib/admin/templatetags/admin_list.py",
+          "start_line": 514,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:a0195b2e867e587aeb234069bf6fa227",
+            "qualified_name": "django/contrib/admin/templatetags/admin_list.py::search_form_tag",
+            "file_path": "django/contrib/admin/templatetags/admin_list.py",
+            "start_line": 514,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:87b8dd1b85f3e6263cc838e6f2bb6b11",
+          "name": "admin_actions",
+          "qualified_name": "django/contrib/admin/templatetags/admin_list.py::admin_actions",
+          "file_path": "django/contrib/admin/templatetags/admin_list.py",
+          "start_line": 537,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:87b8dd1b85f3e6263cc838e6f2bb6b11",
+            "qualified_name": "django/contrib/admin/templatetags/admin_list.py::admin_actions",
+            "file_path": "django/contrib/admin/templatetags/admin_list.py",
+            "start_line": 537,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:6c1907791a01c12c16cdd4c3a19dbb94",
+          "name": "admin_actions_tag",
+          "qualified_name": "django/contrib/admin/templatetags/admin_list.py::admin_actions_tag",
+          "file_path": "django/contrib/admin/templatetags/admin_list.py",
+          "start_line": 547,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:6c1907791a01c12c16cdd4c3a19dbb94",
+            "qualified_name": "django/contrib/admin/templatetags/admin_list.py::admin_actions_tag",
+            "file_path": "django/contrib/admin/templatetags/admin_list.py",
+            "start_line": 547,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:0db0d62d295001927cd4f509ba670f84",
+          "name": "change_list_object_tools_tag",
+          "qualified_name": "django/contrib/admin/templatetags/admin_list.py::change_list_object_tools_tag",
+          "file_path": "django/contrib/admin/templatetags/admin_list.py",
+          "start_line": 554,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:0db0d62d295001927cd4f509ba670f84",
+            "qualified_name": "django/contrib/admin/templatetags/admin_list.py::change_list_object_tools_tag",
+            "file_path": "django/contrib/admin/templatetags/admin_list.py",
+            "start_line": 554,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:74e73845863873896413e163cf85e9e3",
+          "name": "prepopulated_fields_js_tag",
+          "qualified_name": "django/contrib/admin/templatetags/admin_modify.py::prepopulated_fields_js_tag",
+          "file_path": "django/contrib/admin/templatetags/admin_modify.py",
+          "start_line": 52,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:74e73845863873896413e163cf85e9e3",
+            "qualified_name": "django/contrib/admin/templatetags/admin_modify.py::prepopulated_fields_js_tag",
+            "file_path": "django/contrib/admin/templatetags/admin_modify.py",
+            "start_line": 52,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:b0016b354fc1b9b300275faa94b583b2",
+          "name": "submit_row",
+          "qualified_name": "django/contrib/admin/templatetags/admin_modify.py::submit_row",
+          "file_path": "django/contrib/admin/templatetags/admin_modify.py",
+          "start_line": 62,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:b0016b354fc1b9b300275faa94b583b2",
+            "qualified_name": "django/contrib/admin/templatetags/admin_modify.py::submit_row",
+            "file_path": "django/contrib/admin/templatetags/admin_modify.py",
+            "start_line": 62,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:167ecbf1bdacff1d1f1665462f8e5ca1",
+          "name": "submit_row_tag",
+          "qualified_name": "django/contrib/admin/templatetags/admin_modify.py::submit_row_tag",
+          "file_path": "django/contrib/admin/templatetags/admin_modify.py",
+          "start_line": 117,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:167ecbf1bdacff1d1f1665462f8e5ca1",
+            "qualified_name": "django/contrib/admin/templatetags/admin_modify.py::submit_row_tag",
+            "file_path": "django/contrib/admin/templatetags/admin_modify.py",
+            "start_line": 117,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:187063da5f9d6c11744995531e9c6472",
+          "name": "change_form_object_tools_tag",
+          "qualified_name": "django/contrib/admin/templatetags/admin_modify.py::change_form_object_tools_tag",
+          "file_path": "django/contrib/admin/templatetags/admin_modify.py",
+          "start_line": 124,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:187063da5f9d6c11744995531e9c6472",
+            "qualified_name": "django/contrib/admin/templatetags/admin_modify.py::change_form_object_tools_tag",
+            "file_path": "django/contrib/admin/templatetags/admin_modify.py",
+            "start_line": 124,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:491e47be2e4ac4c2f25c8ffb64cd6905",
+          "name": "cell_count",
+          "qualified_name": "django/contrib/admin/templatetags/admin_modify.py::cell_count",
+          "file_path": "django/contrib/admin/templatetags/admin_modify.py",
+          "start_line": 136,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:491e47be2e4ac4c2f25c8ffb64cd6905",
+            "qualified_name": "django/contrib/admin/templatetags/admin_modify.py::cell_count",
+            "file_path": "django/contrib/admin/templatetags/admin_modify.py",
+            "start_line": 136,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:59c25aa51d00b03a816e4ae00bd60df2",
+          "name": "admin_actions_tag",
+          "qualified_name": "django/contrib/admin/templatetags/admin_modify.py::admin_actions_tag",
+          "file_path": "django/contrib/admin/templatetags/admin_modify.py",
+          "start_line": 156,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:59c25aa51d00b03a816e4ae00bd60df2",
+            "qualified_name": "django/contrib/admin/templatetags/admin_modify.py::admin_actions_tag",
+            "file_path": "django/contrib/admin/templatetags/admin_modify.py",
+            "start_line": 156,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:71c788cd4d82e64f617c554b595fd42d",
+          "name": "admin_urlname",
+          "qualified_name": "django/contrib/admin/templatetags/admin_urls.py::admin_urlname",
+          "file_path": "django/contrib/admin/templatetags/admin_urls.py",
+          "start_line": 12,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-template-tag-file"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:71c788cd4d82e64f617c554b595fd42d",
+            "qualified_name": "django/contrib/admin/templatetags/admin_urls.py::admin_urlname",
+            "file_path": "django/contrib/admin/templatetags/admin_urls.py",
+            "start_line": 12,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:07618703db2c00a38a5125cc24173721",
+          "name": "get_admin_log",
+          "qualified_name": "django/contrib/admin/templatetags/log.py::get_admin_log",
+          "file_path": "django/contrib/admin/templatetags/log.py",
+          "start_line": 27,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:django-register-tag"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:07618703db2c00a38a5125cc24173721",
+            "qualified_name": "django/contrib/admin/templatetags/log.py::get_admin_log",
+            "file_path": "django/contrib/admin/templatetags/log.py",
+            "start_line": 27,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "rubric-gap: django template tag (string ref from templates)"
+          }
+        },
+        {
+          "id": "function:9fdb55c59c481b18f6c2d0ed01f47195",
+          "name": "default_reference_role",
+          "qualified_name": "django/contrib/admindocs/utils.py::default_reference_role",
+          "file_path": "django/contrib/admindocs/utils.py",
+          "start_line": 151,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#54"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:9fdb55c59c481b18f6c2d0ed01f47195",
+            "qualified_name": "django/contrib/admindocs/utils.py::default_reference_role",
+            "file_path": "django/contrib/admindocs/utils.py",
+            "start_line": 151,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: django registry/decorator callback (checks framework, docutils roles, admin register)"
+          }
+        },
+        {
+          "id": "function:f274eb2703966e3ef69985f75b3fd7da",
+          "name": "auser",
+          "qualified_name": "django/contrib/auth/__init__.py::auser",
+          "file_path": "django/contrib/auth/__init__.py",
+          "start_line": 102,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#55"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:f274eb2703966e3ef69985f75b3fd7da",
+            "qualified_name": "django/contrib/auth/__init__.py::auser",
+            "file_path": "django/contrib/auth/__init__.py",
+            "start_line": 102,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: django registry/decorator callback (checks framework, docutils roles, admin register)"
+          }
+        },
+        {
+          "id": "function:926fc7db2eb985f3fcecd02c6d1ef310",
+          "name": "aupdate_session_auth_hash",
+          "qualified_name": "django/contrib/auth/__init__.py::aupdate_session_auth_hash",
+          "file_path": "django/contrib/auth/__init__.py",
+          "start_line": 384,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#56"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:926fc7db2eb985f3fcecd02c6d1ef310",
+            "qualified_name": "django/contrib/auth/__init__.py::aupdate_session_auth_hash",
+            "file_path": "django/contrib/auth/__init__.py",
+            "start_line": 384,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: django registry/decorator callback (checks framework, docutils roles, admin register)"
+          }
+        },
+        {
+          "id": "function:2e6bdcdda79996d65ab05e2e7ba30667",
+          "name": "auth",
+          "qualified_name": "django/contrib/auth/context_processors.py::auth",
+          "file_path": "django/contrib/auth/context_processors.py",
+          "start_line": 49,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-auto:django-context-processor"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:2e6bdcdda79996d65ab05e2e7ba30667",
+            "qualified_name": "django/contrib/auth/context_processors.py::auth",
+            "file_path": "django/contrib/auth/context_processors.py",
+            "start_line": 49,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: django registry/decorator callback (checks framework, docutils roles, admin register)"
+          }
+        },
+        {
+          "id": "function:ecd224d10234e9f9a2199d2eff335151",
+          "name": "decorator",
+          "qualified_name": "django/contrib/auth/decorators.py::decorator",
+          "file_path": "django/contrib/auth/decorators.py",
+          "start_line": 22,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-auto:django-context-processor"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:ecd224d10234e9f9a2199d2eff335151",
+            "qualified_name": "django/contrib/auth/decorators.py::decorator",
+            "file_path": "django/contrib/auth/decorators.py",
+            "start_line": 22,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: django registry/decorator callback (checks framework, docutils roles, admin register)"
+          }
+        },
+        {
+          "id": "function:55732cb5173d0c1a8a7fa7021189f6b7",
+          "name": "login_not_required",
+          "qualified_name": "django/contrib/auth/decorators.py::login_not_required",
+          "file_path": "django/contrib/auth/decorators.py",
+          "start_line": 91,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#57"
+          },
+          "arbitration": {
+            "corpus": "django/django",
+            "id": "function:55732cb5173d0c1a8a7fa7021189f6b7",
+            "qualified_name": "django/contrib/auth/decorators.py::login_not_required",
+            "file_path": "django/contrib/auth/decorators.py",
+            "start_line": 91,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: django registry/decorator callback (checks framework, docutils roles, admin register)"
+          }
+        },
+        {
+          "id": "method:3101216fc8ced00caac2fbe543098c15",
+          "name": "TemplateCommand.add_arguments",
+          "qualified_name": "django/core/management/templates.py::TemplateCommand.add_arguments",
+          "file_path": "django/core/management/templates.py",
+          "start_line": 47,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "reflection_context",
+            "file": "django/core/management/templates.py"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:d15bdffe718470cd51d185a5ac696a7c",
+          "name": "DatabaseFeatures.supports_aggregation_over_interval_types",
+          "qualified_name": "django/db/backends/oracle/features.py::DatabaseFeatures.supports_aggregation_over_interval_types",
+          "file_path": "django/db/backends/oracle/features.py",
+          "start_line": 223,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:bb6fae78b2f5cb286b002e660f2a4857",
+          "name": "FieldCacheMixin.cache_name",
+          "qualified_name": "django/db/models/fields/mixins.py::FieldCacheMixin.cache_name",
+          "file_path": "django/db/models/fields/mixins.py",
+          "start_line": 16,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:00028e02155fb6d67b5ffebbd4bc82fb",
+          "name": "Field.error_messages",
+          "qualified_name": "django/db/models/fields/__init__.py::Field.error_messages",
+          "file_path": "django/db/models/fields/__init__.py",
+          "start_line": 808,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:49fdac2b6f88a4fcde55011891f51e86",
+          "name": "TemplateCommand.make_writeable",
+          "qualified_name": "django/core/management/templates.py::TemplateCommand.make_writeable",
+          "file_path": "django/core/management/templates.py",
+          "start_line": 397,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "reflection_context",
+            "file": "django/core/management/templates.py"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:5005fcf48ca9f863d8c490e2356d4902",
+          "name": "DateMixin.uses_datetime_field",
+          "qualified_name": "django/views/generic/dates.py::DateMixin.uses_datetime_field",
+          "file_path": "django/views/generic/dates.py",
+          "start_line": 260,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:efd8d22d894833eecedfd45bf06b0386",
+          "name": "BaseExpression.contains_over_clause",
+          "qualified_name": "django/db/models/expressions.py::BaseExpression.contains_over_clause",
+          "file_path": "django/db/models/expressions.py",
+          "start_line": 260,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:d4714690f0151ef2f1384f6c253935f3",
+          "name": "DatabaseWrapper.oracle_version",
+          "qualified_name": "django/db/backends/oracle/base.py::DatabaseWrapper.oracle_version",
+          "file_path": "django/db/backends/oracle/base.py",
+          "start_line": 402,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:e2ec399458cccb030cc38032c6c4162a",
+          "name": "DatabaseFeatures.supports_bit_aggregations",
+          "qualified_name": "django/db/backends/oracle/features.py::DatabaseFeatures.supports_bit_aggregations",
+          "file_path": "django/db/backends/oracle/features.py",
+          "start_line": 248,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:61857ab5a7dd40c9882221d97262a582",
+          "name": "DatabaseFeatures.supports_uuid4_function_in_default",
+          "qualified_name": "django/db/backends/oracle/features.py::DatabaseFeatures.supports_uuid4_function_in_default",
+          "file_path": "django/db/backends/oracle/features.py",
+          "start_line": 240,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:e43c72f129ec26695e4eb2bd9f2819d8",
+          "name": "Command.format_json",
+          "qualified_name": "django/core/management/commands/listurls.py::Command.format_json",
+          "file_path": "django/core/management/commands/listurls.py",
+          "start_line": 173,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "reflection_context",
+            "file": "django/core/management/commands/listurls.py"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:8e963396610765a78ba990803cd03329",
+          "name": "DatabaseFeatures.uses_server_side_binding",
+          "qualified_name": "django/db/backends/postgresql/features.py::DatabaseFeatures.uses_server_side_binding",
+          "file_path": "django/db/backends/postgresql/features.py",
+          "start_line": 151,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:f77236a8a08cce90b383cd3e27ccae92",
+          "name": "DatabaseFeatures.supports_transactions",
+          "qualified_name": "django/db/backends/mysql/features.py::DatabaseFeatures.supports_transactions",
+          "file_path": "django/db/backends/mysql/features.py",
+          "start_line": 186,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:846abcd8638000b01f0aa49dbff4865a",
+          "name": "CombinedExpression.allowed_default",
+          "qualified_name": "django/db/models/expressions.py::CombinedExpression.allowed_default",
+          "file_path": "django/db/models/expressions.py",
+          "start_line": 811,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:6deeefbd211d85f4dc9cef2b51f5dba9",
+          "name": "BaseDatabaseWrapper.wrap_database_errors",
+          "qualified_name": "django/db/backends/base/base.py::BaseDatabaseWrapper.wrap_database_errors",
+          "file_path": "django/db/backends/base/base.py",
+          "start_line": 662,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:bf9e0bf3dbbb81edd6426f18b2ec259b",
+          "name": "BaseExpression.contains_column_references",
+          "qualified_name": "django/db/models/expressions.py::BaseExpression.contains_column_references",
+          "file_path": "django/db/models/expressions.py",
+          "start_line": 266,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:38cfab47a16ea31cd5ac321d88752508",
+          "name": "When.allowed_default",
+          "qualified_name": "django/db/models/expressions.py::When.allowed_default",
+          "file_path": "django/db/models/expressions.py",
+          "start_line": 1712,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:2cabd4fa7606e8db94d27ee2b9689f7b",
+          "name": "BaseDatabaseOperations.last_insert_id",
+          "qualified_name": "django/db/backends/base/operations.py::BaseDatabaseOperations.last_insert_id",
+          "file_path": "django/db/backends/base/operations.py",
+          "start_line": 311,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "reflection_context",
+            "file": "django/db/backends/base/operations.py"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:fa88f69a9c8f45b7a41dcb93683e2386",
+          "name": "FileSystemStorage.directory_permissions_mode",
+          "qualified_name": "django/core/files/storage/filesystem.py::FileSystemStorage.directory_permissions_mode",
+          "file_path": "django/core/files/storage/filesystem.py",
+          "start_line": 60,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:a0f65afd1e8c84d34ec3a71d5f2b7c06",
+          "name": "DatabaseFeatures.is_postgresql_18",
+          "qualified_name": "django/db/backends/postgresql/features.py::DatabaseFeatures.is_postgresql_18",
+          "file_path": "django/db/backends/postgresql/features.py",
+          "start_line": 182,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:3393187e0222945fd95c8e59cab7ed8a",
+          "name": "DatabaseFeatures.supports_collation_on_charfield",
+          "qualified_name": "django/db/backends/oracle/features.py::DatabaseFeatures.supports_collation_on_charfield",
+          "file_path": "django/db/backends/oracle/features.py",
+          "start_line": 195,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:c441139b968d9fb2262fee35a6d234a6",
+          "name": "Command.handle",
+          "qualified_name": "django/core/management/commands/shell.py::Command.handle",
+          "file_path": "django/core/management/commands/shell.py",
+          "start_line": 259,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "reflection_context",
+            "file": "django/core/management/commands/shell.py"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:0dbf64c208bd99d5e1b1bffbd74e5f7f",
+          "name": "BaseDatabaseOperations.get_db_converters",
+          "qualified_name": "django/db/backends/base/operations.py::BaseDatabaseOperations.get_db_converters",
+          "file_path": "django/db/backends/base/operations.py",
+          "start_line": 677,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "reflection_context",
+            "file": "django/db/backends/base/operations.py"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:2821af215622f76164b9238554c01e3d",
+          "name": "Library.filter",
+          "qualified_name": "django/template/library.py::Library.filter",
+          "file_path": "django/template/library.py",
+          "start_line": 57,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "reflection_context",
+            "file": "django/template/library.py"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:724a24629f5ee016177e5079d72fbfba",
+          "name": "Argon2PasswordHasher.harden_runtime",
+          "qualified_name": "django/contrib/auth/hashers.py::Argon2PasswordHasher.harden_runtime",
+          "file_path": "django/contrib/auth/hashers.py",
+          "start_line": 468,
+          "bucket": "unknown",
+          "rule_id": "R3",
+          "evidence": {
+            "via": "reflection_context",
+            "file": "django/contrib/auth/hashers.py"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:26681e4bb90c44ae5b280965e77594ef",
+          "name": "BaseFormSet.forms",
+          "qualified_name": "django/forms/formsets.py::BaseFormSet.forms",
+          "file_path": "django/forms/formsets.py",
+          "start_line": 202,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:44ef2ce60436e129d48a765a075bc880",
+          "name": "DatabaseFeatures.supported_explain_formats",
+          "qualified_name": "django/db/backends/mysql/features.py::DatabaseFeatures.supported_explain_formats",
+          "file_path": "django/db/backends/mysql/features.py",
+          "start_line": 177,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:b1f54e9caa779174910d04b58f489ab0",
+          "name": "DatabaseFeatures.can_return_columns_from_insert",
+          "qualified_name": "django/db/backends/mysql/features.py::DatabaseFeatures.can_return_columns_from_insert",
+          "file_path": "django/db/backends/mysql/features.py",
+          "start_line": 157,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:3c12110de80807232297a40a4e2987a3",
+          "name": "MySQLOperations.mariadb",
+          "qualified_name": "django/contrib/gis/db/backends/mysql/operations.py::MySQLOperations.mariadb",
+          "file_path": "django/contrib/gis/db/backends/mysql/operations.py",
+          "start_line": 19,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:9fef114c9d97af374d62511d7fb84a70",
+          "name": "BaseForm.changed_data",
+          "qualified_name": "django/forms/forms.py::BaseForm.changed_data",
+          "file_path": "django/forms/forms.py",
+          "start_line": 382,
+          "bucket": "alive",
+          "rule_id": "R1",
+          "evidence": {
+            "hit": "property",
+            "via": "decorates-edge"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        }
+      ]
+    },
+    {
+      "slug": "actix/actix-web",
+      "language": "rust",
+      "pinned_sha": "2db7119a990511e90e234d8ba118234b51bce68a",
+      "sparse": [
+        "src",
+        "actix-web/src"
+      ],
+      "candidates": 610,
+      "buckets": {
+        "dead": 584,
+        "alive": 26,
+        "unknown": 0
+      },
+      "unknown_ratio": 0,
+      "sample_size": 56,
+      "sample": [
+        {
+          "id": "function:161feb9702f69de4ded3b5f010d63cf2",
+          "name": "cfg_root",
+          "qualified_name": "actix-web/src/config.rs::cfg_root",
+          "file_path": "actix-web/src/config.rs",
+          "start_line": 535,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#58"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:161feb9702f69de4ded3b5f010d63cf2",
+            "qualified_name": "actix-web/src/config.rs::cfg_root",
+            "file_path": "actix-web/src/config.rs",
+            "start_line": 535,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:37c13ee4eef0aed9a4c78db89e93676b",
+          "name": "from_request",
+          "qualified_name": "actix-web/src/extract.rs::from_request",
+          "file_path": "actix-web/src/extract.rs",
+          "start_line": 406,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#59"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:37c13ee4eef0aed9a4c78db89e93676b",
+            "qualified_name": "actix-web/src/extract.rs::from_request",
+            "file_path": "actix-web/src/extract.rs",
+            "start_line": 406,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: rust trait impl method (no implements edges emitted)"
+          }
+        },
+        {
+          "id": "function:02f4851af3387417bc08ffda83200558",
+          "name": "Header",
+          "qualified_name": "actix-web/src/guard/mod.rs::Header",
+          "file_path": "actix-web/src/guard/mod.rs",
+          "start_line": 469,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-auto:rust-pub-fn"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:02f4851af3387417bc08ffda83200558",
+            "qualified_name": "actix-web/src/guard/mod.rs::Header",
+            "file_path": "actix-web/src/guard/mod.rs",
+            "start_line": 469,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:48c24981258a63b602b47c77c3ed45de",
+          "name": "handler_min",
+          "qualified_name": "actix-web/src/handler.rs::handler_min",
+          "file_path": "actix-web/src/handler.rs",
+          "start_line": 174,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:48c24981258a63b602b47c77c3ed45de",
+            "qualified_name": "actix-web/src/handler.rs::handler_min",
+            "file_path": "actix-web/src/handler.rs",
+            "start_line": 174,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:41284d32f74c425720e6df528de8f005",
+          "name": "handler_max",
+          "qualified_name": "actix-web/src/handler.rs::handler_max",
+          "file_path": "actix-web/src/handler.rs",
+          "start_line": 178,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:41284d32f74c425720e6df528de8f005",
+            "qualified_name": "actix-web/src/handler.rs::handler_max",
+            "file_path": "actix-web/src/handler.rs",
+            "start_line": 178,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:0032209e212809905b8b01a193db6d9c",
+          "name": "quality_parameter_order_preserves_preferences",
+          "qualified_name": "actix-web/src/http/header/accept.rs::quality_parameter_order_preserves_preferences",
+          "file_path": "actix-web/src/http/header/accept.rs",
+          "start_line": 244,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:0032209e212809905b8b01a193db6d9c",
+            "qualified_name": "actix-web/src/http/header/accept.rs::quality_parameter_order_preserves_preferences",
+            "file_path": "actix-web/src/http/header/accept.rs",
+            "start_line": 244,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:012da665a9d8a5a39ee26e4e2261fa78",
+          "name": "quoted_parameter_preserves_quality_and_media_type",
+          "qualified_name": "actix-web/src/http/header/accept.rs::quoted_parameter_preserves_quality_and_media_type",
+          "file_path": "actix-web/src/http/header/accept.rs",
+          "start_line": 263,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:012da665a9d8a5a39ee26e4e2261fa78",
+            "qualified_name": "actix-web/src/http/header/accept.rs::quoted_parameter_preserves_quality_and_media_type",
+            "file_path": "actix-web/src/http/header/accept.rs",
+            "start_line": 263,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:4e363c9cfd47413b0aa9f2d3df1ec95c",
+          "name": "ranking_precedence",
+          "qualified_name": "actix-web/src/http/header/accept.rs::ranking_precedence",
+          "file_path": "actix-web/src/http/header/accept.rs",
+          "start_line": 275,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:4e363c9cfd47413b0aa9f2d3df1ec95c",
+            "qualified_name": "actix-web/src/http/header/accept.rs::ranking_precedence",
+            "file_path": "actix-web/src/http/header/accept.rs",
+            "start_line": 275,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:03d3a9a53a0d47365cdde8777a3da134",
+          "name": "preference_selection",
+          "qualified_name": "actix-web/src/http/header/accept.rs::preference_selection",
+          "file_path": "actix-web/src/http/header/accept.rs",
+          "start_line": 310,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:03d3a9a53a0d47365cdde8777a3da134",
+            "qualified_name": "actix-web/src/http/header/accept.rs::preference_selection",
+            "file_path": "actix-web/src/http/header/accept.rs",
+            "start_line": 310,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:c92d9a6f775014a1a17535b97ef84aab",
+          "name": "enc",
+          "qualified_name": "actix-web/src/http/header/accept_encoding.rs::enc",
+          "file_path": "actix-web/src/http/header/accept_encoding.rs",
+          "start_line": 302,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#60"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:c92d9a6f775014a1a17535b97ef84aab",
+            "qualified_name": "actix-web/src/http/header/accept_encoding.rs::enc",
+            "file_path": "actix-web/src/http/header/accept_encoding.rs",
+            "start_line": 302,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:18ee0e9b174375468e3e4f27a4cb985a",
+          "name": "detect_identity_acceptable",
+          "qualified_name": "actix-web/src/http/header/accept_encoding.rs::detect_identity_acceptable",
+          "file_path": "actix-web/src/http/header/accept_encoding.rs",
+          "start_line": 307,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:18ee0e9b174375468e3e4f27a4cb985a",
+            "qualified_name": "actix-web/src/http/header/accept_encoding.rs::detect_identity_acceptable",
+            "file_path": "actix-web/src/http/header/accept_encoding.rs",
+            "start_line": 307,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:18c878b04eb51d936204372f8e119711",
+          "name": "encoding_negotiation",
+          "qualified_name": "actix-web/src/http/header/accept_encoding.rs::encoding_negotiation",
+          "file_path": "actix-web/src/http/header/accept_encoding.rs",
+          "start_line": 339,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:18c878b04eb51d936204372f8e119711",
+            "qualified_name": "actix-web/src/http/header/accept_encoding.rs::encoding_negotiation",
+            "file_path": "actix-web/src/http/header/accept_encoding.rs",
+            "start_line": 339,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:bb08e30466e5bdfa9f99e09b7504aec2",
+          "name": "ranking_precedence",
+          "qualified_name": "actix-web/src/http/header/accept_encoding.rs::ranking_precedence",
+          "file_path": "actix-web/src/http/header/accept_encoding.rs",
+          "start_line": 424,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:bb08e30466e5bdfa9f99e09b7504aec2",
+            "qualified_name": "actix-web/src/http/header/accept_encoding.rs::ranking_precedence",
+            "file_path": "actix-web/src/http/header/accept_encoding.rs",
+            "start_line": 424,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:eea6bc23dcbe02a7744a0c8a334e52f0",
+          "name": "preference_selection",
+          "qualified_name": "actix-web/src/http/header/accept_encoding.rs::preference_selection",
+          "file_path": "actix-web/src/http/header/accept_encoding.rs",
+          "start_line": 442,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:eea6bc23dcbe02a7744a0c8a334e52f0",
+            "qualified_name": "actix-web/src/http/header/accept_encoding.rs::preference_selection",
+            "file_path": "actix-web/src/http/header/accept_encoding.rs",
+            "start_line": 442,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:77ce2cb19fd616e10583544e23e21f29",
+          "name": "ranking_precedence",
+          "qualified_name": "actix-web/src/http/header/accept_language.rs::ranking_precedence",
+          "file_path": "actix-web/src/http/header/accept_language.rs",
+          "start_line": 150,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:77ce2cb19fd616e10583544e23e21f29",
+            "qualified_name": "actix-web/src/http/header/accept_language.rs::ranking_precedence",
+            "file_path": "actix-web/src/http/header/accept_language.rs",
+            "start_line": 150,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:5ebc65696fdf3c75a8ca2532104c3952",
+          "name": "preference_selection",
+          "qualified_name": "actix-web/src/http/header/accept_language.rs::preference_selection",
+          "file_path": "actix-web/src/http/header/accept_language.rs",
+          "start_line": 195,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:5ebc65696fdf3c75a8ca2532104c3952",
+            "qualified_name": "actix-web/src/http/header/accept_language.rs::preference_selection",
+            "file_path": "actix-web/src/http/header/accept_language.rs",
+            "start_line": 195,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:174eda2cbdb74afc77f80d06d85f91b9",
+          "name": "from",
+          "qualified_name": "actix-web/src/http/header/content_length.rs::from",
+          "file_path": "actix-web/src/http/header/content_length.rs",
+          "start_line": 89,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#61"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:174eda2cbdb74afc77f80d06d85f91b9",
+            "qualified_name": "actix-web/src/http/header/content_length.rs::from",
+            "file_path": "actix-web/src/http/header/content_length.rs",
+            "start_line": 89,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: rust trait impl method (no implements edges emitted)"
+          }
+        },
+        {
+          "id": "function:4494d6598c72fa93a2e8be831d9e5c3a",
+          "name": "eq",
+          "qualified_name": "actix-web/src/http/header/content_length.rs::eq",
+          "file_path": "actix-web/src/http/header/content_length.rs",
+          "start_line": 107,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-human:#62"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:4494d6598c72fa93a2e8be831d9e5c3a",
+            "qualified_name": "actix-web/src/http/header/content_length.rs::eq",
+            "file_path": "actix-web/src/http/header/content_length.rs",
+            "start_line": 107,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: rust trait impl method (no implements edges emitted)"
+          }
+        },
+        {
+          "id": "function:318678b786f6883de6ed268a404b8599",
+          "name": "assert_parse_fail",
+          "qualified_name": "actix-web/src/http/header/content_length.rs::assert_parse_fail",
+          "file_path": "actix-web/src/http/header/content_length.rs",
+          "start_line": 143,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#63"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:318678b786f6883de6ed268a404b8599",
+            "qualified_name": "actix-web/src/http/header/content_length.rs::assert_parse_fail",
+            "file_path": "actix-web/src/http/header/content_length.rs",
+            "start_line": 143,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:e4ab6f0cc2c0f24f6bea22261c9cec24",
+          "name": "assert_parse_eq",
+          "qualified_name": "actix-web/src/http/header/content_length.rs::assert_parse_eq",
+          "file_path": "actix-web/src/http/header/content_length.rs",
+          "start_line": 155,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#64"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:e4ab6f0cc2c0f24f6bea22261c9cec24",
+            "qualified_name": "actix-web/src/http/header/content_length.rs::assert_parse_eq",
+            "file_path": "actix-web/src/http/header/content_length.rs",
+            "start_line": 155,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:a47313c526ab8739d82da32b2e520c25",
+          "name": "missing_header",
+          "qualified_name": "actix-web/src/http/header/content_length.rs::missing_header",
+          "file_path": "actix-web/src/http/header/content_length.rs",
+          "start_line": 168,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:a47313c526ab8739d82da32b2e520c25",
+            "qualified_name": "actix-web/src/http/header/content_length.rs::missing_header",
+            "file_path": "actix-web/src/http/header/content_length.rs",
+            "start_line": 168,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:6dbd755ead9db63bab12ec2929870c22",
+          "name": "bad_header",
+          "qualified_name": "actix-web/src/http/header/content_length.rs::bad_header",
+          "file_path": "actix-web/src/http/header/content_length.rs",
+          "start_line": 174,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:6dbd755ead9db63bab12ec2929870c22",
+            "qualified_name": "actix-web/src/http/header/content_length.rs::bad_header",
+            "file_path": "actix-web/src/http/header/content_length.rs",
+            "start_line": 174,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:41eeb308af4e45b022e81c94760141b1",
+          "name": "bad_header_plus",
+          "qualified_name": "actix-web/src/http/header/content_length.rs::bad_header_plus",
+          "file_path": "actix-web/src/http/header/content_length.rs",
+          "start_line": 192,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:41eeb308af4e45b022e81c94760141b1",
+            "qualified_name": "actix-web/src/http/header/content_length.rs::bad_header_plus",
+            "file_path": "actix-web/src/http/header/content_length.rs",
+            "start_line": 192,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:38e16ad37feddeec2529825787a6f424",
+          "name": "bad_multiple_value",
+          "qualified_name": "actix-web/src/http/header/content_length.rs::bad_multiple_value",
+          "file_path": "actix-web/src/http/header/content_length.rs",
+          "start_line": 199,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:38e16ad37feddeec2529825787a6f424",
+            "qualified_name": "actix-web/src/http/header/content_length.rs::bad_multiple_value",
+            "file_path": "actix-web/src/http/header/content_length.rs",
+            "start_line": 199,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:3ee7a3c07b791f893b874eeacdde6e32",
+          "name": "good_header",
+          "qualified_name": "actix-web/src/http/header/content_length.rs::good_header",
+          "file_path": "actix-web/src/http/header/content_length.rs",
+          "start_line": 205,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:3ee7a3c07b791f893b874eeacdde6e32",
+            "qualified_name": "actix-web/src/http/header/content_length.rs::good_header",
+            "file_path": "actix-web/src/http/header/content_length.rs",
+            "start_line": 205,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:c7b558127c137cee690004be08f66a07",
+          "name": "good_header_max_usize",
+          "qualified_name": "actix-web/src/http/header/content_length.rs::good_header_max_usize",
+          "file_path": "actix-web/src/http/header/content_length.rs",
+          "start_line": 221,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:c7b558127c137cee690004be08f66a07",
+            "qualified_name": "actix-web/src/http/header/content_length.rs::good_header_max_usize",
+            "file_path": "actix-web/src/http/header/content_length.rs",
+            "start_line": 221,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:3995c476a66d72e5777ce5e5341a81ab",
+          "name": "equality",
+          "qualified_name": "actix-web/src/http/header/content_length.rs::equality",
+          "file_path": "actix-web/src/http/header/content_length.rs",
+          "start_line": 230,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:3995c476a66d72e5777ce5e5341a81ab",
+            "qualified_name": "actix-web/src/http/header/content_length.rs::equality",
+            "file_path": "actix-web/src/http/header/content_length.rs",
+            "start_line": 230,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:c814e91ba81015812b1e888afc563b88",
+          "name": "ordering",
+          "qualified_name": "actix-web/src/http/header/content_length.rs::ordering",
+          "file_path": "actix-web/src/http/header/content_length.rs",
+          "start_line": 237,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-auto:rust-test-attr"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:c814e91ba81015812b1e888afc563b88",
+            "qualified_name": "actix-web/src/http/header/content_length.rs::ordering",
+            "file_path": "actix-web/src/http/header/content_length.rs",
+            "start_line": 237,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:1758e0e5ecb31e248d7da403f7be0419",
+          "name": "entity_validate_char",
+          "qualified_name": "actix-web/src/http/header/entity.rs::entity_validate_char",
+          "file_path": "actix-web/src/http/header/entity.rs",
+          "start_line": 12,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "alive",
+            "via": "R2-human:#65"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:1758e0e5ecb31e248d7da403f7be0419",
+            "qualified_name": "actix-web/src/http/header/entity.rs::entity_validate_char",
+            "file_path": "actix-web/src/http/header/entity.rs",
+            "start_line": 12,
+            "r1": "dead",
+            "r2": "alive",
+            "truth": "alive",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "function:ab38b63bc9a29c5adf61b97908a79463",
+          "name": "gzip_decode",
+          "qualified_name": "actix-web/src/middleware/compress.rs::gzip_decode",
+          "file_path": "actix-web/src/middleware/compress.rs",
+          "start_line": 289,
+          "bucket": "dead",
+          "rule_id": "R4",
+          "evidence": {},
+          "r2_verdict": {
+            "bucket": "unknown",
+            "via": "R2-auto:rust-pub-fn"
+          },
+          "arbitration": {
+            "corpus": "actix/actix-web",
+            "id": "function:ab38b63bc9a29c5adf61b97908a79463",
+            "qualified_name": "actix-web/src/middleware/compress.rs::gzip_decode",
+            "file_path": "actix-web/src/middleware/compress.rs",
+            "start_line": 289,
+            "r1": "dead",
+            "r2": "unknown",
+            "truth": "unknown",
+            "classification": "graph-gap: rust test helper/pub fn (extractor emits no visibility)"
+          }
+        },
+        {
+          "id": "method:db91aa45c73082a04e909a8bdd0d30cf",
+          "name": "TestTrait.get_num",
+          "qualified_name": "actix-web/src/data.rs::TestTrait.get_num",
+          "file_path": "actix-web/src/data.rs",
+          "start_line": 337,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "TestTrait.get_num"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:a28e1111448e18767527e0a22c5f7bcb",
+          "name": "test_byte_range_spec_to_satisfiable_range",
+          "qualified_name": "actix-web/src/http/header/range.rs::test_byte_range_spec_to_satisfiable_range",
+          "file_path": "actix-web/src/http/header/range.rs",
+          "start_line": 404,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_byte_range_spec_to_satisfiable_range"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:6006e90d913490ff413fe7ab1ee14293",
+          "name": "test_debug",
+          "qualified_name": "actix-web/src/response/response.rs::test_debug",
+          "file_path": "actix-web/src/response/response.rs",
+          "start_line": 410,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_debug"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:61aa0ee35decef69bedf20cf56062774",
+          "name": "test_disposition_methods",
+          "qualified_name": "actix-web/src/http/header/content_disposition.rs::test_disposition_methods",
+          "file_path": "actix-web/src/http/header/content_disposition.rs",
+          "start_line": 994,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_disposition_methods"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:cdef49a47dc92b58edfdd8dcaea3eaff",
+          "name": "test_build",
+          "qualified_name": "actix-web/src/response/http_codes.rs::test_build",
+          "file_path": "actix-web/src/response/http_codes.rs",
+          "start_line": 104,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_build"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:6216ab3aacc8b836468ba547099087ad",
+          "name": "test_error_helpers",
+          "qualified_name": "actix-web/src/error/internal.rs::test_error_helpers",
+          "file_path": "actix-web/src/error/internal.rs",
+          "start_line": 198,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_error_helpers"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:42cd4f563f3fb9fb26e5091a8703bc63",
+          "name": "TestTrait.get_num",
+          "qualified_name": "actix-web/src/data.rs::TestTrait.get_num",
+          "file_path": "actix-web/src/data.rs",
+          "start_line": 374,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "TestTrait.get_num"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:db35d7d9598e3f91f15fecfa7fa24c3c",
+          "name": "test_error_casting",
+          "qualified_name": "actix-web/src/error/response_error.rs::test_error_casting",
+          "file_path": "actix-web/src/error/response_error.rs",
+          "start_line": 151,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_error_casting"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:83c0004cc1cdd38aa471c94cceb55a68",
+          "name": "test_from_raw_param_name_missing",
+          "qualified_name": "actix-web/src/http/header/content_disposition.rs::test_from_raw_param_name_missing",
+          "file_path": "actix-web/src/http/header/content_disposition.rs",
+          "start_line": 906,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_from_raw_param_name_missing"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:c15755b24efb821ea818cdcaf798af3e",
+          "name": "echo_usize",
+          "qualified_name": "actix-web/src/request.rs::echo_usize",
+          "file_path": "actix-web/src/request.rs",
+          "start_line": 1103,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "route-link"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:b3255b5b4b7fa088c012ff08b2c09f8a",
+          "name": "index",
+          "qualified_name": "actix-web/src/service.rs::index",
+          "file_path": "actix-web/src/service.rs",
+          "start_line": 883,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "route-link"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:995bc3bcd1780c7f5e061d2b5eda5ef2",
+          "name": "test_serde_json_in_body",
+          "qualified_name": "actix-web/src/response/builder.rs::test_serde_json_in_body",
+          "file_path": "actix-web/src/response/builder.rs",
+          "start_line": 495,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_serde_json_in_body"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:214fa47e0808e4c6ebd2fbd13f2cd16f",
+          "name": "test_readlines_error",
+          "qualified_name": "actix-web/src/error/mod.rs::test_readlines_error",
+          "file_path": "actix-web/src/error/mod.rs",
+          "start_line": 264,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_readlines_error"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:bd7768ae32a449a1f3fd85f7b76afa95",
+          "name": "test_query_payload_error",
+          "qualified_name": "actix-web/src/error/mod.rs::test_query_payload_error",
+          "file_path": "actix-web/src/error/mod.rs",
+          "start_line": 255,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_query_payload_error"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:3ce3a34d8714127589faabb653e5b471",
+          "name": "test_etag_parse_failures",
+          "qualified_name": "actix-web/src/http/header/entity.rs::test_etag_parse_failures",
+          "file_path": "actix-web/src/http/header/entity.rs",
+          "start_line": 216,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_etag_parse_failures"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:247f994b89c7f2a7df2aaeba65247b88",
+          "name": "test_json_payload_error",
+          "qualified_name": "actix-web/src/error/mod.rs::test_json_payload_error",
+          "file_path": "actix-web/src/error/mod.rs",
+          "start_line": 241,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_json_payload_error"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:45df1296ed59784e79d99c80ec439312",
+          "name": "test_from_raw_param_value_missing",
+          "qualified_name": "actix-web/src/http/header/content_disposition.rs::test_from_raw_param_value_missing",
+          "file_path": "actix-web/src/http/header/content_disposition.rs",
+          "start_line": 887,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_from_raw_param_value_missing"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:71d75e4eda926860c1de8c7809ae6287",
+          "name": "echo_usize",
+          "qualified_name": "actix-web/src/request.rs::echo_usize",
+          "file_path": "actix-web/src/request.rs",
+          "start_line": 1072,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "route-link"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:f2d3de62c4c3c91bb26615074e33a6c8",
+          "name": "test_urlencoded_error",
+          "qualified_name": "actix-web/src/error/mod.rs::test_urlencoded_error",
+          "file_path": "actix-web/src/error/mod.rs",
+          "start_line": 231,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_urlencoded_error"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:116233fcc824855c020616f8f75c2701",
+          "name": "test_display_control_characters",
+          "qualified_name": "actix-web/src/http/header/content_disposition.rs::test_display_control_characters",
+          "file_path": "actix-web/src/http/header/content_disposition.rs",
+          "start_line": 963,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_display_control_characters"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:baae41abe566aae41f1567c93b7320e6",
+          "name": "test_etag_parse_success",
+          "qualified_name": "actix-web/src/http/header/entity.rs::test_etag_parse_success",
+          "file_path": "actix-web/src/http/header/entity.rs",
+          "start_line": 191,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_etag_parse_success"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:8bb694f1c63c2d14ca307aab7c68ec4a",
+          "name": "test_param_methods",
+          "qualified_name": "actix-web/src/http/header/content_disposition.rs::test_param_methods",
+          "file_path": "actix-web/src/http/header/content_disposition.rs",
+          "start_line": 983,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_param_methods"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:e8a2f42561089790fd5abf61d6338f1d",
+          "name": "test_basic_builder",
+          "qualified_name": "actix-web/src/response/builder.rs::test_basic_builder",
+          "file_path": "actix-web/src/response/builder.rs",
+          "start_line": 438,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_basic_builder"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:4d72d5e7645ddf7817fd6106a5639e52",
+          "name": "test_any_casting",
+          "qualified_name": "actix-web/src/error/macros.rs::test_any_casting",
+          "file_path": "actix-web/src/error/macros.rs",
+          "start_line": 94,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_any_casting"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "function:167ff1e06043e52015ccf36ac24a3ab1",
+          "name": "test_etag_fmt",
+          "qualified_name": "actix-web/src/http/header/entity.rs::test_etag_fmt",
+          "file_path": "actix-web/src/http/header/entity.rs",
+          "start_line": 229,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "test_etag_fmt"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        },
+        {
+          "id": "method:633e25ae3a323b958c9809ebc7748b94",
+          "name": "TestTrait.get_num",
+          "qualified_name": "actix-web/src/data.rs::TestTrait.get_num",
+          "file_path": "actix-web/src/data.rs",
+          "start_line": 357,
+          "bucket": "alive",
+          "rule_id": "R2",
+          "evidence": {
+            "via": "test-name",
+            "name": "TestTrait.get_num"
+          },
+          "r2_verdict": null,
+          "arbitration": null
+        }
+      ]
+    }
+  ],
+  "r2_summary": {
+    "human_verdicts_applied": 65,
+    "per_corpus": {
+      "spring-projects/spring-petclinic": {
+        "dead_total": 1,
+        "r2_dead": 0,
+        "r2_alive": 0,
+        "r2_unknown": 1
+      },
+      "dotnet-architecture/eShopOnWeb": {
+        "dead_total": 17,
+        "r2_dead": 0,
+        "r2_alive": 8,
+        "r2_unknown": 9
+      },
+      "drupal/drupal": {
+        "dead_total": 30,
+        "r2_dead": 0,
+        "r2_alive": 17,
+        "r2_unknown": 13
+      },
+      "django/django": {
+        "dead_total": 30,
+        "r2_dead": 0,
+        "r2_alive": 22,
+        "r2_unknown": 8
+      },
+      "actix/actix-web": {
+        "dead_total": 30,
+        "r2_dead": 0,
+        "r2_alive": 25,
+        "r2_unknown": 5
+      }
+    },
+    "application_corpora_precision": 0,
+    "actix_precision_separate": 0,
+    "note": "precision = R2-confirmed dead / R1 dead. actix-web reported separately (framework-internal corpus, R3 signal coverage absent)."
+  }
+}
