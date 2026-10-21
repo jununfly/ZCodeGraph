@@ -194,6 +194,16 @@ Per-language real-corpus validation, ordered by date:
   merged PRs, **45/45 indexable-applicable PRs = 100% recallUnionIndexable**,
   zero false negatives. Companion JSON:
   [`2026-10-20-pr-recall-baseline.json`](evidence/2026-10-20-pr-recall-baseline.json).
+- [2026-10-21-token-baseline-layer2.md](evidence/2026-10-21-token-baseline-layer2.md)
+  — Layer-2 token-consumption baseline (roadmap 1-2-3): 9 tasks × 3 corpora
+  × 3 reps × 2 elided-marker settings. Numerator switched to real
+  `zcodegraph_explore` payload (contract v2). Median ratio **0.4098** (ON)
+  vs **0.3921** (OFF); markers cost **+1.81% total / +7.47% median /
+  +0.37% p95 bytes** — markers are actionability, not compression; exit
+  criteria ② not met (negative result). Companion JSON:
+  [`...-markers-on.json`](evidence/2026-10-21-token-baseline-layer2-markers-on.json),
+  [`...-markers-off.json`](evidence/2026-10-21-token-baseline-layer2-markers-off.json).
+  Frozen by `DES-token-baseline-tasks-v2`.
 
 ## methods — methods, playbooks, and how-to guides
 
