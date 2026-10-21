@@ -96,6 +96,11 @@ jobs:
           npx vitest run
           tests/health-rubric.test.ts
           tests/cli-health.test.ts
+      - name: Verify dead-code rubric + CLI (isolated fixture, roadmap 1-2-5)
+        run: >
+          npx vitest run
+          tests/dead-code.test.ts
+          tests/cli-dead-code.test.ts
       - name: Verify badge SVG + CLI (isolated fixture)
         run: >
           npx vitest run

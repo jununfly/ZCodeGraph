@@ -18,7 +18,7 @@
 | Class | Folder | Authority range | Count |
 | --- | --- | --- | --- |
 | Decision | [`decisions/`](decisions/) | primary | 8 |
-| Contract | [`contracts/`](contracts/) | primary | 11 |
+| Contract | [`contracts/`](contracts/) | primary | 12 |
 | Ledger | [`ledgers/`](ledgers/) | supporting | 8 |
 | Evidence | [`evidence/`](evidence/) | historical | 41 |
 | Method | [`methods/`](methods/) | primary / supporting | 9 |
@@ -65,6 +65,7 @@ are test-locked; see each note.
 | DES-token-baseline-tasks-v1 | [token-baseline-tasks-v1.md](contracts/token-baseline-tasks-v1.md) | What are the frozen task definitions for the Layer-1 token-consumption baseline ratio? |
 | DES-token-baseline-tasks-v2 | [token-baseline-tasks-v2.md](contracts/token-baseline-tasks-v2.md) | What are the frozen task definitions for the Layer-2 token-consumption baseline ratio? |
 | DES-dead-code-rubric-v1 | [dead-code-rubric-v1.md](contracts/dead-code-rubric-v1.md) | How is a function/method node judged dead, alive, or unknown for find_dead_code v1? |
+| DES-schema-evolution-and-mcp-tool-cap-v1 | [schema-evolution-and-mcp-tool-cap-v1.md](contracts/schema-evolution-and-mcp-tool-cap-v1.md) | What clauses govern schema evolution (NodeKind/EdgeKind/migrations) and the MCP tool-surface cap (≤12)? |
 
 ## ledgers — distilled decision & closeout ledgers
 
@@ -212,6 +213,13 @@ Per-language real-corpus validation, ordered by date:
   R1 exposed (Java decorators-column sparse → decorates-edge fallback;
   actix-web R3 bypass; drupal partial index). Companion JSON:
   [`...-annotation-r1.json`](evidence/2026-10-21-dead-code-rubric-v1-annotation-r1.json).
+- [2026-10-21-find-dead-code-precision.md](evidence/2026-10-21-find-dead-code-precision.md)
+  — shipped `find_dead_code` v1 measured against the 1-2-4 R2 labels
+  (roadmap 1-2-5): harmful-error rate 3/68 (all recorded A3 extractor
+  backlog), strict three-bucket agreement 61.8 %, actix-web split. The
+  strict-agreement gap is the conservative `unknown→alive` backlog class,
+  not false-dead. Companion JSON:
+  [`...-precision.json`](evidence/2026-10-21-find-dead-code-precision.json).
 
 ## methods — methods, playbooks, and how-to guides
 

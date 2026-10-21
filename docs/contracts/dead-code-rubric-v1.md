@@ -28,7 +28,10 @@ human annotation and unknowns can be burned down by later rubric versions.
 - **No raw-source scanning.** Rules consume only `nodes`, `edges`, `files`
   columns (including `nodes.decorators`, `nodes.is_exported`,
   `nodes.signature`) and the `route` nodes / framework edges the resolvers
-  already persist. If a signal is not in the graph, it is out of scope.
+  already persist — plus the bounded file-content existence probes defined
+  by amendment A1 and clarified on 2026-10-21 (existence-only substring
+  match over already-indexed files; see Amendments). If a signal is
+  neither in the graph nor an A1 probe, it is out of scope.
 - **No per-language new extraction.** The annotation/attribute whitelist
   below is read from the existing `decorators` column; languages whose
   extractors do not populate `decorators` fall back to rules R2/R3 and the
@@ -254,3 +257,73 @@ accordingly (clarifications only — no rule verdict changes, hence no v2):
 **Implementation gate for node 1-2-5:** shipping `find_dead_code` without
 A1+A2 reproduced a measured **0% precision** on this sample; A1+A2 are
 therefore mandatory scope for 1-2-5, A3 is tracked as backlog.
+
+### 2026-10-21 — A1 text-probe clarification (roadmap 1-2-5, Q3)
+
+Clarification only — no rule verdict changes. A1's signals (b) and (c)
+require reading the **raw content of an already-indexed file** to answer a
+substring-existence question (`register = template.Library()`,
+`$(...).on(`, `.razor` sibling presence). This is reconciled with the
+Non-goal "No raw-source scanning" as follows:
+
+- The probe is **existence-only**: substring/prefix match, no AST parsing,
+  no regex extraction of symbols, no LLM.
+- The probe input set is **bounded to paths already present in the `files`
+  table** — it never walks the filesystem, never touches unindexed files.
+- Results are reported as `evidence.via: 'file-text-probe'` so downstream
+  consumers can distinguish graph-derived verdicts from probe-derived
+  ones.
+
+With this clarification, A1's signal class is "graph signals + bounded
+file-content existence probes", which preserves the Non-goal's original
+intent (no full-source rescan, no LLM summarization, deterministic replay
+from the index alone).
+
+### 2026-10-21 — signal-based demote rules (roadmap 1-2-5 implementation)
+
+The following rules were added while implementing `find_dead_code` v1.
+All are **signal-based** (each requires a concrete graph/content signal,
+never a language-wide blanket), preserving the rubric's honest posture.
+They are clarifications of R2/R3's existing signal classes, not new
+verdicts — hence no v2.
+
+1. **R2 — A1(a) extended: `.razor` class reference.** A C# method whose
+   containing class (qualified-name prefix) appears in any indexed
+   `.razor` file (`@inherits` / markup component tag) is `alive`.
+   eShopOnWeb arbitration showed Blazor helpers referenced from markup
+   without a `.razor.cs` sibling (e.g. `ToastComponent` ←
+   `Toast.razor @inherits`). Probe: substring of the class short name in
+   the union of indexed `.razor` contents.
+2. **R2 — A1(b) probe variant.** `= Library(` is accepted alongside
+   `template.Library()` (Django template-tag modules use
+   `register = Library()`).
+3. **R3 — Python dunder names.** `__<lower>+__` (e.g. `__deepcopy__`,
+   `__html__`) are interpreter/framework-invoked; R3 callback list
+   extended from the fixed set to the dunder pattern.
+4. **R3 — C# constructor-shaped method.** A method whose name equals its
+   owner class simple name is invoked by DI/EF materialization even when
+   the graph sees no call (eShopOnWeb: EF-core/DDD ctors). Demote to
+   `unknown` (`via: ctor-reflection`).
+5. **R3 — Java interface method.** A method whose owner (via `contains`)
+   is an `interface` node is dispatched through the framework-generated
+   proxy (Spring Data / JDK proxy). Demote to `unknown`
+   (`via: interface-proxy`).
+6. **R3 — Python public-API residual.** A module-level Python `function`
+   whose name does not start with `_` is public by PEP8 convention
+   (`via: pub-residual, note: pep8-public`). Python has no visibility
+   column, so the base `pub-residual` rule never fires for it; the same
+   "downstream caller outside the indexed repo" argument as R2's
+   exported-public-surface applies.
+7. **R3 — JS barrel residual.** A `.js`/`.ts` file containing
+   `export default` is a module entry; its inner functions are reachable
+   through the closure the entry creates (JS closure-local calls edges
+   are an A3 graph-gap). Demote inner zero-calls functions to `unknown`
+   (`via: js-barrel-graph-gap`).
+
+**Residual frontier (NOT rubric changes, tracked as A3 extractor
+backlog):** C# same-file instance call edges (eShop
+`FromHttpResponseMessage`/`HideToast`), Python decorator-wrapper call
+edges (django `_model_admin_wrapper`), and all Rust extractor signals
+(actix-web 30/30 sample). These remain `dead` in v1 output and are
+reported as false-dead against human truth — they are the measured
+precision cost of the current extractor frontier, not rubric defects.

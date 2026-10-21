@@ -25,7 +25,7 @@
       "id": "1-1",
       "uid": "01a153ac1fce-915839b899",
       "label": "P-1 验证冲刺（先行 gate）",
-      "status": "completed",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -36,7 +36,12 @@
         "1-1-5",
         "1-1-6",
         "1-1-7",
-        "1-1-8"
+        "1-1-8",
+        "1-1-9",
+        "1-1-10",
+        "1-1-11",
+        "1-1-12",
+        "1-1-13"
       ],
       "decisions": [
         {
@@ -66,7 +71,16 @@
         "1-2-8",
         "1-2-9",
         "1-2-10",
-        "1-2-11"
+        "1-2-11",
+        "1-2-12",
+        "1-2-13",
+        "1-2-14",
+        "1-2-15",
+        "1-2-16",
+        "1-2-17",
+        "1-2-18",
+        "1-2-19",
+        "1-2-20"
       ],
       "decisions": [
         {
@@ -90,7 +104,11 @@
         "1-3-2",
         "1-3-3",
         "1-3-5",
-        "1-3-6"
+        "1-3-6",
+        "1-3-7",
+        "1-3-8",
+        "1-3-9",
+        "1-3-10"
       ],
       "decisions": [],
       "notes": "",
@@ -106,7 +124,9 @@
       "parent": "1",
       "children": [
         "1-4-1",
-        "1-4-2"
+        "1-4-2",
+        "1-4-3",
+        "1-4-4"
       ],
       "decisions": [
         {
@@ -576,19 +596,51 @@
     "1-2-5": {
       "id": "1-2-5",
       "uid": "01a153ad6554-b54a1493e3",
-      "label": "P0b find_dead_code 首版（限 3-5 语言）",
-      "status": "pending",
+      "label": "P0b find_dead_code 首版（限 C#/Java/PHP/Python/Rust）",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Q1 find_dead_code 出口形态？",
+          "answer": "CLI 子命令 zcodegraph dead-code（报告型能力，非 agent 高频交互）。符合 1-2-7 条款②『新分析默认折叠、走 CLI/CI 出口』；不新增 MCP 工具（8/12 余量保留）。输出 markdown（默认）+ --json。",
+          "note": ""
+        },
+        {
+          "q": "Q2 语言承诺集合？",
+          "answer": "选 A：修 exit#1。承诺语言改为 rubric 五仓实测集合 C#/Java/PHP/Python/Rust（替代原 TS/JS/Python/Go/Java）。理由：1-2-4 实测 TS/JS/Go 无已索引 pin 仓、JS 无注解白名单且 closure-local calls 边缺失、Rust extractor 不产 visibility/decorators——在信号缺口补齐（A3 backlog）前承诺这些语言 = 承诺 0% precision。exit criteria 是 1-2-4 之前写的，按实测数据修正承诺。precision 复算用 1-2-4 已有 R2 人工标注（108 条 dead 桶 + alive/unknown 衬垫样本）。",
+          "note": ""
+        },
+        {
+          "q": "Q3 A1(c) text probe 与 rubric『no raw-source scanning』non-goal 的矛盾？",
+          "answer": "rubric 补 dated amendment（clarification，不改 verdict）：A1 信号允许『读取已索引文件的原始内容做 substring 存在性探针』——只查存在性（如 $(...).on( / register = template.Library() / partial class 配对），不解析 AST、不 regex 抽取符号、不消费未索引文件。探针输入仅限 files 表已落库路径。这把 A1 从『图信号』扩展为『图信号 + 受限文件内容存在性探针』，与 non-goal 的原始意图（禁 LLM/禁全量源码扫描）不冲突。",
+          "note": ""
+        },
+        {
+          "q": "Q4 验证方式？",
+          "answer": "三层：① 单测 tests/dead-code.test.ts——fixture DB 手工构造 nodes/edges/decorators，断言 R1（含 decorates-edge fallback）/R2（route handler/入口名/is_exported/测试名约定）/R3（implements 边/回调名/reflection 文件信号）/R4 每条规则的判定路径与 evidence 字段；② CLI e2e tests/cli-dead-code.test.ts——真跑 zcodegraph dead-code 于合成 fixture 项目，断言 markdown/JSON 输出结构与三桶计数；③ precision 复算 scripts/measure/dead-code-precision.mjs——工具跑五仓 pin commit，与 1-2-4 R2 人工标注逐条比对，产出 pooled precision + per-corpus 一致率，写 docs/evidence/2026-10-21-find-dead-code-precision.md。exit#3 达标线：pooled precision≥80% 且 per-corpus 一致率≥85%。ci.yml 加 Verify 步骤。",
+          "note": ""
+        },
+        {
+          "q": "落地结果摘要",
+          "answer": "实现：src/dead-code/rubric.ts（纯判定 R1-R4 + A1/A2 + 7 条信号级 demote 规则）+ report.ts（DB 读取 + 有界 A1 文本探针 + .razor 类引用探针）+ CLI zcodegraph dead-code（-p/-j/--md/--bucket/--limit）。验证：单测 29 + e2e 5 全绿；ci.yml 加 Verify 步骤。precision 复算（scripts/measure/dead-code-precision.mjs 对五仓 pin + 1-2-4 R2 68 条标注）：有害错误率 3/68=4.4%（eShop 2 C# 同文件漏边 + django 1 decorator wrapper，全 A3 已记录 backlog），严格三桶一致率 61.8%。rubric 补两条 dated amendment（A1 text-probe 澄清 + 信号级 demote 规则）。evidence docs/evidence/2026-10-21-find-dead-code-precision.md + JSON，docs/README.md 已登记。",
+          "note": ""
+        },
+        {
+          "q": "exit#3 验收口径裁决（Human 2026-10-21）",
+          "answer": "按建议口径验收通过。exit#3『标注一致率≥85% 且 precision≥80%』在三桶语义下重新解读：R2 标注集 truth dead=0 → textbook precision 只在工具报 dead 时可算、每报必 FP，故以有害错误率（tool=dead ∧ truth≠dead）为 precision 真实形态。实测 3/68=4.4%（eShop 2 C# 同文件漏边 + django 1 decorator wrapper），全部为 A3 已记录 extractor backlog，应用 4 仓零 unrecorded harmful claim → 达标。严格三桶一致率 61.8% 的差距全部为保守 unknown→alive 类（rubric 定义的 backlog 信号，非判定错误），达 85% 需 A3 extractor 补齐（rust visibility/decorators/implements、C# 同文件 calls 边、JS closure-local calls 边）→ 记录为 A3 burn-down 清单，首个 A3 extractor 节点落地后复跑 dead-code-precision.mjs。evidence: docs/evidence/2026-10-21-find-dead-code-precision.md。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
-        "只承诺 TS/JS/Python/Go/Java",
-        "含注解排除+框架入口排除",
-        "标注一致率≥85% 且 precision≥80%（只报 precision）"
-      ]
+        "只承诺 C#/Java/PHP/Python/Rust（rubric 五仓实测集合；TS/JS/Go 待 A3 extractor backlog）",
+        "含注解排除+框架入口排除（A1+A2 强制范围）",
+        "标注一致率≥85% 且 precision≥80%（只报 precision；复用 1-2-4 R2 人工标注复算）"
+      ],
+      "rounds": 1
     },
     "1-2-6": {
       "id": "1-2-6",
@@ -703,7 +755,7 @@
       "id": "1-2-7",
       "uid": "01a153ad9d52-c3c53a2bdc",
       "label": "横切：schema 演进条款 + MCP 工具收口 ≤12",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2",
       "children": [],
@@ -712,6 +764,26 @@
           "q": "为什么 MCP 工具总数硬性收口 ≤12？",
           "answer": "AGENTS.md 记录『新工具极少被采纳』（zcodegraph_trace/context 已退役）。新分析能力一律折进 explore/status；SVG/archify 只作 CLI/CI 出口，不进 MCP。",
           "note": "REFINED-PLAN §0 变更表 P-5"
+        },
+        {
+          "q": "现状盘点（2026-10-21，scope=现状报告）",
+          "answer": "① schema：CURRENT_SCHEMA_VERSION=4 于 src/db/migrations.ts:12；migrations 是 TS 数组内嵌 up()，非独立 SQL 文件；db/index.ts:100 只处理 currentVersion<CURRENT（升级），不处理 currentVersion>CURRENT（旧 CLI 打开新库=静默继续，exit_criteria#2 的真洞）。② MCP 工具：src/mcp/tools.ts:303 tools[] 当前=8（search/callers/callees/impact/node/explore/status/files）；tiny-repo(<500) 再 gate 到 3；上限 12 当前余量 4；server-instructions.ts=单一事实源。③ CLI/CI 出口：badge(visualize)/health/churn/explore/affected 已是 CLI 子命令；archify 未见代码引用=未来能力，REFINED-PLAN §5 P1-3 定位为『zcodegraph export --format archify』纯数据契约出口。④ 折叠位：explore 已有 budget/dynamic description，status 已有 health/grammar diagnostics 段；新增分析段属自然延展。结论：exit_criteria#1 已部分落实（机制存在但无文档化条款）；#2 是真空；#3 出口模式已成立但条款未文档化。",
+          "note": ""
+        },
+        {
+          "q": "选 B：文档+机械护栏的落地形态",
+          "answer": "Contract 落 docs/contracts/schema-evolution-and-mcp-tool-cap-v1.md（authority-id=DES-schema-evolution-and-mcp-tool-cap-v1，doc-kind=contract，decided-by=1-2-7），登记到 docs/README.md contracts 表（11→12）+ Entity classes 表 Count 列同步。三条款：① schema 演进（migration+ bump+compat 策略写进 description 字段+成本矩阵联动）；② MCP ≤12 硬上限，新分析默认折叠进 explore/status，SVG/archify 走 CLI/CI 出口；③ server-instructions.ts 保持 agent-facing 单一事实源（#529）。条款明确不静默修 db/index.ts:100 旧 CLI 兼容洞，只记录为 known gap 等独立节点。",
+          "note": ""
+        },
+        {
+          "q": "机械护栏两个硬测试的覆盖范围",
+          "answer": "tests/mcp-tool-cap.test.ts 三断言：① tools.length ≤12（硬上限）；② 当前 8 工具名清单快照（新增须同步 contract 的 baseline 行）；③ 已退役 trace/context 不得回归。tests/schema-evolution-clause.test.ts 三断言：① CURRENT_SCHEMA_VERSION===max(migrations[].version)（bump 同步机械保证）；② 版本号在源码顺序中严格递增；③ 每个 migration 的 description 非空（Clause 1.2 的表层触发器——策略内容本身仍属人审）。测试通过=6/6 绿。",
+          "note": ""
+        },
+        {
+          "q": "Known gap 显式记录：旧 CLI 打开新库静默",
+          "answer": "db/index.ts:100 当前只处理 currentVersion<CURRENT（升级），旧 CLI 打开新库（currentVersion>CURRENT）静默继续。本节点**不修**，理由：行为变更（拒绝/降级/只读）需要跨 release 的兼容策略讨论，超出横切条款节点范围；条款通过要求未来 migration description 写明兼容策略，把决策从隐式变显式。后续独立节点负责落地运行时拒绝/降级逻辑。",
+          "note": ""
         }
       ],
       "notes": "",
@@ -720,7 +792,8 @@
         "新增 NodeKind/EdgeKind 走 migrations+bump CURRENT_SCHEMA_VERSION",
         "写旧 CLI 打开新库兼容策略",
         "新分析折叠进 explore/status，SVG/archify 走 CLI/CI 出口"
-      ]
+      ],
+      "rounds": 1
     },
     "1-2-8": {
       "id": "1-2-8",
@@ -989,11 +1062,455 @@
         "p95 numerator 不回归（≤19802B，即 markers-ON 当前 p95）",
         "express/flask 6 task 无功能回归（e2e explore 测试全绿）"
       ]
+    },
+    "1-2-12": {
+      "id": "1-2-12",
+      "uid": "01a15d83ab93-abd88929f3",
+      "label": "A3 extractor backlog burn-down（dead-code precision 解锁）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [
+        "1-2-12-1",
+        "1-2-12-2",
+        "1-2-12-3",
+        "1-2-12-4"
+      ],
+      "decisions": [
+        {
+          "q": "立项与排序（Human 2026-10-21）",
+          "answer": "方向=A：单独立项 A3 extractor backlog burn-down，下挂 4 子节点按解锁样本量/改动风险排序 #3 JS closure 边(1-2-12-1)→#2 C# 同文件边(1-2-12-2)→#1 Rust 信号(1-2-12-3)→#4 Java proxy(1-2-12-4)。排序理由：drupal 24 条最大池优先；C# 2 条小切口快赢；Rust 30 条但改动最大；Java 已被 interface-proxy demote 兜住故最后。Python decorator-wrapper 边（django 1 FP）不单列节点，量太小，并入 1-2-12-2 同文件边类顺带验证。验收统一走 scripts/measure/dead-code-precision.mjs 复算。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "复跑 scripts/measure/dead-code-precision.mjs：严格三桶一致率从 61.8% 显著抬升，unknown→alive 保守类转化，有害错误率不升"
+      ]
+    },
+    "1-2-12-1": {
+      "id": "1-2-12-1",
+      "uid": "01a15d8404d6-aa4e7cd453",
+      "label": "JS closure-local calls 边（drupal 24 条 unknown→alive 解锁）",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-2-12",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Q1 范围边界：本节点修什么、不修什么？",
+          "answer": "只修 JS/TS 顶层/文件级 anonymous-wrapper 丢 calls 边（drupal 24 条 unknown 根因）。不动 function body 内 closure（2851-2864 已承诺归属最近具名祖先）、不动 extractVariable arrow 转发（1371-1374 正常）、不发合成节点（B 留作后续评估项）。",
+          "note": "勘察结论：丢边唯一闸门是 extractCall 2207 行 nodeStack.length===0 直接 return；顶层 IIFE/具名变量非导出 object literal/顶层裸 call 三形态共用此闸门"
+        },
+        {
+          "q": "Q2 修法选型：A/B/C 落哪个？",
+          "answer": "A+B 组合：先 A 兜底（extractCall 栈空时 caller 归属当前文件 file 节点），B（wrapper 合成节点）登记为后续评估项不在本节点施工。C（只补 Drupal.behaviors 形态）淘汰——同闸门四形态补丁式修不是机制修复。",
+          "note": "A 锚点=file 节点非外层函数（顶层 wrapper 无外层函数，这是丢边场景定义）；B 违反图规模不变量但保留评估入口"
+        },
+        {
+          "q": "Q3 风险与兼容性：改动面 + 解析端 + 图规模？",
+          "answer": "三前置约束：(1) 改动面最小——只动 extractCall 一处，extractInstantiation 同款处理；(2) 解析端兼容验证——name-matcher 收到 fromNodeId=file节点 的 calls ref 时不得静默丢弃（按 kind 过滤逻辑要过一遍）；(3) 零新节点——不发合成 wrapper 节点，file 节点本来就承担 contains/imports 边，加 calls 边语义自洽。",
+          "note": "file 节点挂 calls 出边不是污染——1418-1419 注释已把 file/module scope 当合法归属概念在用；风险点是 name-matcher 对 file 节点 calls ref 的处理"
+        },
+        {
+          "q": "Q4 验收标准：怎么算修好？",
+          "answer": "exit criteria 不变：drupal 一致率 29.2%→≥85%（复跑 scripts/measure/dead-code-precision.mjs）。验证步骤：(1) 单测 tests/dead-code.test.ts 全绿不回归；(2) 新增 JS closure-local calls 边专项用例（顶层 IIFE/具名变量 object literal 内 call 归属 file 节点）；(3) 复算五仓 precision，drupal 桶 unknown 数从 24 条显著下降。",
+          "note": "exit 口径与 1-2-5 一致：有害错误率不升、严格一致率提升"
+        },
+        {
+          "q": "Q5 勘察反转：实证后的根因重判（修正 Q1-Q4 的假设）",
+          "answer": "JS closure-local calls 边并不缺——真 grammar 探针证明顶层 IIFE/nested IIFE/Drupal.behaviors 三形态的 calls 全部归属 file 节点且可落成边（extractCall 2207 的 nodeStack.length===0 是不可达死代码，file 节点恒在栈底）。drupal 24 条 unknown 是 rubric A1(c) 冻结规则的产物，非 extractor 缺口。A/B/C 三方案修的是不存在的问题。",
+          "note": "证据：probe 三种形态 CALLS REFS 均 file:→callee；eShop DB 实证 HttpGet/HttpDelete 零出边=ref 名带 <T> 后缀被 hasAnyPossibleMatch pre-filter 丢弃"
+        },
+        {
+          "q": "Q6 节点处置：1-2-12-1 撤销 or 改向？",
+          "answer": "撤销（不施工）。drupal A1(c) unknown→alive 转正属 rubric v2 议题，非 extractor backlog。附带发现登记给 1-2-12-2：C# 真根因是解析端两缺口——(1) 泛型调用 ref 名带 <T> 后缀无法过 hasAnyPossibleMatch pre-filter；(2) 事件订阅  完全不产 ref。Python django _model_admin_wrapper 是  闭包返回形态，也归入 1-2-12-2 一并验证。",
+          "note": "方法论教训固化：extractor backlog 立项前必须先 probe 验证归因（真 grammar fixture + 真实 DB 实证），禁止先立项后证伪"
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "drupal 一致率 29.2%→≥85%"
+      ],
+      "rounds": 1
+    },
+    "1-2-12-2": {
+      "id": "1-2-12-2",
+      "uid": "01a15d840714-ee8e9ee94c",
+      "label": "C# 同文件 instance/generic calls 边（eShop 2 FP 消除）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-12",
+      "children": [],
+      "decisions": [
+        {
+          "q": "前置勘察发现（来自 1-2-12-1 probe，2026-10-21）",
+          "answer": "eShop 两条有害错误的真根因已用真实 DB 实证：(1) FromHttpResponseMessage——extraction 正常 emit ref 但名带 泛型后缀，hasAnyPossibleMatch pre-filter（resolution/index.ts:817）不含 < 剥离逻辑 → ref 在 resolveOne 917 行被丢弃；(2) HideToast——事件订阅形态  在 body walker 中完全无提取分支，不产任何 ref。Python django _model_admin_wrapper 是  闭包返回形态（decorators.py:128），嵌套函数节点存在但 register 无 calls 出边。三者在施工前须先 probe 确认修法触点。",
+          "note": "exit criteria 不变（eShop→≥94%）；施工顺序建议：先 generic-suffix strip（pre-filter + matcher 双侧）、再 event-subscription ref、最后 python closure-return（边量最小）"
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "eShop 一致率 76.5%→≥94%；FromHttpResponseMessage/HideToast 转 alive"
+      ]
+    },
+    "1-2-12-3": {
+      "id": "1-2-12-3",
+      "uid": "01a15d84093a-c8e886969d",
+      "label": "Rust visibility/decorators/implements 信号（actix 30 FP 解锁）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-12",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "actix 一致率 0%→显著抬升；R3 规则全面激活"
+      ]
+    },
+    "1-2-12-4": {
+      "id": "1-2-12-4",
+      "uid": "01a15d840b86-2e1c92185f",
+      "label": "Java Spring Data repository proxy 建模（petclinic 从 demote 兜住转正）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2-12",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "petclinic 保持 100%；VetRepository::findAll 从 interface-proxy demote 转正为图信号判定"
+      ]
+    },
+    "1-1-9": {
+      "id": "1-1-9",
+      "uid": "01a15d916369-15687d4790",
+      "label": "archify hands-on 验证并回填 Unknown",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "1 个真实仓库跑通 图谱→archify IR→HTML",
+        "确认 IR schema 匹配",
+        "回填 archify 技术/差异化两条 Unknown"
+      ]
+    },
+    "1-1-10": {
+      "id": "1-1-10",
+      "uid": "01a15d9169fe-ad64a9f8fa",
+      "label": "codeflow hands-on 验证并回填 Unknown",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "跑通 PR 影响+健康分",
+        "确认规则可移植为 SQL/图遍历",
+        "回填 codeflow product-positioning Unknown"
+      ]
+    },
+    "1-1-11": {
+      "id": "1-1-11",
+      "uid": "01a15d91708e-af7dee52cb",
+      "label": "固化测量基础设施脚本",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "复用 docs/evidence real-corpus gate 流程为脚本",
+        "dead-code/complexity/setup 三 metric 测量脚本先落地"
+      ]
+    },
+    "1-1-12": {
+      "id": "1-1-12",
+      "uid": "01a15d9175ae-c392b70752",
+      "label": "测 token 消耗稳定 baseline",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "复用现有 A/B harness",
+        "≥3 语料 × ≥3 次取中位",
+        "只出 baseline 报告不设压缩目标"
+      ]
+    },
+    "1-1-13": {
+      "id": "1-1-13",
+      "uid": "01a15d917c4f-414ab47dc6",
+      "label": "测现有 PR 影响 recall 基线",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-1",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "3 仓 × ≥20 条已合并 PR 回放",
+        "现有 impact/affected recall 基线入库存档"
+      ]
+    },
+    "1-2-13": {
+      "id": "1-2-13",
+      "uid": "01a15d918145-dafa800bd4",
+      "label": "P0a 诊断增强（MCP 初始化失败可恢复提示）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "agent 首次成功调用 MCP 工具率 ≥95%",
+        "≥5 新用户干净环境走查 ≤30min 成功",
+        "不用遥测，与 100% 本地自洽"
+      ]
+    },
+    "1-2-14": {
+      "id": "1-2-14",
+      "uid": "01a15d9187f4-a9b32fe805",
+      "label": "P0a 索引进度回调",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "确定性事件序列断言通过"
+      ]
+    },
+    "1-2-15": {
+      "id": "1-2-15",
+      "uid": "01a15d918b36-311d2961c4",
+      "label": "P0a token 输出优化（GCF 式压缩）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "基于 P-1 baseline 做压缩",
+        "固定探针集上统计显著下降",
+        "不承诺 ~62%"
+      ]
+    },
+    "1-2-16": {
+      "id": "1-2-16",
+      "uid": "01a15d9191c5-54806e5860",
+      "label": "P0b 冻结《死代码判定 rubric v1》",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "判定规则清单（注解白名单/框架入口/动态分派）",
+        "语料=现有5仓+≥1 Spring仓固定commit",
+        "每仓≥30条双人独立标注+仲裁"
+      ]
+    },
+    "1-2-17": {
+      "id": "1-2-17",
+      "uid": "01a15d91986d-98c5048eb5",
+      "label": "P0b find_dead_code 首版（限 3-5 语言）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "只承诺 TS/JS/Python/Go/Java",
+        "含注解排除+框架入口排除",
+        "标注一致率≥85% 且 precision≥80%（只报 precision）"
+      ]
+    },
+    "1-2-18": {
+      "id": "1-2-18",
+      "uid": "01a15d919f70-511ddfd8b1",
+      "label": "P0b 圈复杂度（查询时计算，零 schema 变更）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "不预计算落库",
+        "complexity-coverage 按语言分列 ≥90%",
+        "分母=成功索引 function 节点，附豁免清单"
+      ]
+    },
+    "1-3-7": {
+      "id": "1-3-7",
+      "uid": "01a15d91a609-258e8df079",
+      "label": "P1 准入：图质量门禁（degraded 降个位数）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "5 个 release 语料 degraded 文件降到个位数",
+        "VS Code sparse 214→<20"
+      ]
+    },
+    "1-3-8": {
+      "id": "1-3-8",
+      "uid": "01a15d91ab00-e2002e56e1",
+      "label": "P1-1 PR 影响分析（复用 impact/affected）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "不新增独立 MCP 工具",
+        "受影响文件+blast radius",
+        "README 健康 SVG Card 走 CLI/CI 出口",
+        "recall ≥85% 且 ≥基线−2pp"
+      ]
+    },
+    "1-3-9": {
+      "id": "1-3-9",
+      "uid": "01a15d91b359-23fca97a84",
+      "label": "P1-2 Spring bean/DI 语义扩展（剔除数据源）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "只做 Spring bean/DI",
+        "数据源节点(SQL/Redis)移出默认路径降级待验证",
+        "1 个真实 Spring 仓 sufficiency 探针通过"
+      ]
+    },
+    "1-3-10": {
+      "id": "1-3-10",
+      "uid": "01a15d91ba18-495734d601",
+      "label": "P1-3 可视化出口（archify 纯数据契约）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "只产出 archify IR JSON（export --format archify）",
+        "渲染交用户侧，零新依赖零新进程",
+        "IR schema 校验通过+快照确定性重渲染一致"
+      ]
+    },
+    "1-4-3": {
+      "id": "1-4-3",
+      "uid": "01a15d91c0b1-79e9f99458",
+      "label": "P2 立项前三问硬验收",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "embedding 可内嵌 bundle（非 Ollama 外部进程）？",
+        "向量索引复用同一 SQLite+watcher（sqlite-vec）？",
+        "status 六态是否需第七态/degraded 子原因？",
+        "任一答否则不立项"
+      ]
+    },
+    "1-4-4": {
+      "id": "1-4-4",
+      "uid": "01a15d91c921-32abcc325a",
+      "label": "P2 量化阈值实测（5 语料端到端）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "额外磁盘 ≤ 纯结构索引体积 50%",
+        "首次索引时间增幅 ≤2×",
+        "watch 单文件增量 ≤5s"
+      ]
+    },
+    "1-2-19": {
+      "id": "1-2-19",
+      "uid": "01a15d91cfa4-3b5c5325c1",
+      "label": "横切：schema 演进条款 + MCP 工具收口 ≤12",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "新增 NodeKind/EdgeKind 走 migrations+bump CURRENT_SCHEMA_VERSION",
+        "写旧 CLI 打开新库兼容策略",
+        "新分析折叠进 explore/status，SVG/archify 走 CLI/CI 出口"
+      ]
+    },
+    "1-2-20": {
+      "id": "1-2-20",
+      "uid": "01a15d91d632-3c00979de9",
+      "label": "横切：架构回归红线 + 能力健康探针",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "index-time-regression ≤15%",
+        "explore-latency-regression 红线定值",
+        "每能力域健康探针+doctor capabilities.json+--upstream-check"
+      ]
     }
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-21 14:36:30",
+    "updated": "2026-10-21 16:43:51",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
@@ -1098,7 +1615,61 @@
       "from": "01a153ad57ee-2e6afd75b3",
       "to": "01a15c95fe83-7b56f78a8e",
       "type": "informs"
+    },
+    {
+      "id": "e19",
+      "from": "01a153ac1fce-915839b899",
+      "to": "01a153ac21fb-c3c319311b",
+      "type": "blocks"
+    },
+    {
+      "id": "e20",
+      "from": "01a153ac1fce-915839b899",
+      "to": "01a153ac241e-1080cca96e",
+      "type": "blocks"
+    },
+    {
+      "id": "e21",
+      "from": "01a153ac1fce-915839b899",
+      "to": "01a153ac2642-c06d38cfcf",
+      "type": "blocks"
+    },
+    {
+      "id": "e22",
+      "from": "01a153ad9d52-c3c53a2bdc",
+      "to": "01a153ad6554-b54a1493e3",
+      "type": "blocks"
+    },
+    {
+      "id": "e23",
+      "from": "01a153ad9d52-c3c53a2bdc",
+      "to": "01a153ad6c23-99767a1006",
+      "type": "blocks"
+    },
+    {
+      "id": "e24",
+      "from": "01a153ad9d52-c3c53a2bdc",
+      "to": "01a153ad807a-c9bb617f9e",
+      "type": "blocks"
+    },
+    {
+      "id": "e25",
+      "from": "01a153ad5e9a-27f28b1f97",
+      "to": "01a153ad6554-b54a1493e3",
+      "type": "blocks"
+    },
+    {
+      "id": "e26",
+      "from": "01a153ad72f3-1232f64e8f",
+      "to": "01a153ad77f7-2b86e83286",
+      "type": "blocks"
+    },
+    {
+      "id": "e27",
+      "from": "01a153ad72f3-1232f64e8f",
+      "to": "01a153ad807a-c9bb617f9e",
+      "type": "blocks"
     }
   ],
-  "edge_seq": 18
+  "edge_seq": 27
 }
