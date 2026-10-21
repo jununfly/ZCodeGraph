@@ -1140,7 +1140,7 @@
       "id": "1-2-12-2",
       "uid": "01a15d840714-ee8e9ee94c",
       "label": "C# 同文件 instance/generic calls 边（eShop 2 FP 消除）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2-12",
       "children": [],
@@ -1149,13 +1149,39 @@
           "q": "前置勘察发现（来自 1-2-12-1 probe，2026-10-21）",
           "answer": "eShop 两条有害错误的真根因已用真实 DB 实证：(1) FromHttpResponseMessage——extraction 正常 emit ref 但名带 泛型后缀，hasAnyPossibleMatch pre-filter（resolution/index.ts:817）不含 < 剥离逻辑 → ref 在 resolveOne 917 行被丢弃；(2) HideToast——事件订阅形态  在 body walker 中完全无提取分支，不产任何 ref。Python django _model_admin_wrapper 是  闭包返回形态（decorators.py:128），嵌套函数节点存在但 register 无 calls 出边。三者在施工前须先 probe 确认修法触点。",
           "note": "exit criteria 不变（eShop→≥94%）；施工顺序建议：先 generic-suffix strip（pre-filter + matcher 双侧）、再 event-subscription ref、最后 python closure-return（边量最小）"
+        },
+        {
+          "q": "Q1-修什么",
+          "answer": "三根因各一个修法，全部 TS+Rust 双栈落地（csharp/python 属 RUST_HYBRID_RUST_OWNED_LANGUAGES，生产索引走 Rust 二进制）：(1) generic-call ref 名剥离——stripGenericTypeArgs/strip_generic_args 深度追踪剥尾部尖括号段，接线 name-matcher 三策略 + hasAnyPossibleMatch pre-filter 双侧；(2) 事件订阅——assignment_expression 含 +=/-= 且右侧 identifier/member_access_expression 时发 calls ref，lambda 右侧零合成（TS parity）；(3) python closure-return——return_statement 值为 identifier 且匹配同文件嵌套 function/method 节点时发 calls ref。",
+          "note": "scope: name-matcher.ts/resolution/index.ts/tree-sitter.ts + csharp.rs/lib.rs(python)"
+        },
+        {
+          "q": "Q2-不修什么",
+          "answer": "(1) 不动 drupal 24 条 unknown——那是 A1(c) 冻结规则的诚实产物，归 rubric v2 合同议题；(2) 不动 actix-web——Rust extractor 信号全缺是 1-2-12-3 的 frontier；(3) 不碰六词健康词汇/MCP 工具语义/server-instructions.ts；(4) B 选项（匿名 wrapper 合成节点）维持 1-2-12-1 Q2 登记，不在本节点施工。",
+          "note": "边界守护"
+        },
+        {
+          "q": "Q3-怎么验证",
+          "answer": "三层：(a) Rust 单测 csharp.rs 4 例 + lib.rs python closure-return 1 例（202 全绿）；(b) TS 侧 resolution.test.ts 3 例 + extraction.test.ts 2 例全绿；(c) 真实语料端到端——eShop/django 重索引后 DB 实证目标边出现 + dead-code-precision.mjs 复跑对比基线。",
+          "note": "测试矩阵"
+        },
+        {
+          "q": "Q4-exit 怎么判",
+          "answer": "维持原口径：eShop agreement≥94% 且有害错误率不升。补一条：django 的 _model_admin_wrapper 须随本节点一并消除（同批登记的第三根因），故 django 有害错误也须清零才算完。",
+          "note": "exit 确认"
+        },
+        {
+          "q": "施工结果-exit 达成",
+          "answer": "全量复跑（docs/evidence/2026-10-21-extractor-backlog-1-2-12-2-rerun.md）：有害错误率 3/68=4.4% → 0/61=0%；eShop agreement 0.765→1.000（≥94% 达成）；django 0.808→0.84（剩余 4 条全是保守 unknown→alive 的 R3 诚实姿态）；pooled 0.618→0.656。三条目标边全部 DB 实证在库。labeled 68→61 是预期 churn（修复节点转 alive 后退出 candidate 对比集）。已知边界：TS 侧有同名修法但生产索引走 Rust 二进制，双栈保持 parity。",
+          "note": "CLOSED 依据"
         }
       ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
         "eShop 一致率 76.5%→≥94%；FromHttpResponseMessage/HideToast 转 alive"
-      ]
+      ],
+      "rounds": 1
     },
     "1-2-12-3": {
       "id": "1-2-12-3",
@@ -1510,7 +1536,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-21 16:43:51",
+    "updated": "2026-10-21 17:37:21",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [

@@ -220,6 +220,12 @@ Per-language real-corpus validation, ordered by date:
   strict-agreement gap is the conservative `unknown→alive` backlog class,
   not false-dead. Companion JSON:
   [`...-precision.json`](evidence/2026-10-21-find-dead-code-precision.json).
+- [2026-10-21-extractor-backlog-1-2-12-2-rerun.md](evidence/2026-10-21-extractor-backlog-1-2-12-2-rerun.md)
+  — post-fix re-measurement after the 1-2-12-2 dual-stack extractor fixes
+  (C# generic-call ref stripping, C# event-subscription refs, Python
+  closure-return refs): harmful-error rate 3/68 → 0/61, eShop agreement
+  0.765 → 1.000, django 0.808 → 0.84. drupal 0.292 unchanged by design
+  (A1(c) freeze, rubric-v2 topic); actix-web stays the 1-2-12-3 frontier.
 
 ## methods — methods, playbooks, and how-to guides
 
