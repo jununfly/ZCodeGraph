@@ -2,6 +2,7 @@
 doc-kind: evidence
 authority: supporting
 authority-id: EV-token-baseline-layer2-2026-10-21
+bounded-question: "What is the Layer-2 token-consumption baseline ratio with real-model numerators and elided-marker A/B on 9 tasks x 3 corpora?"
 supports: DES-token-baseline-tasks-v2
 roadmap-node: 1-2-3
 ---

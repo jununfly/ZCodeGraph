@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-21 11:52:52
+> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-21 14:36:30
 
 [~][X+] 1. ZCodeGraph 能力汇集路线图
 ├── [x][X+] 1-1. P-1 验证冲刺（先行 gate）
@@ -17,7 +17,7 @@
 │   ├── [x][X+] 1-2-1. P0a 诊断增强（MCP 初始化失败可恢复提示）
 │   ├── [x][X+] 1-2-2. P0a 索引进度回调
 │   ├── [x][X+] 1-2-3. P0a token 输出优化（GCF 式压缩）
-│   ├── [ ][X+] 1-2-4. P0b 冻结《死代码判定 rubric v1》
+│   ├── [x][X+] 1-2-4. P0b 冻结《死代码判定 rubric v1》
 │   ├── [!][X+] 1-2-5. P0b find_dead_code 首版（限 3-5 语言）
 │   ├── [!][X+] 1-2-6. P0b 圈复杂度（查询时计算，零 schema 变更）
 │   ├── [ ][X+] 1-2-7. 横切：schema 演进条款 + MCP 工具收口 ≤12
@@ -36,7 +36,7 @@
     └── [!][X+] 1-4-2. P2 量化阈值实测（5 语料端到端）
 <details><summary>阻塞链：6 个节点被阻塞</summary>
 
-- 1-2-5. P0b find_dead_code 首版（限 3-5 语言） ← e4: 1-2-7. 横切：schema 演进条款 + MCP 工具收口 ≤12 [ ], e7: 1-2-4. P0b 冻结《死代码判定 rubric v1》 [ ]
+- 1-2-5. P0b find_dead_code 首版（限 3-5 语言） ← e4: 1-2-7. 横切：schema 演进条款 + MCP 工具收口 ≤12 [ ]
 - 1-2-6. P0b 圈复杂度（查询时计算，零 schema 变更） ← e5: 1-2-7. 横切：schema 演进条款 + MCP 工具收口 ≤12 [ ]
 - 1-3-1. P1 准入：图质量门禁（degraded 降个位数） ← e11: 1-2-8. 横切：架构回归红线 + 能力健康探针 [ ]
 - 1-3-2. P1-1 PR 影响分析（复用 impact/affected） ← e8: 1-3-1. P1 准入：图质量门禁（degraded 降个位数） [ ]

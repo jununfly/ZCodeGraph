@@ -513,18 +513,65 @@
       "id": "1-2-4",
       "uid": "01a153ad5e9a-27f28b1f97",
       "label": "P0b 冻结《死代码判定 rubric v1》",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Q1 判定规则清单的 v1 边界？",
+          "answer": "三段式与 exit criteria 一一对应：A 注解/属性白名单（Java @Override/@Bean/@RequestMapping 族、C# [ApiController]/[Fact] 族、Python @property/@pytest.fixture/@app.route 族、Rust #[test]/#[no_mangle] 族；命中=永不判死）；B 框架入口（main/router 注册/controller action/导出的 pub 符号/测试函数/DI 注册点，graph 已有 route 节点直接消费）；C 动态分派豁免（反射 Class.forName/DI container/接口 implements 可达/序列化回调/FFI 导出——判 unknown 不判 alive）。",
+          "note": ""
+        },
+        {
+          "q": "Q2 判定桶与 precision 语义？",
+          "answer": "三桶 dead/alive/unknown。precision = dead∩人工dead / 全部判dead；unknown 不进分母（诚实版，呼应 1-2-5 只报 precision≥80%）。工具输出每条候选必须带桶标签+触发规则 id，人工标注只在 dead 桶上做 precision 核对，unknown 桶单独报占比供 v2 收敛参考。",
+          "note": ""
+        },
+        {
+          "q": "Q3 语料第 6 仓（Spring）怎么定？",
+          "answer": "现有5仓=覆盖率天花板矩阵 ASP.NET(eShopOnWeb)/Spring(PetClinic)/Drupal/Django/actix（均已 pin commit）。Spring 已由 PetClinic 满足 exit criteria 的 ≥1 Spring 仓要求；先用 PetClinic 跑通标注流程，若 R1 标注暴露 Spring 覆盖信号不足（如 DI/注解密度太低），再评估加仓（候选 spring-boot-realworld-example）。",
+          "note": ""
+        },
+        {
+          "q": "Q4 双人独立标注+仲裁的执行形态？",
+          "answer": "两轮独立标注：R1=Agent 按规则清单机械执行（纯图查询零判断），R2=Human 盲标同样本；分歧进仲裁清单，仲裁结论回填 rubric。样本量每仓≥30 条 function/method（dead 候选+随机 alive 对半抽，避免全正样本）。产出 docs/evidence/2026-10-21-dead-code-rubric-v1-annotation.md。",
+          "note": ""
+        },
+        {
+          "q": "R1 标注语料的 clone/pin 形态？",
+          "answer": "复用 pr-recall-baseline.mjs 已验证的 sparse+shallow 模式：corpusRoot=C:/workspace/measure-corpus，每仓 pin 一个固定 commit 写进标注 evidence（不用 HEAD 漂移）。5 仓稀疏锥：eShopOnWeb=src；spring-petclinic=src（已存在，pin 当前 HEAD）；drupal=core/lib+core/modules（取 core 子集，与既有验证证据同范围）；django=django（包根）；actix-web=src+actix-web/src。索引产物落各仓 .zcodegraph/，与 real-corpus gate 一致。",
+          "note": ""
+        },
+        {
+          "q": "R1 机械标注暴露的两个 rubric 落地修正（已回填 contract）？",
+          "answer": "(1) R1 白名单信号通道：Java 抽取器不填 nodes.decorators，注解 USAGE 以 decorates 未决 ref 发出、仅已解析的落 decorates 边（petclinic 实测：172 fn 节点 0 个有 decorators 列，unresolved_refs 在 resolution 后被清空）。rubric 增补 fallback：decorators 列为空时，按同一 substring 规则匹配 decorates 边目标名，evidence.via 记录通道；未决 ref 不查（表会被清）。(2) 样本量兜底：petclinic 候选池实测只有 25（<30），全池标注、按实际 N 报 per-corpus 一致率，pooled 按 N 加权——保 ≥30 的统计意图而不靠 padding 引入噪音。VetRepository::findAll 被判 dead/R4 是 Spring Data 代理 frontier 的真实暴露，等 R2/仲裁归类。",
+          "note": ""
+        },
+        {
+          "q": "R1 跨仓试跑暴露的 R3 信号缺口与处理姿态？",
+          "answer": "actix-web 实测：1281 fn 节点 visibility/is_exported 全 0、decorators 全空、无 implements/overrides 边（Rust extractor 当前不产这些信号）→ R3 全部绕过、584 直接落 dead/R4；django 同样 5659/6148 落 dead。处理姿态：(a) rubric v1 语义不改——R3 通道由图信号驱动，信号缺失时落 R4 是 rubric 诚实行为，禁止为了好看给 R3 塞假信号；(b) precision 等 R2 人工仲裁实报，django/actix 的 R4 高占比是 v2 信号增强的真实 backlog（extractor visibility/decorators/implements 增强）；(c) 在 evidence 文档中如实记录各仓 R3 旁路原因，作为 1-2-5 精度报告的 frontier 说明。",
+          "note": ""
+        },
+        {
+          "q": "actix-web 仓的 R1 覆盖缺口与处置？",
+          "answer": "actix-web 实测：route 节点 0（稀疏锥 src+actix-web/src 主要是框架内部，handler 示例在 examples/ 被稀疏排除）、decorates 未决 ref 0（Rust extractor 不发 attribute macro ref）、R3 信号全缺 → 584/610 落 dead/R4，其中含 actix-web 框架自身的 pub API（extractor 未填 visibility/is_exported）。处置：v1 标注照跑不误报——actix 的 R4 桶在 R2 仲裁时会大面积暴露为假 dead，这正是 rubric+extractor 信号缺口的定量证据；但为防误导后续使用者，actix 仓在 evidence 中标注 'framework-internal corpus, R1/R2/R3 信号覆盖率低'，其 precision 与 4 个 application 仓分列汇报，不 pooled。",
+          "note": ""
+        },
+        {
+          "q": "R2+仲裁结果：R1 dead 桶 108 条 0 条存活（precision 0%），如何定性？",
+          "answer": "R1+R2 全部跑完：dead 桶 108 条经 R2-auto(43,文本信号)+R2-human(65,盲标)二读，0 条确认为 dead（55 alive/53 unknown）。仲裁分类：graph-gap 49（extractor 信号缺失：rust visibility 27/django registry 9/EF ctor 6/同文件漏边 3/rust trait impl 3/spring-data 1）、rubric-gap 49（入口类未覆盖：drupal JS 闭包 24/django template tag 17/blazor markup 8）、corpus-noise 10（minified js 6/admin js 4）。定性：这是 rubric 冻结节点的合法负结果——不是 rubric 规则错，而是 (a) 入口清单不足 (b) 路径排除不足 (c) extractor 信号缺口，三者在建 find_dead_code 之前被定量暴露。处置：A1(rubric 入口+信号澄清)+A2(路径排除扩展)作为澄清回填 contract v1（不改 verdict 语义，不开 v2），A3 进 extractor backlog；1-2-5 硬门禁——不带 A1+A2 的 find_dead_code 在同一样本上复测为 0% precision，A1+A2 为 1-2-5 强制范围。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
         "判定规则清单（注解白名单/框架入口/动态分派）",
         "语料=现有5仓+≥1 Spring仓固定commit",
         "每仓≥30条双人独立标注+仲裁"
-      ]
+      ],
+      "rounds": 1
     },
     "1-2-5": {
       "id": "1-2-5",
@@ -946,7 +993,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-21 11:52:52",
+    "updated": "2026-10-21 14:36:30",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [

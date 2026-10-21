@@ -2,6 +2,7 @@
 doc-kind: evidence
 authority: supporting
 authority-id: EV-token-baseline-layer1-2026-10-20
+bounded-question: "What is the Layer-1 token-consumption baseline ratio of ZCodeGraph CLI payloads vs read-everything on 9 tasks x 3 corpora?"
 supports: DES-token-baseline-tasks-v1
 roadmap-node: 1-1-4
 ---

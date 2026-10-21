@@ -18,7 +18,7 @@
 | Class | Folder | Authority range | Count |
 | --- | --- | --- | --- |
 | Decision | [`decisions/`](decisions/) | primary | 8 |
-| Contract | [`contracts/`](contracts/) | primary | 9 |
+| Contract | [`contracts/`](contracts/) | primary | 11 |
 | Ledger | [`ledgers/`](ledgers/) | supporting | 8 |
 | Evidence | [`evidence/`](evidence/) | historical | 41 |
 | Method | [`methods/`](methods/) | primary / supporting | 9 |
@@ -63,6 +63,8 @@ are test-locked; see each note.
 | BENCH-graph-semantics-v1 | [graph-semantics-guardrail-v1.md](contracts/graph-semantics-guardrail-v1.md) | What graph-semantics guardrails must hold? |
 | DES-health-rubric-v1 | [health-rubric-v1.md](contracts/health-rubric-v1.md) | How is the zcodegraph health A-F grade computed? |
 | DES-token-baseline-tasks-v1 | [token-baseline-tasks-v1.md](contracts/token-baseline-tasks-v1.md) | What are the frozen task definitions for the Layer-1 token-consumption baseline ratio? |
+| DES-token-baseline-tasks-v2 | [token-baseline-tasks-v2.md](contracts/token-baseline-tasks-v2.md) | What are the frozen task definitions for the Layer-2 token-consumption baseline ratio? |
+| DES-dead-code-rubric-v1 | [dead-code-rubric-v1.md](contracts/dead-code-rubric-v1.md) | How is a function/method node judged dead, alive, or unknown for find_dead_code v1? |
 
 ## ledgers — distilled decision & closeout ledgers
 
@@ -204,6 +206,12 @@ Per-language real-corpus validation, ordered by date:
   [`...-markers-on.json`](evidence/2026-10-21-token-baseline-layer2-markers-on.json),
   [`...-markers-off.json`](evidence/2026-10-21-token-baseline-layer2-markers-off.json).
   Frozen by `DES-token-baseline-tasks-v2`.
+- [2026-10-21-dead-code-rubric-v1-annotation.md](evidence/2026-10-21-dead-code-rubric-v1-annotation.md)
+  — R1 mechanical annotation of `DES-dead-code-rubric-v1` (roadmap 1-2-4):
+  5 pinned corpora, rule-id-tagged verdicts, and the extractor signal gaps
+  R1 exposed (Java decorators-column sparse → decorates-edge fallback;
+  actix-web R3 bypass; drupal partial index). Companion JSON:
+  [`...-annotation-r1.json`](evidence/2026-10-21-dead-code-rubric-v1-annotation-r1.json).
 
 ## methods — methods, playbooks, and how-to guides
 
