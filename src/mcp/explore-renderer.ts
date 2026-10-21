@@ -25,6 +25,49 @@ function exploreLineNumbersEnabled(): boolean {
   return process.env['CODEGRAPH_EXPLORE_LINENUMS'] !== '0' && process.env['CODEGRAPH_EXPLORE_LINENUMS'] !== 'false';
 }
 
+/**
+ * GCF-style elided markers (roadmap 1-2-3). Default on; set
+ * CODEGRAPH_EXPLORE_ELIDED_MARKERS=0|false to disable. When on, every
+ * budget-driven elision (per-file skip, per-cluster drop, hard-ceiling
+ * truncation) emits a single machine-parseable placeholder line so an
+ * agent can issue a follow-up zcodegraph_explore to fetch exactly what
+ * was dropped, instead of falling back to Read.
+ */
+function elidedMarkersEnabled(): boolean {
+  const v = process.env['CODEGRAPH_EXPLORE_ELIDED_MARKERS'];
+  return v !== '0' && v !== 'false';
+}
+
+/**
+ * Format one elided placeholder line. Single-line, markdown blockquote,
+ * regex-greppable as `elided[<kind>#<ref> ...]`. Fields:
+ *   kind     ∈ file | cluster | section | output
+ *   ref      = filePath[#symbolName]
+ *   L{s}-{e} = line range (omitted when unknown)
+ *   ~{n}c    = rough estimated elided chars (omitted when unknown)
+ *   hint     = the suggested explore query (usually the symbol or basename)
+ */
+export function formatElidedMarker(opts: {
+  kind: 'file' | 'cluster' | 'section' | 'output';
+  filePath?: string;
+  symbolName?: string;
+  startLine?: number;
+  endLine?: number;
+  estChars?: number;
+  hint?: string;
+}): string {
+  const ref = (opts.filePath ?? '') + (opts.symbolName ? `#${opts.symbolName}` : '');
+  const range =
+    typeof opts.startLine === 'number' && typeof opts.endLine === 'number' && opts.endLine >= opts.startLine
+      ? ` L${opts.startLine}-${opts.endLine}`
+      : '';
+  const size = typeof opts.estChars === 'number' && opts.estChars > 0 ? ` ~${opts.estChars}c` : '';
+  const hintRaw = opts.hint ?? opts.symbolName ?? (opts.filePath ? opts.filePath.split('/').pop() ?? opts.filePath : '');
+  // Strip any characters that would break the inline code span / quote.
+  const hint = hintRaw.replace(/["`\\]/g, '');
+  return `> … elided[${opts.kind}#${ref}${range}${size}] — \`zcodegraph_explore("${hint}")\` for full body`;
+}
+
 function numberSourceLines(text: string, startLine: number): string {
   return text.split('\n').map((l, i) => `${startLine + i}\t${l}`).join('\n');
 }
@@ -227,7 +270,11 @@ export function render(
   let totalChars = lines.join('\n').length;
   let filesIncluded = 0;
   let anyFileTrimmed = false;
-  
+  // Roadmap 1-2-3 (GCF-style elided markers): collect per-file skip markers
+  // here and flush them once after the loop, so they don't interleave with
+  // real file sections but still appear inside the Source Code section.
+  const skippedFileMarkers: string[] = [];
+
   for (const [filePath, group] of sortedFiles) {
     if (filesIncluded >= maxFiles) break;
     // A file DEFINES a named/spine symbol (the answer) vs merely references the
@@ -238,7 +285,25 @@ export function render(
     // validate-logic file (Alamofire's Validation.swift).
     const fileNecessary = group.nodes.some(n =>
       entryNodeIds.has(n.id) || flow.pathNodeIds.has(n.id) || flow.uniqueNamedNodeIds.has(n.id));
-    if (!fileNecessary && totalChars > budget.maxOutputChars * 0.9) continue;
+    if (!fileNecessary && totalChars > budget.maxOutputChars * 0.9) {
+      if (elidedMarkersEnabled() && skippedFileMarkers.length < 5) {
+        // Pick a representative symbol (highest-priority non-import/export) so
+        // the agent has a concrete name to re-explore. Falls back to basename.
+        const repr = group.nodes
+          .filter(n => n.kind !== 'import' && n.kind !== 'export')
+          .sort((a, b) => (a.startLine || 0) - (b.startLine || 0))[0];
+        skippedFileMarkers.push(formatElidedMarker({
+          kind: 'file',
+          filePath,
+          symbolName: repr?.name,
+          startLine: repr?.startLine,
+          endLine: repr?.endLine,
+          hint: repr?.name ?? filePath.split('/').pop(),
+        }));
+      }
+      anyFileTrimmed = true;
+      continue;
+    }
   
     const absPath = validatePathWithinRoot(projectRoot, filePath);
     if (!absPath || !existsSync(absPath)) continue;
@@ -594,7 +659,7 @@ export function render(
       fileSection += section;
       allSymbols.push(...cluster.symbols);
     }
-  
+
     // A chosen cluster is a COMPLETE method-range — we never cut through a body.
     // An oversize single cluster (a long monolithic function) renders in FULL:
     // half a method is useless (the agent just Reads the rest for the other half),
@@ -602,6 +667,45 @@ export function render(
     // bounded by the per-file cluster SELECTION above + the total hard ceiling.
     if (chosenIndices.size < clusters.length) {
       anyFileTrimmed = true;
+      // Roadmap 1-2-3 (GCF-style elided markers): emit one marker per dropped
+      // cluster (capped at 3) naming the highest-importance dropped symbol, so
+      // the agent can re-explore it by name. The marker lives inside the file
+      // section so it reads as "this file has more that we did not show".
+      if (elidedMarkersEnabled()) {
+        const dropped = clusters
+          .filter((_, i) => !chosenIndices.has(i))
+          .sort((a, b) => b.maxImportance - a.maxImportance);
+        let emitted = 0;
+        for (const c of dropped) {
+          if (emitted >= 3) break;
+          // First symbol token of the cluster is the highest-density range's
+          // name — strip the trailing "(kind)" suffix for the hint.
+          const head = c.symbols[0] ?? '';
+          const nameMatch = head.match(/^([^(]+)/);
+          const symName = nameMatch ? nameMatch[1] : undefined;
+          const estChars = Math.max(0, c.end - c.start + 1) * 40; // ~40c/line
+          if (fileSection.length > 0) fileSection += GAP_MARKER;
+          fileSection += formatElidedMarker({
+            kind: 'cluster',
+            filePath,
+            symbolName: symName,
+            startLine: c.start,
+            endLine: c.end,
+            estChars,
+            hint: symName,
+          });
+          emitted++;
+        }
+        if (dropped.length > emitted) {
+          if (fileSection.length > 0) fileSection += GAP_MARKER;
+          fileSection += formatElidedMarker({
+            kind: 'cluster',
+            filePath,
+            hint: filePath.split('/').pop(),
+            estChars: 0,
+          }).replace(' — ', ` (+${dropped.length - emitted} more clusters) — `);
+        }
+      }
     }
   
     // Dedupe + cap the symbols list shown in the per-file header. Some
@@ -651,7 +755,17 @@ export function render(
     totalChars += fileSection.length + 200;
     filesIncluded++;
   }
-  
+
+  // Roadmap 1-2-3: flush per-file skip markers collected above. Rendered as
+  // their own mini-section so the agent sees them as a block, separate from
+  // the (longer, less actionable) "Not shown above" trailing list.
+  if (skippedFileMarkers.length > 0) {
+    lines.push('### Elided for budget — re-explore by name');
+    lines.push('');
+    for (const m of skippedFileMarkers) lines.push(m);
+    lines.push('');
+  }
+
   // Add remaining files as references (from both relevant and peripheral files).
   // Small projects (per budget) skip this — the relevant story already fits
   // in the source section, and a trailing pointer list is pure overhead.
@@ -707,6 +821,22 @@ export function render(
     const lastSection = cut.lastIndexOf('\n#### ');
     const boundary = lastSection > hardCeiling * 0.5 ? lastSection : cut.lastIndexOf('\n');
     const safe = boundary > 0 ? cut.slice(0, boundary) : cut;
+    const estDropped = output.length - safe.length;
+    // Roadmap 1-2-3 (GCF-style): replace the vague "(output truncated)"
+    // tail with a structured, greppable marker. Keeps the "do NOT Read"
+    // steering but adds a concrete machine-parseable handle.
+    if (elidedMarkersEnabled()) {
+      return (
+        safe +
+        '\n\n' +
+        formatElidedMarker({
+          kind: 'output',
+          hint: plan.query.split(/\s+/).slice(0, 3).join(' '),
+          estChars: estDropped,
+        }) +
+        '\n> The source above is complete and verbatim — treat it as already Read. For any area not covered, run another `zcodegraph_explore` with the specific names — do NOT Read these files.'
+      );
+    }
     return safe + '\n\n... (output truncated to budget; the source above is complete and verbatim — treat it as already Read. For any area not covered, run another zcodegraph_explore with the specific names — do NOT Read these files.)';
   }
   return output;

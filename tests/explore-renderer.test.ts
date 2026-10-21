@@ -168,3 +168,97 @@ describe('render', () => {
     expect(output).toContain('callee');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Roadmap 1-2-3: GCF-style elided markers (budget-aware placeholders)
+// ---------------------------------------------------------------------------
+
+describe('formatElidedMarker + insertion points (1-2-3)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete process.env['CODEGRAPH_EXPLORE_ELIDED_MARKERS'];
+  });
+
+  it('emits a machine-parseable placeholder with kind/ref/range/size/hint', async () => {
+    const { formatElidedMarker } = await import('../src/mcp/explore-renderer');
+    const line = formatElidedMarker({
+      kind: 'cluster',
+      filePath: 'src/session.swift',
+      symbolName: 'request(_:)',
+      startLine: 120,
+      endLine: 180,
+      estChars: 2400,
+      hint: 'request(_:)',
+    });
+    expect(line).toContain('elided[cluster#src/session.swift#request(_:) L120-180 ~2400c]');
+    expect(line).toContain('zcodegraph_explore("request(_:)")');
+  });
+
+  it('omits line range and size when unknown', async () => {
+    const { formatElidedMarker } = await import('../src/mcp/explore-renderer');
+    const line = formatElidedMarker({ kind: 'file', filePath: 'src/foo.ts', hint: 'foo' });
+    expect(line).toContain('elided[file#src/foo.ts]');
+    expect(line).not.toContain('L0-');
+    expect(line).not.toContain('~0c');
+  });
+
+  it('strips quote/backtick/backslash from hint so the inline code span survives', async () => {
+    const { formatElidedMarker } = await import('../src/mcp/explore-renderer');
+    const line = formatElidedMarker({
+      kind: 'file',
+      filePath: 'src/x.ts',
+      hint: 'bad"name`with\\escapes',
+    });
+    expect(line).toContain('zcodegraph_explore("badnamewithescapes")');
+  });
+
+  it('appends a structured output marker when the hard ceiling fires', async () => {
+    const { render } = await import('../src/mcp/explore-renderer');
+    // Fabricate a plan whose rendered body definitely exceeds the hard
+    // ceiling. We exploit the fact that blastRadius is prepended raw.
+    const plan = mockExplorePlan({
+      budget: {
+        maxOutputChars: 100,
+        maxCharsPerFile: 80,
+        maxFiles: 6,
+        maxSymbolsInFileHeader: 8,
+        maxEdgesPerRelationshipKind: 20,
+        gapThreshold: 15,
+        includeRelationships: false,
+        includeAdditionalFiles: false,
+        includeCompletenessSignal: false,
+        includeBudgetNote: false,
+      },
+    });
+    const flow = { text: '', pathNodeIds: new Set<string>(), namedNodeIds: new Set<string>(), uniqueNamedNodeIds: new Set<string>() };
+    const blastRadius = 'x'.repeat(5000); // force ceiling
+    const out = render(plan, null as any, flow, blastRadius);
+    expect(out).toContain('elided[output#');
+    expect(out).toContain('zcodegraph_explore("');
+    expect(out).toContain('do NOT Read these files');
+  });
+
+  it('respects CODEGRAPH_EXPLORE_ELIDED_MARKERS=0 (legacy tail)', async () => {
+    process.env['CODEGRAPH_EXPLORE_ELIDED_MARKERS'] = '0';
+    const { render } = await import('../src/mcp/explore-renderer');
+    const plan = mockExplorePlan({
+      budget: {
+        maxOutputChars: 100,
+        maxCharsPerFile: 80,
+        maxFiles: 6,
+        maxSymbolsInFileHeader: 8,
+        maxEdgesPerRelationshipKind: 20,
+        gapThreshold: 15,
+        includeRelationships: false,
+        includeAdditionalFiles: false,
+        includeCompletenessSignal: false,
+        includeBudgetNote: false,
+      },
+    });
+    const flow = { text: '', pathNodeIds: new Set<string>(), namedNodeIds: new Set<string>(), uniqueNamedNodeIds: new Set<string>() };
+    const blastRadius = 'x'.repeat(5000);
+    const out = render(plan, null as any, flow, blastRadius);
+    expect(out).toContain('(output truncated to budget');
+    expect(out).not.toContain('elided[output#');
+  });
+});
