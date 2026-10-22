@@ -12468,7 +12468,62 @@ fn visit_rust_node(
             line: extracted.start_line,
             col: extracted.start_column,
         });
+        let extracted_start_line = extracted.start_line;
         nodes.push(extracted);
+
+        // Roadmap 1-2-12-3: collect every `#[...]` attribute line directly
+        // above this function/method (skipping doc comments) and record a
+        // `decorates` reference from the symbol to each attribute's body
+        // text (without `#[]`). The dead-code rubric's R1/R3 whitelists
+        // match against the body via substring: `test` hits `#[test]`,
+        // `get(` hits `#[get("/path")]`, `derive` hits `#[derive(Debug)]`,
+        // `tokio.main` hits `#[tokio::main]`, `actix` hits
+        // `#[actix_web::main]`. Without this signal the actix false-
+        // positive cohort (30 items in R1 annotation) all fall to R4 dead.
+        if matches!(kind, "function" | "method") {
+            for attr_body in rust_attribute_bodies_above(source, (extracted_start_line - 1) as usize) {
+                // 1-2-12-5: materialize the attribute as a first-class node
+                // and write the decorates edge DIRECTLY, bypassing the
+                // unresolved_refs funnel. The funnel can't resolve these —
+                // there is no `get("/users")` or `actix_rt::test` function
+                // node in the graph for the resolver to find, so the ref
+                // would be cleaned up at end-of-resolution and no edge
+                // would persist. We dedupe attribute nodes by body text
+                // (same `#[test]` on many fns → one attribute node, many
+                // incoming decorates edges) so the rubric's
+                // `decoratesBySource` lookup just works.
+                let attr_node_id = generate_node_id(relative_path, "attribute", &attr_body, 0);
+                if !nodes.iter().any(|n| n.id == attr_node_id) {
+                    nodes.push(ExtractedNode::manual_symbol(
+                        relative_path,
+                        "attribute",
+                        &attr_body,
+                        "rust",
+                        0,
+                        0,
+                        0,
+                        0,
+                    ));
+                    // The attribute node must belong to the file so the
+                    // graph stays connected.
+                    let file_contains_attr_id = generate_node_id(relative_path, "attribute", &attr_body, 0);
+                    edges.push(ExtractedEdge {
+                        source: file_node_id.to_string(),
+                        target: file_contains_attr_id,
+                        kind: "contains".to_string(),
+                        line: 0,
+                        col: 0,
+                    });
+                }
+                edges.push(ExtractedEdge {
+                    source: extracted_id.clone(),
+                    target: attr_node_id,
+                    kind: "decorates".to_string(),
+                    line: extracted_start_line,
+                    col: 0,
+                });
+            }
+        }
 
         if matches!(kind, "struct" | "trait" | "enum" | "function" | "method") {
             child_from_node_id = Cow::Owned(extracted_id);
@@ -12490,6 +12545,56 @@ fn visit_rust_node(
         edges,
         unresolved_refs,
     )?;
+
+    // 1-2-12-5: a `mod_item` (e.g. `#[cfg(test)] mod tests { ... }`) is
+    // extracted as an `import` node by `extract_rust_imports` above. The
+    // mod itself may carry attributes (`#[cfg(test)]`, `#[cfg(feature = ...)]`)
+    // that the dead-code rubric needs — specifically, every function whose
+    // line range falls INSIDE a `#[cfg(test)]` mod must be demoted to alive
+    // because the test runner is the only entry point. Mirror the
+    // function/method decorates write here: scan the mod's adjacent
+    // attribute block and write decorates edges from the freshly-created
+    // import node to first-class attribute nodes.
+    if node.kind() == "mod_item" {
+        let mod_start_line = (node.start_position().row + 1) as i64;
+        if let Some(module_name) = rust_module_reference_name(node, source)? {
+            let import_node_name = rust_import_node_name(&module_name);
+            let import_node_id =
+                generate_node_id(relative_path, "import", &import_node_name, mod_start_line);
+            for attr_body in
+                rust_attribute_bodies_above(source, (mod_start_line - 1) as usize)
+            {
+                let attr_node_id = generate_node_id(relative_path, "attribute", &attr_body, 0);
+                if !nodes.iter().any(|n| n.id == attr_node_id) {
+                    nodes.push(ExtractedNode::manual_symbol(
+                        relative_path,
+                        "attribute",
+                        &attr_body,
+                        "rust",
+                        0,
+                        0,
+                        0,
+                        0,
+                    ));
+                    edges.push(ExtractedEdge {
+                        source: file_node_id.to_string(),
+                        target: attr_node_id.clone(),
+                        kind: "contains".to_string(),
+                        line: 0,
+                        col: 0,
+                    });
+                }
+                edges.push(ExtractedEdge {
+                    source: import_node_id.clone(),
+                    target: attr_node_id,
+                    kind: "decorates".to_string(),
+                    line: mod_start_line,
+                    col: 0,
+                });
+            }
+        }
+    }
+
     extract_rust_statement_refs(
         node,
         source,
@@ -12725,6 +12830,52 @@ fn rust_line_has_route_like_function_macro(line: &str) -> bool {
         index = bang + 1;
     }
     false
+}
+
+/// Roadmap 1-2-12-3: walk BACKWARDS from `fn_start_row` (0-indexed) over
+/// the adjacent `#[...]` attribute block and return each attribute's body
+/// text (without the enclosing `#[]`), outermost-last so the returned vec
+/// reads top-down. Doc comments (`///`, `//!`, `//`) interleaved between
+/// attributes are skipped; an empty line or any non-attribute content
+/// stops the walk so attributes on an earlier, unrelated item cannot leak
+/// in. Caller decides which bodies are semantically meaningful — this
+/// helper is purely syntactic.
+fn rust_attribute_bodies_above(source: &[u8], fn_start_row: usize) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let Ok(source_text) = std::str::from_utf8(source) else {
+        return out;
+    };
+    let lines: Vec<&str> = source_text.lines().collect();
+    if fn_start_row == 0 || fn_start_row > lines.len() {
+        return out;
+    }
+    let mut row = fn_start_row;
+    while row > 0 {
+        row -= 1;
+        let trimmed = lines[row].trim();
+        if trimmed.is_empty() {
+            // An empty line between the attribute block and the `fn` breaks
+            // the adjacency chain — idiomatic Rust never writes it this way.
+            break;
+        }
+        if trimmed.starts_with("///") || trimmed.starts_with("//!") || trimmed.starts_with("//") {
+            continue;
+        }
+        if trimmed.starts_with("#[") {
+            let body = trimmed
+                .trim_start_matches("#[")
+                .trim_end_matches(']')
+                .trim();
+            if !body.is_empty() {
+                out.push(body.to_string());
+            }
+            continue;
+        }
+        // Any other content (a `}` from the previous item, a `use` line,
+        // another fn body) ends the adjacent attribute block.
+        break;
+    }
+    out
 }
 
 fn is_rust_route_attribute(attribute: &str) -> bool {
@@ -14628,6 +14779,14 @@ fn rust_impl_type_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
 fn rust_type_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
     match node.kind() {
         "type_identifier" | "identifier" => node.utf8_text(source).ok().map(ToString::to_string),
+        // 1-2-12-5: primitive (`usize`, `&str`, ...) and unit (`()`) types
+        // appear as the impl target in `impl From<X> for usize` /
+        // `impl FromRequest for ()`. Without these branches the impl
+        // container is dropped, and every method inside is misclassified
+        // as a top-level `function` instead of a `method` — breaking the
+        // dead-code rubric's R3 owner-class lookup.
+        "primitive_type" => node.utf8_text(source).ok().map(ToString::to_string),
+        "unit_type" => Some("()".to_string()),
         "scoped_type_identifier" | "generic_type" | "reference_type" | "pointer_type" => node
             .named_children(&mut node.walk())
             .find_map(|child| rust_type_name(child, source)),
@@ -19877,6 +20036,93 @@ mod tests {
                 ("GET /users".to_string(), "list_users".to_string()),
                 ("POST /users".to_string(), "create_user".to_string())
             ]
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    /// Roadmap 1-2-12-3: handler functions annotated with an actix/axum route
+    /// attribute must record a `decorates` unresolved-ref from the handler
+    /// node to the attribute's leaf short name, so the dead-code rubric's
+    /// R3 whitelist (actix/get/post/route/handler) fires and keeps them out
+    /// of the `dead`/`unknown` buckets.
+    #[test]
+    fn rust_core_emits_decorates_edge_for_route_attribute_handler() {
+        let dir = temp_dir("rust-route-attribute-decorates");
+        fs::write(
+            dir.join("main.rs"),
+            [
+                "#[get(\"/users\")]",
+                "async fn list_users() {}",
+                "",
+                "/// Doc-comment between attribute and fn.",
+                "#[post(\"/users\")]",
+                "/// more docs",
+                "async fn create_user() {}",
+                "",
+                "#[derive(Debug)]",
+                "#[route(\"/items\", method = \"GET\")]",
+                "async fn list_items() {}",
+                "",
+                "async fn plain_helper() {}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        // 1-2-12-5: decorates edges are written DIRECTLY by the extractor
+        // (not via unresolved_refs), pointing at first-class `attribute`
+        // nodes whose name is the attribute body text. `plain_helper` has
+        // no adjacent route attribute and so must NOT appear. `list_items`
+        // has TWO adjacent attributes (derive + route) and so produces
+        // TWO decorates edges — both must land because the rubric matches
+        // on the body text.
+        let mut decorates: Vec<(String, String)> = conn
+            .prepare(
+                "SELECT s.name, t.name
+                 FROM edges e
+                 JOIN nodes s ON s.id = e.source
+                 JOIN nodes t ON t.id = e.target
+                 WHERE e.kind = 'decorates'
+                 ORDER BY s.name, t.name",
+            )
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        decorates.sort();
+        assert_eq!(
+            decorates,
+            vec![
+                ("create_user".to_string(), "post(\"/users\")".to_string()),
+                ("list_items".to_string(), "derive(Debug)".to_string()),
+                (
+                    "list_items".to_string(),
+                    "route(\"/items\", method = \"GET\")".to_string()
+                ),
+                ("list_users".to_string(), "get(\"/users\")".to_string()),
+            ],
+            "expected one decorates edge per adjacent attribute; plain_helper must be absent"
         );
         cleanup_temp_dir(dir);
     }

@@ -306,6 +306,72 @@ export function evaluateDeadCode(input: DeadCodeEvaluationInput): DeadCodeVerdic
     }
   }
 
+  // 1-2-12-5: line ranges of Rust functions decorated with a test-driver
+  // attribute. Any nested fn defined INSIDE one of these ranges is
+  // reachable only via the test driver and must be demoted to alive —
+  // the static graph cannot see the `#[test]` / `#[actix_rt::test]` /
+  // `#[tokio::test]` invocation, and the extractor (by design) attaches
+  // nested fns to the file node, not the outer fn, so a contains-walk
+  // cannot recover this signal. We recognise the test driver by the
+  // leaf segment of any decorates body on the outer fn: `test`,
+  // `actix_rt::test`, `tokio::test`, `actix_web::test`, `rstest`.
+  const TEST_DECORATE_LEAVES = new Set(['test', 'rstest']);
+  const testDecoratedRustFnRanges: Array<{ filePath: string; startLine: number; endLine: number }> = [];
+  for (const n of nodes) {
+    if (n.language !== 'rust') continue;
+    if (n.kind !== 'function' && n.kind !== 'method') continue;
+    const decos = decoratesBySource.get(n.id);
+    if (!decos) continue;
+    let hit = false;
+    for (const body of decos) {
+      // body is already lowercased by report.ts (e.g. 'actix_rt::test',
+      // 'test', 'tokio::test', 'rstest'). Take the last `::` segment as
+      // the leaf name.
+      const leaf = body.split('::').pop() ?? body;
+      if (TEST_DECORATE_LEAVES.has(leaf)) {
+        hit = true;
+        break;
+      }
+    }
+    if (hit) {
+      testDecoratedRustFnRanges.push({
+        filePath: n.file_path,
+        startLine: n.start_line,
+        endLine: n.end_line,
+      });
+    }
+  }
+
+  // 1-2-12-5 (b): line ranges of Rust `mod` blocks decorated with
+  // `#[cfg(test)]` — these are the idiomatic `mod tests { ... }` modules
+  // holding unit tests. The extractor persists the mod as an `import`
+  // node and (post-1-2-12-5) writes decorates edges for the mod's own
+  // attributes, so we can recover the range from decoratesBySource.
+  // Every function whose start line falls inside such a range is
+  // reachable only via `cargo test` and must be demoted to alive.
+  const cfgTestModRanges: Array<{ filePath: string; startLine: number; endLine: number }> = [];
+  for (const n of nodes) {
+    if (n.language !== 'rust') continue;
+    if (n.kind !== 'import') continue; // Rust extractor represents mod as import
+    const decos = decoratesBySource.get(n.id);
+    if (!decos) continue;
+    let hit = false;
+    for (const body of decos) {
+      // body is lowercased: 'cfg(test)', 'cfg(all(test, ...))', ...
+      if (body.startsWith('cfg(') && body.includes('test')) {
+        hit = true;
+        break;
+      }
+    }
+    if (hit) {
+      cfgTestModRanges.push({
+        filePath: n.file_path,
+        startLine: n.start_line,
+        endLine: n.end_line,
+      });
+    }
+  }
+
   // Method -> containing class via contains edges.
   const classOfMethod = new Map<string, string>();
   for (const e of edges) {
@@ -378,6 +444,64 @@ export function evaluateDeadCode(input: DeadCodeEvaluationInput): DeadCodeVerdic
       const p = n.file_path.toLowerCase();
       if (!p.includes('internal/') && !p.includes('private') && !p.includes('impl/')) {
         verdicts.push({ ...base, bucket: 'alive', rule_id: 'R2', evidence: { via: 'exported-public-surface' } });
+        continue;
+      }
+    }
+    // 1-2-12-3: Rust `pub` / `pub(crate)` / `pub(super)` / `pub(in ...)`
+    // functions are reachable from outside their defining module — the
+    // graph sees zero in-crate `calls` edges even when downstream crates
+    // or macros invoke them. The Rust extractor (crates/zcodegraph-core)
+    // records visibility on the node, so consume it here. Private fns
+    // fall through to R3/R4 as before. We deliberately demote to `alive`
+    // (not `unknown`) because `pub` is a strong external-reachability
+    // signal — the framework-crate false-positive cohort (actix 30 FP)
+    // is dominated by exactly this shape.
+    if (n.language === 'rust' && n.visibility !== null && n.visibility.startsWith('pub')) {
+      verdicts.push({ ...base, bucket: 'alive', rule_id: 'R2', evidence: { via: 'rust-pub-visibility', visibility: n.visibility } });
+      continue;
+    }
+    // 1-2-12-5: Rust nested fns defined INSIDE a `#[test]` /
+    // `#[actix_rt::test]` / `#[tokio::test]` / `#[rstest]` outer fn are
+    // reachable only via the test driver. The static graph cannot see
+    // the call (the driver is invoked by the test runner), and the
+    // extractor deliberately attaches nested fns to the file node (not
+    // the outer fn), so contains-walks cannot rescue them either. Demote
+    // to alive when the candidate's line range falls inside any
+    // test-decorated outer fn in the same file.
+    if (n.language === 'rust') {
+      const enclosing = testDecoratedRustFnRanges.find(
+        (r) =>
+          r.filePath === n.file_path &&
+          n.start_line > r.startLine &&
+          n.start_line < r.endLine,
+      );
+      if (enclosing) {
+        verdicts.push({
+          ...base,
+          bucket: 'alive',
+          rule_id: 'R2',
+          evidence: { via: 'rust-nested-fn-in-test', enclosingStart: enclosing.startLine },
+        });
+        continue;
+      }
+      // 1-2-12-5 (b): functions whose start line falls inside a
+      // `#[cfg(test)] mod ... { ... }` range. The mod itself is held by
+      // the test runner, so every fn inside is reachable only via
+      // `cargo test`. The extractor persists the mod as an `import`
+      // node and writes decorates edges for the mod's attributes.
+      const enclosingMod = cfgTestModRanges.find(
+        (r) =>
+          r.filePath === n.file_path &&
+          n.start_line > r.startLine &&
+          n.start_line < r.endLine,
+      );
+      if (enclosingMod) {
+        verdicts.push({
+          ...base,
+          bucket: 'alive',
+          rule_id: 'R2',
+          evidence: { via: 'rust-fn-in-cfg-test-mod', modStart: enclosingMod.startLine },
+        });
         continue;
       }
     }

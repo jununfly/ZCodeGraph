@@ -63,13 +63,19 @@ export function buildDeadCodeReportFromDbUnsafe(
 }
 
 function buildDeadCodeReportFromDb(db: SqliteDatabase, projectRoot: string): DeadCodeReport {
+  // 1-2-12-5: include Rust `import` rows as well — the extractor persists
+  // `mod ... { ... }` blocks as kind='import' nodes, and the rubric's
+  // cfg(test)-mod range lookup needs their line ranges. Non-candidate
+  // kinds are filtered out by the rubric's candidacy check (which requires
+  // kind IN function/method), so including them here is safe.
   const nodes = db
     .prepare(
       `SELECT id, kind, name, qualified_name, file_path, language,
               start_line, end_line, signature, visibility, is_exported,
               decorators
          FROM nodes
-        WHERE kind IN ('function','method')`,
+        WHERE kind IN ('function','method')
+           OR (kind = 'import' AND language = 'rust')`,
     )
     .all() as unknown as NodeRowFull[];
 

@@ -78,8 +78,9 @@ function buildEvalInput(db, repoDir, rubric) {
     `SELECT id, kind, name, qualified_name, file_path, language,
             start_line, end_line, signature, visibility, is_exported,
             decorators
-       FROM nodes
-      WHERE kind IN ('function','method')`,
+        FROM nodes
+        WHERE kind IN ('function','method')
+           OR (kind = 'import' AND language = 'rust')`,
   ).all();
 
   const allNodes = db.prepare(`SELECT id, kind, name, file_path FROM nodes`).all();
