@@ -1,0 +1,69 @@
+{
+  "metric": "complexity-coverage",
+  "repo": "actix/actix-web",
+  "ref": "2db7119a990511e90e234d8ba118234b51bce68a",
+  "measuredAt": "2026-10-22T13:01:27.431Z",
+  "value": {
+    "coverage": {
+      "csharp": null,
+      "java": null,
+      "php": null,
+      "python": null,
+      "rust": 1
+    },
+    "target": 0.9,
+    "pass": true,
+    "perLang": {
+      "csharp": {
+        "total": 0,
+        "computable": 0,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      },
+      "java": {
+        "total": 0,
+        "computable": 0,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      },
+      "php": {
+        "total": 0,
+        "computable": 0,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      },
+      "python": {
+        "total": 0,
+        "computable": 0,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      },
+      "rust": {
+        "total": 1281,
+        "computable": 1281,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      }
+    }
+  },
+  "evidence": {
+    "corpusDir": "C:\\workspace\\measure-corpus\\actix-actix-web",
+    "dbPath": "C:\\workspace\\measure-corpus\\actix-actix-web\\.zcodegraph\\zcodegraph.db",
+    "frozenLanguages": [
+      "csharp",
+      "java",
+      "php",
+      "python",
+      "rust"
+    ],
+    "cloneDurationMs": 804,
+    "indexDurationMs": 5315,
+    "totalDurationMs": 6351,
+    "reusedClone": true
+  }
+}

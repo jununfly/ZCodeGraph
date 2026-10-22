@@ -1,0 +1,71 @@
+{
+  "metric": "complexity-coverage",
+  "repo": "django/django",
+  "ref": "2fff3e9f493a9c85fb8a2294358c6751575ee4bf",
+  "measuredAt": "2026-10-22T13:00:55.059Z",
+  "value": {
+    "coverage": {
+      "csharp": null,
+      "java": null,
+      "php": null,
+      "python": 0.996,
+      "rust": null
+    },
+    "target": 0.9,
+    "pass": true,
+    "perLang": {
+      "csharp": {
+        "total": 0,
+        "computable": 0,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      },
+      "java": {
+        "total": 0,
+        "computable": 0,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      },
+      "php": {
+        "total": 0,
+        "computable": 0,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      },
+      "python": {
+        "total": 9615,
+        "computable": 9579,
+        "exempt": 36,
+        "miss": 0,
+        "exemptByReason": {
+          "extern-or-ffi": 36
+        }
+      },
+      "rust": {
+        "total": 0,
+        "computable": 0,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      }
+    }
+  },
+  "evidence": {
+    "corpusDir": "C:\\workspace\\measure-corpus\\django-django",
+    "dbPath": "C:\\workspace\\measure-corpus\\django-django\\.zcodegraph\\zcodegraph.db",
+    "frozenLanguages": [
+      "csharp",
+      "java",
+      "php",
+      "python",
+      "rust"
+    ],
+    "cloneDurationMs": 696,
+    "indexDurationMs": 20538,
+    "totalDurationMs": 22476,
+    "reusedClone": true
+  }
+}

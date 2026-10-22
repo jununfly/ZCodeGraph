@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-22 17:47:01
+> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-22 21:28:13
 
 [~][X+] 1. ZCodeGraph 能力汇集路线图
 ├── [~][X+] 1-1. P-1 验证冲刺（先行 gate）
@@ -24,7 +24,7 @@
 │   ├── [x][X+] 1-2-3. P0a token 输出优化（GCF 式压缩）
 │   ├── [x][X+] 1-2-4. P0b 冻结《死代码判定 rubric v1》
 │   ├── [x][X+] 1-2-5. P0b find_dead_code 首版（限 C#/Java/PHP/Python/Rust）
-│   ├── [ ][X+] 1-2-6. P0b 圈复杂度（查询时计算，零 schema 变更）
+│   ├── [x][X+] 1-2-6. P0b 圈复杂度（查询时计算，零 schema 变更）
 │   ├── [x][X+] 1-2-7. 横切：schema 演进条款 + MCP 工具收口 ≤12
 │   ├── [x][X+] 1-2-8. 横切：架构回归红线 + 能力健康探针
 │   ├── [x][X+] 1-2-9. P0a 索引范围配置：默认排除 .workbuddy/ 等 agent 工作目录

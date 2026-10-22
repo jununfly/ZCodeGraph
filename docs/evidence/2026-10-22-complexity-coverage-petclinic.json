@@ -1,0 +1,69 @@
+{
+  "metric": "complexity-coverage",
+  "repo": "spring-projects/spring-petclinic",
+  "ref": "500158f732419217507c7656904b8e6aa1bcc0d6",
+  "measuredAt": "2026-10-22T13:01:24.969Z",
+  "value": {
+    "coverage": {
+      "csharp": null,
+      "java": 1,
+      "php": null,
+      "python": null,
+      "rust": null
+    },
+    "target": 0.9,
+    "pass": true,
+    "perLang": {
+      "csharp": {
+        "total": 0,
+        "computable": 0,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      },
+      "java": {
+        "total": 195,
+        "computable": 195,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      },
+      "php": {
+        "total": 0,
+        "computable": 0,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      },
+      "python": {
+        "total": 0,
+        "computable": 0,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      },
+      "rust": {
+        "total": 0,
+        "computable": 0,
+        "exempt": 0,
+        "miss": 0,
+        "exemptByReason": {}
+      }
+    }
+  },
+  "evidence": {
+    "corpusDir": "C:\\workspace\\measure-corpus\\spring-projects-spring-petclinic",
+    "dbPath": "C:\\workspace\\measure-corpus\\spring-projects-spring-petclinic\\.zcodegraph\\zcodegraph.db",
+    "frozenLanguages": [
+      "csharp",
+      "java",
+      "php",
+      "python",
+      "rust"
+    ],
+    "cloneDurationMs": 802,
+    "indexDurationMs": 3014,
+    "totalDurationMs": 3889,
+    "reusedClone": true
+  }
+}

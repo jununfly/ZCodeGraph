@@ -67,6 +67,7 @@ are test-locked; see each note.
 | DES-dead-code-rubric-v1 | [dead-code-rubric-v1.md](contracts/dead-code-rubric-v1.md) | How is a function/method node judged dead, alive, or unknown for find_dead_code v1? |
 | DES-schema-evolution-and-mcp-tool-cap-v1 | [schema-evolution-and-mcp-tool-cap-v1.md](contracts/schema-evolution-and-mcp-tool-cap-v1.md) | What clauses govern schema evolution (NodeKind/EdgeKind/migrations) and the MCP tool-surface cap (≤12)? |
 | DES-architecture-regression-baseline-v1 | [architecture-regression-baseline-v1.md](contracts/architecture-regression-baseline-v1.md) | What frozen baseline and red-line thresholds govern index-time / explore-latency regressions (roadmap 1-2-8)? |
+| DES-complexity-rubric-v1 | [complexity-rubric-v1.md](contracts/complexity-rubric-v1.md) | How is per-function cyclomatic complexity computed at query time for metrics.complexity v1 (roadmap 1-2-6)? |
 
 ## ledgers — distilled decision & closeout ledgers
 
@@ -237,6 +238,13 @@ Per-language real-corpus validation, ordered by date:
   resolution / search / context / mcp-tools / dead-code all healthy on
   petclinic; mcp-tools domain asserts against the tiny-repo gate profile
   (fileCount 69 < 500 → explore/search/node only, src/mcp/tools.ts:696).
+- [2026-10-22-complexity-coverage.md](evidence/2026-10-22-complexity-coverage.md)
+  — complexity-rubric-v1 exit-criterion measurement (roadmap 1-2-6):
+  5/5 frozen languages pass ≥0.90 coverage (csharp 0.989, java 1.000,
+  php 1.000, python 0.996, rust 1.000; pooled 46 916/46 956 = 0.9991,
+  0 misses). Drupal corpus ran `--reuse-db` against the preserved
+  2026-10-21 DB because fresh index hits the known FOREIGN KEY issue.
+  Per-corpus JSONs: `...-eshoponweb/-petclinic/-drupal/-django/-actix.json`.
 
 ## methods — methods, playbooks, and how-to guides
 
