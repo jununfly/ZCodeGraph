@@ -1570,18 +1570,35 @@
       "id": "1-2-12-6",
       "uid": "01a162940a4f-3aafeef914",
       "label": "Rust fn-as-value references 信号（entity_validate_char 等，extractor+rubric R3）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2-12",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "施工方案",
+          "answer": "A 收窄版：extractor 只在裸 identifier 参数能确定解析到同 crate 某 fn/method 节点时写 references 边（非任意 identifier，避免边爆炸+R4→unknown 误抬），rubric R3 新增「有 incoming references 边（非 route/interface 语义）→ unknown」。不动 candidacy 的 calls-only 语义，不动其他语言。验证=cargo build 重建 actix 索引 + precision 脚本，exit=actix 有害错误 1→0 且其他 4 仓不回归",
+          "note": ""
+        },
+        {
+          "q": "落地增量与达成度",
+          "answer": "actix 有害错误 1→0 达成，agreement 0.889 保持，其他 4 仓全绿。落地两件套：(1) extractor extract_rust_statement_refs 对 call_expression 的 arguments 直接子 identifier 写 references 未决 ref（识别 .all(x)/.map(h)/thread::spawn(w) fn-as-value；resolver 单 candidate 精确匹配才建边，变量读取自然丢弃——wide-emit/narrow-resolve 收窄）。e2e 验证 check_slice_validity→entity_validate_char references 边落库，全库 370 条 references→fn 边。(2) rubric R3 新增 fn-as-value-reference：fn/method 是 references 边 target → unknown（demote 非 alive，因 references 弱于 framework entry）。顺带修 1-2-12-3 遗留测试冲突：rust visibility='public' 现被 R2 rust-pub-visibility 抢先判 alive（startsWith('pub') 命中 'public'），原 pub-residual R3 测试夹具改 csharp + 补 rust-pub-visibility/fn-as-value 两个正面测试，36/36 绿。rust 单测 204/204。剩余 3 分歧全保守方向（tool 更偏 alive/unknown 无误报 dead）：Header/gzip_decode=tool alive vs truth unknown，entity_validate_char=tool unknown vs truth alive。",
+          "note": ""
+        }
+      ],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "rounds": 1,
+      "exit_criteria": [
+        "actix 有害错误 1→0（entity_validate_char 不再 R4 dead）",
+        "actix agreement ≥0.889 不回归",
+        "其他 4 应用仓无回归（eShop/Spring 基线保持）"
+      ]
     }
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-22 15:47:11",
+    "updated": "2026-10-22 16:16:09",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
