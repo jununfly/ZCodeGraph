@@ -32,6 +32,7 @@ import { resolve as resolvePath } from 'path';
 import type { ExploreOutputBudget } from './explore-types.js';
 import { plan } from './explore-planner';
 import { render } from './explore-renderer';
+import { ComplexityCalculator } from '../metrics/complexity/index.js';
 
 /** Maximum output length to prevent context bloat (characters) */
 const MAX_OUTPUT_LENGTH = 15000;
@@ -528,6 +529,11 @@ export class ToolHandler {
   // populated by the watcher, not by catch-up. Cleared on first await so
   // subsequent calls don't pay any cost.
   private catchUpGate: Promise<void> | null = null;
+  // Per-project complexity calculators, lazily constructed on first use.
+  // Each calculator holds an in-memory LRU keyed by file_path (per
+  // complexity-rubric-v1: no persisted cache); entries are dropped when
+  // the project is evicted from projectCache.
+  private complexityCalculators: Map<string, ComplexityCalculator> = new Map();
 
   constructor(private cg: CodeGraph | null) {}
 
@@ -2081,6 +2087,8 @@ export class ToolHandler {
       lines.push(`### ${node.name} (${node.kind})`);
       lines.push(`${node.filePath}${location}`);
       if (node.signature) lines.push(`\`${node.signature}\``);
+      const complexityLine = this.formatComplexityLine(node);
+      if (complexityLine) lines.push(complexityLine);
       lines.push('');
     }
 
@@ -2149,6 +2157,38 @@ export class ToolHandler {
     return lines.join('\n');
   }
 
+  /**
+   * Return the complexity verdict for a node, or `null` if the node is
+   * not eligible (wrong kind/language) or no project is open. Uses a
+   * lazily-constructed per-project calculator with an in-memory file
+   * LRU. Per complexity-rubric-v1 the value is computed at query time
+   * and never persisted.
+   */
+  private complexityFor(node: Node): { value: number | null; exemption: string | null } | null {
+    if (!this.cg) return null;
+    if (!ComplexityCalculator.isEligible(node)) return null;
+    const root = this.cg.getProjectRoot();
+    let calc = this.complexityCalculators.get(root);
+    if (!calc) {
+      calc = new ComplexityCalculator({ projectRoot: root });
+      this.complexityCalculators.set(root, calc);
+    }
+    const verdict = calc.compute(node);
+    if (!verdict) return null;
+    return { value: verdict.value, exemption: verdict.exemption };
+  }
+
+  /**
+   * Format the `**Complexity:** N` line appended to node details /
+   * search results. Returns '' when the node is not eligible or has
+   * no computable value (exempt nodes emit no line — see rubric).
+   */
+  private formatComplexityLine(node: Node): string {
+    const c = this.complexityFor(node);
+    if (!c || c.value === null) return '';
+    return `**Complexity:** ${c.value}`;
+  }
+
   private formatNodeDetails(node: Node, code: string | null, outline?: string | null): string {
     const location = node.startLine ? `:${node.startLine}` : '';
     const lines: string[] = [
@@ -2159,6 +2199,11 @@ export class ToolHandler {
 
     if (node.signature) {
       lines.push(`**Signature:** \`${node.signature}\``);
+    }
+
+    const complexityLine = this.formatComplexityLine(node);
+    if (complexityLine) {
+      lines.push(complexityLine);
     }
 
     // Only include docstring if it's short and useful

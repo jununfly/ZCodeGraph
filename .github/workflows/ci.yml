@@ -101,6 +101,12 @@ jobs:
           npx vitest run
           tests/dead-code.test.ts
           tests/cli-dead-code.test.ts
+      - name: Verify complexity rubric + calculator + MCP surface (roadmap 1-2-6)
+        run: >
+          npx vitest run
+          tests/metrics-complexity.test.ts
+          tests/metrics-complexity-calculator.test.ts
+          tests/mcp-complexity.test.ts
       - name: Verify badge SVG + CLI (isolated fixture)
         run: >
           npx vitest run
