@@ -14682,21 +14682,55 @@ fn extract_rust_statement_refs(
     if node.kind() != "call_expression" {
         return Ok(());
     }
-    let Some(target_node) = node.child_by_field_name("function") else {
-        return Ok(());
-    };
-    let Some(reference_name) = rust_call_reference_name(target_node, source)? else {
-        return Ok(());
-    };
-    push_ref(
-        unresolved_refs,
-        from_node_id,
-        &reference_name,
-        "calls",
-        target_node,
-        relative_path,
-        SourceLanguage::Rust,
-    );
+    if let Some(target_node) = node.child_by_field_name("function") {
+        if let Some(reference_name) = rust_call_reference_name(target_node, source)? {
+            push_ref(
+                unresolved_refs,
+                from_node_id,
+                &reference_name,
+                "calls",
+                target_node,
+                relative_path,
+                SourceLanguage::Rust,
+            );
+        }
+    }
+    // 1-2-12-6: function-as-value references. A bare `identifier` appearing
+    // as a DIRECT child of the call's `arguments` (e.g.
+    // `slice.bytes().all(entity_validate_char)`, `.map(handler)`,
+    // `thread::spawn(worker)`) passes a function by name — the callee is
+    // reachable only through that callback, never via a direct call site, so
+    // the dead-code rubric would otherwise see zero incoming edges and fall
+    // to R4 dead. Emit a `references` ref for each such identifier; the
+    // resolver keeps only those that resolve to a real function/method node
+    // (single-candidate exact match), silently dropping variable reads and
+    // other argument identifiers — this is the narrow-flood/wide-emit
+    // trade-off that keeps the edge set precise. We deliberately skip the
+    // `function`-field identifier (already covered as a `calls` ref above)
+    // and identifiers nested inside closures/field-expressions/other args.
+    if let Some(args) = node.child_by_field_name("arguments") {
+        let mut cursor = args.walk();
+        for child in args.named_children(&mut cursor) {
+            if child.kind() != "identifier" {
+                continue;
+            }
+            let reference_name = child.utf8_text(source)?.trim();
+            // Skip `self` and single-char throwaways — they can never name a
+            // module-level function worth a graph edge.
+            if reference_name.is_empty() || reference_name == "self" {
+                continue;
+            }
+            push_ref(
+                unresolved_refs,
+                from_node_id,
+                reference_name,
+                "references",
+                child,
+                relative_path,
+                SourceLanguage::Rust,
+            );
+        }
+    }
     Ok(())
 }
 
@@ -20123,6 +20157,105 @@ mod tests {
                 ("list_users".to_string(), "get(\"/users\")".to_string()),
             ],
             "expected one decorates edge per adjacent attribute; plain_helper must be absent"
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_core_emits_fn_as_value_references_ref_for_call_argument() {
+        // 1-2-12-6: a bare identifier passed as a call argument
+        // (`.all(entity_validate_char)`, `.map(handler)`) is a function-by-
+        // value reference. The extractor must emit a `references` unresolved
+        // ref for it so the (TS-side) resolver can turn it into a references
+        // edge; the dead-code rubric's R3 then sees the callback as
+        // reachable instead of R4-dead. Direct calls (`entity_validate_char(x)`)
+        // stay `calls` refs; closure bodies are walked separately.
+        let dir = temp_dir("rust-fn-as-value-references");
+        fs::write(
+            dir.join("main.rs"),
+            [
+                "fn entity_validate_char(c: u8) -> bool {",
+                "    c == 0x21 || (0x23..=0x7e).contains(&c) || (c >= 0x80)",
+                "}",
+                "",
+                "fn handler(x: u8) -> u8 { x }",
+                "",
+                "fn check_slice_validity(slice: &str) -> bool {",
+                "    slice.bytes().all(entity_validate_char)",
+                "}",
+                "",
+                "fn direct(slice: &str) -> bool {",
+                "    entity_validate_char(b'x')",
+                "}",
+                "",
+                "fn mapped(slice: &str) -> Vec<u8> {",
+                "    slice.bytes().map(handler).collect()",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::FinalFlush,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        // references refs emitted for fn-as-value arguments.
+        let mut refs: Vec<(String, String, String)> = conn
+            .prepare(
+                "SELECT from_node_id, reference_name, reference_kind
+                 FROM unresolved_refs
+                 WHERE reference_kind = 'references'
+                 ORDER BY reference_name",
+            )
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        refs.sort();
+        let ref_names: Vec<String> = refs.iter().map(|(_, n, _)| n.clone()).collect();
+        assert!(
+            ref_names.contains(&"entity_validate_char".to_string()),
+            "expected a references ref for entity_validate_char (fn-as-value), got {:?}",
+            refs
+        );
+        assert!(
+            ref_names.contains(&"handler".to_string()),
+            "expected a references ref for handler (fn-as-value .map), got {:?}",
+            refs
+        );
+
+        // The direct call must produce a `calls` ref (not only references).
+        let calls: Vec<String> = conn
+            .prepare(
+                "SELECT reference_name FROM unresolved_refs
+                 WHERE reference_kind = 'calls' AND reference_name = 'entity_validate_char'",
+            )
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert!(
+            !calls.is_empty(),
+            "expected a calls ref for the direct entity_validate_char(b'x') call"
         );
         cleanup_temp_dir(dir);
     }

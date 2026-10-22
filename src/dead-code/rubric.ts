@@ -268,6 +268,9 @@ export function evaluateDeadCode(input: DeadCodeEvaluationInput): DeadCodeVerdic
   const routeLinked = new Set<string>();
   const implementsEdgesByClass = new Map<string, string[]>();
   const referencedIds = new Set<string>();
+  // 1-2-12-6: ids of function/method nodes that are the TARGET of a
+  // references edge (fn-as-value callback reachability signal).
+  const fnReferencedIn = new Set<string>();
 
   for (const e of edges) {
     switch (e.kind) {
@@ -293,6 +296,13 @@ export function evaluateDeadCode(input: DeadCodeEvaluationInput): DeadCodeVerdic
         const t = allNodesById.get(e.target);
         if (s && s.kind === 'route') routeLinked.add(e.target);
         if (t && t.kind === 'route') routeLinked.add(e.source);
+        // 1-2-12-6: a references edge whose TARGET is a function/method
+        // means the fn is passed by value (`.all(entity_validate_char)`,
+        // `.map(handler)`) or otherwise referenced by name — the callback is
+        // reachable through the caller even though there is no `calls` edge.
+        if (t && (t.kind === 'function' || t.kind === 'method')) {
+          fnReferencedIn.add(e.target);
+        }
         break;
       }
     }
@@ -553,6 +563,17 @@ export function evaluateDeadCode(input: DeadCodeEvaluationInput): DeadCodeVerdic
         verdicts.push({ ...base, bucket: 'unknown', rule_id: 'R3', evidence: { via: 'interface-dispatch', owner: ownerClass } });
         continue;
       }
+    }
+    // 1-2-12-6: the fn is the target of a references edge — it is passed by
+    // value (`.all(entity_validate_char)`, `.map(handler)`,
+    // `thread::spawn(worker)`) or otherwise name-referenced. The graph has
+    // no `calls` edge for such callbacks, so a zero-calls verdict is not
+    // provable. Demote to unknown (not alive): a references edge is weaker
+    // than a framework entry point, and the extractor emits these refs
+    // wide (resolver keeps only single-candidate function/method matches).
+    if (fnReferencedIn.has(n.id)) {
+      verdicts.push({ ...base, bucket: 'unknown', rule_id: 'R3', evidence: { via: 'fn-as-value-reference', name: n.name } });
+      continue;
     }
     if (R3_CALLBACK_NAMES.has(n.name) || R3_NAME_RE.test(n.name)) {
       verdicts.push({ ...base, bucket: 'unknown', rule_id: 'R3', evidence: { via: 'callback-name', name: n.name } });

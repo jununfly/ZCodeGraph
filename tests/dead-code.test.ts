@@ -287,10 +287,43 @@ describe('R3 — dynamic-dispatch exemptions', () => {
   });
 
   it('pub-residual (visibility=public, no other signal) → unknown/R3', () => {
-    const n = fn({ name: 'open_helper', file_path: 'src/lib.rs', language: 'rust', visibility: 'public' });
+    // Non-Rust: a public fn with no other signal is unknown via pub-residual.
+    // (Rust `pub` is handled earlier by R2 rust-pub-visibility → alive; see
+    // the dedicated test below.)
+    const n = fn({ name: 'open_helper', file_path: 'src/Lib.cs', language: 'csharp', visibility: 'public' });
     const [v] = evalWith({ nodes: [n] });
     expect(v).toMatchObject({ bucket: 'unknown', rule_id: 'R3' });
     expect(v.evidence.via).toBe('pub-residual');
+  });
+
+  it('rust pub visibility (visibility=public) → alive/R2 rust-pub-visibility', () => {
+    // 1-2-12-3: a Rust `pub` fn is reachable from outside its defining
+    // module (downstream crates/macros) even when the static graph sees zero
+    // in-crate calls edges. `visibility` starts with 'pub' → R2 alive, which
+    // fires before the generic R3 pub-residual rule.
+    const n = fn({ name: 'open_helper', file_path: 'src/lib.rs', language: 'rust', visibility: 'public' });
+    const [v] = evalWith({ nodes: [n] });
+    expect(v).toMatchObject({ bucket: 'alive', rule_id: 'R2' });
+    expect(v.evidence.via).toBe('rust-pub-visibility');
+  });
+
+  it('fn-as-value reference (incoming references edge) → unknown/R3', () => {
+    // 1-2-12-6: a fn passed by value (`.all(entity_validate_char)`) is the
+    // target of a references edge. With no calls edge it would fall to R4;
+    // the references edge demotes it to unknown instead.
+    const target = fn({ name: 'entity_validate_char', file_path: 'src/e.rs', language: 'rust' });
+    const caller = fn({ name: 'check_slice_validity', file_path: 'src/e.rs', language: 'rust' });
+    const [v] = evalWith({
+      nodes: [target, caller],
+      edges: [
+        // caller has an outgoing calls edge so it is not itself a candidate;
+        // target has only the incoming references edge (fn-as-value).
+        { source: caller.id, target: 'fn:external', kind: 'calls' },
+        { source: caller.id, target: target.id, kind: 'references' },
+      ],
+    });
+    expect(v).toMatchObject({ id: target.id, bucket: 'unknown', rule_id: 'R3' });
+    expect(v.evidence.via).toBe('fn-as-value-reference');
   });
 
   it('A1(b)-ext: python dunder (__deepcopy__/__html__) → unknown/R3', () => {
