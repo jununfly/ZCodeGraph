@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-21 17:37:21
+> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-22 15:47:11
 
 [~][X+] 1. ZCodeGraph 能力汇集路线图
 ├── [~][X+] 1-1. P-1 验证冲刺（先行 gate）
