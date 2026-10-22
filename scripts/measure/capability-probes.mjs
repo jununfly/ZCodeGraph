@@ -228,6 +228,17 @@ function probeMcpTools(repoDir) {
       finish({ state: 'failed', latencyMs: Date.now() - start, detail: 'MCP handshake timed out (10s)' });
     }, 10_000);
 
+    // A closed stdin (server exited mid-handshake or we already settled)
+    // must never crash the probe run with an unhandled EPIPE.
+    child.stdin.on('error', () => { /* swallow EPIPE on shutdown */ });
+
+    function safeWrite(payload) {
+      if (settled || child.stdin.destroyed || child.stdin.writableEnded) return;
+      try {
+        child.stdin.write(payload);
+      } catch { /* EPIPE race — the exit handler reports the failure */ }
+    }
+
     function finish(result) {
       if (settled) return;
       settled = true;
@@ -247,7 +258,7 @@ function probeMcpTools(repoDir) {
         try { msg = JSON.parse(trimmed); } catch { continue; }
         if (msg.id === 1 && msg.result) {
           // initialize answered; ask for tools.
-          child.stdin.write(JSON.stringify({
+          safeWrite(JSON.stringify({
             jsonrpc: '2.0', id: 2, method: 'tools/list', params: {},
           }) + '\n');
         }
@@ -292,7 +303,7 @@ function probeMcpTools(repoDir) {
       if (!settled) finish({ state: 'failed', latencyMs: Date.now() - start, detail: `serve --mcp exited early (code ${code})` });
     });
 
-    child.stdin.write(JSON.stringify({
+    safeWrite(JSON.stringify({
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
