@@ -10456,6 +10456,27 @@ fn visit_java_node(
             qualified_name,
         );
         extracted.signature = symbol.signature;
+        // 1-2-12-4: materialize an interface's superinterface list onto the
+        // node's `signature` column. `interface VetRepository extends
+        // Repository<Vet, Integer>` records `extends Repository` (leaf names,
+        // generics stripped). This must NOT go through the unresolved_refs
+        // funnel: `Repository` is an external Spring Data type with no node
+        // in the index, so the resolver would clean the extends ref up at
+        // end-of-resolution and the signal would be lost (the same trap as
+        // 1-2-12-5's attribute decorates). The dead-code rubric consumes the
+        // materialized list to recognise a Spring Data repository interface
+        // and demote its methods by graph signal instead of the broad
+        // interface-proxy fallback.
+        if symbol.kind == "interface" && extracted.signature.is_none() {
+            let superinterfaces: Vec<String> = java_type_relation_refs(node, source)?
+                .into_iter()
+                .filter(|r| r.kind == "extends")
+                .map(|r| r.name)
+                .collect();
+            if !superinterfaces.is_empty() {
+                extracted.signature = Some(format!("extends {}", superinterfaces.join(",")));
+            }
+        }
         extracted.visibility = symbol.visibility;
         extracted.is_static = symbol.is_static;
         let extracted_id = extracted.id.clone();
@@ -11006,14 +11027,19 @@ fn java_type_relation_refs(
         .map(|(header, _)| header)
         .unwrap_or_else(|| node.utf8_text(source).unwrap_or(""));
     let mut refs = Vec::new();
-    if let Some(name) = java_type_name_after_keyword(header, "extends") {
-        refs.push(JavaTypeRelation {
-            kind: "extends",
-            name,
-        });
+    // `extends` is single-target for a class but multi-target for an
+    // interface (`interface I extends A, B<C>`). Split on commas the same way
+    // `implements` does so every superinterface is materialized (1-2-12-4).
+    if let Some(rest) = java_text_after_keyword(header, "extends") {
+        for name in java_split_top_level_commas(rest).into_iter().filter_map(java_clean_type_name) {
+            refs.push(JavaTypeRelation {
+                kind: "extends",
+                name,
+            });
+        }
     }
     if let Some(rest) = java_text_after_keyword(header, "implements") {
-        for name in rest.split(',').filter_map(java_clean_type_name) {
+        for name in java_split_top_level_commas(rest).into_iter().filter_map(java_clean_type_name) {
             refs.push(JavaTypeRelation {
                 kind: "implements",
                 name,
@@ -11066,14 +11092,33 @@ fn java_annotation_usage_refs(
     Ok(names)
 }
 
-fn java_type_name_after_keyword(header: &str, keyword: &str) -> Option<String> {
-    java_text_after_keyword(header, keyword)
-        .and_then(|rest| rest.split(',').next().and_then(java_clean_type_name))
-}
-
 fn java_text_after_keyword<'a>(header: &'a str, keyword: &str) -> Option<&'a str> {
     let marker = format!(" {keyword} ");
     header.split_once(&marker).map(|(_, rest)| rest)
+}
+
+/// Split a comma-separated type list on TOP-LEVEL commas only — commas inside
+/// a generic argument list (`Repository<Vet, Integer>`) do NOT separate
+/// entries. A naive `split(',')` would turn `extends Repository<Vet, Integer>`
+/// into `Repository<Vet` + `Integer>` and leak the stray `Integer>` segment
+/// (1-2-12-4). Tracks `<`/`>` depth; generics do not nest `{}` here.
+fn java_split_top_level_commas(rest: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut depth = 0i32;
+    let mut start = 0usize;
+    for (i, ch) in rest.char_indices() {
+        match ch {
+            '<' => depth += 1,
+            '>' => depth = (depth - 1).max(0),
+            ',' if depth == 0 => {
+                parts.push(&rest[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    parts.push(&rest[start..]);
+    parts
 }
 
 fn java_clean_type_name(raw: &str) -> Option<String> {
@@ -20256,6 +20301,87 @@ mod tests {
         assert!(
             !calls.is_empty(),
             "expected a calls ref for the direct entity_validate_char(b'x') call"
+        );
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_core_materializes_java_interface_superinterface_signature() {
+        // 1-2-12-4: `interface VetRepository extends Repository<Vet, Integer>`
+        // must record `extends Repository` on the interface node's signature
+        // column. `Repository` is an external Spring Data type with no node in
+        // the index, so the extends ref would be cleaned up by the resolver —
+        // the materialized signature is the durable graph signal the dead-code
+        // rubric consumes. A plain interface with no extends keeps a NULL
+        // signature.
+        let dir = temp_dir("rust-java-superinterface-signature");
+        let src = dir.join("com").join("example");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(
+            src.join("VetRepository.java"),
+            [
+                "package com.example;",
+                "public interface VetRepository extends Repository<Vet, Integer> {",
+                "    java.util.Collection<Vet> findAll();",
+                "}",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            src.join("Plain.java"),
+            "package com.example;\npublic interface Plain {\n    void run();\n}\n",
+        )
+        .unwrap();
+        fs::write(
+            src.join("Multi.java"),
+            "package com.example;\npublic interface Multi extends Alpha, Beta<String> {\n    void m();\n}\n",
+        )
+        .unwrap();
+
+        let request = index_request(&dir, SqliteWriteMode::FinalFlush);
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        let conn = Connection::open(db_path(&dir)).unwrap();
+
+        let sig: Option<String> = conn
+            .prepare(
+                "SELECT signature FROM nodes WHERE language='java' AND kind='interface' AND name='VetRepository'",
+            )
+            .unwrap()
+            .query_row([], |row| row.get(0))
+            .unwrap();
+        assert_eq!(
+            sig.as_deref(),
+            Some("extends Repository"),
+            "VetRepository must materialize its (generics-stripped) superinterface"
+        );
+
+        let plain_sig: Option<String> = conn
+            .prepare(
+                "SELECT signature FROM nodes WHERE language='java' AND kind='interface' AND name='Plain'",
+            )
+            .unwrap()
+            .query_row([], |row| row.get(0))
+            .unwrap();
+        assert!(
+            plain_sig.is_none(),
+            "Plain interface with no extends must keep a NULL signature, got {:?}",
+            plain_sig
+        );
+
+        let multi_sig: Option<String> = conn
+            .prepare(
+                "SELECT signature FROM nodes WHERE language='java' AND kind='interface' AND name='Multi'",
+            )
+            .unwrap()
+            .query_row([], |row| row.get(0))
+            .unwrap();
+        assert_eq!(
+            multi_sig.as_deref(),
+            Some("extends Alpha,Beta"),
+            "Multi must materialize all superinterfaces, generics stripped"
         );
         cleanup_temp_dir(dir);
     }

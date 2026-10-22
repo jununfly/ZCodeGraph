@@ -258,6 +258,49 @@ describe('R3 — dynamic-dispatch exemptions', () => {
     expect(v.evidence.via).toBe('interface-dispatch');
   });
 
+  it('1-2-12-4: Spring Data repository method → unknown/R3 via spring-data-repository (graph signal)', () => {
+    // VetRepository interface with a materialized superinterface signature
+    // (`extends Repository`). Its methods resolve through the Spring Data
+    // runtime proxy — a graph verdict, not the broad interface-proxy
+    // fallback. Evidence must name the marker superinterface.
+    const repo: DeadCodeNodeMeta = {
+      id: 'iface:vet',
+      kind: 'interface',
+      name: 'VetRepository',
+      file_path: 'src/VetRepository.java',
+      signature: 'extends Repository',
+    };
+    const n = fn({ name: 'findAll', file_path: 'src/VetRepository.java', language: 'java', kind: 'method' });
+    const [v] = evalWith({
+      nodes: [n],
+      allNodes: [meta(n.id, n.kind, n.name, n.file_path), repo],
+      edges: [{ source: repo.id, target: n.id, kind: 'contains' }],
+    });
+    expect(v).toMatchObject({ bucket: 'unknown', rule_id: 'R3' });
+    expect(v.evidence.via).toBe('spring-data-repository');
+    expect(v.evidence.superinterface).toBe('Repository');
+  });
+
+  it('1-2-12-4: non-Spring-Data interface method stays on the interface-proxy fallback', () => {
+    // A plain interface (no Spring Data marker superinterface) must still
+    // hit the generic interface-proxy rule, NOT the spring-data branch.
+    const iface: DeadCodeNodeMeta = {
+      id: 'iface:plain',
+      kind: 'interface',
+      name: 'Greeter',
+      file_path: 'src/Greeter.java',
+      signature: 'extends AutoCloseable',
+    };
+    const n = fn({ name: 'greet', file_path: 'src/Greeter.java', language: 'java', kind: 'method' });
+    const [v] = evalWith({
+      nodes: [n],
+      allNodes: [meta(n.id, n.kind, n.name, n.file_path), iface],
+      edges: [{ source: iface.id, target: n.id, kind: 'contains' }],
+    });
+    expect(v).toMatchObject({ bucket: 'unknown', rule_id: 'R3' });
+    expect(v.evidence.via).toBe('interface-proxy');
+  });
+
   it('callback names (__str__/Dispose/onX) → unknown/R3', () => {
     for (const name of ['__str__', 'Dispose', 'onClick']) {
       const n = fn({ name, file_path: 'src/x.py', language: 'python' });

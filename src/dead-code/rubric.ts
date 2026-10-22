@@ -47,6 +47,10 @@ export interface DeadCodeNodeMeta {
   kind: string;
   name: string;
   file_path: string;
+  /** 1-2-12-4: materialized superinterface list for interfaces
+   * (`extends Repository,...`), consumed by the Spring Data repository
+   * branch of interface-proxy. Optional — older callers may omit it. */
+  signature?: string | null;
 }
 
 export interface DeadCodeEvidence {
@@ -223,6 +227,51 @@ function matchWhitelist(
   // C# `override` is a signature keyword, not an attribute.
   if (language === 'csharp' && signature && /\boverride\b/.test(signature)) {
     return { hit: 'override', via: 'signature' };
+  }
+  return null;
+}
+
+/**
+ * 1-2-12-4: Spring Data repository marker interfaces. When a Java interface's
+ * materialized `signature` (`extends <leaf1>,<leaf2>`, generics stripped)
+ * lists one of these, Spring Data generates the runtime proxy — the
+ * interface's methods are reachable through that proxy by graph signal.
+ * Covers the core `org.springframework.data.repository.*` hierarchy plus the
+ * common store-specific sub-interfaces.
+ */
+const SPRING_DATA_REPOSITORY_MARKERS = new Set([
+  'repository', // org.springframework.data.repository.Repository (marker)
+  'crudrepository',
+  'listcrudrepository',
+  'pagingandsortingrepository',
+  'listpagingandsortingrepository',
+  'jparepository',
+  'mongorepository',
+  'cassandrarepository',
+  'redisrepository',
+  'elasticsearchrepository',
+  'neo4jrepository',
+  'r2dbcrepository',
+  'reactivecrudrepository',
+  'reactivemongorepository',
+  'jparespecificationexecutor',
+  'querybyexampleexecutor',
+  'querydsl-predicateexecutor',
+  'querydslpredicateexecutor',
+]);
+
+/**
+ * Return the matching Spring Data marker superinterface leaf from an
+ * interface's materialized signature (`extends Repository,CrudRepository`),
+ * or null when it is not a Spring Data repository interface. Comparison is
+ * case-insensitive on the already generics-stripped leaf names.
+ */
+function springDataSuperinterface(signature: string | null | undefined): string | null {
+  if (!signature || !signature.startsWith('extends ')) return null;
+  const list = signature.slice('extends '.length);
+  for (const raw of list.split(',')) {
+    const leaf = raw.trim().toLowerCase();
+    if (leaf && SPRING_DATA_REPOSITORY_MARKERS.has(leaf)) return raw.trim();
   }
   return null;
 }
@@ -627,6 +676,23 @@ export function evaluateDeadCode(input: DeadCodeEvaluationInput): DeadCodeVerdic
       const ownerId = classOfMethod.get(n.id);
       const owner = ownerId ? allNodesById.get(ownerId) : undefined;
       if (owner && owner.kind === 'interface') {
+        // 1-2-12-4: prefer the precise graph signal over the broad fallback.
+        // The extractor materializes an interface's superinterface list onto
+        // its signature (`extends Repository,...`, generics stripped, leaf
+        // names). A superinterface in the Spring Data repository marker set
+        // (Repository / CrudRepository / JpaRepository / ...) means Spring
+        // Data generates the proxy at runtime — that is a *graph* verdict,
+        // not the generic "owner is an interface" heuristic below.
+        const springDataHit = springDataSuperinterface(owner.signature);
+        if (springDataHit) {
+          verdicts.push({
+            ...base,
+            bucket: 'unknown',
+            rule_id: 'R3',
+            evidence: { via: 'spring-data-repository', owner: owner.name, superinterface: springDataHit },
+          });
+          continue;
+        }
         verdicts.push({ ...base, bucket: 'unknown', rule_id: 'R3', evidence: { via: 'interface-proxy', owner: owner.name } });
         continue;
       }

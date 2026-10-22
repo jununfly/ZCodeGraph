@@ -80,7 +80,10 @@ function buildDeadCodeReportFromDb(db: SqliteDatabase, projectRoot: string): Dea
     .all() as unknown as NodeRowFull[];
 
   const allNodes = db
-    .prepare(`SELECT id, kind, name, file_path FROM nodes`)
+    // 1-2-12-4: include signature so the rubric can read an interface's
+    // materialized superinterface list (`extends Repository,...`) when the
+    // interface owns a candidate method (Spring Data repository signal).
+    .prepare(`SELECT id, kind, name, file_path, signature FROM nodes`)
     .all() as unknown as DeadCodeNodeMeta[];
 
   const edges = db

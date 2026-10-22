@@ -83,7 +83,9 @@ function buildEvalInput(db, repoDir, rubric) {
            OR (kind = 'import' AND language = 'rust')`,
   ).all();
 
-  const allNodes = db.prepare(`SELECT id, kind, name, file_path FROM nodes`).all();
+  // 1-2-12-4: include signature so the rubric reads an interface's
+  // materialized superinterface list (Spring Data repository signal).
+  const allNodes = db.prepare(`SELECT id, kind, name, file_path, signature FROM nodes`).all();
   const edges = db.prepare(`SELECT source, target, kind FROM edges`).all();
 
   const decoratesBySource = new Map();
