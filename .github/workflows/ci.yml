@@ -129,3 +129,61 @@ jobs:
           tests/prepare-release.test.ts
           tests/extraction-version-contract.test.ts
           tests/ci-rust-packaged-path.test.ts
+
+  # Roadmap 1-2-8 (横切：架构回归红线 + 能力健康探针).
+  # Ubuntu-only on purpose: the committed reference baseline is produced on
+  # ubuntu-24.04 (see docs/contracts/architecture-regression-baseline-v1.md);
+  # Windows/macOS timing variance is governed by node 1-2-10, not the red line.
+  # The corpus clone is cached across runs by actions/cache keyed on the
+  # baseline artifact's pinned sha.
+  architecture-red-lines:
+    name: Architecture red lines + capability probes (ubuntu)
+    runs-on: ubuntu-latest
+    env:
+      CODEGRAPH_ALLOW_UNSAFE_NODE: "1"
+      CODEGRAPH_NO_DAEMON: "1"
+      CODEGRAPH_NO_RELAUNCH: "1"
+      MEASURE_GIT_PROTOCOL: "https"
+      # Fresh-clone path on first run (empty cache), reused-clone hermetic
+      # mode afterwards (see scripts/measure/lib/clone.mjs MEASURE_SKIP_FETCH).
+      MEASURE_SKIP_FETCH: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Build TypeScript CLI
+        run: npm run build
+      - name: Build Rust core (upstream-check binary)
+        run: cargo build --package zcodegraph-core
+      - name: Restore measurement corpus cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/measure-corpus
+          key: measure-corpus-${{ hashFiles('docs/evidence/2026-10-22-architecture-regression-baseline.json') }}
+          restore-keys: |
+            measure-corpus-
+      - name: Verify regression red-line verdict logic
+        run: npx vitest run tests/perf-regression-check.test.ts
+      - name: Verify architecture regression red lines (petclinic corpus)
+        run: >
+          node scripts/measure/perf-regression-check.mjs
+          --baseline docs/evidence/2026-10-22-architecture-regression-baseline.json
+          --corpus-root /tmp/measure-corpus
+          --repetitions 3
+      - name: Run capability probes (petclinic corpus)
+        run: >
+          node scripts/measure/capability-probes.mjs
+          spring-projects/spring-petclinic
+          --ref 500158f732419217507c7656904b8e6aa1bcc0d6
+          --corpus-root /tmp/measure-corpus
+          --out /tmp/capabilities.json
+      - name: Doctor consumes capabilities.json with upstream check
+        run: >
+          node dist/bin/zcodegraph.js doctor /tmp/capabilities.json
+          --upstream-check
+      - name: Verify doctor capabilities e2e
+        run: npx vitest run tests/cli-doctor-capabilities.test.ts

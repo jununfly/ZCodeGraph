@@ -1,0 +1,44 @@
+{
+  "metric": "architecture-regression-baseline",
+  "repo": "spring-projects/spring-petclinic",
+  "ref": "500158f732419217507c7656904b8e6aa1bcc0d6",
+  "measuredAt": "2026-10-22T09:19:40.187Z",
+  "value": {
+    "repetitions": 3,
+    "indexMedianMs": 2491,
+    "indexRunsMs": [
+      2491,
+      2436,
+      2511
+    ],
+    "exploreMedianMs": 455.5,
+    "exploreQueries": [
+      {
+        "query": "How does the owner controller reach the vet visit service?",
+        "runs": [
+          461,
+          472,
+          462
+        ],
+        "medianMs": 462
+      },
+      {
+        "query": "callers of OwnerRepository.save",
+        "runs": [
+          449,
+          454,
+          448
+        ],
+        "medianMs": 449
+      }
+    ]
+  },
+  "evidence": {
+    "contract": "docs\\contracts\\architecture-regression-baseline-v1.md",
+    "corpusDir": "C:\\workspace\\measure-corpus\\spring-projects-spring-petclinic",
+    "dbPath": "C:\\workspace\\measure-corpus\\spring-projects-spring-petclinic\\.zcodegraph\\zcodegraph.db",
+    "reusedClone": true,
+    "node": "v22.22.2",
+    "platform": "win32-x64"
+  }
+}

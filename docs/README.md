@@ -18,7 +18,7 @@
 | Class | Folder | Authority range | Count |
 | --- | --- | --- | --- |
 | Decision | [`decisions/`](decisions/) | primary | 8 |
-| Contract | [`contracts/`](contracts/) | primary | 12 |
+| Contract | [`contracts/`](contracts/) | primary | 13 |
 | Ledger | [`ledgers/`](ledgers/) | supporting | 8 |
 | Evidence | [`evidence/`](evidence/) | historical | 41 |
 | Method | [`methods/`](methods/) | primary / supporting | 9 |
@@ -66,6 +66,7 @@ are test-locked; see each note.
 | DES-token-baseline-tasks-v2 | [token-baseline-tasks-v2.md](contracts/token-baseline-tasks-v2.md) | What are the frozen task definitions for the Layer-2 token-consumption baseline ratio? |
 | DES-dead-code-rubric-v1 | [dead-code-rubric-v1.md](contracts/dead-code-rubric-v1.md) | How is a function/method node judged dead, alive, or unknown for find_dead_code v1? |
 | DES-schema-evolution-and-mcp-tool-cap-v1 | [schema-evolution-and-mcp-tool-cap-v1.md](contracts/schema-evolution-and-mcp-tool-cap-v1.md) | What clauses govern schema evolution (NodeKind/EdgeKind/migrations) and the MCP tool-surface cap (≤12)? |
+| DES-architecture-regression-baseline-v1 | [architecture-regression-baseline-v1.md](contracts/architecture-regression-baseline-v1.md) | What frozen baseline and red-line thresholds govern index-time / explore-latency regressions (roadmap 1-2-8)? |
 
 ## ledgers — distilled decision & closeout ledgers
 
@@ -226,6 +227,16 @@ Per-language real-corpus validation, ordered by date:
   closure-return refs): harmful-error rate 3/68 → 0/61, eShop agreement
   0.765 → 1.000, django 0.808 → 0.84. drupal 0.292 unchanged by design
   (A1(c) freeze, rubric-v2 topic); actix-web stays the 1-2-12-3 frontier.
+- [2026-10-22-architecture-regression-baseline.json](evidence/2026-10-22-architecture-regression-baseline.json)
+  — frozen red-line baseline (roadmap 1-2-8, contract
+  `DES-architecture-regression-baseline-v1`): spring-petclinic @500158f,
+  index median 2491 ms / explore median 455.5 ms (win32-x64 reference run;
+  CI compares on ubuntu-24.04). Red lines: index ≤ 15 %, explore ≤ 20 %.
+- [2026-10-22-capability-probes.json](evidence/2026-10-22-capability-probes.json)
+  — first six-domain capability-probe run (roadmap 1-2-8): extraction /
+  resolution / search / context / mcp-tools / dead-code all healthy on
+  petclinic; mcp-tools domain asserts against the tiny-repo gate profile
+  (fileCount 69 < 500 → explore/search/node only, src/mcp/tools.ts:696).
 
 ## methods — methods, playbooks, and how-to guides
 

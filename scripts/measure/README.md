@@ -11,6 +11,40 @@ The scripts only produce JSON. Downstream evidence documents (1-1-4 token
 baseline, 1-1-5 PR recall baseline, 1-1-6 health rubric validation, 1-1-7
 churn heatmap) consume the JSON and write their own Markdown reports.
 
+## Architecture regression red lines (1-2-8)
+
+Three additional scripts form the 1-2-8 red-line + capability-probe loop:
+
+- `perf-baseline.mjs` — measures index wall-time (N cold re-indexes,
+  median) and explore latency (frozen queries, median) for one corpus.
+  Produces the `architecture-regression-baseline` artifact committed under
+  `docs/evidence/`. Contract: `docs/contracts/architecture-regression-baseline-v1.md`.
+- `perf-regression-check.mjs` — re-measures the baseline corpus and fails
+  (exit 1) when index wall-time regresses > 15% or explore latency > 20%
+  against the committed baseline. CI job `architecture-red-lines` runs it.
+- `capability-probes.mjs` — runs one minimal real check per capability
+  domain (extraction / resolution / search / context / mcp-tools /
+  dead-code) against an indexed corpus and emits `capabilities.json`.
+  `zcodegraph doctor capabilities.json [--upstream-check]` consumes the
+  report and summarizes domain health; `--upstream-check` additionally
+  verifies offline upstream artifacts (wasm grammars + rust core binary).
+
+```bash
+# Re-baseline (requires roadmap decision on 1-2-8 + new dated artifact)
+node scripts/measure/perf-baseline.mjs spring-projects/spring-petclinic \
+  --out docs/evidence/<date>-architecture-regression-baseline.json
+
+# Red-line check (what CI runs)
+node scripts/measure/perf-regression-check.mjs \
+  --baseline docs/evidence/2026-10-22-architecture-regression-baseline.json
+
+# Capability probes against an already-indexed dir (skip clone/index)
+CAPABILITY_PROBE_DIR=/path/to/indexed/repo \
+  node scripts/measure/capability-probes.mjs --out capabilities.json
+node dist/bin/zcodegraph.js doctor capabilities.json --upstream-check
+```
+
+
 ## Common CLI
 
 ```bash
