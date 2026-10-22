@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-22 16:16:09
+> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-22 16:48:39
 
 [~][X+] 1. ZCodeGraph 能力汇集路线图
 ├── [~][X+] 1-1. P-1 验证冲刺（先行 gate）
@@ -30,7 +30,7 @@
 │   ├── [x][X+] 1-2-9. P0a 索引范围配置：默认排除 .workbuddy/ 等 agent 工作目录
 │   ├── [ ][X+] 1-2-10. P0a 测试基础设施加固（Windows flake 治理）
 │   ├── [ ][X+] 1-2-11. P0a explore 小项目 budget 收紧 + 真压缩（承接 1-2-3 ②b）
-│   ├── [ ][X+] 1-2-12. A3 extractor backlog burn-down（dead-code precision 解锁）
+│   ├── [x][X+] 1-2-12. A3 extractor backlog burn-down（dead-code precision 解锁）
 │   ├── [ ][X+] 1-2-13. P0a 诊断增强（MCP 初始化失败可恢复提示）
 │   ├── [ ][X+] 1-2-14. P0a 索引进度回调
 │   ├── [ ][X+] 1-2-15. P0a token 输出优化（GCF 式压缩）

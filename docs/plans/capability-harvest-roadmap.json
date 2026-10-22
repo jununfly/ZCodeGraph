@@ -1067,7 +1067,7 @@
       "id": "1-2-12",
       "uid": "01a15d83ab93-abd88929f3",
       "label": "A3 extractor backlog burn-down（dead-code precision 解锁）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2",
       "children": [
@@ -1216,16 +1216,28 @@
       "id": "1-2-12-4",
       "uid": "01a15d840b86-2e1c92185f",
       "label": "Java Spring Data repository proxy 建模（petclinic 从 demote 兜住转正）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2-12",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "施工方案",
+          "answer": "A 真图信号：extractor 把 interface 的 superinterface 名单物化到节点 signature 列（extends Repository<Vet,Integer> → 存 leaf 名单，不依赖 resolution 解析外部 Repository——它与 1-2-12-5 attribute 物化同模式，绕过 funnel：外部依赖无 candidate 时 extends ref 会被 deleteResolvedOriginals 清理导致信号丢失），rubric interface-proxy 收窄为「owner interface 的物化 superinterface 含 Spring Data 标记接口（Repository/CrudRepository/JpaRepository/PagingAndSortingRepository 等）→ unknown（图信号判定 via=spring-data-repository）」，非 Spring Data interface 方法仍走原 interface-proxy 兜底。验证=extractor 物化 + 重建 petclinic 索引 + precision，exit=petclinic 保持 100% 且 findAll 判定从 interface-proxy 转为 spring-data-repository 图信号",
+          "note": ""
+        },
+        {
+          "q": "落地增量与达成度",
+          "answer": "findAll 转正成功：判定从 interface-proxy 一刀切兜底转为 spring-data-repository 图信号（evidence: via=spring-data-repository, owner=VetRepository, superinterface=Repository），petclinic 保持 100%（agree=1/1，dead_on_labeled=0），其他 4 仓全绿。落地三件：(1) extractor visit_java_node 对 interface 节点物化 superinterface 名单到 signature 列（extends Repository<Vet,Integer> → extends Repository，泛型剥离去 leaf；绕 resolution funnel——外部 Spring Data 无 candidate 时 extends ref 被 deleteResolvedOriginals 清理，与 1-2-12-5 attribute 同陷阱）。(2) 修 java_type_relation_refs 两个潜在 bug：extends 改多目标拆分（interface extends A,B<C> 原只取第一个）；新增 java_split_top_level_commas 泛型感知拆分（Repository<Vet, Integer> 的逗号在泛型内不再误拆出 'Integer>'）；删已无调用者的 java_type_name_after_keyword。(3) rubric interface-proxy 收窄：优先 springDataSuperinterface 图信号判定（SPRING_DATA_REPOSITORY_MARKERS 覆盖 Repository/CrudRepository/JpaRepository 等 18 个标记接口，case-insensitive leaf 匹配），命中→via=spring-data-repository；未命中→保留原 interface-proxy 兜底。report.ts+precision.mjs 的 allNodes 查询补 signature 列。物化验证：VetRepository→extends Repository、OwnerRepository/PetTypeRepository→extends JpaRepository。测试 rust 205/205、dead-code TS 38/38（新增 superinterface 物化 e2e + spring-data-repository/interface-proxy 两 rubric 测试）。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
         "petclinic 保持 100%；VetRepository::findAll 从 interface-proxy demote 转正为图信号判定"
-      ]
+      ],
+      "rounds": 1
     },
     "1-1-9": {
       "id": "1-1-9",
@@ -1598,7 +1610,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-22 16:16:09",
+    "updated": "2026-10-22 16:48:39",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
