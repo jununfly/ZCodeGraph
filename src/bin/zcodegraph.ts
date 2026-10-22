@@ -46,6 +46,7 @@ import {
   RustOwnedPerFileGapDiagnostic,
 } from '../indexing/rust-hybrid-contract';
 import { buildDiagnosticBundleSummary, createDiagnosticBundle, diagnosticRecordPath, writeDiagnosticRunRecord } from '../diagnostics';
+import { loadCapabilitiesReport, resolveRepoRoot, runUpstreamChecks } from '../diagnostics/capabilities';
 import {
   buildRustHybridFallbackSummary,
   formatRustHybridFallbackDoctorHint,
@@ -1502,6 +1503,14 @@ program
 
 /**
  * zcodegraph doctor [path]
+ *
+ * Two modes:
+ *  - --bundle (v1): package rust-hybrid run records for maintainers.
+ *  - capabilities.json [--upstream-check]: read a capability-probes report
+ *    (scripts/measure/capability-probes.mjs) and summarize per-domain health;
+ *    optionally also run offline upstream artifact checks (wasm grammars +
+ *    rust core binary). Exits non-zero when any domain is failed or an
+ *    upstream check fails. (roadmap 1-2-8-4)
  */
 program
   .command('doctor [path]')
@@ -1511,13 +1520,43 @@ program
   .option('--last-run', 'Bundle the last completed run')
   .option('--last-failure', 'Bundle the last failed run')
   .option('--include-source-slice', 'Unsupported in diagnostic bundle v1')
+  .option('--upstream-check', 'With capabilities.json: also verify offline upstream artifacts (wasm + rust core)')
   .option('-j, --json', 'Output a machine-readable bundle summary')
-  .action((pathArg: string | undefined, options: { engine?: string; bundle?: boolean; lastRun?: boolean; lastFailure?: boolean; includeSourceSlice?: boolean; json?: boolean }) => {
+  .action((pathArg: string | undefined, options: { engine?: string; bundle?: boolean; lastRun?: boolean; lastFailure?: boolean; includeSourceSlice?: boolean; upstreamCheck?: boolean; json?: boolean }) => {
     const projectPath = resolveProjectPath(pathArg);
     try {
       if (options.includeSourceSlice) {
         throw new Error('source slices are not supported in diagnostic bundle v1; bundles exclude source by default');
       }
+
+      // capabilities.json mode: consume a probe artifact (optionally with
+      // upstream checks). Independent from the --bundle flow.
+      if (pathArg && /(^|[\\/])[^\\/]*capabilit(?:y|ies)[^\\/]*\.json$/.test(pathArg)) {
+        const reportPath = path.resolve(pathArg);
+        const summary = loadCapabilitiesReport(reportPath);
+        const upstream = options.upstreamCheck
+          ? runUpstreamChecks(resolveRepoRoot(__dirname))
+          : null;
+        const pass = summary.pass && (upstream ? upstream.pass : true);
+        if (options.json) {
+          console.log(JSON.stringify({
+            reportPath,
+            overall: summary.overall,
+            pass,
+            domains: summary.domains,
+            upstream: upstream?.checks ?? null,
+          }, null, 2));
+        } else {
+          for (const line of summary.lines) console.log(line);
+          if (upstream) for (const line of upstream.lines) console.log(line);
+        }
+        if (!pass) process.exit(1);
+        return;
+      }
+      if (options.upstreamCheck) {
+        throw new Error('--upstream-check requires the capabilities.json form: zcodegraph doctor capabilities.json --upstream-check');
+      }
+
       if (!options.bundle) {
         throw new Error('doctor currently requires --bundle');
       }
