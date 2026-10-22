@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-22 16:48:39
+> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-22 17:00:05
 
 [~][X+] 1. ZCodeGraph 能力汇集路线图
 ├── [~][X+] 1-1. P-1 验证冲刺（先行 gate）
@@ -30,15 +30,7 @@
 │   ├── [x][X+] 1-2-9. P0a 索引范围配置：默认排除 .workbuddy/ 等 agent 工作目录
 │   ├── [ ][X+] 1-2-10. P0a 测试基础设施加固（Windows flake 治理）
 │   ├── [ ][X+] 1-2-11. P0a explore 小项目 budget 收紧 + 真压缩（承接 1-2-3 ②b）
-│   ├── [x][X+] 1-2-12. A3 extractor backlog burn-down（dead-code precision 解锁）
-│   ├── [ ][X+] 1-2-13. P0a 诊断增强（MCP 初始化失败可恢复提示）
-│   ├── [ ][X+] 1-2-14. P0a 索引进度回调
-│   ├── [ ][X+] 1-2-15. P0a token 输出优化（GCF 式压缩）
-│   ├── [ ][X+] 1-2-16. P0b 冻结《死代码判定 rubric v1》
-│   ├── [ ][X+] 1-2-17. P0b find_dead_code 首版（限 3-5 语言）
-│   ├── [ ][X+] 1-2-18. P0b 圈复杂度（查询时计算，零 schema 变更）
-│   ├── [ ][X+] 1-2-19. 横切：schema 演进条款 + MCP 工具收口 ≤12
-│   └── [ ][X+] 1-2-20. 横切：架构回归红线 + 能力健康探针
+│   └── [x][X+] 1-2-12. A3 extractor backlog burn-down（dead-code precision 解锁）
 ├── [!][X+] 1-3. P1 高价值理解增量
 │   ├── [!][X+] 1-3-1. P1 准入：图质量门禁（degraded 降个位数）
 │   ├── [!][X+] 1-3-2. P1-1 PR 影响分析（复用 impact/affected）

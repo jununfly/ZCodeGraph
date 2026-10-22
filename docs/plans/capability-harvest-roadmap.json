@@ -72,15 +72,7 @@
         "1-2-9",
         "1-2-10",
         "1-2-11",
-        "1-2-12",
-        "1-2-13",
-        "1-2-14",
-        "1-2-15",
-        "1-2-16",
-        "1-2-17",
-        "1-2-18",
-        "1-2-19",
-        "1-2-20"
+        "1-2-12"
       ],
       "decisions": [
         {
@@ -90,7 +82,8 @@
         }
       ],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "childSequence": 20
     },
     "1-3": {
       "id": "1-3",
@@ -1322,106 +1315,6 @@
         "现有 impact/affected recall 基线入库存档"
       ]
     },
-    "1-2-13": {
-      "id": "1-2-13",
-      "uid": "01a15d918145-dafa800bd4",
-      "label": "P0a 诊断增强（MCP 初始化失败可恢复提示）",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-2",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "agent 首次成功调用 MCP 工具率 ≥95%",
-        "≥5 新用户干净环境走查 ≤30min 成功",
-        "不用遥测，与 100% 本地自洽"
-      ]
-    },
-    "1-2-14": {
-      "id": "1-2-14",
-      "uid": "01a15d9187f4-a9b32fe805",
-      "label": "P0a 索引进度回调",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-2",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "确定性事件序列断言通过"
-      ]
-    },
-    "1-2-15": {
-      "id": "1-2-15",
-      "uid": "01a15d918b36-311d2961c4",
-      "label": "P0a token 输出优化（GCF 式压缩）",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-2",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "基于 P-1 baseline 做压缩",
-        "固定探针集上统计显著下降",
-        "不承诺 ~62%"
-      ]
-    },
-    "1-2-16": {
-      "id": "1-2-16",
-      "uid": "01a15d9191c5-54806e5860",
-      "label": "P0b 冻结《死代码判定 rubric v1》",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-2",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "判定规则清单（注解白名单/框架入口/动态分派）",
-        "语料=现有5仓+≥1 Spring仓固定commit",
-        "每仓≥30条双人独立标注+仲裁"
-      ]
-    },
-    "1-2-17": {
-      "id": "1-2-17",
-      "uid": "01a15d91986d-98c5048eb5",
-      "label": "P0b find_dead_code 首版（限 3-5 语言）",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-2",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "只承诺 TS/JS/Python/Go/Java",
-        "含注解排除+框架入口排除",
-        "标注一致率≥85% 且 precision≥80%（只报 precision）"
-      ]
-    },
-    "1-2-18": {
-      "id": "1-2-18",
-      "uid": "01a15d919f70-511ddfd8b1",
-      "label": "P0b 圈复杂度（查询时计算，零 schema 变更）",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-2",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "不预计算落库",
-        "complexity-coverage 按语言分列 ≥90%",
-        "分母=成功索引 function 节点，附豁免清单"
-      ]
-    },
     "1-3-7": {
       "id": "1-3-7",
       "uid": "01a15d91a609-258e8df079",
@@ -1525,40 +1418,6 @@
         "watch 单文件增量 ≤5s"
       ]
     },
-    "1-2-19": {
-      "id": "1-2-19",
-      "uid": "01a15d91cfa4-3b5c5325c1",
-      "label": "横切：schema 演进条款 + MCP 工具收口 ≤12",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-2",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "新增 NodeKind/EdgeKind 走 migrations+bump CURRENT_SCHEMA_VERSION",
-        "写旧 CLI 打开新库兼容策略",
-        "新分析折叠进 explore/status，SVG/archify 走 CLI/CI 出口"
-      ]
-    },
-    "1-2-20": {
-      "id": "1-2-20",
-      "uid": "01a15d91d632-3c00979de9",
-      "label": "横切：架构回归红线 + 能力健康探针",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-2",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "index-time-regression ≤15%",
-        "explore-latency-regression 红线定值",
-        "每能力域健康探针+doctor capabilities.json+--upstream-check"
-      ]
-    },
     "1-2-12-5": {
       "id": "1-2-12-5",
       "uid": "01a1625b9df8-d07e691d01",
@@ -1610,7 +1469,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-22 16:48:39",
+    "updated": "2026-10-22 17:00:05",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
