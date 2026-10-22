@@ -147,8 +147,16 @@ jobs:
       # Fresh-clone path on first run (empty cache), reused-clone hermetic
       # mode afterwards (see scripts/measure/lib/clone.mjs MEASURE_SKIP_FETCH).
       MEASURE_SKIP_FETCH: "1"
+      # Same SSH-submodule redirect as the main job: cargo's tree-sitter-dart
+      # fork vendors tree-sitter over SSH; CI has no SSH key (libgit2 ignores
+      # url.insteadOf, hence CARGO_NET_GIT_FETCH_WITH_CLI).
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
       - uses: actions/checkout@v6
+      - name: Redirect SSH submodule URLs to public HTTPS for cargo git deps
+        shell: bash
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
       - uses: actions/setup-node@v6
         with:
           node-version: 22
