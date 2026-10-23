@@ -54,7 +54,7 @@
       "id": "1-2",
       "uid": "01a153ac21fb-c3c319311b",
       "label": "P0 好用性优先（agent 高频缺口）",
-      "status": "completed",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -69,7 +69,8 @@
         "1-2-9",
         "1-2-10",
         "1-2-11",
-        "1-2-12"
+        "1-2-12",
+        "1-2-21"
       ],
       "decisions": [
         {
@@ -1140,6 +1141,21 @@
           "q": "治理完成验收（2026-10-23 段3）",
           "answer": "三次全量连跑结果：run-3=5失败/4文件（含mcp-daemon flake）、run-4=4失败/3文件、run-5=4失败/3文件。核心3文件（esm-value-token/language-smoke/rust-parity）用例级CONSISTENT，均为1-2-11产品bug。mcp-daemon是lockfile race flake（非治理引入）。治理成果：baseline 39失败→4失败，收敛率90%。exit criteria全部满足：extraction 278/278全绿；C类13文件全部skipIf/平台分支/基础设施修复归零；连跑3次核心失败集合一致。status-json .cmd spawn EINVAL是治理中新发现的真实bug（极小，3行修），已一并修复。",
           "note": ""
+        },
+        {
+          "q": "2026-10-23 reopen 策略",
+          "answer": "用户指令要求治理 C 类 10 文件 + D 类 9 文件 + JSX/TSX smoke pre-existing flake。但 CLASSIFY.md 显示治理已于 2026-10-23 完成且 1-2-10 已 CLOSED，工作记忆也证实。需先跑当前 HEAD (5658428) 的 baseline 验证漂移：(1) 若 0 失败或仅剩 1-2-11 承接的产品 bug，则用户指令的'治理'实为'巡检验证'，本节点改回 completed；(2) 若发现新 flake（漂移），按 C/D 类流程治理；(3) JSX/TSX smoke 属 1-2-11 scope（已 CLOSED），若仍有 pre-existing flake 需确认是否已收录或新立节点。",
+          "note": ""
+        },
+        {
+          "q": "2026-10-23 reopen 段2 治理结果",
+          "answer": "HEAD 5658428 baseline：2475 用例 / 6 失败 / 5 文件。构成与 10-22 完全不同——C 类 13 文件已治理归零无漂移，原 3 个真 bug 非产品文件中 2 个（identity-residue / fabric-view）已闭合，docs-ontology 残留（10-23 新增 evidence md 缺 3 个必填 frontmatter 字段）+ issue-680 新出现（1-3-1 by-design TS-shell 排除 yaml 导致 fixture 过期）。本节点内修复 2 个：(a) docs/evidence/2026-10-23-graph-quality-gate-1-3-1.md 补 doc-kind=evidence/authority=supporting/bounded-question，docs-ontology 178/178 绿；(b) issue-680 fixture yaml→kotlin（非 by-design 语言），4/4 绿。剩 3 个产品 bug 文件（rust-index-engine-cli-language-smoke 2 + esm-value-token 1 + rust-parity 1，共 4 用例）移交给新节点 1-2-21（edge 1-2-10 informs 1-2-21 已建）。",
+          "note": ""
+        },
+        {
+          "q": "exit criteria 验收（2026-10-23 晚 reopen 闭合）",
+          "answer": "① tests/extraction.test.ts 全绿 ✓（1-2-10-1/1-2-10-2 修复后已 278/278，本轮回归仍绿）。② 仓库级 flake 文件归零或明确标注 ✓——本轮新发现 2 个（docs-ontology frontmatter / issue-680 fixture 过期）均已修复；C 类 13 文件 10-23 上午治理后无漂移。③ 连跑 3 次结果一致 ✓——r1/r2/r3 失败集合完全一致（4 失败 / 3 文件，均为 1-2-21 承接的产品 bug，用例级一致）。三条全满足，close。",
+          "note": ""
         }
       ],
       "notes": "",
@@ -1149,7 +1165,7 @@
         "仓库级 flake 文件（~18 个 pre-existing 失败）归零或明确标注 skip 原因（如 Windows-only symlink 限制）",
         "完整 npm test 在 Windows 本机连续 3 次跑结果一致（failed 集合不漂移）"
       ],
-      "rounds": 1
+      "rounds": 2
     },
     "1-2-11": {
       "id": "1-2-11",
@@ -1514,11 +1530,34 @@
       "exit_criteria": [
         "drupal index 不再失败且 status State != failed"
       ]
+    },
+    "1-2-21": {
+      "id": "1-2-21",
+      "uid": "01a168f12e33-69446caab9",
+      "label": "P0a Rust 核心 export 包裹函数 JSX 使用边 + parity 对齐（承接 1-2-10 D 类产品 bug）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-2",
+      "children": [],
+      "decisions": [
+        {
+          "q": "exit criteria",
+          "answer": "① tests/rust-index-engine-cli-language-smoke.test.ts 2 用例全绿；② tests/rust-index-engine-cli-esm-value-token.test.ts 1 用例全绿；③ tests/rust-parity.test.ts 1 用例全绿（含 parity kind 差异在 acceptableRustPhase1Differences 登记或对齐）；④ 不回归 extraction.test.ts 278/278 与 rust-hybrid e2e；⑤ cargo build + tsc 后连跑 3 次相关文件结果一致。",
+          "note": ""
+        },
+        {
+          "q": "承接来源（2026-10-23）",
+          "answer": "1-2-10 D 类勘察（2026-10-22）判定的 3 个产品 bug 文件，CLASSIFY.md 承诺『另立节点』但 1-2-11 被 explore 压缩占用导致该承诺未兑现，遗留至今。本节点正式承接：tests/rust-index-engine-cli-language-smoke.test.ts (2 用例) + tests/rust-index-engine-cli-esm-value-token.test.ts (1 用例) + tests/rust-parity.test.ts (1 用例)。根因：crates/zcodegraph-core/src/lib.rs visit_js_node 对 export_statement 包裹的 function-like 节点，从 current_from_node_id（file）而非 child_from_node_id（component）发 JSX refs，导致 <ChildWidget /> 等 JSX 使用只产 file→import 边、丢失 ParentWidget→ChildWidget 的 calls/instantiates 边。parity 另有 kind=component vs function 的 TS/Rust 引擎口径差异需对齐或登记 acceptableRustPhase1Differences。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan"
     }
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-23 20:53:41",
+    "updated": "2026-10-23 22:56:17",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
@@ -1623,7 +1662,13 @@
       "from": "01a153ad57ee-2e6afd75b3",
       "to": "01a15c95fe83-7b56f78a8e",
       "type": "informs"
+    },
+    {
+      "id": "e30",
+      "from": "01a1597d49b0-67c677cf05",
+      "to": "01a168f12e33-69446caab9",
+      "type": "informs"
     }
   ],
-  "edge_seq": 29
+  "edge_seq": 30
 }
