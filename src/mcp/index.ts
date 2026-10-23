@@ -353,24 +353,57 @@ export class MCPServer {
       const lock = tryAcquireDaemonLock(root);
 
       if (lock.kind === 'acquired') {
-        const daemon = new Daemon(root);
-        await daemon.start();
-        this.daemon = daemon;
-        this.mode = 'daemon';
-        return; // the net.Server keeps the process alive
+        try {
+          const daemon = new Daemon(root);
+          await daemon.start();
+          this.daemon = daemon;
+          this.mode = 'daemon';
+          return; // the net.Server keeps the process alive
+        } catch (err) {
+          // listen timed out or failed — clean up the lock so the proxy can
+          // retry by spawning a fresh daemon on the next poll cycle.
+          process.stderr.write(
+            `[CodeGraph daemon] Listen failed (${err instanceof Error ? err.message : String(err)}); releasing lock.\n`
+          );
+          try { fs.unlinkSync(lock.pidPath); } catch { /* best-effort */ }
+          process.exit(1);
+        }
       }
 
-      // Taken. If the holder is alive, another daemon already serves (or is
-      // binding) — we're redundant; exit cleanly so the launcher proxies to it.
+      // Taken. On Windows, a racing daemon's listen() can hang indefinitely on
+      // a named pipe while its pid is still alive — isProcessAlive alone is not
+      // sufficient. Probe the socket: connectable = live daemon serving; not
+      // connectable = still starting or hung, wait and retry.
+      // Skip the probe on Windows when the lock was just created (< 2s) — the
+      // daemon's stderr may not have flushed yet, but its listen() may have
+      // already bound the pipe. Probing too early yields a false "unreachable".
       const existing = lock.existing;
       if (existing && existing.pid > 0 && isProcessAlive(existing.pid)) {
+        const lockAgeMs = Date.now() - (existing.startedAt ?? 0);
+        const isFreshWindowsLock = process.platform === 'win32' && lockAgeMs < 2000;
+        if (!isFreshWindowsLock) {
+          const probe = await connectWithHello(existing.socketPath);
+          if (probe) {
+            if (probe !== 'version-mismatch') probe.destroy();
+            process.stderr.write(
+              `[CodeGraph daemon] Another daemon (pid ${existing.pid}) already holds the lock; exiting.\n`
+            );
+            process.exit(0);
+          }
+          // Socket unreachable despite live pid — the holder may be hung in
+          // listen() (Windows named-pipe race). Wait briefly and retry the full
+          // acquire cycle so we don't clear a live (but slow-to-bind) daemon's lock.
+          await sleep(TAKEOVER_RETRY_DELAY_MS);
+          continue;
+        }
+        // Fresh Windows lock — trust the holder is still binding; exit cleanly.
         process.stderr.write(
           `[CodeGraph daemon] Another daemon (pid ${existing.pid}) already holds the lock; exiting.\n`
         );
         process.exit(0);
       }
 
-      // Holder is dead (or the record is unreadable) — clear it (pid-verified,
+      // Holder is dead or the record is unreadable — clear it (pid-verified,
       // so we never delete a live daemon's lock) and retry the acquire.
       clearStaleDaemonLock(lock.pidPath, existing?.pid);
       await sleep(TAKEOVER_RETRY_DELAY_MS);
@@ -396,12 +429,24 @@ export class MCPServer {
       if (probe === 'version-mismatch') return null; // definitive — serve in-process, don't poll for 6s
       if (probe) return probe;
       // None reachable — spawn one (detached) and poll for its bind.
+      // If the daemon fails to bind (e.g. Windows named-pipe listen timeout),
+      // respawn once after its listen-timeout window expires (10s + margin) —
+      // the lock is cleaned up by the failed daemon's exit handler, so a fresh
+      // spawn can win it.
       spawnDetachedDaemon(root);
+      let respawned = false;
+      const RESPAWN_AFTER_MS = 12_000; // daemon listen timeout (10s) + margin
+      const pollStartMs = Date.now();
       for (let attempt = 0; attempt < DAEMON_CONNECT_MAX_RETRIES; attempt++) {
         await sleep(DAEMON_CONNECT_RETRY_DELAY_MS);
         const s = await connectWithHello(socketPath);
         if (s === 'version-mismatch') return null;
         if (s) return s;
+        // First daemon's listen timed out — respawn once.
+        if (!respawned && Date.now() - pollStartMs >= RESPAWN_AFTER_MS) {
+          respawned = true;
+          spawnDetachedDaemon(root);
+        }
       }
       return null; // never bound — the proxy serves this session in-process
     };

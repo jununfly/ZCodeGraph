@@ -172,10 +172,20 @@ export class Daemon {
       try { fs.unlinkSync(this.socketPath); } catch { /* not-exists is fine */ }
     }
 
+    // Windows named pipe: listen() can hang indefinitely if a racing daemon's
+    // pipe handle hasn't been released yet. Reject after a bounded wait so
+    // startDaemonProcess can clean up the lock and let the proxy retry.
+    // On Windows, a proxy's connectWithHello() can succeed against a pipe whose
+    // listen() callback hasn't fired yet — handleConnection() fires before the
+    // listen callback. Resolve on EITHER the listen callback OR the first
+    // connection, whichever comes first, so the daemon never wedges.
+    const LISTEN_TIMEOUT_MS = 10_000;
     await new Promise<void>((resolve, reject) => {
-      const server = net.createServer((socket) => this.handleConnection(socket));
-      server.once('error', (err) => reject(err));
-      server.listen(this.socketPath, () => {
+      let resolved = false;
+      const onReady = () => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timer);
         // POSIX: tighten permissions to user-only — the socket lives under
         // `.zcodegraph/`, which is git-ignored but may be on a shared FS.
         if (process.platform !== 'win32') {
@@ -183,7 +193,18 @@ export class Daemon {
         }
         this.server = server;
         resolve();
+      };
+      const server = net.createServer((socket) => {
+        // First connection proves the pipe is functional — resolve immediately.
+        onReady();
+        this.handleConnection(socket);
       });
+      const timer = setTimeout(() => {
+        server.close();
+        reject(new Error(`daemon listen timed out after ${LISTEN_TIMEOUT_MS}ms on ${this.socketPath}`));
+      }, LISTEN_TIMEOUT_MS);
+      server.once('error', (err) => { clearTimeout(timer); reject(err); });
+      server.listen(this.socketPath, () => { onReady(); });
     });
 
     const lock: DaemonLockInfo = {

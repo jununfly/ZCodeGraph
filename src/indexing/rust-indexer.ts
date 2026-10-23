@@ -207,8 +207,13 @@ function checkRustCoreVersion(core: Omit<RustReadinessDiagnostics['core'], 'vers
       error: `${core.attemptedCommand} does not exist`,
     };
   }
-  const args = [...core.attemptedArgsPrefix, '--version'];
-  const result = spawnSync(core.attemptedCommand, args, {
+  // Windows 下 .cmd 文件需经 cmd /c 调用（直接 spawnSync EINVAL）
+  const isCmdFile = process.platform === 'win32' && /\.cmd$/i.test(core.attemptedCommand);
+  const command = isCmdFile ? 'cmd' : core.attemptedCommand;
+  const args = isCmdFile
+    ? ['/c', core.attemptedCommand, ...core.attemptedArgsPrefix, '--version']
+    : [...core.attemptedArgsPrefix, '--version'];
+  const result = spawnSync(command, args, {
     cwd: core.cwd ?? process.cwd(),
     env: process.env,
     encoding: 'utf-8',
