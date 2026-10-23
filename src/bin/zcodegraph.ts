@@ -2324,7 +2324,12 @@ program
         ].join('\n');
       };
 
-      const blastRadius = buildBlastRadiusSection(cg, planResult.subgraph);
+      // Roadmap 1-2-11: skip blast-radius when the budget tier opts out
+      // (tight small-project tier via CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT).
+      const blastRadius =
+        planResult.budget.includeBlastRadius === false
+          ? ''
+          : buildBlastRadiusSection(cg, planResult.subgraph);
       const output = render(planResult, cg, planResult.spine, blastRadius);
       console.log(output);
 

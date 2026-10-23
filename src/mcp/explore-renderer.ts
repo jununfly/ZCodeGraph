@@ -455,10 +455,25 @@ export function render(
     // central file" both overflowed the inline cap AND starved the co-flow files
     // (worker.rs ate the budget, dropping harness.rs's poll). A larger central
     // file falls through to per-method windowing/clustering below.
-    const WHOLE_FILE_MAX_LINES = isCentralFile ? 280 : 220;
-    const WHOLE_FILE_MAX_CHARS = isCentralFile
-      ? Math.min(Math.max(0, budget.maxOutputChars - totalChars - 200), Math.round(budget.maxCharsPerFile * 1.5))
-      : budget.maxCharsPerFile * 3;
+    //
+    // Roadmap 1-2-11: on the tight small-project tier, the whole-file rule is
+    // the primary over-fire — petclinic's OwnerController (6.6K chars) fits
+    // inside `maxCharsPerFile * 3 = 11400` and gets dumped whole, when the
+    // agent only needs the showOwner/processFindForm/findById call-sites.
+    // When `includeBlastRadius === false` (the tight-tier signal) we drop the
+    // whole-file multiplier from 3×/1.5× to 1.5×/1.2×, forcing 6-7KB
+    // controller files into per-symbol clustering instead of verbatim dumps.
+    const tightTier = budget.includeBlastRadius === false;
+    const WHOLE_FILE_MAX_LINES = tightTier
+      ? (isCentralFile ? 160 : 120)
+      : (isCentralFile ? 280 : 220);
+    const WHOLE_FILE_MAX_CHARS = tightTier
+      ? (isCentralFile
+          ? Math.min(Math.max(0, budget.maxOutputChars - totalChars - 200), Math.round(budget.maxCharsPerFile * 1.2))
+          : Math.round(budget.maxCharsPerFile * 1.5))
+      : (isCentralFile
+          ? Math.min(Math.max(0, budget.maxOutputChars - totalChars - 200), Math.round(budget.maxCharsPerFile * 1.5))
+          : budget.maxCharsPerFile * 3);
     if (fileLines.length <= WHOLE_FILE_MAX_LINES && fileContent.length <= WHOLE_FILE_MAX_CHARS) {
       const body = fileContent.replace(/\n+$/, '');
       let wholeSection = exploreLineNumbersEnabled() ? numberSourceLines(body, 1) : body;

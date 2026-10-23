@@ -41,6 +41,14 @@ export interface ExploreOutputBudget {
   maxEdgesPerRelationshipKind: number;
   /** Include the "Relationships" section. */
   includeRelationships: boolean;
+  /**
+   * Include the "Blast radius" section (entry-symbol callers + tests).
+   * Roadmap 1-2-11: small projects (fileCount < 500) over-fire on blast
+   * radius — on a tightly-scoped locate/trace question, the agent pays
+   * more bytes for a section it would never have queried directly.
+   * Optional; missing = true (legacy behaviour preserved).
+   */
+  includeBlastRadius?: boolean;
   /** Include the "Additional relevant files (not shown)" trailing list. */
   includeAdditionalFiles: boolean;
   /** Include the "Complete source code is included above…" reminder. */

@@ -94,6 +94,22 @@ export function getExploreBudget(fileCount: number): number {
 // ExploreOutputBudget is defined in explore-types.ts (single source of truth).
 export type { ExploreOutputBudget } from './explore-types.js';
 
+/**
+ * Roadmap 1-2-11 (P0a explore 小项目 budget 收紧): opt-in tightened budget for
+ * small projects (fileCount < 500). Driven by CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT=1.
+ *
+ * Motivation: 2026-10-21 layer2 evidence shows petclinic 3 tasks all >1.0
+ * explore/read ratio (1.28/1.50/1.74). On small projects the explore answer
+ * over-fires: the blast-radius section + whole-file rule on central
+ * controller files push the numerator past the byte cost of reading the 2-3
+ * equivalent files directly. This env var enables a tightened budget tier so
+ * we can A/B measure the real compression before flipping the default.
+ */
+export function tightSmallProjectBudgetEnabled(): boolean {
+  const v = process.env['CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT'];
+  return v === '1' || v === 'true';
+}
+
 export function getExploreOutputBudget(fileCount: number): ExploreOutputBudget {
   // Tiered budget, scaled to project size. The budget is a CEILING (relevance
   // still gates WHAT is included), and it MUST stay under the agent's INLINE
@@ -107,6 +123,28 @@ export function getExploreOutputBudget(fileCount: number): ExploreOutputBudget {
   // first sort dropping peripheral files. Invariant: a larger tier must never
   // get a smaller `maxCharsPerFile` than a smaller tier.
   if (fileCount < 150) {
+    // Roadmap 1-2-11: opt-in tight tier for small projects. Default preserves
+    // the ITER3 shape (13K/4/3.8K); with CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT=1
+    // we halve the output ceiling and per-file cap and skip the blast-radius
+    // section, because on small projects (petclinic evidence 2026-10-21) the
+    // explore answer over-fires past the byte cost of reading 2-3 equivalent
+    // files directly.
+    if (tightSmallProjectBudgetEnabled()) {
+      return {
+        maxOutputChars: 8000,
+        defaultMaxFiles: 3,
+        maxCharsPerFile: 2200,
+        gapThreshold: 7,
+        maxSymbolsInFileHeader: 5,
+        maxEdgesPerRelationshipKind: 4,
+        includeRelationships: false,
+        includeBlastRadius: false,
+        includeAdditionalFiles: false,
+        includeCompletenessSignal: false,
+        includeBudgetNote: false,
+        excludeLowValueFiles: true,
+      };
+    }
     return {
       // ITER3: revert iter2's aggressive body shrink (forced Read fallback —
       // the per-file 2.5K cap pushed the agent to Read instead of node).
@@ -127,6 +165,23 @@ export function getExploreOutputBudget(fileCount: number): ExploreOutputBudget {
     };
   }
   if (fileCount < 500) {
+    // Roadmap 1-2-11: same opt-in tight tier as <150, tuned slightly larger.
+    if (tightSmallProjectBudgetEnabled()) {
+      return {
+        maxOutputChars: 10000,
+        defaultMaxFiles: 4,
+        maxCharsPerFile: 2600,
+        gapThreshold: 8,
+        maxSymbolsInFileHeader: 6,
+        maxEdgesPerRelationshipKind: 6,
+        includeRelationships: false,
+        includeBlastRadius: false,
+        includeAdditionalFiles: false,
+        includeCompletenessSignal: false,
+        includeBudgetNote: false,
+        excludeLowValueFiles: true,
+      };
+    }
     return {
       // ITER3: same revert/keep-filter pattern as <150.
       maxOutputChars: 18000,
@@ -1411,7 +1466,14 @@ export class ToolHandler {
     }
 
     // Compute blast radius (stays here — needs cg.getCallers + isTestFile).
-    const blastRadius = this.buildBlastRadiusSection(cg, planResult.subgraph);
+    // Roadmap 1-2-11: skip the section entirely when the budget tier opts out
+    // (small-project tight tier; the section is a meaningful byte cost on
+    // tightly-scoped questions and the agent can always `zcodegraph_impact`
+    // the named symbol explicitly if it wants blast radius).
+    const blastRadius =
+      planResult.budget.includeBlastRadius === false
+        ? ''
+        : this.buildBlastRadiusSection(cg, planResult.subgraph);
 
     // Delegate ALL rendering to the explore renderer (Issue #14).
     const output = render(planResult, cg, planResult.spine, blastRadius);
