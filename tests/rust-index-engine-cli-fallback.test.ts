@@ -64,8 +64,13 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     expect(plan.missingFallbackByLanguage).toEqual({});
     expect(plan.missingFallbackFileCount).toBe(0);
     expect(plan.skippedGeneratedByLanguage.go).toBe(1);
-    expect(plan.fallbackState).toBe('partial');
-    expect(plan.fallbackReasonTaxonomy).toMatchObject({ 'language-level-typescript-fallback': 1 });
+    // Roadmap 1-3-1: routing.yml is yaml — a by-design TS-shell language
+    // (1-3-6-1 keep decision). It still flows through the fallback extractor
+    // (engineByLanguage.yaml === 'typescript', fallbackFiles contains it),
+    // but no longer contributes to `language-level-typescript-fallback`
+    // taxonomy, so the plan reports healthy rather than partial.
+    expect(plan.fallbackState).toBe('healthy');
+    expect(plan.fallbackReasonTaxonomy).toEqual({});
     expect(plan.pendingFallbacks).toContain('rust-owned-parse-gap');
   });
 
@@ -123,18 +128,44 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
 
     const metadata = buildRustHybridMetadataFromPlan(merged);
 
+    // Roadmap 1-3-1: yaml is a by-design TS-shell language (1-3-6-1 keep
+    // decision). A sparse-missing yaml file is plan drift on a language we
+    // deliberately keep on the TS shell — it is tracked in
+    // missingFallbackFileCount/missingFallbackByLanguage for observability
+    // but no longer contributes to `language-level-fallback-missing-file`
+    // taxonomy or forces `degraded` on its own.
     expect(metadata).toMatchObject({
-      fallbackState: 'degraded',
+      fallbackState: 'healthy',
       fallbackByLanguage: { yaml: 1 },
       fallbackFileCount: 1,
-      fallbackReasonTaxonomy: {
-        'language-level-typescript-fallback': 1,
-        'language-level-fallback-missing-file': 1,
-      },
+      fallbackReasonTaxonomy: {},
       missingFallbackFileCount: 1,
       missingFallbackByLanguage: { yaml: 1 },
     });
     expect(metadata.fallbackMessage).toContain('Sparse checkout omitted 1 planned TypeScript fallback file');
+  });
+
+  it('escalates to degraded when a non-by-design fallback file goes missing (1-3-1)', () => {
+    // Simulate a future non-by-design non-Rust-owned language: craft a plan
+    // whose taxonomy already records an unexpected fallback, then add a
+    // missing entry for a language outside BY_DESIGN_TS_SHELL_LANGUAGES.
+    fs.writeFileSync(path.join(tempDir, 'a.ts'), 'export const a = 1;\n');
+    const plan = planRustHybridAssignments(tempDir);
+    const preSeeded = {
+      ...plan,
+      fallbackReasonTaxonomy: { 'language-level-typescript-fallback': 1 },
+      fallbackState: 'partial' as const,
+    };
+    const merged = mergeMissingFallbackDiagnostics(preSeeded, {
+      missingFallbackFileCount: 1,
+      missingFallbackByLanguage: { rust: 1 },
+    });
+
+    expect(merged.fallbackState).toBe('degraded');
+    expect(merged.fallbackReasonTaxonomy).toMatchObject({
+      'language-level-typescript-fallback': 1,
+      'language-level-fallback-missing-file': 1,
+    });
   });
 
   it('does not append TypeScript fallback for Rust-owned per-file gaps from a successful Rust core', () => {
@@ -233,9 +264,15 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    // Roadmap 1-3-1: yaml is by-design TS-shell. The CLI still surfaces
+    // "appended N non-Rust-owned files via TypeScript fallback" as an
+    // observability line (it reflects work the TS shell actually did), but
+    // the Fallback health block is suppressed because the plan's taxonomy
+    // no longer carries a `language-level-typescript-fallback` entry.
     expect(result.stdout).toContain('non-Rust-owned files via TypeScript fallback');
-    expect(result.stdout).toContain('Fallback health: partial');
-    expect(result.stdout).toContain('files indexed via TypeScript fallback (non-Rust-owned languages)');
+    expect(result.stdout).not.toContain('Fallback health: partial');
+    expect(result.stdout).not.toContain('Fallback health: degraded');
+    expect(result.stdout).not.toContain('files indexed via TypeScript fallback (non-Rust-owned languages)');
     expect(result.stdout).not.toContain('need review');
     expect(result.stdout).not.toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
   }, 30_000);
@@ -252,9 +289,12 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     expect(status.status, `stdout:\n${status.stdout}\nstderr:\n${status.stderr}`).toBe(0);
     expect(status.stdout).toContain('Graph Health:');
     expect(status.stdout).toContain('State: healthy');
-    expect(status.stdout).toContain('Rust-hybrid Fallback:');
-    expect(status.stdout).toContain('Fallback health: partial');
-    expect(status.stdout).toContain('files indexed via TypeScript fallback (non-Rust-owned languages)');
+    // Roadmap 1-3-1: yaml is by-design — the entire fallback block is
+    // suppressed when the only fallbacks are by-design TS-shell files.
+    expect(status.stdout).not.toContain('Rust-hybrid Fallback:');
+    expect(status.stdout).not.toContain('Fallback health: partial');
+    expect(status.stdout).not.toContain('Fallback health: degraded');
+    expect(status.stdout).not.toContain('files indexed via TypeScript fallback (non-Rust-owned languages)');
     expect(status.stdout).not.toContain('per-file-diagnostics.json');
     expect(status.stdout).not.toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
   }, 30_000);
@@ -272,7 +312,7 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     const statusLine = statusResult.stdout.trim().split('\n').filter(Boolean).pop();
     expect(statusLine).toBeDefined();
     const status = JSON.parse(statusLine!) as {
-      fallbackDiagnostics: {
+      fallbackDiagnostics: null | {
         state: string;
         graphUsabilityMessage: string;
         doctorCommand: string;
@@ -280,19 +320,9 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
         topReasons: Array<{ code: string; count: number; label: string }>;
       };
     };
-    expect(status.fallbackDiagnostics).toMatchObject({
-      state: 'partial',
-      doctorCommand: '',
-      artifactHint: '',
-    });
-    expect(status.fallbackDiagnostics.graphUsabilityMessage).toContain('Index is complete');
-    expect(status.fallbackDiagnostics.topReasons).toEqual([
-      expect.objectContaining({
-        code: 'language-level-typescript-fallback',
-        count: 1,
-        label: 'non-Rust-owned files via TypeScript fallback',
-      }),
-    ]);
+    // Roadmap 1-3-1: by-design yaml fallback → fallbackDiagnostics is null
+    // (statusFallbackDiagnostics returns null for healthy state).
+    expect(status.fallbackDiagnostics).toBeNull();
   }, 30_000);
 
   it('prints the partial fallback health explanation during bootstrap rust-hybrid index', () => {
@@ -307,9 +337,15 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
 
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
       expect(result.stdout).toContain('Initialized');
-      expect(result.stdout).toContain('Indexed with rust-hybrid');
-      expect(result.stdout).toContain('Fallback health: partial');
-      expect(result.stdout).toContain('files indexed via TypeScript fallback (non-Rust-owned languages)');
+      // Roadmap 1-3-1: yaml is by-design TS-shell — bootstrap output
+      // suppresses the entire fallback doctor hint (including the
+      // "Indexed with rust-hybrid" header) when only by-design files
+      // flowed through the fallback extractor, because the summary's
+      // fallbackState is healthy.
+      expect(result.stdout).not.toContain('Indexed with rust-hybrid');
+      expect(result.stdout).not.toContain('Fallback health: partial');
+      expect(result.stdout).not.toContain('Fallback health: degraded');
+      expect(result.stdout).not.toContain('files indexed via TypeScript fallback (non-Rust-owned languages)');
       expect(result.stdout).not.toContain('need review');
       expect(result.stdout).not.toContain('zcodegraph doctor --engine rust-hybrid --bundle --last-run');
     } finally {

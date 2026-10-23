@@ -7,6 +7,31 @@ import * as path from 'path';
 
 export const RUST_HYBRID_PHASE = 'phase-6-rust-owned-per-file-gap-fallback';
 export const RUST_HYBRID_RUST_OWNED_LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'java', 'kotlin', 'python', 'rust', 'c', 'cpp', 'csharp', 'php', 'ruby', 'dart', 'swift', 'objc', 'lua', 'luau', 'pascal', 'scala'] as const;
+
+/**
+ * Languages whose TypeScript-shell ownership is a deliberate design decision
+ * (roadmap 1-3-x-1 keep decisions), not a Rust-core gap. Two sub-families:
+ *
+ *  1. File-level-only (yaml/twig/properties): extraction layer is a deliberate
+ *     no-op; symbols come from TS framework resolvers (1-4 wave). Guarded by
+ *     `isFileLevelOnlyLanguage` + `tests/file-level-language-ownership-guard.test.ts`.
+ *  2. Delegation extractors (svelte/vue/liquid/razor/xml): custom extractors
+ *     whose value is embedded-block delegation to a full language extractor
+ *     (e.g. Vue `<script>` → TS/JS), which the Rust core cannot replicate
+ *     without an ABI-14 grammar + sub-tree delegation mechanism.
+ *
+ * Files in these languages are still tracked, indexed by the TS shell, and
+ * counted under `fallbackByLanguage` for observability — but they no longer
+ * contribute to `fallbackReasonTaxonomy['language-level-typescript-fallback']`
+ * or `language-level-fallback-missing-file`, so they cannot push the fallback
+ * state to `degraded` on their own (roadmap 1-3-1).
+ */
+export const RUST_HYBRID_BY_DESIGN_TS_SHELL_LANGUAGES = ['svelte', 'vue', 'liquid', 'razor', 'xml', 'yaml', 'twig', 'properties'] as const;
+export type RustHybridByDesignTsShellLanguage = typeof RUST_HYBRID_BY_DESIGN_TS_SHELL_LANGUAGES[number];
+
+export function isByDesignTsShellLanguage(language: string): boolean {
+  return (RUST_HYBRID_BY_DESIGN_TS_SHELL_LANGUAGES as readonly string[]).includes(language);
+}
 export type RustHybridFallbackState = 'healthy' | 'partial' | 'degraded' | 'pending';
 export type RustOwnedGapCode =
   | 'rust-owned-parse-gap'
@@ -57,11 +82,22 @@ export interface RustHybridMetadata {
 }
 
 export function rustHybridFallbackStateFor(
-  fallbackFileCount: number,
+  _fallbackFileCount: number,
   fallbackReasonTaxonomy: Record<string, number>,
 ): RustHybridFallbackState {
-  const hasAnyReason = fallbackFileCount > 0 || Object.keys(fallbackReasonTaxonomy).length > 0;
-  if (!hasAnyReason) return 'healthy';
+  // Roadmap 1-3-1: by-design TS-shell languages (svelte/vue/liquid/razor/
+  // xml/yaml/twig/properties) still appear in `fallbackFileCount` for
+  // observability but no longer contribute any taxonomy entry, so an index
+  // whose only fallbacks are by-design now reports `healthy` rather than
+  // `partial`. `partial` is reserved for genuine unexpected fallbacks
+  // (non-Rust-owned, non-by-design languages). The `_fallbackFileCount`
+  // parameter is retained for API compatibility with existing callers but
+  // no longer drives the state directly — taxonomy is the single source
+  // of truth for unexpected fallback signals.
+  const unexpectedLanguageFallback = fallbackReasonTaxonomy['language-level-typescript-fallback'] ?? 0;
+  if (unexpectedLanguageFallback === 0 && Object.keys(fallbackReasonTaxonomy).length === 0) {
+    return 'healthy';
+  }
   const hasUnexpectedReasons = Object.keys(fallbackReasonTaxonomy).some(
     (code) => code !== 'language-level-typescript-fallback',
   );
@@ -179,20 +215,37 @@ export function mergeMissingFallbackDiagnostics(
   const missingFallbackByLanguage = {
     ...plan.missingFallbackByLanguage,
   };
+  // Roadmap 1-3-1: missing files in by-design TS-shell languages are plan
+  // drift (sparse checkout, deleted files) on languages we deliberately keep
+  // on the TS shell — they don't indicate a Rust-core gap. Track them for
+  // observability but exclude them from the `language-level-fallback-missing-file`
+  // taxonomy entry so they cannot force `degraded` on their own.
+  let unexpectedMissingCount = 0;
   for (const [language, count] of Object.entries(diagnostics.missingFallbackByLanguage ?? {})) {
     missingFallbackByLanguage[language] = (missingFallbackByLanguage[language] ?? 0) + count;
+    if (!isByDesignTsShellLanguage(language)) {
+      unexpectedMissingCount += count;
+    }
   }
 
-  const fallbackReasonTaxonomy = {
-    ...plan.fallbackReasonTaxonomy,
-    'language-level-fallback-missing-file': (plan.fallbackReasonTaxonomy['language-level-fallback-missing-file'] ?? 0) + missingFallbackFileCount,
-  };
+  const fallbackReasonTaxonomy = { ...plan.fallbackReasonTaxonomy };
+  if (unexpectedMissingCount > 0) {
+    fallbackReasonTaxonomy['language-level-fallback-missing-file'] =
+      (fallbackReasonTaxonomy['language-level-fallback-missing-file'] ?? 0) + unexpectedMissingCount;
+  }
+
+  // Only escalate to degraded when there is at least one unexpected missing
+  // fallback. If every missing file is in a by-design language, the previous
+  // state is preserved (typically healthy after this node's plan change).
+  const nextState = unexpectedMissingCount > 0
+    ? 'degraded'
+    : plan.fallbackState;
 
   return {
     ...plan,
     missingFallbackByLanguage,
     missingFallbackFileCount: plan.missingFallbackFileCount + missingFallbackFileCount,
-    fallbackState: 'degraded',
+    fallbackState: nextState,
     fallbackReasonTaxonomy,
   };
 }
@@ -205,6 +258,11 @@ export function planRustHybridAssignments(projectPath: string): RustHybridAssign
   const engineByFileCount: Record<string, number> = {};
   const fallbackByLanguage: Record<string, number> = {};
   const skippedGeneratedByLanguage: Record<string, number> = {};
+  // Roadmap 1-3-1: files in BY_DESIGN_TS_SHELL_LANGUAGES still flow through
+  // the TS fallback extractor (they need to be indexed), but they do NOT
+  // contribute to `language-level-typescript-fallback` taxonomy — their
+  // TS-shell ownership is a deliberate 1-3-x-1 keep decision, not a gap.
+  let unexpectedFallbackFileCount = 0;
 
   for (const filePath of scanDirectory(projectPath)) {
     const language = detectLanguageForRustHybridPlan(projectPath, filePath);
@@ -227,8 +285,15 @@ export function planRustHybridAssignments(projectPath: string): RustHybridAssign
       engineByLanguage[language] = 'typescript';
       engineByFileCount.typescript = (engineByFileCount.typescript ?? 0) + 1;
       fallbackByLanguage[language] = (fallbackByLanguage[language] ?? 0) + 1;
+      if (!isByDesignTsShellLanguage(language)) {
+        unexpectedFallbackFileCount += 1;
+      }
     }
   }
+
+  const fallbackReasonTaxonomy: Record<string, number> = unexpectedFallbackFileCount > 0
+    ? { 'language-level-typescript-fallback': unexpectedFallbackFileCount }
+    : {};
 
   return {
     rustOwnedFiles,
@@ -241,8 +306,8 @@ export function planRustHybridAssignments(projectPath: string): RustHybridAssign
     missingFallbackByLanguage: {},
     missingFallbackFileCount: 0,
     skippedGeneratedByLanguage,
-    fallbackState: rustHybridFallbackStateFor(fallbackFiles.length, fallbackFiles.length > 0 ? { 'language-level-typescript-fallback': fallbackFiles.length } : {}),
-    fallbackReasonTaxonomy: fallbackFiles.length > 0 ? { 'language-level-typescript-fallback': fallbackFiles.length } : {},
+    fallbackState: rustHybridFallbackStateFor(fallbackFiles.length, fallbackReasonTaxonomy),
+    fallbackReasonTaxonomy,
     pendingFallbacks: ['rust-owned-parse-gap'],
   };
 }

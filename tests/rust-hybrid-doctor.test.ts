@@ -491,11 +491,19 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
   // (not just leave it inside the JSON artifact) — otherwise the diagnostics
   // that exist read as more severe than the aggregate outcome.
   it('surfaces aggregated findings on the doctor stdout for partial state (#686)', () => {
-    // Seed a project whose plan yields partial: real fixture has non-Rust-owned
-    // files (e.g. .vue) that plan as TypeScript fallback, and the fake rust
-    // core additionally reports identical per-file parser errors that do NOT
-    // enter the fallbackReasonTaxonomy (severity:error parser_error, not
-    // rust-owned-*), so the state stays partial.
+    // Roadmap 1-3-1: vue is now a by-design TS-shell language, so a project
+    // containing only .vue fallback files reports healthy rather than
+    // partial. To keep this #686 regression test exercising the partial
+    // branch, we simulate a future non-by-design non-Rust-owned language by
+    // planting a fallback file whose extension is not in
+    // BY_DESIGN_TS_SHELL_LANGUAGES — using the `unknown` extension trick
+    // would not work because unknown is not a supported language. Instead,
+    // we let the by-design flow run and additionally craft a
+    // `last-run` record whose aggregateTaxonomy declares a partial state
+    // with a non-by-design language in the taxonomy, matching the spirit of
+    // the original #686 acceptance: aggregated findings appear whenever
+    // the fallback state is partial, regardless of which languages
+    // contributed.
     fs.writeFileSync(path.join(tempDir, 'Component.vue'), '<template><div/></template>\n');
     const rustCore = writeFakeRustCoreWithRepeatedDiagnostics(tempDir, {
       language: 'vue',
@@ -508,6 +516,20 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
       ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
     });
     expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
+
+    // Post-process the persisted last-run record: replace the healthy
+    // taxonomy with a partial one as if a future non-by-design language
+    // produced it. This keeps the doctor display logic under test without
+    // tying the assertion to a specific language being non-by-design.
+    const lastRunPath = path.join(tempDir, '.zcodegraph', 'diagnostics', 'last-run.json');
+    const lastRun = JSON.parse(fs.readFileSync(lastRunPath, 'utf-8'));
+    lastRun.statusSummary.index.hybrid.fallbackState = 'partial';
+    lastRun.statusSummary.index.hybrid.fallbackReasonTaxonomy = {
+      'language-level-typescript-fallback': 1,
+    };
+    lastRun.statusSummary.index.hybrid.fallbackByLanguage = {};
+    lastRun.statusSummary.index.hybrid.fallbackFileCount = 1;
+    fs.writeFileSync(lastRunPath, JSON.stringify(lastRun, null, 2));
 
     const doctor = runCli(tempDir, ['doctor', '--engine', 'rust-hybrid', '--bundle', '--last-run']);
     expect(doctor.status, `stdout:\n${doctor.stdout}\nstderr:\n${doctor.stderr}`).toBe(0);

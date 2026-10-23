@@ -13,7 +13,11 @@ describe('rust-hybrid fallback summary contract', () => {
         typescriptFallbackAppend: {
           fallbackFileCount: 2,
           missingFallbackFileCount: 1,
-          missingFallbackByLanguage: { yaml: 1 },
+          // Roadmap 1-3-1: omit fallbackByLanguage / use a mismatched
+          // missingFallbackByLanguage so the legacy classification path
+          // counts the totals as unexpected. This exercises the same
+          // degraded taxonomy shape the test was written for.
+          missingFallbackByLanguage: { rust: 1 },
         },
       },
       errors: [
@@ -29,7 +33,7 @@ describe('rust-hybrid fallback summary contract', () => {
       fallbackState: 'degraded',
       fallbackFileCount: 2,
       missingFallbackFileCount: 1,
-      missingFallbackByLanguage: { yaml: 1 },
+      missingFallbackByLanguage: { rust: 1 },
       fallbackReasonTaxonomy: {
         'language-level-typescript-fallback': 2,
         'language-level-fallback-missing-file': 1,
@@ -69,7 +73,10 @@ describe('rust-hybrid fallback summary contract', () => {
         typescriptFallbackAppend: {
           fallbackFileCount: 1,
           missingFallbackFileCount: 2,
-          missingFallbackByLanguage: { yaml: 2 },
+          // Roadmap 1-3-1: 'rust' is not in BY_DESIGN_TS_SHELL_LANGUAGES, so
+          // this missing count classifies as unexpected and still drives the
+          // degraded reason list the test was written for.
+          missingFallbackByLanguage: { rust: 2 },
         },
       },
       errors: [],
@@ -82,6 +89,26 @@ describe('rust-hybrid fallback summary contract', () => {
     expect(formatRustHybridFallbackDoctorHint(summary)[2]).toContain(
       '2 planned TypeScript fallback files missing from the checkout',
     );
+  });
+
+  it('treats by-design missing fallback as plan drift without degraded escalation (1-3-1)', () => {
+    const summary = buildRustHybridFallbackSummary({
+      success: true,
+      profile: {
+        typescriptFallbackAppend: {
+          fallbackFileCount: 5,
+          fallbackByLanguage: { yaml: 3, properties: 2 },
+          missingFallbackFileCount: 4,
+          missingFallbackByLanguage: { yaml: 3, twig: 1 },
+        },
+      },
+      errors: [],
+    });
+
+    expect(summary.fallbackState).toBe('healthy');
+    expect(summary.fallbackReasonTaxonomy).toEqual({});
+    expect(summary.missingFallbackFileCount).toBe(4);
+    expect(summary.missingFallbackByLanguage).toEqual({ yaml: 3, twig: 1 });
   });
 
   it('returns no first-screen doctor hint for healthy fallback state', () => {
@@ -102,12 +129,16 @@ describe('rust-hybrid fallback summary contract', () => {
 // not be silently listed only in per-file-diagnostics.json.
 describe('rust-hybrid aggregated per-file findings (#686)', () => {
   it('surfaces aggregated findings on the partial branch of formatRustHybridFallbackHealthLines', () => {
+    // Roadmap 1-3-1: `fallbackByLanguage` is omitted so the summary falls
+    // back to the legacy classification path and the partial branch stays
+    // reachable. The aggregated findings still reference vue/yaml — those
+    // records come from `per-file-diagnostics.json` (an #686 artifact) and
+    // are independent of the 1-3-1 by-design taxonomy change.
     const summary = buildRustHybridFallbackSummary({
       success: true,
       profile: {
         typescriptFallbackAppend: {
           fallbackFileCount: 148,
-          fallbackByLanguage: { vue: 136, yaml: 12 },
         },
       },
       errors: [],

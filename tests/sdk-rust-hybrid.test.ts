@@ -265,11 +265,16 @@ describe('SDK rust-hybrid full-index alignment', () => {
       const result = await cg.indexAll();
 
       expect(result.success).toBe(true);
+      // Roadmap 1-3-1: yaml is by-design TS-shell (1-3-6-1 keep decision).
+      // The file is still indexed via the fallback extractor
+      // (fallbackFileCount=1, fallbackByLanguage={yaml:1}) but no longer
+      // contributes to the fallbackReasonTaxonomy — fallbackState is
+      // healthy rather than partial.
       expect(cg.getIndexBuildInfo().hybrid).toMatchObject({
-        fallbackState: 'partial',
+        fallbackState: 'healthy',
         fallbackByLanguage: { yaml: 1 },
         fallbackFileCount: 1,
-        fallbackReasonTaxonomy: { 'language-level-typescript-fallback': 1 },
+        fallbackReasonTaxonomy: {},
       });
     } finally {
       if (previousRustCore == null) {

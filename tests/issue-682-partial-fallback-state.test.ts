@@ -45,12 +45,15 @@ describe('Issue #682: three-tier fallback health state (healthy/partial/degraded
 
   describe('buildRustHybridFallbackSummary', () => {
     it('returns partial state for non-Rust-owned language fallback without gaps', () => {
+      // Roadmap 1-3-1: when fallbackByLanguage is absent/mismatched the
+      // summary falls back to the legacy total-count classification, so the
+      // partial branch stays reachable for future non-by-design languages
+      // that may be added without a 1-3-x-1 keep decision.
       const summary = buildRustHybridFallbackSummary({
         success: true,
         profile: {
           typescriptFallbackAppend: {
             fallbackFileCount: 58,
-            fallbackByLanguage: { yaml: 58 },
           },
         },
         errors: [],
@@ -58,6 +61,26 @@ describe('Issue #682: three-tier fallback health state (healthy/partial/degraded
 
       expect(summary.fallbackState).toBe('partial');
       expect(summary.graphUsabilityMessage).not.toContain('need review');
+    });
+
+    it('returns healthy state when fallback is entirely by-design TS-shell languages (1-3-1)', () => {
+      // By-design TS-shell languages (yaml/twig/properties/svelte/vue/liquid/
+      // razor/xml) still flow through the TS fallback extractor but no longer
+      // contribute to the fallbackReasonTaxonomy — their TS-shell ownership
+      // is a deliberate 1-3-x-1 keep decision, not a Rust-core gap.
+      const summary = buildRustHybridFallbackSummary({
+        success: true,
+        profile: {
+          typescriptFallbackAppend: {
+            fallbackFileCount: 58,
+            fallbackByLanguage: { yaml: 30, vue: 20, razor: 8 },
+          },
+        },
+        errors: [],
+      });
+
+      expect(summary.fallbackState).toBe('healthy');
+      expect(summary.fallbackReasonTaxonomy).toEqual({});
     });
 
     it('returns degraded state when rust-owned gaps are present', () => {
@@ -79,12 +102,13 @@ describe('Issue #682: three-tier fallback health state (healthy/partial/degraded
 
   describe('formatRustHybridFallbackHealthLines', () => {
     it('outputs partial format with info line and language breakdown', () => {
+      // Roadmap 1-3-1: omit fallbackByLanguage to exercise the legacy
+      // fallback path that classifies the total as unexpected.
       const summary = buildRustHybridFallbackSummary({
         success: true,
         profile: {
           typescriptFallbackAppend: {
             fallbackFileCount: 58,
-            fallbackByLanguage: { yaml: 58 },
           },
         },
         errors: [],
@@ -95,7 +119,7 @@ describe('Issue #682: three-tier fallback health state (healthy/partial/degraded
 
       expect(joined).toContain('Fallback health: partial');
       expect(joined).toContain('58 files indexed via TypeScript fallback (non-Rust-owned languages)');
-      expect(joined).toContain('Fallback by source language: yaml (58)');
+      expect(joined).not.toContain('Fallback by source language');
       expect(joined).not.toContain('need review');
     });
 
@@ -118,16 +142,33 @@ describe('Issue #682: three-tier fallback health state (healthy/partial/degraded
       expect(joined).not.toContain('Fallback by source language');
       expect(joined).not.toContain('need review');
     });
+
+    it('returns empty array for fully by-design fallback (1-3-1 healthy state)', () => {
+      const summary = buildRustHybridFallbackSummary({
+        success: true,
+        profile: {
+          typescriptFallbackAppend: {
+            fallbackFileCount: 70,
+            fallbackByLanguage: { yaml: 40, properties: 30 },
+          },
+        },
+        errors: [],
+      });
+
+      expect(summary.fallbackState).toBe('healthy');
+      expect(formatRustHybridFallbackHealthLines(summary)).toEqual(['Fallback health: healthy']);
+    });
   });
 
   describe('formatRustHybridFallbackDoctorHint', () => {
     it('returns hint for partial state with info-level health line', () => {
+      // Roadmap 1-3-1: omit fallbackByLanguage to exercise the legacy
+      // fallback path that classifies the total as unexpected.
       const summary = buildRustHybridFallbackSummary({
         success: true,
         profile: {
           typescriptFallbackAppend: {
             fallbackFileCount: 10,
-            fallbackByLanguage: { yaml: 10 },
           },
         },
         errors: [],

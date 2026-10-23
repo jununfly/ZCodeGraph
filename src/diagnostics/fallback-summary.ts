@@ -1,4 +1,4 @@
-import { rustHybridFallbackStateFor, RustHybridFallbackState } from '../indexing/rust-hybrid-contract';
+import { rustHybridFallbackStateFor, RustHybridFallbackState, isByDesignTsShellLanguage } from '../indexing/rust-hybrid-contract';
 
 export type RustHybridFallbackProfile = {
   typescriptFallbackAppend?: {
@@ -89,19 +89,58 @@ export function buildRustHybridFallbackSummary(input: RustHybridFallbackSummaryI
   const missingFallbackByLanguage = fallbackAppend?.missingFallbackByLanguage ?? {};
   const fallbackReasonTaxonomy: Record<string, number> = {};
 
+  // Roadmap 1-3-1: by-design TS-shell languages (svelte/vue/liquid/razor/
+  // xml/yaml/twig/properties) flow through the fallback extractor but their
+  // TS-shell ownership is a deliberate 1-3-x-1 keep decision — exclude them
+  // from `language-level-typescript-fallback` and `language-level-fallback-missing-file`
+  // taxonomy entries so they cannot force `partial`/`degraded` on their own.
+  // They still appear in `fallbackByLanguage` / `missingFallbackByLanguage`
+  // for observability.
+  let unexpectedFallbackCount = 0;
   if (fallbackFileCount > 0) {
-    fallbackReasonTaxonomy['language-level-typescript-fallback'] = fallbackFileCount;
+    const byLanguageTotal = Object.values(fallbackByLanguage).reduce((a, b) => a + b, 0);
+    if (byLanguageTotal === fallbackFileCount && byLanguageTotal > 0) {
+      // Language breakdown matches the total — we can classify precisely.
+      for (const [language, count] of Object.entries(fallbackByLanguage)) {
+        if (!isByDesignTsShellLanguage(language)) {
+          unexpectedFallbackCount += count;
+        }
+      }
+    } else {
+      // Language breakdown missing/mismatched (older metadata, partial
+      // profile) — fall back to the legacy behaviour and count the total as
+      // unexpected so we never silently drop a real signal.
+      unexpectedFallbackCount = fallbackFileCount;
+    }
   }
+  if (unexpectedFallbackCount > 0) {
+    fallbackReasonTaxonomy['language-level-typescript-fallback'] = unexpectedFallbackCount;
+  }
+
+  let unexpectedMissingCount = 0;
   if (missingFallbackFileCount > 0) {
-    fallbackReasonTaxonomy['language-level-fallback-missing-file'] = missingFallbackFileCount;
+    const byLanguageMissingTotal = Object.values(missingFallbackByLanguage).reduce((a, b) => a + b, 0);
+    if (byLanguageMissingTotal === missingFallbackFileCount && byLanguageMissingTotal > 0) {
+      for (const [language, count] of Object.entries(missingFallbackByLanguage)) {
+        if (!isByDesignTsShellLanguage(language)) {
+          unexpectedMissingCount += count;
+        }
+      }
+    } else {
+      unexpectedMissingCount = missingFallbackFileCount;
+    }
   }
+  if (unexpectedMissingCount > 0) {
+    fallbackReasonTaxonomy['language-level-fallback-missing-file'] = unexpectedMissingCount;
+  }
+
   for (const err of input.errors) {
     if (err.severity === 'error') continue;
     if (!err.code?.startsWith('rust-owned-')) continue;
     fallbackReasonTaxonomy[err.code] = (fallbackReasonTaxonomy[err.code] ?? 0) + 1;
   }
 
-  const fallbackState = rustHybridFallbackStateFor(fallbackFileCount, fallbackReasonTaxonomy);
+  const fallbackState = rustHybridFallbackStateFor(unexpectedFallbackCount, fallbackReasonTaxonomy);
   return {
     fallbackState,
     fallbackFileCount,
