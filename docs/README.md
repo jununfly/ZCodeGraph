@@ -258,6 +258,19 @@ Per-language real-corpus validation, ordered by date:
   [`tests/explore-tight-small-project.test.ts`](../tests/explore-tight-small-project.test.ts)
   (16 cases pin blast-radius omission, payload shrink, and trace-core
   preservation on a synthetic petclinic-like fixture).
+- [2026-10-23-graph-quality-gate-1-3-1.md](evidence/2026-10-23-graph-quality-gate-1-3-1.md)
+  — by-design TS-shell languages stripped from the degraded taxonomy
+  (roadmap 1-3-1): the 8 languages with 1-3-x-1 keep decisions
+  (svelte/vue/liquid/razor/xml/yaml/twig/properties) no longer contribute to
+  `language-level-typescript-fallback` or `language-level-fallback-missing-file`
+  taxonomy entries, so a project whose only fallbacks are by-design now
+  reports `healthy` instead of `partial`/`degraded`. Result across 4
+  corpora (petclinic/eShopOnWeb/django/actix-web): all four moved off the
+  by-design degraded signal; django retains a single genuine
+  `rust-owned-parse-gap` (1 file, still under the <10 degraded/corpus
+  gate). New gate: [`tests/graph-quality-gate-1-3-1.test.ts`](../tests/graph-quality-gate-1-3-1.test.ts)
+  (14 cases). drupal FK failure split out to roadmap 1-3-7 (Rust core
+  layer, out of this node's TS-shell scope).
 
 ## methods — methods, playbooks, and how-to guides
 

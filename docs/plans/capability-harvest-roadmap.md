@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-23 19:55:58
+> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-23 20:53:41
 
 [~][X+] 1. ZCodeGraph 能力汇集路线图
 ├── [~][X+] 1-1. P-1 验证冲刺（先行 gate）
@@ -28,22 +28,21 @@
 │   ├── [x][X+] 1-2-11. P0a explore 小项目 budget 收紧 + 真压缩（承接 1-2-3 ②b）
 │   └── [x][X+] 1-2-12. A3 extractor backlog burn-down（dead-code precision 解锁）
 ├── [!][X+] 1-3. P1 高价值理解增量
-│   ├── [ ][X+] 1-3-1. P1 准入：图质量门禁（degraded 降个位数）
-│   ├── [!][X+] 1-3-2. P1-1 PR 影响分析（复用 impact/affected）
-│   ├── [!][X+] 1-3-3. P1-2 Spring bean/DI 语义扩展（剔除数据源）
+│   ├── [x][X+] 1-3-1. P1 准入：图质量门禁（degraded 降个位数）
+│   ├── [ ][X+] 1-3-2. P1-1 PR 影响分析（复用 impact/affected）
+│   ├── [ ][X+] 1-3-3. P1-2 Spring bean/DI 语义扩展（剔除数据源）
 │   ├── [ ][X+] 1-3-5. P1-3 可视化多视图（模块/类/函数层）
-│   └── [ ][X+] 1-3-6. P1-4 可视化时间演化动画（git history）
+│   ├── [ ][X+] 1-3-6. P1-4 可视化时间演化动画（git history）
+│   └── [ ][X+] 1-3-11. 1-3-7 drupal rust core FOREIGN KEY bug 修复
 └── [!][X+] 1-4. P2 可选本地混合语义检索
     ├── [ ][X+] 1-4-1. P2 立项前三问硬验收
     └── [!][X+] 1-4-2. P2 量化阈值实测（5 语料端到端）
-<details><summary>阻塞链：6 个节点被阻塞</summary>
+<details><summary>阻塞链：4 个节点被阻塞</summary>
 
 - 1-2. P0 好用性优先（agent 高频缺口） ← e1: 1-1. P-1 验证冲刺（先行 gate） [~]
 - 1-3. P1 高价值理解增量 ← e2: 1-1. P-1 验证冲刺（先行 gate） [~]
-- 1-3-2. P1-1 PR 影响分析（复用 impact/affected） ← e8: 1-3-1. P1 准入：图质量门禁（degraded 降个位数） [ ]
-- 1-3-3. P1-2 Spring bean/DI 语义扩展（剔除数据源） ← e9: 1-3-1. P1 准入：图质量门禁（degraded 降个位数） [ ]
 - 1-4. P2 可选本地混合语义检索 ← e3: 1-1. P-1 验证冲刺（先行 gate） [~]
-- ... 另有 1 个节点被阻塞未列出
+- 1-4-2. P2 量化阈值实测（5 语料端到端） ← e12: 1-4-1. P2 立项前三问硬验收 [ ]
 
 </details>
 
@@ -51,6 +50,6 @@
 ### 下一步可开工（ready 前 3）
 
 - 1-1-10. codeflow hands-on 验证并回填 Unknown [ ]
-- 1-3-1. P1 准入：图质量门禁（degraded 降个位数） [ ]
-- 1-3-5. P1-3 可视化多视图（模块/类/函数层） [ ]
+- 1-3-11. 1-3-7 drupal rust core FOREIGN KEY bug 修复 [ ]
+- 1-3-2. P1-1 PR 影响分析（复用 impact/affected） [ ]
 <!-- ROADMAP_SECTION_END -->
