@@ -6,6 +6,7 @@
 
 import { Node } from '../../types';
 import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types';
+import { crossesKnownFamily } from '../name-matcher';
 
 export const reactResolver: FrameworkResolver = {
   name: 'react',
@@ -34,7 +35,7 @@ export const reactResolver: FrameworkResolver = {
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
     // Pattern 1: Component references (PascalCase)
     if (isPascalCase(ref.referenceName) && !isBuiltInType(ref.referenceName)) {
-      const result = resolveComponent(ref.referenceName, ref.filePath, context);
+      const result = resolveComponent(ref.referenceName, ref.filePath, ref.language, context);
       if (result) {
         return {
           original: ref,
@@ -47,7 +48,7 @@ export const reactResolver: FrameworkResolver = {
 
     // Pattern 2: Hook references (use*)
     if (ref.referenceName.startsWith('use') && ref.referenceName.length > 3) {
-      const result = resolveHook(ref.referenceName, context);
+      const result = resolveHook(ref.referenceName, ref.language, context);
       if (result) {
         return {
           original: ref,
@@ -60,7 +61,7 @@ export const reactResolver: FrameworkResolver = {
 
     // Pattern 3: Context references
     if (ref.referenceName.endsWith('Context') || ref.referenceName.endsWith('Provider')) {
-      const result = resolveContext(ref.referenceName, context);
+      const result = resolveContext(ref.referenceName, ref.language, context);
       if (result) {
         return {
           original: ref,
@@ -297,17 +298,27 @@ const BUILT_IN_TYPES = new Set([
 const COMPONENT_KINDS = new Set(['component', 'function', 'class']);
 
 /**
- * Resolve a component reference using name-based lookup
+ * Resolve a component reference using name-based lookup.
+ *
+ * Family gate: drop candidates whose language is a *known* family other than
+ * the ref's — a TS PascalCase `TestRunner` ref must never land on a Kotlin
+ * `class TestRunner` (web→jvm collision), but a `.vue`/`.svelte` ref (own
+ * tag, singleton family) can still reach a `.ts` component. Mirrors the
+ * imports branch of `applyLanguageGate` in name-matcher.ts.
  */
 function resolveComponent(
   name: string,
   fromFile: string,
+  fromLanguage: string,
   context: ResolutionContext
 ): string | null {
   const candidates = context.getNodesByName(name);
   if (candidates.length === 0) return null;
 
-  const components = candidates.filter((n) => COMPONENT_KINDS.has(n.kind));
+  const sameFamily = candidates.filter((n) => !crossesKnownFamily(n.language, fromLanguage));
+  if (sameFamily.length === 0) return null;
+
+  const components = sameFamily.filter((n) => COMPONENT_KINDS.has(n.kind));
   if (components.length === 0) return null;
 
   // Prefer same directory
@@ -327,12 +338,16 @@ function resolveComponent(
 
 /**
  * Resolve a custom hook reference using name-based lookup
+ * (family-gated — same policy as resolveComponent)
  */
-function resolveHook(name: string, context: ResolutionContext): string | null {
+function resolveHook(name: string, fromLanguage: string, context: ResolutionContext): string | null {
   const candidates = context.getNodesByName(name);
   if (candidates.length === 0) return null;
 
-  const hooks = candidates.filter((n) => n.kind === 'function' && n.name.startsWith('use'));
+  const sameFamily = candidates.filter((n) => !crossesKnownFamily(n.language, fromLanguage));
+  if (sameFamily.length === 0) return null;
+
+  const hooks = sameFamily.filter((n) => n.kind === 'function' && n.name.startsWith('use'));
   if (hooks.length === 0) return null;
 
   // Prefer hooks directories
@@ -347,27 +362,30 @@ function resolveHook(name: string, context: ResolutionContext): string | null {
 
 /**
  * Resolve a context reference using name-based lookup
+ * (family-gated — same policy as resolveComponent)
  */
-function resolveContext(name: string, context: ResolutionContext): string | null {
+function resolveContext(name: string, fromLanguage: string, context: ResolutionContext): string | null {
   const candidates = context.getNodesByName(name);
-  if (candidates.length === 0) {
+  const sameFamily = candidates.filter((n) => !crossesKnownFamily(n.language, fromLanguage));
+  if (sameFamily.length === 0) {
     // Try without Context/Provider suffix
     const baseName = name.replace(/Context$|Provider$/, '');
     if (baseName !== name) {
       const baseCandidates = context.getNodesByName(baseName);
-      if (baseCandidates.length > 0) return baseCandidates[0]!.id;
+      const sameFamilyBase = baseCandidates.filter((n) => !crossesKnownFamily(n.language, fromLanguage));
+      if (sameFamilyBase.length > 0) return sameFamilyBase[0]!.id;
     }
     return null;
   }
 
   // Prefer context directories
   const CONTEXT_DIRS = ['/context/', '/contexts/', '/src/context/', '/src/contexts/', '/providers/', '/src/providers/'];
-  const preferred = candidates.filter((n) =>
+  const preferred = sameFamily.filter((n) =>
     CONTEXT_DIRS.some((d) => n.filePath.includes(d))
   );
   if (preferred.length > 0) return preferred[0]!.id;
 
-  return candidates[0]!.id;
+  return sameFamily[0]!.id;
 }
 
 /**

@@ -51,6 +51,14 @@ const ESM_OVERLOAD_IMPLEMENTATION_RESOLVED_BY: &str =
     "rust-esm-named-import-export-overload-implementation";
 const ESM_VALUE_TOKEN_INTERFACE_RESOLVED_BY: &str = "rust-esm-value-token-interface";
 
+/// TypeScript/TSX primitives and ubiquitous aliases that must not produce
+/// `references` edges from parameter / return-type annotations (mirrors
+/// `BUILTIN_TYPES` in src/extraction/tree-sitter.ts).
+const TS_BUILTIN_TYPES: &[&str] = &[
+    "string", "number", "boolean", "void", "null", "undefined", "never", "any", "unknown",
+    "object", "symbol", "bigint", "true", "false",
+];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexError {
     pub message: String,
@@ -14941,6 +14949,26 @@ fn visit_js_node(
         features,
     )?;
 
+    // TS/TSX: walk function/method parameter + return-type annotations and
+    // emit `references` refs for the `type_identifier`s they name. Mirrors
+    // `extractTypeAnnotations` in src/extraction/tree-sitter.ts (which the
+    // TypeScript engine uses) so the rust-hybrid engine stops dropping
+    // parameter/return-type dependency edges — root cause of the
+    // Cross-language type/import gate failure (roadmap 1-2-10-2).
+    if matches!(language, SourceLanguage::TypeScript | SourceLanguage::Tsx) {
+        extract_ts_type_annotation_refs(
+            node,
+            source,
+            relative_path,
+            language,
+            // Use the just-created symbol id when one was emitted (so the ref
+            // belongs to the function/method), else fall back to the enclosing
+            // frame — covers anonymous arrows assigned to variables.
+            &child_from_node_id,
+            unresolved_refs,
+        )?;
+    }
+
     if cursor.goto_first_child() {
         loop {
             if let Some(walker_profile) = walker_profile.as_deref_mut() {
@@ -15272,6 +15300,105 @@ fn default_import_binding_name(statement: &str) -> Option<&str> {
         return None;
     }
     Some(default_binding)
+}
+
+/// Walk a TS/TSX function-like node's `parameters` and `return_type` fields
+/// and emit `references` refs for each `type_identifier` leaf inside their
+/// `type_annotation` subtrees. Mirrors the TS-side `extractTypeAnnotations`
+/// path in src/extraction/tree-sitter.ts (which only the TypeScript engine
+/// uses today) — without this, the rust-hybrid engine never records that
+/// `function f(r: TestRunner): TestRunner` depends on the `TestRunner` type.
+///
+/// Only called for `SourceLanguage::TypeScript` / `SourceLanguage::Tsx`;
+/// other JS-family languages (javascript/jsx) have no type annotations to
+/// extract. Skips TS_BUILTIN_TYPES so `string`/`number`/etc. never produce
+/// noise refs.
+fn extract_ts_type_annotation_refs(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    language: SourceLanguage,
+    from_node_id: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !matches!(
+        node.kind(),
+        "function_declaration"
+            | "function_signature"
+            | "generator_function_declaration"
+            | "method_definition"
+            | "method_signature"
+            | "arrow_function"
+            | "function_expression"
+            | "function"
+    ) {
+        return Ok(());
+    }
+
+    if let Some(params) = node.child_by_field_name("parameters") {
+        walk_ts_type_annotation_subtree(
+            params,
+            source,
+            relative_path,
+            language,
+            from_node_id,
+            unresolved_refs,
+        )?;
+    }
+    if let Some(return_type) = node.child_by_field_name("return_type") {
+        walk_ts_type_annotation_subtree(
+            return_type,
+            source,
+            relative_path,
+            language,
+            from_node_id,
+            unresolved_refs,
+        )?;
+    }
+    Ok(())
+}
+
+/// Recursive walk: emit a `references` ref for every `type_identifier` leaf
+/// that is not in TS_BUILTIN_TYPES. The tree-sitter-typescript grammar
+/// places user-defined types inside `type_annotation` / `generic_type` /
+/// `union_type` / `intersection_type` / `array_type` / `tuple_type` subtrees
+/// whose leaves are `type_identifier`s; recursing into every named child
+/// covers all of them without hardcoding each wrapper.
+fn walk_ts_type_annotation_subtree(
+    node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    language: SourceLanguage,
+    from_node_id: &str,
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if node.kind() == "type_identifier" {
+        let name = node.utf8_text(source)?.trim();
+        if !name.is_empty() && !TS_BUILTIN_TYPES.contains(&name) {
+            push_ref(
+                unresolved_refs,
+                from_node_id,
+                name,
+                "references",
+                node,
+                relative_path,
+                language,
+            );
+        }
+        return Ok(());
+    }
+    let mut cursor = node.walk();
+    for child in node.named_children(&mut cursor) {
+        walk_ts_type_annotation_subtree(
+            child,
+            source,
+            relative_path,
+            language,
+            from_node_id,
+            unresolved_refs,
+        )?;
+    }
+    Ok(())
 }
 
 fn import_export_binding_names(statement: &str) -> Vec<&str> {
@@ -26997,6 +27124,123 @@ mod tests {
         cleanup_temp_dir(dir);
     }
     // END ownership bucket: JS/TS resolver migration tests.
+
+    #[test]
+    fn rust_index_emits_ts_parameter_and_return_type_annotation_refs() {
+        // Roadmap 1-2-10-2: rust-hybrid engine dropped `references` refs
+        // for TS/TSX function parameter + return-type annotations (the
+        // TypeScript engine emitted them via `extractTypeAnnotations` in
+        // src/extraction/tree-sitter.ts, but the Rust core never walked the
+        // `parameters`/`return_type` fields). Without these refs the
+        // Cross-language type/import gate test in tests/extraction.test.ts
+        // cannot see `useBasicTest(r: TestRunner): TestRunner` depend on
+        // the `TestRunner` type_alias in a sibling file.
+        let dir = temp_dir("ts-param-return-annotation-refs");
+        fs::write(
+            dir.join("useTests.ts"),
+            "export type TestRunner = { run: () => void };\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("basic.tsx"),
+            "export function useBasicTest(r: TestRunner): TestRunner {\n  return r;\n}\n",
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+        assert_eq!(result.files_errored, 0, "{:?}", result.errors);
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        // Two `references` refs from useBasicTest → TestRunner must exist:
+        // one for the parameter annotation, one for the return-type annotation.
+        let ref_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM unresolved_refs \
+                 WHERE reference_name = 'TestRunner' AND reference_kind = 'references' \
+                   AND file_path = 'basic.tsx'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            ref_count, 2,
+            "expected 2 TestRunner references refs from basic.tsx (param + return)"
+        );
+        // And they must originate from the useBasicTest function node, not
+        // the file node — the resolver attributes the dep to the function.
+        let from_fn: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM unresolved_refs r \
+                 JOIN nodes n ON n.id = r.from_node_id \
+                 WHERE r.reference_name = 'TestRunner' AND n.kind = 'function' \
+                   AND n.name = 'useBasicTest'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(from_fn, 2, "refs must be attributed to useBasicTest");
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_index_skips_ts_builtin_type_annotations() {
+        // `string` / `number` / `boolean` / etc. must never produce refs,
+        // or every TS function would emit noise.
+        let dir = temp_dir("ts-builtin-annotations-skipped");
+        fs::write(
+            dir.join("util.ts"),
+            "export function pad(s: string, n: number): boolean { return true; }\n",
+        )
+        .unwrap();
+
+        let request = IndexRequest {
+            engine: "rust".to_string(),
+            project_path: dir.to_string_lossy().to_string(),
+            index_path: dir
+                .join(".zcodegraph")
+                .join("zcodegraph.db")
+                .to_string_lossy()
+                .to_string(),
+            force: true,
+            verbose: false,
+            graph_work_profile: GraphWorkProfile::Full,
+            sqlite_write_mode: SqliteWriteMode::Disk,
+            parse_walker_diagnostics: false,
+        };
+
+        let result = run_index(&request);
+        assert!(result.success, "{:?}", result.errors);
+
+        let conn = Connection::open(&request.index_path).unwrap();
+        for builtin in ["string", "number", "boolean"] {
+            let c: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM unresolved_refs \
+                     WHERE reference_name = ?1 AND reference_kind = 'references'",
+                    params![builtin],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(c, 0, "builtin `{builtin}` must not produce a ref");
+        }
+        cleanup_temp_dir(dir);
+    }
 
     #[test]
     fn rust_index_accepts_typescript_import_type_queries() {
