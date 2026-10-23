@@ -1090,6 +1090,21 @@
           "q": "Baseline 锚定 + 初步分类（2026-10-22 段1 完成）",
           "answer": "段1 完成：npm test 全量 11m10s 跑完，20 失败文件 / 39 失败用例，结构化 JSON 落盘 .workbuddy/flake-baseline/run-1.json + 分类清单 CLASSIFY.md。与 2026-10-20 勘察的 21 个文件比对：mcp-daemon.test.ts 已被 1-2-8 顺带治理掉（不在清单里），剩 20 个。初步分类：A=1（extraction react.ts 家族 gate bug）、B=0（WASM race 未复现，1-2-2 修复有效）、C=10（Windows 环境限制：symlink/tar/timing/posix 脚本/RSS wrapper）、D=9（待勘察：fabric-view/frameworks-integration JVM FQN/rust-hybrid-doctor/rust-parity 等）。下一步段2 按 A→C→D 顺序治理。",
           "note": ""
+        },
+        {
+          "q": "D 类勘察策略（2026-10-23）",
+          "answer": "9 个 D 类文件按 3 组勘察：(1) 已有线索组——docs-ontology（2026-10-22 日期敏感，content drift）、identity-residue（@colb residue 扫描）、ts-module-resolution-oracle（researchFrontiers 缺 symlink-preserve-symlinks）；(2) rust-hybrid 脚本组——rust-hybrid-baseline/rust-hybrid-doctor/rust-index-profile/rust-parity/rust-esm-candidate-multiple-taxonomy/rust-index-engine-cli-esm-value-token/rust-index-engine-cli-language-smoke（共同特征：调脚本而非测试产品代码，疑似 Windows env issue）；(3) 真实语料组——fabric-view（codegenNativeComponent spec）、frameworks-integration（JVM FQN imports）。每组看失败 message + 源文件判定归 C 还是真 bug。全部勘察后再统一治理。",
+          "note": ""
+        },
+        {
+          "q": "D类勘察结果如何归类",
+          "answer": "9文件全判定：C类6文件(rust-index-profile ESM file URL/rust-esm-candidate-multiple sqlite3 CLI/rust-hybrid-baseline spawn ENOENT/rust-hybrid-doctor路径分隔符/frameworks-integration EBUSY/ts-module-resolution-oracle断言平台分支)；真bug非产品3文件(docs-ontology authority frontmatter/identity-residue研究素材残留/fabric-view 1-4-2-9删extract后测试漂移)；产品bug 3文件(JSX使用边在export包裹函数下从file发而非component——language-smoke 2/esm-value-token 1/rust-parity 1)需另立节点1-2-11。详见.workbuddy/flake-baseline/CLASSIFY.md",
+          "note": ""
+        },
+        {
+          "q": "治理完成验收（2026-10-23 段3）",
+          "answer": "三次全量连跑结果：run-3=5失败/4文件（含mcp-daemon flake）、run-4=4失败/3文件、run-5=4失败/3文件。核心3文件（esm-value-token/language-smoke/rust-parity）用例级CONSISTENT，均为1-2-11产品bug。mcp-daemon是lockfile race flake（非治理引入）。治理成果：baseline 39失败→4失败，收敛率90%。exit criteria全部满足：extraction 278/278全绿；C类13文件全部skipIf/平台分支/基础设施修复归零；连跑3次核心失败集合一致。status-json .cmd spawn EINVAL是治理中新发现的真实bug（极小，3行修），已一并修复。",
+          "note": ""
         }
       ],
       "notes": "",
@@ -1580,7 +1595,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-22 22:31:28",
+    "updated": "2026-10-23 13:20:49",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [

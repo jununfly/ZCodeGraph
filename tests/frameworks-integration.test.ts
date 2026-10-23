@@ -10,10 +10,28 @@ beforeAll(async () => {
   await loadAllGrammars();
 });
 
+/**
+ * Windows: a CodeGraph instance that is not closed inside the test body keeps
+ * a SQLite handle on .zcodegraph/zcodegraph.db, and the OS refuses to unlink
+ * it (EBUSY). Retry the removal briefly so cleanup is robust either way;
+ * first attempt succeeds immediately on posix.
+ */
+function removeTempDir(dir: string): void {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (attempt === 19) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
+    }
+  }
+}
+
 describe('Django end-to-end framework extraction', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -61,7 +79,7 @@ describe('Django end-to-end framework extraction', () => {
 describe('Flask end-to-end framework extraction', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -119,7 +137,7 @@ describe('Flask end-to-end framework extraction', () => {
 describe('Python framework routes on rust-hybrid (roadmap 1-6-2-4 restored)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -224,7 +242,7 @@ describe('Python framework routes on rust-hybrid (roadmap 1-6-2-4 restored)', ()
 describe('ASP.NET framework routes on rust-hybrid (roadmap 1-2-4-4 cutover)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -378,7 +396,7 @@ describe('ASP.NET framework routes on rust-hybrid (roadmap 1-2-4-4 cutover)', ()
 describe('Rust framework routes on rust-hybrid (roadmap 1-4-1-15)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -462,7 +480,7 @@ describe('Rust framework routes on rust-hybrid (roadmap 1-4-1-15)', () => {
 describe('Framework route backfills on rust-hybrid (roadmap 1-4-2-9)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -656,7 +674,7 @@ describe('Framework route backfills on rust-hybrid (roadmap 1-4-2-9)', () => {
 describe('Laravel framework routes on rust-hybrid (roadmap 1-2-5-4 cutover)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -722,7 +740,7 @@ describe('Laravel framework routes on rust-hybrid (roadmap 1-2-5-4 cutover)', ()
 describe('Rails framework routes on rust-hybrid (roadmap 1-2-6-4 cutover)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -817,7 +835,7 @@ describe('Rails framework routes on rust-hybrid (roadmap 1-2-6-4 cutover)', () =
 describe('Drupal hook back-fill on rust-hybrid (roadmap 1-2-5-4 cutover)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -964,7 +982,7 @@ describe('Drupal hook back-fill on rust-hybrid (roadmap 1-2-5-4 cutover)', () =>
 describe('NestJS end-to-end framework post-extract boundary', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -1036,7 +1054,7 @@ describe('NestJS end-to-end framework post-extract boundary', () => {
 describe('Flutter end-to-end — setState→build synthesis', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -1103,7 +1121,7 @@ describe('C++ end-to-end — typed pointer callers (rust-hybrid) (G4)', () => {
     qualifiedName.split('::').slice(-2).join('::');
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -1225,7 +1243,7 @@ describe('C++ end-to-end — typed pointer callers (rust-hybrid) (G4)', () => {
 describe('C++ virtual override synthesis (rust-hybrid) (G2+G3)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -1269,7 +1287,7 @@ describe('C++ virtual override synthesis (rust-hybrid) (G2+G3)', () => {
 describe('Java end-to-end — field-injected bean trace (issue #389)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -1572,8 +1590,13 @@ describe('Java end-to-end — field-injected bean trace (issue #389)', () => {
 
 describe('JVM FQN imports — end-to-end', () => {
   let tmpDir: string | undefined;
+  let cg: CodeGraph | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    // Close before removal: on Windows an open SQLite handle makes the .db
+    // unlink fail with EBUSY no matter how long the removal retries.
+    cg?.close();
+    cg = undefined;
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -1590,7 +1613,7 @@ describe('JVM FQN imports — end-to-end', () => {
       'package com.example.app\n\nimport com.example.Bar\n\nclass App {\n  fun run() { Bar().greet() }\n}\n'
     );
 
-    const cg = CodeGraph.initSync(tmpDir);
+    cg = CodeGraph.initSync(tmpDir);
     await cg.indexAll({ engine: 'rust-hybrid' });
 
     const bar = cg.getNodesByKind('class').find((n) => n.qualifiedName === 'com.example::Bar');
@@ -1621,7 +1644,7 @@ describe('JVM FQN imports — end-to-end', () => {
       'package com.example.app\n\nimport com.example.util\n\nfun main() { util() }\n'
     );
 
-    const cg = CodeGraph.initSync(tmpDir);
+    cg = CodeGraph.initSync(tmpDir);
     await cg.indexAll({ engine: 'rust-hybrid' });
 
     const util = cg.getNodesByKind('function').find((n) => n.qualifiedName === 'com.example::util');
@@ -1642,7 +1665,7 @@ describe('JVM FQN imports — end-to-end', () => {
       'package com.example.app\n\nimport com.example.JavaBar\n\nfun main() { JavaBar().greet() }\n'
     );
 
-    const cg = CodeGraph.initSync(tmpDir);
+    cg = CodeGraph.initSync(tmpDir);
     await cg.indexAll({ engine: 'rust-hybrid' });
 
     const javaBar = cg.getNodesByKind('class').find((n) => n.qualifiedName === 'com.example::JavaBar');
@@ -1674,7 +1697,7 @@ describe('JVM FQN imports — end-to-end', () => {
       'package app\n\nimport com.example.beta.Bar\n\nfun b() { Bar().who() }\n'
     );
 
-    const cg = CodeGraph.initSync(tmpDir);
+    cg = CodeGraph.initSync(tmpDir);
     await cg.indexAll({ engine: 'rust-hybrid' });
 
     const alphaBar = cg.getNodesByKind('class').find((n) => n.qualifiedName === 'com.example.alpha::Bar');
@@ -1701,7 +1724,7 @@ describe('JVM FQN imports — end-to-end', () => {
 describe('Java anonymous-class override synthesis — end-to-end', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -1772,7 +1795,7 @@ describe('Java anonymous-class override synthesis — end-to-end', () => {
 describe('Go gRPC stub→impl synthesis', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -1883,7 +1906,7 @@ describe('Go gRPC stub→impl synthesis', () => {
 describe('Go route coverage on rust-hybrid (roadmap 1-6-3-1)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -1975,7 +1998,7 @@ describe('Go route coverage on rust-hybrid (roadmap 1-6-3-1)', () => {
 describe('Express on rust-hybrid (roadmap 1-6-6-3)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -2075,7 +2098,7 @@ describe('Express on rust-hybrid (roadmap 1-6-6-3)', () => {
 describe('NestJS extract() on rust-hybrid (roadmap 1-6-6-3)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 
@@ -2169,7 +2192,7 @@ describe('NestJS extract() on rust-hybrid (roadmap 1-6-6-3)', () => {
 describe('React on rust-hybrid (roadmap 1-6-6-3)', () => {
   let tmpDir: string | undefined;
   afterEach(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
 

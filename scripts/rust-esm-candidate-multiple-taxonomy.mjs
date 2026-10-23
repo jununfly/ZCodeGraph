@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+// node:sqlite (Node 22.5+) — replaces the sqlite3 CLI, which is not
+// available on Windows developer machines.
+import { DatabaseSync } from 'node:sqlite';
 
 const MULTIPLE_REASONS = new Set([
   'direct-export-candidate-multiple',
@@ -182,7 +184,6 @@ function isMetadataSource(value) {
 
 function loadCandidates(dbPath, row) {
   const sql = [
-    '.mode json',
     `SELECT id, kind, name, file_path AS filePath, start_line AS startLine, end_line AS endLine`,
     `FROM nodes`,
     `WHERE file_path = ${sqlString(row.targetFilePath)}`,
@@ -190,24 +191,19 @@ function loadCandidates(dbPath, row) {
     `  AND kind IN ('function', 'class', 'interface', 'type_alias', 'constant', 'variable', 'enum', 'namespace')`,
     `ORDER BY start_line, end_line, kind, id;`,
   ].join('\n');
-  const result = spawnSync('sqlite3', [dbPath], {
-    input: sql,
-    encoding: 'utf-8',
-    maxBuffer: 1024 * 1024 * 20,
-  });
-  if (result.status !== 0) {
-    throw new Error(result.stderr.trim() || `sqlite3 exited with ${result.status}`);
+  const db = new DatabaseSync(dbPath, { readOnly: true });
+  try {
+    return db.prepare(sql).all().map((candidate) => ({
+      id: String(candidate.id ?? ''),
+      kind: String(candidate.kind ?? ''),
+      name: String(candidate.name ?? ''),
+      filePath: String(candidate.filePath ?? ''),
+      startLine: Number(candidate.startLine ?? 0),
+      endLine: Number(candidate.endLine ?? 0),
+    }));
+  } finally {
+    db.close();
   }
-  const text = result.stdout.trim();
-  if (!text) return [];
-  return JSON.parse(text).map((candidate) => ({
-    id: String(candidate.id ?? ''),
-    kind: String(candidate.kind ?? ''),
-    name: String(candidate.name ?? ''),
-    filePath: String(candidate.filePath ?? ''),
-    startLine: Number(candidate.startLine ?? 0),
-    endLine: Number(candidate.endLine ?? 0),
-  }));
 }
 
 function sqlString(value) {

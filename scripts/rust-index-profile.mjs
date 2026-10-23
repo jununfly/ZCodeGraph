@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnMeasured } from './process-tree-rss.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -228,8 +228,10 @@ async function loadDist() {
   if (!fs.existsSync(distBin)) {
     throw new Error('dist/bin/zcodegraph.js not found. Run npm run build first.');
   }
-  const index = await import(path.join(repoRoot, 'dist', 'index.js'));
-  const rustIndexer = await import(path.join(repoRoot, 'dist', 'indexing', 'rust-indexer.js'));
+  // Dynamic import() requires a URL on Windows — a bare absolute path like
+  // C:\... is rejected by the ESM loader ("Received protocol 'c:'").
+  const index = await import(pathToFileURL(path.join(repoRoot, 'dist', 'index.js')).href);
+  const rustIndexer = await import(pathToFileURL(path.join(repoRoot, 'dist', 'indexing', 'rust-indexer.js')).href);
   return {
     CodeGraph: index.CodeGraph ?? index.default?.default ?? index.default,
     runRustIndexer: rustIndexer.runRustIndexer,

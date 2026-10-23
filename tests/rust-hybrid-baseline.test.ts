@@ -7,7 +7,11 @@ import * as path from 'path';
 const REPO_ROOT = path.resolve(__dirname, '..');
 const SCRIPT = path.join(REPO_ROOT, 'scripts', 'rust-hybrid-baseline.mjs');
 
-describe('rust-hybrid baseline runner', () => {
+// Windows CI 下 spawn 无扩展名 fakeTime（shebang）脚本 EFTYPE，RSS wrapper 不可用，
+// 整个 rust-hybrid-baseline 流程在 win32 下无法跑通，跳过；CI linux/macOS 已覆盖。
+const describeRustHybridBaseline = process.platform === 'win32' ? describe.skip : describe;
+
+describeRustHybridBaseline('rust-hybrid baseline runner (posix)', () => {
   const tempDirs: string[] = [];
 
   afterEach(() => {

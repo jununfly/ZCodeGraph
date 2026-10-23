@@ -59,7 +59,9 @@ describe('process-tree RSS sampler', () => {
     expect(result.unavailableReason).toContain('RSS sampling unavailable');
   });
 
-  it('can measure a command peak RSS from a time-style wrapper without process-list access', async () => {
+  // Windows CI 下 spawn 无扩展名 fakeTime 文件 EFTYPE（Windows 需要 .exe/.bat/.cmd 后缀才识别可执行），
+  // 且 RSS 报告依赖 POSIX time 工具，windows 平台跳过；CI linux/macOS 已覆盖。
+  it.skipIf(process.platform === 'win32')('can measure a command peak RSS from a time-style wrapper without process-list access', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-time-rss-'));
     tempDirs.push(dir);
     const fakeTime = path.join(dir, process.platform === 'win32' ? 'fake-time.cjs' : 'fake-time');
@@ -112,7 +114,8 @@ describe('process-tree RSS sampler', () => {
     expect(result.rssUnavailableReason).toBeNull();
   });
 
-  it('records a specific unavailable reason when command RSS wrapper cannot report peak RSS', async () => {
+  // Windows CI 下 spawn 无扩展名 fakeTime 文件 EFTYPE，RSS wrapper 不可用，跳过；CI posix 已覆盖。
+  it.skipIf(process.platform === 'win32')('records a specific unavailable reason when command RSS wrapper cannot report peak RSS', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-time-rss-missing-'));
     tempDirs.push(dir);
     const fakeTime = path.join(dir, process.platform === 'win32' ? 'fake-time.cjs' : 'fake-time');

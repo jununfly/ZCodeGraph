@@ -38,9 +38,12 @@ function readJson(file: string): any {
 }
 
 function latestBundlePath(stdout: string): string {
-  const line = stdout.trim().split('\n').find((entry) => entry.includes('.zcodegraph/diagnostics/bundles/'));
+  // The CLI prints the bundle path with the platform's path separator
+  // (backslash on Windows), so match either separator variant.
+  const marker = /\.zcodegraph[\\/]diagnostics[\\/]bundles[\\/]/;
+  const line = stdout.trim().split('\n').find((entry) => marker.test(entry));
   expect(line, stdout).toBeDefined();
-  return line!.slice(line!.indexOf('.zcodegraph/diagnostics/bundles/'));
+  return line!.slice(line!.search(marker));
 }
 
 // #686: fabricate a Rust core that emits N identical (language, code, message)
@@ -222,7 +225,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
         fallback: { state: string | null; reasonTaxonomy: Record<string, number>; topReasons: Array<{ code: string; count: number }> } | null;
       };
     };
-    expect(parsed.bundlePath).toContain('.zcodegraph/diagnostics/bundles/');
+    expect(parsed.bundlePath.replace(/\\/g, '/')).toContain('.zcodegraph/diagnostics/bundles/');
     expect(parsed.summary).toMatchObject({
       engine: 'rust-hybrid',
       source: 'last-run',

@@ -3,13 +3,22 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+// node:sqlite (Node 22.5+) — the sqlite3 CLI is not available on Windows.
+// Vite externalizes node builtins only when imported via a static `node:`
+// specifier; dynamic require keeps both the bundler and runtime happy.
+import { createRequire } from 'node:module';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const SCRIPT = path.join(REPO_ROOT, 'scripts', 'rust-esm-candidate-multiple-taxonomy.mjs');
 
 function sqlite(dbPath: string, sql: string) {
-  const result = spawnSync('sqlite3', [dbPath, sql], { encoding: 'utf-8' });
-  expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+  const { DatabaseSync } = createRequire(__filename)('node:sqlite') as typeof import('node:sqlite');
+  const db = new DatabaseSync(dbPath);
+  try {
+    db.exec(sql);
+  } finally {
+    db.close();
+  }
 }
 
 describe('Rust ESM direct export candidate-multiple taxonomy script', () => {

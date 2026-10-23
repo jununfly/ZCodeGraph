@@ -45,7 +45,10 @@ afterEach(() => {
   }
 });
 
-describe('scripts/dev-link.sh', () => {
+const describeDevLink = process.platform === 'win32' ? describe.skip : describe;
+// dev-link.sh / local-install.sh 是 POSIX bash 脚本（--bin-dir 路径转换 + ln -s 软链），
+// Windows 上 MSYS bash 环境对路径 / 软链语义不同，CI linux/macOS 已覆盖。
+describeDevLink('scripts/dev-link.sh (posix)', () => {
   it('installs only zcodegraph-dev into the selected bin dir', () => {
     const binDir = tempRoot();
 

@@ -1,6 +1,6 @@
 ---
 doc-kind: evidence
-authority: primary
+authority: supporting
 authority-id: EV-complexity-coverage-v1
 bounded-question: "Did complexity-rubric-v1 meet the ≥90% per-language coverage exit criterion on the five pinned corpora?"
 ---

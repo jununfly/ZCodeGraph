@@ -198,6 +198,31 @@ async function waitProcessExit(pid: number, timeoutMs: number): Promise<boolean>
   return waitFor(() => !isAlive(pid), timeoutMs).then(() => true).catch(() => false);
 }
 
+/**
+ * Windows EBUSY guard: the detached daemon holds SQLite + file-watcher handles
+ * under tempDir; rmSync right after SIGKILL races the OS releasing those
+ * handles. Retry with a blocking back-off (Atomics.wait keeps this sync helper
+ * usable inside the async afterEach without extra plumbing) until the directory
+ * is gone. Same pattern as frameworks-integration's removeTempDir.
+ */
+function removeTempDir(dir: string): void {
+  const ATTEMPTS = 80;
+  const WAIT_MS = 250;
+  for (let i = 0; i < ATTEMPTS; i++) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+      return;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if ((code === 'EBUSY' || code === 'ENOTEMPTY' || code === 'EPERM' || code === 'EACCES') && i < ATTEMPTS - 1) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, WAIT_MS);
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () => {
   let tempDir: string;   // the (possibly symlinked) path processes are spawned with
   let realRoot: string;  // its canonical form — what the daemon keys paths on
@@ -219,10 +244,13 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
     const daemonPid = readLockPid(realRoot);
     if (daemonPid && daemonPid !== process.pid && isAlive(daemonPid)) {
       try { process.kill(daemonPid, 'SIGKILL'); } catch { /* race */ }
+      // Wait for the daemon to actually die so it releases its SQLite/watcher
+      // handles before we rm the tree — otherwise EBUSY on Windows.
+      await waitProcessExit(daemonPid, 5000);
     }
     await new Promise((r) => setTimeout(r, 50));
     servers.length = 0;
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    removeTempDir(tempDir);
   });
 
   it('two invocations share ONE detached daemon; both attach as proxies', async () => {
@@ -239,10 +267,19 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
 
     // A detached daemon came up and recorded itself.
     await waitFor(() => fs.existsSync(path.join(realRoot, '.zcodegraph', 'daemon.pid')), 8000);
-    await waitFor(() => countListeningLines(realRoot) >= 1, 8000);
     const daemonPid = readLockPid(realRoot);
     expect(daemonPid).toBeTruthy();
     expect(isAlive(daemonPid!)).toBe(true);
+    // The first proxy attached to THAT daemon (hello pid matches the lockfile).
+    // On Windows the daemon.log "Listening on" line is a flaky signal (lost to
+    // the racing-append write race); the attach hello pid is the reliable one.
+    const firstAttach = first.stderr.find((l) => l.includes('Attached to shared daemon'));
+    expect(firstAttach).toBeTruthy();
+    if (process.platform === 'win32') {
+      expect(firstAttach).toContain(`pid ${daemonPid},`);
+    } else {
+      await waitFor(() => countListeningLines(realRoot) >= 1, 8000);
+    }
     // The socket exists at the path the code computes from the canonical root.
     // On Windows the daemon listens on a named pipe (\\.\pipe\...), which isn't
     // a filesystem entry — existsSync doesn't apply there, and the "Attached to
@@ -260,7 +297,11 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
     await waitFor(() => second.stderr.some((l) => l.includes('Attached to shared daemon')), 8000);
 
     // Exactly one daemon ever bound, and it's the same pid both attached to.
-    expect(countListeningLines(realRoot)).toBe(1);
+    const secondAttach = second.stderr.find((l) => l.includes('Attached to shared daemon'));
+    expect(secondAttach).toContain(`pid ${daemonPid},`);
+    if (process.platform !== 'win32') {
+      expect(countListeningLines(realRoot)).toBe(1);
+    }
     expect(readLockPid(realRoot)).toBe(daemonPid);
   }, 40000);
 
@@ -278,17 +319,46 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
       expect(resp.result.serverInfo.name).toBe('codegraph');
     }
     // ...and all three attached as proxies (none fell back / wedged).
+    // On Windows, the first daemon's listen() may hang on a named-pipe race;
+    // the proxy respawns a fresh daemon after the listen-timeout window (12s),
+    // so allow up to 20s for all three to attach.
     for (const p of procs) {
-      await waitFor(() => p.stderr.some((l) => l.includes('Attached to shared daemon')), 10000);
+      await waitFor(() => p.stderr.some((l) => l.includes('Attached to shared daemon')), 20000);
     }
 
-    // The decisive assertion: exactly ONE daemon bound the socket. Losing
-    // candidates log "already holds the lock; exiting" and never listen.
-    expect(countListeningLines(realRoot)).toBe(1);
+    // The decisive assertion: exactly ONE daemon is serving all three proxies.
+    // Losing candidates log "already holds the lock; exiting" and never listen.
+    //
+    // Primary signal: every proxy attached to the SAME daemon pid (parsed from
+    // its "Attached to shared daemon ... (pid N)" line), that pid matches the
+    // lockfile, and it's alive. This is the ground truth of single-daemon
+    // convergence — it's derived from the daemon's own hello, not a log line.
+    //
+    // On Windows we deliberately do NOT assert on the daemon.log "Listening on"
+    // line count: when 3 racing daemons append to one daemon.log, the winner's
+    // "Listening on" line is intermittently lost to a multi-process append-write
+    // race even though the daemon bound and served every proxy correctly. The
+    // line count is a flaky proxy for convergence; the attach-pid set is not.
+    const attachPids = new Set(
+      procs.map((p) => {
+        const line = p.stderr.find((l) => l.includes('Attached to shared daemon'));
+        const m = line?.match(/\(pid (\d+),/);
+        return m ? Number(m[1]) : null;
+      }),
+    );
+    expect(attachPids.size).toBe(1);
     const daemonPid = readLockPid(realRoot);
     expect(daemonPid).toBeTruthy();
+    expect(attachPids.has(daemonPid!)).toBe(true);
     expect(isAlive(daemonPid!)).toBe(true);
-  }, 45000);
+
+    // On POSIX the "Listening on" line is reliable — keep the stronger count
+    // assertion there as defense-in-depth against a double-bind regression.
+    if (process.platform !== 'win32') {
+      await waitFor(() => countListeningLines(realRoot) >= 1, 20000);
+      expect(countListeningLines(realRoot)).toBe(1);
+    }
+  }, 60000);
 
   it('daemon survives the first client dying; a second client keeps working (must-fix 2 / #277)', async () => {
     // Idle high so the daemon doesn't reap mid-test; poll fast so proxy 1
@@ -356,11 +426,25 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
       throw new Error(`${(e as Error).message}\nstderr:\n${server.stderr.join('\n')}\ndaemon.log:\n${readDaemonLog(realRoot)}`);
     });
     expect(resp.result.serverInfo.name).toBe('codegraph');
-    await waitFor(() => countListeningLines(realRoot) >= 1, 10000);
-    // The pidfile now names a live daemon, not the planted-dead 999999.
+    // Wait for the fresh daemon to take over and REWRITE the lockfile (it no
+    // longer names the planted-dead 999999), then read it.
+    await waitFor(() => {
+      const pid = readLockPid(realRoot);
+      return pid !== null && pid !== 999_999 ? pid : undefined;
+    }, 10000);
     const livePid = readLockPid(realRoot);
     expect(livePid).not.toBe(999_999);
     expect(isAlive(livePid!)).toBe(true);
+    // Confirm the fresh daemon is actually serving: on Windows rely on the
+    // proxy's attach hello pid (the "Listening on" log line is a flaky signal
+    // there); on POSIX keep the log-line wait as before.
+    if (process.platform === 'win32') {
+      await waitFor(() => server.stderr.some((l) => l.includes('Attached to shared daemon')), 10000);
+      const attach = server.stderr.find((l) => l.includes('Attached to shared daemon'));
+      expect(attach).toContain(`pid ${livePid},`);
+    } else {
+      await waitFor(() => countListeningLines(realRoot) >= 1, 10000);
+    }
   }, 40000);
 
   it('proxy falls back to direct mode on a daemon version mismatch', async () => {

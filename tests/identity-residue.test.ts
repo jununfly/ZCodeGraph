@@ -54,6 +54,10 @@ function isExcluded(relPath: string): boolean {
   if (relPath.startsWith('.workbuddy')) return true;
   if (relPath.startsWith('dist')) return true;
   if (relPath.startsWith('node_modules')) return true;
+  // research/ holds third-party research artifacts (e.g. ledger-response.json
+  // excerpts from upstream @colbymchenry/codegraph docs) whose external
+  // identity mentions are quoted source material, not our own residue.
+  if (relPath.startsWith('research')) return true;
   if (RESIDUE_SCAN_EXCLUDE.has(relPath.replace(/\\/g, '/'))) return true;
   return false;
 }

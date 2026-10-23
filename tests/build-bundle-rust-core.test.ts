@@ -153,7 +153,10 @@ function buildEnv(work: string, artifactDir: string, releaseDir: string): NodeJS
   };
 }
 
-describe('build-bundle.sh Rust core packaging', () => {
+const describeBuildBundle = process.platform === 'win32' ? describe.skip : describe;
+// Windows CI 下 fake-bin/curl 脚本内部 spawn '/usr/bin/tar' ENOENT（MSYS 环境缺乏 tar.exe）。
+// 打包流程为 POSIX shell 工具链，Windows 用 linux-x64 artifact 已不适合在 win32 下完整运行。
+describeBuildBundle('build-bundle.sh Rust core packaging (posix)', () => {
   it('fails clearly when the target Rust core artifact is missing', () => {
     const work = tempDir('bundle-missing-rust-core');
     try {
