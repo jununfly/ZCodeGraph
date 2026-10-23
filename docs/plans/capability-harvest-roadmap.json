@@ -57,7 +57,7 @@
       "id": "1-2",
       "uid": "01a153ac21fb-c3c319311b",
       "label": "P0 好用性优先（agent 高频缺口）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -1120,11 +1120,52 @@
       "id": "1-2-11",
       "uid": "01a15c95fe83-7b56f78a8e",
       "label": "P0a explore 小项目 budget 收紧 + 真压缩（承接 1-2-3 ②b）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-2",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Q1 压缩杠杆主攻面",
+          "answer": "(d) (i)+(ii) 组合：按项目规模收紧 maxCharsPerFile/maxOutputChars 默认 cap + 小项目跳过 relationships/blast-radius section。(iii) per-symbol 摘要挂起，留给后续节点（需在 notes 里挂 informs 候选）。",
+          "note": ""
+        },
+        {
+          "q": "Q2 小项目判定口径",
+          "answer": "(a) 复用现有 mcp-tools 域画像 fileCount < 500（1-2-8 探针口径，已在 src/mcp/tools.ts:696 使用），explore-planner 读取同一阈值，保持六词健康词汇与 MCP 工具语义一致性。",
+          "note": ""
+        },
+        {
+          "q": "Q3 exit criteria 硬约束",
+          "answer": "(a) 硬约束：petclinic 3 task (trace/impact/locate) ratio 全部 < 1.0 才能 close。同时满足 9 task median 显著下降 + p95 ≤19802B 不回归 + express/flask 6 task e2e 全绿。",
+          "note": ""
+        },
+        {
+          "q": "Q4 Layer-3 e2e 验证范围",
+          "answer": "(b) 新增 petclinic 语料的 explore e2e（断言关键符号在收紧后仍被检索到），并跑现有 tests/self-query-explore-flow.test.ts + explore-renderer.test.ts + explore-planner 全绿作兜底。",
+          "note": ""
+        },
+        {
+          "q": "实现形态",
+          "answer": "opt-in env var CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT=1 切换 <150 / <500 tier 到收紧 shape（maxOutputChars 13K/18K→8K/10K, defaultMaxFiles 4/5→3/4, maxCharsPerFile 3.8K→2.2K/2.6K, includeBlastRadius=false）。新增 ExploreOutputBudget.includeBlastRadius?: boolean 字段；handleExplore (tools.ts:1414) 和 CLI explore (bin/zcodegraph.ts:2327) 读该字段决定是否调 buildBlastRadiusSection。explore-renderer.ts 的 whole-file rule 根据 includeBlastRadius===false 走 tight 分支：WHOLE_FILE_MAX_LINES 280/220→160/120，WHOLE_FILE_MAX_CHARS multiplier 1.5x/3x→1.2x/1.5x。default tier 完全不动（byte-equivalent），tight 是 opt-in，走 dogfood 路径收 Layer-3 agent-behaviour 数据再考虑翻默认。",
+          "note": ""
+        },
+        {
+          "q": "A/B 结果",
+          "answer": "9 task × 3 corpus × 3 reps（MEASURE_SKIP_FETCH=1）。baseline = 2026-10-21 layer2 markers-ON frozen JSON；treatment = 2026-10-23 layer3 tight-ON。petclinic 3 task ratio: trace 1.2783→0.8672 (-32.1%) / impact 1.5021→0.4497 (-70.1%) / locate 1.7416→0.6704 (-61.5%) —— 全 < 1.0。9-task median numerator 12936→7716B (-40.4%)，p95 numerator 19802→12281B (-38.0%)，total bytes 122171→74250B (-39.2%)。express/flask 6 task 同步压缩（-5.1% 到 -43.4%），无 task 后退。caveat：petclinic SHA 在 layer2/layer3 两次跑之间漂了（c513a98→500158f），ratio 方向诚实但非 byte-exact；express/flask SHA 未动作为旁证。",
+          "note": ""
+        },
+        {
+          "q": "Layer-3 e2e 验证",
+          "answer": "新增 tests/explore-tight-small-project.test.ts（16 case）：合成 petclinic 状 fixture（OwnerController.ts + OwnerRepository.ts + 8 sibling），pin (a) default tier 含 blast-radius 而 tight tier 省略；(b) tight payload 严格 < default payload；(c) trace 核心（OwnerController + OwnerRepository + showOwner + findById）在 tight 后仍可 grep；(d) Source Code section 保留；(e) budget shape 的 8 个硬断言（env 默认值 / 启用值 / tier 边界 / 单调不变量 / >=500 tier 不受影响）。全 explore 相关套件 198/198 绿（9 文件）。",
+          "note": ""
+        },
+        {
+          "q": "exit criteria 验收",
+          "answer": "① petclinic 3 task ratio 全 < 1.0 — MET（0.8672 / 0.4497 / 0.6704）。② 9-task median numerator 统计显著下降 — MET（12936→7716B，-40.4%，CLI deterministic 所以非采样噪声）。③ p95 numerator ≤19802B 不回归 — MET（12281B，反降 38.0%）。④ express/flask 6 task 无功能回归 — MET（198/198 e2e 绿 + 6 task ratio 同步下降无 backslide）。4 条全满足，close。",
+          "note": ""
+        }
+      ],
       "notes": "承接 1-2-3 ②b。靶标：petclinic-trace 1.2783 / petclinic-impact 1.5021 / petclinic-locate 1.7416（小项目 explore over-fire）。候选技术路径：(i) 按项目规模进一步收紧 maxCharsPerFile / maxOutputChars 默认 cap；(ii) 小项目关闭 relationships / blast-radius section；(iii) per-symbol 摘要替代 verbatim source（需 Layer-3 e2e 验证防precision 丢失）。参考 evidence docs/evidence/2026-10-21-token-baseline-layer2.md 的 median-vs-p95 分析：median 段（+7.47%）是主要攻击面。",
       "layer": "plan",
       "exit_criteria": [
@@ -1132,7 +1173,8 @@
         "9 task 探针集 median numerator 统计显著下降（相对 2026-10-21 layer2 baseline markers-OFF 的 12037B）",
         "p95 numerator 不回归（≤19802B，即 markers-ON 当前 p95）",
         "express/flask 6 task 无功能回归（e2e explore 测试全绿）"
-      ]
+      ],
+      "rounds": 1
     },
     "1-2-12": {
       "id": "1-2-12",
@@ -1595,7 +1637,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-23 13:20:49",
+    "updated": "2026-10-23 19:26:36",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [

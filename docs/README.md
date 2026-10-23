@@ -245,6 +245,19 @@ Per-language real-corpus validation, ordered by date:
   0 misses). Drupal corpus ran `--reuse-db` against the preserved
   2026-10-21 DB because fresh index hits the known FOREIGN KEY issue.
   Per-corpus JSONs: `...-eshoponweb/-petclinic/-drupal/-django/-actix.json`.
+- [2026-10-23-token-baseline-layer3-tight-small-project.md](evidence/2026-10-23-token-baseline-layer3-tight-small-project.md)
+  — tight small-project budget A/B (roadmap 1-2-11): opt-in
+  `CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT=1` switches `<150` / `<500` tiers
+  to a tightened shape (maxOutputChars 13K/18K → 8K/10K, maxCharsPerFile
+  3.8K → 2.2K/2.6K, `includeBlastRadius: false`). Result: petclinic 3 task
+  ratios all < 1.0 (0.87 / 0.45 / 0.67), 9-task median numerator
+  −40.4% (12 936 → 7 716 B), p95 numerator −38.0% (19 802 → 12 281 B),
+  no task moved backwards; all four exit criteria MET. Companion JSON:
+  [`...-tight-on.json`](evidence/2026-10-23-token-baseline-layer3-tight-on.json).
+  New Layer-3 e2e:
+  [`tests/explore-tight-small-project.test.ts`](../tests/explore-tight-small-project.test.ts)
+  (16 cases pin blast-radius omission, payload shrink, and trace-core
+  preservation on a synthetic petclinic-like fixture).
 
 ## methods — methods, playbooks, and how-to guides
 
