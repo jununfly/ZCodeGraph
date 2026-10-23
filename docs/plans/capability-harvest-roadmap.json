@@ -37,11 +37,7 @@
         "1-1-6",
         "1-1-7",
         "1-1-8",
-        "1-1-9",
-        "1-1-10",
-        "1-1-11",
-        "1-1-12",
-        "1-1-13"
+        "1-1-10"
       ],
       "decisions": [
         {
@@ -51,7 +47,8 @@
         }
       ],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "childSequence": 13
     },
     "1-2": {
       "id": "1-2",
@@ -97,16 +94,12 @@
         "1-3-2",
         "1-3-3",
         "1-3-5",
-        "1-3-6",
-        "1-3-7",
-        "1-3-8",
-        "1-3-9",
-        "1-3-10"
+        "1-3-6"
       ],
       "decisions": [],
       "notes": "",
       "layer": "plan",
-      "childSequence": 4
+      "childSequence": 10
     },
     "1-4": {
       "id": "1-4",
@@ -117,9 +110,7 @@
       "parent": "1",
       "children": [
         "1-4-1",
-        "1-4-2",
-        "1-4-3",
-        "1-4-4"
+        "1-4-2"
       ],
       "decisions": [
         {
@@ -129,7 +120,8 @@
         }
       ],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "childSequence": 4
     },
     "1-1-1": {
       "id": "1-1-1",
@@ -149,6 +141,11 @@
           "q": "visualize 数据源、依赖内嵌、默认范围、CLI 命名如何选？",
           "answer": "(1) 数据源：直接 better-sqlite3 读 .zcodegraph/*.db——与现有 CLI（query/files/context）一致，不经过 CodeGraph API 层，快照快且解耦。(2) 依赖内嵌：npm i cytoscape，build 时 copy 进 dist/assets/，生成 HTML 时读文件内容塞进 <script>，与 schema.sql/*.wasm 同套路，产物单文件离线可用。(3) 默认范围：只画 file 节点 + 跨文件 contains 边，加 --depth file|class|function 参数下钻，避免 10w+ 节点卡死浏览器。(4) CLI 名：zcodegraph visualize，与节点 label 一致，与 query/files/context/affected 同风格。",
           "note": "用户 2026-10-19 裁决 4 项；后续 1-3-5/1-3-6 在此切片上扩展"
+        },
+        {
+          "q": "1-1-9 / 1-3-10 承接记录",
+          "answer": "2026-10-23 roadmap 清理：原 1-1-9 (archify hands-on 验证并回填 Unknown) 与 1-3-10 (P1-3 可视化出口 archify 纯数据契约) 均建立在已被本节点推翻的 archify 复用路线上。本节点通过 Cytoscape.js 自研可视化引擎承接二者的功能目标。原节点已删除，其 exit_criteria（archify IR schema 匹配 / 渲染交用户侧零新进程）由本节点的 zcodegraph visualize 命令行落地替代。",
+          "note": ""
         }
       ],
       "notes": "2026-10-19 落地：zcodegraph visualize 子命令 + snapshot/render/template 三件套 + 4 e2e 用例全绿 + ci.yml -t 同步；fixture 3 TS 文件 17n/24e 跑通，单文件 455KB HTML 零 CDN。用户验收通过。",
@@ -678,17 +675,39 @@
       "id": "1-3-1",
       "uid": "01a153ad72f3-1232f64e8f",
       "label": "P1 准入：图质量门禁（degraded 降个位数）",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1-3",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Q1 5 个 release 语料范围",
+          "answer": "(a) actix-web / django / eShopOnWeb / drupal / petclinic —— 与 1-2-5 dead-code 首版、1-2-6 圈复杂度语料一致，有现成 pinned DB + evidence 基线可对照，无需重新建语料。drupal 因 last-failure 状态特殊处理（重跑 index 或诊断 last-failure 根因）。",
+          "note": ""
+        },
+        {
+          "q": "Q2 VS Code sparse 214 语料处置",
+          "answer": "(c) 拆给后续节点 —— VS Code 大仓本机无 clone，sparse 214 数字需先考古来源证据，不适合挂在 P1 准入节点下阻塞 1-3-2/1-3-3。本节点只聚焦 5 语料主战场，VS Code sparse 拆出为新节点或留在 1-3-1 之外单独立项。",
+          "note": ""
+        },
+        {
+          "q": "Q3 degraded 降个位数分母",
+          "answer": "(a) 每语料总 degraded 文件数（TS-fallback + planned-missing 合计）< 10。硬门槛最明确，不与规模比例混淆。petclinic 35→<10、eShop 71→<10、django 79→<10、actix 26→<10、drupal 待恢复后测。",
+          "note": ""
+        },
+        {
+          "q": "Q4 治理路径允许层级",
+          "answer": "(b) 可动 TS extractor 壳（src/extraction/languages/*.ts、src/indexing/rust-hybrid-contract.ts、framework gating 表），不动 Rust core。理由：Rust core 改动走独立 rust migration playbook 7 步重流程，不适合挂在 P1 准入节点下；多数 TS-fallback 是 properties/yaml/xml 等无 rust grammar 语言或 planned-but-missing 路径，TS 壳层面能消化。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
         "5 个 release 语料 degraded 文件降到个位数",
         "VS Code sparse 214→<20"
-      ]
+      ],
+      "rounds": 1
     },
     "1-3-2": {
       "id": "1-3-2",
@@ -1352,23 +1371,6 @@
       ],
       "rounds": 1
     },
-    "1-1-9": {
-      "id": "1-1-9",
-      "uid": "01a15d916369-15687d4790",
-      "label": "archify hands-on 验证并回填 Unknown",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-1",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "1 个真实仓库跑通 图谱→archify IR→HTML",
-        "确认 IR schema 匹配",
-        "回填 archify 技术/差异化两条 Unknown"
-      ]
-    },
     "1-1-10": {
       "id": "1-1-10",
       "uid": "01a15d9169fe-ad64a9f8fa",
@@ -1384,158 +1386,6 @@
         "跑通 PR 影响+健康分",
         "确认规则可移植为 SQL/图遍历",
         "回填 codeflow product-positioning Unknown"
-      ]
-    },
-    "1-1-11": {
-      "id": "1-1-11",
-      "uid": "01a15d91708e-af7dee52cb",
-      "label": "固化测量基础设施脚本",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-1",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "复用 docs/evidence real-corpus gate 流程为脚本",
-        "dead-code/complexity/setup 三 metric 测量脚本先落地"
-      ]
-    },
-    "1-1-12": {
-      "id": "1-1-12",
-      "uid": "01a15d9175ae-c392b70752",
-      "label": "测 token 消耗稳定 baseline",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-1",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "复用现有 A/B harness",
-        "≥3 语料 × ≥3 次取中位",
-        "只出 baseline 报告不设压缩目标"
-      ]
-    },
-    "1-1-13": {
-      "id": "1-1-13",
-      "uid": "01a15d917c4f-414ab47dc6",
-      "label": "测现有 PR 影响 recall 基线",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-1",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "3 仓 × ≥20 条已合并 PR 回放",
-        "现有 impact/affected recall 基线入库存档"
-      ]
-    },
-    "1-3-7": {
-      "id": "1-3-7",
-      "uid": "01a15d91a609-258e8df079",
-      "label": "P1 准入：图质量门禁（degraded 降个位数）",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-3",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "5 个 release 语料 degraded 文件降到个位数",
-        "VS Code sparse 214→<20"
-      ]
-    },
-    "1-3-8": {
-      "id": "1-3-8",
-      "uid": "01a15d91ab00-e2002e56e1",
-      "label": "P1-1 PR 影响分析（复用 impact/affected）",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-3",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "不新增独立 MCP 工具",
-        "受影响文件+blast radius",
-        "README 健康 SVG Card 走 CLI/CI 出口",
-        "recall ≥85% 且 ≥基线−2pp"
-      ]
-    },
-    "1-3-9": {
-      "id": "1-3-9",
-      "uid": "01a15d91b359-23fca97a84",
-      "label": "P1-2 Spring bean/DI 语义扩展（剔除数据源）",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-3",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "只做 Spring bean/DI",
-        "数据源节点(SQL/Redis)移出默认路径降级待验证",
-        "1 个真实 Spring 仓 sufficiency 探针通过"
-      ]
-    },
-    "1-3-10": {
-      "id": "1-3-10",
-      "uid": "01a15d91ba18-495734d601",
-      "label": "P1-3 可视化出口（archify 纯数据契约）",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-3",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "只产出 archify IR JSON（export --format archify）",
-        "渲染交用户侧，零新依赖零新进程",
-        "IR schema 校验通过+快照确定性重渲染一致"
-      ]
-    },
-    "1-4-3": {
-      "id": "1-4-3",
-      "uid": "01a15d91c0b1-79e9f99458",
-      "label": "P2 立项前三问硬验收",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-4",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "embedding 可内嵌 bundle（非 Ollama 外部进程）？",
-        "向量索引复用同一 SQLite+watcher（sqlite-vec）？",
-        "status 六态是否需第七态/degraded 子原因？",
-        "任一答否则不立项"
-      ]
-    },
-    "1-4-4": {
-      "id": "1-4-4",
-      "uid": "01a15d91c921-32abcc325a",
-      "label": "P2 量化阈值实测（5 语料端到端）",
-      "status": "pending",
-      "mode": "explore",
-      "parent": "1-4",
-      "children": [],
-      "decisions": [],
-      "notes": "",
-      "layer": "plan",
-      "exit_criteria": [
-        "额外磁盘 ≤ 纯结构索引体积 50%",
-        "首次索引时间增幅 ≤2×",
-        "watch 单文件增量 ≤5s"
       ]
     },
     "1-2-12-5": {
@@ -1637,7 +1487,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-23 19:26:36",
+    "updated": "2026-10-23 20:02:35",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
@@ -1742,61 +1592,7 @@
       "from": "01a153ad57ee-2e6afd75b3",
       "to": "01a15c95fe83-7b56f78a8e",
       "type": "informs"
-    },
-    {
-      "id": "e19",
-      "from": "01a153ac1fce-915839b899",
-      "to": "01a153ac21fb-c3c319311b",
-      "type": "blocks"
-    },
-    {
-      "id": "e20",
-      "from": "01a153ac1fce-915839b899",
-      "to": "01a153ac241e-1080cca96e",
-      "type": "blocks"
-    },
-    {
-      "id": "e21",
-      "from": "01a153ac1fce-915839b899",
-      "to": "01a153ac2642-c06d38cfcf",
-      "type": "blocks"
-    },
-    {
-      "id": "e22",
-      "from": "01a153ad9d52-c3c53a2bdc",
-      "to": "01a153ad6554-b54a1493e3",
-      "type": "blocks"
-    },
-    {
-      "id": "e23",
-      "from": "01a153ad9d52-c3c53a2bdc",
-      "to": "01a153ad6c23-99767a1006",
-      "type": "blocks"
-    },
-    {
-      "id": "e24",
-      "from": "01a153ad9d52-c3c53a2bdc",
-      "to": "01a153ad807a-c9bb617f9e",
-      "type": "blocks"
-    },
-    {
-      "id": "e25",
-      "from": "01a153ad5e9a-27f28b1f97",
-      "to": "01a153ad6554-b54a1493e3",
-      "type": "blocks"
-    },
-    {
-      "id": "e26",
-      "from": "01a153ad72f3-1232f64e8f",
-      "to": "01a153ad77f7-2b86e83286",
-      "type": "blocks"
-    },
-    {
-      "id": "e27",
-      "from": "01a153ad72f3-1232f64e8f",
-      "to": "01a153ad807a-c9bb617f9e",
-      "type": "blocks"
     }
   ],
-  "edge_seq": 27
+  "edge_seq": 29
 }
