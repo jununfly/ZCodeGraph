@@ -1,5 +1,8 @@
 ---
+doc-kind: evidence
+authority: supporting
 authority-id: EV-graph-quality-gate-131-2026-10-23
+bounded-question: "1-3-1 by-design TS-shell 语言剥离 degraded 口径后，4 语料的 degraded 文件数是否降到 <10/corpus？"
 roadmap-node: 1-3-1
 date: 2026-10-23
 ---

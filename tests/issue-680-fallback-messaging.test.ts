@@ -12,12 +12,15 @@ describe('Issue #680: fallback messaging distinguishes implementation from sourc
   });
 
   it('includes a "Fallback by source language" line when fallbackByLanguage is present', () => {
+    // 1-3-1: yaml/svelte/vue/liquid/razor/xml/twig/properties are by-design TS-shell
+    // languages and no longer force `partial`. Use a non-by-design language so the
+    // fixture still exercises the partial-state info line.
     const summary = buildRustHybridFallbackSummary({
       success: true,
       profile: {
         typescriptFallbackAppend: {
           fallbackFileCount: 30,
-          fallbackByLanguage: { yaml: 30 },
+          fallbackByLanguage: { kotlin: 30 },
         },
       },
       errors: [],
@@ -31,7 +34,7 @@ describe('Issue #680: fallback messaging distinguishes implementation from sourc
     expect(joined).not.toContain('30 TypeScript fallback files');
 
     // Language breakdown line
-    expect(joined).toContain('Fallback by source language: yaml (30)');
+    expect(joined).toContain('Fallback by source language: kotlin (30)');
   });
 
   it('handles multiple source languages in the breakdown', () => {
@@ -40,7 +43,7 @@ describe('Issue #680: fallback messaging distinguishes implementation from sourc
       profile: {
         typescriptFallbackAppend: {
           fallbackFileCount: 30,
-          fallbackByLanguage: { yaml: 25, css: 3, html: 2 },
+          fallbackByLanguage: { kotlin: 25, css: 3, html: 2 },
         },
       },
       errors: [],
@@ -49,7 +52,7 @@ describe('Issue #680: fallback messaging distinguishes implementation from sourc
     const lines = formatRustHybridFallbackHealthLines(summary);
     const joined = lines.join('\n');
 
-    expect(joined).toContain('Fallback by source language: yaml (25), css (3), html (2)');
+    expect(joined).toContain('Fallback by source language: kotlin (25), css (3), html (2)');
   });
 
   it('omits the language breakdown line when fallbackByLanguage is absent', () => {
