@@ -25,7 +25,7 @@
       "id": "1-1",
       "uid": "01a153ac1fce-915839b899",
       "label": "P-1 验证冲刺（先行 gate）",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -1407,18 +1407,30 @@
       "id": "1-1-10",
       "uid": "01a15d9169fe-ad64a9f8fa",
       "label": "codeflow hands-on 验证并回填 Unknown",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-1",
       "children": [],
-      "decisions": [],
-      "notes": "",
+      "decisions": [
+        {
+          "q": "exit_criteria 落地路径选择",
+          "answer": "选 A 文档回填闭环。理由：(1) exit#1『跑通 PR 影响+健康分』已被 1-1-2/1-1-6 实质满足——1-1-2 decide 明确记录 codeflow 无 commit-range 能力、逐文件点选无法脚本化，recall 字面 vs codeflow 不可达成已重解释为『语义对齐论证+N=2 抽样』；1-1-6 health-rubric-v1.md 已落地 6 维扣分制 rubric 并直读 SQLite via createDatabase，规则可移植性已论证。(2) codeflow 是单文件 HTML 浏览器应用，hands-on 在本自动化环境下只能人工开浏览器操作，无 agent 可执行路径。(3) exit#3 真实剩余价值=把 1-1-2~1-1-8 累积的 codeflow 第一手认知（无 commit-range、纯浏览器、无 MCP、无持久化索引）整理为 product-positioning 描述并标记证据等级。选 B 多出的人工截图不增加信息密度；选 C 会丢弃已有实证认知。",
+          "note": "Human 2026-10-25 指令 A；基于 1-1-2/1-1-6 decide 链推导"
+        },
+        {
+          "q": "product-positioning 回填位置与形式",
+          "answer": "新建 docs/evidence/2026-10-25-codeflow-product-positioning-backfill.md 作为补丁文档，不修改 2026-10-19-draft.md 原文。理由：(1) 原 draft 的 cp-evidence-gaps 段与 Unknown 清单是历史快照，保留可溯源；(2) 回填内容基于 1-1-2~1-1-8 的一手实证，证据等级从 unknown 升级为 mixed-native，独立文档便于后续引用；(3) 回填文档明确标注与原文档的关系，避免事实源分裂。",
+          "note": "2026-10-25 1-1-10 施工"
+        }
+      ],
+      "notes": "2026-10-25 完成。走路径 A 文档回填闭环：exit#1 由 1-1-2（blast radius 语义对齐+N=2 抽样）实质满足，exit#2 由 1-1-6（health rubric v1 直读 SQLite via createDatabase）实质满足，exit#3 通过新建 docs/evidence/2026-10-25-codeflow-product-positioning-backfill.md 回填——codeflow=浏览器端一次性可视化体检卡工具，与 ZCodeGraph 错位竞争/能力互补，证据等级 unknown→mixed-native。两条 decide 已落盘（路径选择 + 回填位置）。",
       "layer": "plan",
       "exit_criteria": [
         "跑通 PR 影响+健康分",
         "确认规则可移植为 SQL/图遍历",
         "回填 codeflow product-positioning Unknown"
-      ]
+      ],
+      "rounds": 1
     },
     "1-2-12-5": {
       "id": "1-2-12-5",
@@ -1578,7 +1590,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-25 15:40:00",
+    "updated": "2026-10-25 15:50:40",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
