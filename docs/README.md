@@ -20,7 +20,7 @@
 | Decision | [`decisions/`](decisions/) | primary | 8 |
 | Contract | [`contracts/`](contracts/) | primary | 13 |
 | Ledger | [`ledgers/`](ledgers/) | supporting | 8 |
-| Evidence | [`evidence/`](evidence/) | historical | 41 |
+| Evidence | [`evidence/`](evidence/) | historical | 42 |
 | Method | [`methods/`](methods/) | primary / supporting | 9 |
 | Plan | [`plans/`](plans/) | process | 0 (empty after 2026-10-19 closeout) |
 
@@ -271,6 +271,13 @@ Per-language real-corpus validation, ordered by date:
   gate). New gate: [`tests/graph-quality-gate-1-3-1.test.ts`](../tests/graph-quality-gate-1-3-1.test.ts)
   (14 cases). drupal FK failure split out to roadmap 1-3-7 (Rust core
   layer, out of this node's TS-shell scope).
+- [2026-10-25-pr-recall-gate.md](evidence/2026-10-25-pr-recall-gate.md)
+  — PR recall regression gate (roadmap 1-3-2): 6 pinned PRs (2 per repo,
+  all recallUnionIndexable = 1.0 in 1-1-5 baseline) re-run on every PR/merge
+  via `scripts/measure/pr-recall-gate.mjs`. Threshold = max(0.85,
+  baseline − 0.02) = 0.98. Wired into `architecture-red-lines` job;
+  reuses the measure-corpus cache. Guards against regressions in
+  ReferenceResolver / affected pipeline.
 
 ## methods — methods, playbooks, and how-to guides
 

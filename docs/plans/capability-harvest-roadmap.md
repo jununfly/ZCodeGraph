@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-25 15:50:40
+> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-25 16:10:57
 
 [~][X+] 1. ZCodeGraph 能力汇集路线图
 ├── [x][X+] 1-1. P-1 验证冲刺（先行 gate）
@@ -30,7 +30,7 @@
 │   └── [x][X+] 1-2-21. P0a Rust 核心 export 包裹函数 JSX 使用边 + parity 对齐（承接 1-2-10 D 类产品 bug）
 ├── [ ][X+] 1-3. P1 高价值理解增量
 │   ├── [x][X+] 1-3-1. P1 准入：图质量门禁（degraded 降个位数）
-│   ├── [ ][X+] 1-3-2. P1-1 PR 影响分析（复用 impact/affected）
+│   ├── [x][X+] 1-3-2. P1-1 PR 影响分析（复用 impact/affected）
 │   ├── [ ][X+] 1-3-3. P1-2 Spring bean/DI 语义扩展（剔除数据源）
 │   ├── [ ][X+] 1-3-5. P1-3 可视化多视图（模块/类/函数层）
 │   ├── [ ][X+] 1-3-6. P1-4 可视化时间演化动画（git history）
@@ -49,5 +49,5 @@
 
 - 1-3. P1 高价值理解增量 [ ]
 - 1-3-11. 1-3-7 drupal rust core FOREIGN KEY bug 修复 [ ]
-- 1-3-2. P1-1 PR 影响分析（复用 impact/affected） [ ]
+- 1-3-3. P1-2 Spring bean/DI 语义扩展（剔除数据源） [ ]
 <!-- ROADMAP_SECTION_END -->
