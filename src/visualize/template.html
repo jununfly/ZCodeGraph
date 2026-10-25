@@ -92,6 +92,12 @@
 <div id="app">
   <div id="toolbar">
     <input id="search" type="search" placeholder="Search name or path (regex ok)..." />
+    <span class="group" id="view-group">
+      <span class="group-label">View</span>
+      <label><input type="radio" name="view" value="module" /> Module</label>
+      <label><input type="radio" name="view" value="class" /> Class</label>
+      <label><input type="radio" name="view" value="function" /> Function</label>
+    </span>
     <span class="group" id="kinds-group">
       <span class="group-label">Kinds</span>
       <!-- kind checkboxes injected by JS -->
@@ -197,10 +203,12 @@
   var nodeKinds = [];
   var edgeKinds = [];
   var seenN = {}, seenE = {};
-  DATA.nodes.forEach(function (n) {
+  // Collect kinds from the FULL data so the view switcher + checkboxes expose
+  // every kind the graph can show (not just the initial view's subset).
+  DATA.allNodes.forEach(function (n) {
     if (!seenN[n.kind]) { seenN[n.kind] = 1; nodeKinds.push(n.kind); }
   });
-  DATA.edges.forEach(function (e) {
+  DATA.allEdges.forEach(function (e) {
     if (!seenE[e.kind]) { seenE[e.kind] = 1; edgeKinds.push(e.kind); }
   });
   nodeKinds.sort(); edgeKinds.sort();
@@ -235,61 +243,46 @@
     legend.appendChild(div);
   });
 
-  // Build Cytoscape elements
-  function buildElements() {
-    var hiddenNodeKinds = {};
-    var hiddenEdgeKinds = {};
-    document.querySelectorAll('#kinds-group input[type=checkbox]').forEach(function (cb) {
-      if (!cb.checked) hiddenNodeKinds[cb.getAttribute('data-kind')] = 1;
-    });
-    document.querySelectorAll('#edges-group input[type=checkbox]').forEach(function (cb) {
-      if (!cb.checked) hiddenEdgeKinds[cb.getAttribute('data-kind')] = 1;
-    });
+  // --- Multi-view switcher -------------------------------------------------
+  // Each view is a set of node kinds; `function` (null) means "show all".
+  // These mirror the backend depth tiers: module = file|module|namespace,
+  // class = module + containers, function = everything.
+  var VIEW_KIND_GROUPS = {
+    module:   ['file', 'module', 'namespace'],
+    class:    ['file', 'module', 'namespace', 'class', 'interface', 'struct', 'trait', 'protocol', 'enum'],
+    function: null
+  };
+  function viewFromDepth(d) {
+    if (d === 'file') return 'module';
+    if (d === 'class') return 'class';
+    return 'function';
+  }
+  var currentView = viewFromDepth(DATA.initialView || DATA.depth || 'file');
+  document.querySelectorAll('#view-group input[name=view]').forEach(function (rb) {
+    rb.checked = (rb.value === currentView);
+  });
 
-    var q = document.getElementById('search').value.trim();
-    var qRe = null;
-    if (q) {
-      try { qRe = new RegExp(q, 'i'); } catch (e) { qRe = null; }
-    }
-
-    var visibleNodeIds = {};
-    var cyNodes = [];
-    DATA.nodes.forEach(function (n) {
-      if (hiddenNodeKinds[n.kind]) return;
-      if (qRe && !(qRe.test(n.name) || qRe.test(n.qualifiedName) || qRe.test(n.filePath))) return;
-      visibleNodeIds[n.id] = 1;
-      cyNodes.push({
+  // Build ALL elements once from the full data; visibility is toggled later so
+  // node positions and the viewport (pan/zoom) survive view/search/filter
+  // changes without a relayout.
+  function buildAllElements() {
+    var cyNodes = DATA.allNodes.map(function (n) {
+      return {
         data: {
-          id: n.id,
-          label: n.name,
-          kind: n.kind,
-          name: n.name,
-          qualifiedName: n.qualifiedName,
-          filePath: n.filePath,
-          language: n.language,
-          startLine: n.startLine,
-          endLine: n.endLine,
-          signature: n.signature,
-          docstring: n.docstring,
+          id: n.id, label: n.name, kind: n.kind, name: n.name,
+          qualifiedName: n.qualifiedName, filePath: n.filePath, language: n.language,
+          startLine: n.startLine, endLine: n.endLine, signature: n.signature, docstring: n.docstring,
         },
-      });
+      };
     });
-    var cyEdges = [];
-    DATA.edges.forEach(function (e, i) {
-      if (hiddenEdgeKinds[e.kind]) return;
-      if (!visibleNodeIds[e.source] || !visibleNodeIds[e.target]) return;
-      cyEdges.push({
-        data: { id: 'e' + i, source: e.source, target: e.target, kind: e.kind },
-      });
+    var cyEdges = DATA.allEdges.map(function (e, i) {
+      return { data: { id: 'e' + i, source: e.source, target: e.target, kind: e.kind } };
     });
     return { nodes: cyNodes, edges: cyEdges };
   }
 
-  var cy = null;
-  function render() {
-    var els = buildElements();
-    var layoutName = document.querySelector('input[name=layout]:checked').value;
-    var style = [
+  function cyStyle() {
+    return [
       {
         selector: 'node',
         style: {
@@ -322,52 +315,95 @@
       },
       {
         selector: 'node:selected',
-        style: {
-          'border-width': 3,
-          'border-color': '#0066cc',
-        },
+        style: { 'border-width': 3, 'border-color': '#0066cc' },
       },
     ];
+  }
 
-    var layoutOptions = { name: layoutName, animate: false };
-    if (layoutName === 'cose') {
-      layoutOptions = {
-        name: 'cose',
-        animate: false,
-        nodeRepulsion: 8000,
-        idealEdgeLength: 80,
-        edgeElasticity: 100,
-        nestingFactor: 1.2,
-        gravity: 80,
-        numIter: 1000,
-        initialTemp: 200,
-        coolingFactor: 0.95,
-        minTemp: 1.0,
+  function layoutOptionsFor(name) {
+    if (name === 'cose') {
+      return {
+        name: 'cose', animate: false, nodeRepulsion: 8000, idealEdgeLength: 80,
+        edgeElasticity: 100, nestingFactor: 1.2, gravity: 80, numIter: 1000,
+        initialTemp: 200, coolingFactor: 0.95, minTemp: 1.0,
       };
-    } else if (layoutName === 'breadthfirst') {
-      layoutOptions = { name: 'breadthfirst', animate: false, directed: true, spacingFactor: 1.2 };
     }
+    if (name === 'breadthfirst') {
+      return { name: 'breadthfirst', animate: false, directed: true, spacingFactor: 1.2 };
+    }
+    return { name: name, animate: false }; // circle / grid
+  }
 
-    if (cy) { cy.destroy(); }
+  var cy = null;
+  var nodeEls = {};
+  function initCy() {
     cy = cytoscape({
       container: document.getElementById('cy'),
-      elements: els,
-      style: style,
-      layout: layoutOptions,
+      elements: buildAllElements(),
+      style: cyStyle(),
+      layout: layoutOptionsFor(document.querySelector('input[name=layout]:checked').value),
       wheelSensitivity: 0.2,
     });
+    cy.nodes().forEach(function (n) { nodeEls[n.id()] = n; });
+    cy.on('tap', 'node', function (evt) { showSelection(evt.target.data()); });
+    cy.on('tap', function (evt) { if (evt.target === cy) clearSelection(); });
+    applyVisibility();
+  }
 
-    cy.on('tap', 'node', function (evt) {
-      showSelection(evt.target.data());
+  // Toggle element visibility only — never destroy/relayout. This preserves the
+  // viewport (pan/zoom) and every node's position across view switches, search,
+  // and kind/edge filter changes.
+  function applyVisibility() {
+    if (!cy) return;
+    var hiddenNodeKinds = {};
+    var hiddenEdgeKinds = {};
+    document.querySelectorAll('#kinds-group input[type=checkbox]').forEach(function (cb) {
+      if (!cb.checked) hiddenNodeKinds[cb.getAttribute('data-kind')] = 1;
     });
-    cy.on('tap', function (evt) {
-      if (evt.target === cy) clearSelection();
+    document.querySelectorAll('#edges-group input[type=checkbox]').forEach(function (cb) {
+      if (!cb.checked) hiddenEdgeKinds[cb.getAttribute('data-kind')] = 1;
     });
+    var q = document.getElementById('search').value.trim();
+    var qRe = null;
+    if (q) { try { qRe = new RegExp(q, 'i'); } catch (e) { qRe = null; } }
+    var viewKinds = VIEW_KIND_GROUPS[currentView];
 
-    document.getElementById('stat-nodes').textContent = els.nodes.length + ' / ' + DATA.stats.totalNodesInDb + ' nodes';
-    document.getElementById('stat-edges').textContent = els.edges.length + ' / ' + DATA.stats.totalEdgesInDb + ' edges';
-    document.getElementById('stat-depth').textContent = 'depth: ' + DATA.depth;
+    var visMap = {};
+    cy.batch(function () {
+      DATA.allNodes.forEach(function (n) {
+        var el = nodeEls[n.id];
+        if (!el) return;
+        var visible = !hiddenNodeKinds[n.kind];
+        if (visible && viewKinds && viewKinds.indexOf(n.kind) === -1) visible = false;
+        if (visible && qRe && !(qRe.test(n.name) || qRe.test(n.qualifiedName) || qRe.test(n.filePath))) visible = false;
+        visMap[n.id] = visible;
+        el.style('visibility', visible ? 'visible' : 'hidden');
+      });
+      cy.edges().forEach(function (edge) {
+        var sid = edge.source().id(), tid = edge.target().id();
+        var vis = !!visMap[sid] && !!visMap[tid] && !hiddenEdgeKinds[edge.data('kind')];
+        edge.style('visibility', vis ? 'visible' : 'hidden');
+      });
+    });
+    updateStats();
+  }
+
+  function updateStats() {
+    var visN = cy.nodes().filter(function (n) { return n.style('visibility') === 'visible'; }).length;
+    var visE = cy.edges().filter(function (e) { return e.style('visibility') === 'visible'; }).length;
+    document.getElementById('stat-nodes').textContent = visN + ' / ' + DATA.stats.totalNodesInDb + ' nodes';
+    document.getElementById('stat-edges').textContent = visE + ' / ' + DATA.stats.totalEdgesInDb + ' edges';
+    document.getElementById('stat-depth').textContent = 'view: ' + currentView + ' (depth ' + DATA.depth + ')';
     document.getElementById('stat-source').textContent = DATA.projectRoot;
+  }
+
+  // Explicit layout change: relayout, then restore pan/zoom so the viewport is
+  // preserved even when the user picks a new layout.
+  function relayout() {
+    if (!cy) return;
+    var z = cy.zoom(), p = cy.pan();
+    cy.layout(layoutOptionsFor(document.querySelector('input[name=layout]:checked').value)).run();
+    cy.zoom(z); cy.pan(p);
   }
 
   function showSelection(d) {
@@ -393,10 +429,13 @@
     el.textContent = 'Click a node to inspect.';
   }
 
-  // Wire events
-  document.getElementById('search').addEventListener('input', debounce(render, 200));
-  document.querySelectorAll('#kinds-group input, #edges-group input, input[name=layout]').forEach(function (el) {
-    el.addEventListener('change', render);
+  // Wire events. View/search/filter -> applyVisibility (no relayout); layout -> relayout.
+  document.getElementById('search').addEventListener('input', debounce(applyVisibility, 200));
+  document.querySelectorAll('#kinds-group input, #edges-group input, #view-group input[name=view]').forEach(function (el) {
+    el.addEventListener('change', applyVisibility);
+  });
+  document.querySelectorAll('input[name=layout]').forEach(function (el) {
+    el.addEventListener('change', relayout);
   });
 
   function debounce(fn, ms) {
@@ -411,7 +450,7 @@
     document.getElementById('cy').innerHTML = '<div style="padding:32px;color:red">cytoscape failed to load</div>';
     return;
   }
-  render();
+  initCy();
 })();
 </script>
 </body>

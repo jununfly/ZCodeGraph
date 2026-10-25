@@ -2609,6 +2609,7 @@ program
 
       const snapshot = buildSnapshot(projectPath, {
         depth,
+        initialView: depth,
         filter: options.filter,
         maxNodes,
       });
