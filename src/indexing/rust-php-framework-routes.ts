@@ -219,8 +219,22 @@ export function runPhpFrameworkRouteBackfill(
       stats.routeReferences += routeRefs.length;
     }
     if (hookRefs.length > 0) {
-      queries.insertUnresolvedRefsBatch(hookRefs);
-      stats.hookReferences += hookRefs.length;
+      // Drupal hook refs attach to an existing Rust-extracted `function` node.
+      // The TS resolver reconstructs the owner node id from its own regex/line,
+      // but the Rust core computes PHP `function` node ids with different
+      // line/name inputs, so the reconstructed id frequently does NOT match a
+      // real node. An unresolved_ref whose `from_node_id` is absent violates the
+      // foreign_keys constraint and aborts the whole index (the drupal FK gate,
+      // roadmap 1-3-11). A hook ref whose owner node is missing can never
+      // resolve, so dropping it is semantically correct — mirroring the Rust
+      // core's `valid_node_ids` dangling-edge filter.
+      const survivingHookRefs = hookRefs.filter(
+        (ref) => ref.fromNodeId != null && queries.getNodeById(ref.fromNodeId) != null,
+      );
+      stats.hookReferences += survivingHookRefs.length;
+      if (survivingHookRefs.length > 0) {
+        queries.insertUnresolvedRefsBatch(survivingHookRefs);
+      }
     }
   }
 
