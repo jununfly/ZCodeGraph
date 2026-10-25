@@ -1,3 +1,11 @@
+---
+doc-kind: evidence
+authority: supporting
+authority-id: EV-codeflow-product-positioning-backfill-2026-10-25
+bounded-question: "What is codeflow's product positioning, backfilled from 1-1-2..1-1-8 first-hand observations?"
+roadmap-node: 1-1-10
+date: 2026-10-25
+---
 # codeflow product-positioning Unknown 回填（1-1-10）
 
 日期：2026-10-25
