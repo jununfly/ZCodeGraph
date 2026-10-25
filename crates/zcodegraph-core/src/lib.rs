@@ -1468,6 +1468,7 @@ fn write_index_to_connection(
     let sqlite_setup_started = Instant::now();
     configure_index_connection(conn)?;
     conn.execute_batch(SCHEMA_SQL)?;
+    ensure_unresolved_refs_metadata_column(conn)?;
     stamp_schema_version(conn)?;
     stamp_metadata(conn)?;
     suspend_node_fts_triggers_for_bulk_write(conn)?;
@@ -6743,6 +6744,7 @@ fn load_imported_symbol_usage_refs(
          WHERE file_path = ?1
            AND reference_name = ?2
            AND reference_kind IN ('calls', 'instantiates', 'references')
+           AND (metadata IS NULL OR metadata = '')
          ORDER BY id",
     )?;
     let rows = stmt.query_map(params![file_path, reference_name], |row| {
@@ -15375,7 +15377,7 @@ fn walk_ts_type_annotation_subtree(
     if node.kind() == "type_identifier" {
         let name = node.utf8_text(source)?.trim();
         if !name.is_empty() && !TS_BUILTIN_TYPES.contains(&name) {
-            push_ref(
+            push_ref_with_metadata(
                 unresolved_refs,
                 from_node_id,
                 name,
@@ -15383,6 +15385,7 @@ fn walk_ts_type_annotation_subtree(
                 node,
                 relative_path,
                 language,
+                Some("{\"tsTypeAnnotation\":true}".to_string()),
             );
         }
         return Ok(());
@@ -15504,6 +15507,31 @@ fn push_ref(
     relative_path: &str,
     language: SourceLanguage,
 ) {
+    push_ref_with_metadata(
+        unresolved_refs,
+        from_node_id,
+        reference_name,
+        reference_kind,
+        node,
+        relative_path,
+        language,
+        None,
+    );
+}
+
+/// Like [`push_ref`] but attaches an optional `metadata` discriminator (see
+/// [`UnresolvedRef::metadata`]). Used to tag TS/TSX type-annotation refs so the
+/// value-token / interface disambiguation pass can exclude them.
+fn push_ref_with_metadata(
+    unresolved_refs: &mut Vec<UnresolvedRef>,
+    from_node_id: &str,
+    reference_name: &str,
+    reference_kind: &str,
+    node: SyntaxNode,
+    relative_path: &str,
+    language: SourceLanguage,
+    metadata: Option<String>,
+) {
     if reference_name.is_empty() {
         return;
     }
@@ -15517,6 +15545,7 @@ fn push_ref(
         col: start.column as i64,
         file_path: relative_path.to_string(),
         language: language.codegraph_name().to_string(),
+        metadata,
     });
 }
 
@@ -15542,6 +15571,7 @@ fn push_manual_ref(
         col,
         file_path: relative_path.to_string(),
         language: language.codegraph_name().to_string(),
+        metadata: None,
     });
 }
 
@@ -15750,6 +15780,13 @@ struct UnresolvedRef {
     col: i64,
     file_path: String,
     language: String,
+    /// Optional discriminator JSON. Today only `{"tsTypeAnnotation":true}` is
+    /// written (by `extract_ts_type_annotation_refs`) to mark refs that name a
+    /// *type* position rather than a value usage. The ESM value-token /
+    /// interface disambiguation pass (`load_imported_symbol_usage_refs`) filters
+    /// these out so a type-only usage does not masquerade as a value usage and
+    /// pull the `constant` candidate (roadmap 1-2-21).
+    metadata: Option<String>,
 }
 
 fn add_rust_trait_impl_edges(
@@ -15998,8 +16035,8 @@ fn insert_edges(conn: &Connection, edges: &[ExtractedEdge]) -> rusqlite::Result<
 fn insert_unresolved_refs(conn: &Connection, refs: &[UnresolvedRef]) -> rusqlite::Result<()> {
     let mut stmt = conn.prepare(
         "INSERT INTO unresolved_refs (
-          from_node_id, reference_name, reference_kind, line, col, candidates, file_path, language
-        ) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7)",
+          from_node_id, reference_name, reference_kind, line, col, candidates, metadata, file_path, language
+        ) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8)",
     )?;
 
     for reference in refs {
@@ -16009,6 +16046,7 @@ fn insert_unresolved_refs(conn: &Connection, refs: &[UnresolvedRef]) -> rusqlite
             reference.reference_kind,
             reference.line,
             reference.col,
+            reference.metadata,
             reference.file_path,
             reference.language,
         ])?;
@@ -16847,6 +16885,22 @@ fn stamp_schema_version(conn: &Connection) -> rusqlite::Result<()> {
         "INSERT OR IGNORE INTO schema_versions (version, applied_at, description) VALUES (?1, ?2, ?3)",
         params![CURRENT_SCHEMA_VERSION, now_ms(), "Initial schema includes all migrations"],
     )?;
+    Ok(())
+}
+
+/// Guarantee the `unresolved_refs.metadata` column exists. `schema.sql` adds it
+/// for brand-new databases, but databases created by an older build (before the
+/// column was introduced) keep the legacy 8-column `unresolved_refs` table. The
+/// ESM value-token / interface disambiguation pass queries that column, so we
+/// add it lazily here instead of bumping `SCHEMA_VERSION` (which would force a
+/// full re-index). Safe to call on every open — it is a no-op when present.
+fn ensure_unresolved_refs_metadata_column(conn: &Connection) -> rusqlite::Result<()> {
+    let has_column: i64 = conn
+        .prepare("SELECT COUNT(*) FROM pragma_table_info('unresolved_refs') WHERE name = 'metadata'")?
+        .query_row([], |row| row.get(0))?;
+    if has_column == 0 {
+        conn.execute("ALTER TABLE unresolved_refs ADD COLUMN metadata TEXT DEFAULT NULL", [])?;
+    }
     Ok(())
 }
 

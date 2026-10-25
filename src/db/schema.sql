@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS unresolved_refs (
     line INTEGER NOT NULL,
     col INTEGER NOT NULL,
     candidates TEXT, -- JSON array
+    metadata TEXT, -- JSON object; e.g. {"tsTypeAnnotation":true} tags type-position refs
     file_path TEXT NOT NULL DEFAULT '',
     language TEXT NOT NULL DEFAULT 'unknown',
     FOREIGN KEY (from_node_id) REFERENCES nodes(id) ON DELETE CASCADE
