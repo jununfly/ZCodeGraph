@@ -11,6 +11,7 @@ import * as path from 'path';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { CodeGraph } from '../src';
 import { initGrammars, loadAllGrammars } from '../src/extraction/grammars';
+import { generateNodeId } from '../src/extraction/tree-sitter-helpers';
 import { drupalResolver } from '../src/resolution/frameworks/drupal';
 import type { ResolutionContext } from '../src/resolution/types';
 
@@ -383,6 +384,104 @@ function mymodule_form_alter(&$form, $form_state, $form_id) {}
       (r) => r.referenceName === 'hook_form_alter',
     );
     expect(hookRefs).toHaveLength(1);
+  });
+
+  // --- Owner node id parity with the Rust core (drupal FK gate, 1-3-11) ----
+  // tree-sitter-php folds a preceding attribute block INTO the
+  // `function_definition` node, so the Rust core mints a PHP function node id
+  // from the ATTRIBUTE line, not the `function` keyword line. A resolver that
+  // anchored on the keyword produced a fromNodeId matching no node, and the
+  // resulting unresolved_ref violated foreign_keys and aborted the whole index.
+
+  const MODULE_PATH = 'web/modules/custom/mymodule/mymodule.module';
+
+  it('anchors the owner node id on a preceding PHP attribute', () => {
+    const src = `<?php
+declare(strict_types=1);
+
+#[LegacyHook]
+function mymodule_test1(): void {
+}
+`;
+    const { references } = drupalResolver.extract!(MODULE_PATH, src);
+    const hookRef = references.find((r) => r.referenceName === 'hook_test1');
+    expect(hookRef).toBeDefined();
+    // `#[LegacyHook]` is on line 4; `function …` on line 5.
+    expect(hookRef!.fromNodeId).toBe(
+      generateNodeId(MODULE_PATH, 'function', 'mymodule_test1', 4),
+    );
+    // Explicitly not the `function` keyword line.
+    expect(hookRef!.fromNodeId).not.toBe(
+      generateNodeId(MODULE_PATH, 'function', 'mymodule_test1', 5),
+    );
+  });
+
+  it('anchors on the first attribute of a stacked attribute block', () => {
+    const src = `<?php
+
+#[A]
+#[B]
+function mymodule_multi(): void {
+}
+`;
+    const { references } = drupalResolver.extract!(MODULE_PATH, src);
+    const hookRef = references.find((r) => r.referenceName === 'hook_multi');
+    expect(hookRef).toBeDefined();
+    // `#[A]` is on line 3; the block runs through line 4.
+    expect(hookRef!.fromNodeId).toBe(
+      generateNodeId(MODULE_PATH, 'function', 'mymodule_multi', 3),
+    );
+  });
+
+  it('anchors on the attribute start line for a multi-line attribute body', () => {
+    const src = `<?php
+
+#[Attr(
+  1,
+  2
+)]
+function mymodule_ml(): void {
+}
+`;
+    const { references } = drupalResolver.extract!(MODULE_PATH, src);
+    const hookRef = references.find((r) => r.referenceName === 'hook_ml');
+    expect(hookRef).toBeDefined();
+    // `#[Attr(` opens on line 3 and closes on line 6.
+    expect(hookRef!.fromNodeId).toBe(
+      generateNodeId(MODULE_PATH, 'function', 'mymodule_ml', 3),
+    );
+  });
+
+  it('still anchors on the function keyword line when no attribute precedes it', () => {
+    const src = `<?php
+
+function mymodule_plain(): void {
+}
+`;
+    const { references } = drupalResolver.extract!(MODULE_PATH, src);
+    const hookRef = references.find((r) => r.referenceName === 'hook_plain');
+    expect(hookRef).toBeDefined();
+    // No attribute: `function …` is on line 3.
+    expect(hookRef!.fromNodeId).toBe(
+      generateNodeId(MODULE_PATH, 'function', 'mymodule_plain', 3),
+    );
+  });
+
+  it('does not treat a preceding array/index expression as an attribute', () => {
+    const src = `<?php
+$x = [1, 2];
+function mymodule_after_array(): void {
+}
+`;
+    const { references } = drupalResolver.extract!(MODULE_PATH, src);
+    const hookRef = references.find(
+      (r) => r.referenceName === 'hook_after_array',
+    );
+    expect(hookRef).toBeDefined();
+    // `[1, 2];` ends with a semicolon, so no attribute block: line 3.
+    expect(hookRef!.fromNodeId).toBe(
+      generateNodeId(MODULE_PATH, 'function', 'mymodule_after_array', 3),
+    );
   });
 });
 

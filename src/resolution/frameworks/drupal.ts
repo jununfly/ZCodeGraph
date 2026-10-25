@@ -225,6 +225,54 @@ function isDrupalHookImplementationFile(filePath: string): boolean {
 }
 
 /**
+ * Index of the `#` that opens the attribute block immediately preceding the
+ * `function` keyword at `functionKeywordIndex`, or -1 when there is none.
+ *
+ * tree-sitter-php folds attributes INTO the `function_definition` node, so:
+ *
+ *   #[LegacyHook]
+ *   function foo(): void {}
+ *
+ * has its node start on the attribute line, not the `function` keyword line.
+ * The Rust core derives every PHP function node id from that tree-sitter start
+ * line (`generate_node_id(path, "function", name, start.row + 1)`), so the
+ * resolver must mirror the same anchor — otherwise the reconstructed
+ * `fromNodeId` matches no node and the unresolved_ref violates the
+ * foreign_keys constraint and aborts the whole index (drupal gate, 1-3-11).
+ *
+ * Handles multi-line attribute bodies and a contiguous run of attribute groups
+ * (`#[A]\n#[B]\nfunction …`) by walking back to the FIRST group.
+ */
+function attributeBlockStartIndex(content: string, functionKeywordIndex: number): number {
+  let i = functionKeywordIndex - 1;
+  while (i >= 0 && /\s/.test(content[i]!)) i--;
+
+  let start = -1;
+  while (i >= 0 && content[i] === ']') {
+    // Walk back to the '[' that opens this attribute group. Square brackets
+    // alone are tracked: inner `(`/`)` and nested `[...]` are balanced within
+    // the attribute body, so they cancel out.
+    let depth = 0;
+    let j = i;
+    for (; j >= 0; j--) {
+      const ch = content[j]!;
+      if (ch === ']') {
+        depth++;
+      } else if (ch === '[') {
+        depth--;
+        if (depth === 0) break;
+      }
+    }
+    // `j` is the matching '['; an attribute requires '#' right before it.
+    if (j <= 0 || content[j - 1] !== '#') break;
+    start = j - 1;
+    i = start - 1;
+    while (i >= 0 && /\s/.test(content[i]!)) i--;
+  }
+  return start;
+}
+
+/**
  * Extract hook implementation references from a Drupal PHP file.
  *
  * Strategy A (primary): look for docblocks containing `Implements hook_X().`
@@ -253,8 +301,13 @@ function extractDrupalHooks(
   while ((fm = funcDef.exec(content)) !== null) {
     const name = fm[1]!;
     if (!funcLineMap.has(name)) {
-      // line = number of newlines before match start + 1
-      funcLineMap.set(name, content.slice(0, fm.index).split('\n').length);
+      // tree-sitter-php folds a preceding attribute block into the
+      // `function_definition` node, so anchor on the attribute when present —
+      // that is the line the Rust core used to mint this node's id.
+      const attrStart = attributeBlockStartIndex(content, fm.index);
+      const startIndex = attrStart >= 0 ? attrStart : fm.index;
+      // line = number of newlines before the anchor + 1
+      funcLineMap.set(name, content.slice(0, startIndex).split('\n').length);
     }
   }
 
