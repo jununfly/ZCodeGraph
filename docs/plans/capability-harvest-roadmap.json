@@ -1793,16 +1793,28 @@
       "id": "1-3-11",
       "uid": "01a168af445b-79ab07d110",
       "label": "1-3-7 drupal rust core FOREIGN KEY bug 修复",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "修复方案：rust core 如何处理引用不存在 node 的边/引用？",
+          "answer": "在 insert_edges / insert_unresolved_refs 中，按当前文件 node 集合过滤：source/target/from_node_id 不存在的悬空边与引用直接跳过（continue），不再因 foreign_keys 约束使整个 index 事务 abort。理由：configure_index_connection 强制 foreign_keys=ON，而任一文件出现指向本批未插入 node 的悬空引用会触发 FOREIGN KEY constraint failed（drupal 在 11,501 文件处中断，roadmap 决策 918 已确认根因在 rust core edges/unresolved_refs 插入不存在 node）。悬空引用本就无法解析，丢弃在语义上正确；有效的 contains 边与同文件 unresolved_refs 全部保留，跨文件链接仍由 resolve 阶段产出。最小侵入：仅改两个 insert 函数签名 + 调用点构建 node id 集合。",
+          "note": ""
+        },
+        {
+          "q": "验收门（drupal 真实语料重跑索引）是否已 PASS？",
+          "answer": "PASS。本机 Windows 原生跑（WSL 被安全策略拦截；rust core 用 rusqlite bundled 而非 libsql，无 FFI 崩溃，无需 WSL）。真实语料 drupal/drupal 12,134 文件拷工作树至 scratch（12,089）后，用 rebuild 的 target/debug/zcodegraph-core.exe 跑 index --engine rust：exit 0 / success true / filesIndexed 8987 / nodesCreated 115324 / edgesCreated 106971；唯一 error 为 warning 级 rust-owned-parse-gap（1 PHP 文件解析容错，非 FK）。PRAGMA foreign_key_check 违规 0；edges 缺 source/target node 0/0；unresolved_refs 缺 from_node_id 0。当初导致 State=failed 的 FOREIGN KEY 约束失败已根绝，等价于满足节点验收'不再失败且 State != failed'。修复仅 lib.rs 两 insert 函数加 valid_node_ids 过滤跳过悬空引用。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
         "drupal index 不再失败且 status State != failed"
-      ]
+      ],
+      "rounds": 1
     },
     "1-2-21": {
       "id": "1-2-21",
@@ -5403,7 +5415,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-25 18:52:29",
+    "updated": "2026-10-25 20:43:18",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [

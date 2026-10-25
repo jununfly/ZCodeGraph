@@ -212,3 +212,73 @@ jobs:
         run: >
           node scripts/measure/pr-recall-gate.mjs
           --corpus-root /tmp/measure-corpus
+
+  # Roadmap 1-3-11: drupal real-corpus full-chain State gate. The rust core
+  # used to abort the entire drupal index on a FOREIGN KEY constraint failure
+  # (a dangling edge / unresolved_ref pointing at a node id absent from the
+  # current file's batch). The fix filters those dangling references. This job
+  # re-runs the full drupal index through the rust engine (which spawns the
+  # cargo-built zcodegraph-core binary — the exact component that broke) and
+  # asserts the resulting `zcodegraph status` State is NOT failed. A direct
+  # regression guard for 1-3-11. Ubuntu-only to match the architecture-red-lines
+  # corpus cache; reuses /tmp/measure-corpus.
+  drupal-index-state-gate:
+    name: Drupal index State gate (ubuntu, 1-3-11)
+    runs-on: ubuntu-latest
+    env:
+      CODEGRAPH_ALLOW_UNSAFE_NODE: "1"
+      CODEGRAPH_NO_DAEMON: "1"
+      CODEGRAPH_NO_RELAUNCH: "1"
+      MEASURE_GIT_PROTOCOL: "https"
+      MEASURE_SKIP_FETCH: "1"
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    steps:
+      - uses: actions/checkout@v6
+      - name: Redirect SSH submodule URLs to public HTTPS for cargo git deps
+        shell: bash
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Build TypeScript CLI
+        run: npm run build
+      - name: Build Rust core (rust engine binary)
+        run: cargo build --package zcodegraph-core
+      - name: Restore measurement corpus cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/measure-corpus
+          key: measure-corpus-${{ hashFiles('docs/evidence/2026-10-22-architecture-regression-baseline.json') }}
+          restore-keys: |
+            measure-corpus-
+      - name: Clone drupal corpus (reuse cache)
+        shell: bash
+        run: |
+          node --input-type=module -e "
+            import { normalizeRepo } from './scripts/measure/lib/args.mjs';
+            import { ensureClone } from './scripts/measure/lib/clone.mjs';
+            const repo = normalizeRepo('drupal/drupal');
+            const { repoDir, sha } = ensureClone({ repo, ref: null, sparse: [], corpusRoot: '/tmp/measure-corpus', quiet: false });
+            console.log('cloned', repoDir, sha);
+          "
+      - name: Index drupal with rust engine (1-3-11 FK regression gate)
+        run: node dist/bin/zcodegraph.js index --engine rust /tmp/measure-corpus/drupal-drupal
+      - name: Assert drupal index State is not Failed
+        shell: bash
+        run: |
+          node dist/bin/zcodegraph.js status --json /tmp/measure-corpus/drupal-drupal \
+            | node --input-type=module -e "
+                let s = '';
+                process.stdin.on('data', d => { s += d; });
+                process.stdin.on('end', () => {
+                  const j = JSON.parse(s);
+                  const st = j.health && j.health.state;
+                  console.log('health.state =', st);
+                  if (st === 'failed') { console.error('FAIL: drupal index State is failed'); process.exit(1); }
+                  console.log('PASS: drupal index State is not failed');
+                });
+              "
