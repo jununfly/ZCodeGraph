@@ -1138,18 +1138,30 @@
       "id": "1-3-5",
       "uid": "01a15423f55b-860ea8ef79",
       "label": "P1-3 可视化多视图（模块/类/函数层）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "视图切换的数据来源",
+          "answer": "后端保留 depth-limited nodes/stats（锁定回归测试安全），额外嵌入 allNodes/allEdges 全集；前端基于 allNodes 用 display 显隐切换 模块/类/函数 三层，不破坏既有 --depth 语义",
+          "note": ""
+        },
+        {
+          "q": "状态保持实现",
+          "answer": "切换视图/搜索/过滤只 toggle Cytoscape 元素 display，永不 destroy/relayout；初始全量布局一次，视口(pan/zoom)与节点位置天然保留；仅 layout 单选切换时重布局并恢复 pan/zoom",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
         "切换视图：模块（文件/包）/ 类（class/interface/struct）/ 函数（function/method）三层",
         "vitest 集成用例 1 个 + ci.yml -t 同步",
         "视图切换不丢状态（搜索关键字、过滤选择、视口位置）"
-      ]
+      ],
+      "rounds": 1
     },
     "1-3-6": {
       "id": "1-3-6",
@@ -5391,7 +5403,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-25 18:18:20",
+    "updated": "2026-10-25 18:52:29",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [

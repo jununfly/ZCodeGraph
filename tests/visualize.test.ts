@@ -213,4 +213,42 @@ describe('zcodegraph visualize (isolated fixture)', () => {
     expect(m).not.toBeNull();
     expect(parseInt(m![1], 10)).toBe(5);
   }, 30_000);
+
+  it('visualize embeds full node data and a module/class/function view switcher for in-page switching', () => {
+    if (!binReady) return;
+
+    // Default view is `module` (--depth file), but the page must still embed the
+    // FULL node set so the in-page switcher can jump to class/function views.
+    const out = path.join(fixtureRoot, '.zcodegraph', 'visualize.html');
+    const result = runCli(['visualize'], fixtureRoot);
+    expect(
+      result.status,
+      `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+    ).toBe(0);
+    const html = fs.readFileSync(out, 'utf-8');
+
+    // View switcher present with all three tiers.
+    expect(html).toContain('name="view"');
+    expect(html).toContain('value="module"');
+    expect(html).toContain('value="class"');
+    expect(html).toContain('value="function"');
+
+    // Full data embedded for switching (independent of the requested depth).
+    expect(html).toContain('"allNodes"');
+    expect(html).toContain('"allEdges"');
+    expect(html).toContain('"initialView"');
+
+    // Even at --depth file, the embedded full set contains class + function
+    // symbols, so the switcher can show them without re-indexing.
+    expect(html).toContain('"kind":"class"');
+    expect(html).toMatch(/"kind":"(?:function|method)"/);
+    // Concrete fixture symbols prove the data is real, not just the keys.
+    expect(html).toContain('"name":"App"');
+    expect(html).toContain('"name":"helper"');
+    // The depth-limited `nodes` subset still only carries files (regression
+    // guard for the legacy depth contract).
+    const nodesSection = html.slice(html.indexOf('"nodes"'), html.indexOf('"allNodes"'));
+    expect(nodesSection).toContain('"kind":"file"');
+    expect(nodesSection).not.toContain('"kind":"class"');
+  }, 60_000);
 });
