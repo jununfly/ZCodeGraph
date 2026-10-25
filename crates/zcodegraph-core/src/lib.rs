@@ -7497,8 +7497,9 @@ fn index_javascript_files(
                 .rust_cargo_conditional_semantic_suppression_counts,
         );
         insert_nodes(&tx, &nodes)?;
-        insert_edges(&tx, &edges)?;
-        insert_unresolved_refs(&tx, &unresolved_refs)?;
+        let valid_node_ids: HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
+        insert_edges(&tx, &edges, &valid_node_ids)?;
+        insert_unresolved_refs(&tx, &unresolved_refs, &valid_node_ids)?;
         upsert_file(
             &tx,
             &relative_path,
@@ -16014,13 +16015,30 @@ fn insert_nodes(conn: &Connection, nodes: &[ExtractedNode]) -> rusqlite::Result<
     Ok(())
 }
 
-fn insert_edges(conn: &Connection, edges: &[ExtractedEdge]) -> rusqlite::Result<()> {
+fn insert_edges(
+    conn: &Connection,
+    edges: &[ExtractedEdge],
+    valid_node_ids: &HashSet<&str>,
+) -> rusqlite::Result<()> {
     let mut stmt = conn.prepare(
         "INSERT INTO edges (source, target, kind, metadata, line, col, edgeOrigin)
          VALUES (?1, ?2, ?3, NULL, ?4, ?5, NULL)",
     )?;
 
     for edge in edges {
+        // Skip edges that reference a node absent from this file's batch. The
+        // extractors only emit intra-file `contains` edges (plus rust-owned
+        // trait-impl edges), so any edge whose source or target node was never
+        // inserted would violate the foreign_keys constraint and abort the
+        // entire index — the drupal FOREIGN KEY failure (roadmap 1-3-11). A
+        // dangling edge can never resolve, so dropping it is semantically
+        // correct. Cross-file links are produced later by the resolution phase,
+        // not as direct `edges` rows here.
+        if !valid_node_ids.contains(edge.source.as_str())
+            || !valid_node_ids.contains(edge.target.as_str())
+        {
+            continue;
+        }
         stmt.execute(params![
             edge.source,
             edge.target,
@@ -16032,7 +16050,11 @@ fn insert_edges(conn: &Connection, edges: &[ExtractedEdge]) -> rusqlite::Result<
     Ok(())
 }
 
-fn insert_unresolved_refs(conn: &Connection, refs: &[UnresolvedRef]) -> rusqlite::Result<()> {
+fn insert_unresolved_refs(
+    conn: &Connection,
+    refs: &[UnresolvedRef],
+    valid_node_ids: &HashSet<&str>,
+) -> rusqlite::Result<()> {
     let mut stmt = conn.prepare(
         "INSERT INTO unresolved_refs (
           from_node_id, reference_name, reference_kind, line, col, candidates, metadata, file_path, language
@@ -16040,6 +16062,14 @@ fn insert_unresolved_refs(conn: &Connection, refs: &[UnresolvedRef]) -> rusqlite
     )?;
 
     for reference in refs {
+        // Skip refs whose `from` node was never inserted in this file. The
+        // foreign_keys constraint would otherwise abort the whole index (the
+        // drupal FOREIGN KEY failure, roadmap 1-3-11). A reference emitted from
+        // a node that doesn't exist is unreachable and safe to drop; all valid
+        // in-file refs keep their from_node_id in the batch.
+        if !valid_node_ids.contains(reference.from_node_id.as_str()) {
+            continue;
+        }
         stmt.execute(params![
             reference.from_node_id,
             reference.reference_name,
