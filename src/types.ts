@@ -38,6 +38,7 @@ export const NODE_KINDS = [
   'export',
   'route',
   'component',
+  'bean',
 ] as const;
 
 export type NodeKind = (typeof NODE_KINDS)[number];
@@ -57,7 +58,8 @@ export type EdgeKind =
   | 'returns'         // Function returns type
   | 'instantiates'    // Creates instance of class
   | 'overrides'       // Method overrides parent method
-  | 'decorates';      // Decorator applied to symbol
+  | 'decorates'       // Decorator applied to symbol
+  | 'injects';        // Spring bean dependency injection (bean → bean)
 
 /**
  * Supported programming languages. See NODE_KINDS for why this is a
@@ -300,6 +302,8 @@ export interface UnresolvedReference {
 
   /** Possible qualified names it might resolve to */
   candidates?: string[];
+  /** Optional metadata bag (e.g. springStereotype marker refs) */
+  metadata?: Record<string, unknown>;
 }
 
 // =============================================================================

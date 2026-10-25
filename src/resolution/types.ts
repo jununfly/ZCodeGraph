@@ -30,6 +30,8 @@ export interface UnresolvedRef {
   language: Language;
   /** Possible qualified names it might resolve to */
   candidates?: string[];
+  /** Optional metadata bag (e.g. springStereotype marker refs) */
+  metadata?: Record<string, unknown>;
 }
 
 /**

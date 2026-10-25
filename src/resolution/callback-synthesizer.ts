@@ -1672,6 +1672,112 @@ export function svelteKitLoadEdges(ctx: ResolutionContext): Edge[] {
 }
 
 /**
+ * Spring bean/DI injection edges (roadmap 1-3-3).
+ *
+ * The extraction layer emits `bean` nodes for `@Bean` methods and marks
+ * stereotyped classes (`@Service`, `@Component`, etc.) in their `decorators`
+ * field. It also emits `injects` unresolved references from injection points
+ * (`@Autowired` fields, constructor parameters) to the injected type's simple
+ * name.
+ *
+ * This synthesizer resolves those `injects` references into concrete edges:
+ * - Find the target bean by simple name match against:
+ *   1. `bean` nodes (method-level beans, e.g. `@Bean OwnerRepository repo()`)
+ *   2. `class` nodes with a Spring stereotype decorator (class-level beans)
+ * - If exactly one match: emit `injects` edge with `edgeOrigin: 'heuristic'`.
+ * - If multiple matches: prefer the one whose qualifiedName contains the
+ *   caller's package prefix (same package), then the shortest qualifiedName
+ *   (closest binding point). If still ambiguous, drop (precision over recall).
+ *
+ * The edge source is the bean node that owns the injection point. For class-
+ * level beans the source is the class node; for `@Bean` method-level beans
+ * the source is the `bean` node.
+ */
+export function springDiEdges(queries: QueryBuilder): Edge[] {
+  const edges: Edge[] = [];
+  const seen = new Set<string>();
+
+  // Build a lookup of all bean nodes and stereotyped classes by simple name.
+  const beanByName = new Map<string, Node[]>();
+
+  // Method-level beans (kind='bean')
+  for (const n of queries.iterateNodesByKind('bean')) {
+    if (n.language !== 'java' && n.language !== 'kotlin') continue;
+    const arr = beanByName.get(n.name);
+    if (arr) arr.push(n); else beanByName.set(n.name, [n]);
+  }
+
+  // Class-level beans are identified via metadata carried on `injects`
+  // unresolved refs (roadmap 1-3-3). The Rust core does not populate the
+  // `decorators` column on the rust-hybrid path, so the extractor writes the
+  // stereotype directly into each injection-point ref.
+  const stereotypeByClassName = new Map<string, string>();
+  for (const ref of queries.getUnresolvedReferences()) {
+    if (ref.referenceKind !== 'injects') continue;
+    if (ref.language !== 'java' && ref.language !== 'kotlin') continue;
+    const meta = ref.metadata as Record<string, unknown> | undefined;
+    if (!meta || typeof meta.sourceClassName !== 'string' || typeof meta.sourceStereotype !== 'string') continue;
+    stereotypeByClassName.set(meta.sourceClassName, meta.sourceStereotype);
+  }
+
+  for (const n of queries.iterateNodesByKind('class')) {
+    if (n.language !== 'java' && n.language !== 'kotlin') continue;
+    if (!stereotypeByClassName.has(n.name)) continue;
+    const arr = beanByName.get(n.name);
+    if (arr) arr.push(n); else beanByName.set(n.name, [n]);
+  }
+
+  // Scan unresolved refs with kind='injects'
+  for (const ref of queries.getUnresolvedReferences()) {
+    if (ref.referenceKind !== 'injects') continue;
+    if (ref.language !== 'java' && ref.language !== 'kotlin') continue;
+    const typeName = ref.referenceName;
+    const candidates = beanByName.get(typeName);
+    if (!candidates || candidates.length === 0) continue;
+    const refFilePath = ref.filePath ?? '';
+
+    let target: Node | null = null;
+    if (candidates.length === 1) {
+      target = candidates[0]!;
+    } else {
+      // Prefer same-package match (caller file path shares prefix with target)
+      const callerPkg = refFilePath.split('/').slice(0, -1).join('/');
+      const samePkg = candidates.filter((c) => c.filePath.startsWith(callerPkg));
+      if (samePkg.length === 1) {
+        target = samePkg[0]!;
+      } else {
+        // Prefer shortest qualifiedName (closest binding point)
+        const sorted = candidates.sort((a, b) => a.qualifiedName.length - b.qualifiedName.length);
+        target = sorted[0]!;
+      }
+    }
+
+    if (!target) continue;
+    // The backfill already rewrote the marker fromNodeId to the real class
+    // node id before insertion, so no source rewriting is needed here.
+    const sourceId = ref.fromNodeId;
+    const key = `${sourceId}>${target.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    edges.push({
+      source: sourceId,
+      target: target.id,
+      kind: 'injects',
+      line: ref.line,
+      edgeOrigin: 'heuristic',
+      metadata: {
+        synthesizedBy: 'spring-di',
+        via: typeName,
+        registeredAt: `${refFilePath}:${ref.line}`,
+      },
+    });
+  }
+
+  return edges;
+}
+
+/**
  * Synthesize dispatcher→callback edges (field observers + EventEmitters +
  * React re-render + JSX children + Vue templates + SvelteKit load + RN event
  * channel + Fabric native-impl + MyBatis Java↔XML + Gin middleware chain).
@@ -1713,8 +1819,11 @@ export function synthesizeCallbackEdges(queries: QueryBuilder, ctx: ResolutionCo
   const fabricNativeEdges = shouldRunForLanguage(languages, ['objc', 'java', 'kotlin', 'swift']) ? fabricNativeImplEdges(ctx) : [];
   const expoXPlatEdges = shouldRunForLanguage(languages, ['swift', 'kotlin', 'java']) ? expoCrossPlatformEdges(queries) : [];
   const rnXPlatEdges = shouldRunForLanguage(languages, ['objc', 'java', 'kotlin', 'swift']) ? rnCrossPlatformEdges(queries) : [];
-  const mybatisEdges = shouldRunForLanguage(languages, ['java', 'xml']) ? mybatisJavaXmlEdges(queries) : [];
+  // MyBatis datasource edges are demoted from the default path (roadmap 1-3-3);
+  // enable with CODEGRAPH_ENABLE_DATASOURCE=1.
+  const mybatisEdges = process.env.CODEGRAPH_ENABLE_DATASOURCE === '1' && shouldRunForLanguage(languages, ['java', 'xml']) ? mybatisJavaXmlEdges(queries) : [];
   const ginEdges = shouldRunForLanguage(languages, ['go']) ? ginMiddlewareChainEdges(queries, ctx) : [];
+  const springDi = shouldRunForLanguage(languages, ['java', 'kotlin']) ? springDiEdges(queries) : [];
 
   const merged: Edge[] = [];
   const seen = new Set<string>();
@@ -1738,6 +1847,7 @@ export function synthesizeCallbackEdges(queries: QueryBuilder, ctx: ResolutionCo
     ...rnXPlatEdges,
     ...mybatisEdges,
     ...ginEdges,
+    ...springDi,
   ]) {
     const key = `${e.source}>${e.target}`;
     if (seen.has(key)) continue;

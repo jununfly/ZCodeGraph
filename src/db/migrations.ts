@@ -9,7 +9,7 @@ import { SqliteDatabase } from './sqlite-adapter';
 /**
  * Current schema version
  */
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 /**
  * Migration definition
@@ -63,6 +63,21 @@ const migrations: Migration[] = [
         DROP INDEX IF EXISTS idx_edges_source;
         DROP INDEX IF EXISTS idx_edges_target;
       `);
+    },
+  },
+  {
+    version: 5,
+    description:
+      'Add bean NodeKind and injects EdgeKind for Spring DI semantics (roadmap 1-3-3). ' +
+      'Old-CLI compat: read-only compatible — older binaries can open a v5 database and read all ' +
+      'pre-existing nodes/edges; new bean/injects rows are silently ignored (they simply do not ' +
+      'match any query filter from an older binary). No new columns or indexes; only new enum ' +
+      'values in existing TEXT columns.',
+    up: (_db) => {
+      // No DDL changes required — bean/injects are new enum values in existing
+      // TEXT columns (nodes.kind, edges.kind). The migration exists solely to
+      // bump the schema version and record the compat strategy per
+      // schema-evolution-and-mcp-tool-cap-v1 clause 1.
     },
   },
 ];

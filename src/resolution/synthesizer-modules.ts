@@ -34,6 +34,7 @@ import {
   ginMiddlewareChainEdges,
   pascalFormEdges,
   svelteKitLoadEdges,
+  springDiEdges,
 } from './callback-synthesizer';
 
 // ── Synthesizer module definitions (descriptors + wrappers) ────────────
@@ -346,20 +347,26 @@ export const SYNTHESIZERS: FullGraphSynthesizer[] = [
   ),
 
   // 18. MyBatis Java ↔ XML edges (queries only)
-  wrapQ(
-    {
-      id: 'mybatis-java-xml',
-      name: 'MyBatis Java↔XML mapper edges',
-      strategy: 'full-graph',
-      languages: ['java'],
-      precision: 'medium',
-      cost: 'moderate',
-      knownFalsePositives: [
-        'Method-name matching in non-MyBatis contexts.',
-      ],
-    },
-    mybatisJavaXmlEdges,
-  ),
+  // DEMOTED (roadmap 1-3-3): datasource semantics moved out of the default
+  // path pending validation. Enable with CODEGRAPH_ENABLE_DATASOURCE=1.
+  ...(process.env.CODEGRAPH_ENABLE_DATASOURCE === '1'
+    ? [
+        wrapQ(
+          {
+            id: 'mybatis-java-xml',
+            name: 'MyBatis Java↔XML mapper edges',
+            strategy: 'full-graph',
+            languages: ['java'],
+            precision: 'medium',
+            cost: 'moderate',
+            knownFalsePositives: [
+              'Method-name matching in non-MyBatis contexts.',
+            ],
+          },
+          mybatisJavaXmlEdges,
+        ),
+      ]
+    : []),
 
   // 19. Gin middleware chain edges (queries + ctx)
   wrap2(
@@ -403,6 +410,23 @@ export const SYNTHESIZERS: FullGraphSynthesizer[] = [
       knownFalsePositives: [],
     },
     svelteKitLoadEdges,
+  ),
+
+  // 22. Spring bean/DI injection edges (queries only) — roadmap 1-3-3
+  wrapQ(
+    {
+      id: 'spring-di',
+      name: 'Spring bean/DI injection edges',
+      strategy: 'full-graph',
+      languages: ['java', 'kotlin'],
+      precision: 'medium',
+      cost: 'cheap',
+      knownFalsePositives: [
+        'Multiple beans of the same type without @Qualifier — picks shortest qualifiedName.',
+        'Field name matching may produce false positives for non-Spring classes using @Inject.',
+      ],
+    },
+    springDiEdges,
   ),
 ];
 

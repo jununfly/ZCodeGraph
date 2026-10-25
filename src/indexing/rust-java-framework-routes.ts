@@ -51,6 +51,7 @@ const BACKFILL_NODE_PREFIXES = [
   'route:',
   'spring-value:',
   'spring-cp:',
+  'bean:',
   'fabric-component:',
   'fabric-prop:',
 ] as const;
@@ -131,6 +132,31 @@ export function runJavaFrameworkRouteBackfill(
           }
         }
         for (const ref of result.references) {
+          // Class-level bean `injects` refs use a deterministic marker id
+          // (`bean:<file>:<line>:<ClassName>`) because the real class node id
+          // is a Rust-core hash we cannot predict at extract time. Resolve the
+          // real class node id from the Rust baseline before inserting so the
+          // FK constraint is satisfied and the synthesizer can skip rewriting.
+          const meta = (ref as { metadata?: Record<string, unknown> }).metadata;
+          if (ref.referenceKind === 'injects' && meta?.sourceClassName) {
+            const className = meta.sourceClassName as string;
+            const fileNodes = queries.getNodesByFile(file.path);
+            const classNode = fileNodes.find(
+              (n) => n.kind === 'class' && n.name === className,
+            );
+            if (!classNode) continue; // class node missing — skip ref
+            newRefs.push({
+              fromNodeId: classNode.id,
+              referenceName: ref.referenceName,
+              referenceKind: ref.referenceKind,
+              line: ref.line,
+              column: ref.column,
+              filePath: ref.filePath ?? file.path,
+              language: ref.language ?? 'java',
+              metadata: meta,
+            });
+            continue;
+          }
           if (newNodes.some((n) => n.id === ref.fromNodeId)) {
             newRefs.push({
               fromNodeId: ref.fromNodeId,
@@ -140,6 +166,7 @@ export function runJavaFrameworkRouteBackfill(
               column: ref.column,
               filePath: ref.filePath ?? file.path,
               language: ref.language ?? 'java',
+              metadata: meta,
             });
           }
         }

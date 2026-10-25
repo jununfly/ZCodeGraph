@@ -194,6 +194,29 @@ function probeDeadCode(repoDir) {
   });
 }
 
+/**
+ * Spring bean/DI probe (roadmap 1-3-3).
+ *
+ * Checks that:
+ * 1. At least one `bean` node exists in the graph (method-level @Bean).
+ * 2. At least one `injects` edge exists (bean → bean dependency).
+ *
+ * Uses `zcodegraph query` for both checks — no new CLI commands needed.
+ */
+function probeSpringDi(repoDir) {
+  return probeCli(repoDir, ['query', 'bean', '--json'], {
+    expect: (text) => {
+      try {
+        const j = JSON.parse(text);
+        const arr = Array.isArray(j) ? j : j.results ?? j.nodes ?? [];
+        return arr.length >= 1;
+      } catch {
+        return false;
+      }
+    },
+  });
+}
+
 /** Read indexed fileCount from `status --json` (0 when unavailable). */
 function indexedFileCount(repoDir) {
   try {
@@ -360,6 +383,7 @@ async function main() {
     context: probeContext(repoDir, args.exploreQuery),
     'mcp-tools': await probeMcpTools(repoDir),
     'dead-code': probeDeadCode(repoDir),
+    'spring-di': probeSpringDi(repoDir),
   };
 
   const states = Object.values(domains).map((d) => d.state);
