@@ -85,7 +85,7 @@ jobs:
         run: >
           npx vitest run
           tests/visualize.test.ts
-          -t "renders a self-contained HTML at depth=file with fixture symbols inlined|exports monotonically more nodes as depth increases \(file < class < function\)|rejects an unsupported --depth value with a clear error|respects --max-nodes cap deterministically|visualize embeds full node data and a \(module/class/function\) view switcher for in-page switching"
+          -t "renders a self-contained HTML at depth=file with fixture symbols inlined|exports monotonically more nodes as depth increases \(file < class < function\)|rejects an unsupported --depth value with a clear error|respects --max-nodes cap deterministically|visualize embeds full node data and a module/class/function view switcher for in-page switching"
       - name: Verify affected --pr blast radius (isolated git fixture)
         run: >
           npx vitest run
