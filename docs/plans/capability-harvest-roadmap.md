@@ -1,9 +1,9 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-26 17:08:25
+> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-26 17:17:55
 
-[x][X+] 1. ZCodeGraph 能力汇集路线图
+[~][X+] 1. ZCodeGraph 能力汇集路线图
 ├── [x][X+] 1-1. P-1 验证冲刺（先行 gate）
 │   ├── [x][X+] 1-1-1. P-1 自研可视化引擎首版（zcodegraph visualize）
 │   ├── [x][X+] 1-1-2. P-1 对照 codeflow 自研 PR 影响 blast radius
@@ -35,7 +35,12 @@
 │   ├── [x][X+] 1-3-5. P1-3 可视化多视图（模块/类/函数层）
 │   ├── [x][X+] 1-3-6. P1-4 可视化时间演化动画（git history）
 │   └── [x][X+] 1-3-11. 1-3-7 drupal rust core FOREIGN KEY bug 修复
-└── [x][X+] 1-4. P2 可选本地混合语义检索
+└── [~][X+] 1-4. P2 可选本地混合语义检索
     ├── [x][X+] 1-4-1. P2 立项前三问硬验收
-    └── [x][X+] 1-4-2. P2 量化阈值实测（5 语料端到端）
+    ├── [x][X+] 1-4-2. P2 量化阈值实测（5 语料端到端）
+    └── [ ][X+] 1-4-27. P2 异步嵌入管线设计（承接 1-4-2 实测阻塞）
+
+### 下一步可开工（ready 前 3）
+
+- 1-4-27. P2 异步嵌入管线设计（承接 1-4-2 实测阻塞） [ ]
 <!-- ROADMAP_SECTION_END -->
