@@ -310,6 +310,18 @@ Per-language real-corpus validation, ordered by date:
   按需 CREATE VIRTUAL TABLE）。worker / 三触发点 / CLI flag 切到 1-4-29。
   验收：27/27（embedding-queue 10 + fallback-summary 14 + schema-evolution 3）
   + 相邻 fallback 套件 19/19 + skip-debt-guardrail 4/4 + tsc 0 errors。
+- [2026-10-26-p2-async-embedding-runtime.md](evidence/2026-10-26-p2-async-embedding-runtime.md)
+  — 1-4-29 P2 异步嵌入管线**运行时**落地：`src/embedding/worker.ts`
+  （worker_threads 入口，fastembed ESM 懒 import + vec0 lazy-load +
+  claim/embed/done/failed 批处理 + watchdog），`worker-runner.ts`
+  （`EmbeddingRunner.forDatabase()` 单例 + 懒启动 + 30s 空闲 terminate +
+  崩溃重置），`vec0-path.ts`（env > vendor > `.zcodegraph/models/` 解析）。
+  三触发点全接通：① CLI `zcodegraph index --with-embeddings [--wait-embeddings]`
+  ② FileWatcher sync 完成后 enqueue `changedFilePaths` ③ `zcodegraph_search`
+  read-repair 对 missed/stale/failed 文件 enqueue（不同步 embed）。
+  全链路由 `CODEGRAPH_ENABLE_EMBEDDING=1` 单点 opt-in。
+  验收：embedding-runtime 17/17 + 既有 embedding/fallback/extraction/watcher/sync
+  96 测试不回归 + tsc 0 errors。
 
 ## methods — methods, playbooks, and how-to guides
 

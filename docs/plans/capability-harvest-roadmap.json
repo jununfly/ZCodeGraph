@@ -7,7 +7,7 @@
       "id": "1",
       "uid": "01a153ab9092-dc86bebc10",
       "label": "ZCodeGraph 能力汇集路线图",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": null,
       "children": [
@@ -118,7 +118,7 @@
       "id": "1-4",
       "uid": "01a153ac2642-c06d38cfcf",
       "label": "P2 可选本地混合语义检索",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -1828,18 +1828,45 @@
       "id": "1-4-29",
       "uid": "01a17792ae28-6c276d12cd",
       "label": "P2 异步嵌入管线 - 运行时（worker + watcher 钩子 + read-repair + CLI flag）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Q3 read-repair 挂点与同步/异步策略？",
+          "answer": "挂在既有 zcodegraph_search（不新增工具，符合 1-4-28 决策）。**不做同步 embed**——ADR-0009 已否决纯 read-repair 的同步路径（81ms 拖慢首次查询）。策略：search 检测到 missed/stale file 时，仅 enqueue（INSERT OR IGNORE），立即返回结构兜底结果；worker 后台补嵌入，下次查询命中。这样首次查询零延迟，同时不违反 read-repair 兜底语义。检测位置：mcp/tools.ts 的 zcodegraph_search handler 拿到 results 后，对调用方传入的 query 与 files 做轻量 stale 检查（file mtime > embedded_at），不扫全库。",
+          "note": ""
+        },
+        {
+          "q": "Q4 CLI flag 形态？",
+          "answer": "zcodegraph index 新增两个独立 flag：(a) --with-embeddings：index 完成后对全部 files enqueueEmbeddingBatch（INSERT OR IGNORE）立即返回，不启动 worker。worker 由后续 MCP server / watch 进程懒启动消费。(b) --wait-embeddings：必须搭配 --with-embeddings；CLI 在同一进程内启动 worker 跑空队列再退出（CI/落地场景收口）。理由：CLI 是短进程，不应内嵌 worker 长驻；但 CI 需要'跑完才退出'的收口语义，--wait-embeddings 显式表达。两 flag 都尊重 env CODEGRAPH_ENABLE_EMBEDDING（未开启时打印警告并跳过）。",
+          "note": ""
+        },
+        {
+          "q": "Q1 worker_threads 入口与加载策略？",
+          "answer": "worker 入口 src/embedding/worker.ts（tsc 编译为 dist/embedding/worker.js，ESM）。主进程通过 new Worker(new URL('./worker.js', import.meta.url), { workerData: { dbPath, modelsDir } }) 启动。worker 内 fastembed 用 try/catch 动态 import('@fastembed...') 懒探测——失败时把队列项标 pending 并保持 last_error='embedding-model-not-downloaded'，不抛进程（对应 ADR-0009 Failure Modes 第 1 行）。worker 启动策略：懒启动（首次有 pending 才 fork），有 N=30s 空闲自动 terminate 回收 264MB；同一 MCP server 进程内单 worker 单例，重启即重新 SELECT pending 续跑（ADR-0009 D2）。",
+          "note": ""
+        },
+        {
+          "q": "Q2 watcher 钩子挂点与开启策略？",
+          "answer": "FileWatcher sync 完成后调 enqueueEmbeddingBatch(changedFilePaths)。**默认 OFF**：通过 CodeGraphOptions.embedding.enabled=true 或 env CODEGRAPH_ENABLE_EMBEDDING=1 显式打开。理由：(a) 嵌入会让 MCP server 内存 +264MB，无意开启违反最小惊讶原则；(b) 1-4-28 决策已锁 fastembed 不进主 package.json，opt-in 才合理。钩子仅做 enqueue（INSERT OR IGNORE，~0.1ms/行），不阻塞 sync 主路径；worker 由 worker-runner 模块懒启动。",
+          "note": ""
+        },
+        {
+          "q": "Q1-补 worker 模块格式与 fastembed 包名？",
+          "answer": "实测：package.json 无 type:module 字段，dist 是 CJS。worker.ts 编译为 CJS dist/embedding/worker.js，主进程用 new Worker(path.join(__dirname, 'worker.js'), { workerData: {...} })（CJS 不能用 new URL(import.meta.url)）。fastembed 是 ESM-only 包（实测 ^1.14.3），CJS 不能 require —— worker 内部用 await import('fastembed') 动态加载（CJS 顶层允许 dynamic import ESM）。模型 EmbeddingModel.BGESmallENV15（384d）+ FlagEmbedding.init({model, cacheDir})。cacheDir 默认 <projectRoot>/.zcodegraph/models；可用 env CODEGRAPH_MODELS_DIR 覆盖。",
+          "note": ""
+        }
+      ],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "rounds": 1
     }
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-26 17:51:02",
+    "updated": "2026-10-26 18:42:23",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
