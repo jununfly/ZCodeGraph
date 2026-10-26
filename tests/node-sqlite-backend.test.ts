@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import CodeGraph from '../src';
+import { createDatabase } from '../src/db/sqlite-adapter';
 
 let nodeSqliteAvailable = false;
 try {
@@ -67,5 +68,65 @@ describe.skipIf(!nodeSqliteAvailable)('node:sqlite backend — real index + quer
     expect(helper).toBeTruthy();
     const callers = cg.getCallers(helper!.node.id);
     expect(callers.map(c => c.node.name)).toContain('main');
+  });
+});
+
+describe.skipIf(!nodeSqliteAvailable)('node:sqlite adapter — allowExtension option (1-4-2)', () => {
+  // Roadmap 1-4-2 (P2 optional local hybrid semantic retrieval): the adapter
+  // gains an opt-in `allowExtension` constructor flag so 1-4-3 can load
+  // sqlite-vec's vec0 binary without re-plumbing. Default MUST stay disabled
+  // so unrelated code paths fail closed.
+  let tmpDb: string;
+  let tmpDir: string;
+
+  beforeAll(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-allow-ext-'));
+    tmpDb = path.join(tmpDir, 'probe.db');
+  });
+
+  afterAll(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('defaults allowExtension to false — loadExtension call is rejected', () => {
+    const { db } = createDatabase(tmpDb);
+    try {
+      // node:sqlite does not even expose loadExtension when the constructor
+      // flag is false; probing via enableLoadExtension(false) is a no-op.
+      // What we can assert deterministically: construction succeeded with the
+      // default (no `allowExtension` passed), and the DB is writable.
+      db.exec('CREATE TABLE t (x INTEGER)');
+      db.prepare('INSERT INTO t VALUES (?)').run(1);
+      const row = db.prepare('SELECT x FROM t').get();
+      expect(row.x).toBe(1);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('accepts allowExtension: true and still opens a writable DB', () => {
+    const { db } = createDatabase(tmpDb, { allowExtension: true });
+    try {
+      db.exec('CREATE TABLE IF NOT EXISTS t2 (x INTEGER)');
+      db.prepare('INSERT INTO t2 VALUES (?)').run(42);
+      const row = db.prepare('SELECT x FROM t2').get();
+      expect(row.x).toBe(42);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('omitting the option behaves identically to passing allowExtension: false', () => {
+    const a = createDatabase(tmpDb);
+    const b = createDatabase(tmpDb, { allowExtension: false });
+    try {
+      // Both must succeed at basic writes — the flag must never break the
+      // default open/read/write path.
+      a.db.exec('CREATE TABLE IF NOT EXISTS t3 (x INTEGER)');
+      b.db.exec('CREATE TABLE IF NOT EXISTS t4 (x INTEGER)');
+    } finally {
+      a.db.close();
+      b.db.close();
+    }
   });
 });

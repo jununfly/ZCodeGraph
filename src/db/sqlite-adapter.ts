@@ -47,13 +47,32 @@ export type SqliteBackend = 'node-sqlite';
  * better-sqlite3 conveniences node:sqlite omits: a `.pragma()` helper, a
  * `.transaction()` helper, and `open` (node:sqlite exposes `isOpen`).
  */
+/**
+ * Construction options for the node:sqlite adapter.
+ *
+ * `allowExtension` gates `DatabaseSync`'s extension-loading capability
+ * (`db.loadExtension(...)`). It defaults to `false` so a stray `loadExtension`
+ * call in un-privileged code paths fails closed; opt in only on paths that
+ * need to load a vetted extension binary (e.g. sqlite-vec's `vec0` for the
+ * P2 optional local hybrid semantic retrieval spike, see
+ * docs/plans/capability-harvest-roadmap.json node 1-4-2). Callers that enable
+ * this MUST re-disable via `db.enableLoadExtension(false)` immediately after
+ * loading the intended extension to shrink the attack surface.
+ */
+export interface SqliteAdapterOptions {
+  allowExtension?: boolean;
+}
+
 class NodeSqliteAdapter implements SqliteDatabase {
   private _db: any;
 
-  constructor(dbPath: string) {
+  constructor(dbPath: string, options: SqliteAdapterOptions = {}) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { DatabaseSync } = require('node:sqlite');
-    this._db = new DatabaseSync(dbPath);
+    // node:sqlite (Node 22.13+) gates extension loading behind the
+    // `allowExtension` constructor flag; pass it through verbatim. When the
+    // flag is omitted we rely on node:sqlite's default (disabled).
+    this._db = new DatabaseSync(dbPath, { allowExtension: options.allowExtension ?? false });
   }
 
   get open(): boolean {
@@ -134,9 +153,12 @@ class NodeSqliteAdapter implements SqliteDatabase {
  * report it per-instance — MCP can open multiple project DBs in one process, so
  * a process-global would race.
  */
-export function createDatabase(dbPath: string): { db: SqliteDatabase; backend: SqliteBackend } {
+export function createDatabase(
+  dbPath: string,
+  options: SqliteAdapterOptions = {},
+): { db: SqliteDatabase; backend: SqliteBackend } {
   try {
-    return { db: new NodeSqliteAdapter(dbPath), backend: 'node-sqlite' };
+    return { db: new NodeSqliteAdapter(dbPath, options), backend: 'node-sqlite' };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     throw new Error(
