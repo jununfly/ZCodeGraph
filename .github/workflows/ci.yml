@@ -86,6 +86,11 @@ jobs:
           npx vitest run
           tests/visualize.test.ts
           -t "renders a self-contained HTML at depth=file with fixture symbols inlined|exports monotonically more nodes as depth increases \(file < class < function\)|rejects an unsupported --depth value with a clear error|respects --max-nodes cap deterministically|visualize embeds full node data and a module/class/function view switcher for in-page switching"
+      - name: Verify visualize --since history timeline (isolated git fixture, roadmap 1-3-6)
+        run: >
+          npx vitest run
+          tests/visualize-history.test.ts
+          -t "visualize --since HEAD~N produces a history HTML with N\+1 commits embedded, timeline controls, and union data|history IR contains exactly N commits in oldest-first order with real SHAs from git log|union sets include symbols that appear \(helperV2, divide\) and disappear \(utilThing\) across the range|history HTML size is bounded by union\+presence, not by N × per-commit IR|rejects --since combined with --filter \(loud error, no silent data drop\)|rejects --since on a non-git directory with a clear error"
       - name: Verify affected --pr blast radius (isolated git fixture)
         run: >
           npx vitest run

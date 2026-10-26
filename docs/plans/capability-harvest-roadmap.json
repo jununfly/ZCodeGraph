@@ -1167,18 +1167,50 @@
       "id": "1-3-6",
       "uid": "01a154246e4d-22a25d785a",
       "label": "P1-4 可视化时间演化动画（git history）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "时间轴 UI 形态",
+          "answer": "复用 1-3-5 现有 template.html + Cytoscape，顶部加 slider + play/pause/commit 标签。切换时按 commit 切片 toggle visibility（沿用 1-3-5 不变量：永不 destroy/relayout 保视口）。无新前端依赖。否决独立 timeline 页（破坏视图不变量、复制 layout 逻辑）。",
+          "note": ""
+        },
+        {
+          "q": "时间快照数据获取方案",
+          "answer": "逐 commit checkout + 索引到独立临时 DB，抽取 nodes/edges 集合。理由：完全复用现有 ExtractionOrchestrator + ReferenceResolver pipeline，边数据真实可信；性能风险用 --since 范围 + DB 缓存（.zcodegraph/visualize-history/<sha>/）兜底。否决 git-diff 增量推演（resolver 增量语义复杂）与纯 numstat 文件级（违背 exit criteria #2 节点/边播放）。",
+          "note": ""
+        },
+        {
+          "q": "缓存目录选址",
+          "answer": "缓存根 = <os.tmpdir()>/zcodegraph-history-<sha1(project)>，不放 <project>/.zcodegraph/。理由：spawned CLI 子进程的 resolveProjectPath 会从 cwd 向上找 initialized 项目，把缓存放在 .zcodegraph/ 内会让子进程误把外层项目当 target 重复索引（本次 dogfood 实测复现）。",
+          "note": "缓存命中由 <sha>/.done 标记驱动；跨 commit 节点身份由 node-id scheme (kind:sha256(filePath:kind:name:line)) 自然稳定。"
+        },
+        {
+          "q": "dogfood 性能与体积基线",
+          "answer": "ZCodeGraph 自身 --since HEAD~5 --max-commits 6: 157.2s（26s/commit，rust-hybrid 引擎），产出 93MB HTML（21043 unique nodes / 48142 unique edges）。生产可用；后续优化方向：per-commit DB 共享、增量节点序列化、HTML streaming。",
+          "note": ""
+        },
+        {
+          "q": "SINCE-SEMANTICS",
+          "answer": "INCLUSIVE start. HEAD~10 expands to HEAD~10~1..HEAD (root commit falls back to git log HEAD). --max-commits default 10 applies after --since.",
+          "note": ""
+        },
+        {
+          "q": "体积优化方案",
+          "answer": "剥离 commits[].allNodes/allEdges/nodes/edges（UI 不看，但曾占 HTML 84%）+ 剥离 history 模式下 docstring/signature。dogfood: 93MB → 18.2MB (-80.5%)。剩余 18MB 是 union + presence 固有体积（21k nodes + 48k edges）。",
+          "note": "否决方案 B (id int 索引压缩) 因收益边际 + 破坏现有 nodeEls[id] 直查；否决方案 C (拆 history.json + fetch) 因违背自包含单文件契约。"
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
         "1 个真实仓库（含 ≥10 个 commit）跑通；集成用例 1 个 + ci -t 同步",
         "节点/边的出现与消失随 commit 顺序播放，可暂停/拖动时间轴",
         "zcodegraph visualize --since <commit|date> 产时间轴动画 HTML"
-      ]
+      ],
+      "rounds": 1
     },
     "1-1-6": {
       "id": "1-1-6",
@@ -5415,7 +5447,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-25 20:43:18",
+    "updated": "2026-10-26 14:48:17",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
