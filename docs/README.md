@@ -278,6 +278,27 @@ Per-language real-corpus validation, ordered by date:
   baseline − 0.02) = 0.98. Wired into `architecture-red-lines` job;
   reuses the measure-corpus cache. Guards against regressions in
   ReferenceResolver / affected pipeline.
+- [2026-10-26-p2-embedding-three-questions-gate.md](evidence/2026-10-26-p2-embedding-three-questions-gate.md)
+  — P2 立项三问硬验收 (roadmap 1-4-1, spike 路线): fastembed +
+  onnxruntime-node + BGE-small-en-v1.5 实测冷启动 173 ms / embed 69 ms /
+  内存峰值 263 MB / runtime 单平台 35 MB；sqlite-vec v0.1.9 (282 KB) 与
+  nodes/edges 同库共存、KNN k=5 384d 1.49 ms、WAL 无锁冲突；status
+  现状是 4 态非 6 态，新失败模式走 `fallbackReasonTaxonomy` 子原因扩展即可，
+  零 schema 变更。三问全过 → 建议立项 P2；前置条件 = 模型不进 npm 包
+  （按需下载）+ runtime 按 os/cpu optional deps 拆分 +
+  `DatabaseSync(path, { allowExtension: true })` 改造 + 6 个 embedding
+  子原因 key 落地。Spike fixture `.tmp/embedding-probe/` 跑通即删。
+- [2026-10-26-p2-embedding-thresholds.md](evidence/2026-10-26-p2-embedding-thresholds.md)
+  — P2 量化阈值 5 语料端到端实测 (roadmap 1-4-2, 模式 C): flask / express /
+  petclinic / django / drupal 覆盖大小梯度 × 语言多样性。磁盘 ≤50%: 4/5 通过
+  (express 118% 失败 — 小项目 vec0 shadow tables 固定开销占比失真;
+  flask/django Δ=0 因 SQLite 页内复用空闲页; drupal 272 MB → 287 MB Δ=5.5%)。
+  首索引 ≤2×: 失败 — fastembed 串行 ~81 ms/文件，drupal 11 501 文件 →
+  18.4 min（结构索引 ~50 s）远超阈值。watch 单文件 ≤5 s: 通过 (81 ms)。
+  总裁决: 不推荐立即落地 P2 完整实现；推进必须改后台异步 + 增量懒算。
+  src 改动仅 `src/db/sqlite-adapter.ts` 加 `SqliteAdapterOptions.allowExtension`
+  (默认 false，为 1-4-3 铺路)；新增 `scripts/measure/embedding-baseline.mjs`
+  测量基础设施。Raw JSON: `evidence/raw/2026-10-26-p2-embedding-thresholds.json`。
 
 ## methods — methods, playbooks, and how-to guides
 

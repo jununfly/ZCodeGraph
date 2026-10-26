@@ -7,7 +7,7 @@
       "id": "1",
       "uid": "01a153ab9092-dc86bebc10",
       "label": "ZCodeGraph 能力汇集路线图",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": null,
       "children": [
@@ -118,7 +118,7 @@
       "id": "1-4",
       "uid": "01a153ac2642-c06d38cfcf",
       "label": "P2 可选本地混合语义检索",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -820,11 +820,37 @@
       "id": "1-4-1",
       "uid": "01a153ad8e0e-566bcd87f1",
       "label": "P2 立项前三问硬验收",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "立项三问硬验收的执行方式？",
+          "answer": "选 B：一次性 spike，独立 fixture tests/fixtures/embedding-probe/，不进 src/、不进 package.json 依赖；spike 完成后删除",
+          "note": ""
+        },
+        {
+          "q": "Q1 embedding 可内嵌 bundle（非 Ollama 外部进程）？",
+          "answer": "YES（带条件）。实测 fastembed+onnxruntime-node+BGE-small-en-v1.5：冷启动 173ms（≤500ms✅）、embed 69ms/query、内存峰值 263MB（超 200MB 门槛 63MB 但属一次性 init 接受）、runtime 单平台 35MB + 模型 64MB = 99MB（超 50MB 门槛）。**通过条件=模型不进 npm 包**：首次 index --with-embeddings 时按需下载到 .zcodegraph/models/（Ollama/llama.cpp/continue.dev 同模式），runtime 单平台 35MB ✅。发布必须按 os/cpu optional deps 拆分（esbuild/swc 模式），npm 默认拉全部 208MB 不可接受。",
+          "note": ""
+        },
+        {
+          "q": "Q3 status 六态是否需第七态/degraded 子原因？",
+          "answer": "NO 不需第七态。现有 RustHybridFallbackState 仅 4 态（healthy/partial/degraded/pending），非 roadmap 描述的 6 态。Embedding 6 种新失败模式（model-not-downloaded/download-failed/runtime-init-failed/vec0-load-failed/vec-schema-mismatch/stale）全部能映射到现有 4 态 + 子原因 key，走 fallbackReasonTaxonomy 现有 Record<string,number> 模式扩展，零 schema 变更。",
+          "note": ""
+        },
+        {
+          "q": "Q2 向量索引复用同一 SQLite+watcher（sqlite-vec）？",
+          "answer": "YES。实测 vec0.dll (282KB) 经 node:sqlite loadExtension 加载成功，vec_embeddings vec0 表与 nodes/edges 同库共存无冲突，KNN k=5 384 维查询 1.49ms，JOIN 跨表正常，WAL 模式下 vec0 与 nodes 交叉写入无锁冲突。⚠️ 关键约束：node:sqlite 默认禁扩展加载，DatabaseSync 构造必须加 { allowExtension: true }（涉及 src/db/sqlite-adapter.ts:56），且加载 vec0.dll 后立即 enableLoadExtension(false) 收紧。FileWatcher 无需为 vec0 加分支。",
+          "note": ""
+        },
+        {
+          "q": "立项判定",
+          "answer": "三问全过 → 建议立项 P2 可选本地混合语义检索。1-4-2 前置条件：(1) runtime 按 os/cpu optional deps 拆分发布 (2) sqlite-adapter.ts 加 allowExtension 选项默认 false (3) 模型按需下载到 .zcodegraph/models/ 支持 HF_ENDPOINT 镜像 (4) 6 个 embedding 子原因 key 落地 fallbackReasonTaxonomy。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
@@ -832,24 +858,42 @@
         "向量索引复用同一 SQLite+watcher（sqlite-vec）？",
         "status 六态是否需第七态/degraded 子原因？",
         "任一答否则不立项"
-      ]
+      ],
+      "rounds": 1
     },
     "1-4-2": {
       "id": "1-4-2",
       "uid": "01a153ad9678-b7cc387500",
       "label": "P2 量化阈值实测（5 语料端到端）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "5 语料组合 / 产出形态 / embedding 粒度？",
+          "answer": "Q1 语料：flask（小/Python）+ express（小/JS）+ petclinic（中/Java）+ django（中/Python）+ drupal（大/PHP），覆盖大小梯度×语言多样性。Q2 选 b：实测 + 最小可跑 pipeline——schema 扩展 vec_embeddings vec0 表 + index --with-embeddings CLI + 按文件增量 embed 钩子，端到端跑通 5 语料；watcher 集成 / status 第 7 态子原因 / MCP 语义检索入口留到 1-4-3+。Q3 按文件 embed（BGE-small 384 维），节点级留作 P2 后续优化；drupal 5000 文件 ≈ 7.7MB 向量可控。",
+          "note": ""
+        },
+        {
+          "q": "实施模式选 A/B/C？",
+          "answer": "选 C：A 的端到端跑通 + B 的最小 src 改动。具体边界：(1) src 改动仅 sqlite-adapter.ts 加 allowExtension 构造选项默认 false——为 1-4-3 铺路但不完整实现；(2) embedding pipeline（fastembed + vec0.dll + 模型下载 + 按文件 embed + 写入 vec_embeddings）全部在外部 fixture .tmp/embedding-baseline/ 完成，不动 schema.sql / bin CLI / package.json optionalDeps；(3) scripts/measure/embedding-baseline.mjs 作为新测量基础设施进主仓（与 1-1-3 决策一致），不动产品代码；(4) 端到端跑通 = 5 语料真实 DB 上 loadExtension vec0 + embed + 写 vec_embeddings + KNN 查询验证。",
+          "note": ""
+        },
+        {
+          "q": "5 语料阈值实测结果与推进裁决？",
+          "answer": "exit_criteria 判定：(1) 磁盘 ≤50% — 4/5 通过，express 118% 失败（小项目分母失真：51 文件 / 1MB baseline，vec0 shadow tables 固定 ~1.2MB 开销）；(2) 首次索引 ≤2× — 失败，fastembed 串行 ~81ms/文件，drupal 11501 文件 → 18.4 min（结构索引 ~50s），10-20× 远超阈值；(3) watch 单文件 ≤5s — 通过（单文件 embed ≈81ms）。总裁决：不推荐立即落地 P2 完整实现，硬阻塞是首次索引时间；若推进必须改成后台异步 + 增量懒算（不在 index 主路径）。两条反直觉发现：(a) flask/django Δ=0 因 SQLite 页内复用空闲页；(b) express Δ=118% 因 vec0 shadow tables 固定开销对小项目占比失真。详见 docs/evidence/2026-10-26-p2-embedding-thresholds.md。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "exit_criteria": [
         "额外磁盘 ≤ 纯结构索引体积 50%",
         "首次索引时间增幅 ≤2×",
         "watch 单文件增量 ≤5s"
-      ]
+      ],
+      "rounds": 1
     },
     "1-2-7": {
       "id": "1-2-7",
@@ -1695,7 +1739,7 @@
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-26 15:45:25",
+    "updated": "2026-10-26 17:08:25",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [

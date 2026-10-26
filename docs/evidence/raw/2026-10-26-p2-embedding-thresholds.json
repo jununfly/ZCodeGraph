@@ -1,0 +1,306 @@
+{
+  "results": [
+    {
+      "metric": "embedding-baseline",
+      "repo": "pallets-flask",
+      "measuredAt": "2026-10-26T08:46:07.605Z",
+      "value": {
+        "corpus": "pallets-flask",
+        "filesTotal": 84,
+        "embedded": 81,
+        "skipped": 3,
+        "skippedReasons": {
+          "empty": 3
+        },
+        "timings": {
+          "openMs": 2,
+          "initMs": 101,
+          "embedAllMs": 6606,
+          "perFileAvgMs": 80.83,
+          "selfKnnMs": 0,
+          "embedWallMs": 7120
+        },
+        "disk": {
+          "before": {
+            "db": 4460544,
+            "wal": 0,
+            "shm": 0,
+            "total": 4460544
+          },
+          "after": {
+            "db": 4460544,
+            "wal": 0,
+            "shm": 0,
+            "total": 4460544
+          },
+          "deltaBytes": 0,
+          "deltaPct": 0,
+          "thresholdPct": 50,
+          "pass50Pct": true
+        },
+        "selfKnnDistance": 0
+      },
+      "evidence": {
+        "corpusDir": "C:\\workspace\\measure-corpus\\pallets-flask",
+        "sourceDb": "C:\\workspace\\measure-corpus\\pallets-flask\\.zcodegraph\\zcodegraph.db",
+        "workDb": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\.work\\pallets-flask\\zcodegraph.db",
+        "vec0": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\vec0.dll",
+        "embedScript": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\embed-and-write.mjs"
+      }
+    },
+    {
+      "metric": "embedding-baseline",
+      "repo": "expressjs-express",
+      "measuredAt": "2026-10-26T08:46:13.090Z",
+      "value": {
+        "corpus": "expressjs-express",
+        "filesTotal": 51,
+        "embedded": 51,
+        "skipped": 0,
+        "skippedReasons": {},
+        "timings": {
+          "openMs": 4,
+          "initMs": 145,
+          "embedAllMs": 4879,
+          "perFileAvgMs": 80.96,
+          "selfKnnMs": 0,
+          "embedWallMs": 5476
+        },
+        "disk": {
+          "before": {
+            "db": 1060864,
+            "wal": 0,
+            "shm": 0,
+            "total": 1060864
+          },
+          "after": {
+            "db": 2314240,
+            "wal": 0,
+            "shm": 0,
+            "total": 2314240
+          },
+          "deltaBytes": 1253376,
+          "deltaPct": 118.1,
+          "thresholdPct": 50,
+          "pass50Pct": false
+        },
+        "selfKnnDistance": 0
+      },
+      "evidence": {
+        "corpusDir": "C:\\workspace\\measure-corpus\\expressjs-express",
+        "sourceDb": "C:\\workspace\\measure-corpus\\expressjs-express\\.zcodegraph\\zcodegraph.db",
+        "workDb": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\.work\\expressjs-express\\zcodegraph.db",
+        "vec0": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\vec0.dll",
+        "embedScript": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\embed-and-write.mjs"
+      }
+    },
+    {
+      "metric": "embedding-baseline",
+      "repo": "spring-projects-spring-petclinic",
+      "measuredAt": "2026-10-26T08:46:19.930Z",
+      "value": {
+        "corpus": "spring-projects-spring-petclinic",
+        "filesTotal": 69,
+        "embedded": 69,
+        "skipped": 0,
+        "skippedReasons": {},
+        "timings": {
+          "openMs": 4,
+          "initMs": 144,
+          "embedAllMs": 6232,
+          "perFileAvgMs": 81.51,
+          "selfKnnMs": 0,
+          "embedWallMs": 6832
+        },
+        "disk": {
+          "before": {
+            "db": 2826240,
+            "wal": 0,
+            "shm": 0,
+            "total": 2826240
+          },
+          "after": {
+            "db": 3379200,
+            "wal": 0,
+            "shm": 0,
+            "total": 3379200
+          },
+          "deltaBytes": 552960,
+          "deltaPct": 19.6,
+          "thresholdPct": 50,
+          "pass50Pct": true
+        },
+        "selfKnnDistance": 0
+      },
+      "evidence": {
+        "corpusDir": "C:\\workspace\\measure-corpus\\spring-projects-spring-petclinic",
+        "sourceDb": "C:\\workspace\\measure-corpus\\spring-projects-spring-petclinic\\.zcodegraph\\zcodegraph.db",
+        "workDb": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\.work\\spring-projects-spring-petclinic\\zcodegraph.db",
+        "vec0": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\vec0.dll",
+        "embedScript": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\embed-and-write.mjs"
+      }
+    },
+    {
+      "metric": "embedding-baseline",
+      "repo": "django-django",
+      "measuredAt": "2026-10-26T08:47:38.053Z",
+      "value": {
+        "corpus": "django-django",
+        "filesTotal": 999,
+        "embedded": 850,
+        "skipped": 149,
+        "skippedReasons": {
+          "empty": 149
+        },
+        "timings": {
+          "openMs": 4,
+          "initMs": 139,
+          "embedAllMs": 77501,
+          "perFileAvgMs": 80.71,
+          "selfKnnMs": 2,
+          "embedWallMs": 78098
+        },
+        "disk": {
+          "before": {
+            "db": 43335680,
+            "wal": 0,
+            "shm": 0,
+            "total": 43335680
+          },
+          "after": {
+            "db": 43335680,
+            "wal": 0,
+            "shm": 0,
+            "total": 43335680
+          },
+          "deltaBytes": 0,
+          "deltaPct": 0,
+          "thresholdPct": 50,
+          "pass50Pct": true
+        },
+        "selfKnnDistance": 0
+      },
+      "evidence": {
+        "corpusDir": "C:\\workspace\\measure-corpus\\django-django",
+        "sourceDb": "C:\\workspace\\measure-corpus\\django-django\\.zcodegraph\\zcodegraph.db",
+        "workDb": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\.work\\django-django\\zcodegraph.db",
+        "vec0": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\vec0.dll",
+        "embedScript": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\embed-and-write.mjs"
+      }
+    },
+    {
+      "metric": "embedding-baseline",
+      "repo": "drupal-drupal",
+      "measuredAt": "2026-10-26T09:06:04.394Z",
+      "value": {
+        "corpus": "drupal-drupal",
+        "filesTotal": 11501,
+        "embedded": 11494,
+        "skipped": 7,
+        "skippedReasons": {
+          "empty": 7
+        },
+        "timings": {
+          "openMs": 6,
+          "initMs": 153,
+          "embedAllMs": 1105591,
+          "perFileAvgMs": 81.53,
+          "selfKnnMs": 16,
+          "embedWallMs": 1106223
+        },
+        "disk": {
+          "before": {
+            "db": 272023552,
+            "wal": 0,
+            "shm": 0,
+            "total": 272023552
+          },
+          "after": {
+            "db": 286928896,
+            "wal": 0,
+            "shm": 0,
+            "total": 286928896
+          },
+          "deltaBytes": 14905344,
+          "deltaPct": 5.5,
+          "thresholdPct": 50,
+          "pass50Pct": true
+        },
+        "selfKnnDistance": 0
+      },
+      "evidence": {
+        "corpusDir": "C:\\workspace\\measure-corpus\\drupal-drupal",
+        "sourceDb": "C:\\workspace\\measure-corpus\\drupal-drupal\\.zcodegraph\\zcodegraph.db",
+        "workDb": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\.work\\drupal-drupal\\zcodegraph.db",
+        "vec0": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\vec0.dll",
+        "embedScript": "C:\\workspace\\github\\jununfly\\ZCodeGraph\\.tmp\\embedding-baseline\\embed-and-write.mjs"
+      }
+    }
+  ],
+  "summary": {
+    "metric": "embedding-baseline-summary",
+    "measuredAt": "2026-10-26T09:06:04.394Z",
+    "corpora": [
+      {
+        "corpus": "pallets-flask",
+        "filesTotal": 84,
+        "embedded": 81,
+        "embedWallMs": 7120,
+        "perFileAvgMs": 80.83,
+        "diskDeltaBytes": 0,
+        "diskDeltaPct": 0,
+        "pass50Pct": true,
+        "baselineTotalBytes": 4460544,
+        "postEmbedTotalBytes": 4460544
+      },
+      {
+        "corpus": "expressjs-express",
+        "filesTotal": 51,
+        "embedded": 51,
+        "embedWallMs": 5476,
+        "perFileAvgMs": 80.96,
+        "diskDeltaBytes": 1253376,
+        "diskDeltaPct": 118.1,
+        "pass50Pct": false,
+        "baselineTotalBytes": 1060864,
+        "postEmbedTotalBytes": 2314240
+      },
+      {
+        "corpus": "spring-projects-spring-petclinic",
+        "filesTotal": 69,
+        "embedded": 69,
+        "embedWallMs": 6832,
+        "perFileAvgMs": 81.51,
+        "diskDeltaBytes": 552960,
+        "diskDeltaPct": 19.6,
+        "pass50Pct": true,
+        "baselineTotalBytes": 2826240,
+        "postEmbedTotalBytes": 3379200
+      },
+      {
+        "corpus": "django-django",
+        "filesTotal": 999,
+        "embedded": 850,
+        "embedWallMs": 78098,
+        "perFileAvgMs": 80.71,
+        "diskDeltaBytes": 0,
+        "diskDeltaPct": 0,
+        "pass50Pct": true,
+        "baselineTotalBytes": 43335680,
+        "postEmbedTotalBytes": 43335680
+      },
+      {
+        "corpus": "drupal-drupal",
+        "filesTotal": 11501,
+        "embedded": 11494,
+        "embedWallMs": 1106223,
+        "perFileAvgMs": 81.53,
+        "diskDeltaBytes": 14905344,
+        "diskDeltaPct": 5.5,
+        "pass50Pct": true,
+        "baselineTotalBytes": 272023552,
+        "postEmbedTotalBytes": 286928896
+      }
+    ]
+  }
+}
