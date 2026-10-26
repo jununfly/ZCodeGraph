@@ -273,11 +273,28 @@ function attributeBlockStartIndex(content: string, functionKeywordIndex: number)
 }
 
 /**
+ * One PHP attribute group (`#[Foo]`, `#[Foo(bar: 1)]`), tolerating a nested
+ * bracket level inside the body (`#[Foo([1, 2])]`).
+ *
+ * Needed by Strategy A because a hook implementation may carry attributes
+ * BETWEEN the `Implements hook_X().` docblock and the `function` keyword:
+ *
+ *   /** Implements hook_requirements(). *\/
+ *   #[MarkFutureUpdateEquivalent(110001, '11.0.0')]
+ *   function mymodule_requirements() {}
+ *
+ * (the escaping above is for this comment only). Attributes are folded into the
+ * `function_definition` node by tree-sitter, so they are part of the symbol —
+ * Strategy A has to step over them to reach the function it documents.
+ */
+const PHP_ATTRIBUTE = String.raw`\#\[(?:[^\[\]]|\[(?:[^\[\]]|\[[^\[\]])*\])*\]`;
+
+/**
  * Extract hook implementation references from a Drupal PHP file.
  *
  * Strategy A (primary): look for docblocks containing `Implements hook_X().`
- * followed immediately by the function definition. This is the Drupal coding
- * standard and is precise.
+ * followed by the function definition (optionally via PHP attributes). This is
+ * the Drupal coding standard and is precise.
  *
  * Strategy B (fallback): for functions whose name starts with `{moduleName}_`,
  * treat the suffix as the hook name. Catches hooks without docblocks but may
@@ -293,10 +310,17 @@ function extractDrupalHooks(
 ): { nodes: Node[]; references: UnresolvedRef[] } {
   const references: UnresolvedRef[] = [];
 
-  // Build a map of function name → 1-indexed line number for all top-level functions.
+  // Build a map of function name → 1-indexed line number for all named functions.
   // This mirrors tree-sitter's line numbering so we can reconstruct node IDs.
+  //
+  // Leading indentation is allowed because Drupal test modules declare update
+  // hooks INSIDE a conditional (`if (\Drupal::state()->get(...)) { … }`) so the
+  // module can toggle them at runtime; the Rust core emits those nested
+  // `function_definition`s as ordinary `function` nodes, so they must be
+  // indexable here too. A leading modifier (`public function …`) never matches,
+  // so methods are not misread as functions.
   const funcLineMap = new Map<string, number>();
-  const funcDef = /^function\s+(\w+)\s*\(/gm;
+  const funcDef = /^[ \t]*function\s+(\w+)\s*\(/gm;
   let fm: RegExpExecArray | null;
   while ((fm = funcDef.exec(content)) !== null) {
     const name = fm[1]!;
@@ -327,9 +351,15 @@ function extractDrupalHooks(
   };
 
   // Strategy A: docblock `Implements hook_X().` followed by function definition.
-  // The docblock and function may be separated by blank lines.
-  const docblockPattern =
-    /\/\*\*[\s\S]*?(?:@|\*\s+)Implements\s+(hook_\w+)\s*\(\)[\s\S]*?\*\/\s*\n(?:\s*\n)*function\s+(\w+)\s*\(/g;
+  // The docblock and function may be separated by blank lines and/or by PHP
+  // attribute groups (`#[...]`) — attributes belong to the function_definition
+  // node, so an attributed hook is still "the function this docblock documents".
+  const docblockPattern = new RegExp(
+    String.raw`\/\*\*[\s\S]*?(?:@|\*\s+)Implements\s+(hook_\w+)\s*\(\)[\s\S]*?\*\/\s*(?:` +
+      PHP_ATTRIBUTE +
+      String.raw`\s*)*function\s+(\w+)\s*\(`,
+    'g'
+  );
   const docblockMatched = new Set<string>();
   let match: RegExpExecArray | null;
   while ((match = docblockPattern.exec(content)) !== null) {

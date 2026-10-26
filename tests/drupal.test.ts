@@ -483,6 +483,124 @@ function mymodule_after_array(): void {
       generateNodeId(MODULE_PATH, 'function', 'mymodule_after_array', 3),
     );
   });
+
+  // --- Strategy A reaching past a PHP attribute (drupal FK gate follow-up) --
+  // A hook implementation may carry attributes BETWEEN the `Implements hook_X().`
+  // docblock and the `function` keyword. The old Strategy A pattern required the
+  // keyword to come straight after `*/`, so such hooks were only ever caught by
+  // Strategy B's `{module}_` name guess — which misses every implementation whose
+  // function name does not carry the module prefix (e.g. `*.post_update.php`,
+  // where moduleNameFromPath yields `…post_update`). Strategy A now steps over
+  // attribute groups, so the docblock is authoritative again.
+
+  it('matches a docblock hook when a PHP attribute sits between docblock and function', () => {
+    // `not_prefixed_thing` deliberately lacks the `mymodule_` prefix so only
+    // Strategy A can produce this ref.
+    const src = `<?php
+
+/**
+ * Implements hook_thing().
+ */
+#[MarkFutureUpdateEquivalent(110001, '11.0.0')]
+function not_prefixed_thing(): void {
+}
+`;
+    const { references } = drupalResolver.extract!(MODULE_PATH, src);
+    const hookRefs = references.filter((r) => r.referenceName === 'hook_thing');
+    expect(hookRefs).toHaveLength(1);
+    // The attribute opens on line 6 and is folded into the function node.
+    expect(hookRefs[0]!.fromNodeId).toBe(
+      generateNodeId(MODULE_PATH, 'function', 'not_prefixed_thing', 6),
+    );
+  });
+
+  it('matches a docblock hook across a stacked attribute block', () => {
+    const src = `<?php
+
+/**
+ * Implements hook_stacked().
+ */
+#[A]
+#[B]
+function other_stacked(): void {
+}
+`;
+    const { references } = drupalResolver.extract!(MODULE_PATH, src);
+    const hookRefs = references.filter((r) => r.referenceName === 'hook_stacked');
+    expect(hookRefs).toHaveLength(1);
+    // `#[A]` opens on line 6 — the first attribute anchors the node id.
+    expect(hookRefs[0]!.fromNodeId).toBe(
+      generateNodeId(MODULE_PATH, 'function', 'other_stacked', 6),
+    );
+  });
+
+  it('matches a docblock hook across a multi-line attribute body with nested brackets', () => {
+    const src = `<?php
+
+/**
+ * Implements hook_mlattr().
+ */
+#[Attr(
+  foo: 1,
+  bar: [1, 2]
+)]
+function other_mlattr(): void {
+}
+`;
+    const { references } = drupalResolver.extract!(MODULE_PATH, src);
+    const hookRefs = references.filter((r) => r.referenceName === 'hook_mlattr');
+    expect(hookRefs).toHaveLength(1);
+    // `#[Attr(` opens on line 6; the nested `[1, 2]` must not terminate the group.
+    expect(hookRefs[0]!.fromNodeId).toBe(
+      generateNodeId(MODULE_PATH, 'function', 'other_mlattr', 6),
+    );
+  });
+
+  it('indexes a hook implementation nested inside a conditional block', () => {
+    // Drupal test modules wrap update hooks in `if (\Drupal::state()->get(...))`
+    // so they can be toggled at runtime; the Rust core still emits them as
+    // top-level-kind `function` nodes, so the resolver must reach them.
+    const src = `<?php
+
+if (\\Drupal::state()->get('mymodule.last_removed', FALSE)) {
+
+  /**
+   * Implements hook_update_last_removed().
+   */
+  function mymodule_update_last_removed(): int {
+    return 100000;
+  }
+
+}
+`;
+    const { references } = drupalResolver.extract!(MODULE_PATH, src);
+    const hookRefs = references.filter(
+      (r) => r.referenceName === 'hook_update_last_removed',
+    );
+    expect(hookRefs).toHaveLength(1);
+    // `function …` is on line 8 (no attribute, indentation only).
+    expect(hookRefs[0]!.fromNodeId).toBe(
+      generateNodeId(MODULE_PATH, 'function', 'mymodule_update_last_removed', 8),
+    );
+  });
+
+  it('does not leap a non-attribute statement between docblock and function', () => {
+    // `$x = [1, 2];` is not an attribute, so Strategy A must not claim the
+    // following function; Strategy B cannot either (no `mymodule_` prefix).
+    const src = `<?php
+
+/**
+ * Implements hook_guard().
+ */
+$x = [1, 2];
+function other_guard(): void {
+}
+`;
+    const { references } = drupalResolver.extract!(MODULE_PATH, src);
+    expect(
+      references.filter((r) => r.referenceName === 'hook_guard'),
+    ).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
