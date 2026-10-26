@@ -331,9 +331,7 @@ describe('zcodegraph visualize --since (history timeline)', () => {
     }
   });
 
-  it(
-    'visualize --since HEAD~N produces a history HTML with N+1 commits embedded, timeline controls, and union data',
-    () => {
+  it('visualize --since HEAD~N produces a history HTML with N+1 commits embedded, timeline controls, and union data', () => {
       if (!binReady) return;
       historyHtmlPath = path.join(fixtureRoot, '.zcodegraph', 'visualize-history.html');
       const since = `HEAD~${NUM_COMMITS - 1}`;
@@ -383,9 +381,7 @@ describe('zcodegraph visualize --since (history timeline)', () => {
     600_000,
   );
 
-  it(
-    'history IR contains exactly N commits in oldest-first order with real SHAs from git log',
-    () => {
+  it('history IR contains exactly N commits in oldest-first order with real SHAs from git log', () => {
       if (!binReady || !historyHtml) return;
       const dataMatch = historyHtml.match(
         /var DATA = (\{[\s\S]*?\});\s*\n\s*var KIND_COLORS/,
@@ -420,9 +416,7 @@ describe('zcodegraph visualize --since (history timeline)', () => {
     30_000,
   );
 
-  it(
-    'union sets include symbols that appear (helperV2, divide) and disappear (utilThing) across the range',
-    () => {
+  it('union sets include symbols that appear (helperV2, divide) and disappear (utilThing) across the range', () => {
       if (!binReady || !historyHtml) return;
       const dataMatch = historyHtml.match(
         /var DATA = (\{[\s\S]*?\});\s*\n\s*var KIND_COLORS/,
@@ -461,9 +455,7 @@ describe('zcodegraph visualize --since (history timeline)', () => {
     30_000,
   );
 
-  it(
-    'history HTML size is bounded by union+presence, not by N × per-commit IR',
-    () => {
+  it('history HTML size is bounded by union+presence, not by N × per-commit IR', () => {
       if (!binReady || !historyHtml) return;
       // The size regression guard: commits[] must NOT carry per-commit
       // allNodes/allEdges/nodes/edges (the 84% duplication measured on
@@ -502,9 +494,7 @@ describe('zcodegraph visualize --since (history timeline)', () => {
     30_000,
   );
 
-  it(
-    'rejects --since combined with --filter (loud error, no silent data drop)',
-    () => {
+  it('rejects --since combined with --filter (loud error, no silent data drop)', () => {
       if (!binReady) return;
       const result = runCli(
         ['visualize', '--since', 'HEAD~2', '--filter', 'src/**'],
@@ -517,9 +507,7 @@ describe('zcodegraph visualize --since (history timeline)', () => {
     30_000,
   );
 
-  it(
-    'rejects --since on a non-git directory with a clear error',
-    () => {
+  it('rejects --since on a non-git directory with a clear error', () => {
       if (!binReady) return;
       const notGit = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-visualize-nogit-'));
       try {
