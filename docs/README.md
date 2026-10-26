@@ -20,7 +20,7 @@
 | Decision | [`decisions/`](decisions/) | primary | 8 |
 | Contract | [`contracts/`](contracts/) | primary | 13 |
 | Ledger | [`ledgers/`](ledgers/) | supporting | 8 |
-| Evidence | [`evidence/`](evidence/) | historical | 42 |
+| Evidence | [`evidence/`](evidence/) | historical | 43 |
 | Method | [`methods/`](methods/) | primary / supporting | 9 |
 | Plan | [`plans/`](plans/) | process | 0 (empty after 2026-10-19 closeout) |
 
@@ -46,6 +46,7 @@ attributes, relationships, hard rules (`primary`, ONT-docs-ontology-v1).
 | ADR-0006 | [ZJ-0006-lazy-sqlite-corruption-recovery.md](decisions/ZJ-0006-lazy-sqlite-corruption-recovery.md) | How does the MCP daemon recover stale/corrupt SQLite handles? |
 | ADR-0007 | [ZJ-0007-three-tier-fallback-health-state.md](decisions/ZJ-0007-three-tier-fallback-health-state.md) | How are expected fallbacks distinguished from real gaps? |
 | ADR-0008 | [ZJ-0008-merge-init-into-index.md](decisions/ZJ-0008-merge-init-into-index.md) | Should `init` be hard-merged into `index` with auto-bootstrap? |
+| ADR-0009 | [ZJ-0009-async-embedding-pipeline.md](decisions/ZJ-0009-async-embedding-pipeline.md) | How is P2 embedding made asynchronous + lazy-incremental? |
 
 ## contracts — primary normative contracts
 
@@ -299,6 +300,16 @@ Per-language real-corpus validation, ordered by date:
   src 改动仅 `src/db/sqlite-adapter.ts` 加 `SqliteAdapterOptions.allowExtension`
   (默认 false，为 1-4-3 铺路)；新增 `scripts/measure/embedding-baseline.mjs`
   测量基础设施。Raw JSON: `evidence/raw/2026-10-26-p2-embedding-thresholds.json`。
+- [2026-10-26-p2-async-embedding-hard-floor.md](evidence/2026-10-26-p2-async-embedding-hard-floor.md)
+  — 1-4-28 P2 异步嵌入管线**硬底盘**落地：schema v6 新增 `embedding_queue`
+  表（同库 WAL，PK=(file_path, content_hash)），`src/embedding/queue.ts`
+  提供 enqueue/claim/done/fail/resetStale 全套 API；fallback-summary 扩展
+  5 个 embedding 子原因 key + `embeddingProfile` 参数；状态机引入
+  `EMBEDDING_PARTIAL_REASON_CODES` 让 `embedding-stale` 走 partial 而非 degraded。
+  `vec_embeddings` 故意不进 schema.sql（vec0 是可选扩展，须等 worker 启动时
+  按需 CREATE VIRTUAL TABLE）。worker / 三触发点 / CLI flag 切到 1-4-29。
+  验收：27/27（embedding-queue 10 + fallback-summary 14 + schema-evolution 3）
+  + 相邻 fallback 套件 19/19 + skip-debt-guardrail 4/4 + tsc 0 errors。
 
 ## methods — methods, playbooks, and how-to guides
 

@@ -124,7 +124,9 @@
       "children": [
         "1-4-1",
         "1-4-2",
-        "1-4-27"
+        "1-4-27",
+        "1-4-28",
+        "1-4-29"
       ],
       "decisions": [
         {
@@ -1741,7 +1743,7 @@
       "id": "1-4-27",
       "uid": "01a1777f07e7-dfa22d7818",
       "label": "P2 异步嵌入管线设计（承接 1-4-2 实测阻塞）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-4",
       "children": [],
@@ -1749,6 +1751,36 @@
         {
           "q": "为什么需要 1-4-27 而不是直接落 P2 实现？",
           "answer": "1-4-2 实测给出硬阻塞：fastembed 串行 ~81ms/文件，drupal 11501 文件 → 18.4 min，远超首索引 ≤2× 阈值。同步嵌入塞进 index 主路径不可行。本节点承接设计：把嵌入改造为后台异步 + 增量懒算，让结构索引不被嵌入阻塞。设计产物是 1-4-4+ 实施的输入。",
+          "note": ""
+        },
+        {
+          "q": "Q1: 嵌入队列持久化介质选什么？",
+          "answer": "选 SQLite 同库队列表（不选独立 daemon / 不选 Redis / 不选文件系统队列）。理由：(a) 与 nodes/edges/vec_embeddings 同库 → 单事务保证「结构写+嵌入 pending」原子入队，崩溃恢复零代码；(b) 复用现有 WAL + FileLock（src/sync/watcher.ts:120 LockUnavailableError）多写者并发保护；(c) 不需要新进程模型——MCP server 进程内嵌 worker 即可；(d) 排查/恢复用 SQL 一行查清。代价：单写者吞吐受 SQLite WAL 限制（实测嵌入 81ms/文件 ≪ WAL 写瓶颈 ~1ms/行，远未到顶）。daemon 仅在需要跨进程复用 worker 时再升级。",
+          "note": ""
+        },
+        {
+          "q": "Q2: 嵌入 worker 运行在哪？",
+          "answer": "选「MCP server 进程内嵌 + 独立 worker thread」（不选 CLI index 子进程 / 不选独立 daemon 进程 / 不选 setImmediate 同步调度）。理由：(a) MCP server 是长驻进程，生命周期覆盖嵌入这种长任务；CLI index 是短任务，把嵌入塞进去违背「不阻塞 index 主路径」核心约束。(b) Node worker_threads 提供真正并行（onnxruntime 是 CPU-bound，单线程事件循环会饿死 MCP 请求）；(c) 主进程通过 queue 表与 worker 解耦，崩溃重启后 SELECT status='pending' 直接续跑；(d) 对比 daemon：少一层 IPC（unix socket / named pipe），少一类「daemon 死了但 DB 还锁着」的故障模式。代价：MCP server 内存 +264MB（fastembed init），通过「懒启动」缓解——首次有 pending 任务才 fork worker。",
+          "note": ""
+        },
+        {
+          "q": "Q3: 增量懒算触发策略选哪几个？",
+          "answer": "选「三触发点并存，按优先级倒序」：(1) 显式 CLI （批量同步收口，主要给 CI/首次落地用；本身异步，立即返回，由后台 worker 跑）；(2) FileWatcher sync 完成后由 sync 钩子 enqueue 变更文件（main 路径，覆盖日常编码）；(3) MCP semantic_search 调用时对 missed file 做 read-repair 同步 embed（兜底，解决「watch 期间未启动 MCP server」的盲区）。**否决「纯 watch」**：watch 只在 MCP server 启动期间有效；用户连续 CLI-only 工作流下嵌入会无限滞后。**否决「纯 read-repair」**：搜索路径上同步 embed 81ms 会拖慢首次查询，违反 UX。三触发点在 embedding_queue 表上靠 (file_path, content_hash) 唯一约束去重，重复 enqueue 是 no-op。",
+          "note": ""
+        },
+        {
+          "q": "Q4: 嵌入失败 6 子原因 key 如何接入 fallbackReasonTaxonomy？",
+          "answer": "扩展 FALLBACK_REASON_LABELS 新增 6 个 key（沿用 1-4-1 Q3 表）：embedding-model-not-downloaded / embedding-model-download-failed / embedding-runtime-init-failed / embedding-vec0-load-failed / embedding-vec-schema-mismatch / embedding-stale。接口设计：buildRustHybridFallbackSummary 接收 embeddingProfile?: { embeddingFailures?: Record<EmbeddingFailCode, number> }，在 line 137-141 那个 for err of input.errors 之后追加第二趟循环把 embeddingFailures 合并进 fallbackReasonTaxonomy。状态影响：not-downloaded→pending 不进 taxonomy（健康词汇已含 pending）；download-failed/runtime-init-failed/vec0-load-failed/vec-schema-mismatch→degraded；stale→partial。零 schema 变更——taxonomy 本来就是 Record<string, number>。",
+          "note": ""
+        },
+        {
+          "q": "Q5: vec_embeddings 与 embedding_queue 的 v0 schema 字段定什么？",
+          "answer": "vec_embeddings（沿用 1-4-2 spike 已实测的 vec0 虚拟表）：file_path TEXT PRIMARY KEY, embedding FLOAT[384], content_hash TEXT NOT NULL, model_version TEXT NOT NULL, embedded_at INTEGER NOT NULL。embedding_queue（新增普通表）：file_path TEXT NOT NULL, content_hash TEXT NOT NULL, status TEXT CHECK(status IN ('pending','in_progress','done','failed')) NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT, model_version TEXT, enqueued_at INTEGER NOT NULL, started_at INTEGER, finished_at INTEGER, PRIMARY KEY (file_path, content_hash)。索引：idx_queue_status_started (status, started_at) 供 worker 拉取/超时恢复，idx_queue_enqueued (enqueued_at) 供 FIFO。关键不变量：content_hash 进 PRIMARY KEY 让「同文件不同 hash」自然成为新任务；file_path 不单独唯一，允许同一文件历史多版本（旧版本 status='done'，新版本 status='pending' 并存，cleanup 任务异步回收）。",
+          "note": ""
+        },
+        {
+          "q": "Q6: 首索引时间预测模型怎么定？",
+          "answer": "目标：drupal（11501 文件）在异步嵌入模式下，结构索引 ~50s 不被嵌入阻塞。模型：T_index = T_structural + T_enqueue_overhead + T_worker_startup (懒启动，仅当 withEmbeddings=true)。T_structural ≈ 50s（1-4-2 baseline 实测）。T_enqueue_overhead = N_files × T_insert，T_insert 实测 SQLite WAL 单行 INSERT ~0.1ms → 11501 × 0.1ms ≈ 1.2s。T_worker_startup = fork thread + fastembed init ≈ 173ms (1-4-1 冷启动) + ~50ms thread fork ≈ 223ms，且这是异步非阻塞。结论：T_index ≈ 51.5s ≪ 100s（2× 阈值）✅。嵌入真实完成时间 T_embed = N × 81ms ≈ 15.5min（drupal），但这是后台异步，不阻塞 agent 用结构索引。回归验证：跑 5 语料测 (a) 结构索引 wall-clock 不增超 5%；(b) queue 表 pending 行数 = files 数；(c) worker 启动后台跑嵌入速率仍 ~81ms/文件。",
           "note": ""
         }
       ],
@@ -1760,12 +1792,54 @@
         "增量懒算触发策略：watch 事件 vs 显式 zcodegraph index --with-embeddings vs MCP search 时回填",
         "嵌入失败 6 子原因 key 接入 fallbackReasonTaxonomy 的接口设计",
         "v0 schema：vec_embeddings 表 + 嵌入状态表（pending/done/failed 三态 + model_version + last_embedded_at）"
-      ]
+      ],
+      "rounds": 1
+    },
+    "1-4-28": {
+      "id": "1-4-28",
+      "uid": "01a1778ed398-64aec356a7",
+      "label": "P2 异步嵌入管线 - 硬底盘（schema v6 + queue + taxonomy）",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [
+        {
+          "q": "范围与交付切分？",
+          "answer": "本节点（1-4-28）只做落地骨架：schema/queue/worker/三触发点接入/fallback 扩展，并配 e2e 测试。后续节点（1-4-29+）再做回归基准三件套（D6）+ CLI flag 文档 + benchmarks 文档。整个 P2 嵌入链不阻塞 index 主路径，全部走 ADR-0009 D1-D5 既定方案。",
+          "note": ""
+        },
+        {
+          "q": "fastembed 依赖策略？",
+          "answer": "主 package.json 不引入 fastembed/onnxruntime-node；worker 用 try-require 懒探测，缺失则队列项标 pending 不报错（对应 ADR-0009 Failure Modes 表第一行 embedding-model-not-downloaded）。1-4-2 spike 已验证 .tmp/embedding-baseline/ 独立安装路径可用。",
+          "note": ""
+        },
+        {
+          "q": "semantic_search 工具策略？",
+          "answer": "本节点不新增 zcodegraph_semantic_search 工具；read-repair 副作用后续挂在既有 zcodegraph_search 上（zero new tool surface，符合 schema-evolution-and-mcp-tool-cap-v1 Clause 2）。语义检索独立工具留到 1-4-29+ 再评估。",
+          "note": ""
+        }
+      ],
+      "notes": "切分自原 1-4-28 广义骨架：本节点只做 schema/queue/taxonomy 硬底盘，运行时 worker + 三触发点 + CLI flag 拆到 1-4-29。决策：worker 不内嵌 fastembed 依赖（懒探测），read-repair 挂 zcodegraph_search 不新增工具。",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-4-29": {
+      "id": "1-4-29",
+      "uid": "01a17792ae28-6c276d12cd",
+      "label": "P2 异步嵌入管线 - 运行时（worker + watcher 钩子 + read-repair + CLI flag）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan"
     }
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-26 17:17:55",
+    "updated": "2026-10-26 17:51:02",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
