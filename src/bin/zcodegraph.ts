@@ -2578,13 +2578,23 @@ program
   .option('-o, --out <path>', 'Output HTML path (default: <project>/.zcodegraph/visualize.html)')
   .option('-f, --filter <glob>', 'Only include nodes whose file_path matches this glob (e.g. "src/**")')
   .option('--max-nodes <n>', 'Hard cap on exported nodes (deterministic: order by id)')
-  .action(async (options: { path?: string; depth?: string; out?: string; filter?: string; maxNodes?: string }) => {
+  .option('--since <commit|date>', 'Build a per-commit history timeline (commit-ish or date)')
+  .option('--max-commits <n>', 'Cap on commits in --since mode (default 10)', '10')
+  .action(async (options: { path?: string; depth?: string; out?: string; filter?: string; maxNodes?: string; since?: string; maxCommits?: string }) => {
     const projectPath = resolveProjectPath(options.path);
 
     try {
-      if (!isInitialized(projectPath)) {
-        error(`CodeGraph not initialized in ${projectPath}`);
-        process.exit(1);
+      // Validate flag combinations BEFORE checking initialization so users
+      // get a precise error even on an uninitialized project.
+      if (options.since) {
+        if (options.filter) {
+          error(`--filter is not supported with --since. Index the full tree per commit.`);
+          process.exit(1);
+        }
+        if (options.maxNodes != null) {
+          error(`--max-nodes is not supported with --since. Use --max-commits to bound work.`);
+          process.exit(1);
+        }
       }
 
       const depthRaw = (options.depth || 'file').toLowerCase();
@@ -2604,19 +2614,77 @@ program
         maxNodes = n;
       }
 
-      const { buildSnapshot } = await import('../visualize/snapshot');
       const { renderSnapshotToHtml } = await import('../visualize/render');
 
+      const outPath = options.out
+        ? path.resolve(options.out)
+        : path.join(projectPath, '.zcodegraph', 'visualize.html');
+
+      if (options.since) {
+        // History/timeline mode (1-3-6): walk commits, index each one in an
+        // isolated extracted tree, emit a timeline-enabled HTML.
+        if (!isInitialized(projectPath)) {
+          error(`CodeGraph not initialized in ${projectPath}`);
+          process.exit(1);
+        }
+        let maxCommits = 10;
+        if (options.maxCommits != null) {
+          const n = parseInt(options.maxCommits, 10);
+          if (!Number.isFinite(n) || n <= 0) {
+            error(`--max-commits must be a positive integer, got "${options.maxCommits}"`);
+            process.exit(1);
+          }
+          maxCommits = n;
+        }
+
+        const { buildHistorySnapshot, resolveCliBin } = await import(
+          '../visualize/history-snapshot'
+        );
+        const { renderHistoryToHtml } = await import('../visualize/render-history');
+
+        const cliBin = resolveCliBin();
+        const startedAt = Date.now();
+        const history = await buildHistorySnapshot(projectPath, cliBin, {
+          since: options.since,
+          maxCommits,
+          depth,
+          initialView: depth,
+          onProgress: (cur, total, sha) => {
+            process.stderr.write(
+              `\r  [${cur}/${total}] ${sha.slice(0, 7)} indexing…\u001b[K`,
+            );
+          },
+        });
+        process.stderr.write('\n');
+
+        const written = renderHistoryToHtml(history, { outPath });
+
+        const failedCount = history.commits.filter((c) => c.indexingFailed).length;
+        const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+        console.log(chalk.bold(`\nHistory visualization written:`));
+        console.log('  ' + chalk.cyan(written));
+        console.log(
+          chalk.dim(
+            `  ${history.commits.length} commits · ${history.unionNodes.length} unique nodes · ${history.unionEdges.length} unique edges · depth=${depth} · ${elapsed}s` +
+              (failedCount > 0 ? ` · ${failedCount} commit(s) failed to index` : ''),
+          ),
+        );
+        console.log();
+        return;
+      }
+
+      // Single-shot mode (default).
+      if (!isInitialized(projectPath)) {
+        error(`CodeGraph not initialized in ${projectPath}`);
+        process.exit(1);
+      }
+      const { buildSnapshot } = await import('../visualize/snapshot');
       const snapshot = buildSnapshot(projectPath, {
         depth,
         initialView: depth,
         filter: options.filter,
         maxNodes,
       });
-
-      const outPath = options.out
-        ? path.resolve(options.out)
-        : path.join(projectPath, '.zcodegraph', 'visualize.html');
 
       const written = renderSnapshotToHtml(snapshot, { outPath });
 

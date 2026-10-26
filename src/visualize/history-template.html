@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ZCodeGraph — Visualize History</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --border: #d0d0d0;
+    --accent: #0066cc;
+    --panel-bg: #f7f7f7;
+    --panel-border: #e0e0e0;
+    --commit-bg: #eef4ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1e;
+      --fg: #e6e6e6;
+      --border: #3a3a3a;
+      --accent: #4da3ff;
+      --panel-bg: #252526;
+      --panel-border: #3a3a3a;
+      --commit-bg: #1f2a3a;
+    }
+  }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--fg);
+    font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+    overflow: hidden;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; }
+  #toolbar {
+    display: flex; gap: 8px; align-items: center;
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    background: var(--panel-bg); flex-wrap: wrap;
+  }
+  #toolbar input[type="search"] {
+    flex: 1; min-width: 200px; padding: 4px 8px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--fg);
+    border-radius: 3px; font-size: 13px;
+  }
+  #toolbar label {
+    display: inline-flex; gap: 4px; align-items: center;
+    padding: 2px 6px; border: 1px solid var(--border); border-radius: 3px;
+    background: var(--bg); cursor: pointer; user-select: none;
+    font-size: 12px;
+  }
+  #toolbar label input { margin: 0; }
+  #toolbar .group {
+    display: inline-flex; gap: 4px; align-items: center;
+    padding: 2px 4px; border: 1px solid var(--panel-border); border-radius: 3px;
+  }
+  #toolbar .group-label {
+    font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;
+    margin-right: 4px;
+  }
+  /* Timeline bar */
+  #timeline {
+    display: flex; gap: 12px; align-items: center;
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    background: var(--commit-bg);
+    font-size: 12px;
+  }
+  #timeline button {
+    padding: 4px 10px; border: 1px solid var(--border); border-radius: 3px;
+    background: var(--bg); color: var(--fg); cursor: pointer; font-size: 12px;
+    min-width: 56px;
+  }
+  #timeline button:hover { border-color: var(--accent); }
+  #timeline button.primary {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  #timeline input[type="range"] {
+    flex: 1; min-width: 200px;
+  }
+  #timeline .commit-info {
+    display: inline-flex; gap: 8px; align-items: baseline;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+  }
+  #timeline .commit-sha { color: var(--accent); font-weight: 600; }
+  #timeline .commit-subject {
+    color: var(--fg); max-width: 360px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; display: inline-block;
+  }
+  #timeline .commit-date { color: #888; }
+  #timeline .tick { color: #888; }
+  #timeline select {
+    padding: 3px 6px; border: 1px solid var(--border); border-radius: 3px;
+    background: var(--bg); color: var(--fg); font-size: 12px;
+  }
+  #main { display: flex; flex: 1; min-height: 0; }
+  #cy { flex: 1; min-width: 0; background: var(--bg); }
+  #sidebar {
+    width: 320px; min-width: 240px; border-left: 1px solid var(--border);
+    background: var(--panel-bg); overflow-y: auto; padding: 12px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  #sidebar h2 {
+    margin: 0 0 4px 0; font-size: 14px; font-weight: 600;
+    border-bottom: 1px solid var(--panel-border); padding-bottom: 4px;
+  }
+  #sidebar .meta { font-size: 12px; color: #888; }
+  #sidebar .row { display: flex; gap: 8px; font-size: 12px; margin: 2px 0; }
+  #sidebar .row dt { min-width: 90px; color: #888; margin: 0; }
+  #sidebar .row dd { margin: 0; flex: 1; word-break: break-all; }
+  #sidebar pre {
+    background: var(--bg); padding: 8px; border-radius: 3px;
+    overflow-x: auto; font-size: 11px; line-height: 1.4;
+    border: 1px solid var(--panel-border);
+  }
+  #stats {
+    padding: 4px 12px; font-size: 11px; color: #888;
+    border-top: 1px solid var(--border);
+    background: var(--panel-bg);
+    display: flex; gap: 16px;
+  }
+  #sidebar .empty { color: #888; font-style: italic; }
+  .legend-color {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    margin-right: 4px; vertical-align: middle;
+  }
+  /* Diff highlighting: nodes that JUST appeared/disappeared relative to the
+     previous commit get a transient glow. Implemented purely as a CSS class
+     on the Cytoscape node style, applied for ~600ms after a slider move. */
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <input id="search" type="search" placeholder="Search name or path (regex ok)..." />
+    <span class="group" id="view-group">
+      <span class="group-label">View</span>
+      <label><input type="radio" name="view" value="module" /> Module</label>
+      <label><input type="radio" name="view" value="class" /> Class</label>
+      <label><input type="radio" name="view" value="function" /> Function</label>
+    </span>
+    <span class="group" id="kinds-group">
+      <span class="group-label">Kinds</span>
+    </span>
+    <span class="group" id="edges-group">
+      <span class="group-label">Edges</span>
+    </span>
+    <span class="group">
+      <span class="group-label">Layout</span>
+      <label><input type="radio" name="layout" value="cose" checked /> Force</label>
+      <label><input type="radio" name="layout" value="breadthfirst" /> Tree</label>
+      <label><input type="radio" name="layout" value="circle" /> Circle</label>
+      <label><input type="radio" name="layout" value="grid" /> Grid</label>
+    </span>
+  </div>
+  <div id="timeline">
+    <button id="btn-prev" title="Previous commit (←)">◀ Prev</button>
+    <button id="btn-play" class="primary" title="Play/Pause (Space)">▶ Play</button>
+    <button id="btn-next" title="Next commit (→)">Next ▶</button>
+    <input id="slider" type="range" min="0" max="0" step="1" value="0" />
+    <span class="tick"><span id="cur-idx">0</span>/<span id="total-idx">0</span></span>
+    <span class="commit-info">
+      <span class="commit-sha" id="commit-sha"></span>
+      <span class="commit-subject" id="commit-subject"></span>
+      <span class="commit-date" id="commit-date"></span>
+    </span>
+    <label>
+      Speed
+      <select id="speed">
+        <option value="2000">0.5×</option>
+        <option value="1000" selected>1×</option>
+        <option value="500">2×</option>
+        <option value="250">4×</option>
+      </select>
+    </label>
+  </div>
+  <div id="main">
+    <div id="cy"></div>
+    <div id="sidebar">
+      <div>
+        <h2>Selection</h2>
+        <div id="selection" class="empty">Click a node to inspect.</div>
+      </div>
+      <div>
+        <h2>Legend</h2>
+        <div id="legend"></div>
+      </div>
+    </div>
+  </div>
+  <div id="stats">
+    <span id="stat-nodes"></span>
+    <span id="stat-edges"></span>
+    <span id="stat-depth"></span>
+    <span id="stat-source"></span>
+  </div>
+</div>
+
+<script>/* __CYTOSCAPE_SRC__ */</script>
+<script>
+(function () {
+  'use strict';
+  var DATA = /* __ZCODEGRAPH_HISTORY_DATA__ */ null;
+
+  var KIND_COLORS = {
+    file:      '#5B8FF9',
+    module:    '#5AD8A6',
+    class:     '#F6BD16',
+    struct:    '#F6BD16',
+    interface: '#9270CA',
+    trait:     '#9270CA',
+    protocol:  '#9270CA',
+    enum:      '#FF9D4D',
+    function:  '#269A99',
+    method:    '#269A99',
+    property:  '#FF99C3',
+    field:     '#FF99C3',
+    variable:  '#C2C8D5',
+    constant:  '#8B9BB4',
+    namespace: '#5AD8A6',
+    route:     '#E8684A',
+    component: '#6DC8EC',
+    parameter: '#B8B8B8',
+    import:    '#A8A8A8',
+    export:    '#A8A8A8',
+    type_alias:'#A8A8A8',
+    enum_member:'#FF9D4d',
+  };
+  var EDGE_COLORS = {
+    contains:     '#bbb',
+    calls:        '#E8684A',
+    imports:      '#5B8FF9',
+    exports:      '#5AD8A6',
+    extends:      '#9270CA',
+    implements:   '#FF9D4D',
+    references:   '#999',
+    type_of:      '#C2C8D5',
+    returns:      '#8B9BB4',
+    instantiates: '#F6BD16',
+    overrides:    '#269A99',
+    decorates:    '#FF99C3',
+  };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function kindColor(k) { return KIND_COLORS[k] || '#888'; }
+  function edgeColor(k) { return EDGE_COLORS[k] || '#ccc'; }
+  function fgColor() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? '#e6e6e6' : '#1a1a1a';
+  }
+  function bgColor() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? '#1e1e1e' : '#ffffff';
+  }
+
+  // Kinds from the UNION set so the toolbar exposes every kind anywhere in time.
+  var nodeKinds = [];
+  var edgeKinds = [];
+  var seenN = {}, seenE = {};
+  DATA.unionNodes.forEach(function (n) {
+    if (!seenN[n.kind]) { seenN[n.kind] = 1; nodeKinds.push(n.kind); }
+  });
+  DATA.unionEdges.forEach(function (e) {
+    if (!seenE[e.kind]) { seenE[e.kind] = 1; edgeKinds.push(e.kind); }
+  });
+  nodeKinds.sort(); edgeKinds.sort();
+
+  function buildCheckboxes(containerId, kinds, colorFn) {
+    var el = document.getElementById(containerId);
+    kinds.forEach(function (k) {
+      var label = document.createElement('label');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = true;
+      cb.setAttribute('data-kind', k);
+      var sw = document.createElement('span');
+      sw.className = 'legend-color';
+      sw.style.background = colorFn(k);
+      label.appendChild(cb);
+      label.appendChild(sw);
+      label.appendChild(document.createTextNode(k));
+      el.appendChild(label);
+    });
+  }
+  buildCheckboxes('kinds-group', nodeKinds, kindColor);
+  buildCheckboxes('edges-group', edgeKinds, edgeColor);
+
+  var legend = document.getElementById('legend');
+  nodeKinds.forEach(function (k) {
+    var div = document.createElement('div');
+    div.innerHTML = '<span class="legend-color" style="background:' + kindColor(k) + '"></span>' + esc(k);
+    legend.appendChild(div);
+  });
+
+  // --- Multi-view switcher (same as 1-3-5) --------------------------------
+  var VIEW_KIND_GROUPS = {
+    module:   ['file', 'module', 'namespace'],
+    class:    ['file', 'module', 'namespace', 'class', 'interface', 'struct', 'trait', 'protocol', 'enum'],
+    function: null
+  };
+  function viewFromDepth(d) {
+    if (d === 'file') return 'module';
+    if (d === 'class') return 'class';
+    return 'function';
+  }
+  var currentView = viewFromDepth(DATA.initialView || DATA.depth || 'file');
+  document.querySelectorAll('#view-group input[name=view]').forEach(function (rb) {
+    rb.checked = (rb.value === currentView);
+  });
+
+  // Build ALL elements from the UNION set, once. Visibility toggles by commit
+  // index. Node positions + viewport survive across timeline scrubbing.
+  function buildAllElements() {
+    var cyNodes = DATA.unionNodes.map(function (n) {
+      return {
+        data: {
+          id: n.id, label: n.name, kind: n.kind, name: n.name,
+          qualifiedName: n.qualifiedName, filePath: n.filePath, language: n.language,
+          startLine: n.startLine, endLine: n.endLine, signature: n.signature, docstring: n.docstring,
+        },
+      };
+    });
+    var cyEdges = DATA.unionEdges.map(function (e, i) {
+      return {
+        data: {
+          id: 'e' + i, source: e.source, target: e.target, kind: e.kind,
+          edgeKey: e.source + '|' + e.kind + '|' + e.target,
+        },
+      };
+    });
+    return { nodes: cyNodes, edges: cyEdges };
+  }
+
+  function cyStyle() {
+    return [
+      {
+        selector: 'node',
+        style: {
+          'label': 'data(label)',
+          'font-size': 10,
+          'text-valign': 'bottom',
+          'text-halign': 'center',
+          'text-margin-y': 4,
+          'background-color': function (n) { return kindColor(n.data('kind')); },
+          'width':  function (n) { return n.data('kind') === 'file' ? 24 : 14; },
+          'height': function (n) { return n.data('kind') === 'file' ? 24 : 14; },
+          'border-width': 1,
+          'border-color': '#333',
+          'color': fgColor(),
+          'text-outline-width': 1,
+          'text-outline-color': bgColor(),
+        },
+      },
+      {
+        selector: 'edge',
+        style: {
+          'width': 1,
+          'line-color': function (e) { return edgeColor(e.data('kind')); },
+          'target-arrow-shape': 'triangle',
+          'target-arrow-color': function (e) { return edgeColor(e.data('kind')); },
+          'arrow-scale': 0.7,
+          'curve-style': 'bezier',
+          'opacity': 0.7,
+        },
+      },
+      {
+        selector: 'node:selected',
+        style: { 'border-width': 3, 'border-color': '#0066cc' },
+      },
+    ];
+  }
+
+  function layoutOptionsFor(name) {
+    if (name === 'cose') {
+      return {
+        name: 'cose', animate: false, nodeRepulsion: 8000, idealEdgeLength: 80,
+        edgeElasticity: 100, nestingFactor: 1.2, gravity: 80, numIter: 1000,
+        initialTemp: 200, coolingFactor: 0.95, minTemp: 1.0,
+      };
+    }
+    if (name === 'breadthfirst') {
+      return { name: 'breadthfirst', animate: false, directed: true, spacingFactor: 1.2 };
+    }
+    return { name: name, animate: false };
+  }
+
+  var cy = null;
+  var nodeEls = {};
+  var edgeEls = []; // parallel to DATA.unionEdges
+  function initCy() {
+    cy = cytoscape({
+      container: document.getElementById('cy'),
+      elements: buildAllElements(),
+      style: cyStyle(),
+      layout: layoutOptionsFor(document.querySelector('input[name=layout]:checked').value),
+      wheelSensitivity: 0.2,
+    });
+    cy.nodes().forEach(function (n) { nodeEls[n.id()] = n; });
+    cy.edges().forEach(function (e) { edgeEls.push(e); });
+    cy.on('tap', 'node', function (evt) { showSelection(evt.target.data()); });
+    cy.on('tap', function (evt) { if (evt.target === cy) clearSelection(); });
+  }
+
+  // --- Timeline state ------------------------------------------------------
+  var commitIdx = 0;
+  var playing = false;
+  var playTimer = null;
+
+  var slider = document.getElementById('slider');
+  var totalIdxEl = document.getElementById('total-idx');
+  var curIdxEl = document.getElementById('cur-idx');
+  var shaEl = document.getElementById('commit-sha');
+  var subjectEl = document.getElementById('commit-subject');
+  var dateEl = document.getElementById('commit-date');
+  var btnPlay = document.getElementById('btn-play');
+  var speedSel = document.getElementById('speed');
+
+  var totalCommits = DATA.commits.length;
+  slider.max = String(Math.max(0, totalCommits - 1));
+  totalIdxEl.textContent = String(totalCommits);
+
+  // Visibility = view × search × kind × time-window. Time-window is the
+  // [first, last] presence interval in nodePresence/edgePresence.
+  function applyVisibility() {
+    if (!cy) return;
+    var hiddenNodeKinds = {};
+    var hiddenEdgeKinds = {};
+    document.querySelectorAll('#kinds-group input[type=checkbox]').forEach(function (cb) {
+      if (!cb.checked) hiddenNodeKinds[cb.getAttribute('data-kind')] = 1;
+    });
+    document.querySelectorAll('#edges-group input[type=checkbox]').forEach(function (cb) {
+      if (!cb.checked) hiddenEdgeKinds[cb.getAttribute('data-kind')] = 1;
+    });
+    var q = document.getElementById('search').value.trim();
+    var qRe = null;
+    if (q) { try { qRe = new RegExp(q, 'i'); } catch (e) { qRe = null; } }
+    var viewKinds = VIEW_KIND_GROUPS[currentView];
+
+    var visMap = {};
+    cy.batch(function () {
+      DATA.unionNodes.forEach(function (n) {
+        var el = nodeEls[n.id];
+        if (!el) return;
+        var visible = !hiddenNodeKinds[n.kind];
+        if (visible && viewKinds && viewKinds.indexOf(n.kind) === -1) visible = false;
+        if (visible && qRe && !(qRe.test(n.name) || qRe.test(n.qualifiedName) || qRe.test(n.filePath))) visible = false;
+        if (visible) {
+          var p = DATA.nodePresence[n.id];
+          if (!p || commitIdx < p.first || commitIdx > p.last) visible = false;
+        }
+        visMap[n.id] = visible;
+        el.style('visibility', visible ? 'visible' : 'hidden');
+      });
+      edgeEls.forEach(function (edge) {
+        var sid = edge.source().id(), tid = edge.target().id();
+        var vis = !!visMap[sid] && !!visMap[tid] && !hiddenEdgeKinds[edge.data('kind')];
+        if (vis) {
+          var p = DATA.edgePresence[edge.data('edgeKey')];
+          if (!p || commitIdx < p.first || commitIdx > p.last) vis = false;
+        }
+        edge.style('visibility', vis ? 'visible' : 'hidden');
+      });
+    });
+    updateStats();
+  }
+
+  function updateStats() {
+    var visN = cy.nodes().filter(function (n) { return n.style('visibility') === 'visible'; }).length;
+    var visE = cy.edges().filter(function (e) { return e.style('visibility') === 'visible'; }).length;
+    var c = DATA.commits[commitIdx];
+    document.getElementById('stat-nodes').textContent = visN + ' / ' + DATA.unionNodes.length + ' nodes';
+    document.getElementById('stat-edges').textContent = visE + ' / ' + DATA.unionEdges.length + ' edges';
+    document.getElementById('stat-depth').textContent = 'view: ' + currentView + ' (depth ' + DATA.depth + ')';
+    document.getElementById('stat-source').textContent = DATA.projectRoot + (c ? ' · ' + c.commit.shortSha : '');
+  }
+
+  function updateTimelineUI() {
+    slider.value = String(commitIdx);
+    curIdxEl.textContent = String(commitIdx + 1);
+    var c = DATA.commits[commitIdx];
+    if (!c) return;
+    shaEl.textContent = c.commit.shortSha;
+    subjectEl.textContent = c.commit.subject;
+    subjectEl.title = c.commit.subject + (c.indexingFailed ? '\n(indexing failed: ' + (c.error || 'unknown') + ')' : '');
+    dateEl.textContent = c.commit.date.slice(0, 10);
+    if (c.indexingFailed) {
+      shaEl.style.color = '#c00';
+    } else {
+      shaEl.style.color = '';
+    }
+  }
+
+  function setCommitIdx(i) {
+    var clamped = Math.max(0, Math.min(totalCommits - 1, i));
+    if (clamped === commitIdx) {
+      updateTimelineUI();
+      return;
+    }
+    commitIdx = clamped;
+    applyVisibility();
+    updateTimelineUI();
+  }
+
+  function play() {
+    if (playing) return;
+    playing = true;
+    btnPlay.textContent = '⏸ Pause';
+    btnPlay.classList.remove('primary');
+    var interval = parseInt(speedSel.value, 10) || 1000;
+    playTimer = setInterval(function () {
+      if (commitIdx >= totalCommits - 1) {
+        pause();
+        return;
+      }
+      setCommitIdx(commitIdx + 1);
+    }, interval);
+  }
+  function pause() {
+    if (!playing) return;
+    playing = false;
+    btnPlay.textContent = '▶ Play';
+    btnPlay.classList.add('primary');
+    if (playTimer) { clearInterval(playTimer); playTimer = null; }
+  }
+
+  btnPlay.addEventListener('click', function () {
+    if (playing) pause(); else play();
+  });
+  document.getElementById('btn-prev').addEventListener('click', function () {
+    pause(); setCommitIdx(commitIdx - 1);
+  });
+  document.getElementById('btn-next').addEventListener('click', function () {
+    pause(); setCommitIdx(commitIdx + 1);
+  });
+  slider.addEventListener('input', function () {
+    pause(); setCommitIdx(parseInt(slider.value, 10));
+  });
+  speedSel.addEventListener('change', function () {
+    if (playing) { pause(); play(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.target && /^(input|textarea|select)$/i.test(e.target.tagName)) return;
+    if (e.code === 'Space') { e.preventDefault(); if (playing) pause(); else play(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); pause(); setCommitIdx(commitIdx - 1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); pause(); setCommitIdx(commitIdx + 1); }
+    else if (e.key === 'Home') { e.preventDefault(); pause(); setCommitIdx(0); }
+    else if (e.key === 'End') { e.preventDefault(); pause(); setCommitIdx(totalCommits - 1); }
+  });
+
+  function relayout() {
+    if (!cy) return;
+    var z = cy.zoom(), p = cy.pan();
+    cy.layout(layoutOptionsFor(document.querySelector('input[name=layout]:checked').value)).run();
+    cy.zoom(z); cy.pan(p);
+  }
+
+  function showSelection(d) {
+    var el = document.getElementById('selection');
+    el.classList.remove('empty');
+    var html = '';
+    html += '<div class="row"><dt>kind</dt><dd>' + esc(d.kind) + '</dd></div>';
+    html += '<div class="row"><dt>name</dt><dd>' + esc(d.name) + '</dd></div>';
+    html += '<div class="row"><dt>qualified</dt><dd>' + esc(d.qualifiedName) + '</dd></div>';
+    html += '<div class="row"><dt>file</dt><dd>' + esc(d.filePath) + ':' + esc(d.startLine) + '–' + esc(d.endLine) + '</dd></div>';
+    html += '<div class="row"><dt>language</dt><dd>' + esc(d.language) + '</dd></div>';
+    if (d.signature) {
+      html += '<div class="row"><dt>signature</dt><dd></dd></div><pre>' + esc(d.signature) + '</pre>';
+    }
+    if (d.docstring) {
+      html += '<div class="row"><dt>docstring</dt><dd></dd></div><pre>' + esc(d.docstring) + '</pre>';
+    }
+    el.innerHTML = html;
+  }
+  function clearSelection() {
+    var el = document.getElementById('selection');
+    el.classList.add('empty');
+    el.textContent = 'Click a node to inspect.';
+  }
+
+  document.getElementById('search').addEventListener('input', debounce(applyVisibility, 200));
+  document.querySelectorAll('#kinds-group input, #edges-group input, #view-group input[name=view]').forEach(function (el) {
+    el.addEventListener('change', applyVisibility);
+  });
+  document.querySelectorAll('input[name=layout]').forEach(function (el) {
+    el.addEventListener('change', relayout);
+  });
+
+  function debounce(fn, ms) {
+    var t = null;
+    return function () {
+      clearTimeout(t);
+      t = setTimeout(fn, ms);
+    };
+  }
+
+  if (typeof cytoscape === 'undefined') {
+    document.getElementById('cy').innerHTML = '<div style="padding:32px;color:red">cytoscape failed to load</div>';
+    return;
+  }
+  initCy();
+  // Start at the LATEST commit (rightmost) so the user sees the present state,
+  // matching how git log/churn tools present history.
+  setCommitIdx(totalCommits - 1);
+  applyVisibility();
+  updateTimelineUI();
+})();
+</script>
+</body>
+</html>

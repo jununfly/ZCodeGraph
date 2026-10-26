@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc && npm run copy-assets && node -e \"require('fs').chmodSync('dist/bin/zcodegraph.js', 0o755)\"",
     "preuninstall": "node dist/bin/uninstall.js",
-    "copy-assets": "node -e \"const fs=require('fs');fs.mkdirSync('dist/db',{recursive:true});fs.copyFileSync('src/db/schema.sql','dist/db/schema.sql');fs.mkdirSync('dist/extraction/wasm',{recursive:true});fs.readdirSync('src/extraction/wasm').filter(f=>f.endsWith('.wasm')).forEach(f=>fs.copyFileSync('src/extraction/wasm/'+f,'dist/extraction/wasm/'+f));fs.mkdirSync('dist/visualize',{recursive:true});fs.copyFileSync('node_modules/cytoscape/dist/cytoscape.min.js','dist/visualize/cytoscape.min.js');fs.copyFileSync('src/visualize/template.html','dist/visualize/template.html')\"",
+    "copy-assets": "node -e \"const fs=require('fs');fs.mkdirSync('dist/db',{recursive:true});fs.copyFileSync('src/db/schema.sql','dist/db/schema.sql');fs.mkdirSync('dist/extraction/wasm',{recursive:true});fs.readdirSync('src/extraction/wasm').filter(f=>f.endsWith('.wasm')).forEach(f=>fs.copyFileSync('src/extraction/wasm/'+f,'dist/extraction/wasm/'+f));fs.mkdirSync('dist/visualize',{recursive:true});fs.copyFileSync('node_modules/cytoscape/dist/cytoscape.min.js','dist/visualize/cytoscape.min.js');fs.copyFileSync('src/visualize/template.html','dist/visualize/template.html');fs.copyFileSync('src/visualize/history-template.html','dist/visualize/history-template.html')\"",
     "dev": "tsc --watch",
     "cli": "npm run build && node dist/bin/zcodegraph.js",
     "test": "vitest run",
