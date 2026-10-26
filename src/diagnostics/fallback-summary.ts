@@ -7,6 +7,21 @@ export type RustHybridFallbackProfile = {
     missingFallbackFileCount?: number;
     missingFallbackByLanguage?: Record<string, number>;
   };
+  /**
+   * Roadmap 1-4-28 / ADR-0009 D4: optional P2 embedding failure profile.
+   *
+   * Keys are EmbeddingFailCode values (e.g. 'embedding-model-download-failed');
+   * values are occurrence counts since the last report. These are merged into
+   * `fallbackReasonTaxonomy` verbatim — the taxonomy is already a
+   * `Record<string, number>`, so this is a zero-schema-change extension.
+   *
+   * `embedding-model-not-downloaded` is intentionally excluded by the
+   * caller: ADR-0009 D4 marks it `pending` (the model simply hasn't been
+   * fetched yet), not a real failure, so it must not drive degraded.
+   */
+  embeddingProfile?: {
+    embeddingFailures?: Record<string, number>;
+  };
 };
 
 export type RustHybridFallbackSummaryInput = {
@@ -64,6 +79,14 @@ const FALLBACK_REASON_LABELS: Record<string, string> = {
   'rust-owned-parse-gap': 'Rust-owned files with parse diagnostics',
   'rust-owned-extraction-gap': 'Rust-owned files with extraction diagnostics',
   'rust-owned-gap-with-partial-write-blocked': 'Rust-owned files with partial Rust writes not fallback-appended',
+  // Roadmap 1-4-28 / ADR-0009 D4: P2 async embedding pipeline failure
+  // sub-reasons. `embedding-model-not-downloaded` is intentionally absent
+  // — it's a `pending` state (model simply not fetched yet), not a failure.
+  'embedding-model-download-failed': 'embedding model download failed (HF endpoint unreachable)',
+  'embedding-runtime-init-failed': 'embedding runtime (onnxruntime) init failed',
+  'embedding-vec0-load-failed': 'sqlite-vec vec0 extension failed to load',
+  'embedding-vec-schema-mismatch': 'vec_embeddings virtual table schema mismatch',
+  'embedding-stale': 'embedding content_hash drifted from AST (stale)',
 };
 
 export function rustHybridFallbackReasonLabel(code: string): string {
@@ -138,6 +161,21 @@ export function buildRustHybridFallbackSummary(input: RustHybridFallbackSummaryI
     if (err.severity === 'error') continue;
     if (!err.code?.startsWith('rust-owned-')) continue;
     fallbackReasonTaxonomy[err.code] = (fallbackReasonTaxonomy[err.code] ?? 0) + 1;
+  }
+
+  // Roadmap 1-4-28 / ADR-0009 D4: merge P2 embedding failure sub-reasons
+  // into the same taxonomy. Zero schema change — taxonomy is already a
+  // `Record<string, number>`. The 'embedding-model-not-downloaded' key is
+  // silently dropped here as defence-in-depth (the caller is already
+  // contract-bound to exclude it) so a stray producer can't flip the index
+  // to `degraded` over a routine model-fetch delay.
+  const embeddingFailures = profile?.embeddingProfile?.embeddingFailures;
+  if (embeddingFailures) {
+    for (const [code, count] of Object.entries(embeddingFailures)) {
+      if (code === 'embedding-model-not-downloaded') continue;
+      if (!Number.isFinite(count) || count <= 0) continue;
+      fallbackReasonTaxonomy[code] = (fallbackReasonTaxonomy[code] ?? 0) + count;
+    }
   }
 
   const fallbackState = rustHybridFallbackStateFor(unexpectedFallbackCount, fallbackReasonTaxonomy);

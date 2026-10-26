@@ -121,6 +121,98 @@ describe('rust-hybrid fallback summary contract', () => {
     expect(summary.fallbackState).toBe('healthy');
     expect(formatRustHybridFallbackDoctorHint(summary)).toEqual([]);
   });
+
+  // Roadmap 1-4-28 / ADR-0009 D4: P2 async embedding failure sub-reasons
+  // extend the taxonomy via `embeddingProfile`. Zero schema change.
+  describe('embedding profile extension (1-4-28)', () => {
+    it('merges embeddingFailures into fallbackReasonTaxonomy', () => {
+      const summary = buildRustHybridFallbackSummary({
+        success: true,
+        profile: {
+          embeddingProfile: {
+            embeddingFailures: {
+              'embedding-model-download-failed': 2,
+              'embedding-runtime-init-failed': 1,
+            },
+          },
+        },
+        errors: [],
+      });
+
+      expect(summary.fallbackReasonTaxonomy).toEqual({
+        'embedding-model-download-failed': 2,
+        'embedding-runtime-init-failed': 1,
+      });
+      expect(summary.fallbackState).toBe('degraded');
+      expect(summary.topFallbackReasons[0]).toEqual({
+        code: 'embedding-model-download-failed',
+        count: 2,
+      });
+    });
+
+    it('drops embedding-model-not-downloaded (pending, not a failure)', () => {
+      const summary = buildRustHybridFallbackSummary({
+        success: true,
+        profile: {
+          embeddingProfile: {
+            embeddingFailures: {
+              'embedding-model-not-downloaded': 5,
+            },
+          },
+        },
+        errors: [],
+      });
+
+      expect(summary.fallbackReasonTaxonomy).toEqual({});
+      expect(summary.fallbackState).toBe('healthy');
+    });
+
+    it('keeps embedding-stale at partial (not degraded) per ADR-0009 D4', () => {
+      const summary = buildRustHybridFallbackSummary({
+        success: true,
+        profile: {
+          embeddingProfile: {
+            embeddingFailures: { 'embedding-stale': 7 },
+          },
+        },
+        errors: [],
+      });
+
+      expect(summary.fallbackReasonTaxonomy).toEqual({ 'embedding-stale': 7 });
+      expect(summary.fallbackState).toBe('partial');
+    });
+
+    it('embedding-stale plus a degraded reason still yields degraded', () => {
+      const summary = buildRustHybridFallbackSummary({
+        success: true,
+        profile: {
+          embeddingProfile: {
+            embeddingFailures: {
+              'embedding-stale': 3,
+              'embedding-vec0-load-failed': 1,
+            },
+          },
+        },
+        errors: [],
+      });
+
+      expect(summary.fallbackState).toBe('degraded');
+    });
+
+    it('renders human labels for embedding failure codes', () => {
+      const summary = buildRustHybridFallbackSummary({
+        success: true,
+        profile: {
+          embeddingProfile: {
+            embeddingFailures: { 'embedding-vec-schema-mismatch': 1 },
+          },
+        },
+        errors: [],
+      });
+      const rendered = formatRustHybridFallbackHealthLines(summary).join('\n');
+      expect(rendered).toContain('vec_embeddings virtual table schema mismatch');
+    });
+  });
 });
 
 // #686: repeated identical per-file parser diagnostics (e.g. 136 Vue files all

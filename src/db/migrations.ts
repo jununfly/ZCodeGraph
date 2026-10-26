@@ -9,7 +9,7 @@ import { SqliteDatabase } from './sqlite-adapter';
 /**
  * Current schema version
  */
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 6;
 
 /**
  * Migration definition
@@ -78,6 +78,38 @@ const migrations: Migration[] = [
       // TEXT columns (nodes.kind, edges.kind). The migration exists solely to
       // bump the schema version and record the compat strategy per
       // schema-evolution-and-mcp-tool-cap-v1 clause 1.
+    },
+  },
+  {
+    version: 6,
+    description:
+      'Add embedding_queue table for the P2 async embedding pipeline (roadmap 1-4-28, ADR-0009 D5). ' +
+      'Old-CLI compat: read-only compatible — older binaries open a v6 database and read all ' +
+      'pre-existing nodes/edges; embedding_queue rows are ignored (no query in the older binary ' +
+      'references the table). New binaries lazily create the vec_embeddings vec0 virtual table at ' +
+      'worker startup (NOT in this migration) so that binaries without sqlite-vec can still open ' +
+      'the database. vec_embeddings is therefore intentionally absent from schema.sql — its ' +
+      'presence is gated on the vec0 extension being loadable.',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS embedding_queue (
+          file_path TEXT NOT NULL,
+          content_hash TEXT NOT NULL,
+          status TEXT CHECK(status IN ('pending','in_progress','done','failed'))
+               NOT NULL DEFAULT 'pending',
+          attempts INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT,
+          model_version TEXT,
+          enqueued_at INTEGER NOT NULL,
+          started_at INTEGER,
+          finished_at INTEGER,
+          PRIMARY KEY (file_path, content_hash)
+        );
+        CREATE INDEX IF NOT EXISTS idx_embedding_queue_status_started
+          ON embedding_queue(status, started_at);
+        CREATE INDEX IF NOT EXISTS idx_embedding_queue_enqueued
+          ON embedding_queue(enqueued_at);
+      `);
     },
   },
 ];

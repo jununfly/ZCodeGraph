@@ -33,6 +33,19 @@ export function isByDesignTsShellLanguage(language: string): boolean {
   return (RUST_HYBRID_BY_DESIGN_TS_SHELL_LANGUAGES as readonly string[]).includes(language);
 }
 export type RustHybridFallbackState = 'healthy' | 'partial' | 'degraded' | 'pending';
+
+/**
+ * Roadmap 1-4-28 / ADR-0009 D4: P2 embedding failure codes whose presence
+ * alone keeps the index at `partial` rather than `degraded`. These represent
+ * recoverable drift (the structure graph is intact; only the embedding layer
+ * is stale or behind), not a structural gap.
+ *
+ * `embedding-model-not-downloaded` is intentionally absent — it must never
+ * reach the taxonomy at all (caller filters it; see fallback-summary.ts).
+ */
+export const EMBEDDING_PARTIAL_REASON_CODES = new Set<string>([
+  'embedding-stale',
+]);
 export type RustOwnedGapCode =
   | 'rust-owned-parse-gap'
   | 'rust-owned-extraction-gap'
@@ -98,10 +111,18 @@ export function rustHybridFallbackStateFor(
   if (unexpectedLanguageFallback === 0 && Object.keys(fallbackReasonTaxonomy).length === 0) {
     return 'healthy';
   }
-  const hasUnexpectedReasons = Object.keys(fallbackReasonTaxonomy).some(
-    (code) => code !== 'language-level-typescript-fallback',
+  // Roadmap 1-4-28 / ADR-0009 D4: `embedding-stale` (and any future entry in
+  // EMBEDDING_PARTIAL_REASON_CODES) signals "structure intact, embedding
+  // layer behind" — it caps the state at `partial` rather than `degraded`.
+  // Any other unexpected reason still escalates to `degraded`.
+  const keys = Object.keys(fallbackReasonTaxonomy);
+  const hasDegradedReasons = keys.some(
+    (code) =>
+      code !== 'language-level-typescript-fallback' &&
+      !EMBEDDING_PARTIAL_REASON_CODES.has(code),
   );
-  return hasUnexpectedReasons ? 'degraded' : 'partial';
+  if (hasDegradedReasons) return 'degraded';
+  return 'partial';
 }
 
 export function buildRustHybridMetadata(projectPath: string): RustHybridMetadata {

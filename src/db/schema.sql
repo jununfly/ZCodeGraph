@@ -144,6 +144,43 @@ CREATE INDEX IF NOT EXISTS idx_unresolved_file_path ON unresolved_refs(file_path
 CREATE INDEX IF NOT EXISTS idx_unresolved_from_name ON unresolved_refs(from_node_id, reference_name);
 CREATE INDEX IF NOT EXISTS idx_edges_edgeOrigin ON edges(edgeOrigin);
 
+-- =============================================================================
+-- P2 Async Embedding Pipeline (roadmap 1-4-28, ADR-0009 D5)
+-- =============================================================================
+
+-- embedding_queue: durable queue of (file_path, content_hash) pairs awaiting
+-- background embedding. Co-located with nodes/edges in the same DB so the
+-- "structural write + embed pending" pair is atomic under WAL.
+--
+-- Invariants:
+--   - content_hash is part of the PRIMARY KEY: same file with a new hash is a
+--     new task; old (file_path, old_hash) rows stay as historical 'done'.
+--   - file_path alone is NOT unique: a file may have multiple historical
+--     versions; an async cleanup task (1-4-29+) reclaims stale 'done' rows.
+CREATE TABLE IF NOT EXISTS embedding_queue (
+    file_path TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    status TEXT CHECK(status IN ('pending','in_progress','done','failed'))
+         NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    model_version TEXT,
+    enqueued_at INTEGER NOT NULL,
+    started_at INTEGER,
+    finished_at INTEGER,
+    PRIMARY KEY (file_path, content_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_embedding_queue_status_started
+    ON embedding_queue(status, started_at);
+CREATE INDEX IF NOT EXISTS idx_embedding_queue_enqueued
+    ON embedding_queue(enqueued_at);
+
+-- vec_embeddings is intentionally NOT in schema.sql. It is a vec0 virtual
+-- table that requires the sqlite-vec extension to be loaded (allowExtension:
+-- true on the adapter + db.loadExtension(<path-to-vec0>)). Creating it here
+-- would break any binary that opens the DB without sqlite-vec available.
+-- The embed worker (1-4-29) creates it lazily at startup; see ADR-0009 D5.
+
 -- Project metadata for version/edge origin tracking
 CREATE TABLE IF NOT EXISTS project_metadata (
     key TEXT PRIMARY KEY,
