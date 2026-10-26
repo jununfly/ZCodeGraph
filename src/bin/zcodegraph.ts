@@ -296,6 +296,47 @@ async function offerBootstrapWatchFallback(
   } catch { /* non-fatal */ }
 }
 
+/**
+ * 1-4-29 Q4 — run the embedding pipeline after `zcodegraph index` when the
+ * caller passed `--with-embeddings`. Requires `CODEGRAPH_ENABLE_EMBEDDING=1`
+ * (opt-in env gate); without it we print a warning and skip.
+ *
+ * Two modes:
+ *   - `--with-embeddings` alone: enqueue all files and return immediately;
+ *     the worker will be spawned lazily by the next long-lived process
+ *     (MCP server / watcher). This keeps `zcodegraph index` a short task.
+ *   - `--with-embeddings --wait-embeddings`: spawn the worker in-process
+ *     and block until the queue is empty (CI 收口). In this mode a missing
+ *     fastembed is a hard failure — there's no "next process" to retry in.
+ */
+async function runEmbeddingFlags(
+  projectPath: string,
+  withEmbeddings: boolean,
+  waitEmbeddings: boolean,
+): Promise<void> {
+  if (!withEmbeddings) return;
+  if (process.env.CODEGRAPH_ENABLE_EMBEDDING !== '1') {
+    process.stderr.write(
+      '[CodeGraph] --with-embeddings requires CODEGRAPH_ENABLE_EMBEDDING=1; skipping embedding enqueue.\n',
+    );
+    return;
+  }
+  const { default: CodeGraph } = await loadCodeGraph();
+  const cg = await CodeGraph.open(projectPath);
+  try {
+    const r = await cg.runEmbeddingPipeline({
+      wait: waitEmbeddings,
+      permanentFailureOnModelMissing: waitEmbeddings,
+    });
+    const processedPart = r.processed !== undefined ? ` processed=${r.processed} failed=${r.failed ?? 0}` : '';
+    process.stderr.write(
+      `[CodeGraph] embedding pipeline: enqueued=${r.enqueued}${processedPart}\n`,
+    );
+  } finally {
+    cg.destroy();
+  }
+}
+
 
 // Block CodeGraph on Node.js 25.x — V8's turboshaft WASM JIT has a Zone
 // allocator bug that reliably crashes when compiling tree-sitter
@@ -1049,7 +1090,9 @@ program
   .option('--sqlite-write-mode <mode>', 'Rust SQLite write mode: final-flush, disk, or memory-final-flush')
   .option('--profile <mode>', 'Rust index profiling mode to use: heap')
   .option('--profile-out <path>', 'Write Rust index profile artifact to path')
-  .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string; graphWorkProfile?: string; sqliteWriteMode?: string; profile?: string; profileOut?: string }) => {
+  .option('--with-embeddings', 'Enqueue all indexed files for background embedding (requires CODEGRAPH_ENABLE_EMBEDDING=1)')
+  .option('--wait-embeddings', 'With --with-embeddings: run the embedding worker in this process and block until the queue is empty (CI 收口)')
+  .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string; graphWorkProfile?: string; sqliteWriteMode?: string; profile?: string; profileOut?: string; withEmbeddings?: boolean; waitEmbeddings?: boolean }) => {
     const projectPath = resolveProjectPath(pathArg);
     let selectedEngine: IndexEngine | undefined;
     const commandStartedAt = Date.now();
@@ -1082,6 +1125,9 @@ program
           await offerBootstrapWatchFallback(projectPath, { quiet: true });
         }
         if (!result.success) process.exit(1);
+        if (options.withEmbeddings) {
+          await runEmbeddingFlags(projectPath, options.withEmbeddings, options.waitEmbeddings ?? false);
+        }
         return;
       }
 
@@ -1134,6 +1180,10 @@ program
 
       if (bootstrapped) {
         await offerBootstrapWatchFallback(projectPath, { clack });
+      }
+
+      if (options.withEmbeddings) {
+        await runEmbeddingFlags(projectPath, options.withEmbeddings, options.waitEmbeddings ?? false);
       }
 
       clack.outro('Done');

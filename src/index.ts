@@ -58,6 +58,9 @@ import { GraphTraverser, GraphQueryManager } from './graph';
 import { ContextBuilder, createContextBuilder } from './context';
 import { Mutex, FileLock } from './utils';
 import { FileWatcher, WatchOptions, PendingFile, LockUnavailableError } from './sync';
+import { EmbeddingRunner, embeddingEnabled } from './embedding/worker-runner';
+import { enqueueEmbeddingBatch } from './embedding/queue';
+import { getDefaultVec0Path } from './embedding/vec0-path';
 import { EXTRACTION_VERSION } from './extraction/extraction-version';
 import { CodeGraphPackageVersion } from './mcp/version';
 import { IndexEngine } from './indexing/engine-selection';
@@ -1404,6 +1407,14 @@ export class CodeGraph {
         if (result.filesChecked === 0 && result.durationMs === 0) {
           throw new LockUnavailableError();
         }
+        // 1-4-29 Q2: opt-in watcher hook. Enqueue the just-synced files onto
+        // embedding_queue and nudge the worker. Skipped entirely unless
+        // CODEGRAPH_ENABLE_EMBEDDING=1 (env) — the hook itself is cheap
+        // (INSERT OR IGNORE per row) but the worker it spawns adds ~264MB,
+        // so the whole pipeline is opt-in.
+        if (embeddingEnabled() && result.changedFilePaths && result.changedFilePaths.length > 0) {
+          this.enqueueEmbeddingForChangedFiles(result.changedFilePaths);
+        }
         const filesChanged = result.filesAdded + result.filesModified + result.filesRemoved;
         return { filesChanged, durationMs: result.durationMs };
       },
@@ -1411,6 +1422,130 @@ export class CodeGraph {
     );
 
     return this.watcher.start();
+  }
+
+  /**
+   * Enqueue a batch of just-synced files onto `embedding_queue` and nudge
+   * the embed worker. Internal helper shared by the watch hook and by
+   * `zcodegraph index --with-embeddings` (1-4-29).
+   *
+   * The content hash comes from the `files` table (post-sync state) so the
+   * queue's `(file_path, content_hash)` PK deduplicates repeat syncs of
+   * byte-identical content (ADR-0009 D3).
+   *
+   * Fire-and-forget: any failure to reach the queue (e.g. vec0 missing)
+   * only affects the embedding side-channel; sync itself is unaffected.
+   */
+  private enqueueEmbeddingForChangedFiles(filePaths: string[]): void {
+    if (filePaths.length === 0) return;
+    const vec0Path = getDefaultVec0Path(this.projectRoot);
+    if (!vec0Path) {
+      // vec0 missing — surface once via debug log; we don't fail sync. The
+      // worker will surface `embedding-vec0-load-failed` on next drain.
+      return;
+    }
+    const stmt = this.db.getDb().prepare(
+      'SELECT path, content_hash FROM files WHERE path = ?',
+    );
+    const entries: Array<{ filePath: string; contentHash: string }> = [];
+    for (const p of filePaths) {
+      const row = stmt.get(p) as { path: string; content_hash: string } | undefined;
+      if (!row) continue;
+      entries.push({ filePath: row.path, contentHash: row.content_hash });
+    }
+    if (entries.length === 0) return;
+    enqueueEmbeddingBatch(this.db.getDb(), entries);
+    EmbeddingRunner.forDatabase({
+      dbPath: this.db.getPath(),
+      projectRoot: this.projectRoot,
+      vec0Path,
+    }).notifyEnqueued();
+  }
+
+  /**
+   * Read-repair entry point used by `zcodegraph_search` (1-4-29 Q3). For
+   * each hit file path, compares the current `files.content_hash` against
+   * the newest `embedding_queue` row; files with no row, a mismatched hash,
+   * or a `failed` status get a fresh `pending` row, and the worker is
+   * nudged. Returns the number of rows actually enqueued (0 when the
+   * pipeline is disabled or vec0 is missing).
+   *
+   * Cheap: one indexed SELECT per hit file, no I/O on the source files.
+   */
+  enqueueEmbeddingReadRepair(hitPaths: string[]): number {
+    if (!embeddingEnabled()) return 0;
+    if (hitPaths.length === 0) return 0;
+    const vec0Path = getDefaultVec0Path(this.projectRoot);
+    if (!vec0Path) return 0;
+
+    const uniquePaths = Array.from(new Set(hitPaths));
+    const fileHashStmt = this.db.getDb().prepare(
+      'SELECT path, content_hash FROM files WHERE path = ?',
+    );
+    const queueStmt = this.db.getDb().prepare(
+      `SELECT content_hash, status FROM embedding_queue
+        WHERE file_path = ?
+        ORDER BY enqueued_at DESC LIMIT 1`,
+    );
+
+    const toEnqueue: Array<{ filePath: string; contentHash: string }> = [];
+    for (const p of uniquePaths) {
+      const fileRow = fileHashStmt.get(p) as { path: string; content_hash: string } | undefined;
+      if (!fileRow) continue;
+      const queueRow = queueStmt.get(p) as { content_hash: string; status: string } | undefined;
+      if (!queueRow || queueRow.content_hash !== fileRow.content_hash || queueRow.status === 'failed') {
+        toEnqueue.push({ filePath: fileRow.path, contentHash: fileRow.content_hash });
+      }
+    }
+    if (toEnqueue.length === 0) return 0;
+    const inserted = enqueueEmbeddingBatch(this.db.getDb(), toEnqueue);
+    EmbeddingRunner.forDatabase({
+      dbPath: this.db.getPath(),
+      projectRoot: this.projectRoot,
+      vec0Path,
+    }).notifyEnqueued();
+    return inserted;
+  }
+
+  /**
+   * Public surface for `zcodegraph index --with-embeddings` /
+   * `--wait-embeddings`. Enqueues every row in `files` (current
+   * content_hash) and optionally blocks until the worker drains the queue.
+   *
+   * Returns the number of rows actually inserted (excluding dedup no-ops)
+   * when `wait=false`, or the worker's drain counters when `wait=true`.
+   */
+  async runEmbeddingPipeline(options: {
+    wait: boolean;
+    permanentFailureOnModelMissing?: boolean;
+  }): Promise<{ enqueued: number; processed?: number; failed?: number }> {
+    const vec0Path = getDefaultVec0Path(this.projectRoot);
+    if (!vec0Path) {
+      throw new Error(
+        'sqlite-vec vec0 extension not found. Set CODEGRAPH_VEC0_PATH, or drop ' +
+        'vec0.{dll,so,dylib} under <projectRoot>/.zcodegraph/models/. ' +
+        'See docs/decisions/ZJ-0009-async-embedding-pipeline.md.',
+      );
+    }
+    const rows = this.db.getDb()
+      .prepare('SELECT path, content_hash FROM files')
+      .all() as Array<{ path: string; content_hash: string }>;
+    const entries = rows.map((r) => ({ filePath: r.path, contentHash: r.content_hash }));
+    const enqueued = enqueueEmbeddingBatch(this.db.getDb(), entries);
+
+    const runner = EmbeddingRunner.forDatabase({
+      dbPath: this.db.getPath(),
+      projectRoot: this.projectRoot,
+      vec0Path,
+      permanentFailureOnModelMissing: options.permanentFailureOnModelMissing ?? options.wait,
+    });
+
+    if (!options.wait) {
+      runner.notifyEnqueued();
+      return { enqueued };
+    }
+    const r = await runner.drainAndExit();
+    return { enqueued, processed: r.processed, failed: r.failed };
   }
 
   /**

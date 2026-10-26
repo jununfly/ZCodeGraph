@@ -28,6 +28,7 @@ import {
 import { clamp, validateProjectPath } from '../utils';
 import { isSqliteCorruptionError } from '../db/error-detection';
 import { isGeneratedFile } from '../extraction/generated-detection';
+import { embeddingEnabled } from '../embedding/worker-runner';
 import { resolve as resolvePath } from 'path';
 import type { ExploreOutputBudget } from './explore-types.js';
 import { plan } from './explore-planner';
@@ -1192,6 +1193,14 @@ export class ToolHandler {
     });
 
     const formatted = this.formatSearchResults(ranked);
+    // 1-4-29 Q3 read-repair: asynchronously enqueue files that contributed
+    // search hits but whose embedding is missing or stale. We do NOT embed
+    // synchronously here — ADR-0009 D3 explicitly rejects blocking the
+    // search path on the ~81ms/file embed latency. The worker picks up the
+    // new queue rows in the background; subsequent searches hit vec0.
+    if (embeddingEnabled()) {
+      cg.enqueueEmbeddingReadRepair(ranked.map((r) => r.node.filePath));
+    }
     return this.textResult(this.truncateOutput(formatted));
   }
 
