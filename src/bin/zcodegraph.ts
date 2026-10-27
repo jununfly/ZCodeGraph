@@ -321,6 +321,27 @@ async function runEmbeddingFlags(
     );
     return;
   }
+  // ADR-0010 (1-4-32): guided fix — when the optional embedding deps are
+  // missing, tell the user exactly how to install them instead of letting
+  // the queue silently fill with failed rows (1-4-30 regression evidence).
+  const { checkEmbeddingStatus } = await import('../embedding/installer');
+  const embStatus = checkEmbeddingStatus(projectPath);
+  if (!embStatus.fastembed.ok) {
+    process.stderr.write(
+      '[CodeGraph] --with-embeddings requires fastembed (optional, ~275 MB). Run:\n' +
+        '  zcodegraph embedding install\n' +
+        'then re-run with --with-embeddings.\n',
+    );
+    return;
+  }
+  if (!embStatus.vec0.ok) {
+    process.stderr.write(
+      '[CodeGraph] --with-embeddings requires the sqlite-vec vec0 extension. Run:\n' +
+        '  zcodegraph embedding install\n' +
+        'then re-run with --with-embeddings.\n',
+    );
+    return;
+  }
   const { default: CodeGraph } = await loadCodeGraph();
   const cg = await CodeGraph.open(projectPath);
   try {
@@ -3265,6 +3286,73 @@ program
       }
     );
     process.exit(code);
+  });
+
+/**
+ * zcodegraph embedding <install|status>
+ *
+ * ADR-0010 (roadmap 1-4-32): explicit opt-in installer for the P2 embedding
+ * pipeline's optional dependencies. Keeps the default `npm i -g` footprint
+ * unchanged (no fastembed/onnxruntime-node in package.json) while replacing
+ * the silent-fail path with a guided fix.
+ *
+ *   embedding install [--yes] [--dry-run] [--skip-model-download]
+ *   embedding status  [--json]
+ */
+const embeddingCmd = program
+  .command('embedding')
+  .description('Manage the optional embedding pipeline (fastembed + vec0 + ONNX model)');
+
+embeddingCmd
+  .command('install [path]')
+  .description('Install fastembed, the vec0 extension, and the ONNX model cache into <project>/.zcodegraph/models')
+  .option('-y, --yes', 'Non-interactive: skip the confirmation prompt')
+  .option('--dry-run', 'Print what would be installed and exit without changing anything')
+  .option('--skip-model-download', 'Skip the ~65 MB ONNX model pre-download (worker will pull it on first embed)')
+  .action(async (
+    pathArg: string | undefined,
+    opts: { yes?: boolean; dryRun?: boolean; skipModelDownload?: boolean },
+  ) => {
+    const { runEmbeddingInstall } = await import('../embedding/installer');
+    const projectPath = path.resolve(pathArg ?? process.cwd());
+    try {
+      const result = await runEmbeddingInstall({
+        projectRoot: projectPath,
+        yes: opts.yes ?? false,
+        dryRun: opts.dryRun ?? false,
+        skipModelDownload: opts.skipModelDownload ?? false,
+      });
+      if (!opts.dryRun && !result.installedPackages && !result.downloadedVec0 && !result.downloadedModel) {
+        // Either aborted or everything already present — exit quietly.
+        return;
+      }
+    } catch (err) {
+      error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+embeddingCmd
+  .command('status [path]')
+  .description('Check whether fastembed, vec0, and the ONNX model cache are ready')
+  .option('--json', 'Emit machine-readable JSON')
+  .action(async (pathArg: string | undefined, opts: { json?: boolean }) => {
+    const { checkEmbeddingStatus } = await import('../embedding/installer');
+    const projectPath = path.resolve(pathArg ?? process.cwd());
+    const s = checkEmbeddingStatus(projectPath);
+    if (opts.json) {
+      process.stdout.write(JSON.stringify(s, null, 2) + '\n');
+    } else {
+      const mark = (ok: boolean) => (ok ? 'ok' : 'MISSING');
+      process.stdout.write(
+        `fastembed:  ${mark(s.fastembed.ok)}${s.fastembed.resolvedFrom ? ` (${s.fastembed.resolvedFrom})` : ''}\n` +
+          `vec0:       ${mark(s.vec0.ok)}${s.vec0.path ? ` (${s.vec0.path})` : ''}\n` +
+          `model:      ${mark(s.model.ok)}${s.model.path ? ` (${s.model.path})` : ''}\n` +
+          `ready:      ${s.ready ? 'yes' : 'no — run `zcodegraph embedding install`'}\n`,
+      );
+    }
+    // CI assertion entry: non-zero exit when not ready (ADR-0010 Consequences).
+    process.exit(s.ready ? 0 : 1);
   });
 
 // Parse and run

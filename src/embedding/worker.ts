@@ -40,6 +40,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { parentPort, workerData } from 'node:worker_threads';
+import { resolveFastembedSpecifier, importResolved } from './installer';
 
 // node:sqlite's @types are only available on @types/node >=22; the package
 // currently targets @types/node ^20. Use require() and a minimal local
@@ -207,15 +208,13 @@ let embedderFailure: string | null = null;
 async function loadEmbedder(modelsDir: string): Promise<EmbedderState> {
   if (embedderPromise) return embedderPromise;
   embedderPromise = (async () => {
-    // Dynamic import — fastembed is ESM-only and an optional dep (1-4-28
-    // decision), so we can't type against it at compile time. Use Function
-    // constructor to bypass tsc's CJS-module transformation of import()
-    // (same trick as src/bin/zcodegraph.ts's importESM helper).
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    const dynamicImport = new Function('specifier', 'return import(specifier)') as (
-      specifier: string,
-    ) => Promise<any>;
-    const mod = await dynamicImport('fastembed');
+    // Dynamic import — fastembed is ESM-only/CJS-hybrid and an optional dep
+    // (1-4-28 decision), so we can't type against it at compile time. The
+    // Function constructor bypasses tsc's CJS-module transformation of
+    // import(); importResolved handles Windows drive-letter paths from the
+    // models-dir fallback (ERR_UNSUPPORTED_ESM_URL_SCHEME without it).
+    const specifier = resolveFastembedSpecifier(modelsDir);
+    const mod = await importResolved(specifier);
     const model = await mod.FlagEmbedding.init({
       model: mod.EmbeddingModel.BGESmallENV15,
       cacheDir: modelsDir,

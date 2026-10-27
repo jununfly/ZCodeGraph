@@ -211,6 +211,13 @@ export async function runInstallerWithOptions(opts: RunInstallerOptions): Promis
     clack.note('cd your-project\nzcodegraph index', 'Quick start');
   }
 
+  // ADR-0010 (1-4-32, 方案 C as exposure entry): surface the optional
+  // P2 embedding capability without changing the installer's MCP-config
+  // responsibility or asking anything in -y mode.
+  clack.log.info(
+    'Optional: semantic search is available via the embedding pipeline (~275 MB download). Enable it with `zcodegraph embedding install`.',
+  );
+
   const finalNote = targets.length > 0
     ? `Done! Restart your agent${targets.length > 1 ? 's' : ''} to use CodeGraph.`
     : 'Done!';
