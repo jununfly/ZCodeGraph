@@ -1533,17 +1533,24 @@ export class CodeGraph {
     const entries = rows.map((r) => ({ filePath: r.path, contentHash: r.content_hash }));
     const enqueued = enqueueEmbeddingBatch(this.db.getDb(), entries);
 
+    if (!options.wait) {
+      // 1-4-30 regression fix: in CLI mode (--with-embeddings without
+      // --wait-embeddings), starting the worker here is wrong — the
+      // worker_threads.Worker is an active handle that prevents the main
+      // process from exiting, turning a "fire-and-forget enqueue" into a
+      // synchronous 16-minute drain. The worker is meant to be spawned by a
+      // long-lived host (MCP server / FileWatcher), not by the short-lived
+      // `zcodegraph index` CLI. So: skip starting the worker entirely; the
+      // next MCP/watcher process will pick up the pending rows via its own
+      // lazy-start path (1-4-29 Q1).
+      return { enqueued };
+    }
     const runner = EmbeddingRunner.forDatabase({
       dbPath: this.db.getPath(),
       projectRoot: this.projectRoot,
       vec0Path,
       permanentFailureOnModelMissing: options.permanentFailureOnModelMissing ?? options.wait,
     });
-
-    if (!options.wait) {
-      runner.notifyEnqueued();
-      return { enqueued };
-    }
     const r = await runner.drainAndExit();
     return { enqueued, processed: r.processed, failed: r.failed };
   }

@@ -126,7 +126,8 @@
         "1-4-2",
         "1-4-27",
         "1-4-28",
-        "1-4-29"
+        "1-4-29",
+        "1-4-30"
       ],
       "decisions": [
         {
@@ -1862,11 +1863,45 @@
       "notes": "",
       "layer": "plan",
       "rounds": 1
+    },
+    "1-4-30": {
+      "id": "1-4-30",
+      "uid": "01a178194b97-5c12c2c21c",
+      "label": "P2 异步嵌入管线 - D6 回归基准三件套实测（drupal wall-clock / pending=files / 81ms-rate）",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Scope gate",
+          "answer": "Product execution：实测 + 修不达标项。三件事：(1) drupal 11 501 文件结构索引 wall-clock ≤ 1-4-2 baseline × 1.05；(2) index --with-embeddings 完成后 queue pending 行数 = 被嵌入文件数；(3) worker 嵌入速率 ~81 ms/文件 ±20%。不达标则修 src/ 直至达标。fixture：.tmp/drupal-1-4-2-baseline 复用。产出：docs/evidence/2026-10-26-p2-async-embedding-d6-regression.{md,json} + scripts/measure/async-embedding-d6-regression.mjs。",
+          "note": ""
+        },
+        {
+          "q": "实测中发现的方法论修正",
+          "answer": "(1) ADR-0009 D6 的 50s baseline 是 1-4-2 复用既有 db 的二手数字（未实测），typescript engine 在 drupal 上实测 146.7 s。修正判定：a) 改为 enqueue_overhead_pct = (enqueue_only_ms - structural_ms) / structural_ms ≤ 5%，同 engine 同 fixture 自对照，避免跨 engine 不可比。(2) fastembed 不在主 package.json（1-4-28 opt-in 决策），worker dist/embedding/worker.js 的 import('fastembed') 在主仓库 node_modules 找不到会导致 queue 全 failed。本次实测通过拷贝 .tmp/embedding-baseline/node_modules/{fastembed,@anush008,@huggingface,onnxruntime-node,progress} 到根 node_modules 满足 worker 解析。这是 spike 期的临时接线，不是 src 改动；长期方案待 1-4-31+ 决定（bundled optional dep 或更显式的 lazy install 命令）。",
+          "note": ""
+        },
+        {
+          "q": "实测结果与发现的产品 bug",
+          "answer": "三件套最终读数：(a) enqueue_overhead=666%（应为≤5%）——根因是 --with-embeddings 不带 --wait 时 CLI 未显式 process.exit(0)，worker_threads.Worker 作为 active handle 阻止主进程退出，导致名义 fire-and-forget 实际跑成同步 drain。(b) pending==0 vs 期望 11491 —— 同源：worker 已经跑完。(c) worker 速率 82.77 ms/文件，与 1-4-2 baseline 81 ms 一致 ✅（11 491 done / 0 failed / ~16 min）。c 通过；a/b 同源失败，需在 1-4-29 修一处：CLI --with-embeddings（无 --wait）路径下 enqueue 完成后立即 await runner.shutdown() 或 process.exit(0)，让 CLI 不被 worker 拉住。是否修：等用户决策——本节点范围是回归验证；若要顺手修，工作量小（一行 await 或 exit）。",
+          "note": ""
+        },
+        {
+          "q": "修复方案与最终判定",
+          "answer": "修复：src/index.ts runEmbeddingPipeline 非 wait 路径完全跳过 EmbeddingRunner.forDatabase + notifyEnqueued，只落 queue 立即返回；worker 懒启动交给长驻进程（MCP server / FileWatcher）。修复后重跑：round 2 wall-clock 149.97 s ≈ round 1 153.41 s（overhead=-2.24% 噪声内 ✅）；queue 终态 pending=11 491 == files_in_db ✅；round 3 wait drain 全程 1 078 565 ms / 11 491 done / 0 failed / 82.77→93.86 ms/文件 ✅。三件套全过，1-4-30 CLOSED。已知遗留（归 1-4-31+）：fastembed 不在主 package.json 导致 fresh 安装 --with-embeddings silent fail，需补 lazy install / peerDeps optional / 安装器提示三选一。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
     }
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-26 18:42:23",
+    "updated": "2026-10-26 22:02:19",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [

@@ -322,6 +322,20 @@ Per-language real-corpus validation, ordered by date:
   全链路由 `CODEGRAPH_ENABLE_EMBEDDING=1` 单点 opt-in。
   验收：embedding-runtime 17/17 + 既有 embedding/fallback/extraction/watcher/sync
   96 测试不回归 + tsc 0 errors。
+- [2026-10-26-p2-async-embedding-d6-regression.md](evidence/2026-10-26-p2-async-embedding-d6-regression.md)
+  — 1-4-30 ADR-0009 D6 回归三件套实测：drupal 11 491 文件 / typescript engine /
+  真实 fastembed+vec0 链路。三件套全过：(a) `--with-embeddings`（无 --wait）
+  的 enqueue 相对纯结构索引 overhead **-2.24%**（噪声内，符合"不阻塞主路径"
+  设计意图）；(b) round 2 终态 `pending=11 491 == files_in_db`；(c) worker
+  实测 93.86 ms/文件（±20% 阈值内），11 491 done / 0 failed / 0 pending。
+  实测中发现并修复 1-4-29 的设计漏洞：CLI 模式下 `notifyEnqueued()` 会
+  spawn worker_threads.Worker 拉住主进程，把名义 fire-and-forget 变成同步
+  18-min drain；修复 = `runEmbeddingPipeline` 非 wait 路径不再 spawn worker，
+  worker 懒启动交给长驻进程（MCP / watcher）。方法论修正：1-4-2 的"~50 s"
+  drupal baseline 是跨 engine 二手引用，本节点改用同 engine 自对照
+  （round 1 vs round 2）。已知遗留：fastembed 不在主 package.json，fresh
+  安装 `--with-embeddings` 会 silent fail（queue 标 `failed` + last_error）
+  —— 归 1-4-31+ 处理。Raw JSON: `evidence/raw/2026-10-26-p2-async-embedding-d6-regression.json`。
 
 ## methods — methods, playbooks, and how-to guides
 
