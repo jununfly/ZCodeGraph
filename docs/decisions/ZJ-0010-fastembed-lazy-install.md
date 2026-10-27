@@ -149,6 +149,26 @@ zcodegraph embedding status            # 检测 fastembed/vec0/模型三件套�
 - vec0 下载源：https://github.com/asg017/sqlite-vec/releases （1-4-2 spike 已验证 v0.1.9 win-x64 vec0.dll 282 KB）
 - 模型下载：调用 `FlagEmbedding.init({ model: BGESmallENV15, cacheDir: <projectRoot>/.zcodegraph/models })`，让 fastembed 自己拉
 
+## Amendment（1-4-32 e2e 实测修订，2026-10-27）
+
+端到端实测（临时项目 + `--wait-embeddings` 全管线）暴露并修正四点：
+
+1. **版本 pin 从 `^1.14.3` 收紧为精确 `1.14.5`**。1.14.3 的模型下载走
+   `storage.googleapis.com/qdrant-fastembed/<model>.tar.gz`，该端点 403（错误页被当 tarball 解开报
+   `TAR_BAD_ARCHIVE`）；1.14.5 改用 `@huggingface/hub` 按 `HF_ENDPOINT` 单文件下载（hf-mirror 可达）。
+2. **fastembed 1.14.5 的模型缓存布局是 `<cacheDir>/<repo with / → _>/`**，即
+   `<projectRoot>/.zcodegraph/models/Qdrant_bge-small-en-v1.5-onnx-Q/model_optimized.onnx`——没有
+   `.model-cache` 子目录（那是 spike 自己传的 cacheDir 名）。`checkEmbeddingStatus` 按"models 目录下
+   含 `*.onnx` 的子目录（排除 node_modules）"判定。
+3. **Windows 两个 spawn/import 坑**：(a) Node ≥20.12 禁止无 shell spawn `.cmd`（CVE-2024-27980），
+   `execFileSync('npm.cmd')` EINVAL → win32 走手工引号拼接的 `execSync`（双引号内 `^` 是字面量，钉死的
+   `fastembed@1.14.5` spec 安全）；(b) `createRequire().resolve()` 返回的 `C:\…` 绝对路径直接喂
+   `import()` 报 `ERR_UNSUPPORTED_ESM_URL_SCHEME` → 必须 `pathToFileURL()` 转 `file://` URL
+   （installer 的 `importResolved` 与 worker 共用）。
+4. **大文件传输可靠性**：HF CDN（cas-bridge.xethub.hf.co）直连对 ~66 MB 的 onnx 权重会间歇
+   `ECONNRESET`（本地 Clash 对该 host 也不稳）。模型步骤加 3 次重试（10s 间隔）；缓存已存在时
+   （read-repair / 重装场景）init 直接命中零下载。
+
 ## References
 
 - 上层设计：[`ZJ-0009-async-embedding-pipeline.md`](ZJ-0009-async-embedding-pipeline.md)

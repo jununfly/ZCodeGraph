@@ -128,7 +128,8 @@
         "1-4-28",
         "1-4-29",
         "1-4-30",
-        "1-4-31"
+        "1-4-31",
+        "1-4-32"
       ],
       "decisions": [
         {
@@ -1922,11 +1923,45 @@
       "notes": "",
       "layer": "plan",
       "rounds": 1
+    },
+    "1-4-32": {
+      "id": "1-4-32",
+      "uid": "01a17c229fd2-3b8c9259e3",
+      "label": "P2 异步嵌入管线 - 实施 ADR-0010 方案 B：zcodegraph embedding install 子命令 + worker fastembed 解析扩展 + --with-embeddings guided fix 警告",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Scope gate",
+          "answer": "Product execution。ADR-0010 Accepted，本节点实施方案 B：(1) 新建 src/embedding/installer.ts（runEmbeddingInstall / checkEmbeddingStatus / EMBEDDING_REQUIRED_PACKAGES）；(2) src/bin/zcodegraph.ts 新增 embedding 子命令空间（install/status）；(3) --with-embeddings 警告扩为 guided fix 提示；(4) src/embedding/worker.ts fastembed 解析加 fallback（createRequire 指向 <projectRoot>/.zcodegraph/models/）。vec0/模型下载链路按 1-4-2 spike 已验证路径复用。测试：tests/ 新增 embedding-installer 合同测试（dry-run 不真跑 npm、status 三态、解析顺序）。feat/chore 分离，不自动 commit/push。",
+          "note": ""
+        },
+        {
+          "q": "实现结构",
+          "answer": "四件套全部落地：(1) src/embedding/installer.ts 新建 — runEmbeddingInstall/checkEmbeddingStatus/resolveFastembedSpecifier/EMBEDDING_REQUIRED_PACKAGES（fastembed@^1.14.3 钉死、vec0 v0.1.9 release asset URL 按 platform/arch 映射、HF_ENDPOINT=hf-mirror + 剥代理）；(2) src/bin/zcodegraph.ts 新增 embedding 子命令空间（install --yes/--dry-run/--skip-model-download + status --json，status 非 0 退出即未就绪供 CI 断言）；(3) --with-embeddings 警告扩为 guided fix（fastembed 缺失/vec0 缺失分别指向 zcodegraph embedding install）；(4) worker.ts fastembed 解析与 installer 共享 resolveFastembedSpecifier（默认解析 → models-dir createRequire fallback），消除两处漂移风险。",
+          "note": ""
+        },
+        {
+          "q": "Windows 坑 + 测试 seam",
+          "answer": "测试抓出真实 bug：GNU tar（Git Bash）把 C:// 路径当远程主机（Cannot connect to C: resolve failed）→ defaultExtractVec0 在 win32 先加 --force-local、失败回退无 flag（兼容 System32 bsdtar）。fastembed@1.14.5 在本仓 node_modules（1-4-2 spike 遗留）导致默认解析恒真 → resolveFastembed/checkEmbeddingStatus 加 defaultProbe 测试 seam；npm 跳过条件改为 models-dir 私有副本可解析（版本钉死的确定性副本，全局 fastembed 不满足 pin）。tests/embedding-installer.test.ts 20/20 + 真实 tar 往返测试；embedding-queue/runtime 27/27 无回归；skip-debt-guardrail 4/4；npm run build 通过；CLI 冒烟（status --json exit 码、install --dry-run 计划输出、guided fix 警告）全过。",
+          "note": ""
+        },
+        {
+          "q": "e2e 实测修订（item 2+3）",
+          "answer": "真实端到端跑通（临时项目 index --with-embeddings --wait-embeddings：enqueued=2 processed=2 failed=0，vec_embeddings 2 行 384d）。过程修复：(1) spawnSync npm.cmd EINVAL（Node ≥20.12 CVE-2024-27980 禁无 shell spawn .cmd）→ win32 execSync 手工引号拼接；(2) createRequire.resolve() 的 C:/ 绝对路径喂 import() 报 ERR_UNSUPPORTED_ESM_URL_SCHEME → importResolved 用 pathToFileURL，installer/worker 共用；(3) fastembed@^1.14.3 会被 npm 解析到 1.14.3 且其模型下载走 GCS（storage.googleapis.com 403 → TAR_BAD_ARCHIVE）→ pin 收紧为精确 fastembed@1.14.5（HF per-file 下载，走 HF_ENDPOINT）；(4) 1.14.5 缓存布局是 <models>/Qdrant_bge-small-en-v1.5-onnx-Q/ 无 .model-cache 子目录 → checkEmbeddingStatus 改按含 *.onnx 的子目录判定；(5) 模型步骤加 3 次重试（ECONNRESET 实测）。item 3：zcodegraph install 尾部加 embedding opt-in 提示（方案 C 暴露入口）。ADR-0010 已追加 Amendment 节。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
     }
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-27 14:11:56",
+    "updated": "2026-10-27 15:51:25",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
