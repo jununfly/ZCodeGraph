@@ -47,6 +47,7 @@ attributes, relationships, hard rules (`primary`, ONT-docs-ontology-v1).
 | ADR-0007 | [ZJ-0007-three-tier-fallback-health-state.md](decisions/ZJ-0007-three-tier-fallback-health-state.md) | How are expected fallbacks distinguished from real gaps? |
 | ADR-0008 | [ZJ-0008-merge-init-into-index.md](decisions/ZJ-0008-merge-init-into-index.md) | Should `init` be hard-merged into `index` with auto-bootstrap? |
 | ADR-0009 | [ZJ-0009-async-embedding-pipeline.md](decisions/ZJ-0009-async-embedding-pipeline.md) | How is P2 embedding made asynchronous + lazy-incremental? |
+| ADR-0010 | [ZJ-0010-fastembed-lazy-install.md](decisions/ZJ-0010-fastembed-lazy-install.md) | How does ZCodeGraph ship the optional fastembed/onnxruntime-node dependency without bloating the default install? |
 
 ## contracts — primary normative contracts
 

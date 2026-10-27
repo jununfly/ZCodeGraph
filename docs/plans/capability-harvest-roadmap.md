@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-26 22:02:19
+> 数据文件: `capability-harvest-roadmap.json` | 最后更新: 2026-10-27 14:11:56
 
 [x][X+] 1. ZCodeGraph 能力汇集路线图
 ├── [x][X+] 1-1. P-1 验证冲刺（先行 gate）
@@ -41,5 +41,6 @@
     ├── [x][X+] 1-4-27. P2 异步嵌入管线设计（承接 1-4-2 实测阻塞）
     ├── [x][X+] 1-4-28. P2 异步嵌入管线 - 硬底盘（schema v6 + queue + taxonomy）
     ├── [x][X+] 1-4-29. P2 异步嵌入管线 - 运行时（worker + watcher 钩子 + read-repair + CLI flag）
-    └── [x][X+] 1-4-30. P2 异步嵌入管线 - D6 回归基准三件套实测（drupal wall-clock / pending=files / 81ms-rate）
+    ├── [x][X+] 1-4-30. P2 异步嵌入管线 - D6 回归基准三件套实测（drupal wall-clock / pending=files / 81ms-rate）
+    └── [x][X+] 1-4-31. P2 异步嵌入管线 - fastembed 懒装方案立项（peerDeps optional / embedding install / 安装器 opt-in）
 <!-- ROADMAP_SECTION_END -->
