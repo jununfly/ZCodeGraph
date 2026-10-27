@@ -127,7 +127,8 @@
         "1-4-27",
         "1-4-28",
         "1-4-29",
-        "1-4-30"
+        "1-4-30",
+        "1-4-31"
       ],
       "decisions": [
         {
@@ -1897,11 +1898,35 @@
       "notes": "",
       "layer": "plan",
       "rounds": 1
+    },
+    "1-4-31": {
+      "id": "1-4-31",
+      "uid": "01a17bf8ee65-6c151b91e0",
+      "label": "P2 异步嵌入管线 - fastembed 懒装方案立项（peerDeps optional / embedding install / 安装器 opt-in）",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-4",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Scope gate",
+          "answer": "立项 = 写 ADR + 落决策，不改 src/。三方案对照（peerDeps optional / zcodegraph embedding install / 安装器 opt-in 步骤），按 ZCodeGraph 既有惯例（CLI opt-in、显式命令优于隐式、零依赖默认）选其一，产出 ADR-0010 文档。实施归 1-4-32+。",
+          "note": ""
+        },
+        {
+          "q": "三方案对照结论",
+          "answer": "选方案 B：zcodegraph embedding install 显式子命令。理由：(1) 方案 A peerDeps optional 在 npm 7+ 默认 auto-install-peers=true 下仍会自动装 208MB onnxruntime-node，失去 opt-in 意义，且 silent fail 路径不变；(2) 方案 C 把安装器的 MCP 配置职责与 npm 包安装混淆，且 -y 非交互模式下默认值两难（开=失去 opt-in；关=用户不知有嵌入能力）；(3) 方案 B 与 ZCodeGraph 既有惯例一致（install/index/uninit 都是显式命令），默认安装零增长，guided fix 取代 silent fail，版本钉死避免 vec schema mismatch。方案 C 可作为方案 B 的暴露入口（安装器末尾打印提示），归后续 polish。产出：docs/decisions/ZJ-0010-fastembed-lazy-install.md。实施归 1-4-32+。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
     }
   },
   "metadata": {
     "created": "2026-10-19 18:18:35",
-    "updated": "2026-10-26 22:02:19",
+    "updated": "2026-10-27 14:11:56",
     "md_file": "capability-harvest-roadmap.md"
   },
   "edges": [
