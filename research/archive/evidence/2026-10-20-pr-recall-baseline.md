@@ -31,7 +31,7 @@ Sibling node 1-1-2 measured semantic alignment vs codeflow on a synthetic 6-file
 | Indexing | `zcodegraph index` run once per PR at the merge sha, against the pinned sparse cone (express: `lib+examples`, flask: `src+tests+examples`, petclinic: `src`) |
 | Measurement | `zcodegraph affected --pr <base>..<merge> --json` → `affectedSource`, `affectedTests` |
 
-Script: `scripts/measure/pr-recall-baseline.mjs`. Raw per-PR data: [`2026-10-20-pr-recall-baseline.json`](./2026-10-20-pr-recall-baseline.json).
+Script: `scripts/measure/pr-recall-baseline.mjs`. Raw per-PR data: [`pr-recall-v1.json`](../../../docs/baselines/pr-recall-v1.json).
 
 ## Metrics
 
@@ -77,7 +77,7 @@ Express's 1.000 precision is an artifact of its sparse cone (`lib+examples`): th
 
 ## Raw data
 
-Full per-PR breakdowns, including base/merge shas, merged file lists, affected counts, and per-PR recall/precision, are in [`2026-10-20-pr-recall-baseline.json`](./2026-10-20-pr-recall-baseline.json) alongside this document.
+Full per-PR breakdowns, including base/merge shas, merged file lists, affected counts, and per-PR recall/precision, are in [`pr-recall-v1.json`](../../../docs/baselines/pr-recall-v1.json) in the promoted versioned input.
 
 ## Reproduce
 

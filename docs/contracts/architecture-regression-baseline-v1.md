@@ -47,8 +47,8 @@ Single medium-size corpus, reused from the real-corpus gate set
   routes (Spring) end to end.
 
 The baseline artifact records the pinned commit sha. Re-baselining requires a
-roadmap decision on node 1-2-8 and a new dated artifact; the contract version
-bumps when corpus, queries, or thresholds change.
+roadmap decision on node 1-2-8 and an update to the registered versioned input;
+the contract version bumps when corpus, queries, or thresholds change.
 
 ## Measurement Protocol
 
@@ -80,15 +80,17 @@ Frozen explore queries (structural, representative of agent高频 flows):
 - Node >= 22 (managed runtime), `npm run build` must precede measurement.
 - Clones use SSH by default; `MEASURE_GIT_PROTOCOL=https` or the
   `gh-proxy.com` mirror for network-restricted hosts.
-- Baselines are recorded per-OS-class in CI; the committed reference baseline
-  is produced on `ubuntu-24.04`. Local Windows runs compare against the same
-  baseline artifact but are advisory (Windows timing variance is governed by
-  node 1-2-10, not this contract).
+- The committed reference artifact records its original `win32-x64` environment.
+  Ubuntu CI compares against that frozen artifact as a regression alarm, not as
+  a same-host performance equivalence claim. Windows/macOS timing variance is
+  governed by node 1-2-10, not this contract.
 
 ## Artifacts
 
-- Baseline: `research/archive/evidence/<date>-architecture-regression-baseline.json`
-  (metric id `architecture-regression-baseline`).
+- Baseline: `docs/baselines/architecture-regression-v1.json`
+  (metric id `architecture-regression-baseline`). This is a versioned input
+  consumed by CI, not a historical evidence link. Re-baselining replaces it
+  through the roadmap decision process described above.
 - Each CI regression run emits the same envelope to stdout; failing runs
   additionally print per-corpus regression percentages on stderr.
 

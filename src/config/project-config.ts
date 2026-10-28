@@ -18,7 +18,7 @@ export const PROJECT_CONFIG_FILENAME = 'zcodegraph.json';
 export interface ProjectConfig {
   /**
    * Gitignore-style globs to exclude from indexing, e.g.
-   * `["research/**", "scratch/*.ts"]`. Patterns follow the same syntax as
+   * `["notes/**", "scratch/*.ts"]`. Patterns follow the same syntax as
    * `.gitignore` and are appended after the built-in defaults so user
    * `!negation` entries in `.gitignore` can still re-include specific paths.
    */

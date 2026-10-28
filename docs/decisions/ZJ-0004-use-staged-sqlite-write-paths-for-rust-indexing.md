@@ -17,11 +17,11 @@ SQLite. Early benchmark phases showed that graph-write cost could dominate
 large-corpus indexing, while active-index safety and schema compatibility still
 had to be preserved.
 
-Supporting evidence:
+Supporting contracts:
 
-- `research/archive/ledgers/rust-indexing-core-decision-ledger.md`
-- `research/archive/ledgers/rust-hybrid-optimization-decision-ledger.md`
-- `research/archive/evidence/2026-06-24-current-state-decision-pack.md`
+- `docs/contracts/rust-indexing-core-sqlite-contract.md`
+- `docs/contracts/baseline-indexing-performance-v1.md`
+- `docs/contracts/graph-semantics-guardrail-v1.md`
 
 ## Decision
 

@@ -153,8 +153,10 @@ Notes:
   `CODEGRAPH_ALLOW_UNSAFE_NODE=1`; release users should use the bundled runtime
   or a supported embedding runtime.
 
-Full evidence: `docs/evidence/2026-06-26-zcodegraph-0-10-0-current-state.md`
-and `docs/evidence/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab.md`.
+The release snapshot is summarized above; raw measurement reports remain
+recoverable from Git history. Current measurement protocols live in
+`docs/contracts/baseline-indexing-performance-v1.md` and
+`docs/contracts/baseline-agent-sufficiency-v1.md`.
 
 <details>
 <summary><strong>Historical benchmark context</strong></summary>
@@ -162,7 +164,7 @@ and `docs/evidence/2026-06-26-zcodegraph-0-10-0-targeted-agent-ab.md`.
 Previous agent A/B and coverage measurements remain useful for understanding
 how ZCodeGraph reduces file-scanning behavior, but they are not the 0.10.0
 release current-state source of truth. See
-`docs/evidence/call-sequence-analysis.md`,
+`docs/methods/ab-evaluation-matrix.md`,
 `docs/contracts/baseline-agent-sufficiency-v1.md`, and
 `docs/methods/dynamic-dispatch-coverage-playbook.md` for the historical
 methodology and mechanism notes.

@@ -14,9 +14,9 @@ Accepted (design phase)
 
 ## Context
 
-承接 1-4-2 实测阻塞：fastembed 串行 ~81 ms/文件，drupal 11 501 文件 → 首索引嵌入耗时 **18.4 min**，远超 ≤2× 结构索引（~50 s）的硬阈值。把同步嵌入塞进 `zcodegraph index` 主路径已被判定不可行（详见 `research/archive/evidence/2026-10-26-p2-embedding-thresholds.md`）。
+承接 1-4-2 实测阻塞：fastembed 串行 ~81 ms/文件，drupal 11 501 文件 → 首索引嵌入耗时 **18.4 min**，远超 ≤2× 结构索引（~50 s）的硬阈值。把同步嵌入塞进 `zcodegraph index` 主路径已被判定不可行。
 
-1-4-1 立项三问已锁定前置条件（详见 `research/archive/evidence/2026-10-26-p2-embedding-three-questions-gate.md`）：
+1-4-1 立项三问已锁定以下前置条件：
 
 - 模型按需下载到 `.zcodegraph/models/`（BGE-small-en-v1.5，384d，64 MB ONNX 量化）
 - sqlite-vec v0.1.9（vec0.dll 282 KB）与 nodes/edges 同库共存
@@ -214,9 +214,8 @@ T_index ≈ 51.5 s ≪ 100 s (2× 阈值)  ✅
 
 ## References
 
-- Roadmap: `docs/plans/capability-harvest-roadmap.json` → 节点 `1-4-27`
-- 1-4-1 spike: `research/archive/evidence/2026-10-26-p2-embedding-three-questions-gate.md`
-- 1-4-2 阈值实测： `research/archive/evidence/2026-10-26-p2-embedding-thresholds.md`
+- Roadmap: `docs/plans/capability-harvest-roadmap.json` → 节点 `1-4-27`（已收口，历史快照见 Git 历史）
+- 前置实测记录：可从 Git 历史按 roadmap 节点 `1-4-2` 检索；本文保留全部决策所需的阈值与结论
 - 相关契约： `docs/contracts/schema-evolution-and-mcp-tool-cap-v1.md`
 - 现有 fallback 状态机： `src/indexing/rust-hybrid-contract.ts`
 - 失败子原因渲染： `src/diagnostics/fallback-summary.ts`

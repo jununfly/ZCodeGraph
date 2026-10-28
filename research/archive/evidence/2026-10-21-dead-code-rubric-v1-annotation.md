@@ -11,7 +11,7 @@ roadmap-node: 1-2-4
 Date: 2026-10-21
 Roadmap: `docs/plans/capability-harvest-roadmap.json` node **1-2-4** (P0b 冻结《死代码判定 rubric v1》)
 Contract: [`DES-dead-code-rubric-v1`](../contracts/dead-code-rubric-v1.md)
-Machine report: [`2026-10-21-dead-code-rubric-v1-annotation-r1.json`](2026-10-21-dead-code-rubric-v1-annotation-r1.json)
+Machine report: [`dead-code-annotation-r1-v1.json`](../../../docs/baselines/dead-code-annotation-r1-v1.json)
 Annotator: `scripts/measure/dead-code-annotate-r1.mjs` (seed `20261021`)
 
 ## Why this evidence exists

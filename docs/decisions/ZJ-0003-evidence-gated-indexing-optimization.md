@@ -19,11 +19,11 @@ Several candidates improved one bucket while leaving the end-to-end target
 unchanged, and some diagnostic candidates were useful even when they were not
 production optimization paths.
 
-Supporting evidence:
+Supporting contracts:
 
-- `research/archive/ledgers/rust-indexing-core-decision-ledger.md`
-- `research/archive/ledgers/rust-hybrid-optimization-decision-ledger.md`
-- `research/archive/evidence/2026-06-24-current-state-decision-pack.md`
+- `docs/contracts/baseline-indexing-performance-v1.md`
+- `docs/contracts/graph-semantics-guardrail-v1.md`
+- `docs/contracts/baseline-agent-sufficiency-v1.md`
 - #165 post-release optimization tracker
 
 ## Decision

@@ -26,7 +26,7 @@
  *   node scripts/measure/embedding-baseline.mjs \
  *     --corpus pallets-flask --corpus expressjs-express ... \
  *     [--corpus-root C:/workspace/measure-corpus] \
- *     [--out research/archive/evidence/raw/2026-10-26-p2-embedding-thresholds.json]
+ *     [--out .tmp/measure/embedding-thresholds.json]
  *
  * The spike fixture `.tmp/embedding-baseline/` must already be installed
  * (`npm install` in that directory) and `vec0.dll` must sit beside it.

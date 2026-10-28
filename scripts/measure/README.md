@@ -7,9 +7,9 @@ Three standalone scripts that turn the manual real-corpus gate workflow
 script prints a structured JSON report on stdout and exits 0 on success,
 non-zero on any clone / index / probe failure.
 
-The scripts only produce JSON. Downstream evidence documents (1-1-4 token
-baseline, 1-1-5 PR recall baseline, 1-1-6 health rubric validation, 1-1-7
-churn heatmap) consume the JSON and write their own Markdown reports.
+The scripts only produce JSON. Routine reports go to `.tmp/measure/`.
+Only an explicitly promoted input consumed by tests, scripts, or CI belongs
+in `docs/baselines/` and must be registered in `docs/README.md`.
 
 ## Architecture regression red lines (1-2-8)
 
@@ -17,8 +17,8 @@ Three additional scripts form the 1-2-8 red-line + capability-probe loop:
 
 - `perf-baseline.mjs` — measures index wall-time (N cold re-indexes,
   median) and explore latency (frozen queries, median) for one corpus.
-  Produces the `architecture-regression-baseline` artifact committed under
-  `research/archive/evidence/`. Contract: `docs/contracts/architecture-regression-baseline-v1.md`.
+  Produces the versioned CI input `docs/baselines/architecture-regression-v1.json`.
+  Contract: `docs/contracts/architecture-regression-baseline-v1.md`.
 - `perf-regression-check.mjs` — re-measures the baseline corpus and fails
   (exit 1) when index wall-time regresses > 15% or explore latency > 20%
   against the committed baseline. CI job `architecture-red-lines` runs it.
@@ -30,18 +30,18 @@ Three additional scripts form the 1-2-8 red-line + capability-probe loop:
   verifies offline upstream artifacts (wasm grammars + rust core binary).
 
 ```bash
-# Re-baseline (requires roadmap decision on 1-2-8 + new dated artifact)
+# Re-baseline (requires roadmap decision on 1-2-8 + registered input update)
 node scripts/measure/perf-baseline.mjs spring-projects/spring-petclinic \
-  --out research/archive/evidence/<date>-architecture-regression-baseline.json
+  --out docs/baselines/architecture-regression-v1.json
 
 # Red-line check (what CI runs)
 node scripts/measure/perf-regression-check.mjs \
-  --baseline research/archive/evidence/2026-10-22-architecture-regression-baseline.json
+  --baseline docs/baselines/architecture-regression-v1.json
 
 # Capability probes against an already-indexed dir (skip clone/index)
 CAPABILITY_PROBE_DIR=/path/to/indexed/repo \
-  node scripts/measure/capability-probes.mjs --out capabilities.json
-node dist/bin/zcodegraph.js doctor capabilities.json --upstream-check
+  node scripts/measure/capability-probes.mjs --out .tmp/measure/capabilities.json
+node dist/bin/zcodegraph.js doctor .tmp/measure/capabilities.json --upstream-check
 ```
 
 
@@ -146,5 +146,5 @@ All three scripts emit the same envelope:
 node scripts/measure/dead-code.mjs expressjs/express \
   --ref a419aa7350389a275ab45fde2e849ed1f02449ef \
   --sparse lib --sparse examples \
-  --out research/archive/evidence/raw/2026-10-20-express-dead-code.json
+  --out .tmp/measure/express-dead-code.json
 ```

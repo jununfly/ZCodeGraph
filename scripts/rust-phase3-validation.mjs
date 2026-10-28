@@ -446,7 +446,7 @@ async function main() {
   ];
   const summary = {
     generatedAt: new Date().toISOString(),
-    plan: 'research/archive/ledgers/rust-indexing-core-decision-ledger.md (phase-3 production-hardening validation)',
+    plan: 'Rust indexing phase-3 production-hardening validation',
     toolchain: {
       node: process.version,
       platform: process.platform,

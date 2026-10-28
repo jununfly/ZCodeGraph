@@ -105,4 +105,4 @@ Protocol: `DES-dead-code-rubric-v1` annotation protocol R2。本清单**隐去 R
 
 最省事：直接回一行 `1 u, 2 a, 3 a, ...`（65 个编号）。不确定就标 `u`——precision 只算 dead 桶，`u` 不进分母，标 `u` 是保守安全项。
 
-完整 65 条结构化数据在 `docs/evidence/2026-10-21-dead-code-rubric-v1-annotation-r1.json`（`bucket=dead 且 r2_auto=null` 的条目）。
+完整 65 条结构化数据在 [`docs/baselines/dead-code-annotation-r1-v1.json`](../../../docs/baselines/dead-code-annotation-r1-v1.json)（原日期快照的正式基线；`bucket=dead 且 r2_auto=null` 的条目）。

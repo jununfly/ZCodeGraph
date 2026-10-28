@@ -55,7 +55,6 @@ export type SqliteBackend = 'node-sqlite';
  * call in un-privileged code paths fails closed; opt in only on paths that
  * need to load a vetted extension binary (e.g. sqlite-vec's `vec0` for the
  * P2 optional local hybrid semantic retrieval spike — see
- * research/archive/evidence/2026-10-26-p2-embedding-thresholds.md and
  * docs/decisions/ZJ-0009-async-embedding-pipeline.md). Callers that enable
  * this MUST re-disable via `db.enableLoadExtension(false)` immediately after
  * loading the intended extension to shrink the attack surface.

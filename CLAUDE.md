@@ -93,7 +93,7 @@ Cursor launches MCP subprocesses with the wrong cwd and doesn't pass `rootUri` i
 
 ## Retrieval performance & dynamic-dispatch coverage (do not regress)
 
-CodeGraph's core value is letting an agent answer **structural/flow** questions ("how does X reach Y", trace, impact, callers) with a few **fast** ZCodeGraph calls and **zero Read/Grep**. The optimization target is **wall-clock latency + tool-call count** — *don't optimize for token cost*. (Cost is **lower**, not "flat" as earlier framing claimed: a current-build with-vs-without A/B across the 7 README repos, median of 4, saved on average **35% cost · 57% tokens · 46% time · 71% tool calls** — reproducing the published README. The mechanism is **far fewer turns over a much smaller accumulated context** — NOT cache-ability: the without-arm's huge token volume is *mostly* cheap cache-reads, which is why token-count savings (57%) look bigger than cost savings (35%). Measure tokens by **summing per-turn assistant usage**, not `result.usage` (last-turn only in current Claude Code). See `research/archive/evidence/call-sequence-analysis.md`.) The mechanism that drives everything here: **an agent falls back to Read/Grep the instant a ZCodeGraph answer is insufficient.** So every change is judged by one question — is codegraph's answer sufficient enough to *stop* the agent from reading?
+CodeGraph's core value is letting an agent answer **structural/flow** questions ("how does X reach Y", trace, impact, callers) with a few **fast** ZCodeGraph calls and **zero Read/Grep**. The optimization target is **wall-clock latency + tool-call count** — *don't optimize for token cost*. (Cost is **lower**, not "flat" as earlier framing claimed: a current-build with-vs-without A/B across the 7 README repos, median of 4, saved on average **35% cost · 57% tokens · 46% time · 71% tool calls** — reproducing the published README. The mechanism is **far fewer turns over a much smaller accumulated context** — NOT cache-ability: the without-arm's huge token volume is *mostly* cheap cache-reads, which is why token-count savings (57%) look bigger than cost savings (35%). Measure tokens by **summing per-turn assistant usage**, not `result.usage` (last-turn only in current Claude Code). See `docs/methods/ab-evaluation-matrix.md`.) The mechanism that drives everything here: **an agent falls back to Read/Grep the instant a ZCodeGraph answer is insufficient.** So every change is judged by one question — is codegraph's answer sufficient enough to *stop* the agent from reading?
 
 **Target behavior:** a flow question resolves in **1 codegraph call on small repos, scaling to 3–5 on large**, with **Read/Grep = 0**. When reviewing a PR or trying something new, do not regress this.
 
@@ -109,7 +109,7 @@ What works is meeting the agent where it already is:
 
 What fails is the inverse — folding a precise answer into a **fuzzy-input** tool: the now-removed `zcodegraph_context` took a description, not symbols, so it couldn't disambiguate a flow's endpoints and surfaced the _wrong feature_ (which is why it was cut). Precise output needs precise input — explore takes a symbol bag for exactly this reason. (`zcodegraph_trace` was likewise removed: explore-flow does its job and the agent under-picked it.)
 
-The remaining lever under this axis is **coverage**: every flow made to connect statically (a new dynamic-dispatch synthesizer, or extracting symbols static parsing skipped — e.g. object-literal store actions in `create((set,get)=>({...}))`) is then surfaced automatically by explore-flow, no agent change needed. Reactive/reconciler runtimes (Halo's `ReactiveExtensionClient`, MediatR, Vue Proxy) are the frontier — flows there have no static edges, so nothing surfaces (correctly — silent beats wrong). Full investigation + A/B record: `research/archive/evidence/call-sequence-analysis.md` + auto-memory `project_codegraph_read_displacement`.
+The remaining lever under this axis is **coverage**: every flow made to connect statically (a new dynamic-dispatch synthesizer, or extracting symbols static parsing skipped — e.g. object-literal store actions in `create((set,get)=>({...}))`) is then surfaced automatically by explore-flow, no agent change needed. Reactive/reconciler runtimes (Halo's `ReactiveExtensionClient`, MediatR, Vue Proxy) are the frontier — flows there have no static edges, so nothing surfaces (correctly — silent beats wrong). Full investigation + A/B record: `docs/methods/ab-evaluation-matrix.md` + auto-memory `project_codegraph_read_displacement`.
 
 ### Explore budget — keep BOTH budgets monotonic with repo size
 
@@ -166,6 +166,16 @@ Tests live in `tests/` and mirror the module they cover. Notable ones beyond the
 - `pr19-improvements.test.ts`, `frameworks-integration.test.ts` — regression coverage for specific past PRs/incidents; don't rename these, the names anchor to git history.
 
 Tests create temp dirs with `fs.mkdtempSync` and clean up in `afterEach`. They write real files and exercise real SQLite — there is no DB mocking.
+
+### Plan, Benchmark, and Evidence Lifecycle
+
+Only versioned machine-readable inputs consumed by tests or CI belong in `docs/baselines/`.
+Routine measurement output goes to the ignored `.tmp/measure/` directory; review evidence
+stays with the issue or plan closeout. Production code, scripts, tests, CI, and durable
+documentation must remain self-contained and must not read or link to local discussion or
+investigation workspaces. Historical process artifacts are recovered through Git history,
+not used as runtime or normative inputs. Do not delete or rewrite historical artifacts as
+part of a narrow implementation slice unless the issue explicitly scopes that cleanup.
 
 ### Windows-gated tests
 

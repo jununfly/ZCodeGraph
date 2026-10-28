@@ -17,9 +17,9 @@ cleanup, fallback behavior, or language/framework extraction.
 The guardrail answers one question: did the graph remain trustworthy enough for
 Agent Sufficiency work to continue?
 
-This is a standard, not a one-off result artifact. Result artifacts live in
-`research/archive/evidence/` when they are durable baseline/result/decision records. Short
-process evidence should stay with the issue or plan that produced it.
+This is a standard, not a one-off result artifact. Machine-readable inputs
+consumed by tests or CI belong in `docs/baselines/`. Routine reports go in
+`.tmp/measure/`; review evidence stays with its owning issue or plan closeout.
 
 ## Required Trigger
 

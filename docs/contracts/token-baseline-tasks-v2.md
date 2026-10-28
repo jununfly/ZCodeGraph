@@ -350,9 +350,10 @@ pipeline. Tasks below target what **is** in the repo.
    dispatches on `version`: v1 → cliCalls path (unchanged), v2 →
    exploreQueries path (new). Both paths share the same
    clone/index/median/report infrastructure.
-3. Evidence doc `research/archive/evidence/YYYY-MM-DD-token-baseline-layer2.md`
-   records: per-task v2 ratio, pinned ref sha, DB row counts, and a
-   one-paragraph interpretation. Ratios are NOT comparable to v1.
+3. The measurement report records per-task v2 ratio, pinned ref sha, DB row
+   counts, and a one-paragraph interpretation. Write routine output under
+   `.tmp/measure/`; attach any report needed for review to its owning issue
+   or plan closeout. Ratios are NOT comparable to v1.
 4. A/B elided-markers measurement (exit criteria ② of 1-2-3): run the
    same v2 tasks twice — once with `CODEGRAPH_EXPLORE_ELIDED_MARKERS=1`
    (default) and once with `=0`. Report p95 byte delta across the 9

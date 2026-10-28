@@ -20,12 +20,12 @@ SQLite/write-path optimizations can help, while repeated local A/B patches do
 not resolve the architectural boundary between Rust-owned graph facts and the
 TypeScript product shell.
 
-Supporting evidence:
+Supporting contracts and decision context:
 
-- `research/archive/ledgers/rust-hybrid-optimization-decision-ledger.md`
-- `research/archive/ledgers/plan-artifact-consolidated-closeout.md`
+- `docs/contracts/finalization-tail-boundary-contract.md`
+- `docs/contracts/rust-indexing-core-sqlite-contract.md`
+- `docs/contracts/graph-semantics-guardrail-v1.md`
 - #296 resolver migration decision plan
-- `research/archive/evidence/2026-06-24-current-state-decision-pack.md`
 
 ## Decision
 

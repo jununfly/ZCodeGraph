@@ -18,11 +18,14 @@ This document defines the **ontology** of the `docs/` tree: what kinds of
 entities exist, what attributes each entity carries, how entities relate to
 each other, and the rules every entity must satisfy.
 
-**Scope of `docs/` (2026-10-28 governance pass).** `docs/` carries only the
-repository's *current* objective results, structure, design rationale,
-authoritative constraints, open TODOs, and future plans. Time-stamped
-measurement artifacts and decision-campaign history live under
-`research/archive/` and are **not** part of this ontology.
+**Scope of `docs/`.** `docs/` carries only the repository's *current* objective
+results, structure, design rationale, authoritative constraints, open TODOs,
+and future plans. Machine-readable inputs consumed by tests, scripts, or CI
+live in `docs/baselines/`; they are versioned assets, not document entities.
+Routine measurements go to `.tmp/measure/`, review evidence stays with its
+owning issue or plan closeout, and historical process material is traceable
+through Git history. Current documentation must not depend on local
+investigation or discussion workspaces.
 
 ## Purpose
 
@@ -51,16 +54,16 @@ Entity class is **load-bearing**: it determines the authority vocabulary, the
 default lifecycle, and the test lock tier. Misclassifying an entity (e.g.
 placing a timestamped benchmark under `contracts/`) is a review signal.
 
-### Archived entity classes (out of scope)
+### Non-entity assets
 
-The following two classes used to live under `docs/` and were moved out in
-the 2026-10-28 governance pass. They are **evidence-surface** artifacts, not
-durable documentation, and are not governed by this ontology:
+The following assets have explicit owners but are not Markdown document
+entities and do not carry ontology frontmatter:
 
-| Archived class | Current location | Previous folder |
+| Asset class | Location | Governance |
 | --- | --- | --- |
-| Ledger (decision-campaign history) | `research/archive/ledgers/` | `docs/ledgers/` |
-| Evidence (timestamped measurement) | `research/archive/evidence/` | `docs/evidence/` |
+| Versioned baseline input | `docs/baselines/` | Must have a registered consumer in tests, scripts, or CI |
+| Active process plan | `docs/plans/` | Roadmap CLI owns its schema and lifecycle |
+| Routine measurement output | `.tmp/measure/` | Ignored local output; never a normative source |
 
 ## Attributes
 
@@ -100,9 +103,8 @@ change under `git mv`, but authority-id is stable.
   superseding entity must carry enough context that the superseded one is
   only kept for historical traceability.
 - **`evidence-for`** — the entity it points at relies on this entity's
-  existence as evidence. Evidence-surface artifacts under
-  `research/archive/` may still be referenced from inline Markdown but are
-  not registered as relationship targets.
+  existence as evidence. Relationship targets are current registered entities;
+  historical snapshots remain discoverable through Git history.
 - **`decided-by`** — the roadmap node (e.g. `1-4-1-3`) whose `decide` action
   produced this entity. Used primarily for contracts.
 
@@ -111,8 +113,9 @@ change under `git mv`, but authority-id is stable.
 The following rules are enforced by `tests/docs-ontology.test.ts`. They
 are the only rules the test suite locks; everything else is convention.
 
-1. **Every document under `docs/` (except `README.md` and files under
-   `docs/plans/`) has YAML frontmatter** with all four required attributes.
+1. **Every Markdown entity in `decisions/`, `contracts/`, or `methods/` has
+   YAML frontmatter** with all four required attributes. `docs/README.md`,
+   `docs/plans/`, and non-entity assets are exempt.
 2. **`authority-id` is unique across the entire tree.** No two entities
    share an id.
 3. **Authority vocabulary is closed.** Only `primary`, `supporting`,
@@ -135,22 +138,21 @@ are the only rules the test suite locks; everything else is convention.
   folder, adding frontmatter, and registering it in `docs/README.md` under
   the matching entity-class section.
 - **Supersede** — when an entity is replaced, the new entity lists the old
-  one in `supersedes`. The old entity is kept (its `authority` is updated
-  to `historical` and it is moved to `research/archive/` if it is
-  time-stamped).
-- **Extraction and archive** — when a timestamped artifact's durable content
-  is still load-bearing, the durable content is first distilled into a
-  `primary` or `supporting` entity under `docs/`. Only then is the original
-  artifact moved to `research/archive/` via `git mv`. Deletion of archived
-  material requires Human confirmation.
+  one in `supersedes` and carries all context needed to apply the decision.
+  Retirement or relocation of the old entity requires Human confirmation.
+- **Extraction** — when historical material contains a current requirement,
+  distill that requirement into the appropriate registered entity under
+  `docs/`. The resulting entity must stand alone; the source snapshot remains
+  traceable through Git history rather than a durable local-workspace link.
 
 ## Out Of Scope
 
 - The `docs/plans/` folder (process material, governed by the roadmap CLI).
 - Root-level files (`AGENTS.md`, `CLAUDE.md`, `README.md`, `ZJ-CONTEXT.md`)
   — they are external entry points, not entities.
-- The `research/archive/` tree (evidence-surface artifacts, preserved for
-  traceability but not governed by this ontology).
+- Local investigation and discussion workspaces, and historical process
+  snapshots recoverable from Git history. None is governed by this ontology
+  or consumed by current executable assets.
 - The `site/` tree (Astro-generated documentation; separate lifecycle).
 
 ## Relationship To Other Contracts
@@ -160,22 +162,20 @@ are the only rules the test suite locks; everything else is convention.
 - `docs/contracts/rust-framework-ownership-matrix-v1.md` — per-language
   framework/runtime semantics ownership. That contract governs the *code*;
   this document governs the *documentation about the code*.
-- `docs/contracts/resolver-semantic-residuals-v1.md` — resolver semantic
-  boundaries. Distilled from `research/archive/ledgers/resolver-semantic-residuals-ledger.md`
-  in the 2026-10-28 governance pass.
-- `research/archive/ledgers/plan-artifact-consolidated-closeout.md` —
-  navigation for the process-artifact lifecycle (ADR-0005). It enumerates
-  which artifacts were extracted from process files into durable ones; this
-  document enumerates the rules every future extraction must satisfy.
+- `docs/contracts/resolver-semantic-residuals-v1.md` — the self-contained
+  owner of resolver semantic boundaries.
+- `docs/baselines/` — versioned machine-readable inputs. These assets and
+  their consumers must be registered in `docs/README.md`; they are not
+  document entities or relationship targets.
 
 ## Change Log
 
 - 2026-10-28 — **Scope narrowed to current-state docs.** Removed `Ledger`
-  and `Evidence` as entity classes (both moved to `research/archive/`).
-  Added `version`, `page-form`, `roadmap-node`, `date` as recognized
-  optional attributes. Hard-rule updates: methods may be `primary` or
-  `supporting`; frontmatter parser must tolerate CRLF. Triggered by the
-  docs decoupling governance pass.
+  and `Evidence` as entity classes. Added `version`, `page-form`,
+  `roadmap-node`, `date` as recognized optional attributes. Methods may be
+  `primary` or `supporting`; the frontmatter parser tolerates CRLF.
+  Versioned machine inputs are explicitly separated from document entities,
+  and historical process material is traced through Git history.
 - 2026-10-19 — Initial version. Replaced the category-by-folder convention
   with the entity-by-folder convention. Triggered by the ontology
   restructuring governed by `/zj-docs-ontology`.

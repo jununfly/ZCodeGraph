@@ -12,9 +12,8 @@
  *
  * Legacy mode (no --pr) is also covered to lock in backward compatibility.
  *
- * codeflow is never invoked — see roadmap 1-1-2 Q4 decision: CI must not
- * depend on external processes. The recall-vs-codeflow evidence lives in
- * research/archive/evidence/2026-10-20-blast-radius-recall.md (offline artifact).
+ * codeflow is never invoked: CI must not depend on external processes.
+ * Recall validation uses pinned offline fixtures and explicit CLI assertions.
  */
 
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';

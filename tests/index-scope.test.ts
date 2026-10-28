@@ -47,11 +47,11 @@ describe('loadProjectConfig', () => {
   it('parses a valid exclude list and filters non-strings', () => {
     fs.writeFileSync(
       path.join(dir, PROJECT_CONFIG_FILENAME),
-      JSON.stringify({ exclude: ['research/**', 42, null, 'scratch/*.ts', ''] }),
+      JSON.stringify({ exclude: ['notes/**', 42, null, 'scratch/*.ts', ''] }),
       'utf-8',
     );
     expect(loadProjectConfig(dir)).toEqual({
-      exclude: ['research/**', 'scratch/*.ts'],
+      exclude: ['notes/**', 'scratch/*.ts'],
     });
   });
 });
@@ -112,13 +112,13 @@ describe('buildDefaultIgnore: agent work dirs', () => {
   it('appends zcodegraph.json exclude globs on top of defaults', () => {
     fs.writeFileSync(
       path.join(dir, PROJECT_CONFIG_FILENAME),
-      JSON.stringify({ exclude: ['research/**', 'scratch/*.ts'] }),
+      JSON.stringify({ exclude: ['notes/**', 'scratch/*.ts'] }),
       'utf-8',
     );
     const ig = buildDefaultIgnore(dir);
     // User globs hit
-    expect(ig.ignores('research/notes.md')).toBe(true);
-    expect(ig.ignores('research/deep/file.md')).toBe(true);
+    expect(ig.ignores('notes/notes.md')).toBe(true);
+    expect(ig.ignores('notes/deep/file.md')).toBe(true);
     expect(ig.ignores('scratch/foo.ts')).toBe(true);
     // Built-in defaults still active
     expect(ig.ignores('.workbuddy/')).toBe(true);

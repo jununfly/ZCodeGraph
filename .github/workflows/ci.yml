@@ -122,6 +122,11 @@ jobs:
           npx vitest run
           tests/churn-aggregate.test.ts
           tests/cli-churn.test.ts
+      - name: Verify formal assets are decoupled from local workspaces
+        run: >
+          npx vitest run
+          tests/formal-assets-decoupling.test.ts
+          tests/docs-ontology.test.ts
       - name: Verify index scope (agent work dirs excluded, isolated fixture)
         run: >
           npx vitest run
@@ -142,9 +147,9 @@ jobs:
           tests/ci-rust-packaged-path.test.ts
 
   # Roadmap 1-2-8 (横切：架构回归红线 + 能力健康探针).
-  # Ubuntu-only on purpose: the committed reference baseline is produced on
-  # ubuntu-24.04 (see docs/contracts/architecture-regression-baseline-v1.md);
-  # Windows/macOS timing variance is governed by node 1-2-10, not the red line.
+  # Ubuntu-only on purpose: the frozen Windows reference baseline is compared
+  # against Ubuntu CI as an alarm threshold, not a same-host performance claim.
+  # See docs/contracts/architecture-regression-baseline-v1.md.
   # The corpus clone is cached across runs by actions/cache keyed on the
   # baseline artifact's pinned sha.
   architecture-red-lines:
@@ -182,7 +187,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/measure-corpus
-          key: measure-corpus-${{ hashFiles('docs/evidence/2026-10-22-architecture-regression-baseline.json') }}
+          key: measure-corpus-${{ hashFiles('docs/baselines/architecture-regression-v1.json') }}
           restore-keys: |
             measure-corpus-
       - name: Verify regression red-line verdict logic
@@ -190,7 +195,7 @@ jobs:
       - name: Verify architecture regression red lines (petclinic corpus)
         run: >
           node scripts/measure/perf-regression-check.mjs
-          --baseline docs/evidence/2026-10-22-architecture-regression-baseline.json
+          --baseline docs/baselines/architecture-regression-v1.json
           --corpus-root /tmp/measure-corpus
           --repetitions 3
       - name: Run capability probes (petclinic corpus)
@@ -257,7 +262,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/measure-corpus
-          key: measure-corpus-${{ hashFiles('docs/evidence/2026-10-22-architecture-regression-baseline.json') }}
+          key: measure-corpus-${{ hashFiles('docs/baselines/architecture-regression-v1.json') }}
           restore-keys: |
             measure-corpus-
       - name: Clone drupal corpus (reuse cache)

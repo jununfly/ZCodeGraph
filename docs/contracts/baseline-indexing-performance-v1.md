@@ -14,10 +14,8 @@ Status: active
 for `rust-hybrid` indexing performance optimization.
 
 This baseline measures the default `rust-hybrid` full-index path. It is the
-comparison standard for #165 follow-up work and for the performance optimization
-history consolidated at
-`research/archive/ledgers/plan-artifact-consolidated-closeout.md` and the dated
-evidence artifacts under `research/archive/evidence/`.
+comparison standard for #165 follow-up work. Durable decisions are recorded
+in ADR-0003; this contract owns the current repeatable measurement protocol.
 
 ## Scope
 
@@ -105,10 +103,10 @@ An ownership slice closeout should record:
   Sufficiency evidence;
 - final classification.
 
-Use targeted fixture/profile evidence by default. Keep temporary profiles,
-intermediate measurements, and process evidence with the issue or plan closeout.
-Only durable result/decision artifact records that need long-term reference
-belong in `research/archive/evidence/`.
+Use targeted fixture/profile evidence by default. Write routine profiles and
+intermediate measurements to `.tmp/measure/`; attach review evidence to the
+owning issue or plan closeout. Only a machine-readable input explicitly
+promoted for consumption by tests, scripts, or CI belongs in `docs/baselines/`.
 
 Upgrade to real repo smoke when any of these triggers apply:
 
@@ -157,10 +155,10 @@ A bounded optimization does not need to reach the 10% plan-level success thresho
 Trend evidence is valid when it is clearly measured and its graph/semantic
 guardrails are reported.
 
-Keep temporary profiles, intermediate measurements, and process evidence with
-the issue or plan closeout. Checked-in temporary files must use a `tmp-` prefix.
-Only a durable result/decision artifact that should remain useful after the
-issue closes belongs in `research/archive/evidence/`.
+Write routine profiles and intermediate measurements to `.tmp/measure/`, and
+attach review evidence to the issue or plan closeout. `docs/baselines/` is not
+a general results archive: it contains only promoted, versioned inputs consumed
+by tests, scripts, or CI. Durable conclusions belong in a decision or contract.
 
 ## Threshold Interpretation
 
@@ -182,7 +180,7 @@ Use the repository baseline runner:
 
 ```bash
 node scripts/rust-hybrid-baseline.mjs \
-  --out research/archive/evidence/<name>-result.json \
+  --out .tmp/measure/<name>-result.json \
   --repo current-repo=. --runs 3 \
   --repo excalidraw=/private/tmp/codegraph-corpus/excalidraw \
   --repo vscode-sparse=/private/tmp/codegraph-corpus/vscode-sparse

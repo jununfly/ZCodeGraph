@@ -27,7 +27,7 @@
  *     --corpus .tmp/drupal-1-4-30/drupal-drupal \
  *     [--baseline-structural-ms 50000] \
  *     [--expected-embedded-files 11494] \
- *     [--out research/archive/evidence/raw/2026-10-26-p2-async-embedding-d6-regression.json]
+ *     [--out .tmp/measure/async-embedding-d6-regression.json]
  *
  * 前置：
  *   - `npm run build` 已完成（dist/bin/zcodegraph.js 存在）

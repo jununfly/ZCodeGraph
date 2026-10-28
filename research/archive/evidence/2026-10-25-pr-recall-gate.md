@@ -36,7 +36,8 @@ threshold = max(0.85, baseline − 0.02)
 ```
 
 The threshold is computed at script start by reading
-`docs/evidence/2026-10-20-pr-recall-baseline.json` and applying the REFINED-PLAN
+[`docs/baselines/pr-recall-v1.json`](../../../docs/baselines/pr-recall-v1.json)
+(the promoted successor of the dated snapshot) and applying the REFINED-PLAN
 formula. If the baseline JSON is ever replaced (e.g. a re-run on a different
 sample yields a lower median), the threshold tracks automatically.
 
@@ -133,4 +134,4 @@ the only network cost on cache hit.
 - Gate script: [`scripts/measure/pr-recall-gate.mjs`](../../scripts/measure/pr-recall-gate.mjs)
 - CI step: `.github/workflows/ci.yml` `architecture-red-lines` job, last step
 - Baseline: [`2026-10-20-pr-recall-baseline.md`](./2026-10-20-pr-recall-baseline.md)
-  + [`...json`](./2026-10-20-pr-recall-baseline.json)
+  + [`pr-recall-v1.json`](../../../docs/baselines/pr-recall-v1.json)

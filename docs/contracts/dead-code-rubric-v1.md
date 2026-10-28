@@ -211,9 +211,10 @@ Two independent passes per corpus, per roadmap node 1-2-4 exit criteria:
    indicate graph gaps are recorded as evidence for resolver backlog, not
    rubric changes.
 
-Deliverable: `research/archive/evidence/2026-10-21-dead-code-rubric-v1-annotation.md`
+Frozen annotation input: `docs/baselines/dead-code-annotation-r1-v1.json`
 (sample manifest, R1 verdicts, R2 verdicts, arbitration log, agreement
-metrics).
+metrics). This versioned input is consumed by `dead-code-precision.mjs`;
+new annotation runs belong in `.tmp/measure/` until explicitly promoted.
 
 ## Amendments
 

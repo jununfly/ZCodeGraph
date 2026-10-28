@@ -8,9 +8,8 @@ version: v1
 
 # Resolver Semantic Residuals v1
 
-> Status: active contract. Distilled 2026-10-28 from
-> `research/archive/ledgers/resolver-semantic-residuals-ledger.md` (63 historical
-> closeout sections). This page is the **single authoritative list** of
+> Status: active contract. Consolidated on 2026-10-28 from the completed
+> resolver migration. This page is the **single authoritative list** of
 > resolver semantic boundaries that the codebase intentionally keeps as
 > fallback, plus the guards that bound the slices that did ship.
 
