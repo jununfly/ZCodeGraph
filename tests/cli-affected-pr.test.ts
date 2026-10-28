@@ -14,7 +14,7 @@
  *
  * codeflow is never invoked — see roadmap 1-1-2 Q4 decision: CI must not
  * depend on external processes. The recall-vs-codeflow evidence lives in
- * docs/evidence/2026-10-20-blast-radius-recall.md (offline artifact).
+ * research/archive/evidence/2026-10-20-blast-radius-recall.md (offline artifact).
  */
 
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';

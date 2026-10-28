@@ -6,7 +6,7 @@
  * Runs the shipped rubric implementation (src/dead-code via dist/) over
  * the five pinned corpora, then compares the `dead` bucket against the
  * R2 human/arbitrated labels recorded in
- * docs/evidence/2026-10-21-dead-code-rubric-v1-annotation-r1.json.
+ * research/archive/evidence/2026-10-21-dead-code-rubric-v1-annotation-r1.json.
  *
  * Metrics (per contract dead-code-rubric-v1):
  *   precision  = |dead ∩ R2-dead| / |dead|       (dead bucket only)

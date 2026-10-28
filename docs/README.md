@@ -27,7 +27,7 @@
 | Decision | [`decisions/`](decisions/) | primary | 10 |
 | Contract | [`contracts/`](contracts/) | primary | 14 |
 | Method | [`methods/`](methods/) | primary / supporting | 11 |
-| Plan | [`plans/`](plans/) | process | live CLI SoT (process material, not enumerated here) |
+| Plan | `plans/` (CLI SoT, not always on disk) | process | not enumerated here |
 
 Root-level external entries: [`../ZJ-CONTEXT.md`](../ZJ-CONTEXT.md) —
 domain language glossary (`external`, governed at repository root).
@@ -111,9 +111,14 @@ codebase currently obeys. Test-locked where applicable.
 entities; they are exempt from frontmatter and are governed by the
 `zj-roadmap-driven` skill.
 
-Current tenant: `capability-harvest-roadmap.{json,md}` (all nodes CLOSED
-as of 2026-10-27). Awaiting closeout per ADR ZJ-0005 — see open follow-up
-below.
+This folder does not currently exist on disk (git removed the empty
+directory when the last tenant was deleted). The previous tenant
+(`capability-harvest-roadmap.{json,md}`, 49 nodes / 208 decisions) was
+closed 2026-10-27 and consolidated 2026-10-28 into
+[`research/archive/ledgers/capability-harvest-roadmap-closeout.md`](../research/archive/ledgers/capability-harvest-roadmap-closeout.md)
+per ADR ZJ-0005; see the 2026-10-28 capability-harvest closeout change
+log entry below. New campaigns drop a fresh JSON SoT here under
+`zj-roadmap-driven` and the folder reappears.
 
 Process material lifecycle:
 
@@ -124,6 +129,39 @@ Process material lifecycle:
 4. This folder is reserved and never carries long-lived entities.
 
 ---
+
+## Change log — governance pass 2026-10-28 (capability-harvest closeout)
+
+Scope: **process-artifact consolidation** for the closed capability-harvest
+campaign (ADR ZJ-0005 lifecycle). Executed under `/zj-docs-ontology` with
+Human confirmation.
+
+1. **Authored** [`research/archive/ledgers/capability-harvest-roadmap-closeout.md`](../research/archive/ledgers/capability-harvest-roadmap-closeout.md)
+   (`LED-capability-harvest-roadmap-closeout`, `supporting`) distilling the
+   49-node / 208-decision campaign into a durable closeout: timeline
+   (2026-10-19 → 2026-10-27), final counts (4 phases, 2 new ADR, 5 new
+   contracts, 17 dated evidence docs, 6+ new measure scripts, schema
+   v4→v5→v6), per-phase outcome, and pointers to every durable artifact.
+2. **Deleted** the four process files via `git rm`:
+   - `docs/plans/build_edges_decisions.py` (76 lines)
+   - `docs/plans/build_roadmap.py` (69 lines)
+   - `docs/plans/capability-harvest-roadmap.json` (2,065 lines)
+   - `docs/plans/capability-harvest-roadmap.md` (47 lines)
+   The full decision tree remains reachable in git history at those paths.
+3. **Updated** the `## plans` section above to record the empty-folder
+   state and the closeout pointer.
+4. **Re-validated** `tests/docs-ontology.test.ts` — 77/77 still pass
+   (no test depends on `docs/plans/` existing; it is not in
+   `ENTITY_FOLDERS`).
+
+What this pass deliberately did **not** do:
+
+- No implementation code was touched. Every code change referenced from
+  the roadmap is preserved in git history under `feat(<node>):` or
+  `chore(<node>):` commits.
+- The two build scripts were not archived under `research/archive/` —
+  they are pure process-only helpers and their content is recoverable
+  from git history if a future campaign needs them.
 
 ## Change log — governance pass 2026-10-28 (evidence/ledger decoupling)
 
@@ -198,17 +236,15 @@ What this pass deliberately did **not** do:
   in archived measure scripts and are updated separately if those scripts
   are re-run.
 
-Open follow-ups:
+Open follow-ups from the decoupling pass (superseded by the 2026-10-28
+capability-harvest closeout above and subsequent cosmetic-paths commit):
 
-- **Close out `plans/capability-harvest-roadmap.{json,md}`** per ADR
-  ZJ-0005: author a dated closeout under `research/archive/ledgers/` and
-  `git rm` the four process files (`build_edges_decisions.py`,
-  `build_roadmap.py`, `capability-harvest-roadmap.json`,
-  `capability-harvest-roadmap.md`).
-- **Update `scripts/measure/*.mjs`** help strings to point at
-  `research/archive/evidence/` if those scripts are kept alive.
-- **`tests/cli-affected-pr.test.ts` line 17** comment still mentions the
-  old `docs/evidence/2026-10-20-blast-radius-recall.md` path; cosmetic only.
+- ~~Close out `plans/capability-harvest-roadmap.{json,md}`~~ — done in the
+  2026-10-28 capability-harvest closeout pass above.
+- Update `scripts/measure/*.mjs` help strings to point at
+  `research/archive/evidence/` (comment-only).
+- `tests/cli-affected-pr.test.ts:17` comment still mentions the old
+  `docs/evidence/2026-10-20-blast-radius-recall.md` path (cosmetic).
 
 Prior governance passes: see change log entries 2026-10-19 (×2), 2026-09-28,
 2026-09-20/21 below for the category-by-folder era and the entity-by-folder

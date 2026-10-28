@@ -1,6 +1,6 @@
 # scripts/measure — Real-corpus measurement harness
 
-Roadmap: `docs/plans/capability-harvest-roadmap.json` node **1-1-3** (固化测量基础设施脚本).
+Scope: P2 measurement-infrastructure scripts (structured-measurement milestone **1-1-3**).
 
 Three standalone scripts that turn the manual real-corpus gate workflow
 (clone → index → probe → tally → document) into a repeatable CLI. Each
@@ -18,7 +18,7 @@ Three additional scripts form the 1-2-8 red-line + capability-probe loop:
 - `perf-baseline.mjs` — measures index wall-time (N cold re-indexes,
   median) and explore latency (frozen queries, median) for one corpus.
   Produces the `architecture-regression-baseline` artifact committed under
-  `docs/evidence/`. Contract: `docs/contracts/architecture-regression-baseline-v1.md`.
+  `research/archive/evidence/`. Contract: `docs/contracts/architecture-regression-baseline-v1.md`.
 - `perf-regression-check.mjs` — re-measures the baseline corpus and fails
   (exit 1) when index wall-time regresses > 15% or explore latency > 20%
   against the committed baseline. CI job `architecture-red-lines` runs it.
@@ -32,11 +32,11 @@ Three additional scripts form the 1-2-8 red-line + capability-probe loop:
 ```bash
 # Re-baseline (requires roadmap decision on 1-2-8 + new dated artifact)
 node scripts/measure/perf-baseline.mjs spring-projects/spring-petclinic \
-  --out docs/evidence/<date>-architecture-regression-baseline.json
+  --out research/archive/evidence/<date>-architecture-regression-baseline.json
 
 # Red-line check (what CI runs)
 node scripts/measure/perf-regression-check.mjs \
-  --baseline docs/evidence/2026-10-22-architecture-regression-baseline.json
+  --baseline research/archive/evidence/2026-10-22-architecture-regression-baseline.json
 
 # Capability probes against an already-indexed dir (skip clone/index)
 CAPABILITY_PROBE_DIR=/path/to/indexed/repo \
@@ -146,5 +146,5 @@ All three scripts emit the same envelope:
 node scripts/measure/dead-code.mjs expressjs/express \
   --ref a419aa7350389a275ab45fde2e849ed1f02449ef \
   --sparse lib --sparse examples \
-  --out docs/evidence/raw/2026-10-20-express-dead-code.json
+  --out research/archive/evidence/raw/2026-10-20-express-dead-code.json
 ```

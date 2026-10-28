@@ -14,7 +14,7 @@
  *   4. Measures post-embed sizes after a WAL TRUNCATE checkpoint.
  *   5. Emits a per-corpus JSON envelope plus a multi-corpus summary line.
  *
- * Exit criteria measured (capability-harvest-roadmap 1-4-2):
+ * Exit criteria measured (P2 embedding quantization-threshold measurement):
  *   - extra disk        ≤ 50% of structural-index footprint
  *   - first index time  ≤ 2× baseline   (we measure only the embed pass here;
  *                                        baseline index wall-clock comes from
@@ -26,7 +26,7 @@
  *   node scripts/measure/embedding-baseline.mjs \
  *     --corpus pallets-flask --corpus expressjs-express ... \
  *     [--corpus-root C:/workspace/measure-corpus] \
- *     [--out docs/evidence/raw/2026-10-26-p2-embedding-thresholds.json]
+ *     [--out research/archive/evidence/raw/2026-10-26-p2-embedding-thresholds.json]
  *
  * The spike fixture `.tmp/embedding-baseline/` must already be installed
  * (`npm install` in that directory) and `vec0.dll` must sit beside it.

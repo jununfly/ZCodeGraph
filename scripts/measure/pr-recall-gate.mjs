@@ -7,7 +7,7 @@
  * ---------------
  * 1-1-5 measured `recallUnionIndexable = 1.000` on 60 real merged PRs
  * (3 repos × 20 PRs) at the P-1 sprint (see
- * docs/evidence/2026-10-20-pr-recall-baseline.{md,json}). REFINED-PLAN §7
+ * research/archive/evidence/2026-10-20-pr-recall-baseline.{md,json}). REFINED-PLAN §7
  * defines the merge-gate metric `pr-impact-recall ≥ 0.85 ∧ ≥ baseline − 2pp`.
  * Since baseline = 1.000, the effective threshold is max(0.85, 1.000 − 0.02)
  * = 0.98 per pinned PR sample.
@@ -41,7 +41,7 @@
  * Defaults:
  *   --corpus-root /tmp/measure-corpus  (CI) or C:/workspace/measure-corpus
  *   --threshold   max(0.85, baseline − 0.02) where baseline comes from
- *                 docs/evidence/2026-10-20-pr-recall-baseline.json
+ *                 research/archive/evidence/2026-10-20-pr-recall-baseline.json
  *
  * Pinned PRs (from 1-1-5 baseline JSON, all recallUnionIndexable = 1.0):
  *   expressjs/express            #7518 base=6d2df035 merge=a419aa73 (idx=3)
