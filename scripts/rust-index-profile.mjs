@@ -337,7 +337,7 @@ async function profileRepo(repo, rustCore, dist) {
     return {
       name: repo.name,
       ...metadataFor(repo.path),
-      profileSource: 'docs/plans/2026-06-13-rust-indexing-core-phase-2-packaging-ci-performance.md#66',
+      profileSource: 'research/archive/ledgers/rust-indexing-core-decision-ledger.md (phase-2 packaging/CI performance profile)',
       phase1CopiedFiles: slice.copiedFiles,
       tempProjectPath: slice.path,
       engines,
