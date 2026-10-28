@@ -18,7 +18,7 @@ The guardrail answers one question: did the graph remain trustworthy enough for
 Agent Sufficiency work to continue?
 
 This is a standard, not a one-off result artifact. Result artifacts live in
-`docs/evidence/` when they are durable baseline/result/decision records. Short
+`research/archive/evidence/` when they are durable baseline/result/decision records. Short
 process evidence should stay with the issue or plan that produced it.
 
 ## Required Trigger

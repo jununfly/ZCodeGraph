@@ -350,7 +350,7 @@ pipeline. Tasks below target what **is** in the repo.
    dispatches on `version`: v1 → cliCalls path (unchanged), v2 →
    exploreQueries path (new). Both paths share the same
    clone/index/median/report infrastructure.
-3. Evidence doc `docs/evidence/YYYY-MM-DD-token-baseline-layer2.md`
+3. Evidence doc `research/archive/evidence/YYYY-MM-DD-token-baseline-layer2.md`
    records: per-task v2 ratio, pinned ref sha, DB row counts, and a
    one-paragraph interpretation. Ratios are NOT comparable to v1.
 4. A/B elided-markers measurement (exit criteria ② of 1-2-3): run the

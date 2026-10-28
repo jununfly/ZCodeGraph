@@ -211,7 +211,7 @@ Two independent passes per corpus, per roadmap node 1-2-4 exit criteria:
    indicate graph gaps are recorded as evidence for resolver backlog, not
    rubric changes.
 
-Deliverable: `docs/evidence/2026-10-21-dead-code-rubric-v1-annotation.md`
+Deliverable: `research/archive/evidence/2026-10-21-dead-code-rubric-v1-annotation.md`
 (sample manifest, R1 verdicts, R2 verdicts, arbitration log, agreement
 metrics).
 

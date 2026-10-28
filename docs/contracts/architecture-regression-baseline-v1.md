@@ -87,7 +87,7 @@ Frozen explore queries (structural, representative of agent高频 flows):
 
 ## Artifacts
 
-- Baseline: `docs/evidence/<date>-architecture-regression-baseline.json`
+- Baseline: `research/archive/evidence/<date>-architecture-regression-baseline.json`
   (metric id `architecture-regression-baseline`).
 - Each CI regression run emits the same envelope to stdout; failing runs
   additionally print per-corpus regression percentages on stderr.

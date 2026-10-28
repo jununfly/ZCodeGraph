@@ -22,10 +22,10 @@ TypeScript product shell.
 
 Supporting evidence:
 
-- `docs/ledgers/rust-hybrid-optimization-decision-ledger.md`
-- `docs/ledgers/plan-artifact-consolidated-closeout.md`
+- `research/archive/ledgers/rust-hybrid-optimization-decision-ledger.md`
+- `research/archive/ledgers/plan-artifact-consolidated-closeout.md`
 - #296 resolver migration decision plan
-- `docs/evidence/2026-06-24-current-state-decision-pack.md`
+- `research/archive/evidence/2026-06-24-current-state-decision-pack.md`
 
 ## Decision
 

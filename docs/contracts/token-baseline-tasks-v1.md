@@ -433,7 +433,7 @@ pipeline. Tasks below target what **is** in the repo.
 2. `scripts/measure/token-baseline.mjs` reads tasks from the JSON block
    above, clones/indexes the three repos at a pinned ref, runs each task
    3 times against the same DB, and emits the median ratio per task.
-3. Evidence doc `docs/evidence/2026-10-20-token-baseline-layer1.md`
+3. Evidence doc `research/archive/evidence/2026-10-20-token-baseline-layer1.md`
    records: per-task ratio, pinned ref sha, DB row counts, and a
    one-paragraph interpretation. No compression target is set.
 4. Layer-2 (e2e LLM cost) is tracked as a separate node, not here.

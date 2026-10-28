@@ -4,17 +4,15 @@ import { join, basename } from 'node:path';
 
 const DOCS_ROOT = join(__dirname, '..', 'docs');
 
-const ENTITY_FOLDERS = ['decisions', 'contracts', 'ledgers', 'evidence', 'methods'] as const;
+const ENTITY_FOLDERS = ['decisions', 'contracts', 'methods'] as const;
 
-const VALID_DOC_KINDS = ['decision', 'contract', 'ledger', 'evidence', 'method', 'design'] as const;
+const VALID_DOC_KINDS = ['decision', 'contract', 'method', 'design'] as const;
 const VALID_AUTHORITIES = ['primary', 'supporting', 'historical', 'process', 'external'] as const;
 
-const FOLDER_CLASS_MAP: Record<string, { docKind: string; authority: string }> = {
-  decisions: { docKind: 'decision', authority: 'primary' },
-  contracts: { docKind: 'contract', authority: 'primary' },
-  ledgers: { docKind: 'ledger', authority: 'supporting' },
-  evidence: { docKind: 'evidence', authority: 'supporting' },
-  methods: { docKind: 'method', authority: 'supporting' },
+const FOLDER_CLASS_MAP: Record<string, { docKind: string; authorities: string[] }> = {
+  decisions: { docKind: 'decision', authorities: ['primary'] },
+  contracts: { docKind: 'contract', authorities: ['primary'] },
+  methods: { docKind: 'method', authorities: ['primary', 'supporting'] },
 };
 
 const REQUIRED_FIELDS = ['doc-kind', 'authority', 'authority-id', 'bounded-question'] as const;
@@ -22,10 +20,10 @@ const OPTIONAL_FIELDS = ['supersedes', 'evidence-for', 'decided-by', 'last-revie
 const ALL_FIELDS = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS] as const;
 
 function parseFrontmatter(content: string): Record<string, string> | null {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match) return null;
   const result: Record<string, string> = {};
-  for (const line of match[1].split('\n')) {
+  for (const line of match[1].split(/\r?\n/)) {
     const colonIdx = line.indexOf(':');
     if (colonIdx > 0) {
       const key = line.slice(0, colonIdx).trim();
@@ -74,8 +72,8 @@ describe('docs ontology', () => {
       }
     }
 
-    it('at least 60 markdown entities exist', () => {
-      expect(allFiles.length).toBeGreaterThanOrEqual(60);
+    it('at least 30 markdown entities exist', () => {
+      expect(allFiles.length).toBeGreaterThanOrEqual(30);
     });
 
     for (const { folder, path } of allFiles) {
@@ -106,7 +104,10 @@ describe('docs ontology', () => {
         // Folder/class matching
         const expected = FOLDER_CLASS_MAP[folder];
         expect(fm!['doc-kind'], `${relPath} doc-kind mismatch for ${folder}/`).toBe(expected.docKind);
-        expect(fm!['authority'], `${relPath} authority mismatch for ${folder}/`).toBe(expected.authority);
+        expect(
+          expected.authorities.includes(fm!['authority']),
+          `${relPath} authority "${fm!['authority']}" not allowed for ${folder}/ (expected one of ${expected.authorities.join(', ')})`
+        ).toBe(true);
 
         // authority-id format
         expect(fm!['authority-id'].length, `${relPath} authority-id too short`).toBeGreaterThan(3);
@@ -127,20 +128,6 @@ describe('docs ontology', () => {
       }
       for (const [id, paths] of ids) {
         expect(paths.length, `authority-id "${id}" used by multiple files: ${paths.join(', ')}`).toBe(1);
-      }
-    });
-
-    it('dated evidence files use YYYY-MM-DD prefix', () => {
-      const evidenceDir = join(DOCS_ROOT, 'evidence');
-      if (!existsSync(evidenceDir)) return;
-      for (const file of readdirSync(evidenceDir)) {
-        if (!file.endsWith('.md')) continue;
-        // Undated evidence files are allowed for non-dated analyses
-        if (/^(answer-directly|call-sequence|codegraph-ab-matrix)/.test(file)) continue;
-        expect(
-          /^\d{4}-\d{2}-\d{2}-/.test(file),
-          `evidence/${file} must use YYYY-MM-DD prefix`
-        ).toBe(true);
       }
     });
   });

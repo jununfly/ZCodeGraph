@@ -14,8 +14,8 @@ Durable sources:
 
 - `ZJ-CONTEXT.md`
 - `docs/methods/adaptive-explore-sizing.md`
-- `docs/evidence/call-sequence-analysis.md`
-- `docs/evidence/answer-directly-vs-explore-agent.md`
+- `research/archive/evidence/call-sequence-analysis.md`
+- `docs/methods/agent-routing.md`
 
 Historical inputs converted into this document:
 

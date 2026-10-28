@@ -21,9 +21,9 @@ production optimization paths.
 
 Supporting evidence:
 
-- `docs/ledgers/rust-indexing-core-decision-ledger.md`
-- `docs/ledgers/rust-hybrid-optimization-decision-ledger.md`
-- `docs/evidence/2026-06-24-current-state-decision-pack.md`
+- `research/archive/ledgers/rust-indexing-core-decision-ledger.md`
+- `research/archive/ledgers/rust-hybrid-optimization-decision-ledger.md`
+- `research/archive/evidence/2026-06-24-current-state-decision-pack.md`
 - #165 post-release optimization tracker
 
 ## Decision
