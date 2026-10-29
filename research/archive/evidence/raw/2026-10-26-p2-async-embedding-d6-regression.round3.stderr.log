@@ -1,6 +1,0 @@
-(node:9524) ExperimentalWarning: SQLite is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
-(node:9524) ExperimentalWarning: SQLite is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
-[CodeGraph] embedding pipeline: enqueued=11491 processed=11491 failed=0
-[CodeGraph] [embedding-worker] exited with code 1 
