@@ -2,7 +2,7 @@
 # Tool-surface ablation — run ONE repo+question under ONE arm.
 #
 # Arms vary (exposed codegraph tools, trace-first steering). Tools are trimmed
-# SERVER-SIDE via CODEGRAPH_MCP_TOOLS in the MCP config's `env` block, so an
+# SERVER-SIDE via ZCG_MCP_TOOLS in the MCP config's `env` block, so an
 # ablated tool is genuinely absent from ListTools — no deferred-ToolSearch or
 # denied-call confound (which --disallowedTools would introduce). Steering is
 # injected with --append-system-prompt, so no rebuild of the shipped
@@ -38,7 +38,7 @@ esac
 CFG="$OUT/mcp-$ARM.json"
 if [ -n "$TOOLS" ]; then
   cat > "$CFG" <<JSON
-{"mcpServers":{"codegraph":{"command":"$CG_BIN","args":["serve","--mcp","--path","$REPO"],"env":{"CODEGRAPH_MCP_TOOLS":"$TOOLS"}}}}
+{"mcpServers":{"codegraph":{"command":"$CG_BIN","args":["serve","--mcp","--path","$REPO"],"env":{"ZCG_MCP_TOOLS":"$TOOLS"}}}}
 JSON
 else
   cat > "$CFG" <<JSON

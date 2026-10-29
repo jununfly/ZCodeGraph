@@ -72,7 +72,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
   it('uses the rust-hybrid indexer by default', () => {
     const rustCore = writeFakeRustCore(tempDir);
     const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -83,7 +83,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
   it('keeps the TypeScript indexer as an explicit escape hatch', () => {
     const rustCore = writeFailingRustCore(tempDir);
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'typescript', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -100,7 +100,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
   it('runs the Rust subprocess when selected by CLI flag', () => {
     const rustCore = writeFakeRustCore(tempDir);
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -111,7 +111,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
   it('passes graph work profile to the Rust subprocess when selected by CLI flag', () => {
     const rustCore = writeFakeRustCore(tempDir);
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--graph-work-profile', 'matched-ts-js', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -123,7 +123,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
   it('uses production final-flush for Rust by default while keeping SQLite write mode overrides', () => {
     const rustCore = writeFakeRustCore(tempDir);
     const defaultResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(defaultResult.status, `stdout:\n${defaultResult.stdout}\nstderr:\n${defaultResult.stderr}`).toBe(0);
@@ -133,7 +133,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
 
     fs.rmSync(fakeRustCoreMarker(tempDir), { force: true });
     const experimentResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--sqlite-write-mode', 'memory-final-flush', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(experimentResult.status, `stdout:\n${experimentResult.stdout}\nstderr:\n${experimentResult.stderr}`).toBe(0);
@@ -143,7 +143,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
 
     fs.rmSync(fakeRustCoreMarker(tempDir), { force: true });
     const diskResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--sqlite-write-mode', 'disk', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(diskResult.status, `stdout:\n${diskResult.stdout}\nstderr:\n${diskResult.stderr}`).toBe(0);
@@ -155,8 +155,8 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
   it('passes heap profiling to the Rust subprocess when selected by CLI flag', () => {
     const rustCore = writeFakeRustCore(tempDir);
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--profile', 'heap', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-      ZCODEGRAPH_EXPERIMENT_ID: 'cli-heap-profile',
+      ZCG_RUST_CORE_BINARY: rustCore,
+      ZCG_EXPERIMENT_ID: 'cli-heap-profile',
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -164,19 +164,6 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
     expect(marker.args).not.toContain('--profile');
     expect(marker.profiling).toBe('heap');
     expect(marker.experimentId).toBe('cli-heap-profile');
-  });
-
-  it('rejects stale CLI engine selection from the environment', () => {
-    const rustCore = writeFakeRustCore(tempDir);
-    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_INDEX_ENGINE: 'typescript',
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-    });
-
-    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
-    expect(result.stderr).toContain('ZCODEGRAPH_INDEX_ENGINE is no longer supported');
-    expect(result.stderr).toContain('zcodegraph index --engine typescript');
-    expect(fs.existsSync(fakeRustCoreMarker(tempDir))).toBe(false);
   });
 
   it('runs the packaged Rust subprocess from a bundle layout without an env override', () => {
@@ -195,11 +182,11 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
       cwd: tempDir,
       env: {
         ...process.env,
-        CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-        CODEGRAPH_NO_DAEMON: '1',
-        CODEGRAPH_NO_RELAUNCH: '1',
+        ZCG_ALLOW_UNSAFE_NODE: '1',
+        ZCG_NO_DAEMON: '1',
+        ZCG_NO_RELAUNCH: '1',
         NODE_PATH: path.resolve(__dirname, '..', 'node_modules'),
-        ZCODEGRAPH_RUST_CORE_BINARY: undefined,
+        ZCG_RUST_CORE_BINARY: undefined,
       },
       encoding: 'utf-8',
     });
@@ -212,7 +199,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
   it('rejects unsupported graph work profile values before indexing', () => {
     const rustCore = writeFailingRustCore(tempDir);
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--graph-work-profile', 'wide-open', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
@@ -223,7 +210,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
   it('rejects unsupported profile values before indexing', () => {
     const rustCore = writeFailingRustCore(tempDir);
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--profile', 'cpu', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
@@ -243,7 +230,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
     fs.writeFileSync(path.join(tempDir, 'server.go'), 'package main\nfunc main() {}\n');
 
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'typescript', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -259,7 +246,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
       const rustCore = writeFakeRustCore(freshDir);
 
       const result = runZcodegraphCli(freshDir, ['index', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+        ZCG_RUST_CORE_BINARY: rustCore,
       });
 
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -277,7 +264,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
       const rustCore = writeFailingRustCore(freshDir);
 
       const result = runZcodegraphCli(freshDir, ['index', '--engine', 'typescript', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+        ZCG_RUST_CORE_BINARY: rustCore,
       });
 
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -314,7 +301,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
   it('writes a Rust-produced index and profile that TypeScript status can inspect', () => {
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-index-profile.json');
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--profile-out', profileOut, '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
     const profile = JSON.parse(fs.readFileSync(profileOut, 'utf-8')) as {
@@ -433,17 +420,6 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
     }
   }, 30_000);
 
-  it('does not write a profile from the legacy profile output environment variable', () => {
-    const profileOut = path.join(tempDir, '.zcodegraph', 'legacy-env-profile.json');
-    const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
-      ZCODEGRAPH_INDEX_PROFILE_OUT: profileOut,
-    });
-
-    expect(indexResult.status).toBe(0);
-    expect(fs.existsSync(profileOut)).toBe(false);
-  });
-
   it('rejects profile-out for the TypeScript index engine', () => {
     const profileOut = path.join(tempDir, '.zcodegraph', 'typescript-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'typescript', '--profile-out', profileOut, '--quiet']);
@@ -458,7 +434,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
     const profileOut = path.join(tempDir, '.zcodegraph', 'partial-profile.json');
 
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--profile-out', profileOut, '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(result.status).toBe(0);
@@ -478,7 +454,7 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
 
   it('writes rust-hybrid status metadata for a default rust-hybrid index', () => {
     const indexResult = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 

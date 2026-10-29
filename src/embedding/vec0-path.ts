@@ -2,9 +2,10 @@
  * Resolve the path to the sqlite-vec `vec0` extension binary.
  *
  * vec0 is an optional runtime artifact (the P2 embedding pipeline is opt-in
- * via `CODEGRAPH_ENABLE_EMBEDDING=1`). We look in this order:
+ * via `ZCG_ENABLE_EMBEDDING=1`). We look in this order:
  *
- *   1. `CODEGRAPH_VEC0_PATH` env var — explicit override (CI / dev).
+ *   1. `ZCG_VEC0_PATH` env var — explicit override (CI / dev). Invalid paths
+ *      fail fast rather than silently selecting a different binary.
  *   2. `<packageRoot>/vendor/sqlite-vec/vec0.{dll,so,dylib}` — bundled with
  *      the release tarball when the embedding feature is enabled at
  *      packaging time.
@@ -20,6 +21,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { readTextFlag } from '../config/flags';
 
 /** Per-platform extension filenames in preference order. */
 function candidateNames(): string[] {
@@ -29,8 +31,11 @@ function candidateNames(): string[] {
 }
 
 export function getDefaultVec0Path(projectRoot: string): string | null {
-  const envOverride = process.env.CODEGRAPH_VEC0_PATH;
-  if (envOverride && fs.existsSync(envOverride)) {
+  const envOverride = readTextFlag('ZCG_VEC0_PATH');
+  if (envOverride !== undefined) {
+    if (!fs.existsSync(envOverride) || !fs.statSync(envOverride).isFile()) {
+      throw new Error(`ZCG_VEC0_PATH does not exist or is not a file: ${envOverride}`);
+    }
     return path.resolve(envOverride);
   }
 

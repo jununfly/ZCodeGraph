@@ -398,9 +398,9 @@ describe('springDiEdges synthesizer', () => {
 // ── Schema v5 compatibility tests ────────────────────────────────────────
 
 describe('schema v5 migration', () => {
-  it('CURRENT_SCHEMA_VERSION is 5', async () => {
+  it('CURRENT_SCHEMA_VERSION includes the embedding lease migration', async () => {
     const { CURRENT_SCHEMA_VERSION } = await import('../src/db/migrations');
-    expect(CURRENT_SCHEMA_VERSION).toBe(5);
+    expect(CURRENT_SCHEMA_VERSION).toBe(7);
   });
 
   it('bean is a valid NodeKind', async () => {

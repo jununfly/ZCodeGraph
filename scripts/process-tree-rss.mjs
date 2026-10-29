@@ -12,7 +12,7 @@ export function sampleProcessTreeRssBytes(rootPid, options = {}) {
     return { ...procSample, source: procSample.peakRssBytes != null ? 'procfs' : null };
   }
 
-  const psCommand = options.psCommand ?? process.env.ZCODEGRAPH_RSS_PS_COMMAND ?? 'ps';
+  const psCommand = options.psCommand ?? process.env.ZCG_RSS_PS_COMMAND ?? 'ps';
   const result = spawnSync(psCommand, ['-axo', 'pid=,ppid=,rss='], { encoding: 'utf-8' });
   if (result.error) {
     const message = result.error instanceof Error ? result.error.message : String(result.error);
@@ -75,7 +75,7 @@ export function sampleProcessTreeRssBytes(rootPid, options = {}) {
 }
 
 export function sampleProcessTreeRssBytesFromProc(rootPid, options = {}) {
-  const procRoot = options.procRoot ?? process.env.ZCODEGRAPH_RSS_PROC_ROOT ?? '/proc';
+  const procRoot = options.procRoot ?? process.env.ZCG_RSS_PROC_ROOT ?? '/proc';
   if (!Number.isFinite(rootPid)) {
     return { peakRssBytes: null, unavailableKind: 'process-ended-before-sample', unavailableReason: 'process pid is unavailable' };
   }
@@ -216,7 +216,7 @@ export function spawnMeasured(command, args, options = {}) {
 function spawnMeasuredCommandRss(command, args, options = {}) {
   const cwd = options.cwd ?? process.cwd();
   const env = { ...process.env, ...(options.env ?? {}) };
-  const timeCommand = options.timeCommand ?? process.env.ZCODEGRAPH_RSS_TIME_COMMAND ?? (
+  const timeCommand = options.timeCommand ?? process.env.ZCG_RSS_TIME_COMMAND ?? (
     process.platform === 'darwin' ? '/usr/bin/time' : null
   );
 

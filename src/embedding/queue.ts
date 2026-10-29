@@ -38,6 +38,8 @@ export interface EmbeddingQueueRow {
   enqueued_at: number;
   started_at: number | null;
   finished_at: number | null;
+  worker_id: string | null;
+  heartbeat_at: number | null;
 }
 
 /**
@@ -75,12 +77,24 @@ export function enqueueEmbeddingBatch(
   db: SqliteDatabase,
   entries: Array<{ filePath: string; contentHash: string }>,
   enqueuedAtMs: number = Date.now(),
+  /** Explicit retry API; read-repair must not use this to resurrect a current-hash failure. */
+  options: { retryFailed?: boolean } = {},
 ): number {
   if (entries.length === 0) return 0;
   const insert = db.prepare(
-    `INSERT OR IGNORE INTO embedding_queue
-       (file_path, content_hash, status, attempts, enqueued_at)
-     VALUES (?, ?, 'pending', 0, ?)`,
+    options.retryFailed
+      ? `INSERT INTO embedding_queue
+           (file_path, content_hash, status, attempts, enqueued_at)
+         VALUES (?, ?, 'pending', 0, ?)
+         ON CONFLICT(file_path, content_hash) DO UPDATE SET
+           status = 'pending', attempts = 0, last_error = NULL,
+           model_version = NULL, enqueued_at = excluded.enqueued_at,
+           started_at = NULL, finished_at = NULL,
+           worker_id = NULL, heartbeat_at = NULL
+         WHERE embedding_queue.status = 'failed'`
+      : `INSERT OR IGNORE INTO embedding_queue
+           (file_path, content_hash, status, attempts, enqueued_at)
+         VALUES (?, ?, 'pending', 0, ?)`,
   );
   let inserted = 0;
   db.transaction(() => {
@@ -101,7 +115,8 @@ export function getEmbeddingQueueRow(
   return db
     .prepare(
       `SELECT file_path, content_hash, status, attempts, last_error,
-              model_version, enqueued_at, started_at, finished_at
+              model_version, enqueued_at, started_at, finished_at,
+              worker_id, heartbeat_at
          FROM embedding_queue
         WHERE file_path = ? AND content_hash = ?`,
     )
@@ -140,12 +155,16 @@ export function markEmbeddingFailed(
   contentHash: string,
   errorMessage: string,
   finishedAtMs: number = Date.now(),
-): void {
-  db.prepare(
+  workerId?: string,
+): boolean {
+  const r = db.prepare(
     `UPDATE embedding_queue
-        SET status = 'failed', last_error = ?, finished_at = ?
-      WHERE file_path = ? AND content_hash = ?`,
-  ).run(errorMessage, finishedAtMs, filePath, contentHash);
+        SET status = 'failed', last_error = ?, finished_at = ?,
+            worker_id = NULL, heartbeat_at = NULL
+      WHERE file_path = ? AND content_hash = ?
+        AND (? IS NULL OR (status = 'in_progress' AND worker_id = ?))`,
+  ).run(errorMessage, finishedAtMs, filePath, contentHash, workerId ?? null, workerId ?? null);
+  return r.changes > 0;
 }
 
 /**
@@ -158,12 +177,16 @@ export function markEmbeddingDone(
   contentHash: string,
   modelVersion: string,
   finishedAtMs: number = Date.now(),
-): void {
-  db.prepare(
+  workerId?: string,
+): boolean {
+  const r = db.prepare(
     `UPDATE embedding_queue
-        SET status = 'done', model_version = ?, finished_at = ?, last_error = NULL
-      WHERE file_path = ? AND content_hash = ?`,
-  ).run(modelVersion, finishedAtMs, filePath, contentHash);
+        SET status = 'done', model_version = ?, finished_at = ?, last_error = NULL,
+            worker_id = NULL, heartbeat_at = NULL
+      WHERE file_path = ? AND content_hash = ?
+        AND (? IS NULL OR (status = 'in_progress' AND worker_id = ?))`,
+  ).run(modelVersion, finishedAtMs, filePath, contentHash, workerId ?? null, workerId ?? null);
+  return r.changes > 0;
 }
 
 /**
@@ -183,6 +206,7 @@ export function claimPendingEmbeddings(
   db: SqliteDatabase,
   limit: number,
   nowMs: number = Date.now(),
+  workerId: string | null = null,
 ): EmbeddingQueueRow[] {
   if (limit <= 0) return [];
   return db.transaction(() => {
@@ -197,12 +221,13 @@ export function claimPendingEmbeddings(
     if (picked.length === 0) return [];
     const update = db.prepare(
       `UPDATE embedding_queue
-          SET status = 'in_progress', started_at = ?, attempts = attempts + 1
+          SET status = 'in_progress', started_at = ?, attempts = attempts + 1,
+              worker_id = ?, heartbeat_at = ?
         WHERE file_path = ? AND content_hash = ? AND status = 'pending'`,
     );
     const claimed: EmbeddingQueueRow[] = [];
     for (const p of picked) {
-      const r = update.run(nowMs, p.file_path, p.content_hash);
+      const r = update.run(nowMs, workerId, nowMs, p.file_path, p.content_hash);
       if (r.changes === 0) continue; // raced with another worker — skip
       const row = getEmbeddingQueueRow(db, p.file_path, p.content_hash);
       if (row) claimed.push(row);
@@ -224,12 +249,34 @@ export function resetStaleInProgressEmbeddings(
   nowMs: number = Date.now(),
 ): number {
   const cutoff = nowMs - staleMs;
-  const r = db
-    .prepare(
+  return db.transaction(() => {
+    const exhausted = db.prepare(
       `UPDATE embedding_queue
-          SET status = 'pending', started_at = NULL
-        WHERE status = 'in_progress' AND started_at IS NOT NULL AND started_at < ?`,
-    )
-    .run(cutoff);
-  return r.changes;
+          SET status = 'failed', finished_at = ?,
+              last_error = 'embedding-attempts-exhausted',
+              worker_id = NULL, heartbeat_at = NULL
+        WHERE status = 'in_progress' AND attempts >= 3
+          AND COALESCE(heartbeat_at, started_at) < ?`,
+    ).run(nowMs, cutoff).changes;
+    const r = db.prepare(
+      `UPDATE embedding_queue
+          SET status = 'pending', started_at = NULL,
+              worker_id = NULL, heartbeat_at = NULL
+        WHERE status = 'in_progress' AND attempts < 3
+          AND COALESCE(heartbeat_at, started_at) < ?`,
+    ).run(cutoff);
+    return r.changes + exhausted;
+  })();
+}
+
+/** Renew a live worker's claim without changing its original started_at. */
+export function heartbeatEmbeddingClaims(
+  db: SqliteDatabase,
+  workerId: string,
+  nowMs: number = Date.now(),
+): number {
+  return db.prepare(
+    `UPDATE embedding_queue SET heartbeat_at = ?
+      WHERE status = 'in_progress' AND worker_id = ?`,
+  ).run(nowMs, workerId).changes;
 }

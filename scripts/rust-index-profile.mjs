@@ -177,10 +177,10 @@ function metadataFor(repoPath) {
 
 function baseEnv(rustCore) {
   return {
-    CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-    CODEGRAPH_NO_DAEMON: '1',
-    CODEGRAPH_NO_RELAUNCH: '1',
-    ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+    ZCG_ALLOW_UNSAFE_NODE: '1',
+    ZCG_NO_DAEMON: '1',
+    ZCG_NO_RELAUNCH: '1',
+    ZCG_RUST_CORE_BINARY: rustCore,
   };
 }
 
@@ -242,8 +242,8 @@ async function profileRepo(repo, rustCore, dist) {
   const typescriptSlice = copyPhase1Slice(repo.path, `${repo.name}-typescript`);
   const measuredRustSlice = copyPhase1Slice(repo.path, `${repo.name}-rust-measured`);
   const slice = copyPhase1Slice(repo.path, `${repo.name}-rust-profile`);
-  const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
-  process.env.ZCODEGRAPH_RUST_CORE_BINARY = rustCore;
+  const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
+  process.env.ZCG_RUST_CORE_BINARY = rustCore;
 
   try {
     const engines = {
@@ -360,9 +360,9 @@ async function profileRepo(repo, rustCore, dist) {
     };
   } finally {
     if (previousRustCore === undefined) {
-      delete process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+      delete process.env.ZCG_RUST_CORE_BINARY;
     } else {
-      process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
+      process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
     }
   }
 }

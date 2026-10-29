@@ -212,15 +212,15 @@ describe('Explore Answer respects the adaptive budget', () => {
   });
 
   it('prefixes source lines with line numbers by default (cat -n style)', async () => {
-    delete process.env.CODEGRAPH_EXPLORE_LINENUMS;
+    delete process.env.ZCG_EXPLORE_LINENUMS;
     const result = await handler.execute('zcodegraph_explore', { query: 'Session method helper' });
     const text = result.content?.[0]?.text ?? '';
     // At least one fenced source line should look like `<digits>\t<code>`.
     expect(/\n\d+\t/.test(text)).toBe(true);
   });
 
-  it('omits line numbers when CODEGRAPH_EXPLORE_LINENUMS=0', async () => {
-    process.env.CODEGRAPH_EXPLORE_LINENUMS = '0';
+  it('omits line numbers when ZCG_EXPLORE_LINENUMS=0', async () => {
+    process.env.ZCG_EXPLORE_LINENUMS = '0';
     try {
       const result = await handler.execute('zcodegraph_explore', { query: 'Session method helper' });
       const text = result.content?.[0]?.text ?? '';
@@ -228,7 +228,7 @@ describe('Explore Answer respects the adaptive budget', () => {
       // so none should appear when the toggle is off.
       expect(/\n\d+\t(?:export|  )/.test(text)).toBe(false);
     } finally {
-      delete process.env.CODEGRAPH_EXPLORE_LINENUMS;
+      delete process.env.ZCG_EXPLORE_LINENUMS;
     }
   });
 

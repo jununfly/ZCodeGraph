@@ -33,7 +33,7 @@
  *   - `npm run build` 已完成（dist/bin/zcodegraph.js 存在）
  *   - <corpus>/.zcodegraph/models/vec0.dll 就位
  *   - <corpus>/.zcodegraph/models/Qdrant_bge-small-en-v1.5-onnx-Q/ 已含 ONNX 模型
- *   - 环境变量 CODEGRAPH_ENABLE_EMBEDDING=1 由本脚本注入子进程
+ *   - 环境变量 ZCG_ENABLE_EMBEDDING=1 由本脚本注入子进程
  */
 
 import * as fs from 'node:fs';
@@ -127,9 +127,9 @@ function runCli(args, cliArgs, envExtra = {}) {
     windowsHide: true,
     env: {
       ...process.env,
-      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-      CODEGRAPH_NO_DAEMON: '1',
-      CODEGRAPH_NO_RELAUNCH: '1',
+      ZCG_ALLOW_UNSAFE_NODE: '1',
+      ZCG_NO_DAEMON: '1',
+      ZCG_NO_RELAUNCH: '1',
       ...envExtra,
     },
     maxBuffer: 64 * 1024 * 1024,
@@ -164,7 +164,7 @@ function main() {
   rmZcodegraph(corpus);
   log(args, 'round 2: index --with-embeddings (enqueue only)');
   const r2 = runCli(args, ['index', corpus, '--quiet', '--with-embeddings'], {
-    CODEGRAPH_ENABLE_EMBEDDING: '1',
+    ZCG_ENABLE_EMBEDDING: '1',
   });
   const enqueueOnlyMs = r2.durationMs;
   const q2 = readQueueStats(dbPath);
@@ -174,7 +174,7 @@ function main() {
   rmZcodegraph(corpus);
   log(args, 'round 3: index --with-embeddings --wait-embeddings (CI 收口, drains queue)');
   const r3 = runCli(args, ['index', corpus, '--quiet', '--with-embeddings', '--wait-embeddings'], {
-    CODEGRAPH_ENABLE_EMBEDDING: '1',
+    ZCG_ENABLE_EMBEDDING: '1',
   });
   const waitMs = r3.durationMs;
   // Persist stderr so post-mortem can see fastembed load errors / pipeline result line.

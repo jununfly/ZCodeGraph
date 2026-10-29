@@ -30,7 +30,16 @@
 import { Worker } from 'node:worker_threads';
 import * as path from 'node:path';
 import { logDebug, logWarn } from '../errors';
+import { readBooleanFlag } from '../config/flags';
 import type { WorkerToParentMessage } from './worker';
+
+// Kept outside the application adapter: checking drain completion must not
+// trigger migrations or create a second long-lived application connection.
+// Load lazily so importing the SDK retains the existing Node-version guard.
+type QueueDatabase = {
+  prepare(sql: string): { get(...params: unknown[]): Record<string, unknown> | undefined };
+  close(): void;
+};
 
 /** Idle timeout before we terminate the worker to reclaim memory. */
 const IDLE_SHUTDOWN_MS = 30_000;
@@ -55,6 +64,8 @@ export interface EmbeddingRunnerOptions {
    * `dist/embedding/worker.js`). Lets unit tests substitute a mock worker.
    */
   workerEntrypoint?: string;
+  /** Test-only extra worker data; production workers ignore this field. */
+  workerData?: { mode?: string };
 }
 
 interface WorkerHandle {
@@ -62,6 +73,7 @@ interface WorkerHandle {
   ready: Promise<void>;
   idleTimer: NodeJS.Timeout | null;
   idleResolve: (() => void) | null;
+  shutdownPromise: Promise<void> | null;
 }
 
 /**
@@ -72,10 +84,12 @@ interface WorkerHandle {
 const runnersByDbPath = new Map<string, EmbeddingRunner>();
 
 export class EmbeddingRunner {
-  private readonly opts: Required<Omit<EmbeddingRunnerOptions, 'workerEntrypoint'>> & {
+  private readonly opts: Required<Omit<EmbeddingRunnerOptions, 'workerEntrypoint' | 'workerData'>> & {
     workerEntrypoint?: string;
+    workerData?: { mode?: string };
   };
   private handle: WorkerHandle | null = null;
+  private closing: Promise<void> | null = null;
 
   constructor(options: EmbeddingRunnerOptions) {
     const modelsDir =
@@ -88,6 +102,7 @@ export class EmbeddingRunner {
       modelsDir,
       permanentFailureOnModelMissing: options.permanentFailureOnModelMissing ?? false,
       ...(options.workerEntrypoint ? { workerEntrypoint: options.workerEntrypoint } : {}),
+      ...(options.workerData ? { workerData: options.workerData } : {}),
     };
   }
 
@@ -100,6 +115,20 @@ export class EmbeddingRunner {
     const created = new EmbeddingRunner(options);
     runnersByDbPath.set(options.dbPath, created);
     return created;
+  }
+
+  /** Gracefully stop the shared runner for a closing CodeGraph instance. */
+  static shutdownDatabase(dbPath: string): Promise<void> {
+    const runner = runnersByDbPath.get(dbPath);
+    if (!runner) return Promise.resolve();
+    return runner.shutdown().finally(() => {
+      if (runnersByDbPath.get(dbPath) === runner) runnersByDbPath.delete(dbPath);
+    });
+  }
+
+  /** Wait for every runner in this process after all graph connections close. */
+  static async shutdownAll(): Promise<void> {
+    await Promise.all([...runnersByDbPath.keys()].map(dbPath => this.shutdownDatabase(dbPath)));
   }
 
   /** Test-only: drop the registry so each test gets a fresh runner. */
@@ -118,7 +147,13 @@ export class EmbeddingRunner {
       clearTimeout(handle.idleTimer);
       handle.idleTimer = null;
     }
-    handle.worker.postMessage({ type: 'drain' });
+    void handle.ready.then(() => {
+      if (this.handle !== handle || handle.shutdownPromise) return;
+      handle.worker.postMessage({ type: 'drain' });
+    }).catch((err) => {
+      logWarn(`[embedding-worker] startup failed: ${err instanceof Error ? err.message : String(err)}`);
+      void this.shutdown();
+    });
   }
 
   /**
@@ -127,65 +162,129 @@ export class EmbeddingRunner {
    */
   async drainAndExit(): Promise<{ processed: number; failed: number }> {
     const handle = this.ensureStarted();
-    await handle.ready;
-    return new Promise((resolve, reject) => {
-      let processed = 0;
-      let failed = 0;
-      const onMessage = (msg: WorkerToParentMessage) => {
-        if (msg.type === 'progress') {
-          processed = msg.processed;
-          failed = msg.failed;
-        } else if (msg.type === 'idle') {
+    this.cancelIdleTimer(handle);
+    try {
+      await handle.ready;
+      const result = await new Promise<{ processed: number; failed: number }>((resolve, reject) => {
+        let processed = 0;
+        let failed = 0;
+        let settled = false;
+        const finish = (err?: Error) => {
+          if (settled) return;
+          settled = true;
           cleanup();
-          processed = msg.processed;
-          failed = msg.failed;
-          void this.shutdown();
-          resolve({ processed, failed });
-        } else if (msg.type === 'fatal') {
-          cleanup();
-          void this.shutdown();
-          reject(new Error(msg.message));
-        }
-      };
-      const onError = (err: Error) => {
-        cleanup();
-        void this.shutdown();
-        reject(err);
-      };
-      const cleanup = () => {
-        handle.worker.off('message', onMessage);
-        handle.worker.off('error', onError);
-      };
-      handle.worker.on('message', onMessage);
-      handle.worker.on('error', onError);
-      handle.worker.postMessage({ type: 'drain' });
-    });
+          if (err) reject(err);
+          else resolve({ processed, failed });
+        };
+        const onMessage = (msg: WorkerToParentMessage) => {
+          if (msg.type === 'progress') {
+            processed = msg.processed;
+            failed = msg.failed;
+          } else if (msg.type === 'idle') {
+            processed = msg.processed;
+            failed = msg.failed;
+            finish();
+          } else if (msg.type === 'fatal') {
+            finish(new Error(msg.message));
+          }
+        };
+        const onError = (err: Error) => finish(err);
+        const onExit = (code: number) => finish(new Error(
+          `Embedding worker exited before reporting idle (exit code ${code})`,
+        ));
+        const cleanup = () => {
+          handle.worker.off('message', onMessage);
+          handle.worker.off('error', onError);
+          handle.worker.off('exit', onExit);
+        };
+        handle.worker.on('message', onMessage);
+        handle.worker.on('error', onError);
+        handle.worker.on('exit', onExit);
+        handle.worker.postMessage({ type: 'drain' });
+      });
+      const counts = this.queueCounts();
+      const unfinished = counts.pending + counts.inProgress;
+      if (unfinished > 0) {
+        throw new Error(`${unfinished} embedding task(s) remain pending after drain`);
+      }
+      if (result.failed > 0 || counts.failed > 0) {
+        throw new Error(`${Math.max(result.failed, counts.failed)} embedding task(s) failed`);
+      }
+      return result;
+    } finally {
+      await this.shutdown();
+    }
   }
 
-  /** Graceful shutdown. Safe to call when no worker is running. */
+  /** Stop after the current batch, then wait for the worker thread to exit. */
   async shutdown(): Promise<void> {
+    if (this.closing) return this.closing;
+    const shutdownPromise = this.shutdownCurrentHandle();
+    this.closing = shutdownPromise;
+    try {
+      await shutdownPromise;
+    } finally {
+      if (this.closing === shutdownPromise) this.closing = null;
+    }
+  }
+
+  private async shutdownCurrentHandle(): Promise<void> {
     const handle = this.handle;
     if (!handle) return;
+    if (handle.shutdownPromise) return handle.shutdownPromise;
     this.handle = null;
     if (handle.idleTimer) {
       clearTimeout(handle.idleTimer);
       handle.idleTimer = null;
     }
+    handle.shutdownPromise = new Promise<void>((resolve) => {
+      const onExit = () => resolve();
+      handle.worker.once('exit', onExit);
+      try {
+        handle.worker.postMessage({ type: 'shutdown' });
+      } catch {
+        handle.worker.off('exit', onExit);
+        resolve();
+      }
+    });
+    return handle.shutdownPromise;
+  }
+
+  private queueCounts(): { pending: number; inProgress: number; failed: number } {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { DatabaseSync } = require('node:sqlite') as {
+      DatabaseSync: new (path: string) => QueueDatabase;
+    };
+    const db = new DatabaseSync(this.opts.dbPath);
     try {
-      handle.worker.postMessage({ type: 'shutdown' });
-    } catch {
-      /* worker may already be gone */
-    }
-    try {
-      await handle.worker.terminate();
-    } catch {
-      /* already terminated */
+      // The post-drain verdict comes from the durable queue, not an
+      // unverified worker-reported idle message.
+      const row = db.prepare(
+        `SELECT
+           SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
+           SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress,
+           SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed
+         FROM embedding_queue`,
+      ).get();
+      return {
+        pending: Number(row?.pending ?? 0),
+        inProgress: Number(row?.in_progress ?? 0),
+        failed: Number(row?.failed ?? 0),
+      };
+    } finally {
+      db.close();
     }
   }
 
   /** True when a worker is currently spawned (regardless of idle state). */
   isRunning(): boolean {
     return this.handle !== null;
+  }
+
+  private cancelIdleTimer(handle: WorkerHandle): void {
+    if (!handle.idleTimer) return;
+    clearTimeout(handle.idleTimer);
+    handle.idleTimer = null;
   }
 
   private ensureStarted(): WorkerHandle {
@@ -203,6 +302,7 @@ export class EmbeddingRunner {
         vec0Path: this.opts.vec0Path,
         modelsDir: this.opts.modelsDir,
         permanentFailureOnModelMissing: this.opts.permanentFailureOnModelMissing,
+        ...this.opts.workerData,
       },
     });
 
@@ -211,25 +311,33 @@ export class EmbeddingRunner {
       ready: new Promise<void>((resolve, reject) => {
         const onMsg = (msg: WorkerToParentMessage) => {
           if (msg.type === 'ready') {
-            worker.off('message', onMsg);
-            worker.off('error', onErr);
+            cleanup();
             resolve();
           } else if (msg.type === 'fatal') {
-            worker.off('message', onMsg);
-            worker.off('error', onErr);
+            cleanup();
             reject(new Error(msg.message));
           }
         };
         const onErr = (err: Error) => {
+          cleanup();
+          reject(err);
+        };
+        const onExit = (code: number) => {
+          cleanup();
+          reject(new Error(`Embedding worker exited before ready (exit code ${code})`));
+        };
+        const cleanup = () => {
           worker.off('message', onMsg);
           worker.off('error', onErr);
-          reject(err);
+          worker.off('exit', onExit);
         };
         worker.on('message', onMsg);
         worker.on('error', onErr);
+        worker.on('exit', onExit);
       }),
       idleTimer: null,
       idleResolve: null,
+      shutdownPromise: null,
     };
 
     worker.on('message', (msg: WorkerToParentMessage) => {
@@ -243,8 +351,9 @@ export class EmbeddingRunner {
           handle.idleResolve();
           handle.idleResolve = null;
         }
+        if (handle.shutdownPromise) return;
         // Schedule idle shutdown — a new drain cancels this timer.
-        if (handle.idleTimer) clearTimeout(handle.idleTimer);
+        this.cancelIdleTimer(handle);
         handle.idleTimer = setTimeout(() => {
           logDebug('[embedding-worker] idle timeout — terminating to reclaim memory');
           void this.shutdown();
@@ -282,5 +391,5 @@ export class EmbeddingRunner {
  * is consistent across entry points.
  */
 export function embeddingEnabled(): boolean {
-  return process.env.CODEGRAPH_ENABLE_EMBEDDING === '1';
+  return readBooleanFlag('ZCG_ENABLE_EMBEDDING');
 }

@@ -257,7 +257,7 @@ describe('runUpgrade', () => {
     expect(calls.runs[0].args[0]).toBe('-c');
     expect(calls.runs[0].args[1]).toContain('curl -fsSL');
     expect(calls.runs[0].args[1]).toContain('| sh');
-    expect(calls.runs[0].env?.CODEGRAPH_INSTALL_DIR).toBe('/h/.zcodegraph');
+    expect(calls.runs[0].env?.ZCG_INSTALL_DIR).toBe('/h/.zcodegraph');
     expect(calls.logs.join('\n')).toMatch(/zcodegraph sync/); // re-index advisory printed
   });
 

@@ -1,5 +1,5 @@
 /**
- * CODEGRAPH_WATCH_DEBOUNCE_MS env override (issue #403).
+ * ZCG_WATCH_DEBOUNCE_MS env override (issue #403).
  *
  * Lets users tune the watcher quiet window from MCP-launched configs without
  * editing the agent's command line — formatter-on-save chains and large
@@ -39,9 +39,8 @@ describe('parseDebounceEnv', () => {
     expect(parseDebounceEnv('Infinity')).toBeUndefined();
   });
 
-  it('accepts scientific notation that resolves to an in-range integer', () => {
-    // Number('1e3') === 1000, Number.isInteger(1000) === true. Power users
-    // who write debounce as 1e3 should not be surprised; the clamp still applies.
-    expect(parseDebounceEnv('1e3')).toBe(1000);
+  it('rejects scientific notation and numeric suffixes', () => {
+    expect(parseDebounceEnv('1e3')).toBeUndefined();
+    expect(parseDebounceEnv('1000ms')).toBeUndefined();
   });
 });

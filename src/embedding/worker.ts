@@ -39,6 +39,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { parentPort, workerData } from 'node:worker_threads';
 import { resolveFastembedSpecifier, importResolved } from './installer';
 
@@ -68,6 +69,7 @@ import {
   markEmbeddingFailed,
   resetStaleInProgressEmbeddings,
   countEmbeddingQueueByStatus,
+  heartbeatEmbeddingClaims,
   type EmbeddingQueueRow,
 } from './queue';
 import type { SqliteDatabase } from '../db/sqlite-adapter';
@@ -76,6 +78,9 @@ import type { SqliteDatabase } from '../db/sqlite-adapter';
 const BATCH_SIZE = 8;
 /** Requeue `in_progress` rows older than this (crashed previous worker). */
 const STALE_IN_PROGRESS_MS = 5 * 60_000;
+const staleInProgressMs = Number(workerData?.staleInProgressMsForTests) > 0
+  ? Number(workerData.staleInProgressMsForTests)
+  : STALE_IN_PROGRESS_MS;
 /** Truncate file contents to bound tokenizer memory (matches 1-4-2 spike). */
 const TRUNCATE_CHARS = 8000;
 /** Model version string stamped onto `vec_embeddings.model_version` and queue rows. */
@@ -99,6 +104,9 @@ export interface EmbeddingWorkerData {
    * optional dep is genuinely missing.
    */
   permanentFailureOnModelMissing?: boolean;
+  /** Isolate scheduler tests from the native vec0 extension; never set in production. */
+  skipVec0LoadForTests?: boolean;
+  skipModelLoadForTests?: boolean;
 }
 
 interface WorkerToParentReady { type: 'ready' }
@@ -116,6 +124,16 @@ export type WorkerToParentMessage =
 interface ParentToWorkerDrain { type: 'drain' }
 interface ParentToWorkerShutdown { type: 'shutdown' }
 export type ParentToWorkerMessage = ParentToWorkerDrain | ParentToWorkerShutdown;
+
+/** Stop after the active batch; finishShutdown closes the DB and exits. */
+let shutdownRequested = false;
+let draining = false;
+let workerDb: SqliteDatabase | null = null;
+function finishShutdown(): void {
+  if (!shutdownRequested || draining) return;
+  workerDb?.close();
+  process.exit(0);
+}
 
 /**
  * Wrap `DatabaseSync` in the `SqliteDatabase` shape used by queue helpers.
@@ -278,6 +296,29 @@ async function processBatch(
   embedder: EmbedderState,
   rows: EmbeddingQueueRow[],
   projectRoot: string,
+  workerId: string,
+): Promise<{ processed: number; failed: number }> {
+  const heartbeat = setInterval(() => {
+    try {
+      heartbeatEmbeddingClaims(db, workerId);
+    } catch (err) {
+      log('warn', `embedding heartbeat failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, 30_000);
+  heartbeat.unref();
+  try {
+    return await processClaimedBatch(db, embedder, rows, projectRoot, workerId);
+  } finally {
+    clearInterval(heartbeat);
+  }
+}
+
+async function processClaimedBatch(
+  db: SqliteDatabase,
+  embedder: EmbedderState,
+  rows: EmbeddingQueueRow[],
+  projectRoot: string,
+  workerId: string,
 ): Promise<{ processed: number; failed: number }> {
   let processed = 0;
   let failed = 0;
@@ -298,7 +339,7 @@ async function processBatch(
 
   // Mark empty/unreadable rows as done — nothing to embed, no point retrying.
   for (const row of skippedRows) {
-    markEmbeddingDone(db, row.file_path, row.content_hash, MODEL_VERSION);
+    markEmbeddingDone(db, row.file_path, row.content_hash, MODEL_VERSION, Date.now(), workerId);
     processed++;
   }
 
@@ -322,12 +363,16 @@ async function processBatch(
         if (!row) continue;
         const f32 = vec instanceof Float32Array ? vec : Float32Array.from(vec as unknown as number[]);
         const buf = Buffer.from(f32.buffer, f32.byteOffset, f32.byteLength);
-        db.transaction(() => {
+        const committed = db.transaction(() => {
+          const done = markEmbeddingDone(
+            db, row.file_path, row.content_hash, MODEL_VERSION, Date.now(), workerId,
+          );
+          if (!done) return false;
           insertStmt.run(row.file_path);
           insertVec.run(row.file_path, buf);
-          markEmbeddingDone(db, row.file_path, row.content_hash, MODEL_VERSION);
+          return true;
         })();
-        processed++;
+        if (committed) processed++;
       }
     }
   } catch (err) {
@@ -336,7 +381,10 @@ async function processBatch(
     // earlier rows already committed.
     for (let i = offset; i < claimedPaths.length; i++) {
       const row = claimedPaths[i]!;
-      markEmbeddingFailed(db, row.file_path, row.content_hash, `embedding-embed-failed: ${msg}`);
+      markEmbeddingFailed(
+        db, row.file_path, row.content_hash,
+        `embedding-embed-failed: ${msg}`, Date.now(), workerId,
+      );
       failed++;
     }
   }
@@ -351,16 +399,19 @@ async function drainLoop(
 ): Promise<{ processed: number; failed: number }> {
   let processed = 0;
   let failed = 0;
+  const workerId = `${process.pid}:${randomUUID()}`;
 
   // Watchdog first — recover rows orphaned by a previous crashed worker.
-  const reset = resetStaleInProgressEmbeddings(db, STALE_IN_PROGRESS_MS);
+  const reset = resetStaleInProgressEmbeddings(db, staleInProgressMs);
   if (reset > 0) {
     log('info', `reset ${reset} stale in_progress embedding rows back to pending`);
   }
 
   let embedder: EmbedderState | null = null;
   try {
-    embedder = await loadEmbedder(data.modelsDir);
+    embedder = data.skipModelLoadForTests
+      ? { embed: () => { throw new Error('scheduler test must not embed'); } }
+      : await loadEmbedder(data.modelsDir);
   } catch (err) {
     const msg = embedderFailure ?? (err instanceof Error ? err.message : String(err));
     // fastembed missing / model download blocked. Re-pend claimed rows so a
@@ -368,13 +419,17 @@ async function drainLoop(
     // ADR-0009 Failure Modes row 1: not-downloaded is *pending*, not failed.
     if (data.permanentFailureOnModelMissing) {
       // --wait-embeddings / test mode: don't loop forever — fail the batch.
-      const claimed = claimPendingEmbeddings(db, BATCH_SIZE);
+      // A terminal drain must settle every pending row, not just the first
+      // batch. The CLI separately inspects the durable queue and fails CI.
+      const claimed = claimPendingEmbeddings(db, Number.MAX_SAFE_INTEGER, Date.now(), workerId);
       for (const row of claimed) {
         markEmbeddingFailed(
           db,
           row.file_path,
           row.content_hash,
           `embedding-model-not-downloaded: ${msg}`,
+          Date.now(),
+          workerId,
         );
         failed++;
       }
@@ -385,9 +440,9 @@ async function drainLoop(
   }
 
   while (!shouldStop()) {
-    const claimed = claimPendingEmbeddings(db, BATCH_SIZE);
+    const claimed = claimPendingEmbeddings(db, BATCH_SIZE, Date.now(), workerId);
     if (claimed.length === 0) break;
-    const r = await processBatch(db, embedder, claimed, data.projectRoot);
+    const r = await processBatch(db, embedder, claimed, data.projectRoot, workerId);
     processed += r.processed;
     failed += r.failed;
     const counts = countEmbeddingQueueByStatus(db);
@@ -418,35 +473,61 @@ async function main(): Promise<void> {
   // Open DB with extension loading enabled just long enough to load vec0,
   // then immediately disable to shrink the attack surface (sqlite-adapter
   // contract; see SqliteAdapterOptions.allowExtension).
-  const raw = new DatabaseSync(data.dbPath, { allowExtension: true });
-  try {
-    raw.loadExtension(data.vec0Path);
-  } finally {
-    raw.enableLoadExtension(false);
+  const raw = new DatabaseSync(data.dbPath, { allowExtension: !data.skipVec0LoadForTests });
+  if (!data.skipVec0LoadForTests) {
+    try {
+      raw.loadExtension(data.vec0Path);
+    } finally {
+      raw.enableLoadExtension(false);
+    }
   }
   const db = wrapAsSqliteDatabase(raw);
-  ensureVecTable(db);
+  if (!data.skipVec0LoadForTests) ensureVecTable(db);
 
-  let shutdownRequested = false;
-  let draining: Promise<void> | null = null;
+  workerDb = db;
+  let drainingPromise: Promise<void> | null = null;
+  const scheduleRecoveryRetry = (): void => {
+    if (shutdownRequested) return;
+    const lease = db.prepare(
+      `SELECT MIN(COALESCE(heartbeat_at, started_at)) AS heartbeat
+         FROM embedding_queue WHERE status = 'in_progress'`,
+    ).get() as { heartbeat?: number | null };
+    if (typeof lease.heartbeat !== 'number') return;
+    const waitMs = Math.max(1, lease.heartbeat + staleInProgressMs - Date.now() + 1);
+    const timer = setTimeout(() => {
+      if (!shutdownRequested && !drainingPromise) {
+        parentPort?.emit('message', { type: 'drain' });
+      }
+    }, waitMs);
+    timer.unref();
+  };
 
   parentPort.on('message', (msg: ParentToWorkerMessage) => {
     if (!msg || typeof msg !== 'object') return;
     if (msg.type === 'shutdown') {
       shutdownRequested = true;
+      if (drainingPromise) {
+        void drainingPromise.finally(finishShutdown);
+      } else {
+        finishShutdown();
+      }
       return;
     }
     if (msg.type === 'drain') {
-      if (draining) return; // already running
-      draining = (async () => {
+      if (drainingPromise) return; // already running
+      draining = true;
+      drainingPromise = (async () => {
         try {
           const r = await drainLoop(db, data, () => shutdownRequested);
           postMessage({ type: 'idle', processed: r.processed, failed: r.failed });
+          scheduleRecoveryRetry();
         } catch (err) {
           const msgText = err instanceof Error ? err.message : String(err);
           postMessage({ type: 'fatal', message: msgText });
         } finally {
-          draining = null;
+          draining = false;
+          drainingPromise = null;
+          finishShutdown();
         }
       })();
     }

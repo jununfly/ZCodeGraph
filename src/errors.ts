@@ -1,3 +1,5 @@
+import { readBooleanFlag } from './config/flags';
+
 /**
  * CodeGraph Error Classes
  *
@@ -178,7 +180,7 @@ export interface Logger {
  */
 export const defaultLogger: Logger = {
   debug(message: string, context?: Record<string, unknown>): void {
-    if (process.env.CODEGRAPH_DEBUG) {
+    if (readBooleanFlag('ZCG_DEBUG')) {
       console.debug(`[CodeGraph] ${message}`, context ?? '');
     }
   },

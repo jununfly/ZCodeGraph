@@ -169,9 +169,9 @@ describe('Rust sufficiency guardrail prompt configuration', () => {
         cwd: REPO_ROOT,
         env: {
           ...process.env,
-          CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-          CODEGRAPH_NO_DAEMON: '1',
-          CODEGRAPH_NO_RELAUNCH: '1',
+          ZCG_ALLOW_UNSAFE_NODE: '1',
+          ZCG_NO_DAEMON: '1',
+          ZCG_NO_RELAUNCH: '1',
         },
         encoding: 'utf-8',
       },
@@ -225,21 +225,21 @@ describe('Rust sufficiency guardrail prompt configuration', () => {
     expect(outParsed.arms.typescript.lastProgress).toBeNull();
     expect(outParsed.arms.rust.lastProgress).toBeNull();
     expect(outParsed.arms.typescript.command.env).toEqual({
-      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-      CODEGRAPH_NO_DAEMON: '1',
-      CODEGRAPH_NO_RELAUNCH: '1',
+      ZCG_ALLOW_UNSAFE_NODE: '1',
+      ZCG_NO_DAEMON: '1',
+      ZCG_NO_RELAUNCH: '1',
     });
     expect(outParsed.arms.rust.command.env).toMatchObject({
-      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-      CODEGRAPH_NO_DAEMON: '1',
-      CODEGRAPH_NO_RELAUNCH: '1',
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE,
+      ZCG_ALLOW_UNSAFE_NODE: '1',
+      ZCG_NO_DAEMON: '1',
+      ZCG_NO_RELAUNCH: '1',
+      ZCG_RUST_CORE_BINARY: RUST_CORE,
     });
     expect(Object.keys(outParsed.arms.rust.command.env).sort()).toEqual([
-      'CODEGRAPH_ALLOW_UNSAFE_NODE',
-      'CODEGRAPH_NO_DAEMON',
-      'CODEGRAPH_NO_RELAUNCH',
-      'ZCODEGRAPH_RUST_CORE_BINARY',
+      'ZCG_ALLOW_UNSAFE_NODE',
+      'ZCG_NO_DAEMON',
+      'ZCG_NO_RELAUNCH',
+      'ZCG_RUST_CORE_BINARY',
     ]);
     expect(outParsed.arms.typescript.diagnostics).toEqual([]);
     expect(outParsed.arms.rust.diagnostics).toEqual([]);
@@ -314,9 +314,9 @@ describe('Rust sufficiency guardrail prompt configuration', () => {
         cwd: REPO_ROOT,
         env: {
           ...process.env,
-          CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-          CODEGRAPH_NO_DAEMON: '1',
-          CODEGRAPH_NO_RELAUNCH: '1',
+          ZCG_ALLOW_UNSAFE_NODE: '1',
+          ZCG_NO_DAEMON: '1',
+          ZCG_NO_RELAUNCH: '1',
         },
         encoding: 'utf-8',
       },
@@ -375,9 +375,9 @@ describe('Rust sufficiency guardrail prompt configuration', () => {
         cwd: REPO_ROOT,
         env: {
           ...process.env,
-          CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-          CODEGRAPH_NO_DAEMON: '1',
-          CODEGRAPH_NO_RELAUNCH: '1',
+          ZCG_ALLOW_UNSAFE_NODE: '1',
+          ZCG_NO_DAEMON: '1',
+          ZCG_NO_RELAUNCH: '1',
         },
         encoding: 'utf-8',
       },
@@ -453,9 +453,9 @@ describe('Rust sufficiency guardrail prompt configuration', () => {
         cwd: REPO_ROOT,
         env: {
           ...process.env,
-          CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-          CODEGRAPH_NO_DAEMON: '1',
-          CODEGRAPH_NO_RELAUNCH: '1',
+          ZCG_ALLOW_UNSAFE_NODE: '1',
+          ZCG_NO_DAEMON: '1',
+          ZCG_NO_RELAUNCH: '1',
         },
         encoding: 'utf-8',
       },
@@ -525,9 +525,9 @@ describe('Rust sufficiency guardrail prompt configuration', () => {
         cwd: REPO_ROOT,
         env: {
           ...process.env,
-          CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-          CODEGRAPH_NO_DAEMON: '1',
-          CODEGRAPH_NO_RELAUNCH: '1',
+          ZCG_ALLOW_UNSAFE_NODE: '1',
+          ZCG_NO_DAEMON: '1',
+          ZCG_NO_RELAUNCH: '1',
         },
         encoding: 'utf-8',
       },
@@ -592,9 +592,9 @@ describe('Rust sufficiency guardrail prompt configuration', () => {
         cwd: REPO_ROOT,
         env: {
           ...process.env,
-          CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-          CODEGRAPH_NO_DAEMON: '1',
-          CODEGRAPH_NO_RELAUNCH: '1',
+          ZCG_ALLOW_UNSAFE_NODE: '1',
+          ZCG_NO_DAEMON: '1',
+          ZCG_NO_RELAUNCH: '1',
         },
         encoding: 'utf-8',
       },

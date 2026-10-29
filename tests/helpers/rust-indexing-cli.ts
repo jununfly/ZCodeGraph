@@ -31,7 +31,7 @@ export function writeFakeRustCore(dir: string): string {
     [
       '#!/usr/bin/env node',
       'const args = process.argv.slice(2);',
-      `require("fs").writeFileSync(${JSON.stringify(marker)}, JSON.stringify({ args, profiling: process.env.ZCODEGRAPH_PROFILING || null, experimentId: process.env.ZCODEGRAPH_EXPERIMENT_ID || null }) + "\\n");`,
+      `require("fs").writeFileSync(${JSON.stringify(marker)}, JSON.stringify({ args, profiling: process.env.ZCG_PROFILING || null, experimentId: process.env.ZCG_EXPERIMENT_ID || null }) + "\\n");`,
       'if (!args.includes("index")) process.exit(2);',
       'process.stdout.write(JSON.stringify({ type: "progress", phase: "scanning", current: 0, total: 1 }) + "\\n");',
       'process.stdout.write(JSON.stringify({ type: "result", success: true, filesIndexed: 0, filesSkipped: 0, filesErrored: 0, nodesCreated: 0, edgesCreated: 0, errors: [], durationMs: 1 }) + "\\n");',
@@ -139,9 +139,9 @@ export function runZcodegraphCli(
     cwd,
     env: {
       ...process.env,
-      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-      CODEGRAPH_NO_DAEMON: '1',
-      CODEGRAPH_NO_RELAUNCH: '1',
+      ZCG_ALLOW_UNSAFE_NODE: '1',
+      ZCG_NO_DAEMON: '1',
+      ZCG_NO_RELAUNCH: '1',
       ...env,
     },
     encoding: 'utf-8',

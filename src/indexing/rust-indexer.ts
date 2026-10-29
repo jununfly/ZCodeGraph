@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { readTextFlag } from '../config/flags';
 import { getDatabasePath } from '../db';
 import { IndexProgress, IndexResult } from '../extraction';
 import { loadCandidateProducerRoutingConfig } from './experimental-local-config';
@@ -96,11 +97,13 @@ export function findRustCoreCommand(
 ): RustCoreCommand {
   const compiledFileDir = options.compiledFileDir ?? __dirname;
   const platform = options.platform ?? process.platform;
-  const configured = env.ZCODEGRAPH_RUST_CORE_BINARY;
+  const configured = readTextFlag('ZCG_RUST_CORE_BINARY', { env });
   if (configured) {
     const binaryPath = path.resolve(configured);
-    if (!fs.existsSync(binaryPath)) {
-      throw new Error(`Rust index engine is unavailable: ${binaryPath} does not exist`);
+    if (!fs.existsSync(binaryPath) || !fs.statSync(binaryPath).isFile()) {
+      throw new Error(
+        `Rust index engine is unavailable: ZCG_RUST_CORE_BINARY does not exist or is not a file: ${binaryPath}`,
+      );
     }
     return asExecutableCommand(binaryPath, process.cwd());
   }
@@ -131,7 +134,7 @@ export function findRustCoreCommand(
 
   throw new Error(
     'Rust index engine is unavailable: no Rust core binary was found. ' +
-      'Set ZCODEGRAPH_RUST_CORE_BINARY to a zcodegraph-core executable.',
+      'Set ZCG_RUST_CORE_BINARY to a zcodegraph-core executable.',
   );
 }
 
@@ -146,7 +149,7 @@ function discoverRustCoreDiagnostics(
 ): Omit<RustReadinessDiagnostics['core'], 'versionCheck'> {
   const compiledFileDir = options.compiledFileDir ?? __dirname;
   const platform = options.platform ?? process.platform;
-  const configured = env.ZCODEGRAPH_RUST_CORE_BINARY;
+  const configured = readTextFlag('ZCG_RUST_CORE_BINARY', { env });
   if (configured) {
     const binaryPath = path.resolve(configured);
     return {
@@ -340,7 +343,7 @@ export async function runRustIndexer(
     let subprocessStartupHandoffMs: number | undefined;
     const childEnv = {
       ...process.env,
-      ...(options.profiling ? { ZCODEGRAPH_PROFILING: options.profiling } : {}),
+      ...(options.profiling ? { ZCG_PROFILING: options.profiling } : {}),
     };
     const child = spawn(core.command, args, {
       cwd: core.cwd,

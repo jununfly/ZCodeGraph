@@ -107,8 +107,8 @@ describeRustHybridBaseline('rust-hybrid baseline runner (posix)', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RSS_PS_COMMAND: 'zcodegraph-nonexistent-ps-for-test',
-          ZCODEGRAPH_RSS_TIME_COMMAND: fakeTime,
+          ZCG_RSS_PS_COMMAND: 'zcodegraph-nonexistent-ps-for-test',
+          ZCG_RSS_TIME_COMMAND: fakeTime,
         },
       },
     );
@@ -445,7 +445,7 @@ describeRustHybridBaseline('rust-hybrid baseline runner (posix)', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RSS_TIME_COMMAND: fakeTime,
+          ZCG_RSS_TIME_COMMAND: fakeTime,
         },
       },
     );
@@ -523,7 +523,7 @@ describeRustHybridBaseline('rust-hybrid baseline runner (posix)', () => {
       {
         cwd: REPO_ROOT,
         encoding: 'utf-8',
-        env: { ...process.env, ZCODEGRAPH_RSS_TIME_COMMAND: fakeTime },
+        env: { ...process.env, ZCG_RSS_TIME_COMMAND: fakeTime },
       },
     );
 

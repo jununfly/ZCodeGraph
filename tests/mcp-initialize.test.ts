@@ -31,7 +31,7 @@ function spawnServer(cwd: string): ChildProcessWithoutNullStreams {
     // same response-before-init guarantee lives in the shared session code and
     // is covered by mcp-daemon.test.ts. Direct mode also avoids leaking a
     // detached daemon from this suite.
-    env: { ...process.env, CODEGRAPH_NO_DAEMON: '1' },
+    env: { ...process.env, ZCG_NO_DAEMON: '1' },
   }) as ChildProcessWithoutNullStreams;
 }
 

@@ -20,7 +20,7 @@
  *     so a SIGKILL'd host still reaps its proxy promptly; the proxy's socket
  *     close then decrements the daemon's refcount.
  *   - When the last client disconnects the daemon lingers for
- *     `CODEGRAPH_DAEMON_IDLE_TIMEOUT_MS` (default 300s) so back-to-back agent
+ *     `ZCG_DAEMON_IDLE_TIMEOUT_MS` (default 300s) so back-to-back agent
  *     runs in the same project don't repay startup, then exits cleanly. This is
  *     what keeps a single-agent session from leaking a daemon forever (#277).
  *
@@ -43,6 +43,7 @@
 import * as fs from 'fs';
 import * as net from 'net';
 import * as path from 'path';
+import { readIntegerFlag } from '../config/flags';
 import { MCPEngine } from './engine';
 import { MCPSession } from './session';
 import { SocketTransport } from './transport';
@@ -54,22 +55,6 @@ import {
   getDaemonSocketPath,
 } from './daemon-paths';
 import { CodeGraphPackageVersion } from './version';
-
-/** Default idle linger after the last client disconnects. */
-const DEFAULT_IDLE_TIMEOUT_MS = 300_000;
-
-/**
- * Hard ceiling on how long the daemon stays up with clients connected but no
- * inbound traffic. A backstop (#692): if a client's socket-close is never
- * delivered (a Windows named-pipe hazard) it stays counted forever and the
- * normal idle timer — which only arms at zero clients — never fires. A phantom
- * client sends no traffic, so bounding on inactivity reaps the daemon anyway.
- * Set generously so a real but momentarily-idle session isn't reaped mid-use.
- */
-const DEFAULT_MAX_IDLE_MS = 1_800_000; // 30 min
-
-/** How often the daemon sweeps connected clients for a dead peer process (#692). */
-const DEFAULT_CLIENT_SWEEP_MS = 30_000;
 
 /** How long the daemon waits for the optional client-hello before proceeding without it. */
 const CLIENT_HELLO_TIMEOUT_MS = 3_000;
@@ -265,7 +250,7 @@ export class Daemon {
       await new Promise<void>((resolve) => this.server!.close(() => resolve()));
       this.server = null;
     }
-    this.engine.stop();
+    await this.engine.stopAndWait();
     this.cleanupLockfile();
     if (process.platform !== 'win32') {
       try { fs.unlinkSync(this.socketPath); } catch { /* may already be gone */ }
@@ -520,27 +505,15 @@ export function isProcessAlive(pid: number): boolean {
 }
 
 function resolveIdleTimeoutMs(): number {
-  const raw = process.env.CODEGRAPH_DAEMON_IDLE_TIMEOUT_MS;
-  if (raw === undefined || raw === '') return DEFAULT_IDLE_TIMEOUT_MS;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 0) return DEFAULT_IDLE_TIMEOUT_MS;
-  return Math.floor(parsed);
+  return readIntegerFlag('ZCG_DAEMON_IDLE_TIMEOUT_MS');
 }
 
 function resolveMaxIdleMs(): number {
-  const raw = process.env.CODEGRAPH_DAEMON_MAX_IDLE_MS;
-  if (raw === undefined || raw === '') return DEFAULT_MAX_IDLE_MS;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 0) return DEFAULT_MAX_IDLE_MS;
-  return Math.floor(parsed); // 0 disables the backstop
+  return readIntegerFlag('ZCG_DAEMON_MAX_IDLE_MS'); // 0 disables the backstop
 }
 
 function resolveClientSweepMs(): number {
-  const raw = process.env.CODEGRAPH_DAEMON_CLIENT_SWEEP_MS;
-  if (raw === undefined || raw === '') return DEFAULT_CLIENT_SWEEP_MS;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 0) return DEFAULT_CLIENT_SWEEP_MS;
-  return Math.floor(parsed); // 0 disables the sweep
+  return readIntegerFlag('ZCG_DAEMON_CLIENT_SWEEP_MS'); // 0 disables the sweep
 }
 
 /**

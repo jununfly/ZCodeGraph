@@ -14,7 +14,7 @@
  *     down — other attached clients keep working (the must-fix-2 detach: the
  *     in-process daemon used to die with its launcher's process group and
  *     orphan on host SIGKILL, regressing #277).
- *   - A stale lockfile (dead pid) is cleared; `CODEGRAPH_NO_DAEMON=1` opts out;
+ *   - A stale lockfile (dead pid) is cleared; `ZCG_NO_DAEMON=1` opts out;
  *     the proxy refuses to attach across a version mismatch; the daemon
  *     idle-times-out after the last client leaves (so a single session can't
  *     leak a daemon forever).
@@ -81,11 +81,11 @@ function spawnServer(cwd: string, env: NodeJS.ProcessEnv = {}): SpawnedServer {
     cwd,
     stdio: ['pipe', 'pipe', 'pipe'],
     // #618: the daemon-attach log line is now off by default; opt the test
-    // harness into it (CODEGRAPH_MCP_LOG_ATTACH=1) so the attach assertions
+    // harness into it (ZCG_MCP_LOG_ATTACH=1) so the attach assertions
     // below can still observe a successful attach. A per-test env still wins.
     env: {
-      CODEGRAPH_MCP_LOG_ATTACH: '1',
-      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
+      ZCG_MCP_LOG_ATTACH: '1',
+      ZCG_ALLOW_UNSAFE_NODE: '1',
       ...process.env,
       ...env,
     },
@@ -254,7 +254,7 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
   });
 
   it('two invocations share ONE detached daemon; both attach as proxies', async () => {
-    const env = { CODEGRAPH_DAEMON_IDLE_TIMEOUT_MS: '15000' };
+    const env = { ZCG_DAEMON_IDLE_TIMEOUT_MS: '15000' };
 
     const first = spawnServer(tempDir, env);
     servers.push(first);
@@ -306,7 +306,7 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
   }, 40000);
 
   it('concurrent launchers converge on a single daemon (lockfile race — must-fix 1)', async () => {
-    const env = { CODEGRAPH_DAEMON_IDLE_TIMEOUT_MS: '15000' };
+    const env = { ZCG_DAEMON_IDLE_TIMEOUT_MS: '15000' };
 
     // Fire three launchers as close to simultaneously as possible — this is the
     // race window where the old code could end up with two daemons.
@@ -363,7 +363,7 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
   it('daemon survives the first client dying; a second client keeps working (must-fix 2 / #277)', async () => {
     // Idle high so the daemon doesn't reap mid-test; poll fast so proxy 1
     // notices its dead parent quickly.
-    const env = { CODEGRAPH_DAEMON_IDLE_TIMEOUT_MS: '30000', CODEGRAPH_PPID_POLL_MS: '200' };
+    const env = { ZCG_DAEMON_IDLE_TIMEOUT_MS: '30000', ZCG_PPID_POLL_MS: '200' };
 
     const first = spawnServer(tempDir, env);
     servers.push(first);
@@ -394,8 +394,8 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
     expect(toolsResp.result.tools.length).toBeGreaterThan(0);
   }, 45000);
 
-  it('CODEGRAPH_NO_DAEMON=1 keeps each process independent (no socket/pidfile)', async () => {
-    const env = { CODEGRAPH_NO_DAEMON: '1' };
+  it('ZCG_NO_DAEMON=1 keeps each process independent (no socket/pidfile)', async () => {
+    const env = { ZCG_NO_DAEMON: '1' };
     const first = spawnServer(tempDir, env);
     servers.push(first);
     sendInitialize(first.child, `file://${tempDir}`, 1);
@@ -418,7 +418,7 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
       }),
     );
 
-    const env = { CODEGRAPH_DAEMON_IDLE_TIMEOUT_MS: '15000' };
+    const env = { ZCG_DAEMON_IDLE_TIMEOUT_MS: '15000' };
     const server = spawnServer(tempDir, env);
     servers.push(server);
     sendInitialize(server.child, `file://${tempDir}`, 1);
@@ -487,7 +487,7 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
   it('exits on the inactivity backstop even while a client stays connected (#692)', async () => {
     // Backstop short, idle timeout long: with a client connected the idle timer
     // never arms, so only the inactivity backstop can take the daemon down.
-    const env = { CODEGRAPH_DAEMON_MAX_IDLE_MS: '1500', CODEGRAPH_DAEMON_IDLE_TIMEOUT_MS: '60000' };
+    const env = { ZCG_DAEMON_MAX_IDLE_MS: '1500', ZCG_DAEMON_IDLE_TIMEOUT_MS: '60000' };
     const server = spawnServer(tempDir, env);
     servers.push(server);
     sendInitialize(server.child, `file://${tempDir}`, 1);
@@ -504,7 +504,7 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
   }, 30000);
 
   it('daemon idle-times-out after the last client disconnects', async () => {
-    const env = { CODEGRAPH_DAEMON_IDLE_TIMEOUT_MS: '800', CODEGRAPH_PPID_POLL_MS: '200' };
+    const env = { ZCG_DAEMON_IDLE_TIMEOUT_MS: '800', ZCG_PPID_POLL_MS: '200' };
     const server = spawnServer(tempDir, env);
     servers.push(server);
     sendInitialize(server.child, `file://${tempDir}`, 1);
@@ -524,7 +524,7 @@ describe.skipIf(!canListenDaemonSocket())('Shared MCP daemon (issue #411)', () =
     // The #662 scenario: an MCP host SIGTERM's the shared daemon while a session
     // is live. The proxy must NOT exit (losing CodeGraph for that session) — it
     // falls back to an in-process engine and keeps answering.
-    const env = { CODEGRAPH_DAEMON_IDLE_TIMEOUT_MS: '30000', CODEGRAPH_PPID_POLL_MS: '5000' };
+    const env = { ZCG_DAEMON_IDLE_TIMEOUT_MS: '30000', ZCG_PPID_POLL_MS: '5000' };
     const server = spawnServer(tempDir, env);
     servers.push(server);
     sendInitialize(server.child, `file://${tempDir}`, 1);

@@ -108,7 +108,7 @@ async function indexWithTimedCli(project, engine) {
   const env = baseEnv();
   if (engine === 'rust') {
     args.push('--engine', 'rust');
-    env.ZCODEGRAPH_RUST_CORE_BINARY = rustCore;
+    env.ZCG_RUST_CORE_BINARY = rustCore;
   }
 
   const startedAt = Date.now();
@@ -196,9 +196,9 @@ function spawnMeasured(command, args, cwd, env) {
 
 function baseEnv() {
   return {
-    CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-    CODEGRAPH_NO_DAEMON: '1',
-    CODEGRAPH_NO_RELAUNCH: '1',
+    ZCG_ALLOW_UNSAFE_NODE: '1',
+    ZCG_NO_DAEMON: '1',
+    ZCG_NO_RELAUNCH: '1',
   };
 }
 

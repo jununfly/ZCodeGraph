@@ -39,7 +39,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     fs.writeFileSync(path.join(tempDir, 'server.go'), 'package main\nfunc main() {}\n');
 
     const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -57,7 +57,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     fs.writeFileSync(path.join(tempDir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
 
     const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -153,7 +153,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -232,7 +232,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -317,7 +317,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -401,7 +401,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -476,7 +476,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -519,7 +519,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
 
   it('reports Rust index-engine metadata through MCP status', async () => {
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
 
@@ -551,7 +551,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
 
@@ -601,7 +601,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -661,7 +661,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -716,7 +716,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const indexResult = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -876,7 +876,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
 
@@ -923,7 +923,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
 
@@ -981,7 +981,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
 
@@ -1070,7 +1070,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
 
@@ -1170,7 +1170,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
 
@@ -1208,7 +1208,7 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     );
 
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status).toBe(0);
 

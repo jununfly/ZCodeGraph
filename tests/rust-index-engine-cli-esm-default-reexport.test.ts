@@ -59,7 +59,7 @@ describe('zcodegraph rust-hybrid ESM default and re-export edges', () => {
 
       const profileOut = path.join(tempDir, '.zcodegraph', 'guarded-default-edge-write-profile.json');
       const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -155,7 +155,7 @@ describe('zcodegraph rust-hybrid ESM default and re-export edges', () => {
 
       const profileOut = path.join(tempDir, '.zcodegraph', 'guarded-default-skip-profile.json');
       const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -228,7 +228,7 @@ describe('zcodegraph rust-hybrid ESM default and re-export edges', () => {
 
       const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-reexport-profile.json');
       const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -287,7 +287,7 @@ describe('zcodegraph rust-hybrid ESM default and re-export edges', () => {
       );
 
       const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -354,7 +354,7 @@ describe('zcodegraph rust-hybrid ESM default and re-export edges', () => {
 
       const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-fallback-profile.json');
       const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 

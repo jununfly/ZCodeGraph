@@ -150,7 +150,7 @@ Notes:
   records the exact unavailable reason for each corpus.
 - VS Code is a sparse checkout, not the full repository.
 - The local source-path commands ran under Node 26 with
-  `CODEGRAPH_ALLOW_UNSAFE_NODE=1`; release users should use the bundled runtime
+  `ZCG_ALLOW_UNSAFE_NODE=1`; release users should use the bundled runtime
   or a supported embedding runtime.
 
 The release snapshot is summarized above; raw measurement reports remain
@@ -191,7 +191,7 @@ methodology and mechanism notes.
 
 When your agent (Claude Code, Cursor, Codex, opencode) launches `zcodegraph serve --mcp`, three layers keep the index in step with your code — and make sure the agent never gets a silent wrong answer in the brief window between an edit and the next sync:
 
-1. **File watcher with debounced auto-sync.** A native FSEvents / inotify / ReadDirectoryChangesW watcher captures every source-file create / modify / delete and triggers a re-index after a debounce window (default `2000ms`, tunable via `CODEGRAPH_WATCH_DEBOUNCE_MS`, clamped to `[100ms, 60s]`). Bursts of edits collapse into a single sync.
+1. **File watcher with debounced auto-sync.** A native FSEvents / inotify / ReadDirectoryChangesW watcher captures every source-file create / modify / delete and triggers a re-index after a debounce window (default `2000ms`, tunable via `ZCG_WATCH_DEBOUNCE_MS`, clamped to `[100ms, 60s]`). Bursts of edits collapse into a single sync.
 
 2. **Per-file staleness banner.** During the brief debounce window, MCP tool responses that would reference a still-pending file prepend a `⚠️` banner naming it and telling the agent to `Read` it directly. Pending files NOT referenced by the response surface as a small footer instead. Either way, the agent gets an explicit signal — validated with Claude Code, where the agent literally says "Reading the file directly for the live content" before opening it.
 
@@ -207,7 +207,7 @@ agent writes src/Widget.ts
 
 **Verify any time** with `zcodegraph_status` (via MCP) or `zcodegraph status` (CLI). If anything is pending, you'll see a `### Pending sync:` section naming the files and their edit age.
 
-The handful of cases where manual `zcodegraph sync` makes sense: the watcher is disabled (sandboxed environments, or `CODEGRAPH_NO_DAEMON=1`), or you're scripting against the index outside an agent session and want a pre-flight sync at the start of your script.
+The handful of cases where manual `zcodegraph sync` makes sense: the watcher is disabled (sandboxed environments, or `ZCG_NO_DAEMON=1`), or you're scripting against the index outside an agent session and want a pre-flight sync at the start of your script.
 
 → Full deep-dive in [Guides → Indexing a Project](https://jununfly.github.io/ZCodeGraph/guides/indexing/#stay-fresh-automatically).
 

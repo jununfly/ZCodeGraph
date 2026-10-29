@@ -62,10 +62,10 @@ function run(command, args, cwd, env = {}) {
     cwd,
     env: {
       ...process.env,
-      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-      CODEGRAPH_NO_DAEMON: '1',
-      CODEGRAPH_NO_RELAUNCH: '1',
-      CODEGRAPH_NO_DOWNLOAD: '1',
+      ZCG_ALLOW_UNSAFE_NODE: '1',
+      ZCG_NO_DAEMON: '1',
+      ZCG_NO_RELAUNCH: '1',
+      ZCG_NO_DOWNLOAD: '1',
       ...env,
     },
     encoding: 'utf-8',
@@ -150,11 +150,6 @@ function smokeRustHybridTarget(target, section, outDir, rustCore, rootForRelativ
   const explicitProject = makeProject(`${section}-explicit`, 'go');
   const explicitRun = runCli(target, ['index', explicitProject, '--engine', 'rust-hybrid', '--quiet'], explicitProject);
 
-  const envFailProject = makeProject(`${section}-env-fail`, 'go');
-  // The stale env var is rejected during engine resolution, before any indexing,
-  // so a fresh (unbootstrapped) project surfaces the clear error directly.
-  const envFailRun = runCli(target, ['index', envFailProject, '--quiet'], envFailProject, { ZCODEGRAPH_INDEX_ENGINE: 'typescript' });
-
   const degradedProject = makeProject(`${section}-degraded`, 'degraded');
   const degradedRun = runCli(target, ['index', degradedProject, '--quiet'], degradedProject);
   const degradedStatusRun = degradedRun.status === 0
@@ -192,8 +187,6 @@ function smokeRustHybridTarget(target, section, outDir, rustCore, rootForRelativ
     defaultStatusStderr: writeArtifact(outDir, section, 'default-status.stderr.txt', defaultStatusRun.stderr),
     explicitStdout: writeArtifact(outDir, section, 'explicit.stdout.txt', explicitRun.stdout),
     explicitStderr: writeArtifact(outDir, section, 'explicit.stderr.txt', explicitRun.stderr),
-    envFailStdout: writeArtifact(outDir, section, 'env-fail.stdout.txt', envFailRun.stdout),
-    envFailStderr: writeArtifact(outDir, section, 'env-fail.stderr.txt', envFailRun.stderr),
     degradedStatusStdout: writeArtifact(outDir, section, 'degraded-status.stdout.txt', degradedStatusRun.stdout),
     degradedStatusStderr: writeArtifact(outDir, section, 'degraded-status.stderr.txt', degradedStatusRun.stderr),
     doctorLastRunStdout: writeArtifact(outDir, section, 'doctor-last-run.stdout.txt', lastRunDoctor.stdout),
@@ -210,9 +203,6 @@ function smokeRustHybridTarget(target, section, outDir, rustCore, rootForRelativ
     bootstrapRustHybridWorks: bootstrapRun.status === 0 && statusShowsHybrid(bootstrapStatusRun),
     defaultRustHybridIndexWorks: defaultRun.status === 0 && statusShowsHybrid(defaultStatusRun),
     explicitRustHybridIndexWorks: explicitRun.status === 0,
-    staleEnvEngineSelectionFailsClearly: envFailRun.status !== 0
-      && /ZCODEGRAPH_INDEX_ENGINE is no longer supported/.test(envFailRun.stderr)
-      && /zcodegraph index --engine typescript/.test(envFailRun.stderr),
     statusShowsHybridMetadata: statusShowsHybrid(defaultStatusRun),
     degradedFallbackRecorded: statusShowsDegraded(degradedStatusRun),
     degradedDoctorLastRunWorks: statusShowsDegraded(degradedStatusRun) && doctorCreatedBundle(lastRunDoctor),
@@ -314,7 +304,6 @@ async function main() {
     { name: 'bundle-bootstrap-rust-hybrid', passed: bundleSummary.bootstrapRustHybridWorks },
     { name: 'bundle-default-rust-hybrid', passed: bundleSummary.defaultRustHybridIndexWorks },
     { name: 'bundle-explicit-rust-hybrid', passed: bundleSummary.explicitRustHybridIndexWorks },
-    { name: 'bundle-env-engine-selection-fails', passed: bundleSummary.staleEnvEngineSelectionFailsClearly },
     { name: 'bundle-status-hybrid-metadata', passed: bundleSummary.statusShowsHybridMetadata },
     { name: 'bundle-degraded-fallback-taxonomy', passed: bundleSummary.degradedFallbackRecorded },
     { name: 'bundle-doctor-last-run', passed: bundleSummary.degradedDoctorLastRunWorks },
@@ -324,7 +313,6 @@ async function main() {
     { name: 'npm-bootstrap-rust-hybrid', passed: npmSummary.bootstrapRustHybridWorks },
     { name: 'npm-default-rust-hybrid', passed: npmSummary.defaultRustHybridIndexWorks },
     { name: 'npm-explicit-rust-hybrid', passed: npmSummary.explicitRustHybridIndexWorks },
-    { name: 'npm-env-engine-selection-fails', passed: npmSummary.staleEnvEngineSelectionFailsClearly },
     { name: 'npm-status-hybrid-metadata', passed: npmSummary.statusShowsHybridMetadata },
     { name: 'npm-degraded-fallback-taxonomy', passed: npmSummary.degradedFallbackRecorded },
     { name: 'npm-doctor-last-run', passed: npmSummary.degradedDoctorLastRunWorks },

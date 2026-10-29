@@ -6,7 +6,7 @@
  * over-fires: blast-radius + whole-file rule on controller files push the
  * numerator past the byte cost of reading 2-3 equivalent files directly.
  *
- * The opt-in env var CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT=1 switches the
+ * The opt-in env var ZCG_EXPLORE_TIGHT_SMALL_PROJECT=1 switches the
  * <150 and <500 budget tiers to a tightened shape (lower maxOutputChars,
  * lower maxCharsPerFile, includeBlastRadius=false). These tests pin:
  *
@@ -41,7 +41,7 @@ import CodeGraph from '../src/index';
 // ---------------------------------------------------------------------------
 
 describe('tight small-project budget shape (roadmap 1-2-11)', () => {
-  const ENV_KEY = 'CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT';
+  const ENV_KEY = 'ZCG_EXPLORE_TIGHT_SMALL_PROJECT';
 
   beforeEach(() => {
     delete process.env[ENV_KEY];
@@ -54,12 +54,12 @@ describe('tight small-project budget shape (roadmap 1-2-11)', () => {
     expect(tightSmallProjectBudgetEnabled()).toBe(false);
   });
 
-  it('is enabled when CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT=1', () => {
+  it('is enabled when ZCG_EXPLORE_TIGHT_SMALL_PROJECT=1', () => {
     process.env[ENV_KEY] = '1';
     expect(tightSmallProjectBudgetEnabled()).toBe(true);
   });
 
-  it('is enabled when CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT=true', () => {
+  it('is enabled when ZCG_EXPLORE_TIGHT_SMALL_PROJECT=true', () => {
     process.env[ENV_KEY] = 'true';
     expect(tightSmallProjectBudgetEnabled()).toBe(true);
   });
@@ -130,7 +130,7 @@ describe('tight small-project budget shape (roadmap 1-2-11)', () => {
 // ---------------------------------------------------------------------------
 
 describe('Explore Answer on a petclinic-like small project (tight mode)', () => {
-  const ENV_KEY = 'CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT';
+  const ENV_KEY = 'ZCG_EXPLORE_TIGHT_SMALL_PROJECT';
   let testDir: string;
   let cg: CodeGraph;
   let handler: ToolHandler;

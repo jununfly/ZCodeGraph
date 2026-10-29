@@ -176,7 +176,7 @@ describe('render', () => {
 describe('formatElidedMarker + insertion points (1-2-3)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env['CODEGRAPH_EXPLORE_ELIDED_MARKERS'];
+    delete process.env['ZCG_EXPLORE_ELIDED_MARKERS'];
   });
 
   it('emits a machine-parseable placeholder with kind/ref/range/size/hint', async () => {
@@ -238,8 +238,8 @@ describe('formatElidedMarker + insertion points (1-2-3)', () => {
     expect(out).toContain('do NOT Read these files');
   });
 
-  it('respects CODEGRAPH_EXPLORE_ELIDED_MARKERS=0 (legacy tail)', async () => {
-    process.env['CODEGRAPH_EXPLORE_ELIDED_MARKERS'] = '0';
+  it('respects ZCG_EXPLORE_ELIDED_MARKERS=0 (legacy tail)', async () => {
+    process.env['ZCG_EXPLORE_ELIDED_MARKERS'] = '0';
     const { render } = await import('../src/mcp/explore-renderer');
     const plan = mockExplorePlan({
       budget: {

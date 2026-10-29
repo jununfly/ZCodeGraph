@@ -4,6 +4,7 @@
  * Coordinates all reference resolution strategies.
  */
 
+import { readIntegerFlag } from '../config/flags';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Node, UnresolvedReference, Edge } from '../types';
@@ -201,16 +202,11 @@ function classifyRustMatcherFallback(
  * stays flat on large codebases (20k+ files). Sizes were chosen to
  * cover the working set for typical resolution batches without
  * exceeding a few hundred MB worst-case. Override via the env var
- * `CODEGRAPH_RESOLVER_CACHE_SIZE` (single integer applied to all
+ * `ZCG_RESOLVER_CACHE_SIZE` (single integer applied to all
  * caches) when tuning for very large or very small projects.
  */
-const DEFAULT_CACHE_LIMIT = 5_000;
 function resolveCacheLimit(): number {
-  const raw = process.env.CODEGRAPH_RESOLVER_CACHE_SIZE;
-  if (!raw) return DEFAULT_CACHE_LIMIT;
-  const parsed = Number.parseInt(raw, 10);
-  if (Number.isFinite(parsed) && parsed > 0) return parsed;
-  return DEFAULT_CACHE_LIMIT;
+  return readIntegerFlag('ZCG_RESOLVER_CACHE_SIZE');
 }
 
 // Re-export types
@@ -779,7 +775,15 @@ export class ReferenceResolver {
   private precomputeRustNameMatcherDecisions(refs: UnresolvedRef[], timings: ReferenceResolutionTimings): void {
     this.rustNameMatcherDecisions = null;
     this.rustNameMatcherCandidates = null;
-    if (!rustNameMatcherEnabled()) return;
+    if (!rustNameMatcherEnabled()) {
+      if (rustNameMatcherStrict()) {
+        process.stderr.write(
+          '[ZCodeGraph] ZCG_RUST_NAME_MATCHER_STRICT requires ZCG_RUST_NAME_MATCHER=1; using the TypeScript matcher.\n',
+        );
+        this.recordRustMatcherFallback(timings, 'strict-requires-rust-name-matcher');
+      }
+      return;
+    }
 
     const candidateMaterializationStarted = Date.now();
     const candidates = [];

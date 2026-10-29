@@ -81,7 +81,7 @@ describe.skipIf(process.platform === 'win32')('MCP PPID watchdog (#277)', () => 
     //      to a tmp file that survives the wrapper, then reports both PIDs.
     //   3. Idles until SIGKILL'd from the test.
     //
-    // CODEGRAPH_PPID_POLL_MS=200 keeps the watchdog responsive in test; the
+    // ZCG_PPID_POLL_MS=200 keeps the watchdog responsive in test; the
     // production default is 5000ms.
     const stderrLog = path.join(
       fs.mkdtempSync(path.join(os.tmpdir(), 'cg-ppid-watchdog-')),
@@ -108,7 +108,7 @@ describe.skipIf(process.platform === 'win32')('MCP PPID watchdog (#277)', () => 
         // covered separately in mcp-daemon.test.ts ("daemon survives the first
         // client dying"). Without this the spawned process becomes a proxy and
         // also spawns a detached daemon that would outlive the test.
-        env: { ...process.env, CODEGRAPH_PPID_POLL_MS: '200', CODEGRAPH_NO_DAEMON: '1' },
+        env: { ...process.env, ZCG_PPID_POLL_MS: '200', ZCG_NO_DAEMON: '1' },
         detached: true,
       });
       child.unref();

@@ -285,9 +285,9 @@ function indexCommitTree(
 ): { ok: boolean; error?: string } {
   const env = {
     ...process.env,
-    CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-    CODEGRAPH_NO_DAEMON: '1',
-    CODEGRAPH_NO_RELAUNCH: '1',
+    ZCG_ALLOW_UNSAFE_NODE: '1',
+    ZCG_NO_DAEMON: '1',
+    ZCG_NO_RELAUNCH: '1',
   };
   // `index` auto-bootstraps the store on first run, then we run the resolver
   // pass implicitly. We do NOT pass --quiet so the subprocess emits the

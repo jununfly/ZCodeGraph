@@ -43,7 +43,7 @@ describe('zcodegraph rust-hybrid declaration/runtime pairing', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'declaration-runtime-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -83,7 +83,7 @@ describe('zcodegraph rust-hybrid declaration/runtime pairing', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'declaration-runtime-rewrite-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -142,7 +142,7 @@ describe('zcodegraph rust-hybrid declaration/runtime pairing', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'declaration-runtime-skip-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 

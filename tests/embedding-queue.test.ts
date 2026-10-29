@@ -2,7 +2,7 @@
  * embedding queue — roadmap 1-4-28 (P2 async embedding pipeline, ADR-0009 D5).
  *
  * Covers the hard-floor contracts:
- *   - schema v6 migration creates `embedding_queue` on existing v5 databases
+ *   - schema v6 creates `embedding_queue`; v7 adds durable worker leases
  *   - `enqueueEmbedding` is idempotent on the (file_path, content_hash) PK
  *   - `claimPendingEmbeddings` flips pending → in_progress atomically
  *   - `markEmbeddingDone` / `markEmbeddingFailed` transition and book-keep
@@ -24,6 +24,7 @@ import {
   enqueueEmbedding,
   enqueueEmbeddingBatch,
   getEmbeddingQueueRow,
+  heartbeatEmbeddingClaims,
   markEmbeddingDone,
   markEmbeddingFailed,
   resetStaleInProgressEmbeddings,
@@ -52,8 +53,8 @@ describe.skipIf(!nodeSqliteAvailable)('embedding queue (1-4-28 hard floor)', () 
     // The baseline schema.sql already includes embedding_queue (added by
     // 1-4-28), so we don't run runMigrations here — migrations are for
     // *upgrading* older databases that pre-date the schema.sql update. The
-    // v6 migration path is exercised separately by the
-    // `migrates a v5 database to v6` test below.
+    // v6/v7 migration path is exercised separately by the
+    // `migrates a v5 database through v7` test below.
     const schemaPath = path.join(__dirname, '..', 'src', 'db', 'schema.sql');
     db.exec(fs.readFileSync(schemaPath, 'utf-8'));
   });
@@ -67,7 +68,7 @@ describe.skipIf(!nodeSqliteAvailable)('embedding queue (1-4-28 hard floor)', () 
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it('migrates to CURRENT_SCHEMA_VERSION 6 and creates embedding_queue', () => {
+  it('initial schema includes embedding_queue and durable worker leases', () => {
     // schema.sql already includes embedding_queue (1-4-28). The v6 migration
     // is a no-op on fresh databases; we just verify the table exists and
     // accepts writes.
@@ -91,7 +92,7 @@ describe.skipIf(!nodeSqliteAvailable)('embedding queue (1-4-28 hard floor)', () 
     expect(row).toBeUndefined();
   });
 
-  it('migrates a v5 database to v6 by adding embedding_queue', () => {
+  it('migrates a v5 database through v7, including embedding worker leases', () => {
     // Build a fresh v5-style DB manually: schema_v1 plus migrations v2-v5.
     // We close the baseline db and open a new one.
     db.close();
@@ -125,7 +126,13 @@ describe.skipIf(!nodeSqliteAvailable)('embedding queue (1-4-28 hard floor)', () 
       );
     `);
     runMigrations(v5db, 1);
-    expect(getCurrentVersion(v5db)).toBe(6);
+    expect(getCurrentVersion(v5db)).toBe(7);
+    expect(v5db.prepare('PRAGMA table_info(embedding_queue)').all()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'worker_id' }),
+        expect.objectContaining({ name: 'heartbeat_at' }),
+      ]),
+    );
     // embedding_queue must now exist on the migrated DB.
     const r = v5db
       .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='embedding_queue'`)
@@ -162,6 +169,45 @@ describe.skipIf(!nodeSqliteAvailable)('embedding queue (1-4-28 hard floor)', () 
     );
     expect(inserted).toBe(3);
     expect(countEmbeddingQueueByStatus(db).pending).toBe(3);
+  });
+
+  it('explicit retry re-pends a failed row with the same content hash', () => {
+    enqueueEmbedding(db, 'a.ts', 'h1', 1000);
+    markEmbeddingFailed(db, 'a.ts', 'h1', 'transient-download-failure', 2000);
+
+    const retried = enqueueEmbeddingBatch(
+      db,
+      [{ filePath: 'a.ts', contentHash: 'h1' }],
+      3000,
+      { retryFailed: true },
+    );
+
+    expect(retried).toBe(1);
+    expect(getEmbeddingQueueRow(db, 'a.ts', 'h1')).toMatchObject({
+      status: 'pending',
+      attempts: 0,
+      last_error: null,
+      enqueued_at: 3000,
+    });
+  });
+
+  it('explicit retry leaves pending, in_progress and done rows unchanged', () => {
+    enqueueEmbeddingBatch(db, [
+      { filePath: 'pending.ts', contentHash: 'h1' },
+      { filePath: 'running.ts', contentHash: 'h1' },
+      { filePath: 'done.ts', contentHash: 'h1' },
+    ], 1000);
+    db.prepare("UPDATE embedding_queue SET status='in_progress', attempts=1 WHERE file_path='running.ts'").run();
+    db.prepare("UPDATE embedding_queue SET status='done' WHERE file_path='done.ts'").run();
+
+    expect(enqueueEmbeddingBatch(db, [
+      { filePath: 'pending.ts', contentHash: 'h1' },
+      { filePath: 'running.ts', contentHash: 'h1' },
+      { filePath: 'done.ts', contentHash: 'h1' },
+    ], 2000, { retryFailed: true })).toBe(0);
+    expect(getEmbeddingQueueRow(db, 'pending.ts', 'h1')?.enqueued_at).toBe(1000);
+    expect(getEmbeddingQueueRow(db, 'running.ts', 'h1')?.status).toBe('in_progress');
+    expect(getEmbeddingQueueRow(db, 'done.ts', 'h1')?.status).toBe('done');
   });
 
   it('claimPendingEmbeddings flips pending → in_progress and bumps attempts', () => {
@@ -223,6 +269,46 @@ describe.skipIf(!nodeSqliteAvailable)('embedding queue (1-4-28 hard floor)', () 
       status: 'failed',
       last_error: 'embedding-runtime-init-failed',
       finished_at: 20_000,
+    });
+  });
+
+  it('stale recovery preserves a long-running claim with a fresh heartbeat', () => {
+    enqueueEmbedding(db, 'a.ts', 'h1', 1000);
+    claimPendingEmbeddings(db, 1, 10_000, 'worker-a');
+    expect(heartbeatEmbeddingClaims(db, 'worker-a', 100_000)).toBe(1);
+
+    expect(resetStaleInProgressEmbeddings(db, 5_000, 101_000)).toBe(0);
+    expect(getEmbeddingQueueRow(db, 'a.ts', 'h1')).toMatchObject({
+      status: 'in_progress', worker_id: 'worker-a', heartbeat_at: 100_000,
+    });
+    expect(resetStaleInProgressEmbeddings(db, 5_000, 110_000)).toBe(1);
+    expect(getEmbeddingQueueRow(db, 'a.ts', 'h1')).toMatchObject({
+      status: 'pending', worker_id: null, heartbeat_at: null,
+    });
+  });
+
+  it('stale recovery fails the fourth attempt instead of retrying forever', () => {
+    enqueueEmbedding(db, 'a.ts', 'h1', 1000);
+    claimPendingEmbeddings(db, 1, 10_000, 'worker-a');
+    db.prepare("UPDATE embedding_queue SET attempts=3, heartbeat_at=100 WHERE file_path='a.ts'").run();
+
+    expect(resetStaleInProgressEmbeddings(db, 5_000, 10_000)).toBe(1);
+    expect(getEmbeddingQueueRow(db, 'a.ts', 'h1')).toMatchObject({
+      status: 'failed', attempts: 3, last_error: 'embedding-attempts-exhausted',
+      worker_id: null, heartbeat_at: null,
+    });
+    expect(claimPendingEmbeddings(db, 1, 11_000, 'worker-b')).toHaveLength(0);
+  });
+
+  it('terminal writes cannot overwrite a different worker ownership lease', () => {
+    enqueueEmbedding(db, 'a.ts', 'h1', 1000);
+    claimPendingEmbeddings(db, 1, 10_000, 'worker-a');
+    expect(markEmbeddingDone(db, 'a.ts', 'h1', 'model', 11_000, 'worker-b')).toBe(false);
+    expect(markEmbeddingFailed(db, 'a.ts', 'h1', 'wrong worker', 11_000, 'worker-b')).toBe(false);
+    expect(getEmbeddingQueueRow(db, 'a.ts', 'h1')?.status).toBe('in_progress');
+    expect(markEmbeddingDone(db, 'a.ts', 'h1', 'model', 11_000, 'worker-a')).toBe(true);
+    expect(getEmbeddingQueueRow(db, 'a.ts', 'h1')).toMatchObject({
+      status: 'done', worker_id: null, heartbeat_at: null,
     });
   });
 

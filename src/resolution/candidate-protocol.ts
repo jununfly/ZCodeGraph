@@ -1,3 +1,4 @@
+import { readBooleanFlag } from '../config/flags';
 import { Node } from '../types';
 import type { CandidateProducerRoutingConfig } from '../indexing/experimental-local-config';
 import { LRUCache } from './lru-cache';
@@ -138,13 +139,11 @@ interface CandidateProducerRoutingState {
 }
 
 export function candidateProtocolEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = env.ZCODEGRAPH_CANDIDATE_PROTOCOL;
-  return raw !== '0' && raw !== 'false';
+  return readBooleanFlag('ZCG_CANDIDATE_PROTOCOL', { env });
 }
 
 export function candidateProtocolEquivalenceEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = env.ZCODEGRAPH_CANDIDATE_PROTOCOL_EQUIVALENCE;
-  return raw === '1' || raw === 'true';
+  return readBooleanFlag('ZCG_CANDIDATE_PROTOCOL_EQUIVALENCE', { env });
 }
 
 export function toCandidateFact(node: Node): CandidateFact {

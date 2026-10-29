@@ -1,4 +1,5 @@
 import { spawnSync } from 'child_process';
+import { readBooleanFlag } from '../config/flags';
 import { Node } from '../types';
 import { findRustCoreCommand } from '../indexing/rust-indexer';
 import { ResolvedRef, ResolutionContext, UnresolvedRef } from './types';
@@ -103,18 +104,15 @@ interface EncodedRustNameMatcherReference {
 }
 
 export function rustNameMatcherEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = env.ZCODEGRAPH_RUST_NAME_MATCHER;
-  return raw === '1' || raw === 'true';
+  return readBooleanFlag('ZCG_RUST_NAME_MATCHER', { env });
 }
 
 export function rustNameMatcherStrict(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = env.ZCODEGRAPH_RUST_NAME_MATCHER_STRICT;
-  return raw === '1' || raw === 'true';
+  return readBooleanFlag('ZCG_RUST_NAME_MATCHER_STRICT', { env });
 }
 
 export function nameMatcherReplayAbEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = env.ZCODEGRAPH_NAME_MATCHER_REPLAY_AB;
-  return raw === '1' || raw === 'true';
+  return readBooleanFlag('ZCG_NAME_MATCHER_REPLAY_AB', { env });
 }
 
 export function rustNameMatcherKey(ref: UnresolvedRef): string {

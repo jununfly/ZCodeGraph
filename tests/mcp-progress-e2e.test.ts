@@ -104,7 +104,7 @@ describe('MCP notifications/progress end-to-end (roadmap 1-2-2)', () => {
     child = spawn(process.execPath, [BIN, 'serve', '--mcp'], {
       cwd: tempDir,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, CODEGRAPH_NO_DAEMON: '1' },
+      env: { ...process.env, ZCG_NO_DAEMON: '1' },
     }) as ChildProcessWithoutNullStreams;
 
     const events = tagStdout(child);

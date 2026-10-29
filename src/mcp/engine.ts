@@ -10,11 +10,13 @@
  *   inotify watch set — that's the entire point of issue #411.
  */
 
+import { readIntegerFlag } from '../config/flags';
 import type CodeGraph from '../index';
 import { findNearestCodeGraphRoot } from '../directory';
 import { watchDisabledReason } from '../sync';
 import { ToolHandler } from './tools';
 import { getUnavailableGrammarErrors } from '../extraction/grammars';
+import { EmbeddingRunner } from '../embedding/worker-runner';
 import type { IndexProgress } from '../extraction';
 
 /**
@@ -35,6 +37,16 @@ export type ProgressSink = (method: string, params?: unknown) => void;
 // agents flounder. require() is sync + cached on the CommonJS build.
 const loadCodeGraph = (): typeof import('../index').default =>
   (require('../index') as typeof import('../index')).default;
+
+/** Test seam for the un-transpiled CommonJS require above. */
+let codeGraphLoaderForTests: (() => typeof import('../index').default) | null = null;
+export function setCodeGraphLoaderForTests(
+  loader: (() => typeof import('../index').default) | null,
+): void {
+  codeGraphLoaderForTests = loader;
+}
+const loadDefaultCodeGraph = (): typeof import('../index').default =>
+  codeGraphLoaderForTests?.() ?? loadCodeGraph();
 
 export interface MCPEngineOptions {
   /**
@@ -63,6 +75,7 @@ export class MCPEngine {
   private watcherStarted = false;
   private opts: Required<MCPEngineOptions>;
   private closed = false;
+  private stopPromise: Promise<void> | null = null;
   // Latest session-provided transport for progress notifications. Null until
   // a session calls setProgressSink (i.e. until `initialize` completes).
   private progressSink: ProgressSink | null = null;
@@ -165,9 +178,10 @@ export class MCPEngine {
         try { this.cg.close(); } catch { /* ignore */ }
         this.cg = null;
       }
-      this.cg = loadCodeGraph().openSync(resolvedRoot);
+      this.cg = loadDefaultCodeGraph().openSync(resolvedRoot);
       this.projectPath = resolvedRoot;
       this.toolHandler.setDefaultCodeGraph(this.cg);
+      this.cg.resumePendingEmbeddings();
       this.startWatching();
       this.catchUpSync();
     } catch {
@@ -180,13 +194,22 @@ export class MCPEngine {
    * and on direct-mode stop. Idempotent.
    */
   stop(): void {
-    if (this.closed) return;
+    void this.stopAndWait();
+  }
+
+  /** Process-exit path: close all graph connections before awaiting their workers. */
+  stopAndWait(): Promise<void> {
+    if (this.stopPromise) return this.stopPromise;
     this.closed = true;
-    this.toolHandler.closeAll();
-    if (this.cg) {
-      try { this.cg.close(); } catch { /* ignore */ }
-      this.cg = null;
-    }
+    this.stopPromise = (async () => {
+      this.toolHandler.closeAll();
+      if (this.cg) {
+        try { this.cg.close(); } catch { /* ignore */ }
+        this.cg = null;
+      }
+      await EmbeddingRunner.shutdownAll();
+    })();
+    return this.stopPromise;
   }
 
   private async doInitialize(searchFrom: string): Promise<void> {
@@ -201,7 +224,7 @@ export class MCPEngine {
 
     this.projectPath = resolvedRoot;
     try {
-      this.cg = await loadCodeGraph().open(resolvedRoot);
+      this.cg = await loadDefaultCodeGraph().open(resolvedRoot);
       this.toolHandler.setDefaultCodeGraph(this.cg);
       // Surface tree-sitter grammar load failures so zcodegraph_status can
       // list languages that lost their parser (wasm missing / ABI mismatch).
@@ -210,6 +233,7 @@ export class MCPEngine {
       this.toolHandler.setUnavailableGrammars(
         new Map(Object.entries(grammarFailures) as Array<[string, string]>),
       );
+      this.cg.resumePendingEmbeddings();
       this.startWatching();
       this.catchUpSync();
     } catch (err) {
@@ -247,9 +271,9 @@ export class MCPEngine {
     // large generated outputs) where the 2s default fires too often. Clamped
     // to [100ms, 60s]; out-of-range / non-numeric values fall back to the
     // FileWatcher default. We log the active value so it's discoverable.
-    const debounceMs = parseDebounceEnv(process.env.CODEGRAPH_WATCH_DEBOUNCE_MS);
+    const debounceMs = parseDebounceEnv(process.env.ZCG_WATCH_DEBOUNCE_MS);
     if (debounceMs !== undefined) {
-      process.stderr.write(`[CodeGraph MCP] File watcher debounce: ${debounceMs}ms (CODEGRAPH_WATCH_DEBOUNCE_MS)\n`);
+      process.stderr.write(`[CodeGraph MCP] File watcher debounce: ${debounceMs}ms (ZCG_WATCH_DEBOUNCE_MS)\n`);
     }
 
     const started = this.cg.watch({
@@ -350,7 +374,7 @@ export class MCPEngine {
 }
 
 /**
- * Parse and clamp the CODEGRAPH_WATCH_DEBOUNCE_MS env override.
+ * Parse and clamp the ZCG_WATCH_DEBOUNCE_MS env override.
  *
  * Issue #403: workspaces with bursty writes (formatter-on-save, multi-file
  * refactors) sometimes want a longer quiet window before sync. Returns
@@ -363,9 +387,10 @@ export class MCPEngine {
  * a typoed value would mask a real config bug.
  */
 export function parseDebounceEnv(raw: string | undefined): number | undefined {
-  if (!raw || !raw.trim()) return undefined;
-  const n = Number(raw);
-  if (!Number.isFinite(n) || !Number.isInteger(n)) return undefined;
-  if (n < 100 || n > 60000) return undefined;
-  return n;
+  if (raw === undefined) return undefined;
+  const parsed = readIntegerFlag('ZCG_WATCH_DEBOUNCE_MS', {
+    env: { ZCG_WATCH_DEBOUNCE_MS: raw },
+    onWarning: message => process.stderr.write(`[CodeGraph MCP] ${message}\n`),
+  });
+  return parsed === 2000 && raw.trim() !== '2000' ? undefined : parsed;
 }

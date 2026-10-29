@@ -23,7 +23,7 @@ function runStatusJson(cwd: string, env: Record<string, string | undefined> = {}
   const stdout = execFileSync(process.execPath, [BIN, 'status', '--json'], {
     cwd,
     encoding: 'utf-8',
-    env: { ...process.env, ...env, CODEGRAPH_NO_DAEMON: '1' },
+    env: { ...process.env, ...env, ZCG_NO_DAEMON: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   // JSON mode prints exactly one line to stdout; be defensive about any stray
@@ -36,7 +36,7 @@ function runStatusText(cwd: string): string {
   return execFileSync(process.execPath, [BIN, 'status'], {
     cwd,
     encoding: 'utf-8',
-    env: { ...process.env, CODEGRAPH_NO_DAEMON: '1' },
+    env: { ...process.env, ZCG_NO_DAEMON: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
@@ -45,7 +45,7 @@ function runStatusTextResult(cwd: string): { status: number | null; stdout: stri
   const result = spawnSync(process.execPath, [BIN, 'status'], {
     cwd,
     encoding: 'utf-8',
-    env: { ...process.env, CODEGRAPH_NO_DAEMON: '1' },
+    env: { ...process.env, ZCG_NO_DAEMON: '1' },
   });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
@@ -151,7 +151,7 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     const missingCore = path.join(tempDir, 'missing-zcodegraph-core');
 
     const out = runStatusJson(tempDir, {
-      ZCODEGRAPH_RUST_CORE_BINARY: missingCore,
+      ZCG_RUST_CORE_BINARY: missingCore,
     }) as {
       rust: {
         configuredEngine: { engine: string; source: string };
@@ -224,7 +224,7 @@ describe('zcodegraph status --json — CI fields (#329)', () => {
     const rustCore = writeFakeRustCore(tempDir);
 
     const out = runStatusJson(tempDir, {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     }) as {
       rust: {
         configuredEngine: { engine: string; source: string };

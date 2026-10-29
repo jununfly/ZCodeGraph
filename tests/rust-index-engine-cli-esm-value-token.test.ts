@@ -85,7 +85,7 @@ describe('zcodegraph rust-hybrid ESM value-token collision', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-value-token-interface-profile.json');
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 

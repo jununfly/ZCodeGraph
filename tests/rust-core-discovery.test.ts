@@ -18,7 +18,7 @@ function touchExecutable(file: string): string {
 }
 
 describe('Rust core binary discovery', () => {
-  it('prefers ZCODEGRAPH_RUST_CORE_BINARY over packaged and source binaries', () => {
+  it('prefers ZCG_RUST_CORE_BINARY over packaged and source binaries', () => {
     const root = tempRoot();
     try {
       const configured = touchExecutable(path.join(root, 'override', exeName));
@@ -26,12 +26,22 @@ describe('Rust core binary discovery', () => {
       const compiledFileDir = path.join(root, 'bundle', 'lib', 'dist', 'indexing');
 
       const command = findRustCoreCommand(
-        { ZCODEGRAPH_RUST_CORE_BINARY: configured },
+        { ZCG_RUST_CORE_BINARY: configured },
         { compiledFileDir },
       );
 
       expect(command).toEqual({ command: configured, argsPrefix: [], cwd: process.cwd() });
       expect(packaged).not.toBe(configured);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a directory as an explicit Rust core override', () => {
+    const root = tempRoot();
+    try {
+      expect(() => findRustCoreCommand({ ZCG_RUST_CORE_BINARY: root }))
+        .toThrow(/ZCG_RUST_CORE_BINARY.*not a file/);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

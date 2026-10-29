@@ -9,23 +9,23 @@
 # $env:LOCALAPPDATA\codegraph and drop its \current\bin entry from your user PATH.
 #
 # Environment:
-#   CODEGRAPH_VERSION      release tag to install (default: latest)
-#   CODEGRAPH_INSTALL_DIR  install location (default: %LOCALAPPDATA%\codegraph)
+#   ZCG_VERSION      release tag to install (default: latest)
+#   ZCG_INSTALL_DIR  install location (default: %LOCALAPPDATA%\codegraph)
 
 $ErrorActionPreference = 'Stop'
 $repo = 'colbymchenry/codegraph'
-$installDir = if ($env:CODEGRAPH_INSTALL_DIR) { $env:CODEGRAPH_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'codegraph' }
+$installDir = if ($env:ZCG_INSTALL_DIR) { $env:ZCG_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'codegraph' }
 
 # 1. Detect architecture -> target matching the release archives.
 $arch = if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64') { 'arm64' } else { 'x64' }
 $target = "win32-$arch"
 
 # 2. Resolve the version (latest release unless pinned).
-$version = $env:CODEGRAPH_VERSION
+$version = $env:ZCG_VERSION
 if (-not $version) {
   $version = (Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest").tag_name
 }
-if (-not $version) { throw "codegraph: could not resolve latest version; set CODEGRAPH_VERSION." }
+if (-not $version) { throw "codegraph: could not resolve latest version; set ZCG_VERSION." }
 
 # 3. Download + extract the bundle into a stable 'current' dir (overwritten on upgrade).
 $url = "https://github.com/$repo/releases/download/$version/codegraph-$target.zip"

@@ -69,8 +69,8 @@ annotation. Only the numerator's invocation surface moves.
 - `zcodegraph explore` accepts `--max-files`; v2 does NOT pass it,
   leaving the default (budget-driven) so we measure what an agent
   actually sees.
-- Environment: `CODEGRAPH_ALLOW_UNSAFE_NODE=1`, `CODEGRAPH_NO_DAEMON=1`,
-  `CODEGRAPH_NO_RELAUNCH=1` — identical to v1.
+- Environment: `ZCG_ALLOW_UNSAFE_NODE=1`, `ZCG_NO_DAEMON=1`,
+  `ZCG_NO_RELAUNCH=1` — identical to v1.
 
 ## Task-type definitions (unchanged semantics)
 
@@ -355,6 +355,6 @@ pipeline. Tasks below target what **is** in the repo.
    `.tmp/measure/`; attach any report needed for review to its owning issue
    or plan closeout. Ratios are NOT comparable to v1.
 4. A/B elided-markers measurement (exit criteria ② of 1-2-3): run the
-   same v2 tasks twice — once with `CODEGRAPH_EXPLORE_ELIDED_MARKERS=1`
+   same v2 tasks twice — once with `ZCG_EXPLORE_ELIDED_MARKERS=1`
    (default) and once with `=0`. Report p95 byte delta across the 9
    tasks. No "~62%" promise is made (exit criteria ③).

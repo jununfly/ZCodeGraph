@@ -12,14 +12,14 @@
 # Uninstall: curl -fsSL .../install.sh | sh -s -- --uninstall
 #
 # Environment:
-#   CODEGRAPH_VERSION      release tag to install (default: latest)
-#   CODEGRAPH_INSTALL_DIR  bundle location   (default: ~/.codegraph)
-#   CODEGRAPH_BIN_DIR      symlink location  (default: ~/.local/bin)
+#   ZCG_VERSION      release tag to install (default: latest)
+#   ZCG_INSTALL_DIR  bundle location   (default: ~/.codegraph)
+#   ZCG_BIN_DIR      symlink location  (default: ~/.local/bin)
 set -eu
 
 REPO="colbymchenry/codegraph"
-INSTALL_DIR="${CODEGRAPH_INSTALL_DIR:-$HOME/.codegraph}"
-BIN_DIR="${CODEGRAPH_BIN_DIR:-$HOME/.local/bin}"
+INSTALL_DIR="${ZCG_INSTALL_DIR:-$HOME/.codegraph}"
+BIN_DIR="${ZCG_BIN_DIR:-$HOME/.local/bin}"
 
 if [ "${1:-}" = "--uninstall" ]; then
   rm -f "$BIN_DIR/codegraph"
@@ -50,7 +50,7 @@ target="${os}-${arch}"
 # 403 once exhausted — routine on shared/cloud hosts and CI (issue #325). The
 # redirect (github.com/<repo>/releases/latest -> .../releases/tag/vX.Y.Z) has no
 # such limit. Fall back to the API if the redirect can't be read.
-version="${CODEGRAPH_VERSION:-}"
+version="${ZCG_VERSION:-}"
 if [ -z "$version" ]; then
   version="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" \
     | sed -n 's#.*/releases/tag/##p')"
@@ -59,8 +59,8 @@ if [ -z "$version" ]; then
   version="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
     | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n1)"
 fi
-[ -n "$version" ] || { echo "codegraph: could not resolve latest version; set CODEGRAPH_VERSION (e.g. CODEGRAPH_VERSION=v0.9.4)." >&2; exit 1; }
-# Release tags are vX.Y.Z; accept a bare X.Y.Z in CODEGRAPH_VERSION too.
+[ -n "$version" ] || { echo "codegraph: could not resolve latest version; set ZCG_VERSION (e.g. ZCG_VERSION=v0.9.4)." >&2; exit 1; }
+# Release tags are vX.Y.Z; accept a bare X.Y.Z in ZCG_VERSION too.
 case "$version" in v*) ;; *) version="v$version" ;; esac
 
 # 3. Download + extract the bundle.

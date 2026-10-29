@@ -153,8 +153,8 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
         },
       },
     );
@@ -227,8 +227,8 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
         },
       },
     );
@@ -295,8 +295,8 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
         },
       },
     );
@@ -355,8 +355,8 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
         },
       },
     );
@@ -435,7 +435,7 @@ describe('Rust indexing formal experiment runner', () => {
         targets: [
           {
             name: 'envTarget',
-            pathEnv: 'ZCODEGRAPH_TEST_TARGET',
+            pathEnv: 'ZCG_TEST_TARGET',
             pathFallback: path.join(temp, 'ignored-fallback'),
             targetClass: 'required',
             requiredForDecision: true,
@@ -470,8 +470,8 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_TEST_TARGET: envTarget,
-          ZCODEGRAPH_RUST_CORE_BINARY: path.join(temp, 'missing-rust-core'),
+          ZCG_TEST_TARGET: envTarget,
+          ZCG_RUST_CORE_BINARY: path.join(temp, 'missing-rust-core'),
         },
       },
     );
@@ -542,8 +542,8 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: path.join(temp, 'missing-rust-core'),
-          ZCODEGRAPH_EXPERIMENT_CHILD_MAX_BUFFER_BYTES: '128',
+          ZCG_RUST_CORE_BINARY: path.join(temp, 'missing-rust-core'),
+          ZCG_EXPERIMENT_CHILD_MAX_BUFFER_BYTES: '128',
         },
       },
     );
@@ -605,8 +605,8 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAIL_ENGINE: 'rust',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAIL_ENGINE: 'rust',
         },
       },
     );
@@ -693,8 +693,8 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
         },
       },
     );
@@ -769,10 +769,10 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '1',
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PEAK_RSS_BYTES: '1',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '1',
+          ZCG_EXPERIMENT_FAKE_RUST_PEAK_RSS_BYTES: '1',
         },
       },
     );
@@ -833,10 +833,10 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_TYPESCRIPT_PEAK_RSS_BYTES: '0',
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PEAK_RSS_BYTES: '0',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_TYPESCRIPT_PEAK_RSS_BYTES: '0',
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_EXPERIMENT_FAKE_RUST_PEAK_RSS_BYTES: '0',
         },
       },
     );
@@ -892,9 +892,9 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PROFILE: JSON.stringify({
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_EXPERIMENT_FAKE_RUST_PROFILE: JSON.stringify({
             rustCore: {
               sourceScanMs: 11,
               parseExtractionMs: 22,
@@ -999,9 +999,9 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PROFILE: JSON.stringify({
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_EXPERIMENT_FAKE_RUST_PROFILE: JSON.stringify({
             rustCore: {
               sourceScanMs: 1,
               parseExtractionMs: 2,
@@ -1122,8 +1122,8 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
         },
       },
     );
@@ -1186,9 +1186,9 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '60000',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '60000',
         },
       },
     );
@@ -1262,10 +1262,10 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '1',
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PEAK_RSS_BYTES: '1',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '1',
+          ZCG_EXPERIMENT_FAKE_RUST_PEAK_RSS_BYTES: '1',
         },
       },
     );
@@ -1323,9 +1323,9 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '60000',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '60000',
         },
       },
     );
@@ -1399,9 +1399,9 @@ describe('Rust indexing formal experiment runner', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
-          ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '60000',
+          ZCG_RUST_CORE_BINARY: rustCore,
+          ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+          ZCG_EXPERIMENT_FAKE_RUST_ELAPSED_MS: '60000',
         },
       },
     );
@@ -1467,7 +1467,7 @@ describe('Rust indexing formal experiment runner', () => {
     const baseArgs = [SCRIPT, '--experiment', manifest, '--out', out, '--summary-out', summaryOut];
     const unavailableArmEnv = {
       ...process.env,
-      ZCODEGRAPH_RUST_CORE_BINARY: path.join(temp, 'missing-rust-core'),
+      ZCG_RUST_CORE_BINARY: path.join(temp, 'missing-rust-core'),
     };
     const defaultResult = spawnSync(process.execPath, baseArgs, { cwd: REPO_ROOT, encoding: 'utf-8', env: unavailableArmEnv });
     expect(defaultResult.status, `stdout:\n${defaultResult.stdout}\nstderr:\n${defaultResult.stderr}`).toBe(0);
@@ -1517,8 +1517,8 @@ describe('Rust indexing formal experiment runner', () => {
       encoding: 'utf-8',
       env: {
         ...process.env,
-        ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-        ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+        ZCG_RUST_CORE_BINARY: rustCore,
+        ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
       },
     });
 
@@ -1580,8 +1580,8 @@ describe('Rust indexing formal experiment runner', () => {
       encoding: 'utf-8',
       env: {
         ...process.env,
-        ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
-        ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
+        ZCG_RUST_CORE_BINARY: rustCore,
+        ZCG_EXPERIMENT_FAKE_RUST_SUCCESS: '1',
       },
     });
 

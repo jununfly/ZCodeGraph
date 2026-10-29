@@ -100,7 +100,7 @@ async function runScenario(toolName, toolArgs) {
   const child = spawn(process.execPath, [BIN, 'serve', '--mcp'], {
     cwd: projectDir,
     stdio: ['pipe', 'pipe', 'pipe'],
-    env: { ...process.env, CODEGRAPH_NO_DAEMON: '1' },
+    env: { ...process.env, ZCG_NO_DAEMON: '1' },
   });
   try {
     return await talkToMcp(child, toolName, toolArgs);

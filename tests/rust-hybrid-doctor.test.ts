@@ -23,9 +23,9 @@ function runCli(cwd: string, args: string[], env: Record<string, string | undefi
     cwd,
     env: {
       ...process.env,
-      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-      CODEGRAPH_NO_DAEMON: '1',
-      CODEGRAPH_NO_RELAUNCH: '1',
+      ZCG_ALLOW_UNSAFE_NODE: '1',
+      ZCG_NO_DAEMON: '1',
+      ZCG_NO_RELAUNCH: '1',
       ...env,
     },
     encoding: 'utf-8',
@@ -157,7 +157,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
 
     const index = runCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
 
@@ -204,11 +204,26 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     expect(bundleText).not.toContain(tempDir);
   }, 30_000);
 
+  it('reports effective flag configuration without requiring an index or bundle', () => {
+    const result = runCli(tempDir, ['doctor', '--json'], {
+      ZCG_ENABLE_EMBEDDING: 'true',
+      ZCG_VEC0_PATH: path.join(tempDir, 'private', 'vec0.dll'),
+      CODEGRAPH_ENABLE_EMBEDDING: '0',
+    });
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const report = JSON.parse(result.stdout);
+    expect(report.flags.find((row: { name: string }) => row.name === 'ZCG_ENABLE_EMBEDDING'))
+      .toMatchObject({ value: true, source: 'environment' });
+    expect(report.flags.find((row: { name: string }) => row.name === 'ZCG_VEC0_PATH'))
+      .toMatchObject({ value: '<set>', valid: false });
+    expect(result.stdout).not.toContain(path.join(tempDir, 'private', 'vec0.dll'));
+  });
+
   it('prints a parseable machine-readable doctor bundle summary with --json', () => {
     fs.writeFileSync(path.join(tempDir, 'worker.py'), 'def worker():\n    return 1\n');
 
     const index = runCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
 
@@ -249,7 +264,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     const rustCore = writeFakeRustCoreWithPerFileGap(tempDir, 'a.ts');
 
     const index = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
     expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
 
@@ -310,7 +325,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
   it('writes a last-failure record and creates a failure bundle for Rust process failure', () => {
     const missingCore = path.join(tempDir, 'missing-zcodegraph-core');
     const index = runCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: missingCore,
+      ZCG_RUST_CORE_BINARY: missingCore,
     });
     expect(index.status).toBe(1);
 
@@ -441,7 +456,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     });
 
     const index = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
     expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
 
@@ -513,7 +528,7 @@ describe('rust-hybrid doctor diagnostic bundles', () => {
     });
 
     const index = runCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
     expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
 

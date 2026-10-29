@@ -125,7 +125,7 @@ describe('CI Rust packaged path coverage', () => {
   it('keeps CI focused on source validation instead of npm install-time Rust compilation', () => {
     const workflow = readWorkflow();
 
-    expect(workflow).toContain('CODEGRAPH_NO_DAEMON: "1"');
+    expect(workflow).toContain('ZCG_NO_DAEMON: "1"');
     expect(workflow).not.toContain('postinstall');
     expect(workflow).not.toContain('npm rebuild');
     expect(workflow).not.toContain('rust-package-smoke.mjs');

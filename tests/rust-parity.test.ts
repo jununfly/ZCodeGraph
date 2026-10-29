@@ -273,10 +273,10 @@ function indexWithRust(files: Map<string, string>, tempDirs: string[]): string {
     cwd: dir,
     env: {
       ...process.env,
-      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-      CODEGRAPH_NO_DAEMON: '1',
-      CODEGRAPH_NO_RELAUNCH: '1',
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_ALLOW_UNSAFE_NODE: '1',
+      ZCG_NO_DAEMON: '1',
+      ZCG_NO_RELAUNCH: '1',
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     },
     encoding: 'utf-8',
   });

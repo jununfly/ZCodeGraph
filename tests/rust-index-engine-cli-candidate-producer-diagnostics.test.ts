@@ -67,9 +67,9 @@ describe('zcodegraph rust-hybrid candidate producer diagnostics', () => {
       JSON.stringify({ experimental: { rustCandidateProducerRouting: false } }, null, 2),
     );
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
-      ZCODEGRAPH_CANDIDATE_PROTOCOL: '1',
-      ZCODEGRAPH_RUST_CANDIDATE_PRODUCER: '1',
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_CANDIDATE_PROTOCOL: '1',
+      ZCG_RUST_CANDIDATE_PRODUCER: '1',
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 

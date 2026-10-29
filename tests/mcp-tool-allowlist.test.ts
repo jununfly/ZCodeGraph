@@ -1,14 +1,14 @@
 /**
- * CODEGRAPH_MCP_TOOLS allowlist — lets an operator (or an A/B harness) trim the
+ * ZCG_MCP_TOOLS allowlist — lets an operator (or an A/B harness) trim the
  * exposed MCP tool surface without touching the client config. Inert when unset.
  * Filtering happens in ListTools (getTools) and is enforced again on execute().
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { ToolHandler } from '../src/mcp/tools';
 
-const ENV = 'CODEGRAPH_MCP_TOOLS';
+const ENV = 'ZCG_MCP_TOOLS';
 
-describe('CODEGRAPH_MCP_TOOLS allowlist', () => {
+describe('ZCG_MCP_TOOLS allowlist', () => {
   const original = process.env[ENV];
   afterEach(() => {
     if (original === undefined) delete process.env[ENV];
@@ -37,16 +37,25 @@ describe('CODEGRAPH_MCP_TOOLS allowlist', () => {
     expect(listed()).toEqual(['zcodegraph_explore', 'zcodegraph_search']);
   });
 
-  it('treats an empty/whitespace value as unset (full surface)', () => {
-    process.env[ENV] = '   ';
-    expect(listed().length).toBeGreaterThanOrEqual(8);
+  it.each(['', '   ', ',,,'])('rejects an empty allowlist %j instead of exposing every tool', value => {
+    process.env[ENV] = value;
+    expect(listed).toThrow(/ZCG_MCP_TOOLS.*non-empty/);
+  });
+
+  it('rejects unknown tool names for both static listing and execution', async () => {
+    process.env[ENV] = 'explore,not-a-tool';
+    expect(listed).toThrow(/ZCG_MCP_TOOLS.*not-a-tool/);
+    const handler = new ToolHandler(null);
+    const result = await handler.execute('zcodegraph_explore', {});
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/ZCG_MCP_TOOLS.*not-a-tool/);
   });
 
   it('rejects a disabled tool on execute (defense in depth)', async () => {
     process.env[ENV] = 'node';
     const res = await new ToolHandler(null).execute('zcodegraph_explore', {});
     expect(res.isError).toBe(true);
-    expect(res.content[0].text).toMatch(/disabled via CODEGRAPH_MCP_TOOLS/);
+    expect(res.content[0].text).toMatch(/disabled via ZCG_MCP_TOOLS/);
   });
 
   it('does not keep old codegraph_* names as compatibility aliases', async () => {
@@ -61,6 +70,6 @@ describe('CODEGRAPH_MCP_TOOLS allowlist', () => {
     // No CodeGraph attached, so it fails *after* the allowlist guard — the
     // "disabled" message must NOT appear, proving the guard passed it through.
     const res = await new ToolHandler(null).execute('zcodegraph_search', { query: 'x' });
-    expect(res.content[0].text).not.toMatch(/disabled via CODEGRAPH_MCP_TOOLS/);
+    expect(res.content[0].text).not.toMatch(/disabled via ZCG_MCP_TOOLS/);
   });
 });

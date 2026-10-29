@@ -9,6 +9,7 @@
  * See docs/designs/architecture-roadmap.md
  */
 
+import { readBooleanFlag } from '../config/flags';
 import CodeGraph from '../index';
 import type { Edge, Node, Subgraph } from '../types';
 import type { ExploreOutputBudget, ExplorePlan, ExplorePlanEntry, FileGroup, FlowSpine } from './explore-types';
@@ -833,15 +834,14 @@ export function gateAndSortFiles(
 // ===========================================================================
 
 /**
- * Read CODEGRAPH_ADAPTIVE_EXPLORE environment variable.
+ * Read ZCG_ADAPTIVE_EXPLORE environment variable.
  *
  * When set to "0" or "false", adaptive explore is disabled.
  * When unset or any other value, adaptive explore is enabled.
  * This matches the semantics of adaptiveExploreEnabled() in tools.ts.
  */
 export function readAdaptiveEnabled(): boolean {
-  const raw = process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
-  return raw === undefined || (raw !== '' && raw !== '0' && raw !== 'false');
+  return readBooleanFlag('ZCG_ADAPTIVE_EXPLORE');
 }
 
 // ===========================================================================

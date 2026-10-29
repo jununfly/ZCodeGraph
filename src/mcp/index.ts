@@ -17,7 +17,7 @@
  * Runtime modes (decided in {@link MCPServer.start}):
  *
  * - **Direct** — one process serves one MCP client over stdio. The pre-#411
- *   behavior; used when the user opts out (`CODEGRAPH_NO_DAEMON=1`), no
+ *   behavior; used when the user opts out (`ZCG_NO_DAEMON=1`), no
  *   `.zcodegraph/` is reachable, or the daemon machinery fails for any reason.
  * - **Proxy** — what an MCP host actually talks to when sharing is on: a thin
  *   stdio↔socket pipe to the shared daemon. The proxy carries the #277 PPID
@@ -50,6 +50,7 @@ import {
 import { connectWithHello, runLocalHandshakeProxy } from './proxy';
 import { getDaemonSocketPath } from './daemon-paths';
 import { supervisionLostReason } from './ppid-watchdog';
+import { readBooleanFlag, readIntegerFlag } from '../config/flags';
 import { HOST_PPID_ENV } from '../extraction/wasm-runtime-flags';
 
 /**
@@ -65,7 +66,7 @@ const DEFAULT_PPID_POLL_MS = 5000;
  * `serve --mcp` invocation is a launcher that connects-or-spawns; with it, the
  * process IS the daemon and must never try to spawn another (infinite spawn).
  */
-const DAEMON_INTERNAL_ENV = 'CODEGRAPH_DAEMON_INTERNAL';
+const DAEMON_INTERNAL_ENV = 'ZCG_DAEMON_INTERNAL';
 
 /**
  * Retries for the detached daemon arbitrating the O_EXCL lock against a racing
@@ -98,11 +99,11 @@ const DAEMON_CONNECT_RETRY_DELAY_MS = 25;
  * non-numeric or negative falls back to the default.
  */
 function parsePpidPollMs(raw: string | undefined): number {
-  if (raw === undefined || raw === '') return DEFAULT_PPID_POLL_MS;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return DEFAULT_PPID_POLL_MS;
-  if (parsed < 0) return DEFAULT_PPID_POLL_MS;
-  return Math.floor(parsed);
+  if (raw === undefined) return DEFAULT_PPID_POLL_MS;
+  return readIntegerFlag('ZCG_PPID_POLL_MS', {
+    env: { ZCG_PPID_POLL_MS: raw },
+    onWarning: message => process.stderr.write(`[CodeGraph MCP] ${message}\n`),
+  });
 }
 
 /**
@@ -114,22 +115,20 @@ function parsePpidPollMs(raw: string | undefined): number {
  */
 function parseHostPpid(raw: string | undefined): number | null {
   if (raw === undefined || raw === '') return null;
-  const parsed = Number(raw);
-  if (!Number.isInteger(parsed) || parsed <= 1) return null;
-  return parsed;
+  return readIntegerFlag('ZCG_HOST_PPID', {
+    env: { ZCG_HOST_PPID: raw },
+    onWarning: message => process.stderr.write(`[CodeGraph MCP] ${message}\n`),
+  });
 }
 
-/** Whether `CODEGRAPH_NO_DAEMON` was set to a truthy value. */
+/** Whether `ZCG_NO_DAEMON` was set to a truthy value. */
 function daemonOptOutSet(): boolean {
-  const raw = process.env.CODEGRAPH_NO_DAEMON;
-  if (!raw) return false;
-  return raw !== '0' && raw.toLowerCase() !== 'false';
+  return readBooleanFlag('ZCG_NO_DAEMON');
 }
 
 /** Whether this process was spawned to BE the detached daemon. */
 function daemonInternalSet(): boolean {
-  const raw = process.env[DAEMON_INTERNAL_ENV];
-  return !!raw && raw !== '0' && raw.toLowerCase() !== 'false';
+  return readBooleanFlag('ZCG_DAEMON_INTERNAL');
 }
 
 /**
@@ -234,8 +233,8 @@ export class MCPServer {
    * Start the MCP server.
    *
    * Decision order:
-   *   1. `CODEGRAPH_NO_DAEMON=1` → direct mode (unchanged pre-#411 behavior).
-   *   2. `CODEGRAPH_DAEMON_INTERNAL=1` → we ARE the detached daemon; listen.
+   *   1. `ZCG_NO_DAEMON=1` → direct mode (unchanged pre-#411 behavior).
+   *   2. `ZCG_DAEMON_INTERNAL=1` → we ARE the detached daemon; listen.
    *   3. No `.zcodegraph/` reachable → direct mode (the daemon's lockfile and
    *      socket both live under `.zcodegraph/`).
    *   4. Otherwise connect to (or spawn) the shared daemon and proxy to it.
@@ -253,7 +252,7 @@ export class MCPServer {
     // Direct mode if the user opted out. Setting the env var is sufficient to
     // get the pre-#411 single-process behavior.
     if (daemonOptOutSet()) {
-      return this.startDirect('CODEGRAPH_NO_DAEMON set');
+      return this.startDirect('ZCG_NO_DAEMON set');
     }
 
     const root = resolveDaemonRoot(this.projectPath);
@@ -287,6 +286,13 @@ export class MCPServer {
    * cg, exit). Proxy mode never routes through here — the proxy exits itself.
    */
   stop(): void {
+    void this.stopAndWait().catch(err => {
+      process.stderr.write(`[CodeGraph MCP] Shutdown failed: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exit(1);
+    });
+  }
+
+  private async stopAndWait(): Promise<void> {
     if (this.stopped) return;
     this.stopped = true;
     if (this.ppidWatchdog) {
@@ -294,8 +300,7 @@ export class MCPServer {
       this.ppidWatchdog = null;
     }
     if (this.daemon) {
-      void this.daemon.stop('stop()');
-      // Daemon.stop calls process.exit; nothing else to do.
+      await this.daemon.stop('stop()');
       return;
     }
     if (this.session) {
@@ -303,7 +308,7 @@ export class MCPServer {
       this.session = null;
     }
     if (this.engine) {
-      this.engine.stop();
+      await this.engine.stopAndWait();
       this.engine = null;
     }
     process.exit(0);
@@ -311,11 +316,14 @@ export class MCPServer {
 
   /** Single-process stdio MCP session — the pre-issue-#411 code path. */
   private async startDirect(reason: string): Promise<void> {
-    if (reason && process.env.CODEGRAPH_MCP_DEBUG) {
+    if (reason && readBooleanFlag('ZCG_MCP_DEBUG')) {
       process.stderr.write(`[CodeGraph MCP] Direct mode: ${reason}.\n`);
     }
     this.engine = new MCPEngine();
-    const transport = new StdioTransport();
+    const transport = new StdioTransport({
+      exitOnClose: false,
+      onClose: () => this.stop(),
+    });
     this.session = new MCPSession(transport, this.engine, {
       explicitProjectPath: this.projectPath,
     });
@@ -327,11 +335,9 @@ export class MCPServer {
 
     this.session.start();
 
-    // Detect parent-process death — same logic as pre-refactor. When stdin
-    // closes we go through StdioTransport's `process.exit(0)` already, but
-    // SIGKILL of the parent doesn't reliably close stdin on Linux (#277).
-    process.stdin.on('end', () => this.stop());
-    process.stdin.on('close', () => this.stop());
+    // stdin closure goes through the transport callback above. A PPID watchdog
+    // remains necessary because SIGKILL of the parent doesn't reliably close
+    // stdin on Linux (#277).
 
     this.mode = 'direct';
     this.installSignalHandlers();
@@ -340,7 +346,7 @@ export class MCPServer {
 
   /**
    * Run as the detached shared daemon (process spawned with
-   * `CODEGRAPH_DAEMON_INTERNAL=1`). Arbitrate the O_EXCL lock, then either
+   * `ZCG_DAEMON_INTERNAL=1`). Arbitrate the O_EXCL lock, then either
    * become the daemon (bind the socket, serve forever) or — if a live daemon
    * already holds the lock — exit so we don't leak a redundant process.
    *
@@ -466,7 +472,7 @@ export class MCPServer {
    */
   private installPpidWatchdog(): void {
     if (this.mode !== 'direct') return;
-    const pollMs = parsePpidPollMs(process.env.CODEGRAPH_PPID_POLL_MS);
+    const pollMs = parsePpidPollMs(process.env.ZCG_PPID_POLL_MS);
     if (pollMs <= 0) return;
     this.ppidWatchdog = setInterval(() => {
       const reason = supervisionLostReason({

@@ -61,7 +61,7 @@ describe('zcodegraph rust-hybrid ESM direct binding', () => {
 
       const profileOut = path.join(tempDir, '.zcodegraph', 'semantic-replay-profile.json');
       const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -115,7 +115,7 @@ describe('zcodegraph rust-hybrid ESM direct binding', () => {
 
       const profileOut = path.join(tempDir, '.zcodegraph', 'semantic-replay-missing-profile.json');
       const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -173,7 +173,7 @@ describe('zcodegraph rust-hybrid ESM direct binding', () => {
 
       const profileOut = path.join(tempDir, '.zcodegraph', 'guarded-edge-write-profile.json');
       const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -249,7 +249,7 @@ describe('zcodegraph rust-hybrid ESM direct binding', () => {
 
       const profileOut = path.join(tempDir, '.zcodegraph', 'guarded-edge-write-missing-profile.json');
       const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -303,7 +303,7 @@ describe('zcodegraph rust-hybrid ESM direct binding', () => {
 
       const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-named-import-profile.json');
       const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -358,7 +358,7 @@ describe('zcodegraph rust-hybrid ESM direct binding', () => {
       );
 
       const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -406,7 +406,7 @@ describe('zcodegraph rust-hybrid ESM direct binding', () => {
 
       const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-declaration-style-profile.json');
       const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -470,7 +470,7 @@ describe('zcodegraph rust-hybrid ESM direct binding', () => {
 
       const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-same-file-export-profile.json');
       const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -589,7 +589,7 @@ describe('zcodegraph rust-hybrid ESM direct binding', () => {
 
       const profileOut = path.join(tempDir, '.zcodegraph', 'rust-esm-overload-implementation-profile.json');
       const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 

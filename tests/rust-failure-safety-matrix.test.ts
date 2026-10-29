@@ -59,9 +59,9 @@ describe('Rust failure-safety matrix primitive', () => {
         cwd: REPO_ROOT,
         env: {
           ...process.env,
-          CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-          CODEGRAPH_NO_DAEMON: '1',
-          CODEGRAPH_NO_RELAUNCH: '1',
+          ZCG_ALLOW_UNSAFE_NODE: '1',
+          ZCG_NO_DAEMON: '1',
+          ZCG_NO_RELAUNCH: '1',
         },
         encoding: 'utf-8',
       },

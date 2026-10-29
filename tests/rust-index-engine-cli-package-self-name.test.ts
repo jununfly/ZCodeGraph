@@ -51,7 +51,7 @@ describe('zcodegraph rust-hybrid package self-name', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-self-name-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -103,7 +103,7 @@ describe('zcodegraph rust-hybrid package self-name', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-self-name-edge-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -174,7 +174,7 @@ describe('zcodegraph rust-hybrid package self-name', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-exports-runtime-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -258,7 +258,7 @@ describe('zcodegraph rust-hybrid package self-name', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-self-name-fail-closed-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 

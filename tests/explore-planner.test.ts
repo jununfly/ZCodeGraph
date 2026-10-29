@@ -404,42 +404,42 @@ describe('plan', () => {
     expect(result.spine.uniqueNamedNodeIds.has('n2')).toBe(true);
   });
 
-  it('sets adaptiveEnabled from CODEGRAPH_ADAPTIVE_EXPLORE env var (Slice #24)', async () => {
-    const prev = process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
-    process.env['CODEGRAPH_ADAPTIVE_EXPLORE'] = '1';
+  it('sets adaptiveEnabled from ZCG_ADAPTIVE_EXPLORE env var (Slice #24)', async () => {
+    const prev = process.env['ZCG_ADAPTIVE_EXPLORE'];
+    process.env['ZCG_ADAPTIVE_EXPLORE'] = '1';
     try {
       const cg = mockCodeGraph({ fileCount: 100 });
       const result = await plan(cg, 'test');
       expect(result.adaptiveEnabled).toBe(true);
     } finally {
-      if (prev === undefined) delete process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
-      else process.env['CODEGRAPH_ADAPTIVE_EXPLORE'] = prev;
+      if (prev === undefined) delete process.env['ZCG_ADAPTIVE_EXPLORE'];
+      else process.env['ZCG_ADAPTIVE_EXPLORE'] = prev;
     }
   });
 
   it('adaptiveEnabled defaults to true when env var is not set (Slice #24)', async () => {
-    const prev = process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
-    delete process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
+    const prev = process.env['ZCG_ADAPTIVE_EXPLORE'];
+    delete process.env['ZCG_ADAPTIVE_EXPLORE'];
     try {
       const cg = mockCodeGraph({ fileCount: 100 });
       const result = await plan(cg, 'test');
       expect(result.adaptiveEnabled).toBe(true);
     } finally {
-      if (prev === undefined) delete process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
-      else process.env['CODEGRAPH_ADAPTIVE_EXPLORE'] = prev;
+      if (prev === undefined) delete process.env['ZCG_ADAPTIVE_EXPLORE'];
+      else process.env['ZCG_ADAPTIVE_EXPLORE'] = prev;
     }
   });
 
   it('adaptiveEnabled is false when env var is "0" (Slice #24)', async () => {
-    const prev = process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
-    process.env['CODEGRAPH_ADAPTIVE_EXPLORE'] = '0';
+    const prev = process.env['ZCG_ADAPTIVE_EXPLORE'];
+    process.env['ZCG_ADAPTIVE_EXPLORE'] = '0';
     try {
       const cg = mockCodeGraph({ fileCount: 100 });
       const result = await plan(cg, 'test');
       expect(result.adaptiveEnabled).toBe(false);
     } finally {
-      if (prev === undefined) delete process.env['CODEGRAPH_ADAPTIVE_EXPLORE'];
-      else process.env['CODEGRAPH_ADAPTIVE_EXPLORE'] = prev;
+      if (prev === undefined) delete process.env['ZCG_ADAPTIVE_EXPLORE'];
+      else process.env['ZCG_ADAPTIVE_EXPLORE'] = prev;
     }
   });
 
@@ -789,9 +789,9 @@ describe('plan', () => {
   });
 
   it('sets renderMode full when adaptive is disabled (Issue #16)', async () => {
-    // Save and set CODEGRAPH_ADAPTIVE_EXPLORE=0
-    const prev = process.env.CODEGRAPH_ADAPTIVE_EXPLORE;
-    process.env.CODEGRAPH_ADAPTIVE_EXPLORE = '0';
+    // Save and set ZCG_ADAPTIVE_EXPLORE=0
+    const prev = process.env.ZCG_ADAPTIVE_EXPLORE;
+    process.env.ZCG_ADAPTIVE_EXPLORE = '0';
 
     try {
       const n0 = { id: 'n0', name: 'Super', kind: 'interface' as Node['kind'], filePath: 'src/super.ts', startLine: 1, endLine: 3 } as Node;
@@ -832,8 +832,8 @@ describe('plan', () => {
         expect(e.renderMode).toBe('full');
       }
     } finally {
-      if (prev !== undefined) process.env.CODEGRAPH_ADAPTIVE_EXPLORE = prev;
-      else delete process.env.CODEGRAPH_ADAPTIVE_EXPLORE;
+      if (prev !== undefined) process.env.ZCG_ADAPTIVE_EXPLORE = prev;
+      else delete process.env.ZCG_ADAPTIVE_EXPLORE;
     }
   });
 });
@@ -1739,7 +1739,7 @@ describe('gateAndSortFiles', () => {
 // ===========================================================================
 
 describe('readAdaptiveEnabled', () => {
-  const KEY = 'CODEGRAPH_ADAPTIVE_EXPLORE';
+  const KEY = 'ZCG_ADAPTIVE_EXPLORE';
 
   const prev = process.env[KEY];
 
@@ -1773,9 +1773,11 @@ describe('readAdaptiveEnabled', () => {
     restore();
   });
 
-  it('returns false when env var is empty string', () => {
-    process.env[KEY] = '';
-    expect(readAdaptiveEnabled()).toBe(false);
+  it('warns and uses the default when env var is empty or not a boolean', () => {
+    for (const value of ['', 'yes']) {
+      process.env[KEY] = value;
+      expect(readAdaptiveEnabled()).toBe(true);
+    }
     restore();
   });
 });

@@ -4,6 +4,7 @@
  * Defines the tools exposed by the CodeGraph MCP server.
  */
 
+import { readBooleanFlag, readListFlag } from '../config/flags';
 import type CodeGraph from '../index';
 import { findNearestCodeGraphRoot } from '../directory';
 // Lazy-load the heavy CodeGraph chain off the MCP startup path — see the same
@@ -97,7 +98,7 @@ export type { ExploreOutputBudget } from './explore-types.js';
 
 /**
  * Roadmap 1-2-11 (P0a explore 小项目 budget 收紧): opt-in tightened budget for
- * small projects (fileCount < 500). Driven by CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT=1.
+ * small projects (fileCount < 500). Driven by ZCG_EXPLORE_TIGHT_SMALL_PROJECT=1.
  *
  * Motivation: 2026-10-21 layer2 evidence shows petclinic 3 tasks all >1.0
  * explore/read ratio (1.28/1.50/1.74). On small projects the explore answer
@@ -107,8 +108,7 @@ export type { ExploreOutputBudget } from './explore-types.js';
  * we can A/B measure the real compression before flipping the default.
  */
 export function tightSmallProjectBudgetEnabled(): boolean {
-  const v = process.env['CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT'];
-  return v === '1' || v === 'true';
+  return readBooleanFlag('ZCG_EXPLORE_TIGHT_SMALL_PROJECT');
 }
 
 export function getExploreOutputBudget(fileCount: number): ExploreOutputBudget {
@@ -125,7 +125,7 @@ export function getExploreOutputBudget(fileCount: number): ExploreOutputBudget {
   // get a smaller `maxCharsPerFile` than a smaller tier.
   if (fileCount < 150) {
     // Roadmap 1-2-11: opt-in tight tier for small projects. Default preserves
-    // the ITER3 shape (13K/4/3.8K); with CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT=1
+    // the ITER3 shape (13K/4/3.8K); with ZCG_EXPLORE_TIGHT_SMALL_PROJECT=1
     // we halve the output ceiling and per-file cap and skip the blast-radius
     // section, because on small projects (petclinic evidence 2026-10-21) the
     // explore answer over-fires past the byte cost of reading 2-3 equivalent
@@ -542,11 +542,21 @@ export const tools: ToolDefinition[] = [
  * `ToolHandler.getTools()` in the no-CodeGraph case (the dynamic per-repo budget
  * note in a description only adds once `cg` is loaded; the schemas are static).
  */
+export function toolAllowlist(env: NodeJS.ProcessEnv = process.env): Set<string> | null {
+  const requested = readListFlag('ZCG_MCP_TOOLS', { env });
+  if (requested === undefined) return null;
+  const knownNames = new Set(tools.map(tool => tool.name.replace(/^zcodegraph_/, '')));
+  const normalized = requested.map(name => name.replace(/^zcodegraph_/, ''));
+  const unknown = [...new Set(normalized.filter(name => !knownNames.has(name)))];
+  if (unknown.length > 0) {
+    throw new Error(`ZCG_MCP_TOOLS contains unknown tool name(s): ${unknown.join(', ')}`);
+  }
+  return new Set(normalized);
+}
+
 export function getStaticTools(): ToolDefinition[] {
-  const raw = process.env.CODEGRAPH_MCP_TOOLS;
-  if (!raw || !raw.trim()) return tools;
-  const allow = new Set(raw.split(',').map(s => s.trim().replace(/^zcodegraph_/, '')).filter(Boolean));
-  return allow.size ? tools.filter(t => allow.has(t.name.replace(/^zcodegraph_/, ''))) : tools;
+  const allow = toolAllowlist();
+  return allow ? tools.filter(tool => allow.has(tool.name.replace(/^zcodegraph_/, ''))) : tools;
 }
 
 /**
@@ -695,22 +705,19 @@ export class ToolHandler {
   }
 
   /**
-   * Optional allowlist of exposed tools, parsed from the CODEGRAPH_MCP_TOOLS
+   * Optional allowlist of exposed tools, parsed from the ZCG_MCP_TOOLS
    * env var (comma-separated short names, e.g. "trace,search,node,context").
-   * Unset/empty → every tool is exposed. Lets an operator (or an A/B harness)
+   * Unset → every tool is exposed. Empty or unknown entries are configuration
+   * errors and never broaden the exposed tool surface. Lets an operator (or an A/B harness)
    * trim the tool surface without rebuilding the client config; the ablated
    * tool is then truly absent from ListTools rather than merely denied on call.
    * Matching is on the short form, so "node" and "zcodegraph_node" both work.
    */
   private toolAllowlist(): Set<string> | null {
-    const raw = process.env.CODEGRAPH_MCP_TOOLS;
-    if (!raw || !raw.trim()) return null;
-    const short = (s: string) => s.trim().replace(/^zcodegraph_/, '');
-    const set = new Set(raw.split(',').map(short).filter(Boolean));
-    return set.size ? set : null;
+    return toolAllowlist();
   }
 
-  /** Whether a tool name passes the CODEGRAPH_MCP_TOOLS allowlist (if any). */
+  /** Whether a tool name passes the ZCG_MCP_TOOLS allowlist (if any). */
   private isToolAllowed(name: string): boolean {
     const allow = this.toolAllowlist();
     return !allow || allow.has(name.replace(/^zcodegraph_/, ''));
@@ -719,7 +726,7 @@ export class ToolHandler {
   /**
    * Get tool definitions with dynamic descriptions based on project size.
    * The zcodegraph_explore tool description includes a budget recommendation
-   * scaled to the number of indexed files. Honors the CODEGRAPH_MCP_TOOLS
+   * scaled to the number of indexed files. Honors the ZCG_MCP_TOOLS
    * allowlist so a trimmed surface is reflected in ListTools.
    */
   getTools(): ToolDefinition[] {
@@ -1104,10 +1111,10 @@ export class ToolHandler {
       this.catchUpGate = null;
       try { await gate; } catch { /* engine already logged */ }
     }
-    // Honor the optional tool allowlist (CODEGRAPH_MCP_TOOLS): a trimmed
+    // Honor the optional tool allowlist (ZCG_MCP_TOOLS): a trimmed
     // surface rejects ablated tools defensively even if a client cached them.
     if (!this.isToolAllowed(toolName)) {
-      return this.errorResult(`Tool ${toolName} is disabled via CODEGRAPH_MCP_TOOLS`);
+      return this.errorResult(`Tool ${toolName} is disabled via ZCG_MCP_TOOLS`);
     }
     // Cross-cutting input validation. All tools accept an optional
     // `projectPath` and most accept either `query`, `task`, or

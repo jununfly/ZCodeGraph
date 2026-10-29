@@ -60,7 +60,7 @@ function toPosix(p: string): string {
 
 /**
  * Where the bundle installer keeps its install root, derived from the bundle
- * dir so an upgrade reuses a custom `CODEGRAPH_INSTALL_DIR`. Returns null when
+ * dir so an upgrade reuses a custom `ZCG_INSTALL_DIR`. Returns null when
  * the layout isn't the one the installer creates (then the installer falls
  * back to its own default).
  *
@@ -263,7 +263,7 @@ export async function resolveLatestVersion(repo = REPO, timeoutMs = 12000): Prom
 // ---------------------------------------------------------------------------
 
 export interface UpgradeOptions {
-  /** Pin a specific version (positional arg or CODEGRAPH_VERSION). */
+  /** Pin a specific version (positional arg or ZCG_VERSION). */
   version?: string;
   /** Report current vs latest, don't change anything. */
   check?: boolean;
@@ -382,8 +382,8 @@ function upgradeUnixBundle(
   }
 
   const env: NodeJS.ProcessEnv = { ...process.env };
-  if (method.installDir) env.CODEGRAPH_INSTALL_DIR = method.installDir;
-  if (pinned) env.CODEGRAPH_VERSION = pinned;
+  if (method.installDir) env.ZCG_INSTALL_DIR = method.installDir;
+  if (pinned) env.ZCG_VERSION = pinned;
 
   deps.log(c.dim(`Running the installer (${downloader} | sh)…`));
   const code = deps.run('sh', ['-c', `${downloader} | sh`], env);

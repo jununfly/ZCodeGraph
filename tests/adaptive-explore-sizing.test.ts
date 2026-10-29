@@ -9,7 +9,7 @@
  * keeping the on-spine exemplar and the mechanism full. This sizes the
  * response to the answer rather than the budget cap on sibling-heavy flows
  * (OkHttp's interceptor chain) without starving diffuse ones (distinct
- * pipeline steps stay full). Default ON; CODEGRAPH_ADAPTIVE_EXPLORE=0 disables.
+ * pipeline steps stay full). Default ON; ZCG_ADAPTIVE_EXPLORE=0 disables.
  *
  * The fixture is OkHttp's interceptor chain in miniature:
  *   - `Interceptor` interface with FOUR implementers (>= 3 => a sibling family)
@@ -257,7 +257,7 @@ export class YamlCodec extends Codec {
 
   beforeEach(() => {
     // Each test asserts against the default (ON) behaviour unless it opts out.
-    delete process.env.CODEGRAPH_ADAPTIVE_EXPLORE;
+    delete process.env.ZCG_ADAPTIVE_EXPLORE;
   });
 
   it('fixture sanity: Interceptor has >=3 implementers, Formatter has <3', () => {
@@ -321,8 +321,8 @@ export class YamlCodec extends Codec {
     expect(section).toContain('FORMATTER_BODY_MARKER');
   });
 
-  it('CODEGRAPH_ADAPTIVE_EXPLORE=0 disables skeletonization (siblings render full)', async () => {
-    process.env.CODEGRAPH_ADAPTIVE_EXPLORE = '0';
+  it('ZCG_ADAPTIVE_EXPLORE=0 disables skeletonization (siblings render full)', async () => {
+    process.env.ZCG_ADAPTIVE_EXPLORE = '0';
     try {
       const result = await handler.execute('zcodegraph_explore', { query: QUERY, maxFiles: 12 });
       const text = result.content?.[0]?.text ?? '';
@@ -333,7 +333,7 @@ export class YamlCodec extends Codec {
       expect(section).not.toBe('');
       expect(section).toContain('BRIDGE_BODY_MARKER');
     } finally {
-      delete process.env.CODEGRAPH_ADAPTIVE_EXPLORE;
+      delete process.env.ZCG_ADAPTIVE_EXPLORE;
     }
   });
 

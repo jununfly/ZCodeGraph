@@ -7,6 +7,7 @@
  * Extracted from tools.ts handleExplore() — behavior identical to current.
  */
 
+import { readBooleanFlag } from '../config/flags';
 import { existsSync, readFileSync } from 'fs';
 import type { Node } from '../types';
 import type { ExplorePlan } from './explore-types';
@@ -22,20 +23,19 @@ function getExploreBudget(fileCount: number): number {
 }
 
 function exploreLineNumbersEnabled(): boolean {
-  return process.env['CODEGRAPH_EXPLORE_LINENUMS'] !== '0' && process.env['CODEGRAPH_EXPLORE_LINENUMS'] !== 'false';
+  return readBooleanFlag('ZCG_EXPLORE_LINENUMS');
 }
 
 /**
  * GCF-style elided markers (roadmap 1-2-3). Default on; set
- * CODEGRAPH_EXPLORE_ELIDED_MARKERS=0|false to disable. When on, every
+ * ZCG_EXPLORE_ELIDED_MARKERS=0|false to disable. When on, every
  * budget-driven elision (per-file skip, per-cluster drop, hard-ceiling
  * truncation) emits a single machine-parseable placeholder line so an
  * agent can issue a follow-up zcodegraph_explore to fetch exactly what
  * was dropped, instead of falling back to Read.
  */
 function elidedMarkersEnabled(): boolean {
-  const v = process.env['CODEGRAPH_EXPLORE_ELIDED_MARKERS'];
-  return v !== '0' && v !== 'false';
+  return readBooleanFlag('ZCG_EXPLORE_ELIDED_MARKERS');
 }
 
 /**
@@ -318,7 +318,7 @@ export function render(
     const fileLines = fileContent.split('\n');
     const lang = group.nodes[0]?.language || '';
   
-    // Adaptive sizing (CODEGRAPH_ADAPTIVE_EXPLORE, default on): collapse a file
+    // Adaptive sizing (ZCG_ADAPTIVE_EXPLORE, default on): collapse a file
     // to a per-symbol view when it's a redundant member of a polymorphic family.
     // Engages iff ALL hold:
     //   1. a flow spine exists,

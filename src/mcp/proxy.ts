@@ -20,6 +20,7 @@
 
 import * as fs from 'fs';
 import * as net from 'net';
+import { readBooleanFlag, readIntegerFlag } from '../config/flags';
 import { HOST_PPID_ENV } from '../extraction/wasm-runtime-flags';
 import { DaemonClientHello, DaemonHello, MAX_HELLO_LINE_BYTES } from './daemon';
 import { supervisionLostReason } from './ppid-watchdog';
@@ -39,14 +40,14 @@ const DEFAULT_PPID_POLL_MS = 5000;
  * a healthy attach showed up as `[error] … undefined`. Set to `1` to surface it
  * when debugging daemon attach. (#618; approach from #640 by @mturac)
  */
-const LOG_ATTACH_ENV = 'CODEGRAPH_MCP_LOG_ATTACH';
+const LOG_ATTACH_ENV = 'ZCG_MCP_LOG_ATTACH';
 
 /**
  * Log a successful daemon attach — gated behind {@link LOG_ATTACH_ENV} so it is
  * silent by default (see #618). Exported for tests.
  */
 export function logAttachedDaemon(socketPath: string, hello: DaemonHello): void {
-  if (process.env[LOG_ATTACH_ENV] !== '1') return;
+  if (!readBooleanFlag('ZCG_MCP_LOG_ATTACH')) return;
   process.stderr.write(
     `[CodeGraph MCP] Attached to shared daemon on ${socketPath} (pid ${hello.pid}, v${daemonVersion(hello)}).\n`
   );
@@ -231,10 +232,13 @@ export async function runLocalHandshakeProxy(deps: LocalHandshakeDeps): Promise<
     try { process.stdout.write((typeof obj === 'string' ? obj : JSON.stringify(obj)) + '\n'); } catch { /* host gone */ }
   };
   const shutdown = (): void => {
-    if (shuttingDown) return; shuttingDown = true;
-    try { daemonSocket?.destroy(); } catch { /* ignore */ }
-    try { engine?.stop(); } catch { /* ignore */ }
-    process.exit(0);
+    if (shuttingDown) return;
+    shuttingDown = true;
+    void (async () => {
+      try { daemonSocket?.destroy(); } catch { /* ignore */ }
+      try { await engine?.stopAndWait(); } catch { /* ignore */ }
+      process.exit(0);
+    })();
   };
   const ensureEngine = (): Promise<void> => {
     if (!engine) engine = deps.makeEngine();
@@ -290,7 +294,14 @@ export async function runLocalHandshakeProxy(deps: LocalHandshakeDeps): Promise<
         writeClient({ jsonrpc: '2.0', id: msg.id, result: { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: SERVER_INFO, instructions: SERVER_INSTRUCTIONS } });
         routeToDaemon(line); // prime the daemon so it resolves the project (its reply is suppressed below)
       } else if (msg.method === 'tools/list') {
-        writeClient({ jsonrpc: '2.0', id: msg.id, result: { tools: getStaticTools() } });
+        try {
+          writeClient({ jsonrpc: '2.0', id: msg.id, result: { tools: getStaticTools() } });
+        } catch (err) {
+          writeClient({ jsonrpc: '2.0', id: msg.id, error: {
+            code: -32603,
+            message: err instanceof Error ? err.message : String(err),
+          } });
+        }
       } else if (msg.method === 'resources/list') {
         // No resources exposed — answer the probe locally so it never reaches
         // the daemon as an unhandled method and logs `-32601`. (#621)
@@ -370,7 +381,7 @@ export async function runLocalHandshakeProxy(deps: LocalHandshakeDeps): Promise<
  *  {@link startPpidWatchdog} but with no socket to close (the caller's shutdown
  *  handles teardown). */
 function startPpidWatchdogNoSocket(onDeath: () => void): void {
-  const pollMs = parsePollMs(process.env.CODEGRAPH_PPID_POLL_MS);
+  const pollMs = parsePollMs(process.env.ZCG_PPID_POLL_MS);
   if (pollMs <= 0) return;
   const originalPpid = process.ppid;
   const hostPpid = parseHostPpid(process.env[HOST_PPID_ENV]);
@@ -494,7 +505,7 @@ function pipeUntilClose(socket: net.Socket): Promise<void> {
  * watchers to clean up, so this is cheap.
  */
 function startPpidWatchdog(socket: net.Socket): void {
-  const pollMs = parsePollMs(process.env.CODEGRAPH_PPID_POLL_MS);
+  const pollMs = parsePollMs(process.env.ZCG_PPID_POLL_MS);
   if (pollMs <= 0) return;
   const originalPpid = process.ppid;
   const hostPpid = parseHostPpid(process.env[HOST_PPID_ENV]);
@@ -515,18 +526,19 @@ function startPpidWatchdog(socket: net.Socket): void {
 }
 
 function parsePollMs(raw: string | undefined): number {
-  if (raw === undefined || raw === '') return DEFAULT_PPID_POLL_MS;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return DEFAULT_PPID_POLL_MS;
-  if (parsed < 0) return DEFAULT_PPID_POLL_MS;
-  return Math.floor(parsed);
+  if (raw === undefined) return DEFAULT_PPID_POLL_MS;
+  return readIntegerFlag('ZCG_PPID_POLL_MS', {
+    env: { ZCG_PPID_POLL_MS: raw },
+    onWarning: message => process.stderr.write(`[CodeGraph MCP] ${message}\n`),
+  });
 }
 
 function parseHostPpid(raw: string | undefined): number | null {
   if (raw === undefined || raw === '') return null;
-  const parsed = Number(raw);
-  if (!Number.isInteger(parsed) || parsed <= 1) return null;
-  return parsed;
+  return readIntegerFlag('ZCG_HOST_PPID', {
+    env: { ZCG_HOST_PPID: raw },
+    onWarning: message => process.stderr.write(`[CodeGraph MCP] ${message}\n`),
+  });
 }
 
 function isProcessAliveLocal(pid: number): boolean {

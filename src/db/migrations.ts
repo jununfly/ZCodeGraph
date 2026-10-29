@@ -9,7 +9,7 @@ import { SqliteDatabase } from './sqlite-adapter';
 /**
  * Current schema version
  */
-export const CURRENT_SCHEMA_VERSION = 6;
+export const CURRENT_SCHEMA_VERSION = 7;
 
 /**
  * Migration definition
@@ -112,11 +112,21 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 7,
+    description:
+      'Add durable owner and heartbeat leases to embedding_queue so watchdog recovery ' +
+      'cannot steal a live worker batch. Existing rows use started_at as their initial heartbeat.',
+    up: (db) => {
+      db.exec(`
+        ALTER TABLE embedding_queue ADD COLUMN worker_id TEXT;
+        ALTER TABLE embedding_queue ADD COLUMN heartbeat_at INTEGER;
+        UPDATE embedding_queue SET heartbeat_at = started_at
+          WHERE status = 'in_progress' AND heartbeat_at IS NULL;
+      `);
+    },
+  },
 ];
-
-/**
- * Get the current schema version from the database
- */
 export function getCurrentVersion(db: SqliteDatabase): number {
   try {
     const row = db

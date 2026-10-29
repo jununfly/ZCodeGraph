@@ -47,7 +47,7 @@ const BIN = path.join(REPO_ROOT, 'dist', 'bin', 'zcodegraph.js');
  *
  * Two dynamic gates are legitimate, probed states — not drift:
  *  - TINY_REPO gating (fileCount < 500): only explore/search/node exposed;
- *  - CODEGRAPH_MCP_TOOLS env allowlist.
+ *  - ZCG_MCP_TOOLS env allowlist.
  * The probe therefore asserts the *served* set against the expectation for
  * the gated profile: tiny repo → TINY set; otherwise → full set. Any other
  * missing/extra tool is drift.
@@ -99,9 +99,9 @@ function parseArgs(argv) {
 function cliEnv() {
   return {
     ...process.env,
-    CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-    CODEGRAPH_NO_DAEMON: '1',
-    CODEGRAPH_NO_RELAUNCH: '1',
+    ZCG_ALLOW_UNSAFE_NODE: '1',
+    ZCG_NO_DAEMON: '1',
+    ZCG_NO_RELAUNCH: '1',
   };
 }
 
@@ -288,7 +288,7 @@ function probeMcpTools(repoDir) {
         if (msg.id === 2 && msg.result) {
           const names = (msg.result.tools ?? []).map((t) => t.name);
           const fileCount = indexedFileCount(repoDir);
-          const allowlistEnv = cliEnv().CODEGRAPH_MCP_TOOLS;
+          const allowlistEnv = cliEnv().ZCG_MCP_TOOLS;
           let expected;
           let profile;
           if (allowlistEnv && allowlistEnv.trim()) {

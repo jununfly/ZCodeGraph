@@ -54,7 +54,7 @@ describe('zcodegraph rust-hybrid package imports', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-imports-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -112,7 +112,7 @@ describe('zcodegraph rust-hybrid package imports', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-imports-edge-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -184,7 +184,7 @@ describe('zcodegraph rust-hybrid package imports', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-imports-pattern-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -262,7 +262,7 @@ describe('zcodegraph rust-hybrid package imports', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-imports-fail-closed-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -346,7 +346,7 @@ describe('zcodegraph rust-hybrid package imports', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'package-imports-runtime-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 

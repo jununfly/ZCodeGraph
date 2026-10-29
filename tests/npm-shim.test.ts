@@ -8,7 +8,7 @@
  * + node_modules), so resolution and version lookup behave hermetically.
  *
  * The download/checksum paths run against a local self-signed HTTPS server via
- * CODEGRAPH_DOWNLOAD_BASE — no real network, no published release needed. The
+ * ZCG_DOWNLOAD_BASE — no real network, no published release needed. The
  * shim is launched with async `spawn` (not spawnSync), so the test's event loop
  * stays free to serve those requests.
  *
@@ -96,7 +96,7 @@ describe.skipIf(isWindows)('npm-shim launcher', () => {
     fs.writeFileSync(path.join(platformPkg, 'package.json'),
       JSON.stringify({ name: `@jununfly/zcodegraph-${target}`, version: '9.9.9-test' }) + '\n');
     const cache = mkTmp('cache');
-    const r = await runShim(pkg, ['--probe-abc'], { CODEGRAPH_INSTALL_DIR: cache });
+    const r = await runShim(pkg, ['--probe-abc'], { ZCG_INSTALL_DIR: cache });
 
     expect(r.status).toBe(0);
     expect(r.stdout).toContain('FAKE_BUNDLE_RAN');
@@ -110,8 +110,8 @@ describe.skipIf(isWindows)('npm-shim launcher', () => {
     const cache = mkTmp('cache');
     writeLauncher(path.join(cache, 'bundles', `${target}-1.2.3-cached`, 'bin'));
     const r = await runShim(pkg, ['--probe-xyz'], {
-      CODEGRAPH_INSTALL_DIR: cache,
-      CODEGRAPH_NO_DOWNLOAD: '1',
+      ZCG_INSTALL_DIR: cache,
+      ZCG_NO_DOWNLOAD: '1',
     });
 
     expect(r.status).toBe(0);
@@ -120,11 +120,22 @@ describe.skipIf(isWindows)('npm-shim launcher', () => {
     expect(r.stderr).toBe('');
   });
 
+  it('rejects an invalid download boolean before any network access', async () => {
+    const pkg = makePkg();
+    const r = await runShim(pkg, ['--version'], {
+      ZCG_INSTALL_DIR: mkTmp('cache'),
+      ZCG_NO_DOWNLOAD: 'yes',
+    });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('ZCG_NO_DOWNLOAD is invalid');
+    expect(r.stderr).not.toContain('downloading');
+  });
+
   it('prints actionable guidance and exits 1 when disabled with no bundle', async () => {
     const pkg = makePkg();
     const r = await runShim(pkg, ['--version'], {
-      CODEGRAPH_INSTALL_DIR: mkTmp('cache'),
-      CODEGRAPH_NO_DOWNLOAD: '1',
+      ZCG_INSTALL_DIR: mkTmp('cache'),
+      ZCG_NO_DOWNLOAD: '1',
     });
 
     expect(r.status).toBe(1);
@@ -179,8 +190,8 @@ describe.skipIf(!CAN_NET)('npm-shim download fallback (local HTTPS)', () => {
 
   function netEnv(cache: string): Record<string, string> {
     return {
-      CODEGRAPH_INSTALL_DIR: cache,
-      CODEGRAPH_DOWNLOAD_BASE: `https://127.0.0.1:${port}`,
+      ZCG_INSTALL_DIR: cache,
+      ZCG_DOWNLOAD_BASE: `https://127.0.0.1:${port}`,
       NODE_TLS_REJECT_UNAUTHORIZED: '0',
     };
   }

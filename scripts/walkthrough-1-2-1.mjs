@@ -63,7 +63,7 @@ async function runIndexAt(dir) {
   // --no-watch keeps it deterministic. We don't care about the resulting
   // index size — only that the DB file exists.
   return runNode(BIN, ['index', dir], {
-    env: { ...process.env, CODEGRAPH_NO_DAEMON: '1' },
+    env: { ...process.env, ZCG_NO_DAEMON: '1' },
   });
 }
 

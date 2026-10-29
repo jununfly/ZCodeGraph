@@ -12,10 +12,10 @@ import {
 import type { ResolutionContext, UnresolvedRef } from '../src/resolution/types';
 
 const originalEnv = {
-  ZCODEGRAPH_RUST_NAME_MATCHER: process.env.ZCODEGRAPH_RUST_NAME_MATCHER,
-  ZCODEGRAPH_RUST_NAME_MATCHER_STRICT: process.env.ZCODEGRAPH_RUST_NAME_MATCHER_STRICT,
-  ZCODEGRAPH_RUST_CORE_BINARY: process.env.ZCODEGRAPH_RUST_CORE_BINARY,
-  ZCODEGRAPH_NAME_MATCHER_REPLAY_AB: process.env.ZCODEGRAPH_NAME_MATCHER_REPLAY_AB,
+  ZCG_RUST_NAME_MATCHER: process.env.ZCG_RUST_NAME_MATCHER,
+  ZCG_RUST_NAME_MATCHER_STRICT: process.env.ZCG_RUST_NAME_MATCHER_STRICT,
+  ZCG_RUST_CORE_BINARY: process.env.ZCG_RUST_CORE_BINARY,
+  ZCG_NAME_MATCHER_REPLAY_AB: process.env.ZCG_NAME_MATCHER_REPLAY_AB,
 };
 
 function node(
@@ -192,10 +192,10 @@ describe('guarded Rust name matcher', () => {
   let tempDir: string | undefined;
 
   afterEach(() => {
-    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = originalEnv.ZCODEGRAPH_RUST_NAME_MATCHER;
-    process.env.ZCODEGRAPH_RUST_NAME_MATCHER_STRICT = originalEnv.ZCODEGRAPH_RUST_NAME_MATCHER_STRICT;
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = originalEnv.ZCODEGRAPH_RUST_CORE_BINARY;
-    process.env.ZCODEGRAPH_NAME_MATCHER_REPLAY_AB = originalEnv.ZCODEGRAPH_NAME_MATCHER_REPLAY_AB;
+    process.env.ZCG_RUST_NAME_MATCHER = originalEnv.ZCG_RUST_NAME_MATCHER;
+    process.env.ZCG_RUST_NAME_MATCHER_STRICT = originalEnv.ZCG_RUST_NAME_MATCHER_STRICT;
+    process.env.ZCG_RUST_CORE_BINARY = originalEnv.ZCG_RUST_CORE_BINARY;
+    process.env.ZCG_NAME_MATCHER_REPLAY_AB = originalEnv.ZCG_NAME_MATCHER_REPLAY_AB;
     if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
     tempDir = undefined;
   });
@@ -267,7 +267,7 @@ describe('guarded Rust name matcher', () => {
       node('caller', 'caller', 'src/caller.ts'),
       target,
     ]));
-    process.env.ZCODEGRAPH_NAME_MATCHER_REPLAY_AB = '1';
+    process.env.ZCG_NAME_MATCHER_REPLAY_AB = '1';
 
     const result = resolver.resolveAll([ref('alpha')]);
 
@@ -315,14 +315,33 @@ describe('guarded Rust name matcher', () => {
       node('caller', 'caller', 'src/caller.ts'),
       target,
     ]));
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, target.id);
-    delete process.env.ZCODEGRAPH_RUST_NAME_MATCHER;
+    process.env.ZCG_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, target.id);
+    delete process.env.ZCG_RUST_NAME_MATCHER;
 
     const result = resolver.resolveAll([ref('alpha')]);
 
     expect(result.resolved).toHaveLength(1);
     expect(result.resolved[0]?.targetNodeId).toBe(target.id);
     expect(result.stats.timings?.rustMatcherEligibleRefs).toBe(0);
+    expect(fs.existsSync(path.join(tempDir, 'rust-matcher-invoked.json'))).toBe(false);
+  });
+
+  it('diagnoses strict mode without silently enabling the Rust matcher', () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-rust-name-matcher-'));
+    const target = node('target:alpha', 'alpha', 'src/target.ts');
+    const resolver = new ReferenceResolver(tempDir, makeQueries([
+      node('caller', 'caller', 'src/caller.ts'),
+      target,
+    ]));
+    process.env.ZCG_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, target.id);
+    delete process.env.ZCG_RUST_NAME_MATCHER;
+    process.env.ZCG_RUST_NAME_MATCHER_STRICT = '1';
+
+    const result = resolver.resolveAll([ref('alpha')]);
+
+    expect(result.stats.timings?.rustMatcherFallbackReasons).toMatchObject({
+      'strict-requires-rust-name-matcher': 1,
+    });
     expect(fs.existsSync(path.join(tempDir, 'rust-matcher-invoked.json'))).toBe(false);
   });
 
@@ -333,8 +352,8 @@ describe('guarded Rust name matcher', () => {
       node('caller', 'caller', 'src/caller.ts'),
       target,
     ]));
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, target.id);
-    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = '1';
+    process.env.ZCG_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, target.id);
+    process.env.ZCG_RUST_NAME_MATCHER = '1';
 
     const result = resolver.resolveAll([ref('alpha')]);
     const marker = JSON.parse(fs.readFileSync(path.join(tempDir, 'rust-matcher-invoked.json'), 'utf8')) as {
@@ -357,8 +376,8 @@ describe('guarded Rust name matcher', () => {
       node('caller', 'caller', 'src/caller.ts'),
       target,
     ]));
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, target.id);
-    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = '1';
+    process.env.ZCG_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, target.id);
+    process.env.ZCG_RUST_NAME_MATCHER = '1';
 
     const result = resolver.resolveAll([{ ...ref('alpha'), rowid: 1 }, { ...ref('alpha'), rowid: 2, line: 4 }]);
     const marker = JSON.parse(fs.readFileSync(path.join(tempDir, 'rust-matcher-invoked.json'), 'utf8')) as {
@@ -384,8 +403,8 @@ describe('guarded Rust name matcher', () => {
       target,
       wrong,
     ]));
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, wrong.id);
-    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = '1';
+    process.env.ZCG_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, wrong.id);
+    process.env.ZCG_RUST_NAME_MATCHER = '1';
 
     const result = resolver.resolveAll([ref('alpha')]);
 
@@ -405,8 +424,8 @@ describe('guarded Rust name matcher', () => {
       target,
       wrong,
     ]));
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, wrong.id);
-    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = '1';
+    process.env.ZCG_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, wrong.id);
+    process.env.ZCG_RUST_NAME_MATCHER = '1';
 
     const result = resolver.resolveAll([ref('alpha')]);
 
@@ -440,8 +459,8 @@ describe('guarded Rust name matcher', () => {
       { ...ref('alpha'), rowid: 1 },
       { ...ref('alpha'), rowid: 2, line: 4 },
     ]));
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, wrong.id);
-    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = '1';
+    process.env.ZCG_RUST_CORE_BINARY = writeFakeRustMatcher(tempDir, wrong.id);
+    process.env.ZCG_RUST_NAME_MATCHER = '1';
 
     const result = await resolver.resolveAndPersistBatched(undefined, 1);
 
@@ -460,8 +479,8 @@ describe('guarded Rust name matcher', () => {
       node('caller', 'caller', 'src/caller.ts'),
       target,
     ]));
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustFallbackMatcher(tempDir, 'unresolved');
-    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = '1';
+    process.env.ZCG_RUST_CORE_BINARY = writeFakeRustFallbackMatcher(tempDir, 'unresolved');
+    process.env.ZCG_RUST_NAME_MATCHER = '1';
 
     const result = resolver.resolveAll([ref('alpha')]);
 
@@ -477,8 +496,8 @@ describe('guarded Rust name matcher', () => {
     const resolver = new ReferenceResolver(tempDir, makeQueries([
       node('caller', 'caller', 'src/caller.ts'),
     ]));
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = writeFakeRustFallbackMatcher(tempDir, 'unresolved');
-    process.env.ZCODEGRAPH_RUST_NAME_MATCHER = '1';
+    process.env.ZCG_RUST_CORE_BINARY = writeFakeRustFallbackMatcher(tempDir, 'unresolved');
+    process.env.ZCG_RUST_NAME_MATCHER = '1';
 
     const result = resolver.resolveAll([ref('missing')]);
 

@@ -600,7 +600,7 @@ function getGitCommit(targetPath) {
 }
 
 function childMaxBufferBytes() {
-  const configured = Number.parseInt(process.env.ZCODEGRAPH_EXPERIMENT_CHILD_MAX_BUFFER_BYTES ?? '', 10);
+  const configured = Number.parseInt(process.env.ZCG_EXPERIMENT_CHILD_MAX_BUFFER_BYTES ?? '', 10);
   if (Number.isFinite(configured) && configured > 0) return configured;
   return 64 * 1024 * 1024;
 }
@@ -610,9 +610,9 @@ function runCommand(command, args, cwd, env = {}) {
     cwd,
     env: {
       ...process.env,
-      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-      CODEGRAPH_NO_DAEMON: '1',
-      CODEGRAPH_NO_RELAUNCH: '1',
+      ZCG_ALLOW_UNSAFE_NODE: '1',
+      ZCG_NO_DAEMON: '1',
+      ZCG_NO_RELAUNCH: '1',
       ...env,
     },
     encoding: 'utf-8',
@@ -644,7 +644,7 @@ function normalizeMeasuredResult(result) {
 }
 
 function runMeasuredCommand(command, args, cwd, env = {}) {
-  if (process.env.ZCODEGRAPH_EXPERIMENT_MEASURE_RSS !== '1') {
+  if (process.env.ZCG_EXPERIMENT_MEASURE_RSS !== '1') {
     const result = runCommand(command, args, cwd, env);
     return { result, peakRssBytes: null };
   }
@@ -677,7 +677,7 @@ function childProcessFailureDetails(result) {
 }
 
 function measuredPeakRssBytes(engine) {
-  const envKey = engine === 'rust' ? 'ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PEAK_RSS_BYTES' : 'ZCODEGRAPH_EXPERIMENT_FAKE_TYPESCRIPT_PEAK_RSS_BYTES';
+  const envKey = engine === 'rust' ? 'ZCG_EXPERIMENT_FAKE_RUST_PEAK_RSS_BYTES' : 'ZCG_EXPERIMENT_FAKE_TYPESCRIPT_PEAK_RSS_BYTES';
   const override = process.env[envKey];
   if (override !== undefined) {
     const parsed = Number.parseInt(override, 10);
@@ -862,7 +862,7 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
   if (target.preflight.status !== 'available' || arm.preflight.status !== 'available') return;
 
   const started = Date.now();
-  if (process.env.ZCODEGRAPH_EXPERIMENT_FAKE_RUST_SUCCESS === '1' && engine === 'rust') {
+  if (process.env.ZCG_EXPERIMENT_FAKE_RUST_SUCCESS === '1' && engine === 'rust') {
     const sourceCopyStarted = Date.now();
     arm.sourceCopy = copySourceSlice(target.path.resolvedPath, engine);
     const bin = path.join(repoRoot, 'dist', 'bin', 'zcodegraph.js');
@@ -876,13 +876,13 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
       cwd: arm.sourceCopy.path,
       nodeVersion: process.version,
       env: {
-        ZCODEGRAPH_RUST_CORE_BINARY: rustCoreInfo.path,
+        ZCG_RUST_CORE_BINARY: rustCoreInfo.path,
       },
     };
-    const elapsedMs = Number.parseInt(process.env.ZCODEGRAPH_EXPERIMENT_FAKE_RUST_ELAPSED_MS || '1', 10);
-    if (process.env.ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PROFILE) {
+    const elapsedMs = Number.parseInt(process.env.ZCG_EXPERIMENT_FAKE_RUST_ELAPSED_MS || '1', 10);
+    if (process.env.ZCG_EXPERIMENT_FAKE_RUST_PROFILE) {
       try {
-        arm.execution.indexProfile = JSON.parse(process.env.ZCODEGRAPH_EXPERIMENT_FAKE_RUST_PROFILE);
+        arm.execution.indexProfile = JSON.parse(process.env.ZCG_EXPERIMENT_FAKE_RUST_PROFILE);
       } catch {
         arm.execution.diagnostics.push(diagnostic('rust-index-profile-parse-failed', 'Failed to parse fake Rust index profile'));
       }
@@ -912,7 +912,7 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
     arm.graphAvailable = true;
     return;
   }
-  if (process.env.ZCODEGRAPH_EXPERIMENT_FAIL_ENGINE === engine) {
+  if (process.env.ZCG_EXPERIMENT_FAIL_ENGINE === engine) {
     const sourceCopyStarted = Date.now();
     arm.sourceCopy = copySourceSlice(target.path.resolvedPath, engine);
     arm.execution.elapsedMs = Date.now() - started;
@@ -952,12 +952,12 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
       if (arm.sqliteWriteMode?.effective) {
         args.push('--sqlite-write-mode', arm.sqliteWriteMode.effective);
       }
-      env.ZCODEGRAPH_RUST_CORE_BINARY = rustCoreInfo.path;
+      env.ZCG_RUST_CORE_BINARY = rustCoreInfo.path;
       indexProfileFile = path.join(arm.sourceCopy.path, '.zcodegraph', 'rust-index-profile.json');
       args.push('--profile-out', indexProfileFile);
       if (profiling.heap) {
-        env.ZCODEGRAPH_PROFILING = 'heap';
-        env.ZCODEGRAPH_EXPERIMENT_ID = experimentId;
+        env.ZCG_PROFILING = 'heap';
+        env.ZCG_EXPERIMENT_ID = experimentId;
       }
     } else {
       args.push('--engine', 'typescript');
@@ -1336,7 +1336,7 @@ function preflightTarget(target, rustCoreInfo, experimentRust = {}) {
 }
 
 function createExperimentPreflight() {
-  const rustCorePath = process.env.ZCODEGRAPH_RUST_CORE_BINARY || defaultRustCore;
+  const rustCorePath = process.env.ZCG_RUST_CORE_BINARY || defaultRustCore;
   return {
     status: 'completed',
     diagnostics: [],

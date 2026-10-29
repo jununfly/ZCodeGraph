@@ -38,7 +38,7 @@ describe('targeted profile evidence runner', () => {
         cwd: REPO_ROOT,
         env: {
           ...process.env,
-          ZCODEGRAPH_RSS_PS_COMMAND: 'zcodegraph-nonexistent-ps-for-test',
+          ZCG_RSS_PS_COMMAND: 'zcodegraph-nonexistent-ps-for-test',
         },
         encoding: 'utf-8',
       },

@@ -61,9 +61,9 @@ function parseArgs(argv) {
 function baseEnv(extra = {}) {
   return {
     ...process.env,
-    CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-    CODEGRAPH_NO_DAEMON: '1',
-    CODEGRAPH_NO_RELAUNCH: '1',
+    ZCG_ALLOW_UNSAFE_NODE: '1',
+    ZCG_NO_DAEMON: '1',
+    ZCG_NO_RELAUNCH: '1',
     ...extra,
   };
 }
@@ -150,15 +150,15 @@ function rustFailureForCase(project, caseId) {
   switch (caseId) {
     case 'missing-binary':
       return runCli(project, ['index', project, '--engine', 'rust', '--force', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: path.join(binDir, 'missing-zcodegraph-core'),
+        ZCG_RUST_CORE_BINARY: path.join(binDir, 'missing-zcodegraph-core'),
       });
     case 'packaged-binary-removed':
       return runCli(project, ['index', project, '--engine', 'rust', '--force', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: path.join(binDir, 'bin', process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core'),
+        ZCG_RUST_CORE_BINARY: path.join(binDir, 'bin', process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core'),
       });
     case 'nonzero-before-index':
       return runCli(project, ['index', project, '--engine', 'rust', '--force', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: fakeCore(binDir, caseId, [
+        ZCG_RUST_CORE_BINARY: fakeCore(binDir, caseId, [
           '#!/usr/bin/env node',
           'process.stderr.write(JSON.stringify({ type: "error", message: "matrix nonzero before index" }) + "\\n");',
           'process.exit(70);',
@@ -166,7 +166,7 @@ function rustFailureForCase(project, caseId) {
       });
     case 'malformed-stdout-json':
       return runCli(project, ['index', project, '--engine', 'rust', '--force', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: fakeCore(binDir, caseId, [
+        ZCG_RUST_CORE_BINARY: fakeCore(binDir, caseId, [
           '#!/usr/bin/env node',
           'process.stdout.write("{not-json}\\n");',
           'process.exit(0);',
@@ -174,18 +174,18 @@ function rustFailureForCase(project, caseId) {
       });
     case 'crash-after-temp-db':
       return runCli(project, ['index', project, '--engine', 'rust', '--force', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: fakeCore(binDir, caseId, tempDbScript(caseId, 'empty')),
+        ZCG_RUST_CORE_BINARY: fakeCore(binDir, caseId, tempDbScript(caseId, 'empty')),
       });
     case 'partial-temp-db-then-fail':
       return runCli(project, ['index', project, '--engine', 'rust', '--force', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: fakeCore(binDir, caseId, tempDbScript(caseId, 'garbage')),
+        ZCG_RUST_CORE_BINARY: fakeCore(binDir, caseId, tempDbScript(caseId, 'garbage')),
       });
     case 'lock-contention': {
       const lockPath = path.join(project, '.zcodegraph', 'zcodegraph.lock');
       fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx' });
       try {
         return runCli(project, ['index', project, '--engine', 'rust', '--force', '--quiet'], {
-          ZCODEGRAPH_RUST_CORE_BINARY: fakeCore(binDir, caseId, [
+          ZCG_RUST_CORE_BINARY: fakeCore(binDir, caseId, [
             '#!/usr/bin/env node',
             'process.stderr.write(JSON.stringify({ type: "error", message: "CodeGraph database is locked by another process" }) + "\\n");',
             'process.exit(70);',
@@ -199,7 +199,7 @@ function rustFailureForCase(project, caseId) {
       const lockPath = path.join(project, '.zcodegraph', 'zcodegraph.lock');
       fs.writeFileSync(lockPath, '99999999', { flag: 'w' });
       return runCli(project, ['index', project, '--engine', 'rust', '--force', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: fakeCore(binDir, caseId, [
+        ZCG_RUST_CORE_BINARY: fakeCore(binDir, caseId, [
           '#!/usr/bin/env node',
           'const fs = require("fs");',
           'const path = require("path");',

@@ -100,8 +100,8 @@ describe('SDK rust-hybrid full-index alignment', () => {
     const dir = makeProject('indexall-rust');
     tempDirs.push(dir);
     const cg = await CodeGraph.init(dir, { index: false });
-    const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = RUST_CORE_BIN;
+    const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
+    process.env.ZCG_RUST_CORE_BINARY = RUST_CORE_BIN;
 
     try {
       const result = await cg.indexAll({ engine: 'rust' });
@@ -111,9 +111,9 @@ describe('SDK rust-hybrid full-index alignment', () => {
       expect(cg.searchNodes('alpha').some((match) => match.node.name === 'alpha')).toBe(true);
     } finally {
       if (previousRustCore == null) {
-        delete process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+        delete process.env.ZCG_RUST_CORE_BINARY;
       } else {
-        process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
+        process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
       }
       cg.close();
     }
@@ -122,8 +122,8 @@ describe('SDK rust-hybrid full-index alignment', () => {
   it('uses rust-hybrid for SDK init indexing by default', async () => {
     const dir = makeProject('init-default');
     tempDirs.push(dir);
-    const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = RUST_CORE_BIN;
+    const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
+    process.env.ZCG_RUST_CORE_BINARY = RUST_CORE_BIN;
 
     const cg = await CodeGraph.init(dir, { index: true });
     try {
@@ -134,22 +134,20 @@ describe('SDK rust-hybrid full-index alignment', () => {
       expect(cg.searchNodes('alpha').some((match) => match.node.name === 'alpha')).toBe(true);
     } finally {
       if (previousRustCore == null) {
-        delete process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+        delete process.env.ZCG_RUST_CORE_BINARY;
       } else {
-        process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
+        process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
       }
       cg.close();
     }
   }, 30_000);
 
-  it('uses rust-hybrid for SDK re-indexing by default without reading the CLI engine env', async () => {
+  it('uses rust-hybrid for SDK re-indexing by default', async () => {
     const dir = makeProject('indexall-default');
     tempDirs.push(dir);
     const cg = await CodeGraph.init(dir, { index: false });
-    const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
-    const previousEngine = process.env.ZCODEGRAPH_INDEX_ENGINE;
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = RUST_CORE_BIN;
-    process.env.ZCODEGRAPH_INDEX_ENGINE = 'typescript';
+    const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
+    process.env.ZCG_RUST_CORE_BINARY = RUST_CORE_BIN;
 
     try {
       const result = await cg.indexAll();
@@ -159,14 +157,9 @@ describe('SDK rust-hybrid full-index alignment', () => {
       expect(cg.searchNodes('alpha').some((match) => match.node.name === 'alpha')).toBe(true);
     } finally {
       if (previousRustCore == null) {
-        delete process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+        delete process.env.ZCG_RUST_CORE_BINARY;
       } else {
-        process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
-      }
-      if (previousEngine == null) {
-        delete process.env.ZCODEGRAPH_INDEX_ENGINE;
-      } else {
-        process.env.ZCODEGRAPH_INDEX_ENGINE = previousEngine;
+        process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
       }
       cg.close();
     }
@@ -176,8 +169,8 @@ describe('SDK rust-hybrid full-index alignment', () => {
     const dir = makeProject('fail-safe');
     tempDirs.push(dir);
     const cg = await CodeGraph.init(dir, { index: true, engine: 'typescript' });
-    const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = path.join(dir, 'missing-zcodegraph-core');
+    const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
+    process.env.ZCG_RUST_CORE_BINARY = path.join(dir, 'missing-zcodegraph-core');
 
     try {
       await expect(cg.indexAll()).rejects.toThrow(/Rust index engine is unavailable/);
@@ -185,9 +178,9 @@ describe('SDK rust-hybrid full-index alignment', () => {
       expect(cg.searchNodes('alpha').some((match) => match.node.name === 'alpha')).toBe(true);
     } finally {
       if (previousRustCore == null) {
-        delete process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+        delete process.env.ZCG_RUST_CORE_BINARY;
       } else {
-        process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
+        process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
       }
       cg.close();
     }
@@ -197,8 +190,8 @@ describe('SDK rust-hybrid full-index alignment', () => {
     const dir = makeProject('python-rust-owned');
     tempDirs.push(dir);
     fs.writeFileSync(path.join(dir, 'worker.py'), 'def worker():\n    return 1\n');
-    const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = RUST_CORE_BIN;
+    const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
+    process.env.ZCG_RUST_CORE_BINARY = RUST_CORE_BIN;
 
     const cg = await CodeGraph.init(dir, { index: false });
     try {
@@ -215,9 +208,9 @@ describe('SDK rust-hybrid full-index alignment', () => {
       });
     } finally {
       if (previousRustCore == null) {
-        delete process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+        delete process.env.ZCG_RUST_CORE_BINARY;
       } else {
-        process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
+        process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
       }
       cg.close();
     }
@@ -227,8 +220,8 @@ describe('SDK rust-hybrid full-index alignment', () => {
     const dir = makeProject('rust-rust-owned');
     tempDirs.push(dir);
     fs.writeFileSync(path.join(dir, 'worker.rs'), 'fn worker() -> i32 { 1 }\n');
-    const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = RUST_CORE_BIN;
+    const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
+    process.env.ZCG_RUST_CORE_BINARY = RUST_CORE_BIN;
 
     const cg = await CodeGraph.init(dir, { index: false });
     try {
@@ -245,9 +238,9 @@ describe('SDK rust-hybrid full-index alignment', () => {
       });
     } finally {
       if (previousRustCore == null) {
-        delete process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+        delete process.env.ZCG_RUST_CORE_BINARY;
       } else {
-        process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
+        process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
       }
       cg.close();
     }
@@ -257,8 +250,8 @@ describe('SDK rust-hybrid full-index alignment', () => {
     const dir = makeProject('language-fallback');
     tempDirs.push(dir);
     fs.writeFileSync(path.join(dir, 'routing.yml'), 'app:\n  path: /health\n');
-    const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = RUST_CORE_BIN;
+    const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
+    process.env.ZCG_RUST_CORE_BINARY = RUST_CORE_BIN;
 
     const cg = await CodeGraph.init(dir, { index: false });
     try {
@@ -278,9 +271,9 @@ describe('SDK rust-hybrid full-index alignment', () => {
       });
     } finally {
       if (previousRustCore == null) {
-        delete process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+        delete process.env.ZCG_RUST_CORE_BINARY;
       } else {
-        process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
+        process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
       }
       cg.close();
     }
@@ -318,8 +311,8 @@ describe('SDK rust-hybrid full-index alignment', () => {
     const dir = makeProject('rust-owned-gap');
     tempDirs.push(dir);
     fs.writeFileSync(path.join(dir, 'broken.ts'), 'export function broken( {\n');
-    const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = RUST_CORE_BIN;
+    const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
+    process.env.ZCG_RUST_CORE_BINARY = RUST_CORE_BIN;
 
     const cg = await CodeGraph.init(dir, { index: false });
     try {
@@ -335,9 +328,9 @@ describe('SDK rust-hybrid full-index alignment', () => {
       });
     } finally {
       if (previousRustCore == null) {
-        delete process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+        delete process.env.ZCG_RUST_CORE_BINARY;
       } else {
-        process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
+        process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
       }
       cg.close();
     }
@@ -347,8 +340,8 @@ describe('SDK rust-hybrid full-index alignment', () => {
     const dir = makeProject('partial-write-blocked');
     tempDirs.push(dir);
     const rustCore = writeFakeRustCoreWithPartialWriteGap(dir, 'a.ts');
-    const previousRustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
-    process.env.ZCODEGRAPH_RUST_CORE_BINARY = rustCore;
+    const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
+    process.env.ZCG_RUST_CORE_BINARY = rustCore;
 
     const cg = await CodeGraph.init(dir, { index: false });
     try {
@@ -364,9 +357,9 @@ describe('SDK rust-hybrid full-index alignment', () => {
       });
     } finally {
       if (previousRustCore == null) {
-        delete process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+        delete process.env.ZCG_RUST_CORE_BINARY;
       } else {
-        process.env.ZCODEGRAPH_RUST_CORE_BINARY = previousRustCore;
+        process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
       }
       cg.close();
     }

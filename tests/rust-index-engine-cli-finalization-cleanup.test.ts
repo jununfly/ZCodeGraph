@@ -58,7 +58,7 @@ describe('zcodegraph rust-hybrid finalization cleanup diagnostics', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'cleanup-ownership-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 

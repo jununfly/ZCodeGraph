@@ -1,4 +1,5 @@
 import { spawnSync } from 'child_process';
+import { readBooleanFlag } from '../config/flags';
 import { findRustCoreCommand } from '../indexing/rust-indexer';
 
 export type RustCandidateProducerLookup =
@@ -70,8 +71,7 @@ interface RustCandidateProducerResponse {
 }
 
 export function rustCandidateProducerEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = env.ZCODEGRAPH_RUST_CANDIDATE_PRODUCER;
-  return raw === '1' || raw === 'true';
+  return readBooleanFlag('ZCG_RUST_CANDIDATE_PRODUCER', { env });
 }
 
 export function emptyRustCandidateProducerDiagnostics(

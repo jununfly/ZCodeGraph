@@ -240,7 +240,7 @@ describe('pack-npm.sh Rust core packaging', () => {
 
       let result = spawnSync(process.execPath, [shim, 'index', '--quiet'], {
         cwd: project,
-        env: { ...process.env, CODEGRAPH_NO_DOWNLOAD: '1' },
+        env: { ...process.env, ZCG_NO_DOWNLOAD: '1' },
         encoding: 'utf8',
       });
       expect(result.status).toBe(0);
@@ -249,7 +249,7 @@ describe('pack-npm.sh Rust core packaging', () => {
 
       result = spawnSync(process.execPath, [shim, 'index', '--engine', 'rust', '--quiet'], {
         cwd: project,
-        env: { ...process.env, CODEGRAPH_NO_DOWNLOAD: '1' },
+        env: { ...process.env, ZCG_NO_DOWNLOAD: '1' },
         encoding: 'utf8',
       });
       expect(result.status).toBe(0);

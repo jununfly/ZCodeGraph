@@ -14,9 +14,11 @@
  * server (for diagnostics), and the installer all agree.
  */
 
+import { readBooleanFlag } from '../config/flags';
 import * as fs from 'fs';
 import { normalizePath } from '../utils';
 
+let conflictWarned = false;
 let wslChecked = false;
 let wslValue = false;
 
@@ -75,17 +77,23 @@ export interface WatchProbe {
  * `null` when it should run normally.
  *
  * Precedence (first match wins):
- *  1. `CODEGRAPH_NO_WATCH=1`    → off  (explicit opt-out always wins)
- *  2. `CODEGRAPH_FORCE_WATCH=1` → on   (overrides auto-detection)
+ *  1. `ZCG_NO_WATCH=1`    → off  (explicit opt-out always wins)
+ *  2. `ZCG_FORCE_WATCH=1` → on   (overrides auto-detection)
  *  3. WSL2 + `/mnt/*` drive     → off  (recursive fs.watch is too slow; #199)
  */
 export function watchDisabledReason(projectRoot: string, probe: WatchProbe = {}): string | null {
   const env = probe.env ?? process.env;
 
-  if (env.CODEGRAPH_NO_WATCH === '1') {
-    return 'CODEGRAPH_NO_WATCH=1 is set';
+  const noWatch = readBooleanFlag('ZCG_NO_WATCH', { env });
+  const forceWatch = readBooleanFlag('ZCG_FORCE_WATCH', { env });
+  if (noWatch && forceWatch && !conflictWarned) {
+    conflictWarned = true;
+    process.stderr.write('[ZCodeGraph] ZCG_NO_WATCH takes precedence over ZCG_FORCE_WATCH.\n');
   }
-  if (env.CODEGRAPH_FORCE_WATCH === '1') {
+  if (noWatch) {
+    return 'ZCG_NO_WATCH=1 is set';
+  }
+  if (forceWatch) {
     return null;
   }
 
@@ -99,6 +107,7 @@ export function watchDisabledReason(projectRoot: string, probe: WatchProbe = {})
 
 /** Test-only: reset the cached WSL detection. */
 export function __resetWslCacheForTests(): void {
+  conflictWarned = false;
   wslChecked = false;
   wslValue = false;
 }

@@ -615,7 +615,7 @@ export async function runEmbeddingInstall(
     );
   }
 
-  log('Embedding pipeline is ready. Next: CODEGRAPH_ENABLE_EMBEDDING=1 zcodegraph index --with-embeddings');
+  log('Embedding pipeline is ready. Next: ZCG_ENABLE_EMBEDDING=1 zcodegraph index --with-embeddings');
   return { modelsDir, installedPackages, downloadedVec0, downloadedModel, dryRun: false, plan };
 }
 

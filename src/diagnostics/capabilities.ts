@@ -18,6 +18,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
+import { readTextFlag } from '../config/flags';
 
 export type CapabilityDomainState = 'healthy' | 'degraded' | 'failed';
 
@@ -176,13 +177,13 @@ export function checkRustCore(repoRoot: string): UpstreamCheck {
   const exeName = process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core';
   const candidates: Array<{ source: string; command: string; argsPrefix: string[]; cwd: string }> = [];
 
-  const configured = process.env.ZCODEGRAPH_RUST_CORE_BINARY;
+  const configured = readTextFlag('ZCG_RUST_CORE_BINARY');
   if (configured) {
     const p = path.resolve(configured);
-    if (fs.existsSync(p)) {
-      candidates.push({ source: 'env ZCODEGRAPH_RUST_CORE_BINARY', command: p, argsPrefix: [], cwd: process.cwd() });
+    if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+      candidates.push({ source: 'env ZCG_RUST_CORE_BINARY', command: p, argsPrefix: [], cwd: process.cwd() });
     } else {
-      return { name: 'rust-core', state: 'failed', detail: `ZCODEGRAPH_RUST_CORE_BINARY points at missing file ${p}` };
+      return { name: 'rust-core', state: 'failed', detail: `ZCG_RUST_CORE_BINARY does not exist or is not a file: ${p}` };
     }
   }
   const packaged = path.join(repoRoot, 'bin', exeName);

@@ -960,6 +960,11 @@ export class CodeGraph {
    */
   close(): void {
     this.unwatch();
+    // close() is intentionally synchronous: the graceful worker owns a
+    // separate DB connection and can finish its current batch after we close.
+    void EmbeddingRunner.shutdownDatabase(this.db.getPath()).catch(() => {
+      /* worker lifecycle failures must not make graph close fail */
+    });
     // Release file lock if held
     this.fileLock.release();
     this.db.close();
@@ -1409,7 +1414,7 @@ export class CodeGraph {
         }
         // 1-4-29 Q2: opt-in watcher hook. Enqueue the just-synced files onto
         // embedding_queue and nudge the worker. Skipped entirely unless
-        // CODEGRAPH_ENABLE_EMBEDDING=1 (env) — the hook itself is cheap
+        // ZCG_ENABLE_EMBEDDING=1 (env) — the hook itself is cheap
         // (INSERT OR IGNORE per row) but the worker it spawns adds ~264MB,
         // so the whole pipeline is opt-in.
         if (embeddingEnabled() && result.changedFilePaths && result.changedFilePaths.length > 0) {
@@ -1463,12 +1468,34 @@ export class CodeGraph {
   }
 
   /**
+   * Resume work persisted by a short-lived CLI process. A single indexed
+   * existence check keeps normal MCP startup cheap and preserves lazy worker
+   * startup when embedding is disabled, vec0 is absent, or no work exists.
+   */
+  resumePendingEmbeddings(): boolean {
+    if (!embeddingEnabled()) return false;
+    const pending = this.db.getDb().prepare(
+      "SELECT 1 FROM embedding_queue WHERE status IN ('pending', 'in_progress') LIMIT 1",
+    ).get();
+    if (!pending) return false;
+    const vec0Path = getDefaultVec0Path(this.projectRoot);
+    if (!vec0Path) return false;
+    EmbeddingRunner.forDatabase({
+      dbPath: this.db.getPath(),
+      projectRoot: this.projectRoot,
+      vec0Path,
+    }).notifyEnqueued();
+    return true;
+  }
+
+  /**
    * Read-repair entry point used by `zcodegraph_search` (1-4-29 Q3). For
    * each hit file path, compares the current `files.content_hash` against
-   * the newest `embedding_queue` row; files with no row, a mismatched hash,
-   * or a `failed` status get a fresh `pending` row, and the worker is
-   * nudged. Returns the number of rows actually enqueued (0 when the
-   * pipeline is disabled or vec0 is missing).
+   * the newest `embedding_queue` row; files with no row or a mismatched hash
+   * get a fresh `pending` row, and the worker is nudged. A failed row for
+   * the current hash stays terminal; content changes create a new attempt.
+   * Returns the number of rows actually enqueued (0 when the pipeline is
+   * disabled or vec0 is missing).
    *
    * Cheap: one indexed SELECT per hit file, no I/O on the source files.
    */
@@ -1493,12 +1520,12 @@ export class CodeGraph {
       const fileRow = fileHashStmt.get(p) as { path: string; content_hash: string } | undefined;
       if (!fileRow) continue;
       const queueRow = queueStmt.get(p) as { content_hash: string; status: string } | undefined;
-      if (!queueRow || queueRow.content_hash !== fileRow.content_hash || queueRow.status === 'failed') {
+      if (!queueRow || queueRow.content_hash !== fileRow.content_hash) {
         toEnqueue.push({ filePath: fileRow.path, contentHash: fileRow.content_hash });
       }
     }
     if (toEnqueue.length === 0) return 0;
-    const inserted = enqueueEmbeddingBatch(this.db.getDb(), toEnqueue);
+    const inserted = enqueueEmbeddingBatch(this.db.getDb(), toEnqueue, Date.now());
     EmbeddingRunner.forDatabase({
       dbPath: this.db.getPath(),
       projectRoot: this.projectRoot,
@@ -1522,7 +1549,7 @@ export class CodeGraph {
     const vec0Path = getDefaultVec0Path(this.projectRoot);
     if (!vec0Path) {
       throw new Error(
-        'sqlite-vec vec0 extension not found. Set CODEGRAPH_VEC0_PATH, or drop ' +
+        'sqlite-vec vec0 extension not found. Set ZCG_VEC0_PATH, or drop ' +
         'vec0.{dll,so,dylib} under <projectRoot>/.zcodegraph/models/. ' +
         'See docs/decisions/ZJ-0009-async-embedding-pipeline.md.',
       );

@@ -199,7 +199,7 @@ export interface ExplorePlan {
   spine: FlowSpine;
 
   // ===== Adaptive Sizing Signal =====
-  /** Whether CODEGRAPH_ADAPTIVE_EXPLORE is enabled (skeletonization on). */
+  /** Whether ZCG_ADAPTIVE_EXPLORE is enabled (skeletonization on). */
   adaptiveEnabled: boolean;
 
   // ===== Glue Nodes (Issue #25) =====

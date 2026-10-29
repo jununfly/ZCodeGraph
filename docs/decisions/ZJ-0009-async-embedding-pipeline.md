@@ -192,6 +192,13 @@ T_index ≈ 51.5 s ≪ 100 s (2× 阈值)  ✅
 | 嵌入与 AST 不一致 | content_hash 比对 | `embedding-stale` → re-enqueue |
 | Worker 崩溃 | watchdog + queue `in_progress` 超时 | 重置为 `pending`，attempts+1；attempts>3 → `failed` |
 
+## Amendment — queue lifecycle hardening (2026-10-27)
+
+- 等待模式必须以持久队列为准：`pending`、`in_progress` 或 `failed` 未清空时 CLI 非零退出；缺 env gate、fastembed 或 vec0 同样是 hard failure。
+- read-repair 可显式把同 `(file_path, content_hash)` 的 `failed` 行重置为 `pending` 并清零 attempts；普通重复入队仍为幂等 no-op。
+- schema v7 为 `embedding_queue` 增加 `worker_id` / `heartbeat_at`。worker 每 30s 续租，watchdog 只回收 heartbeat 过期任务；terminal write 必须匹配 owner。已有 claim 使 attempts 达到 3，第四次恢复将其标 `failed`，因此 `attempts > 3 → failed` 的 invariant 是“不会发起第四次实际嵌入尝试”。
+- worker 提前退出会使等待 Promise reject；shutdown 等待当前 batch 结算后再退出。MCP 打开项目时主动唤醒遗留 pending，未启用嵌入、无 vec0 或无 pending 时保持懒启动。
+
 ## Consequences
 
 ### Positive

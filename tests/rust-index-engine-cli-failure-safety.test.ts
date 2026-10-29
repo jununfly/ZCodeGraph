@@ -42,7 +42,7 @@ describe('zcodegraph rust index failure safety and project lock behavior', () =>
     cg.close();
 
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--force', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: path.join(tempDir, 'missing-rust-core'),
+      ZCG_RUST_CORE_BINARY: path.join(tempDir, 'missing-rust-core'),
     });
 
     expect(result.status).toBe(1);
@@ -51,7 +51,7 @@ describe('zcodegraph rust index failure safety and project lock behavior', () =>
     expect(result.stderr).toContain('discovery source: env');
     expect(result.stderr).toContain(`attempted command: ${path.join(tempDir, 'missing-rust-core')}`);
     expect(result.stderr).toContain('active index preserved: yes');
-    expect(result.stderr).toContain('next action: Set ZCODEGRAPH_RUST_CORE_BINARY');
+    expect(result.stderr).toContain('next action: Set ZCG_RUST_CORE_BINARY');
 
     cg = CodeGraph.openSync(tempDir);
     try {
@@ -71,7 +71,7 @@ describe('zcodegraph rust index failure safety and project lock behavior', () =>
     fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx' });
     try {
       const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--force', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
 
       expect(result.status).toBe(1);
@@ -105,7 +105,7 @@ describe('zcodegraph rust index failure safety and project lock behavior', () =>
       cwd: tempDir,
       env: {
         ...process.env,
-        ZCODEGRAPH_RUST_CORE_TEST_SLEEP_MS: '5000',
+        ZCG_RUST_CORE_TEST_SLEEP_MS: '5000',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -117,7 +117,7 @@ describe('zcodegraph rust index failure safety and project lock behavior', () =>
     expect(fs.existsSync(lockPath)).toBe(true);
 
     const retry = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(retry.status).toBe(0);
     expect(fs.existsSync(lockPath)).toBe(false);

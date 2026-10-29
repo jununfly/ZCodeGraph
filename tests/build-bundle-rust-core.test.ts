@@ -71,7 +71,7 @@ if (args.includes('--engine') && args[args.indexOf('--engine') + 1] === 'rust') 
   process.exit(result.status || 0);
 }
 fs.mkdirSync(path.join(process.cwd(), '.zcodegraph'), { recursive: true });
-if (process.env.ZCODEGRAPH_FAKE_DEFAULT_MARKER) fs.writeFileSync(process.env.ZCODEGRAPH_FAKE_DEFAULT_MARKER, '1\\\\n');
+if (process.env.ZCG_FAKE_DEFAULT_MARKER) fs.writeFileSync(process.env.ZCG_FAKE_DEFAULT_MARKER, '1\\\\n');
 process.exit(0);
 \`);
   process.exit(0);
@@ -148,8 +148,8 @@ function buildEnv(work: string, artifactDir: string, releaseDir: string): NodeJS
   return {
     ...process.env,
     PATH: `${writeFakeTools(work)}${path.delimiter}${process.env.PATH}`,
-    ZCODEGRAPH_RUST_CORE_ARTIFACT_DIR: artifactDir,
-    ZCODEGRAPH_RELEASE_DIR: releaseDir,
+    ZCG_RUST_CORE_ARTIFACT_DIR: artifactDir,
+    ZCG_RELEASE_DIR: releaseDir,
   };
 }
 
@@ -198,7 +198,7 @@ exit 0
         stdio: 'pipe',
       });
       expect(fs.readFileSync(path.join(repoRoot, 'dist', 'bin', 'zcodegraph.js'), 'utf8')).not.toContain(
-        'ZCODEGRAPH_FAKE_DEFAULT_MARKER',
+        'ZCG_FAKE_DEFAULT_MARKER',
       );
 
       const archive = path.join(release, 'zcodegraph-linux-x64.tar.gz');

@@ -24,8 +24,8 @@ TARGET="${1:?usage: build-bundle.sh <target> [node-version]}"
 NODE_VERSION="${2:-v24.16.0}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="${ZCODEGRAPH_RELEASE_DIR:-$ROOT/release}"
-RUST_CORE_ARTIFACT_DIR="${ZCODEGRAPH_RUST_CORE_ARTIFACT_DIR:-$OUT/rust-core}"
+OUT="${ZCG_RELEASE_DIR:-$ROOT/release}"
+RUST_CORE_ARTIFACT_DIR="${ZCG_RUST_CORE_ARTIFACT_DIR:-$OUT/rust-core}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 

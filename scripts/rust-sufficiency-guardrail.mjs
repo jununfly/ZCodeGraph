@@ -272,9 +272,9 @@ function run(command, args, cwd, env = {}, timeoutMs = null) {
 
 function baseEnv() {
   return {
-    CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-    CODEGRAPH_NO_DAEMON: '1',
-    CODEGRAPH_NO_RELAUNCH: '1',
+    ZCG_ALLOW_UNSAFE_NODE: '1',
+    ZCG_NO_DAEMON: '1',
+    ZCG_NO_RELAUNCH: '1',
   };
 }
 
@@ -325,7 +325,7 @@ function createArmCommand(engine, project) {
   const env = allowedEnv();
   if (engine === 'rust') {
     args.push('--engine', 'rust');
-    env.ZCODEGRAPH_RUST_CORE_BINARY = rustCore;
+    env.ZCG_RUST_CORE_BINARY = rustCore;
   }
   return {
     executable: process.execPath,
@@ -498,7 +498,7 @@ function initAndIndex(project, engine, CodeGraph, artifact, deadline, options = 
   const env = {};
   if (engine === 'rust') {
     args.push('--engine', 'rust');
-    env.ZCODEGRAPH_RUST_CORE_BINARY = rustCore;
+    env.ZCG_RUST_CORE_BINARY = rustCore;
   }
   try {
     if (options.failEngineIndexes?.has(engine)) {

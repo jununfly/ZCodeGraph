@@ -101,7 +101,7 @@ describe('npm-sdk programmatic entry', () => {
     const { root, mainPkg } = makeConsumer();
     installPlatformPackage(root, 'platform-lib');
     // Isolate from any real self-healed cache on this machine.
-    const r = requireSdk(mainPkg, { CODEGRAPH_INSTALL_DIR: path.join(root, '.empty-cache') });
+    const r = requireSdk(mainPkg, { ZCG_INSTALL_DIR: path.join(root, '.empty-cache') });
     expect(r.status).toBe(0);
     expect(JSON.parse(r.stdout)).toEqual({ sentinel: 'platform-lib', cg: 'function' });
   });
@@ -110,7 +110,7 @@ describe('npm-sdk programmatic entry', () => {
     const { root, mainPkg } = makeConsumer();
     installPlatformPackage(root, 'platform-lib');
 
-    const r = requireSdkContract(mainPkg, { CODEGRAPH_INSTALL_DIR: path.join(root, '.empty-cache') });
+    const r = requireSdkContract(mainPkg, { ZCG_INSTALL_DIR: path.join(root, '.empty-cache') });
 
     expect(r.status).toBe(0);
     expect(JSON.parse(r.stdout)).toEqual({
@@ -127,14 +127,14 @@ describe('npm-sdk programmatic entry', () => {
       path.join(cacheDir, 'bundles', `${target}-${VERSION}`, 'lib', 'dist'),
       'cache-lib'
     );
-    const r = requireSdk(mainPkg, { CODEGRAPH_INSTALL_DIR: cacheDir });
+    const r = requireSdk(mainPkg, { ZCG_INSTALL_DIR: cacheDir });
     expect(r.status).toBe(0);
     expect(JSON.parse(r.stdout)).toEqual({ sentinel: 'cache-lib', cg: 'function' });
   });
 
   it('throws an actionable error when no bundle is installed or cached', () => {
     const { root, mainPkg } = makeConsumer(); // no platform package, empty cache
-    const r = requireSdk(mainPkg, { CODEGRAPH_INSTALL_DIR: path.join(root, '.empty-cache') });
+    const r = requireSdk(mainPkg, { ZCG_INSTALL_DIR: path.join(root, '.empty-cache') });
     expect(r.status).toBe(7);
     expect(r.stderr).toContain(`@jununfly/zcodegraph-${target}`);
     expect(r.stderr).toContain('not installed');

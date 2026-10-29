@@ -60,6 +60,8 @@ import { classifyGraphHealth, formatGraphHealthLines, GraphHealth } from '../dia
 import { buildNode25BlockBanner, buildNodeTooOldBanner, MIN_NODE_MAJOR } from './node-version-check';
 import { relaunchWithWasmRuntimeFlagsIfNeeded } from '../extraction/wasm-runtime-flags';
 import { EXTRACTION_VERSION } from '../extraction/extraction-version';
+import { inspectFlagConfig, readBooleanFlag, readTextFlag } from '../config/flags';
+import { toolAllowlist } from '../mcp/tools';
 
 function resolveGraphWorkProfile(raw: string | undefined): 'full' | 'matched-ts-js' | undefined {
   if (raw == null) return undefined;
@@ -298,7 +300,7 @@ async function offerBootstrapWatchFallback(
 
 /**
  * 1-4-29 Q4 — run the embedding pipeline after `zcodegraph index` when the
- * caller passed `--with-embeddings`. Requires `CODEGRAPH_ENABLE_EMBEDDING=1`
+ * caller passed `--with-embeddings`. Requires `ZCG_ENABLE_EMBEDDING=1`
  * (opt-in env gate); without it we print a warning and skip.
  *
  * Two modes:
@@ -315,9 +317,13 @@ async function runEmbeddingFlags(
   waitEmbeddings: boolean,
 ): Promise<void> {
   if (!withEmbeddings) return;
-  if (process.env.CODEGRAPH_ENABLE_EMBEDDING !== '1') {
-    process.stderr.write(
-      '[CodeGraph] --with-embeddings requires CODEGRAPH_ENABLE_EMBEDDING=1; skipping embedding enqueue.\n',
+  const embeddingHardFailure = (message: string): void => {
+    if (waitEmbeddings) throw new Error(message);
+    process.stderr.write(`[CodeGraph] ${message}\n`);
+  };
+  if (!readBooleanFlag('ZCG_ENABLE_EMBEDDING')) {
+    embeddingHardFailure(
+      '--with-embeddings requires ZCG_ENABLE_EMBEDDING=1; skipping embedding enqueue.',
     );
     return;
   }
@@ -327,18 +333,18 @@ async function runEmbeddingFlags(
   const { checkEmbeddingStatus } = await import('../embedding/installer');
   const embStatus = checkEmbeddingStatus(projectPath);
   if (!embStatus.fastembed.ok) {
-    process.stderr.write(
-      '[CodeGraph] --with-embeddings requires fastembed (optional, ~275 MB). Run:\n' +
+    embeddingHardFailure(
+      '--with-embeddings requires fastembed (optional, ~275 MB). Run:\n' +
         '  zcodegraph embedding install\n' +
-        'then re-run with --with-embeddings.\n',
+        'then re-run with --with-embeddings.',
     );
     return;
   }
   if (!embStatus.vec0.ok) {
-    process.stderr.write(
-      '[CodeGraph] --with-embeddings requires the sqlite-vec vec0 extension. Run:\n' +
+    embeddingHardFailure(
+      '--with-embeddings requires the sqlite-vec vec0 extension. Run:\n' +
         '  zcodegraph embedding install\n' +
-        'then re-run with --with-embeddings.\n',
+        'then re-run with --with-embeddings.',
     );
     return;
   }
@@ -370,7 +376,7 @@ const nodeVersion = process.versions.node;
 const nodeMajor = parseInt(nodeVersion.split('.')[0] ?? '0', 10);
 if (nodeMajor >= 25) {
   process.stderr.write(buildNode25BlockBanner(nodeVersion) + '\n');
-  if (!process.env.CODEGRAPH_ALLOW_UNSAFE_NODE) {
+  if (!readBooleanFlag('ZCG_ALLOW_UNSAFE_NODE')) {
     process.exit(1);
   }
   // Override active — banner shown for visibility, continuing.
@@ -380,7 +386,7 @@ if (nodeMajor >= 25) {
 // unsupported versions. Mirrors the 25+ block above. See package.json `engines`.
 if (nodeMajor < MIN_NODE_MAJOR) {
   process.stderr.write(buildNodeTooOldBanner(nodeVersion) + '\n');
-  if (!process.env.CODEGRAPH_ALLOW_UNSAFE_NODE) {
+  if (!readBooleanFlag('ZCG_ALLOW_UNSAFE_NODE')) {
     process.exit(1);
   }
   // Override active — banner shown for visibility, continuing.
@@ -1111,7 +1117,7 @@ program
   .option('--sqlite-write-mode <mode>', 'Rust SQLite write mode: final-flush, disk, or memory-final-flush')
   .option('--profile <mode>', 'Rust index profiling mode to use: heap')
   .option('--profile-out <path>', 'Write Rust index profile artifact to path')
-  .option('--with-embeddings', 'Enqueue all indexed files for background embedding (requires CODEGRAPH_ENABLE_EMBEDDING=1)')
+  .option('--with-embeddings', 'Enqueue all indexed files for background embedding (requires ZCG_ENABLE_EMBEDDING=1)')
   .option('--wait-embeddings', 'With --with-embeddings: run the embedding worker in this process and block until the queue is empty (CI 收口)')
   .action(async (pathArg: string | undefined, options: { force?: boolean; quiet?: boolean; verbose?: boolean; engine?: string; graphWorkProfile?: string; sqliteWriteMode?: string; profile?: string; profileOut?: string; withEmbeddings?: boolean; waitEmbeddings?: boolean }) => {
     const projectPath = resolveProjectPath(pathArg);
@@ -1222,7 +1228,7 @@ program
         }
         console.error(`  active index preserved: ${activeIndexPreserved ? 'yes' : 'no active index found'}`);
         const nextAction = diagnostics.core.discoverySource === 'env'
-          ? 'Set ZCODEGRAPH_RUST_CORE_BINARY to an executable zcodegraph-core binary, or unset it to use packaged/source discovery.'
+          ? 'Set ZCG_RUST_CORE_BINARY to an executable zcodegraph-core binary, or unset it to use packaged/source discovery.'
           : 'Install a release bundle/platform package with bin/zcodegraph-core, or run cargo build --package zcodegraph-core for source development.';
         console.error(`  next action: ${nextAction}`);
         if (selectedEngine === 'rust-hybrid' && !options.quiet) {
@@ -1575,7 +1581,8 @@ program
 /**
  * zcodegraph doctor [path]
  *
- * Two modes:
+ * Three modes:
+ *  - default: print effective ZCG flag configuration, with paths redacted.
  *  - --bundle (v1): package rust-hybrid run records for maintainers.
  *  - capabilities.json [--upstream-check]: read a capability-probes report
  *    (scripts/measure/capability-probes.mjs) and summarize per-domain health;
@@ -1585,14 +1592,14 @@ program
  */
 program
   .command('doctor [path]')
-  .description('Create local diagnostic bundles for maintainers')
+  .description('Inspect effective flags; create local diagnostic bundles for maintainers')
   .option('--engine <engine>', 'Index engine diagnostics to collect: rust-hybrid')
   .option('--bundle', 'Create a local diagnostic bundle directory')
   .option('--last-run', 'Bundle the last completed run')
   .option('--last-failure', 'Bundle the last failed run')
   .option('--include-source-slice', 'Unsupported in diagnostic bundle v1')
   .option('--upstream-check', 'With capabilities.json: also verify offline upstream artifacts (wasm + rust core)')
-  .option('-j, --json', 'Output a machine-readable bundle summary')
+  .option('-j, --json', 'Output a machine-readable flag or bundle summary')
   .action((pathArg: string | undefined, options: { engine?: string; bundle?: boolean; lastRun?: boolean; lastFailure?: boolean; includeSourceSlice?: boolean; upstreamCheck?: boolean; json?: boolean }) => {
     const projectPath = resolveProjectPath(pathArg);
     try {
@@ -1629,8 +1636,27 @@ program
       }
 
       if (!options.bundle) {
-        throw new Error('doctor currently requires --bundle');
+        const flags = inspectFlagConfig(process.env, {
+        projectRoot: projectPath,
+        validateMcpToolAllowlist: toolAllowlist,
+        rustCoreCandidateDirs: [
+            path.resolve(__dirname, '..', '..', 'bin'),
+            path.resolve(__dirname, '..', '..', 'target', 'debug'),
+          ],
+        });
+        if (options.json) {
+          console.log(JSON.stringify({ flags }, null, 2));
+        } else {
+          console.log(chalk.bold('Effective flag configuration:'));
+          for (const flag of flags) {
+            const value = flag.value === null ? 'null' : JSON.stringify(flag.value);
+            console.log(`  ${flag.name}=${value} (${flag.source}; ${flag.category})`);
+            if (!flag.valid) console.log(`    invalid: ${flag.error}`);
+          }
+        }
+        return;
       }
+
       if (options.lastRun === options.lastFailure) {
         throw new Error('Specify exactly one of --last-run or --last-failure');
       }
@@ -1963,7 +1989,7 @@ program
     // Commander sets watch=false when --no-watch is passed. Route it through
     // the same env-var chokepoint the watcher and MCP server already honor.
     if (options.watch === false) {
-      process.env.CODEGRAPH_NO_WATCH = '1';
+      process.env.ZCG_NO_WATCH = '1';
     }
 
     try {
@@ -2396,7 +2422,7 @@ program
       };
 
       // Roadmap 1-2-11: skip blast-radius when the budget tier opts out
-      // (tight small-project tier via CODEGRAPH_EXPLORE_TIGHT_SMALL_PROJECT).
+      // (tight small-project tier via ZCG_EXPLORE_TIGHT_SMALL_PROJECT).
       const blastRadius =
         planResult.budget.includeBlastRadius === false
           ? ''
@@ -3270,7 +3296,7 @@ program
       platform: process.platform,
       cwd: process.cwd(),
     });
-    const pin = versionArg || process.env.CODEGRAPH_VERSION || undefined;
+    const pin = versionArg || readTextFlag('ZCG_VERSION') || undefined;
     const code = await up.runUpgrade(
       { version: pin, check: options.check, force: options.force },
       {
@@ -3356,6 +3382,12 @@ embeddingCmd
   });
 
 // Parse and run
-program.parse();
+program.parseAsync().catch((err) => {
+  // Commander does not await async actions with parse(); waiting-mode
+  // embedding failures must reach a nonzero CLI exit, not an unhandled
+  // rejection on a process that may already have printed success.
+  error(err instanceof Error ? err.message : String(err));
+  process.exit(1);
+});
 
 } // end main()

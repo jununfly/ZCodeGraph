@@ -171,10 +171,10 @@ describe('repository automation dogfood channel', () => {
     expect(body).not.toContain('npm link');
   });
 
-  it('add-lang bench uses zcodegraph-dev or ZCODEGRAPH_DEV_BIN', () => {
+  it('add-lang bench uses zcodegraph-dev or ZCG_DEV_BIN', () => {
     const body = fs.readFileSync(ADD_LANG_BENCH_SCRIPT, 'utf8');
 
-    expect(body).toContain('ZCODEGRAPH_DEV_BIN');
+    expect(body).toContain('ZCG_DEV_BIN');
     expect(body).toContain('command -v zcodegraph-dev');
     expect(body).toContain('CG_BIN="$CG_BIN" bash "$AGENT_EVAL/run-all.sh"');
     expect(body).not.toContain('command -v zcodegraph >/dev/null');

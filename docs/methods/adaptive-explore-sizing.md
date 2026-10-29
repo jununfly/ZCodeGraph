@@ -9,7 +9,7 @@ bounded-question: "What methodology does adaptive-explore-sizing describe?"
 **Status:** Implemented & validated, **default-on**, on branch
 `feat/adaptive-explore-sizing` (initial commit `d6d059f`; **refined 2026-05-29**
 after a real-agent A/B exposed a read-back regression — see
-"Refinement" below). Escape hatch: `CODEGRAPH_ADAPTIVE_EXPLORE=0`.
+"Refinement" below). Escape hatch: `ZCG_ADAPTIVE_EXPLORE=0`.
 **Motivation:** make `zcodegraph_explore` size its output to the *answer* rather
 than always filling the budget cap — so a "sibling-heavy" flow (many
 interchangeable implementations of one interface) stops costing *more* than
@@ -124,7 +124,7 @@ step," cheaply.**
 
 ## The gate (refined)
 
-A file is skeletonized iff **all** hold (and `CODEGRAPH_ADAPTIVE_EXPLORE != 0`):
+A file is skeletonized iff **all** hold (and `ZCG_ADAPTIVE_EXPLORE != 0`):
 
 1. **A spine exists.** `buildFlowFromNamedSymbols` returns its path node set
    (`pathNodeIds`) and the full set of agent-named callables (`namedNodeIds`). If

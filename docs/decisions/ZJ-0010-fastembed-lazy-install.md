@@ -14,13 +14,13 @@ Accepted (design phase)
 
 ## Context
 
-ADR-0009 把嵌入管线锁定为 **opt-in**：`CODEGRAPH_ENABLE_EMBEDDING=1` + `zcodegraph index --with-embeddings` 才会触发；worker 通过 `await import('fastembed')` 动态加载，加载失败把 queue 行标 `failed` 并写 `last_error='embedding-model-not-downloaded'`。
+ADR-0009 把嵌入管线锁定为 **opt-in**：`ZCG_ENABLE_EMBEDDING=1` + `zcodegraph index --with-embeddings` 才会触发；worker 通过 `await import('fastembed')` 动态加载，加载失败把 queue 行标 `failed` 并写 `last_error='embedding-model-not-downloaded'`。
 
 1-4-30 回归实测在 drupal 11 491 文件上发现 fresh 安装的 silent fail 路径：
 
 1. 用户跑 `npm install -g @jununfly/zcodegraph`
 2. 主 `package.json` 不含 `fastembed` / `onnxruntime-node`（1-4-28 决策：opt-in）
-3. 用户开 `CODEGRAPH_ENABLE_EMBEDDING=1` + `--with-embeddings`
+3. 用户开 `ZCG_ENABLE_EMBEDDING=1` + `--with-embeddings`
 4. enqueue 成功（pending=11 491），worker 起来动态 import 失败
 5. queue 行陆续标 `failed`，`zcodegraph status` 显示 `embedding-model-not-downloaded`
 6. 用户从 CLI 输出里**没看到任何"请先安装 fastembed"提示** —— silent fail

@@ -44,7 +44,7 @@ export default defineConfig({
      * have installed. CI on Node 22/23 is unaffected — the guard doesn't fire
      * there, so the variable is a no-op.
      */
-    env: { CODEGRAPH_ALLOW_UNSAFE_NODE: '1' },
+    env: { ZCG_ALLOW_UNSAFE_NODE: '1' },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

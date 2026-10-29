@@ -24,6 +24,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { MCPEngine } from '../src/mcp/engine';
+import * as engineModule from '../src/mcp/engine';
 import { MCPSession } from '../src/mcp/session';
 import type { JsonRpcTransport, JsonRpcRequest, JsonRpcNotification } from '../src/mcp/transport';
 import type { IndexProgress } from '../src/extraction';
@@ -87,6 +88,48 @@ function installSyncStub(
 
   (engine as unknown as { catchUpSync(): void }).catchUpSync();
 }
+
+describe('MCP startup embedding recovery', () => {
+  it.each([
+    ['async initialization', 'doInitialize'],
+    ['synchronous retry initialization', 'retryInitializeSync'],
+  ])('%s resumes persisted embedding work after opening CodeGraph', async (_name, method) => {
+    const engine = new MCPEngine({ watch: false });
+    const resumePendingEmbeddings = vi.fn(() => true);
+    const fakeCg = {
+      resumePendingEmbeddings,
+      close: vi.fn(),
+      sync: vi.fn(async () => ({
+        filesChecked: 0, filesAdded: 0, filesModified: 0, filesRemoved: 0,
+        nodesUpdated: 0, durationMs: 0,
+      })),
+    };
+    const projectPath = fs.mkdtempSync(path.join(os.tmpdir(), 'zcg-resume-'));
+    try {
+      fs.mkdirSync(path.join(projectPath, '.zcodegraph'));
+      fs.writeFileSync(path.join(projectPath, '.zcodegraph', 'zcodegraph.db'), '');
+      // Keep the CommonJS production loader lazy while substituting the
+      // project-open boundary, rather than duplicating engine internals.
+      engineModule.setCodeGraphLoaderForTests(() => ({
+        open: async () => fakeCg,
+        openSync: () => fakeCg,
+      }) as never);
+      try {
+        if (method === 'doInitialize') {
+          await engine.ensureInitialized(projectPath);
+        } else {
+          engine.retryInitializeSync(projectPath);
+        }
+        expect(resumePendingEmbeddings).toHaveBeenCalledOnce();
+      } finally {
+        engineModule.setCodeGraphLoaderForTests(null);
+        engine.stop();
+      }
+    } finally {
+      fs.rmSync(projectPath, { recursive: true, force: true });
+    }
+  });
+});
 
 describe('MCP progress notifications for catch-up sync', () => {
   let tmpDir: string;

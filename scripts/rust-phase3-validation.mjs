@@ -80,9 +80,9 @@ function validateArgs(repos, outDir) {
 
 function baseEnv() {
   return {
-    CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-    CODEGRAPH_NO_DAEMON: '1',
-    CODEGRAPH_NO_RELAUNCH: '1',
+    ZCG_ALLOW_UNSAFE_NODE: '1',
+    ZCG_NO_DAEMON: '1',
+    ZCG_NO_RELAUNCH: '1',
   };
 }
 
@@ -215,27 +215,27 @@ function runFailureSafetyMatrix(outDir, script) {
 }
 
 function runPackageSmoke(outDir, script) {
-  if (process.env.ZCODEGRAPH_PHASE3_SKIP_PACKAGE_SMOKE === '1') {
+  if (process.env.ZCG_PHASE3_SKIP_PACKAGE_SMOKE === '1') {
     return {
       parsedStdout: null,
       summary: {
         name: 'package-smoke',
         passed: true,
         skipped: true,
-        reason: 'ZCODEGRAPH_PHASE3_SKIP_PACKAGE_SMOKE=1',
+        reason: 'ZCG_PHASE3_SKIP_PACKAGE_SMOKE=1',
         artifacts: {},
       },
     };
   }
-  const bundleDir = process.env.ZCODEGRAPH_PHASE3_BUNDLE_DIR;
-  const npmRoot = process.env.ZCODEGRAPH_PHASE3_NPM_ROOT;
+  const bundleDir = process.env.ZCG_PHASE3_BUNDLE_DIR;
+  const npmRoot = process.env.ZCG_PHASE3_NPM_ROOT;
   if (!bundleDir || !npmRoot) {
     return {
       parsedStdout: null,
       summary: {
         name: 'package-smoke',
         passed: false,
-        gateFailures: ['ZCODEGRAPH_PHASE3_BUNDLE_DIR and ZCODEGRAPH_PHASE3_NPM_ROOT are required unless ZCODEGRAPH_PHASE3_SKIP_PACKAGE_SMOKE=1'],
+        gateFailures: ['ZCG_PHASE3_BUNDLE_DIR and ZCG_PHASE3_NPM_ROOT are required unless ZCG_PHASE3_SKIP_PACKAGE_SMOKE=1'],
         artifacts: {},
       },
     };
@@ -271,12 +271,12 @@ function makeSmokeProject(label) {
 }
 
 function runDefaultTypescriptSmoke(outDir) {
-  if (process.env.ZCODEGRAPH_PHASE3_SKIP_SMOKE === '1') {
+  if (process.env.ZCG_PHASE3_SKIP_SMOKE === '1') {
     return {
       name: 'default-typescript-smoke',
       passed: true,
       skipped: true,
-      reason: 'ZCODEGRAPH_PHASE3_SKIP_SMOKE=1',
+      reason: 'ZCG_PHASE3_SKIP_SMOKE=1',
       artifacts: {},
     };
   }
@@ -300,23 +300,23 @@ function runDefaultTypescriptSmoke(outDir) {
 }
 
 function runRustSmoke(outDir) {
-  if (process.env.ZCODEGRAPH_PHASE3_SKIP_SMOKE === '1') {
+  if (process.env.ZCG_PHASE3_SKIP_SMOKE === '1') {
     return {
       name: 'rust-smoke',
       passed: true,
       skipped: true,
-      reason: 'ZCODEGRAPH_PHASE3_SKIP_SMOKE=1',
+      reason: 'ZCG_PHASE3_SKIP_SMOKE=1',
       artifacts: {},
     };
   }
 
-  const rustCore = process.env.ZCODEGRAPH_RUST_CORE_BINARY ?? defaultRustCore;
+  const rustCore = process.env.ZCG_RUST_CORE_BINARY ?? defaultRustCore;
   const project = makeSmokeProject('rust-smoke');
   const index = runProcess(
     process.execPath,
     [distBin, 'index', project, '--force', '--quiet', '--engine', 'rust'],
     project,
-    { ZCODEGRAPH_RUST_CORE_BINARY: rustCore },
+    { ZCG_RUST_CORE_BINARY: rustCore },
   );
   const stdout = `$ zcodegraph index --engine rust\n${index.stdout}`;
   const stderr = `$ zcodegraph index --engine rust\n${index.stderr}`;
@@ -334,12 +334,12 @@ function runRustSmoke(outDir) {
 }
 
 function runDiagnostics(outDir) {
-  if (process.env.ZCODEGRAPH_PHASE3_SKIP_DIAGNOSTICS === '1') {
+  if (process.env.ZCG_PHASE3_SKIP_DIAGNOSTICS === '1') {
     return {
       name: 'diagnostics',
       passed: true,
       skipped: true,
-      reason: 'ZCODEGRAPH_PHASE3_SKIP_DIAGNOSTICS=1',
+      reason: 'ZCG_PHASE3_SKIP_DIAGNOSTICS=1',
       artifacts: {},
     };
   }
@@ -419,11 +419,11 @@ async function main() {
   validateArgs(repos, outDir);
   fs.mkdirSync(outDir, { recursive: true });
 
-  const benchmarkScript = scriptPath('ZCODEGRAPH_PHASE3_BENCHMARK_SCRIPT', 'scripts/rust-index-benchmark.mjs');
-  const profileScript = scriptPath('ZCODEGRAPH_PHASE3_PROFILE_SCRIPT', 'scripts/rust-index-profile.mjs');
-  const sufficiencyScript = scriptPath('ZCODEGRAPH_PHASE3_SUFFICIENCY_SCRIPT', 'scripts/rust-sufficiency-guardrail.mjs');
-  const failureMatrixScript = scriptPath('ZCODEGRAPH_PHASE3_FAILURE_MATRIX_SCRIPT', 'scripts/rust-failure-safety-matrix.mjs');
-  const packageSmokeScript = scriptPath('ZCODEGRAPH_PHASE3_PACKAGE_SMOKE_SCRIPT', 'scripts/rust-package-smoke.mjs');
+  const benchmarkScript = scriptPath('ZCG_PHASE3_BENCHMARK_SCRIPT', 'scripts/rust-index-benchmark.mjs');
+  const profileScript = scriptPath('ZCG_PHASE3_PROFILE_SCRIPT', 'scripts/rust-index-profile.mjs');
+  const sufficiencyScript = scriptPath('ZCG_PHASE3_SUFFICIENCY_SCRIPT', 'scripts/rust-sufficiency-guardrail.mjs');
+  const failureMatrixScript = scriptPath('ZCG_PHASE3_FAILURE_MATRIX_SCRIPT', 'scripts/rust-failure-safety-matrix.mjs');
+  const packageSmokeScript = scriptPath('ZCG_PHASE3_PACKAGE_SMOKE_SCRIPT', 'scripts/rust-package-smoke.mjs');
 
   const benchmark = runDelegatedStep(outDir, 'benchmark', benchmarkScript, repos);
   const profile = runDelegatedStep(outDir, 'profile', profileScript, repos);

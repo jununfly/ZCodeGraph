@@ -18,9 +18,9 @@
 // the installed bundle can't be resolved, this shim falls back to downloading
 // the matching bundle straight from GitHub Releases — the very archive
 // install.sh uses — into a cache dir, then runs that. Knobs:
-//   CODEGRAPH_NO_DOWNLOAD=1     disable the network fallback (print guidance)
-//   CODEGRAPH_INSTALL_DIR=DIR   cache location (default: ~/.codegraph)
-//   CODEGRAPH_DOWNLOAD_BASE=URL release-download base (for mirrors/air-gapped)
+//   ZCG_NO_DOWNLOAD=1     disable the network fallback (print guidance)
+//   ZCG_INSTALL_DIR=DIR   cache location (default: ~/.codegraph)
+//   ZCG_DOWNLOAD_BASE=URL release-download base (for mirrors/air-gapped)
 //
 // Wired up at release time as the main package's `bin`:
 //   "bin": { "zcodegraph": "npm-shim.js" }
@@ -99,20 +99,20 @@ function liftoff(entry) {
 // {command, args}; exits the process with guidance if it can't.
 async function selfHealBundle() {
   var version = readVersion();
-  var bundlesDir = path.join(process.env.CODEGRAPH_INSTALL_DIR || path.join(os.homedir(), '.codegraph'), 'bundles');
+  var bundlesDir = path.join(process.env.ZCG_INSTALL_DIR || path.join(os.homedir(), '.codegraph'), 'bundles');
   var dest = path.join(bundlesDir, target + '-' + version);
 
   // Already downloaded by a previous run? Use it even when downloads are
-  // disabled — CODEGRAPH_NO_DOWNLOAD blocks fetching, not a cached bundle.
+  // disabled — ZCG_NO_DOWNLOAD blocks fetching, not a cached bundle.
   var cached = launcherIn(dest);
   if (cached) return cached;
 
-  if (process.env.CODEGRAPH_NO_DOWNLOAD) {
-    fail('the network fallback is disabled (CODEGRAPH_NO_DOWNLOAD is set).');
+  if (readNoDownload()) {
+    fail('the network fallback is disabled (ZCG_NO_DOWNLOAD=1/true).');
   }
 
   var asset = 'zcodegraph-' + target + (isWindows ? '.zip' : '.tar.gz');
-  var base = process.env.CODEGRAPH_DOWNLOAD_BASE || ('https://github.com/' + REPO + '/releases/download');
+  var base = process.env.ZCG_DOWNLOAD_BASE || ('https://github.com/' + REPO + '/releases/download');
   var url = base + '/v' + version + '/' + asset;
 
   process.stderr.write(
@@ -159,6 +159,15 @@ function readVersion() {
   } catch (e) {
     fail('could not read this package\'s version to locate a matching release.');
   }
+}
+
+function readNoDownload() {
+  var value = process.env.ZCG_NO_DOWNLOAD;
+  if (value === undefined) return false;
+  var normalized = value.trim().toLowerCase();
+  if (normalized === '1' || normalized === 'true') return true;
+  if (normalized === '0' || normalized === 'false') return false;
+  fail('ZCG_NO_DOWNLOAD is invalid; expected 1/true or 0/false.');
 }
 
 // GET with manual redirect following (GitHub release URLs redirect to a CDN).

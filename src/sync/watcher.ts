@@ -31,6 +31,7 @@
  * scope matches the indexer's (#276 / #407).
  */
 
+import { readIntegerFlag } from '../config/flags';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Ignore } from 'ignore';
@@ -54,17 +55,10 @@ function supportsRecursiveWatch(): boolean {
  * is the hard limit (commonly 8k–128k). We stop adding watches past this and
  * log once — partial live-watch (with `zcodegraph sync` as the backstop) is far
  * better than exhausting the user's inotify budget and breaking watching
- * system-wide (#579). Tunable via CODEGRAPH_MAX_DIR_WATCHES.
+ * system-wide (#579). Tunable via ZCG_MAX_DIR_WATCHES.
  */
-const DEFAULT_MAX_DIR_WATCHES = 50_000;
-
 function maxDirWatches(): number {
-  const raw = process.env.CODEGRAPH_MAX_DIR_WATCHES;
-  if (raw && /^\d+$/.test(raw)) {
-    const n = Number(raw);
-    if (n > 0) return n;
-  }
-  return DEFAULT_MAX_DIR_WATCHES;
+  return readIntegerFlag('ZCG_MAX_DIR_WATCHES');
 }
 
 /**

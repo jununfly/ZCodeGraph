@@ -63,7 +63,7 @@ describe('zcodegraph index engine selection', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-import-profile.json');
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -108,7 +108,7 @@ describe('zcodegraph index engine selection', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-direct-named-import-profile.json');
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -179,7 +179,7 @@ describe('zcodegraph index engine selection', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-direct-named-import-ambiguous-profile.json');
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -283,7 +283,7 @@ describe('zcodegraph index engine selection', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-import-parity-profile.json');
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -370,7 +370,7 @@ describe('zcodegraph index engine selection', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-relative-js-source-profile.json');
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -427,7 +427,7 @@ describe('zcodegraph index engine selection', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-import-fallback-samples-profile.json');
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -514,7 +514,7 @@ describe('zcodegraph index engine selection', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'rust-local-reference-profile.json');
     const indexResult = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(indexResult.status, `stdout:\n${indexResult.stdout}\nstderr:\n${indexResult.stderr}`).toBe(0);
 
@@ -559,8 +559,8 @@ describe('zcodegraph index engine selection', () => {
       edges: Array<{ source: string; target: string; kind: string; resolvedBy: unknown }>;
     } => {
       const result = runZcodegraphCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
-        ZCODEGRAPH_CANDIDATE_PROTOCOL: enabled ? '1' : '0',
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_CANDIDATE_PROTOCOL: enabled ? '1' : '0',
       });
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -626,7 +626,7 @@ describe('zcodegraph index engine selection', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'candidate-protocol-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -789,7 +789,7 @@ describe('zcodegraph index engine selection', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'dynamic-dispatch-protocol-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -918,7 +918,7 @@ describe('zcodegraph index engine selection', () => {
 
     const profileOut = path.join(tempDir, '.zcodegraph', 'event-shadow-profile.json');
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 

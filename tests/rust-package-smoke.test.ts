@@ -38,10 +38,6 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const args = process.argv.slice(2);
-if (process.env.ZCODEGRAPH_INDEX_ENGINE) {
-  process.stderr.write('ZCODEGRAPH_INDEX_ENGINE is no longer supported for selecting the index engine. Use: zcodegraph index --engine typescript\\n');
-  process.exit(1);
-}
 function projectArg(command) {
   const candidate = args[1];
   return candidate && !candidate.startsWith('-') ? candidate : process.cwd();
@@ -170,7 +166,7 @@ describe.skipIf(process.platform === 'win32')('local Rust package smoke primitiv
       [SCRIPT, '--bundle', bundle, '--npm-root', npmRoot, '--out', out],
       {
         cwd: REPO_ROOT,
-        env: { ...process.env, CODEGRAPH_NO_DOWNLOAD: '1' },
+        env: { ...process.env, ZCG_NO_DOWNLOAD: '1' },
         encoding: 'utf-8',
       },
     );
@@ -185,7 +181,6 @@ describe.skipIf(process.platform === 'win32')('local Rust package smoke primitiv
       bootstrapRustHybridWorks: true,
       defaultRustHybridIndexWorks: true,
       explicitRustHybridIndexWorks: true,
-      staleEnvEngineSelectionFailsClearly: true,
       statusShowsHybridMetadata: true,
       degradedDoctorLastRunWorks: true,
       missingRustBinaryFailsSafely: true,
@@ -195,7 +190,6 @@ describe.skipIf(process.platform === 'win32')('local Rust package smoke primitiv
       bootstrapRustHybridWorks: true,
       defaultRustHybridIndexWorks: true,
       explicitRustHybridIndexWorks: true,
-      staleEnvEngineSelectionFailsClearly: true,
       statusShowsHybridMetadata: true,
       degradedDoctorLastRunWorks: true,
       failureDoctorLastFailureWorks: true,
@@ -205,9 +199,7 @@ describe.skipIf(process.platform === 'win32')('local Rust package smoke primitiv
       npxLikeSmokeWorks: true,
     });
     expect(summary.gates.map((gate: { name: string }) => gate.name)).toContain('bundle-default-rust-hybrid');
-    expect(summary.gates.map((gate: { name: string }) => gate.name)).toContain('bundle-env-engine-selection-fails');
     expect(summary.gates.map((gate: { name: string }) => gate.name)).toContain('npm-doctor-last-failure');
-    expect(summary.gates.map((gate: { name: string }) => gate.name)).toContain('npm-env-engine-selection-fails');
     expect(summary.gates.map((gate: { name: string }) => gate.name)).not.toContain('bundle-default-typescript');
     expect(summary.gates.map((gate: { name: string }) => gate.name)).not.toContain('npm-default-typescript');
   });

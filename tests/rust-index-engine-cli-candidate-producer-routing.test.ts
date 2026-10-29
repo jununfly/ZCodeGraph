@@ -60,9 +60,9 @@ describe('zcodegraph rust-hybrid candidate producer routing', () => {
       edges: Array<{ source: string; target: string; kind: string; resolvedBy: unknown }>;
     } => {
       const result = runZcodegraphCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
-        ZCODEGRAPH_CANDIDATE_PROTOCOL: '1',
-        ZCODEGRAPH_RUST_CANDIDATE_PRODUCER: enabled ? '1' : '0',
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_CANDIDATE_PROTOCOL: '1',
+        ZCG_RUST_CANDIDATE_PRODUCER: enabled ? '1' : '0',
       });
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 
@@ -148,7 +148,7 @@ describe('zcodegraph rust-hybrid candidate producer routing', () => {
       };
     } => {
       const result = runZcodegraphCli(dir, ['index', '--engine', 'rust-hybrid', '--quiet', '--profile-out', profileOut], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
 

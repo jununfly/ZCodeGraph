@@ -21,6 +21,7 @@
  * need receiver-type matching, deferred to Phase 3). All synthesized edges are
  * tagged `edgeOrigin:'heuristic'`. See docs/designs/callback-edge-synthesis.md.
  */
+import { readBooleanFlag } from '../config/flags';
 import type { Edge, Language, Node, NodeKind } from '../types';
 import type { QueryBuilder } from '../db/queries';
 import type { ResolutionContext } from './types';
@@ -1820,8 +1821,8 @@ export function synthesizeCallbackEdges(queries: QueryBuilder, ctx: ResolutionCo
   const expoXPlatEdges = shouldRunForLanguage(languages, ['swift', 'kotlin', 'java']) ? expoCrossPlatformEdges(queries) : [];
   const rnXPlatEdges = shouldRunForLanguage(languages, ['objc', 'java', 'kotlin', 'swift']) ? rnCrossPlatformEdges(queries) : [];
   // MyBatis datasource edges are demoted from the default path (roadmap 1-3-3);
-  // enable with CODEGRAPH_ENABLE_DATASOURCE=1.
-  const mybatisEdges = process.env.CODEGRAPH_ENABLE_DATASOURCE === '1' && shouldRunForLanguage(languages, ['java', 'xml']) ? mybatisJavaXmlEdges(queries) : [];
+  // enable with ZCG_ENABLE_DATASOURCE=1.
+  const mybatisEdges = readBooleanFlag('ZCG_ENABLE_DATASOURCE') && shouldRunForLanguage(languages, ['java', 'xml']) ? mybatisJavaXmlEdges(queries) : [];
   const ginEdges = shouldRunForLanguage(languages, ['go']) ? ginMiddlewareChainEdges(queries, ctx) : [];
   const springDi = shouldRunForLanguage(languages, ['java', 'kotlin']) ? springDiEdges(queries) : [];
 

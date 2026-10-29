@@ -1286,7 +1286,10 @@ describe('C++ virtual override synthesis (rust-hybrid) (G2+G3)', () => {
 
 describe('Java end-to-end — field-injected bean trace (issue #389)', () => {
   let tmpDir: string | undefined;
+  const originalDatasource = process.env.ZCG_ENABLE_DATASOURCE;
   afterEach(() => {
+    if (originalDatasource === undefined) delete process.env.ZCG_ENABLE_DATASOURCE;
+    else process.env.ZCG_ENABLE_DATASOURCE = originalDatasource;
     if (tmpDir) removeTempDir(tmpDir);
     tmpDir = undefined;
   });
@@ -1378,7 +1381,22 @@ describe('Java end-to-end — field-injected bean trace (issue #389)', () => {
     cg.close();
   });
 
+  it('keeps MyBatis mapper synthesis disabled by default and honors explicit opt-in at registration', async () => {
+    const { createSynthesizerRegistry } = await import('../src/resolution/synthesizer-registry');
+    const { registerFullGraphSynthesizers } = await import('../src/resolution/synthesizer-modules');
+    delete process.env.ZCG_ENABLE_DATASOURCE;
+    const disabled = createSynthesizerRegistry();
+    registerFullGraphSynthesizers(disabled);
+    expect(disabled.list().some((synthesizer) => synthesizer.descriptor.id === 'mybatis-java-xml')).toBe(false);
+
+    process.env.ZCG_ENABLE_DATASOURCE = 'true';
+    const enabled = createSynthesizerRegistry();
+    registerFullGraphSynthesizers(enabled);
+    expect(enabled.list().some((synthesizer) => synthesizer.descriptor.id === 'mybatis-java-xml')).toBe(true);
+  });
+
   it('bridges a Java mapper interface method to its MyBatis XML statement (incl. SQL fragments)', async () => {
+    process.env.ZCG_ENABLE_DATASOURCE = '1';
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-mybatis-'));
     const javaDir = path.join(tmpDir, 'src/main/java/com/example/dao');
     const xmlDir = path.join(tmpDir, 'src/main/resources/mappers');

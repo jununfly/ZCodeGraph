@@ -8,6 +8,7 @@
  * any implementation code.
  */
 
+import { readBooleanFlag } from '../config/flags';
 import type { Edge } from '../types';
 import type { QueryBuilder } from '../db/queries';
 import type { ResolutionContext } from './types';
@@ -348,25 +349,21 @@ export const SYNTHESIZERS: FullGraphSynthesizer[] = [
 
   // 18. MyBatis Java ↔ XML edges (queries only)
   // DEMOTED (roadmap 1-3-3): datasource semantics moved out of the default
-  // path pending validation. Enable with CODEGRAPH_ENABLE_DATASOURCE=1.
-  ...(process.env.CODEGRAPH_ENABLE_DATASOURCE === '1'
-    ? [
-        wrapQ(
-          {
-            id: 'mybatis-java-xml',
-            name: 'MyBatis Java↔XML mapper edges',
-            strategy: 'full-graph',
-            languages: ['java'],
-            precision: 'medium',
-            cost: 'moderate',
-            knownFalsePositives: [
-              'Method-name matching in non-MyBatis contexts.',
-            ],
-          },
-          mybatisJavaXmlEdges,
-        ),
-      ]
-    : []),
+  // path pending validation. Enable with ZCG_ENABLE_DATASOURCE=1.
+  wrapQ(
+    {
+      id: 'mybatis-java-xml',
+      name: 'MyBatis Java↔XML mapper edges',
+      strategy: 'full-graph',
+      languages: ['java'],
+      precision: 'medium',
+      cost: 'moderate',
+      knownFalsePositives: [
+        'Method-name matching in non-MyBatis contexts.',
+      ],
+    },
+    mybatisJavaXmlEdges,
+  ),
 
   // 19. Gin middleware chain edges (queries + ctx)
   wrap2(
@@ -438,6 +435,7 @@ export const SYNTHESIZERS: FullGraphSynthesizer[] = [
  */
 export function registerFullGraphSynthesizers(registry: SynthesizerRegistry): void {
   for (const s of SYNTHESIZERS) {
+    if (s.descriptor.id === 'mybatis-java-xml' && !readBooleanFlag('ZCG_ENABLE_DATASOURCE')) continue;
     registry.register(s);
   }
 }

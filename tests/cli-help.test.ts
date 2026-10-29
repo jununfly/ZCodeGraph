@@ -11,9 +11,9 @@ function runCli(args: string[]): { status: number | null; stdout: string; stderr
     cwd: ROOT,
     env: {
       ...process.env,
-      CODEGRAPH_ALLOW_UNSAFE_NODE: '1',
-      CODEGRAPH_NO_DAEMON: '1',
-      CODEGRAPH_NO_RELAUNCH: '1',
+      ZCG_ALLOW_UNSAFE_NODE: '1',
+      ZCG_NO_DAEMON: '1',
+      ZCG_NO_RELAUNCH: '1',
     },
     encoding: 'utf-8',
   });
@@ -31,7 +31,7 @@ describe('CLI help surface', () => {
     const topLevel = runCli(['--help']);
     expect(topLevel.status, `stdout:\n${topLevel.stdout}\nstderr:\n${topLevel.stderr}`).toBe(0);
     expect(topLevel.stdout).toContain('doctor [options] [path]');
-    expect(topLevel.stdout).toContain('Create local diagnostic bundles for maintainers');
+    expect(topLevel.stdout.replace(/\s+/g, ' ')).toContain('create local diagnostic bundles for maintainers');
 
     const doctor = runCli(['doctor', '--help']);
     expect(doctor.status, `stdout:\n${doctor.stdout}\nstderr:\n${doctor.stderr}`).toBe(0);

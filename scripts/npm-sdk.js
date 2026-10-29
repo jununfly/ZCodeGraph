@@ -65,7 +65,7 @@ function resolveLibrary() {
 function cachedLibrary() {
   try {
     var version = require(path.join(__dirname, 'package.json')).version;
-    var base = process.env.CODEGRAPH_INSTALL_DIR || path.join(os.homedir(), '.codegraph');
+    var base = process.env.ZCG_INSTALL_DIR || path.join(os.homedir(), '.codegraph');
     var lib = path.join(base, 'bundles', target + '-' + version, 'lib', 'dist', 'index.js');
     if (fs.existsSync(lib)) return lib;
   } catch (e) {

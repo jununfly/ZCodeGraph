@@ -501,7 +501,7 @@ async function initializeLocalProject(
 
 /**
  * When the live file watcher will be disabled for this project (e.g. WSL2
- * /mnt drives, or CODEGRAPH_NO_WATCH), the index would silently go stale.
+ * /mnt drives, or ZCG_NO_WATCH), the index would silently go stale.
  * Explain that, and offer to keep it fresh automatically via git hooks
  * (commit / pull / checkout) instead of manual `zcodegraph sync`.
  *

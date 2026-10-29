@@ -38,7 +38,7 @@ agent writes src/Widget.ts
   → next agent query sees it
 ```
 
-**Tunable**: `CODEGRAPH_WATCH_DEBOUNCE_MS` overrides the default 2000ms, clamped to `[100ms, 60s]`. Useful when a build step or formatter writes many files in a tight burst — bump it to `5000` or `10000` so the watcher coalesces them into one sync.
+**Tunable**: `ZCG_WATCH_DEBOUNCE_MS` overrides the default 2000ms, clamped to `[100ms, 60s]`. Useful when a build step or formatter writes many files in a tight burst — bump it to `5000` or `10000` so the watcher coalesces them into one sync.
 
 ### 2. Per-file staleness banner — covers the debounce window
 
@@ -81,7 +81,7 @@ If `### Pending sync:` isn't in the response, nothing is in flight.
 
 Almost never. The edge cases:
 
-- **The watcher is disabled.** Sandboxes that block local fs watchers, or you've set `CODEGRAPH_NO_DAEMON=1` to opt out of the shared daemon. In those cases `zcodegraph sync` is the manual fallback.
+- **The watcher is disabled.** Sandboxes that block local fs watchers, or you've set `ZCG_NO_DAEMON=1` to opt out of the shared daemon. In those cases `zcodegraph sync` is the manual fallback.
 - **Pre-flight before a CI run.** If you're scripting against the index outside an agent session, a single `zcodegraph sync` at the start of the script guarantees the index reflects the current working tree.
 
 Otherwise: just use it. The watcher + banner + connect-sync covers the AI-assisted workflow end-to-end. If you're seeing files genuinely missed after the debounce window has passed, that's a bug — please file an issue with a reproduction.

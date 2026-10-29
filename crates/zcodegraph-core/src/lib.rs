@@ -31,7 +31,7 @@ pub use profiling::{start_heap_profiler, HeapProfilerGuard};
 static ALLOCATOR: dhat::Alloc = dhat::Alloc;
 
 const SCHEMA_SQL: &str = include_str!("../../../src/db/schema.sql");
-const CURRENT_SCHEMA_VERSION: i64 = 4;
+const CURRENT_SCHEMA_VERSION: i64 = 7;
 // Mirrors EXTRACTION_VERSION in src/extraction/extraction-version.ts — keep the
 // two equal. 2 = the unreleased Rust-owned semantic batch (#678/#692), shipped
 // together as a single 1->2 bump; old indexes re-index once:
@@ -7098,7 +7098,7 @@ fn rebuild_node_fts_after_bulk_write(conn: &Connection) -> rusqlite::Result<()> 
 }
 
 fn sleep_after_lock_for_tests() {
-    let Ok(raw) = std::env::var("ZCODEGRAPH_RUST_CORE_TEST_SLEEP_MS") else {
+    let Ok(raw) = std::env::var("ZCG_RUST_CORE_TEST_SLEEP_MS") else {
         return;
     };
     let Ok(ms) = raw.parse::<u64>() else {

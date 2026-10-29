@@ -168,6 +168,8 @@ CREATE TABLE IF NOT EXISTS embedding_queue (
     enqueued_at INTEGER NOT NULL,
     started_at INTEGER,
     finished_at INTEGER,
+    worker_id TEXT,
+    heartbeat_at INTEGER,
     PRIMARY KEY (file_path, content_hash)
 );
 CREATE INDEX IF NOT EXISTS idx_embedding_queue_status_started

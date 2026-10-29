@@ -172,7 +172,7 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     const rustCore = writeFakeRustCoreWithPerFileGap(tempDir, 'a.ts');
 
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -197,7 +197,7 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     const rustCore = writeFakeRustCoreWithPerFileGap(tempDir, 'a.ts');
 
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -236,7 +236,7 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     const rustCore = writeFakeRustCoreWithPartialWriteGap(tempDir, 'a.ts');
 
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: rustCore,
+      ZCG_RUST_CORE_BINARY: rustCore,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -260,7 +260,7 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     fs.writeFileSync(path.join(tempDir, 'routing.yml'), 'app:\n  path: /health\n');
 
     const result = runZcodegraphCli(tempDir, ['index'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -281,7 +281,7 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     fs.writeFileSync(path.join(tempDir, 'routing.yml'), 'app:\n  path: /health\n');
 
     const index = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
 
@@ -303,7 +303,7 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     fs.writeFileSync(path.join(tempDir, 'routing.yml'), 'app:\n  path: /health\n');
 
     const index = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(index.status, `stdout:\n${index.stdout}\nstderr:\n${index.stderr}`).toBe(0);
 
@@ -332,7 +332,7 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
       fs.writeFileSync(path.join(initDir, 'routing.yml'), 'app:\n  path: /health\n');
 
       const result = runZcodegraphCli(initDir, ['index'], {
-        ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+        ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
 
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -378,7 +378,7 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     fs.writeFileSync(path.join(tempDir, 'service.pb.go'), 'package main\n');
 
     const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: RUST_CORE_BIN,
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
 
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
@@ -407,7 +407,7 @@ describe('zcodegraph rust-hybrid fallback degraded status and doctor output', ()
     }
 
     const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust-hybrid', '--force'], {
-      ZCODEGRAPH_RUST_CORE_BINARY: path.join(tempDir, 'missing-rust-core'),
+      ZCG_RUST_CORE_BINARY: path.join(tempDir, 'missing-rust-core'),
     });
 
     expect(result.status).toBe(1);
