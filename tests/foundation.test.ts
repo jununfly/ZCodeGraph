@@ -142,11 +142,10 @@ describe('CodeGraph Foundation', () => {
       cg.close();
     });
 
-    it('should support clear operation', () => {
+    it('should support clear operation', async () => {
       const cg = CodeGraph.initSync(tempDir);
 
-      // Should not throw
-      expect(() => cg.clear()).not.toThrow();
+      await expect(cg.clear()).resolves.toBeUndefined();
 
       const stats = cg.getStats();
       expect(stats.nodeCount).toBe(0);
@@ -173,10 +172,10 @@ describe('CodeGraph Foundation', () => {
   });
 
   describe('Uninitialize', () => {
-    it('should remove .zcodegraph directory', () => {
+    it('should remove .zcodegraph directory', async () => {
       const cg = CodeGraph.initSync(tempDir);
 
-      cg.uninitialize();
+      await cg.uninitialize();
 
       expect(fs.existsSync(getCodeGraphDir(tempDir))).toBe(false);
       expect(CodeGraph.isInitialized(tempDir)).toBe(false);

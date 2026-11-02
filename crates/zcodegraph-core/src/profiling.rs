@@ -9,7 +9,9 @@ pub fn validate_experiment_id(value: &str) -> Result<String, String> {
         || value.len() > 128
         || value.starts_with('-')
         || value.starts_with('.')
-        || !value.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        || !value
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
         return Err(
             "ZCG_EXPERIMENT_ID must be 1-128 ASCII letters, digits, '-' or '_' and must not start with '-' or '.'".to_string(),
@@ -89,7 +91,10 @@ mod tests {
             }
         }
         for value in ["", "   ", "cpu", "yes"] {
-            assert!(validate_profiling_mode(value).is_err(), "accepted {value:?}");
+            assert!(
+                validate_profiling_mode(value).is_err(),
+                "accepted {value:?}"
+            );
         }
     }
 
@@ -104,8 +109,16 @@ mod tests {
     #[test]
     fn rejects_empty_long_and_path_traversal_ids() {
         for value in [
-            "", "../escape", "..\\escape", "nested/report", "nested\\report",
-            ".", "-baseline", "white space", "report.json", "非ASCII",
+            "",
+            "../escape",
+            "..\\escape",
+            "nested/report",
+            "nested\\report",
+            ".",
+            "-baseline",
+            "white space",
+            "report.json",
+            "非ASCII",
         ] {
             assert!(validate_experiment_id(value).is_err(), "accepted {value:?}");
         }

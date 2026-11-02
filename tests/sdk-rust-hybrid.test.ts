@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { CodeGraph, type IndexEngine } from '../src';
+import { SCRIPTED_INDEX_FIXTURE_BIN } from './helpers/rust-indexing-cli';
 
 const RUST_CORE_BIN = path.resolve(
   __dirname,
@@ -55,7 +56,7 @@ describe('SDK rust-hybrid full-index alignment', () => {
   const tempDirs: string[] = [];
 
   beforeAll(() => {
-    execFileSync('cargo', ['build', '--package', 'zcodegraph-core'], {
+    execFileSync('cargo', ['build', '--package', 'zcodegraph-core', '--bins'], {
       cwd: path.resolve(__dirname, '..'),
       stdio: 'inherit',
     });
@@ -341,7 +342,13 @@ describe('SDK rust-hybrid full-index alignment', () => {
     tempDirs.push(dir);
     const rustCore = writeFakeRustCoreWithPartialWriteGap(dir, 'a.ts');
     const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
-    process.env.ZCG_RUST_CORE_BINARY = rustCore;
+    const previousScript = process.env.ZCG_TEST_RUST_CORE_SCRIPT;
+    const previousNode = process.env.ZCG_TEST_NODE_BINARY;
+    // The SDK goes through the same production gate as the CLI. Exercise the
+    // scripted writer through its native fixture instead of bypassing supervision.
+    process.env.ZCG_RUST_CORE_BINARY = SCRIPTED_INDEX_FIXTURE_BIN;
+    process.env.ZCG_TEST_RUST_CORE_SCRIPT = rustCore;
+    process.env.ZCG_TEST_NODE_BINARY = process.execPath;
 
     const cg = await CodeGraph.init(dir, { index: false });
     try {
@@ -360,6 +367,16 @@ describe('SDK rust-hybrid full-index alignment', () => {
         delete process.env.ZCG_RUST_CORE_BINARY;
       } else {
         process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
+      }
+      if (previousScript == null) {
+        delete process.env.ZCG_TEST_RUST_CORE_SCRIPT;
+      } else {
+        process.env.ZCG_TEST_RUST_CORE_SCRIPT = previousScript;
+      }
+      if (previousNode == null) {
+        delete process.env.ZCG_TEST_NODE_BINARY;
+      } else {
+        process.env.ZCG_TEST_NODE_BINARY = previousNode;
       }
       cg.close();
     }

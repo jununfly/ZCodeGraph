@@ -5,6 +5,7 @@ import { readTextFlag } from '../config/flags';
 import { getDatabasePath } from '../db';
 import { IndexProgress, IndexResult } from '../extraction';
 import { loadCandidateProducerRoutingConfig } from './experimental-local-config';
+import { acquireExclusiveReplacementGate, type NativeReplacementLease } from '../embedding/replacement-gate';
 import { IndexEngine } from './engine-selection';
 
 interface RustIndexerOptions {
@@ -21,6 +22,13 @@ export interface RustCoreCommand {
   command: string;
   argsPrefix: string[];
   cwd: string;
+}
+
+/** Reject a JS-script development double: its descendants are not native-supervised. */
+function requireNativeSupervision(core: RustCoreCommand): void {
+  if (core.argsPrefix.some((arg) => /\.c?m?js$/i.test(arg))) {
+    throw new Error('Rust index process supervision requires a native zcodegraph-core binary; refusing an unsupervised script wrapper.');
+  }
 }
 
 export interface RustReadinessDiagnostics {
@@ -291,6 +299,18 @@ function parseRustCoreLine(line: string): RustCoreMessage | null {
   throw new Error(`Unknown Rust index engine message type: ${String(parsed.type)}`);
 }
 
+function rustFailureCode(stderr: string): string | undefined {
+  for (const line of stderr.trim().split('\n').map((line) => line.trim()).filter(Boolean)) {
+    try {
+      const parsed = parseRustCoreLine(line);
+      if (parsed?.type === 'error' && parsed.code) return parsed.code;
+    } catch {
+      // Cargo diagnostics may surround the structured native error.
+    }
+  }
+  return undefined;
+}
+
 function formatRustFailure(stderr: string, fallback: string): string {
   const lines = stderr.trim().split('\n').map((line) => line.trim()).filter(Boolean);
   for (const line of lines) {
@@ -309,13 +329,32 @@ function formatRustFailure(stderr: string, fallback: string): string {
 export async function runRustIndexer(
   projectPath: string,
   options: RustIndexerOptions = {},
+  replacementGate?: NativeReplacementLease,
+): Promise<IndexResult> {
+  if (replacementGate) {
+    return runRustIndexerBorrowingGate(projectPath, options);
+  }
+  const ownedGate = await acquireExclusiveReplacementGate(getDatabasePath(projectPath));
+  try {
+    return await runRustIndexerBorrowingGate(projectPath, options);
+  } finally {
+    await ownedGate.release();
+  }
+}
+
+export async function runRustIndexerBorrowingGate(
+  projectPath: string,
+  options: RustIndexerOptions,
 ): Promise<IndexResult> {
   const core = findRustCoreCommand();
+  requireNativeSupervision(core);
   const args = [
     ...core.argsPrefix,
+    'supervised-index',
     'index',
     '--engine',
     'rust',
+    '--replacement-gate-externally-held',
     '--project-path',
     projectPath,
     '--index-path',
@@ -346,10 +385,14 @@ export async function runRustIndexer(
       ...(options.profiling ? { ZCG_PROFILING: options.profiling } : {}),
     };
     const child = spawn(core.command, args, {
-      cwd: core.cwd,
+      cwd: projectPath,
       env: childEnv,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
+    // Keep this supervision channel open until the whole native writer tree
+    // exits. EOF on parent crash/SIGKILL is the supervisor's kill signal.
+    const releaseSupervisionChannel = () => child.stdin?.end();
+    process.once('exit', releaseSupervisionChannel);
 
     let stdoutBuffer = '';
     let stderr = '';
@@ -400,6 +443,8 @@ export async function runRustIndexer(
     });
 
     child.on('close', (code) => {
+      process.off('exit', releaseSupervisionChannel);
+      releaseSupervisionChannel();
       if (stdoutBuffer.trim()) {
         try {
           const message = parseRustCoreLine(stdoutBuffer);
@@ -420,6 +465,10 @@ export async function runRustIndexer(
 
       if (code !== 0) {
         const resultError = result?.errors.find((err) => err.severity === 'error')?.message;
+        if (rustFailureCode(stderr) === 'replacement-gate-busy' || resultError?.startsWith('replacement-gate-busy:')) {
+          reject(new Error('Embedding worker is still active; database replacement is not safe yet.'));
+          return;
+        }
         if (resultError) {
           reject(new Error(resultError));
           return;

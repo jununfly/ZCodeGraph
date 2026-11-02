@@ -32,6 +32,7 @@ import * as path from 'node:path';
 import { logDebug, logWarn } from '../errors';
 import { readBooleanFlag } from '../config/flags';
 import type { WorkerToParentMessage } from './worker';
+import { acquireReplacementWorkerLease, type NativeReplacementLease } from './replacement-gate';
 
 // Kept outside the application adapter: checking drain completion must not
 // trigger migrations or create a second long-lived application connection.
@@ -69,7 +70,9 @@ export interface EmbeddingRunnerOptions {
 }
 
 interface WorkerHandle {
-  worker: Worker;
+  worker: Worker | null;
+  lease: NativeReplacementLease | null;
+  leaseLost: boolean;
   ready: Promise<void>;
   idleTimer: NodeJS.Timeout | null;
   idleResolve: (() => void) | null;
@@ -148,7 +151,7 @@ export class EmbeddingRunner {
       handle.idleTimer = null;
     }
     void handle.ready.then(() => {
-      if (this.handle !== handle || handle.shutdownPromise) return;
+      if (this.handle !== handle || handle.shutdownPromise || !handle.worker) return;
       handle.worker.postMessage({ type: 'drain' });
     }).catch((err) => {
       logWarn(`[embedding-worker] startup failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -192,15 +195,20 @@ export class EmbeddingRunner {
         const onExit = (code: number) => finish(new Error(
           `Embedding worker exited before reporting idle (exit code ${code})`,
         ));
+        const worker = handle.worker;
+        if (!worker) {
+          finish(new Error('Embedding worker closed before drain'));
+          return;
+        }
         const cleanup = () => {
-          handle.worker.off('message', onMessage);
-          handle.worker.off('error', onError);
-          handle.worker.off('exit', onExit);
+          worker.off('message', onMessage);
+          worker.off('error', onError);
+          worker.off('exit', onExit);
         };
-        handle.worker.on('message', onMessage);
-        handle.worker.on('error', onError);
-        handle.worker.on('exit', onExit);
-        handle.worker.postMessage({ type: 'drain' });
+        worker.on('message', onMessage);
+        worker.on('error', onError);
+        worker.on('exit', onExit);
+        worker.postMessage({ type: 'drain' });
       });
       const counts = this.queueCounts();
       const unfinished = counts.pending + counts.inProgress;
@@ -237,16 +245,30 @@ export class EmbeddingRunner {
       clearTimeout(handle.idleTimer);
       handle.idleTimer = null;
     }
-    handle.shutdownPromise = new Promise<void>((resolve) => {
-      const onExit = () => resolve();
-      handle.worker.once('exit', onExit);
-      try {
-        handle.worker.postMessage({ type: 'shutdown' });
-      } catch {
-        handle.worker.off('exit', onExit);
-        resolve();
+    handle.shutdownPromise = (async () => {
+      await handle.ready.catch(() => {});
+      const worker = handle.worker;
+      if (worker) {
+        if (handle.leaseLost) {
+          // A lost lease means another replacement may already be waiting for
+          // this worker's DB handles. Never finish another old-generation write.
+          await worker.terminate();
+        } else {
+          await new Promise<void>((resolve) => {
+            const onExit = () => resolve();
+            worker.once('exit', onExit);
+            try {
+              worker.postMessage({ type: 'shutdown' });
+            } catch {
+              worker.off('exit', onExit);
+              void worker.terminate().finally(() => resolve());
+            }
+          });
+        }
       }
-    });
+      await handle.lease?.release();
+      handle.lease = null;
+    })();
     return handle.shutdownPromise;
   }
 
@@ -281,6 +303,12 @@ export class EmbeddingRunner {
     return this.handle !== null;
   }
 
+  /** Test-only fault injection for the native lease lifetime boundary. */
+  leaseHelperPidForTests(): number | undefined {
+    return this.handle?.lease?.processId;
+  }
+
+
   private cancelIdleTimer(handle: WorkerHandle): void {
     if (!handle.idleTimer) return;
     clearTimeout(handle.idleTimer);
@@ -289,26 +317,47 @@ export class EmbeddingRunner {
 
   private ensureStarted(): WorkerHandle {
     if (this.handle) return this.handle;
-
-    const entrypoint =
-      this.opts.workerEntrypoint ??
-      // tsc emits worker.js beside this file under dist/embedding/.
-      path.join(__dirname, 'worker.js');
-
-    const worker = new Worker(entrypoint, {
-      workerData: {
-        dbPath: this.opts.dbPath,
-        projectRoot: this.opts.projectRoot,
-        vec0Path: this.opts.vec0Path,
-        modelsDir: this.opts.modelsDir,
-        permanentFailureOnModelMissing: this.opts.permanentFailureOnModelMissing,
-        ...this.opts.workerData,
-      },
-    });
-
     const handle: WorkerHandle = {
-      worker,
-      ready: new Promise<void>((resolve, reject) => {
+      worker: null,
+      lease: null,
+      leaseLost: false,
+      ready: Promise.resolve(),
+      idleTimer: null,
+      idleResolve: null,
+      shutdownPromise: null,
+    };
+    this.handle = handle;
+    handle.ready = (async () => {
+      // The native helper's process lifetime is the lease lifetime. Do not
+      // create the worker (and therefore its DB/vec0 handles) before this.
+      const lease = await acquireReplacementWorkerLease(this.opts.dbPath);
+      handle.lease = lease;
+      const lostLease = (error: Error) => {
+        if (handle.lease !== lease) return;
+        handle.leaseLost = true;
+        logWarn(`[embedding-worker] ${error.message} Terminating the worker before any replacement can proceed.`);
+        void this.shutdown();
+      };
+      lease.onUnexpectedExit(lostLease);
+      const entrypoint = this.opts.workerEntrypoint ?? path.join(__dirname, 'worker.js');
+      const worker = new Worker(entrypoint, {
+        workerData: {
+          dbPath: this.opts.dbPath,
+          projectRoot: this.opts.projectRoot,
+          vec0Path: this.opts.vec0Path,
+          modelsDir: this.opts.modelsDir,
+          permanentFailureOnModelMissing: this.opts.permanentFailureOnModelMissing,
+          ...this.opts.workerData,
+        },
+      });
+      handle.worker = worker;
+      this.observeWorker(handle, worker);
+      if (handle.shutdownPromise) {
+        await worker.terminate();
+        await lease.release();
+        throw new Error('Embedding worker startup was cancelled');
+      }
+      await new Promise<void>((resolve, reject) => {
         const onMsg = (msg: WorkerToParentMessage) => {
           if (msg.type === 'ready') {
             cleanup();
@@ -318,10 +367,7 @@ export class EmbeddingRunner {
             reject(new Error(msg.message));
           }
         };
-        const onErr = (err: Error) => {
-          cleanup();
-          reject(err);
-        };
+        const onErr = (err: Error) => { cleanup(); reject(err); };
         const onExit = (code: number) => {
           cleanup();
           reject(new Error(`Embedding worker exited before ready (exit code ${code})`));
@@ -334,12 +380,17 @@ export class EmbeddingRunner {
         worker.on('message', onMsg);
         worker.on('error', onErr);
         worker.on('exit', onExit);
-      }),
-      idleTimer: null,
-      idleResolve: null,
-      shutdownPromise: null,
-    };
+      });
+    })().catch(async (error: unknown) => {
+      if (this.handle === handle) this.handle = null;
+      await handle.lease?.release();
+      handle.lease = null;
+      throw error;
+    });
+    return handle;
+  }
 
+  private observeWorker(handle: WorkerHandle, worker: Worker): void {
     worker.on('message', (msg: WorkerToParentMessage) => {
       if (msg.type === 'log') {
         if (msg.level === 'warn') logWarn(`[embedding-worker] ${msg.message}`);
@@ -352,7 +403,6 @@ export class EmbeddingRunner {
           handle.idleResolve = null;
         }
         if (handle.shutdownPromise) return;
-        // Schedule idle shutdown — a new drain cancels this timer.
         this.cancelIdleTimer(handle);
         handle.idleTimer = setTimeout(() => {
           logDebug('[embedding-worker] idle timeout — terminating to reclaim memory');
@@ -363,25 +413,22 @@ export class EmbeddingRunner {
       if (msg.type === 'fatal') {
         logWarn(`[embedding-worker] fatal: ${msg.message}`);
         void this.shutdown();
-        return;
       }
     });
-
     worker.on('error', (err) => {
       logWarn(`[embedding-worker] error: ${err.message}`);
       void this.shutdown();
     });
-
     worker.on('exit', (code) => {
-      if (code !== 0) {
-        logWarn(`[embedding-worker] exited with code ${code}`);
+      if (code !== 0) logWarn(`[embedding-worker] exited with code ${code}`);
+      // A normal shutdown awaits this exit and then closes the lease. Crash
+      // recovery closes it here, after the worker's DB/vec0 handles are gone.
+      if (!handle.shutdownPromise) {
+        void handle.lease?.release();
+        handle.lease = null;
       }
-      // Ensure handle is cleared so a future notifyEnqueued spawns fresh.
       if (this.handle === handle) this.handle = null;
     });
-
-    this.handle = handle;
-    return handle;
   }
 }
 

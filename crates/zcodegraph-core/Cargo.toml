@@ -7,6 +7,7 @@ publish = false
 [dependencies]
 dhat = { version = "0.3", optional = true }
 libc = "0.2"
+fs2 = "0.4"
 regex = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
@@ -120,9 +121,16 @@ tree-sitter-scala = "=0.24.1"
 tree-sitter-swift = "=0.6.0"
 tree-sitter-typescript = "0.23"
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Diagnostics_ToolHelp", "Win32_System_JobObjects", "Win32_System_Threading"] }
+
 [features]
 default = []
 dhat = ["dep:dhat"]
+
+[[bin]]
+name = "scripted-index-fixture"
+path = "src/bin/scripted-index-fixture.rs"
 
 [lib]
 name = "zcodegraph_core"

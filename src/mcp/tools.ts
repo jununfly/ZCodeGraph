@@ -600,6 +600,10 @@ export class ToolHandler {
   // complexity-rubric-v1: no persisted cache); entries are dropped when
   // the project is evicted from projectCache.
   private complexityCalculators: Map<string, ComplexityCalculator> = new Map();
+  private activeExecutions = 0;
+  private closed = false;
+  private idlePromise: Promise<void> | null = null;
+  private idleResolve: (() => void) | null = null;
 
   constructor(private cg: CodeGraph | null) {}
 
@@ -701,7 +705,7 @@ export class ToolHandler {
    * Whether a default CodeGraph instance is available
    */
   hasDefaultCodeGraph(): boolean {
-    return this.cg !== null;
+    return !this.closed && this.cg !== null;
   }
 
   /**
@@ -796,6 +800,7 @@ export class ToolHandler {
    * similar to how git finds .git/ directories.
    */
   private getCodeGraph(projectPath?: string): CodeGraph {
+    if (this.closed) throw new Error('MCP server is shutting down.');
     if (!projectPath) {
       if (!this.cg) {
         // Init-time open() failure takes precedence over the generic
@@ -881,12 +886,25 @@ export class ToolHandler {
   /**
    * Close all cached project connections
    */
-  closeAll(): void {
-    for (const cg of this.projectCache.values()) {
-      cg.close();
+  beginShutdown(): Promise<void> {
+    this.closed = true;
+    this.catchUpGate = null;
+    if (this.activeExecutions > 0 && !this.idlePromise) {
+      this.idlePromise = new Promise<void>((resolve) => { this.idleResolve = resolve; });
     }
+    return this.idlePromise ?? Promise.resolve();
+  }
+
+  async closeAll(engineDefault?: CodeGraph): Promise<void> {
+    await this.beginShutdown();
+    const graphs = new Set(this.projectCache.values());
+    if (this.cg) graphs.add(this.cg);
+    if (engineDefault) graphs.add(engineDefault);
+    this.cg = null;
     this.projectCache.clear();
     this.worktreeMismatchCache.clear();
+    this.complexityCalculators.clear();
+    await Promise.all([...graphs].map(cg => cg.closeAndWait()));
   }
 
   /**
@@ -1067,7 +1085,19 @@ export class ToolHandler {
    * connection — the handler reopens the database and retries exactly once.
    * Non-corruption errors and second-attempt failures are returned as-is.
    */
-  async execute(toolName: string, args: Record<string, unknown>): Promise<ToolResult> {
+  execute(toolName: string, args: Record<string, unknown>): Promise<ToolResult> {
+    if (this.closed) return Promise.resolve(this.errorResult('MCP server is shutting down.'));
+    this.activeExecutions++;
+    return this.executeWithRecovery(toolName, args).finally(() => {
+      this.activeExecutions--;
+      if (this.activeExecutions === 0 && this.idleResolve) {
+        this.idleResolve();
+        this.idleResolve = null;
+      }
+    });
+  }
+
+  private async executeWithRecovery(toolName: string, args: Record<string, unknown>): Promise<ToolResult> {
     try {
       return await this.executeOnce(toolName, args);
     } catch (err) {
@@ -1082,7 +1112,7 @@ export class ToolHandler {
         return this.errorResult(`Tool execution failed: ${err instanceof Error ? err.message : String(err)}`);
       }
       try {
-        cg.reopen();
+        await cg.reopen();
         return await this.executeOnce(toolName, args);
       } catch (retryErr) {
         const msg = retryErr instanceof Error ? retryErr.message : String(retryErr);

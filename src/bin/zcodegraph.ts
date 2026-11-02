@@ -803,7 +803,7 @@ async function runSelectedIndex(
     const { default: CodeGraph } = await loadCodeGraph();
     const cg = await CodeGraph.open(projectPath);
     try {
-      if (options.force) cg.clear();
+      if (options.force) await cg.clear();
       return await cg.indexAll({
         engine: 'typescript',
         ...(onProgress ? { onProgress } : {}),
@@ -815,17 +815,26 @@ async function runSelectedIndex(
   }
 
   const profileWriter = createIndexProfileWriter(projectPath, options.profileOut);
+  const { EmbeddingRunner } = await import('../embedding/worker-runner');
+  const { acquireExclusiveReplacementGate } = await import('../embedding/replacement-gate');
+  const { rebuildEmbeddingQueue } = await import('../embedding/queue');
+  const { createDatabase } = await import('../db/sqlite-adapter');
+  await EmbeddingRunner.shutdownDatabase(getDatabasePath(projectPath));
+  const replacementGate = await acquireExclusiveReplacementGate(getDatabasePath(projectPath));
   const hybridPlan = engine === 'rust-hybrid' ? planRustHybridAssignments(projectPath) : null;
 
   profileWriter?.checkpoint('rustCore.started');
-  const result = await runRustIndexer(projectPath, {
+  let promoted = false;
+  try {
+    const result = await runRustIndexer(projectPath, {
     force: options.force,
     verbose: options.verbose,
     graphWorkProfile: options.graphWorkProfile,
     sqliteWriteMode: options.sqliteWriteMode,
     profiling: options.profile,
     onProgress,
-  });
+  }, replacementGate);
+  promoted = result.success;
   const mutableResult = result as IndexResult;
   const rustCoreProfile = result.profile;
   profileWriter?.checkpoint('rustCore.completed');
@@ -928,7 +937,24 @@ async function runSelectedIndex(
   if (profileWriter) {
     mutableResult.profile = profileWriter.complete(mutableResult.profile ?? null);
   }
-  return mutableResult;
+    return mutableResult;
+  } finally {
+    try {
+      if (promoted) {
+        // Promotion and overall command success are distinct facts. Once the
+        // native staging DB is active, rebuild its queue even if TypeScript
+        // fallback or finalization subsequently fails.
+        const queueDb = createDatabase(getDatabasePath(projectPath)).db;
+        try {
+          rebuildEmbeddingQueue(queueDb);
+        } finally {
+          queueDb.close();
+        }
+      }
+    } finally {
+      await replacementGate.release();
+    }
+  }
 }
 
 function shouldShowRustDiagnostics(engine: IndexEngine | undefined): boolean {
@@ -1085,7 +1111,7 @@ program
 
       const { default: CodeGraph } = await loadCodeGraph();
       const cg = CodeGraph.openSync(projectPath);
-      cg.uninitialize();
+      await cg.uninitialize();
 
       // Clean up any git sync hooks we installed (no-op if none / not a repo).
       try {

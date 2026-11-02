@@ -6,6 +6,12 @@ import { CodeGraph } from '../../src';
 
 export const ZCODEGRAPH_BIN = path.resolve(__dirname, '../../dist/bin/zcodegraph.js');
 
+export const SCRIPTED_INDEX_FIXTURE_BIN = path.resolve(
+  __dirname,
+  '../../target/debug',
+  process.platform === 'win32' ? 'scripted-index-fixture.exe' : 'scripted-index-fixture',
+);
+
 export const RUST_CORE_BIN = path.resolve(
   __dirname,
   '..',
@@ -135,6 +141,11 @@ export function runZcodegraphCli(
   args: string[],
   env: Record<string, string | undefined> = {},
 ): { status: number | null; stdout: string; stderr: string } {
+  const scriptedRustCore = env.ZCG_RUST_CORE_BINARY
+    && path.resolve(env.ZCG_RUST_CORE_BINARY) !== path.resolve(RUST_CORE_BIN)
+    && fs.existsSync(env.ZCG_RUST_CORE_BINARY)
+    && !fs.readFileSync(env.ZCG_RUST_CORE_BINARY).subarray(0, 2).equals(Buffer.from('MZ'))
+    && fs.readFileSync(env.ZCG_RUST_CORE_BINARY, 'utf8').startsWith('#!/usr/bin/env node');
   const result = spawnSync(process.execPath, [ZCODEGRAPH_BIN, ...args], {
     cwd,
     env: {
@@ -142,7 +153,13 @@ export function runZcodegraphCli(
       ZCG_ALLOW_UNSAFE_NODE: '1',
       ZCG_NO_DAEMON: '1',
       ZCG_NO_RELAUNCH: '1',
+      NODE_OPTIONS: '',
       ...env,
+      ...(scriptedRustCore ? {
+        ZCG_RUST_CORE_BINARY: SCRIPTED_INDEX_FIXTURE_BIN,
+        ZCG_TEST_RUST_CORE_SCRIPT: env.ZCG_RUST_CORE_BINARY,
+        ZCG_TEST_NODE_BINARY: process.execPath,
+      } : {}),
     },
     encoding: 'utf-8',
   });

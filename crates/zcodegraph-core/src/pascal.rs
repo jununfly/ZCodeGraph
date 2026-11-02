@@ -116,7 +116,9 @@ fn named_children_vec<'a>(node: SyntaxNode<'a>) -> Vec<SyntaxNode<'a>> {
 }
 
 fn first_named_of_kind<'a>(node: SyntaxNode<'a>, kind: &str) -> Option<SyntaxNode<'a>> {
-    named_children_vec(node).into_iter().find(|c| c.kind() == kind)
+    named_children_vec(node)
+        .into_iter()
+        .find(|c| c.kind() == kind)
 }
 
 /// TS `buildQualifiedName`: the `::`-joined names of every non-file frame
@@ -192,11 +194,7 @@ fn pascal_visibility(mut node: SyntaxNode) -> Option<String> {
 /// pascal.ts `isStatic`: true when the node has a `kClass` child (Delphi
 /// `class procedure T.Foo`, `class function T.Bar`, `class var`, etc.).
 fn pascal_is_static(node: SyntaxNode) -> bool {
-    (0..node.child_count()).any(|i| {
-        node.child(i)
-            .map(|c| c.kind() == "kClass")
-            .unwrap_or(false)
-    })
+    (0..node.child_count()).any(|i| node.child(i).map(|c| c.kind() == "kClass").unwrap_or(false))
 }
 
 /// TS extractPascalInheritance: emit `extends`/`implements` refs from the
@@ -395,7 +393,13 @@ fn visit(
             let class_name = class_node.name.clone();
             push_contains(edges, &parent_id, &class_node);
             nodes.push(class_node);
-            push_inheritance_refs(decl_class, &class_id, source, relative_path, unresolved_refs);
+            push_inheritance_refs(
+                decl_class,
+                &class_id,
+                source,
+                relative_path,
+                unresolved_refs,
+            );
             stack.push(Frame {
                 name: class_name,
                 id: class_id.clone(),
@@ -578,7 +582,15 @@ fn visit(
             if child.kind() != "declConst" {
                 continue;
             }
-            emit_constant(child, source, relative_path, stack, &parent_id, nodes, edges);
+            emit_constant(
+                child,
+                source,
+                relative_path,
+                stack,
+                &parent_id,
+                nodes,
+                edges,
+            );
         }
         return Ok(());
     }
@@ -840,8 +852,8 @@ fn emit_constant(
     let Some(name) = node_text(name_node, source) else {
         return;
     };
-    let default_value = first_named_of_kind(node, "defaultValue")
-        .and_then(|dv| node_text(dv, source));
+    let default_value =
+        first_named_of_kind(node, "defaultValue").and_then(|dv| node_text(dv, source));
     let qname = qualified_name(stack, &name);
     let mut constant = ExtractedNode::symbol_with_qualified_name(
         relative_path,

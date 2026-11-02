@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { CodeGraph } from '../src';
+import { runZcodegraphCli } from './helpers/rust-indexing-cli';
 
 const BIN = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
 const RUST_CORE_BIN = path.resolve(
@@ -19,18 +20,7 @@ function runCli(cwd: string, args: string[], env: Record<string, string | undefi
   stdout: string;
   stderr: string;
 } {
-  const result = spawnSync(process.execPath, [BIN, ...args], {
-    cwd,
-    env: {
-      ...process.env,
-      ZCG_ALLOW_UNSAFE_NODE: '1',
-      ZCG_NO_DAEMON: '1',
-      ZCG_NO_RELAUNCH: '1',
-      ...env,
-    },
-    encoding: 'utf-8',
-  });
-  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+  return runZcodegraphCli(cwd, args, env);
 }
 
 function readJson(file: string): any {

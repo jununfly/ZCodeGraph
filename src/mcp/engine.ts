@@ -76,6 +76,7 @@ export class MCPEngine {
   private opts: Required<MCPEngineOptions>;
   private closed = false;
   private stopPromise: Promise<void> | null = null;
+  private catchUpPromise: Promise<void> | null = null;
   // Latest session-provided transport for progress notifications. Null until
   // a session calls setProgressSink (i.e. until `initialize` completes).
   private progressSink: ProgressSink | null = null;
@@ -197,16 +198,23 @@ export class MCPEngine {
     void this.stopAndWait();
   }
 
-  /** Process-exit path: close all graph connections before awaiting their workers. */
+  /** Process-exit path: quiesce initialization and tool work before closing. */
   stopAndWait(): Promise<void> {
     if (this.stopPromise) return this.stopPromise;
     this.closed = true;
+    const closingHandler = this.toolHandler.beginShutdown();
     this.stopPromise = (async () => {
-      this.toolHandler.closeAll();
-      if (this.cg) {
-        try { this.cg.close(); } catch { /* ignore */ }
-        this.cg = null;
+      const initializing = this.initPromise;
+      if (initializing) {
+        try { await initializing; } catch { /* already logged by initialize */ }
       }
+      const catchingUp = this.catchUpPromise;
+      if (catchingUp) {
+        try { await catchingUp; } catch { /* already logged by catch-up */ }
+      }
+      await this.toolHandler.closeAll(this.cg ?? undefined);
+      this.cg = null;
+      await closingHandler;
       await EmbeddingRunner.shutdownAll();
     })();
     return this.stopPromise;
@@ -369,6 +377,10 @@ export class MCPEngine {
           });
         }
       });
+    this.catchUpPromise = p;
+    void p.finally(() => {
+      if (this.catchUpPromise === p) this.catchUpPromise = null;
+    });
     this.toolHandler.setCatchUpGate(p);
   }
 }

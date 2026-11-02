@@ -1,8 +1,9 @@
-import { describe, expect, it, afterEach, beforeAll } from 'vitest';
+import { describe, expect, it, afterEach, beforeAll, beforeEach } from 'vitest';
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { RUST_CORE_BIN } from './helpers/rust-indexing-cli';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const SCRIPT = path.join(REPO_ROOT, 'scripts', 'rust-indexing-experiment.mjs');
@@ -45,9 +46,15 @@ describe('Rust indexing formal experiment runner', () => {
       });
       expect(result.status).toBe(0);
     }
+    expect(fs.existsSync(RUST_CORE_BIN), `Build the native replacement gate helper with cargo build --package zcodegraph-core --bins: ${RUST_CORE_BIN}`).toBe(true);
   }, 60_000);
 
+  beforeEach(() => {
+    process.env.ZCG_EXPERIMENT_TYPESCRIPT_GATE_BINARY = RUST_CORE_BIN;
+  });
+
   afterEach(() => {
+    delete process.env.ZCG_EXPERIMENT_TYPESCRIPT_GATE_BINARY;
     for (const dir of tempDirs.splice(0)) {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -495,7 +502,7 @@ describe('Rust indexing formal experiment runner', () => {
     expect(byName.envTarget.path).toMatchObject({ resolvedPath: envTarget, pathSource: 'env' });
     expect(byName.envTarget.preflight.status).toBe('available');
     expect(byName.envTarget.arms.typescript.preflight.status).toBe('available');
-    expect(byName.envTarget.arms.typescript.execution.status).toBe('completed');
+    expect(byName.envTarget.arms.typescript.execution.status, JSON.stringify(byName.envTarget.arms.typescript.execution, null, 2)).toBe('completed');
     expect(byName.envTarget.arms.rust.preflight).toMatchObject({ status: 'unavailable', kind: 'missing-rust-binary' });
     expect(byName.envTarget.arms.rust.execution.status).toBe('skipped');
     expect(byName.envTarget.arms.typescript.execution.diagnostics).toEqual([]);

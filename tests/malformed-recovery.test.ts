@@ -77,7 +77,7 @@ describe('CodeGraph.reopen()', () => {
     expect(before.length).toBeGreaterThan(0);
 
     // Reopen — closes the old DB handle, opens a fresh one
-    cg.reopen();
+    await cg.reopen();
 
     // Search must still work with the new connection
     const after = cg.searchNodes('survivor');

@@ -93,7 +93,9 @@ fn named_children_vec<'a>(node: SyntaxNode<'a>) -> Vec<SyntaxNode<'a>> {
 }
 
 fn first_named_of_kind<'a>(node: SyntaxNode<'a>, kind: &str) -> Option<SyntaxNode<'a>> {
-    named_children_vec(node).into_iter().find(|c| c.kind() == kind)
+    named_children_vec(node)
+        .into_iter()
+        .find(|c| c.kind() == kind)
 }
 
 /// TS `buildQualifiedName`: the `::`-joined names of every non-file frame
@@ -431,7 +433,11 @@ fn visit(
     if kind == "class_definition" || kind == "object_definition" || kind == "trait_definition" {
         if let Some(name_node) = node.child_by_field_name("name") {
             if let Some(name) = node_text(name_node, source) {
-                let symbol_kind = if kind == "trait_definition" { "trait" } else { "class" };
+                let symbol_kind = if kind == "trait_definition" {
+                    "trait"
+                } else {
+                    "class"
+                };
                 let qname = qualified_name(stack, &name);
                 let mut extracted = ExtractedNode::symbol_with_visibility_and_qualified_name(
                     relative_path,
@@ -681,7 +687,11 @@ fn visit(
                 // scala.ts signature: `val name: <type>` / `var name: <type>`.
                 let type_node = node.child_by_field_name("type");
                 if let Some(t) = type_node.and_then(|n| node_text(n, source)) {
-                    let kw = if kind == "val_definition" { "val" } else { "var" };
+                    let kw = if kind == "val_definition" {
+                        "val"
+                    } else {
+                        "var"
+                    };
                     extracted.signature = Some(format!("{kw} {name}: {t}"));
                 }
                 let id = extracted.id.clone();
@@ -712,7 +722,10 @@ fn visit(
         if let Some(body) = node.child_by_field_name("body") {
             let is_bare_def = matches!(
                 body.kind(),
-                "function_definition" | "function_declaration" | "val_definition" | "var_definition"
+                "function_definition"
+                    | "function_declaration"
+                    | "val_definition"
+                    | "var_definition"
             );
             if is_bare_def {
                 let mut cc = body.walk();

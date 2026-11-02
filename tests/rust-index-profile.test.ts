@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { CodeGraph } from '../src';
+import { RUST_CORE_BIN, SCRIPTED_INDEX_FIXTURE_BIN } from './helpers/rust-indexing-cli';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const SCRIPT = path.join(REPO_ROOT, 'scripts', 'rust-index-profile.mjs');
@@ -105,6 +106,12 @@ describe('Rust indexing profiler script', () => {
         stdio: 'inherit',
       });
     }
+    if (!fs.existsSync(RUST_CORE_BIN) || !fs.existsSync(SCRIPTED_INDEX_FIXTURE_BIN)) {
+      execFileSync('cargo', ['build', '--package', 'zcodegraph-core', '--bins'], {
+        cwd: REPO_ROOT,
+        stdio: 'inherit',
+      });
+    }
   }, 60_000);
 
   afterEach(() => {
@@ -153,6 +160,10 @@ describe('Rust indexing profiler script', () => {
           ZCG_ALLOW_UNSAFE_NODE: '1',
           ZCG_NO_DAEMON: '1',
           ZCG_NO_RELAUNCH: '1',
+          NODE_OPTIONS: '',
+          ZCG_PROFILE_TYPESCRIPT_GATE_BINARY: RUST_CORE_BIN,
+          ZCG_PROFILE_SCRIPTED_INDEX_FIXTURE_BINARY: SCRIPTED_INDEX_FIXTURE_BIN,
+          ZCG_TEST_NODE_BINARY: process.execPath,
         },
         encoding: 'utf-8',
       },

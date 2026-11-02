@@ -50,19 +50,76 @@ const LANG: &str = "dart";
 /// `dynamic` are not, so those DO surface as refs — reproduced verbatim.
 const BUILTIN_TYPES: &[&str] = &[
     // JS/TS
-    "string", "number", "boolean", "void", "null", "undefined", "never", "any", "unknown",
-    "object", "symbol", "bigint", "true", "false",
+    "string",
+    "number",
+    "boolean",
+    "void",
+    "null",
+    "undefined",
+    "never",
+    "any",
+    "unknown",
+    "object",
+    "symbol",
+    "bigint",
+    "true",
+    "false",
     // Rust
-    "str", "bool", "i8", "i16", "i32", "i64", "i128", "isize", "u8", "u16", "u32", "u64",
-    "u128", "usize", "f32", "f64", "char",
+    "str",
+    "bool",
+    "i8",
+    "i16",
+    "i32",
+    "i64",
+    "i128",
+    "isize",
+    "u8",
+    "u16",
+    "u32",
+    "u64",
+    "u128",
+    "usize",
+    "f32",
+    "f64",
+    "char",
     // Java/C#
-    "int", "long", "short", "byte", "float", "double",
+    "int",
+    "long",
+    "short",
+    "byte",
+    "float",
+    "double",
     // Go
-    "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32",
-    "float64", "complex64", "complex128", "rune", "error",
+    "int8",
+    "int16",
+    "int32",
+    "int64",
+    "uint8",
+    "uint16",
+    "uint32",
+    "uint64",
+    "float32",
+    "float64",
+    "complex64",
+    "complex128",
+    "rune",
+    "error",
     // Scala (capitalized primitives + aliases)
-    "Int", "Long", "Short", "Byte", "Float", "Double", "Boolean", "Char", "Unit", "String",
-    "Any", "AnyRef", "AnyVal", "Nothing", "Null",
+    "Int",
+    "Long",
+    "Short",
+    "Byte",
+    "Float",
+    "Double",
+    "Boolean",
+    "Char",
+    "Unit",
+    "String",
+    "Any",
+    "AnyRef",
+    "AnyVal",
+    "Nothing",
+    "Null",
 ];
 
 /// Inner signature node kinds that carry a method's real name/params/return.
@@ -161,7 +218,8 @@ fn method_name<'a>(node: SyntaxNode<'a>, source: &'a [u8]) -> Option<String> {
 /// Whether a method_signature has a direct `static` keyword child (mirrors
 /// dartExtractor.isStatic).
 fn is_static_method(node: SyntaxNode) -> bool {
-    node.children(&mut node.walk()).any(|c| c.kind() == "static")
+    node.children(&mut node.walk())
+        .any(|c| c.kind() == "static")
 }
 
 /// Method visibility, mirroring dartExtractor.getVisibility's method_signature
@@ -171,12 +229,14 @@ fn is_static_method(node: SyntaxNode) -> bool {
 /// `factory _Private()`). For the three regular signatures the underscore rule
 /// applies.
 fn method_visibility(node: SyntaxNode, name: &str) -> Option<String> {
-    let regular = inner_signature(node).map(|sig| {
-        matches!(
-            sig.kind(),
-            "function_signature" | "getter_signature" | "setter_signature"
-        )
-    }).unwrap_or(false);
+    let regular = inner_signature(node)
+        .map(|sig| {
+            matches!(
+                sig.kind(),
+                "function_signature" | "getter_signature" | "setter_signature"
+            )
+        })
+        .unwrap_or(false);
     if regular {
         declaration_visibility(name)
     } else {
@@ -696,9 +756,7 @@ fn walk_decl(
     }
 
     // ---- class_definition / mixin_declaration / extension_declaration ----
-    if kind == "class_definition"
-        || kind == "mixin_declaration"
-        || kind == "extension_declaration"
+    if kind == "class_definition" || kind == "mixin_declaration" || kind == "extension_declaration"
     {
         let name = class_like_name(node, source);
         // An unnamed declaration (an `extension on T {}` without a name) yields
@@ -919,15 +977,14 @@ mod tests {
     fn extract_all(
         path: &str,
         code: &str,
-    ) -> (
-        Vec<ExtractedNode>,
-        Vec<ExtractedEdge>,
-        Vec<UnresolvedRef>,
-    ) {
+    ) -> (Vec<ExtractedNode>, Vec<ExtractedEdge>, Vec<UnresolvedRef>) {
         let mut parser = Parser::new();
         parser.set_language(&tree_sitter_dart::language()).unwrap();
         let tree = parser.parse(code, None).unwrap();
-        assert!(!tree.root_node().has_error(), "fixture must parse cleanly:\n{code}");
+        assert!(
+            !tree.root_node().has_error(),
+            "fixture must parse cleanly:\n{code}"
+        );
         let file = ExtractedNode::file(path, code, LANG);
         let file_id = file.id.clone();
         let mut nodes = vec![file];
@@ -974,11 +1031,7 @@ mod tests {
     }
 
     /// Reference names of a kind attributed to a specific source node.
-    fn refs_from<'a>(
-        refs: &'a [UnresolvedRef],
-        kind: &str,
-        from_id: &str,
-    ) -> Vec<&'a str> {
+    fn refs_from<'a>(refs: &'a [UnresolvedRef], kind: &str, from_id: &str) -> Vec<&'a str> {
         refs.iter()
             .filter(|r| r.reference_kind == kind && r.from_node_id == from_id)
             .map(|r| r.reference_name.as_str())
@@ -1041,8 +1094,18 @@ void topLevelFunction(String name) {
         // the factory is named after the class-name identifier `UserService`.
         let methods = kinds(&nodes, "method");
         let method_names: Vec<&str> = methods.iter().map(|m| m.name.as_str()).collect();
-        for expected in ["log", "isBlank", "shadow", "UserService", "findById", "doWork"] {
-            assert!(method_names.contains(&expected), "method {expected} present: {method_names:?}");
+        for expected in [
+            "log",
+            "isBlank",
+            "shadow",
+            "UserService",
+            "findById",
+            "doWork",
+        ] {
+            assert!(
+                method_names.contains(&expected),
+                "method {expected} present: {method_names:?}"
+            );
         }
         // Fields are never symbols in Dart.
         assert!(names_of(&nodes, "field").is_empty());
@@ -1109,11 +1172,28 @@ void topPublic() {}
         let (nodes, _edges, _refs) = extract_all("vis.dart", code);
 
         // class/enum/function: underscore -> private, else public.
-        assert_eq!(find(&nodes, "class", "PublicMixin").visibility.as_deref(), Some("public"));
-        assert_eq!(find(&nodes, "class", "C").visibility.as_deref(), Some("public"));
-        assert_eq!(find(&nodes, "function", "topPublic").visibility.as_deref(), Some("public"));
-        assert_eq!(find(&nodes, "function", "_topPrivate").visibility.as_deref(), Some("private"));
-        assert_eq!(find(&nodes, "enum", "_PrivateEnum").visibility.as_deref(), Some("private"));
+        assert_eq!(
+            find(&nodes, "class", "PublicMixin").visibility.as_deref(),
+            Some("public")
+        );
+        assert_eq!(
+            find(&nodes, "class", "C").visibility.as_deref(),
+            Some("public")
+        );
+        assert_eq!(
+            find(&nodes, "function", "topPublic").visibility.as_deref(),
+            Some("public")
+        );
+        assert_eq!(
+            find(&nodes, "function", "_topPrivate")
+                .visibility
+                .as_deref(),
+            Some("private")
+        );
+        assert_eq!(
+            find(&nodes, "enum", "_PrivateEnum").visibility.as_deref(),
+            Some("private")
+        );
 
         // A mixin's name has no `name` field, so the TS hook always reads null
         // and yields `public`, even for an underscore mixin.
@@ -1132,12 +1212,29 @@ void topPublic() {}
         // Methods: regular underscore rule for function/getter/setter sigs;
         // a factory is ALWAYS public (its inner sig is not in getVisibility's
         // recognized set).
-        assert_eq!(find(&nodes, "method", "regular").visibility.as_deref(), Some("public"));
-        assert_eq!(find(&nodes, "method", "_secret").visibility.as_deref(), Some("private"));
-        assert_eq!(find(&nodes, "method", "_staticSecret").visibility.as_deref(), Some("private"));
-        assert_eq!(find(&nodes, "method", "_prop").visibility.as_deref(), Some("private"));
+        assert_eq!(
+            find(&nodes, "method", "regular").visibility.as_deref(),
+            Some("public")
+        );
+        assert_eq!(
+            find(&nodes, "method", "_secret").visibility.as_deref(),
+            Some("private")
+        );
+        assert_eq!(
+            find(&nodes, "method", "_staticSecret")
+                .visibility
+                .as_deref(),
+            Some("private")
+        );
+        assert_eq!(
+            find(&nodes, "method", "_prop").visibility.as_deref(),
+            Some("private")
+        );
         // factory method is named after the class identifier `C`.
-        assert_eq!(find(&nodes, "method", "C").visibility.as_deref(), Some("public"));
+        assert_eq!(
+            find(&nodes, "method", "C").visibility.as_deref(),
+            Some("public")
+        );
     }
 
     #[test]
@@ -1292,7 +1389,10 @@ class C {
         // path returns receiver.method (no capitalization check here — that
         // gate is only for static-member value reads); super.cleanup() ->
         // cleanup.
-        assert_eq!(calls, ["MyApp", "Navigator.push", "cleanup", "runApp", "thing.sub"]);
+        assert_eq!(
+            calls,
+            ["MyApp", "Navigator.push", "cleanup", "runApp", "thing.sub"]
+        );
     }
 
     #[test]
@@ -1314,10 +1414,7 @@ class C {
         // TS new_expression returns ONLY the type_identifier (it does not
         // append the named constructor), so `new User.named(1)` -> `User`.
         // const_object_expression returns type + name -> `EdgeInsets.all`.
-        assert_eq!(
-            calls,
-            ["EdgeInsets.all", "Plain", "SizedBox", "User"]
-        );
+        assert_eq!(calls, ["EdgeInsets.all", "Plain", "SizedBox", "User"]);
     }
 
     #[test]
@@ -1338,8 +1435,14 @@ void plain(Object? x) {}
         let m = find(&nodes, "method", "m");
         // No-arg value reads on a Capitalized receiver -> references.
         let value_reads = refs_from(&refs, "references", &m.id);
-        assert!(value_reads.contains(&"Color"), "Color value read: {value_reads:?}");
-        assert!(value_reads.contains(&"Colors"), "Colors value read: {value_reads:?}");
+        assert!(
+            value_reads.contains(&"Color"),
+            "Color value read: {value_reads:?}"
+        );
+        assert!(
+            value_reads.contains(&"Colors"),
+            "Colors value read: {value_reads:?}"
+        );
         // A lowercase receiver (obj.field) is excluded.
         assert!(!value_reads.contains(&"obj"));
     }
@@ -1379,7 +1482,10 @@ class C {
         assert!(type_refs.contains(&"Future"), "{type_refs:?}");
         assert!(type_refs.contains(&"User"), "{type_refs:?}");
         for builtin in ["String", "int", "bool"] {
-            assert!(!type_refs.contains(&builtin), "{builtin} should be filtered");
+            assert!(
+                !type_refs.contains(&builtin),
+                "{builtin} should be filtered"
+            );
         }
         // Parameter NAMES never surface as refs.
         assert!(!type_refs.contains(&"id"));
@@ -1411,4 +1517,3 @@ typedef StringMap = Map<String, String>;
         assert!(refs_of(&refs, "references").is_empty(), "{:?}", refs);
     }
 }
-

@@ -106,6 +106,45 @@ export function enqueueEmbeddingBatch(
   return inserted;
 }
 
+/** Rebuild from the promoted index, never from the previous queue state. */
+export function rebuildEmbeddingQueue(db: SqliteDatabase, enqueuedAtMs = Date.now()): number {
+  let inserted = 0;
+  db.transaction(() => {
+    db.prepare('DELETE FROM embedding_queue').run();
+    const rows = db.prepare('SELECT path, content_hash FROM files').all() as Array<{
+      path: string;
+      content_hash: string;
+    }>;
+    const insert = db.prepare(
+      `INSERT INTO embedding_queue
+         (file_path, content_hash, status, attempts, enqueued_at)
+       VALUES (?, ?, 'pending', 0, ?)`,
+    );
+    for (const row of rows) {
+      insert.run(row.path, row.content_hash, enqueuedAtMs);
+      inserted++;
+    }
+  })();
+  return inserted;
+}
+
+/** Read-only projection for replacement and queue-health consumers. */
+export interface EmbeddingQueueSnapshotEntry {
+  filePath: string;
+  contentHash: string;
+  status: EmbeddingQueueStatus;
+}
+
+export function getEmbeddingQueueSnapshot(db: SqliteDatabase): EmbeddingQueueSnapshotEntry[] {
+  return db.prepare(
+    'SELECT file_path, content_hash, status FROM embedding_queue ORDER BY file_path, content_hash',
+  ).all().map((row) => ({
+    filePath: row.file_path,
+    contentHash: row.content_hash,
+    status: row.status,
+  }));
+}
+
 /** Fetch one row by primary key. Returns `undefined` when absent. */
 export function getEmbeddingQueueRow(
   db: SqliteDatabase,

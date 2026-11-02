@@ -961,6 +961,13 @@ function indexArm(target, engine, rustCoreInfo, experimentId, profiling) {
       }
     } else {
       args.push('--engine', 'typescript');
+      // The TypeScript arm never runs the experimental Rust writer, but its
+      // forced clear still requires the production native replacement gate.
+      // Tests may supply that real binary independently of the fake/missing
+      // Rust core used to exercise the other arm's preflight and reporting.
+      if (process.env.ZCG_EXPERIMENT_TYPESCRIPT_GATE_BINARY) {
+        env.ZCG_RUST_CORE_BINARY = process.env.ZCG_EXPERIMENT_TYPESCRIPT_GATE_BINARY;
+      }
     }
     arm.command = {
       executable: process.execPath,

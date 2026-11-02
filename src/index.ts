@@ -59,12 +59,13 @@ import { ContextBuilder, createContextBuilder } from './context';
 import { Mutex, FileLock } from './utils';
 import { FileWatcher, WatchOptions, PendingFile, LockUnavailableError } from './sync';
 import { EmbeddingRunner, embeddingEnabled } from './embedding/worker-runner';
-import { enqueueEmbeddingBatch } from './embedding/queue';
+import { enqueueEmbeddingBatch, getEmbeddingQueueSnapshot, rebuildEmbeddingQueue, type EmbeddingQueueSnapshotEntry } from './embedding/queue';
 import { getDefaultVec0Path } from './embedding/vec0-path';
 import { EXTRACTION_VERSION } from './extraction/extraction-version';
 import { CodeGraphPackageVersion } from './mcp/version';
 import { IndexEngine } from './indexing/engine-selection';
-import { runRustIndexer } from './indexing/rust-indexer';
+import { runRustIndexerBorrowingGate } from './indexing/rust-indexer';
+import { acquireExclusiveReplacementGate } from './embedding/replacement-gate';
 import { runPythonFrameworkRouteBackfill } from './indexing/rust-python-framework-routes';
 import type { PythonFrameworkRouteBackfillStats } from './indexing/rust-python-framework-routes';
 import { runPhpFrameworkRouteBackfill } from './indexing/rust-php-framework-routes';
@@ -971,6 +972,22 @@ export class CodeGraph {
   }
 
   /**
+   * Quiesce graph writes, close the embedding worker and release the DB.
+   * Unlike legacy close(), the returned promise covers the complete shutdown.
+   */
+  async closeAndWait(): Promise<void> {
+    this.unwatch();
+    await this.indexMutex.withLock(async () => {
+      try {
+        await EmbeddingRunner.shutdownDatabase(this.db.getPath());
+      } finally {
+        this.fileLock.release();
+        this.db.close();
+      }
+    });
+  }
+
+  /**
    * Close the stale SQLite connection and reopen a fresh one to the same
    * database file, rebuilding all internal objects that hold references to
    * the old connection.
@@ -986,10 +1003,18 @@ export class CodeGraph {
    * restarting it if needed. The file lock is NOT released — the MCP server
    * still owns it.
    */
-  reopen(): void {
-    this.unwatch();
-    this.db.close();
-    this.reopenDatabaseAfterExternalIndex();
+  async reopen(): Promise<void> {
+    await this.indexMutex.withLock(async () => {
+      this.unwatch();
+      await EmbeddingRunner.shutdownDatabase(getDatabasePath(this.projectRoot));
+      const replacementGate = await acquireExclusiveReplacementGate(getDatabasePath(this.projectRoot));
+      try {
+        this.db.close();
+        this.reopenDatabaseAfterExternalIndex();
+      } finally {
+        await replacementGate.release();
+      }
+    });
   }
 
   /**
@@ -1096,12 +1121,18 @@ export class CodeGraph {
 
   private async indexExternalEngine(engine: 'rust' | 'rust-hybrid', options: IndexOptions): Promise<IndexResult> {
     return this.indexMutex.withLock(async () => {
+      // A completed batch is not a replacement barrier: the local worker must
+      // exit and close its DB/vec0 handles before the Rust child may promote.
+      await EmbeddingRunner.shutdownDatabase(getDatabasePath(this.projectRoot));
+      const replacementGate = await acquireExclusiveReplacementGate(getDatabasePath(this.projectRoot));
       this.closeDatabaseForExternalIndex();
+      let promoted = false;
       try {
-        const result = await runRustIndexer(this.projectRoot, {
+        const result = await runRustIndexerBorrowingGate(this.projectRoot, {
           verbose: options.verbose,
           onProgress: options.onProgress,
         });
+        promoted = result.success;
         if (!result.success || result.filesIndexed === 0) {
           return result;
         }
@@ -1185,9 +1216,18 @@ export class CodeGraph {
           cg.close();
         }
       } finally {
-        this.reopenDatabaseAfterExternalIndex();
+        try {
+          this.reopenDatabaseAfterExternalIndex();
+          if (promoted) rebuildEmbeddingQueue(this.db.getDb());
+        } finally {
+          await replacementGate.release();
+        }
       }
     });
+  }
+
+  getEmbeddingQueueSnapshot(): EmbeddingQueueSnapshotEntry[] {
+    return getEmbeddingQueueSnapshot(this.db.getDb());
   }
 
   private closeDatabaseForExternalIndex(): void {
@@ -2879,8 +2919,22 @@ export class CodeGraph {
   /**
    * Clear all data from the graph
    */
-  clear(): void {
-    this.queries.clear();
+  /**
+   * Destructive clear is an asynchronous replacement operation. The worker
+   * must close its DB handles before the exclusive gate can be acquired;
+   * failing to acquire it leaves the existing graph and queue untouched.
+   */
+  async clear(): Promise<void> {
+    await this.indexMutex.withLock(async () => {
+      await EmbeddingRunner.shutdownDatabase(getDatabasePath(this.projectRoot));
+      const replacementGate = await acquireExclusiveReplacementGate(getDatabasePath(this.projectRoot));
+      try {
+        this.queries.clear();
+        rebuildEmbeddingQueue(this.db.getDb());
+      } finally {
+        await replacementGate.release();
+      }
+    });
   }
 
   /**
@@ -2897,9 +2951,19 @@ export class CodeGraph {
    *
    * WARNING: This permanently deletes all CodeGraph data for the project.
    */
-  uninitialize(): void {
-    this.close();
-    removeDirectory(this.projectRoot);
+  async uninitialize(): Promise<void> {
+    await this.indexMutex.withLock(async () => {
+      this.unwatch();
+      await EmbeddingRunner.shutdownDatabase(getDatabasePath(this.projectRoot));
+      const replacementGate = await acquireExclusiveReplacementGate(getDatabasePath(this.projectRoot));
+      try {
+        this.fileLock.release();
+        this.db.close();
+        removeDirectory(this.projectRoot);
+      } finally {
+        await replacementGate.release();
+      }
+    });
   }
 }
 

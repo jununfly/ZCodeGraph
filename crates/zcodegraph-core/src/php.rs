@@ -44,8 +44,23 @@ const SKIP_RECEIVERS: &[&str] = &["self", "this", "cls", "super", "parent", "sta
 fn is_pseudo_type(name: &str) -> bool {
     matches!(
         name,
-        "self" | "static" | "parent" | "mixed" | "object" | "iterable" | "callable" | "void"
-            | "null" | "false" | "true" | "never" | "array" | "int" | "float" | "string" | "bool"
+        "self"
+            | "static"
+            | "parent"
+            | "mixed"
+            | "object"
+            | "iterable"
+            | "callable"
+            | "void"
+            | "null"
+            | "false"
+            | "true"
+            | "never"
+            | "array"
+            | "int"
+            | "float"
+            | "string"
+            | "bool"
     )
 }
 
@@ -139,13 +154,7 @@ fn emit_declaration_type_hints(
         }
     }
     if let Some(return_type) = decl.child_by_field_name("return_type") {
-        emit_php_type_refs(
-            return_type,
-            source,
-            from_id,
-            relative_path,
-            unresolved_refs,
-        );
+        emit_php_type_refs(return_type, source, from_id, relative_path, unresolved_refs);
     }
 }
 
@@ -309,15 +318,30 @@ pub(crate) fn extract(
                 kind: "module",
             });
             for child in root.named_children(&mut root.walk()) {
-                walk(child, source, relative_path, &mut stack, nodes, edges,
-                    unresolved_refs)?;
+                walk(
+                    child,
+                    source,
+                    relative_path,
+                    &mut stack,
+                    nodes,
+                    edges,
+                    unresolved_refs,
+                )?;
             }
             stack.pop();
             return Ok(());
         }
     }
 
-    walk(root, source, relative_path, &mut stack, nodes, edges, unresolved_refs)?;
+    walk(
+        root,
+        source,
+        relative_path,
+        &mut stack,
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
     Ok(())
 }
 
@@ -332,10 +356,7 @@ fn walk(
     unresolved_refs: &mut Vec<UnresolvedRef>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let kind = node.kind();
-    let parent_id = stack
-        .last()
-        .map(|f| f.id.clone())
-        .unwrap_or_default();
+    let parent_id = stack.last().map(|f| f.id.clone()).unwrap_or_default();
 
     // ---- namespace_use_declaration -> import node(s) + imports ref --------
     // Single: `use App\Services\UserService;` / `use function X\f;` /
@@ -394,7 +415,13 @@ fn walk(
                     edges,
                 );
                 // TS anchors the single ref on the whole declaration.
-                push_php_use_ref(&import_name, &parent_id, node, relative_path, unresolved_refs);
+                push_php_use_ref(
+                    &import_name,
+                    &parent_id,
+                    node,
+                    relative_path,
+                    unresolved_refs,
+                );
             }
         }
         return Ok(());
@@ -482,13 +509,15 @@ fn walk(
                 .child_by_field_name("name")
                 .filter(|n| n.kind() == "variable_name")
                 .and_then(|vn| {
-                    vn.named_children(&mut vn.walk()).find(|c| c.kind() == "name")
+                    vn.named_children(&mut vn.walk())
+                        .find(|c| c.kind() == "name")
                 })
                 .or_else(|| {
                     elem.named_children(&mut elem.walk())
                         .find(|c| c.kind() == "variable_name")
                         .and_then(|vn| {
-                            vn.named_children(&mut vn.walk()).find(|c| c.kind() == "name")
+                            vn.named_children(&mut vn.walk())
+                                .find(|c| c.kind() == "name")
                         })
                 });
             if let Some(name) = name_node.and_then(|n| node_text(n, source)) {
@@ -594,7 +623,15 @@ fn walk(
                 kind: sym_kind,
             });
             for child in node.named_children(&mut node.walk()) {
-                walk(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+                walk(
+                    child,
+                    source,
+                    relative_path,
+                    stack,
+                    nodes,
+                    edges,
+                    unresolved_refs,
+                )?;
             }
             stack.pop();
             return Ok(());
@@ -607,7 +644,11 @@ fn walk(
     // stack test is needed.
     if kind == "function_definition" || kind == "method_declaration" {
         if let Some(name) = field_text(node, "name", source) {
-            let sym_kind = if kind == "method_declaration" { "method" } else { "function" };
+            let sym_kind = if kind == "method_declaration" {
+                "method"
+            } else {
+                "function"
+            };
             let mut sym = ExtractedNode::symbol_with_visibility_and_qualified_name(
                 relative_path,
                 sym_kind,
@@ -624,13 +665,7 @@ fn walk(
             // Parameter + return type hints -> references (constructor
             // property-promotion params included; pseudo/primitive types
             // filtered). Mirrors extractPhpTypeRefs on the declaration.
-            emit_declaration_type_hints(
-                node,
-                source,
-                &id,
-                relative_path,
-                unresolved_refs,
-            );
+            emit_declaration_type_hints(node, source, &id, relative_path, unresolved_refs);
 
             nodes.push(sym);
             stack.push(Frame {
@@ -639,7 +674,15 @@ fn walk(
                 kind: sym_kind,
             });
             for child in node.named_children(&mut node.walk()) {
-                walk(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+                walk(
+                    child,
+                    source,
+                    relative_path,
+                    stack,
+                    nodes,
+                    edges,
+                    unresolved_refs,
+                )?;
             }
             stack.pop();
             return Ok(());
@@ -787,7 +830,15 @@ fn walk(
 
     // ---- generic descent --------------------------------------------------
     for child in node.named_children(&mut node.walk()) {
-        walk(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+        walk(
+            child,
+            source,
+            relative_path,
+            stack,
+            nodes,
+            edges,
+            unresolved_refs,
+        )?;
     }
     Ok(())
 }
@@ -835,11 +886,7 @@ fn single_clause_name(clause: SyntaxNode, source: &[u8]) -> Option<String> {
 /// Grouped-clause leaf: the clause inside `use Prefix\{A, B};` carries only a
 /// bare `name` (optionally a nested `namespace_name`); prepend the prefix to
 /// form the fully-qualified import name (mirrors TS grouped-import handling).
-fn grouped_clause_name(
-    clause: SyntaxNode,
-    source: &[u8],
-    prefix: Option<&str>,
-) -> Option<String> {
+fn grouped_clause_name(clause: SyntaxNode, source: &[u8], prefix: Option<&str>) -> Option<String> {
     let leaf = clause
         .named_children(&mut clause.walk())
         .find(|c| c.kind() == "namespace_name")
@@ -851,7 +898,9 @@ fn grouped_clause_name(
                 .and_then(|n| node_text(n, source))
         })?;
     Some(match prefix {
-        Some(prefix) if !prefix.is_empty() => format!("{prefix}\\{}", leaf.trim_start_matches('\\')),
+        Some(prefix) if !prefix.is_empty() => {
+            format!("{prefix}\\{}", leaf.trim_start_matches('\\'))
+        }
         _ => leaf,
     })
 }
@@ -860,15 +909,11 @@ mod tests {
     use super::*;
     use tree_sitter::Parser;
 
-    fn extract_all(
-        code: &str,
-    ) -> (
-        Vec<ExtractedNode>,
-        Vec<ExtractedEdge>,
-        Vec<UnresolvedRef>,
-    ) {
+    fn extract_all(code: &str) -> (Vec<ExtractedNode>, Vec<ExtractedEdge>, Vec<UnresolvedRef>) {
         let mut parser = Parser::new();
-        parser.set_language(&tree_sitter_php::LANGUAGE_PHP.into()).unwrap();
+        parser
+            .set_language(&tree_sitter_php::LANGUAGE_PHP.into())
+            .unwrap();
         let tree = parser.parse(code, None).unwrap();
         assert!(!tree.root_node().has_error(), "fixture must parse cleanly");
         let file = ExtractedNode::file("src/Demo.php", code, LANG);
@@ -924,7 +969,8 @@ mod tests {
             "    public function show(string $id): User {}",
             "}",
             "",
-        ].join("\n");
+        ]
+        .join("\n");
         let (nodes, _edges) = extract_nodes(&code);
 
         let module = kinds(&nodes, "module");
@@ -975,7 +1021,8 @@ mod tests {
             "function make() {}",
             "const FOO = 1;",
             "",
-        ].join("\n");
+        ]
+        .join("\n");
         let (nodes, _edges) = extract_nodes(&code);
 
         assert_eq!(kinds(&nodes, "interface").len(), 1);
@@ -996,7 +1043,10 @@ mod tests {
 
         // Global `const FOO = 1;` at namespace scope.
         assert_eq!(
-            kinds(&nodes, "constant").iter().filter(|c| c.name == "FOO").count(),
+            kinds(&nodes, "constant")
+                .iter()
+                .filter(|c| c.name == "FOO")
+                .count(),
             1
         );
 
@@ -1016,7 +1066,8 @@ mod tests {
             "",
             "class C {}",
             "",
-        ].join("\n");
+        ]
+        .join("\n");
         let (nodes, _edges) = extract_nodes(&code);
         let imports: Vec<_> = kinds(&nodes, "import")
             .iter()
@@ -1140,10 +1191,7 @@ mod tests {
         .join("\n");
         let (_nodes, _edges, refs) = extract_all(&code);
 
-        assert_eq!(
-            ref_names(&refs, "instantiates"),
-            vec!["User".to_string()]
-        );
+        assert_eq!(ref_names(&refs, "instantiates"), vec!["User".to_string()]);
 
         let calls = ref_names(&refs, "calls");
         // free fn, scoped static call, self:: collapses to bare method, member
@@ -1158,9 +1206,18 @@ mod tests {
 
         let references = ref_names(&refs, "references");
         // return type User + static value reads Status / User(::class) / Config.
-        assert!(references.contains(&"User".to_string()), "refs: {references:?}");
-        assert!(references.contains(&"Status".to_string()), "refs: {references:?}");
-        assert!(references.contains(&"Config".to_string()), "refs: {references:?}");
+        assert!(
+            references.contains(&"User".to_string()),
+            "refs: {references:?}"
+        );
+        assert!(
+            references.contains(&"Status".to_string()),
+            "refs: {references:?}"
+        );
+        assert!(
+            references.contains(&"Config".to_string()),
+            "refs: {references:?}"
+        );
         // `string` primitive parameter emits nothing; `User::find` is a CALL,
         // so no duplicate static-read ref on that line.
         assert!(!references.contains(&"string".to_string()));

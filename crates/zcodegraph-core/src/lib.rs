@@ -12,19 +12,22 @@ use tree_sitter::{Node as SyntaxNode, Parser, TreeCursor};
 
 mod csharp;
 mod dart;
-mod objc;
+mod index_options;
 mod lua;
 mod luau;
+mod objc;
 mod pascal;
+mod php;
+pub mod process_supervision;
+mod profiling;
+mod replacement_gate;
+mod ruby;
 mod scala;
 mod swift;
-mod index_options;
-mod php;
-mod ruby;
-mod profiling;
 use index_options::GraphWorkFeatures;
 pub use index_options::{GraphWorkProfile, IndexRequest, SqliteWriteMode};
 pub use profiling::{start_heap_profiler, HeapProfilerGuard};
+pub use replacement_gate::{acquire_replacement_gate, acquire_worker_lease, OsFileLease};
 
 #[cfg(feature = "dhat")]
 #[global_allocator]
@@ -55,8 +58,20 @@ const ESM_VALUE_TOKEN_INTERFACE_RESOLVED_BY: &str = "rust-esm-value-token-interf
 /// `references` edges from parameter / return-type annotations (mirrors
 /// `BUILTIN_TYPES` in src/extraction/tree-sitter.ts).
 const TS_BUILTIN_TYPES: &[&str] = &[
-    "string", "number", "boolean", "void", "null", "undefined", "never", "any", "unknown",
-    "object", "symbol", "bigint", "true", "false",
+    "string",
+    "number",
+    "boolean",
+    "void",
+    "null",
+    "undefined",
+    "never",
+    "any",
+    "unknown",
+    "object",
+    "symbol",
+    "bigint",
+    "true",
+    "false",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -434,9 +449,20 @@ impl Default for ImportFallbackSampleCap {
 }
 
 pub fn run_index(request: &IndexRequest) -> IndexResult {
+    run_index_with(request, write_minimal_index)
+}
+
+pub fn run_index_with_borrowed_gate(request: &IndexRequest) -> IndexResult {
+    run_index_with(request, write_minimal_index_with_borrowed_gate)
+}
+
+fn run_index_with(
+    request: &IndexRequest,
+    write: fn(&IndexRequest) -> Result<WriteCounts, Box<dyn std::error::Error>>,
+) -> IndexResult {
     let started = Instant::now();
 
-    match write_minimal_index(request) {
+    match write(request) {
         Ok(counts) => IndexResult {
             success: true,
             files_indexed: counts.files_indexed,
@@ -1353,6 +1379,22 @@ pub struct WriteCounts {
 pub fn write_minimal_index(
     request: &IndexRequest,
 ) -> Result<WriteCounts, Box<dyn std::error::Error>> {
+    // Standalone indexing also bootstraps a project without .zcodegraph/.
+    // The gate canonicalizes that store, so create only its parent before
+    // acquisition; no database or destructive write happens before the gate.
+    SqliteIndexWritePaths::new(Path::new(&request.index_path)).ensure_parent_dir()?;
+    let _replacement_gate = acquire_replacement_gate(Path::new(&request.project_path), 5_000)?;
+    write_minimal_index_with_borrowed_gate(request)
+}
+
+/// Called only by the TypeScript operation owner after it acquired the
+/// exclusive replacement gate. The borrowed helper must not reacquire it.
+pub fn write_minimal_index_with_borrowed_gate(
+    request: &IndexRequest,
+) -> Result<WriteCounts, Box<dyn std::error::Error>> {
+    // The exclusive turnstile/lease covers every destructive step,
+    // including temporary-path preparation and active-index promotion.
+    // Queue idleness alone cannot prove that old DB/vec0 handles are closed.
     let write_paths = SqliteIndexWritePaths::new(Path::new(&request.index_path));
     write_paths.ensure_parent_dir()?;
 
@@ -7134,8 +7176,8 @@ fn index_javascript_files(
             .ok_or_else(|| format!("Unsupported source file: {}", file_path.display()))?;
         let relative_path = relative_slash_path(project_path, &file_path)?;
         let source_read_started = Instant::now();
-        let content = fs::read(&file_path)
-            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())?;
+        let content =
+            fs::read(&file_path).map(|bytes| String::from_utf8_lossy(&bytes).into_owned())?;
         let metadata = fs::metadata(&file_path)?;
         let source_read_ms = source_read_started.elapsed().as_millis();
         counts.profile.parse_source_read_ms += source_read_ms;
@@ -7293,23 +7335,20 @@ fn index_javascript_files(
                 std::thread::scope(|scope| {
                     let handle = std::thread::Builder::new()
                         .stack_size(DART_EXTRACT_STACK_SIZE)
-                        .spawn_scoped(
-                            scope,
-                            || {
-                                // Box<dyn Error> is not Send; stringify inside the
-                                // worker and re-box on the caller thread.
-                                dart::extract(
-                                    parsed.root_node(),
-                                    content.as_bytes(),
-                                    &relative_path,
-                                    &file_node_id,
-                                    &mut nodes,
-                                    &mut edges,
-                                    &mut unresolved_refs,
-                                )
-                                .map_err(|err| err.to_string())
-                            },
-                        )
+                        .spawn_scoped(scope, || {
+                            // Box<dyn Error> is not Send; stringify inside the
+                            // worker and re-box on the caller thread.
+                            dart::extract(
+                                parsed.root_node(),
+                                content.as_bytes(),
+                                &relative_path,
+                                &file_node_id,
+                                &mut nodes,
+                                &mut edges,
+                                &mut unresolved_refs,
+                            )
+                            .map_err(|err| err.to_string())
+                        })
                         .expect("spawn dart extraction worker");
                     match handle.join() {
                         Ok(result) => result.map_err(|msg| -> Box<dyn std::error::Error> {
@@ -7586,10 +7625,8 @@ fn blank_csharp_preprocessor_directives(source: &str) -> Cow<'_, str> {
     }
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let re = RE.get_or_init(|| {
-        regex::Regex::new(
-            r"(?m)^(?P<indent>[ \t]*)#[ \t]*(?P<kw>if|elif|else|endif)\b[^\n]*",
-        )
-        .expect("csharp preproc regex should be valid")
+        regex::Regex::new(r"(?m)^(?P<indent>[ \t]*)#[ \t]*(?P<kw>if|elif|else|endif)\b[^\n]*")
+            .expect("csharp preproc regex should be valid")
     });
     let bom_len = if source.starts_with('\u{feff}') {
         '\u{feff}'.len_utf8()
@@ -7917,9 +7954,7 @@ impl SourceLanguage {
             Some("mts") => Some(Self::Mts),
             Some("cts") => Some(Self::Cts),
             Some("c") | Some("h") => Some(Self::C),
-            Some("cpp") | Some("cc") | Some("cxx") | Some("hpp") | Some("hxx") => {
-                Some(Self::Cpp)
-            }
+            Some("cpp") | Some("cc") | Some("cxx") | Some("hpp") | Some("hxx") => Some(Self::Cpp),
             Some("go") => Some(Self::Go),
             Some("java") => Some(Self::Java),
             Some("kt") | Some("kts") => Some(Self::Kotlin),
@@ -9732,12 +9767,16 @@ fn extract_cpp_named_symbol<'a>(
                     // class/struct body is a METHOD (G3): kind `method` and the
                     // qualified name carries the enclosing scope,
                     // `file::[ns::]Class::name`.
-                    if let Some(class_scope) =
-                        cpp_enclosing_class_scope(node, source)?
-                    {
+                    if let Some(class_scope) = cpp_enclosing_class_scope(node, source)? {
                         let qualified_name =
                             format!("{}::{}::{}", relative_path, class_scope, name);
-                        return Ok(Some(("method", name, Some(qualified_name), name_node, None)));
+                        return Ok(Some((
+                            "method",
+                            name,
+                            Some(qualified_name),
+                            name_node,
+                            None,
+                        )));
                     }
                     // An OUT-OF-CLASS definition whose declarator is qualified
                     // (`int CDetect::Processing() {}` in a .cpp while the class
@@ -9753,7 +9792,13 @@ fn extract_cpp_named_symbol<'a>(
                     // no class so it never misroutes.
                     if let Some(qn) = qualified {
                         let qualified_name = format!("{}::{}", relative_path, qn);
-                        return Ok(Some(("method", name, Some(qualified_name), name_node, None)));
+                        return Ok(Some((
+                            "method",
+                            name,
+                            Some(qualified_name),
+                            name_node,
+                            None,
+                        )));
                     }
                     return Ok(Some(("function", name, None, name_node, None)));
                 }
@@ -9869,8 +9914,7 @@ fn extract_cpp_named_symbol<'a>(
             // reuses cpp_declarator_name so qualified identifiers
             // (`void ns::Foo::reset();`) keep their scope.
             if cpp_declarator_has_parameter_list(declarator) {
-                if let Some((name, qualified, name_node)) =
-                    cpp_declarator_name(declarator, source)?
+                if let Some((name, qualified, name_node)) = cpp_declarator_name(declarator, source)?
                 {
                     // Inside a class/struct body the declaration is a METHOD
                     // (mirrors G3 inline definitions); destructors (`~Foo();`)
@@ -9976,10 +10020,7 @@ fn cpp_declarator_ptr_prefix(node: SyntaxNode) -> String {
             }
             let mut inner = current.walk();
             for child in current.children(&mut inner) {
-                if matches!(
-                    child.kind(),
-                    "pointer_declarator" | "reference_declarator"
-                ) {
+                if matches!(child.kind(), "pointer_declarator" | "reference_declarator") {
                     stack.push(child);
                 }
             }
@@ -10263,22 +10304,20 @@ fn cpp_scope_leaf_name(
 /// via `name`.
 fn cpp_base_leaf_identifier(node: SyntaxNode) -> Option<SyntaxNode> {
     match node.kind() {
-        "template_type" | "qualified_identifier" => node
-            .child_by_field_name("name")
-            .and_then(|name| {
+        "template_type" | "qualified_identifier" => {
+            node.child_by_field_name("name").and_then(|name| {
                 if name.kind() == "type_identifier" {
                     Some(name)
                 } else {
                     // Nested qualified name: recurse to its own `name`.
                     cpp_base_leaf_identifier(name)
                 }
-            }),
+            })
+        }
         "type_identifier" => Some(node),
         _ => None,
     }
 }
-
-
 
 fn extract_cpp_statement_refs(
     node: SyntaxNode,
@@ -10608,13 +10647,23 @@ struct JavaSymbolCandidate {
 /// anonymous nodes whose `kind()` is their literal text. A declaration with no
 /// modifier keyword is package-private (Java default), which we surface as
 /// `None` (NOT "private") to match the legacy TS extractor (G5/G6).
-fn java_modifiers(
-    node: SyntaxNode,
-) -> (Option<String>, bool) {
+fn java_modifiers(node: SyntaxNode) -> (Option<String>, bool) {
     let mut visibility: Option<String> = None;
     let mut is_static = false;
-    let keyword_kinds =
-        ["public", "private", "protected", "static", "final", "abstract", "default", "synchronized", "native", "strictfp", "transient", "volatile"];
+    let keyword_kinds = [
+        "public",
+        "private",
+        "protected",
+        "static",
+        "final",
+        "abstract",
+        "default",
+        "synchronized",
+        "native",
+        "strictfp",
+        "transient",
+        "volatile",
+    ];
     let mut scan = |kw_node: SyntaxNode| {
         let kind = kw_node.kind();
         match kind {
@@ -10841,8 +10890,7 @@ fn extract_java_statement_refs(
             let Some(name_node) = node.child_by_field_name("name") else {
                 return Ok(());
             };
-            let reference_name =
-                java_method_invocation_reference_name(node, name_node, source)?;
+            let reference_name = java_method_invocation_reference_name(node, name_node, source)?;
             push_ref(
                 unresolved_refs,
                 from_node_id,
@@ -10879,9 +10927,7 @@ fn extract_java_statement_refs(
         // Emit a references edge to the capitalized simple receiver. Lowercase
         // `obj.field` instance reads are excluded by the Capitalized test.
         "field_access" => {
-            if let Some((name, object_node)) =
-                java_static_value_read_receiver(node, source)?
-            {
+            if let Some((name, object_node)) = java_static_value_read_receiver(node, source)? {
                 // Skip when this access is the leftmost receiver of a method
                 // call (`Type.CONST.foo()`): the enclosing method_invocation
                 // already links the call; a value-read ref there is noise.
@@ -10940,9 +10986,7 @@ fn java_static_value_read_receiver<'a>(
         .chars()
         .next()
         .is_some_and(|first| first.is_ascii_uppercase())
-        && name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_');
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
     if !is_capitalized {
         return Ok(None);
     }
@@ -11042,7 +11086,10 @@ fn java_type_relation_refs(
     // interface (`interface I extends A, B<C>`). Split on commas the same way
     // `implements` does so every superinterface is materialized (1-2-12-4).
     if let Some(rest) = java_text_after_keyword(header, "extends") {
-        for name in java_split_top_level_commas(rest).into_iter().filter_map(java_clean_type_name) {
+        for name in java_split_top_level_commas(rest)
+            .into_iter()
+            .filter_map(java_clean_type_name)
+        {
             refs.push(JavaTypeRelation {
                 kind: "extends",
                 name,
@@ -11050,7 +11097,10 @@ fn java_type_relation_refs(
         }
     }
     if let Some(rest) = java_text_after_keyword(header, "implements") {
-        for name in java_split_top_level_commas(rest).into_iter().filter_map(java_clean_type_name) {
+        for name in java_split_top_level_commas(rest)
+            .into_iter()
+            .filter_map(java_clean_type_name)
+        {
             refs.push(JavaTypeRelation {
                 kind: "implements",
                 name,
@@ -11198,7 +11248,8 @@ fn java_qualified_name(qualified_base: &str, name: &str, containers: &[String]) 
 fn is_kotlin_builtin_type(name: &str) -> bool {
     matches!(
         name,
-        "Int" | "Long"
+        "Int"
+            | "Long"
             | "Short"
             | "Byte"
             | "Float"
@@ -11240,8 +11291,9 @@ fn extract_kotlin_symbols(
     let mut qualified_base: Cow<'_, str> = Cow::Borrowed(relative_path);
     for child in root.named_children(&mut root.walk()) {
         if child.kind() == "package_header" {
-            if let Some(id) =
-                child.named_children(&mut child.walk()).find(|c| c.kind() == "identifier")
+            if let Some(id) = child
+                .named_children(&mut child.walk())
+                .find(|c| c.kind() == "identifier")
             {
                 let package_name = id.utf8_text(source)?.trim().to_string();
                 if !package_name.is_empty() {
@@ -11306,7 +11358,9 @@ fn visit_kotlin_node(
 
     // import_header → import node + imports ref; children are not symbols.
     if node.kind() == "import_header" {
-        if let Some(id) = node.named_children(&mut node.walk()).find(|c| c.kind() == "identifier")
+        if let Some(id) = node
+            .named_children(&mut node.walk())
+            .find(|c| c.kind() == "identifier")
         {
             let module_name = id.utf8_text(source)?.trim().to_string();
             if !module_name.is_empty() {
@@ -11357,12 +11411,8 @@ fn visit_kotlin_node(
 
     // Named symbol declarations.
     if let Some((kind, name)) = kotlin_named_symbol(node, source, in_class_like)? {
-        let qualified_name =
-            java_qualified_name(qualified_base, &name, &child_container_stack);
-        let visibility = if matches!(
-            kind,
-            "class" | "interface" | "enum" | "method" | "property"
-        ) {
+        let qualified_name = java_qualified_name(qualified_base, &name, &child_container_stack);
+        let visibility = if matches!(kind, "class" | "interface" | "enum" | "method" | "property") {
             Some(kotlin_visibility(node, source))
         } else {
             None
@@ -11406,8 +11456,14 @@ fn visit_kotlin_node(
                 }
             }
             if !markers.is_empty() {
-                extracted.decorators =
-                    Some(format!("[{}]", markers.iter().map(|m| format!("\"{m}\"")).collect::<Vec<_>>().join(",")));
+                extracted.decorators = Some(format!(
+                    "[{}]",
+                    markers
+                        .iter()
+                        .map(|m| format!("\"{m}\""))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ));
             }
         }
         // Extension functions (`fun Int.x()`) are qualified through their
@@ -11419,9 +11475,7 @@ fn visit_kotlin_node(
             }
         }
         match kind {
-            "method" | "function" => {
-                extracted.signature = kotlin_function_signature(node, source)?
-            }
+            "method" | "function" => extracted.signature = kotlin_function_signature(node, source)?,
             "property" | "variable" => {
                 extracted.signature = kotlin_property_signature(node, source, &name)?
             }
@@ -11628,7 +11682,12 @@ fn kotlin_named_symbol(
         "object_declaration" => node
             .named_children(&mut node.walk())
             .find(|c| c.kind() == "type_identifier")
-            .map(|n| ("class", n.utf8_text(source).unwrap_or("").trim().to_string())),
+            .map(|n| {
+                (
+                    "class",
+                    n.utf8_text(source).unwrap_or("").trim().to_string(),
+                )
+            }),
         // Roadmap 1-2-8-5: `companion object { ... }` is its own
         // `companion_object` node kind (NOT `object_declaration`), so it was
         // invisible before. Its named form (`companion object Factory {}`)
@@ -11682,13 +11741,22 @@ fn kotlin_named_symbol(
                         .find(|c| c.kind() == "simple_identifier")
                 })
                 .map(|n| n.utf8_text(source).unwrap_or("").trim().to_string());
-            let kind = if in_class_like { "property" } else { "variable" };
+            let kind = if in_class_like {
+                "property"
+            } else {
+                "variable"
+            };
             name.map(|n| (kind, n))
         }
         "type_alias" => node
             .named_children(&mut node.walk())
             .find(|c| c.kind() == "type_identifier")
-            .map(|n| ("type_alias", n.utf8_text(source).unwrap_or("").trim().to_string())),
+            .map(|n| {
+                (
+                    "type_alias",
+                    n.utf8_text(source).unwrap_or("").trim().to_string(),
+                )
+            }),
         _ => None,
     };
     Ok(candidate
@@ -11756,7 +11824,10 @@ fn kotlin_property_signature(
     let type_text = node
         .named_children(&mut node.walk())
         .find(|c| c.kind() == "variable_declaration")
-        .and_then(|vd| vd.named_children(&mut vd.walk()).find(|c| c.kind() == "user_type"))
+        .and_then(|vd| {
+            vd.named_children(&mut vd.walk())
+                .find(|c| c.kind() == "user_type")
+        })
         .map(|t| t.utf8_text(source).unwrap_or("").trim().to_string());
     Ok(Some(match type_text {
         Some(t) if !t.is_empty() => format!("{t} {name}"),
@@ -11777,8 +11848,10 @@ fn kotlin_signature_type_refs(
     match kind {
         "function_declaration" => {
             for child in node.named_children(&mut node.walk()) {
-                if matches!(child.kind(), "function_value_parameters" | "user_type" | "receiver_type")
-                {
+                if matches!(
+                    child.kind(),
+                    "function_value_parameters" | "user_type" | "receiver_type"
+                ) {
                     roots.push(child);
                 }
             }
@@ -11889,7 +11962,10 @@ fn kotlin_delegation_refs(
             .or_else(|| {
                 spec.named_children(&mut spec.walk())
                     .find(|c| c.kind() == "constructor_invocation")
-                    .and_then(|ci| ci.named_children(&mut ci.walk()).find(|c| c.kind() == "user_type"))
+                    .and_then(|ci| {
+                        ci.named_children(&mut ci.walk())
+                            .find(|c| c.kind() == "user_type")
+                    })
             });
         if let Some(ut) = user_type {
             if let Some(tid) = ut
@@ -11953,7 +12029,10 @@ fn kotlin_call_reference_name(
             return Ok(None);
         };
         let receiver_is_simple = receiver_node.is_some_and(|r| {
-            matches!(r.kind(), "simple_identifier" | "identifier" | "field_identifier")
+            matches!(
+                r.kind(),
+                "simple_identifier" | "identifier" | "field_identifier"
+            )
         });
         if !receiver_is_simple {
             return Ok(Some(method_name));
@@ -12537,7 +12616,9 @@ fn visit_rust_node(
         // `#[actix_web::main]`. Without this signal the actix false-
         // positive cohort (30 items in R1 annotation) all fall to R4 dead.
         if matches!(kind, "function" | "method") {
-            for attr_body in rust_attribute_bodies_above(source, (extracted_start_line - 1) as usize) {
+            for attr_body in
+                rust_attribute_bodies_above(source, (extracted_start_line - 1) as usize)
+            {
                 // 1-2-12-5: materialize the attribute as a first-class node
                 // and write the decorates edge DIRECTLY, bypassing the
                 // unresolved_refs funnel. The funnel can't resolve these —
@@ -12562,7 +12643,8 @@ fn visit_rust_node(
                     ));
                     // The attribute node must belong to the file so the
                     // graph stays connected.
-                    let file_contains_attr_id = generate_node_id(relative_path, "attribute", &attr_body, 0);
+                    let file_contains_attr_id =
+                        generate_node_id(relative_path, "attribute", &attr_body, 0);
                     edges.push(ExtractedEdge {
                         source: file_node_id.to_string(),
                         target: file_contains_attr_id,
@@ -12617,9 +12699,7 @@ fn visit_rust_node(
             let import_node_name = rust_import_node_name(&module_name);
             let import_node_id =
                 generate_node_id(relative_path, "import", &import_node_name, mod_start_line);
-            for attr_body in
-                rust_attribute_bodies_above(source, (mod_start_line - 1) as usize)
-            {
+            for attr_body in rust_attribute_bodies_above(source, (mod_start_line - 1) as usize) {
                 let attr_node_id = generate_node_id(relative_path, "attribute", &attr_body, 0);
                 if !nodes.iter().any(|n| n.id == attr_node_id) {
                     nodes.push(ExtractedNode::manual_symbol(
@@ -13078,9 +13158,7 @@ fn extract_rust_actix_builder_routes(
         if let Some(next_resource) = source_text[chain_start..].find(RESOURCE_NEEDLE) {
             chain_end = chain_start + next_resource;
         }
-        if let Some(next_builder) =
-            find_actix_builder_chain_boundary(source_text, chain_start)
-        {
+        if let Some(next_builder) = find_actix_builder_chain_boundary(source_text, chain_start) {
             if next_builder < chain_end {
                 chain_end = next_builder;
             }
@@ -13195,7 +13273,8 @@ fn extract_rust_actix_builder_routes(
     while let Some(offset) = source_text[route_search_start..].find(ROUTE_NEEDLE) {
         let route_start = route_search_start + offset;
         route_search_start = route_start + ROUTE_NEEDLE.len();
-        let Some((args_start, args_end)) = rust_call_args_span(source_text, route_search_start) else {
+        let Some((args_start, args_end)) = rust_call_args_span(source_text, route_search_start)
+        else {
             continue;
         };
         let args = &source_text[args_start..args_end];
@@ -13413,8 +13492,7 @@ fn find_actix_builder_chain_boundary(source: &str, start: usize) -> Option<usize
             b'.' if depth == 0 => {
                 let name_start = index + 1;
                 let mut name_end = name_start;
-                while name_end < bytes.len() && rust_identifier_char(bytes[name_end] as char)
-                {
+                while name_end < bytes.len() && rust_identifier_char(bytes[name_end] as char) {
                     name_end += 1;
                 }
                 let name = &source[name_start..name_end];
@@ -16926,10 +17004,15 @@ fn stamp_schema_version(conn: &Connection) -> rusqlite::Result<()> {
 /// full re-index). Safe to call on every open — it is a no-op when present.
 fn ensure_unresolved_refs_metadata_column(conn: &Connection) -> rusqlite::Result<()> {
     let has_column: i64 = conn
-        .prepare("SELECT COUNT(*) FROM pragma_table_info('unresolved_refs') WHERE name = 'metadata'")?
+        .prepare(
+            "SELECT COUNT(*) FROM pragma_table_info('unresolved_refs') WHERE name = 'metadata'",
+        )?
         .query_row([], |row| row.get(0))?;
     if has_column == 0 {
-        conn.execute("ALTER TABLE unresolved_refs ADD COLUMN metadata TEXT DEFAULT NULL", [])?;
+        conn.execute(
+            "ALTER TABLE unresolved_refs ADD COLUMN metadata TEXT DEFAULT NULL",
+            [],
+        )?;
     }
     Ok(())
 }
@@ -17088,7 +17171,29 @@ fn pid_is_running(pid: u32) -> bool {
         .is_some_and(|code| code != libc::ESRCH)
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn pid_is_running(pid: u32) -> bool {
+    use windows_sys::Win32::Foundation::{
+        CloseHandle, GetLastError, ERROR_INVALID_PARAMETER, STILL_ACTIVE,
+    };
+    use windows_sys::Win32::System::Threading::{
+        GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if process.is_null() {
+        // A missing PID is reclaimable. Permission or other query failures
+        // remain fail-closed because they cannot prove the writer exited.
+        return unsafe { GetLastError() } != ERROR_INVALID_PARAMETER;
+    }
+    let mut exit_code = 0_u32;
+    let queried = unsafe { GetExitCodeProcess(process, &mut exit_code) };
+    unsafe {
+        CloseHandle(process);
+    }
+    queried == 0 || exit_code == STILL_ACTIVE as u32
+}
+
+#[cfg(not(any(unix, windows)))]
 fn pid_is_running(_pid: u32) -> bool {
     true
 }
@@ -17464,10 +17569,7 @@ mod tests {
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
         assert!(
-            call_refs.contains(&(
-                "register".to_string(),
-                "_model_admin_wrapper".to_string()
-            )),
+            call_refs.contains(&("register".to_string(), "_model_admin_wrapper".to_string())),
             "expected register -> _model_admin_wrapper calls ref, got {:?}",
             call_refs
         );
@@ -17523,9 +17625,8 @@ mod tests {
         for _ in 0..2_000 {
             expr = format!("Padding(child: {expr})");
         }
-        let code = format!(
-            "class WidgetPage {{\n  Widget build() {{\n    return {expr};\n  }}\n}}\n"
-        );
+        let code =
+            format!("class WidgetPage {{\n  Widget build() {{\n    return {expr};\n  }}\n}}\n");
         write_file(&dir, "lib/deep.dart", &code);
 
         let request = index_request(&dir, SqliteWriteMode::FinalFlush);
@@ -17661,7 +17762,10 @@ mod tests {
         );
         let imports =
             names("SELECT name FROM nodes WHERE language='objc' AND kind='import' ORDER BY name");
-        assert!(imports.contains(&"Foundation/Foundation.h".to_string()), "{imports:?}");
+        assert!(
+            imports.contains(&"Foundation/Foundation.h".to_string()),
+            "{imports:?}"
+        );
         assert!(imports.contains(&"Greeter.h".to_string()), "{imports:?}");
 
         // One class (the @implementation must NOT create a duplicate).
@@ -17712,9 +17816,8 @@ mod tests {
 
         // Property: the @interface @property `name` is a node; the protocol
         // @property `speed` is NOT (protocol is not a class-like frame).
-        let props = names(
-            "SELECT name FROM nodes WHERE language='objc' AND kind='property' ORDER BY name",
-        );
+        let props =
+            names("SELECT name FROM nodes WHERE language='objc' AND kind='property' ORDER BY name");
         assert_eq!(props, vec!["name".to_string()]);
 
         // Top-level C function.
@@ -17725,8 +17828,10 @@ mod tests {
             ),
             1
         );
-        assert!(names("SELECT qualified_name FROM nodes WHERE language='objc' AND kind='function'")
-            .contains(&"helper".to_string()));
+        assert!(names(
+            "SELECT qualified_name FROM nodes WHERE language='objc' AND kind='function'"
+        )
+        .contains(&"helper".to_string()));
 
         // Inheritance: superclass -> extends, parameterized protocols ->
         // implements (one each).
@@ -17763,7 +17868,10 @@ mod tests {
             "c_func",
             "NSLog",
         ] {
-            assert!(calls.contains(&expected.to_string()), "missing call {expected}: {calls:?}");
+            assert!(
+                calls.contains(&expected.to_string()),
+                "missing call {expected}: {calls:?}"
+            );
         }
         // Capitalized class-message receivers get a references edge.
         let class_refs = names(
@@ -17952,15 +18060,11 @@ mod tests {
         );
         let imports =
             names("SELECT name FROM nodes WHERE language='lua' AND kind='import' ORDER BY name");
-        for expected in [
-            "net.http",
-            "mod.long",
-            "Signal",
-            "two",
-            "bare.mod",
-            "dep",
-        ] {
-            assert!(imports.contains(&expected.to_string()), "missing import {expected}: {imports:?}");
+        for expected in ["net.http", "mod.long", "Signal", "two", "bare.mod", "dep"] {
+            assert!(
+                imports.contains(&expected.to_string()),
+                "missing import {expected}: {imports:?}"
+            );
         }
         assert_eq!(
             sqlite_count(
@@ -18222,7 +18326,10 @@ mod tests {
         let mut methods =
             names("SELECT qualified_name FROM nodes WHERE language='luau' AND kind='method'");
         methods.sort();
-        assert_eq!(methods, vec!["M::deposit".to_string(), "M::greet".to_string()]);
+        assert_eq!(
+            methods,
+            vec!["M::deposit".to_string(), "M::greet".to_string()]
+        );
 
         // Typed signatures: parameters text + `: <return type>`; an untyped
         // declaration keeps the bare parameters text.
@@ -18415,8 +18522,14 @@ mod tests {
             ),
             2
         );
-        assert!(names("SELECT name FROM nodes WHERE kind='import' ORDER BY name").contains(&"Foundation".to_string()));
-        assert!(names("SELECT name FROM nodes WHERE kind='import' ORDER BY name").contains(&"Vapor".to_string()));
+        assert!(
+            names("SELECT name FROM nodes WHERE kind='import' ORDER BY name")
+                .contains(&"Foundation".to_string())
+        );
+        assert!(
+            names("SELECT name FROM nodes WHERE kind='import' ORDER BY name")
+                .contains(&"Vapor".to_string())
+        );
 
         // Type-like symbols.
         for (kind, expected) in [
@@ -18437,10 +18550,16 @@ mod tests {
 
         // Top-level function + in-type methods, disambiguated by qualified name.
         assert_eq!(
-            sqlite_count(&conn, "SELECT COUNT(*) FROM nodes WHERE language='swift' AND kind='function'"),
+            sqlite_count(
+                &conn,
+                "SELECT COUNT(*) FROM nodes WHERE language='swift' AND kind='function'"
+            ),
             1
         );
-        assert!(names("SELECT qualified_name FROM nodes WHERE kind='function'").contains(&"topLevel".to_string()));
+        assert!(
+            names("SELECT qualified_name FROM nodes WHERE kind='function'")
+                .contains(&"topLevel".to_string())
+        );
         let mut methods = names(
             "SELECT qualified_name FROM nodes WHERE language='swift' AND kind='method' ORDER BY qualified_name",
         );
@@ -18480,16 +18599,22 @@ mod tests {
             assert_eq!(
                 sqlite_count(
                     &conn,
-                    &format!("SELECT COUNT(*) FROM nodes WHERE language='swift' AND kind='{absent}'")
+                    &format!(
+                        "SELECT COUNT(*) FROM nodes WHERE language='swift' AND kind='{absent}'"
+                    )
                 ),
                 0,
                 "unexpected {absent} nodes"
             );
         }
         assert!(!names("SELECT name FROM nodes WHERE language='swift'").contains(&"x".to_string()));
-        assert!(!names("SELECT name FROM nodes WHERE language='swift'").contains(&"name".to_string()));
+        assert!(
+            !names("SELECT name FROM nodes WHERE language='swift'").contains(&"name".to_string())
+        );
         // `find` is a protocol requirement (protocol_function_declaration).
-        assert!(!names("SELECT name FROM nodes WHERE language='swift'").contains(&"find".to_string()));
+        assert!(
+            !names("SELECT name FROM nodes WHERE language='swift'").contains(&"find".to_string())
+        );
 
         // Inheritance: Dog: Animal, Repository both emit `extends`.
         let mut extends = names(
@@ -18497,14 +18622,20 @@ mod tests {
              WHERE u.reference_kind='extends' AND n.name='Dog' ORDER BY u.reference_name",
         );
         extends.sort();
-        assert_eq!(extends, vec!["Animal".to_string(), "Repository".to_string()]);
+        assert_eq!(
+            extends,
+            vec!["Animal".to_string(), "Repository".to_string()]
+        );
 
         // Calls resolve by simple name (bare callee) and receiver.method.
         let calls = names(
             "SELECT reference_name FROM unresolved_refs WHERE language='swift' AND reference_kind='calls' ORDER BY reference_name",
         );
         for expected in ["helper", "emit", "Animal", "calc", "label", "bark", "run"] {
-            assert!(calls.contains(&expected.to_string()), "missing call {expected}: {calls:?}");
+            assert!(
+                calls.contains(&expected.to_string()),
+                "missing call {expected}: {calls:?}"
+            );
         }
 
         drop(conn);
@@ -18582,7 +18713,10 @@ mod tests {
             .collect();
         assert_eq!(
             calls,
-            vec!["CacheStoreResult".to_string(), "promise.succeed".to_string()]
+            vec![
+                "CacheStoreResult".to_string(),
+                "promise.succeed".to_string()
+            ]
         );
         drop(conn);
         cleanup_temp_dir(dir);
@@ -19160,10 +19294,7 @@ mod tests {
             )
             .unwrap()
             .query_map([], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                ))
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
             })
             .unwrap()
             .map(|r| r.unwrap())
@@ -19185,7 +19316,10 @@ mod tests {
             &conn,
             "SELECT count(*) FROM unresolved_refs WHERE reference_name IN ('public','private','protected','int')",
         );
-        assert_eq!(leaked, 0, "access specifiers / template args must not be refs");
+        assert_eq!(
+            leaked, 0,
+            "access specifiers / template args must not be refs"
+        );
         cleanup_temp_dir(dir);
     }
 
@@ -19414,7 +19548,10 @@ mod tests {
             &conn,
             "SELECT count(*) FROM nodes WHERE kind='variable' AND name='Processing'",
         );
-        assert_eq!(spurious, 0, "init-declarator must not spawn a Processing var");
+        assert_eq!(
+            spurious, 0,
+            "init-declarator must not spawn a Processing var"
+        );
         assert_eq!(
             sqlite_count(
                 &conn,
@@ -20648,21 +20785,12 @@ mod tests {
         assert!(result.success, "{:?}", result.errors);
         let taxonomy = &result.profile.rust_axum_route_taxonomy_counts;
         // Two web::resource blocks detected ("/users" chain + "/health" .to).
-        assert_eq!(
-            taxonomy.get("actix-builder-resource-detected"),
-            Some(&2)
-        );
+        assert_eq!(taxonomy.get("actix-builder-resource-detected"), Some(&2));
         // The two app-level `.route("/...", web::METHOD().to(...))` calls are
         // delegated away from the axum extractor (which sees the same `.route`
         // substring) and emitted exactly once by the actix builder extractor.
-        assert_eq!(
-            taxonomy.get("axum-route-actix-builder-delegated"),
-            Some(&2)
-        );
-        assert_eq!(
-            taxonomy.get("actix-builder-app-route-detected"),
-            Some(&2)
-        );
+        assert_eq!(taxonomy.get("axum-route-actix-builder-delegated"), Some(&2));
+        assert_eq!(taxonomy.get("actix-builder-app-route-detected"), Some(&2));
         // Total actix-builder emissions: 2 (users chain) + 1 (health ANY) + 2
         // (app-level) = 5.
         assert_eq!(taxonomy.get("actix-builder-route-emitted"), Some(&5));
@@ -20673,9 +20801,7 @@ mod tests {
 
         let conn = Connection::open(&request.index_path).unwrap();
         let route_names: Vec<String> = conn
-            .prepare(
-                "SELECT name FROM nodes WHERE kind = 'route' ORDER BY name",
-            )
+            .prepare("SELECT name FROM nodes WHERE kind = 'route' ORDER BY name")
             .unwrap()
             .query_map([], |row| row.get(0))
             .unwrap()
@@ -22991,6 +23117,31 @@ mod tests {
 
         drop(first);
         assert!(ProjectLock::acquire(&lock_path).is_ok());
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn project_lock_reclaims_only_a_pid_that_has_exited() {
+        let dir = temp_dir("dead-lock");
+        let lock_path = dir.join(".zcodegraph").join("zcodegraph.lock");
+        fs::create_dir_all(lock_path.parent().unwrap()).unwrap();
+        let child = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg("--exact")
+            .arg("tests::project_lock_reclaims_only_a_pid_that_has_exited")
+            .arg("--list")
+            .stdout(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let pid = child.id();
+        let output = child.wait_with_output().unwrap();
+        assert!(output.status.success());
+        assert!(
+            !pid_is_running(pid),
+            "reaped process PID must not block recovery"
+        );
+        fs::write(&lock_path, pid.to_string()).unwrap();
+        let recovered = ProjectLock::acquire(&lock_path).unwrap();
+        drop(recovered);
         cleanup_temp_dir(dir);
     }
 
@@ -27650,12 +27801,18 @@ mod tests {
             &conn,
             "SELECT count(*) FROM nodes WHERE language='kotlin' AND kind='interface' AND name='StringMapper'",
         );
-        assert_eq!(mapper_iface, 1, "`fun interface` must classify as interface");
+        assert_eq!(
+            mapper_iface, 1,
+            "`fun interface` must classify as interface"
+        );
         let mapper_class = sqlite_count(
             &conn,
             "SELECT count(*) FROM nodes WHERE language='kotlin' AND kind='class' AND name='StringMapper'",
         );
-        assert_eq!(mapper_class, 0, "`fun interface` must NOT classify as class");
+        assert_eq!(
+            mapper_class, 0,
+            "`fun interface` must NOT classify as class"
+        );
 
         // (2) suspend → signature prefix, kind stays method.
         let fetch_sig: String = conn
@@ -27675,7 +27832,10 @@ mod tests {
             &conn,
             "SELECT count(*) FROM nodes WHERE language='kotlin' AND kind='class' AND name='Companion'",
         );
-        assert_eq!(companion_class, 1, "companion object must emit a Companion class container");
+        assert_eq!(
+            companion_class, 1,
+            "companion object must emit a Companion class container"
+        );
         let create_qname: String = conn
             .query_row(
                 "SELECT qualified_name FROM nodes WHERE language='kotlin' AND kind='method' AND name='create'",
@@ -27730,11 +27890,7 @@ mod tests {
             "detect.hpp",
             "#pragma once\nclass CDetect;\nclass CDetector {\npublic:\n  int Processing();\n  static void reset();\n  virtual ~CDetector();\nprivate:\n  CDetect* m_cpAlg;\n  int m_count;\n};\nint helper(int x);\nnamespace gfx {\nclass Canvas {\npublic:\n  void draw();\n};\n}\n",
         );
-        write_file(
-            &dir,
-            "plain.hpp",
-            "int topLevel;\n",
-        );
+        write_file(&dir, "plain.hpp", "int topLevel;\n");
 
         let request = index_request(&dir, SqliteWriteMode::FinalFlush);
         let result = run_index(&request);
@@ -27763,7 +27919,10 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap_or_else(|_| String::new());
-        assert_eq!(reset_kind, "method", "static member declaration is a method");
+        assert_eq!(
+            reset_kind, "method",
+            "static member declaration is a method"
+        );
 
         // Destructor declaration `~CDetector();` -> method named after the
         // class leaf (same naming rule as constructors).
@@ -27834,13 +27993,19 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap_or_else(|_| String::new());
-        assert_eq!(top_kind, "variable", "file-scope declaration stays variable");
+        assert_eq!(
+            top_kind, "variable",
+            "file-scope declaration stays variable"
+        );
 
         let spurious = sqlite_count(
             &conn,
             "SELECT count(*) FROM nodes WHERE kind='variable' AND name IN ('Processing','reset','helper','m_cpAlg','m_count','draw')",
         );
-        assert_eq!(spurious, 0, "no spurious variables for promoted declarators");
+        assert_eq!(
+            spurious, 0,
+            "no spurious variables for promoted declarators"
+        );
 
         cleanup_temp_dir(dir);
     }
@@ -27887,12 +28052,18 @@ mod tests {
             &conn,
             "SELECT count(*) FROM nodes WHERE language='objc' AND kind='file'",
         );
-        assert_eq!(objc_file_count, 1, "objc_header.h should be indexed as objc (1-2-14-4)");
+        assert_eq!(
+            objc_file_count, 1,
+            "objc_header.h should be indexed as objc (1-2-14-4)"
+        );
         let objc_class_count = sqlite_count(
             &conn,
             "SELECT count(*) FROM nodes WHERE language='objc' AND kind='class' AND name='MyView'",
         );
-        assert_eq!(objc_class_count, 1, "objc_header.h @interface should yield a class");
+        assert_eq!(
+            objc_class_count, 1,
+            "objc_header.h @interface should yield a class"
+        );
         cleanup_temp_dir(dir);
     }
 
@@ -27974,7 +28145,11 @@ mod tests {
     #[test]
     fn rust_cpp_extracts_includes() {
         let dir = temp_dir("cpp-includes");
-        write_file(&dir, "main.cpp", "#include <vector>\n#include \"local.h\"\nvoid main() {}\n");
+        write_file(
+            &dir,
+            "main.cpp",
+            "#include <vector>\n#include \"local.h\"\nvoid main() {}\n",
+        );
         write_file(&dir, "local.h", "#pragma once\nvoid helper();\n");
 
         let request = index_request(&dir, SqliteWriteMode::FinalFlush);
@@ -28004,10 +28179,7 @@ mod tests {
         assert!(result.success, "{:?}", result.errors);
 
         let conn = Connection::open(db_path(&dir)).unwrap();
-        let call_edges = sqlite_count(
-            &conn,
-            "SELECT count(*) FROM edges WHERE kind='calls'",
-        );
+        let call_edges = sqlite_count(&conn, "SELECT count(*) FROM edges WHERE kind='calls'");
         assert!(
             call_edges >= 1,
             "should have at least 1 call edge, got {}",
@@ -28040,10 +28212,7 @@ mod tests {
             &conn,
             "SELECT count(*) FROM nodes WHERE kind='type_alias' AND name='IntVec'",
         );
-        assert_eq!(
-            alias_count, 1,
-            "using alias IntVec should be extracted"
-        );
+        assert_eq!(alias_count, 1, "using alias IntVec should be extracted");
         cleanup_temp_dir(dir);
     }
 
@@ -28087,7 +28256,10 @@ mod tests {
             &conn,
             "SELECT count(*) FROM nodes WHERE language='kotlin' AND kind='class' AND name='Registry'",
         );
-        assert_eq!(object_is_class, 1, "`object Registry` must classify as class");
+        assert_eq!(
+            object_is_class, 1,
+            "`object Registry` must classify as class"
+        );
 
         let mut type_refs: Vec<String> = conn
             .prepare(
@@ -28115,13 +28287,19 @@ mod tests {
             .unwrap()
             .query_row([], |row| row.get(0))
             .unwrap();
-        assert_eq!(ext_qname, "Int::times2", "extension receiver qualifies the method name");
+        assert_eq!(
+            ext_qname, "Int::times2",
+            "extension receiver qualifies the method name"
+        );
 
         let ext_as_function = sqlite_count(
             &conn,
             "SELECT count(*) FROM nodes WHERE language='kotlin' AND kind='function' AND name='times2'",
         );
-        assert_eq!(ext_as_function, 0, "extension must not also be a top-level function");
+        assert_eq!(
+            ext_as_function, 0,
+            "extension must not also be a top-level function"
+        );
         cleanup_temp_dir(dir);
     }
 
@@ -28248,7 +28426,11 @@ mod tests {
         decorates.sort();
         assert_eq!(
             decorates,
-            vec!["Named".to_string(), "Override".to_string(), "Service".to_string()],
+            vec![
+                "Named".to_string(),
+                "Override".to_string(),
+                "Service".to_string()
+            ],
             "annotation usages (marker, arg-bearing, qualified) must emit decorates leaf refs"
         );
         cleanup_temp_dir(dir);
@@ -28305,7 +28487,10 @@ mod tests {
             .unwrap()
             .query_row([], |row| row.get(0))
             .unwrap();
-        assert!(instantiates >= 1, "plain `new User()` must instantiate User");
+        assert!(
+            instantiates >= 1,
+            "plain `new User()` must instantiate User"
+        );
 
         // Anonymous-class form: instantiates Runnable AND extends Runnable.
         let anon_inst: i64 = conn
@@ -28324,7 +28509,11 @@ mod tests {
             .unwrap()
             .query_row([], |row| row.get(0))
             .unwrap();
-        assert_eq!((anon_inst, anon_extends), (1, 1), "anon class emits both instantiates and extends");
+        assert_eq!(
+            (anon_inst, anon_extends),
+            (1, 1),
+            "anon class emits both instantiates and extends"
+        );
 
         let static_read: i64 = conn
             .prepare(
@@ -28334,7 +28523,10 @@ mod tests {
             .unwrap()
             .query_row([], |row| row.get(0))
             .unwrap();
-        assert_eq!(static_read, 1, "`JsonScope.EMPTY_DOCUMENT` value read must reference JsonScope");
+        assert_eq!(
+            static_read, 1,
+            "`JsonScope.EMPTY_DOCUMENT` value read must reference JsonScope"
+        );
 
         // No false-positive references for a lowercase instance receiver.
         let noise: i64 = conn
@@ -28345,7 +28537,10 @@ mod tests {
             .unwrap()
             .query_row([], |row| row.get(0))
             .unwrap();
-        assert_eq!(noise, 0, "lowercase `user.getName()` instance read must not emit references");
+        assert_eq!(
+            noise, 0,
+            "lowercase `user.getName()` instance read must not emit references"
+        );
         cleanup_temp_dir(dir);
     }
 
@@ -28359,12 +28554,42 @@ mod tests {
         let vars = HashMap::new();
         for (call, method, path, handler) in [
             ("r.GET(\"/items\", ListItems)", "GET", "/items", "ListItems"),
-            ("r.POST(\"/items\", CreateItem)", "POST", "/items", "CreateItem"),
-            ("r.PUT(\"/items/:id\", UpdateItem)", "PUT", "/items/:id", "UpdateItem"),
-            ("r.DELETE(\"/items/:id\", DeleteItem)", "DELETE", "/items/:id", "DeleteItem"),
-            ("r.PATCH(\"/items/:id\", PatchItem)", "PATCH", "/items/:id", "PatchItem"),
-            ("r.OPTIONS(\"/opts\", CorsOpts)", "OPTIONS", "/opts", "CorsOpts"),
-            ("r.HEAD(\"/healthz\", Healthz)", "HEAD", "/healthz", "Healthz"),
+            (
+                "r.POST(\"/items\", CreateItem)",
+                "POST",
+                "/items",
+                "CreateItem",
+            ),
+            (
+                "r.PUT(\"/items/:id\", UpdateItem)",
+                "PUT",
+                "/items/:id",
+                "UpdateItem",
+            ),
+            (
+                "r.DELETE(\"/items/:id\", DeleteItem)",
+                "DELETE",
+                "/items/:id",
+                "DeleteItem",
+            ),
+            (
+                "r.PATCH(\"/items/:id\", PatchItem)",
+                "PATCH",
+                "/items/:id",
+                "PatchItem",
+            ),
+            (
+                "r.OPTIONS(\"/opts\", CorsOpts)",
+                "OPTIONS",
+                "/opts",
+                "CorsOpts",
+            ),
+            (
+                "r.HEAD(\"/healthz\", Healthz)",
+                "HEAD",
+                "/healthz",
+                "Healthz",
+            ),
         ] {
             let route = parse_go_gin_route_call(call, &groups, &vars)
                 .unwrap_or_else(|| panic!("route must parse: {call}"));
@@ -28399,13 +28624,20 @@ mod tests {
         let handle_func =
             parse_go_gin_route_call("mux.HandleFunc(\"/std\", StdHandler)", &groups, &vars)
                 .unwrap();
-        assert_eq!((handle_func.method, handle_func.path.as_str(), handle_func.handler.as_str()),
-            ("ANY", "/std", "StdHandler"));
+        assert_eq!(
+            (
+                handle_func.method,
+                handle_func.path.as_str(),
+                handle_func.handler.as_str()
+            ),
+            ("ANY", "/std", "StdHandler")
+        );
 
-        let handle =
-            parse_go_gin_route_call("mux.Handle(\"/h\", H)", &groups, &vars).unwrap();
-        assert_eq!((handle.method, handle.path.as_str(), handle.handler.as_str()),
-            ("ANY", "/h", "H"));
+        let handle = parse_go_gin_route_call("mux.Handle(\"/h\", H)", &groups, &vars).unwrap();
+        assert_eq!(
+            (handle.method, handle.path.as_str(), handle.handler.as_str()),
+            ("ANY", "/h", "H")
+        );
 
         // gorilla/mux chained constraint: the registration verb (HandleFunc)
         // is the FIRST marker; the trailing .Methods("GET") must not be read as
@@ -28416,8 +28648,14 @@ mod tests {
             &vars,
         )
         .unwrap();
-        assert_eq!((chained.method, chained.path.as_str(), chained.handler.as_str()),
-            ("ANY", "/users/{id}", "listUsers"));
+        assert_eq!(
+            (
+                chained.method,
+                chained.path.as_str(),
+                chained.handler.as_str()
+            ),
+            ("ANY", "/users/{id}", "listUsers")
+        );
     }
 
     #[test]
@@ -28425,18 +28663,26 @@ mod tests {
         let mut groups = HashMap::new();
         groups.insert("v1".to_string(), "/api/v1".to_string());
         let vars = HashMap::new();
-        let grouped = parse_go_gin_route_call("v1.GET(\"/users\", ListUsers)", &groups, &vars)
-            .unwrap();
-        assert_eq!((grouped.method, grouped.path.as_str()), ("GET", "/api/v1/users"));
+        let grouped =
+            parse_go_gin_route_call("v1.GET(\"/users\", ListUsers)", &groups, &vars).unwrap();
+        assert_eq!(
+            (grouped.method, grouped.path.as_str()),
+            ("GET", "/api/v1/users")
+        );
 
-        let chi_grouped = parse_go_gin_route_call("v1.Get(\"/posts\", ListPosts)", &groups, &vars)
-            .unwrap();
-        assert_eq!((chi_grouped.method, chi_grouped.path.as_str()), ("GET", "/api/v1/posts"));
+        let chi_grouped =
+            parse_go_gin_route_call("v1.Get(\"/posts\", ListPosts)", &groups, &vars).unwrap();
+        assert_eq!(
+            (chi_grouped.method, chi_grouped.path.as_str()),
+            ("GET", "/api/v1/posts")
+        );
 
         let any_grouped =
-            parse_go_gin_route_call("v1.HandleFunc(\"/webhook\", Hook)", &groups, &vars)
-                .unwrap();
-        assert_eq!((any_grouped.method, any_grouped.path.as_str()), ("ANY", "/api/v1/webhook"));
+            parse_go_gin_route_call("v1.HandleFunc(\"/webhook\", Hook)", &groups, &vars).unwrap();
+        assert_eq!(
+            (any_grouped.method, any_grouped.path.as_str()),
+            ("ANY", "/api/v1/webhook")
+        );
     }
 
     #[test]
@@ -28517,7 +28763,10 @@ mod tests {
         assert!(!out.contains("#endif"));
         // Active (#if) arm kept; inactive (#else) arm blanked.
         assert!(out.contains("value > 3"), "active #if arm must survive");
-        assert!(!out.contains("value > 2"), "inactive #else arm must be blanked");
+        assert!(
+            !out.contains("value > 2"),
+            "inactive #else arm must be blanked"
+        );
         assert!(out.contains("Throw()"));
         // Every original newline is retained (line/column fidelity).
         assert_eq!(
@@ -28710,10 +28959,7 @@ mod tests {
         classes.sort();
         assert_eq!(
             classes,
-            vec![
-                "FriendlyGreeter".to_string(),
-                "Main".to_string(),
-            ]
+            vec!["FriendlyGreeter".to_string(), "Main".to_string(),]
         );
 
         // Enum members via enum_case_definitions unwrap.
@@ -28763,10 +29009,7 @@ mod tests {
             "SELECT qualified_name FROM nodes WHERE language='scala' AND kind='function' ORDER BY qualified_name",
         );
         functions.sort();
-        assert_eq!(
-            functions,
-            vec!["helper".to_string(), "yell".to_string(),]
-        );
+        assert_eq!(functions, vec!["helper".to_string(), "yell".to_string(),]);
 
         // Visibility: FriendlyGreeter.prefix is private; Main.help is
         // private; others default to public.
@@ -28806,10 +29049,7 @@ mod tests {
             "SELECT qualified_name FROM nodes WHERE language='scala' AND kind='constant' ORDER BY qualified_name",
         );
         constants.sort();
-        assert_eq!(
-            constants,
-            vec!["FriendlyGreeter::greet::msg".to_string()]
-        );
+        assert_eq!(constants, vec!["FriendlyGreeter::greet::msg".to_string()]);
 
         // Extends: FriendlyGreeter -> Greeter + Serializable; Main -> App.
         let mut extends = names(
@@ -28833,10 +29073,7 @@ mod tests {
             "SELECT reference_name FROM unresolved_refs WHERE language='scala' AND reference_kind='references' ORDER BY reference_name",
         );
         references.sort();
-        assert_eq!(
-            references,
-            vec!["Greeter".to_string(), "List".to_string(),]
-        );
+        assert_eq!(references, vec!["Greeter".to_string(), "List".to_string(),]);
 
         // Calls: println(msg) inside greet, greet(name) inside shout,
         // g.greet / xs.foreach inside Main.run, helper top-level call is
@@ -28854,7 +29091,10 @@ mod tests {
             "help".to_string(),
             "run".to_string(),
         ] {
-            assert!(calls.contains(&expected), "missing call {expected}: {calls:?}");
+            assert!(
+                calls.contains(&expected),
+                "missing call {expected}: {calls:?}"
+            );
         }
         // No `this.help` / `super.run` qualified spellings.
         assert!(!calls.contains(&"this.help".to_string()));

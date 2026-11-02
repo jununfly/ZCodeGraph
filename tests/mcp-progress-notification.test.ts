@@ -82,7 +82,10 @@ function installSyncStub(
   // Catch-up sync is invoked from `doInitialize`, but we don't want to walk
   // the real `.zcodegraph/` discovery here. Instead we poke the two pieces
   // it needs (`cg` and the gate) directly and call the private method.
-  (engine as unknown as { cg: unknown }).cg = { sync: fakeSync };
+  (engine as unknown as { cg: unknown }).cg = {
+    sync: fakeSync,
+    closeAndWait: vi.fn(async () => {}),
+  };
   (engine as unknown as { toolHandler: { setCatchUpGate(p: Promise<unknown>): void } })
     .toolHandler.setCatchUpGate = () => { /* swallow */ };
 
@@ -99,6 +102,7 @@ describe('MCP startup embedding recovery', () => {
     const fakeCg = {
       resumePendingEmbeddings,
       close: vi.fn(),
+      closeAndWait: vi.fn(async () => {}),
       sync: vi.fn(async () => ({
         filesChecked: 0, filesAdded: 0, filesModified: 0, filesRemoved: 0,
         nodesUpdated: 0, durationMs: 0,
@@ -123,7 +127,7 @@ describe('MCP startup embedding recovery', () => {
         expect(resumePendingEmbeddings).toHaveBeenCalledOnce();
       } finally {
         engineModule.setCodeGraphLoaderForTests(null);
-        engine.stop();
+        await engine.stopAndWait();
       }
     } finally {
       fs.rmSync(projectPath, { recursive: true, force: true });

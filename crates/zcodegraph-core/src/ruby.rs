@@ -58,14 +58,7 @@ const BARE_CALL_PARENTS: &[&str] = &[
 
 /// Bare keywords/literals that name no method.
 const BARE_SKIP: &[&str] = &[
-    "true",
-    "false",
-    "nil",
-    "self",
-    "super",
-    "__FILE__",
-    "__LINE__",
-    "__dir__",
+    "true", "false", "nil", "self", "super", "__FILE__", "__LINE__", "__dir__",
 ];
 
 struct Frame {
@@ -137,8 +130,11 @@ fn visibility(node: SyntaxNode, source: &[u8]) -> Option<String> {
 
 /// The argument_list of a `call` (field or the matching named child).
 fn argument_list<'a>(call: SyntaxNode<'a>) -> Option<SyntaxNode<'a>> {
-    call.child_by_field_name("arguments")
-        .or_else(|| named_children(call).into_iter().find(|c| c.kind() == "argument_list"))
+    call.child_by_field_name("arguments").or_else(|| {
+        named_children(call)
+            .into_iter()
+            .find(|c| c.kind() == "argument_list")
+    })
 }
 
 /// The `string_content` text of a call's first string argument
@@ -150,7 +146,9 @@ fn require_string<'a>(call: SyntaxNode<'a>, source: &'a [u8]) -> Option<(String,
         return None;
     }
     let args = argument_list(call)?;
-    let string = named_children(args).into_iter().find(|c| c.kind() == "string")?;
+    let string = named_children(args)
+        .into_iter()
+        .find(|c| c.kind() == "string")?;
     let content = named_children(string)
         .into_iter()
         .find(|c| c.kind() == "string_content")?;
@@ -274,7 +272,10 @@ fn walk_decl(
 
     // ---- module -----------------------------------------------------------
     if kind == "module" {
-        if let Some(name) = node.child_by_field_name("name").and_then(|n| node_text(n, source)) {
+        if let Some(name) = node
+            .child_by_field_name("name")
+            .and_then(|n| node_text(n, source))
+        {
             let module = ExtractedNode::symbol_with_visibility_and_qualified_name(
                 relative_path,
                 "module",
@@ -287,10 +288,22 @@ fn walk_decl(
             let id = module.id.clone();
             edges.push(contains_edge(&parent_id, &id, node));
             nodes.push(module);
-            stack.push(Frame { id: id.clone(), name, kind: "module" });
+            stack.push(Frame {
+                id: id.clone(),
+                name,
+                kind: "module",
+            });
             if let Some(body) = node.child_by_field_name("body") {
                 for child in named_children(body) {
-                    walk_decl(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+                    walk_decl(
+                        child,
+                        source,
+                        relative_path,
+                        stack,
+                        nodes,
+                        edges,
+                        unresolved_refs,
+                    )?;
                 }
             }
             stack.pop();
@@ -300,7 +313,10 @@ fn walk_decl(
 
     // ---- class (with a single `superclass` -> extends) --------------------
     if kind == "class" {
-        if let Some(name) = node.child_by_field_name("name").and_then(|n| node_text(n, source)) {
+        if let Some(name) = node
+            .child_by_field_name("name")
+            .and_then(|n| node_text(n, source))
+        {
             let class = ExtractedNode::symbol_with_visibility_and_qualified_name(
                 relative_path,
                 "class",
@@ -331,10 +347,22 @@ fn walk_decl(
             }
 
             nodes.push(class);
-            stack.push(Frame { id: id.clone(), name, kind: "class" });
+            stack.push(Frame {
+                id: id.clone(),
+                name,
+                kind: "class",
+            });
             if let Some(body) = node.child_by_field_name("body") {
                 for child in named_children(body) {
-                    walk_decl(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+                    walk_decl(
+                        child,
+                        source,
+                        relative_path,
+                        stack,
+                        nodes,
+                        edges,
+                        unresolved_refs,
+                    )?;
                 }
             }
             stack.pop();
@@ -344,7 +372,15 @@ fn walk_decl(
 
     // ---- def / def self.x -------------------------------------------------
     if kind == "method" || kind == "singleton_method" {
-        extract_def(node, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+        extract_def(
+            node,
+            source,
+            relative_path,
+            stack,
+            nodes,
+            edges,
+            unresolved_refs,
+        )?;
         return Ok(());
     }
 
@@ -424,7 +460,15 @@ fn walk_decl(
         // Any other declaration-scope call (Rails macros, attr_reader, private)
         // emits no call ref; descend so nested calls/structures are seen.
         for child in named_children(node) {
-            walk_decl(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+            walk_decl(
+                child,
+                source,
+                relative_path,
+                stack,
+                nodes,
+                edges,
+                unresolved_refs,
+            )?;
         }
         return Ok(());
     }
@@ -466,7 +510,15 @@ fn walk_decl(
 
     // ---- generic declaration descent --------------------------------------
     for child in named_children(node) {
-        walk_decl(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+        walk_decl(
+            child,
+            source,
+            relative_path,
+            stack,
+            nodes,
+            edges,
+            unresolved_refs,
+        )?;
     }
     Ok(())
 }
@@ -495,7 +547,11 @@ fn extract_def(
         .iter()
         .rev()
         .any(|f| matches!(f.kind, "class" | "module"));
-    let sym_kind = if inside_class_like { "method" } else { "function" };
+    let sym_kind = if inside_class_like {
+        "method"
+    } else {
+        "function"
+    };
 
     let vis = visibility(node, source);
     let sym = ExtractedNode::symbol_with_visibility_and_qualified_name(
@@ -514,7 +570,11 @@ fn extract_def(
     stack.push(Frame {
         id: id.clone(),
         name: name.clone(),
-        kind: if inside_class_like { "method" } else { "function" },
+        kind: if inside_class_like {
+            "method"
+        } else {
+            "function"
+        },
     });
     // Method bodies are the ONLY context that emits `calls` refs. Parameters
     // are expressions too (default values), so walk the whole node — the
@@ -626,15 +686,16 @@ mod tests {
     fn extract_all(
         path: &str,
         code: &str,
-    ) -> (
-        Vec<ExtractedNode>,
-        Vec<ExtractedEdge>,
-        Vec<UnresolvedRef>,
-    ) {
+    ) -> (Vec<ExtractedNode>, Vec<ExtractedEdge>, Vec<UnresolvedRef>) {
         let mut parser = Parser::new();
-        parser.set_language(&tree_sitter_ruby::LANGUAGE.into()).unwrap();
+        parser
+            .set_language(&tree_sitter_ruby::LANGUAGE.into())
+            .unwrap();
         let tree = parser.parse(code, None).unwrap();
-        assert!(!tree.root_node().has_error(), "fixture must parse cleanly:\n{code}");
+        assert!(
+            !tree.root_node().has_error(),
+            "fixture must parse cleanly:\n{code}"
+        );
         let file = ExtractedNode::file(path, code, LANG);
         let file_id = file.id.clone();
         let mut nodes = vec![file];
@@ -657,11 +718,7 @@ mod tests {
         nodes.iter().filter(|n| n.kind == kind).collect()
     }
 
-    fn find_kind<'a>(
-        nodes: &'a [ExtractedNode],
-        kind: &str,
-        name: &str,
-    ) -> &'a ExtractedNode {
+    fn find_kind<'a>(nodes: &'a [ExtractedNode], kind: &str, name: &str) -> &'a ExtractedNode {
         nodes
             .iter()
             .find(|n| n.kind == kind && n.name == name)
@@ -763,7 +820,10 @@ require_relative 'fetcher'
         // Raw import refs for all three; the bare 'json' has no path ref.
         let raw = ref_names(&refs, "imports");
         assert!(raw.contains(&"json".to_string()), "{raw:?}");
-        assert!(raw.contains(&"active_support/core_ext/string".to_string()), "{raw:?}");
+        assert!(
+            raw.contains(&"active_support/core_ext/string".to_string()),
+            "{raw:?}"
+        );
         assert!(
             raw.contains(&"active_support/core_ext/string.rb".to_string()),
             "load-path require gets .rb suffix: {raw:?}"
@@ -773,9 +833,15 @@ require_relative 'fetcher'
             raw.contains(&"lib/app/fetcher.rb".to_string()),
             "relative require resolves against the file's dir: {raw:?}"
         );
-        assert!(!raw.iter().any(|r| r == "json.rb"), "bare gem require emits no file ref");
+        assert!(
+            !raw.iter().any(|r| r == "json.rb"),
+            "bare gem require emits no file ref"
+        );
         // Raw import node names ('json', 'fetcher') have no `.rb` file-ref twin.
-        assert!(!raw.iter().any(|r| r == "fetcher.rb"), "no slash -> no file ref");
+        assert!(
+            !raw.iter().any(|r| r == "fetcher.rb"),
+            "no slash -> no file ref"
+        );
     }
 
     #[test]
@@ -819,7 +885,6 @@ end
         );
     }
 
-
     #[test]
     fn method_body_calls_use_receiver_text_and_bare_names() {
         let code = "\
@@ -837,13 +902,28 @@ end
         let (_nodes, _edges, refs) = extract_all("app/worker.rb", code);
         let calls = ref_names(&refs, "calls");
         // Receiver calls collapse to the RECEIVER text (first named child).
-        assert!(calls.contains(&"User".to_string()), "User.new/User.count -> User: {calls:?}");
-        assert!(calls.contains(&"u".to_string()), "u.authenticate -> u: {calls:?}");
-        assert!(calls.contains(&"App::Config".to_string()), "App::Config.new: {calls:?}");
+        assert!(
+            calls.contains(&"User".to_string()),
+            "User.new/User.count -> User: {calls:?}"
+        );
+        assert!(
+            calls.contains(&"u".to_string()),
+            "u.authenticate -> u: {calls:?}"
+        );
+        assert!(
+            calls.contains(&"App::Config".to_string()),
+            "App::Config.new: {calls:?}"
+        );
         // Parenthesised bare call (method field, first named child).
-        assert!(calls.contains(&"helper".to_string()), "helper(id): {calls:?}");
+        assert!(
+            calls.contains(&"helper".to_string()),
+            "helper(id): {calls:?}"
+        );
         // Statement-level bare call (no parens).
-        assert!(calls.contains(&"reset".to_string()), "bare reset: {calls:?}");
+        assert!(
+            calls.contains(&"reset".to_string()),
+            "bare reset: {calls:?}"
+        );
         // Local assignment LHS `u` is not a call (its parent is assignment).
         assert!(!calls.iter().any(|c| c == "id"), "param id is not a call");
     }
@@ -865,7 +945,10 @@ end
         let calls = ref_names(&refs, "calls");
         assert!(calls.contains(&"actual_call".to_string()), "{calls:?}");
         for skipped in ["self", "true", "nil", "User"] {
-            assert!(!calls.contains(&skipped.to_string()), "{skipped} must be skipped: {calls:?}");
+            assert!(
+                !calls.contains(&skipped.to_string()),
+                "{skipped} must be skipped: {calls:?}"
+            );
         }
     }
 
@@ -912,7 +995,10 @@ module M
 end
 ";
         let (nodes, _edges, _refs) = extract_all("script.rb", code);
-        let variables: Vec<&str> = kinds(&nodes, "variable").iter().map(|v| v.name.as_str()).collect();
+        let variables: Vec<&str> = kinds(&nodes, "variable")
+            .iter()
+            .map(|v| v.name.as_str())
+            .collect();
         // Only the file-scope identifier LHS becomes a node. The constant TOP,
         // the module-scope identifier, and the method local do not.
         assert_eq!(variables, vec!["top_var"]);

@@ -79,7 +79,9 @@ fn named_children_vec<'a>(node: SyntaxNode<'a>) -> Vec<SyntaxNode<'a>> {
 }
 
 fn first_named_of_kind<'a>(node: SyntaxNode<'a>, kind: &str) -> Option<SyntaxNode<'a>> {
-    named_children_vec(node).into_iter().find(|c| c.kind() == kind)
+    named_children_vec(node)
+        .into_iter()
+        .find(|c| c.kind() == kind)
 }
 
 /// All children bound to the given field name (a field may repeat, like
@@ -206,7 +208,9 @@ fn c_callee<'a>(node: SyntaxNode<'a>, source: &'a [u8]) -> Option<String> {
 }
 
 fn is_capitalized(name: &str) -> bool {
-    name.chars().next().is_some_and(|ch| ch.is_ascii_uppercase())
+    name.chars()
+        .next()
+        .is_some_and(|ch| ch.is_ascii_uppercase())
 }
 
 /// struct/enum typedef detection, mirroring the TS resolveTypeAliasKind and
@@ -353,7 +357,14 @@ fn visit(
             for child in node.named_children(&mut node.walk()) {
                 let mut cc = child.walk();
                 visit(
-                    &mut cc, source, relative_path, &id, &id, stack, nodes, edges,
+                    &mut cc,
+                    source,
+                    relative_path,
+                    &id,
+                    &id,
+                    stack,
+                    nodes,
+                    edges,
                     unresolved_refs,
                 )?;
             }
@@ -406,7 +417,14 @@ fn visit(
             for child in node.named_children(&mut node.walk()) {
                 let mut cc = child.walk();
                 visit(
-                    &mut cc, source, relative_path, &id, &id, stack, nodes, edges,
+                    &mut cc,
+                    source,
+                    relative_path,
+                    &id,
+                    &id,
+                    stack,
+                    nodes,
+                    edges,
                     unresolved_refs,
                 )?;
             }
@@ -446,7 +464,14 @@ fn visit(
             for child in node.named_children(&mut node.walk()) {
                 let mut cc = child.walk();
                 visit(
-                    &mut cc, source, relative_path, &id, &id, stack, nodes, edges,
+                    &mut cc,
+                    source,
+                    relative_path,
+                    &id,
+                    &id,
+                    stack,
+                    nodes,
+                    edges,
                     unresolved_refs,
                 )?;
             }
@@ -487,7 +512,14 @@ fn visit(
                 for child in body.named_children(&mut body.walk()) {
                     let mut cc = child.walk();
                     visit(
-                        &mut cc, source, relative_path, &id, &id, stack, nodes, edges,
+                        &mut cc,
+                        source,
+                        relative_path,
+                        &id,
+                        &id,
+                        stack,
+                        nodes,
+                        edges,
                         unresolved_refs,
                     )?;
                 }
@@ -511,8 +543,7 @@ fn visit(
                     .last()
                     .map(|f| f.id.clone())
                     .unwrap_or_else(|| contains_parent.to_string());
-                let extracted =
-                    ExtractedNode::symbol(relative_path, "property", &name, node, LANG);
+                let extracted = ExtractedNode::symbol(relative_path, "property", &name, node, LANG);
                 push_contains(edges, &owner, &extracted);
                 nodes.push(extracted);
             }
@@ -546,7 +577,14 @@ fn visit(
                     for child in body.named_children(&mut body.walk()) {
                         let mut cc = child.walk();
                         visit(
-                            &mut cc, source, relative_path, &id, &id, stack, nodes, edges,
+                            &mut cc,
+                            source,
+                            relative_path,
+                            &id,
+                            &id,
+                            stack,
+                            nodes,
+                            edges,
                             unresolved_refs,
                         )?;
                     }
@@ -562,12 +600,21 @@ fn visit(
         && node.child_by_field_name("body").is_some()
         && stack.is_empty()
     {
-        let skind = if kind == "struct_specifier" { "struct" } else { "enum" };
+        let skind = if kind == "struct_specifier" {
+            "struct"
+        } else {
+            "enum"
+        };
         if let Some(name_node) = node.child_by_field_name("name") {
             if let Some(name) = node_text(name_node, source) {
                 let qname = qualified_name(stack, &name);
                 let extracted = ExtractedNode::symbol_with_qualified_name(
-                    relative_path, skind, &name, node, LANG, qname,
+                    relative_path,
+                    skind,
+                    &name,
+                    node,
+                    LANG,
+                    qname,
                 );
                 let id = extracted.id.clone();
                 push_contains(edges, contains_parent, &extracted);
@@ -607,8 +654,7 @@ fn visit(
         if let Some(declarator) = node.child_by_field_name("declarator") {
             if let Some(name) = c_declarator_name(declarator, source) {
                 let tkind = typedef_kind(node);
-                let extracted =
-                    ExtractedNode::symbol(relative_path, tkind, &name, node, LANG);
+                let extracted = ExtractedNode::symbol(relative_path, tkind, &name, node, LANG);
                 push_contains(edges, contains_parent, &extracted);
                 nodes.push(extracted);
             }
@@ -618,13 +664,7 @@ fn visit(
 
     // ---- message expression -> calls ----
     if kind == "message_expression" {
-        emit_message_call(
-            node,
-            source,
-            relative_path,
-            ref_parent,
-            unresolved_refs,
-        );
+        emit_message_call(node, source, relative_path, ref_parent, unresolved_refs);
         // Recurse receiver + arguments for nested calls. The `method` field
         // keywords are selectors, not expressions — skip them to avoid
         // treating selector pieces as identifiers.
@@ -635,8 +675,15 @@ fn visit(
             }
             let mut cc = child.walk();
             visit(
-                &mut cc, source, relative_path, contains_parent, ref_parent, stack, nodes,
-                edges, unresolved_refs,
+                &mut cc,
+                source,
+                relative_path,
+                contains_parent,
+                ref_parent,
+                stack,
+                nodes,
+                edges,
+                unresolved_refs,
             )?;
         }
         return Ok(());
@@ -661,7 +708,14 @@ fn visit(
     for child in node.named_children(&mut node.walk()) {
         let mut cc = child.walk();
         visit(
-            &mut cc, source, relative_path, contains_parent, ref_parent, stack, nodes, edges,
+            &mut cc,
+            source,
+            relative_path,
+            contains_parent,
+            ref_parent,
+            stack,
+            nodes,
+            edges,
             unresolved_refs,
         )?;
     }
@@ -699,9 +753,7 @@ fn emit_message_call(
     let callee_name = match node.child_by_field_name("receiver") {
         Some(receiver) if receiver.kind() != "message_expression" => {
             match node_text(receiver, source) {
-                Some(receiver_name)
-                    if receiver_name != "self" && receiver_name != "super" =>
-                {
+                Some(receiver_name) if receiver_name != "self" && receiver_name != "super" => {
                     // A Capitalized receiver is a class message
                     // (`[SDImageCache sharedCache]`): record the class itself
                     // via a `references` edge in addition to the call.

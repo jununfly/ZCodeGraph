@@ -11,7 +11,7 @@
  *    default project's hint in error messages
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -144,6 +144,23 @@ describe('MCP project state isolation', () => {
   // ─── Tracer bullet 2: projectCache ──────────────────────────────────
 
   describe('projectCache isolation', () => {
+    it('closing aliases does not close the same graph more than once', async () => {
+      const alias = path.join(dirA, 'nested');
+      fs.mkdirSync(alias);
+      const result = await handler.execute('zcodegraph_search', {
+        query: 'alpha',
+        projectPath: alias,
+      });
+      expect(result.isError).toBeFalsy();
+      const closeA = vi.spyOn(cgA, 'closeAndWait');
+      const closeB = vi.spyOn(cgB, 'closeAndWait');
+
+      await handler.closeAll();
+
+      expect(closeA).toHaveBeenCalledOnce();
+      expect(closeB).toHaveBeenCalledOnce();
+    });
+
     it('different projectPath values return results from their respective projects', async () => {
       handler.setDefaultCodeGraph(cgA);
 

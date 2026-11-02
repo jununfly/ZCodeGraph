@@ -99,7 +99,9 @@ fn named_children_vec<'a>(node: SyntaxNode<'a>) -> Vec<SyntaxNode<'a>> {
 }
 
 fn first_named_of_kind<'a>(node: SyntaxNode<'a>, kind: &str) -> Option<SyntaxNode<'a>> {
-    named_children_vec(node).into_iter().find(|c| c.kind() == kind)
+    named_children_vec(node)
+        .into_iter()
+        .find(|c| c.kind() == kind)
 }
 
 /// First descendant of a kind via breadth-first search (luaExtractor's
@@ -285,8 +287,15 @@ fn visit(
         for child in node.named_children(&mut node.walk()) {
             let mut cc = child.walk();
             visit(
-                &mut cc, source, relative_path, contains_parent, ref_parent, stack, nodes,
-                edges, unresolved_refs,
+                &mut cc,
+                source,
+                relative_path,
+                contains_parent,
+                ref_parent,
+                stack,
+                nodes,
+                edges,
+                unresolved_refs,
             )?;
         }
         return Ok(());
@@ -344,7 +353,14 @@ fn visit(
                     for child in body.named_children(&mut body.walk()) {
                         let mut cc = child.walk();
                         visit(
-                            &mut cc, source, relative_path, &id, &id, stack, nodes, edges,
+                            &mut cc,
+                            source,
+                            relative_path,
+                            &id,
+                            &id,
+                            stack,
+                            nodes,
+                            edges,
                             unresolved_refs,
                         )?;
                     }
@@ -436,7 +452,8 @@ fn visit(
                     if let Some(value) = node_text(*value_node, source) {
                         let init: String = value.chars().take(100).collect();
                         let ellipsis = value.chars().count() >= 100;
-                        variable.signature = Some(format!("= {init}{}", if ellipsis { "..." } else { "" }));
+                        variable.signature =
+                            Some(format!("= {init}{}", if ellipsis { "..." } else { "" }));
                     }
                 }
                 push_contains(edges, contains_parent, &variable);
@@ -454,7 +471,14 @@ fn visit(
     for child in node.named_children(&mut node.walk()) {
         let mut cc = child.walk();
         visit(
-            &mut cc, source, relative_path, contains_parent, ref_parent, stack, nodes, edges,
+            &mut cc,
+            source,
+            relative_path,
+            contains_parent,
+            ref_parent,
+            stack,
+            nodes,
+            edges,
             unresolved_refs,
         )?;
     }

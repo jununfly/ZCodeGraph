@@ -8,6 +8,7 @@ import {
   fakeRustCoreMarker,
   makeRustIndexingTempProject,
   RUST_CORE_BIN,
+  SCRIPTED_INDEX_FIXTURE_BIN,
   runZcodegraphCli,
   writeFailingRustCore,
   writeFakeRustCore,
@@ -175,10 +176,12 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
     fs.mkdirSync(packagedBinDir, { recursive: true });
     const rustCore = writeFakeRustCore(packagedBinDir);
     const packagedRustCore = path.join(packagedBinDir, process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core');
-    fs.renameSync(rustCore, packagedRustCore);
+    fs.copyFileSync(SCRIPTED_INDEX_FIXTURE_BIN, packagedRustCore);
     const packagedBin = path.join(packagedDist, 'bin', 'zcodegraph.js');
 
-    const result = spawnSync(process.execPath, [packagedBin, 'index', '--engine', 'rust', '--quiet'], {
+    const result = spawnSync(process.execPath, [
+      packagedBin, 'index', '--engine', 'rust', '--quiet',
+    ], {
       cwd: tempDir,
       env: {
         ...process.env,
@@ -187,6 +190,8 @@ describe('zcodegraph index engine CLI defaults and profiles', () => {
         ZCG_NO_RELAUNCH: '1',
         NODE_PATH: path.resolve(__dirname, '..', 'node_modules'),
         ZCG_RUST_CORE_BINARY: undefined,
+        ZCG_TEST_RUST_CORE_SCRIPT: rustCore,
+        ZCG_TEST_NODE_BINARY: process.execPath,
       },
       encoding: 'utf-8',
     });

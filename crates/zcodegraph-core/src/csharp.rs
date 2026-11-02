@@ -23,22 +23,31 @@ const LANG: &str = "csharp";
 fn is_builtin_type(name: &str) -> bool {
     matches!(
         name,
-        "void" | "bool" | "byte" | "sbyte" | "char" | "decimal" | "double" | "float" | "int"
-            | "uint" | "nint" | "nuint" | "long" | "ulong" | "short" | "ushort" | "object"
-            | "string" | "dynamic"
+        "void"
+            | "bool"
+            | "byte"
+            | "sbyte"
+            | "char"
+            | "decimal"
+            | "double"
+            | "float"
+            | "int"
+            | "uint"
+            | "nint"
+            | "nuint"
+            | "long"
+            | "ulong"
+            | "short"
+            | "ushort"
+            | "object"
+            | "string"
+            | "dynamic"
     )
 }
 
 /// Reduce a type-position subtree to resolvable leaf names and their nodes.
-fn type_leaf_names<'a>(
-    node: SyntaxNode<'a>,
-    source: &'a [u8],
-) -> Vec<(String, SyntaxNode<'a>)> {
-    fn push_text<'a>(
-        n: SyntaxNode<'a>,
-        source: &'a [u8],
-        out: &mut Vec<(String, SyntaxNode<'a>)>,
-    ) {
+fn type_leaf_names<'a>(node: SyntaxNode<'a>, source: &'a [u8]) -> Vec<(String, SyntaxNode<'a>)> {
+    fn push_text<'a>(n: SyntaxNode<'a>, source: &'a [u8], out: &mut Vec<(String, SyntaxNode<'a>)>) {
         if let Ok(text) = n.utf8_text(source) {
             let text = text.trim();
             if !text.is_empty() {
@@ -47,11 +56,7 @@ fn type_leaf_names<'a>(
         }
     }
 
-    fn walk<'a>(
-        node: SyntaxNode<'a>,
-        source: &'a [u8],
-        out: &mut Vec<(String, SyntaxNode<'a>)>,
-    ) {
+    fn walk<'a>(node: SyntaxNode<'a>, source: &'a [u8], out: &mut Vec<(String, SyntaxNode<'a>)>) {
         match node.kind() {
             // int/string/bool/var — never project refs.
             "predefined_type" | "implicit_type" => {}
@@ -165,7 +170,9 @@ fn modifiers(node: SyntaxNode, source: &[u8]) -> (Option<String>, bool, bool) {
         if child.kind() != "modifier" {
             continue;
         }
-        let Ok(text) = child.utf8_text(source) else { continue };
+        let Ok(text) = child.utf8_text(source) else {
+            continue;
+        };
         match text.trim() {
             "public" | "private" | "protected" | "internal" => {
                 if visibility.is_none() {
@@ -185,10 +192,7 @@ fn modifiers(node: SyntaxNode, source: &[u8]) -> (Option<String>, bool, bool) {
 }
 
 /// Leaf attribute names in a declaration's attribute_list children.
-fn attribute_names<'a>(
-    node: SyntaxNode<'a>,
-    source: &'a [u8],
-) -> Vec<(String, SyntaxNode<'a>)> {
+fn attribute_names<'a>(node: SyntaxNode<'a>, source: &'a [u8]) -> Vec<(String, SyntaxNode<'a>)> {
     let mut out = Vec::new();
     for list in node
         .named_children(&mut node.walk())
@@ -292,10 +296,7 @@ fn join_cs_path(prefix: &str, sub: &str) -> String {
 /// (mirrors TS extractCSharpTailIdent). Returns None for lambdas/empties.
 fn extract_csharp_tail_ident(expr: &str) -> Option<String> {
     let cleaned: String = expr.split_whitespace().collect();
-    let tail = cleaned
-        .rsplit('.')
-        .next()
-        .unwrap_or("");
+    let tail = cleaned.rsplit('.').next().unwrap_or("");
     if tail.is_empty()
         || !tail
             .chars()
@@ -429,7 +430,9 @@ fn type_decl_kind(node: SyntaxNode) -> Option<&'static str> {
         "interface_declaration" => Some("interface"),
         "enum_declaration" => Some("enum"),
         "record_declaration" => {
-            let is_struct = node.children(&mut node.walk()).any(|c| c.kind() == "struct");
+            let is_struct = node
+                .children(&mut node.walk())
+                .any(|c| c.kind() == "struct");
             Some(if is_struct { "struct" } else { "class" })
         }
         _ => None,
@@ -457,7 +460,10 @@ fn using_module_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
             .map(ToString::to_string);
     }
     node.child_by_field_name("name")
-        .or_else(|| node.named_children(&mut node.walk()).find(|c| c.kind() == "identifier"))
+        .or_else(|| {
+            node.named_children(&mut node.walk())
+                .find(|c| c.kind() == "identifier")
+        })
         .and_then(|n| n.utf8_text(source).ok())
         .map(str::trim)
         .filter(|s| !s.is_empty())
@@ -573,7 +579,15 @@ pub(crate) fn extract(
         }
     }
 
-    walk(root, source, relative_path, &mut stack, nodes, edges, unresolved_refs)?;
+    walk(
+        root,
+        source,
+        relative_path,
+        &mut stack,
+        nodes,
+        edges,
+        unresolved_refs,
+    )?;
     Ok(())
 }
 
@@ -727,7 +741,15 @@ fn walk(
         // Descend normally so initializer calls are captured (declarators
         // themselves are not declarations/calls and emit nothing).
         for child in node.named_children(&mut node.walk()) {
-            walk(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+            walk(
+                child,
+                source,
+                relative_path,
+                stack,
+                nodes,
+                edges,
+                unresolved_refs,
+            )?;
         }
         return Ok(());
     }
@@ -862,9 +884,7 @@ fn walk(
                                     first_string_literal_content(path_arg, source)
                                 {
                                     let handler = handler_arg.and_then(|h| {
-                                        h.utf8_text(source)
-                                            .ok()
-                                            .and_then(extract_csharp_tail_ident)
+                                        h.utf8_text(source).ok().and_then(extract_csharp_tail_ident)
                                     });
                                     push_aspnet_route(
                                         http_method,
@@ -1005,7 +1025,15 @@ fn walk(
                 route_prefix,
             });
             for child in node.named_children(&mut node.walk()) {
-                walk(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+                walk(
+                    child,
+                    source,
+                    relative_path,
+                    stack,
+                    nodes,
+                    edges,
+                    unresolved_refs,
+                )?;
             }
             stack.pop();
             return Ok(());
@@ -1099,8 +1127,7 @@ fn walk(
             // enclosing class's `[Route("prefix")]` (TS aspnetResolver parity).
             // Route nodes are owned by the FILE frame (stack[0]).
             if kind == "method_declaration" {
-                let class_prefix = class_like_frame(stack)
-                    .and_then(|f| f.route_prefix.clone());
+                let class_prefix = class_like_frame(stack).and_then(|f| f.route_prefix.clone());
                 for list in node
                     .named_children(&mut node.walk())
                     .filter(|c| c.kind() == "attribute_list")
@@ -1158,7 +1185,15 @@ fn walk(
             });
             if let Some(body) = node.child_by_field_name("body") {
                 for child in body.named_children(&mut body.walk()) {
-                    walk(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+                    walk(
+                        child,
+                        source,
+                        relative_path,
+                        stack,
+                        nodes,
+                        edges,
+                        unresolved_refs,
+                    )?;
                 }
             }
             stack.pop();
@@ -1211,7 +1246,15 @@ fn walk(
                 .find(|c| matches!(c.kind(), "equals_value_clause" | "arrow_expression_clause"))
             {
                 for child in value.named_children(&mut value.walk()) {
-                    walk(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+                    walk(
+                        child,
+                        source,
+                        relative_path,
+                        stack,
+                        nodes,
+                        edges,
+                        unresolved_refs,
+                    )?;
                 }
             }
             return Ok(());
@@ -1220,7 +1263,15 @@ fn walk(
 
     // ---- generic descent ---------------------------------------------------
     for child in node.named_children(&mut node.walk()) {
-        walk(child, source, relative_path, stack, nodes, edges, unresolved_refs)?;
+        walk(
+            child,
+            source,
+            relative_path,
+            stack,
+            nodes,
+            edges,
+            unresolved_refs,
+        )?;
     }
     Ok(())
 }
@@ -1309,7 +1360,9 @@ public class UsersController : ControllerBase
             .map(|n| n.name.clone())
             .collect();
         assert_eq!(route_names, vec!["DELETE /users/{id}".to_string()]);
-        assert!(refs.iter().any(|r| r.reference_kind == "references" && r.reference_name == "Delete"));
+        assert!(refs
+            .iter()
+            .any(|r| r.reference_kind == "references" && r.reference_name == "Delete"));
     }
 
     #[test]
@@ -1448,15 +1501,23 @@ public class T
             .map(|r| r.reference_name.as_str())
             .collect();
         assert!(calls.contains(&"Run"));
-        assert!(!calls.iter().any(|c| c.contains("lambda") || c.contains('>')));
+        assert!(!calls
+            .iter()
+            .any(|c| c.contains("lambda") || c.contains('>')));
     }
 
     #[test]
     fn strip_generic_args_handles_nested_and_plain() {
-        assert_eq!(strip_generic_args("FromHttpResponseMessage<T>"), "FromHttpResponseMessage");
+        assert_eq!(
+            strip_generic_args("FromHttpResponseMessage<T>"),
+            "FromHttpResponseMessage"
+        );
         assert_eq!(strip_generic_args("obj.Helper<int, string>"), "obj.Helper");
         assert_eq!(strip_generic_args("Map<K, V>"), "Map");
         assert_eq!(strip_generic_args("NormalCall"), "NormalCall");
-        assert_eq!(strip_generic_args("JsonSerializer.Deserialize<Dictionary<string, int>>"), "JsonSerializer.Deserialize");
+        assert_eq!(
+            strip_generic_args("JsonSerializer.Deserialize<Dictionary<string, int>>"),
+            "JsonSerializer.Deserialize"
+        );
     }
 }

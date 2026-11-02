@@ -51,8 +51,8 @@ jobs:
         run: npm run build
       - name: Test Rust core
         run: cargo test
-      - name: Build Rust core
-        run: cargo build --package zcodegraph-core
+      - name: Build Rust core and native process test fixtures
+        run: cargo build --package zcodegraph-core --bins
       - name: Verify wave-0 rust-owned fixtures and skip-debt guardrails (#692)
         run: >
           npx vitest run
@@ -81,6 +81,12 @@ jobs:
           tests/sqlite-backend.test.ts
           tests/concurrent-locking.test.ts
           tests/rust-index-engine-cli-failure-safety.test.ts
+      - name: Verify real native process supervision, crash recovery, and replacement coordination
+        run: >
+          npx vitest run
+          tests/native-process-supervision.test.ts
+          tests/embedding-replacement.test.ts
+          tests/mcp-shutdown-coordination.test.ts
       - name: Verify visualize (self-contained HTML, isolated fixture)
         run: >
           npx vitest run

@@ -175,6 +175,15 @@ function metadataFor(repoPath) {
   };
 }
 
+function isScriptedRustCore(rustCore) {
+  try {
+    const header = fs.readFileSync(rustCore, 'utf8').slice(0, 128);
+    return header.startsWith('#!/usr/bin/env node') || header.startsWith('#!/usr/bin/node');
+  } catch {
+    return false;
+  }
+}
+
 function baseEnv(rustCore) {
   return {
     ZCG_ALLOW_UNSAFE_NODE: '1',
@@ -197,8 +206,16 @@ function indexWithMeasuredCli(project, engine, rustCore, CodeGraph) {
   const env = baseEnv(rustCore);
   if (engine === 'rust') {
     args.push('--engine', 'rust');
+    const scriptedFixture = process.env.ZCG_PROFILE_SCRIPTED_INDEX_FIXTURE_BINARY;
+    if (scriptedFixture && isScriptedRustCore(rustCore)) {
+      env.ZCG_RUST_CORE_BINARY = scriptedFixture;
+      env.ZCG_TEST_RUST_CORE_SCRIPT = rustCore;
+    }
   } else {
     args.push('--engine', 'typescript');
+    // TypeScript never runs the experimental writer, but its forced clear
+    // still needs a real native gate rather than the scripted Rust double.
+    env.ZCG_RUST_CORE_BINARY = process.env.ZCG_PROFILE_TYPESCRIPT_GATE_BINARY ?? rustCore;
   }
 
   const startedAt = Date.now();
@@ -243,7 +260,14 @@ async function profileRepo(repo, rustCore, dist) {
   const measuredRustSlice = copyPhase1Slice(repo.path, `${repo.name}-rust-measured`);
   const slice = copyPhase1Slice(repo.path, `${repo.name}-rust-profile`);
   const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
-  process.env.ZCG_RUST_CORE_BINARY = rustCore;
+  const previousScript = process.env.ZCG_TEST_RUST_CORE_SCRIPT;
+  const scriptedFixture = process.env.ZCG_PROFILE_SCRIPTED_INDEX_FIXTURE_BINARY;
+  process.env.ZCG_RUST_CORE_BINARY = scriptedFixture && isScriptedRustCore(rustCore)
+    ? scriptedFixture
+    : rustCore;
+  if (process.env.ZCG_RUST_CORE_BINARY === scriptedFixture) {
+    process.env.ZCG_TEST_RUST_CORE_SCRIPT = rustCore;
+  }
 
   try {
     const engines = {
@@ -363,6 +387,11 @@ async function profileRepo(repo, rustCore, dist) {
       delete process.env.ZCG_RUST_CORE_BINARY;
     } else {
       process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
+    }
+    if (previousScript === undefined) {
+      delete process.env.ZCG_TEST_RUST_CORE_SCRIPT;
+    } else {
+      process.env.ZCG_TEST_RUST_CORE_SCRIPT = previousScript;
     }
   }
 }

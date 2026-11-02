@@ -125,8 +125,7 @@ fn class_name<'a>(node: SyntaxNode<'a>, source: &'a [u8]) -> Option<String> {
 /// swiftExtractor.getVisibility (read the `modifiers` subtree).
 /// fileprivate is reported as `private`; absent modifiers => `internal`.
 fn visibility(node: SyntaxNode, source: &[u8]) -> String {
-    if let Some(text) = first_named_child(node, "modifiers")
-        .and_then(|m| m.utf8_text(source).ok())
+    if let Some(text) = first_named_child(node, "modifiers").and_then(|m| m.utf8_text(source).ok())
     {
         if text.contains("fileprivate") || text.contains("private") {
             return "private".to_string();
@@ -249,7 +248,11 @@ fn use_label_handler(node: SyntaxNode, source: &[u8]) -> Option<String> {
             .rsplit(['.', ':', ' '])
             .find(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'));
         if let Some(tail) = tail {
-            if tail.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_') {
+            if tail
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+            {
                 return Some(tail.to_string());
             }
         }
@@ -459,12 +462,14 @@ fn call_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
             .find(|c| c.kind() == "navigation_suffix")
             .and_then(|suf| first_named_child(*suf, "simple_identifier"))
             .and_then(|m| node_text(m, source))?;
-        let receiver_is_simple = receiver
-            .is_some_and(|r| matches!(r.kind(), "simple_identifier" | "identifier"));
+        let receiver_is_simple =
+            receiver.is_some_and(|r| matches!(r.kind(), "simple_identifier" | "identifier"));
         if !receiver_is_simple {
             return Some(method);
         }
-        let receiver_text = receiver.and_then(|r| node_text(r, source)).unwrap_or_default();
+        let receiver_text = receiver
+            .and_then(|r| node_text(r, source))
+            .unwrap_or_default();
         const SKIP: [&str; 3] = ["self", "super", ""];
         if SKIP.contains(&receiver_text.trim()) {
             return Some(method);
@@ -475,11 +480,7 @@ fn call_name(node: SyntaxNode, source: &[u8]) -> Option<String> {
     None
 }
 
-fn push_contains(
-    edges: &mut Vec<ExtractedEdge>,
-    source: &str,
-    target: &ExtractedNode,
-) {
+fn push_contains(edges: &mut Vec<ExtractedEdge>, source: &str, target: &ExtractedNode) {
     edges.push(ExtractedEdge {
         source: source.to_string(),
         target: target.id.clone(),
@@ -538,12 +539,11 @@ fn visit(
 
     // ---- imports: children carry no symbols ----
     if kind == "import_declaration" {
-        let name = first_named_child(node, "identifier")
-            .and_then(|id| {
-                first_named_child(id, "simple_identifier")
-                    .and_then(|s| node_text(s, source))
-                    .or_else(|| node_text(id, source))
-            });
+        let name = first_named_child(node, "identifier").and_then(|id| {
+            first_named_child(id, "simple_identifier")
+                .and_then(|s| node_text(s, source))
+                .or_else(|| node_text(id, source))
+        });
         if let Some(name) = name {
             let import = ExtractedNode::symbol(relative_path, "import", &name, node, LANG);
             push_contains(edges, contains_parent, &import);
@@ -707,9 +707,7 @@ fn visit(
                 );
             }
 
-            stack.push(Frame {
-                name: name.clone(),
-            });
+            stack.push(Frame { name: name.clone() });
             let body = first_named_child(node, "class_body")
                 .or_else(|| first_named_child(node, "enum_class_body"));
             if let Some(body) = body {
@@ -766,9 +764,7 @@ fn visit(
                 );
             }
 
-            stack.push(Frame {
-                name: name.clone(),
-            });
+            stack.push(Frame { name: name.clone() });
             if let Some(body) = first_named_child(node, "protocol_body") {
                 for child in body.named_children(&mut body.walk()) {
                     // Protocol requirements (protocol_function_declaration /
@@ -819,8 +815,8 @@ fn visit(
 
     // ---- function / method ----
     if kind == "function_declaration" {
-        if let Some(name) = first_named_child(node, "simple_identifier")
-            .and_then(|s| node_text(s, source))
+        if let Some(name) =
+            first_named_child(node, "simple_identifier").and_then(|s| node_text(s, source))
         {
             let symbol_kind = if in_type { "method" } else { "function" };
             let qname = qualified_name(stack, &name);
@@ -842,9 +838,7 @@ fn visit(
             // attribute to the method/function. Nested declarations are not a
             // Swift baseline concern.
             if let Some(body) = first_named_child(node, "function_body") {
-                stack.push(Frame {
-                    name: name.clone(),
-                });
+                stack.push(Frame { name: name.clone() });
                 for child in body.named_children(&mut body.walk()) {
                     let mut cc = child.walk();
                     visit(
@@ -935,7 +929,11 @@ mod tests {
     }
 
     fn count_errors(node: SyntaxNode) -> usize {
-        let mut total = if node.is_error() || node.is_missing() { 1 } else { 0 };
+        let mut total = if node.is_error() || node.is_missing() {
+            1
+        } else {
+            0
+        };
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             total += count_errors(child);
@@ -1009,9 +1007,14 @@ struct ListRow: View {
             .map(|n| n.name.clone())
             .collect();
         components.sort();
-        assert_eq!(components, vec!["ContentView".to_string(), "ListRow".to_string()]);
+        assert_eq!(
+            components,
+            vec!["ContentView".to_string(), "ListRow".to_string()]
+        );
         // Baseline struct nodes still exist alongside the framework nodes.
-        assert!(nodes.iter().any(|n| n.kind == "struct" && n.name == "ContentView"));
+        assert!(nodes
+            .iter()
+            .any(|n| n.kind == "struct" && n.name == "ContentView"));
     }
 
     #[test]
@@ -1047,15 +1050,16 @@ class PlainService {
 }
 "#;
         let (nodes, _edges, _refs) = run_extract(src);
-        let framework_classes: Vec<&ExtractedNode> = nodes
-            .iter()
-            .filter(|n| n.kind == "class")
-            .collect();
+        let framework_classes: Vec<&ExtractedNode> =
+            nodes.iter().filter(|n| n.kind == "class").collect();
         let names: Vec<&str> = framework_classes.iter().map(|n| n.name.as_str()).collect();
         assert!(names.contains(&"HomeViewController"));
         assert!(names.contains(&"BadgeView"));
         // Each framework class appears TWICE (baseline + framework node).
-        assert_eq!(names.iter().filter(|n| **n == "HomeViewController").count(), 2);
+        assert_eq!(
+            names.iter().filter(|n| **n == "HomeViewController").count(),
+            2
+        );
         assert_eq!(names.iter().filter(|n| **n == "BadgeView").count(), 2);
         // Plain classes stay single.
         assert_eq!(names.iter().filter(|n| **n == "PlainService").count(), 1);

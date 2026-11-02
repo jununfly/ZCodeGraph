@@ -57,7 +57,8 @@ describe.skipIf(!nodeSqliteAvailable)('embedding runtime (1-4-29)', () => {
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-embed-rt-'));
     projectRoot = dir;
-    dbPath = path.join(dir, 'zcodegraph.db');
+    dbPath = path.join(projectRoot, '.zcodegraph', 'zcodegraph.db');
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
     // Drop a fake vec0 binary so getDefaultVec0Path resolves. The worker
     // would fail to load it, but these tests never spawn a real worker.
     vec0Path = path.join(dir, 'vec0.dll');
@@ -364,6 +365,20 @@ describe.skipIf(!nodeSqliteAvailable)('embedding runtime (1-4-29)', () => {
         forDatabase.mockRestore();
         cg.close();
         db = createDatabase(dbPath).db;
+      }
+    });
+
+    it('closeAndWait closes the database even when worker shutdown fails', async () => {
+      const cg = await openRealCodeGraph();
+      const shutdown = vi.spyOn(EmbeddingRunner, 'shutdownDatabase')
+        .mockRejectedValue(new Error('injected worker shutdown failure'));
+      try {
+        await expect(cg.closeAndWait()).rejects.toThrow('injected worker shutdown failure');
+        expect(shutdown).toHaveBeenCalledWith(dbPath);
+        db = createDatabase(dbPath).db;
+        expect(db.prepare('SELECT COUNT(*) AS count FROM files').get()).toEqual({ count: 2 });
+      } finally {
+        shutdown.mockRestore();
       }
     });
 
