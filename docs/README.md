@@ -1,7 +1,7 @@
 # ZCodeGraph Documentation Map
 
 > Single entry point and entity registry for this repository's durable
-> documentation. Last reviewed: 2026-10-28.
+> documentation. Last reviewed: 2026-10-30.
 >
 > This map is the **entity registry** for the ontology defined in
 > [`ONTOLOGY.md`](ONTOLOGY.md). Each section corresponds to one entity
@@ -24,8 +24,8 @@
 
 | Class | Folder | Authority range | Count |
 | --- | --- | --- | --- |
-| Decision | [`decisions/`](decisions/) | primary | 10 |
-| Contract | [`contracts/`](contracts/) | primary | 14 |
+| Decision | [`decisions/`](decisions/) | primary | 11 |
+| Contract | [`contracts/`](contracts/) | primary | 17 |
 | Method | [`methods/`](methods/) | primary / supporting | 11 |
 | Plan | `plans/` (CLI SoT, not always on disk) | process | not enumerated here |
 
@@ -71,6 +71,7 @@ ordinary reports stay in `.tmp/measure/`.
 | ADR-0008 | [ZJ-0008-merge-init-into-index.md](decisions/ZJ-0008-merge-init-into-index.md) | Should `init` be hard-merged into `index` with auto-bootstrap? |
 | ADR-0009 | [ZJ-0009-async-embedding-pipeline.md](decisions/ZJ-0009-async-embedding-pipeline.md) | How is P2 embedding made asynchronous + lazy-incremental? |
 | ADR-0010 | [ZJ-0010-fastembed-lazy-install.md](decisions/ZJ-0010-fastembed-lazy-install.md) | How does ZCodeGraph ship the optional fastembed/onnxruntime-node dependency without bloating the default install? |
+| ADR-0011 | [ZJ-0011-index-write-lock-lease-and-reclaim.md](decisions/ZJ-0011-index-write-lock-lease-and-reclaim.md) | How is index-write mutual exclusion held across Rust and TypeScript, released after crashes, and diagnosed without unsafe lock-file reclamation? |
 
 ---
 
@@ -96,6 +97,9 @@ codebase currently obeys. Test-locked where applicable.
 | BENCH-architecture-regression-v1 | [architecture-regression-baseline-v1.md](contracts/architecture-regression-baseline-v1.md) | What is the architecture regression baseline (v1)? |
 | DES-complexity-rubric | [complexity-rubric-v1.md](contracts/complexity-rubric-v1.md) | What is the cyclomatic-complexity rubric (v1)? |
 | CON-resolver-semantic-residuals-v1 | [resolver-semantic-residuals-v1.md](contracts/resolver-semantic-residuals-v1.md) | Which resolver semantic gaps are deferred / no-go, and what guards bind shipped slices? |
+| DES-cli-p0-output-git-range-v1 | [cli-p0-output-and-git-range-v1.md](contracts/cli-p0-output-and-git-range-v1.md) | What output, error, exit-code, and Git-range guarantees must the P0 CLI hardening preserve? |
+| DES-cli-p1-embedding-operations-v1 | [cli-p1-embedding-operations-v1.md](contracts/cli-p1-embedding-operations-v1.md) | What exact queue, JSON, concurrency, migration, and interruption guarantees govern embedding status, run, and retry-failed? |
+| DES-cli-p1-modularity-explore-v1 | [cli-p1-modularity-and-explore-v1.md](contracts/cli-p1-modularity-and-explore-v1.md) | What module interfaces, dependency directions, resource ownership, and migration slices must the CLI and shared Explore blast-radius extraction preserve? |
 
 ---
 

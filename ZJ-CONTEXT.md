@@ -329,3 +329,113 @@ decides between per-method and per-file body caps, or why a God File triggers sp
 are what give the term its skeletonization decision power.
 
 **Related terms:** Skeletonization, God File, Flow Spine, Source Depth.
+
+### Embedding Queue Drain
+
+**Definition:** The bounded foreground processing of a project's already-enqueued embedding work until no pending or actively claimed work remains, without discovering new index content or managing the MCP background worker.
+
+**Use when:** Distinguishing the `embedding run` operation from index-time enqueueing, continuous watching, or semantic retrieval.
+
+**Not:** A full-project rescan, a long-lived worker, or proof that embedding succeeded.
+
+**Related terms:** Explicit Embedding Retry.
+
+### Explicit Embedding Retry
+
+**Definition:** A human-requested, immediately executed retry of failed embedding work whose content hash is still current in the project index. Each request is counted separately from processing attempts and retains failure history until success.
+
+**Use when:** Describing `embedding retry-failed`, manual recovery after an environment or processing failure, and the absence of automatic failed-item retries.
+
+**Not:** Requeueing every historical hash, silently retrying failures, or changing queue state without processing it.
+
+**Related terms:** Embedding Queue Drain.
+
+### Embedding Readiness
+
+**Definition:** Whether an initialized project has the prerequisites needed to execute embedding work, independently of the current queue's outcome or scheduling state.
+
+**Use when:** Distinguishing missing dependencies or an unusable project from failed, pending, or unscheduled embedding work.
+
+**Not:** Queue health, a fully drained queue, or evidence that a model can successfully process every file.
+
+**Related terms:** Embedding Queue Health, Embedding Queue Drain.
+
+### Embedding Queue Health
+
+**Definition:** Whether current-index embedding work has no failed items or expired claims while its prerequisites are ready. Pending and actively claimed work may be healthy; historical content and disabled scheduling do not by themselves make it unhealthy.
+
+**Use when:** Interpreting `embedding status`, separating operational state from execution failure, or applying the stricter drained requirement in CI.
+
+**Not:** Proof that no work remains, that a background worker is enabled, or that a worker process is alive.
+
+**Related terms:** Embedding Readiness, Explicit Embedding Retry.
+
+### Current-Vector Supersession
+
+**Definition:** The queue and vector-commit rule that prevents an older content hash from replacing the single vector stored for a file path. Historical claims are closed without embedding, and every claimed row is checked against `files(path, content_hash)` again in its terminal transaction before any vector write.
+
+**Use when:** Reviewing foreground or MCP embedding concurrency, stale queue work, terminal queue/vector transactions, or database content-hash changes.
+
+**Not:** Evidence that the old hash was embedded, a fifth persisted queue status, or support for retaining multiple vectors per file.
+
+**Related terms:** Embedding Queue Drain, Committed Drain Counters.
+
+### Committed Drain Counters
+
+**Definition:** The per-command counts of queue items whose terminal `done` or `failed` transition this process actually committed, accumulated once per completed worker batch and kept separate from the final global queue snapshot.
+
+**Use when:** Interpreting `embedding run` / `retry-failed` execution results, coordinating multiple workers, or testing idle/progress messages and lost claim ownership.
+
+**Not:** A count of scanned files, initially pending rows, messages received, attempted terminal updates, or work completed by every process.
+
+**Related terms:** Embedding Queue Drain, Current-Vector Supersession.
+
+### Historical Unfinished Embedding Work
+
+**Definition:** Pending or in-progress queue rows whose `(file_path, content_hash)` no longer matches the current `files` row, including orphan paths. They remain visible for diagnostics and foreground drain but do not determine current-index queue health.
+
+**Use when:** Classifying queue snapshots, defining `historicalUnfinished`, or deciding whether superseded work may write a vector.
+
+**Not:** Terminal historical `done`/`failed` rows, current-index work, proof of an active worker, or permission to overwrite the current vector.
+
+**Related terms:** Embedding Queue Health, Current-Vector Supersession.
+
+### Index Write Lock Ownership
+
+**Definition:** The OS-enforced exclusive holding of an index-write lock handle by one complete index operation, including its Rust and TypeScript delegates.
+
+**Use when:** Acquiring, borrowing, releasing, or diagnosing a project index lock.
+
+**Not:** A PID, lock-file timestamp, ownerToken, process-health check, or database fencing epoch.
+
+**Related terms:** Index Write Lease, Forced Lock Recovery.
+
+### Index Write Lease
+
+**Definition:** The operation-scoped capability under which an outer index owner and its nested TypeScript/Rust delegates may write, valid until all delegated writers finish and the OS lock handle is released. Rust children borrow an externally-held lease while the parent retains the sole OS lock; OS-enforced child lifetime prevents a surviving delegate after parent death.
+
+**Use when:** Reasoning about long-running index writes, nested helpers, delegated child processes, crash recovery, and concurrent index access.
+
+**Not:** A renewable timestamp, fixed indexing deadline, independent lock for each helper, an inherited child lock handle, a PID-only liveness check, or proof that external process termination left the index valid.
+
+**Related terms:** Index Write Lock Ownership, Forced Lock Recovery.
+
+### Forced Lock Recovery
+
+**Definition:** Human-requested repair of legacy or malformed lock metadata while holding the OS lock, without deleting the stable rendezvous file or bypassing an active writer.
+
+**Use when:** Explaining `unlock --force` and its limits after crash-safe OS-backed recovery.
+
+**Not:** Forced removal of an active lock, process termination, stale-file cleanup, validation bypass, or proof that a killed writer's index is valid.
+
+**Related terms:** Index Write Lock Ownership, Index Write Lease.
+
+### Semantic Entry Discovery
+
+**Definition:** The use of natural-language intent to identify candidate files that can seed existing graph-based narrowing and improve an Explore Answer.
+
+**Use when:** Evaluating semantic retrieval as a distinct product capability rather than treating stored embeddings as a delivered search feature.
+
+**Not:** Exact-symbol lookup, an unrestricted code question-answering system, or proof that vector candidates improve agent outcomes.
+
+**Related terms:** Explore Answer, Agent Sufficiency, Embedding Readiness.
