@@ -7265,15 +7265,38 @@ fn index_javascript_files(
         } else {
             let ast_started = Instant::now();
             if language.is_go() {
-                extract_go_symbols(
-                    parsed.root_node(),
-                    content.as_bytes(),
-                    &relative_path,
-                    &file_node_id,
-                    &mut nodes,
-                    &mut edges,
-                    &mut unresolved_refs,
-                )?;
+                // Large Go sources (e.g. kubernetes/kubernetes pkg/...) can nest
+                // deeply enough that the recursive Go AST walker overflows the
+                // default Windows main-thread stack (1 MiB), aborting the whole
+                // index. Mirror the Dart (1-2-9-3) and Pascal (1-2-10-1) fix:
+                // run ONLY this per-file extraction on a large-stack worker.
+                // Output is byte-identical; a walker panic still unwinds the
+                // process via resume_unwind. (roadmap 1-3-4)
+                std::thread::scope(|scope| {
+                    let handle = std::thread::Builder::new()
+                        .stack_size(DART_EXTRACT_STACK_SIZE)
+                        .spawn_scoped(scope, || {
+                            // Box<dyn Error> is not Send; stringify inside the
+                            // worker and re-box on the caller thread.
+                            extract_go_symbols(
+                                parsed.root_node(),
+                                content.as_bytes(),
+                                &relative_path,
+                                &file_node_id,
+                                &mut nodes,
+                                &mut edges,
+                                &mut unresolved_refs,
+                            )
+                            .map_err(|err| err.to_string())
+                        })
+                        .expect("spawn go extraction worker");
+                    match handle.join() {
+                        Ok(result) => result.map_err(|msg| -> Box<dyn std::error::Error> {
+                            std::io::Error::other(msg).into()
+                        }),
+                        Err(payload) => std::panic::resume_unwind(payload),
+                    }
+                })?;
             } else if language.is_java() {
                 extract_java_symbols(
                     parsed.root_node(),
