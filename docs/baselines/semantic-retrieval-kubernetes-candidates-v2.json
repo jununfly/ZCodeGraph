@@ -1,0 +1,158 @@
+{
+  "metric": "semantic-retrieval-kubernetes-candidates",
+  "version": 2,
+  "status": "draft-pending-human-review",
+  "corpus": "kubernetes",
+  "repo": "kubernetes/kubernetes",
+  "ref": "915a1ba09d44208a96987b7e9382a2698e4baff4",
+  "language": "go",
+  "structure": "kubernetes-control-plane-and-node-monorepo",
+  "split": "holdout",
+  "notes": "12 candidates drafted 2026-11-03 by Agent (Z) from kubernetes/kubernetes@915a1ba0. Each evidence.symbol and startLine verified by grep against source. Pending Human review without rankings per v2 §2.",
+  "queries": [
+    {
+      "id": "k8s-holdout-scheduler-schedule-one",
+      "corpus": "kubernetes",
+      "split": "holdout",
+      "query": "Where does the scheduler pick the next pending pod from the queue and run a single scheduling cycle that ends in a bind decision?",
+      "expectedFiles": ["pkg/scheduler/schedule_one.go"],
+      "evidence": { "symbol": "Scheduler.ScheduleOne", "startLine": 66 },
+      "hardNegatives": [
+        "pkg/scheduler/scheduler.go",
+        "pkg/scheduler/framework/runtime/framework.go"
+      ]
+    },
+    {
+      "id": "k8s-holdout-kubelet-sync-pod",
+      "corpus": "kubernetes",
+      "split": "holdout",
+      "query": "Where does kubelet reconcile the desired pod spec against the running containers, creating or killing containers to converge?",
+      "expectedFiles": ["pkg/kubelet/kuberuntime/kuberuntime_manager.go"],
+      "evidence": { "symbol": "kubeGenericRuntimeManager.SyncPod", "startLine": 1624 },
+      "hardNegatives": [
+        "pkg/kubelet/kubelet.go",
+        "pkg/kubelet/pod_workers.go"
+      ]
+    },
+    {
+      "id": "k8s-holdout-kubelet-start-container",
+      "corpus": "kubernetes",
+      "split": "holdout",
+      "query": "Where is the low-level routine that pulls the image if needed, generates the CRI container config and calls the runtime to start a container?",
+      "expectedFiles": ["pkg/kubelet/kuberuntime/kuberuntime_container.go"],
+      "evidence": { "symbol": "kubeGenericRuntimeManager.startContainer", "startLine": 212 },
+      "hardNegatives": [
+        "pkg/kubelet/kuberuntime/kuberuntime_manager.go",
+        "pkg/kubelet/kuberuntime/kuberuntime_sandbox.go"
+      ]
+    },
+    {
+      "id": "k8s-holdout-deployment-sync-deployment",
+      "corpus": "kubernetes",
+      "split": "holdout",
+      "query": "Where is the deployment controller's per-key sync entrypoint that drives rollout, scaling and cleanup of replica sets?",
+      "expectedFiles": ["pkg/controller/deployment/deployment_controller.go"],
+      "evidence": { "symbol": "DeploymentController.syncDeployment", "startLine": 575 },
+      "hardNegatives": [
+        "pkg/controller/deployment/sync.go",
+        "pkg/controller/replicaset/replica_set.go"
+      ]
+    },
+    {
+      "id": "k8s-holdout-replicaset-sync",
+      "corpus": "kubernetes",
+      "split": "holdout",
+      "query": "Where does the replicaset controller read the desired replica count and create or delete pods to match it?",
+      "expectedFiles": ["pkg/controller/replicaset/replica_set.go"],
+      "evidence": { "symbol": "ReplicaSetController.syncReplicaSet", "startLine": 759 },
+      "hardNegatives": [
+        "pkg/controller/deployment/deployment_controller.go",
+        "pkg/controller/statefulset/stateful_set.go"
+      ]
+    },
+    {
+      "id": "k8s-holdout-shared-informer-constructor",
+      "corpus": "kubernetes",
+      "split": "holdout",
+      "query": "Where is the constructor that builds a SharedIndexInformer with a ListerWatcher and per-namespace indexer for controller caches?",
+      "expectedFiles": ["staging/src/k8s.io/client-go/tools/cache/shared_informer.go"],
+      "evidence": { "symbol": "NewSharedIndexInformer", "startLine": 427 },
+      "hardNegatives": [
+        "staging/src/k8s.io/client-go/tools/cache/controller.go",
+        "staging/src/k8s.io/client-go/tools/cache/delta_fifo.go"
+      ]
+    },
+    {
+      "id": "k8s-holdout-csi-mounter-setup-at",
+      "corpus": "kubernetes",
+      "split": "holdout",
+      "query": "Where does the CSI plugin actually mount a volume to a pod's directory by calling out to the CSI driver?",
+      "expectedFiles": ["pkg/volume/csi/csi_mounter.go"],
+      "evidence": { "symbol": "csiMountMgr.SetUpAt", "startLine": 103 },
+      "hardNegatives": [
+        "pkg/volume/csi/csi_attacher.go",
+        "pkg/volume/emptydir/empty_dir.go"
+      ]
+    },
+    {
+      "id": "k8s-holdout-iptables-sync-proxy-rules",
+      "corpus": "kubernetes",
+      "split": "holdout",
+      "query": "Where does kube-proxy reconcile the desired service and endpoint state into iptables NAT rules?",
+      "expectedFiles": ["pkg/proxy/iptables/proxier.go"],
+      "evidence": { "symbol": "Proxier.syncProxyRules", "startLine": 625 },
+      "hardNegatives": [
+        "pkg/proxy/ipvs/proxier.go",
+        "pkg/proxy/nftables/proxier.go"
+      ]
+    },
+    {
+      "id": "k8s-holdout-nodeipam-allocate-cidr",
+      "corpus": "kubernetes",
+      "split": "holdout",
+      "query": "Where is the per-node CIDR assignment that reserves a pod network range from the cluster CIDR when a node joins?",
+      "expectedFiles": ["pkg/controller/nodeipam/ipam/range_allocator.go"],
+      "evidence": { "symbol": "rangeAllocator.AllocateOrOccupyCIDR", "startLine": 307 },
+      "hardNegatives": [
+        "pkg/controller/nodeipam/ipam/cidr_allocator.go",
+        "pkg/controller/nodeipam/node_ipam_controller.go"
+      ]
+    },
+    {
+      "id": "k8s-holdout-etcd-store-get-list",
+      "corpus": "kubernetes",
+      "split": "holdout",
+      "query": "Where does the apiserver translate a list request into an etcd range query with resource-version and pagination handling?",
+      "expectedFiles": ["staging/src/k8s.io/apiserver/pkg/storage/etcd3/store.go"],
+      "evidence": { "symbol": "store.GetList", "startLine": 736 },
+      "hardNegatives": [
+        "staging/src/k8s.io/apiserver/pkg/storage/etcd3/watcher.go",
+        "staging/src/k8s.io/apiserver/pkg/storage/cacher/cacher.go"
+      ]
+    },
+    {
+      "id": "k8s-holdout-admission-chain-admit",
+      "corpus": "kubernetes",
+      "split": "holdout",
+      "query": "Where does the apiserver run every registered mutating admission plugin in sequence against an incoming object before persistence?",
+      "expectedFiles": ["staging/src/k8s.io/apiserver/pkg/admission/chain.go"],
+      "evidence": { "symbol": "chainAdmissionHandler.Admit", "startLine": 31 },
+      "hardNegatives": [
+        "staging/src/k8s.io/apiserver/pkg/admission/audit.go",
+        "staging/src/k8s.io/apiserver/pkg/admission/metrics/metrics.go"
+      ]
+    },
+    {
+      "id": "k8s-holdout-leaderelection-acquire",
+      "corpus": "kubernetes",
+      "split": "holdout",
+      "query": "Where does a controller-manager replica attempt to acquire or renew the leader lease before it starts running controllers?",
+      "expectedFiles": ["staging/src/k8s.io/client-go/tools/leaderelection/leaderelection.go"],
+      "evidence": { "symbol": "LeaderElector.acquire", "startLine": 354 },
+      "hardNegatives": [
+        "staging/src/k8s.io/client-go/tools/leaderelection/resourcelock/interface.go",
+        "staging/src/k8s.io/client-go/tools/leaderelection/healthzadaptor.go"
+      ]
+    }
+  ]
+}

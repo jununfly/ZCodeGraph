@@ -1,0 +1,158 @@
+{
+  "metric": "semantic-retrieval-rails-candidates",
+  "version": 2,
+  "status": "draft-pending-human-review",
+  "corpus": "rails",
+  "repo": "rails/rails",
+  "ref": "b084108cf37bacb47c269684a7576f7ac2296983",
+  "language": "ruby",
+  "structure": "rails-monorepo-multi-framework",
+  "split": "holdout",
+  "notes": "12 candidates drafted 2026-11-03 by Agent (Z) from rails/rails@b084108c. Each evidence.symbol and startLine verified by grep against source. Pending Human review without rankings per v2 §2.",
+  "queries": [
+    {
+      "id": "rails-holdout-send-file-download",
+      "corpus": "rails",
+      "split": "holdout",
+      "query": "How do I stream a file from disk to the client as a download with content-disposition and content-type?",
+      "expectedFiles": ["actionpack/lib/action_controller/metal/data_streaming.rb"],
+      "evidence": { "symbol": "send_file", "startLine": 75 },
+      "hardNegatives": [
+        "actionpack/lib/action_controller/metal/live.rb",
+        "actionpack/lib/action_dispatch/http/response.rb"
+      ]
+    },
+    {
+      "id": "rails-holdout-message-encryptor-signed-cookie",
+      "corpus": "rails",
+      "split": "holdout",
+      "query": "Where does Rails encrypt and sign a value so it can be safely round-tripped through a client cookie without revealing its contents?",
+      "expectedFiles": ["activesupport/lib/active_support/message_encryptor.rb"],
+      "evidence": { "symbol": "MessageEncryptor#encrypt_and_sign", "startLine": 225 },
+      "hardNegatives": [
+        "activesupport/lib/active_support/message_verifier.rb",
+        "activesupport/lib/active_support/key_generator.rb"
+      ]
+    },
+    {
+      "id": "rails-holdout-tagged-logging",
+      "corpus": "rails",
+      "split": "holdout",
+      "query": "How can every log line emitted during a block carry request-id or user-id tags for log aggregation?",
+      "expectedFiles": ["activesupport/lib/active_support/tagged_logging.rb"],
+      "evidence": { "symbol": "TaggedLogging#tagged", "startLine": 161 },
+      "hardNegatives": [
+        "activesupport/lib/active_support/logger.rb",
+        "activesupport/lib/active_support/broadcast_logger.rb"
+      ]
+    },
+    {
+      "id": "rails-holdout-connection-pool-with-connection",
+      "corpus": "rails",
+      "split": "holdout",
+      "query": "Where does Rails check out a database connection from the pool, yield it, and guarantee it is returned even on exception?",
+      "expectedFiles": ["activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb"],
+      "evidence": { "symbol": "ConnectionPool#with_connection", "startLine": 470 },
+      "hardNegatives": [
+        "activerecord/lib/active_record/connection_handling.rb",
+        "activerecord/lib/active_record/connection_adapters/abstract_adapter.rb"
+      ]
+    },
+    {
+      "id": "rails-holdout-callbacks-run-callbacks",
+      "corpus": "rails",
+      "split": "holdout",
+      "query": "Where is the generic callback chain executor that lets models, controllers and jobs run before/after/around hooks?",
+      "expectedFiles": ["activesupport/lib/active_support/callbacks.rb"],
+      "evidence": { "symbol": "ActiveSupport::Callbacks#run_callbacks", "startLine": 99 },
+      "hardNegatives": [
+        "activesupport/lib/active_support/concern.rb",
+        "activesupport/lib/active_support/notifications.rb"
+      ]
+    },
+    {
+      "id": "rails-holdout-route-set-draw",
+      "corpus": "rails",
+      "split": "holdout",
+      "query": "Where does Rails evaluate the user's config/routes.rb block and build the table used to dispatch incoming URLs?",
+      "expectedFiles": ["actionpack/lib/action_dispatch/routing/route_set.rb"],
+      "evidence": { "symbol": "ActionDispatch::Routing::RouteSet#draw", "startLine": 553 },
+      "hardNegatives": [
+        "actionpack/lib/action_dispatch/routing/mapper.rb",
+        "actionpack/lib/action_dispatch/journey/router.rb"
+      ]
+    },
+    {
+      "id": "rails-holdout-middleware-stack-use",
+      "corpus": "rails",
+      "split": "holdout",
+      "query": "Where is the middleware stack that inserts Rack middleware in front of the Rails application, supporting ordering operations like use and insert_before?",
+      "expectedFiles": ["actionpack/lib/action_dispatch/middleware/stack.rb"],
+      "evidence": { "symbol": "ActionDispatch::MiddlewareStack#use", "startLine": 156 },
+      "hardNegatives": [
+        "actionpack/lib/action_dispatch/middleware/executor.rb",
+        "actionpack/lib/action_dispatch/routing/route_set.rb"
+      ]
+    },
+    {
+      "id": "rails-holdout-relation-where-chain",
+      "corpus": "rails",
+      "split": "holdout",
+      "query": "Where does ActiveRecord build a chainable relation from a .where call so subsequent calls accumulate predicates before SQL is generated?",
+      "expectedFiles": ["activerecord/lib/active_record/relation/query_methods.rb"],
+      "evidence": { "symbol": "ActiveRecord::QueryMethods#where", "startLine": 1278 },
+      "hardNegatives": [
+        "activerecord/lib/active_record/relation.rb",
+        "activerecord/lib/active_record/sanitization.rb"
+      ]
+    },
+    {
+      "id": "rails-holdout-migration-class",
+      "corpus": "rails",
+      "split": "holdout",
+      "query": "Where is the base class for schema migrations that provides up/down/change methods and records schema versions?",
+      "expectedFiles": ["activerecord/lib/active_record/migration.rb"],
+      "evidence": { "symbol": "ActiveRecord::Migration", "startLine": 572 },
+      "hardNegatives": [
+        "activerecord/lib/active_record/schema.rb",
+        "activerecord/lib/active_record/schema_migration.rb"
+      ]
+    },
+    {
+      "id": "rails-holdout-activejob-perform-later",
+      "corpus": "rails",
+      "split": "holdout",
+      "query": "Where does a job get enqueued onto the configured backend so it runs asynchronously instead of inline?",
+      "expectedFiles": ["activejob/lib/active_job/enqueuing.rb"],
+      "evidence": { "symbol": "ActiveJob::Enqueuing#perform_later", "startLine": 57 },
+      "hardNegatives": [
+        "activejob/lib/active_job/execution.rb",
+        "activejob/lib/active_job/queue_adapter.rb"
+      ]
+    },
+    {
+      "id": "rails-holdout-actioncable-channel-base",
+      "corpus": "rails",
+      "split": "holdout",
+      "query": "Where is the base class for ActionCable channels that handles subscription lifecycle, streams and broadcasting to a connected client?",
+      "expectedFiles": ["actioncable/lib/action_cable/channel/base.rb"],
+      "evidence": { "symbol": "ActionCable::Channel::Base", "startLine": 114 },
+      "hardNegatives": [
+        "actioncable/lib/action_cable/connection/base.rb",
+        "actioncable/lib/action_cable/server/base.rb"
+      ]
+    },
+    {
+      "id": "rails-holdout-cache-store-fetch",
+      "corpus": "rails",
+      "split": "holdout",
+      "query": "Where is the unified cache fetch that reads on hit and computes-then-writes on miss, shared by all Rails cache stores?",
+      "expectedFiles": ["activesupport/lib/active_support/cache.rb"],
+      "evidence": { "symbol": "ActiveSupport::Cache::Store#fetch", "startLine": 456 },
+      "hardNegatives": [
+        "activesupport/lib/active_support/cache/memory_store.rb",
+        "activesupport/lib/active_support/cache/redis_cache_store.rb"
+      ]
+    }
+  ]
+}

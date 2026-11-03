@@ -454,6 +454,21 @@
           "q": "Q3 v2 留出集最终架构（替代 Q2 草案）",
           "answer": "7 仓 84 题：v1 5 仓 60 题原封平移为 development（v1 16 题 holdout 已参与 V3 修复降级为 diagnostic，按 v2 §2 不得再作 v2 holdout）；新增 kubernetes（Go，~20k 文件，作 ≥10k 大仓门 + whole-holdout，12 题）；新增 rails/rails（Ruby，~4k 文件，whole-holdout，12 题）。holdout 24/84=28.6% ✅ 过 v2 §2 ≥25% 门。语言 7 种：Python/JS/Java/Rust/C#/Go/Ruby。",
           "note": ""
+        },
+        {
+          "q": "Q4 k8s rust-hybrid 索引栈溢出",
+          "answer": "k8s 13,731 .go 文件触发 rust core 索引栈溢出（thread 'main' has overflowed its stack）。改用 --engine typescript 重试。这暴露 1-2 主线 Rust core 在大型 Go 仓上的稳定性问题，但不阻塞 1-3-4 验收——acceptance 关心的是查询行为，索引由 typescript engine 兜底是合法路径。",
+          "note": ""
+        },
+        {
+          "q": "Q5 Go 栈溢出修复落地",
+          "answer": "采用 Dart/Pascal 同模板：在 lib.rs 7267 行 if language.is_go() 分支套 thread::Builder::stack_size(DART_EXTRACT_STACK_SIZE=128MiB) 大栈 worker。 Box<dyn Error> 在 worker 内 to_string 后 re-box，walker panic 经 resume_unwind 上抛。改动范围：仅 lib.rs Go 分支，~30 行。修复后 cargo build --package zcodegraph-core 并重跑 k8s 索引验证。typescript fallback 索引（20247 files）保留作对照。",
+          "note": ""
+        },
+        {
+          "q": "Q6 Go 大栈修复验证通过",
+          "answer": "k8s rust-hybrid 索引成功：24,429 files / 483,541 nodes / 779,307 edges，全程无栈溢出。修复闭合。与 TS fallback 对照（20,247 files / 273,428 nodes）rust core 节点粒度更细、resolver 边更精准。1-3-4 大仓门验收使用 rust-hybrid 真实数据。",
+          "note": ""
         }
       ],
       "notes": "",
@@ -473,7 +488,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-03 17:47:04",
+    "updated": "2026-11-03 18:33:57",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
