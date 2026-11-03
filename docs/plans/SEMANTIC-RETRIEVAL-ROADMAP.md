@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `semantic-retrieval-roadmap.json` | 最后更新: 2026-11-03 18:33:57
+> 数据文件: `semantic-retrieval-roadmap.json` | 最后更新: 2026-11-03 18:45:59
 
 [~][X+] 1. 语义检索独立项目：真实基准、效果验证与证据门控集成
     ├── [~][X+] 1-3. 在冻结留出集与大规模真实语料上复验效果和资源
@@ -26,4 +26,5 @@
 - Q: Q4 k8s rust-hybrid 索引栈溢出 → k8s 13,731 .go 文件触发 rust core 索引栈溢出（thread 'main' has overflowed its stack）。改用 --engine typescript 重试。这暴露 1-2 主线 Rust core 在大型 Go 仓上的稳定性问题，但不阻塞 1-3-4 验收——acceptance 关心的是查询行为，索引由 typescript engine 兜底是合法路径。
 - Q: Q5 Go 栈溢出修复落地 → 采用 Dart/Pascal 同模板：在 lib.rs 7267 行 if language.is_go() 分支套 thread::Builder::stack_size(DART_EXTRACT_STACK_SIZE=128MiB) 大栈 worker。 Box<dyn Error> 在 worker 内 to_string 后 re-box，walker panic 经 resume_unwind 上抛。改动范围：仅 lib.rs Go 分支，~30 行。修复后 cargo build --package zcodegraph-core 并重跑 k8s 索引验证。typescript fallback 索引（20247 files）保留作对照。
 - Q: Q6 Go 大栈修复验证通过 → k8s rust-hybrid 索引成功：24,429 files / 483,541 nodes / 779,307 edges，全程无栈溢出。修复闭合。与 TS fallback 对照（20,247 files / 273,428 nodes）rust core 节点粒度更细、resolver 边更精准。1-3-4 大仓门验收使用 rust-hybrid 真实数据。
+- Q: Q7 v2 冻结完成 → v2 frozen artifact docs/baselines/semantic-retrieval-human-frozen-v2.json 已生成：84 queries（v1 60 development + rails 12 holdout + k8s 12 holdout），holdout fraction 28.6% ✅，7 corpora / 7 languages，kubernetes 24,429 files 满足大仓门。Human reviewer=victo，reviewedAt=2026-11-03T10:45:01Z，rankingsShown=false，independentOfTuning=true。候选 hash：v1=994fde36, rails=c64579b4, k8s=b9efa975。按 v2 §2 冻结后不得修改。
 <!-- ROADMAP_SECTION_END -->
