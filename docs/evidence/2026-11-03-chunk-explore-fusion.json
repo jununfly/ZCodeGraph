@@ -1,0 +1,254 @@
+{
+  "metric": "chunk-explore-fusion",
+  "version": 1,
+  "measuredAt": "2026-11-03T07:51:44.398Z",
+  "scope": "V3 spike: 4 explore-miss queries; chunk-vec as front-door query-expansion seeding",
+  "config": {
+    "topKChunks": 8,
+    "maxSymbolsInject": 5,
+    "planMaxFiles": 10
+  },
+  "queries": [
+    {
+      "id": "flask-holdout-request-lifetime",
+      "corpus": "pallets-flask",
+      "query": "Where is per-request ambient state pushed on entry and unwound with teardown callbacks?",
+      "augmentedQuery": "Where is per-request ambient state pushed on entry and unwound with teardown callbacks? Flask.do_teardown_request test_teardown_request_handler_debug_mode test_teardown_request_handler teardown_request teardown_req",
+      "symbolsInjected": [
+        "Flask.do_teardown_request",
+        "test_teardown_request_handler_debug_mode",
+        "test_teardown_request_handler",
+        "teardown_request",
+        "teardown_req"
+      ],
+      "topChunksPreview": [
+        {
+          "file": "tests/test_basic.py",
+          "name": "test_teardown_request_handler_debug_mode",
+          "score": 0.7717
+        },
+        {
+          "file": "tests/test_basic.py",
+          "name": "test_teardown_request_handler",
+          "score": 0.7642
+        },
+        {
+          "file": "tests/test_basic.py",
+          "name": "teardown_request",
+          "score": 0.7592
+        },
+        {
+          "file": "tests/test_basic.py",
+          "name": "teardown_request",
+          "score": 0.7592
+        },
+        {
+          "file": "src/flask/app.py",
+          "name": "Flask.do_teardown_request",
+          "score": 0.7573
+        }
+      ],
+      "baselineRank": null,
+      "fusedRank": 1,
+      "baselineHit5": false,
+      "fusedHit5": true,
+      "fixed": true,
+      "baselineTop5": [
+        "src/flask/wrappers.py",
+        "src/flask/globals.py",
+        "src/flask/__init__.py",
+        "src/flask/signals.py",
+        "src/flask/helpers.py"
+      ],
+      "fusedTop5": [
+        "src/flask/app.py",
+        "src/flask/wrappers.py",
+        "src/flask/globals.py",
+        "src/flask/__init__.py"
+      ]
+    },
+    {
+      "id": "eshop-basket-add-or-increment",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "Where does adding a catalog item to a buyer's basket create a new line or increase the existing quantity?",
+      "augmentedQuery": "Where does adding a catalog item to a buyer's basket create a new line or increase the existing quantity? AddItem AddItemToBasket BasketItem SetQuantities BasketWithItemsSpecification",
+      "symbolsInjected": [
+        "AddItem",
+        "AddItemToBasket",
+        "BasketItem",
+        "SetQuantities",
+        "BasketWithItemsSpecification"
+      ],
+      "topChunksPreview": [
+        {
+          "file": "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+          "name": "AddItem",
+          "score": 0.8088
+        },
+        {
+          "file": "src/ApplicationCore/Services/BasketService.cs",
+          "name": "AddItemToBasket",
+          "score": 0.7767
+        },
+        {
+          "file": "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+          "name": "BasketItem",
+          "score": 0.7654
+        },
+        {
+          "file": "src/ApplicationCore/Services/BasketService.cs",
+          "name": "SetQuantities",
+          "score": 0.7481
+        },
+        {
+          "file": "src/Infrastructure/Data/Migrations/20201202111507_InitialModel.cs",
+          "name": "Up",
+          "score": 0.7384
+        }
+      ],
+      "baselineRank": 16,
+      "fusedRank": 3,
+      "baselineHit5": false,
+      "fusedHit5": true,
+      "fixed": true,
+      "baselineTop5": [
+        "src/BlazorShared/Models/CatalogItem.cs",
+        "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.cs",
+        "src/ApplicationCore/Entities/CatalogItem.cs",
+        "src/BlazorShared/Models/CreateCatalogItemRequest.cs",
+        "src/PublicApi/BaseResponse.cs"
+      ],
+      "fusedTop5": [
+        "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+        "src/ApplicationCore/Services/BasketService.cs",
+        "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+        "src/ApplicationCore/Interfaces/IBasketService.cs",
+        "src/PublicApi/BaseResponse.cs"
+      ]
+    },
+    {
+      "id": "eshop-picture-url-composition",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "How is a catalog picture placeholder turned into a URL using the configured catalog base address?",
+      "augmentedQuery": "How is a catalog picture placeholder turned into a URL using the configured catalog base address? CatalogItemListPagedEndpoint HandleAsync CatalogItemGetByIdEndpoint ComposePicUri CreateCatalogItemEndpoint",
+      "symbolsInjected": [
+        "CatalogItemListPagedEndpoint",
+        "HandleAsync",
+        "CatalogItemGetByIdEndpoint",
+        "ComposePicUri",
+        "CreateCatalogItemEndpoint"
+      ],
+      "topChunksPreview": [
+        {
+          "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+          "name": "CatalogItemListPagedEndpoint",
+          "score": 0.7548
+        },
+        {
+          "file": "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.cs",
+          "name": "HandleAsync",
+          "score": 0.7502
+        },
+        {
+          "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemGetByIdEndpoint.cs",
+          "name": "CatalogItemGetByIdEndpoint",
+          "score": 0.7439
+        },
+        {
+          "file": "src/ApplicationCore/Services/UriComposer.cs",
+          "name": "ComposePicUri",
+          "score": 0.7371
+        },
+        {
+          "file": "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.cs",
+          "name": "CreateCatalogItemEndpoint",
+          "score": 0.7275
+        }
+      ],
+      "baselineRank": null,
+      "fusedRank": 4,
+      "baselineHit5": false,
+      "fusedHit5": true,
+      "fixed": true,
+      "baselineTop5": [
+        "src/PublicApi/BaseResponse.cs",
+        "src/BlazorShared/BaseUrlConfiguration.cs",
+        "src/ApplicationCore/Entities/CatalogItem.cs",
+        "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+        "src/PublicApi/BaseRequest.cs"
+      ],
+      "fusedTop5": [
+        "src/ApplicationCore/Interfaces/IUriComposer.cs",
+        "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+        "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.cs",
+        "src/ApplicationCore/Services/UriComposer.cs",
+        "src/PublicApi/CatalogItemEndpoints/CatalogItemGetByIdEndpoint.cs"
+      ]
+    },
+    {
+      "id": "eshop-catalog-filter-pagination",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "Where are brand and type filters combined with skip and take to retrieve a requested catalog page?",
+      "augmentedQuery": "Where are brand and type filters combined with skip and take to retrieve a requested catalog page? CatalogFilterPaginatedSpecification ListPagedCatalogItemRequest GetCatalogItems CatalogFilterSpecification GetPreconfiguredCatalogBrands",
+      "symbolsInjected": [
+        "CatalogFilterPaginatedSpecification",
+        "ListPagedCatalogItemRequest",
+        "GetCatalogItems",
+        "CatalogFilterSpecification",
+        "GetPreconfiguredCatalogBrands"
+      ],
+      "topChunksPreview": [
+        {
+          "file": "src/ApplicationCore/Specifications/CatalogFilterPaginatedSpecification.cs",
+          "name": "CatalogFilterPaginatedSpecification",
+          "score": 0.8198
+        },
+        {
+          "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.ListPagedCatalogItemRequest.cs",
+          "name": "ListPagedCatalogItemRequest",
+          "score": 0.7782
+        },
+        {
+          "file": "src/Web/Services/CatalogViewModelService.cs",
+          "name": "GetCatalogItems",
+          "score": 0.7726
+        },
+        {
+          "file": "src/ApplicationCore/Specifications/CatalogFilterSpecification.cs",
+          "name": "CatalogFilterSpecification",
+          "score": 0.7572
+        },
+        {
+          "file": "src/Web/Services/CachedCatalogViewModelService.cs",
+          "name": "GetCatalogItems",
+          "score": 0.7563
+        }
+      ],
+      "baselineRank": null,
+      "fusedRank": 2,
+      "baselineHit5": false,
+      "fusedHit5": true,
+      "fixed": true,
+      "baselineTop5": [
+        "src/ApplicationCore/Entities/CatalogBrand.cs",
+        "src/BlazorShared/Models/PagedCatalogItemResponse.cs",
+        "src/PublicApi/BaseResponse.cs",
+        "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+        "src/PublicApi/CatalogBrandEndpoints/CatalogBrandListEndpoint.ListCatalogBrandsResponse.cs"
+      ],
+      "fusedTop5": [
+        "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.ListPagedCatalogItemRequest.cs",
+        "src/ApplicationCore/Specifications/CatalogFilterPaginatedSpecification.cs",
+        "src/Web/Services/CatalogViewModelService.cs",
+        "src/Web/Services/CachedCatalogViewModelService.cs",
+        "src/Web/Interfaces/ICatalogViewModelService.cs"
+      ]
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "fixedCount": 4,
+    "v3Gate": ">=3/4 fixed",
+    "v3Pass": true
+  }
+}

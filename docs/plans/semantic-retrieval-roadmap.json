@@ -1,0 +1,518 @@
+{
+  "title": "语义检索独立项目：真实基准、效果验证与证据门控集成",
+  "description": "独立离线评测与 opt-in 检索计划。现有 CLI embedding 运维、query/explore、MCP 行为保持冻结；只有效果和资源门同时通过才申请集成。",
+  "version": 1,
+  "nodes": {
+    "1": {
+      "id": "1",
+      "uid": "01a19c8540d5-16c95112bd",
+      "label": "语义检索独立项目：真实基准、效果验证与证据门控集成",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": null,
+      "children": [
+        "1-1",
+        "1-2",
+        "1-3",
+        "1-4",
+        "1-5"
+      ],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-1": {
+      "id": "1-1",
+      "uid": "01a19c85910a-f65760fafd",
+      "label": "冻结真实语料、源码锚定标注与独立评测协议",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "实验范围和调参/验收集如何隔离？",
+          "answer": "Flask 与 Express 的 24 个源码锚定问题为探索基准；融合探索前预留 4 题作留出。正式门扩到至少 4 种语言、每仓至少 12 题；留出集及新语言绝不用于调参。",
+          "note": "当前标注是 AI 源码证据审阅，非独立人工标注；正式集成门须由 Human 盲审问题、入口文件和困难负例。"
+        },
+        {
+          "q": "首阶段检索单元是什么？",
+          "answer": "file candidate 进入现有 graph narrowing，不预设 symbol/chunk，不改变现有 CLI/MCP 工具面。",
+          "note": "以入口文件 Hit@1/5/10 为硬指标，RRF@10 为探索融合；graph narrowing 在后续阶段验证。"
+        },
+        {
+          "q": "现有 CLI 运维如何隔离？",
+          "answer": "本 roadmap 只授权独立评测和规划资产，不修改 src/、现有 CLI/MCP 或 embedding 运维；仅离线读真实索引和隔离向量副本。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-2": {
+      "id": "1-2",
+      "uid": "01a19c8592a9-208d36fe37",
+      "label": "测量现有检索、纯向量与可解释融合三臂基准",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "首轮真实基准是否允许进入产品集成？",
+          "answer": "不允许。24 题真实源码锚定探针中 pure-vector Hit@5 Flask/Express=16.7%/41.7%，RRF Flask=33.3% 低于现有 Explore=66.7%；且不是独立人工验收。",
+          "note": "复跑 scripts/measure/semantic-retrieval-probe.mjs；规范与数值登记 MET-semantic-retrieval-evaluation-v1。"
+        }
+      ],
+      "notes": "2026-11-02 首轮 24 题、84/51 文件真实语料：pure-vector Hit@5=16.7%/41.7%；RRF Flask=33.3%，低于现有 66.7%；当前 NO-GO。输出 .tmp/measure/semantic-retrieval-probe-result.json。",
+      "layer": "plan"
+    },
+    "1-3": {
+      "id": "1-3",
+      "uid": "01a19c85942d-61bddd17c9",
+      "label": "在冻结留出集与大规模真实语料上复验效果和资源",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-3-1",
+        "1-3-2",
+        "1-3-3",
+        "1-3-4"
+      ],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan"
+    },
+    "1-4": {
+      "id": "1-4",
+      "uid": "01a19c859594-0c665d6436",
+      "label": "验证 Agent Sufficiency 净收益并审批 opt-in 集成",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "何时允许修改 CLI/MCP 检索？",
+          "answer": "离线全部门通过后，另行批准 opt-in 原型和 DES-cli-p1-modularity-explore-v1 审查；Agent Sufficiency 无正确性回退且显著减少 fallback；默认 OFF，配置即可回退。",
+          "note": ""
+        },
+        {
+          "q": "离线 GO 之后如何进入 Agent 验证？",
+          "answer": "先另行批准只读 opt-in 原型，不改默认行为；同任务同模型按 task×repetition 整对保留/剔除并交错臂顺序，主要终点为经审计的恢复性 Read/Grep 减少，正确性不回退，配对 bootstrap 区间不跨0；inconclusive 即不晋级。",
+          "note": "现有 agent-eval 仅有执行骨架，须补 pair-preserving、read-reason audit 和 pair-level analysis；不得用离线 Hit@k 替代 Agent 净收益。"
+        }
+      ],
+      "notes": "尚未开始；当前 NO-GO，且被 1-3-4 新独立验收阻塞。离线 GO 不等于允许默认集成，只触发只读 opt-in 原型与 DES-cli-p1-modularity-explore-v1 审查。",
+      "layer": "plan"
+    },
+    "1-5": {
+      "id": "1-5",
+      "uid": "01a19c8596f1-140e48de83",
+      "label": "证据不足时关闭或保留离线实验而不进入产品",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "失败时如何关闭？",
+          "answer": "保留离线负结果与可复跑资产，不修改现有产品、不挪动 holdout、不弱化指标；新模型/表示假设必须配新留出集。",
+          "note": ""
+        }
+      ],
+      "notes": "保持为失败处置备选，当前未执行关闭。新 holdout 无净增益、精确名或 Agent 正确性回退、Agent 主收益区间跨0、资源/安全门失败时关闭本轮产品化，保留基础设施与证据；新表示/模型假设须另配新 holdout。",
+      "layer": "plan"
+    },
+    "1-3-1": {
+      "id": "1-3-1",
+      "uid": "01a19c9659d1-e426de70d8",
+      "label": "扩充人工盲审标注并冻结不可调参的留出集",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "什么标注才可用于正式验收？",
+          "answer": "至少 4 语言/4 仓、60 道 Human 盲审题；每仓至少 12 题，>=25% 题及一个完整语言/仓留作不可调参 holdout；答案向量缺失为失败。",
+          "note": ""
+        },
+        {
+          "q": "本轮如何取得 Human 盲审而不泄露排序结果？",
+          "answer": "由 Agent 只读真实源码准备候选问题、入口文件和证据锚，标注包不出现任何模型排名、召回或融合阈值；Human 逐仓确认/修改后才写入 reviewer、reviewedAt 和 frozen 状态。",
+          "note": "本轮分类为独立项目 Product execution 的离线评测资产，不修改 src/ 或现有 CLI/MCP。"
+        },
+        {
+          "q": "Human 审核如何回写而不混淆 AI 候选与批准标签？",
+          "answer": "候选包保留 AI 源码锚定状态和 SHA-256；另设逐题可编辑审阅 JSON 与无排名 HTML 审阅视图。回写必须要求 reviewer、reviewedAt、independentOfTuning=true、全部 60 题 accept/amend/reject 裁决和逐仓批准；仅接受与修订后接受题进入 freeze 候选，reject 不改分母。freeze 只允许一次，锁定题目与留出集，正式 runner 尚缺语料和向量覆盖时不得宣称评测就绪。",
+          "note": ""
+        }
+      ],
+      "notes": "2026-11-03 victo 完成无排名 Human 盲审并确认未参与调参；60/60 accepted，五语言五仓，每仓 12，16/60=26.7% holdout，eShopOnWeb 整仓留出。冻结 docs/baselines/semantic-retrieval-human-frozen-v1.json，SHA-256=994fde361d8fb477c38b4720209df1329d45d33ed475ffde2a09eea3a933f8ff。commit/路径/60 定义锚复核通过，重复 freeze 拒绝，prepare 不重置审核。冻结不等于新增仓向量覆盖或检索效果达标；NO-GO 集成结论不变。",
+      "layer": "plan",
+      "rounds": 1,
+      "budget": {
+        "max_children": 0,
+        "max_rounds": 2
+      },
+      "exit_criteria": [
+        "至少四语言四仓、60 道经 Human 审核的问题；每仓>=12 题且完整语言/仓留出",
+        "机器校验通过 commit、答案文件、源码锚点和分桶；未获 Human 裁决不得 completed"
+      ]
+    },
+    "1-3-2": {
+      "id": "1-3-2",
+      "uid": "01a19c965b34-2cab5d6b16",
+      "label": "在开发集选择候选、文档切分和确定性融合策略",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [
+        "1-3-2-1",
+        "1-3-2-2",
+        "1-3-2-3"
+      ],
+      "decisions": [
+        {
+          "q": "候选与融合如何选择？",
+          "answer": "只在 development 上比较有界 file/chunk 表示和确定性融合；保存所有参数，禁止 per-query 特例、per-corpus 隐藏阈值及 holdout 调参。",
+          "note": ""
+        },
+        {
+          "q": "Development 集用哪份？",
+          "answer": "复用 1-2 三臂基准的同一批查询 + 1-3-1 新扩标注中单独划出的 dev 子集（不使用 holdout）",
+          "note": ""
+        },
+        {
+          "q": "候选网格如何界定？",
+          "answer": "表示 3 种（整文件 / 固定 token 窗口 512+1024 / 符号级 chunk）× 融合 4 种（纯向量 / 纯 FTS5 / RRF k=60 / 加权和单 α）= 12 组配置",
+          "note": ""
+        },
+        {
+          "q": "预算上限？",
+          "answer": "max-children=3（候选网格定义 / 跑评测 / 写报告），max-rounds=2，exit-criteria=产出单一推荐配置 + 完整参数表 + dev 集 nDCG@10/MRR/Recall@50 对比表",
+          "note": ""
+        },
+        {
+          "q": "输出物落点？",
+          "answer": "报告 docs/evidence/2026-11-03-dev-candidate-selection.{md,json}；评测脚本 scripts/measure/dev-candidate-grid.mjs；中间产物 .tmp/dev-candidate/",
+          "note": ""
+        },
+        {
+          "q": "网格范围收窄",
+          "answer": "表示固定 file-level；网格 = 2 查询编码 × 4 融合 × 2 融合伙伴 = 16 组；需先为 actix 生成 file-level 向量；chunk/symbol 表示推迟到后续节点",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-3-3": {
+      "id": "1-3-3",
+      "uid": "01a19c965c8f-0b7c15ed51",
+      "label": "在多语言和大规模真实语料上同时通过效果与资源门",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [
+        "1-3-3-1"
+      ],
+      "decisions": [
+        {
+          "q": "效果、延迟与资源的验收门是什么？",
+          "answer": "每仓 Hit@5>=90%、Hit@10>=95%，macro MRR>=0.70 且 macro Hit@5 比现有 Explore 提升>=5pp；热 p50<=150ms/p95<=250ms，冷启动<=2s；大仓 p95<=500ms，稳态增量 RSS<=512MiB、峰值<=768MiB。任何门失败均不集成。",
+          "note": "完整定义见 MET-semantic-retrieval-evaluation-v1；预算是目标而非实测结论。"
+        },
+        {
+          "q": "scope gate 分类",
+          "answer": "Acceptance/evaluation：只跑验收并产出报告，不修改 src/，不集成进 CLI/MCP。集成若门全过留给后续节点。",
+          "note": ""
+        },
+        {
+          "q": "1-3-3 验收判定",
+          "answer": "NO-GO。10 项门中效果门 4 项全失败，延迟与资源门全通过。pure-fts 在 holdout 上 macro MRR=0.30（门 0.70）、Hit@5=0.375 比 explore 低 18.75pp（门要求高 5pp）。flask holdout 2 题 Hit@5=0；eShopOnWeb 整仓 Hit@5=0.333/Hit@10=0.583。",
+          "note": ""
+        },
+        {
+          "q": "根因与下一步",
+          "answer": "dev→holdout 严重倒挂：pure-fts 在 dev MRR=0.5291 vs holdout MRR=0.3006；dev Hit@5=0.7955 vs holdout Hit@5=0.375。dev 集无 eShopOnWeb 型查询，推荐配置在 holdout 失效。file-level + FTS5 路线在冻结留出集上对 MRR 0.70 不可达。下一步可选：(a) 回 1-3-2 把 eShopOnWeb 加进 dev 重选（污染 holdout）；(b) 承认 file-level+FTS5 天花板，转向 chunk/symbol 表示；(c) 接受 NO-GO 终态。",
+          "note": ""
+        },
+        {
+          "q": "Q1 语义检索核心目标",
+          "answer": "目标 A：让 AI agent 在 ZCodeGraph 上回答如何/在哪里类自然语言问题（explore 工具的语义升级）。60 题是手段不是目的，MET 为产品服务而非反过来。",
+          "note": ""
+        },
+        {
+          "q": "Q2 holdout 污染",
+          "answer": "a3 放弃 (a)：不把 eShopOnWeb 加回 dev。dev→holdout 倒挂是信号不是噪声——dev 集根本没有 holdout 那种查询类型，污染 dev 只是让它更像 holdout，结论不会变。真正该问的不是哪个配置最优，是 file-level+FTS5 这条路本身有没有未来。",
+          "note": ""
+        },
+        {
+          "q": "Q3 chunk/symbol 表示",
+          "answer": "对 (b) 持怀疑但不是否定 chunk 表示本身，而是否定 chunk 表示能解决 holdout 失败这个因果。holdout 失败的真正瓶颈是 FTS5 无法做语义匹配 + explore 靠结构遍历取胜，chunk embedding 解决不了这两点。若要继续走 (b)，必须先做 5 题手工探针（取 pure-fts 在 eShopOnWeb 上 miss 的 5 题，手工构造 chunk 候选，看 vec 是否能排进 top-5）。手工探针不过则不做完整实现。",
+          "note": ""
+        },
+        {
+          "q": "Q4 NO-GO 处置",
+          "answer": "c1 仅暂停进一步提升效果的工作，保留已有 embedding 基础设施（fastembed+vec0+ADR-0009 异步管线+1-4-32 install 子命令）作为可选特性。dev/holdout 报告作为未来重启的基线。不回滚代码，不标 experimental（c3 合入 c1 表述）。",
+          "note": ""
+        },
+        {
+          "q": "Q5 手工探针",
+          "answer": "做。在 c1 暂停框架下开一个例外，用最小成本验证 chunk 假设。探针结果无论正负都作为 ADR 硬证据。",
+          "note": ""
+        },
+        {
+          "q": "Q6 探针判定标准",
+          "answer": "严格标准：5 题中 ≥4 题 chunk-vec 能排进 top-5 且 hard negatives 不进 top-3。5 题均为 pure-fts 已失败的题，若 chunk 还不能解决 4 题则 chunk 路线提升空间证伪。",
+          "note": ""
+        },
+        {
+          "q": "Q7 写 ADR-0011",
+          "answer": "写 ADR-0011 语义检索效果未达产品级，暂停效果改进但保留基础设施。内容：1-3-3 NO-GO 数据 + Round 1 四决策 + Round 2 探针结论。给未来重启者的钥匙。",
+          "note": ""
+        },
+        {
+          "q": "Q8 主线切换",
+          "answer": "D4 优先（强化 existing-explore，holdout Hit@5=0.5625 全场最佳，直接服务目标 A），然后 D1（1-2-10 测试基础设施加固 C/D 类）。explore 在 holdout 上的 4 个 miss 题（flask-holdout-request-lifetime、eshop-basket-add-or-increment、eshop-picture-url-composition、eshop-catalog-filter-pagination）作为强化起点。",
+          "note": ""
+        },
+        {
+          "q": "Q9 探针结论解释",
+          "answer": "解释 Y 附带 Z：探针成功（5/5 expectedRank<=2，4 题 rank=1），Q6 严格标准过严——hard negatives 进 top-3 是 chunk-vec 正确识别语义邻居的特性而非缺陷。落地建议 Z：chunk-vec 作为召回阶段，配合重排或查询扩展压制语义邻居。",
+          "note": ""
+        },
+        {
+          "q": "Q10 chunk 路线处置",
+          "answer": "重启但降级：不做完整 chunk 实现，只做 chunk-level vec 召回 + 现有 explore 结构重排，作为 explore 的召回增强。利用 explore 在 holdout 上已有优势（Hit@5=0.5625），用 chunk-vec 补充其盲区。最小改动验证。",
+          "note": ""
+        },
+        {
+          "q": "Q11 chunk 粒度与索引",
+          "answer": "g1 函数/方法级 chunk（tree-sitter 已识别零新增解析成本，探针 5 题全命中）+ L1 复用现有 .zcodegraph/zcodegraph.db 加 vec_chunk_embeddings 表（与 vec_embeddings 并存，复用备份/同步/查询基础设施）。",
+          "note": ""
+        },
+        {
+          "q": "Q12 融合点",
+          "answer": "F1 前置召回：chunk-vec 作为 explore findRelevantContext 的补充 seeding 源，与现有 FTS5 seeding 并行。让 chunk-vec 的语义邻居经过 explore 的调用图过滤——调用图自然压制语义相似但结构无关的文件。",
+          "note": ""
+        },
+        {
+          "q": "Q13 降级验收标准",
+          "answer": "V3 只验证 4 个 explore miss 题：flask-holdout-request-lifetime、eshop-basket-add-or-increment、eshop-picture-url-composition、eshop-catalog-filter-pagination，要求 >=3/4 转为命中。1-3-3 完整门是为完整语义检索方案定的，降级召回增强不应被要求达到同一门。V3 通过后再决定是否走完整 V2 验收。",
+          "note": ""
+        },
+        {
+          "q": "Q14 工作落点",
+          "answer": "W1 只加 spike 脚本 scripts/measure/chunk-explore-fusion.mjs，复用现有 explore-planner + fastembed，不动 src/。这是 acceptance/evaluation 路线的延续——先用 spike 验证，V3 通过后再开 1-4 节点做产品化。",
+          "note": ""
+        },
+        {
+          "q": "ADR 落盘",
+          "answer": "ADR-0012 ZJ-0012-semantic-retrieval-holdout-no-go-and-chunk-downgrade.md 已写入 docs/decisions/，并在 docs/README.md 登记。完整记录 1-3-3 NO-GO + 探针结论 + Round 1-4 全部 14 个 Q&A 决策。",
+          "note": ""
+        },
+        {
+          "q": "V3 验证结果",
+          "answer": "V3 PASS 4/4 fixed：flask-holdout-request-lifetime baseline null→fused rank=1；eshop-basket-add-or-increment 16→3；eshop-picture-url-composition null→4；eshop-catalog-filter-pagination null→2。chunk-vec 跨 Python+C# 语言鲁棒；explore 命名符号 seeding 是天然融合点，调用图 glue 把 hard negative 的结构关联转化为正确文件的分数。V3 通过不代表 1-3-3 完整门通过。",
+          "note": ""
+        }
+      ],
+      "notes": "2026-11-03 NO-GO 验收完成。10 项门中效果门 4 项全失败（per-corpus Hit@5/Hit@10、macro MRR=0.30<0.70、macro Hit@5=0.375 比 explore 低 18.75pp）；延迟门 4 项全通过（热 p50=10.31ms / p95=12.72ms / 冷启动 11.29ms / eShopOnWeb p95=12.76ms）；资源门 2 项全通过（峰值 RSS=170.4MB / 稳态增量 107.8MB）。dev→holdout 严重倒挂证实 1-3-2 推荐配置 pure-fts 在 holdout 上失效。报告 docs/evidence/2026-11-03-holdout-evaluation.{md,json}，脚本 scripts/measure/holdout-gate.mjs。eShopOnWeb 向量 276 文件 275 嵌入 27.1s。按节点 decision 不集成。",
+      "layer": "plan",
+      "rounds": 1,
+      "budget": {
+        "max_children": 3,
+        "max_rounds": 2
+      },
+      "exit_criteria": [
+        "5 仓向量/索引全部就绪（含 eShopOnWeb holdout 整仓）",
+        "在冻结 holdout（16 题 + eShopOnWeb 12 题）跑 pure-fts 与现有 Explore 双臂",
+        "测出延迟（热 p50/p95、冷启动、大仓 p95）与资源（稳态/峰值 RSS）",
+        "对照节点 decision 的验收门逐项判定，产出 GO/NO-GO 结论"
+      ]
+    },
+    "1-3-2-1": {
+      "id": "1-3-2-1",
+      "uid": "01a1a02abf10-4cda53d76e",
+      "label": "定义候选网格参数与评测脚本",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-3-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-3-2-2": {
+      "id": "1-3-2-2",
+      "uid": "01a1a02ac0ba-f2b74375ec",
+      "label": "在 development 集上执行 12 组配置评测",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-3-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-3-2-3": {
+      "id": "1-3-2-3",
+      "uid": "01a1a02ac22c-92a2eda93b",
+      "label": "撰写对比报告并推荐单一配置",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-3-2",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-3-3-1": {
+      "id": "1-3-3-1",
+      "uid": "01a1a06a9e34-4cb612725d",
+      "label": "在冻结 holdout 上跑 chunk-explore 融合完整门验收",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-3-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "scope gate 分类",
+          "answer": "Acceptance/evaluation 路线：只跑验收并产出报告，不修改 src/。为后续 1-4 产品化决策提供数据。",
+          "note": ""
+        },
+        {
+          "q": "完整门判定",
+          "answer": "NO-GO 9/10 门通过：per-corpus Hit@5/Hit@10 全 3 仓过（含 eShopOnWeb 0.9167/1.0）、macro Hit@5=0.9375 vs baseline 0.5625（+37.5pp 远超 +5pp 门）、延迟资源全过、misses=0。唯一失败：macro MRR=0.549<0.70（Hit@1=0.3125，正确答案多在 rank 2-4）。比 1-3-3 pure-fts NO-GO 大幅改善（MRR+82.6%、Hit@5+150%、Hit@10+45.5%、misses -100%），代价是延迟 8.9×、RSS 2.85×。",
+          "note": ""
+        },
+        {
+          "q": "MRR 失败后是否降门、继续优化或关闭？",
+          "answer": "不按 0.5490 倒推降门；仅授权一次固定 chunk/F1/注入参数、至多 3 个新确定性结构感知文件重排候选，在 development 选择一次；失败关闭本轮产品化而非永久禁止新假设。",
+          "note": "完整决策见 ADR-0013。"
+        },
+        {
+          "q": "旧 16 题的后续证据角色是什么？",
+          "answer": "已参与 V3 修复、候选验收和路线选择，转为诊断/回归集，不再承担独立晋级；新候选须用新版本、Human 无排名审阅的新冻结 holdout。",
+          "note": "遵循 MET-semantic-retrieval-evaluation-v2。"
+        },
+        {
+          "q": "新离线门和 Agent 净收益如何判定？",
+          "answer": "主口径为仓级等权宏平均，同时披露微平均/逐题配对/精确区间；Hit@5 相对 Explore 至少 +5pp，MRR/Hit@10 不回退并满足全部安全门。离线 GO 后另行批准只读 opt-in，Agent 以正确性不回退、恢复性 Read/Grep 配对减少且 bootstrap 区间不跨 0 为晋级条件。",
+          "note": "当前 NO-GO 不变；旧 10 门不是完整产品协议。"
+        }
+      ],
+      "notes": "2026-11-03 诊断验收已执行：旧脚本 10 项中 9 项通过，汇总（问题微平均）MRR=0.5490<0.70；Hit@5=0.9375、Hit@10=1.0、misses=0。相对 baseline 的主要增益是召回而非首位排序，eShopOnWeb MRR=0.4611 vs 0.2670。16 题已参与 V3 修复和路线判断，按 ADR-0013 转为诊断/回归集；本结果不再具有独立晋级效力。当前 NO-GO 不变，后续仅走 v2 新 holdout + Agent 配对净收益路径。",
+      "layer": "plan",
+      "budget": {
+        "max_children": 0,
+        "max_rounds": 2
+      },
+      "exit_criteria": [
+        "为 flask + eShopOnWeb 以外其余 3 个 holdout corpus 构建函数级 chunk 索引",
+        "在 16 题 holdout 上跑 baseline-explore 与 chunk-fused-explore 双臂",
+        "对照 1-3-3 完整验收门逐项判定 GO/NO-GO",
+        "产出报告 docs/evidence/2026-11-03-chunk-fused-holdout.{md,json}"
+      ],
+      "rounds": 1
+    },
+    "1-3-4": {
+      "id": "1-3-4",
+      "uid": "01a1a0a800ae-6a4b54cf3d",
+      "label": "有界文件重排与新冻结留出集独立验收",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "scope gate 分类",
+          "answer": "Acceptance/evaluation：只跑验收脚本与产出报告，不动 src/，不集成 CLI/MCP。脚本与 fixture 走 scripts/measure/ 与 .tmp/。新留出集冻结由 Human 审阅后再开始评测。",
+          "note": ""
+        },
+        {
+          "q": "Q1 候选预注册（v2 §1）",
+          "answer": "注册 3 个候选（含当前算法）：C0=chunk-fused-explore（当前，1-3-3-1 报告配置：PascalCase 优先+长度过滤的启发式符号注入）；C1=C0+R1 chunk-score 加权注入（按 chunk-vec 原始 score 降序排序注入符号，替换 PascalCase 启发式）；C2=C0+R3 同文件聚合重排（同文件多 chunk 入 top-8 时按命中数+最高 score 加权提升该文件权重）。固定配置：函数/方法级 chunk、top-8 chunk 检索、至多 5 个注入符号、F1 候选 seeding。所有参数在 development 选择后冻结，新 holdout 上不得调整。",
+          "note": ""
+        },
+        {
+          "q": "Q2 v2 留出集构建路径",
+          "answer": "B1 增量：v1 5仓60题 原封不动平移为 development（v1 16 题 holdout 也作 development，按 v2 §2 这些题已参与 V3 修复，不再具有独立 holdout 资格），新增 1 个 ≥10k 文件大仓 12 题作 whole-holdout。总计 6 仓 72 题，holdout 占比 12/72=16.7%（低于 v2 §2 ≥25% 要求，需在第 6 仓之外再从其他仓补 holdout 题）。选型 django 待验证 ≥10k 门槛。",
+          "note": ""
+        },
+        {
+          "q": "Q3 v2 留出集最终架构（替代 Q2 草案）",
+          "answer": "7 仓 84 题：v1 5 仓 60 题原封平移为 development（v1 16 题 holdout 已参与 V3 修复降级为 diagnostic，按 v2 §2 不得再作 v2 holdout）；新增 kubernetes（Go，~20k 文件，作 ≥10k 大仓门 + whole-holdout，12 题）；新增 rails/rails（Ruby，~4k 文件，whole-holdout，12 题）。holdout 24/84=28.6% ✅ 过 v2 §2 ≥25% 门。语言 7 种：Python/JS/Java/Rust/C#/Go/Ruby。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "budget": {
+        "max_children": 3,
+        "max_rounds": 1
+      },
+      "exit_criteria": [
+        "固定函数级 chunk、top-8、至多5个注入符号和 F1；在 development 预注册并选择至多3个新确定性文件重排候选，不追加迭代",
+        "新版本至少4语言4仓60题、每仓12题、25%留出及整仓留出经 Human 无排名审阅并冻结；版本化工具不得覆盖v1",
+        "仓级宏平均 Hit@5 较 current Explore 至少 +5pp，MRR/Hit@10 不回退；逐仓安全、精确名、10k大仓、延迟、资源、存储、索引、降级和 freshness 全部补证",
+        "失败只关闭本轮产品化；旧16题仅用于诊断/回归，不用于独立晋级"
+      ],
+      "rounds": 1
+    }
+  },
+  "metadata": {
+    "created": "2026-11-02 21:49:01",
+    "updated": "2026-11-03 17:47:04",
+    "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
+  },
+  "edges": [
+    {
+      "id": "e1",
+      "from": "01a19c8592a9-208d36fe37",
+      "to": "01a19c85942d-61bddd17c9",
+      "type": "blocks"
+    },
+    {
+      "id": "e2",
+      "from": "01a19c85942d-61bddd17c9",
+      "to": "01a19c859594-0c665d6436",
+      "type": "blocks"
+    },
+    {
+      "id": "e3",
+      "from": "01a19c85942d-61bddd17c9",
+      "to": "01a19c8596f1-140e48de83",
+      "type": "blocks"
+    },
+    {
+      "id": "e4",
+      "from": "01a19c9659d1-e426de70d8",
+      "to": "01a19c965b34-2cab5d6b16",
+      "type": "blocks"
+    },
+    {
+      "id": "e5",
+      "from": "01a19c965b34-2cab5d6b16",
+      "to": "01a19c965c8f-0b7c15ed51",
+      "type": "blocks"
+    },
+    {
+      "id": "e6",
+      "from": "01a1a0a800ae-6a4b54cf3d",
+      "to": "01a19c859594-0c665d6436",
+      "type": "blocks"
+    }
+  ],
+  "edge_seq": 6
+}

@@ -64,6 +64,61 @@ Options:
 
 ## Metrics
 
+### semantic-retrieval-probe.mjs
+
+Offline exploratory file-entry retrieval on pinned Flask and Express real-code
+corpora. It compares the current Explore planner, symbol FTS, vector-only,
+query-prefixed vector, and fixed RRF fusion arms. Each natural-language query is
+re-encoded on all repetitions; query vectors are not cached as warm-query
+latency. The parent process samples the worker's peak Windows working set.
+
+```bash
+node scripts/measure/semantic-retrieval-probe.mjs \
+  --out .tmp/measure/semantic-retrieval-probe-result.json
+```
+
+The versioned input is `docs/baselines/semantic-retrieval-probe-v1.json`.
+It is AI-authored and source-anchored, not independent human relevance labeling
+or a product acceptance gate. The runner rejects corpus commit drift, missing
+oracle files, stale source evidence anchors, and missing vector-store/model
+artifacts. It reuses the isolated `.tmp/embedding-baseline/` vector stores and
+model, with `ZCG_ENABLE_EMBEDDING=0`; no network, reindexing, or CLI behavior
+change is involved. The default corpus root is `C:/workspace/measure-corpus`.
+Raw results are local `.tmp/measure/` output, not a normative baseline.
+
+### semantic-retrieval-annotation.mjs
+
+Prepares a Human-blind review of the 60 source-anchored candidates in five
+languages/repositories. It checks all pinned commits, answer/distractor paths
+and definition-shaped evidence anchors. A newly generated review contains no
+model ranking, recall result, or tuning parameter and remains entirely pending.
+Source-anchor validity is not Human relevance approval. The completed v1
+release is now frozen; while `semantic-retrieval-human-frozen-v1.json` exists,
+`validate` checks that release and `prepare` is a no-op rather than resetting
+its completed review. A future release requires a new versioned path.
+
+```bash
+node scripts/measure/semantic-retrieval-annotation.mjs prepare
+node scripts/measure/semantic-retrieval-annotation.mjs validate \
+  --review .tmp/measure/semantic-retrieval-human-review-v1.json
+# Only after genuine, complete Human review:
+node scripts/measure/semantic-retrieval-annotation.mjs freeze \
+  --review .tmp/measure/semantic-retrieval-human-review-v1.json
+```
+
+Open the generated `.tmp/measure/semantic-retrieval-human-review-v1.html` to
+review and export JSON. A reviewer must judge intent, acceptable entry files and
+source evidence against the pinned repositories, then explicitly approve every
+corpus and declare independence from tuning. Amendments may change only the
+question, entry files, evidence, related-file review targets or split. Rejection
+requires a note; a replacement is required if fewer than 60 questions remain.
+At least 12 accepted questions per repository, at least 25% holdout, and the
+entire eShopOnWeb holdout are mandatory. `validate` never freezes; `freeze`
+writes an immutable, separately registered release only after all gates pass.
+Candidate edits invalidate prior reviews via SHA-256. This tooling does not
+index the additional corpora, prove their vector coverage, tune candidates, or
+change current retrieval/CLI/MCP behavior.
+
 ### dead-code.mjs
 
 Measures the 1-1-6 D1 formula on a real repo: function/method nodes with

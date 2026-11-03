@@ -24,9 +24,9 @@
 
 | Class | Folder | Authority range | Count |
 | --- | --- | --- | --- |
-| Decision | [`decisions/`](decisions/) | primary | 11 |
+| Decision | [`decisions/`](decisions/) | primary | 13 |
 | Contract | [`contracts/`](contracts/) | primary | 17 |
-| Method | [`methods/`](methods/) | primary / supporting | 11 |
+| Method | [`methods/`](methods/) | primary / supporting | 13 |
 | Plan | `plans/` (CLI SoT, not always on disk) | process | not enumerated here |
 
 Root-level external entries: [`../ZJ-CONTEXT.md`](../ZJ-CONTEXT.md) —
@@ -48,6 +48,9 @@ to a test, script, or CI job; routine measurement output must not be added here.
 | [`architecture-regression-v1.json`](baselines/architecture-regression-v1.json) | `scripts/measure/perf-regression-check.mjs`; CI | Frozen corpus, queries, and latency thresholds input |
 | [`pr-recall-v1.json`](baselines/pr-recall-v1.json) | `scripts/measure/pr-recall-gate.mjs` | Frozen aggregate PR-recall threshold |
 | [`dead-code-annotation-r1-v1.json`](baselines/dead-code-annotation-r1-v1.json) | `scripts/measure/dead-code-precision.mjs` | Fixed arbitrated labels for precision evaluation |
+| [`semantic-retrieval-probe-v1.json`](baselines/semantic-retrieval-probe-v1.json) | `scripts/measure/semantic-retrieval-probe.mjs` | Exploratory real-source AI-anchored retrieval probe; not independent human acceptance labels |
+| [`semantic-retrieval-human-annotation-v1.json`](baselines/semantic-retrieval-human-annotation-v1.json) | `scripts/measure/semantic-retrieval-annotation.mjs` | 36 new candidates combined with the 24 probe questions for Human-blind review; AI-authored source input |
+| [`semantic-retrieval-human-frozen-v1.json`](baselines/semantic-retrieval-human-frozen-v1.json) | `scripts/measure/semantic-retrieval-annotation.mjs` | 60 Human-reviewed labels by victo, five languages/repositories; 16/60 holdout with whole eShopOnWeb held out; immutable release input |
 
 Promotion requires registering the asset and its consumer here. Re-baselining
 updates the existing versioned input through its owning decision process;
@@ -72,6 +75,8 @@ ordinary reports stay in `.tmp/measure/`.
 | ADR-0009 | [ZJ-0009-async-embedding-pipeline.md](decisions/ZJ-0009-async-embedding-pipeline.md) | How is P2 embedding made asynchronous + lazy-incremental? |
 | ADR-0010 | [ZJ-0010-fastembed-lazy-install.md](decisions/ZJ-0010-fastembed-lazy-install.md) | How does ZCodeGraph ship the optional fastembed/onnxruntime-node dependency without bloating the default install? |
 | ADR-0011 | [ZJ-0011-index-write-lock-lease-and-reclaim.md](decisions/ZJ-0011-index-write-lock-lease-and-reclaim.md) | How is index-write mutual exclusion held across Rust and TypeScript, released after crashes, and diagnosed without unsafe lock-file reclamation? |
+| ADR-0012 | [ZJ-0012-semantic-retrieval-holdout-no-go-and-chunk-downgrade.md](decisions/ZJ-0012-semantic-retrieval-holdout-no-go-and-chunk-downgrade.md) | How does ZCodeGraph handle the 1-3-3 holdout NO-GO verdict — pause effect improvement, keep infrastructure, and restart chunk representation as a downgraded recall-enhancement spike? |
+| ADR-0013 | [ZJ-0013-bounded-reranking-and-independent-agent-value-gate.md](decisions/ZJ-0013-bounded-reranking-and-independent-agent-value-gate.md) | After the chunk-fused MRR gate fails, may one bounded reranking experiment proceed under a fresh holdout and an independent Agent-value gate rather than weakening the threshold? |
 
 ---
 
@@ -120,6 +125,8 @@ codebase currently obeys. Test-locked where applicable.
 | supporting | DES-finalization-boundary | [rust-indexing-finalization-boundary.md](methods/rust-indexing-finalization-boundary.md) | Where is the finalization boundary? |
 | primary | MET-ab-evaluation-matrix | [ab-evaluation-matrix.md](methods/ab-evaluation-matrix.md) | How is the CodeGraph A/B evaluation matrix designed, and what is the 0.9.4 baseline? |
 | primary | MET-agent-routing | [agent-routing.md](methods/agent-routing.md) | Should agents answer directly with CodeGraph or delegate to a sub-agent? |
+| supporting | MET-semantic-retrieval-evaluation-v1 | [semantic-retrieval-evaluation-v1.md](methods/semantic-retrieval-evaluation-v1.md) | How was the original file-entry semantic retrieval candidate measured and rejected under the v1 budgets? Historical protocol; its holdout is now diagnostic for later candidates. |
+| supporting | MET-semantic-retrieval-evaluation-v2 | [semantic-retrieval-evaluation-v2.md](methods/semantic-retrieval-evaluation-v2.md) | How does a bounded semantic-reranking candidate earn independent offline and Agent-value evidence without tuning on its acceptance set? |
 
 ---
 
@@ -129,9 +136,12 @@ codebase currently obeys. Test-locked where applicable.
 entities; they are exempt from frontmatter and are governed by the
 `zj-roadmap-driven` skill.
 
-This folder does not currently exist on disk because no campaign is active.
-New campaigns drop a fresh JSON SoT here under `zj-roadmap-driven` and the
-folder reappears. Completed campaign snapshots remain available in Git history.
+The independent semantic-retrieval campaign is in
+[`plans/semantic-retrieval-roadmap.json`](plans/semantic-retrieval-roadmap.json),
+with its CLI-rendered view at
+[`SEMANTIC-RETRIEVAL-ROADMAP.md`](plans/SEMANTIC-RETRIEVAL-ROADMAP.md).
+It authorizes offline evaluation and evidence-gated planning only; it does not
+change the existing CLI, MCP, or embedding operations contracts.
 
 Process material lifecycle:
 

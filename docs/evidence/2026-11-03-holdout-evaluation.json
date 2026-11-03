@@ -1,0 +1,1995 @@
+{
+  "metric": "holdout-gate",
+  "version": 1,
+  "measuredAt": "2026-11-03T07:15:53.470Z",
+  "labelStatus": "human-reviewed-frozen",
+  "scope": "frozen holdout split only; acceptance/evaluation; no source changes",
+  "baseline": {
+    "path": "docs/baselines/semantic-retrieval-human-frozen-v1.json",
+    "sha256": "450bc4c3f1e325c305ec90a0f3a33dccf7e42c2bb28f456c48716a69413c60ce",
+    "reviewedAt": "2026-11-03T11:58:17+08:00",
+    "reviewer": "victo"
+  },
+  "arms": [
+    "pure-fts",
+    "existing-explore"
+  ],
+  "gates": {
+    "perCorpus": {
+      "hitAt5": 0.9,
+      "hitAt10": 0.95
+    },
+    "macro": {
+      "mrr": 0.7,
+      "hitAt5DeltaVsExplore": 0.05
+    },
+    "latencyMs": {
+      "hotP50": 150,
+      "hotP95": 250,
+      "coldStart": 2000,
+      "largeCorpusP95": 500
+    },
+    "rssBytes": {
+      "steadyDelta": 536870912,
+      "peak": 805306368
+    }
+  },
+  "host": {
+    "node": "v22.22.2",
+    "platform": "win32",
+    "arch": "x64",
+    "cpu": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+    "logicalCpus": 24,
+    "totalMemoryBytes": 33412722688
+  },
+  "corpora": [
+    {
+      "corpus": "pallets-flask",
+      "repo": "pallets/flask",
+      "ref": "05e9c6bd630ecf4ec0ec884b1fc7901663737bc7",
+      "graph": {
+        "files": 84,
+        "vectors": 81,
+        "nodes": 2805,
+        "edges": 4274
+      },
+      "vectorDbBytes": 4460544,
+      "existingOpenMs": 33.23900000000003,
+      "arms": {
+        "pure-fts": {
+          "summary": {
+            "queries": 2,
+            "hit": {
+              "at1": 0,
+              "at5": 0,
+              "at10": 1
+            },
+            "mrr": 0.14583333333333331,
+            "misses": [],
+            "warmMs": {
+              "median": 3.3141999999998006,
+              "p95": 4.4529999999999745,
+              "max": 4.4529999999999745
+            },
+            "coldMs": 3.8389000000001943
+          },
+          "results": [
+            {
+              "id": "flask-holdout-env-debug-cli",
+              "split": "holdout",
+              "corpus": "pallets-flask",
+              "rank": 6,
+              "top": [
+                {
+                  "file": "src/flask/templating.py",
+                  "score": 81.64073916529013
+                },
+                {
+                  "file": "tests/test_apps/cliapp/inner1/__init__.py",
+                  "score": 61.75166291167747
+                },
+                {
+                  "file": "src/flask/debughelpers.py",
+                  "score": 32.016717929215545
+                },
+                {
+                  "file": "src/flask/app.py",
+                  "score": 23.392368920181887
+                },
+                {
+                  "file": "src/flask/sansio/app.py",
+                  "score": 23.351850558777514
+                },
+                {
+                  "file": "src/flask/cli.py",
+                  "score": 20.810126584141898
+                },
+                {
+                  "file": "src/flask/helpers.py",
+                  "score": 19.248186841062925
+                },
+                {
+                  "file": "src/flask/sessions.py",
+                  "score": 19.192056587790276
+                },
+                {
+                  "file": "src/flask/signals.py",
+                  "score": 11.248186841062925
+                },
+                {
+                  "file": "tests/test_basic.py",
+                  "score": 10.77717409584325
+                }
+              ],
+              "warmMs": [
+                4.4529999999999745,
+                3.1633999999999105,
+                3.4543000000003303
+              ],
+              "coldMs": 13.201199999999972
+            },
+            {
+              "id": "flask-holdout-request-lifetime",
+              "split": "holdout",
+              "corpus": "pallets-flask",
+              "rank": 8,
+              "top": [
+                {
+                  "file": "src/flask/wrappers.py",
+                  "score": 34.99276196759041
+                },
+                {
+                  "file": "src/flask/helpers.py",
+                  "score": 30.819660198182643
+                },
+                {
+                  "file": "src/flask/sansio/blueprints.py",
+                  "score": 25.63397346141514
+                },
+                {
+                  "file": "src/flask/sessions.py",
+                  "score": 22.139226855018013
+                },
+                {
+                  "file": "src/flask/cli.py",
+                  "score": 21.016220310272118
+                },
+                {
+                  "file": "src/flask/sansio/app.py",
+                  "score": 18.925815332158606
+                },
+                {
+                  "file": "src/flask/sansio/scaffold.py",
+                  "score": 18.925815332158606
+                },
+                {
+                  "file": "src/flask/app.py",
+                  "score": 18.89872849428059
+                },
+                {
+                  "file": "src/flask/signals.py",
+                  "score": 17.874107537018276
+                },
+                {
+                  "file": "tests/test_reqctx.py",
+                  "score": 15.964278434070106
+                }
+              ],
+              "warmMs": [
+                3.334700000000339,
+                3.1611000000002605,
+                3.3141999999998006
+              ],
+              "coldMs": 3.8389000000001943
+            }
+          ]
+        },
+        "existing-explore": {
+          "summary": {
+            "queries": 2,
+            "hit": {
+              "at1": 0,
+              "at5": 0.5,
+              "at10": 0.5
+            },
+            "mrr": 0.125,
+            "misses": [
+              "flask-holdout-request-lifetime"
+            ],
+            "warmMs": {
+              "median": 48.48369999999977,
+              "p95": 49.84100000000035,
+              "max": 49.84100000000035
+            },
+            "coldMs": 52.00649999999996
+          },
+          "results": [
+            {
+              "id": "flask-holdout-env-debug-cli",
+              "split": "holdout",
+              "corpus": "pallets-flask",
+              "rank": 4,
+              "top": [
+                {
+                  "file": "src/flask/debughelpers.py",
+                  "score": 35
+                },
+                {
+                  "file": "src/flask/testing.py",
+                  "score": 26
+                },
+                {
+                  "file": "src/flask/templating.py",
+                  "score": 21
+                },
+                {
+                  "file": "src/flask/cli.py",
+                  "score": 11
+                },
+                {
+                  "file": "src/flask/sansio/app.py",
+                  "score": 5
+                },
+                {
+                  "file": "src/flask/app.py",
+                  "score": 5
+                },
+                {
+                  "file": "src/flask/globals.py",
+                  "score": 7
+                },
+                {
+                  "file": "src/flask/blueprints.py",
+                  "score": 7
+                }
+              ],
+              "warmMs": [
+                48.48369999999977,
+                48.08249999999998,
+                45.989300000000185
+              ],
+              "coldMs": 64.37159999999994
+            },
+            {
+              "id": "flask-holdout-request-lifetime",
+              "split": "holdout",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "top": [
+                {
+                  "file": "src/flask/wrappers.py",
+                  "score": 73
+                },
+                {
+                  "file": "src/flask/globals.py",
+                  "score": 24
+                },
+                {
+                  "file": "src/flask/__init__.py",
+                  "score": 3
+                },
+                {
+                  "file": "src/flask/signals.py",
+                  "score": 19
+                },
+                {
+                  "file": "src/flask/helpers.py",
+                  "score": 14
+                }
+              ],
+              "warmMs": [
+                49.68650000000025,
+                49.84100000000035,
+                49.52019999999993
+              ],
+              "coldMs": 52.00649999999996
+            }
+          ]
+        }
+      }
+    },
+    {
+      "corpus": "expressjs-express",
+      "repo": "expressjs/express",
+      "ref": "6d2df035a95f3d1002be3e29997b7a4bfe976b5f",
+      "graph": {
+        "files": 51,
+        "vectors": 51,
+        "nodes": 561,
+        "edges": 916
+      },
+      "vectorDbBytes": 2314240,
+      "existingOpenMs": 37.977400000000216,
+      "arms": {
+        "pure-fts": {
+          "summary": {
+            "queries": 2,
+            "hit": {
+              "at1": 0,
+              "at5": 1,
+              "at10": 1
+            },
+            "mrr": 0.41666666666666663,
+            "misses": [],
+            "warmMs": {
+              "median": 2.1590000000001055,
+              "p95": 3.904199999999946,
+              "max": 3.904199999999946
+            },
+            "coldMs": 2.2169000000003507
+          },
+          "results": [
+            {
+              "id": "express-holdout-nested-query-parser",
+              "split": "holdout",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "top": [
+                {
+                  "file": "examples/mvc/lib/boot.js",
+                  "score": 59.42775717360886
+                },
+                {
+                  "file": "lib/request.js",
+                  "score": 27.725497991093526
+                },
+                {
+                  "file": "lib/application.js",
+                  "score": 14.524833329641066
+                }
+              ],
+              "warmMs": [
+                1.3804000000000087,
+                1.3049000000000888,
+                2.1590000000001055
+              ],
+              "coldMs": 2.2169000000003507
+            },
+            {
+              "id": "express-holdout-secure-forwarded-protocol",
+              "split": "holdout",
+              "corpus": "expressjs-express",
+              "rank": 3,
+              "top": [
+                {
+                  "file": "lib/application.js",
+                  "score": 76.46640865636547
+                },
+                {
+                  "file": "examples/view-constructor/github-view.js",
+                  "score": 59.37978122287137
+                },
+                {
+                  "file": "lib/request.js",
+                  "score": 14.524833329641066
+                },
+                {
+                  "file": "lib/utils.js",
+                  "score": 13.440927050667868
+                },
+                {
+                  "file": "lib/express.js",
+                  "score": 12.243473631795464
+                },
+                {
+                  "file": "lib/view.js",
+                  "score": 10
+                },
+                {
+                  "file": "examples/search/public/client.js",
+                  "score": 8.172450988351894
+                },
+                {
+                  "file": "lib/response.js",
+                  "score": 4.243473631795464
+                },
+                {
+                  "file": "examples/search/index.js",
+                  "score": 3.325327689782071
+                },
+                {
+                  "file": "examples/auth/index.js",
+                  "score": -2.749269727705599
+                }
+              ],
+              "warmMs": [
+                2.774800000000141,
+                3.904199999999946,
+                2.765400000000227
+              ],
+              "coldMs": 2.949000000000069
+            }
+          ]
+        },
+        "existing-explore": {
+          "summary": {
+            "queries": 2,
+            "hit": {
+              "at1": 0.5,
+              "at5": 1,
+              "at10": 1
+            },
+            "mrr": 0.6666666666666666,
+            "misses": [],
+            "warmMs": {
+              "median": 25.278399999999692,
+              "p95": 31.00290000000041,
+              "max": 31.00290000000041
+            },
+            "coldMs": 23.42509999999993
+          },
+          "results": [
+            {
+              "id": "express-holdout-nested-query-parser",
+              "split": "holdout",
+              "corpus": "expressjs-express",
+              "rank": 3,
+              "top": [
+                {
+                  "file": "lib/response.js",
+                  "score": 79
+                },
+                {
+                  "file": "lib/application.js",
+                  "score": 4
+                },
+                {
+                  "file": "lib/utils.js",
+                  "score": 21
+                },
+                {
+                  "file": "lib/request.js",
+                  "score": 6
+                }
+              ],
+              "warmMs": [
+                29.585700000000088,
+                31.00290000000041,
+                29.921299999999974
+              ],
+              "coldMs": 30.858999999999924
+            },
+            {
+              "id": "express-holdout-secure-forwarded-protocol",
+              "split": "holdout",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "top": [
+                {
+                  "file": "lib/request.js",
+                  "score": 51
+                },
+                {
+                  "file": "lib/application.js",
+                  "score": 20
+                },
+                {
+                  "file": "lib/response.js",
+                  "score": 10
+                }
+              ],
+              "warmMs": [
+                24.771900000000187,
+                22.551300000000083,
+                25.278399999999692
+              ],
+              "coldMs": 23.42509999999993
+            }
+          ]
+        }
+      }
+    },
+    {
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "repo": "dotnet-architecture/eShopOnWeb",
+      "ref": "4da8212117e87d808d4bbc7da6286fd2147ce606",
+      "graph": {
+        "files": 276,
+        "vectors": 275,
+        "nodes": 2434,
+        "edges": 3829
+      },
+      "vectorDbBytes": 4579328,
+      "existingOpenMs": 35.860499999999774,
+      "arms": {
+        "pure-fts": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.25,
+              "at5": 0.3333333333333333,
+              "at10": 0.5833333333333334
+            },
+            "mrr": 0.30704365079365076,
+            "misses": [
+              "eshop-picture-url-composition",
+              "eshop-catalog-filter-pagination",
+              "eshop-catalog-create-duplicate-guard",
+              "eshop-json-http-error-feedback",
+              "eshop-empty-basket-checkout-exception"
+            ],
+            "warmMs": {
+              "median": 11.13340000000062,
+              "p95": 12.758300000000418,
+              "max": 14.380400000000009
+            },
+            "coldMs": 11.445799999999963
+          },
+          "results": [
+            {
+              "id": "eshop-basket-add-or-increment",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 6,
+              "top": [
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 106.02993733320298
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                  "score": 103.57415863764595
+                },
+                {
+                  "file": "src/BlazorShared/Interfaces/ICatalogItemService.cs",
+                  "score": 103.57415863764595
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemGetByIdEndpoint.cs",
+                  "score": 103.32359281990725
+                },
+                {
+                  "file": "src/BlazorAdmin/Pages/CatalogItemPage/Create.razor",
+                  "score": 100.89979642713803
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                  "score": 92.42571526012128
+                },
+                {
+                  "file": "src/Web/Pages/Shared/Components/BasketComponent/Basket.cs",
+                  "score": 89.87939337211738
+                },
+                {
+                  "file": "src/Web/Services/BasketViewModelService.cs",
+                  "score": 86.19516586235554
+                },
+                {
+                  "file": "src/ApplicationCore/Services/BasketService.cs",
+                  "score": 82.67253466641674
+                },
+                {
+                  "file": "src/Web/Pages/Basket/Index.cshtml.cs",
+                  "score": 79.71125647910546
+                }
+              ],
+              "warmMs": [
+                12.479899999999361,
+                14.380400000000009,
+                12.758300000000418
+              ],
+              "coldMs": 13.476400000000012
+            },
+            {
+              "id": "eshop-basket-service-load-or-create",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 4,
+              "top": [
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemGetByIdEndpoint.cs",
+                  "score": 85.72159729005969
+                },
+                {
+                  "file": "src/Web/Pages/Basket/Index.cshtml.cs",
+                  "score": 79.71125647910546
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+                  "score": 55.81569945966069
+                },
+                {
+                  "file": "src/ApplicationCore/Services/BasketService.cs",
+                  "score": 54.028931874702174
+                },
+                {
+                  "file": "src/ApplicationCore/Specifications/BasketWithItemsSpecification.cs",
+                  "score": 48.8464500229191
+                },
+                {
+                  "file": "src/Web/Services/BasketViewModelService.cs",
+                  "score": 47.07567267677287
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                  "score": 44.156370529697725
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                  "score": 42.01423523735123
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 42.01423523735123
+                },
+                {
+                  "file": "src/Web/Pages/Basket/BasketItemViewModel.cs",
+                  "score": 40.891219189914324
+                }
+              ],
+              "warmMs": [
+                10.259500000000116,
+                9.474299999999857,
+                9.236700000000383
+              ],
+              "coldMs": 10.546600000000126
+            },
+            {
+              "id": "eshop-basket-anonymous-transfer",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 7,
+              "top": [
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                  "score": 101.11081913615939
+                },
+                {
+                  "file": "src/Web/Pages/Basket/BasketViewModel.cs",
+                  "score": 101.11081913615939
+                },
+                {
+                  "file": "src/BlazorShared/Authorization/UserInfo.cs",
+                  "score": 100.80958344141352
+                },
+                {
+                  "file": "src/PublicApi/AuthEndpoints/AuthenticateEndpoint.UserInfo.cs",
+                  "score": 100.63484767413672
+                },
+                {
+                  "file": "src/Web/Pages/Shared/Components/BasketComponent/Basket.cs",
+                  "score": 99.63818011635213
+                },
+                {
+                  "file": "src/Web/Services/BasketViewModelService.cs",
+                  "score": 96.77992422002751
+                },
+                {
+                  "file": "src/ApplicationCore/Services/BasketService.cs",
+                  "score": 89.63041175254432
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                  "score": 84.60848180404282
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 84.60848180404282
+                },
+                {
+                  "file": "src/Web/Pages/Basket/Index.cshtml.cs",
+                  "score": 81.58742009216876
+                }
+              ],
+              "warmMs": [
+                8.456600000000435,
+                7.845900000000256,
+                7.503600000000006
+              ],
+              "coldMs": 8.03710000000001
+            },
+            {
+              "id": "eshop-order-from-basket",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 8,
+              "top": [
+                {
+                  "file": "src/BlazorAdmin/Pages/CatalogItemPage/Details.razor",
+                  "score": 101.22265529643332
+                },
+                {
+                  "file": "src/Web/Features/OrderDetails/GetOrderDetailsHandler.cs",
+                  "score": 97.90321952830467
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/UpdateCatalogItemEndpoint.cs",
+                  "score": 92.12279572274771
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/OrderAggregate/Order.cs",
+                  "score": 90.95385766706111
+                },
+                {
+                  "file": "src/Web/Services/CatalogItemViewModelService.cs",
+                  "score": 90.12279572274771
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                  "score": 89.9041839255097
+                },
+                {
+                  "file": "src/Web/Pages/Shared/Components/BasketComponent/Basket.cs",
+                  "score": 89.87939337211738
+                },
+                {
+                  "file": "src/ApplicationCore/Services/OrderService.cs",
+                  "score": 84.79179597490393
+                },
+                {
+                  "file": "src/ApplicationCore/Services/BasketService.cs",
+                  "score": 79.87680391751478
+                },
+                {
+                  "file": "src/Web/Services/BasketViewModelService.cs",
+                  "score": 79.87680391751478
+                }
+              ],
+              "warmMs": [
+                10.570399999999609,
+                11.140400000000227,
+                12.008100000000013
+              ],
+              "coldMs": 11.291499999999814
+            },
+            {
+              "id": "eshop-picture-url-composition",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "top": [
+                {
+                  "file": "src/Infrastructure/Data/FileItem.cs",
+                  "score": 75.46847192036299
+                },
+                {
+                  "file": "src/Web/ViewModels/File/FileViewModel.cs",
+                  "score": 75.42471780807573
+                },
+                {
+                  "file": "src/BlazorShared/BaseUrlConfiguration.cs",
+                  "score": 43.88760333097541
+                },
+                {
+                  "file": "src/BlazorShared/Models/CatalogItem.cs",
+                  "score": 38.618285646600526
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/OrderAggregate/Address.cs",
+                  "score": 36.737751355595876
+                },
+                {
+                  "file": "src/Web/Extensions/UrlHelperExtensions.cs",
+                  "score": 35.52659391009555
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemDto.cs",
+                  "score": 33.50328628062101
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.CreateCatalogItemRequest.cs",
+                  "score": 33.02033382835341
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/UpdateCatalogItemEndpoint.UpdateCatalogItemRequest.cs",
+                  "score": 33.02033382835341
+                },
+                {
+                  "file": "src/PublicApi/BaseResponse.cs",
+                  "score": 32.84809184143053
+                }
+              ],
+              "warmMs": [
+                10.939699999999903,
+                10.779900000000453,
+                10.978499999999258
+              ],
+              "coldMs": 12.830899999999929
+            },
+            {
+              "id": "eshop-catalog-filter-pagination",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "top": [
+                {
+                  "file": "src/ApplicationCore/Entities/CatalogBrand.cs",
+                  "score": 103.15903151307289
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/CatalogType.cs",
+                  "score": 89.60927689023816
+                },
+                {
+                  "file": "src/BlazorShared/Authorization/ClaimValue.cs",
+                  "score": 74.32723926764905
+                },
+                {
+                  "file": "src/PublicApi/AuthEndpoints/AuthenticateEndpoint.ClaimValue.cs",
+                  "score": 74.22724336164714
+                },
+                {
+                  "file": "src/Infrastructure/Data/FileItem.cs",
+                  "score": 73.3741129719897
+                },
+                {
+                  "file": "src/PublicApi/CatalogBrandEndpoints/CatalogBrandListEndpoint.cs",
+                  "score": 53.463336617182875
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+                  "score": 47.03447166046743
+                },
+                {
+                  "file": "src/ApplicationCore/Specifications/CatalogFilterSpecification.cs",
+                  "score": 39.66679507478536
+                },
+                {
+                  "file": "src/BlazorShared/Models/PagedCatalogItemResponse.cs",
+                  "score": 38.01391609451681
+                },
+                {
+                  "file": "src/PublicApi/CatalogTypeEndpoints/CatalogTypeListEndpoint.cs",
+                  "score": 37.9249575279359
+                }
+              ],
+              "warmMs": [
+                12.72019999999975,
+                11.39640000000054,
+                11.574000000000524
+              ],
+              "coldMs": 11.186499999999796
+            },
+            {
+              "id": "eshop-catalog-list-endpoint",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "top": [
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+                  "score": 37.35629321179675
+                },
+                {
+                  "file": "src/Web/HealthChecks/ApiHealthCheck.cs",
+                  "score": 33.651763284592874
+                },
+                {
+                  "file": "src/Web/Pages/Shared/Components/BasketComponent/Basket.cs",
+                  "score": 32.81705249505305
+                },
+                {
+                  "file": "src/Web/Controllers/Api/BaseApiController.cs",
+                  "score": 32.01772603417433
+                },
+                {
+                  "file": "src/Web/Views/Manage/ManageNavPages.cs",
+                  "score": 30.91514775640522
+                },
+                {
+                  "file": "src/BlazorShared/Models/PagedCatalogItemResponse.cs",
+                  "score": 29.02783218903362
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.ListPagedCatalogItemRequest.cs",
+                  "score": 28.943021247703264
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.ListPagedCatalogItemResponse.cs",
+                  "score": 28.943021247703264
+                },
+                {
+                  "file": "src/Web/Areas/Identity/Pages/Account/ConfirmEmail.cshtml.cs",
+                  "score": 27.39818857314526
+                },
+                {
+                  "file": "src/Web/Areas/Identity/Pages/Account/Login.cshtml.cs",
+                  "score": 27.39818857314526
+                }
+              ],
+              "warmMs": [
+                11.234600000000682,
+                11.589500000000044,
+                12.31919999999991
+              ],
+              "coldMs": 11.567799999999806
+            },
+            {
+              "id": "eshop-catalog-create-duplicate-guard",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "top": [
+                {
+                  "file": "src/Web/Pages/Shared/Components/BasketComponent/Default.cshtml",
+                  "score": 93.1468449732863
+                },
+                {
+                  "file": "src/Web/Views/Shared/Components/Basket/Default.cshtml",
+                  "score": 93.1468449732863
+                },
+                {
+                  "file": "src/ApplicationCore/Specifications/CatalogItemNameSpecification.cs",
+                  "score": 40.51992546444281
+                },
+                {
+                  "file": "src/PublicApi/CatalogBrandEndpoints/CatalogBrandListEndpoint.ListCatalogBrandsResponse.cs",
+                  "score": 40.38203352859101
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemGetByIdEndpoint.GetByIdCatalogItemResponse.cs",
+                  "score": 40.38203352859101
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.ListPagedCatalogItemResponse.cs",
+                  "score": 40.38203352859101
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.CreateCatalogItemResponse.cs",
+                  "score": 40.38203352859101
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/DeleteCatalogItemEndpoint.DeleteCatalogItemResponse.cs",
+                  "score": 40.38203352859101
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/UpdateCatalogItemEndpoint.UpdateCatalogItemResponse.cs",
+                  "score": 40.38203352859101
+                },
+                {
+                  "file": "src/PublicApi/CatalogTypeEndpoints/CatalogTypeListEndpoint.ListCatalogTypesResponse.cs",
+                  "score": 40.38203352859101
+                }
+              ],
+              "warmMs": [
+                11.451599999999416,
+                11.896299999999428,
+                11.624300000000403
+              ],
+              "coldMs": 12.413900000000012
+            },
+            {
+              "id": "eshop-browser-cache-expiry",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "top": [
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                  "score": 121.39107257307398
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogLookupDataServiceDecorator .cs",
+                  "score": 108.39107257307398
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 100.02682584907095
+                },
+                {
+                  "file": "src/PublicApi/CatalogBrandEndpoints/CatalogBrandListEndpoint.cs",
+                  "score": 89.14304154954577
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+                  "score": 89.14304154954577
+                },
+                {
+                  "file": "src/PublicApi/CatalogTypeEndpoints/CatalogTypeListEndpoint.cs",
+                  "score": 89.14304154954577
+                },
+                {
+                  "file": "src/Web/Services/CatalogViewModelService.cs",
+                  "score": 86.88784327962989
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                  "score": 72.54104601969821
+                },
+                {
+                  "file": "src/Web/Pages/Basket/BasketViewModel.cs",
+                  "score": 72.54104601969821
+                },
+                {
+                  "file": "src/ApplicationCore/Services/OrderService.cs",
+                  "score": 71.54104601969821
+                }
+              ],
+              "warmMs": [
+                11.297199999999975,
+                10.403199999999742,
+                11.13340000000062
+              ],
+              "coldMs": 11.445799999999963
+            },
+            {
+              "id": "eshop-cache-invalidate-after-mutation",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "top": [
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                  "score": 100.42643681628678
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogLookupDataServiceDecorator .cs",
+                  "score": 97.33939238746723
+                },
+                {
+                  "file": "src/BlazorAdmin/Pages/CatalogItemPage/Edit.razor",
+                  "score": 91.18799423763393
+                },
+                {
+                  "file": "src/BlazorAdmin/Pages/CatalogItemPage/Delete.razor",
+                  "score": 90.16363775816698
+                },
+                {
+                  "file": "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+                  "score": 88.12949112837998
+                },
+                {
+                  "file": "src/BlazorAdmin/Pages/CatalogItemPage/List.razor",
+                  "score": 88.10957389875784
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 80.21653555719953
+                },
+                {
+                  "file": "src/BlazorShared/Interfaces/ICatalogItemService.cs",
+                  "score": 80.21653555719953
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogLookupDataService.cs",
+                  "score": 77.12949112837998
+                },
+                {
+                  "file": "src/BlazorShared/Interfaces/ICatalogLookupDataService.cs",
+                  "score": 77.12949112837998
+                }
+              ],
+              "warmMs": [
+                12.262399999999616,
+                11.982500000000073,
+                12.08640000000014
+              ],
+              "coldMs": 13.057099999999991
+            },
+            {
+              "id": "eshop-json-http-error-feedback",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "top": [
+                {
+                  "file": "src/Web/HealthChecks/ApiHealthCheck.cs",
+                  "score": 97.47629686488801
+                },
+                {
+                  "file": "src/BlazorAdmin/Shared/Toast.razor",
+                  "score": 95.40557327923034
+                },
+                {
+                  "file": "src/Web/HealthChecks/HomePageHealthCheck.cs",
+                  "score": 76.43247613061988
+                },
+                {
+                  "file": "src/BlazorAdmin/Helpers/ToastComponent.cs",
+                  "score": 36.209225001373675
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/ToastService.cs",
+                  "score": 36.209225001373675
+                },
+                {
+                  "file": "src/ApplicationCore/Extensions/JsonExtensions.cs",
+                  "score": 32.74669198290029
+                },
+                {
+                  "file": "src/Web/Controllers/Api/BaseApiController.cs",
+                  "score": 31.164595644516883
+                },
+                {
+                  "file": "src/PublicApi/AuthEndpoints/AuthenticateEndpoint.cs",
+                  "score": 23.44164868550972
+                },
+                {
+                  "file": "src/PublicApi/CatalogBrandEndpoints/CatalogBrandListEndpoint.cs",
+                  "score": 23.376526424726045
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+                  "score": 23.376526424726045
+                }
+              ],
+              "warmMs": [
+                5.4965000000001965,
+                5.5943999999999505,
+                5.977199999999357
+              ],
+              "coldMs": 6.381900000000314
+            },
+            {
+              "id": "eshop-empty-basket-checkout-exception",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "top": [
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                  "score": 92.06430372518527
+                },
+                {
+                  "file": "src/Web/Pages/Basket/BasketViewModel.cs",
+                  "score": 92.06430372518527
+                },
+                {
+                  "file": "src/Web/Pages/Error.cshtml",
+                  "score": 91.8506568773727
+                },
+                {
+                  "file": "src/Web/Views/Shared/Error.cshtml",
+                  "score": 91.81867810714627
+                },
+                {
+                  "file": "src/Web/Services/BasketViewModelService.cs",
+                  "score": 88.62067208647464
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                  "score": 84.60848180404282
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 84.60848180404282
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/ToastService.cs",
+                  "score": 80.76316442089676
+                },
+                {
+                  "file": "src/ApplicationCore/Services/OrderService.cs",
+                  "score": 71.54104601969821
+                },
+                {
+                  "file": "src/PublicApi/CatalogBrandEndpoints/CatalogBrandListEndpoint.cs",
+                  "score": 71.54104601969821
+                }
+              ],
+              "warmMs": [
+                10.3096000000005,
+                9.306400000000394,
+                9.482200000000375
+              ],
+              "coldMs": 15.885300000000825
+            }
+          ]
+        },
+        "existing-explore": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.08333333333333333,
+              "at5": 0.5,
+              "at10": 0.75
+            },
+            "mrr": 0.26180555555555557,
+            "misses": [
+              "eshop-basket-add-or-increment",
+              "eshop-picture-url-composition",
+              "eshop-catalog-filter-pagination"
+            ],
+            "warmMs": {
+              "median": 59.42649999999958,
+              "p95": 75.03889999999956,
+              "max": 76.77729999999974
+            },
+            "coldMs": 60.68339999999989
+          },
+          "results": [
+            {
+              "id": "eshop-basket-add-or-increment",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "top": [
+                {
+                  "file": "src/BlazorShared/Models/CatalogItem.cs",
+                  "score": 26
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.cs",
+                  "score": 27
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/CatalogItem.cs",
+                  "score": 17
+                },
+                {
+                  "file": "src/BlazorShared/Models/CreateCatalogItemRequest.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/PublicApi/BaseResponse.cs",
+                  "score": 6
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+                  "score": 22
+                },
+                {
+                  "file": "src/PublicApi/BaseRequest.cs",
+                  "score": 4
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.CreateCatalogItemResponse.cs",
+                  "score": 19
+                },
+                {
+                  "file": "src/BlazorShared/Models/CreateCatalogItemResponse.cs",
+                  "score": 14
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.CreateCatalogItemRequest.cs",
+                  "score": 13
+                }
+              ],
+              "warmMs": [
+                61.281199999999444,
+                59.974199999999655,
+                61.32499999999982
+              ],
+              "coldMs": 69.04739999999947
+            },
+            {
+              "id": "eshop-basket-service-load-or-create",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 4,
+              "top": [
+                {
+                  "file": "src/Web/Pages/Basket/Index.cshtml.cs",
+                  "score": 27
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 27
+                },
+                {
+                  "file": "src/Infrastructure/Identity/ApplicationUser.cs",
+                  "score": 11
+                },
+                {
+                  "file": "src/ApplicationCore/Services/BasketService.cs",
+                  "score": 29
+                },
+                {
+                  "file": "src/ApplicationCore/Interfaces/IBasketService.cs",
+                  "score": 25
+                },
+                {
+                  "file": "src/BlazorShared/Interfaces/ICatalogItemService.cs",
+                  "score": 27
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+                  "score": 22
+                },
+                {
+                  "file": "src/ApplicationCore/Interfaces/IBasketQueryService.cs",
+                  "score": 16
+                },
+                {
+                  "file": "src/Web/Services/BasketViewModelService.cs",
+                  "score": 14
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                  "score": 9
+                }
+              ],
+              "warmMs": [
+                64.03240000000005,
+                58.35919999999987,
+                59.07119999999941
+              ],
+              "coldMs": 62.4390999999996
+            },
+            {
+              "id": "eshop-basket-anonymous-transfer",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 2,
+              "top": [
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 27
+                },
+                {
+                  "file": "src/ApplicationCore/Services/BasketService.cs",
+                  "score": 29
+                },
+                {
+                  "file": "src/ApplicationCore/Interfaces/IBasketService.cs",
+                  "score": 25
+                },
+                {
+                  "file": "src/BlazorShared/Interfaces/ICatalogItemService.cs",
+                  "score": 27
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                  "score": 9
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+                  "score": 22
+                },
+                {
+                  "file": "src/Web/Services/BasketViewModelService.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/Web/Pages/Basket/BasketItemViewModel.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                  "score": 15
+                },
+                {
+                  "file": "src/BlazorShared/Models/CreateCatalogItemRequest.cs",
+                  "score": 13
+                }
+              ],
+              "warmMs": [
+                58.82049999999981,
+                60.459899999999834,
+                59.42649999999958
+              ],
+              "coldMs": 61.794200000000274
+            },
+            {
+              "id": "eshop-order-from-basket",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 4,
+              "top": [
+                {
+                  "file": "src/Web/Pages/Basket/Checkout.cshtml.cs",
+                  "score": 30
+                },
+                {
+                  "file": "src/Web/Features/OrderDetails/GetOrderDetailsHandler.cs",
+                  "score": 21
+                },
+                {
+                  "file": "src/Web/ViewModels/OrderDetailViewModel.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/ApplicationCore/Services/OrderService.cs",
+                  "score": 26
+                },
+                {
+                  "file": "src/Web/Features/OrderDetails/GetOrderDetails.cs",
+                  "score": 16
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/OrderAggregate/Order.cs",
+                  "score": 7
+                },
+                {
+                  "file": "src/Web/Views/Order/Detail.cshtml",
+                  "score": 10
+                },
+                {
+                  "file": "src/ApplicationCore/Exceptions/EmptyBasketOnCheckoutException.cs",
+                  "score": 25
+                },
+                {
+                  "file": "src/Web/Pages/Basket/Checkout.cshtml",
+                  "score": 10
+                },
+                {
+                  "file": "src/ApplicationCore/Extensions/GuardExtensions.cs",
+                  "score": 5
+                }
+              ],
+              "warmMs": [
+                65.45790000000034,
+                65.8726000000006,
+                61.88509999999951
+              ],
+              "coldMs": 65.66919999999936
+            },
+            {
+              "id": "eshop-picture-url-composition",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "top": [
+                {
+                  "file": "src/PublicApi/BaseResponse.cs",
+                  "score": 19
+                },
+                {
+                  "file": "src/BlazorShared/BaseUrlConfiguration.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/CatalogItem.cs",
+                  "score": 10
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                  "score": 8
+                },
+                {
+                  "file": "src/PublicApi/BaseRequest.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+                  "score": 7
+                },
+                {
+                  "file": "src/Infrastructure/Data/Config/BasketItemConfiguration.cs",
+                  "score": 14
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/CatalogBrand.cs",
+                  "score": 5
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/CatalogType.cs",
+                  "score": 5
+                },
+                {
+                  "file": "src/Infrastructure/Data/Config/CatalogBrandConfiguration.cs",
+                  "score": 14
+                }
+              ],
+              "warmMs": [
+                71.23979999999938,
+                51.13940000000002,
+                50.73329999999987
+              ],
+              "coldMs": 55.4420999999993
+            },
+            {
+              "id": "eshop-catalog-filter-pagination",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "top": [
+                {
+                  "file": "src/ApplicationCore/Entities/CatalogBrand.cs",
+                  "score": 23
+                },
+                {
+                  "file": "src/BlazorShared/Models/PagedCatalogItemResponse.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/PublicApi/BaseResponse.cs",
+                  "score": 6
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+                  "score": 16
+                },
+                {
+                  "file": "src/PublicApi/CatalogBrandEndpoints/CatalogBrandListEndpoint.ListCatalogBrandsResponse.cs",
+                  "score": 19
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.ListPagedCatalogItemRequest.cs",
+                  "score": 16
+                },
+                {
+                  "file": "src/PublicApi/CatalogTypeEndpoints/CatalogTypeListEndpoint.ListCatalogTypesResponse.cs",
+                  "score": 19
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.ListPagedCatalogItemResponse.cs",
+                  "score": 19
+                },
+                {
+                  "file": "src/BlazorShared/Models/CatalogBrand.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/PublicApi/CatalogBrandEndpoints/CatalogBrandListEndpoint.cs",
+                  "score": 9
+                }
+              ],
+              "warmMs": [
+                66.17249999999967,
+                56.41960000000017,
+                56.16219999999976
+              ],
+              "coldMs": 58.732600000000275
+            },
+            {
+              "id": "eshop-catalog-list-endpoint",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 4,
+              "top": [
+                {
+                  "file": "src/Web/Views/Manage/ManageNavPages.cs",
+                  "score": 32
+                },
+                {
+                  "file": "src/Web/Controllers/Api/BaseApiController.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/Web/Features/MyOrders/GetMyOrdersHandler.cs",
+                  "score": 32
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+                  "score": 27
+                },
+                {
+                  "file": "src/Web/Features/OrderDetails/GetOrderDetailsHandler.cs",
+                  "score": 21
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.ListPagedCatalogItemRequest.cs",
+                  "score": 16
+                },
+                {
+                  "file": "src/Web/ViewModels/OrderViewModel.cs",
+                  "score": 4
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.ListPagedCatalogItemResponse.cs",
+                  "score": 19
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/OrderAggregate/Order.cs",
+                  "score": 10
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/CatalogItem.cs",
+                  "score": 10
+                }
+              ],
+              "warmMs": [
+                65.82909999999993,
+                67.22490000000016,
+                62.866800000000694
+              ],
+              "coldMs": 66.54179999999997
+            },
+            {
+              "id": "eshop-catalog-create-duplicate-guard",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 6,
+              "top": [
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                  "score": 29
+                },
+                {
+                  "file": "src/BlazorShared/Interfaces/ICatalogItemService.cs",
+                  "score": 19
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/CatalogItem.cs",
+                  "score": 10
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 23
+                },
+                {
+                  "file": "src/BlazorShared/Models/CreateCatalogItemRequest.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.cs",
+                  "score": 14
+                },
+                {
+                  "file": "src/PublicApi/BaseResponse.cs",
+                  "score": 6
+                },
+                {
+                  "file": "src/BlazorAdmin/Pages/CatalogItemPage/Create.razor",
+                  "score": 10
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.CreateCatalogItemResponse.cs",
+                  "score": 19
+                },
+                {
+                  "file": "src/BlazorShared/Models/CreateCatalogItemResponse.cs",
+                  "score": 13
+                }
+              ],
+              "warmMs": [
+                60.71230000000014,
+                61.879799999999705,
+                57.76940000000013
+              ],
+              "coldMs": 60.68339999999989
+            },
+            {
+              "id": "eshop-browser-cache-expiry",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 2,
+              "top": [
+                {
+                  "file": "src/BlazorShared/Models/CatalogItem.cs",
+                  "score": 26
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                  "score": 39
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 33
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/CatalogItem.cs",
+                  "score": 17
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogLookupDataServiceDecorator .cs",
+                  "score": 23
+                },
+                {
+                  "file": "src/Web/Services/CachedCatalogViewModelService.cs",
+                  "score": 26
+                },
+                {
+                  "file": "src/BlazorShared/Interfaces/ICatalogItemService.cs",
+                  "score": 19
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CacheEntry.cs",
+                  "score": 19
+                },
+                {
+                  "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemDto.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogLookupDataService.cs",
+                  "score": 6
+                }
+              ],
+              "warmMs": [
+                76.77729999999974,
+                75.03889999999956,
+                71.09209999999985
+              ],
+              "coldMs": 78.33920000000035
+            },
+            {
+              "id": "eshop-cache-invalidate-after-mutation",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "top": [
+                {
+                  "file": "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                  "score": 33
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 27
+                },
+                {
+                  "file": "src/BlazorAdmin/Pages/CatalogItemPage/List.razor",
+                  "score": 10
+                },
+                {
+                  "file": "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+                  "score": 18
+                },
+                {
+                  "file": "src/BlazorAdmin/Pages/CatalogItemPage/Edit.razor",
+                  "score": 10
+                },
+                {
+                  "file": "src/BlazorAdmin/Pages/CatalogItemPage/Delete.razor",
+                  "score": 10
+                },
+                {
+                  "file": "src/BlazorAdmin/Pages/CatalogItemPage/Create.razor",
+                  "score": 10
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/CatalogItem.cs",
+                  "score": 10
+                },
+                {
+                  "file": "src/BlazorShared/Interfaces/ICatalogItemService.cs",
+                  "score": 14
+                },
+                {
+                  "file": "src/BlazorAdmin/Shared/Spinner.razor",
+                  "score": 3
+                }
+              ],
+              "warmMs": [
+                55.37219999999979,
+                56.07350000000042,
+                56.27880000000005
+              ],
+              "coldMs": 55.42439999999988
+            },
+            {
+              "id": "eshop-json-http-error-feedback",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 10,
+              "top": [
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 21
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogLookupDataService.cs",
+                  "score": 17
+                },
+                {
+                  "file": "src/Web/HealthChecks/HomePageHealthCheck.cs",
+                  "score": 20
+                },
+                {
+                  "file": "src/Web/Controllers/Api/BaseApiController.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/Web/Views/Shared/Error.cshtml",
+                  "score": 10
+                },
+                {
+                  "file": "src/Web/Pages/Error.cshtml",
+                  "score": 10
+                },
+                {
+                  "file": "src/Web/Pages/Error.cshtml.cs",
+                  "score": 5
+                },
+                {
+                  "file": "src/BlazorAdmin/Shared/Toast.razor",
+                  "score": 10
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/ToastService.cs",
+                  "score": 29
+                },
+                {
+                  "file": "src/BlazorAdmin/Services/HttpService.cs",
+                  "score": 16
+                }
+              ],
+              "warmMs": [
+                52.25640000000021,
+                51.4359000000004,
+                52.3137999999999
+              ],
+              "coldMs": 52.97070000000076
+            },
+            {
+              "id": "eshop-empty-basket-checkout-exception",
+              "split": "holdout",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 8,
+              "top": [
+                {
+                  "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+                  "score": 27
+                },
+                {
+                  "file": "src/ApplicationCore/Services/BasketService.cs",
+                  "score": 29
+                },
+                {
+                  "file": "src/ApplicationCore/Interfaces/IBasketService.cs",
+                  "score": 25
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                  "score": 9
+                },
+                {
+                  "file": "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+                  "score": 22
+                },
+                {
+                  "file": "src/BlazorShared/Interfaces/ICatalogItemService.cs",
+                  "score": 27
+                },
+                {
+                  "file": "src/Web/Services/BasketViewModelService.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/ApplicationCore/Exceptions/EmptyBasketOnCheckoutException.cs",
+                  "score": 25
+                },
+                {
+                  "file": "src/Web/Pages/Basket/BasketItemViewModel.cs",
+                  "score": 13
+                },
+                {
+                  "file": "src/Web/Pages/Basket/Checkout.cshtml.cs",
+                  "score": 11
+                }
+              ],
+              "warmMs": [
+                48.17270000000008,
+                48.009900000000016,
+                48.46399999999994
+              ],
+              "coldMs": 45.88140000000021
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "macro": {
+    "pure-fts": {
+      "queries": 16,
+      "hit": {
+        "at1": 0.1875,
+        "at5": 0.375,
+        "at10": 0.6875
+      },
+      "mrr": 0.3005952380952381,
+      "misses": [
+        "eshop-picture-url-composition",
+        "eshop-catalog-filter-pagination",
+        "eshop-catalog-create-duplicate-guard",
+        "eshop-json-http-error-feedback",
+        "eshop-empty-basket-checkout-exception"
+      ],
+      "warmMs": {
+        "median": 10.3096000000005,
+        "p95": 12.72019999999975,
+        "max": 14.380400000000009
+      },
+      "coldMs": 11.291499999999814
+    },
+    "existing-explore": {
+      "queries": 16,
+      "hit": {
+        "at1": 0.125,
+        "at5": 0.5625,
+        "at10": 0.75
+      },
+      "mrr": 0.2953125,
+      "misses": [
+        "flask-holdout-request-lifetime",
+        "eshop-basket-add-or-increment",
+        "eshop-picture-url-composition",
+        "eshop-catalog-filter-pagination"
+      ],
+      "warmMs": {
+        "median": 56.27880000000005,
+        "p95": 71.23979999999938,
+        "max": 76.77729999999974
+      },
+      "coldMs": 58.732600000000275
+    }
+  },
+  "process": {
+    "wallMs": 8014.867,
+    "peakWorkingSetBytes": 170369024,
+    "baselineWorkingSetBytes": 62521344,
+    "steadyWorkingSetBytes": 107847680,
+    "finalWorkingSetBytes": null
+  },
+  "gateEvaluation": {
+    "gates": {
+      "per-corpus Hit@5>=90%": {
+        "pass": false,
+        "detail": [
+          {
+            "corpus": "pallets-flask",
+            "hitAt5": 0,
+            "hitAt5Pass": false,
+            "hitAt10": 1,
+            "hitAt10Pass": true
+          },
+          {
+            "corpus": "expressjs-express",
+            "hitAt5": 1,
+            "hitAt5Pass": true,
+            "hitAt10": 1,
+            "hitAt10Pass": true
+          },
+          {
+            "corpus": "dotnet-architecture-eShopOnWeb",
+            "hitAt5": 0.3333333333333333,
+            "hitAt5Pass": false,
+            "hitAt10": 0.5833333333333334,
+            "hitAt10Pass": false
+          }
+        ]
+      },
+      "per-corpus Hit@10>=95%": {
+        "pass": false,
+        "detail": [
+          {
+            "corpus": "pallets-flask",
+            "hitAt5": 0,
+            "hitAt5Pass": false,
+            "hitAt10": 1,
+            "hitAt10Pass": true
+          },
+          {
+            "corpus": "expressjs-express",
+            "hitAt5": 1,
+            "hitAt5Pass": true,
+            "hitAt10": 1,
+            "hitAt10Pass": true
+          },
+          {
+            "corpus": "dotnet-architecture-eShopOnWeb",
+            "hitAt5": 0.3333333333333333,
+            "hitAt5Pass": false,
+            "hitAt10": 0.5833333333333334,
+            "hitAt10Pass": false
+          }
+        ]
+      },
+      "macro MRR>=0.70": {
+        "pass": false,
+        "actual": 0.3005952380952381,
+        "threshold": 0.7
+      },
+      "macro Hit@5 >= explore + 5pp": {
+        "pass": false,
+        "actualFts": 0.375,
+        "actualExplore": 0.5625,
+        "delta": -0.1875,
+        "threshold": 0.05
+      },
+      "hot p50<=150ms": {
+        "pass": true,
+        "actual": 10.3096000000005,
+        "threshold": 150
+      },
+      "hot p95<=250ms": {
+        "pass": true,
+        "actual": 12.72019999999975,
+        "threshold": 250
+      },
+      "cold start<=2s": {
+        "pass": true,
+        "actual": 11.291499999999814,
+        "threshold": 2000
+      },
+      "large-corpus p95<=500ms (eShopOnWeb)": {
+        "pass": true,
+        "actual": 12.758300000000418,
+        "threshold": 500
+      },
+      "peak RSS<=768MiB": {
+        "pass": true,
+        "actual": 170369024,
+        "threshold": 805306368
+      },
+      "steady RSS delta<=512MiB": {
+        "pass": true,
+        "actual": 107847680,
+        "threshold": 536870912
+      }
+    },
+    "verdict": "NO-GO"
+  }
+}

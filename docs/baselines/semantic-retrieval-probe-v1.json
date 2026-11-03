@@ -1,0 +1,251 @@
+{
+  "metric": "semantic-retrieval-probe",
+  "version": 1,
+  "status": "exploratory-ai-source-anchored",
+  "consumer": "scripts/measure/semantic-retrieval-probe.mjs",
+  "labelPolicy": {
+    "scope": "AI-authored natural-language questions anchored to reviewed real source definitions; not independent human relevance judgments.",
+    "oracle": "Hit@k = at least one expected entry file in the top k, with the files array as a set. Any-of matching is correct for multi-file flows, not per-file relevance recall.",
+    "hardNegativePolicy": "Each query has at least two semantically related distractors. They are review targets, not asserted irrelevant labels: a returned distractor does not count as a hit or automatically as a defect.",
+    "splitPolicy": "holdout is fixed before fusion tuning. Development cases cannot be used for final acceptance. The full independent release gate requires human-blind labels and at least four languages.",
+    "limitations": [
+      "The probe vector stores are small real-code corpora, not a claim of large-repository latency.",
+      "Corpus vectors were generated from the first 8000 characters using BGE-small-en-v1.5; query and document processing must remain identical across compared arms.",
+      "No response correctness, independent human labeling, or Agent Sufficiency result is implied by this input."
+    ]
+  },
+  "corpora": [
+    {
+      "id": "pallets-flask",
+      "repo": "pallets/flask",
+      "ref": "05e9c6bd630ecf4ec0ec884b1fc7901663737bc7",
+      "language": "python",
+      "structure": "package-with-blueprints-and-sansio-scaffolding"
+    },
+    {
+      "id": "expressjs-express",
+      "repo": "expressjs/express",
+      "ref": "6d2df035a95f3d1002be3e29997b7a4bfe976b5f",
+      "language": "javascript",
+      "structure": "small-flat-library-with-request-response-prototypes"
+    }
+  ],
+  "queries": [
+    {
+      "id": "flask-dev-static-safe-download",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "How do I safely serve a user-requested upload as an attachment without allowing path traversal?",
+      "expectedFiles": ["src/flask/helpers.py"],
+      "evidence": {"symbol": "send_from_directory", "startLine": 543},
+      "hardNegatives": ["src/flask/app.py", "src/flask/sessions.py"]
+    },
+    {
+      "id": "flask-dev-stream-request-context",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "Where can a streaming response retain request-local state after the view has returned its generator?",
+      "expectedFiles": ["src/flask/helpers.py"],
+      "evidence": {"symbol": "stream_with_context", "startLine": 63},
+      "hardNegatives": ["src/flask/ctx.py", "src/flask/templating.py"]
+    },
+    {
+      "id": "flask-dev-flash-once-next-request",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "How is a temporary user notification stored for one later request and then consumed by the template?",
+      "expectedFiles": ["src/flask/helpers.py"],
+      "evidence": {"symbol": "flash and get_flashed_messages", "startLine": 326},
+      "hardNegatives": ["src/flask/sessions.py", "src/flask/templating.py"]
+    },
+    {
+      "id": "flask-dev-conditional-file-cache",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "Which code turns a local file into a response with ETags, byte ranges, cache lifetime and a download filename?",
+      "expectedFiles": ["src/flask/helpers.py"],
+      "evidence": {"symbol": "send_file", "startLine": 417},
+      "hardNegatives": ["src/flask/wrappers.py", "src/flask/config.py"]
+    },
+    {
+      "id": "flask-dev-custom-json-serialization",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "Where should an application customize serialization of domain objects into JSON responses?",
+      "expectedFiles": ["src/flask/json/provider.py"],
+      "evidence": {"symbol": "JSONProvider and DefaultJSONProvider", "startLine": 19},
+      "hardNegatives": ["src/flask/json/__init__.py", "src/flask/wrappers.py"]
+    },
+    {
+      "id": "flask-dev-session-cookie-boundary",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "Where is a signed client-side session loaded from the request cookie and persisted into the response?",
+      "expectedFiles": ["src/flask/sessions.py"],
+      "evidence": {"symbol": "SecureCookieSessionInterface", "startLine": 284},
+      "hardNegatives": ["src/flask/helpers.py", "src/flask/ctx.py"]
+    },
+    {
+      "id": "flask-dev-template-stream",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "How can a template be rendered incrementally instead of buffering the complete HTML string?",
+      "expectedFiles": ["src/flask/templating.py"],
+      "evidence": {"symbol": "stream_template", "startLine": 181},
+      "hardNegatives": ["src/flask/helpers.py", "src/flask/sansio/app.py"]
+    },
+    {
+      "id": "flask-dev-blueprint-modular-routes",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "How can independently organized route groups and their resources be composed into the application?",
+      "expectedFiles": ["src/flask/blueprints.py", "src/flask/sansio/blueprints.py"],
+      "evidence": {"symbol": "Blueprint", "startLine": 18},
+      "hardNegatives": ["src/flask/sansio/scaffold.py", "src/flask/views.py"]
+    },
+    {
+      "id": "flask-dev-url-dispatch",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "After URL matching, where is the endpoint converted into a view invocation with its captured path arguments?",
+      "expectedFiles": ["src/flask/app.py"],
+      "evidence": {"symbol": "Flask.dispatch_request", "startLine": 969},
+      "hardNegatives": ["src/flask/sansio/scaffold.py", "src/flask/ctx.py"]
+    },
+    {
+      "id": "flask-dev-dev-server-tls",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "How are certificate and private-key options validated when starting the HTTPS development server?",
+      "expectedFiles": ["src/flask/cli.py"],
+      "evidence": {"symbol": "CertParamType and _validate_key", "startLine": 780},
+      "hardNegatives": ["src/flask/app.py", "src/flask/config.py"]
+    },
+    {
+      "id": "flask-holdout-env-debug-cli",
+      "corpus": "pallets-flask",
+      "split": "holdout",
+      "query": "How do environment files and the debug setting affect application startup through the command line?",
+      "expectedFiles": ["src/flask/cli.py"],
+      "evidence": {"symbol": "ScriptInfo and load_dotenv", "startLine": 293},
+      "hardNegatives": ["src/flask/config.py", "src/flask/app.py"]
+    },
+    {
+      "id": "flask-holdout-request-lifetime",
+      "corpus": "pallets-flask",
+      "split": "holdout",
+      "query": "Where is per-request ambient state pushed on entry and unwound with teardown callbacks?",
+      "expectedFiles": ["src/flask/ctx.py", "src/flask/app.py"],
+      "evidence": {"symbol": "AppContext and Flask.do_teardown_request", "startLine": 260},
+      "hardNegatives": ["src/flask/globals.py", "src/flask/helpers.py"]
+    },
+    {
+      "id": "express-dev-content-negotiation",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where is the response representation chosen from the client's Accept header, with a 406 when nothing matches?",
+      "expectedFiles": ["lib/response.js"],
+      "evidence": {"symbol": "res.format", "startLine": 574},
+      "hardNegatives": ["lib/request.js", "lib/utils.js"]
+    },
+    {
+      "id": "express-dev-language-negotiation",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where does the application choose the best supported language for the incoming request?",
+      "expectedFiles": ["lib/request.js"],
+      "evidence": {"symbol": "req.acceptsLanguages", "startLine": 185},
+      "hardNegatives": ["lib/response.js", "lib/application.js"]
+    },
+    {
+      "id": "express-dev-byte-ranges",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "How are partial-content byte ranges parsed and classified as malformed or unsatisfiable?",
+      "expectedFiles": ["lib/request.js"],
+      "evidence": {"symbol": "req.range", "startLine": 214},
+      "hardNegatives": ["lib/response.js", "lib/utils.js"]
+    },
+    {
+      "id": "express-dev-download-disposition",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where is a response marked as an attachment so a browser saves it under a filename?",
+      "expectedFiles": ["lib/response.js"],
+      "evidence": {"symbol": "res.attachment", "startLine": 609},
+      "hardNegatives": ["lib/view.js", "lib/request.js"]
+    },
+    {
+      "id": "express-dev-jsonp",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where is JSON wrapped in a client-provided JavaScript callback for cross-domain script inclusion?",
+      "expectedFiles": ["lib/response.js"],
+      "evidence": {"symbol": "res.jsonp", "startLine": 264},
+      "hardNegatives": ["lib/request.js", "lib/utils.js"]
+    },
+    {
+      "id": "express-dev-proxy-client-address",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "How are forwarded addresses converted into a trustworthy client IP chain behind reverse proxies?",
+      "expectedFiles": ["lib/request.js", "lib/utils.js"],
+      "evidence": {"symbol": "req.ips and compileTrust", "startLine": 357},
+      "hardNegatives": ["lib/application.js", "lib/response.js"]
+    },
+    {
+      "id": "express-dev-view-lookup",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "How is a template file resolved on disk and its rendering engine invoked?",
+      "expectedFiles": ["lib/view.js"],
+      "evidence": {"symbol": "View.lookup and View.render", "startLine": 104},
+      "hardNegatives": ["lib/application.js", "lib/response.js"]
+    },
+    {
+      "id": "express-dev-conditional-request",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where do cache validators determine that a request is still fresh and can avoid sending the body again?",
+      "expectedFiles": ["lib/request.js"],
+      "evidence": {"symbol": "req.fresh", "startLine": 469},
+      "hardNegatives": ["lib/response.js", "lib/utils.js"]
+    },
+    {
+      "id": "express-dev-application-construction",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where is a new web application assembled with request and response prototypes and its initial settings?",
+      "expectedFiles": ["lib/express.js", "lib/application.js"],
+      "evidence": {"symbol": "createApplication and app.defaultConfiguration", "startLine": 27},
+      "hardNegatives": ["lib/response.js", "lib/view.js"]
+    },
+    {
+      "id": "express-dev-subdomain-offset",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where are tenant-like hostname prefixes extracted using the configured domain depth?",
+      "expectedFiles": ["lib/request.js"],
+      "evidence": {"symbol": "req.subdomains", "startLine": 383},
+      "hardNegatives": ["lib/application.js", "lib/utils.js"]
+    },
+    {
+      "id": "express-holdout-nested-query-parser",
+      "corpus": "expressjs-express",
+      "split": "holdout",
+      "query": "How are URL parameter strings decoded into nested request objects rather than flat key-value pairs?",
+      "expectedFiles": ["lib/utils.js", "lib/request.js"],
+      "evidence": {"symbol": "parseExtendedQueryString and req.query", "startLine": 267},
+      "hardNegatives": ["lib/application.js", "lib/response.js"]
+    },
+    {
+      "id": "express-holdout-secure-forwarded-protocol",
+      "corpus": "expressjs-express",
+      "split": "holdout",
+      "query": "How does the server decide whether the original client connection used HTTPS when a trusted proxy is involved?",
+      "expectedFiles": ["lib/request.js"],
+      "evidence": {"symbol": "req.protocol and req.secure", "startLine": 297},
+      "hardNegatives": ["lib/utils.js", "lib/application.js"]
+    }
+  ]
+}

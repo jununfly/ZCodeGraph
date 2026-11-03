@@ -1,0 +1,1100 @@
+{
+  "metric": "semantic-retrieval-human-frozen",
+  "version": 1,
+  "status": "human-reviewed-frozen",
+  "candidate": "docs/baselines/semantic-retrieval-human-annotation-v1.json",
+  "candidateSha256": "450bc4c3f1e325c305ec90a0f3a33dccf7e42c2bb28f456c48716a69413c60ce",
+  "probeSha256": "7af16038e938af9e99d501a74cc6dbdaaeaefc89a8f23fae71921ae28cd58ebe",
+  "review": {
+    "reviewer": "victo",
+    "reviewedAt": "2026-11-03T11:58:17+08:00",
+    "independentOfTuning": true,
+    "rankingsShown": false,
+    "corpusApproved": {
+      "pallets-flask": true,
+      "expressjs-express": true,
+      "spring-projects-spring-petclinic": true,
+      "actix-actix-web": true,
+      "dotnet-architecture-eShopOnWeb": true
+    },
+    "notes": ""
+  },
+  "policy": {
+    "minimumQuestionsPerCorpus": 12,
+    "minimumTotalAccepted": 60,
+    "minimumHoldoutFraction": 0.25,
+    "wholeHoldoutCorpus": "dotnet-architecture-eShopOnWeb",
+    "instruction": "Review the natural-language intent, acceptable entry files and source evidence without rankings. Amend or reject unsuitable candidates. Do not approve solely because a source symbol exists.",
+    "existingProbe": "docs/baselines/semantic-retrieval-probe-v1.json contains the 24 Flask/Express candidates. Their source anchors were checked, but they remain subject to this same Human review.",
+    "splitRule": "The complete eShopOnWeb corpus is an unseen holdout. The existing four *-holdout-* questions are additional holdouts. All other candidates are development until a separate frozen release manifest is approved.",
+    "artifactScope": "Candidate labels only; no product integration, model selection, corpus tuning, or achieved recall is implied."
+  },
+  "corpora": [
+    {
+      "id": "pallets-flask",
+      "repo": "pallets/flask",
+      "ref": "05e9c6bd630ecf4ec0ec884b1fc7901663737bc7",
+      "language": "python",
+      "structure": "package-with-blueprints-and-sansio-scaffolding"
+    },
+    {
+      "id": "expressjs-express",
+      "repo": "expressjs/express",
+      "ref": "6d2df035a95f3d1002be3e29997b7a4bfe976b5f",
+      "language": "javascript",
+      "structure": "small-flat-library-with-request-response-prototypes"
+    },
+    {
+      "id": "spring-projects-spring-petclinic",
+      "repo": "spring-projects/spring-petclinic",
+      "ref": "f3c74834e31079f69855e9c9eddb34fceb40a8d9",
+      "language": "java",
+      "structure": "layered-spring-mvc-application",
+      "split": "development"
+    },
+    {
+      "id": "actix-actix-web",
+      "repo": "actix/actix-web",
+      "ref": "2db7119a990511e90e234d8ba118234b51bce68a",
+      "language": "rust",
+      "structure": "async-rust-web-framework",
+      "split": "development"
+    },
+    {
+      "id": "dotnet-architecture-eShopOnWeb",
+      "repo": "dotnet-architecture/eShopOnWeb",
+      "ref": "4da8212117e87d808d4bbc7da6286fd2147ce606",
+      "language": "csharp",
+      "structure": "layered-aspnet-application-and-blazor-admin",
+      "split": "holdout"
+    }
+  ],
+  "queries": [
+    {
+      "id": "flask-dev-static-safe-download",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "How do I safely serve a user-requested upload as an attachment without allowing path traversal?",
+      "expectedFiles": [
+        "src/flask/helpers.py"
+      ],
+      "evidence": {
+        "symbol": "send_from_directory",
+        "startLine": 543
+      },
+      "hardNegatives": [
+        "src/flask/app.py",
+        "src/flask/sessions.py"
+      ]
+    },
+    {
+      "id": "flask-dev-stream-request-context",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "Where can a streaming response retain request-local state after the view has returned its generator?",
+      "expectedFiles": [
+        "src/flask/helpers.py"
+      ],
+      "evidence": {
+        "symbol": "stream_with_context",
+        "startLine": 63
+      },
+      "hardNegatives": [
+        "src/flask/ctx.py",
+        "src/flask/templating.py"
+      ]
+    },
+    {
+      "id": "flask-dev-flash-once-next-request",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "How is a temporary user notification stored for one later request and then consumed by the template?",
+      "expectedFiles": [
+        "src/flask/helpers.py"
+      ],
+      "evidence": {
+        "symbol": "flash and get_flashed_messages",
+        "startLine": 326
+      },
+      "hardNegatives": [
+        "src/flask/sessions.py",
+        "src/flask/templating.py"
+      ]
+    },
+    {
+      "id": "flask-dev-conditional-file-cache",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "Which code turns a local file into a response with ETags, byte ranges, cache lifetime and a download filename?",
+      "expectedFiles": [
+        "src/flask/helpers.py"
+      ],
+      "evidence": {
+        "symbol": "send_file",
+        "startLine": 417
+      },
+      "hardNegatives": [
+        "src/flask/wrappers.py",
+        "src/flask/config.py"
+      ]
+    },
+    {
+      "id": "flask-dev-custom-json-serialization",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "Where should an application customize serialization of domain objects into JSON responses?",
+      "expectedFiles": [
+        "src/flask/json/provider.py"
+      ],
+      "evidence": {
+        "symbol": "JSONProvider and DefaultJSONProvider",
+        "startLine": 19
+      },
+      "hardNegatives": [
+        "src/flask/json/__init__.py",
+        "src/flask/wrappers.py"
+      ]
+    },
+    {
+      "id": "flask-dev-session-cookie-boundary",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "Where is a signed client-side session loaded from the request cookie and persisted into the response?",
+      "expectedFiles": [
+        "src/flask/sessions.py"
+      ],
+      "evidence": {
+        "symbol": "SecureCookieSessionInterface",
+        "startLine": 284
+      },
+      "hardNegatives": [
+        "src/flask/helpers.py",
+        "src/flask/ctx.py"
+      ]
+    },
+    {
+      "id": "flask-dev-template-stream",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "How can a template be rendered incrementally instead of buffering the complete HTML string?",
+      "expectedFiles": [
+        "src/flask/templating.py"
+      ],
+      "evidence": {
+        "symbol": "stream_template",
+        "startLine": 181
+      },
+      "hardNegatives": [
+        "src/flask/helpers.py",
+        "src/flask/sansio/app.py"
+      ]
+    },
+    {
+      "id": "flask-dev-blueprint-modular-routes",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "How can independently organized route groups and their resources be composed into the application?",
+      "expectedFiles": [
+        "src/flask/blueprints.py",
+        "src/flask/sansio/blueprints.py"
+      ],
+      "evidence": {
+        "symbol": "Blueprint",
+        "startLine": 18
+      },
+      "hardNegatives": [
+        "src/flask/sansio/scaffold.py",
+        "src/flask/views.py"
+      ]
+    },
+    {
+      "id": "flask-dev-url-dispatch",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "After URL matching, where is the endpoint converted into a view invocation with its captured path arguments?",
+      "expectedFiles": [
+        "src/flask/app.py"
+      ],
+      "evidence": {
+        "symbol": "Flask.dispatch_request",
+        "startLine": 969
+      },
+      "hardNegatives": [
+        "src/flask/sansio/scaffold.py",
+        "src/flask/ctx.py"
+      ]
+    },
+    {
+      "id": "flask-dev-dev-server-tls",
+      "corpus": "pallets-flask",
+      "split": "development",
+      "query": "How are certificate and private-key options validated when starting the HTTPS development server?",
+      "expectedFiles": [
+        "src/flask/cli.py"
+      ],
+      "evidence": {
+        "symbol": "CertParamType and _validate_key",
+        "startLine": 780
+      },
+      "hardNegatives": [
+        "src/flask/app.py",
+        "src/flask/config.py"
+      ]
+    },
+    {
+      "id": "flask-holdout-env-debug-cli",
+      "corpus": "pallets-flask",
+      "split": "holdout",
+      "query": "How do environment files and the debug setting affect application startup through the command line?",
+      "expectedFiles": [
+        "src/flask/cli.py"
+      ],
+      "evidence": {
+        "symbol": "ScriptInfo and load_dotenv",
+        "startLine": 293
+      },
+      "hardNegatives": [
+        "src/flask/config.py",
+        "src/flask/app.py"
+      ]
+    },
+    {
+      "id": "flask-holdout-request-lifetime",
+      "corpus": "pallets-flask",
+      "split": "holdout",
+      "query": "Where is per-request ambient state pushed on entry and unwound with teardown callbacks?",
+      "expectedFiles": [
+        "src/flask/ctx.py",
+        "src/flask/app.py"
+      ],
+      "evidence": {
+        "symbol": "AppContext and Flask.do_teardown_request",
+        "startLine": 260
+      },
+      "hardNegatives": [
+        "src/flask/globals.py",
+        "src/flask/helpers.py"
+      ]
+    },
+    {
+      "id": "express-dev-content-negotiation",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where is the response representation chosen from the client's Accept header, with a 406 when nothing matches?",
+      "expectedFiles": [
+        "lib/response.js"
+      ],
+      "evidence": {
+        "symbol": "res.format",
+        "startLine": 574
+      },
+      "hardNegatives": [
+        "lib/request.js",
+        "lib/utils.js"
+      ]
+    },
+    {
+      "id": "express-dev-language-negotiation",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where does the application choose the best supported language for the incoming request?",
+      "expectedFiles": [
+        "lib/request.js"
+      ],
+      "evidence": {
+        "symbol": "req.acceptsLanguages",
+        "startLine": 185
+      },
+      "hardNegatives": [
+        "lib/response.js",
+        "lib/application.js"
+      ]
+    },
+    {
+      "id": "express-dev-byte-ranges",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "How are partial-content byte ranges parsed and classified as malformed or unsatisfiable?",
+      "expectedFiles": [
+        "lib/request.js"
+      ],
+      "evidence": {
+        "symbol": "req.range",
+        "startLine": 214
+      },
+      "hardNegatives": [
+        "lib/response.js",
+        "lib/utils.js"
+      ]
+    },
+    {
+      "id": "express-dev-download-disposition",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where is a response marked as an attachment so a browser saves it under a filename?",
+      "expectedFiles": [
+        "lib/response.js"
+      ],
+      "evidence": {
+        "symbol": "res.attachment",
+        "startLine": 609
+      },
+      "hardNegatives": [
+        "lib/view.js",
+        "lib/request.js"
+      ]
+    },
+    {
+      "id": "express-dev-jsonp",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where is JSON wrapped in a client-provided JavaScript callback for cross-domain script inclusion?",
+      "expectedFiles": [
+        "lib/response.js"
+      ],
+      "evidence": {
+        "symbol": "res.jsonp",
+        "startLine": 264
+      },
+      "hardNegatives": [
+        "lib/request.js",
+        "lib/utils.js"
+      ]
+    },
+    {
+      "id": "express-dev-proxy-client-address",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "How are forwarded addresses converted into a trustworthy client IP chain behind reverse proxies?",
+      "expectedFiles": [
+        "lib/request.js",
+        "lib/utils.js"
+      ],
+      "evidence": {
+        "symbol": "req.ips and compileTrust",
+        "startLine": 357
+      },
+      "hardNegatives": [
+        "lib/application.js",
+        "lib/response.js"
+      ]
+    },
+    {
+      "id": "express-dev-view-lookup",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "How is a template file resolved on disk and its rendering engine invoked?",
+      "expectedFiles": [
+        "lib/view.js"
+      ],
+      "evidence": {
+        "symbol": "View.lookup and View.render",
+        "startLine": 104
+      },
+      "hardNegatives": [
+        "lib/application.js",
+        "lib/response.js"
+      ]
+    },
+    {
+      "id": "express-dev-conditional-request",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where do cache validators determine that a request is still fresh and can avoid sending the body again?",
+      "expectedFiles": [
+        "lib/request.js"
+      ],
+      "evidence": {
+        "symbol": "req.fresh",
+        "startLine": 469
+      },
+      "hardNegatives": [
+        "lib/response.js",
+        "lib/utils.js"
+      ]
+    },
+    {
+      "id": "express-dev-application-construction",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where is a new web application assembled with request and response prototypes and its initial settings?",
+      "expectedFiles": [
+        "lib/express.js",
+        "lib/application.js"
+      ],
+      "evidence": {
+        "symbol": "createApplication and app.defaultConfiguration",
+        "startLine": 27
+      },
+      "hardNegatives": [
+        "lib/response.js",
+        "lib/view.js"
+      ]
+    },
+    {
+      "id": "express-dev-subdomain-offset",
+      "corpus": "expressjs-express",
+      "split": "development",
+      "query": "Where are tenant-like hostname prefixes extracted using the configured domain depth?",
+      "expectedFiles": [
+        "lib/request.js"
+      ],
+      "evidence": {
+        "symbol": "req.subdomains",
+        "startLine": 383
+      },
+      "hardNegatives": [
+        "lib/application.js",
+        "lib/utils.js"
+      ]
+    },
+    {
+      "id": "express-holdout-nested-query-parser",
+      "corpus": "expressjs-express",
+      "split": "holdout",
+      "query": "How are URL parameter strings decoded into nested request objects rather than flat key-value pairs?",
+      "expectedFiles": [
+        "lib/utils.js",
+        "lib/request.js"
+      ],
+      "evidence": {
+        "symbol": "parseExtendedQueryString and req.query",
+        "startLine": 267
+      },
+      "hardNegatives": [
+        "lib/application.js",
+        "lib/response.js"
+      ]
+    },
+    {
+      "id": "express-holdout-secure-forwarded-protocol",
+      "corpus": "expressjs-express",
+      "split": "holdout",
+      "query": "How does the server decide whether the original client connection used HTTPS when a trusted proxy is involved?",
+      "expectedFiles": [
+        "lib/request.js"
+      ],
+      "evidence": {
+        "symbol": "req.protocol and req.secure",
+        "startLine": 297
+      },
+      "hardNegatives": [
+        "lib/utils.js",
+        "lib/application.js"
+      ]
+    },
+    {
+      "id": "spring-owner-search-pagination",
+      "corpus": "spring-projects-spring-petclinic",
+      "query": "Where does searching owners by surname handle zero, one, or several results and paginate the list?",
+      "expectedFiles": [
+        "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java"
+      ],
+      "evidence": {
+        "symbol": "processFindForm",
+        "startLine": 95
+      },
+      "hardNegatives": [
+        "src/main/java/org/springframework/samples/petclinic/owner/OwnerRepository.java",
+        "src/main/java/org/springframework/samples/petclinic/vet/VetController.java"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "spring-owner-create-validation",
+      "corpus": "spring-projects-spring-petclinic",
+      "query": "Which request handler validates and saves a newly submitted owner, then redirects to its detail page?",
+      "expectedFiles": [
+        "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java"
+      ],
+      "evidence": {
+        "symbol": "processCreationForm",
+        "startLine": 78
+      },
+      "hardNegatives": [
+        "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+        "src/main/java/org/springframework/samples/petclinic/owner/Owner.java"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "spring-owner-update-id-mismatch",
+      "corpus": "spring-projects-spring-petclinic",
+      "query": "Where is an edited owner rejected when the form identity disagrees with the URL before persisting changes?",
+      "expectedFiles": [
+        "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java"
+      ],
+      "evidence": {
+        "symbol": "processUpdateOwnerForm",
+        "startLine": 145
+      },
+      "hardNegatives": [
+        "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+        "src/main/java/org/springframework/samples/petclinic/model/BaseEntity.java"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "spring-pet-create-domain-rules",
+      "corpus": "spring-projects-spring-petclinic",
+      "query": "Which endpoint rejects duplicate pet names and future birth dates when adding a pet to an owner?",
+      "expectedFiles": [
+        "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+      ],
+      "evidence": {
+        "symbol": "processCreationForm",
+        "startLine": 108
+      },
+      "hardNegatives": [
+        "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+        "src/main/java/org/springframework/samples/petclinic/owner/Owner.java"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "spring-pet-update-existing-or-new",
+      "corpus": "spring-projects-spring-petclinic",
+      "query": "Where does editing a pet update the existing record or attach a new one before flushing the owner?",
+      "expectedFiles": [
+        "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+      ],
+      "evidence": {
+        "symbol": "updatePetDetails",
+        "startLine": 186
+      },
+      "hardNegatives": [
+        "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+        "src/main/java/org/springframework/samples/petclinic/owner/OwnerRepository.java"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "spring-pet-form-validation",
+      "corpus": "spring-projects-spring-petclinic",
+      "query": "Where are required pet name, type, and birth date checked with a maximum name length?",
+      "expectedFiles": [
+        "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java"
+      ],
+      "evidence": {
+        "symbol": "validate",
+        "startLine": 39
+      },
+      "hardNegatives": [
+        "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+        "src/main/java/org/springframework/samples/petclinic/model/Person.java"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "spring-pet-type-binding",
+      "corpus": "spring-projects-spring-petclinic",
+      "query": "How is a submitted pet-type name converted into the corresponding persistent type during form binding?",
+      "expectedFiles": [
+        "src/main/java/org/springframework/samples/petclinic/owner/PetTypeFormatter.java"
+      ],
+      "evidence": {
+        "symbol": "parse",
+        "startLine": 52
+      },
+      "hardNegatives": [
+        "src/main/java/org/springframework/samples/petclinic/owner/PetTypeRepository.java",
+        "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "spring-visit-booking-date",
+      "corpus": "spring-projects-spring-petclinic",
+      "query": "Which code creates and books a visit for a pet while rejecting dates that are not in the future?",
+      "expectedFiles": [
+        "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java"
+      ],
+      "evidence": {
+        "symbol": "processNewVisitForm",
+        "startLine": 98
+      },
+      "hardNegatives": [
+        "src/main/java/org/springframework/samples/petclinic/owner/Visit.java",
+        "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "spring-visit-load-associated-pet",
+      "corpus": "spring-projects-spring-petclinic",
+      "query": "Where is the correct owner's pet loaded and a new visit attached before displaying the booking form?",
+      "expectedFiles": [
+        "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java"
+      ],
+      "evidence": {
+        "symbol": "loadPetWithVisit",
+        "startLine": 64
+      },
+      "hardNegatives": [
+        "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+        "src/main/java/org/springframework/samples/petclinic/owner/Pet.java"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "spring-owner-pet-case-insensitive-lookup",
+      "corpus": "spring-projects-spring-petclinic",
+      "query": "Where is a pet found within an owner by a name match that ignores capitalization and can exclude unsaved entries?",
+      "expectedFiles": [
+        "src/main/java/org/springframework/samples/petclinic/owner/Owner.java"
+      ],
+      "evidence": {
+        "symbol": "getPet",
+        "startLine": 147
+      },
+      "hardNegatives": [
+        "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+        "src/main/java/org/springframework/samples/petclinic/owner/OwnerRepository.java"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "spring-vet-html-json-list",
+      "corpus": "spring-projects-spring-petclinic",
+      "query": "Which controller serves both the paginated veterinarian HTML list and the complete response-body representation?",
+      "expectedFiles": [
+        "src/main/java/org/springframework/samples/petclinic/vet/VetController.java"
+      ],
+      "evidence": {
+        "symbol": "showVetList",
+        "startLine": 45
+      },
+      "hardNegatives": [
+        "src/main/java/org/springframework/samples/petclinic/vet/Vets.java",
+        "src/main/java/org/springframework/samples/petclinic/vet/VetRepository.java"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "spring-form-binder-identifier-protection",
+      "corpus": "spring-projects-spring-petclinic",
+      "query": "Where are form submissions prevented from binding owner and pet identifier fields and given custom pet validation?",
+      "expectedFiles": [
+        "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+      ],
+      "evidence": {
+        "symbol": "initPetBinder",
+        "startLine": 95
+      },
+      "hardNegatives": [
+        "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+        "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "rust-request-scoped-shared-state",
+      "corpus": "actix-actix-web",
+      "query": "Where can a handler extract cheaply cloned application state whose nearest registration wins in nested routes?",
+      "expectedFiles": [
+        "actix-web/src/data.rs"
+      ],
+      "evidence": {
+        "symbol": "Data",
+        "startLine": 91
+      },
+      "hardNegatives": [
+        "actix-web/src/request_data.rs",
+        "actix-web/src/thin_data.rs"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "rust-request-app-data-lookup",
+      "corpus": "actix-actix-web",
+      "query": "How does request code look up typed data installed by the application or a containing route?",
+      "expectedFiles": [
+        "actix-web/src/request.rs"
+      ],
+      "evidence": {
+        "symbol": "app_data",
+        "startLine": 456
+      },
+      "hardNegatives": [
+        "actix-web/src/data.rs",
+        "actix-web/src/request_data.rs"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "rust-forwarded-connection-info",
+      "corpus": "actix-actix-web",
+      "query": "Where can request handling derive the client connection scheme, host and remote address from connection metadata?",
+      "expectedFiles": [
+        "actix-web/src/request.rs",
+        "actix-web/src/info.rs"
+      ],
+      "evidence": {
+        "symbol": "connection_info",
+        "startLine": 413
+      },
+      "hardNegatives": [
+        "actix-web/src/guard/host.rs",
+        "actix-web/src/app.rs"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "rust-query-string-extraction",
+      "corpus": "actix-actix-web",
+      "query": "Which extractor deserializes URL query parameters into a typed request value and handles malformed input?",
+      "expectedFiles": [
+        "actix-web/src/types/query.rs"
+      ],
+      "evidence": {
+        "symbol": "Query",
+        "startLine": 62
+      },
+      "hardNegatives": [
+        "actix-web/src/types/form.rs",
+        "actix-web/src/types/path.rs"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "rust-json-body-extraction",
+      "corpus": "actix-actix-web",
+      "query": "Where is a typed request body decoded from JSON with content-type and payload errors handled?",
+      "expectedFiles": [
+        "actix-web/src/types/json.rs"
+      ],
+      "evidence": {
+        "symbol": "Json",
+        "startLine": 77
+      },
+      "hardNegatives": [
+        "actix-web/src/types/form.rs",
+        "actix-web/src/types/payload.rs"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "rust-form-body-extraction",
+      "corpus": "actix-actix-web",
+      "query": "Which extractor turns a URL-encoded submitted form body into a typed value?",
+      "expectedFiles": [
+        "actix-web/src/types/form.rs"
+      ],
+      "evidence": {
+        "symbol": "Form",
+        "startLine": 88
+      },
+      "hardNegatives": [
+        "actix-web/src/types/json.rs",
+        "actix-web/src/types/query.rs"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "rust-function-middleware",
+      "corpus": "actix-actix-web",
+      "query": "How can an asynchronous function wrap the next service to implement request middleware without a custom middleware type?",
+      "expectedFiles": [
+        "actix-web/src/middleware/from_fn.rs"
+      ],
+      "evidence": {
+        "symbol": "from_fn",
+        "startLine": 84
+      },
+      "hardNegatives": [
+        "actix-web/src/middleware/compat.rs",
+        "actix-web/src/middleware/condition.rs"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "rust-trailing-slash-normalization",
+      "corpus": "actix-actix-web",
+      "query": "Where is request routing normalized when paths differ only by a trailing slash?",
+      "expectedFiles": [
+        "actix-web/src/middleware/normalize.rs"
+      ],
+      "evidence": {
+        "symbol": "NormalizePath",
+        "startLine": 111
+      },
+      "hardNegatives": [
+        "actix-web/src/middleware/compat.rs",
+        "actix-web/src/redirect.rs"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "rust-host-route-guard",
+      "corpus": "actix-actix-web",
+      "query": "How can route selection be restricted by the requested virtual host rather than just the path?",
+      "expectedFiles": [
+        "actix-web/src/guard/host.rs"
+      ],
+      "evidence": {
+        "symbol": "Host",
+        "startLine": 58
+      },
+      "hardNegatives": [
+        "actix-web/src/info.rs",
+        "actix-web/src/guard/mod.rs"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "rust-redirect-status-responder",
+      "corpus": "actix-actix-web",
+      "query": "Where is an HTTP redirect response built with selectable permanent, temporary or see-other semantics?",
+      "expectedFiles": [
+        "actix-web/src/redirect.rs"
+      ],
+      "evidence": {
+        "symbol": "Redirect",
+        "startLine": 43
+      },
+      "hardNegatives": [
+        "actix-web/src/response/response.rs",
+        "actix-web/src/middleware/normalize.rs"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "rust-in-memory-service-testing",
+      "corpus": "actix-actix-web",
+      "query": "How can a test initialize an application service and invoke it in memory without opening a network listener?",
+      "expectedFiles": [
+        "actix-web/src/test/test_utils.rs"
+      ],
+      "evidence": {
+        "symbol": "init_service",
+        "startLine": 41
+      },
+      "hardNegatives": [
+        "actix-web/src/server.rs",
+        "actix-web/src/test/test_request.rs"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "rust-default-response-headers",
+      "corpus": "actix-actix-web",
+      "query": "Which middleware adds configured headers when a response has not already supplied them?",
+      "expectedFiles": [
+        "actix-web/src/middleware/default_headers.rs"
+      ],
+      "evidence": {
+        "symbol": "DefaultHeaders",
+        "startLine": 41
+      },
+      "hardNegatives": [
+        "actix-web/src/middleware/logger.rs",
+        "actix-web/src/response/response.rs"
+      ],
+      "split": "development"
+    },
+    {
+      "id": "eshop-basket-add-or-increment",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "Where does adding a catalog item to a buyer's basket create a new line or increase the existing quantity?",
+      "expectedFiles": [
+        "src/ApplicationCore/Entities/BasketAggregate/Basket.cs"
+      ],
+      "evidence": {
+        "symbol": "AddItem",
+        "startLine": 22
+      },
+      "hardNegatives": [
+        "src/ApplicationCore/Services/BasketService.cs",
+        "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs"
+      ],
+      "split": "holdout"
+    },
+    {
+      "id": "eshop-basket-service-load-or-create",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "Which application service finds or creates the user's basket, adds the item and persists the aggregate?",
+      "expectedFiles": [
+        "src/ApplicationCore/Services/BasketService.cs"
+      ],
+      "evidence": {
+        "symbol": "AddItemToBasket",
+        "startLine": 23
+      },
+      "hardNegatives": [
+        "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+        "src/ApplicationCore/Specifications/BasketWithItemsSpecification.cs"
+      ],
+      "split": "holdout"
+    },
+    {
+      "id": "eshop-basket-anonymous-transfer",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "Where are items moved from an anonymous shopping basket into the signed-in user's basket and the old basket removed?",
+      "expectedFiles": [
+        "src/ApplicationCore/Services/BasketService.cs"
+      ],
+      "evidence": {
+        "symbol": "TransferBasketAsync",
+        "startLine": 66
+      },
+      "hardNegatives": [
+        "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+        "src/ApplicationCore/Specifications/BasketWithItemsSpecification.cs"
+      ],
+      "split": "holdout"
+    },
+    {
+      "id": "eshop-order-from-basket",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "Where is an order assembled from basket lines and current catalog details after rejecting an empty checkout?",
+      "expectedFiles": [
+        "src/ApplicationCore/Services/OrderService.cs"
+      ],
+      "evidence": {
+        "symbol": "CreateOrderAsync",
+        "startLine": 30
+      },
+      "hardNegatives": [
+        "src/ApplicationCore/Entities/OrderAggregate/Order.cs",
+        "src/ApplicationCore/Services/BasketService.cs"
+      ],
+      "split": "holdout"
+    },
+    {
+      "id": "eshop-picture-url-composition",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "How is a catalog picture placeholder turned into a URL using the configured catalog base address?",
+      "expectedFiles": [
+        "src/ApplicationCore/Services/UriComposer.cs"
+      ],
+      "evidence": {
+        "symbol": "ComposePicUri",
+        "startLine": 11
+      },
+      "hardNegatives": [
+        "src/ApplicationCore/CatalogSettings.cs",
+        "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs"
+      ],
+      "split": "holdout"
+    },
+    {
+      "id": "eshop-catalog-filter-pagination",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "Where are brand and type filters combined with skip and take to retrieve a requested catalog page?",
+      "expectedFiles": [
+        "src/ApplicationCore/Specifications/CatalogFilterPaginatedSpecification.cs"
+      ],
+      "evidence": {
+        "symbol": "CatalogFilterPaginatedSpecification",
+        "startLine": 8
+      },
+      "hardNegatives": [
+        "src/ApplicationCore/Specifications/CatalogFilterSpecification.cs",
+        "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs"
+      ],
+      "split": "holdout"
+    },
+    {
+      "id": "eshop-catalog-list-endpoint",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "Which API handler counts filtered products, retrieves a page, maps picture URLs and calculates page count?",
+      "expectedFiles": [
+        "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs"
+      ],
+      "evidence": {
+        "symbol": "HandleAsync",
+        "startLine": 40
+      },
+      "hardNegatives": [
+        "src/ApplicationCore/Specifications/CatalogFilterPaginatedSpecification.cs",
+        "src/ApplicationCore/Services/UriComposer.cs"
+      ],
+      "split": "holdout"
+    },
+    {
+      "id": "eshop-catalog-create-duplicate-guard",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "Where does creating a catalog product reject duplicate names and assign the default picture before returning a created response?",
+      "expectedFiles": [
+        "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.cs"
+      ],
+      "evidence": {
+        "symbol": "HandleAsync",
+        "startLine": 39
+      },
+      "hardNegatives": [
+        "src/ApplicationCore/Specifications/CatalogItemNameSpecification.cs",
+        "src/ApplicationCore/Exceptions/DuplicateException.cs"
+      ],
+      "split": "holdout"
+    },
+    {
+      "id": "eshop-browser-cache-expiry",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "Where are cached catalog items reused for one minute before the browser local-storage entry expires and is refreshed?",
+      "expectedFiles": [
+        "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs"
+      ],
+      "evidence": {
+        "symbol": "ListPaged",
+        "startLine": 27
+      },
+      "hardNegatives": [
+        "src/BlazorAdmin/Services/CatalogItemService.cs",
+        "src/BlazorAdmin/Services/CacheEntry.cs"
+      ],
+      "split": "holdout"
+    },
+    {
+      "id": "eshop-cache-invalidate-after-mutation",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "How is the browser's cached product list invalidated and refreshed after a create, edit or delete mutation?",
+      "expectedFiles": [
+        "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs"
+      ],
+      "evidence": {
+        "symbol": "RefreshLocalStorageList",
+        "startLine": 104
+      },
+      "hardNegatives": [
+        "src/BlazorAdmin/Services/CatalogItemService.cs",
+        "src/BlazorAdmin/Services/HttpService.cs"
+      ],
+      "split": "holdout"
+    },
+    {
+      "id": "eshop-json-http-error-feedback",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "Where does the admin client serialize JSON API requests, deserialize responses and surface failed mutations as toast errors?",
+      "expectedFiles": [
+        "src/BlazorAdmin/Services/HttpService.cs"
+      ],
+      "evidence": {
+        "symbol": "HttpPost",
+        "startLine": 49
+      },
+      "hardNegatives": [
+        "src/BlazorAdmin/Services/ToastService.cs",
+        "src/BlazorAdmin/Services/CatalogItemService.cs"
+      ],
+      "split": "holdout"
+    },
+    {
+      "id": "eshop-empty-basket-checkout-exception",
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "query": "Which domain error represents an attempt to check out with no items in the shopping basket?",
+      "expectedFiles": [
+        "src/ApplicationCore/Exceptions/EmptyBasketOnCheckoutException.cs"
+      ],
+      "evidence": {
+        "symbol": "EmptyBasketOnCheckoutException",
+        "startLine": 5
+      },
+      "hardNegatives": [
+        "src/ApplicationCore/Services/OrderService.cs",
+        "src/ApplicationCore/Extensions/GuardExtensions.cs"
+      ],
+      "split": "holdout"
+    }
+  ]
+}

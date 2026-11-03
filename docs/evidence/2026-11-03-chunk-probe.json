@@ -1,0 +1,203 @@
+{
+  "metric": "chunk-probe",
+  "version": 1,
+  "measuredAt": "2026-11-03T07:32:23.553Z",
+  "gate": {
+    "expectedTop5Min": 4,
+    "total": 5,
+    "hardNegativeTop3Allowed": false
+  },
+  "queries": [
+    {
+      "id": "eshop-picture-url-composition",
+      "query": "How is a catalog picture placeholder turned into a URL using the configured catalog base address?",
+      "expectedRank": 2,
+      "expectedInTop5": true,
+      "hardNegInTop3": true,
+      "pass": false,
+      "ranked": [
+        {
+          "rank": 1,
+          "id": "catalogsettings-class",
+          "file": "src/ApplicationCore/CatalogSettings.cs",
+          "symbol": "CatalogSettings",
+          "isExpected": false,
+          "score": 0.7670583488618559
+        },
+        {
+          "rank": 2,
+          "id": "uricomposer-ctor",
+          "file": "src/ApplicationCore/Services/UriComposer.cs",
+          "symbol": "UriComposer ctor",
+          "isExpected": true,
+          "score": 0.7654591595355216
+        },
+        {
+          "rank": 3,
+          "id": "uricomposer-composepicuri",
+          "file": "src/ApplicationCore/Services/UriComposer.cs",
+          "symbol": "ComposePicUri",
+          "isExpected": true,
+          "score": 0.7371334266843934
+        },
+        {
+          "rank": 4,
+          "id": "catalogitemlistpaged-handleasync",
+          "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+          "symbol": "HandleAsync (List Paged)",
+          "isExpected": false,
+          "score": 0.6780058687250201
+        }
+      ]
+    },
+    {
+      "id": "eshop-catalog-filter-pagination",
+      "query": "Where are brand and type filters combined with skip and take to retrieve a requested catalog page?",
+      "expectedRank": 1,
+      "expectedInTop5": true,
+      "hardNegInTop3": true,
+      "pass": false,
+      "ranked": [
+        {
+          "rank": 1,
+          "id": "catalogfilterpaginated-ctor",
+          "file": "src/ApplicationCore/Specifications/CatalogFilterPaginatedSpecification.cs",
+          "symbol": "CatalogFilterPaginatedSpecification",
+          "isExpected": true,
+          "score": 0.8198340394026578
+        },
+        {
+          "rank": 2,
+          "id": "catalogfilter-ctor",
+          "file": "src/ApplicationCore/Specifications/CatalogFilterSpecification.cs",
+          "symbol": "CatalogFilterSpecification",
+          "isExpected": false,
+          "score": 0.7572397394011579
+        },
+        {
+          "rank": 3,
+          "id": "catalogitemlistpaged-addroute",
+          "file": "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+          "symbol": "AddRoute (List Paged)",
+          "isExpected": false,
+          "score": 0.7506104447740058
+        }
+      ]
+    },
+    {
+      "id": "eshop-catalog-create-duplicate-guard",
+      "query": "Where does creating a catalog product reject duplicate names and assign the default picture before returning a created response?",
+      "expectedRank": 1,
+      "expectedInTop5": true,
+      "hardNegInTop3": true,
+      "pass": false,
+      "ranked": [
+        {
+          "rank": 1,
+          "id": "createcatalogitem-handleasync",
+          "file": "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.cs",
+          "symbol": "HandleAsync (Create)",
+          "isExpected": true,
+          "score": 0.7448504904107865
+        },
+        {
+          "rank": 2,
+          "id": "catalogitemname-spec",
+          "file": "src/ApplicationCore/Specifications/CatalogItemNameSpecification.cs",
+          "symbol": "CatalogItemNameSpecification",
+          "isExpected": false,
+          "score": 0.6787761397910458
+        },
+        {
+          "rank": 3,
+          "id": "duplicate-exception",
+          "file": "src/ApplicationCore/Exceptions/DuplicateException.cs",
+          "symbol": "DuplicateException",
+          "isExpected": false,
+          "score": 0.6732167651177442
+        }
+      ]
+    },
+    {
+      "id": "eshop-json-http-error-feedback",
+      "query": "Where does the admin client serialize JSON API requests, deserialize responses and surface failed mutations as toast errors?",
+      "expectedRank": 1,
+      "expectedInTop5": true,
+      "hardNegInTop3": true,
+      "pass": false,
+      "ranked": [
+        {
+          "rank": 1,
+          "id": "httpservice-httppost",
+          "file": "src/BlazorAdmin/Services/HttpService.cs",
+          "symbol": "HttpPost",
+          "isExpected": true,
+          "score": 0.714932992293891
+        },
+        {
+          "rank": 2,
+          "id": "httpservice-httpput",
+          "file": "src/BlazorAdmin/Services/HttpService.cs",
+          "symbol": "HttpPut",
+          "isExpected": true,
+          "score": 0.6927160344257681
+        },
+        {
+          "rank": 3,
+          "id": "catalogitemservice-create",
+          "file": "src/BlazorAdmin/Services/CatalogItemService.cs",
+          "symbol": "Create",
+          "isExpected": false,
+          "score": 0.5838397656766163
+        },
+        {
+          "rank": 4,
+          "id": "toastservice-showtoast",
+          "file": "src/BlazorAdmin/Services/ToastService.cs",
+          "symbol": "ShowToast",
+          "isExpected": false,
+          "score": 0.5795354539868516
+        }
+      ]
+    },
+    {
+      "id": "eshop-empty-basket-checkout-exception",
+      "query": "Which domain error represents an attempt to check out with no items in the shopping basket?",
+      "expectedRank": 1,
+      "expectedInTop5": true,
+      "hardNegInTop3": true,
+      "pass": false,
+      "ranked": [
+        {
+          "rank": 1,
+          "id": "emptybasket-exception-class",
+          "file": "src/ApplicationCore/Exceptions/EmptyBasketOnCheckoutException.cs",
+          "symbol": "EmptyBasketOnCheckoutException",
+          "isExpected": true,
+          "score": 0.764223323804869
+        },
+        {
+          "rank": 2,
+          "id": "guardextensions-emptybasket",
+          "file": "src/ApplicationCore/Extensions/GuardExtensions.cs",
+          "symbol": "EmptyBasketOnCheckout guard",
+          "isExpected": false,
+          "score": 0.6724310647075672
+        },
+        {
+          "rank": 3,
+          "id": "orderservice-createorder",
+          "file": "src/ApplicationCore/Services/OrderService.cs",
+          "symbol": "CreateOrderAsync",
+          "isExpected": false,
+          "score": 0.6257377441261555
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 0,
+    "gatePass": false
+  }
+}

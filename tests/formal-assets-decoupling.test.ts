@@ -78,6 +78,18 @@ const BASELINES = [
     file: 'dead-code-annotation-r1-v1.json',
     consumers: ['scripts/measure/dead-code-precision.mjs'],
   },
+  {
+    file: 'semantic-retrieval-probe-v1.json',
+    consumers: ['scripts/measure/semantic-retrieval-probe.mjs'],
+  },
+  {
+    file: 'semantic-retrieval-human-annotation-v1.json',
+    consumers: ['scripts/measure/semantic-retrieval-annotation.mjs'],
+  },
+  {
+    file: 'semantic-retrieval-human-frozen-v1.json',
+    consumers: ['scripts/measure/semantic-retrieval-annotation.mjs'],
+  },
 ] as const;
 
 describe('formal assets are self-contained', () => {

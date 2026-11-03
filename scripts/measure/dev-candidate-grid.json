@@ -1,0 +1,15 @@
+{
+  "metric": "dev-candidate-grid",
+  "version": 1,
+  "description": "1-3-2 candidate selection grid: file-level representation × fusion strategy × query encoding",
+  "representation": "file-level",
+  "queryEncodings": ["embed", "queryEmbed"],
+  "fusionStrategies": ["pure-vec", "pure-fts", "rrf-k60", "weighted-alpha"],
+  "fusionPartners": ["existing-explore", "symbol-fts"],
+  "rrfK": 60,
+  "weightedAlphaRange": { "min": 0.1, "max": 0.9, "step": 0.1 },
+  "topK": 10,
+  "warmRepetitions": 3,
+  "corpora": ["pallets-flask", "expressjs-express", "spring-projects-spring-petclinic", "actix-actix-web"],
+  "notes": "chunk/symbol representation deferred to subsequent node; actix file-level vectors must be generated before evaluation"
+}

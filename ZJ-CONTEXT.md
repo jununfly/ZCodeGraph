@@ -439,3 +439,13 @@ are what give the term its skeletonization decision power.
 **Not:** Exact-symbol lookup, an unrestricted code question-answering system, or proof that vector candidates improve agent outcomes.
 
 **Related terms:** Explore Answer, Agent Sufficiency, Embedding Readiness.
+
+### Retrieval Acceptance Gate
+
+**Definition:** A predeclared evidence boundary that separates offline retrieval improvement, Agent-level net benefit, and permission to integrate a semantic retrieval candidate into the product.
+
+**Use when:** Deciding whether a reranking or semantic-fusion candidate may advance, interpreting a NO-GO result, or changing retrieval metrics and their thresholds.
+
+**Not:** A mandate to maximize MRR, a count of passing script checks, or proof that a diagnostic holdout remains independent after it informs tuning.
+
+**Related terms:** Agent Sufficiency, Semantic Entry Discovery, Evidence Artifact.
