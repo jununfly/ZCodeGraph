@@ -24,9 +24,10 @@ const CORPUS_ROOT = 'C:/workspace/measure-corpus';
 const CHUNK_KINDS = new Set(['function', 'method']);
 
 function parseArgs(argv) {
-  const out = { corpora: [] };
+  const out = { corpora: [], maxChunks: null };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--corpus') out.corpora.push(argv[++i]);
+    else if (argv[i] === '--max-chunks') out.maxChunks = parseInt(argv[++i], 10);
     else throw new Error(`unknown arg: ${argv[i]}`);
   }
   if (out.corpora.length === 0) throw new Error('at least one --corpus required');
@@ -60,9 +61,14 @@ async function embedBatch(model, texts) {
   return out;
 }
 
-async function buildFor(corpus, model) {
-  const dbPath = path.join(SPIKE, '.work', corpus, 'zcodegraph.db');
-  if (!fs.existsSync(dbPath)) throw new Error(`missing db: ${dbPath}`);
+async function buildFor(corpus, model, maxChunks) {
+  // Prefer the live indexed db under CORPUS_ROOT/<corpus>/.zcodegraph/ (current
+  // rust-hybrid or typescript index). Fall back to the spike .work/ copy for
+  // reproducibility of 1-3-3-1 results.
+  const liveDb = path.join(CORPUS_ROOT, corpus, '.zcodegraph', 'zcodegraph.db');
+  const spikeDb = path.join(SPIKE, '.work', corpus, 'zcodegraph.db');
+  const dbPath = fs.existsSync(liveDb) ? liveDb : spikeDb;
+  if (!fs.existsSync(dbPath)) throw new Error(`missing db: tried ${liveDb} and ${spikeDb}`);
   const corpusRoot = path.join(CORPUS_ROOT, corpus);
   const db = new DatabaseSync(dbPath, { readOnly: true });
 
@@ -91,24 +97,36 @@ async function buildFor(corpus, model) {
   }
   console.error(`[chunk-index-build] ${corpus}: ${chunks.length} chunks after source filter`);
 
-  const BATCH = 32;
-  for (let i = 0; i < chunks.length; i += BATCH) {
-    const slice = chunks.slice(i, i + BATCH);
+  // Apply --max-chunks cap if specified. Deterministic: take first N by file_path/start_line order.
+  const effectiveChunks = maxChunks && chunks.length > maxChunks ? chunks.slice(0, maxChunks) : chunks;
+  if (effectiveChunks.length < chunks.length) {
+    console.error(`[chunk-index-build] ${corpus}: capped to ${effectiveChunks.length} chunks (--max-chunks ${maxChunks})`);
+  }
+
+  const BATCH = 16;
+  const t0 = Date.now();
+  for (let i = 0; i < effectiveChunks.length; i += BATCH) {
+    const slice = effectiveChunks.slice(i, i + BATCH);
     const vecs = await embedBatch(model, slice.map((c) => c.text));
     for (let j = 0; j < slice.length; j++) slice[j].vector = vecs[j];
-    if ((i / BATCH) % 10 === 0) console.error(`[chunk-index-build] ${corpus}: embedded ${i + slice.length}/${chunks.length}`);
+    const done = i + slice.length;
+    if (done % 100 === 0 || done === effectiveChunks.length) {
+      const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+      const rate = (done / ((Date.now() - t0) / 1000)).toFixed(1);
+      console.error(`[chunk-index-build] ${corpus}: embedded ${done}/${effectiveChunks.length} (${elapsed}s, ${rate}/s)`);
+    }
   }
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const out = path.join(OUT_DIR, `${corpus}.chunks.json`);
-  fs.writeFileSync(out, JSON.stringify({ corpus, count: chunks.length, chunks }, null, 0));
+  fs.writeFileSync(out, JSON.stringify({ corpus, count: effectiveChunks.length, chunks: effectiveChunks }, null, 0));
   console.error(`[chunk-index-build] ${corpus}: wrote ${out}`);
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const model = await loadEmbedder();
-  for (const corpus of args.corpora) await buildFor(corpus, model);
+  for (const corpus of args.corpora) await buildFor(corpus, model, args.maxChunks);
 }
 
 await main();

@@ -80,7 +80,8 @@
         "1-3-1",
         "1-3-2",
         "1-3-3",
-        "1-3-4"
+        "1-3-4",
+        "1-3-5"
       ],
       "decisions": [],
       "notes": "",
@@ -430,7 +431,7 @@
       "id": "1-3-4",
       "uid": "01a1a0a800ae-6a4b54cf3d",
       "label": "有界文件重排与新冻结留出集独立验收",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3",
       "children": [],
@@ -474,6 +475,11 @@
           "q": "Q7 v2 冻结完成",
           "answer": "v2 frozen artifact docs/baselines/semantic-retrieval-human-frozen-v2.json 已生成：84 queries（v1 60 development + rails 12 holdout + k8s 12 holdout），holdout fraction 28.6% ✅，7 corpora / 7 languages，kubernetes 24,429 files 满足大仓门。Human reviewer=victo，reviewedAt=2026-11-03T10:45:01Z，rankingsShown=false，independentOfTuning=true。候选 hash：v1=994fde36, rails=c64579b4, k8s=b9efa975。按 v2 §2 冻结后不得修改。",
           "note": ""
+        },
+        {
+          "q": "Q8 v2 验收 NO-GO 判定",
+          "answer": "v2 验收 NO-GO：33 项门 3 项通过。根因是 k8s 24k 文件大仓性能灾难（explore 单题 ~20s vs 小仓 ~1s），导致所有延迟门、资源门、大仓门全失败。R3 在 rails 上有效（Hit@5 0.250→0.500），但被 k8s 性能问题掩盖。按 v2 §6 关闭本轮产品化，开 1-3-5 专攻大仓性能优化。报告 docs/evidence/2026-11-04-chunk-fused-holdout-v2.{md,json}。",
+          "note": ""
         }
       ],
       "notes": "",
@@ -489,11 +495,29 @@
         "失败只关闭本轮产品化；旧16题仅用于诊断/回归，不用于独立晋级"
       ],
       "rounds": 1
+    },
+    "1-3-5": {
+      "id": "1-3-5",
+      "uid": "01a1a6730864-9011657a07",
+      "label": "大仓性能优化：explore 在 24k 文件上从 20s 降到 150ms",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "scope gate 分类",
+          "answer": "Product execution：修改 src/ 优化 explore 在大仓上的性能。目标：k8s 24k 文件 explore 单题从 ~20s 降到 ≤150ms（v2 §4 热 p50 门）。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan"
     }
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-03 18:45:59",
+    "updated": "2026-11-04 20:05:33",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
