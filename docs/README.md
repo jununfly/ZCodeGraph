@@ -51,6 +51,9 @@ to a test, script, or CI job; routine measurement output must not be added here.
 | [`semantic-retrieval-probe-v1.json`](baselines/semantic-retrieval-probe-v1.json) | `scripts/measure/semantic-retrieval-probe.mjs` | Exploratory real-source AI-anchored retrieval probe; not independent human acceptance labels |
 | [`semantic-retrieval-human-annotation-v1.json`](baselines/semantic-retrieval-human-annotation-v1.json) | `scripts/measure/semantic-retrieval-annotation.mjs` | 36 new candidates combined with the 24 probe questions for Human-blind review; AI-authored source input |
 | [`semantic-retrieval-human-frozen-v1.json`](baselines/semantic-retrieval-human-frozen-v1.json) | `scripts/measure/semantic-retrieval-annotation.mjs` | 60 Human-reviewed labels by victo, five languages/repositories; 16/60 holdout with whole eShopOnWeb held out; immutable release input |
+| [`semantic-retrieval-human-frozen-v2.json`](baselines/semantic-retrieval-human-frozen-v2.json) | `scripts/measure/chunk-fused-holdout-gate-v2.mjs`; `scripts/measure/explore-large-corpus-performance.mjs` | 84 Human-reviewed labels across seven pinned corpora; 60 development plus whole-corpus Rails/Kubernetes holdout; immutable release input |
+| [`semantic-retrieval-rails-candidates-v2.json`](baselines/semantic-retrieval-rails-candidates-v2.json) | `semantic-retrieval-human-frozen-v2.json` release manifest (`candidateSha256.rails`) | Twelve reviewed Rails holdout candidates; pinned source labels retained for release audit |
+| [`semantic-retrieval-kubernetes-candidates-v2.json`](baselines/semantic-retrieval-kubernetes-candidates-v2.json) | `semantic-retrieval-human-frozen-v2.json` release manifest (`candidateSha256.kubernetes`) | Twelve reviewed Kubernetes holdout candidates; pinned large-corpus source labels retained for release audit |
 
 Promotion requires registering the asset and its consumer here. Re-baselining
 updates the existing versioned input through its owning decision process;

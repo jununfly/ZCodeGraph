@@ -83,9 +83,16 @@
         "1-3-4",
         "1-3-5"
       ],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "1-3-5完成后父级能否关闭？",
+          "answer": "不能。1-3-4完整独立验收NO-GO且1-3-5仅关闭热性能工程范围；fresh-process cold start、>=30热复测、效果、资源、运行降级仍未完成。保持1-3 in_progress与1-4阻塞，后续独立完整验收另开节点。",
+          "note": ""
+        }
+      ],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "rounds": 1
     },
     "1-4": {
       "id": "1-4",
@@ -500,7 +507,7 @@
       "id": "1-3-5",
       "uid": "01a1a6730864-9011657a07",
       "label": "大仓性能优化：explore 在 24k 文件上从 20s 降到 150ms",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-3",
       "children": [],
@@ -509,15 +516,36 @@
           "q": "scope gate 分类",
           "answer": "Product execution：修改 src/ 优化 explore 在大仓上的性能。目标：k8s 24k 文件 explore 单题从 ~20s 降到 ≤150ms（v2 §4 热 p50 门）。",
           "note": ""
+        },
+        {
+          "q": "首轮剖析：Kubernetes ~10s 的主要耗时在哪里？",
+          "answer": "单题 plan=10.47s，findRelevantContext=9.19s。精确名查询3.59s（COLLATE NOCASE 未利用 idx_nodes_lower_name），35次文本搜索3.57s（含重复空结果与模糊扫描），42次子串搜索0.88s（同参数重复），核心文件聚合1.17s；图调用仅数十ms。先采用等价索引谓词 + 写失效读缓存，不改变搜索预算和排序语义。",
+          "note": ""
+        },
+        {
+          "q": "跨题热缓存为何在256项时回退，如何有界修正？",
+          "answer": "单题同问3240ms→41ms证明索引+缓存有效；12题累计search/substr/exact文件/exact名称键>600，256项LRU在第二轮前驱逐。只读诊断设为1024项后36次热查询18–62ms、RSS约378MiB；采用1024项硬上限并保留写失效与结果副本隔离。并行双仓测量受资源争用，舍弃该批结果，后续只串行测量。",
+          "note": ""
+        },
+        {
+          "q": "最终串行复测是否达到本节点目标，能否视为完整v2 GO？",
+          "answer": "达到本节点热性能工程目标：K8s 12 holdout×4轮，热p50=28.8ms、p95=57.7ms、max=63.9ms；Rails热p50=25.6ms、p95=30.7ms。四轮文件列表一致，235/235回归通过。首轮不同问题K8s p50=1238.4ms/p95=3307.2ms，fresh-process cold start未测；仅4轮非v2>=30热复测，未重跑候选效果/资源/降级/Agent-value门，完整v2验收not-evaluated，1-3-4 NO-GO不解除。证据docs/evidence/2026-11-04-explore-large-corpus-performance.{md,json}。",
+          "note": ""
+        },
+        {
+          "q": "关闭1-3-5后父级与后续工作如何处理？",
+          "answer": "仅关闭1-3-5热性能范围；父级1-3保持in_progress，1-4保持blocks阻塞。下一步若继续产品化，必须新开独立完整v2验收节点，不把已诊断holdout重新标为独立效果验收，不直接恢复已关闭C0/C1/C2调参。",
+          "note": ""
         }
       ],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "rounds": 1
     }
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-04 20:05:33",
+    "updated": "2026-11-04 21:12:53",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
