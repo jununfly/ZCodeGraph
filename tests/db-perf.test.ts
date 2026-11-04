@@ -10,6 +10,8 @@
  *   4. `insertEdges` validates endpoints from the DB, not stale node cache.
  *   5. `insertValidatedEdges` preserves edge row shape while reporting
  *      serialization diagnostics for finalization profiles.
+ *   6. Read-model caches make repeated explore SQL cheap and are
+ *      invalidated by node/edge writes, never by a read.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -210,6 +212,132 @@ describe('insertEdges endpoint validation', () => {
 
   it('reports empty diagnostics for an empty prevalidated edge batch', () => {
     expect(q.insertValidatedEdges([])).toEqual({ serializationMs: 0, serializedBytes: 0 });
+  });
+});
+
+describe('explore read-model cache invalidation', () => {
+  let dir: string;
+  let db: DatabaseConnection;
+  let q: QueryBuilder;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'db-perf-read-cache-'));
+    db = DatabaseConnection.initialize(path.join(dir, 'test.db'));
+    q = new QueryBuilder(db.getDb());
+  });
+
+  afterEach(() => {
+    db.close();
+    if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('reuses identical searches and invalidates them when a node is inserted', () => {
+    q.insertNode(makeNode('first', 'SchedulerQueue'));
+    const before = q.searchNodes('SchedulerQueue', { limit: 10 });
+    const cached = q.searchNodes('SchedulerQueue', { limit: 10 });
+    expect(cached.map((r) => r.node.id)).toEqual(before.map((r) => r.node.id));
+
+    q.insertNode(makeNode('second', 'SchedulerQueue'));
+    const after = q.searchNodes('SchedulerQueue', { limit: 10 });
+    expect(after.map((r) => r.node.id).sort()).toEqual(['first', 'second']);
+  });
+
+  it('isolates cached results from caller-side score mutations', () => {
+    q.insertNodes([
+      makeNode('first', 'Original'),
+      makeNode('second', 'original'),
+    ]);
+    const first = q.findNodesByExactName(['ORIGINAL']);
+    expect(first).toHaveLength(2);
+    const expected = q.findNodesByExactName(['original']);
+    first[0]!.score = 999;
+    first.splice(1);
+    first[0]!.node.name = 'mutated';
+
+    const second = q.findNodesByExactName(['original']);
+    expect(second).toHaveLength(2);
+    expect(second.every((r) => r.score === 1 || r.score === 21)).toBe(true);
+    expect(second).toEqual(expected);
+    expect(second.map((r) => r.node.name).sort()).toEqual(['Original', 'original']);
+  });
+
+  it('bounds and reuses search caches without repeating empty-result queries', () => {
+    q.insertNode(makeNode('first', 'SchedulerQueue'));
+    let queryCount = 0;
+    const originalPrepare = db.getDb().prepare.bind(db.getDb());
+    db.getDb().prepare = ((sql: string) => {
+      if (sql.includes('FROM nodes')) queryCount++;
+      return originalPrepare(sql);
+    }) as typeof originalPrepare;
+
+    expect(q.searchNodes('no-such-symbol', { limit: 5 })).toEqual([]);
+    const afterFirst = queryCount;
+    expect(q.searchNodes('no-such-symbol', { limit: 5 })).toEqual([]);
+    expect(queryCount).toBe(afterFirst);
+
+    for (let i = 0; i < 1100; i++) q.searchNodes(`unique-${i}`, { limit: 1 });
+    const afterLruFill = queryCount;
+    q.searchNodes('unique-1099', { limit: 1 });
+    expect(queryCount).toBe(afterLruFill);
+    q.searchNodes('no-such-symbol', { limit: 5 });
+    expect(queryCount).toBeGreaterThan(afterLruFill);
+
+    q.searchNodes('SchedulerQueue', { kinds: ['function', 'method'] });
+    const afterFilterQuery = queryCount;
+    q.searchNodes('SchedulerQueue', { kinds: ['method', 'function'] });
+    expect(queryCount).toBe(afterFilterQuery);
+    q.searchNodes('SchedulerQueue', { kinds: ['class'] });
+    expect(queryCount).toBeGreaterThan(afterFilterQuery);
+  });
+
+  it('matches exact names case-insensitively without changing ranking', () => {
+    q.insertNodes([
+      makeNode('first', 'ScheduleOne'),
+      makeNode('second', 'scheduleone'),
+      makeNode('third', 'SCHEDULEONE'),
+    ]);
+    const upper = q.findNodesByExactName(['SCHEDULEONE']);
+    const lower = q.findNodesByExactName(['scheduleone']);
+    expect(upper.map((r) => r.node.id)).toEqual(lower.map((r) => r.node.id));
+    expect(upper.map((r) => r.node.id).sort()).toEqual(['first', 'second', 'third']);
+    expect(upper.every((r) => r.score === 1 || r.score === 21)).toBe(true);
+  });
+
+  it('refreshes exact-name, substring, stats and name caches after a node write', () => {
+    q.insertNode(makeNode('first', 'Original'));
+    expect(q.findNodesByExactName(['Original'])).toHaveLength(1);
+    expect(q.findNodesByNameSubstring('rig')).toHaveLength(1);
+    expect(q.getStats().nodeCount).toBe(1);
+    expect(q.getAllNodeNames()).toEqual(['Original']);
+
+    q.insertNode(makeNode('second', 'Original'));
+    expect(q.findNodesByExactName(['Original'])).toHaveLength(2);
+    expect(q.findNodesByNameSubstring('rig')).toHaveLength(2);
+    expect(q.getStats().nodeCount).toBe(2);
+    expect(q.getStats()).toEqual(q.getStats());
+    expect(q.getAllNodeNames()).toEqual(['Original']);
+  });
+
+  it('invalidates the dominant-file aggregate when a prevalidated edge batch is written', () => {
+    // Different line numbers make these distinct internal edges under the
+    // edges table uniqueness constraint. Cross-file edges must not count.
+    q.insertNodes([makeNode('source', 'Source'), makeNode('target', 'Target')]);
+    expect(q.getDominantFile()).toBeNull();
+    q.insertValidatedEdges(Array.from({ length: 20 }, (_, i) => ({
+      source: 'source', target: 'target', kind: 'calls', line: i + 1,
+    })));
+    expect(db.getDb().prepare('SELECT COUNT(*) AS count FROM edges').get()).toMatchObject({ count: 20 });
+    expect(q.getOutgoingEdges('source')).toHaveLength(20);
+    expect(q.getDominantFile()).toMatchObject({ filePath: 'a.ts', edgeCount: 20 });
+  });
+
+  it('clears read-model caches explicitly with the node cache', () => {
+    q.insertNode(makeNode('first', 'SchedulerQueue'));
+    expect(q.searchNodes('SchedulerQueue')).toHaveLength(1);
+    db.getDb().prepare('DELETE FROM nodes').run();
+    q.clearCache();
+    expect(q.searchNodes('SchedulerQueue')).toEqual([]);
+    expect(q.getStats().nodeCount).toBe(0);
   });
 });
 

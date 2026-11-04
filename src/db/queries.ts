@@ -215,6 +215,48 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
   private nodeCache: Map<string, Node> = new Map();
   private readonly maxCacheSize = 1000;
 
+  // Bounded read-model caches shared by repeated searches in one explore.
+  // Every graph mutation invalidates them together, so an incremental sync
+  // cannot leave stale candidates or aggregate boosts behind.
+  // Enough for the ~600 distinct lookups across 12 diverse large-repo
+  // explores, while still bounding every parameterized query cache.
+  private static readonly READ_CACHE_CAPACITY = 1024;
+  private dominantFileCache: { filePath: string; edgeCount: number; nextEdgeCount: number } | null | undefined;
+  private allNodeNamesCache: string[] | undefined;
+  private readonly searchResultCache = new Map<string, SearchResult[]>();
+  private readonly substringResultCache = new Map<string, SearchResult[]>();
+  private readonly exactFileCache = new Map<string, Set<string>>();
+  private readonly exactNameCache = new Map<string, Array<NodeRow & { score: number }>>();
+  private graphStatsCache: GraphStats | undefined;
+
+  private invalidateReadModelCaches(): void {
+    this.dominantFileCache = undefined;
+    this.allNodeNamesCache = undefined;
+    this.searchResultCache.clear();
+    this.substringResultCache.clear();
+    this.exactFileCache.clear();
+    this.exactNameCache.clear();
+    this.graphStatsCache = undefined;
+  }
+
+  private cached<T>(cache: Map<string, T>, key: string, compute: () => T): T {
+    if (cache.has(key)) {
+      // Empty and null-bearing results are cache hits too. Touch the entry
+      // to implement LRU, and do not expose a mutable cached value directly.
+      const existing = cache.get(key)!;
+      cache.delete(key);
+      cache.set(key, existing);
+      return structuredClone(existing);
+    }
+    const value = compute();
+    if (cache.size >= QueryBuilder.READ_CACHE_CAPACITY) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) cache.delete(oldest);
+    }
+    cache.set(key, value);
+    return structuredClone(value);
+  }
+
   // Prepared statements (lazily initialized)
   private stmts: {
     insertNode?: SqliteStatement;
@@ -297,6 +339,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
     // one (matches the cache-invalidation pattern used by updateNode and
     // deleteNode below).
     this.nodeCache.delete(node.id);
+    this.invalidateReadModelCaches();
 
     this.stmts.insertNode.run({
       id: node.id,
@@ -365,6 +408,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
 
     // Invalidate cache before update
     this.nodeCache.delete(node.id);
+    this.invalidateReadModelCaches();
 
     // Validate required fields
     if (!node.id || !node.kind || !node.name || !node.filePath || !node.language) {
@@ -405,6 +449,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
     }
     // Invalidate cache
     this.nodeCache.delete(id);
+    this.invalidateReadModelCaches();
     this.stmts.deleteNode.run(id);
   }
 
@@ -421,6 +466,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
         this.nodeCache.delete(id);
       }
     }
+    this.invalidateReadModelCaches();
     this.stmts.deleteNodesByFile.run(filePath);
   }
 
@@ -566,6 +612,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
    */
   clearCache(): void {
     this.nodeCache.clear();
+    this.invalidateReadModelCaches();
   }
 
   /**
@@ -600,6 +647,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
    * boosting a test file's directory would be a misfire.
    */
   getDominantFile(): { filePath: string; edgeCount: number; nextEdgeCount: number } | null {
+    if (this.dominantFileCache !== undefined) return this.dominantFileCache;
     if (!this.stmts.getDominantFile) {
       // Pull top 20 candidates; we then filter out test/generated files
       // in code (regex-grade matching that SQL LIKE can't express). The
@@ -621,12 +669,16 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
     }
     const rows = this.stmts.getDominantFile.all() as Array<{ file_path: string; edge_count: number }>;
     const filtered = rows.filter(r => !isLowValueFile(r.file_path));
-    if (filtered.length === 0 || filtered[0]!.edge_count < 20) return null;
-    return {
+    if (filtered.length === 0 || filtered[0]!.edge_count < 20) {
+      this.dominantFileCache = null;
+      return null;
+    }
+    this.dominantFileCache = {
       filePath: filtered[0]!.file_path,
       edgeCount: filtered[0]!.edge_count,
       nextEdgeCount: filtered[1]?.edge_count ?? 0,
     };
+    return this.dominantFileCache;
   }
 
   /**
@@ -814,6 +866,15 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
    * 3. Score results based on match quality
    */
   searchNodes(query: string, options: SearchOptions = {}): SearchResult[] {
+    const key = JSON.stringify([query, {
+      ...options,
+      kinds: options.kinds ? [...options.kinds].sort() : options.kinds,
+      languages: options.languages ? [...options.languages].sort() : options.languages,
+    }]);
+    return this.cached(this.searchResultCache, key, () => this.searchNodesUncached(query, options));
+  }
+
+  private searchNodesUncached(query: string, options: SearchOptions = {}): SearchResult[] {
     const { limit = 100, offset = 0 } = options;
 
     // Parse field-qualified bits out of the raw query (kind:, lang:,
@@ -872,8 +933,8 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       const maxFtsScore = Math.max(...results.map(r => r.score));
       const terms = query.split(/\s+/).filter(t => t.length >= 2);
       for (const term of terms) {
-        let sql = 'SELECT * FROM nodes WHERE name = ? COLLATE NOCASE';
-        const params: (string | number)[] = [term];
+        let sql = 'SELECT * FROM nodes WHERE lower(name) = ?';
+        const params: (string | number)[] = [term.toLowerCase()];
         if (kinds && kinds.length > 0) {
           sql += ` AND kind IN (${kinds.map(() => '?').join(',')})`;
           params.push(...kinds);
@@ -1174,15 +1235,17 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
     // Pass 1: Find files containing each queried name, identify distinctive names
     const nameToFiles = new Map<string, Set<string>>();
     for (const name of names) {
-      let sql = 'SELECT DISTINCT file_path FROM nodes WHERE name COLLATE NOCASE = ?';
-      const params: (string | number)[] = [name];
+      let sql = 'SELECT DISTINCT file_path FROM nodes WHERE lower(name) = ?';
+      const params: (string | number)[] = [name.toLowerCase()];
       if (kinds && kinds.length > 0) {
         sql += ` AND kind IN (${kinds.map(() => '?').join(',')})`;
         params.push(...kinds);
       }
       sql += ' LIMIT 100';
-      const rows = this.db.prepare(sql).all(...params) as { file_path: string }[];
-      nameToFiles.set(name.toLowerCase(), new Set(rows.map(r => r.file_path)));
+      const rows = this.cached(this.exactFileCache, sql + JSON.stringify(params), () =>
+        new Set((this.db.prepare(sql).all(...params) as { file_path: string }[]).map(r => r.file_path))
+      );
+      nameToFiles.set(name.toLowerCase(), rows);
     }
 
     // Distinctive names are those with fewer than 10 file matches (e.g., "scrapeLoop" = 1 file)
@@ -1202,9 +1265,9 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       let sql = `
         SELECT nodes.*, 1.0 as score
         FROM nodes
-        WHERE name COLLATE NOCASE = ?
+        WHERE lower(name) = ?
       `;
-      const params: (string | number)[] = [name];
+      const params: (string | number)[] = [name.toLowerCase()];
 
       if (kinds && kinds.length > 0) {
         sql += ` AND kind IN (${kinds.map(() => '?').join(',')})`;
@@ -1220,7 +1283,9 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       sql += ' LIMIT ?';
       params.push(Math.max(perNameLimit * 3, 50));
 
-      const rows = this.db.prepare(sql).all(...params) as (NodeRow & { score: number })[];
+      const rows = this.cached(this.exactNameCache, sql + JSON.stringify(params), () =>
+        this.db.prepare(sql).all(...params) as Array<NodeRow & { score: number }>
+      );
       const nameResults: SearchResult[] = [];
       for (const row of rows) {
         const node = rowToNode(row);
@@ -1251,6 +1316,19 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
    * Results are ordered by name length (shorter = more likely to be the core type).
    */
   findNodesByNameSubstring(
+    substring: string,
+    options: SearchOptions & { excludePrefix?: boolean } = {}
+  ): SearchResult[] {
+    const key = JSON.stringify([substring, {
+      ...options,
+      kinds: options.kinds ? [...options.kinds].sort() : options.kinds,
+      languages: options.languages ? [...options.languages].sort() : options.languages,
+    }]);
+    return this.cached(this.substringResultCache, key,
+      () => this.findNodesByNameSubstringUncached(substring, options));
+  }
+
+  private findNodesByNameSubstringUncached(
     substring: string,
     options: SearchOptions & { excludePrefix?: boolean } = {}
   ): SearchResult[] {
@@ -1313,6 +1391,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       col: edge.column ?? null,
       edgeOrigin: edge.edgeOrigin ?? null,
     });
+    this.invalidateReadModelCaches();
   }
 
   /**
@@ -1341,6 +1420,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
         insertEdge.run(row);
       }
     })();
+    this.invalidateReadModelCaches();
 
     return { serializationMs, serializedBytes };
   }
@@ -1394,6 +1474,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       this.stmts.deleteEdgesBySource = this.db.prepare('DELETE FROM edges WHERE source = ?');
     }
     this.stmts.deleteEdgesBySource.run(sourceId);
+    this.invalidateReadModelCaches();
   }
 
   /**
@@ -1541,6 +1622,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       nodeCount: file.nodeCount,
       errors: file.errors ? JSON.stringify(file.errors) : null,
     });
+    this.invalidateReadModelCaches();
   }
 
   /**
@@ -1716,11 +1798,13 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
    * Get all distinct node names (lightweight — just name strings for pre-filtering)
    */
   getAllNodeNames(): string[] {
+    if (this.allNodeNamesCache !== undefined) return [...this.allNodeNamesCache];
     if (!this.stmts.getAllNodeNames) {
       this.stmts.getAllNodeNames = this.db.prepare('SELECT DISTINCT name FROM nodes');
     }
     const rows = this.stmts.getAllNodeNames.all() as Array<{ name: string }>;
-    return rows.map((r) => r.name);
+    this.allNodeNamesCache = rows.map((r) => r.name);
+    return [...this.allNodeNamesCache];
   }
 
   /**
@@ -1957,6 +2041,13 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
    * Get graph statistics
    */
   getStats(): GraphStats {
+    if (!this.graphStatsCache) {
+      this.graphStatsCache = { ...this.getStatsUncached(), lastUpdated: Date.now() };
+    }
+    return structuredClone(this.graphStatsCache);
+  }
+
+  private getStatsUncached(): GraphStats {
     // Single query for all three aggregate counts
     const counts = this.db.prepare(`
       SELECT
@@ -1997,7 +2088,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       edgesByKind,
       filesByLanguage,
       dbSizeBytes: 0, // Set by caller using DatabaseConnection.getSize()
-      lastUpdated: Date.now(),
+      lastUpdated: 0, // Set by getStats(); repeated cache reads stay deterministic.
     };
   }
 
@@ -2039,6 +2130,7 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
    */
   clear(): void {
     this.nodeCache.clear();
+    this.invalidateReadModelCaches();
     this.db.transaction(() => {
       this.db.exec('DELETE FROM unresolved_refs');
       this.db.exec('DELETE FROM edges');
