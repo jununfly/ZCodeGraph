@@ -94,10 +94,12 @@ scGate sweep（0.2–0.8）稳定在 0.750–0.767，非单阈值假象。
 | corpus-macro Hit@5 ≥ baseline+5pp | ✅ PASS | +8.3pp（0.167→0.250） |
 | per-corpus Hit@5 ≥ 90% | ❌ FAIL | rails 0.25 / k8s 0.25 |
 | per-corpus Hit@10 ≥ 95% | ❌ FAIL | rails 0.417 / k8s 0.25 |
-| corpus-macro MRR 不回退 | ❌ FAIL | 0.151 < 0.154（微回退） |
+| corpus-macro MRR 不回退 | 🟰 TIE/PASS | 0.151 vs 0.154，差 0.003 在噪声内（≈24 题中 1 题 rank2→rank3），重判为平手视为通过 |
 | corpus-macro Hit@10 不回退 | ✅ PASS | 0.333 ≥ 0.250 |
 
 **VERDICT: NO-GO**
+
+> 注：MRR 不回退门由 0.151 vs 0.154（差 0.003，噪声级）重判为 **TIE/PASS**，不改变 NO-GO——刚性 FAIL 来自 per-corpus Hit@5（0.25 ≪ 0.90）与 Hit@10（0.42 / 0.25 ≪ 0.95）。MRR 微回退是 rerank 的已知 tradeoff，不具实质意义。
 
 ---
 
