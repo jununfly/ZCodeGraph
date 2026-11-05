@@ -718,6 +718,11 @@
           "q": "Human 选 A：拆门——per-corpus90% 门拆为真机入口+产品默认两级？",
           "answer": "Human 选 A：辩论后决定拆门。per-corpus Hit@5≥90% 门不再兼任「进真机A/B」与「进产品默认」两道职能，拆为两级：(G-entry 真机A/B入口)=macro Hit@5≥baseline+5pp + MRR/Hit@10不回退 + 每仓正向净提升且无仓回退>2pp（复用 v2§4/ADR-0013 D4 已有的 Net entry gain + Ordering safety 两行，非新造阈值、非按0.458倒推）；(G-ship 产品默认OFF入口)=每仓Hit@5≥90%/Hit@10≥95% + 精确名零Hit@1回退 + 全安全门（绝对值一字不动）。C(symbol-union) 按 G-entry 全 PASS，批准进入 §5/D5 配对真机Agent A/B 评估（独立任务集+主终点恢复性Read/Grep减少+正确性不回退+配对bootstrap）。真机过且正确性不回退→C 获向 G-ship 补证资格(大仓延迟/存储/降级等)，但须在新冻结代表性留出集上满足90%门(v3已永久冻结不复用)；真机 inconclusive 或正确性回退→按 ADR-0013 D6 关闭本轮产品化。本决策不是降门(ADR-0013 D1 保留)，是对 D4 三行判据的职能再分配。正式化见 ADR-0014 docs/decisions/ZJ-0014-split-retrieval-gate-into-agent-entry-and-ship.md（Status=Draft 待审批）。1-4 解锁路径相应修订：C 经真机A/B证明净收益后再判 1-4，e8 blocks 暂保留。",
           "note": "ADR-0014 已建 Draft 并登记 docs/README.md。证据 docs/evidence/2026-11-05-symbol-index-holdout-v3.{md,json}。"
+        },
+        {
+          "q": "ADR-0014 转 Accepted 审批结果？",
+          "answer": "ADR-0014 经自审逻辑闭环+1处补强后，Human 批准转 Accepted（2026-11-05）。自审通过项：(1)不降门论证成立(G-ship 90%/95%一字不动,G-entry 复用 ADR-0013 D4 已有 Net entry gain+Ordering safety 两行,不违反 D1)；(2)数据一致(C macro+0.292/rails0.50/k8s0.42 与证据吻合)；(3)元泄漏缓解闭环(真机独立任务集+不同终点+显式披露)；(4)v3冻结纪律与 ADR-0013 D3 对齐。自审补强1处：G-entry 的 per-corpus 条件由『正向净提升』收紧为『每仓 Hit@5 净提升>2pp』(与无仓回退>2pp 对称)，堵死『微弱提升被宏观掩盖』漏洞——复核 C：rails+25pp/k8s+33.4pp 远超2pp 通过结论不变。ADR-0014 Status=Accepted，docs/README.md 索引同步。G-entry/G-ship 两级门正式生效：C 获批进 §5/D5 配对真机 A/B；1-4 解锁路径=C 经真机证明净收益后向 G-ship 补证(须新冻结代表性留出集)。",
+          "note": "证据 docs/decisions/ZJ-0014-split-retrieval-gate-into-agent-entry-and-ship.md Status=Accepted。"
         }
       ],
       "notes": "已归档(Human 选 C)：三子方向全 NO-GO，无候选过刚性 per-corpus90% 门。最佳已知臂=C(symbol-union, holdout 0.458=rails0.50/k8s0.42, 宏观放宽门全 PASS)记录为历史最佳, 不进产品默认行为、不解锁 1-4。1-4 保持 pending+blocked(e7 blocks 不解除)。v3 holdout 永久冻结。根因=召回缺口+字面/语义冲突(非排序), 已证伪重排补缺前提。重启语义检索线须先辩论门标准或走扩大候选集+新标注硬查询(超出本节点范围)。证据 docs/evidence/2026-11-05-{symbol-index-holdout-v3,graph-recall,semantic-rerank-probe}.md。",
@@ -823,7 +828,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-05 20:36:32",
+    "updated": "2026-11-05 21:00:06",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

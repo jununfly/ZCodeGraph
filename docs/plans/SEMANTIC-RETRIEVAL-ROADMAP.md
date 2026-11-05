@@ -1,7 +1,7 @@
 <!-- ROADMAP_SECTION_START -->
 ## ZJ Roadmap
 
-> 数据文件: `semantic-retrieval-roadmap.json` | 最后更新: 2026-11-05 20:36:32
+> 数据文件: `semantic-retrieval-roadmap.json` | 最后更新: 2026-11-05 21:00:06
 
 [~][X+] 1. 语义检索独立项目：真实基准、效果验证与证据门控集成
 ├── [x][X+] 1-1. 冻结真实语料、源码锚定标注与独立评测协议
