@@ -16,7 +16,8 @@
         "1-3",
         "1-4",
         "1-5",
-        "1-6"
+        "1-6",
+        "1-7"
       ],
       "decisions": [],
       "notes": "",
@@ -125,7 +126,7 @@
           "note": ""
         }
       ],
-      "notes": "holdout v3 NO-GO（D2 per-corpus 0.25<<0.90 门）。1-4 不解锁，保持 blocked（e7）。路径转 1-5 关闭/归档。",
+      "notes": "门卫由 1-6 移交 1-7（e7 重定向 1-7→1-4）。1-4 保持 pending+blocked，仅在 1-7 拿到通过的质量门后解锁。1-6 探索 NO-GO 已归档至 1-5。",
       "layer": "plan"
     },
     "1-5": {
@@ -598,7 +599,7 @@
           "note": ""
         }
       ],
-      "notes": "D2 候选 holdout v3 = NO-GO（macro+8.3pp 过但 per-corpus 0.25 << 0.90/0.95 门）。符号注入为边际信号，无法结构性弥合检索质量鸿沟。1-4 保持 blocked（e7 不解除），路径转 1-5 关闭/归档。证据 docs/evidence/2026-11-05-d2-selfconsistency-holdout-v3.json。",
+      "notes": "1-6 质量探索收尾：D1 v1/v2 净回退、D2 v1 空转、D2 v2 自洽门 dev 0.767 但 holdout NO-GO（per-corpus 0.25<<0.90）。结论=符号注入为边际信号，非结构性修复。1-5 已归档。门卫权移交 1-7（e7 重定向）。",
       "layer": "plan",
       "budget": {
         "max_children": 3,
@@ -679,6 +680,84 @@
       "parent": "1-6",
       "children": [],
       "decisions": [],
+      "notes": "D3 注入位置/权重实验：未执行。1-6 NO-GO 后无必要，注入质量方向已并入 1-7 结构化检索。作为 parked 未来方向保留。",
+      "layer": "plan",
+      "budget": {
+        "max_rounds": 2
+      }
+    },
+    "1-7": {
+      "id": "1-7",
+      "uid": "01a1aaf095bc-f4919598e4",
+      "label": "结构化检索探索（越过注入范式，改检索本体；新留出集 v3）",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-7-1",
+        "1-7-2",
+        "1-7-3"
+      ],
+      "decisions": [
+        {
+          "q": "Human 选 B：新开结构化检索探索（1-7）+ 新留出集，门卫如何移交？",
+          "answer": "Human 选 B：1-6 注入路线 holdout NO-GO（符号注入为边际信号）后，新开 1-7 结构化检索探索，越过注入范式改检索本体。三子方向：1-7-1 符号级索引召回、1-7-2 调用图/类型图召回、1-7-3 重排序模型。新留出集 = v3 frozen（docs/baselines/semantic-retrieval-human-frozen-v3.json，holdout=rails+k8s 24 硬集，dev=5-small 60），冻结于 1-7 任何工作之前；v2 holdout 禁止复用（已看过结论）。门卫权由 1-6 移交 1-7：e7 重定向为 1-7→1-4（blocks）；1-6 收尾 completed。1-4 保持 pending+blocked，仅在 1-7 拿到通过的质量门后解锁。元泄漏警示：5-small dev 在 1-6 调过参，1-7 结论可能带元泄漏，建议最终判定前补充新人工标注硬查询。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "budget": {
+        "max_children": 3,
+        "max_rounds": 3
+      },
+      "rounds": 1,
+      "exit_criteria": [
+        "新留出集=docs/baselines/semantic-retrieval-human-frozen-v3.json（holdout=rails+k8s 24 硬集，dev=5-small 60）；1-7 仅在 dev 上迭代选择候选，绝不在 v3 holdout 上调参或早停",
+        "每个结构化候选须预注册配置哈希，评估前冻结，复用 v3 frozen artifact 不增删 query；v2 holdout 禁止复用",
+        "质量门沿用 v2 §4（corpus-macro Hit@5≥baseline+5pp、per-corpus Hit@5≥90%、per-corpus Hit@10≥95%、MRR/Hit@10 不回退[MRR 噪声级 Δ<0.01 记 tie/PASS]）；不得降低 1-3-5 已通过性能门",
+        "通过则出 v4 证据报告（新候选哈希+门判定）并解锁 1-4；未过按 1-5 同款归档，v3 holdout 不得二次复用"
+      ]
+    },
+    "1-7-1": {
+      "id": "1-7-1",
+      "uid": "01a1aaf09719-abbaeb0483",
+      "label": "符号级索引召回（按类型/可见性/签名索引全部符号，查询词对齐召回，替代仅-chunk 检索）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-7",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "budget": {
+        "max_rounds": 2
+      }
+    },
+    "1-7-2": {
+      "id": "1-7-2",
+      "uid": "01a1aaf09870-7b73eb09f6",
+      "label": "调用图/类型图召回（从查询承载符号遍历 call/type 边拉取相关文件）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-7",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "budget": {
+        "max_rounds": 2
+      }
+    },
+    "1-7-3": {
+      "id": "1-7-3",
+      "uid": "01a1aaf099cb-55c3e0ddb7",
+      "label": "重排序模型（cross-encoder / LLM 判定对候选文件重排，替代启发式融合）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-7",
+      "children": [],
+      "decisions": [],
       "notes": "",
       "layer": "plan",
       "budget": {
@@ -688,7 +767,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-05 14:39:49",
+    "updated": "2026-11-05 17:01:26",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
@@ -729,11 +808,11 @@
       "type": "blocks"
     },
     {
-      "id": "e7",
-      "from": "01a1a9d85176-35b5c4d45c",
+      "id": "e8",
+      "from": "01a1aaf095bc-f4919598e4",
       "to": "01a19c859594-0c665d6436",
       "type": "blocks"
     }
   ],
-  "edge_seq": 7
+  "edge_seq": 8
 }
