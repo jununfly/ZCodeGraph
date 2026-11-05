@@ -80,6 +80,7 @@ ordinary reports stay in `.tmp/measure/`.
 | ADR-0011 | [ZJ-0011-index-write-lock-lease-and-reclaim.md](decisions/ZJ-0011-index-write-lock-lease-and-reclaim.md) | How is index-write mutual exclusion held across Rust and TypeScript, released after crashes, and diagnosed without unsafe lock-file reclamation? |
 | ADR-0012 | [ZJ-0012-semantic-retrieval-holdout-no-go-and-chunk-downgrade.md](decisions/ZJ-0012-semantic-retrieval-holdout-no-go-and-chunk-downgrade.md) | How does ZCodeGraph handle the 1-3-3 holdout NO-GO verdict — pause effect improvement, keep infrastructure, and restart chunk representation as a downgraded recall-enhancement spike? |
 | ADR-0013 | [ZJ-0013-bounded-reranking-and-independent-agent-value-gate.md](decisions/ZJ-0013-bounded-reranking-and-independent-agent-value-gate.md) | After the chunk-fused MRR gate fails, may one bounded reranking experiment proceed under a fresh holdout and an independent Agent-value gate rather than weakening the threshold? |
+| ADR-0014 | [ZJ-0014-split-retrieval-gate-into-agent-entry-and-ship.md](decisions/ZJ-0014-split-retrieval-gate-into-agent-entry-and-ship.md) | Should per-corpus Hit@5>=90% keep doubling as both the Agent A/B entry valve and the ship gate, or split into two tiers so the macro-gaining candidate C can reach paired Agent evaluation? (Draft) |
 
 ---
 

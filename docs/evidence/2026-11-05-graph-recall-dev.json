@@ -1,0 +1,4925 @@
+{
+  "metric": "graph-recall-dev",
+  "version": 1,
+  "measuredAt": "2026-11-05T09:51:24.510Z",
+  "scope": "v3 frozen development 60 queries (5 corpora); graph/type recall from symbol seeds vs baseline vs symbol-union. HOLDOUT NOT USED.",
+  "baseline": {
+    "frozenPath": "docs/baselines/semantic-retrieval-human-frozen-v3.json",
+    "split": "development"
+  },
+  "arms": [
+    "baseline-explore",
+    "symbol-union-plan",
+    "symbol-graph-union",
+    "graph-only"
+  ],
+  "config": {
+    "symbolTopK": 50,
+    "fileTopK": 10,
+    "graphTopK": 15,
+    "graphEdges": "callers(1)+callees(1)+getTypeHierarchy",
+    "graphRerank": "0.4*planPos + 0.4*extraPos + 0.2*termAlign"
+  },
+  "host": {
+    "node": "v22.22.2",
+    "platform": "win32",
+    "arch": "x64",
+    "cpu": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+    "totalMemoryBytes": 33412722688
+  },
+  "corpora": [
+    {
+      "corpus": "pallets-flask",
+      "arms": {
+        "baseline-explore": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.16666666666666666,
+              "at5": 0.6666666666666666,
+              "at10": 0.75
+            },
+            "mrr": 0.35000000000000003,
+            "misses": [
+              "flask-dev-stream-request-context",
+              "flask-dev-url-dispatch",
+              "flask-holdout-request-lifetime"
+            ],
+            "warmMs": {
+              "median": 33.57669999999996,
+              "p95": 58.55219999999997,
+              "max": 58.55219999999997
+            }
+          },
+          "results": [
+            {
+              "id": "flask-dev-static-safe-download",
+              "corpus": "pallets-flask",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                58.55219999999997
+              ],
+              "top5": [
+                "src/flask/wrappers.py",
+                "src/flask/globals.py",
+                "src/flask/debughelpers.py",
+                "src/flask/helpers.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-stream-request-context",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                34.990399999999966
+              ],
+              "top5": [
+                "src/flask/views.py",
+                "src/flask/globals.py",
+                "src/flask/wrappers.py",
+                "src/flask/__init__.py",
+                "src/flask/ctx.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-flash-once-next-request",
+              "corpus": "pallets-flask",
+              "rank": 3,
+              "coldMs": 0,
+              "warmMs": [
+                39.385699999999986
+              ],
+              "top5": [
+                "src/flask/wrappers.py",
+                "src/flask/globals.py",
+                "src/flask/helpers.py",
+                "src/flask/__init__.py",
+                "src/flask/signals.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-conditional-file-cache",
+              "corpus": "pallets-flask",
+              "rank": 6,
+              "coldMs": 0,
+              "warmMs": [
+                33.302599999999984
+              ],
+              "top5": [
+                "src/flask/typing.py",
+                "src/flask/wrappers.py",
+                "src/flask/json/tag.py",
+                "src/flask/__init__.py",
+                "src/flask/debughelpers.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-custom-json-serialization",
+              "corpus": "pallets-flask",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                27.531000000000006
+              ],
+              "top5": [
+                "src/flask/json/tag.py",
+                "src/flask/json/provider.py",
+                "src/flask/wrappers.py",
+                "src/flask/json/__init__.py",
+                "src/flask/__init__.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-session-cookie-boundary",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                33.994699999999966
+              ],
+              "top5": [
+                "src/flask/sessions.py",
+                "src/flask/config.py",
+                "src/flask/json/__init__.py",
+                "src/flask/wrappers.py",
+                "src/flask/app.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-template-stream",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                28.967200000000048
+              ],
+              "top5": [
+                "src/flask/templating.py",
+                "src/flask/helpers.py",
+                "src/flask/__init__.py",
+                "src/flask/signals.py",
+                "tests/type_check/typing_route.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-blueprint-modular-routes",
+              "corpus": "pallets-flask",
+              "rank": 5,
+              "coldMs": 0,
+              "warmMs": [
+                35.055900000000065
+              ],
+              "top5": [
+                "src/flask/sansio/scaffold.py",
+                "src/flask/cli.py",
+                "src/flask/app.py",
+                "src/flask/typing.py",
+                "src/flask/blueprints.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-url-dispatch",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                33.57669999999996
+              ],
+              "top5": [
+                "src/flask/views.py",
+                "src/flask/globals.py",
+                "src/flask/ctx.py",
+                "src/flask/__init__.py",
+                "src/flask/helpers.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-dev-server-tls",
+              "corpus": "pallets-flask",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                38.34680000000003
+              ],
+              "top5": [
+                "src/flask/app.py",
+                "src/flask/cli.py",
+                "src/flask/sansio/app.py",
+                "src/flask/sessions.py",
+                "src/flask/debughelpers.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-holdout-env-debug-cli",
+              "corpus": "pallets-flask",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                28.133100000000013
+              ],
+              "top5": [
+                "src/flask/debughelpers.py",
+                "src/flask/testing.py",
+                "src/flask/templating.py",
+                "src/flask/cli.py",
+                "src/flask/sansio/app.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-holdout-request-lifetime",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                24.477700000000027
+              ],
+              "top5": [
+                "src/flask/wrappers.py",
+                "src/flask/globals.py",
+                "src/flask/__init__.py",
+                "src/flask/signals.py",
+                "src/flask/helpers.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "symbol-union-plan": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.3333333333333333,
+              "at5": 0.5833333333333334,
+              "at10": 0.75
+            },
+            "mrr": 0.46064814814814814,
+            "misses": [
+              "flask-dev-stream-request-context",
+              "flask-dev-url-dispatch",
+              "flask-holdout-request-lifetime"
+            ],
+            "warmMs": {
+              "median": 33.57669999999996,
+              "p95": 58.55219999999997,
+              "max": 58.55219999999997
+            }
+          },
+          "results": [
+            {
+              "id": "flask-dev-static-safe-download",
+              "corpus": "pallets-flask",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                58.55219999999997
+              ],
+              "top5": [
+                "tests/test_basic.py",
+                "src/flask/wrappers.py",
+                "tests/test_user_error_handler.py",
+                "src/flask/helpers.py",
+                "src/flask/globals.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-stream-request-context",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                34.990399999999966
+              ],
+              "top5": [
+                "src/flask/views.py",
+                "src/flask/ctx.py",
+                "tests/test_basic.py",
+                "src/flask/sansio/blueprints.py",
+                "src/flask/globals.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-flash-once-next-request",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                39.385699999999986
+              ],
+              "top5": [
+                "src/flask/helpers.py",
+                "tests/test_blueprints.py",
+                "src/flask/wrappers.py",
+                "src/flask/globals.py",
+                "tests/test_helpers.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-conditional-file-cache",
+              "corpus": "pallets-flask",
+              "rank": 6,
+              "coldMs": 0,
+              "warmMs": [
+                33.302599999999984
+              ],
+              "top5": [
+                "src/flask/typing.py",
+                "tests/test_blueprints.py",
+                "src/flask/wrappers.py",
+                "tests/test_basic.py",
+                "tests/test_templating.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-custom-json-serialization",
+              "corpus": "pallets-flask",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                27.531000000000006
+              ],
+              "top5": [
+                "src/flask/json/tag.py",
+                "src/flask/json/provider.py",
+                "tests/test_json.py",
+                "src/flask/wrappers.py",
+                "tests/test_reqctx.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-session-cookie-boundary",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                33.994699999999966
+              ],
+              "top5": [
+                "src/flask/sessions.py",
+                "src/flask/wrappers.py",
+                "tests/test_basic.py",
+                "src/flask/config.py",
+                "tests/test_blueprints.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-template-stream",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                28.967200000000048
+              ],
+              "top5": [
+                "src/flask/templating.py",
+                "src/flask/sansio/app.py",
+                "src/flask/helpers.py",
+                "tests/test_blueprints.py",
+                "src/flask/signals.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-blueprint-modular-routes",
+              "corpus": "pallets-flask",
+              "rank": 9,
+              "coldMs": 0,
+              "warmMs": [
+                35.055900000000065
+              ],
+              "top5": [
+                "src/flask/sansio/scaffold.py",
+                "src/flask/typing.py",
+                "tests/type_check/typing_route.py",
+                "tests/test_blueprints.py",
+                "src/flask/cli.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-url-dispatch",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                33.57669999999996
+              ],
+              "top5": [
+                "src/flask/views.py",
+                "tests/test_basic.py",
+                "tests/test_blueprints.py",
+                "src/flask/sansio/scaffold.py",
+                "src/flask/globals.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-dev-server-tls",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                38.34680000000003
+              ],
+              "top5": [
+                "src/flask/cli.py",
+                "src/flask/debughelpers.py",
+                "tests/test_basic.py",
+                "src/flask/app.py",
+                "tests/test_blueprints.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-holdout-env-debug-cli",
+              "corpus": "pallets-flask",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                28.133100000000013
+              ],
+              "top5": [
+                "src/flask/debughelpers.py",
+                "src/flask/cli.py",
+                "tests/test_basic.py",
+                "src/flask/sansio/app.py",
+                "src/flask/app.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-holdout-request-lifetime",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                24.477700000000027
+              ],
+              "top5": [
+                "src/flask/wrappers.py",
+                "tests/test_blueprints.py",
+                "tests/test_basic.py",
+                "src/flask/signals.py",
+                "tests/test_templating.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "symbol-graph-union": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.3333333333333333,
+              "at5": 0.5833333333333334,
+              "at10": 0.75
+            },
+            "mrr": 0.46064814814814814,
+            "misses": [
+              "flask-dev-stream-request-context",
+              "flask-dev-url-dispatch",
+              "flask-holdout-request-lifetime"
+            ],
+            "warmMs": {
+              "median": 33.57669999999996,
+              "p95": 58.55219999999997,
+              "max": 58.55219999999997
+            }
+          },
+          "results": [
+            {
+              "id": "flask-dev-static-safe-download",
+              "corpus": "pallets-flask",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                58.55219999999997
+              ],
+              "top5": [
+                "tests/test_basic.py",
+                "src/flask/wrappers.py",
+                "tests/test_user_error_handler.py",
+                "src/flask/helpers.py",
+                "src/flask/globals.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-stream-request-context",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                34.990399999999966
+              ],
+              "top5": [
+                "src/flask/views.py",
+                "src/flask/ctx.py",
+                "tests/test_basic.py",
+                "src/flask/sansio/blueprints.py",
+                "src/flask/globals.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-flash-once-next-request",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                39.385699999999986
+              ],
+              "top5": [
+                "src/flask/helpers.py",
+                "tests/test_blueprints.py",
+                "src/flask/wrappers.py",
+                "src/flask/globals.py",
+                "tests/test_helpers.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-conditional-file-cache",
+              "corpus": "pallets-flask",
+              "rank": 6,
+              "coldMs": 0,
+              "warmMs": [
+                33.302599999999984
+              ],
+              "top5": [
+                "src/flask/typing.py",
+                "tests/test_blueprints.py",
+                "src/flask/wrappers.py",
+                "tests/test_basic.py",
+                "tests/test_templating.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-custom-json-serialization",
+              "corpus": "pallets-flask",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                27.531000000000006
+              ],
+              "top5": [
+                "src/flask/json/tag.py",
+                "src/flask/json/provider.py",
+                "tests/test_json.py",
+                "src/flask/wrappers.py",
+                "tests/test_reqctx.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-session-cookie-boundary",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                33.994699999999966
+              ],
+              "top5": [
+                "src/flask/sessions.py",
+                "src/flask/wrappers.py",
+                "tests/test_basic.py",
+                "src/flask/config.py",
+                "tests/test_blueprints.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-template-stream",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                28.967200000000048
+              ],
+              "top5": [
+                "src/flask/templating.py",
+                "src/flask/sansio/app.py",
+                "src/flask/helpers.py",
+                "tests/test_blueprints.py",
+                "src/flask/signals.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-blueprint-modular-routes",
+              "corpus": "pallets-flask",
+              "rank": 9,
+              "coldMs": 0,
+              "warmMs": [
+                35.055900000000065
+              ],
+              "top5": [
+                "src/flask/sansio/scaffold.py",
+                "src/flask/typing.py",
+                "tests/type_check/typing_route.py",
+                "tests/test_blueprints.py",
+                "src/flask/cli.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-url-dispatch",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                33.57669999999996
+              ],
+              "top5": [
+                "src/flask/views.py",
+                "tests/test_basic.py",
+                "tests/test_blueprints.py",
+                "src/flask/sansio/scaffold.py",
+                "src/flask/globals.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-dev-server-tls",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                38.34680000000003
+              ],
+              "top5": [
+                "src/flask/cli.py",
+                "src/flask/debughelpers.py",
+                "tests/test_basic.py",
+                "src/flask/app.py",
+                "tests/test_blueprints.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-holdout-env-debug-cli",
+              "corpus": "pallets-flask",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                28.133100000000013
+              ],
+              "top5": [
+                "src/flask/debughelpers.py",
+                "src/flask/cli.py",
+                "tests/test_basic.py",
+                "src/flask/sansio/app.py",
+                "src/flask/app.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-holdout-request-lifetime",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                24.477700000000027
+              ],
+              "top5": [
+                "src/flask/wrappers.py",
+                "tests/test_blueprints.py",
+                "tests/test_basic.py",
+                "src/flask/signals.py",
+                "tests/test_templating.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "graph-only": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.25,
+              "at5": 0.4166666666666667,
+              "at10": 0.5
+            },
+            "mrr": 0.3298611111111111,
+            "misses": [
+              "flask-dev-static-safe-download",
+              "flask-dev-flash-once-next-request",
+              "flask-dev-conditional-file-cache",
+              "flask-dev-blueprint-modular-routes",
+              "flask-holdout-env-debug-cli",
+              "flask-holdout-request-lifetime"
+            ],
+            "warmMs": {
+              "median": 33.57669999999996,
+              "p95": 58.55219999999997,
+              "max": 58.55219999999997
+            }
+          },
+          "results": [
+            {
+              "id": "flask-dev-static-safe-download",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                58.55219999999997
+              ],
+              "top5": [
+                "tests/test_user_error_handler.py",
+                "tests/test_basic.py",
+                "src/flask/app.py",
+                "tests/test_templating.py",
+                "tests/test_json.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-stream-request-context",
+              "corpus": "pallets-flask",
+              "rank": 8,
+              "coldMs": 0,
+              "warmMs": [
+                34.990399999999966
+              ],
+              "top5": [
+                "src/flask/ctx.py",
+                "tests/test_logging.py",
+                "tests/test_basic.py",
+                "tests/test_signals.py",
+                "src/flask/__init__.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-flash-once-next-request",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                39.385699999999986
+              ],
+              "top5": [
+                "tests/test_blueprints.py",
+                "tests/test_templating.py",
+                "tests/test_basic.py",
+                "tests/test_testing.py",
+                "src/flask/sansio/app.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-conditional-file-cache",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                33.302599999999984
+              ],
+              "top5": [
+                "src/flask/sansio/app.py",
+                "tests/test_templating.py",
+                "tests/test_blueprints.py",
+                "src/flask/app.py",
+                "tests/test_testing.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-custom-json-serialization",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                27.531000000000006
+              ],
+              "top5": [
+                "src/flask/json/provider.py",
+                "tests/test_reqctx.py",
+                "tests/test_basic.py",
+                "src/flask/sessions.py",
+                "tests/test_apps/cliapp/inner1/__init__.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-session-cookie-boundary",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                33.994699999999966
+              ],
+              "top5": [
+                "src/flask/sessions.py",
+                "tests/test_basic.py",
+                "tests/test_testing.py",
+                "src/flask/testing.py",
+                "src/flask/wrappers.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-template-stream",
+              "corpus": "pallets-flask",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                28.967200000000048
+              ],
+              "top5": [
+                "src/flask/templating.py",
+                "src/flask/cli.py",
+                "tests/test_blueprints.py",
+                "tests/test_json.py",
+                "tests/test_reqctx.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-blueprint-modular-routes",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                35.055900000000065
+              ],
+              "top5": [
+                "tests/test_blueprints.py",
+                "src/flask/sansio/app.py",
+                "tests/test_basic.py",
+                "tests/type_check/typing_route.py",
+                "tests/test_templating.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-url-dispatch",
+              "corpus": "pallets-flask",
+              "rank": 3,
+              "coldMs": 0,
+              "warmMs": [
+                33.57669999999996
+              ],
+              "top5": [
+                "tests/test_blueprints.py",
+                "tests/test_basic.py",
+                "src/flask/app.py",
+                "tests/test_testing.py",
+                "src/flask/sansio/app.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-dev-dev-server-tls",
+              "corpus": "pallets-flask",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                38.34680000000003
+              ],
+              "top5": [
+                "tests/test_basic.py",
+                "src/flask/cli.py",
+                "tests/test_user_error_handler.py",
+                "tests/test_config.py",
+                "src/flask/debughelpers.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-holdout-env-debug-cli",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                28.133100000000013
+              ],
+              "top5": [
+                "tests/test_basic.py",
+                "src/flask/debughelpers.py",
+                "src/flask/sansio/app.py",
+                "tests/test_user_error_handler.py",
+                "src/flask/app.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "flask-holdout-request-lifetime",
+              "corpus": "pallets-flask",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                24.477700000000027
+              ],
+              "top5": [
+                "tests/test_blueprints.py",
+                "tests/test_templating.py",
+                "src/flask/sansio/app.py",
+                "tests/test_basic.py",
+                "tests/test_reqctx.py"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        }
+      },
+      "graphStats": {
+        "avgGraphFiles": 9.916666666666666,
+        "avgSymMatched": 14
+      }
+    },
+    {
+      "corpus": "expressjs-express",
+      "arms": {
+        "baseline-explore": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.3333333333333333,
+              "at5": 1,
+              "at10": 1
+            },
+            "mrr": 0.6388888888888888,
+            "misses": [],
+            "warmMs": {
+              "median": 13.878799999999956,
+              "p95": 23.520999999999958,
+              "max": 23.520999999999958
+            }
+          },
+          "results": [
+            {
+              "id": "express-dev-content-negotiation",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                17.34949999999992
+              ],
+              "top5": [
+                "lib/request.js",
+                "lib/response.js",
+                "lib/utils.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-language-negotiation",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                12.91719999999998
+              ],
+              "top5": [
+                "lib/application.js",
+                "lib/request.js",
+                "lib/response.js",
+                "examples/error/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-byte-ranges",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                14.511899999999969
+              ],
+              "top5": [
+                "lib/request.js",
+                "lib/utils.js",
+                "lib/response.js",
+                "examples/markdown/index.js",
+                "lib/application.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-download-disposition",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                13.878799999999956
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/view.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-jsonp",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                14.90440000000001
+              ],
+              "top5": [
+                "examples/search/public/client.js",
+                "lib/response.js",
+                "lib/request.js",
+                "lib/view.js",
+                "examples/search/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-proxy-client-address",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                21.687799999999925
+              ],
+              "top5": [
+                "examples/search/public/client.js",
+                "lib/request.js",
+                "lib/response.js",
+                "lib/utils.js",
+                "lib/view.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-view-lookup",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                13.245600000000081
+              ],
+              "top5": [
+                "lib/application.js",
+                "lib/view.js",
+                "lib/response.js",
+                "examples/mvc/lib/boot.js",
+                "examples/route-map/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-conditional-request",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                12.901199999999903
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/request.js",
+                "lib/application.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-application-construction",
+              "corpus": "expressjs-express",
+              "rank": 3,
+              "coldMs": 0,
+              "warmMs": [
+                11.374799999999937
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/request.js",
+                "lib/application.js",
+                "examples/error/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-subdomain-offset",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                9.608600000000024
+              ],
+              "top5": [
+                "lib/request.js",
+                "examples/mvc/lib/boot.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-holdout-nested-query-parser",
+              "corpus": "expressjs-express",
+              "rank": 3,
+              "coldMs": 0,
+              "warmMs": [
+                19.016599999999926
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/application.js",
+                "lib/utils.js",
+                "lib/request.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-holdout-secure-forwarded-protocol",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                23.520999999999958
+              ],
+              "top5": [
+                "lib/request.js",
+                "lib/application.js",
+                "lib/response.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "symbol-union-plan": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.25,
+              "at5": 1,
+              "at10": 1
+            },
+            "mrr": 0.5861111111111111,
+            "misses": [],
+            "warmMs": {
+              "median": 13.878799999999956,
+              "p95": 23.520999999999958,
+              "max": 23.520999999999958
+            }
+          },
+          "results": [
+            {
+              "id": "express-dev-content-negotiation",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                17.34949999999992
+              ],
+              "top5": [
+                "lib/request.js",
+                "lib/response.js",
+                "lib/utils.js",
+                "examples/params/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-language-negotiation",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                12.91719999999998
+              ],
+              "top5": [
+                "lib/application.js",
+                "lib/request.js",
+                "lib/response.js",
+                "examples/error/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-byte-ranges",
+              "corpus": "expressjs-express",
+              "rank": 3,
+              "coldMs": 0,
+              "warmMs": [
+                14.511899999999969
+              ],
+              "top5": [
+                "lib/utils.js",
+                "lib/response.js",
+                "lib/request.js",
+                "examples/content-negotiation/index.js",
+                "examples/route-middleware/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-download-disposition",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                13.878799999999956
+              ],
+              "top5": [
+                "lib/response.js",
+                "examples/markdown/index.js",
+                "lib/view.js",
+                "lib/request.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-jsonp",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                14.90440000000001
+              ],
+              "top5": [
+                "lib/response.js",
+                "examples/search/public/client.js",
+                "lib/request.js",
+                "lib/view.js",
+                "examples/search/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-proxy-client-address",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                21.687799999999925
+              ],
+              "top5": [
+                "examples/search/public/client.js",
+                "lib/request.js",
+                "lib/response.js",
+                "lib/utils.js",
+                "lib/view.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-view-lookup",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                13.245600000000081
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/view.js",
+                "examples/mvc/lib/boot.js",
+                "lib/application.js",
+                "examples/route-middleware/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-conditional-request",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                12.901199999999903
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/request.js",
+                "lib/application.js",
+                "examples/route-middleware/index.js",
+                "examples/session/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-application-construction",
+              "corpus": "expressjs-express",
+              "rank": 5,
+              "coldMs": 0,
+              "warmMs": [
+                11.374799999999937
+              ],
+              "top5": [
+                "lib/request.js",
+                "lib/response.js",
+                "examples/web-service/index.js",
+                "examples/route-middleware/index.js",
+                "lib/application.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-subdomain-offset",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                9.608600000000024
+              ],
+              "top5": [
+                "lib/request.js",
+                "examples/mvc/lib/boot.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-holdout-nested-query-parser",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                19.016599999999926
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/request.js",
+                "lib/utils.js",
+                "lib/application.js",
+                "examples/mvc/lib/boot.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-holdout-secure-forwarded-protocol",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                23.520999999999958
+              ],
+              "top5": [
+                "lib/application.js",
+                "lib/request.js",
+                "lib/response.js",
+                "examples/search/public/client.js",
+                "examples/view-constructor/github-view.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "symbol-graph-union": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.25,
+              "at5": 1,
+              "at10": 1
+            },
+            "mrr": 0.5861111111111111,
+            "misses": [],
+            "warmMs": {
+              "median": 13.878799999999956,
+              "p95": 23.520999999999958,
+              "max": 23.520999999999958
+            }
+          },
+          "results": [
+            {
+              "id": "express-dev-content-negotiation",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                17.34949999999992
+              ],
+              "top5": [
+                "lib/request.js",
+                "lib/response.js",
+                "lib/utils.js",
+                "examples/params/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-language-negotiation",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                12.91719999999998
+              ],
+              "top5": [
+                "lib/application.js",
+                "lib/request.js",
+                "lib/response.js",
+                "examples/error/index.js",
+                "examples/markdown/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-byte-ranges",
+              "corpus": "expressjs-express",
+              "rank": 3,
+              "coldMs": 0,
+              "warmMs": [
+                14.511899999999969
+              ],
+              "top5": [
+                "lib/utils.js",
+                "lib/response.js",
+                "lib/request.js",
+                "examples/content-negotiation/index.js",
+                "examples/route-middleware/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-download-disposition",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                13.878799999999956
+              ],
+              "top5": [
+                "lib/response.js",
+                "examples/markdown/index.js",
+                "lib/view.js",
+                "lib/request.js",
+                "examples/view-constructor/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-jsonp",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                14.90440000000001
+              ],
+              "top5": [
+                "lib/response.js",
+                "examples/search/public/client.js",
+                "lib/request.js",
+                "lib/view.js",
+                "lib/application.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-proxy-client-address",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                21.687799999999925
+              ],
+              "top5": [
+                "examples/search/public/client.js",
+                "lib/request.js",
+                "lib/response.js",
+                "lib/utils.js",
+                "lib/view.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-view-lookup",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                13.245600000000081
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/view.js",
+                "examples/mvc/lib/boot.js",
+                "lib/application.js",
+                "examples/route-middleware/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-conditional-request",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                12.901199999999903
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/request.js",
+                "lib/application.js",
+                "examples/route-middleware/index.js",
+                "examples/session/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-application-construction",
+              "corpus": "expressjs-express",
+              "rank": 5,
+              "coldMs": 0,
+              "warmMs": [
+                11.374799999999937
+              ],
+              "top5": [
+                "lib/request.js",
+                "lib/response.js",
+                "examples/web-service/index.js",
+                "examples/route-middleware/index.js",
+                "lib/application.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-subdomain-offset",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                9.608600000000024
+              ],
+              "top5": [
+                "lib/request.js",
+                "examples/mvc/lib/boot.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-holdout-nested-query-parser",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                19.016599999999926
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/request.js",
+                "lib/utils.js",
+                "lib/application.js",
+                "examples/mvc/lib/boot.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-holdout-secure-forwarded-protocol",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                23.520999999999958
+              ],
+              "top5": [
+                "lib/application.js",
+                "lib/request.js",
+                "lib/response.js",
+                "examples/search/public/client.js",
+                "examples/view-constructor/github-view.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "graph-only": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.5,
+              "at5": 0.8333333333333334,
+              "at10": 0.9166666666666666
+            },
+            "mrr": 0.6666666666666666,
+            "misses": [
+              "express-dev-application-construction"
+            ],
+            "warmMs": {
+              "median": 13.878799999999956,
+              "p95": 23.520999999999958,
+              "max": 23.520999999999958
+            }
+          },
+          "results": [
+            {
+              "id": "express-dev-content-negotiation",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                17.34949999999992
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/request.js",
+                "lib/utils.js",
+                "examples/params/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-language-negotiation",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                12.91719999999998
+              ],
+              "top5": [
+                "lib/request.js",
+                "lib/utils.js",
+                "lib/response.js",
+                "examples/markdown/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-byte-ranges",
+              "corpus": "expressjs-express",
+              "rank": 6,
+              "coldMs": 0,
+              "warmMs": [
+                14.511899999999969
+              ],
+              "top5": [
+                "lib/response.js",
+                "examples/content-negotiation/index.js",
+                "lib/utils.js",
+                "examples/route-middleware/index.js",
+                "examples/content-negotiation/db.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-download-disposition",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                13.878799999999956
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/request.js",
+                "examples/markdown/index.js",
+                "examples/view-constructor/index.js",
+                "examples/cookies/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-jsonp",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                14.90440000000001
+              ],
+              "top5": [
+                "lib/response.js",
+                "examples/search/public/client.js",
+                "lib/request.js",
+                "lib/application.js",
+                "examples/content-negotiation/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-proxy-client-address",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                21.687799999999925
+              ],
+              "top5": [
+                "examples/search/public/client.js",
+                "lib/request.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-view-lookup",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                13.245600000000081
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/view.js",
+                "examples/route-middleware/index.js",
+                "lib/request.js",
+                "examples/mvc/lib/boot.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-conditional-request",
+              "corpus": "expressjs-express",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                12.901199999999903
+              ],
+              "top5": [
+                "lib/response.js",
+                "lib/request.js",
+                "examples/route-middleware/index.js",
+                "lib/application.js",
+                "examples/session/index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-application-construction",
+              "corpus": "expressjs-express",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                11.374799999999937
+              ],
+              "top5": [
+                "examples/web-service/index.js",
+                "lib/response.js",
+                "examples/route-middleware/index.js",
+                "lib/request.js",
+                "index.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-dev-subdomain-offset",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                9.608600000000024
+              ],
+              "top5": [
+                "lib/request.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-holdout-nested-query-parser",
+              "corpus": "expressjs-express",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                19.016599999999926
+              ],
+              "top5": [
+                "lib/request.js",
+                "lib/response.js",
+                "lib/utils.js",
+                "lib/application.js",
+                "examples/mvc/lib/boot.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "express-holdout-secure-forwarded-protocol",
+              "corpus": "expressjs-express",
+              "rank": 3,
+              "coldMs": 0,
+              "warmMs": [
+                23.520999999999958
+              ],
+              "top5": [
+                "lib/application.js",
+                "examples/search/public/client.js",
+                "lib/request.js",
+                "lib/response.js",
+                "examples/view-constructor/github-view.js"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        }
+      },
+      "graphStats": {
+        "avgGraphFiles": 5.25,
+        "avgSymMatched": 4.166666666666667
+      }
+    },
+    {
+      "corpus": "spring-projects-spring-petclinic",
+      "arms": {
+        "baseline-explore": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.3333333333333333,
+              "at5": 0.75,
+              "at10": 0.75
+            },
+            "mrr": 0.5277777777777778,
+            "misses": [
+              "spring-owner-create-validation",
+              "spring-owner-update-id-mismatch",
+              "spring-owner-pet-case-insensitive-lookup"
+            ],
+            "warmMs": {
+              "median": 20.279899999999998,
+              "p95": 36.582700000000045,
+              "max": 36.582700000000045
+            }
+          },
+          "results": [
+            {
+              "id": "spring-owner-search-pagination",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 3,
+              "coldMs": 0,
+              "warmMs": [
+                27.184600000000046
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/PetClinicIntegrationTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/MySqlIntegrationTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-owner-create-validation",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                36.582700000000045
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/PetClinicConcurrencyTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetValidatorTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetControllerTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-owner-update-id-mismatch",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                21.81479999999999
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetControllerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/VisitControllerTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-create-domain-rules",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                26.94299999999987
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetType.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-update-existing-or-new",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                17.86929999999984
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetType.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-form-validation",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                22.553499999999985
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-type-binding",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                17.47289999999998
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetTypeFormatter.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-visit-booking-date",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                16.279800000000023
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/Visit.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-visit-load-associated-pet",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                16.89729999999986
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Visit.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetTypeFormatter.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-owner-pet-case-insensitive-lookup",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                26.864199999999983
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetTypeFormatter.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetType.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-vet-html-json-list",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                20.279899999999998
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/vet/VetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-form-binder-identifier-protection",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                18.991899999999987
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "symbol-union-plan": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.6666666666666666,
+              "at5": 0.8333333333333334,
+              "at10": 0.8333333333333334
+            },
+            "mrr": 0.7083333333333334,
+            "misses": [
+              "spring-owner-update-id-mismatch",
+              "spring-owner-pet-case-insensitive-lookup"
+            ],
+            "warmMs": {
+              "median": 20.279899999999998,
+              "p95": 36.582700000000045,
+              "max": 36.582700000000045
+            }
+          },
+          "results": [
+            {
+              "id": "spring-owner-search-pagination",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                27.184600000000046
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/PetClinicIntegrationTests.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-owner-create-validation",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                36.582700000000045
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/PetClinicConcurrencyTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetValidatorTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-owner-update-id-mismatch",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                21.81479999999999
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/owner/PetControllerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/VisitControllerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/model/ValidatorTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-create-domain-rules",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                26.94299999999987
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/test/java/org/springframework/samples/petclinic/model/ValidatorTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-update-existing-or-new",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                17.86929999999984
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetControllerTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-form-validation",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                22.553499999999985
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetControllerTests.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-type-binding",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                17.47289999999998
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetTypeFormatter.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetTypeFormatterTests.java",
+                "src/test/java/org/springframework/samples/petclinic/PetClinicConcurrencyTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-visit-booking-date",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                16.279800000000023
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Visit.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/system/I18nPropertiesSyncTest.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-visit-load-associated-pet",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                16.89729999999986
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Visit.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/VisitControllerTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-owner-pet-case-insensitive-lookup",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                26.864199999999983
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/test/java/org/springframework/samples/petclinic/PetClinicConcurrencyTests.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-vet-html-json-list",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                20.279899999999998
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/vet/VetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-form-binder-identifier-protection",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                18.991899999999987
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetControllerTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/test/java/org/springframework/samples/petclinic/system/I18nPropertiesSyncTest.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "symbol-graph-union": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.6666666666666666,
+              "at5": 0.75,
+              "at10": 0.75
+            },
+            "mrr": 0.6875,
+            "misses": [
+              "spring-owner-update-id-mismatch",
+              "spring-pet-create-domain-rules",
+              "spring-owner-pet-case-insensitive-lookup"
+            ],
+            "warmMs": {
+              "median": 20.279899999999998,
+              "p95": 36.582700000000045,
+              "max": 36.582700000000045
+            }
+          },
+          "results": [
+            {
+              "id": "spring-owner-search-pagination",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                27.184600000000046
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/PetClinicIntegrationTests.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-owner-create-validation",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                36.582700000000045
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/PetClinicConcurrencyTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetValidatorTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-owner-update-id-mismatch",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                21.81479999999999
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/owner/PetControllerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/VisitControllerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/model/ValidatorTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-create-domain-rules",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                26.94299999999987
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/model/ValidatorTests.java",
+                "src/test/java/org/springframework/samples/petclinic/PetClinicConcurrencyTests.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-update-existing-or-new",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                17.86929999999984
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetControllerTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-form-validation",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                22.553499999999985
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetControllerTests.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-type-binding",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                17.47289999999998
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetTypeFormatter.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetTypeFormatterTests.java",
+                "src/test/java/org/springframework/samples/petclinic/PetClinicConcurrencyTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-visit-booking-date",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                16.279800000000023
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Visit.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/system/I18nPropertiesSyncTest.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-visit-load-associated-pet",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                16.89729999999986
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Visit.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/VisitControllerTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-owner-pet-case-insensitive-lookup",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                26.864199999999983
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/test/java/org/springframework/samples/petclinic/PetClinicConcurrencyTests.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-vet-html-json-list",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                20.279899999999998
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/vet/VetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-form-binder-identifier-protection",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                18.991899999999987
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetControllerTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetValidator.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "graph-only": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.16666666666666666,
+              "at5": 0.5,
+              "at10": 0.6666666666666666
+            },
+            "mrr": 0.2841269841269841,
+            "misses": [
+              "spring-owner-create-validation",
+              "spring-owner-update-id-mismatch",
+              "spring-visit-booking-date",
+              "spring-form-binder-identifier-protection"
+            ],
+            "warmMs": {
+              "median": 20.279899999999998,
+              "p95": 36.582700000000045,
+              "max": 36.582700000000045
+            }
+          },
+          "results": [
+            {
+              "id": "spring-owner-search-pagination",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                27.184600000000046
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Owner.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-owner-create-validation",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                36.582700000000045
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+                "src/test/java/org/springframework/samples/petclinic/system/I18nPropertiesSyncTest.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-owner-update-id-mismatch",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                21.81479999999999
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetControllerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/VisitControllerTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-create-domain-rules",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 5,
+              "coldMs": 0,
+              "warmMs": [
+                26.94299999999987
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetValidatorTests.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-update-existing-or-new",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                17.86929999999984
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-form-validation",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 7,
+              "coldMs": 0,
+              "warmMs": [
+                22.553499999999985
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/owner/PetValidatorTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetControllerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-pet-type-binding",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 5,
+              "coldMs": 0,
+              "warmMs": [
+                17.47289999999998
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetTypeFormatterTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/PetValidatorTests.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetTypeFormatter.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-visit-booking-date",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                16.279800000000023
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/system/I18nPropertiesSyncTest.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/VisitControllerTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Pet.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-visit-load-associated-pet",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 5,
+              "coldMs": 0,
+              "warmMs": [
+                16.89729999999986
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "src/test/java/org/springframework/samples/petclinic/owner/VisitControllerTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/VisitController.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-owner-pet-case-insensitive-lookup",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 6,
+              "coldMs": 0,
+              "warmMs": [
+                26.864199999999983
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java",
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/OwnerRepository.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-vet-html-json-list",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                20.279899999999998
+              ],
+              "top5": [
+                "src/main/java/org/springframework/samples/petclinic/vet/VetController.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/OwnerController.java",
+                "src/test/java/org/springframework/samples/petclinic/system/CrashControllerIntegrationTests.java",
+                "src/test/java/org/springframework/samples/petclinic/PetClinicConcurrencyTests.java",
+                "src/test/java/org/springframework/samples/petclinic/vet/VetControllerTests.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "spring-form-binder-identifier-protection",
+              "corpus": "spring-projects-spring-petclinic",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                18.991899999999987
+              ],
+              "top5": [
+                "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+                "src/test/java/org/springframework/samples/petclinic/system/I18nPropertiesSyncTest.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+                "src/main/java/org/springframework/samples/petclinic/owner/OwnerRepository.java"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        }
+      },
+      "graphStats": {
+        "avgGraphFiles": 12.166666666666666,
+        "avgSymMatched": 12.5
+      }
+    },
+    {
+      "corpus": "actix-actix-web",
+      "arms": {
+        "baseline-explore": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.25,
+              "at5": 0.5833333333333334,
+              "at10": 0.75
+            },
+            "mrr": 0.40218253968253964,
+            "misses": [
+              "rust-request-scoped-shared-state",
+              "rust-redirect-status-responder",
+              "rust-in-memory-service-testing"
+            ],
+            "warmMs": {
+              "median": 25.644599999999855,
+              "p95": 44.20620000000008,
+              "max": 44.20620000000008
+            }
+          },
+          "results": [
+            {
+              "id": "rust-request-scoped-shared-state",
+              "corpus": "actix-actix-web",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                44.20620000000008
+              ],
+              "top5": [
+                "actix-web/src/middleware/normalize.rs",
+                "actix-web/src/middleware/err_handlers.rs",
+                "actix-web/src/handler.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-request-app-data-lookup",
+              "corpus": "actix-actix-web",
+              "rank": 10,
+              "coldMs": 0,
+              "warmMs": [
+                35.61460000000011
+              ],
+              "top5": [
+                "actix-web/src/route.rs",
+                "actix-web/src/data.rs",
+                "actix-web/src/web.rs",
+                "actix-web/src/scope.rs",
+                "actix-web/src/app.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-forwarded-connection-info",
+              "corpus": "actix-actix-web",
+              "rank": 7,
+              "coldMs": 0,
+              "warmMs": [
+                20.61559999999986
+              ],
+              "top5": [
+                "actix-web/src/handler.rs",
+                "actix-web/src/middleware/err_handlers.rs",
+                "actix-web/src/guard/host.rs",
+                "actix-web/src/middleware/normalize.rs",
+                "actix-web/src/middleware/logger.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-query-string-extraction",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                25.644599999999855
+              ],
+              "top5": [
+                "actix-web/src/types/query.rs",
+                "actix-web/src/handler.rs",
+                "actix-web/src/middleware/err_handlers.rs",
+                "actix-web/src/http/header/any_or_some.rs",
+                "actix-web/src/types/payload.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-json-body-extraction",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                23.942199999999957
+              ],
+              "top5": [
+                "actix-web/src/types/json.rs",
+                "actix-web/src/response/responder.rs",
+                "actix-web/src/error/mod.rs",
+                "actix-web/src/response/builder.rs",
+                "actix-web/src/error/internal.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-form-body-extraction",
+              "corpus": "actix-actix-web",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                16.64519999999993
+              ],
+              "top5": [
+                "actix-web/src/response/responder.rs",
+                "actix-web/src/types/form.rs",
+                "actix-web/src/response/response.rs",
+                "actix-web/src/types/either.rs",
+                "actix-web/src/types/html.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-function-middleware",
+              "corpus": "actix-actix-web",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                34.12149999999997
+              ],
+              "top5": [
+                "actix-web/src/web.rs",
+                "actix-web/src/service.rs",
+                "actix-web/src/middleware/logger.rs",
+                "actix-web/src/middleware/from_fn.rs",
+                "actix-web/src/app_service.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-trailing-slash-normalization",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                26.95159999999987
+              ],
+              "top5": [
+                "actix-web/src/middleware/normalize.rs",
+                "actix-web/src/route.rs",
+                "actix-web/src/web.rs",
+                "actix-web/src/middleware/mod.rs",
+                "actix-web/src/scope.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-host-route-guard",
+              "corpus": "actix-actix-web",
+              "rank": 3,
+              "coldMs": 0,
+              "warmMs": [
+                28.80489999999986
+              ],
+              "top5": [
+                "actix-web/src/web.rs",
+                "actix-web/src/route.rs",
+                "actix-web/src/guard/host.rs",
+                "actix-web/src/http/header/range.rs",
+                "actix-web/src/types/path.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-redirect-status-responder",
+              "corpus": "actix-actix-web",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                27.13149999999996
+              ],
+              "top5": [
+                "actix-web/src/web.rs",
+                "actix-web/src/resource.rs",
+                "actix-web/src/response/response.rs",
+                "actix-web/src/response/builder.rs",
+                "actix-web/src/request.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-in-memory-service-testing",
+              "corpus": "actix-actix-web",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                24.913999999999987
+              ],
+              "top5": [
+                "actix-web/src/web.rs",
+                "actix-web/src/service.rs",
+                "actix-web/src/app_service.rs",
+                "actix-web/src/test/test_request.rs",
+                "actix-web/src/scope.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-default-response-headers",
+              "corpus": "actix-actix-web",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                25.395899999999983
+              ],
+              "top5": [
+                "actix-web/src/resource.rs",
+                "actix-web/src/middleware/default_headers.rs",
+                "actix-web/src/route.rs",
+                "actix-web/src/guard/mod.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "symbol-union-plan": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.4166666666666667,
+              "at5": 0.8333333333333334,
+              "at10": 0.9166666666666666
+            },
+            "mrr": 0.5972222222222222,
+            "misses": [
+              "rust-request-scoped-shared-state"
+            ],
+            "warmMs": {
+              "median": 25.644599999999855,
+              "p95": 44.20620000000008,
+              "max": 44.20620000000008
+            }
+          },
+          "results": [
+            {
+              "id": "rust-request-scoped-shared-state",
+              "corpus": "actix-actix-web",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                44.20620000000008
+              ],
+              "top5": [
+                "actix-web/src/handler.rs",
+                "actix-web/src/middleware/normalize.rs",
+                "actix-web/src/request.rs",
+                "actix-web/src/scope.rs",
+                "actix-web/src/middleware/err_handlers.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-request-app-data-lookup",
+              "corpus": "actix-actix-web",
+              "rank": 6,
+              "coldMs": 0,
+              "warmMs": [
+                35.61460000000011
+              ],
+              "top5": [
+                "actix-web/src/route.rs",
+                "actix-web/src/data.rs",
+                "actix-web/src/introspection.rs",
+                "actix-web/src/request_data.rs",
+                "actix-web/src/web.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-forwarded-connection-info",
+              "corpus": "actix-actix-web",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                20.61559999999986
+              ],
+              "top5": [
+                "actix-web/src/guard/host.rs",
+                "actix-web/src/info.rs",
+                "actix-web/src/middleware/logger.rs",
+                "actix-web/src/handler.rs",
+                "actix-web/src/middleware/err_handlers.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-query-string-extraction",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                25.644599999999855
+              ],
+              "top5": [
+                "actix-web/src/types/query.rs",
+                "actix-web/src/request.rs",
+                "actix-web/src/handler.rs",
+                "actix-web/src/data.rs",
+                "actix-web/src/middleware/err_handlers.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-json-body-extraction",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                23.942199999999957
+              ],
+              "top5": [
+                "actix-web/src/types/json.rs",
+                "actix-web/src/error/mod.rs",
+                "actix-web/src/types/payload.rs",
+                "actix-web/src/http/header/content_type.rs",
+                "actix-web/src/http/header/content_disposition.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-form-body-extraction",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                16.64519999999993
+              ],
+              "top5": [
+                "actix-web/src/types/form.rs",
+                "actix-web/src/response/response.rs",
+                "actix-web/src/response/responder.rs",
+                "actix-web/src/service.rs",
+                "actix-web/src/data.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-function-middleware",
+              "corpus": "actix-actix-web",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                34.12149999999997
+              ],
+              "top5": [
+                "actix-web/src/middleware/logger.rs",
+                "actix-web/src/middleware/from_fn.rs",
+                "actix-web/src/scope.rs",
+                "actix-web/src/route.rs",
+                "actix-web/src/resource.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-trailing-slash-normalization",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                26.95159999999987
+              ],
+              "top5": [
+                "actix-web/src/middleware/normalize.rs",
+                "actix-web/src/http/header/content_disposition.rs",
+                "actix-web/src/introspection.rs",
+                "actix-web/src/route.rs",
+                "actix-web/src/scope.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-host-route-guard",
+              "corpus": "actix-actix-web",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                28.80489999999986
+              ],
+              "top5": [
+                "actix-web/src/route.rs",
+                "actix-web/src/guard/host.rs",
+                "actix-web/src/types/path.rs",
+                "actix-web/src/web.rs",
+                "actix-web/src/introspection.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-redirect-status-responder",
+              "corpus": "actix-actix-web",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                27.13149999999996
+              ],
+              "top5": [
+                "actix-web/src/response/response.rs",
+                "actix-web/src/request.rs",
+                "actix-web/src/web.rs",
+                "actix-web/src/redirect.rs",
+                "actix-web/src/http/header/any_or_some.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-in-memory-service-testing",
+              "corpus": "actix-actix-web",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                24.913999999999987
+              ],
+              "top5": [
+                "actix-web/src/service.rs",
+                "actix-web/src/scope.rs",
+                "actix-web/src/app_service.rs",
+                "actix-web/src/test/test_utils.rs",
+                "actix-web/src/request.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-default-response-headers",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                25.395899999999983
+              ],
+              "top5": [
+                "actix-web/src/middleware/default_headers.rs",
+                "actix-web/src/guard/mod.rs",
+                "actix-web/src/resource.rs",
+                "actix-web/src/introspection.rs",
+                "actix-web/src/route.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "symbol-graph-union": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.4166666666666667,
+              "at5": 0.8333333333333334,
+              "at10": 0.9166666666666666
+            },
+            "mrr": 0.5972222222222222,
+            "misses": [
+              "rust-request-scoped-shared-state"
+            ],
+            "warmMs": {
+              "median": 25.644599999999855,
+              "p95": 44.20620000000008,
+              "max": 44.20620000000008
+            }
+          },
+          "results": [
+            {
+              "id": "rust-request-scoped-shared-state",
+              "corpus": "actix-actix-web",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                44.20620000000008
+              ],
+              "top5": [
+                "actix-web/src/handler.rs",
+                "actix-web/src/middleware/normalize.rs",
+                "actix-web/src/request.rs",
+                "actix-web/src/scope.rs",
+                "actix-web/src/middleware/err_handlers.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-request-app-data-lookup",
+              "corpus": "actix-actix-web",
+              "rank": 6,
+              "coldMs": 0,
+              "warmMs": [
+                35.61460000000011
+              ],
+              "top5": [
+                "actix-web/src/route.rs",
+                "actix-web/src/data.rs",
+                "actix-web/src/introspection.rs",
+                "actix-web/src/request_data.rs",
+                "actix-web/src/web.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-forwarded-connection-info",
+              "corpus": "actix-actix-web",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                20.61559999999986
+              ],
+              "top5": [
+                "actix-web/src/guard/host.rs",
+                "actix-web/src/info.rs",
+                "actix-web/src/middleware/logger.rs",
+                "actix-web/src/handler.rs",
+                "actix-web/src/middleware/err_handlers.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-query-string-extraction",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                25.644599999999855
+              ],
+              "top5": [
+                "actix-web/src/types/query.rs",
+                "actix-web/src/request.rs",
+                "actix-web/src/handler.rs",
+                "actix-web/src/data.rs",
+                "actix-web/src/middleware/err_handlers.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-json-body-extraction",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                23.942199999999957
+              ],
+              "top5": [
+                "actix-web/src/types/json.rs",
+                "actix-web/src/error/mod.rs",
+                "actix-web/src/types/payload.rs",
+                "actix-web/src/http/header/content_type.rs",
+                "actix-web/src/http/header/content_disposition.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-form-body-extraction",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                16.64519999999993
+              ],
+              "top5": [
+                "actix-web/src/types/form.rs",
+                "actix-web/src/response/response.rs",
+                "actix-web/src/response/responder.rs",
+                "actix-web/src/service.rs",
+                "actix-web/src/data.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-function-middleware",
+              "corpus": "actix-actix-web",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                34.12149999999997
+              ],
+              "top5": [
+                "actix-web/src/middleware/logger.rs",
+                "actix-web/src/middleware/from_fn.rs",
+                "actix-web/src/scope.rs",
+                "actix-web/src/route.rs",
+                "actix-web/src/resource.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-trailing-slash-normalization",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                26.95159999999987
+              ],
+              "top5": [
+                "actix-web/src/middleware/normalize.rs",
+                "actix-web/src/http/header/content_disposition.rs",
+                "actix-web/src/introspection.rs",
+                "actix-web/src/route.rs",
+                "actix-web/src/scope.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-host-route-guard",
+              "corpus": "actix-actix-web",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                28.80489999999986
+              ],
+              "top5": [
+                "actix-web/src/route.rs",
+                "actix-web/src/guard/host.rs",
+                "actix-web/src/types/path.rs",
+                "actix-web/src/web.rs",
+                "actix-web/src/introspection.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-redirect-status-responder",
+              "corpus": "actix-actix-web",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                27.13149999999996
+              ],
+              "top5": [
+                "actix-web/src/response/response.rs",
+                "actix-web/src/request.rs",
+                "actix-web/src/web.rs",
+                "actix-web/src/redirect.rs",
+                "actix-web/src/http/header/any_or_some.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-in-memory-service-testing",
+              "corpus": "actix-actix-web",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                24.913999999999987
+              ],
+              "top5": [
+                "actix-web/src/service.rs",
+                "actix-web/src/scope.rs",
+                "actix-web/src/app_service.rs",
+                "actix-web/src/test/test_utils.rs",
+                "actix-web/src/request.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-default-response-headers",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                25.395899999999983
+              ],
+              "top5": [
+                "actix-web/src/middleware/default_headers.rs",
+                "actix-web/src/guard/mod.rs",
+                "actix-web/src/introspection.rs",
+                "actix-web/src/response/response.rs",
+                "actix-web/src/error/mod.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "graph-only": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.5833333333333334,
+              "at5": 0.8333333333333334,
+              "at10": 0.8333333333333334
+            },
+            "mrr": 0.6875,
+            "misses": [
+              "rust-request-scoped-shared-state",
+              "rust-request-app-data-lookup"
+            ],
+            "warmMs": {
+              "median": 25.644599999999855,
+              "p95": 44.20620000000008,
+              "max": 44.20620000000008
+            }
+          },
+          "results": [
+            {
+              "id": "rust-request-scoped-shared-state",
+              "corpus": "actix-actix-web",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                44.20620000000008
+              ],
+              "top5": [
+                "actix-web/src/introspection.rs",
+                "actix-web/src/lib.rs",
+                "actix-web/src/handler.rs",
+                "actix-web/src/web.rs",
+                "actix-web/src/app.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-request-app-data-lookup",
+              "corpus": "actix-actix-web",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                35.61460000000011
+              ],
+              "top5": [
+                "actix-web/src/web.rs",
+                "actix-web/src/test/test_utils.rs",
+                "actix-web/src/test/test_request.rs",
+                "actix-web/src/http/header/range.rs",
+                "actix-web/src/app.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-forwarded-connection-info",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                20.61559999999986
+              ],
+              "top5": [
+                "actix-web/src/info.rs",
+                "actix-web/src/guard/host.rs",
+                "actix-web/src/introspection.rs",
+                "actix-web/src/test/test_request.rs",
+                "actix-web/src/request.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-query-string-extraction",
+              "corpus": "actix-actix-web",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                25.644599999999855
+              ],
+              "top5": [
+                "actix-web/src/web.rs",
+                "actix-web/src/types/query.rs",
+                "actix-web/src/http/header/range.rs",
+                "actix-web/src/request.rs",
+                "actix-web/src/test/test_request.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-json-body-extraction",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                23.942199999999957
+              ],
+              "top5": [
+                "actix-web/src/types/json.rs",
+                "actix-web/src/test/test_utils.rs",
+                "actix-web/src/test/test_request.rs",
+                "actix-web/src/guard/mod.rs",
+                "actix-web/src/http/header/range.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-form-body-extraction",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                16.64519999999993
+              ],
+              "top5": [
+                "actix-web/src/types/form.rs",
+                "actix-web/src/http/header/mod.rs",
+                "actix-web/src/http/header/any_or_some.rs",
+                "actix-web/src/http/header/content_type.rs",
+                "actix-web/src/test/test_request.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-function-middleware",
+              "corpus": "actix-actix-web",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                34.12149999999997
+              ],
+              "top5": [
+                "actix-web/src/middleware/logger.rs",
+                "actix-web/src/middleware/from_fn.rs",
+                "actix-web/src/guard/mod.rs",
+                "actix-web/src/http/header/range.rs",
+                "actix-web/src/route.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-trailing-slash-normalization",
+              "corpus": "actix-actix-web",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                26.95159999999987
+              ],
+              "top5": [
+                "actix-web/src/web.rs",
+                "actix-web/src/test/test_request.rs",
+                "actix-web/src/introspection.rs",
+                "actix-web/src/middleware/normalize.rs",
+                "actix-web/src/test/test_utils.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-host-route-guard",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                28.80489999999986
+              ],
+              "top5": [
+                "actix-web/src/guard/host.rs",
+                "actix-web/src/web.rs",
+                "actix-web/src/app.rs",
+                "actix-web/src/resource.rs",
+                "actix-web/src/scope.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-redirect-status-responder",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                27.13149999999996
+              ],
+              "top5": [
+                "actix-web/src/redirect.rs",
+                "actix-web/src/web.rs",
+                "actix-web/src/http/header/any_or_some.rs",
+                "actix-web/src/test/mod.rs",
+                "actix-web/src/response/response.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-in-memory-service-testing",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                24.913999999999987
+              ],
+              "top5": [
+                "actix-web/src/test/test_utils.rs",
+                "actix-web/src/web.rs",
+                "actix-web/src/test/test_request.rs",
+                "actix-web/src/http/header/range.rs",
+                "actix-web/src/middleware/from_fn.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "rust-default-response-headers",
+              "corpus": "actix-actix-web",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                25.395899999999983
+              ],
+              "top5": [
+                "actix-web/src/middleware/default_headers.rs",
+                "actix-web/src/introspection.rs",
+                "actix-web/src/middleware/mod.rs",
+                "actix-web/src/guard/mod.rs",
+                "actix-web/src/route.rs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        }
+      },
+      "graphStats": {
+        "avgGraphFiles": 13.916666666666666,
+        "avgSymMatched": 15.25
+      }
+    },
+    {
+      "corpus": "dotnet-architecture-eShopOnWeb",
+      "arms": {
+        "baseline-explore": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.08333333333333333,
+              "at5": 0.5,
+              "at10": 0.75
+            },
+            "mrr": 0.26701388888888894,
+            "misses": [
+              "eshop-picture-url-composition",
+              "eshop-catalog-filter-pagination"
+            ],
+            "warmMs": {
+              "median": 31.47289999999998,
+              "p95": 52.14160000000015,
+              "max": 52.14160000000015
+            }
+          },
+          "results": [
+            {
+              "id": "eshop-basket-add-or-increment",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 16,
+              "coldMs": 0,
+              "warmMs": [
+                52.14160000000015
+              ],
+              "top5": [
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.cs",
+                "src/ApplicationCore/Entities/CatalogItem.cs",
+                "src/BlazorShared/Models/CreateCatalogItemRequest.cs",
+                "src/PublicApi/BaseResponse.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-basket-service-load-or-create",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                39.296800000000076
+              ],
+              "top5": [
+                "src/Web/Pages/Basket/Index.cshtml.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/Infrastructure/Identity/ApplicationUser.cs",
+                "src/ApplicationCore/Services/BasketService.cs",
+                "src/ApplicationCore/Interfaces/IBasketService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-basket-anonymous-transfer",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                31.374000000000024
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/ApplicationCore/Services/BasketService.cs",
+                "src/ApplicationCore/Interfaces/IBasketService.cs",
+                "src/BlazorShared/Interfaces/ICatalogItemService.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/Basket.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-order-from-basket",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                36.206100000000106
+              ],
+              "top5": [
+                "src/Web/Pages/Basket/Checkout.cshtml.cs",
+                "src/Web/Features/OrderDetails/GetOrderDetailsHandler.cs",
+                "src/Web/ViewModels/OrderDetailViewModel.cs",
+                "src/ApplicationCore/Services/OrderService.cs",
+                "src/Web/Features/OrderDetails/GetOrderDetails.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-picture-url-composition",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                26.770100000000184
+              ],
+              "top5": [
+                "src/PublicApi/BaseResponse.cs",
+                "src/BlazorShared/BaseUrlConfiguration.cs",
+                "src/ApplicationCore/Entities/CatalogItem.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                "src/PublicApi/BaseRequest.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-catalog-filter-pagination",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                34.84840000000008
+              ],
+              "top5": [
+                "src/ApplicationCore/Entities/CatalogBrand.cs",
+                "src/BlazorShared/Models/PagedCatalogItemResponse.cs",
+                "src/PublicApi/BaseResponse.cs",
+                "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+                "src/PublicApi/CatalogBrandEndpoints/CatalogBrandListEndpoint.ListCatalogBrandsResponse.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-catalog-list-endpoint",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                33.16879999999992
+              ],
+              "top5": [
+                "src/Web/Views/Manage/ManageNavPages.cs",
+                "src/Web/Controllers/Api/BaseApiController.cs",
+                "src/Web/Features/MyOrders/GetMyOrdersHandler.cs",
+                "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.cs",
+                "src/Web/Features/OrderDetails/GetOrderDetailsHandler.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-catalog-create-duplicate-guard",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 6,
+              "coldMs": 0,
+              "warmMs": [
+                31.47289999999998
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                "src/BlazorShared/Interfaces/ICatalogItemService.cs",
+                "src/ApplicationCore/Entities/CatalogItem.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/BlazorShared/Models/CreateCatalogItemRequest.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-browser-cache-expiry",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                36.19899999999984
+              ],
+              "top5": [
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/ApplicationCore/Entities/CatalogItem.cs",
+                "src/BlazorAdmin/Services/CachedCatalogLookupDataServiceDecorator .cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-cache-invalidate-after-mutation",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                25.03320000000008
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/BlazorAdmin/Pages/CatalogItemPage/List.razor",
+                "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+                "src/BlazorAdmin/Pages/CatalogItemPage/Edit.razor"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-json-http-error-feedback",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 10,
+              "coldMs": 0,
+              "warmMs": [
+                25.147899999999936
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/BlazorAdmin/Services/CatalogLookupDataService.cs",
+                "src/Web/HealthChecks/HomePageHealthCheck.cs",
+                "src/Web/Controllers/Api/BaseApiController.cs",
+                "src/Web/Views/Shared/Error.cshtml"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-empty-basket-checkout-exception",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 8,
+              "coldMs": 0,
+              "warmMs": [
+                23.69710000000009
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/ApplicationCore/Services/BasketService.cs",
+                "src/ApplicationCore/Interfaces/IBasketService.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "symbol-union-plan": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.3333333333333333,
+              "at5": 0.4166666666666667,
+              "at10": 0.5833333333333334
+            },
+            "mrr": 0.3743055555555555,
+            "misses": [
+              "eshop-basket-add-or-increment",
+              "eshop-picture-url-composition",
+              "eshop-catalog-filter-pagination",
+              "eshop-catalog-create-duplicate-guard",
+              "eshop-empty-basket-checkout-exception"
+            ],
+            "warmMs": {
+              "median": 31.47289999999998,
+              "p95": 52.14160000000015,
+              "max": 52.14160000000015
+            }
+          },
+          "results": [
+            {
+              "id": "eshop-basket-add-or-increment",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                52.14160000000015
+              ],
+              "top5": [
+                "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.cs",
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+                "src/ApplicationCore/Entities/CatalogItem.cs",
+                "src/BlazorShared/Models/CreateCatalogItemRequest.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-basket-service-load-or-create",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                39.296800000000076
+              ],
+              "top5": [
+                "src/ApplicationCore/Services/BasketService.cs",
+                "src/Web/Pages/Basket/Index.cshtml.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                "src/ApplicationCore/Interfaces/IBasketService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-basket-anonymous-transfer",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                31.374000000000024
+              ],
+              "top5": [
+                "src/ApplicationCore/Services/BasketService.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                "src/Web/Services/BasketViewModelService.cs",
+                "src/Web/Pages/Shared/Components/BasketComponent/Basket.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-order-from-basket",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 6,
+              "coldMs": 0,
+              "warmMs": [
+                36.206100000000106
+              ],
+              "top5": [
+                "src/Web/Pages/Basket/Checkout.cshtml.cs",
+                "src/Web/Features/OrderDetails/GetOrderDetailsHandler.cs",
+                "src/Web/Features/OrderDetails/GetOrderDetails.cs",
+                "src/ApplicationCore/Exceptions/EmptyBasketOnCheckoutException.cs",
+                "src/Web/ViewModels/OrderDetailViewModel.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-picture-url-composition",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                26.770100000000184
+              ],
+              "top5": [
+                "src/BlazorShared/BaseUrlConfiguration.cs",
+                "src/PublicApi/BaseResponse.cs",
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/ApplicationCore/Entities/CatalogItem.cs",
+                "src/BlazorShared/Models/CreateCatalogItemRequest.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-catalog-filter-pagination",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                34.84840000000008
+              ],
+              "top5": [
+                "src/ApplicationCore/Entities/CatalogBrand.cs",
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/BlazorShared/Models/PagedCatalogItemResponse.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/PublicApi/BaseResponse.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-catalog-list-endpoint",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 8,
+              "coldMs": 0,
+              "warmMs": [
+                33.16879999999992
+              ],
+              "top5": [
+                "src/Web/Views/Manage/ManageNavPages.cs",
+                "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+                "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.ListPagedCatalogItemRequest.cs",
+                "src/Web/HealthChecks/HomePageHealthCheck.cs",
+                "src/Web/Controllers/Api/BaseApiController.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-catalog-create-duplicate-guard",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                31.47289999999998
+              ],
+              "top5": [
+                "src/BlazorShared/Models/CreateCatalogItemRequest.cs",
+                "src/ApplicationCore/Entities/CatalogItem.cs",
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                "src/Web/ViewModels/OrderItemViewModel.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-browser-cache-expiry",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                36.19899999999984
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/BlazorAdmin/Services/CachedCatalogLookupDataServiceDecorator .cs",
+                "src/Web/Services/CachedCatalogViewModelService.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-cache-invalidate-after-mutation",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                25.03320000000008
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/BlazorAdmin/Pages/CatalogItemPage/List.razor",
+                "src/Web/Pages/Basket/Index.cshtml.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-json-http-error-feedback",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 5,
+              "coldMs": 0,
+              "warmMs": [
+                25.147899999999936
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CatalogLookupDataService.cs",
+                "src/BlazorAdmin/Services/ToastService.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/BlazorAdmin/Helpers/ToastComponent.cs",
+                "src/BlazorAdmin/Services/HttpService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-empty-basket-checkout-exception",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                23.69710000000009
+              ],
+              "top5": [
+                "src/ApplicationCore/Services/BasketService.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                "src/Web/Services/BasketViewModelService.cs",
+                "src/Web/HealthChecks/HomePageHealthCheck.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "symbol-graph-union": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.3333333333333333,
+              "at5": 0.5,
+              "at10": 0.5833333333333334
+            },
+            "mrr": 0.3770833333333334,
+            "misses": [
+              "eshop-basket-add-or-increment",
+              "eshop-picture-url-composition",
+              "eshop-catalog-filter-pagination",
+              "eshop-catalog-create-duplicate-guard",
+              "eshop-empty-basket-checkout-exception"
+            ],
+            "warmMs": {
+              "median": 31.47289999999998,
+              "p95": 52.14160000000015,
+              "max": 52.14160000000015
+            }
+          },
+          "results": [
+            {
+              "id": "eshop-basket-add-or-increment",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                52.14160000000015
+              ],
+              "top5": [
+                "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.cs",
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+                "src/ApplicationCore/Entities/CatalogItem.cs",
+                "src/BlazorShared/Models/CreateCatalogItemRequest.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-basket-service-load-or-create",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                39.296800000000076
+              ],
+              "top5": [
+                "src/ApplicationCore/Services/BasketService.cs",
+                "src/Web/Pages/Basket/Index.cshtml.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                "src/ApplicationCore/Interfaces/IBasketService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-basket-anonymous-transfer",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                31.374000000000024
+              ],
+              "top5": [
+                "src/ApplicationCore/Services/BasketService.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                "src/Web/Services/BasketViewModelService.cs",
+                "src/Web/Pages/Shared/Components/BasketComponent/Basket.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-order-from-basket",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 5,
+              "coldMs": 0,
+              "warmMs": [
+                36.206100000000106
+              ],
+              "top5": [
+                "src/Web/Pages/Basket/Checkout.cshtml.cs",
+                "src/Web/Features/OrderDetails/GetOrderDetailsHandler.cs",
+                "src/Web/Features/OrderDetails/GetOrderDetails.cs",
+                "src/ApplicationCore/Exceptions/EmptyBasketOnCheckoutException.cs",
+                "src/ApplicationCore/Services/OrderService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-picture-url-composition",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                26.770100000000184
+              ],
+              "top5": [
+                "src/BlazorShared/BaseUrlConfiguration.cs",
+                "src/PublicApi/BaseResponse.cs",
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/ApplicationCore/Entities/CatalogItem.cs",
+                "src/BlazorShared/Models/CreateCatalogItemRequest.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-catalog-filter-pagination",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                34.84840000000008
+              ],
+              "top5": [
+                "src/ApplicationCore/Entities/CatalogBrand.cs",
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/BlazorShared/Models/PagedCatalogItemResponse.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/PublicApi/BaseResponse.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-catalog-list-endpoint",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 8,
+              "coldMs": 0,
+              "warmMs": [
+                33.16879999999992
+              ],
+              "top5": [
+                "src/Web/Views/Manage/ManageNavPages.cs",
+                "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+                "src/PublicApi/CatalogItemEndpoints/CatalogItemListPagedEndpoint.ListPagedCatalogItemRequest.cs",
+                "src/Web/HealthChecks/HomePageHealthCheck.cs",
+                "src/Web/Controllers/Api/BaseApiController.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-catalog-create-duplicate-guard",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                31.47289999999998
+              ],
+              "top5": [
+                "src/BlazorShared/Models/CreateCatalogItemRequest.cs",
+                "src/ApplicationCore/Entities/CatalogItem.cs",
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                "src/Web/ViewModels/OrderItemViewModel.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-browser-cache-expiry",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                36.19899999999984
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/BlazorAdmin/Services/CachedCatalogLookupDataServiceDecorator .cs",
+                "src/Web/Services/CachedCatalogViewModelService.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-cache-invalidate-after-mutation",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                25.03320000000008
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/BlazorAdmin/Pages/CatalogItemPage/List.razor",
+                "src/Web/Pages/Basket/Index.cshtml.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-json-http-error-feedback",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 5,
+              "coldMs": 0,
+              "warmMs": [
+                25.147899999999936
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CatalogLookupDataService.cs",
+                "src/BlazorAdmin/Services/ToastService.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs",
+                "src/BlazorAdmin/Helpers/ToastComponent.cs",
+                "src/BlazorAdmin/Services/HttpService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-empty-basket-checkout-exception",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                23.69710000000009
+              ],
+              "top5": [
+                "src/ApplicationCore/Services/BasketService.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                "src/Web/Services/BasketViewModelService.cs",
+                "src/Web/HealthChecks/HomePageHealthCheck.cs",
+                "src/BlazorAdmin/Services/CatalogItemService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        },
+        "graph-only": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.16666666666666666,
+              "at5": 0.5,
+              "at10": 0.5833333333333334
+            },
+            "mrr": 0.28402777777777777,
+            "misses": [
+              "eshop-picture-url-composition",
+              "eshop-catalog-filter-pagination",
+              "eshop-catalog-list-endpoint",
+              "eshop-catalog-create-duplicate-guard",
+              "eshop-empty-basket-checkout-exception"
+            ],
+            "warmMs": {
+              "median": 31.47289999999998,
+              "p95": 52.14160000000015,
+              "max": 52.14160000000015
+            }
+          },
+          "results": [
+            {
+              "id": "eshop-basket-add-or-increment",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 5,
+              "coldMs": 0,
+              "warmMs": [
+                52.14160000000015
+              ],
+              "top5": [
+                "src/Web/Services/BasketViewModelService.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+                "src/PublicApi/CatalogItemEndpoints/CreateCatalogItemEndpoint.cs",
+                "src/Web/Interfaces/IBasketViewModelService.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/Basket.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-basket-service-load-or-create",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 3,
+              "coldMs": 0,
+              "warmMs": [
+                39.296800000000076
+              ],
+              "top5": [
+                "src/ApplicationCore/Entities/BasketAggregate/BasketItem.cs",
+                "src/Web/Pages/Basket/Index.cshtml.cs",
+                "src/ApplicationCore/Services/BasketService.cs",
+                "src/ApplicationCore/Entities/BasketAggregate/Basket.cs",
+                "src/Web/Services/BasketViewModelService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-basket-anonymous-transfer",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 4,
+              "coldMs": 0,
+              "warmMs": [
+                31.374000000000024
+              ],
+              "top5": [
+                "src/Web/Pages/Shared/Components/BasketComponent/Basket.cs",
+                "src/Web/Pages/Basket/Index.cshtml.cs",
+                "src/Web/Pages/Basket/BasketItemViewModel.cs",
+                "src/ApplicationCore/Services/BasketService.cs",
+                "src/Web/Services/BasketViewModelService.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-order-from-basket",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 8,
+              "coldMs": 0,
+              "warmMs": [
+                36.206100000000106
+              ],
+              "top5": [
+                "src/ApplicationCore/Exceptions/EmptyBasketOnCheckoutException.cs",
+                "src/Web/Features/OrderDetails/GetOrderDetailsHandler.cs",
+                "src/Web/Pages/Basket/Checkout.cshtml.cs",
+                "src/Web/Features/OrderDetails/GetOrderDetails.cs",
+                "src/Web/ViewModels/OrderDetailViewModel.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-picture-url-composition",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                26.770100000000184
+              ],
+              "top5": [
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/BlazorShared/BaseUrlConfiguration.cs",
+                "src/Web/Program.cs",
+                "src/ApplicationCore/CatalogSettings.cs",
+                "src/PublicApi/Program.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-catalog-filter-pagination",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                34.84840000000008
+              ],
+              "top5": [
+                "src/Web/Controllers/ManageController.cs",
+                "src/Web/Pages/Basket/Index.cshtml.cs",
+                "src/Web/Pages/Basket/Checkout.cshtml.cs",
+                "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+                "src/BlazorShared/Models/ErrorDetails.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-catalog-list-endpoint",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                33.16879999999992
+              ],
+              "top5": [
+                "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+                "src/Web/Views/Manage/ManageNavPages.cs",
+                "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                "src/BlazorShared/Interfaces/ICatalogItemService.cs",
+                "src/Web/ViewModels/CatalogIndexViewModel.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-catalog-create-duplicate-guard",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                31.47289999999998
+              ],
+              "top5": [
+                "src/BlazorShared/Models/CatalogItem.cs",
+                "src/ApplicationCore/Exceptions/DuplicateException.cs",
+                "src/Web/ViewModels/OrderItemViewModel.cs",
+                "src/Web/Constants.cs",
+                "src/ApplicationCore/Entities/OrderAggregate/CatalogItemOrdered.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-browser-cache-expiry",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                36.19899999999984
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                "src/BlazorAdmin/Services/CachedCatalogLookupDataServiceDecorator .cs",
+                "src/BlazorAdmin/Program.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-cache-invalidate-after-mutation",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 1,
+              "coldMs": 0,
+              "warmMs": [
+                25.03320000000008
+              ],
+              "top5": [
+                "src/BlazorAdmin/Services/CachedCatalogItemServiceDecorator.cs",
+                "src/BlazorAdmin/Pages/CatalogItemPage/List.razor.cs",
+                "src/Web/Pages/Basket/Index.cshtml.cs",
+                "src/BlazorShared/Interfaces/ICatalogItemService.cs",
+                "src/Web/Pages/Basket/Checkout.cshtml.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-json-http-error-feedback",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": 2,
+              "coldMs": 0,
+              "warmMs": [
+                25.147899999999936
+              ],
+              "top5": [
+                "src/BlazorAdmin/Helpers/ToastComponent.cs",
+                "src/BlazorAdmin/Services/HttpService.cs",
+                "src/BlazorAdmin/Services/ToastService.cs",
+                "src/ApplicationCore/Extensions/JsonExtensions.cs",
+                "src/Web/HealthChecks/ApiHealthCheck.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            },
+            {
+              "id": "eshop-empty-basket-checkout-exception",
+              "corpus": "dotnet-architecture-eShopOnWeb",
+              "rank": null,
+              "coldMs": 0,
+              "warmMs": [
+                23.69710000000009
+              ],
+              "top5": [
+                "src/ApplicationCore/Specifications/BasketWithItemsSpecification.cs",
+                "src/Web/Pages/Basket/Checkout.cshtml.cs",
+                "src/Web/Services/CatalogViewModelService.cs",
+                "src/BlazorShared/Models/ErrorDetails.cs",
+                "src/ApplicationCore/Specifications/CustomerOrdersWithItemsSpecification.cs"
+              ],
+              "timedOut": false,
+              "augmented": ""
+            }
+          ]
+        }
+      },
+      "graphStats": {
+        "avgGraphFiles": 14,
+        "avgSymMatched": 20.583333333333332
+      }
+    }
+  ],
+  "macro": {
+    "baseline-explore": {
+      "queries": 60,
+      "hit": {
+        "at1": 0.23333333333333334,
+        "at5": 0.7,
+        "at10": 0.8
+      },
+      "mrr": 0.4371726190476191,
+      "misses": [
+        "flask-dev-stream-request-context",
+        "flask-dev-url-dispatch",
+        "flask-holdout-request-lifetime",
+        "spring-owner-create-validation",
+        "spring-owner-update-id-mismatch",
+        "spring-owner-pet-case-insensitive-lookup",
+        "rust-request-scoped-shared-state",
+        "rust-redirect-status-responder",
+        "rust-in-memory-service-testing",
+        "eshop-picture-url-composition",
+        "eshop-catalog-filter-pagination"
+      ],
+      "warmMs": {
+        "median": 25.644599999999855,
+        "p95": 39.385699999999986,
+        "max": 58.55219999999997
+      }
+    },
+    "symbol-union-plan": {
+      "queries": 60,
+      "hit": {
+        "at1": 0.4,
+        "at5": 0.7333333333333333,
+        "at10": 0.8166666666666667
+      },
+      "mrr": 0.5453240740740741,
+      "misses": [
+        "flask-dev-stream-request-context",
+        "flask-dev-url-dispatch",
+        "flask-holdout-request-lifetime",
+        "spring-owner-update-id-mismatch",
+        "spring-owner-pet-case-insensitive-lookup",
+        "rust-request-scoped-shared-state",
+        "eshop-basket-add-or-increment",
+        "eshop-picture-url-composition",
+        "eshop-catalog-filter-pagination",
+        "eshop-catalog-create-duplicate-guard",
+        "eshop-empty-basket-checkout-exception"
+      ],
+      "warmMs": {
+        "median": 25.644599999999855,
+        "p95": 39.385699999999986,
+        "max": 58.55219999999997
+      }
+    },
+    "symbol-graph-union": {
+      "queries": 60,
+      "hit": {
+        "at1": 0.4,
+        "at5": 0.7333333333333333,
+        "at10": 0.8
+      },
+      "mrr": 0.541712962962963,
+      "misses": [
+        "flask-dev-stream-request-context",
+        "flask-dev-url-dispatch",
+        "flask-holdout-request-lifetime",
+        "spring-owner-update-id-mismatch",
+        "spring-pet-create-domain-rules",
+        "spring-owner-pet-case-insensitive-lookup",
+        "rust-request-scoped-shared-state",
+        "eshop-basket-add-or-increment",
+        "eshop-picture-url-composition",
+        "eshop-catalog-filter-pagination",
+        "eshop-catalog-create-duplicate-guard",
+        "eshop-empty-basket-checkout-exception"
+      ],
+      "warmMs": {
+        "median": 25.644599999999855,
+        "p95": 39.385699999999986,
+        "max": 58.55219999999997
+      }
+    },
+    "graph-only": {
+      "queries": 60,
+      "hit": {
+        "at1": 0.3333333333333333,
+        "at5": 0.6166666666666667,
+        "at10": 0.7
+      },
+      "mrr": 0.45043650793650786,
+      "misses": [
+        "flask-dev-static-safe-download",
+        "flask-dev-flash-once-next-request",
+        "flask-dev-conditional-file-cache",
+        "flask-dev-blueprint-modular-routes",
+        "flask-holdout-env-debug-cli",
+        "flask-holdout-request-lifetime",
+        "express-dev-application-construction",
+        "spring-owner-create-validation",
+        "spring-owner-update-id-mismatch",
+        "spring-visit-booking-date",
+        "spring-form-binder-identifier-protection",
+        "rust-request-scoped-shared-state",
+        "rust-request-app-data-lookup",
+        "eshop-picture-url-composition",
+        "eshop-catalog-filter-pagination",
+        "eshop-catalog-list-endpoint",
+        "eshop-catalog-create-duplicate-guard",
+        "eshop-empty-basket-checkout-exception"
+      ],
+      "warmMs": {
+        "median": 25.644599999999855,
+        "p95": 39.385699999999986,
+        "max": 58.55219999999997
+      }
+    }
+  },
+  "process": {
+    "wallMs": 2012.1025,
+    "peakWorkingSetBytes": null
+  }
+}
