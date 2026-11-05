@@ -15,7 +15,8 @@
         "1-2",
         "1-3",
         "1-4",
-        "1-5"
+        "1-5",
+        "1-6"
       ],
       "decisions": [],
       "notes": "",
@@ -73,7 +74,7 @@
       "id": "1-3",
       "uid": "01a19c85942d-61bddd17c9",
       "label": "在冻结留出集与大规模真实语料上复验效果和资源",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -112,16 +113,26 @@
           "q": "离线 GO 之后如何进入 Agent 验证？",
           "answer": "先另行批准只读 opt-in 原型，不改默认行为；同任务同模型按 task×repetition 整对保留/剔除并交错臂顺序，主要终点为经审计的恢复性 Read/Grep 减少，正确性不回退，配对 bootstrap 区间不跨0；inconclusive 即不晋级。",
           "note": "现有 agent-eval 仅有执行骨架，须补 pair-preserving、read-reason audit 和 pair-level analysis；不得用离线 Hit@k 替代 Agent 净收益。"
+        },
+        {
+          "q": "离线 GO 判定（rail 复跑后）",
+          "answer": "离线验收维持 NO-GO：rails dry-run（1-3-5 修复后栈）Hit@5/Hit@10=0.50 << 90%/95% 门，质量门与性能无因果、候选已冻结不可调参；按 1-4 既定决策（'离线全部门通过后另行批准 opt-in 原型'）启动前提未满足，1-4 保持 pending+blocked，阻塞边 e2 保留。路径转向 1-5：证据不足时不进入产品，关闭或保留离线实验。",
+          "note": ""
+        },
+        {
+          "q": "holdout NO-GO 后 1-4 是否解锁？",
+          "answer": "D2 候选 holdout v3 = NO-GO（per-corpus Hit@5 仅 0.25，远低于 90% 门）。按 1-6 退出判据'未通过按 1-5 关闭'，1-4 不解锁、保持 pending+blocked（e7 由 1-6 锁住不解除），路径转 1-5：证据不足时不进入产品，关闭本轮语义检索产品化或保留离线实验。绝不进入 Agent Sufficiency 验证。",
+          "note": ""
         }
       ],
-      "notes": "尚未开始；当前 NO-GO，且被 1-3-4 新独立验收阻塞。离线 GO 不等于允许默认集成，只触发只读 opt-in 原型与 DES-cli-p1-modularity-explore-v1 审查。",
+      "notes": "holdout v3 NO-GO（D2 per-corpus 0.25<<0.90 门）。1-4 不解锁，保持 blocked（e7）。路径转 1-5 关闭/归档。",
       "layer": "plan"
     },
     "1-5": {
       "id": "1-5",
       "uid": "01a19c8596f1-140e48de83",
       "label": "证据不足时关闭或保留离线实验而不进入产品",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [],
@@ -130,10 +141,16 @@
           "q": "失败时如何关闭？",
           "answer": "保留离线负结果与可复跑资产，不修改现有产品、不挪动 holdout、不弱化指标；新模型/表示假设必须配新留出集。",
           "note": ""
+        },
+        {
+          "q": "1-5 归档执行了哪些动作？",
+          "answer": "1-5 归档完成：写出 consolidated v3 收口报告 docs/evidence/2026-11-05-semantic-retrieval-quality-exploration-v3.md，收口 1-6 全弧线（D1 v1/v2→D2 v1→D2 v2→holdout NO-GO）；保全可复跑资产（docs/baselines/semantic-retrieval-d2-candidate-v1.json 冻结候选+哈希、docs/evidence/2026-11-05-d2-selfconsistency-holdout-v3.json holdout 判决、scripts/measure/{chunk-fused-d1-dev,chunk-fused-d2-dev,chunk-fused-d2-holdout-v3}.mjs 脚本、v2 frozen artifact 未改动）；D3 未执行（质量门 NO-GO 后无必要）。1-6 保持 in_progress 作门卫使 e7 锁住 1-4；1-4 不解锁、不进产品。新候选须配新留出集，v2 holdout 不得二次复用。",
+          "note": ""
         }
       ],
-      "notes": "保持为失败处置备选，当前未执行关闭。新 holdout 无净增益、精确名或 Agent 正确性回退、Agent 主收益区间跨0、资源/安全门失败时关闭本轮产品化，保留基础设施与证据；新表示/模型假设须另配新 holdout。",
-      "layer": "plan"
+      "notes": "归档完成：v3 收口报告 + 资产保全 + 1-4 保持锁定。本轮语义检索产品化关闭。",
+      "layer": "plan",
+      "rounds": 1
     },
     "1-3-1": {
       "id": "1-3-1",
@@ -487,6 +504,16 @@
           "q": "Q8 v2 验收 NO-GO 判定",
           "answer": "v2 验收 NO-GO：33 项门 3 项通过。根因是 k8s 24k 文件大仓性能灾难（explore 单题 ~20s vs 小仓 ~1s），导致所有延迟门、资源门、大仓门全失败。R3 在 rails 上有效（Hit@5 0.250→0.500），但被 k8s 性能问题掩盖。按 v2 §6 关闭本轮产品化，开 1-3-5 专攻大仓性能优化。报告 docs/evidence/2026-11-04-chunk-fused-holdout-v2.{md,json}。",
           "note": ""
+        },
+        {
+          "q": "Q9 v2 验收复跑决策（Human 方案 A）",
+          "answer": "Human 选择方案 A：1-3-5 性能修复闭合后，先在 1-3-4 上补一轮 v2 验收复跑，拿正式 GO 判定后再 start 1-4。复跑基于 1-3-5 修复后的栈（rust-hybrid 索引 + 大栈 Go worker + explore 24k 文件 150ms 路径）。复跑沿用 v2 frozen artifact docs/baselines/semantic-retrieval-human-frozen-v2.json，不改任何查询、不改候选 C0/C1/C2、不改门阈值，只换底层栈。生成 v3 报告（docs/evidence/2026-11-04-chunk-fused-holdout-v3.{md,json}）。",
+          "note": ""
+        },
+        {
+          "q": "Q10 v2 复跑结论（rails dry-run，方案 A）",
+          "answer": "rails-only dry-run（复用 v2 gate 脚本 + 1-3-5 修复后栈 + 冻结候选 C0/C1/C2 不变）：Hit@5/Hit@10 从 0.25→0.50（+25pp，但仍 << 90%/95% 门），性能门全过（p50 38ms/p95 60ms/cold 38ms），peak RSS 1.01GB 仍超 768MiB 门（待全量分臂独立进程复核）。结论：质量门与性能无因果关系，1-3-5 只修延迟不修检索质量；候选已冻结不可调参，rails 单仓即证 v3 全量复跑质量门无望翻盘。按 Q8 + 1-5 既定规则维持 NO-GO，不跑 k8s 全量（节省 ~15min）。v3 dry-run 数据：.tmp/measure/rails-dryrun-v3.json。",
+          "note": ""
         }
       ],
       "notes": "",
@@ -541,11 +568,127 @@
       "notes": "",
       "layer": "plan",
       "rounds": 1
+    },
+    "1-6": {
+      "id": "1-6",
+      "uid": "01a1a9d85176-35b5c4d45c",
+      "label": "检索质量提升探索（超 v2 冻结范围）",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-6-1",
+        "1-6-2",
+        "1-6-3"
+      ],
+      "decisions": [
+        {
+          "q": "1-6 为何越过 v2 冻结范围？防作弊协议是什么？",
+          "answer": "Human 选 B：v2 验收 NO-GO 根因是检索质量（rails Hit@5 从 0.25 升至 0.50 仍远低于 90% 门），非性能；1-3-5 已修延迟不修质量。故新开 1-6 探索新融合与符号注入候选修质量门。协议：(1) 迭代只在 development 60 题，holdout 24 题冻结仅作最终评估，禁止调参或早停；(2) 候选预注册哈希，评估前冻结，复用 v2 frozen artifact 不增删 query；(3) 门阈值沿用 v2 第四章，新候选不得降低 1-3-5 已通过的性能门；(4) 通过则产 v3 证据报告并解锁 1-4，未过转 1-5。1-3 收尾为 completed（verdict NO-GO 已记入子节点决策）。",
+          "note": ""
+        },
+        {
+          "q": "首个实验方向定哪个？为什么？",
+          "answer": "定 D1（1-6-1）为首个 in_progress 实验。理由：rails dry-run 显示 Hit@5 等于 Hit@10 等于 0.50，说明正确文件要么在前5要么根本不在前10——属文件级召回失败，不是前10内排序问题。rerank（D2）只能重排已进入候选集的文件，若正确文件未进入 plan() 候选集则无能为力；注入位置/权重（D3）是微调。D1 直接拓宽符号注入源（跨 chunk 符号频率、类型名/调用目标召回、与查询词 TF 对齐），更可能把正确文件排进前5。D2、D3 作为后续备选（预算上限3）。所有实验仅在 development 60 题迭代，holdout 24 题冻结作最终评估。",
+          "note": ""
+        },
+        {
+          "q": "D2 候选 holdout 一次性评估结论（v3）？",
+          "answer": "D2 自洽门候选在 v2 冻结 holdout 24 题（rails12+k8s12）一次性评估（配置哈希 sha256:71147c1c9f0eab4a 已断言未篡改）：D2 Hit@5=0.25 / Hit@10=0.333 / MRR=0.151；baseline Hit@5=0.167。门判定：macro Hit@5+5pp PASS(+0.083)，per-corpus Hit@5>=90% FAIL(rails0.25/k8s0.25)，per-corpus Hit@10>=95% FAIL(rails0.42/k8s0.25)，MRR 不回退 FAIL(0.151<0.154 微回退)，Hit@10 不回退 PASS。VERDICT=NO-GO。k8s 被救回 0.08->0.25，rails 持平 0.25；符号注入是边际信号，无法弥合 0.25->0.90 鸿沟。按 1-6 退出判据'未通过按 1-5 关闭'，1-4 保持 blocked（e7 不解除），路径转 1-5。证据：docs/evidence/2026-11-05-d2-selfconsistency-holdout-v3.json。",
+          "note": ""
+        }
+      ],
+      "notes": "D2 候选 holdout v3 = NO-GO（macro+8.3pp 过但 per-corpus 0.25 << 0.90/0.95 门）。符号注入为边际信号，无法结构性弥合检索质量鸿沟。1-4 保持 blocked（e7 不解除），路径转 1-5 关闭/归档。证据 docs/evidence/2026-11-05-d2-selfconsistency-holdout-v3.json。",
+      "layer": "plan",
+      "budget": {
+        "max_children": 3,
+        "max_rounds": 3
+      },
+      "rounds": 1,
+      "exit_criteria": [
+        "新候选仅在 development 60 题（v2 已降级）迭代选择，绝不在 v2 holdout 24 题（rails 12 + k8s 12）上调参或早停",
+        "每个新候选须预注册配置哈希，在冻结 holdout 上一次性评估，评估前不得改参；holdout 复用 v2 frozen artifact，不增删 query",
+        "质量门目标：corpus-macro Hit@5 较 baseline-explore 至少 +5pp 且 per-corpus Hit@5 不低 90%、Hit@10 不低 95%（沿用 v2 门）；性能门沿用 1-3-5 已修复栈",
+        "通过则在解锁 1-4 前追加 v3 证据报告 docs/evidence/，含新候选哈希与门判定；未通过按 1-5 关闭"
+      ]
+    },
+    "1-6-1": {
+      "id": "1-6-1",
+      "uid": "01a1a9db3bb1-e6f819402c",
+      "label": "D1 拓宽符号注入源与选择（跨 chunk 符号频率 + 类型名/调用目标召回 + 查询词对齐）",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [
+        {
+          "q": "D1 v1 在 dev 60 的结果与根因？",
+          "answer": "D1 v1 在 dev 60：baseline 与 C0 均 Hit@5=0.70，D1=0.667，净回退，不满足退出判据（dev 较 C0 有提升），不得提交 holdout。根因：D1 v1 的调用目标提取拉入 next/Error/callback/send/User/HandleAsync 等泛化噪声 token，污染查询、把易/中难度 case 正确文件挤出前5（express 1.0 降至 0.75 即此）；但类型名加查询对齐符号对硬 case 有效（dotnet 多个 base 未命中被 D1 救回：BasketWithItem、GetOrCreateBasket、EmptyBasketOnCheckoutException）。结论：噪声是主因，类型加查询对齐信号有效。下一步方向：D1 v2 去掉调用目标噪声、保留类型名加查询对齐、符号上限收紧到 3、强加权查询对齐的类型符号。",
+          "note": ""
+        },
+        {
+          "q": "D1 v2 在 dev 60 的结果与结构性结论？",
+          "answer": "D1 v2（去调用目标噪声 + 类型名加 query 对齐加权 + cap3）在 dev 60：D1=0.650 Hit@5，仍低于 C0=0.700 与 baseline=0.700，不满足退出判据（dev 较 C0 需有提升），不得提交 holdout。结构性发现（比 v1 更清晰）：D1 注入是 precision/recall 权衡——难仓被救回（actix 0.58->0.92、spring 0.75->0.92、dotnet 0.50->0.58），但易仓崩塌（express 1.00->0.33、pallets 0.67->0.50）。因 dev 偏易，uniform 注入净负。推论：正确方向是选择性/条件融合（仅当 baseline 低置信时注入），此为跨 D1/D2/D3 的元结论，非单点可解。1-6-1 两轮用尽。数据：.tmp/measure/d1-dev-v2-20261105-141557.json。按 A 方案 fallback 转 D2。",
+          "note": ""
+        }
+      ],
+      "notes": "D1 v1(0.667)/v2(0.650) 均 < C0(0.700)，不提交 holdout。结构性结论：uniform 注入救难仓伤易仓，需选择性融合。两轮用尽，转 D2。",
+      "layer": "plan",
+      "budget": {
+        "max_rounds": 2
+      },
+      "rounds": 1,
+      "exit_criteria": [
+        "在 development 60 题上选候选并冻结；不得以任何方式在 holdout 24 题上调参；最终仅在 v2 frozen artifact 上一次性评估",
+        "产出可复现脚本 + 候选配置哈希；在 dev 60 题 Hit@5 较 C0 基线有可解释提升后，方提交 holdout 评估"
+      ]
+    },
+    "1-6-2": {
+      "id": "1-6-2",
+      "uid": "01a1a9db3d2a-2ea9ae97ad",
+      "label": "D2 重排信号增强（chunk-score + 文件聚合之外引入符号覆盖度与查询对齐特征）",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [
+        {
+          "q": "D2 v1 在 dev 60 的结果与根因？",
+          "answer": "D2 v1（条件注入门=top-1 chunk cosine，低于阈值才注入 D1 符号 + 双遍融合重排）在 dev 60：D2=0.700 Hit@5，等于 baseline/C0，不达标（需 > C0）。机制根因（已用门触发统计确认）：阈值扫 0.30~0.50，gate 在 60 题上 0 次触发（top-1 chunk cosine 全部偏高、无区分度）；D1 真正帮到的 8 个难 query 全部未被标记 lowConf——gate 信号与'该注入'完全不相关。故选择性融合 v1 = 永远不注入 = 精确等于 baseline，是安全但无用的门。推论：chunk 嵌入置信度不是'是否该注入符号'的有效代理；正确门应来自 plan() 自身输出的自洽度（顶部返回文件符号是否与查询对齐）。1-6-2 余 1 round 用于自洽门。数据：.tmp/measure/d2-dev-v1-20261105-142129.json。",
+          "note": ""
+        },
+        {
+          "q": "D2 v2（自洽门）在 dev 60 的结果？",
+          "answer": "D2 v2（条件门=plan() 顶部返回文件符号与查询 overlap < scGate 才注入 D1 v2 符号 + 双遍融合重排）在 dev 60：d2(scGate=0.4)=0.767 Hit@5 / 0.950 Hit@10 / MRR 0.590，较 C0(0.700) +6.7pp、较 D1(0.650) +11.7pp，是 1-6 首个正向结果，满足退出判据（dev 较 C0 有可解释提升）够格提交 holdout。sweep scGate 0.2-0.8 落在 0.750-0.767，稳健非假象。逐仓：express 1.00(救回)、dotnet 0.50->0.75、spring 0.75->0.92、actix 0.58->0.67；pallets 0.67->0.50（门在易仓过触发残余伤）。d2-cos(chunk-cosine 门) 确认空转 0.700。根因对照：chunk-cosine 无区分度故空转；自洽门直接度量 plan() 自信度，与'该注入'正相关。1-6-2 两轮用尽，候选已够格，下一步冻结配置哈希并跑 holdout 一次性评估。数据：.tmp/measure/d2-dev-v2-20261105-142441.json。",
+          "note": ""
+        }
+      ],
+      "notes": "D2 v2 自洽门在 dev 60 达 Hit@5 0.767（C0 0.700 +6.7pp），满足退出判据，冻结配置 sha256:71147c1c9f0eab4a 提交 holdout 一次性评估；holdout = NO-GO（per-corpus 0.25 << 0.90/0.95 门）。两轮用尽。",
+      "layer": "plan",
+      "budget": {
+        "max_rounds": 2
+      },
+      "rounds": 1
+    },
+    "1-6-3": {
+      "id": "1-6-3",
+      "uid": "01a1a9db3eb0-6f21c56ebd",
+      "label": "D3 注入位置与权重实验（前缀/后缀、符号权重、原始 query token 保留、注入数 1-5 扫描）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-6",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "budget": {
+        "max_rounds": 2
+      }
     }
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-04 21:12:53",
+    "updated": "2026-11-05 14:39:49",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
@@ -584,7 +727,13 @@
       "from": "01a1a0a800ae-6a4b54cf3d",
       "to": "01a19c859594-0c665d6436",
       "type": "blocks"
+    },
+    {
+      "id": "e7",
+      "from": "01a1a9d85176-35b5c4d45c",
+      "to": "01a19c859594-0c665d6436",
+      "type": "blocks"
     }
   ],
-  "edge_seq": 6
+  "edge_seq": 7
 }
