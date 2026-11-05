@@ -1,0 +1,21 @@
+{
+  "metric": "symbol-graph-candidate-v1",
+  "version": 1,
+  "purpose": "1-7-2 调用图/类型图召回候选配置（dev 迭代，v3 holdout 一次性评估）",
+  "retrievalOntology": "symbol-level FTS5 recall (from 1-7-1) + graph/type expansion from symbol seeds",
+  "config": {
+    "symbolTopK": 50,
+    "fileTopK": 10,
+    "graphTopK": 15,
+    "graphEdges": "callers(depth1) + callees(depth1) + getTypeHierarchy",
+    "symbolUnionRerank": "0.4*planPos + 0.4*symPos + 0.2*termAlign",
+    "symbolGraphUnionRerank": "0.4*planPos + 0.4*extraPos + 0.2*termAlign (extra = sym.files ∪ graph-neighbor-files)",
+    "arms": {
+      "A": "baseline-explore = current plan() unchanged",
+      "C": "symbol-union-plan = baseline ∪ symbol-recalled files (1-7-1 best arm)",
+      "G1": "symbol-graph-union = baseline ∪ symbol-recalled ∪ graph-neighbor files"
+    }
+  },
+  "frozenBeforeEvaluation": true,
+  "notes": "图遍历从符号 FTS5 召回的 top-15 符号出发（比现有 plan() 的 glue 更宽：glue 只遍历 entry nodes 且限于已浮现文件）。k8s(Go) 无 extends/implements/type_of，图≈调用图（26.7万 calls 边）；rails 有 extends 5k/implements 2k。本文件作为配置哈希断言锚点。"
+}

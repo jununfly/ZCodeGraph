@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "method": "semantic-rerank-within-C",
+  "rationale": "在 C(基线∪符号召回) 候选集内部用 BGE chunk 嵌入做语义重排，不引入 cross-encoder/LLM。",
+  "embedding": {
+    "model": "Qdrant/bge-small-en-v1.5",
+    "dim": 384,
+    "pooling": "CLS",
+    "querySpace": "queryEmbed (prefix \"query: \")",
+    "chunkSpace": "passageEmbed (prefix \"passage: \") — chunk-explore-fusion 产物"
+  },
+  "input": "C = symbol-union-plan (mergedRerank plan() ∪ symbolRecall, top10)",
+  "rerankStrategies": {
+    "rerankMaxCos": "score(file)=max_cosine(queryVec, chunkVec) over chunks with chunk.file==file",
+    "rerankMeanPool": "score(file)=cosine(queryVec, mean(chunkVec) over chunks of file)"
+  },
+  "fallback": "files in C with no chunk coverage keep their C position (sink after scored files)",
+  "topK": 10,
+  "arms": [
+    "baseline-explore",
+    "symbol-union-plan",
+    "rerankMaxCos",
+    "rerankMeanPool",
+    "chunkRetrieval"
+  ]
+}

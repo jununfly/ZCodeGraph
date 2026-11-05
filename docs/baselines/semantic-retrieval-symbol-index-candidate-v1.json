@@ -1,0 +1,21 @@
+{
+  "metric": "symbol-index-candidate-v1",
+  "version": 1,
+  "purpose": "1-7-1 符号级索引召回候选配置（dev 60 迭代，holdout 24 冻结一次性评估）",
+  "retrievalOntology": "symbol-level FTS5 (replaces FTS5-on-files + chunk embedding entry of plan())",
+  "config": {
+    "symbolTopK": 50,
+    "fileTopK": 10,
+    "symbolKinds": ["function", "method", "class", "struct", "interface", "type_alias", "constant", "variable", "field", "enum", "enum_member", "property", "trait", "protocol"],
+    "tokenize": "camelCase split + lowercase + len>=2 (applied to both index tokens and query tokens)",
+    "fts5": "unicode61 default; OR query of all query tokens; bm25 rank",
+    "unionRerank": "0.4*planPos + 0.4*symPos + 0.2*termAlign",
+    "arms": {
+      "A": "baseline-explore = current plan() unchanged (1-6 dev baseline)",
+      "B": "symbol-only = dedicated symbol FTS5 recall, no chunk / no file FTS5 / no graph",
+      "C": "symbol-union-plan = baseline plan() files ∪ symbol-recalled files, dual-pass rerank"
+    }
+  },
+  "frozenBeforeEvaluation": true,
+  "notes": "signature/docstring 在 dev+holdout corpus 全 0 覆盖，符号召回仅依赖 name+qualified_name camelCase 对齐。k8s visibility=0，派生可见性未纳入 v1。本文件作为配置哈希断言锚点：holdout 评估脚本读取本文件 sha256 并在配置一致时跑，否则报错。"
+}

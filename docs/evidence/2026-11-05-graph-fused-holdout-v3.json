@@ -1,0 +1,1188 @@
+{
+  "metric": "graph-fused-holdout-v3",
+  "version": 1,
+  "measuredAt": "2026-11-05T09:54:32.241Z",
+  "scope": "v3 frozen holdout 24 queries (rails12 + k8s12); one-shot. DEV NOT USED.",
+  "baseline": {
+    "frozenPath": "docs/baselines/semantic-retrieval-human-frozen-v3.json",
+    "split": "holdout"
+  },
+  "arms": [
+    "baseline-explore",
+    "symbol-union-plan",
+    "symbol-graph-union"
+  ],
+  "candidateSha256": "dc73fb7dbefb5a2832a4741b8268bc2bb3d6cceada53b86227ee52f6017ae782",
+  "candidate": {
+    "metric": "symbol-graph-candidate-v1",
+    "version": 1,
+    "purpose": "1-7-2 调用图/类型图召回候选配置（dev 迭代，v3 holdout 一次性评估）",
+    "retrievalOntology": "symbol-level FTS5 recall (from 1-7-1) + graph/type expansion from symbol seeds",
+    "config": {
+      "symbolTopK": 50,
+      "fileTopK": 10,
+      "graphTopK": 15,
+      "graphEdges": "callers(depth1) + callees(depth1) + getTypeHierarchy",
+      "symbolUnionRerank": "0.4*planPos + 0.4*symPos + 0.2*termAlign",
+      "symbolGraphUnionRerank": "0.4*planPos + 0.4*extraPos + 0.2*termAlign (extra = sym.files ∪ graph-neighbor-files)",
+      "arms": {
+        "A": "baseline-explore = current plan() unchanged",
+        "C": "symbol-union-plan = baseline ∪ symbol-recalled files (1-7-1 best arm)",
+        "G1": "symbol-graph-union = baseline ∪ symbol-recalled ∪ graph-neighbor files"
+      }
+    },
+    "frozenBeforeEvaluation": true,
+    "notes": "图遍历从符号 FTS5 召回的 top-15 符号出发（比现有 plan() 的 glue 更宽：glue 只遍历 entry nodes 且限于已浮现文件）。k8s(Go) 无 extends/implements/type_of，图≈调用图（26.7万 calls 边）；rails 有 extends 5k/implements 2k。本文件作为配置哈希断言锚点。"
+  },
+  "host": {
+    "node": "v22.22.2",
+    "platform": "win32",
+    "arch": "x64",
+    "cpu": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+    "totalMemoryBytes": 33412722688
+  },
+  "corpora": [
+    {
+      "corpus": "rails",
+      "arms": {
+        "baseline-explore": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.16666666666666666,
+              "at5": 0.25,
+              "at10": 0.4166666666666667
+            },
+            "mrr": 0.22435515873015874,
+            "misses": [
+              "rails-holdout-send-file-download",
+              "rails-holdout-route-set-draw",
+              "rails-holdout-middleware-stack-use",
+              "rails-holdout-cache-store-fetch"
+            ]
+          },
+          "results": [
+            {
+              "id": "rails-holdout-send-file-download",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "activestorage/lib/active_storage/service/gcs_service.rb",
+                "activestorage/lib/active_storage/service/disk_service.rb",
+                "activerecord/lib/arel/select_manager.rb",
+                "activestorage/lib/active_storage/service/s3_service.rb",
+                "railties/lib/rails/generators/rails/app/app_generator.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-message-encryptor-signed-cookie",
+              "corpus": "rails",
+              "rank": 1,
+              "top5": [
+                "activesupport/lib/active_support/message_encryptor.rb",
+                "activerecord/lib/active_record/encryption/cipher/aes256_gcm.rb",
+                "activerecord/lib/active_record/relation/query_methods.rb",
+                "activerecord/lib/arel/nodes/node.rb",
+                "activesupport/lib/active_support/cache/coder.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-tagged-logging",
+              "corpus": "rails",
+              "rank": 14,
+              "top5": [
+                "activerecord/lib/active_record/connection_adapters/abstract_adapter.rb",
+                "activerecord/lib/active_record/key.rb",
+                "activestorage/lib/active_storage/analyzer/audio_analyzer.rb",
+                "railties/lib/rails/source_annotation_extractor.rb",
+                "activestorage/lib/active_storage/analyzer/video_analyzer.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-connection-pool-with-connection",
+              "corpus": "rails",
+              "rank": 12,
+              "top5": [
+                "railties/lib/rails/commands/devcontainer/devcontainer_command.rb",
+                "railties/lib/rails/commands/dbconsole/dbconsole_command.rb",
+                "railties/lib/rails/generators/app_base.rb",
+                "activerecord/lib/rails/generators/active_record/model/model_generator.rb",
+                "activerecord/lib/active_record/connection_handling.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-callbacks-run-callbacks",
+              "corpus": "rails",
+              "rank": 8,
+              "top5": [
+                "activerecord/lib/active_record/associations/collection_association.rb",
+                "activerecord/lib/active_record/reflection.rb",
+                "actioncable/lib/action_cable/server/base.rb",
+                "activejob/lib/active_job/queue_adapters/async_adapter.rb",
+                "activerecord/lib/active_record/relation/query_methods.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-route-set-draw",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "railties/lib/rails/generators/database.rb",
+                "railties/lib/rails/generators/active_model.rb",
+                "railties/lib/rails/generators/app_base.rb",
+                "activerecord/lib/active_record/relation/query_methods.rb",
+                "activerecord/lib/arel/nodes/node.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-middleware-stack-use",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "railties/lib/rails/configuration.rb",
+                "railties/lib/rails/commands/server/server_command.rb",
+                "railties/lib/rails.rb",
+                "actionpack/lib/action_controller/metal.rb",
+                "activesupport/lib/active_support/cache/strategy/local_cache.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-relation-where-chain",
+              "corpus": "rails",
+              "rank": 4,
+              "top5": [
+                "activerecord/lib/active_record/relation/predicate_builder.rb",
+                "activerecord/lib/active_record/relation/predicate_builder/array_handler.rb",
+                "activerecord/lib/active_record/core.rb",
+                "activerecord/lib/active_record/relation/query_methods.rb",
+                "activerecord/lib/active_record/relation/predicate_builder/relation_handler.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-migration-class",
+              "corpus": "rails",
+              "rank": 1,
+              "top5": [
+                "activerecord/lib/active_record/migration.rb",
+                "activerecord/lib/active_record/connection_adapters/abstract/transaction.rb",
+                "activerecord/lib/active_record/relation/query_methods.rb",
+                "activerecord/lib/active_record/key.rb",
+                "activestorage/app/models/active_storage/filename.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-activejob-perform-later",
+              "corpus": "rails",
+              "rank": 16,
+              "top5": [
+                "activejob/lib/active_job/log_subscriber.rb",
+                "actionpack/lib/action_dispatch/routing/mapper.rb",
+                "activesupport/lib/active_support/xml_mini.rb",
+                "activesupport/lib/active_support/configurable.rb",
+                "activestorage/lib/active_storage/service.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-actioncable-channel-base",
+              "corpus": "rails",
+              "rank": 10,
+              "top5": [
+                "actioncable/lib/action_cable/channel/streams.rb",
+                "activestorage/app/models/active_storage/filename.rb",
+                "activesupport/lib/active_support/number_helper/number_to_human_size_converter.rb",
+                "activerecord/lib/active_record/key.rb",
+                "activestorage/lib/active_storage/analyzer/audio_analyzer.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-cache-store-fetch",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "railties/lib/rails/commands/dev/dev_command.rb",
+                "railties/lib/rails/commands/credentials/credentials_command.rb",
+                "railties/lib/rails/generators/database.rb",
+                "railties/lib/rails/generators/active_model.rb",
+                "activerecord/lib/active_record/relation/query_methods.rb"
+              ]
+            }
+          ]
+        },
+        "symbol-union-plan": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.25,
+              "at5": 0.5,
+              "at10": 0.5
+            },
+            "mrr": 0.36111111111111116,
+            "misses": [
+              "rails-holdout-send-file-download",
+              "rails-holdout-tagged-logging",
+              "rails-holdout-connection-pool-with-connection",
+              "rails-holdout-route-set-draw",
+              "rails-holdout-activejob-perform-later",
+              "rails-holdout-cache-store-fetch"
+            ]
+          },
+          "results": [
+            {
+              "id": "rails-holdout-send-file-download",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "activestorage/lib/active_storage/service/disk_service.rb",
+                "actionpack/test/controller/content_type_test.rb",
+                "activestorage/lib/active_storage/service/gcs_service.rb",
+                "actionpack/lib/action_dispatch/http/content_disposition.rb",
+                "actionpack/test/controller/send_file_test.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-message-encryptor-signed-cookie",
+              "corpus": "rails",
+              "rank": 1,
+              "top5": [
+                "activesupport/lib/active_support/message_encryptor.rb",
+                "actionpack/test/dispatch/cookies_test.rb",
+                "actionview/test/template/template_test.rb",
+                "activerecord/lib/active_record/encryption/cipher/aes256_gcm.rb",
+                "activerecord/lib/active_record/relation/query_methods.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-tagged-logging",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "actionpack/lib/action_dispatch/middleware/request_id.rb",
+                "activerecord/lib/active_record/connection_adapters/abstract_adapter.rb",
+                "actionpack/test/dispatch/request_id_test.rb",
+                "actionpack/lib/action_dispatch/http/request.rb",
+                "activerecord/lib/active_record/key.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-connection-pool-with-connection",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "activerecord/test/cases/database_configurations/hash_config_test.rb",
+                "activerecord/test/cases/autosave_association_test.rb",
+                "railties/lib/rails/commands/devcontainer/devcontainer_command.rb",
+                "activerecord/test/cases/connection_pool_test.rb",
+                "railties/lib/rails/commands/dbconsole/dbconsole_command.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-callbacks-run-callbacks",
+              "corpus": "rails",
+              "rank": 1,
+              "top5": [
+                "activesupport/lib/active_support/callbacks.rb",
+                "activerecord/lib/active_record/associations/collection_association.rb",
+                "activejob/test/cases/logging_test.rb",
+                "activerecord/lib/active_record/reflection.rb",
+                "activerecord/lib/active_record/query_cache.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-route-set-draw",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "actionview/test/template/text_helper_test.rb",
+                "railties/lib/rails/generators/database.rb",
+                "activerecord/test/cases/associations/has_and_belongs_to_many_associations_test.rb",
+                "activerecord/test/cases/relation/where_test.rb",
+                "railties/lib/rails/generators/active_model.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-middleware-stack-use",
+              "corpus": "rails",
+              "rank": 3,
+              "top5": [
+                "railties/lib/rails/configuration.rb",
+                "actionpack/lib/action_controller/metal.rb",
+                "actionpack/lib/action_dispatch/middleware/stack.rb",
+                "railties/lib/rails/commands/server/server_command.rb",
+                "railties/lib/rails.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-relation-where-chain",
+              "corpus": "rails",
+              "rank": 1,
+              "top5": [
+                "activerecord/lib/active_record/relation/query_methods.rb",
+                "activerecord/lib/active_record/relation/where_clause.rb",
+                "activerecord/test/cases/relation/where_test.rb",
+                "activerecord/lib/active_record/relation/predicate_builder.rb",
+                "activerecord/lib/active_record/relation/predicate_builder/array_handler.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-migration-class",
+              "corpus": "rails",
+              "rank": 2,
+              "top5": [
+                "activerecord/lib/active_record/model_schema.rb",
+                "activerecord/lib/active_record/migration.rb",
+                "activerecord/test/cases/adapters/abstract_mysql_adapter/schema_migrations_test.rb",
+                "activerecord/lib/active_record/connection_adapters/abstract/transaction.rb",
+                "activerecord/lib/active_record/relation/query_methods.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-activejob-perform-later",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "activejob/lib/active_job/log_subscriber.rb",
+                "activejob/lib/active_job/configured_job.rb",
+                "activesupport/lib/active_support/xml_mini.rb",
+                "activejob/test/support/delayed_job/delayed/backend/test.rb",
+                "actionpack/lib/action_dispatch/routing/mapper.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-actioncable-channel-base",
+              "corpus": "rails",
+              "rank": 2,
+              "top5": [
+                "actioncable/lib/action_cable/channel/streams.rb",
+                "actioncable/lib/action_cable/channel/base.rb",
+                "actioncable/lib/action_cable/subscription_adapter/base.rb",
+                "activestorage/app/models/active_storage/filename.rb",
+                "activesupport/lib/active_support/number_helper/number_to_human_size_converter.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-cache-store-fetch",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "activesupport/test/cache/behaviors/cache_store_behavior.rb",
+                "activesupport/test/cache/behaviors/local_cache_behavior.rb",
+                "railties/lib/rails/commands/dev/dev_command.rb",
+                "railties/lib/rails/commands/credentials/credentials_command.rb",
+                "activesupport/test/cache/behaviors/cache_store_coder_behavior.rb"
+              ]
+            }
+          ]
+        },
+        "symbol-graph-union": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.25,
+              "at5": 0.4166666666666667,
+              "at10": 0.4166666666666667
+            },
+            "mrr": 0.3194444444444445,
+            "misses": [
+              "rails-holdout-send-file-download",
+              "rails-holdout-tagged-logging",
+              "rails-holdout-connection-pool-with-connection",
+              "rails-holdout-route-set-draw",
+              "rails-holdout-migration-class",
+              "rails-holdout-activejob-perform-later",
+              "rails-holdout-cache-store-fetch"
+            ]
+          },
+          "results": [
+            {
+              "id": "rails-holdout-send-file-download",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "activestorage/lib/active_storage/service/disk_service.rb",
+                "actionpack/test/controller/content_type_test.rb",
+                "activestorage/lib/active_storage/service/gcs_service.rb",
+                "actionpack/lib/action_dispatch/http/content_disposition.rb",
+                "actionpack/test/controller/send_file_test.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-message-encryptor-signed-cookie",
+              "corpus": "rails",
+              "rank": 1,
+              "top5": [
+                "activesupport/lib/active_support/message_encryptor.rb",
+                "actionpack/test/dispatch/cookies_test.rb",
+                "actionview/test/template/template_test.rb",
+                "activerecord/lib/active_record/encryption/cipher/aes256_gcm.rb",
+                "activerecord/lib/active_record/relation/query_methods.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-tagged-logging",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "actionpack/lib/action_dispatch/middleware/request_id.rb",
+                "activerecord/lib/active_record/connection_adapters/abstract_adapter.rb",
+                "actionpack/test/dispatch/request_id_test.rb",
+                "actionpack/lib/action_dispatch/http/request.rb",
+                "activerecord/lib/active_record/key.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-connection-pool-with-connection",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "activerecord/test/cases/database_configurations/hash_config_test.rb",
+                "activerecord/test/cases/autosave_association_test.rb",
+                "railties/lib/rails/commands/devcontainer/devcontainer_command.rb",
+                "activerecord/test/cases/connection_pool_test.rb",
+                "railties/lib/rails/commands/dbconsole/dbconsole_command.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-callbacks-run-callbacks",
+              "corpus": "rails",
+              "rank": 1,
+              "top5": [
+                "activesupport/lib/active_support/callbacks.rb",
+                "activerecord/lib/active_record/associations/collection_association.rb",
+                "activejob/test/cases/logging_test.rb",
+                "activerecord/lib/active_record/reflection.rb",
+                "activerecord/lib/active_record/query_cache.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-route-set-draw",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "actionview/test/template/text_helper_test.rb",
+                "railties/lib/rails/generators/database.rb",
+                "activerecord/test/cases/associations/has_and_belongs_to_many_associations_test.rb",
+                "activerecord/test/cases/relation/where_test.rb",
+                "railties/lib/rails/generators/active_model.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-middleware-stack-use",
+              "corpus": "rails",
+              "rank": 3,
+              "top5": [
+                "railties/lib/rails/configuration.rb",
+                "actionpack/lib/action_controller/metal.rb",
+                "actionpack/lib/action_dispatch/middleware/stack.rb",
+                "railties/lib/rails/commands/server/server_command.rb",
+                "railties/test/configuration/middleware_stack_proxy_test.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-relation-where-chain",
+              "corpus": "rails",
+              "rank": 1,
+              "top5": [
+                "activerecord/lib/active_record/relation/query_methods.rb",
+                "activerecord/lib/active_record/relation/where_clause.rb",
+                "activerecord/test/cases/relation/where_test.rb",
+                "activerecord/lib/active_record/relation/predicate_builder.rb",
+                "activerecord/lib/active_record/relation/predicate_builder/array_handler.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-migration-class",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "activerecord/lib/active_record/model_schema.rb",
+                "activerecord/test/cases/adapters/abstract_mysql_adapter/schema_migrations_test.rb",
+                "activerecord/lib/active_record/connection_adapters/abstract/transaction.rb",
+                "activerecord/lib/active_record/relation/query_methods.rb",
+                "activerecord/lib/active_record/schema_migration.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-activejob-perform-later",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "activejob/lib/active_job/log_subscriber.rb",
+                "activejob/lib/active_job/configured_job.rb",
+                "activesupport/lib/active_support/xml_mini.rb",
+                "activejob/test/support/delayed_job/delayed/backend/test.rb",
+                "actionpack/lib/action_dispatch/routing/mapper.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-actioncable-channel-base",
+              "corpus": "rails",
+              "rank": 2,
+              "top5": [
+                "actioncable/lib/action_cable/channel/streams.rb",
+                "actioncable/lib/action_cable/channel/base.rb",
+                "actioncable/lib/action_cable/subscription_adapter/base.rb",
+                "activestorage/app/models/active_storage/filename.rb",
+                "activesupport/lib/active_support/number_helper/number_to_human_size_converter.rb"
+              ]
+            },
+            {
+              "id": "rails-holdout-cache-store-fetch",
+              "corpus": "rails",
+              "rank": null,
+              "top5": [
+                "activesupport/test/cache/behaviors/cache_store_behavior.rb",
+                "activesupport/test/cache/behaviors/local_cache_behavior.rb",
+                "railties/lib/rails/commands/dev/dev_command.rb",
+                "railties/lib/rails/commands/credentials/credentials_command.rb",
+                "activesupport/test/cache/behaviors/cache_store_coder_behavior.rb"
+              ]
+            }
+          ]
+        }
+      },
+      "graphStats": {
+        "avgGraphFiles": 32.75
+      }
+    },
+    {
+      "corpus": "kubernetes",
+      "arms": {
+        "baseline-explore": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.08333333333333333,
+              "at5": 0.08333333333333333,
+              "at10": 0.08333333333333333
+            },
+            "mrr": 0.08333333333333333,
+            "misses": [
+              "k8s-holdout-scheduler-schedule-one",
+              "k8s-holdout-kubelet-sync-pod",
+              "k8s-holdout-kubelet-start-container",
+              "k8s-holdout-deployment-sync-deployment",
+              "k8s-holdout-replicaset-sync",
+              "k8s-holdout-csi-mounter-setup-at",
+              "k8s-holdout-iptables-sync-proxy-rules",
+              "k8s-holdout-nodeipam-allocate-cidr",
+              "k8s-holdout-etcd-store-get-list",
+              "k8s-holdout-admission-chain-admit",
+              "k8s-holdout-leaderelection-acquire"
+            ]
+          },
+          "results": [
+            {
+              "id": "k8s-holdout-scheduler-schedule-one",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "vendor/github.com/go-task/slim-sprig/v3/dict.go",
+                "cmd/kubelet/app/server.go",
+                "staging/src/k8s.io/component-base/cli/run.go",
+                "hack/tools/golangci-lint/sorted/pkg/sorted.go",
+                "pkg/scheduler/scheduler.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-kubelet-sync-pod",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "pkg/controller/volume/selinuxwarning/selinux_warning_controller_test.go",
+                "pkg/controller/volume/pvcprotection/pvc_protection_controller_test.go",
+                "pkg/kubelet/container/runtime.go",
+                "pkg/kubelet/pluginmanager/reconciler/reconciler.go",
+                "pkg/kubelet/kubelet.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-kubelet-start-container",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "pkg/kubelet/container/runtime.go",
+                "staging/src/k8s.io/client-go/applyconfigurations/imagepolicy/v1alpha1/imagereviewcontainerspec.go",
+                "staging/src/k8s.io/cri-api/pkg/apis/services.go",
+                "staging/src/k8s.io/cri-client/pkg/remote_image.go",
+                "staging/src/k8s.io/cri-client/pkg/remote_runtime.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-deployment-sync-deployment",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "staging/src/k8s.io/client-go/kubernetes/typed/core/v1/fake/fake_replicationcontroller.go",
+                "staging/src/k8s.io/client-go/informers/core/v1/replicationcontroller.go",
+                "staging/src/k8s.io/api/extensions/v1beta1/types.go",
+                "staging/src/k8s.io/apimachinery/pkg/api/resource/amount.go",
+                "pkg/controller/util/selectors/bimultimap.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-replicaset-sync",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "vendor/go.yaml.in/yaml/v3/scannerc.go",
+                "staging/src/k8s.io/client-go/util/certificate/csr/csr.go",
+                "vendor/sigs.k8s.io/kustomize/kyaml/yaml/walk/associative_sequence.go",
+                "vendor/golang.org/x/net/html/atom/atom.go",
+                "staging/src/k8s.io/client-go/informers/core/v1/replicationcontroller.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-shared-informer-constructor",
+              "corpus": "kubernetes",
+              "rank": 1,
+              "top5": [
+                "staging/src/k8s.io/client-go/tools/cache/shared_informer.go",
+                "staging/src/k8s.io/client-go/informers/core/v1/replicationcontroller.go",
+                "vendor/cel.dev/cel-go/common/types/traits/indexer.go",
+                "staging/src/k8s.io/apiserver/pkg/storage/cacher/store/indexer.go",
+                "pkg/controller/namespace/namespace_controller.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-csi-mounter-setup-at",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "vendor/golang.org/x/sys/unix/zsyscall_linux.go",
+                "vendor/github.com/cpuguy83/go-md2man/v2/md2man/roff.go",
+                "pkg/volume/plugins.go",
+                "pkg/volume/csi/csi_drivers_store.go",
+                "pkg/volume/csi/csi_attacher.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-iptables-sync-proxy-rules",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "staging/src/k8s.io/apiserver/pkg/reconcilers/peer_endpoint_lease.go",
+                "vendor/github.com/Microsoft/hnslib/hcn/hcnendpoint.go",
+                "pkg/kubelet/volumemanager/populator/desired_state_of_world_populator.go",
+                "pkg/proxy/endpoint.go",
+                "cmd/kubeadm/app/componentconfigs/kubeproxy.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-nodeipam-allocate-cidr",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "staging/src/k8s.io/apiserver/pkg/cel/library/cidr.go",
+                "vendor/github.com/Microsoft/hnslib/hcn/hcnnetwork.go",
+                "pkg/proxy/winkernel/hns.go",
+                "vendor/go.etcd.io/etcd/server/v3/auth/range_perm_cache.go",
+                "vendor/go.etcd.io/etcd/server/v3/etcdserver/txn/range.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-etcd-store-get-list",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "vendor/github.com/go-task/slim-sprig/v3/list.go",
+                "vendor/go.etcd.io/etcd/pkg/v3/wait/wait.go",
+                "vendor/go.etcd.io/etcd/server/v3/etcdserver/txn/range.go",
+                "vendor/go.etcd.io/etcd/client/v3/kubernetes/interface.go",
+                "vendor/go.etcd.io/etcd/server/v3/storage/wal/version.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-admission-chain-admit",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "cmd/kubelet/app/server.go",
+                "staging/src/k8s.io/component-base/cli/run.go",
+                "hack/tools/golangci-lint/sorted/pkg/sorted.go",
+                "vendor/go.etcd.io/raft/v3/confchange/confchange.go",
+                "staging/src/k8s.io/apiserver/pkg/admission/plugin/policy/mutating/plugin.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-leaderelection-acquire",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "staging/src/k8s.io/client-go/kubernetes/typed/core/v1/replicationcontroller.go",
+                "pkg/controller/controller_ref_manager.go",
+                "pkg/controlplane/controller/leaderelection/leasecandidategc_controller.go",
+                "staging/src/k8s.io/component-helpers/apimachinery/lease/controller.go",
+                "staging/src/k8s.io/client-go/kubernetes/typed/core/v1/fake/fake_replicationcontroller.go"
+              ]
+            }
+          ]
+        },
+        "symbol-union-plan": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.08333333333333333,
+              "at5": 0.4166666666666667,
+              "at10": 0.5
+            },
+            "mrr": 0.23750000000000002,
+            "misses": [
+              "k8s-holdout-scheduler-schedule-one",
+              "k8s-holdout-kubelet-start-container",
+              "k8s-holdout-deployment-sync-deployment",
+              "k8s-holdout-nodeipam-allocate-cidr",
+              "k8s-holdout-etcd-store-get-list",
+              "k8s-holdout-admission-chain-admit"
+            ]
+          },
+          "results": [
+            {
+              "id": "k8s-holdout-scheduler-schedule-one",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "pkg/scheduler/backend/queue/scheduling_queue.go",
+                "pkg/scheduler/backend/queue/scheduling_queue_test.go",
+                "vendor/github.com/go-task/slim-sprig/v3/dict.go",
+                "cmd/kubelet/app/server.go",
+                "pkg/controller/cronjob/cronjob_controllerv2_test.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-kubelet-sync-pod",
+              "corpus": "kubernetes",
+              "rank": 4,
+              "top5": [
+                "pkg/kubelet/kubelet.go",
+                "pkg/kubelet/pod_container_deletor_test.go",
+                "pkg/controller/volume/selinuxwarning/selinux_warning_controller_test.go",
+                "pkg/kubelet/kuberuntime/kuberuntime_manager.go",
+                "pkg/controller/volume/pvcprotection/pvc_protection_controller_test.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-kubelet-start-container",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "pkg/kubelet/container/runtime.go",
+                "staging/src/k8s.io/client-go/tools/cache/the_real_fifo.go",
+                "pkg/controller/cronjob/cronjob_controllerv2_test.go",
+                "staging/src/k8s.io/client-go/applyconfigurations/imagepolicy/v1alpha1/imagereviewcontainerspec.go",
+                "vendor/sigs.k8s.io/kustomize/kustomize/v5/commands/build/build.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-deployment-sync-deployment",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "pkg/controller/deployment/sync.go",
+                "pkg/controller/deployment/util/deployment_util.go",
+                "staging/src/k8s.io/client-go/kubernetes/typed/core/v1/fake/fake_replicationcontroller.go",
+                "staging/src/k8s.io/client-go/informers/core/v1/replicationcontroller.go",
+                "staging/src/k8s.io/kubectl/pkg/util/deployment/deployment.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-replicaset-sync",
+              "corpus": "kubernetes",
+              "rank": 2,
+              "top5": [
+                "pkg/controller/replicaset/replica_set_test.go",
+                "pkg/controller/replicaset/replica_set.go",
+                "vendor/go.yaml.in/yaml/v3/scannerc.go",
+                "staging/src/k8s.io/client-go/util/certificate/csr/csr.go",
+                "pkg/controller/replicaset/replica_set_utils_test.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-shared-informer-constructor",
+              "corpus": "kubernetes",
+              "rank": 1,
+              "top5": [
+                "staging/src/k8s.io/client-go/tools/cache/shared_informer.go",
+                "pkg/controller/namespace/namespace_controller.go",
+                "pkg/controller/namespace/deletion/namespaced_resources_deleter_test.go",
+                "staging/src/k8s.io/client-go/informers/core/v1/replicationcontroller.go",
+                "pkg/controller/volume/persistentvolume/index_test.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-csi-mounter-setup-at",
+              "corpus": "kubernetes",
+              "rank": 10,
+              "top5": [
+                "pkg/volume/csi/csi_plugin.go",
+                "vendor/golang.org/x/sys/unix/zsyscall_linux.go",
+                "pkg/volume/csi/csi_plugin_test.go",
+                "pkg/volume/csi/csi_client.go",
+                "vendor/github.com/cpuguy83/go-md2man/v2/md2man/roff.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-iptables-sync-proxy-rules",
+              "corpus": "kubernetes",
+              "rank": 2,
+              "top5": [
+                "pkg/kubelet/volumemanager/populator/desired_state_of_world_populator.go",
+                "pkg/proxy/iptables/proxier.go",
+                "staging/src/k8s.io/apiserver/pkg/reconcilers/peer_endpoint_lease.go",
+                "pkg/proxy/iptables/number_generated_rules_test.go",
+                "vendor/github.com/Microsoft/hnslib/hcn/hcnendpoint.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-nodeipam-allocate-cidr",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "staging/src/k8s.io/apiserver/pkg/cel/library/cidr.go",
+                "vendor/cel.dev/cel-go/ext/network.go",
+                "pkg/controller/nodeipam/ipam/cidrset/cidr_set_test.go",
+                "vendor/github.com/Microsoft/hnslib/hcn/hcnnetwork.go",
+                "staging/src/k8s.io/component-helpers/node/util/cidr.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-etcd-store-get-list",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "test/images/resource-consumer/common/common.go",
+                "pkg/scheduler/testing/wrappers.go",
+                "vendor/github.com/go-task/slim-sprig/v3/list.go",
+                "vendor/go.etcd.io/etcd/pkg/v3/wait/wait.go",
+                "vendor/go.etcd.io/etcd/client/v3/op.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-admission-chain-admit",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "staging/src/k8s.io/apiserver/pkg/admission/plugin/webhook/mutating/plugin.go",
+                "staging/src/k8s.io/apiserver/pkg/admission/plugin/policy/mutating/plugin.go",
+                "staging/src/k8s.io/apiserver/pkg/admission/plugin/policy/mutating/accessor.go",
+                "cmd/kubelet/app/server.go",
+                "staging/src/k8s.io/component-base/cli/run.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-leaderelection-acquire",
+              "corpus": "kubernetes",
+              "rank": 2,
+              "top5": [
+                "pkg/controller/controller_ref_manager.go",
+                "staging/src/k8s.io/client-go/tools/leaderelection/leaderelection.go",
+                "staging/src/k8s.io/client-go/kubernetes/typed/core/v1/replicationcontroller.go",
+                "staging/src/k8s.io/controller-manager/config/types.go",
+                "pkg/controlplane/controller/leaderelection/leasecandidategc_controller.go"
+              ]
+            }
+          ]
+        },
+        "symbol-graph-union": {
+          "summary": {
+            "queries": 12,
+            "hit": {
+              "at1": 0.08333333333333333,
+              "at5": 0.4166666666666667,
+              "at10": 0.5
+            },
+            "mrr": 0.23750000000000002,
+            "misses": [
+              "k8s-holdout-scheduler-schedule-one",
+              "k8s-holdout-kubelet-start-container",
+              "k8s-holdout-deployment-sync-deployment",
+              "k8s-holdout-nodeipam-allocate-cidr",
+              "k8s-holdout-etcd-store-get-list",
+              "k8s-holdout-admission-chain-admit"
+            ]
+          },
+          "results": [
+            {
+              "id": "k8s-holdout-scheduler-schedule-one",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "pkg/scheduler/backend/queue/scheduling_queue.go",
+                "pkg/scheduler/backend/queue/scheduling_queue_test.go",
+                "vendor/github.com/go-task/slim-sprig/v3/dict.go",
+                "cmd/kubelet/app/server.go",
+                "pkg/controller/cronjob/cronjob_controllerv2_test.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-kubelet-sync-pod",
+              "corpus": "kubernetes",
+              "rank": 4,
+              "top5": [
+                "pkg/kubelet/kubelet.go",
+                "pkg/kubelet/pod_container_deletor_test.go",
+                "pkg/controller/volume/selinuxwarning/selinux_warning_controller_test.go",
+                "pkg/kubelet/kuberuntime/kuberuntime_manager.go",
+                "pkg/controller/volume/pvcprotection/pvc_protection_controller_test.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-kubelet-start-container",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "pkg/kubelet/container/runtime.go",
+                "staging/src/k8s.io/client-go/tools/cache/the_real_fifo.go",
+                "pkg/controller/cronjob/cronjob_controllerv2_test.go",
+                "staging/src/k8s.io/client-go/applyconfigurations/imagepolicy/v1alpha1/imagereviewcontainerspec.go",
+                "vendor/sigs.k8s.io/kustomize/kustomize/v5/commands/build/build.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-deployment-sync-deployment",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "pkg/controller/deployment/sync.go",
+                "pkg/controller/deployment/util/deployment_util.go",
+                "staging/src/k8s.io/client-go/kubernetes/typed/core/v1/fake/fake_replicationcontroller.go",
+                "staging/src/k8s.io/client-go/informers/core/v1/replicationcontroller.go",
+                "staging/src/k8s.io/kubectl/pkg/util/deployment/deployment.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-replicaset-sync",
+              "corpus": "kubernetes",
+              "rank": 2,
+              "top5": [
+                "pkg/controller/replicaset/replica_set_test.go",
+                "pkg/controller/replicaset/replica_set.go",
+                "vendor/go.yaml.in/yaml/v3/scannerc.go",
+                "staging/src/k8s.io/client-go/util/certificate/csr/csr.go",
+                "pkg/controller/replicaset/replica_set_utils_test.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-shared-informer-constructor",
+              "corpus": "kubernetes",
+              "rank": 1,
+              "top5": [
+                "staging/src/k8s.io/client-go/tools/cache/shared_informer.go",
+                "pkg/controller/namespace/namespace_controller.go",
+                "pkg/controller/namespace/deletion/namespaced_resources_deleter_test.go",
+                "staging/src/k8s.io/client-go/informers/core/v1/replicationcontroller.go",
+                "pkg/controller/volume/persistentvolume/index_test.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-csi-mounter-setup-at",
+              "corpus": "kubernetes",
+              "rank": 10,
+              "top5": [
+                "pkg/volume/csi/csi_plugin.go",
+                "vendor/golang.org/x/sys/unix/zsyscall_linux.go",
+                "pkg/volume/csi/csi_plugin_test.go",
+                "pkg/volume/csi/csi_client.go",
+                "vendor/github.com/cpuguy83/go-md2man/v2/md2man/roff.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-iptables-sync-proxy-rules",
+              "corpus": "kubernetes",
+              "rank": 2,
+              "top5": [
+                "pkg/kubelet/volumemanager/populator/desired_state_of_world_populator.go",
+                "pkg/proxy/iptables/proxier.go",
+                "staging/src/k8s.io/apiserver/pkg/reconcilers/peer_endpoint_lease.go",
+                "pkg/proxy/iptables/number_generated_rules_test.go",
+                "vendor/github.com/Microsoft/hnslib/hcn/hcnendpoint.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-nodeipam-allocate-cidr",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "staging/src/k8s.io/apiserver/pkg/cel/library/cidr.go",
+                "vendor/cel.dev/cel-go/ext/network.go",
+                "pkg/controller/nodeipam/ipam/cidrset/cidr_set_test.go",
+                "vendor/github.com/Microsoft/hnslib/hcn/hcnnetwork.go",
+                "staging/src/k8s.io/component-helpers/node/util/cidr.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-etcd-store-get-list",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "test/images/resource-consumer/common/common.go",
+                "pkg/scheduler/testing/wrappers.go",
+                "vendor/github.com/go-task/slim-sprig/v3/list.go",
+                "vendor/go.etcd.io/etcd/pkg/v3/wait/wait.go",
+                "vendor/go.etcd.io/etcd/client/v3/op.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-admission-chain-admit",
+              "corpus": "kubernetes",
+              "rank": null,
+              "top5": [
+                "staging/src/k8s.io/apiserver/pkg/admission/plugin/webhook/mutating/plugin.go",
+                "staging/src/k8s.io/apiserver/pkg/admission/plugin/policy/mutating/plugin.go",
+                "staging/src/k8s.io/apiserver/pkg/admission/plugin/policy/mutating/accessor.go",
+                "cmd/kubelet/app/server.go",
+                "staging/src/k8s.io/component-base/cli/run.go"
+              ]
+            },
+            {
+              "id": "k8s-holdout-leaderelection-acquire",
+              "corpus": "kubernetes",
+              "rank": 2,
+              "top5": [
+                "pkg/controller/controller_ref_manager.go",
+                "staging/src/k8s.io/client-go/tools/leaderelection/leaderelection.go",
+                "staging/src/k8s.io/client-go/kubernetes/typed/core/v1/replicationcontroller.go",
+                "staging/src/k8s.io/controller-manager/config/types.go",
+                "pkg/controlplane/controller/leaderelection/leasecandidategc_controller.go"
+              ]
+            }
+          ]
+        }
+      },
+      "graphStats": {
+        "avgGraphFiles": 19.333333333333332
+      }
+    }
+  ],
+  "macro": {
+    "baseline-explore": {
+      "queries": 24,
+      "hit": {
+        "at1": 0.125,
+        "at5": 0.16666666666666666,
+        "at10": 0.25
+      },
+      "mrr": 0.15384424603174604,
+      "misses": [
+        "rails-holdout-send-file-download",
+        "rails-holdout-route-set-draw",
+        "rails-holdout-middleware-stack-use",
+        "rails-holdout-cache-store-fetch",
+        "k8s-holdout-scheduler-schedule-one",
+        "k8s-holdout-kubelet-sync-pod",
+        "k8s-holdout-kubelet-start-container",
+        "k8s-holdout-deployment-sync-deployment",
+        "k8s-holdout-replicaset-sync",
+        "k8s-holdout-csi-mounter-setup-at",
+        "k8s-holdout-iptables-sync-proxy-rules",
+        "k8s-holdout-nodeipam-allocate-cidr",
+        "k8s-holdout-etcd-store-get-list",
+        "k8s-holdout-admission-chain-admit",
+        "k8s-holdout-leaderelection-acquire"
+      ]
+    },
+    "symbol-union-plan": {
+      "queries": 24,
+      "hit": {
+        "at1": 0.16666666666666666,
+        "at5": 0.4583333333333333,
+        "at10": 0.5
+      },
+      "mrr": 0.29930555555555555,
+      "misses": [
+        "rails-holdout-send-file-download",
+        "rails-holdout-tagged-logging",
+        "rails-holdout-connection-pool-with-connection",
+        "rails-holdout-route-set-draw",
+        "rails-holdout-activejob-perform-later",
+        "rails-holdout-cache-store-fetch",
+        "k8s-holdout-scheduler-schedule-one",
+        "k8s-holdout-kubelet-start-container",
+        "k8s-holdout-deployment-sync-deployment",
+        "k8s-holdout-nodeipam-allocate-cidr",
+        "k8s-holdout-etcd-store-get-list",
+        "k8s-holdout-admission-chain-admit"
+      ]
+    },
+    "symbol-graph-union": {
+      "queries": 24,
+      "hit": {
+        "at1": 0.16666666666666666,
+        "at5": 0.4166666666666667,
+        "at10": 0.4583333333333333
+      },
+      "mrr": 0.27847222222222223,
+      "misses": [
+        "rails-holdout-send-file-download",
+        "rails-holdout-tagged-logging",
+        "rails-holdout-connection-pool-with-connection",
+        "rails-holdout-route-set-draw",
+        "rails-holdout-migration-class",
+        "rails-holdout-activejob-perform-later",
+        "rails-holdout-cache-store-fetch",
+        "k8s-holdout-scheduler-schedule-one",
+        "k8s-holdout-kubelet-start-container",
+        "k8s-holdout-deployment-sync-deployment",
+        "k8s-holdout-nodeipam-allocate-cidr",
+        "k8s-holdout-etcd-store-get-list",
+        "k8s-holdout-admission-chain-admit"
+      ]
+    }
+  },
+  "gates": {
+    "g1MacroHit5Plus5pp": {
+      "pass": true,
+      "delta": 0.25
+    },
+    "cMacroHit5Plus5pp": {
+      "pass": true,
+      "delta": 0.29166666666666663
+    },
+    "perCorpusHit5At90": {
+      "pass": false,
+      "detail": [
+        {
+          "corpus": "rails",
+          "base": 0.25,
+          "c": 0.5,
+          "g1": 0.4166666666666667
+        },
+        {
+          "corpus": "kubernetes",
+          "base": 0.08333333333333333,
+          "c": 0.4166666666666667,
+          "g1": 0.4166666666666667
+        }
+      ]
+    },
+    "perCorpusHit10At95": {
+      "pass": false,
+      "detail": [
+        {
+          "corpus": "rails",
+          "base": 0.4166666666666667,
+          "c": 0.5,
+          "g1": 0.4166666666666667
+        },
+        {
+          "corpus": "kubernetes",
+          "base": 0.08333333333333333,
+          "c": 0.5,
+          "g1": 0.5
+        }
+      ]
+    },
+    "mrrNoRegression": {
+      "pass": true,
+      "delta": 0.12462797619047619
+    },
+    "hit10NoRegression": {
+      "pass": true,
+      "delta": 0.20833333333333331
+    }
+  },
+  "verdict": "NO-GO",
+  "process": {
+    "wallMs": 26047.7294,
+    "peakWorkingSetBytes": null
+  }
+}

@@ -690,7 +690,7 @@
       "id": "1-7",
       "uid": "01a1aaf095bc-f4919598e4",
       "label": "结构化检索探索（越过注入范式，改检索本体；新留出集 v3）",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -703,9 +703,24 @@
           "q": "Human 选 B：新开结构化检索探索（1-7）+ 新留出集，门卫如何移交？",
           "answer": "Human 选 B：1-6 注入路线 holdout NO-GO（符号注入为边际信号）后，新开 1-7 结构化检索探索，越过注入范式改检索本体。三子方向：1-7-1 符号级索引召回、1-7-2 调用图/类型图召回、1-7-3 重排序模型。新留出集 = v3 frozen（docs/baselines/semantic-retrieval-human-frozen-v3.json，holdout=rails+k8s 24 硬集，dev=5-small 60），冻结于 1-7 任何工作之前；v2 holdout 禁止复用（已看过结论）。门卫权由 1-6 移交 1-7：e7 重定向为 1-7→1-4（blocks）；1-6 收尾 completed。1-4 保持 pending+blocked，仅在 1-7 拿到通过的质量门后解锁。元泄漏警示：5-small dev 在 1-6 调过参，1-7 结论可能带元泄漏，建议最终判定前补充新人工标注硬查询。",
           "note": ""
+        },
+        {
+          "q": "1-7 结构化检索探索整线收尾：三子方向结论与下一步？",
+          "answer": "1-7 三子方向全部完成、全部 NO-GO：1-7-1 符号级索引召回 C(symbol-union)=holdout 0.458(rails0.50/k8s0.42，史上最佳，较baseline0.167 +0.292)；1-7-2 调用图/类型召回 G1=0.417 退于 C(rails0.42退/k8s0.42平)；1-7-3 轻量语义重排 R1=0.375 退于 C(rails0.33退/k8s0.42平)。三者宏观放宽门(macroHit5+5pp/MRR不回退/Hit10不回退)均 PASS，但刚性 per-corpus Hit@5≥90% 与 Hit@10≥95% 全 FAIL。结论：检索本体替换(符号级/图级)+候选集内语义重排，在 rails/k8s 巨型 PascalCase 硬仓上封顶 k8s0.42/rails0.50，无任何候选能过 per-corpus90% 硬门。根因已定位：(1)期望文件是否进候选集(召回缺口)+(2)字面符号对齐与语义相似冲突，非排序问题——故不建议上完整 cross-encoder/LLM 重排。1-4 保持 pending+blocked(e7:1-7→1-4 blocks 不解除)。建议：与 Human 辩论 per-corpus90% 门标准——该门在此类硬仓是否现实，或改以 macro Hit@5+MRR+Hit@10 综合放宽门(C 已全 PASS)作为可发布判据；若坚持硬门，唯一未试方向=扩大候选集召回+新人工标注硬查询(v3已冻需augment新集)，已超 1-7 范围。v3 holdout 已一次性用于三臂评估，按 exit_criteria 不得二次复用调参。",
+          "note": "证据：docs/evidence/2026-11-05-symbol-index-holdout-v3.{json,md}、2026-11-05-graph-{recall-dev,fused-holdout-v3}.{json,md}、2026-11-05-semantic-rerank-probe.md。最佳臂 C 配置 docs/baselines/semantic-retrieval-symbol-index-candidate-v1.json。"
+        },
+        {
+          "q": "Human 选 C：1-7 归档处置？",
+          "answer": "Human 选 C：1-7 结构化检索探索整线归档。三子方向(1-7-1符号C0.458/1-7-2图G1 0.417/1-7-3语义R1 0.375)全部完成、全部 NO-GO，无任何候选通过刚性 per-corpus90% 质量门。处置：(1)1-7 标记 completed 归档，最佳已知臂 C(symbol-union，holdout 0.458=rails0.50/k8s0.42，较baseline0.167 +0.292；宏观放宽门全 PASS)作为历史最佳候选记录，配置 docs/baselines/semantic-retrieval-symbol-index-candidate-v1.json，但不进入产品默认行为、不解锁 1-4。(2)1-4 保持 pending+blocked，e7(1-7→1-4 blocks)不解除——1-7 未拿到通过的质量门，门卫条件未满足。(3)v3 frozen holdout 已一次性用于三臂评估，按 exit_criteria 永久冻结、不得二次复用调参。(4)归档理由=检索本体替换+候选集内语义重排在 rails/k8s 巨型 PascalCase 硬仓封顶 k8s0.42/rails0.50；根因为召回缺口+字面/语义冲突(非排序)，已证伪重排补缺前提。(5)后续若重启语义检索线，须先辩论 per-corpus90% 门标准，或走扩大候选集召回+新人工标注硬查询(v3已冻需augment新集)——均已超出本节点范围，不在此归档内展开。",
+          "note": "归档证据：docs/evidence/2026-11-05-symbol-index-holdout-v3.{json,md}、2026-11-05-graph-recall.md、2026-11-05-semantic-rerank-probe.md。C 配置 sha256=d687c4a831a1e7b03edab29690c5888ccb27dedfa633cf9d57f5e351c6394d4d。"
+        },
+        {
+          "q": "Human 选 A：拆门——per-corpus90% 门拆为真机入口+产品默认两级？",
+          "answer": "Human 选 A：辩论后决定拆门。per-corpus Hit@5≥90% 门不再兼任「进真机A/B」与「进产品默认」两道职能，拆为两级：(G-entry 真机A/B入口)=macro Hit@5≥baseline+5pp + MRR/Hit@10不回退 + 每仓正向净提升且无仓回退>2pp（复用 v2§4/ADR-0013 D4 已有的 Net entry gain + Ordering safety 两行，非新造阈值、非按0.458倒推）；(G-ship 产品默认OFF入口)=每仓Hit@5≥90%/Hit@10≥95% + 精确名零Hit@1回退 + 全安全门（绝对值一字不动）。C(symbol-union) 按 G-entry 全 PASS，批准进入 §5/D5 配对真机Agent A/B 评估（独立任务集+主终点恢复性Read/Grep减少+正确性不回退+配对bootstrap）。真机过且正确性不回退→C 获向 G-ship 补证资格(大仓延迟/存储/降级等)，但须在新冻结代表性留出集上满足90%门(v3已永久冻结不复用)；真机 inconclusive 或正确性回退→按 ADR-0013 D6 关闭本轮产品化。本决策不是降门(ADR-0013 D1 保留)，是对 D4 三行判据的职能再分配。正式化见 ADR-0014 docs/decisions/ZJ-0014-split-retrieval-gate-into-agent-entry-and-ship.md（Status=Draft 待审批）。1-4 解锁路径相应修订：C 经真机A/B证明净收益后再判 1-4，e8 blocks 暂保留。",
+          "note": "ADR-0014 已建 Draft 并登记 docs/README.md。证据 docs/evidence/2026-11-05-symbol-index-holdout-v3.{md,json}。"
         }
       ],
-      "notes": "",
+      "notes": "已归档(Human 选 C)：三子方向全 NO-GO，无候选过刚性 per-corpus90% 门。最佳已知臂=C(symbol-union, holdout 0.458=rails0.50/k8s0.42, 宏观放宽门全 PASS)记录为历史最佳, 不进产品默认行为、不解锁 1-4。1-4 保持 pending+blocked(e7 blocks 不解除)。v3 holdout 永久冻结。根因=召回缺口+字面/语义冲突(非排序), 已证伪重排补缺前提。重启语义检索线须先辩论门标准或走扩大候选集+新标注硬查询(超出本节点范围)。证据 docs/evidence/2026-11-05-{symbol-index-holdout-v3,graph-recall,semantic-rerank-probe}.md。",
       "layer": "plan",
       "budget": {
         "max_children": 3,
@@ -723,51 +738,92 @@
       "id": "1-7-1",
       "uid": "01a1aaf09719-abbaeb0483",
       "label": "符号级索引召回（按类型/可见性/签名索引全部符号，查询词对齐召回，替代仅-chunk 检索）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-7",
       "children": [],
-      "decisions": [],
-      "notes": "",
+      "decisions": [
+        {
+          "q": "现状勘察结论：符号级索引的元数据可行性？",
+          "answer": "现有 nodes 表已含 kind/visibility/signature/is_exported/docstring/qualifiedName。rails (Ruby) visibility 覆盖 97.7%/98.6% 但 signature=0；k8s (Go) visibility=0/signature=0（Go 靠 PascalCase/camelCase 约定而非显式 modifier）。所以 1-7-1 设计须放弃依赖 signature/visibility 字段，改用派生可见性（Ruby 用 visibility 字段，Go/Python/JS 用 PascalCase 推导）+ 全量 (kind, name, qualifiedName, file_path, docstring) 符号表。规模：rails 64k nodes、k8s 483k nodes，FTS5 over symbols 完全可行（百倍于 files 但单条短）。1-7-1 的检索本体是：绕开 findRelevantContext 的 FTS5-on-files + chunk 嵌入，直接建 FTS5-on-symbols 表，查询词对齐召回 → 命中符号所在文件 → 走 RWR/gateAndSort 排序（复用现有后半段）。对照 arm：(A) baseline 现 plan() 不动；(B) 纯符号级召回（不用 chunk 不用文件 FTS5）；(C) 符号级召回 ∪ 现 plan() 入口（符号 recall 作为额外 seed）。仅在 development 60 题迭代。",
+          "note": ""
+        },
+        {
+          "q": "1-7-1 v3 holdout 一次性评估结论（C 臂）？",
+          "answer": "v3 holdout 24 题（rails12+k8s12）一次性评估，候选哈希 sha256:d687c4a831a1e7b03edab29690c5888ccb27dedfa633cf9d57f5e351c6394d4d 已断言未篡改。C 臂（符号召回∪基线 plan()）宏观 Hit@5=0.458 vs baseline 0.167(+0.292)，rails 0.25→0.50、k8s 0.08→0.42；MRR+0.145、Hit@10+0.250，三项放宽门全 PASS。刚性 per-corpus Hit@5≥90%(rails0.50/k8s0.42) 与 Hit@10≥95% FAIL → 字面门 NO-GO。但 C 是 v3 holdout 史上最佳候选（1-6 D2 仅 rails0.25/k8s0.25），且 B(symbol-only)=0.458≈C，说明 union 重排未增益、符号召回本身承载信号。结论：符号级检索本体替换方向强烈验证（解决 1-6 诊断的'文件未进候选集'根因），但排序/语义鸿沟未解，需 1-7-2 图召回或 1-7-3 重排补强；per-corpus 90% 硬门无候选能过。1-4 保持 blocked。建议不关闭 1-7 线，转 1-7-2。",
+          "note": ""
+        },
+        {
+          "q": "Round 2 符号级排序增强（kind 权重+token 覆盖度）结论？",
+          "answer": "Round 2 在 symbol-index-core 新增 rankSymbolFilesEnhanced（kind 权重：function/method/class/struct/interface 等 intent-bearing=1.0，field/constant/variable/property=0.25~0.3；exported×1.5；多 query-token 命中符号加权；文件级 token 覆盖度乘性奖励），压 k8s/dotnet 的 PascalCase 过匹配噪声。dev 60 结果：D(symbol-only-v2) Hit@5=0.400 略低于 B(0.417)；E(union-v2) Hit@5=0.750 持平 C、MRR 0.527 略低于 C(0.534)。逐仓 D 在 spring 退(0.75→0.67)、actix/dotnet 持平；E 在 actix 进(0.83→0.92)、dotnet 退(0.42→0.33)。结论：该启发式在 dev（snake_case 易仓、符号召回≈0）是 wash/slight-negative，无处发力；真正噪声战场 k8s 因 v3 holdout 已冻不能复用调参。C(union) 仍是 dev(0.750)/holdout(0.458) 双料最佳。剩余缺口（k8s 0.42→0.90）在候选集内排序与查询语义↔符号名鸿沟，需 1-7-2 图/类型召回补强。最终判定 C/v2 是否真降噪需新留出集（v3 已冻，按 splitMeta 须 augment 新人工标注硬查询），本轮未建新留出集。",
+          "note": ""
+        }
+      ],
+      "notes": "Round2: 符号级排序增强(kind权重+token覆盖度)在 dev 是 wash/slight-negative(D0.400<E? no D<B0.417; E0.750=CC但MRR0.527<C0.534)。C(union) 仍双料最佳 dev0.750/holdout0.458。剩余缺口 k8s0.42→0.90 需 1-7-2 图/类型召回。最终判定需新留出集(v3已冻)。增强臂 D/E 仅 dev 迭代不进 holdout 评估。",
       "layer": "plan",
       "budget": {
         "max_rounds": 2
-      }
+      },
+      "rounds": 1
     },
     "1-7-2": {
       "id": "1-7-2",
       "uid": "01a1aaf09870-7b73eb09f6",
       "label": "调用图/类型图召回（从查询承载符号遍历 call/type 边拉取相关文件）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-7",
       "children": [],
-      "decisions": [],
-      "notes": "",
+      "decisions": [
+        {
+          "q": "1-7-2 图/类型召回：设计形态与对照臂？",
+          "answer": "现状：现有 plan() 已含 seedNamedSymbols(name 种子)+glue(entry node 的 callers/callees 仅限于已浮现文件)+RWR 图扩散；但 glue 只遍历 entry nodes 且限于 surfaced files，且 name 种子来自 getNodesByName/findAllSymbols（受 entry-node cap/minScore 截断，比 1-7-1 专用符号 FTS5 窄）。1-7-2 新意：从'专用符号 FTS5 召回的更宽符号集'(top-K by bm25) 出发，遍历 callers(1)+callees(1)+getTypeHierarchy 边，拉取邻居文件（即使不在初始 subgraph）。边覆盖现实：k8s(Go) 仅 calls+instantiates、无 extends/implements/type_of（结构化接口，图≈调用图）；rails 有 extends 5k/implements 2k；actix 有 calls+references+decorates。对照臂：A baseline、C(baseline∪symbol, 取自 1-7-1)、G1(baseline∪symbol∪graph 三源合并 rerank 0.4/0.4/0.2)、诊断 graphOnly(纯图召回)。协议同 1-7-1：仅 dev 60 迭代，v3 holdout 冻结，最终判定需新留出集。实现：给符号索引加 node_id 列，recall 返回 id；core 新增 graphExpand(cg, symResult, topK)。",
+          "note": ""
+        },
+        {
+          "q": "1-7-2 调用图/类型召回 v3 holdout 一次性评估结论（G1 臂）？",
+          "answer": "v3 holdout 24 题一次性评估，候选哈希 sha256:dc73fb7dbefb5a2832a4741b8268bc2bb3d6cceada53b86227ee52f6017ae782 已断言未篡改。G1(基线∪符号召回∪图邻居文件)宏观 Hit@5=0.417 vs baseline 0.167(+0.250)、vs C(符号并集)0.458 反而退 0.041；逐仓 rails A0.25/C0.50/G1 0.42(退)、k8s A0.08/C0.42/G1 0.42(平)。MRR+0.125、Hit@10+0.208 放宽门 PASS；per-corpus Hit@5≥90%(rails0.42/k8s0.42) 与 Hit@10≥95% FAIL → 字面门 NO-GO。结论：图增强在干净硬集未补 k8s 缺口(仍0.42)且拖累 rails——图邻居文件平均+13~14/query 只稀释符号召回位置权重、无增量信号。dev 上 G1 与 C 持平(0.733)、graph-only 0.617 差于 baseline，同样 wash。综合 1-7-1+1-7-2：符号级+图级这类'检索本体'改动在 holdout 封顶 k8s0.42/rails0.50，过不了 per-corpus 90% 硬门；剩余缺口在候选集内语义重排，指向 1-7-3(重排序模型/cross-encoder/LLM 判定)。1-4 保持 blocked。建议 1-7-3 作最后结构化尝试，或讨论门标准。",
+          "note": ""
+        }
+      ],
+      "notes": "v3 holdout: G1 0.417 < C 0.458(退), rails0.42(退)/k8s0.42(平)。图增强未补 k8s 缺口。dev: G1=C=0.733, graphOnly0.617<baseline。字面门 NO-GO。结论：符号+图级检索本体改动封顶 k8s0.42/rails0.50，过不了 per-corpus90%。剩余缺口=候选集内语义重排→1-7-3。证据 docs/evidence/2026-11-05-graph-{recall-dev,fused-holdout-v3}.{json,md}。",
       "layer": "plan",
       "budget": {
         "max_rounds": 2
-      }
+      },
+      "rounds": 1
     },
     "1-7-3": {
       "id": "1-7-3",
       "uid": "01a1aaf099cb-55c3e0ddb7",
       "label": "重排序模型（cross-encoder / LLM 判定对候选文件重排，替代启发式融合）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-7",
       "children": [],
-      "decisions": [],
-      "notes": "",
+      "decisions": [
+        {
+          "q": "1-7-3 轻量语义重排探针：设计形态？",
+          "answer": "不引 cross-encoder/LLM 重排模型，先用现有 BGE chunk 嵌入（.tmp/chunk-explore-fusion/{corpus}.chunks.json，384 维，rails172MB/k8s185MB 已存在）做语义重排探针：对 C(基线∪符号召回) 的候选文件集，用 fastembed 对 query 做嵌入（模型 .tmp/embedding-baseline/.model-cache/Qdrant_bge-small-en-v1.5-onnx-Q，fastembed@1.14.5 已在 node_modules），对每个候选文件取其 chunk 向量 max-pool 或 max-cosine(query, file-chunk) 打分，对候选集重排→top10。检验假设：语义重排能否在 C 已召回的候选集内把期望文件顶进 top5/10，从而移动 k8s0.42/rails0.50。协议：先 dev 60 验证方法（迭代），再 v3 holdout 24 一次性评估（哈希断言）。若探针显示语义重排有效，再上完整 cross-encoder/LLM 重排（1-7-3 完整体）；若无效，则确认检索本体+语义重排都无法过 per-corpus90% 门，建议关闭 1-7 或辩论门标准。",
+          "note": ""
+        },
+        {
+          "q": "1-7-3 轻量语义重排探针 dev+holdout 结论（R1/R2 臂）？",
+          "answer": "探针脚本 scripts/measure/semantic-rerank-probe.mjs，候选配置 semantic-retrieval-semantic-rerank-candidate-v1.json sha256=3feff6a7257c96aa0759f76e4632a338d9c89a5a0109281c3d3e14798adef5ba（holdout 运行前断言 OK）。dev 60：R1(rerankMaxCos) Hit@5=0.783 高于 C0.733(+0.05)/baseline0.700，MRR0.606>C0.545，方法在 dev 验证为正。holdout 24 一次性：R1=0.375 反而退于 C0.458(-0.083)、R2=0.375 同退；逐仓 rails C0.50→R1 0.33(退)、k8s C0.42→R1 0.42(平)；诊断臂 chunkRetrieval(纯语义检索) S=0.292 全面劣于 C，确认 BGE chunk 向量在 PascalCase 硬仓上未弥合 query↔符号名语义鸿沟——C 之所以排对靠符号名 camelCase 字面对齐，语义分与之负相关。核心根因：chunk 覆盖度不对称——k8s 的 C 候选文件仅 25% 落在 20000-chunk 子集(rails 54%)，语义重排对 75% 候选无分可用；且 dev(0.783)→holdout(0.375) 反转暴露 dev 5 小仓 chunk 稀疏(express42/spring191) 的偶然性。门判定(以 R1)：macroHit5Plus5pp PASS(+0.208)、mrrNoRegression PASS、hit10NoRegression PASS、perCorpusHit5At90 FAIL(rails0.33/k8s0.42)、perCorpusHit10At95 FAIL → NO-GO。结论：1-7 三子方向(符号C0.458/图G1 0.417/语义R1 0.375)全部封顶，检索本体替换+候选集内语义重排都过不了 per-corpus90% 硬门。不建议上完整 cross-encoder/LLM 重排（探针已证伪'候选集内重排补缺'前提：瓶颈在候选集召回+字面vs语义冲突，不在排序）。C(symbol-union) 仍是 holdout 史上最佳 0.458。",
+          "note": "证据 docs/evidence/2026-11-05-semantic-rerank-probe.md + .tmp/measure/semantic-rerank-{development,holdout}.json。建议：关闭 1-7 线，与 Human 辩论 per-corpus90% 门标准（该门在 rails/k8s 巨型 PascalCase 硬仓是否现实，或改用 macro Hit@5+MRR+Hit@10 综合放宽门——C 已全 PASS）；若坚持硬门，唯一未试方向=扩大候选集召回+新人工标注硬查询(v3已冻需augment)，已超 1-7 范围。1-4 保持 pending+blocked。"
+        }
+      ],
+      "notes": "轻量语义重排探针 NO-GO：holdout R1(rerankMaxCos)=0.375 退于 C0.458(-0.083)，rails0.50→0.33退/k8s0.42→0.42平；纯语义检索S=0.292全面劣于C。根因=chunk覆盖度不对称(k8s C候选仅25%落在20000-chunk子集)+BGE向量未弥合query↔符号名语义鸿沟(C靠camelCase字面对齐,语义分负相关)。dev(0.783)→holdout(0.375)反转暴露dev小仓chunk稀疏偶然性。门:macroHit5+5pp/MRR/Hit10放宽门PASS,perCorpusHit5At90/Hit10At95 FAIL→NO-GO。1-7三子方向(符号C0.458/图G1 0.417/语义R1 0.375)全封顶,检索本体+候选集内语义重排均过不了per-corpus90%。不建议上完整cross-encoder/LLM重排(探针证伪'重排补缺'前提)。C仍是holdout最佳0.458。证据 docs/evidence/2026-11-05-semantic-rerank-probe.md。建议关闭1-7线并辩论门标准。",
       "layer": "plan",
       "budget": {
         "max_rounds": 2
-      }
+      },
+      "rounds": 1
     }
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-05 17:01:26",
+    "updated": "2026-11-05 20:36:32",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
