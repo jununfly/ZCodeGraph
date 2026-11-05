@@ -1,0 +1,30 @@
+{
+  "candidate": "D2-self-consistency-gate",
+  "registeredAt": "2026-11-05T06:28:24.497Z",
+  "freezeNote": "1-6-2 D2 v2 在 dev 60 达到 Hit@5 0.767（C0 0.700 +6.7pp），满足退出判据，提交 holdout 一次性评估。冻结后禁止在 holdout 上调参。",
+  "config": {
+    "symbolPicker": "D1v2",
+    "gate": "self-consistency",
+    "scGate": 0.4,
+    "rerankWeights": {
+      "passA": 0.4,
+      "passB": 0.4,
+      "chunkAlign": 0.2
+    },
+    "rerankTopK": 10,
+    "c0TopK": 8,
+    "d1TopK": 24,
+    "d1MaxSymbols": 3,
+    "rerank": "merge(base, d1) by 0.4*posA + 0.4*posB + 0.2*chunkAlign"
+  },
+  "gates": {
+    "fromV2": [
+      "corpus-macro Hit@5 >= baseline+5pp",
+      "per-corpus Hit@5>=0.90",
+      "per-corpus Hit@10>=0.95",
+      "MRR non-regression",
+      "Hit@10 non-regression"
+    ]
+  },
+  "configHash": "sha256:71147c1c9f0eab4a"
+}
