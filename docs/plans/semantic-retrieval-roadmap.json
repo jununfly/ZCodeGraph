@@ -17,7 +17,8 @@
         "1-4",
         "1-5",
         "1-6",
-        "1-7"
+        "1-7",
+        "1-8"
       ],
       "decisions": [],
       "notes": "",
@@ -124,6 +125,11 @@
           "q": "holdout NO-GO 后 1-4 是否解锁？",
           "answer": "D2 候选 holdout v3 = NO-GO（per-corpus Hit@5 仅 0.25，远低于 90% 门）。按 1-6 退出判据'未通过按 1-5 关闭'，1-4 不解锁、保持 pending+blocked（e7 由 1-6 锁住不解除），路径转 1-5：证据不足时不进入产品，关闭本轮语义检索产品化或保留离线实验。绝不进入 Agent Sufficiency 验证。",
           "note": ""
+        },
+        {
+          "q": "1-4 的 blocked 由哪条边派生？",
+          "answer": "此前 e2(1-3->1-4)/e6(1-3-4->1-4)/e8(1-7->1-4) 的前驱已全部 completed，按派生规则不再产生阻塞，导致 ready 曾把 1-4 列为可开工、stats.blocked=0，与 notes 及 ADR-0014 G-entry/G-ship、ADR-0015 毕业边界所要求的完整 G-ship 前不得解锁不一致。2026-11-07 新增 1-8-2 -> 1-4 的 blocks 边（保留历史边不删），使 1-4 重新由未完成前驱派生为 blocked。规范约束未放宽，只是 roadmap 边重新能表达它。历史 decisions 全部保留。",
+          "note": "Q63=A / Q64=A；1-8-2 为 ZJ-0015 执行前置授权，当前 pending。"
         }
       ],
       "notes": "门卫由 1-6 移交 1-7（e7 重定向 1-7→1-4）。1-4 保持 pending+blocked，仅在 1-7 拿到通过的质量门后解锁。1-6 探索 NO-GO 已归档至 1-5。",
@@ -839,11 +845,68 @@
         "max_rounds": 2
       },
       "rounds": 1
+    },
+    "1-8": {
+      "id": "1-8",
+      "uid": "01a1b1bca366-937e39e1e9",
+      "label": "跨线治理与执行前置",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-8-1",
+        "1-8-2"
+      ],
+      "decisions": [
+        {
+          "q": "为何新增 1-8 分支，scope 如何分类？",
+          "answer": "Q61-Q64 Human 全部同意推荐（2026-11-07）。此前 ADR-0011 整体实现债务与 ZJ-0015 执行前置只散落在治理台账、取证备忘与 ADR 正文，roadmap 的 tree/ready 看不到。新增 1-8 作为跨线治理父节点集中承载，避免污染已归档的 1-7 与产品集成门 1-4。Scope gate 分类=Product execution：未来节点指向目标项目自身实现，但本轮仅写 roadmap 元数据，不改 src/、tests/ 或任何产品代码。三个节点状态均为 pending，未获执行授权。",
+          "note": "证据 docs/decisions/ZJ-0011 与 ZJ-0015；治理台账 2026-11-06-adr-human-decisions.md 仍保留唯一 OPEN 实现债务条目。"
+        }
+      ],
+      "notes": "",
+      "layer": "plan"
+    },
+    "1-8-1": {
+      "id": "1-8-1",
+      "uid": "01a1b1bca49f-3c1c8fdc71",
+      "label": "ADR-0011 整体实现债务",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-8",
+      "children": [],
+      "decisions": [
+        {
+          "q": "ADR-0011 整体实现债务的范围与当前状态？",
+          "answer": "只读取证（2026-11-06-adr-0011-implementation-gap.md）确认 ADR-0011 整篇是 Accepted 设计稿：§1 OS-backed 稳定 rendezvous 锁与 §3 native 跨平台 Adapter 在 zcodegraph.lock 路径未落地，观测到的 flock/fs2/Windows Job Object 只属 embedding-replacement 域；当前仍是 TS FileLock（PID+2min stale+unlinkSync）与 Rust ProjectLock（PID-only+Drop 删除）。§4 unlock 仍 unlinkSync，tests/security.test.ts 仍断言删除语义，不得单独改该测试（它忠实描述现状）。8 项 Required verification 0 项完整覆盖。两条未来路径均未选：(1)整篇实现（native Adapter + §1-§5 + 8 项验证）；(2)新 ADR supersede ADR-0011。启动任一路径须另获 Human 决策。",
+          "note": "信息状态 has-gaps；治理台账中该项为唯一 OPEN。"
+        }
+      ],
+      "notes": "",
+      "layer": "plan"
+    },
+    "1-8-2": {
+      "id": "1-8-2",
+      "uid": "01a1b1bca5d1-65df505faa",
+      "label": "ZJ-0015 执行前置授权",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-8",
+      "children": [],
+      "decisions": [
+        {
+          "q": "ZJ-0015 执行前置包含什么，现在是否可执行？",
+          "answer": "ZJ-0015（ADR-0015, Accepted 2026-11-06）批准的是 ZRA-Paired v1 协议，不是结果，也不构成执行授权。前置能力全部未实现：默认 OFF 的 ZCG_RETRIEVAL_ARM 运行时切臂、S 的同 payload 固定种子排序置换、配置指纹断言、arm-blinded 双审（原始一致率≥90%）、不可变运行清单、无凭据一次性只读快照隔离、固定 seed 统计单元测试、按 DES-baseline-agent-sufficiency-v1 跑 baseline（切臂改变 MCP ranking）。正式 N/总成本/正确性非劣数值/任务集组成/人名须在 5-8x4x3 试点后预注册，试点前冻结硬预算。任何实现须另获 Human 授权。真机通过仅获 G-ship 补证资格，1-4 与产品默认 OFF 不变。",
+          "note": "以 1-8-2 -> 1-4 的 blocks 边表达：前置未完成前 1-4 不可开工。"
+        }
+      ],
+      "notes": "",
+      "layer": "plan"
     }
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-06 11:14:43",
+    "updated": "2026-11-07 00:42:37",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
@@ -888,7 +951,13 @@
       "from": "01a1aaf095bc-f4919598e4",
       "to": "01a19c859594-0c665d6436",
       "type": "blocks"
+    },
+    {
+      "id": "e9",
+      "from": "01a1b1bca5d1-65df505faa",
+      "to": "01a19c859594-0c665d6436",
+      "type": "blocks"
     }
   ],
-  "edge_seq": 8
+  "edge_seq": 9
 }
