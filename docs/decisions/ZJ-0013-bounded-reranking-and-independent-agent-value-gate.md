@@ -26,7 +26,8 @@ Express 还出现正确入口由 rank 1 退到 rank 4 的个例。延迟、内�
 该结果不能直接作为独立产品验收：
 
 1. 既有 16 题已用于 V3 已知失败修复、候选验收和路线判断。按
-   MET-semantic-retrieval-evaluation-v1，它们不再是未参与调参的 holdout。
+   MET-semantic-retrieval-evaluation-v2 §2（v1 已被取代），它们不再是未参与
+   调参的 holdout。
 2. 报告中的“macro”实为按题汇总的微平均，eShopOnWeb 占 12/16；总分可能
    掩盖小仓回退。门计数也漏掉了单仓相对 baseline 的回退限制。
 3. 既有 10 门没有覆盖精确名安全、至少 10,000 文件的大仓、存储/索引成本、

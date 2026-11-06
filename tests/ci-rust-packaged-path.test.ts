@@ -24,7 +24,9 @@ describe('CI Rust packaged path coverage', () => {
     expect(workflow).toContain('matrix:');
     expect(workflow).toContain('fail-fast: false');
     expect(workflow).toContain('ubuntu-latest');
-    expect(workflow).toContain('macos-14');
+    // Keep the exact pinned macOS label under guardrail: the CI gate moved
+    // from macos-14 to macos-15 after repeated pre-assignment cancellations.
+    expect(workflow).toContain('macos-15');
     expect(workflow).toContain('windows-2025');
   });
 

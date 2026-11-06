@@ -25,7 +25,7 @@
 
 **Not:** A claim that the underlying graph contains every possible code relationship. Graph completeness can contribute to sufficiency, but it is not the same thing.
 
-**Related terms:** Explore Answer, Read/Grep Fallback.
+**Related terms:** Explore Answer, Recovery Read/Grep Fallback.
 
 ### Rust-Owned Indexing
 
@@ -49,10 +49,11 @@
 
 ### Fallback Health State
 
-**Definition:** The three-tier classification of rust-hybrid indexing fallback
-quality: `healthy` (zero fallbacks), `partial` (only non-Rust-owned language
-fallbacks — expected behavior), or `degraded` (Rust-owned parse/extraction
-gaps or missing files — real problems).
+**Definition:** The classification of rust-hybrid indexing fallback quality:
+`healthy` (zero fallbacks), `partial` (only non-Rust-owned language fallbacks —
+expected behavior), `degraded` (Rust-owned parse/extraction gaps or missing
+files — real problems), and `pending` (ADR-0009 embedding readiness work not yet
+complete). The original ADR-0007 scope used the first three states.
 
 **Use when:** Interpreting `fallbackState` in CLI output, status JSON, doctor
 diagnostics, or deciding whether fallback diagnostics warrant investigation.
@@ -72,7 +73,7 @@ a real indexing problem.
 
 **Not:** A guarantee that every relevant code fact is present. The answer is scoped: enough to guide the next agent step under the current budget and graph state, not an exhaustive code map.
 
-**Related terms:** Agent Sufficiency, Output Budget, Evidence Scope, Evidence Value, Read/Grep Fallback.
+**Related terms:** Agent Sufficiency, Output Budget, Evidence Scope, Evidence Value, Recovery Read/Grep Fallback.
 
 ### Evidence Scope
 
@@ -82,17 +83,17 @@ a real indexing problem.
 
 **Not:** The complete set of relevant facts in the repository. Evidence Scope is intentionally bounded by the user's query, graph state, output budget, and the agent's likely next action.
 
-**Related terms:** Explore Answer, Agent Sufficiency, Output Budget, Read/Grep Fallback.
+**Related terms:** Explore Answer, Agent Sufficiency, Output Budget, Recovery Read/Grep Fallback.
 
 ### Output Budget
 
 **Definition:** The limited answer capacity that an Explore Answer can spend to make its Evidence Scope useful for the agent's next step. It is allocated by evidence value, not by repository coverage: mechanism and named intent deserve more budget; redundant sibling detail, low-value files, and stale/noisy evidence should spend less.
 
-**Use when:** Discussing why Explore renders some evidence as full source, some as skeletons, and some not at all; when diagnosing whether a planner change reduced Read/Grep Fallback; or when designing tests for budget-sensitive answers.
+**Use when:** Discussing why Explore renders some evidence as full source, some as skeletons, and some not at all; when diagnosing whether a planner change reduced Recovery Read/Grep Fallback; or when designing tests for budget-sensitive answers.
 
 **Not:** A raw token, character, file-count, or section-count limit. Those are implementation constraints. Output Budget is the domain concept that explains how answer capacity should be spent under those constraints.
 
-**Related terms:** Agent Sufficiency, Explore Answer, Evidence Scope, Read/Grep Fallback.
+**Related terms:** Agent Sufficiency, Explore Answer, Evidence Scope, Recovery Read/Grep Fallback.
 
 ### Evidence Value
 
@@ -102,15 +103,17 @@ a real indexing problem.
 
 **Not:** Generic relevance to the query. Evidence can be relevant but low-value if it duplicates other evidence, consumes budget without changing the agent's next action, or makes the answer larger without reducing fallback behavior.
 
-**Related terms:** Agent Sufficiency, Evidence Scope, Output Budget, Read/Grep Fallback.
+**Related terms:** Agent Sufficiency, Evidence Scope, Output Budget, Recovery Read/Grep Fallback.
 
-### Read/Grep Fallback
+### Recovery Read/Grep Fallback
 
 **Definition:** A visible agent behavior where, after receiving a ZCodeGraph answer, the agent still uses generic file-reading or text-search tools to recover code facts that the answer was expected to provide.
 
+**Legacy alias:** Read/Grep Fallback.
+
 **Use when:** Classifying benchmark failures, evaluating Explore Answer sufficiency, or deciding whether a planner change improved the agent workflow.
 
-**Not:** Any use of file-reading tools. Some tasks legitimately require reading source after ZCodeGraph narrows the target. A fallback only counts when the agent uses generic tools to rediscover information that should have been present in the ZCodeGraph answer.
+**Not:** Any use of file-reading tools, an indexing Fallback Health State, or Receipt Health. Some tasks legitimately require reading source after ZCodeGraph narrows the target. A fallback only counts when the agent uses generic tools to rediscover information that should have been present in the ZCodeGraph answer.
 
 **Related terms:** Agent Sufficiency, Explore Answer.
 
@@ -262,8 +265,8 @@ must stand on its own for future agent navigation.
 series of process files with a single reusable conclusion; or deciding whether
 a future agent can proceed without rereading raw experiments.
 
-**Not:** A temporary draft, raw profile, rerun log, or generated experiment
-summary.
+**Not:** A temporary Proposal Draft, Process Artifact, raw profile, rerun log,
+or generated experiment summary.
 
 **Related terms:** Evidence Artifact, Roadmap, Semantic Frontier.
 
@@ -442,10 +445,184 @@ are what give the term its skeletonization decision power.
 
 ### Retrieval Acceptance Gate
 
-**Definition:** A predeclared evidence boundary that separates offline retrieval improvement, Agent-level net benefit, and permission to integrate a semantic retrieval candidate into the product.
+**Definition:** A predeclared evidence boundary that separates offline retrieval improvement, Agent-level net benefit, and permission to integrate a semantic retrieval candidate into the product. ADR-0014 splits it into G-entry and G-ship while preserving the product-default thresholds.
 
 **Use when:** Deciding whether a reranking or semantic-fusion candidate may advance, interpreting a NO-GO result, or changing retrieval metrics and their thresholds.
 
 **Not:** A mandate to maximize MRR, a count of passing script checks, or proof that a diagnostic holdout remains independent after it informs tuning.
 
-**Related terms:** Agent Sufficiency, Semantic Entry Discovery, Evidence Artifact.
+**Related terms:** Agent Sufficiency, Semantic Entry Discovery, Evidence Artifact, G-entry and G-ship, Acceptance Holdout.
+
+## Agent A/B Evaluation Language
+
+### Agent Task
+
+**Definition:** One independent natural-language code-understanding task used as the unit of statistical inference.
+
+**Use when:** Counting independent observations, designing task sets, or defining the pairing structure of an Agent A/B comparison.
+
+**Not:** An offline file-location query, a single Arm Run, or a repository.
+
+**Related terms:** Task Cluster, Paired Block, Recovery Read/Grep Fallback.
+
+### Arm
+
+**Definition:** One retrieval-implementation condition compared within an Agent Task.
+
+**Use when:** Naming experimental conditions, defining the single-variable constraint, or interpreting a paired difference.
+
+**Not:** A model version, a prompt, a task, or an execution order.
+
+**Related terms:** Arm Run, Paired Block, Arm Order.
+
+### Arm Run
+
+**Definition:** One execution of one Arm within a Paired Block.
+
+**Legacy aliases:** Trial, Run, Repetition.
+
+**Use when:** Recording a single trajectory, classifying a tool call, or auditing one run manifest row.
+
+**Not:** An independent Agent Task or a complete paired comparison.
+
+**Related terms:** Arm, Paired Block, Recovery Read/Grep Fallback.
+
+### Paired Block
+
+**Definition:** One within-task repetition containing exactly one Arm Run for each Arm; the repetition count of an Agent Task counts Paired Blocks, not independent tasks.
+
+**Use when:** Describing k, interleaving Arm Order, or preserving complete paired observations.
+
+**Not:** An independent sample, a single Arm Run, or a reason to multiply the number of Agent Tasks.
+
+**Related terms:** Agent Task, Arm Run, Arm Order, Task Cluster.
+
+### Arm Order
+
+**Definition:** The sequence in which Arm Runs are executed within a Paired Block.
+
+**Use when:** Counterbalancing position effects, describing permutations, or auditing order balance.
+
+**Not:** The retrieval implementation itself or a product default setting.
+
+**Related terms:** Arm, Arm Run, Paired Block.
+
+### Task Cluster
+
+**Definition:** All observations belonging to one Agent Task, treated as one unit for inference and resampling.
+
+**Use when:** Choosing the experimental unit, computing paired differences, or resampling uncertainty.
+
+**Not:** A set of independent trials or a repository-level sample.
+
+**Related terms:** Agent Task, Paired Block, MDE.
+
+### Answer Sufficiency
+
+**Definition:** The predeclared correctness guardrail that judges whether an Agent response contains the required code evidence without unacceptable regression.
+
+**Use when:** Defining stopping rules, auditing response quality, or separating correctness from behavioral efficiency.
+
+**Not:** Generic correctness, a final-state reward, or a reduction in tool calls.
+
+**Related terms:** Agent Task, Recovery Read/Grep Fallback, G-entry and G-ship.
+
+### Task Freshness
+
+**Definition:** The contamination-control property of an Agent Task set: tasks are independently produced, timestamped, and reviewed without participating in tuning.
+
+**Use when:** Designing a new task set, disclosing selection leakage, or claiming generalization to unseen work.
+
+**Not:** Index freshness, model freshness, or proof of zero training-data contamination.
+
+**Related terms:** Acceptance Holdout, Diagnostic Holdout, Frozen v3.
+
+### Acceptance Holdout
+
+**Definition:** A frozen task or query set that has not informed candidate selection and remains eligible for independent acceptance evidence.
+
+**Use when:** Certifying a candidate for a product gate or replacing a contaminated holdout.
+
+**Not:** A development set, a diagnostic set, or a set that may be reused after tuning.
+
+**Related terms:** Diagnostic Holdout, Frozen v3, Task Freshness.
+
+### Diagnostic Holdout
+
+**Definition:** A formerly independent holdout that has already informed candidate selection or tuning and now may only support diagnostic comparison.
+
+**Use when:** Interpreting historical results after a holdout has been used for decisions.
+
+**Not:** An independent acceptance set or a reusable tuning set.
+
+**Related terms:** Acceptance Holdout, Frozen v3.
+
+### Frozen v3
+
+**Definition:** The permanently diagnostic v3 semantic-retrieval holdout already used for 1-7 candidate evaluation.
+
+**Use when:** Explaining why v3 cannot support another acceptance claim or another tuning round.
+
+**Not:** A reusable acceptance holdout or a source of new independent tasks.
+
+**Related terms:** Diagnostic Holdout, Acceptance Holdout, Task Freshness.
+
+### G-entry and G-ship
+
+**Definition:** The two-stage Retrieval Acceptance Gate: G-entry grants permission to enter paired Agent evaluation; G-ship governs permission to consider product-default integration and retains its absolute thresholds.
+
+**Use when:** Deciding whether a candidate may be measured in a real Agent workflow versus shipped as a default.
+
+**Not:** A relaxed product gate, a single combined threshold, or evidence that a candidate has passed either stage.
+
+**Related terms:** Retrieval Acceptance Gate, Acceptance Holdout, Frozen v3.
+
+### MDE
+
+**Definition:** The minimum detectable benefit: the smallest practically important effect that the evaluation is predeclared to detect.
+
+**Use when:** Freezing sample size, power, and decision thresholds before an experiment.
+
+**Not:** An observed effect, a post-hoc threshold, or a statistical significance value.
+
+**Related terms:** Task Cluster, Answer Sufficiency.
+
+### Proposal Draft
+
+**Definition:** A non-normative consolidated proposal that records a candidate design and its open decisions before Human approval.
+
+**Use when:** Converging research material into one reviewable document without changing accepted decisions.
+
+**Not:** A Decision Artifact, an Evidence Artifact, or an implementation authorization.
+
+**Related terms:** Process Artifact, Decision Artifact, ADR Reference Hygiene.
+
+### Process Artifact
+
+**Definition:** A working file that supports coordination, review, or temporary synthesis without carrying normative authority.
+
+**Use when:** Classifying roadmaps, discussion material, or draft proposals that must not be mistaken for durable decisions.
+
+**Not:** A primary contract, an accepted decision, or a release input.
+
+**Related terms:** Proposal Draft, Decision Artifact, Roadmap.
+
+### ADR Reference Hygiene
+
+**Definition:** The maintenance activity that updates or removes stale code, path, status, or version references in ADRs while preserving their decisions.
+
+**Use when:** Reconciling accepted decisions with current code without silently changing architecture.
+
+**Not:** Deleting source code, archiving an ADR, or rewriting historical conclusions.
+
+**Related terms:** Decision Artifact, Proposal Draft.
+
+### Receipt Health
+
+**Definition:** The publication-contract health of a generated research report, indicating structural and citation checks passed.
+
+**Use when:** Interpreting a compiler receipt or distinguishing report validity from empirical validation.
+
+**Not:** Fallback Health State, product correctness, or evidence that a candidate won an Agent evaluation.
+
+**Related terms:** Recovery Read/Grep Fallback, Evidence Artifact.

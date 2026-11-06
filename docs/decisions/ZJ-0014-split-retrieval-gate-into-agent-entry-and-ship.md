@@ -124,6 +124,6 @@ v3 frozen holdout 已一次性用于 1-7 三臂评估，按 ADR-0013 D3 与本�
 
 - ADR-0013：本决策修订其 D4 门结构，D1/D2/D3/D5/D6 保留。
 - ADR-0012：上一阶段 NO-GO 与基础设施保留结论不变。
-- MET-semantic-retrieval-evaluation-v2：§4 门需按本决策拆分更新。
+- MET-semantic-retrieval-evaluation-v2：§4 已按本决策拆为 G-entry / G-ship；G-ship 数值门不变，§5 配对协议待后续 ADR 修订。
 - DES-baseline-agent-sufficiency-v1：真机 Read 分类与终点定义。
 - `docs/evidence/2026-11-05-symbol-index-holdout-v3.{md,json}`：C 臂门判定证据。

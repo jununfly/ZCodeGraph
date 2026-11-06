@@ -8,9 +8,12 @@ date: 2026-11-03
 ---
 # Semantic Retrieval Evaluation and Agent-Value Promotion Method v2
 
-Status: active for the bounded reranking campaign authorized by ADR-0013.
+Status: active for the bounded reranking campaign authorized by ADR-0013; §4
+is split into G-entry / G-ship by ADR-0014 while preserving all thresholds.
 Current product integration remains **NO-GO**. This method does not authorize
-changing `src/`, the schema, CLI/MCP, or default Explore behavior.
+changing `src/`, the schema, CLI/MCP, or default Explore behavior. Section 5's
+paired bootstrap protocol remains in force until a separate accepted ADR
+explicitly revises it.
 
 ## 1. Scope and non-negotiable boundaries
 
@@ -91,12 +94,19 @@ fresh process and already-downloaded model initialization. Report OS, CPU,
 Node and model/dependency versions. Do not compare unlike hosts as controlled
 experiments.
 
-## 4. Predeclared offline promotion gate
+## 4. Predeclared offline promotion gate (ADR-0014 two-stage split)
 
-All rows below are required before Agent A/B evaluation. The MRR>=0.70 absolute
-budget from v1 is not reused for this recall-enhancement slice; MRR is instead
-a non-regression metric. This is a target-relative decision under ADR-0013,
-not retroactive calibration to the observed 0.5490 result.
+ADR-0014 splits this table into two decision stages without changing any
+threshold. G-entry uses Net entry gain and Ordering safety, plus ADR-0014's
+per-corpus net-gain (>2pp) and no-regression (>2pp) checks, to grant permission
+for paired Agent A/B. G-ship retains the absolute Per-corpus recall 90%/95%
+thresholds, Exact-name safety, and all latency, memory, storage, and
+degradation rows before product-default integration may be considered. The
+MRR>=0.70 absolute budget from v1 is not reused for this recall-enhancement
+slice; MRR is instead a non-regression metric. This is a target-relative
+decision under ADR-0013, not retroactive calibration to the observed 0.5490
+result. Section 5's paired bootstrap protocol remains in force until a separate
+accepted ADR explicitly revises it.
 
 | Dimension | Required evidence |
 | --- | --- |

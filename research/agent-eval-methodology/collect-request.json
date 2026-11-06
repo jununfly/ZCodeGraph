@@ -1,0 +1,49 @@
+{
+  "protocol": "zj-research-cli/v1",
+  "operation": "collect",
+  "brief": {
+    "schema": "zj-research-brief/v1",
+    "topic": "agent-eval-methodology",
+    "criteria": [
+      {
+        "id": "paired-design",
+        "question": "Does the harness support paired/armed A-B evaluation of a tool or retrieval contribution with repetitions and a no-tool/no-retrieval ablation control?",
+        "critical": true,
+        "keywords": ["ablation", "paired", "control", "baseline", "arm", "trial", "repetition"]
+      },
+      {
+        "id": "statistical-significance",
+        "question": "Does the evaluation report statistical significance (paired bootstrap, permutation, McNemar, confidence intervals, multiple-comparison correction, power/sample-size)?",
+        "critical": true,
+        "keywords": ["bootstrap", "significance", "confidence interval", "permutation", "mcnemar", "p-value", "power"]
+      },
+      {
+        "id": "endpoint-metrics",
+        "question": "What are the primary outcome metrics (task resolution, tool-call counts, fallback/recovery behavior, cost, latency) and is a single primary metric pre-declared?",
+        "critical": true,
+        "keywords": ["metric", "resolved", "tool call", "cost", "latency", "primary", "endpoint"]
+      },
+      {
+        "id": "contamination-control",
+        "question": "How does the methodology prevent data leakage/contamination (frozen splits, ground-truth hiding, independent task sets)?",
+        "critical": true,
+        "keywords": ["contamination", "leak", "frozen", "split", "holdout", "ground truth", "hidden test"]
+      },
+      {
+        "id": "execution-harness",
+        "question": "What is the execution harness (interactive agent loop, function-calling, environment, reproducibility) and is it adaptable to a retrieval-tool-value study rather than a full-task benchmark?",
+        "critical": false,
+        "keywords": ["harness", "environment", "function calling", "agent loop", "docker", "reproducib"]
+      }
+    ],
+    "repositories": [
+      { "owner": "princeton-nlp", "name": "SWE-bench" },
+      { "owner": "sierra-research", "name": "tau-bench" },
+      { "owner": "THUDM", "name": "AgentBench" },
+      { "owner": "OpenBMB", "name": "ToolBench" },
+      { "owner": "open-compass", "name": "T-Eval" }
+    ],
+    "policyVersion": "v1",
+    "budget": { "maxFiles": 24, "maxBytes": 1000000, "deadlineMs": 120000 }
+  }
+}

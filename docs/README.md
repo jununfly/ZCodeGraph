@@ -1,7 +1,7 @@
 # ZCodeGraph Documentation Map
 
 > Single entry point and entity registry for this repository's durable
-> documentation. Last reviewed: 2026-10-30.
+> documentation. Last reviewed: 2026-11-06.
 >
 > This map is the **entity registry** for the ontology defined in
 > [`ONTOLOGY.md`](ONTOLOGY.md). Each section corresponds to one entity
@@ -24,8 +24,8 @@
 
 | Class | Folder | Authority range | Count |
 | --- | --- | --- | --- |
-| Decision | [`decisions/`](decisions/) | primary | 13 |
-| Contract | [`contracts/`](contracts/) | primary | 17 |
+| Decision | [`decisions/`](decisions/) | primary | 14 |
+| Contract | [`contracts/`](contracts/) | primary | 18 |
 | Method | [`methods/`](methods/) | primary / supporting | 13 |
 | Plan | `plans/` (CLI SoT, not always on disk) | process | not enumerated here |
 
@@ -54,6 +54,11 @@ to a test, script, or CI job; routine measurement output must not be added here.
 | [`semantic-retrieval-human-frozen-v2.json`](baselines/semantic-retrieval-human-frozen-v2.json) | `scripts/measure/chunk-fused-holdout-gate-v2.mjs`; `scripts/measure/explore-large-corpus-performance.mjs` | 84 Human-reviewed labels across seven pinned corpora; 60 development plus whole-corpus Rails/Kubernetes holdout; immutable release input |
 | [`semantic-retrieval-rails-candidates-v2.json`](baselines/semantic-retrieval-rails-candidates-v2.json) | `semantic-retrieval-human-frozen-v2.json` release manifest (`candidateSha256.rails`) | Twelve reviewed Rails holdout candidates; pinned source labels retained for release audit |
 | [`semantic-retrieval-kubernetes-candidates-v2.json`](baselines/semantic-retrieval-kubernetes-candidates-v2.json) | `semantic-retrieval-human-frozen-v2.json` release manifest (`candidateSha256.kubernetes`) | Twelve reviewed Kubernetes holdout candidates; pinned large-corpus source labels retained for release audit |
+| [`semantic-retrieval-human-frozen-v3.json`](baselines/semantic-retrieval-human-frozen-v3.json) | `scripts/measure/{symbol-index-dev,symbol-fused-holdout-v3,graph-recall-dev,graph-fused-holdout-v3,semantic-rerank-probe}.mjs` | Human-reviewed frozen v3 corpus; 60 development plus 24 Rails/Kubernetes holdout; immutable and permanently diagnostic after 1-7 |
+| [`semantic-retrieval-symbol-index-candidate-v1.json`](baselines/semantic-retrieval-symbol-index-candidate-v1.json) | `scripts/measure/symbol-index-dev.mjs`; `scripts/measure/symbol-fused-holdout-v3.mjs` | Frozen C (symbol-union) candidate config for development selection and one-shot v3 holdout evaluation |
+| [`semantic-retrieval-symbol-graph-candidate-v1.json`](baselines/semantic-retrieval-symbol-graph-candidate-v1.json) | `scripts/measure/graph-fused-holdout-v3.mjs` | Frozen G1 (symbol-graph-union) candidate config for one-shot v3 holdout evaluation |
+| [`semantic-retrieval-semantic-rerank-candidate-v1.json`](baselines/semantic-retrieval-semantic-rerank-candidate-v1.json) | `scripts/measure/semantic-rerank-probe.mjs` | Frozen R1/R2 semantic-rerank candidate config with holdout hash assertion |
+| [`semantic-retrieval-d2-candidate-v1.json`](baselines/semantic-retrieval-d2-candidate-v1.json) | `scripts/measure/chunk-fused-d2-holdout-v3.mjs` | Frozen D2 self-consistency gate candidate config for one-shot v3 holdout evaluation |
 
 Promotion requires registering the asset and its consumer here. Re-baselining
 updates the existing versioned input through its owning decision process;
@@ -92,19 +97,19 @@ codebase currently obeys. Test-locked where applicable.
 | Authority ID | Entity | Bounded question |
 | --- | --- | --- |
 | DES-architecture-roadmap | [architecture-roadmap.md](contracts/architecture-roadmap.md) | What is the validated architecture roadmap for CodeGraph? |
-| DES-rust-sqlite-contract | [rust-indexing-core-sqlite-contract.md](contracts/rust-indexing-core-sqlite-contract.md) | What is the SQLite contract for the Rust indexing core? |
+| DES-rust-indexing-core-sqlite-contract | [rust-indexing-core-sqlite-contract.md](contracts/rust-indexing-core-sqlite-contract.md) | What is the SQLite contract for the Rust indexing core? |
 | DES-finalization-tail-boundary-contract | [finalization-tail-boundary-contract.md](contracts/finalization-tail-boundary-contract.md) | What is the TypeScript finalization tail boundary contract? |
-| DES-rust-framework-matrix | [rust-framework-ownership-matrix-v1.md](contracts/rust-framework-ownership-matrix-v1.md) | Which language/framework slices are rust-owned vs TypeScript shell? |
-| BENCH-agent-sufficiency | [baseline-agent-sufficiency-v1.md](contracts/baseline-agent-sufficiency-v1.md) | What is the Agent Sufficiency baseline (v1)? |
-| BENCH-indexing-performance | [baseline-indexing-performance-v1.md](contracts/baseline-indexing-performance-v1.md) | What is the indexing performance baseline (v1)? |
+| DES-rust-framework-ownership-matrix-v1 | [rust-framework-ownership-matrix-v1.md](contracts/rust-framework-ownership-matrix-v1.md) | Which language/framework slices are rust-owned vs TypeScript shell? |
+| DES-baseline-agent-sufficiency-v1 | [baseline-agent-sufficiency-v1.md](contracts/baseline-agent-sufficiency-v1.md) | What is the Agent Sufficiency baseline (v1)? |
+| DES-baseline-indexing-performance-v1 | [baseline-indexing-performance-v1.md](contracts/baseline-indexing-performance-v1.md) | What is the indexing performance baseline (v1)? |
 | DES-graph-semantics-guardrail-v1 | [graph-semantics-guardrail-v1.md](contracts/graph-semantics-guardrail-v1.md) | What is the graph-semantics closeout guardrail? |
-| DES-health-rubric | [health-rubric-v1.md](contracts/health-rubric-v1.md) | What is the A-F health rubric (v1)? |
-| BENCH-token-tasks-v1 | [token-baseline-tasks-v1.md](contracts/token-baseline-tasks-v1.md) | What are the Layer-1 token baseline tasks (v1)? |
-| BENCH-token-tasks-v2 | [token-baseline-tasks-v2.md](contracts/token-baseline-tasks-v2.md) | What are the Layer-2/3 token baseline tasks (v2)? |
+| DES-health-rubric-v1 | [health-rubric-v1.md](contracts/health-rubric-v1.md) | What is the A-F health rubric (v1)? |
+| DES-token-baseline-tasks-v1 | [token-baseline-tasks-v1.md](contracts/token-baseline-tasks-v1.md) | What are the Layer-1 token baseline tasks (v1)? |
+| DES-token-baseline-tasks-v2 | [token-baseline-tasks-v2.md](contracts/token-baseline-tasks-v2.md) | What are the Layer-2/3 token baseline tasks (v2)? |
 | DES-dead-code-rubric-v1 | [dead-code-rubric-v1.md](contracts/dead-code-rubric-v1.md) | What is the dead-code detection rubric (v1)? |
-| DES-schema-evolution-cap | [schema-evolution-and-mcp-tool-cap-v1.md](contracts/schema-evolution-and-mcp-tool-cap-v1.md) | Schema evolution clauses + MCP tool cap ≤12 (v1)? |
-| BENCH-architecture-regression-v1 | [architecture-regression-baseline-v1.md](contracts/architecture-regression-baseline-v1.md) | What is the architecture regression baseline (v1)? |
-| DES-complexity-rubric | [complexity-rubric-v1.md](contracts/complexity-rubric-v1.md) | What is the cyclomatic-complexity rubric (v1)? |
+| DES-schema-evolution-and-mcp-tool-cap-v1 | [schema-evolution-and-mcp-tool-cap-v1.md](contracts/schema-evolution-and-mcp-tool-cap-v1.md) | Schema evolution clauses + MCP tool cap ≤12 (v1)? |
+| DES-architecture-regression-baseline-v1 | [architecture-regression-baseline-v1.md](contracts/architecture-regression-baseline-v1.md) | What is the architecture regression baseline (v1)? |
+| DES-complexity-rubric-v1 | [complexity-rubric-v1.md](contracts/complexity-rubric-v1.md) | What is the cyclomatic-complexity rubric (v1)? |
 | CON-resolver-semantic-residuals-v1 | [resolver-semantic-residuals-v1.md](contracts/resolver-semantic-residuals-v1.md) | Which resolver semantic gaps are deferred / no-go, and what guards bind shipped slices? |
 | DES-cli-p0-output-git-range-v1 | [cli-p0-output-and-git-range-v1.md](contracts/cli-p0-output-and-git-range-v1.md) | What output, error, exit-code, and Git-range guarantees must the P0 CLI hardening preserve? |
 | DES-cli-p1-embedding-operations-v1 | [cli-p1-embedding-operations-v1.md](contracts/cli-p1-embedding-operations-v1.md) | What exact queue, JSON, concurrency, migration, and interruption guarantees govern embedding status, run, and retry-failed? |
@@ -118,15 +123,15 @@ codebase currently obeys. Test-locked where applicable.
 
 | Authority | Authority ID | Entity | Bounded question |
 | --- | --- | --- | --- |
-| supporting | REF-lang-verification | [language-verification-guide.md](methods/language-verification-guide.md) | How is language extraction verified? |
-| supporting | DES-dynamic-dispatch-playbook | [dynamic-dispatch-coverage-playbook.md](methods/dynamic-dispatch-coverage-playbook.md) | How is dynamic-dispatch coverage measured and extended? |
-| supporting | DES-adaptive-explore-sizing | [adaptive-explore-sizing.md](methods/adaptive-explore-sizing.md) | How is adaptive `zcodegraph_explore` sizing computed? |
-| supporting | DES-callback-synthesis | [callback-edge-synthesis.md](methods/callback-edge-synthesis.md) | How are callback/observer edges synthesized? |
-| supporting | DES-ios-rn-bridging | [mixed-ios-and-react-native-bridging.md](methods/mixed-ios-and-react-native-bridging.md) | How does mixed iOS + React Native bridging coverage work? |
-| supporting | DES-template-markup-parser | [template-markup-parser.md](methods/template-markup-parser.md) | What is the template parser scope (Razor/Blazor/Thymeleaf)? |
-| supporting | DES-arch-validation | [architecture-roadmap-validation.md](methods/architecture-roadmap-validation.md) | How was the architecture roadmap validated? |
-| supporting | DES-index-pipeline | [index-pipeline.md](methods/index-pipeline.md) | How does the index pipeline work? |
-| supporting | DES-finalization-boundary | [rust-indexing-finalization-boundary.md](methods/rust-indexing-finalization-boundary.md) | Where is the finalization boundary? |
+| supporting | MET-language-verification-guide | [language-verification-guide.md](methods/language-verification-guide.md) | How is language extraction verified? |
+| supporting | MET-dynamic-dispatch-coverage-playbook | [dynamic-dispatch-coverage-playbook.md](methods/dynamic-dispatch-coverage-playbook.md) | How is dynamic-dispatch coverage measured and extended? |
+| supporting | MET-adaptive-explore-sizing | [adaptive-explore-sizing.md](methods/adaptive-explore-sizing.md) | How is adaptive `zcodegraph_explore` sizing computed? |
+| supporting | MET-callback-edge-synthesis | [callback-edge-synthesis.md](methods/callback-edge-synthesis.md) | How are callback/observer edges synthesized? |
+| supporting | MET-mixed-ios-and-react-native-bridging | [mixed-ios-and-react-native-bridging.md](methods/mixed-ios-and-react-native-bridging.md) | How does mixed iOS + React Native bridging coverage work? |
+| supporting | MET-template-markup-parser | [template-markup-parser.md](methods/template-markup-parser.md) | What is the template parser scope (Razor/Blazor/Thymeleaf)? |
+| supporting | MET-architecture-roadmap-validation | [architecture-roadmap-validation.md](methods/architecture-roadmap-validation.md) | How was the architecture roadmap validated? |
+| supporting | MET-index-pipeline | [index-pipeline.md](methods/index-pipeline.md) | How does the index pipeline work? |
+| supporting | MET-rust-indexing-finalization-boundary | [rust-indexing-finalization-boundary.md](methods/rust-indexing-finalization-boundary.md) | Where is the finalization boundary? |
 | primary | MET-ab-evaluation-matrix | [ab-evaluation-matrix.md](methods/ab-evaluation-matrix.md) | How is the CodeGraph A/B evaluation matrix designed, and what is the 0.9.4 baseline? |
 | primary | MET-agent-routing | [agent-routing.md](methods/agent-routing.md) | Should agents answer directly with CodeGraph or delegate to a sub-agent? |
 | supporting | MET-semantic-retrieval-evaluation-v1 | [semantic-retrieval-evaluation-v1.md](methods/semantic-retrieval-evaluation-v1.md) | How was the original file-entry semantic retrieval candidate measured and rejected under the v1 budgets? Historical protocol; its holdout is now diagnostic for later candidates. |

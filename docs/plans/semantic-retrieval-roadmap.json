@@ -723,6 +723,16 @@
           "q": "ADR-0014 转 Accepted 审批结果？",
           "answer": "ADR-0014 经自审逻辑闭环+1处补强后，Human 批准转 Accepted（2026-11-05）。自审通过项：(1)不降门论证成立(G-ship 90%/95%一字不动,G-entry 复用 ADR-0013 D4 已有 Net entry gain+Ordering safety 两行,不违反 D1)；(2)数据一致(C macro+0.292/rails0.50/k8s0.42 与证据吻合)；(3)元泄漏缓解闭环(真机独立任务集+不同终点+显式披露)；(4)v3冻结纪律与 ADR-0013 D3 对齐。自审补强1处：G-entry 的 per-corpus 条件由『正向净提升』收紧为『每仓 Hit@5 净提升>2pp』(与无仓回退>2pp 对称)，堵死『微弱提升被宏观掩盖』漏洞——复核 C：rails+25pp/k8s+33.4pp 远超2pp 通过结论不变。ADR-0014 Status=Accepted，docs/README.md 索引同步。G-entry/G-ship 两级门正式生效：C 获批进 §5/D5 配对真机 A/B；1-4 解锁路径=C 经真机证明净收益后向 G-ship 补证(须新冻结代表性留出集)。",
           "note": "证据 docs/decisions/ZJ-0014-split-retrieval-gate-into-agent-entry-and-ship.md Status=Accepted。"
+        },
+        {
+          "q": "真机A/B评估方法论选型：复用成熟方法还是本仓定制？",
+          "answer": "针对'真机A/B骨架是拍脑袋想法'的质疑，先做评估方法论选型的证据调研(5轮WebSearch论文+工业实践 + sealed-ledger采集5个成熟harness仓)。核心结论：无完全对口现成方法可原生复用，必须定制，但定制骨架借三个成熟范式：(1)τ-bench的pass^k一致性度量+固定其余变量+rule-based终态(本仓真机是随机agent须多trial)；(2)tool-ablation的w/o-retriever对照(正是C on/off对照臂)；(3)检索统计文献的paired bootstrap/McNemar+功效分析(直接命中n=24功效不足痛点)+Adaptive-Retrieval的反思混淆(须内建shuffled-control对照)。污染控制借freshness公理(v3已冻结,真机任务集须全新标注+独立审阅)。产物=本仓定制配对消融协议ZRA-Paired v1：arms=A(baseline)/C(symbol-union)/S(shuffled-control混淆对照)；主终点=经审计的恢复性Read/Grep fallback次数(per-task,复用baseline-agent-sufficiency-v1分类)；配对单元=task×repetition交错臂序,k≥4 trials；统计=paired bootstrap(主)+McNemar(辅)+run-to-run noise floor；样本量=先试点5-8任务估方差再按MDE(每任务fallback减少≥1.5次或fallback-free占比+20pp)反推N(初判≥40任务×k=4)；执行面复用itrun.sh交互式(非headless)+ZCG_RETRIEVAL_ARM环境变量切臂。诚实发现：sealed-ledger这条GitHub-evidence链对方法论统计严谨性覆盖不足(topicMatch=0/significance多unknown),核心证据来自WebSearch论文,信息缺口has-gaps。证据文件名 2026-11-05-methodology-decision.md（早期草案，已被正式报告 v2 取代）。下一步:立正式ADR(ZJ-0015)+实现ZCG_RETRIEVAL_ARM开关+试点估方差+任务集标注。",
+          "note": "这是真tradeoff(定制vs复用/单终点vs多终点/配对bootstrap vs pass^k)+难逆转(协议跑了改=作废)+无上下文困惑(为何不直接用SWE-bench)→值得立ADR ZJ-0015。"
+        },
+        {
+          "q": "正式研究报告发布与 ZRA-Paired v1 口径修订？",
+          "answer": "完成 zj-tech-research-report 完整链路：technical-decision-brief、sealed ledger、cited-findings、report-ir、正式 Markdown/HTML、质量门与 receipt。现行正式报告为 2026-11-05-methodology-report-v2.md，reportHash=c30009c917220561547492136a26618c8cf6b1496bbbad8569dddeed4f476959；evaluation.healthy=true、qualityGate.healthy=true、publishCount=1、unknownCount=8、navigationFailureCount=0，v1 仅作发布审计留档。方法结论不变：定制 ZRA-Paired v1，不原生复用通用 benchmark。正式报告修订草案三处：任务为独立推断簇，主检验为双侧配对随机化且任务簇 bootstrap 仅提供区间；A/C/S 三臂顺序在任务内平衡；S 保留候选集合、内容、条数和 payload schema 仅破坏排序，只作诊断。5-8x4 仅用于方差试点，N、MDE 和成本待试点与预注册，40x4 不是已论证预算。sealed ledger 对核心统计方法覆盖有限，相关证据来自 cited-findings.json 的论文原始证据，信息状态仍为 has-gaps。ZJ-0015 待 Human 审批，ZCG_RETRIEVAL_ARM 尚未实现，1-4 仍 pending+blocked，产品默认 OFF 不变。",
+          "note": "同批审计产物：2026-11-05-receipt-v2.json、report-ir.json、cited-findings.json 与旧版 v1 编译产物。"
         }
       ],
       "notes": "已归档(Human 选 C)：三子方向全 NO-GO，无候选过刚性 per-corpus90% 门。最佳已知臂=C(symbol-union, holdout 0.458=rails0.50/k8s0.42, 宏观放宽门全 PASS)记录为历史最佳, 不进产品默认行为、不解锁 1-4。1-4 保持 pending+blocked(e7 blocks 不解除)。v3 holdout 永久冻结。根因=召回缺口+字面/语义冲突(非排序), 已证伪重排补缺前提。重启语义检索线须先辩论门标准或走扩大候选集+新标注硬查询(超出本节点范围)。证据 docs/evidence/2026-11-05-{symbol-index-holdout-v3,graph-recall,semantic-rerank-probe}.md。",
@@ -828,7 +838,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-05 21:00:06",
+    "updated": "2026-11-06 11:14:43",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
