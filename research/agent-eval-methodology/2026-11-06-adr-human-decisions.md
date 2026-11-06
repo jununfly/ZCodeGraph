@@ -3,7 +3,9 @@
 > Date: 2026-11-06
 >
 > Status: Resolved by Human consensus (Q33–Q47 and Q48–Q53, all recommendations accepted).
-> Document-only batches; no implementation authorization.
+> The 2026-11-06 batches were document-only; no implementation authorization.
+> 2026-11-07 update: the two harness-script defects were fixed in a separate
+> `feat` batch, and the `1-8` roadmap nodes received structural budgets.
 >
 > Scope: Items that the 2026-11-06 ADR Reference Hygiene batch must **not** auto-fix.
 >
@@ -37,7 +39,7 @@ The audit found **35 non-VALID references**: 17 UPDATE, 5 DELETE_REFERENCE, 13 H
 | 3 | ADR-0003 `#165` | Reclassify VALID and correct `post-release` → `Post-PRD`. | Closed · applied |
 | 4 | ADR-0006 `#679` / `PR #683` | Reclassify VALID; PR confirmed merged; keep ADR text unchanged. | Closed |
 | 5 | ADR-0007 `#680` / `#682` / `PR #684` | Reclassify VALID; PR confirmed merged; keep ADR text unchanged. | Closed |
-| 6 | ADR-0008 harness `init` calls | Add an implementation-status note naming both scripts; document-layer item closed, implementation gap registered below. Decision text stays intact. | Closed · note applied |
+| 6 | ADR-0008 harness `init` calls | Add an implementation-status note naming both scripts; document-layer item closed, implementation gap registered below. Decision text stays intact. **2026-11-07:** the implementation gap was fixed in a separate `feat` batch (see below). | Closed · note applied · gap fixed |
 | 7 | ADR-0009 `semantic_search` | Rename to `zcodegraph_search` in all four occurrences and add a note that the real trigger is asynchronous `enqueueEmbeddingReadRepair`, not synchronous embed. | Closed · applied |
 | 8 | ADR-0011 §4 `unlock` | **Reclassified in Q48–Q53.** The original "implement §4 / withdraw §4" framing was retired: read-only evidence showed the whole ADR is an unimplemented design. Add a whole-design implementation-status note; no code, no new ADR, no implementation project. | Closed · reclassified |
 | 9 | ADR-0011 Status | Keep `implementation and platform verification pending` unchanged; record the three-platform CI evidence as insufficient for §Required verification. | Closed |
@@ -50,15 +52,15 @@ Result: **13 items closed.** #8 was closed under its inaccurate name after recla
 
 ## Deferred implementation gaps
 
-Q33=A and Q50=A restrict these batches to `docs/` and this backlog. The following are real defects, recorded here, **not fixed**. Each requires a separate `feat` batch with its own review; owner and schedule are not assigned.
+Q33=A and Q50=A restricted the **2026-11-06 governance batches** to `docs/` and this backlog. The table records real defects; each fix requires a separate `feat` batch with its own review. Status as of 2026-11-07:
 
-| Gap | Evidence | Why it matters |
+| Gap | Evidence | Status |
 |---|---|---|
-| `init` still called by harness scripts | `scripts/agent-eval/audit.sh:61`, `scripts/add-lang/bench.sh:45` | `src/bin/zcodegraph.ts` no longer registers an `init` subcommand (ADR-0008), so both scripts fail at that step. |
-| `unlock` still deletes the lock file | `src/bin/zcodegraph.ts:2082` (`fs.unlinkSync`), `:2083` success message | Surface symptom of the whole-design debt: the §1/§3 OS-lock prerequisites are absent on the index-lock path. Not a standalone fix. |
-| Old delete semantics still asserted | `tests/security.test.ts:69` | Faithfully describes shipped behavior. Must **not** be changed alone (Q51=A); replace only together with the full implementation. |
+| `init` still called by harness scripts | `scripts/agent-eval/audit.sh:61`, `scripts/add-lang/bench.sh:45` | **Fixed 2026-11-07** in a separate `feat` batch: both indexing steps now run `index --force` after wiping the store, relying on `index` to bootstrap implicitly. ADR-0008's implementation-status note was updated in the same batch. No `init` alias or shim was added. |
+| `unlock` still deletes the lock file | `src/bin/zcodegraph.ts:2082` (`fs.unlinkSync`), `:2083` success message | **Still open.** Surface symptom of the whole-design debt: the §1/§3 OS-lock prerequisites are absent on the index-lock path. Not a standalone fix. |
+| Old delete semantics still asserted | `tests/security.test.ts:69` | **Still open by design.** Faithfully describes shipped behavior. Must **not** be changed alone (Q51=A); replace only together with the full implementation. |
 
-No `src/`, `scripts/`, or `tests/` file was modified by these governance batches.
+The 2026-11-06 governance batches modified no `src/`, `scripts/`, or `tests/` file. The 2026-11-07 separate `feat` batch touched only the two harness scripts above; `src/`, `tests/`, and the ADR-0011 whole-design debt are untouched.
 
 ## Reclassification and open debt (Q48–Q53)
 
