@@ -2,7 +2,7 @@
 doc-kind: decision
 authority: primary
 authority-id: ADR-0008
-bounded-question: "What architectural trade-off does ZJ-0008-merge-init-into-index resolve?"
+bounded-question: "Should `init` be hard-merged into `index` with auto-bootstrap?"
 ---
 # ZJ-0008: Merge `init` into `index` (hard command merge with auto-bootstrap)
 
@@ -93,3 +93,18 @@ Hard-merge the two commands:
   Rust benchmark/smoke/validation harnesses collapse their init+index pairs to
   a single `index --force`; user docs and the packaging smoke gate rename
   their init scenarios to bootstrap.
+
+## Implementation status (2026-11-06)
+
+The CLI half of this decision is implemented: `src/bin/zcodegraph.ts` no
+longer registers an `init` subcommand. Two harness scripts were not migrated
+and still invoke the removed command:
+
+- `scripts/agent-eval/audit.sh` — `init` call in the indexing step
+- `scripts/add-lang/bench.sh` — `init` call in the indexing step
+
+Both fail at that step. This is an implementation gap, not a change to the
+decision: the hard merge and the "no shim" rule remain in force. The sentence
+above about harnesses describes the intended end state, not the current
+scripts. Fixing them requires a separate `feat` batch and is recorded as a
+deferred implementation gap by the 2026-11-06 governance review.

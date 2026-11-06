@@ -2,7 +2,7 @@
 doc-kind: decision
 authority: primary
 authority-id: ADR-0009
-bounded-question: "What architectural trade-off does ZJ-0009-async-embedding-pipeline resolve?"
+bounded-question: "How is P2 embedding made asynchronous + lazy-incremental?"
 roadmap-node: 1-4-27
 date: 2026-10-26
 ---
@@ -61,13 +61,18 @@ CLI, queue, worker, vec0 lazy creation, and installer paths have landed. This AD
 
 1. **显式 CLI** `zcodegraph index --with-embeddings`（批量同步收口；本身异步，立即返回，由后台 worker 跑）
 2. **FileWatcher sync 钩子**：sync 完成后 enqueue 变更文件（主路径，覆盖日常编码）
-3. **MCP semantic_search read-repair**：对 missed file 同步 embed 兜底（解决「watch 期间未启动 MCP server」盲区）
+3. **MCP `zcodegraph_search` read-repair**：对 missed file 同步 embed 兜底（解决「watch 期间未启动 MCP server」盲区）
 
 **否决「纯 watch」**：watch 只在 MCP server 启动期间有效；用户连续 CLI-only 工作流下嵌入会无限滞后。
 
 **否决「纯 read-repair」**：搜索路径上同步 embed 81 ms 会拖慢首次查询，违反 UX。
 
 三触发点在 `embedding_queue` 表上靠 `(file_path, content_hash)` 唯一约束去重，重复 enqueue 是 no-op。
+
+> 实施口径（2026-11-06）：MCP tool 的实际名称是 `zcodegraph_search`
+> （`src/mcp/tools.ts`），查询路径通过 `CodeGraph.enqueueEmbeddingReadRepair`
+> 把命中文件**异步入队**，并非本条设想的同步 embed。本文其余处的
+> `read-repair` 均指该触发点，不是 tool 名。
 
 ### D4 — 失败子原因接入：扩展现有 taxonomy
 
@@ -155,7 +160,7 @@ T_index ≈ 51.5 s ≪ 100 s (2× 阈值)  ✅
 ┌────────────────────────────────────────────────────────────────┐
 │  Trigger 层（三选一）                                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
-│  │ CLI index    │  │ FileWatcher  │  │ MCP semantic_search  │  │
+│  │ CLI index    │  │ FileWatcher  │  │ MCP zcodegraph_search│  │
 │  │ --with-emb.. │  │ sync hook    │  │ read-repair          │  │
 │  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘  │
 └─────────┼──────────────────┼─────────────────────┼──────────────┘
@@ -181,7 +186,7 @@ T_index ≈ 51.5 s ≪ 100 s (2× 阈值)  ✅
                                 ▼
 ┌────────────────────────────────────────────────────────────────┐
 │  vec_embeddings（vec0 虚拟表，384d，同库共存）                 │
-│  → MCP semantic_search 走 KNN k=5 ≈ 1.5 ms (1-4-1 实测)        │
+│  → MCP zcodegraph_search 走 KNN k=5 ≈ 1.5 ms (1-4-1 实测)      │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -230,4 +235,4 @@ T_index ≈ 51.5 s ≪ 100 s (2× 阈值)  ✅
 - 相关契约： `docs/contracts/schema-evolution-and-mcp-tool-cap-v1.md`
 - 现有 fallback 状态机： `src/indexing/rust-hybrid-contract.ts`
 - 失败子原因渲染： `src/diagnostics/fallback-summary.ts`
-- 实施入口（1-4-3+）：`src/db/sqlite-adapter.ts` (`allowExtension`)、`src/sync/watcher.ts` (sync 钩子)、`src/mcp/tools.ts` (semantic_search read-repair)
+- 实施入口（1-4-3+）：`src/db/sqlite-adapter.ts` (`allowExtension`)、`src/sync/watcher.ts` (sync 钩子)、`src/mcp/tools.ts` (zcodegraph_search read-repair)

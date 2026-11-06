@@ -73,7 +73,7 @@ dev→holdout 严重倒挂：pure-fts 在 dev MRR=0.5291 vs holdout MRR=0.3006�
 
 语义检索暂停期间，ZCodeGraph 主线：
 - **D4 优先**：强化 existing-explore（holdout Hit@5=0.5625 全场最佳），直接服务目标 A（agent 用 explore 答自然语言问题）
-- **D1 随后**：1-2-10 测试基础设施加固 C/D 类
+- **D1 随后**：1-2-10 测试基础设施加固 C/D 类（`D4` / `D1` 是本文 Decision 的内部交叉引用；`1-2-10` 为历史 roadmap 标签，当前 `docs/plans/` 中无同名节点）
 
 ## Consequences
 

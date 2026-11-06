@@ -2,7 +2,7 @@
 doc-kind: decision
 authority: primary
 authority-id: ADR-0004
-bounded-question: "What architectural trade-off does ZJ-0004-use-staged-sqlite-write-paths-for-rust-indexing resolve?"
+bounded-question: "Staged SQLite write paths for Rust indexing?"
 ---
 # ZJ-0004: Use staged SQLite write paths for Rust indexing
 

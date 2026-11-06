@@ -2,7 +2,7 @@
 doc-kind: decision
 authority: primary
 authority-id: ADR-0005
-bounded-question: "What architectural trade-off does ZJ-0005-separate-durable-decisions-from-process-artifacts resolve?"
+bounded-question: "Keep durable decisions separate from process artifacts?"
 ---
 # ZJ-0005: Separate durable decisions from process artifacts
 
