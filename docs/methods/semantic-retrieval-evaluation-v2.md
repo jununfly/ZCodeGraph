@@ -12,8 +12,8 @@ Status: active for the bounded reranking campaign authorized by ADR-0013; §4
 is split into G-entry / G-ship by ADR-0014 while preserving all thresholds.
 Current product integration remains **NO-GO**. This method does not authorize
 changing `src/`, the schema, CLI/MCP, or default Explore behavior. Section 5's
-paired bootstrap protocol remains in force until a separate accepted ADR
-explicitly revises it.
+paired protocol is the task-level randomization test with a task-cluster
+bootstrap interval, as adopted by ADR ZJ-0015 (ZRA-Paired v1).
 
 ## 1. Scope and non-negotiable boundaries
 
@@ -105,8 +105,9 @@ degradation rows before product-default integration may be considered. The
 MRR>=0.70 absolute budget from v1 is not reused for this recall-enhancement
 slice; MRR is instead a non-regression metric. This is a target-relative
 decision under ADR-0013, not retroactive calibration to the observed 0.5490
-result. Section 5's paired bootstrap protocol remains in force until a separate
-accepted ADR explicitly revises it.
+result. Section 5's paired protocol is defined by ADR ZJ-0015: a task-level
+randomization test is primary and a task-cluster bootstrap interval is
+supporting only.
 
 | Dimension | Required evidence |
 | --- | --- |
@@ -136,11 +137,19 @@ language code understanding and correct-entry evidence, not merely repeat the
 offline file-location score.
 
 1. Freeze the task set, repetitions, pairing key, minimum detectable benefit,
-   and analysis before execution. Reuse the registered Agent Sufficiency
-   tasks where their intent matches; disclose any new tasks.
-2. Pair by task×repetition. Interleave arm order and retain or exclude the
-   complete pair using predeclared rules. Preserve failures, timeouts, and
-   inconclusive runs; never silently drop one arm or only successful runs.
+   and analysis before execution. Reuse a registered Agent Sufficiency task only
+   when it satisfies Task Freshness: independently produced, timestamped after
+   the relevant model knowledge cutoff where possible, and reviewed without
+   participating in tuning. Otherwise create new tasks and disclose their
+   repository, commit, prompt, annotator, reviewer, and annotation time.
+   Reusing frozen v3 holdout questions is not permitted.
+2. Organize repeated runs as Paired Blocks (A/C/S once each per Agent Task) and
+   balance arm order within each task. Prefer k=6 to cover all six permutations;
+   a cost-constrained k=4 requires a predeclared balanced subset with the
+   uncovered orders disclosed. Exclude the whole task by default when any arm
+   run is missing, and report a sensitivity analysis over usable task×trial
+   pairs. Preserve failures, timeouts, and inconclusive runs; never silently
+   drop one arm.
 3. The primary endpoint is the paired reduction in **recovery Read/Grep
    fallback**. Legitimate deepening, edit preparation, and verification reads
    are not fallback. Audit the reason for reads and the answer's correct-entry
@@ -148,11 +157,13 @@ offline file-location score.
 4. Answer correctness must not regress. Exact-name safety remains a separate
    zero-regression gate. Tool calls, tokens, and wall time are secondary
    explanatory endpoints, not alternative primary wins.
-5. Report every pair and the candidate-minus-baseline fallback delta. Use a
-   predeclared paired bootstrap interval that preserves within-task pairing;
-   report its confidence level and resampling unit. For a reduction, the
-   interval must exclude zero in the beneficial direction. Crossing zero is
-   inconclusive and does not promote.
+5. Report every task-level delta d_i = mean(A_i) − mean(C_i). The primary test is
+   a two-sided sign-flip randomization over tasks (alpha=0.05); a task-cluster
+   bootstrap of 10000 resamples provides the 95% interval only. Report the
+   effect size, interval, p-value, and run-to-run noise. Significance below the
+   predeclared MDE does not promote; crossing zero is inconclusive and does not
+   promote. Secondary endpoints require a predeclared family with Holm
+   correction.
 6. Do not append runs until a desired significance result appears. Inconclusive,
    correctness regression, or absent predeclared net benefit closes this
    campaign's productization path.

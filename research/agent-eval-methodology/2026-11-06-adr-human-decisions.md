@@ -16,7 +16,7 @@ The audit found **35 non-VALID references**: 17 UPDATE, 5 DELETE_REFERENCE, 13 H
 ## Items resolved by the first consensus batch
 
 - `docs/README.md`: Last reviewed, Contract count 17→18, full authority IDs for 18 contracts and 13 methods, and 5 missing baseline registrations.
-- `docs/methods/semantic-retrieval-evaluation-v2.md`: §4 now states ADR-0014's G-entry / G-ship split while preserving all thresholds; §5 paired bootstrap remains until a separate accepted ADR.
+- `docs/methods/semantic-retrieval-evaluation-v2.md`: §4 states ADR-0014's G-entry / G-ship split while preserving all thresholds; §5 was revised by ADR-0015 to a task-level randomization primary test with a task-cluster bootstrap interval.
 - Mechanical ADR updates: `.zcodegraph/`, `docs/decisions/`, retired `docs/benchmarks/` notes, ADR-0007 `pending` fourth state, ADR-0009 DDL/status/index names/queue metadata, ADR-0010 exact fastembed pin and loader references, ADR-0012 superseded productization references, ADR-0013 v1→v2 cross-reference, ADR-0014 method cross-reference.
 
 ## Evidence gathered for this round
@@ -42,7 +42,7 @@ The audit found **35 non-VALID references**: 17 UPDATE, 5 DELETE_REFERENCE, 13 H
 | 8 | ADR-0011 §4 `unlock` | **Reclassified in Q48–Q53.** The original "implement §4 / withdraw §4" framing was retired: read-only evidence showed the whole ADR is an unimplemented design. Add a whole-design implementation-status note; no code, no new ADR, no implementation project. | Closed · reclassified |
 | 9 | ADR-0011 Status | Keep `implementation and platform verification pending` unchanged; record the three-platform CI evidence as insufficient for §Required verification. | Closed |
 | 10 | ADR-0012 D5 `D4` / `D1` / `1-2-10` | Keep all labels; annotate that `D4`/`D1` are internal Decision cross-references and `1-2-10` is a historical roadmap label with no current `docs/plans/` node. | Closed · note applied |
-| 11 | ADR-0013 D5 / ADR-0014 D2 / methods v2 §5 paired bootstrap | Keep all three in force; any change requires a new accepted `ZJ-0015`, not a text cleanup. | Closed · deferred |
+| 11 | ADR-0013 D5 / ADR-0014 D2 / methods v2 §5 paired bootstrap | **Satisfied by ADR-0015 (Accepted 2026-11-06):** all 8 edit points were revised together by a new accepted ADR, not by text cleanup; G-ship thresholds and all retained clauses unchanged. | Closed · satisfied |
 | 12 | `ZCG_RETRIEVAL_ARM` runtime switch | Keep unimplemented; this is an execution prerequisite, not a stale reference. | Closed · deferred |
 | 13 | 8 sealed-ledger `unknownCriteria` / `has-gaps` | Retain as an explicit, accepted evidence limitation; do not auto-close. | Closed |
 

@@ -733,6 +733,11 @@
           "q": "正式研究报告发布与 ZRA-Paired v1 口径修订？",
           "answer": "完成 zj-tech-research-report 完整链路：technical-decision-brief、sealed ledger、cited-findings、report-ir、正式 Markdown/HTML、质量门与 receipt。现行正式报告为 2026-11-05-methodology-report-v2.md，reportHash=c30009c917220561547492136a26618c8cf6b1496bbbad8569dddeed4f476959；evaluation.healthy=true、qualityGate.healthy=true、publishCount=1、unknownCount=8、navigationFailureCount=0，v1 仅作发布审计留档。方法结论不变：定制 ZRA-Paired v1，不原生复用通用 benchmark。正式报告修订草案三处：任务为独立推断簇，主检验为双侧配对随机化且任务簇 bootstrap 仅提供区间；A/C/S 三臂顺序在任务内平衡；S 保留候选集合、内容、条数和 payload schema 仅破坏排序，只作诊断。5-8x4 仅用于方差试点，N、MDE 和成本待试点与预注册，40x4 不是已论证预算。sealed ledger 对核心统计方法覆盖有限，相关证据来自 cited-findings.json 的论文原始证据，信息状态仍为 has-gaps。ZJ-0015 待 Human 审批，ZCG_RETRIEVAL_ARM 尚未实现，1-4 仍 pending+blocked，产品默认 OFF 不变。",
           "note": "同批审计产物：2026-11-05-receipt-v2.json、report-ir.json、cited-findings.json 与旧版 v1 编译产物。"
+        },
+        {
+          "q": "ZJ-0015 转正式 Accepted ADR 与配对协议修订？",
+          "answer": "Human 明确授权将 ZRA-Paired v1 Proposal Draft 转为正式 Accepted ADR（ZJ-0015），一次性修订 3 个规范文件 / 8 个编辑点：ADR-0013 D5、ADR-0014 D2 末条与关联段、methods v2 头部状态声明、§4 末声明、§5 第 1/2/5 条。现行统计口径=任务（Task Cluster）为唯一独立推断单元，双侧符号翻转随机化为主检验，任务簇 bootstrap 仅提供 95% 区间；A/C/S 三臂，S 同候选同内容仅破坏排序；k=6 优先；MDE=1.5 已冻结；5-8x4x3 仅试点，正式 N 与成本待预注册。G-ship 全部数值门、ADR-0013 D1/D2/D3/D6、ADR-0014 D1/D3/D4、v3 永久冻结、1-4 pending+blocked、产品默认 OFF 全部不变。8 个 unknownCriteria 与 has-gaps 原样保留。docs/README.md 决策计数 14→15 并登记 ADR-0015。本 ADR 批准的是协议而非结果，未实现 ZCG_RETRIEVAL_ARM、未标注任务集、未跑试点；任何实现须另获 Human 授权。",
+          "note": "证据 docs/decisions/ZJ-0015-zra-paired-v1-agent-ab-protocol.md Status=Accepted；治理台账 #11 已由本 ADR 满足。"
         }
       ],
       "notes": "已归档(Human 选 C)：三子方向全 NO-GO，无候选过刚性 per-corpus90% 门。最佳已知臂=C(symbol-union, holdout 0.458=rails0.50/k8s0.42, 宏观放宽门全 PASS)记录为历史最佳, 不进产品默认行为、不解锁 1-4。1-4 保持 pending+blocked(e7 blocks 不解除)。v3 holdout 永久冻结。根因=召回缺口+字面/语义冲突(非排序), 已证伪重排补缺前提。重启语义检索线须先辩论门标准或走扩大候选集+新标注硬查询(超出本节点范围)。证据 docs/evidence/2026-11-05-{symbol-index-holdout-v3,graph-recall,semantic-rerank-probe}.md。",
