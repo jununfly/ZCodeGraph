@@ -1,0 +1,111 @@
+{
+  "schema": "zcodegraph-cited-findings/v1",
+  "topic": "agent-eval-methodology",
+  "localUrlBase": "repository-root",
+  "observedAt": "2026-11-05",
+  "ledgerRelationship": "The sealed GitHub ledger is retained unchanged as harness-scope evidence. Its excerpts do not substantiate the paper-derived statistical claims; this sidecar makes that evidence visible rather than relabeling the sealed evidence.",
+  "sources": [
+    {
+      "id": "P-TAU",
+      "kind": "primary-paper",
+      "title": "tau-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains",
+      "url": "https://arxiv.org/html/2406.12045v1",
+      "finding": "Defines pass^k as all k i.i.d. task trials succeeding, averaged across tasks. Main results use at least three trials; fixed task prompt and database transitions coexist with stochastic user and agent messages. The authors also note that final-state reward need not capture all policy violations.",
+      "application": "Borrow repeated-trial reliability and fixed-context execution; do not adopt the task-completion endpoint or claim fixed seeds make agent runs identical."
+    },
+    {
+      "id": "P-IR-2009",
+      "kind": "primary-paper",
+      "title": "Agreement among statistical significance tests for information retrieval evaluation at varying sample sizes",
+      "url": "https://dl.acm.org/doi/abs/10.1145/1571941.1572050",
+      "finding": "Smucker, Allan, and Carterette compare TREC runs with topic counts from 10 to 50. Test disagreement increases as topic count decreases; bootstrap p-values show a systematic downward bias relative to t-test, increasing at smaller samples. They recommend the randomization test, while noting that t-test appears suitable for these experiments.",
+      "application": "Use paired randomization as primary significance evidence and task-clustered bootstrap as an effect-size interval; do not treat a bootstrap interval alone as an exact small-sample test."
+    },
+    {
+      "id": "P-SWE-REBENCH",
+      "kind": "primary-paper",
+      "title": "SWE-rebench: An Automated Pipeline for Task Collection and Decontaminated Evaluation of Software Engineering Agents",
+      "url": "https://arxiv.org/html/2505.20411v2",
+      "finding": "Uses a fixed scaffold and five full-benchmark runs, reporting SEM and pass@5 rather than best-run performance. Tracks task creation dates and model release dates to mark potentially contaminated evaluations; explicitly does not prove absence from training data.",
+      "application": "Fix scaffold and disclose variation. Record task provenance and timing; use independent annotation to reduce selection leakage without promising contamination-free evaluation."
+    },
+    {
+      "id": "P-AGENT-RETRIEVAL",
+      "kind": "primary-paper",
+      "title": "Coding Agents are Effective Long-Context Processors",
+      "url": "https://arxiv.org/html/2603.20432v1",
+      "finding": "Reports BrowseComp-Plus native search means of 14.92 without a retriever, 9.84 with BM25, and 8.33 with Gemini Embeddings. Retrieval does not consistently improve correctness, and the authors explicitly leave the precise mechanism open; their configurations also vary tool availability and instructions.",
+      "application": "Supports treating native Read/Grep as a behavioral endpoint with a correctness guardrail, not as a correctness surrogate or proof of the causal mechanism."
+    },
+    {
+      "id": "P-ADAPTIVE",
+      "kind": "primary-paper",
+      "title": "Adaptive Retrieval helps Reasoning in LLMs -- but mostly if it is not used",
+      "url": "https://arxiv.org/abs/2602.07213",
+      "finding": "Observes worse performance in traces with retrieved results and better performance in adaptive traces without retrieval than CoT, framing selective retrieval as a metacognitive signal. This is motivation to test an action-versus-content confound, not proof that reflection is the mediator.",
+      "application": "Include a same-candidates rank-destruction control as a diagnostic; explicitly do not claim complete causal mediation identification."
+    },
+    {
+      "id": "L-SUFFICIENCY",
+      "kind": "repository-contract",
+      "title": "Baseline: Agent Sufficiency v1",
+      "url": "docs/contracts/baseline-agent-sufficiency-v1.md#interpretation",
+      "finding": "Requires reduction of fallback reads while preserving legitimate deepening, edit preparation, and verification; zero Read is not the goal.",
+      "application": "The primary endpoint must be audited recovery Read/Grep, not raw Read/Grep counts."
+    },
+    {
+      "id": "L-ITRUN",
+      "kind": "repository-implementation",
+      "title": "Interactive agent evaluation harness",
+      "url": "scripts/agent-eval/itrun.sh#L1-L13",
+      "finding": "Drives interactive Claude Code in tmux. Its comments distinguish interactive subagent behavior from headless print-mode.",
+      "application": "Reuse this execution surface after adding single-variable arm switching and deterministic run manifests; do not silently substitute headless mode."
+    },
+    {
+      "id": "L-PARSER",
+      "kind": "repository-implementation",
+      "title": "Raw agent arm trace parser",
+      "url": "scripts/agent-eval/parse-arms.mjs#L39-L52",
+      "finding": "Counts raw Read, Grep, and Glob calls and successful result envelopes. It has no fallback/deepening/edit-preparation/verification classifier.",
+      "application": "The audited endpoint and blinded annotation are unimplemented prerequisites."
+    },
+    {
+      "id": "L-ADR13",
+      "kind": "repository-decision",
+      "title": "Bounded reranking and independent agent value gate",
+      "url": "docs/decisions/ZJ-0013-bounded-reranking-and-independent-agent-value-gate.md#d5--agent-净收益采用配对验证不能用离线指标替代",
+      "finding": "Requires task-by-repetition pairs, interleaved arms, retained failures, audited fallback reduction, correctness non-regression, and paired bootstrap intervals with zero crossing classified inconclusive.",
+      "application": "ZRA-Paired inherits the intent but proposes task-clustered bootstrap plus randomization inference; the precise amendment must be accepted before use."
+    },
+    {
+      "id": "L-ADR14",
+      "kind": "repository-decision",
+      "title": "Split retrieval gate into Agent entry and ship",
+      "url": "docs/decisions/ZJ-0014-split-retrieval-gate-into-agent-entry-and-ship.md#decision",
+      "finding": "Approves C only for opt-in paired Agent evaluation, requires a task set independent of v3, and preserves strict G-ship criteria.",
+      "application": "The report cannot unlock 1-4 or change product defaults; a successful experiment only permits separately gated substantiation."
+    }
+  ],
+  "designInferences": [
+    {
+      "id": "D-CLUSTER",
+      "text": "For each task and arm, average the valid repeated-run recovery counts. For C versus A, compute d_i=mean(A_i)-mean(C_i), so positive values favor C. Randomly flip the signs of d_i within each task for the paired randomization test; resample whole tasks, not task-by-trial rows, for the confidence interval.",
+      "basis": ["P-IR-2009", "P-TAU", "P-SWE-REBENCH"]
+    },
+    {
+      "id": "D-ORDER",
+      "text": "Within every task, use six repetitions to cover all A/C/S orders once, randomized independently by task. If k=4 is retained for cost, use a balanced subset of the six orders and record the uncovered orders; do not call ABBA a three-arm design.",
+      "basis": ["P-TAU", "P-SWE-REBENCH"]
+    },
+    {
+      "id": "D-SHUFFLE",
+      "text": "S preserves C's exact candidate set, count, payload schema, and content bytes; a recorded permutation destroys the association between rank and relevance. It is diagnostic of ranking value versus retrieval-action effects, not a complete reflection-versus-content mediator test.",
+      "basis": ["P-ADAPTIVE", "P-AGENT-RETRIEVAL"]
+    },
+    {
+      "id": "D-SAMPLE",
+      "text": "Use 5-8 tasks x 4 trials/arm only for pilot variance, order effects, annotation reliability, missingness, and cost. Before confirmatory runs, choose MDE and target power; a normal approximation starting point is N=ceil(2*(1.96+0.84)^2*s_d^2/MDE^2) independent tasks, followed by a paired randomization simulation using the pilot distribution. Proposed alpha=0.05 two-sided, power=0.80, MDE=1.5 recovery calls/task are not results or an approved fixed N.",
+      "basis": ["P-IR-2009", "P-SWE-REBENCH"]
+    }
+  ]
+}

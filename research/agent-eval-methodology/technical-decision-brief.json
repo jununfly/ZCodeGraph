@@ -1,0 +1,80 @@
+{
+  "schema": "technical-decision-brief/v1",
+  "topic": "agent-eval-methodology",
+  "date": "2026-11-05",
+  "roadmapNode": "1-4 / ADR-0014 follow-up",
+  "user": {
+    "actor": "ZCodeGraph maintainers evaluating retrieval candidates before product integration",
+    "job": "Decide whether candidate C reduces audited recovery Read/Grep fallback relative to the current plan() baseline in interactive Claude Code sessions, without changing any product-default gate."
+  },
+  "baseline": {
+    "workflow": "Frozen offline retrieval evaluation (C passed G-entry) -> independent interactive paired agent evaluation (method selected here) -> possible, separately gated G-ship substantiation. Existing scripts/agent-eval/itrun.sh drives the interactive TUI; parse-arms.mjs counts raw Read/Grep but does not yet classify audited fallback.",
+    "failureModes": [
+      "Single agent runs conflate retrieval effects with stochastic trajectories.",
+      "Repeated runs of one task are dependent observations and must not inflate the independent sample size.",
+      "Raw Read/Grep counts mix recovery, legitimate deepening, edit preparation, and verification.",
+      "Headless execution and an unimplemented C runtime switch cannot represent the intended interactive, single-variable comparison.",
+      "The v3 holdout has already informed candidate selection and cannot be an independent acceptance set."
+    ],
+    "costToday": "Interactive tmux + Claude Code + MCP runs and manual fallback annotation are expensive; final N and repetitions must be calibrated by a pilot rather than convenience."
+  },
+  "targetOutcome": "A reproducible protocol that estimates C's within-task reduction in audited recovery Read/Grep, with task-clustered uncertainty, correctness guardrails, independent tasks, and explicit continue/revise/stop rules.",
+  "goals": [
+    "Choose between native benchmark adoption, borrowing methodological components, and a repository-specific paired ablation.",
+    "Predeclare the primary estimand, arms, pairing and order randomization, inference unit, and missing-run policy.",
+    "Define contamination controls, a rank-destruction control, and correctness guardrails without claiming more causal identification than they provide.",
+    "Use pilot variance and a practically important effect to determine the final sample size and budget."
+  ],
+  "nonGoals": [
+    "Re-evaluate the frozen v3 offline Hit@5/MRR results.",
+    "Make final code-patch correctness the primary endpoint for this retrieval-value slice.",
+    "Build a general-purpose agent benchmark or prove that retrieval always helps agents.",
+    "Approve C for product defaults or change G-entry/G-ship thresholds.",
+    "Claim that a shuffled-rank control alone identifies the complete causal mediation from retrieval to agent behavior."
+  ],
+  "constraints": [
+    {
+      "id": "execution",
+      "statement": "Reuse interactive Claude Code TUI via tmux and ZCodeGraph MCP; headless print-mode is not a substitute. A default-OFF runtime arm switch must preserve the same tool schema and prompts."
+    },
+    {
+      "id": "endpoint",
+      "statement": "Reuse baseline-agent-sufficiency-v1: recovery reads differ from legitimate deepening, edit preparation, and verification. Raw parser counts are not yet the audited primary endpoint."
+    },
+    {
+      "id": "freshness",
+      "statement": "The v3 holdout is permanently frozen. Use a separately annotated task set with declared provenance, timing, and independent review; do not promise zero training contamination without evidence."
+    },
+    {
+      "id": "inference",
+      "statement": "Task is the independent cluster; repeated trials and repositories are not independent task replicates. Preserve task-level pairing and disclose missing runs and order."
+    },
+    {
+      "id": "capacity",
+      "statement": "Single maintainer plus agent; annotation and interactive execution dominate cost. Usefulness-validation only, with no production HA or dashboard scope."
+    }
+  ],
+  "assumptions": [
+    "Candidate C can later be exposed through a runtime opt-in switch without changing tool schema; this is not implemented yet.",
+    "Five to eight pilot tasks with four trials per arm are for variance and harness calibration only, never for confirmatory significance.",
+    "An MDE of 1.5 fewer recovery Read/Grep calls per task is a proposed practical threshold pending maintainer approval, not an observed effect.",
+    "The final protocol may revise ADR-0013's bootstrap interval requirement to task-clustered intervals plus paired randomization inference; that revision requires a separate accepted ADR before confirmatory execution.",
+    "No absolute task count or budget is justified until pilot variance and missingness are measured."
+  ],
+  "stage": "usefulness-validation",
+  "decisionScope": "One reusable unit capability: the evaluation methodology and harness contract for retrieval-value Agent A/B, not the whole ZCodeGraph product.",
+  "options": [
+    {
+      "id": "native-benchmarks",
+      "name": "Adopt SWE-bench, tau-bench, AgentBench, ToolBench, or T-Eval unchanged"
+    },
+    {
+      "id": "borrow-components",
+      "name": "Borrow repeated-trial consistency, fixed-variable execution, ablation, and significance methods"
+    },
+    {
+      "id": "zra-paired",
+      "name": "Build repository-specific ZRA-Paired v1 from those components"
+    }
+  ]
+}

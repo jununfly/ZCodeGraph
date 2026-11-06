@@ -1,0 +1,410 @@
+{
+  "schema": "zj-research-report-ir/v1",
+  "family": "technical-c4/v1",
+  "title": "检索工具对 Agent 任务表现的影响：ZRA-Paired v1 评估方法选型",
+  "summary": "推荐本仓定制的配对消融协议，而不是原生复用通用 Agent benchmark。借用 tau-bench 的多 trial 一致性、固定脚手架执行和配对统计方法，主估计量是 C 相对 baseline 每任务减少的经审计恢复性 Read/Grep；S 臂是保留候选集合的排序破坏诊断。任务而非 trial 是独立推断单元。最终 N、成本和协议修订均待试点与 ADR 审批，当前不授权产品默认行为。",
+  "ledgerFingerprint": "ebf25d63aad83e94f582c42e87b02882108d41baede56e65783965341d432903",
+  "concepts": [
+    {
+      "key": "user-and-baseline",
+      "value": "维护者要判断 C 是否在交互式 Claude Code 中减少恢复性 Read/Grep。C 仅通过 ADR-0014 G-entry，尚无运行时切臂和审计后的主终点。[L-ADR14](../../docs/decisions/ZJ-0014-split-retrieval-gate-into-agent-entry-and-ship.md)"
+    },
+    {
+      "key": "target-estimand",
+      "value": "d_i=mean(A_i)-mean(C_i)，其中 A_i/C_i 是任务 i 各有效 trial 的恢复性 Read/Grep 次数；正值代表 C 有益。主统计量是对任务等权的 mean(d_i)，不是原始 Read/Grep，也不是离线 Hit@5。"
+    },
+    {
+      "key": "fit-model",
+      "value": "通用 benchmark 的任务完成终点与本仓的工具行为终点不匹配；多 trial、固定变量、消融和配对推断是可迁移的单元能力。选用 native 的组件、adapted 的协议，而非整个 benchmark。"
+    },
+    {
+      "key": "ownership-model",
+      "value": "本仓拥有任务选择、fallback 标注、切臂、盲审、统计代码、运行清单和停止判定；tau-bench/SWE-rebench 只提供方法证据。旧 parse-arms.mjs 只给原始计数，不是审计终点。[L-PARSER](../../scripts/agent-eval/parse-arms.mjs)"
+    },
+    {
+      "key": "execution-boundary",
+      "value": "沿用 itrun.sh 的交互式 TUI，不换 headless；A/C/S 必须共享工具 schema、prompt、模型版本和索引。ZCG_RETRIEVAL_ARM 与 S 的序列化保持尚未实现，不能据此声称已可执行。[L-ITRUN](../../scripts/agent-eval/itrun.sh)"
+    },
+    {
+      "key": "freshness",
+      "value": "v3 永久冻结。新任务集记录来源、标注时间、审阅者与调参历史，尽量采用模型知识截止后的材料；独立标注降低选择泄漏，但不能证明训练零污染。[P-SWE-REBENCH](https://arxiv.org/html/2505.20411v2)"
+    },
+    {
+      "key": "statistical-unit",
+      "value": "重复 trial 属于同一任务簇。主检验对任务级差值符号翻转做双侧配对随机化；任务簇 bootstrap 仅给效应区间。小样本下单独依赖 bootstrap 可能过度乐观。[P-IR-2009](https://dl.acm.org/doi/abs/10.1145/1571941.1572050)"
+    },
+    {
+      "key": "lifecycle",
+      "value": "usefulness-validation：先试点测量方差、缺失、顺序效应、审计一致性和成本，再冻结正式 N 与预算。5–8×4 是试点，不是显著性实验；40×4 也未获证据支持。"
+    },
+    {
+      "key": "guardrails",
+      "value": "恢复性 Read/Grep 不是正确性的代理；每个任务保留预先定义的答案充分性规则，任何 C 正确性回退均停止产品化。合法深入、编辑准备和验证读取不计 fallback。[L-SUFFICIENCY](../../docs/contracts/baseline-agent-sufficiency-v1.md)"
+    },
+    {
+      "key": "causal-scope",
+      "value": "S 保持 C 的候选集合、条数、内容和 payload schema，只以固定种子置换排序。它诊断排序价值，但不能单独区分所有检索动作、反思和内容中介效应。[P-ADAPTIVE](https://arxiv.org/abs/2602.07213)"
+    },
+    {
+      "key": "protocol-change",
+      "value": "ADR-0013 原文要求配对 bootstrap 区间。若采纳本报告的任务簇区间+随机化主检验及三臂设计，必须先以新 ADR 明确修订，不能静默变更已 Accepted 门。"
+    },
+    {
+      "key": "security-and-isolation",
+      "value": "现有 itrun.sh 使用 --dangerously-skip-permissions。实验限定于一次性只读仓库快照，任务禁止写入、网络检索现成答案及访问宿主凭据；每臂重置环境并保存版本与输出清单。该隔离尚需实现和验收。"
+    }
+  ],
+  "diagrams": [
+    {
+      "kind": "landscape",
+      "title": "方法选型与责任边界",
+      "mermaid": "flowchart LR\n  U[维护者] --> D{需要何种证据?}\n  D -->|任务完成/补丁质量| B[通用 benchmark]\n  D -->|恢复性 Read/Grep 的配对变化| Z[ZRA-Paired v1]\n  T[tau-bench: 多 trial 一致性] --> Z\n  R[配对随机化与任务簇推断] --> Z\n  S[固定脚手架与时间戳污染控制] --> Z\n  Z --> P[试点与功效标定]\n  P --> H{Human ADR 审批}\n  H -->|批准| E[冻结后确证实验]\n  H -->|未批准| X[不执行确证实验]\n  E --> G[仅授权另行 G-ship 补证]\n  G -.不等于.-> N[产品默认 OFF 不变]"
+    },
+    {
+      "kind": "container",
+      "title": "单变量三臂执行与审计容器",
+      "mermaid": "flowchart TB\n  Q[独立任务与固定仓库快照] --> R[任务内随机平衡 A/C/S 顺序]\n  R --> A[A: 当前 plan]\n  R --> C[C: symbol-union]\n  R --> S[S: 同候选同内容 仅破坏排序]\n  A --> L[交互式 TUI 轨迹与运行清单]\n  C --> L\n  S --> L\n  L --> B[对 arm 盲化的 fallback 审计]\n  B --> O[任务级 A-C 差值及正确性门]\n  O --> I[任务簇随机化检验与 bootstrap 区间]\n  I --> V{继续 修订 停止}\n  M[模型 prompt 工具 schema 索引版本] -.固定.-> R"
+    }
+  ],
+  "candidates": [
+    {
+      "repository": { "owner": "SWE-bench", "name": "SWE-bench" },
+      "stars": 6149,
+      "topicMatch": 0,
+      "evidenceIds": ["198db665068f7594abd05d15", "c6ea7023181539212f427900"]
+    },
+    {
+      "repository": { "owner": "sierra-research", "name": "tau-bench" },
+      "stars": 1490,
+      "topicMatch": 0,
+      "evidenceIds": ["6db5cf79be7f8aa1e4c79ec2", "5fc002f5788555c036be747d"]
+    },
+    {
+      "repository": { "owner": "THUDM", "name": "AgentBench" },
+      "stars": 3816,
+      "topicMatch": 0,
+      "evidenceIds": ["737e2933882e99d44bf9d1ae", "d9a2956e49571650c5a95745"]
+    },
+    {
+      "repository": { "owner": "OpenBMB", "name": "ToolBench" },
+      "stars": 5767,
+      "topicMatch": 0,
+      "evidenceIds": ["53a22a3832d0c35c1c4eb9a3", "15a211322e15ed7a6e207ae7"]
+    },
+    {
+      "repository": { "owner": "open-compass", "name": "T-Eval" },
+      "stars": 313,
+      "topicMatch": 0,
+      "evidenceIds": ["1b00aeaa3b460a8ebd77f0d2"]
+    }
+  ],
+  "cards": [
+    {
+      "title": "SWE-bench — 终点不匹配，不原生采用",
+      "summary": "sealed 证据仅显示其 harness 进行 patch grading 和报告，支持拒绝将它作为本问题的原生方法；不能从 ledger 推断它有配对、显著性或污染控制协议。角色=完整软件修复评估；主要缺口=终点与交互执行面不匹配。证据强度=有限仓库事实。",
+      "claimIds": ["swebench-scope", "ledger-limits"]
+    },
+    {
+      "title": "tau-bench — 借用一致性，而非搬运任务终点",
+      "summary": "sealed 摘录只是论文链接与 API 设置；核心方法事实另见 P-TAU。原生提供 pass^k 和至少三次主实验 trial，但不评估恢复性 Read/Grep。角色=重复试验设计来源；主要缺口=终态 reward 不是本仓主终点。证据强度=论文强，sealed 方法覆盖弱。",
+      "claimIds": ["tau-repeated", "tau-limits", "ledger-limits"]
+    },
+    {
+      "title": "AgentBench — 通用环境过重",
+      "summary": "sealed 摘录仅证明存在多环境 Docker 执行，不证明配对或统计方法。角色=通用 Agent 环境；主要缺口=不是检索算法单变量消融，且统计和终点信息未知。证据强度=有限仓库事实。",
+      "claimIds": ["agentbench-scope", "ledger-limits"]
+    },
+    {
+      "title": "ToolBench — 工具能力评估不是检索行为消融",
+      "summary": "sealed 证据描述 Pass Rate、Win Rate、重复评审和人工校验，但不等于同任务跨检索实现的 paired inference。角色=通用工具使用评估；主要缺口=主终点与执行面不同。证据强度=仓库事实中等，适配证据弱。",
+      "claimIds": ["toolbench-scope", "ledger-limits"]
+    },
+    {
+      "title": "T-Eval — 保留为未知而非断言缺失",
+      "summary": "sealed 仅确认它是逐步工具能力评估 harness，paired-design、significance、endpoint、contamination 均 unknown。角色=工具能力分解参考；主要缺口=无法从本轮证据确认检索消融适配性，不原生采用。证据强度=低覆盖，明确不做 absent 推断。",
+      "claimIds": ["teval-scope", "ledger-limits"]
+    }
+  ],
+  "claims": [
+    {
+      "id": "swebench-scope",
+      "text": "SWE-bench 的 sealed harness 说明聚焦 patch 是否解决 issue，与本仓恢复性 Read/Grep 主终点不同；这支持拒绝原生复用，而非证明其无统计能力。",
+      "critical": true,
+      "evidenceIds": ["198db665068f7594abd05d15"]
+    },
+    {
+      "id": "tau-repeated",
+      "text": "tau-bench 论文将 pass^k 定义为同任务 k 次独立试验全部成功的比例，主结果至少三次 trial；可迁移的是一致性和固定任务语义，不是终态任务指标。见 [P-TAU](https://arxiv.org/html/2406.12045v1)。",
+      "critical": false,
+      "evidenceIds": ["6db5cf79be7f8aa1e4c79ec2"]
+    },
+    {
+      "id": "tau-limits",
+      "text": "tau-bench 的作者明确指出终态 reward 对政策遵循可能必要而不充分；本仓也不能让 fallback 指标替代正确性。见 [P-TAU](https://arxiv.org/html/2406.12045v1)。",
+      "critical": false,
+      "evidenceIds": ["6db5cf79be7f8aa1e4c79ec2"]
+    },
+    {
+      "id": "agentbench-scope",
+      "text": "AgentBench 的 sealed 摘录显示多环境执行；统计显著性和终点覆盖仍为 unknown，故本轮不将其作为现成配对消融协议。",
+      "critical": false,
+      "evidenceIds": ["737e2933882e99d44bf9d1ae"]
+    },
+    {
+      "id": "toolbench-scope",
+      "text": "ToolBench 的 Pass Rate/Win Rate 和重复评审衡量通用工具能力，未直接证明同任务检索实现的配对差值推断。",
+      "critical": false,
+      "evidenceIds": ["53a22a3832d0c35c1c4eb9a3"]
+    },
+    {
+      "id": "teval-scope",
+      "text": "T-Eval 的 sealed 摘录仅确认逐步工具能力 harness；未观测到的配对、统计和污染控制只能标 unknown，不能标 absent。",
+      "critical": false,
+      "evidenceIds": ["1b00aeaa3b460a8ebd77f0d2"]
+    },
+    {
+      "id": "ledger-limits",
+      "text": "sealed ledger 的 topicMatch 全为 0，部分摘录与统计问题语义错配，并有 8 个 unknownCriteria；healthy receipt 不能把这些未知转化为已证实方法。",
+      "critical": true,
+      "evidenceIds": ["5fc002f5788555c036be747d", "1b00aeaa3b460a8ebd77f0d2"]
+    },
+    {
+      "id": "paired-inference",
+      "text": "Smucker 等发现少于 50 topics 时检验分歧增加、bootstrap p 值呈向下偏差，推荐 randomization test。因此本仓采用任务级配对随机化为主、任务簇 bootstrap 区间为辅助，而非只看区间是否跨零。[P-IR-2009](https://dl.acm.org/doi/abs/10.1145/1571941.1572050)",
+      "critical": false,
+      "evidenceIds": ["198db665068f7594abd05d15"]
+    },
+    {
+      "id": "repeated-not-independent",
+      "text": "多 trial 刻画运行方差，但同一任务的 trial 不能充当独立任务样本。主推断先对任务内各臂求均值，再对 N 个任务差值随机翻转符号；区间重采整个任务。此为本仓设计推断，不是 tau-bench 的原生统计方案。",
+      "critical": false,
+      "evidenceIds": ["6db5cf79be7f8aa1e4c79ec2"]
+    },
+    {
+      "id": "behavior-not-correctness",
+      "text": "已有研究报告有检索器时原生搜索减少，同时正确性并不一致提升，且机制仍开放；所以 fallback 可作为价值终点，但必须配正确性门。[P-AGENT-RETRIEVAL](https://arxiv.org/html/2603.20432v1) 与本仓 [Agent Sufficiency](../../docs/contracts/baseline-agent-sufficiency-v1.md) 一致。",
+      "critical": false,
+      "evidenceIds": ["198db665068f7594abd05d15"]
+    },
+    {
+      "id": "shuffle-diagnostic",
+      "text": "S 是同候选、同内容、同 schema 的排序破坏对照，诊断排序价值；它不是完整因果中介检验，也不证明反思机制。[P-ADAPTIVE](https://arxiv.org/abs/2602.07213) 仅提供研究动机。",
+      "critical": false,
+      "evidenceIds": ["6db5cf79be7f8aa1e4c79ec2"]
+    },
+    {
+      "id": "sample-not-fixed",
+      "text": "MDE=1.5 次/任务、双侧 alpha=0.05、power=0.80 是待审批设计参数；N 由任务级差值方差和随机化模拟决定，不能把 40×4 当作已论证的样本量。",
+      "critical": false,
+      "evidenceIds": ["6db5cf79be7f8aa1e4c79ec2"]
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "option-fit",
+      "text": "约束=测量检索实现对 Agent 恢复行为的影响，而非重做离线召回或最终补丁质量。原生 SWE-bench/AgentBench/ToolBench/T-Eval 的任务面与终点不匹配，拒绝；tau-bench 只借多 trial 与一致性；本仓定制 ZRA-Paired 保留唯一变量和本仓主终点。",
+      "claimIds": ["swebench-scope", "tau-repeated", "agentbench-scope", "toolbench-scope", "teval-scope"]
+    },
+    {
+      "id": "endpoint-and-ownership",
+      "text": "主终点=每任务恢复性 Read/Grep 的 A-C 均值差，正值有利于 C。分类、审计、答案充分性和异常保留由本仓负责。工具数、token、延迟和 raw Read/Grep 仅诊断；正确性是停止门。S 只作 C-S 的排序诊断，不替代 A-C 主对比。",
+      "claimIds": ["behavior-not-correctness", "shuffle-diagnostic"]
+    },
+    {
+      "id": "statistical-design",
+      "text": "试点每臂 k=4 估方差；确证优先 k=6 以任务内随机覆盖全部 A/C/S 排列，或预先声明平衡子集。主检验=双侧任务级符号翻转随机化，精确枚举或至少 100000 次固定种子模拟；区间=10000 次任务簇 bootstrap，不能将 trial 当独立样本。C-S 与 fallback-free/McNemar 是次要检验，按预注册 family 做 Holm 校正。",
+      "claimIds": ["paired-inference", "repeated-not-independent"]
+    },
+    {
+      "id": "execution-composition",
+      "text": "产品语义/终点/任务/审计=本仓 native；交互 TUI=已有资产 adapted；C 与 S 运行时切臂=尚缺的 adapter；模型/prompt/tool schema/索引快照=固定；隔离、运行清单、失败与缺失策略=本仓新增 ownership。若任臂缺失运行，默认整任务剔除并报告原因，另做保留可用 task×trial 整对的敏感性分析，禁止仅删除失败臂。",
+      "claimIds": ["behavior-not-correctness", "ledger-limits"]
+    },
+    {
+      "id": "freshness-and-generalization",
+      "text": "独立于 v3 标注并盲审是下限，不等于模型未见过任务。优先时间戳新任务，记录仓、commit、prompt、答案规则、标注人、审阅人及是否参与调参；仓级分段只作诊断，避免以少量大仓任务泛化所有 Agent。",
+      "claimIds": ["sample-not-fixed", "tau-limits"]
+    },
+    {
+      "id": "evidence-limit",
+      "text": "sealed GitHub 证据只承担候选 harness 范围和 unknown 的证明；论文原始证据承担 repeated trials、统计和污染控制；本仓文件承担当前实现和门约束。三层不混写，避免 receipt 健康被误读为全部核心结论已由 GitHub sealed evidence 支撑。",
+      "claimIds": ["ledger-limits", "paired-inference", "tau-repeated"]
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "overall-choice",
+      "text": "采用 ZRA-Paired v1 作为待 ADR 批准的定制协议：主对比 A-C、S 排序诊断、任务内重复 trial、任务级随机化推断和任务簇区间。不要原生搬运通用 benchmark，也不要把离线 v3 或 raw parser 计数当作真机价值证据。",
+      "comparisonIds": ["option-fit", "evidence-limit"]
+    },
+    {
+      "id": "implementation-contract",
+      "text": "先实现默认 OFF 的运行时切臂与 S 的同 payload 置换，新增 arm-blinded 审计和不可变运行清单。每行记录 task/repo/commit/model/prompt/tool-schema/index/arm/order/trial/permutation-seed/结果/成本/失败原因。只在隔离只读快照运行，禁止访问凭据和联网找答案；现有 skip-permissions 不能扩展至宿主工作区。",
+      "comparisonIds": ["execution-composition"]
+    },
+    {
+      "id": "pilot-and-preregistration",
+      "text": "试点=5–8 任务×4 trial×3 臂，仅校准方差、审计一致性、顺序、缺失和成本。确证前冻结 MDE、alpha=0.05 双侧、power=0.80、k、N、订单方案、primary/secondary family、排除规则与预算；用 N=ceil(2*(1.96+0.84)^2*s_d^2/MDE^2) 作起点，再以试点分布模拟配对随机化功效。未标定前不承诺 N 或总成本。",
+      "comparisonIds": ["statistical-design"]
+    },
+    {
+      "id": "validation-plan",
+      "text": "五项进入条件：(1) 三臂工具 schema/payload 字节结构一致且仅排序/实现变化；(2) 构造性轨迹审计能区分 recovery/deepening/edit-prep/verification，双审一致率目标>=90%，否则修分类再试点；(3) 乱序与缺失运行测试通过；(4) 固定 seed 统计单元测试覆盖零效应与人工差值；(5) 正确性规则盲审可用。所有条件在正式任务解盲前通过。",
+      "comparisonIds": ["endpoint-and-ownership", "execution-composition"]
+    },
+    {
+      "id": "decision-and-exit",
+      "text": "主检验显著且 mean(A-C)>=预注册 MDE、任务簇 95% 区间不跨 0、正确性无回退，才允许另行 G-ship 补证；效应不足或正确性回退则停止产品化，区间过宽则 inconclusive 且不追加批次求显著。S 改善接近 C 时只能标记排序价值存疑，不能自动宣称反思是原因。",
+      "comparisonIds": ["statistical-design", "endpoint-and-ownership"]
+    },
+    {
+      "id": "surviving-risks",
+      "text": "剩余风险包括小任务簇导致的低功效、fallback 主观性、S 识别力有限、时间戳不能排除全部训练污染、切臂/顺序/工具面污染、隔离缺口和成本超支。对应负责人与触发条件已写入 report-ir.json 的 riskRegister；编译器不渲染该字段，本节保留同义摘要供读者检查。",
+      "comparisonIds": ["freshness-and-generalization", "execution-composition"]
+    },
+    {
+      "id": "avoid-and-next",
+      "text": "避免：把 k 次 trial 算成独立 N、以 pass@k 代替一致性、用 raw Read 越少越好、以 S 单独证明因果中介、未获 ADR 就改 ADR-0013、试点后按结果调 MDE/N。下一步是形成 ZJ-0015 Draft 供 Human 审批，再实现前置能力并试点；当前 1-4 仍 pending+blocked，v3 不复用，产品默认不变。",
+      "comparisonIds": ["option-fit", "statistical-design", "freshness-and-generalization"]
+    }
+  ],
+  "metrics": [
+    {
+      "key": "primary-fallback-delta",
+      "definition": "mean_i(mean(A_i recovery Read/Grep)-mean(C_i recovery Read/Grep))，正值利于 C",
+      "unit": "恢复性调用次数/任务",
+      "method": "arm-blinded 审计后任务内均值，再对任务等权；同时报告逐任务差值分布",
+      "condition": "固定任务、模型、prompt、工具 schema、索引和有效 trial 集",
+      "expected": "建议 MDE>=1.5，须 Human 预注册批准；不是当前观察值"
+    },
+    {
+      "key": "paired-randomization",
+      "definition": "任务级 A-C 差值的双侧符号翻转随机化 p 值",
+      "unit": "p 值",
+      "method": "N<=20 时精确枚举 2^N，否则固定 seed 至少 100000 次符号翻转",
+      "condition": "完整预注册的 A-C 主对比与缺失处理，独立于 C-S 次要 family",
+      "expected": "alpha=0.05 双侧，结合 MDE 与区间共同判读"
+    },
+    {
+      "key": "task-cluster-interval",
+      "definition": "主效应的任务簇 bootstrap 置信区间",
+      "unit": "恢复性调用次数/任务",
+      "method": "固定 seed 10000 次按 task 整簇有放回重采并重算 mean(d_i)",
+      "condition": "不得独立重采 task×trial 行；小样本时仅作区间辅助",
+      "expected": "确证希望 95% 区间不跨 0；跨 0 判 inconclusive"
+    },
+    {
+      "key": "correctness-guardrail",
+      "definition": "预注册任务答案充分性规则的通过情况",
+      "unit": "通过/失败任务数",
+      "method": "对 arm 盲化的规则审计，保留所有失败和超时",
+      "condition": "与主终点同一批有效任务与 trial",
+      "expected": "C 无可接受性回退；具体非劣界限在确证前冻结"
+    },
+    {
+      "key": "audit-agreement",
+      "definition": "两名独立审计者对工具调用分类的一致程度",
+      "unit": "一致调用数/双审调用数",
+      "method": "隐藏 arm 后独立分类，仲裁前后均保存记录",
+      "condition": "试点及至少 20% 确证轨迹双审",
+      "expected": "试点原始一致率>=90%；未达则修分类协议而不作确证"
+    },
+    {
+      "key": "pilot-cost",
+      "definition": "任务×trial×臂完整执行的模型费用与墙钟时间",
+      "unit": "USD、分钟",
+      "method": "逐 run manifest 汇总，不以成功 run 过滤成本",
+      "condition": "5–8 任务×4×3 试点，含失败和审计",
+      "expected": "实测后冻结确证预算；当前未知"
+    },
+    {
+      "key": "fallback-free-consistency",
+      "definition": "同任务同臂全部 k 次均无恢复性 fallback 的任务比例",
+      "unit": "任务比例",
+      "method": "借鉴 pass^k 的全部成功思想，按臂报告；二值 fallback-free 另作 McNemar 次要检验",
+      "condition": "固定 k 与有效任务，缺失不默认成功",
+      "expected": "仅诊断与次要推断，Holm 校正；不替代主终点"
+    }
+  ],
+  "riskRegister": [
+    {
+      "risk": "任务数不足或任务间方差大导致主效应无法判定",
+      "trigger": "试点的任务级差值方差使预注册 MDE 下所需 N 超出预算",
+      "impact": "确证实验区间过宽或无法执行，不能支持产品决策",
+      "mitigation": "在解盲前用任务级方差与随机化模拟确定 N，并预注册预算上限和 inconclusive 停止规则",
+      "residualRisk": "试点方差可能低估正式任务集的异质性",
+      "owner": "评估设计者与维护者"
+    },
+    {
+      "risk": "恢复性读取与合法深入的分类主观造成终点偏差",
+      "trigger": "独立审计者分类一致率低于 90% 或系统性偏向某类轨迹",
+      "impact": "主效应反映审计噪声而不是 Agent 行为变化",
+      "mitigation": "使用构造性样例校准分类、隐藏 arm 双审、保存仲裁记录，未达一致率则停止并修订分类协议",
+      "residualRisk": "仲裁仍可能保留不可消除的解释差异",
+      "owner": "任务审计负责人"
+    },
+    {
+      "risk": "排序破坏对照无法隔离所有检索动作与内容中介效应",
+      "trigger": "S 与 C 都减少 fallback，或 S 的置换改变了 Agent 对工具可信度的判断",
+      "impact": "无法把收益唯一归因于排序或反思，机制结论过强",
+      "mitigation": "限定 S 为诊断，保持候选集合和内容不变并披露解释边界；必要时另立中介实验而非在主协议追加结论",
+      "residualRisk": "主实验仍只能稳健估计整臂效果，不能完整解释机制",
+      "owner": "评估设计者"
+    },
+    {
+      "risk": "任务污染或选择泄漏夸大 C 的价值",
+      "trigger": "任务与 v3 重叠、标注者参与过调参，或任务早于被测模型知识截止",
+      "impact": "结果不能代表未见任务上的泛化能力",
+      "mitigation": "优先时间戳新任务并记录来源与审阅独立性，冻结任务后再运行；在报告中保留潜在污染标记",
+      "residualRisk": "无法直接审计闭源模型训练集，不能声称零污染",
+      "owner": "任务集负责人和独立审阅者"
+    },
+    {
+      "risk": "切臂或执行环境引入检索实现之外的变量",
+      "trigger": "A/C/S 的工具 schema、prompt、payload 结构、索引、模型或执行顺序失衡",
+      "impact": "配对差值不能归因于检索实现",
+      "mitigation": "运行前做配置指纹断言，任务内平衡全部臂序，保留版本清单并拒绝不符合单变量条件的运行",
+      "residualRisk": "宿主服务漂移和未观测的交互状态仍可能贡献噪声",
+      "owner": "运行 harness 实现者"
+    },
+    {
+      "risk": "skip-permissions 与模型生成命令造成宿主数据或凭据暴露",
+      "trigger": "Agent 在交互会话中尝试写入、联网、读取凭据或离开仓库快照",
+      "impact": "损坏工作区或泄露敏感信息，同时污染实验环境",
+      "mitigation": "使用无凭据一次性只读快照和隔离账户，任务禁用写入与网络，逐 run 审查异常并立即停止越界会话",
+      "residualRisk": "交互式 Agent 仍可能发现未预见的本地逃逸路径",
+      "owner": "实验执行者和仓库维护者"
+    },
+    {
+      "risk": "交互运行与人工审计成本超过可用预算",
+      "trigger": "试点实测的每任务三臂成本乘正式 N 超过维护者批准的上限",
+      "impact": "无法取得足够功效，实验被迫中途停止",
+      "mitigation": "试点汇总全部成功与失败成本，确证前设置硬预算；不足时重新选择 MDE 或停止而不是追加批次求显著",
+      "residualRisk": "价格、模型速度与失败率可能相对试点发生变化",
+      "owner": "维护者与评估执行者"
+    }
+  ],
+  "graduationCriteria": [
+    {
+      "condition": "试点证明运行时三臂仅改变预定检索变量，且 fallback 审计达到一致性和隔离验收",
+      "threshold": "配置指纹 100% 符合；构造性审计双审一致率>=90%；无宿主写入或凭据暴露",
+      "metric": "audit-agreement 与运行清单",
+      "promoteTo": "usefulness-validation"
+    },
+    {
+      "condition": "确证实验的主估计量同时达到统计与实用门，且正确性不回退",
+      "threshold": "双侧随机化 p<0.05、mean(A-C)>=预注册 MDE、任务簇 95% 区间不跨 0、无正确性回退",
+      "metric": "primary-fallback-delta 与 correctness-guardrail",
+      "promoteTo": "dogfood"
+    },
+    {
+      "condition": "结果不完整或方向不利时不得进入后续产品验证",
+      "threshold": "任一正确性回退即停止；区间跨 0 或成本不足判 inconclusive，不追加批次求显著",
+      "metric": "paired-randomization 与 task-cluster-interval"
+    }
+  ],
+  "informationGaps": {
+    "status": "has-gaps",
+    "rationale": "sealed ledger 有 8 个 unknownCriteria，且 GitHub 摘录对核心统计方法覆盖有限；论文补充证据见 cited-findings.json。终值 N、成本、MDE、审计一致性、C/S 接线和 S 的识别力仍 unknown/未验证；healthy receipt 不消除这些 gap。"
+  }
+}
