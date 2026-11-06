@@ -18,7 +18,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-14, windows-2025]
+        # macOS gate moved off macos-14 after PR #697 runs were cancelled
+        # before runner assignment (runner_id=0, zero steps) on every attempt.
+        # The darwin-arm64 release target in
+        # scripts/rust-core-artifact-contract.mjs is a separate release
+        # pipeline and still pins macos-14 deliberately.
+        os: [ubuntu-latest, macos-15, windows-2025]
     env:
       ZCG_ALLOW_UNSAFE_NODE: "1"
       ZCG_NO_DAEMON: "1"
