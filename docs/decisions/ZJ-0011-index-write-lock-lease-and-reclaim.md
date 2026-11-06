@@ -191,6 +191,15 @@ operator terminates a writer externally, OS handle cleanup is the recovery
 mechanism; index validation/rebuild remains available if the terminated write
 left an incomplete operation.
 
+> **Implementation status (2026-11-06):** §4 is not implemented.
+> `src/bin/zcodegraph.ts` (`unlock [path]`) still calls `fs.unlinkSync` on the
+> rendezvous file and reports "Removed lock file"; `tests/security.test.ts`
+> still asserts the old delete-to-recover semantics. The decision above remains
+> accepted and unchanged. This is an open normative/implementation conflict:
+> resolving it requires either implementing §4 in a `feat` batch (including the
+> test) or a new accepted ADR that withdraws §4. Until one of those happens,
+> this ADR must not be described as implemented.
+
 ### 5. Mixed-version compatibility is explicit, not assumed
 
 Old binaries use lock-file creation/unlink and do not honor the new OS lock.

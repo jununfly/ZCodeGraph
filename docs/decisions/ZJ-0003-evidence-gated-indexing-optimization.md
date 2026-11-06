@@ -2,7 +2,7 @@
 doc-kind: decision
 authority: primary
 authority-id: ADR-0003
-bounded-question: "What architectural trade-off does ZJ-0003-evidence-gated-indexing-optimization resolve?"
+bounded-question: "Must indexing optimizations be gated on local evidence?"
 ---
 # ZJ-0003: Gate indexing performance changes with evidence artifacts
 
@@ -24,7 +24,7 @@ Supporting contracts:
 - `docs/contracts/baseline-indexing-performance-v1.md`
 - `docs/contracts/graph-semantics-guardrail-v1.md`
 - `docs/contracts/baseline-agent-sufficiency-v1.md`
-- #165 post-release optimization tracker
+- #165 Post-PRD optimization tracker
 
 ## Decision
 

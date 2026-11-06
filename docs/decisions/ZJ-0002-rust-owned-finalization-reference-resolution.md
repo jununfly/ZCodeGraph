@@ -2,7 +2,7 @@
 doc-kind: decision
 authority: primary
 authority-id: ADR-0002
-bounded-question: "What architectural trade-off does ZJ-0002-rust-owned-finalization-reference-resolution resolve?"
+bounded-question: "Where does the Rust/TypeScript ownership boundary sit?"
 ---
 # ZJ-0002: Move finalization and reference resolution toward Rust ownership
 
