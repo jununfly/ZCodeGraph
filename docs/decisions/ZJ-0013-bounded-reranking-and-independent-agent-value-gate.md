@@ -88,14 +88,26 @@ MRR≥0.70 不再是这一轮召回增强的单一绝对否决门，但 MRR 仍�
 
 ### D5 — Agent 净收益采用配对验证，不能用离线指标替代
 
-同一任务、模型和工具面下配对比较 current Explore 与 fused Explore，唯一变量
-是检索实现。按 task×repetition 整对保留或剔除，交错两臂执行顺序，保留失败、
-超时和 inconclusive 结果。
+同一任务、模型和工具面下配对比较 A baseline、C symbol-union 与 S 排序破坏
+对照，唯一变量是检索实现。S 与 C 共享候选集合、内容、条数和 payload schema，
+仅以固定种子破坏排序，只作诊断，不证明完整因果中介。
+
+按 Paired Block（同一 Agent Task 内 A/C/S 各一次）组织重复，任务内平衡臂序；
+确证优先 k=6 覆盖全部 6 种顺序，成本约束下 k=4 须预声明平衡子集并披露未覆盖
+顺序。任一臂缺失时默认整任务剔除并报告原因，另做保留可用 task×trial 整对的
+敏感性分析；禁止只删除失败臂。保留失败、超时和 inconclusive 结果。
 
 主要收益是经审计的恢复性 Read/Grep 减少；答案正确性不得回退。合理深入阅读、
 编辑准备和验证读取不计为 fallback。工具调用、token 和耗时只作辅助指标。
-主要收益使用配对 bootstrap 区间并完整披露逐对结果；区间跨 0 判为
-inconclusive，不通过追加批次追求显著。
+
+任务（Task Cluster）是唯一独立推断单元：先在任务内对各臂求均值，再取
+d_i = mean(A_i) − mean(C_i)。主检验为任务级双侧符号翻转随机化（α=0.05）；
+任务簇 bootstrap 10000 次仅提供 95% 区间，不作为主检验。次要 family（C−S、
+fallback-free 二值结局 McNemar）须预注册并按 Holm 校正。报告 mean(d_i)、
+逐任务分布、区间与 run-to-run noise；显著但低于预注册 MDE 判不通过。区间跨 0
+或效应量不足判 inconclusive，不通过追加批次追求显著。
+
+本条已由 ADR-0015 修订；G-ship 数值门与 D1/D2/D3/D6 不受影响。
 
 ### D6 — 停止条件与关闭范围
 

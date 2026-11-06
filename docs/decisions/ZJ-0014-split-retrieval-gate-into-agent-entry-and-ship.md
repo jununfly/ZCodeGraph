@@ -83,8 +83,10 @@ G-entry 通过只授权**只读 opt-in 真机原型**的审批申请，不构成
   非重复离线 file-location 打分）；
 - 主终点为经审计的**恢复性 Read/Grep 减少**，答案正确性不回退，精确名安全
   零 Hit@1 回退；
-- 按 task×repetition 整对保留/剔除，交错臂序，配对 bootstrap 区间，跨 0 判
-  inconclusive，不追加批次求显著。
+- 按 Paired Block 组织 A/C/S 三臂重复，任务内平衡臂序；任务（Task Cluster）
+  为唯一独立推断单元，主检验为任务级双侧配对随机化，任务簇 bootstrap 仅提供
+  95% 区间；任一臂缺失默认整任务剔除并做敏感性分析；跨 0 或效应不足判
+  inconclusive，不追加批次求显著。本条统计口径已由 ADR-0015 修订。
 
 真机任务集与 v3 不同、终点指标不同，元泄漏路径基本切断；这一点须在真机
 报告中显式论证。
@@ -124,6 +126,6 @@ v3 frozen holdout 已一次性用于 1-7 三臂评估，按 ADR-0013 D3 与本�
 
 - ADR-0013：本决策修订其 D4 门结构，D1/D2/D3/D5/D6 保留。
 - ADR-0012：上一阶段 NO-GO 与基础设施保留结论不变。
-- MET-semantic-retrieval-evaluation-v2：§4 已按本决策拆为 G-entry / G-ship；G-ship 数值门不变，§5 配对协议待后续 ADR 修订。
+- MET-semantic-retrieval-evaluation-v2：§4 已按本决策拆为 G-entry / G-ship；G-ship 数值门不变；§5 配对协议已由 ADR-0015 修订为任务级随机化主检验与任务簇区间。
 - DES-baseline-agent-sufficiency-v1：真机 Read 分类与终点定义。
 - `docs/evidence/2026-11-05-symbol-index-holdout-v3.{md,json}`：C 臂门判定证据。
