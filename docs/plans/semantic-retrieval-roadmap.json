@@ -865,7 +865,11 @@
         }
       ],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "budget": {
+        "max_children": 2,
+        "max_rounds": 2
+      }
     },
     "1-8-1": {
       "id": "1-8-1",
@@ -883,7 +887,11 @@
         }
       ],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "budget": {
+        "max_children": 0,
+        "max_rounds": 2
+      }
     },
     "1-8-2": {
       "id": "1-8-2",
@@ -901,12 +909,16 @@
         }
       ],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "budget": {
+        "max_children": 0,
+        "max_rounds": 2
+      }
     }
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-07 00:42:37",
+    "updated": "2026-11-07 01:25:52",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

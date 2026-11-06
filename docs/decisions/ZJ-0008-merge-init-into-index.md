@@ -94,17 +94,16 @@ Hard-merge the two commands:
   a single `index --force`; user docs and the packaging smoke gate rename
   their init scenarios to bootstrap.
 
-## Implementation status (2026-11-06)
+## Implementation status (2026-11-07)
 
 The CLI half of this decision is implemented: `src/bin/zcodegraph.ts` no
-longer registers an `init` subcommand. Two harness scripts were not migrated
-and still invoke the removed command:
+longer registers an `init` subcommand. The two harness scripts that had not
+been migrated were fixed in a separate `feat` batch on 2026-11-07:
 
-- `scripts/agent-eval/audit.sh` — `init` call in the indexing step
-- `scripts/add-lang/bench.sh` — `init` call in the indexing step
+- `scripts/agent-eval/audit.sh` — indexing step now runs `index --force`
+- `scripts/add-lang/bench.sh` — indexing step now runs `index --force`
 
-Both fail at that step. This is an implementation gap, not a change to the
-decision: the hard merge and the "no shim" rule remain in force. The sentence
-above about harnesses describes the intended end state, not the current
-scripts. Fixing them requires a separate `feat` batch and is recorded as a
-deferred implementation gap by the 2026-11-06 governance review.
+Both scripts wipe the old store first and then rely on `index` to bootstrap it
+implicitly, matching the single-`index --force` end state described above. No
+alias, shim, or transition path was added; the hard merge and the "no shim"
+rule remain in force. The decision text above is unchanged.
