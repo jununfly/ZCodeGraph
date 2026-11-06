@@ -191,14 +191,29 @@ operator terminates a writer externally, OS handle cleanup is the recovery
 mechanism; index validation/rebuild remains available if the terminated write
 left an incomplete operation.
 
-> **Implementation status (2026-11-06):** §4 is not implemented.
-> `src/bin/zcodegraph.ts` (`unlock [path]`) still calls `fs.unlinkSync` on the
-> rendezvous file and reports "Removed lock file"; `tests/security.test.ts`
-> still asserts the old delete-to-recover semantics. The decision above remains
-> accepted and unchanged. This is an open normative/implementation conflict:
-> resolving it requires either implementing §4 in a `feat` batch (including the
-> test) or a new accepted ADR that withdraws §4. Until one of those happens,
-> this ADR must not be described as implemented.
+> **Implementation status (2026-11-06):** This ADR is an accepted design, not
+> an implemented protocol. §1 (OS-backed stable rendezvous lock on
+> `.zcodegraph/zcodegraph.lock`) and §3 (small native cross-platform Adapter)
+> are not implemented on the index-write lock path; the observed `flock` /
+> `fs2` / Windows Job Object support belongs to the separate
+> embedding-replacement gate. The index lock is still the PID-only TypeScript
+> `FileLock` (`src/utils.ts`) and Rust `ProjectLock`
+> (`crates/zcodegraph-core/src/lib.rs`), both of which delete the lock file on
+> release or stale recovery.
+>
+> §4 depends on those prerequisites: its diagnostics and constrained `--force`
+> require a command that has already acquired the OS lock and verified that no
+> active writer exists. `src/bin/zcodegraph.ts` (`unlock [path]`) therefore
+> still calls `fs.unlinkSync` and reports "Removed lock file", and
+> `tests/security.test.ts` asserts the shipped delete-to-recover behavior.
+> That test must not be changed on its own: it describes the implementation
+> that actually ships.
+>
+> None of the 8 items in `## Required verification` is fully covered, and
+> several existing assertions contradict items 2 and 5. The decision above
+> remains accepted and unchanged. The gap is implementation debt for the whole
+> design, not a §4-only conflict. Do not describe this ADR as implemented
+> until all 8 items have evidence.
 
 ### 5. Mixed-version compatibility is explicit, not assumed
 
