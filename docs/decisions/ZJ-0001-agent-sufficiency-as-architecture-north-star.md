@@ -71,7 +71,7 @@ The first tech-design artifact for this direction is `docs/contracts/architectur
 
 - Do not treat "zero Read" as the absolute goal. The goal is reducing **fallback** reads while preserving legitimate deepening, edit-prep, and verification reads.
 - Do not optimize for filling token/character budgets. Output Budget should be spent according to Evidence Value.
-- Do not rename internal `CodeGraph` API/domain terms or `.codegraph/` storage as part of this architecture direction.
+- Do not rename internal `CodeGraph` API/domain terms or `.zcodegraph/` storage as part of this architecture direction.
 - Keep domain language in `ZJ-CONTEXT.md`; keep implementation tiers and benchmark interpretation rules in design docs.
 
 ## Alternatives considered

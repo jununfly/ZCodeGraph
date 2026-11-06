@@ -57,9 +57,10 @@ slice.
 - Resolver migration is treated as an architecture program, not another bounded
   performance patch.
 - Benchmark artifacts remain supporting evidence; durable ownership decisions
-  belong in `docs/zj-adr/`.
-- `docs/benchmarks/` should continue to hold raw profiles, A/B results,
-  current-state maps, and closeout evidence.
+  belong in `docs/decisions/`.
+- ADR-0005 later replaced `docs/benchmarks/`: versioned machine-readable
+  inputs belong in `docs/baselines/`, and routine measurement output belongs
+  in `.tmp/measure/`; historical closeout evidence is traced through Git.
 - The first implementation slice must preserve existing graph semantics and
   user-visible behavior.
 - Future agents should not "complete" this decision by moving broad

@@ -10,6 +10,10 @@ bounded-question: "What architectural trade-off does ZJ-0007-three-tier-fallback
 
 Accepted
 
+> Implementation note (2026-11-06): ADR-0009 added `pending` as a fourth
+> `RustHybridFallbackState` for embedding readiness. The three-tier model below
+> remains this ADR's original scope; current code uses four states.
+
 ## Context
 
 The `rust-hybrid` indexing engine falls back to TypeScript extraction for

@@ -10,26 +10,28 @@ date: 2026-10-27
 
 ## Status
 
-Accepted (design phase)
+Accepted / implemented
+
+`embedding install/status`, the exact fastembed pin, models-dir resolution, and worker lazy loading have landed. This ADR remains authoritative for the opt-in release shape; implementation-specific references are corrected below.
 
 ## Context
 
-ADR-0009 把嵌入管线锁定为 **opt-in**：`ZCG_ENABLE_EMBEDDING=1` + `zcodegraph index --with-embeddings` 才会触发；worker 通过 `await import('fastembed')` 动态加载，加载失败把 queue 行标 `failed` 并写 `last_error='embedding-model-not-downloaded'`。
+ADR-0009 把嵌入管线锁定为 **opt-in**：`ZCG_ENABLE_EMBEDDING=1` + `zcodegraph index --with-embeddings` 才会触发；worker 通过 `resolveFastembedSpecifier()` + `importResolved()` 动态加载 fastembed，加载失败把 queue 行标 `failed` 并记录具体失败原因。模型尚未下载属于 `pending` 状态，不写入 failure taxonomy。
 
 1-4-30 回归实测在 drupal 11 491 文件上发现 fresh 安装的 silent fail 路径：
 
 1. 用户跑 `npm install -g @jununfly/zcodegraph`
 2. 主 `package.json` 不含 `fastembed` / `onnxruntime-node`（1-4-28 决策：opt-in）
 3. 用户开 `ZCG_ENABLE_EMBEDDING=1` + `--with-embeddings`
-4. enqueue 成功（pending=11 491），worker 起来动态 import 失败
-5. queue 行陆续标 `failed`，`zcodegraph status` 显示 `embedding-model-not-downloaded`
+4. enqueue 成功（pending=11 491），worker 动态加载 fastembed 失败
+5. queue 行陆续标 `failed`，`zcodegraph status` 未把缺失依赖升级为可见的安装提示
 6. 用户从 CLI 输出里**没看到任何"请先安装 fastembed"提示** —— silent fail
 
 成本面（本 ADR 权衡的核心数字）：
 
 | 依赖 | 体积 | 内容 |
 |---|---|---|
-| `fastembed@1.14.x` | 148 KB | JS wrapper + tokenizer |
+| `fastembed@1.14.5` | 148 KB | JS wrapper + tokenizer |
 | `onnxruntime-node@1.21.0` | **208 MB** | ONNX 推理引擎 native binding |
 | `BGE-small-en-v1.5` 模型 | 65 MB | 已在 1-4-1 决策中锁定按需下载，不进 npm 包 |
 
@@ -51,11 +53,11 @@ zcodegraph embedding status            # 检测 fastembed/vec0/模型三件套�
 子命令做四件事：
 
 1. **检测当前状态**：fastembed 是否可解析、vec0.dll 是否在位、ONNX 模型 cache 是否已下载
-2. **安装 npm 包**：在 `<projectRoot>/.zcodegraph/models/node_modules/` 下跑 `npm install --prefix ... fastembed@^1.14.3`（不污染主 `node_modules`，版本号在代码里钉死）
+2. **安装 npm 包**：在 `<projectRoot>/.zcodegraph/models/node_modules/` 下跑 `npm install --prefix ... fastembed@1.14.5`（不污染主 `node_modules`，版本号在代码里精确钉死）
 3. **下载 vec0.dll**：从 sqlite-vec GitHub release 抓对应平台的 vec0 binary 到 `.zcodegraph/models/`（沿用 1-4-2 spike 已验证的 URL）
 4. **预下载 ONNX 模型**：用 fastembed 的 `FlagEmbedding.init` 触发一次模型下载到 `.zcodegraph/models/`，避免首次 embed 时才拉 65 MB
 
-`worker.ts` 的 `await import('fastembed')` 解析路径增加一档：在 `<projectRoot>/.zcodegraph/models/node_modules/` 也找一次（用 `createRequire` 显式指定路径）。这保持向后兼容：用户全局装了 fastembed 仍能用。
+`worker.ts` 通过 `resolveFastembedSpecifier()` 解析 fastembed，并由 `importResolved()` 完成加载；在 `<projectRoot>/.zcodegraph/models/node_modules/` 也找一次（用 `createRequire` 显式指定路径）。这保持向后兼容：用户全局装了 fastembed 仍能用。
 
 ## 三方案对照
 
@@ -63,7 +65,7 @@ zcodegraph embedding status            # 检测 fastembed/vec0/模型三件套�
 
 ```json
 "peerDependencies": {
-  "fastembed": "^1.14.3",
+  "fastembed": "1.14.5",
   "onnxruntime-node": "1.21.0"
 },
 "peerDependenciesMeta": {
@@ -144,8 +146,8 @@ zcodegraph embedding status            # 检测 fastembed/vec0/模型三件套�
     zcodegraph embedding install
   ```
 - `src/embedding/worker.ts` 的 fastembed 解析顺序：
-  1. `await import('fastembed')`（默认 Node 解析，全局/项目 node_modules）
-  2. fallback：`createRequire(<projectRoot>/.zcodegraph/models/package.json).resolve('fastembed')`
+  1. `resolveFastembedSpecifier()` 先走默认 Node 解析，再检查 `<projectRoot>/.zcodegraph/models/node_modules/`
+  2. `importResolved()` 用 `pathToFileURL()` 把解析结果转成可加载的 ESM specifier（尤其处理 Windows 绝对路径）
 - vec0 下载源：https://github.com/asg017/sqlite-vec/releases （1-4-2 spike 已验证 v0.1.9 win-x64 vec0.dll 282 KB）
 - 模型下载：调用 `FlagEmbedding.init({ model: BGESmallENV15, cacheDir: <projectRoot>/.zcodegraph/models })`，让 fastembed 自己拉
 
@@ -172,7 +174,7 @@ zcodegraph embedding status            # 检测 fastembed/vec0/模型三件套�
 ## References
 
 - 上层设计：[`ZJ-0009-async-embedding-pipeline.md`](ZJ-0009-async-embedding-pipeline.md)
-- 触发证据：[`../evidence/2026-10-26-p2-async-embedding-d6-regression.md`](../evidence/2026-10-26-p2-async-embedding-d6-regression.md) §"已知遗留"
+- 触发证据：回归脚本 `scripts/measure/async-embedding-d6-regression.mjs`；历史报告已归档至 Git 历史。
 - 现有 installer（不同职责）：`src/installer/index.ts`
-- worker fastembed 加载点：`src/embedding/worker.ts:218`（`await dynamicImport('fastembed')`）
-- 1-4-2 spike 依赖清单：`.tmp/embedding-baseline/package.json`（fastembed@^1.14.3 单 dep，被动带入 onnxruntime-node@1.21.0）
+- worker fastembed 加载点：`src/embedding/worker.ts` 的 `resolveFastembedSpecifier()` + `importResolved()`（不再使用硬编码行号）
+- 1-4-2 spike 依赖清单：`.tmp/embedding-baseline/package.json`（spike 曾使用 `fastembed@^1.14.3`；现行按 Amendment 精确 pin `1.14.5`，被动带入 `onnxruntime-node@1.21.0`）

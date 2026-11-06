@@ -54,7 +54,7 @@ dev→holdout 严重倒挂：pure-fts 在 dev MRR=0.5291 vs holdout MRR=0.3006�
 ### D2 — chunk 表示技术选型
 
 - **粒度**：函数/方法级 chunk（tree-sitter 已识别，零新增解析成本；探针 5/5 expectedRank ≤ 2 证明此粒度足够）
-- **存储**：复用 `.zcodegraph/zcodegraph.db`，新增 `vec_chunk_embeddings` 表与现有 `vec_embeddings` 并存
+- **存储**：复用 `.zcodegraph/zcodegraph.db`；当时设想新增 chunk 向量表，但该表未落地，后续产品化设想已由 ADR-0013 取代
 - **融合点**：F1 前置召回——chunk-vec 作为 explore `findRelevantContext` 的补充 seeding 源，与现有 FTS5 seeding 并行；让 chunk-vec 的语义邻居经过 explore 的调用图过滤
 
 ### D3 — 验证标准
@@ -97,7 +97,7 @@ dev→holdout 严重倒挂：pure-fts 在 dev MRR=0.5291 vs holdout MRR=0.3006�
 - 不要污染更多 holdout 题——holdout 只剩 12 题未用于本轮调参。
 
 如果 V3 成功（≥ 3/4 命中）：
-- 开 1-4 节点做 W2 产品化：改 `src/mcp/explore-planner.ts` 加 chunk-vec seeding，配套建 `vec_chunk_embeddings` 表 + 索引流程。
+- 开 1-4 节点做 W2 产品化是当时的设想；该设想已由 ADR-0013 的独立留出集与 Agent 净收益门取代，不再作为执行落点。
 - 完整 1-3-3 门仍未通过——降级方案是召回增强，不是完整语义检索。不要用 V3 通过宣称"语义检索已达产品级"。
 
 ## V3 验证结果（2026-11-03 追记）
@@ -116,7 +116,7 @@ V3 spike 执行完成，**4/4 fixed，PASS**：
 报告：`docs/evidence/2026-11-03-chunk-explore-fusion.{md,json}`。
 脚本：`scripts/measure/chunk-explore-fusion.mjs` + `scripts/measure/chunk-index-build.mjs`。
 
-**当时建议的下一步**：开 1-4 产品化节点，把 spike 转化为 src/ 改动（explore-planner 加 chunk-vec seeding、建 vec_chunk_embeddings 表、异步索引流程），完整 1-3-3 门仍待通过。
+**当时建议的下一步（已取代）**：开 1-4 产品化节点；ADR-0013 已用独立留出集与配对 Agent Sufficiency 证据门替换该后续指示，不再把 spike 直接转化为 src/ 改动。
 
 **2026-11-03 后续决策**：ADR-0013 取代上述后续指示。V3 及完整门使用的 16 题已参与修复和路线选择，现仅作诊断/回归集；不允许据此直接产品化。仅授权一次固定融合、至多 3 个确定性文件重排候选的 development 选择，之后须用新冻结 holdout 与配对 Agent Sufficiency 证据晋级。详见 `ZJ-0013-bounded-reranking-and-independent-agent-value-gate.md` 与 `../methods/semantic-retrieval-evaluation-v2.md`。
 

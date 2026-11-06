@@ -45,9 +45,12 @@ decision map.
 
 ## Consequences
 
-- Benchmark artifacts remain in `docs/benchmarks/` as supporting evidence.
+- Benchmark artifacts remain supporting evidence; ADR-0005 later moved
+  versioned machine-readable inputs to `docs/baselines/` and routine
+  measurement output to `.tmp/measure/`.
 - Durable architecture conclusions can be promoted into ADRs, but raw profiles,
-  summaries, A/B closeouts, and smoke evidence should stay in `docs/benchmarks/`.
+  summaries, A/B closeouts, and smoke evidence belong in `.tmp/measure/` or
+  Git history rather than the retired `docs/benchmarks/` directory.
 - Future optimization issues should not use intuition alone to select or keep a
   candidate when profile evidence is available.
 - The evidence tooling may produce tracker-update drafts, but it must not call

@@ -10,7 +10,9 @@ date: 2026-10-26
 
 ## Status
 
-Accepted (design phase)
+Accepted / implemented
+
+CLI, queue, worker, vec0 lazy creation, and installer paths have landed. This ADR remains authoritative for the design thresholds; implementation-specific DDL and status details are corrected below.
 
 ## Context
 
@@ -34,7 +36,7 @@ Accepted (design phase)
 理由：
 
 1. 与 `nodes`/`edges`/`vec_embeddings` 同库 → 单事务保证「结构写 + 嵌入 pending」原子入队，崩溃恢复零代码
-2. 复用现有 WAL + `FileLock`（`src/sync/watcher.ts:120 LockUnavailableError`）多写者并发保护
+2. 复用现有 WAL + `FileLock`（`src/sync/watcher.ts` 的 `LockUnavailableError`）多写者并发保护
 3. 不需要新进程模型 —— MCP server 进程内嵌 worker 即可
 4. 排查/恢复用 SQL 一行查清
 
@@ -69,32 +71,30 @@ Accepted (design phase)
 
 ### D4 — 失败子原因接入：扩展现有 taxonomy
 
-扩展 `src/diagnostics/fallback-summary.ts` 的 `FALLBACK_REASON_LABELS`，新增 6 个 key（沿用 1-4-1 Q3 表）：
+扩展 `src/diagnostics/fallback-summary.ts` 的 `FALLBACK_REASON_LABELS`，新增 5 个 failure key（沿用 1-4-1 Q3 表）；模型尚未下载属于 `pending` 状态，不写入 failure taxonomy：
 
 | key | fallbackState 影响 |
 |---|---|
-| `embedding-model-not-downloaded` | `pending`（不进 taxonomy） |
 | `embedding-model-download-failed` | `degraded` |
 | `embedding-runtime-init-failed` | `degraded` |
 | `embedding-vec0-load-failed` | `degraded` |
 | `embedding-vec-schema-mismatch` | `degraded` |
 | `embedding-stale` | `partial` |
 
-接口设计：`buildRustHybridFallbackSummary` 接收新可选参数 `embeddingProfile?: { embeddingFailures?: Record<EmbeddingFailCode, number> }`，在 `fallback-summary.ts` 现有 `for err of input.errors` 循环之后追加第二趟循环把 `embeddingFailures` 合并进 `fallbackReasonTaxonomy`。零 schema 变更 —— taxonomy 本来就是 `Record<string, number>`。
+接口设计：`buildRustHybridFallbackSummary` 接收新可选参数 `embeddingProfile?: { embeddingFailures?: Record<string, number> }`，在 `fallback-summary.ts` 现有 `for err of input.errors` 循环之后追加第二趟循环把 `embeddingFailures` 合并进 `fallbackReasonTaxonomy`。零 schema 变更 —— taxonomy 本来就是 `Record<string, number>`。
 
 ### D5 — v0 Schema
 
-`vec_embeddings`（vec0 虚拟表，沿用 1-4-2 spike 已实测结构）：
+`vec_embeddings` 是 vec0 虚拟表。vec0 v0.1.9 只允许一个 TEXT 主键列加一个向量列，实际落地 DDL 为：
 
 ```sql
 CREATE VIRTUAL TABLE vec_embeddings USING vec0(
   file_path TEXT PRIMARY KEY,
-  embedding FLOAT[384],
-  content_hash TEXT NOT NULL,
-  model_version TEXT NOT NULL,
-  embedded_at INTEGER NOT NULL
+  embedding float[384]
 );
 ```
+
+`content_hash` / `model_version` / `embedded_at` 等元数据保留在 `embedding_queue` 行；`vec_embeddings` 不进入 `schema.sql`，由 worker 在加载 vec0 扩展后懒创建。
 
 `embedding_queue`（新增普通表）：
 
@@ -110,10 +110,14 @@ CREATE TABLE embedding_queue (
   enqueued_at INTEGER NOT NULL,
   started_at INTEGER,
   finished_at INTEGER,
+  worker_id TEXT,
+  heartbeat_at INTEGER,
   PRIMARY KEY (file_path, content_hash)
 );
-CREATE INDEX idx_queue_status_started ON embedding_queue(status, started_at);
-CREATE INDEX idx_queue_enqueued ON embedding_queue(enqueued_at);
+CREATE INDEX IF NOT EXISTS idx_embedding_queue_status_started
+    ON embedding_queue(status, started_at);
+CREATE INDEX IF NOT EXISTS idx_embedding_queue_enqueued
+    ON embedding_queue(enqueued_at);
 ```
 
 关键不变量：
@@ -205,8 +209,8 @@ T_index ≈ 51.5 s ≪ 100 s (2× 阈值)  ✅
 
 - 首索引 2× 阈值重新可满足：drupal 从 18.4 min → ~51.5 s
 - 三触发点互相兜底，CLI-only / MCP-only / mixed 工作流都被覆盖
-- 嵌入失败可观测、可恢复、可诊断 —— 不污染六词健康词汇，只扩展子原因
-- 零 schema 变更：复用 `fallbackReasonTaxonomy` 扩展；`vec_embeddings` 与 `embedding_queue` 都是新增表，不动既有 DDL
+- 嵌入失败可观测、可恢复、可诊断 —— 不污染主健康词汇，只扩展子原因
+- 零 schema 变更：复用 `fallbackReasonTaxonomy` 扩展；`embedding_queue` 为新增表，`vec_embeddings` 是由 worker 懒创建的 vec0 虚拟表，均不动既有 DDL
 
 ### Negative
 
@@ -221,7 +225,7 @@ T_index ≈ 51.5 s ≪ 100 s (2× 阈值)  ✅
 
 ## References
 
-- Roadmap: `docs/plans/capability-harvest-roadmap.json` → 节点 `1-4-27`（已收口，历史快照见 Git 历史）
+- Roadmap: 原 `capability-harvest-roadmap.json` 节点 `1-4-27` 已收口；当前仓库不再保存该 roadmap 文件，历史快照见 Git 历史。
 - 前置实测记录：可从 Git 历史按 roadmap 节点 `1-4-2` 检索；本文保留全部决策所需的阈值与结论
 - 相关契约： `docs/contracts/schema-evolution-and-mcp-tool-cap-v1.md`
 - 现有 fallback 状态机： `src/indexing/rust-hybrid-contract.ts`
