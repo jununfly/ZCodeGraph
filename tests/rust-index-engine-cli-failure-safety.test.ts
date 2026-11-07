@@ -3,6 +3,7 @@ import { execFileSync, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CodeGraph } from '../src';
+import { acquireIndexWriteLease } from '../src/indexing/index-write-lease';
 import {
   makeRustIndexingTempProject,
   RUST_CORE_BIN,
@@ -67,17 +68,20 @@ describe('zcodegraph rust index failure safety and project lock behavior', () =>
     expect(cg.searchNodes('alpha').some((match) => match.node.name === 'alpha')).toBe(true);
     cg.close();
 
-    const lockPath = path.join(tempDir, '.zcodegraph', 'zcodegraph.lock');
-    fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx' });
+    // ADR-0011: the rendezvous file is a stable, never-deleted file guarded by
+    // an OS lock. Simulate another process holding that OS lock (the writer
+    // must refuse to acquire it and preserve the previous good index) by
+    // actually acquiring the lease ourselves and keeping it held.
+    const lease = await acquireIndexWriteLease(tempDir);
     try {
       const result = runZcodegraphCli(tempDir, ['index', '--engine', 'rust', '--force', '--quiet'], {
         ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
       });
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain('CodeGraph database is locked by another process');
+      expect(result.stderr).toContain('active index preserved: yes');
     } finally {
-      fs.rmSync(lockPath, { force: true });
+      await lease.release();
     }
 
     cg = CodeGraph.openSync(tempDir);
@@ -120,7 +124,9 @@ describe('zcodegraph rust index failure safety and project lock behavior', () =>
       ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
     });
     expect(retry.status).toBe(0);
-    expect(fs.existsSync(lockPath)).toBe(false);
+    // ADR-0011: the stable rendezvous file is never deleted; a crashed writer's
+    // OS lock is reclaimed by the OS, not by unlinking the file.
+    expect(fs.existsSync(lockPath)).toBe(true);
 
     const cg = CodeGraph.openSync(tempDir);
     try {
