@@ -111,6 +111,65 @@ Locked terms:
 
 This round changed no `src/`, `scripts/`, `tests/`, ADR, contract, or `docs/README.md` file, and created no ADR. The design-tree frontier is empty.
 
+## Authorization to enter implementation (2026-11-07, post-P3)
+
+Human selected option C in the follow-up round and explicitly confirmed it is the **second approval required by Q75**. This fires re-review event (c) — a formal P1 proposal — and moves the path from P3 (status quo) to **P1 (whole-ADR implementation)**. Q73 is superseded by this later Human decision. Q51, Q68, Q70, Q71, Q74, Q76, Q77–Q79, Q80–Q82 (as process constraints), and Q83 remain in force. The P3 clause that froze `unlock`, `tests/security.test.ts:69`, `FileLock`, `ProjectLock`, and CLI help text is lifted **only for work inside this P1 program**; it is not a general unfreeze and no "small fix" outside the program is authorized.
+
+Recorded as an append-only decision on `1-8-1`. The node stays `pending`, budget `0/2`, no children, no new edges; `e9` and `1-4 blocked=True` are unchanged. ADR-0011's implementation-status note is unchanged because the design is still not implemented.
+
+### Hard gates still OPEN before any behavior-changing code lands
+
+| Gate | Source | Status |
+|---|---|---|
+| Named concurrency/security reviewer before P1 implementation | Q68 | **OPEN** — the name was deferred in the first consensus round and has not been supplied |
+| Hard budget freeze for P1, plus fallback-to-P3 if the 8 items cannot be completed inside it | Q76 | **OPEN** — scope proposed below; numeric budget not yet frozen |
+| Native Adapter shared by Node and Rust | ADR-0011 §3: "No new runtime dependency is approved by this document alone" | **OPEN** — an architecture decision, not settled by Q75 |
+| All 8 Required verification items with evidence before any "implemented" claim | Q51 / Q71 | **OPEN** |
+| Real Windows / Linux / macOS native-process evidence (item 7) | ADR-0011 `## Required verification` | **OPEN** — needs CI, not local Windows |
+
+### Batch 1 (2026-11-07): additive, reviewable, zero behavior change
+
+- `crates/zcodegraph-core/src/replacement_gate.rs`: `try_lock` is now crate-visible and `try_unlock` was added (`flock LOCK_UN` on Unix, `fs2::FileExt::unlock` on Windows), so the index path reuses the **same verified platform Adapter** as the replacement gate rather than inventing a second primitive.
+- New `crates/zcodegraph-core/src/index_write_lock.rs`: stable `zcodegraph.lock` rendezvous lease with path validation (no symlink / directory / store escape), non-blocking exclusive OS lock, bounded diagnostic metadata rewritten in place through the locked handle, release on the acquired handle, **no unlink on `Drop`**, and inspect-only `diagnose()` mapping to §4's behavior matrix. Unit tests cover exclusion, stable-file persistence, repeated acquire/release, malformed legacy metadata, invalid paths, and diagnosis states.
+- The module is **not wired** into `ProjectLock` or TypeScript `FileLock`, and none of the five previously frozen assets was modified. `cargo check --package zcodegraph-core --all-targets` passes; the module's unit tests run under the existing `cargo test` CI step on all three platforms.
+- **New platform evidence (Windows):** a real `cargo test` run found that `fs2`'s exclusive `LockFileEx` locks the whole file, so a second handle's read is rejected with `ERROR_LOCK_VIOLATION` (33) while a lease is held. ADR-0011 §4 requires `unlock` to report diagnostics for an active OS writer; those diagnostics **cannot** be read back from the rendezvous file itself. The finding is pinned as a conformance test (`windows_exclusive_lease_pins_sharing_mode_semantics`) and is an explicit input to the open Adapter decision — it is exactly the sharing-mode / byte-range behavior ADR-0011 §3 says must be pinned rather than assumed.
+
+Why wiring must be a separate batch: TypeScript has no native file-lock API and no N-API/FFI bridge to the Rust core (no `proper-lockfile`, `fs-ext`, or addon in `package.json`). Changing only the Rust side would leave `FileLock` deleting the PID-only lock file that the new Rust lease uses as its **stable rendezvous** — a real cross-language regression, not a cleanup. The shared Adapter (a new Node native addon, or a supervised Rust lock-holder process reusing `process_supervision` and the `*-fixture.rs` bins) must be chosen and reviewed first.
+
+### 8 Required verification items → evidence after Batch 1
+
+| # | Item | After Batch 1 | Still required |
+|---:|---|---|---|
+| 1 | TS/TS, Rust/Rust, TS/Rust, hybrid exclusion beyond 2 min | same-handle exclusion unit test only | real process-level pairs, suspended-writer case |
+| 2 | Kill/crash releases through OS, no file deletion | `Drop` never unlinks; handle-close release by construction | real SIGKILL / crash fixtures |
+| 3 | Parent death with live delegate + descendant | not started | Job Object / PDEATHSIG / supervisor wiring + all four distinct scenarios |
+| 4 | Nested TS helpers borrow one lease; coverage of clear/staging/promotion/finalization/enqueue | not started | §2 operation-lease refactor across `src/index.ts` call sites |
+| 5 | Stable file on normal release, repeated acquire, surfaced unlock errors, no cross-process effect | covered by unit tests + `release()` result | cross-process confirmation |
+| 6 | Legacy/malformed/missing/symlink/directory/escape/permissions/unsupported/Adapter failure; force cannot override | malformed, directory, file-store, symlink (unix), diagnosis states covered | permissions, unsupported filesystem, Adapter failure, `unlock --force` |
+| 7 | Real three-platform native process tests | module compiles and unit tests run in CI on all three platforms | enforced child/descendant lifetime, supervision-channel closure, sharing mode, crash cleanup |
+| 8 | Embedding worker separate from index lease; drain/close or generation protocol | not started | old-handle writes + queue rebuild evidence |
+
+**Status: 0 of 8 fully covered.** Per Q76, if the hard budget cannot cover all 8, the program falls back to P3 and this item stays OPEN; the "implemented" bar is never lowered.
+
+## ZJ-0015 execution prerequisites: authorization and pre-registration (2026-11-07, separate batch)
+
+Option C also grants the **new Human authorization** required by `1-8-2`, with the explicit condition that pre-registration and a hard budget freeze happen **before** any implementation. This batch is strictly isolated from the ADR-0011 P1 batch (Q70): `e9` unchanged, `1-4` unchanged and still blocked, `1-8-1` / `1-8-2` remain parallel, product default stays OFF, v3 holdout stays frozen, G-ship 90%/95% and all safety gates unchanged, the 8 `unknownCriteria` and `has-gaps` retained. Approval covers the protocol, not results.
+
+Pre-registration fields to freeze before execution (these are field definitions, not invented values):
+
+| Field | State |
+|---|---|
+| Official N, total cost, hard budget ceiling | **to be frozen by Human before the pilot**; `5–8×4×3` is pilot only, `40×4` is not an argued budget |
+| Primary test | task-level two-sided sign-flip randomization; **Task Cluster is the sole independent inference cluster**, trials must not inflate N; `k=6` full permutation first; task-cluster bootstrap gives a 95% interval only |
+| MDE | 1.5, already frozen |
+| Arms | A/C/S; S uses the same candidates, content, count and payload, differing only by the fixed-seed ordering permutation; S is diagnostic only |
+| Correctness non-inferiority value, task-set composition, task freshness | **to be pre-registered**, not assumed |
+| Named operators / reviewers | **to be pre-registered** |
+
+Execution prerequisites that must be built only after the above is frozen: `ZCG_RETRIEVAL_ARM` (default OFF), S serialization, configuration fingerprint assertion, arm-blinded double review (raw agreement ≥90%), immutable run manifest, credential-free one-shot read-only snapshot isolation, fixed-seed statistics unit tests, independent task set, and a baseline under `DES-baseline-agent-sufficiency-v1` because arm switching changes MCP ranking. Then the pilot, then the formal run.
+
+**After this batch, all five prerequisites and the pilot remain unstarted.** This batch is a pre-registration and budget-freeze record only; it is not an execution start.
+
 ## Boundary
 
 This backlog is a governance aid, not an ADR, contract, method, or release input. It must not be registered in `docs/README.md`. Decisions recorded here authorize document edits only; no item above constitutes implementation approval.
