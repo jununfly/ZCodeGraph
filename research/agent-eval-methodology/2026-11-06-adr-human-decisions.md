@@ -170,6 +170,24 @@ Execution prerequisites that must be built only after the above is frozen: `ZCG_
 
 **After this batch, all five prerequisites and the pilot remain unstarted.** This batch is a pre-registration and budget-freeze record only; it is not an execution start.
 
+## Wiring program authorization (2026-11-07, Q68 / Q76 / §3 gates closed)
+
+Human selected **A for all three** remaining hard gates in the follow-up round, recorded as an append-only decision on `1-8-1` (#5) and in `2026-11-07-p1-wiring-decision-package.md`:
+
+| Gate | Decision |
+|---|---|
+| ADR-0011 §3 shared Adapter | **A — supervised Rust lease-holder.** Reuse `replacement-gate` / `process_supervision` / fixture infrastructure; zero new runtime dependency. Human explicitly accepts the §2 equivalence argument (Node borrows a lease owned by a supervised native descendant instead of holding the OS handle itself) and requires real SIGKILL / channel-EOF / descendant evidence for items 3 and 7. Path B (N-API addon) not selected. |
+| Q68 named concurrency/security reviewer | **A — Human is the named reviewer.** The gate is closed; an AI agent must not self-assign. Every batch still returns to Human for approval. |
+| Q76 hard budget | **A — 3 feat batches / 2 full three-platform CI reruns**, with zero new runtime dependency, product default OFF, no `1-4` unblock, and no weakening of the P0 lock / DB replacement barrier. If the 8 items cannot all be evidenced inside the budget, fall back to P3 and keep this item OPEN (Q76). |
+
+Batch plan: (1) native `index-lease` helper + TS handle + §4 `unlock` diagnosis + process-level tests; (2) **atomic** cross-language switch of `FileLock` and `ProjectLock` plus the §2 single operation-lease refactor; (3) close all 8 Required verification items with three-platform evidence, then update ADR-0011's implementation-status note. Batches 1 and 2 must stay separate because changing only Rust would leave `FileLock` deleting the stable rendezvous file.
+
+**Batch 1 (2026-11-07, working tree, not committed):** `crates/zcodegraph-core/src/main.rs` gains `index-lease` (`--project-path`, `--diagnose`, `--repair`); `IndexWriteLease` / `RendezvousState` become public exports; new `src/indexing/index-write-lease.ts` provides `acquireIndexWriteLease` / `diagnoseIndexWriteLease` / `repairIndexWriteLeaseMetadata` using the existing `findRustCoreCommand` + stdin-EOF supervision pattern; `src/bin/zcodegraph.ts` `unlock` becomes inspect-and-report (never `unlinkSync`, `--force` is metadata repair that cannot override an active writer); new `tests/index-write-lease.test.ts` with 6 real native-process tests joins the ci.yml three-platform file-lock guardrail. `FileLock`, `ProjectLock`, `tests/security.test.ts:69`, `ZJ-CONTEXT.md`, and the 13 `src/index.ts` lock call sites are **unchanged**.
+
+Verification: `cargo check --all-targets` pass, `cargo test --lib index_write_lock` 6/6, `cargo build --bins` pass, `npm run build` pass, new suite 6/6, 9 regression suites 182 passed / 4 skipped. The Windows `ERROR_LOCK_VIOLATION` sharing-mode finding reproduced across processes and is now pinned by a conformance assertion; §4 diagnostics come from the helper's `--diagnose` channel, not the locked file.
+
+**Conservative accounting:** items 2 and 5 now have real Windows process evidence, items 1 and 6 are partial, items 3/4/7/8 remain unstarted. **0 of 8 fully covered** — item 7 requires three-platform CI evidence (first budgeted CI rerun). The debt remains OPEN and ADR-0011 must not be described as implemented. `e9`, `1-4 blocked=True`, both 1-8 nodes `pending` / budget `0/2`, product default OFF, and all ZJ-0015 prerequisites are unchanged.
+
 ## Boundary
 
 This backlog is a governance aid, not an ADR, contract, method, or release input. It must not be registered in `docs/README.md`. Decisions recorded here authorize document edits only; no item above constitutes implementation approval.
