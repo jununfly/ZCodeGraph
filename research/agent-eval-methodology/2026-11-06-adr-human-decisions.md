@@ -188,6 +188,84 @@ Verification: `cargo check --all-targets` pass, `cargo test --lib index_write_lo
 
 **Conservative accounting:** items 2 and 5 now have real Windows process evidence, items 1 and 6 are partial, items 3/4/7/8 remain unstarted. **0 of 8 fully covered** — item 7 requires three-platform CI evidence (first budgeted CI rerun). The debt remains OPEN and ADR-0011 must not be described as implemented. `e9`, `1-4 blocked=True`, both 1-8 nodes `pending` / budget `0/2`, product default OFF, and all ZJ-0015 prerequisites are unchanged.
 
+## Fallback to P3 (2026-11-07, Q76)
+
+Human selected C1+C2. PR #705 (batch 1) merged as `e3db5c9`; the P1 program
+falls back to **P3** under the Q76 rule, and this backlog item remains **OPEN**.
+ADR-0011 is still an accepted design and must not be described as implemented.
+
+### Trigger and budget accounting
+
+| | |
+|---|---|
+| Q76 frozen hard budget | 3 feat batches / 2 full three-platform CI reruns |
+| Used | batch 1 (`4ffed66` feat + `9901f35` chore, PR #705) and 1 CI rerun (`42367067011`, 5/5 success, `tests/index-write-lease.test.ts` 6/6 on windows-2025 / macos-15 / ubuntu-latest) |
+| Remaining at fallback | 2 batches, 1 CI rerun |
+| Why insufficient | batch 2 is blocked (below) and batch 3 must close all 8 verification items with their own three-platform evidence; at least three more submissions would be needed |
+
+Q76 states that if a future P1 cannot complete all 8 verification items inside
+its hard budget, the program falls back to P3 and keeps this item OPEN. That is
+the condition reached here. The 8 items remain **0 fully covered**: items 2 and
+5 have real Windows plus three-platform process evidence, 1 and 6 are partial,
+3/4/7/8 are unstarted.
+
+### Batch 2 blocker (root cause)
+
+`tests/native-process-supervision.test.ts:162-169` reads `zcodegraph.lock` with
+`readPid()` (`Number(trim)`) to obtain the writer PID, and the
+`it.each(['parent-sigkill','channel-eof'])` case has **no platform skip** — it
+is part of the ci.yml three-platform native-process guardrail. Once
+`ProjectLock` moves to the OS-backed lease: (1) on Windows, `fs2`'s whole-file
+exclusive `LockFileEx` makes a **cross-process** read fail with `EBUSY`
+(already reproduced by batch 1's tests); (2) the metadata becomes bounded JSON
+rather than a bare PID. The writer PID is used to assert descendant reaping
+(Required verification item 3), so the assertion cannot simply be dropped.
+
+This is the ADR-0011 §4 gap already pinned in batch 1: an active writer's
+diagnostics cannot be read back from a whole-file-locked rendezvous file. Batch
+1 recorded it as an open Adapter input; batch 2 collided with it. The
+experimental batch 2 edits were reverted before any commit, so PR #705 stayed
+exactly at batch 1 and no further CI rerun was consumed.
+
+### Restart prerequisite (recorded, not authorized)
+
+Any future P1 restart must first provide an **independent §4 diagnosis
+channel**. Recommended option **A**: a sidecar or structured helper stdout
+channel carrying non-sensitive owner PID / acquiredAt, with
+`tests/native-process-supervision.test.ts` reading from that channel. Option B
+(byte-range lock: lock only byte 0, metadata readable from offset 1) is higher
+risk — it changes the shared `try_lock` primitive and metadata layout that
+`replacement_gate.rs` also uses, re-opening three-platform conformance for the
+already-verified embedding-replacement domain. Both are protocol/primitive
+extensions requiring a **new Human authorization and a refrozen hard budget**
+(recommended 4–5 batches / 3–4 CI reruns).
+
+Useful finding retained for a restart: `indexExternalEngine` uses the Rust
+writer's own `ProjectLock`, while Node's `FileLock` serves only pure-TypeScript
+index paths; the two use the same OS lock but never hold it simultaneously, so
+no new `--index-lease-externally-held` borrowing flag is needed.
+
+### What stays on main
+
+Batch 1 is kept: the `index-lease` native helper, public `IndexWriteLease`, the
+TS handle, §4 `unlock` diagnosis / `--force` metadata repair, 6 real
+native-process tests in the three-platform file-lock guardrail, and the Windows
+sharing-mode conformance evidence. These are independently valid capabilities,
+not evidence that ADR-0011 is implemented.
+
+Unchanged by the fallback: `ProjectLock`, `FileLock`,
+`tests/security.test.ts:69`, `ZJ-CONTEXT.md`, and the 13 `src/index.ts` lock
+call sites. The P3 freeze applies again to these **remaining unswitched**
+assets; `unlock` and the CLI help text are already shipped in their §4 form and
+are not reverted. The four Q79 re-open events and the periodic
+governance-action fallback remain in force.
+
+**Known documentation drift (recorded here, not changed — Q81):** ADR-0011's
+`> Implementation status (2026-11-06)` note still says `unlock` calls
+`fs.unlinkSync`. That half is stale after PR #705; the rest of the note (§1/§3
+unwired, 8 items uncovered) remains accurate. This round does not edit the ADR
+body; the note must be synced at the next re-open event.
+
 ## Boundary
 
 This backlog is a governance aid, not an ADR, contract, method, or release input. It must not be registered in `docs/README.md`. Decisions recorded here authorize document edits only; no item above constitutes implementation approval.
