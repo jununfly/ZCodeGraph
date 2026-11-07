@@ -219,3 +219,39 @@ unwired, 0 of 8 verification items fully covered, "do not describe this ADR as
 implemented") is unchanged and still accurate. Q81 is respected: no review
 triggers were written into the ADR; this edit corrects a factual
 implementation-status statement only. The debt stays OPEN.
+
+## P1 restart and R1: ADR-0011 §4 independent diagnosis channel (2026-11-07, late)
+
+> Status: **Human authorized; implemented in the working tree, not committed.** Q75/Q76/Q68 terms are in the governance backlog's `P1 restart` section. Refrozen budget: **4 feat batches / 3 CI reruns**; R1 consumes **no** rerun (3 of 3 remain). Q68 reviewer remains Human.
+
+### Why R1 exists
+
+Batch 2 of the previous P1 was blocked at `tests/native-process-supervision.test.ts:169` and `tests/fixtures/supervised-index-owner.cjs:47`: both obtain the writer PID from `.zcodegraph/zcodegraph.lock` with `Number(trim)`. After the switch to `IndexWriteLease` the file holds bounded JSON, and on Windows `fs2`'s whole-file `LockFileEx` rejects any cross-process read with `ERROR_LOCK_VIOLATION (33)`. That PID is used to assert descendant reaping (Required verification item 3), so the assertion cannot simply be dropped. ADR-0011 §4 asks for "non-sensitive available diagnostics" for an active writer; nothing in §4 requires reading them from the rendezvous file itself.
+
+### Channel design (option A: sidecar + structured helper stdout)
+
+| Layer | Contract |
+|---|---|
+| Rust `IndexWriteLease::acquire` | After the OS lock is held and bounded metadata is rewritten in place, write `.zcodegraph/index-lease.diagnostics.json` (a separate, unlocked, stable, bounded JSON file): `{"protocol":1,"pid":<u32>,"acquiredAt":<ms>}`. A write failure fails the acquisition closed (unlock the handle, return the error) — a missing channel must not produce an unverifiable active writer. |
+| Rust state source | `IndexWriteLease::diagnose(project)` stays the **only** authority (non-blocking OS-lock probe). `diagnose_with_owner(project)` returns `{state, owner}` and exposes `owner` **only** when `state == ActiveWriter`; a stale sidecar after SIGKILL is ignored. |
+| helper CLI | `zcodegraph-core index-lease --project-path <p> --diagnose-json` prints `{"state":"...","owner":{"pid":...,"acquiredAt":...} or null}`. Existing `--diagnose` (single token) and `--repair` are unchanged for `unlock` compatibility. |
+| TypeScript | `readIndexWriteLeaseDiagnostics(projectRoot)` parses the structured channel into `{state, owner}`; spawn/parse failure returns `{state:'unknown', owner:null}` (fail closed). Existing `diagnoseIndexWriteLease` / `repairIndexWriteLeaseMetadata` signatures are unchanged. |
+| `unlock` | On `active-writer`, append non-sensitive owner pid / acquiredAt to the existing fail-closed message; all exit codes and the never-delete invariant are unchanged. |
+
+The sidecar is written by the **lease layer**, not by the helper process alone, so the same channel works when `ProjectLock` adopts `IndexWriteLease` in R2. It is a separate regular file that is never locked, so Windows cross-process reads succeed while the rendezvous file is exclusively locked. No new runtime dependency; `replacement_gate.rs` and `try_lock` are untouched.
+
+### R2 call-site contract (applied atomically with the lock switch)
+
+- `tests/native-process-supervision.test.ts:169`: `readPid(legacyLockPath)` → `readIndexWriteLeaseDiagnostics(projectRoot).owner.pid`, after asserting `state === 'active-writer'`.
+- `tests/fixtures/supervised-index-owner.cjs:47`: stop reading `zcodegraph.lock` in `onProgress`; the supervisor PID still comes from the `supervised-index` spawn hook and the writer PID comes from the same structured channel.
+- Both edits land in R2 together with `FileLock` + `ProjectLock` + `tests/security.test.ts:69` + `ZJ-CONTEXT.md` + CLI help. No standalone test-only edit (Q51).
+
+### R1 acceptance (Windows-local, no CI rerun)
+
+- `cargo check --all-targets`; `cargo test --lib index_write_lock`, including new sidecar / stale-sidecar / Windows sharing-mode cases.
+- `node node_modules/typescript/bin/tsc`; `npx vitest run tests/index-write-lease.test.ts`, including the new real-native-process channel cases; governance suites.
+- R1 closes **no** Required verification item: 0 of 8 fully covered, debt OPEN, ADR-0011 must not be described as implemented.
+
+### R1 verification results
+
+Filled in after the local run (see the closing status note in the conversation deliverable).

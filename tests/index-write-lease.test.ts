@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import {
   acquireIndexWriteLease,
   diagnoseIndexWriteLease,
+  readIndexWriteLeaseDiagnostics,
   repairIndexWriteLeaseMetadata,
   IndexWriteLeaseBusyError,
   type NativeIndexWriteLease,
@@ -15,11 +16,16 @@ import {
  * ADR-0011 Required verification items 1, 2, 5 and 6 (process-level subset).
  * These are real native processes, not mocks: the Rust helper owns the sole OS
  * lock handle on `.zcodegraph/zcodegraph.lock`.
+ *
+ * The §4 channel cases additionally pin the R1 prerequisite of restarted P1:
+ * active-writer diagnostics come from an independent, never-locked channel,
+ * never from the whole-file-locked rendezvous file.
  */
 describe('index write lease (native process)', () => {
   const cliPath = path.resolve(__dirname, '../dist/bin/zcodegraph.js');
   let projectRoot: string;
   let rendezvous: string;
+  let diagnosticsPath: string;
   let leases: NativeIndexWriteLease[];
 
   beforeEach(() => {
@@ -29,6 +35,7 @@ describe('index write lease (native process)', () => {
     // `isInitialized` requires the DB path to exist; unlock never opens it.
     fs.writeFileSync(path.join(store, 'zcodegraph.db'), '');
     rendezvous = path.join(store, 'zcodegraph.lock');
+    diagnosticsPath = path.join(store, 'index-lease.diagnostics.json');
     leases = [];
   });
 
@@ -101,6 +108,9 @@ describe('index write lease (native process)', () => {
       { timeout: 10_000, interval: 100 },
     );
     expect(fs.existsSync(rendezvous)).toBe(true);
+    // A stale sidecar left by the killed helper must not be presented as a
+    // live owner: the OS-lock probe is the only state authority.
+    expect(readIndexWriteLeaseDiagnostics(projectRoot).owner).toBeNull();
     const recovered = await hold();
     await recovered.release();
   }, 30_000);
@@ -147,4 +157,41 @@ describe('index write lease (native process)', () => {
     expect(repaired.stdout + repaired.stderr).toMatch(/repaired/);
     expect(fs.existsSync(rendezvous)).toBe(true);
   }, 60_000);
+
+  it('exposes active-writer owner through the independent channel, never the locked rendezvous', async () => {
+    const lease = await hold();
+    const diagnostics = readIndexWriteLeaseDiagnostics(projectRoot);
+    expect(diagnostics.state).toBe('active-writer');
+    expect(diagnostics.owner?.pid).toBe(lease.processId);
+    expect(diagnostics.owner!.acquiredAt).toBeGreaterThan(0);
+    if (process.platform === 'win32') {
+      // fs2's whole-file LockFileEx blocks the rendezvous read cross-process,
+      // but the separate sidecar stays readable while the lease is held.
+      expect(() => fs.readFileSync(rendezvous, 'utf8')).toThrow();
+      expect(fs.readFileSync(diagnosticsPath, 'utf8')).toContain('"pid"');
+    }
+    await lease.release();
+    const after = readIndexWriteLeaseDiagnostics(projectRoot);
+    expect(after.state).toBe('not-locked');
+    expect(after.owner).toBeNull();
+  }, 30_000);
+
+  it('ignores a stale diagnostics channel when no OS writer holds the lease', () => {
+    fs.writeFileSync(diagnosticsPath, JSON.stringify({ protocol: 1, pid: 999999, acquiredAt: 123 }));
+    const diagnostics = readIndexWriteLeaseDiagnostics(projectRoot);
+    expect(diagnostics.state).toBe('not-locked');
+    expect(diagnostics.owner).toBeNull();
+  }, 30_000);
+
+  it('unlock reports owner diagnostics without deleting the stable lock file', async () => {
+    const lease = await hold();
+    const blocked = spawnSync(process.execPath, [cliPath, 'unlock', projectRoot], {
+      encoding: 'utf8',
+      timeout: 20_000,
+    });
+    expect(blocked.status).toBe(1);
+    expect(blocked.stdout + blocked.stderr).toContain(`pid ${lease.processId}`);
+    expect(fs.existsSync(rendezvous)).toBe(true);
+    await lease.release();
+  }, 30_000);
 });

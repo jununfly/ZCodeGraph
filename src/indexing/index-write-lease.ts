@@ -59,6 +59,60 @@ export function diagnoseIndexWriteLease(projectRoot: string): IndexWriteLeaseSta
   return DIAGNOSIS_STATES.includes(state) ? (state as IndexWriteLeaseState) : 'unknown';
 }
 
+export interface IndexWriteLeaseOwner {
+  pid: number;
+  acquiredAt: number;
+}
+
+export interface IndexWriteLeaseDiagnostics {
+  state: IndexWriteLeaseState;
+  owner: IndexWriteLeaseOwner | null;
+}
+
+/**
+ * ADR-0011 §4 independent diagnosis channel (R1 of the restarted P1). The
+ * helper derives `state` from the OS-lock probe and reads non-sensitive owner
+ * fields from a separate, never-locked sidecar, so this works on Windows where
+ * the whole-file-locked rendezvous file cannot be read cross-process. Owner
+ * fields are exposed only for an active writer; a stale sidecar left by a
+ * SIGKILLed writer is never presented as a live owner. Any spawn/parse failure
+ * fails closed with `unknown` / `null`.
+ */
+export function readIndexWriteLeaseDiagnostics(projectRoot: string): IndexWriteLeaseDiagnostics {
+  const core = findRustCoreCommand();
+  const result = spawnSync(core.command, leaseArgs(projectRoot, ['--diagnose-json']), {
+    cwd: core.cwd,
+    env: process.env,
+    encoding: 'utf8',
+  });
+  if (result.error || result.status !== 0) return { state: 'unknown', owner: null };
+  try {
+    const parsed = JSON.parse(result.stdout.trim()) as {
+      state?: unknown;
+      owner?: unknown;
+    };
+    const state =
+      typeof parsed.state === 'string' && DIAGNOSIS_STATES.includes(parsed.state)
+        ? (parsed.state as IndexWriteLeaseState)
+        : 'unknown';
+    if (state !== 'active-writer' || !parsed.owner || typeof parsed.owner !== 'object') {
+      return { state, owner: null };
+    }
+    const { pid, acquiredAt } = parsed.owner as { pid?: unknown; acquiredAt?: unknown };
+    const owner =
+      typeof pid === 'number' &&
+      Number.isSafeInteger(pid) &&
+      pid > 0 &&
+      typeof acquiredAt === 'number' &&
+      Number.isSafeInteger(acquiredAt)
+        ? { pid, acquiredAt }
+        : null;
+    return { state, owner };
+  } catch {
+    return { state: 'unknown', owner: null };
+  }
+}
+
 /**
  * `unlock --force`: rewrite bounded diagnostic metadata in place through an
  * already-acquired OS lock. It cannot override an active writer (the helper

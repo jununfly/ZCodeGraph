@@ -73,6 +73,7 @@ fn run_supervised_index(args: Vec<String>) {
 fn run_index_write_lease(args: &[String]) {
     let mut project_path: Option<String> = None;
     let mut diagnose_only = false;
+    let mut diagnose_json = false;
     let mut repair_only = false;
     let mut index = 0;
     while index < args.len() {
@@ -82,6 +83,7 @@ fn run_index_write_lease(args: &[String]) {
                 project_path = args.get(index).cloned();
             }
             "--diagnose" => diagnose_only = true,
+            "--diagnose-json" => diagnose_json = true,
             "--repair" => repair_only = true,
             other => {
                 eprintln!("unknown index-lease argument: {}", other);
@@ -96,10 +98,28 @@ fn run_index_write_lease(args: &[String]) {
     };
     let project = Path::new(&project_path);
 
-    if diagnose_only {
+    if diagnose_only || diagnose_json {
         // Inspection only: never deletes the rendezvous file and never reports
         // not-locked while another process holds the OS lock (ADR-0011 §4).
-        println!("{}", zcodegraph_core::IndexWriteLease::diagnose(project).as_str());
+        // `--diagnose` keeps its single-token output for `unlock` compatibility;
+        // `--diagnose-json` adds the independent channel's non-sensitive owner.
+        let details = zcodegraph_core::IndexWriteLease::diagnose_with_owner(project);
+        if diagnose_json {
+            let owner = match details.owner {
+                Some(owner) => format!(
+                    "{{\"pid\":{},\"acquiredAt\":{}}}",
+                    owner.pid, owner.acquired_at_ms
+                ),
+                None => "null".to_string(),
+            };
+            println!(
+                "{{\"state\":\"{}\",\"owner\":{}}}",
+                details.state.as_str(),
+                owner
+            );
+        } else {
+            println!("{}", details.state.as_str());
+        }
         return;
     }
 
