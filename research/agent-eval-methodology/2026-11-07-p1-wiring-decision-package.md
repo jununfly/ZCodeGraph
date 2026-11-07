@@ -254,4 +254,33 @@ The sidecar is written by the **lease layer**, not by the helper process alone, 
 
 ### R1 verification results
 
+R1 was subsequently committed (feat + chore) and merged as **PR #708** (merge commit `42326a1`); CI passed 5/5 and local `main` was synced. The §4 independent diagnosis channel is now shipped on `main`. The line 225 note "implemented in the working tree, not committed" reflects the pre-merge authoring state and is now resolved. R1 closed **no** Required verification item: 0 of 8 fully covered, debt OPEN, ADR-0011 must not be described as implemented.
+
+## R2: atomic cross-language switch (FileLock ⇄ ProjectLock → IndexWriteLease)
+
+> Status: **implemented in the working tree, not committed.** Authorized by the same Q75/Q76/Q68 terms carried from R1 (refrozen budget **4 feat batches / 3 CI reruns**; R1 consumed 0 reruns, R2 is the 2nd feat batch and will consume CI rerun 1 when its PR runs). Q68 reviewer remains Human.
+
+### Scope actually landed (working tree)
+
+- **TS `FileLock` → native lease.** New `src/indexing/file-lock.ts` hosts the production `FileLock` delegating to `acquireIndexWriteLease`; `FileLock` was removed from `src/utils.ts` (delete-to-recover semantics gone, doc comment left) and re-exported from `src/index.ts` to avoid the `utils ↔ extraction ↔ rust-indexer ↔ index-write-lease` circular import. `src/index.ts` 13 call sites (`acquire`/`release`/`withLock`) converted to async.
+- **Rust `ProjectLock` → `IndexWriteLease`.** The entire `ProjectLock` cluster (struct/impl/`Drop`, `create_lock_file`, `remove_stale_lock`, all three `pid_is_running` cfg variants) was deleted from `crates/zcodegraph-core/src/lib.rs`; the production call site uses `IndexWriteLease::acquire`. The two obsolete `ProjectLock` unit tests were removed (covered by `index_write_lock.rs`). `index_write_lock.rs`'s header was rewritten from "deliberately unwired / Stage 1" to "production, wired in R2", and `#![allow(dead_code)]` removed — `cargo check --all-targets` shows no dead-code warnings.
+- **Two test PID-read fixes (Q51, with the implementation, not alone).** `tests/native-process-supervision.test.ts:169` now reads `readIndexWriteLeaseDiagnostics(projectRoot).owner.pid` after asserting `state === 'active-writer'`; the `supervisorPid` still comes from the `supervised-index` spawn hook. `tests/fixtures/supervised-index-owner.cjs` no longer reads `zcodegraph.lock` in `onProgress` (the writer PID is read from the sidecar by the test).
+- **`tests/security.test.ts` FileLock block rewritten.** Async lease contract: acquire → stable rendezvous file exists; release → file **never deleted** (key behavioral change); same-process second acquire rejects with `locked by another process`; cross-process writer exit → OS releases → re-acquire succeeds; `withLock`/`withLockAsync` release and never delete; `release` idempotent. The import was corrected to pull `FileLock` from `../src/index` (it had brokenly imported `FileLock` from `../src/utils`).
+- **`ZJ-CONTEXT.md` glossary (lines 406–434)** rewritten from design-state to implemented-state: the §2 "parent retains sole OS lock / Rust children borrow" wording — which was **not** built that way — was replaced with the actual supervised-native-helper (TS) + direct `IndexWriteLease` (Rust) model. CLI `unlock` help text was already §4-aligned in R1; confirmed no change needed.
+
+### Key design finding
+
+The planned §2 "single-operation lease / remove nested `finalizeRustIndex` acquire" refactor turned out to be a **no-op**: `indexExternalEngine` does not hold `FileLock`; it calls `cg.finalizeRustIndex` on a *second* `CodeGraph` instance whose own `acquire` is sequential, not nested. `FileLock` and `ProjectLock` never hold the lock simultaneously, so no new `--index-lease-externally-held` borrowing flag was needed, and the §2 refactor was not implemented. This matches the R1 decision's "no borrowing flag" conclusion.
+
+### R2 acceptance (pending — task #13)
+
+- `cargo check --package zcodegraph-core --all-targets` — **done locally, pass** (only benign Windows incremental-lock-file warnings; no dead-code warnings).
+- `cargo test --lib` (incl. `index_write_lock`) — pending.
+- `node node_modules/typescript/bin/tsc` — pending.
+- `npx vitest run` full regression (incl. `tests/security.test.ts`, `tests/native-process-supervision.test.ts`) — pending.
+- governance suites + `git diff --check` — pending.
+- R2 closes **no** Required verification item by itself; item count unchanged (0 of 8 fully covered). Debt stays OPEN; ADR-0011 must not be described as implemented.
+
+### R2 verification results
+
 Filled in after the local run (see the closing status note in the conversation deliverable).
