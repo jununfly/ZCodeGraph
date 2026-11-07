@@ -205,9 +205,17 @@ hold it at the same time, so batch 2 does **not** need a new
 (Rust `ProjectLock` swap, async `FileLock`, 4 `await` call sites) compiled
 locally but were reverted before any commit; PR #705 stayed at batch 1 only.
 
-### Known documentation drift (recorded, not changed — Q81)
+### Documentation drift — resolved at the 2026-11-07 review
 
-ADR-0011's `> Implementation status (2026-11-06)` note still says `unlock`
-calls `fs.unlinkSync`. That half became stale with PR #705, while the rest
-(§1/§3 unwired, 8 items uncovered) is still accurate. The ADR body is not
-edited in this round; sync it at the next Q79 re-open event.
+ADR-0011's `> Implementation status (2026-11-06)` note previously said `unlock`
+calls `fs.unlinkSync`. That half became stale with PR #705 and was recorded here
+as pending the next review. The note's §4 paragraph has now been synced to
+describe the shipped inspect-and-report behavior, the constrained `--force`
+metadata repair, and the independent `index-lease --diagnose` / `--repair`
+channel. The Context sentence claiming `unlock` "deletes it unconditionally"
+was also given an explicit past-tense qualifier and a cross-reference to the
+status note, removing the ADR's internal contradiction. The rest (§1/§3
+unwired, 0 of 8 verification items fully covered, "do not describe this ADR as
+implemented") is unchanged and still accurate. Q81 is respected: no review
+triggers were written into the ADR; this edit corrects a factual
+implementation-status statement only. The debt stays OPEN.

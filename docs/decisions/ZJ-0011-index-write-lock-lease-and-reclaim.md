@@ -19,11 +19,12 @@ was implemented.
 ## Context
 
 TypeScript `FileLock` treats a lock older than two minutes as stale even when
-its PID is alive. CLI `unlock` deletes it unconditionally. Rust `ProjectLock`
-has an independent PID-only implementation and unconditionally removes its
-path on Drop. Rust-hybrid releases its child lock before TypeScript
-fallback/finalization. The write lock therefore does not cover the complete
-index lifetime.
+its PID is alive. At the time of this decision, CLI `unlock` deleted it
+unconditionally (it has since shipped in its §4 diagnostic form — see the
+implementation-status note below). Rust `ProjectLock` has an independent
+PID-only implementation and unconditionally removes its path on Drop.
+Rust-hybrid releases its child lock before TypeScript fallback/finalization.
+The write lock therefore does not cover the complete index lifetime.
 
 The earlier proposed remedy—ownerToken, 5-second heartbeat, 30-second lease,
 and quarantine reclamation—was rejected by design review:
@@ -203,11 +204,21 @@ left an incomplete operation.
 >
 > §4 depends on those prerequisites: its diagnostics and constrained `--force`
 > require a command that has already acquired the OS lock and verified that no
-> active writer exists. `src/bin/zcodegraph.ts` (`unlock [path]`) therefore
-> still calls `fs.unlinkSync` and reports "Removed lock file", and
-> `tests/security.test.ts` asserts the shipped delete-to-recover behavior.
-> That test must not be changed on its own: it describes the implementation
-> that actually ships.
+> active writer exists. **Amended 2026-11-07 (PR #705, batch 1):** the `unlock`
+> CLI surface has since shipped in its §4 form and no longer deletes anything.
+> `src/bin/zcodegraph.ts` (`unlock [path]`) now reports a diagnosis instead of
+> "Removed lock file"; `--force` only rewrites bounded diagnostic metadata in
+> place while the OS lock is held, cannot override an active writer, and never
+> deletes the rendezvous file. Both channels are served by the supervised
+> `zcodegraph-core index-lease --diagnose` / `--repair` helper
+> (`src/indexing/index-write-lease.ts`), not by reading the locked rendezvous
+> file: on Windows an `fs2` whole-file exclusive lock rejects even a read from
+> another handle. This is a §4 CLI capability on a separate helper path, not
+> evidence that §1/§3 are wired into the index-write path — `FileLock` and
+> `ProjectLock` above still delete their PID file, and
+> `tests/security.test.ts` still asserts that shipped `FileLock`
+> delete-to-recover behavior. That test must not be changed on its own: it
+> describes the implementation that actually ships.
 >
 > None of the 8 items in `## Required verification` is fully covered, and
 > several existing assertions contradict items 2 and 5. The decision above
