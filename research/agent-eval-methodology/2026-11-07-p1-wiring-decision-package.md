@@ -149,3 +149,65 @@ process evidence; items 1 and 6 are partially covered; items 3, 4, 7, 8 remain
 unstarted. **None is yet "fully covered"** because item 7 requires three-platform
 CI evidence, which consumes the first of the two budgeted CI reruns. The debt
 stays OPEN and ADR-0011 must not be described as implemented.
+
+## Fallback to P3 (2026-11-07, Q76)
+
+> Status: **P1 falls back to P3; the debt stays OPEN.** PR #705 (batch 1)
+> merged as `e3db5c9`. Human selected C1+C2. This section is a research record
+> and does not authorize any implementation.
+
+### Budget arithmetic that forced the fallback
+
+| | |
+|---|---|
+| Frozen budget | 3 feat batches / 2 full three-platform CI reruns |
+| Used | batch 1 + 1 CI rerun (`42367067011`, 5/5, new suite 6/6 on all three runners) |
+| Remaining | 2 batches / 1 CI rerun |
+| Still required | batch 2 (blocked) + batch 3 (all 8 verification items and their three-platform evidence) |
+
+At least three further submissions would be needed. Q76 explicitly says that
+when a P1 cannot complete all 8 verification items inside its hard budget, the
+program falls back to P3 and keeps the item OPEN. **0 of 8 fully covered.**
+
+### Batch 2 blocker — evidence and fix paths
+
+`tests/native-process-supervision.test.ts:162-169` obtains the writer PID by
+reading the lock file with `readPid()` = `Number(trim)`, inside an
+`it.each(['parent-sigkill','channel-eof'])` case with no platform skip (ci.yml
+three-platform native-process guardrail). With an OS-backed lease:
+
+1. Windows whole-file `LockFileEx` rejects a **cross-process** read with
+   `EBUSY` (reproduced in batch 1: the main process reading the helper's locked
+   rendezvous file).
+2. Metadata is bounded JSON, not a bare PID number.
+3. The writer PID is required to assert descendant reaping (item 3), so the
+   assertion cannot be removed without weakening verification.
+
+This is the §4 diagnosis gap pinned in batch 1's conformance test: active-writer
+diagnostics cannot be read from a whole-file-locked rendezvous file.
+
+| Fix path | Description | Assessment |
+|---|---|---|
+| **A (recommended if restarted)** | Independent §4 diagnosis channel — sidecar file or structured helper stdout carrying non-sensitive owner PID / acquiredAt; the supervision test reads from that channel | Additive, leaves the shared `try_lock` primitive and the replacement-gate domain untouched; matches §4's "available diagnostics" wording, which never required reading the lock file |
+| B | Byte-range lock: Windows `LockFileEx` locks only byte 0; metadata from offset 1 stays readable cross-process; Unix `flock` is advisory and already permits reads | Needs a `Win32_Storage_FileSystem` feature, a new platform primitive, and a metadata-layout change; re-opens three-platform conformance for the shared `replacement_gate.rs` path — materially larger blast radius |
+
+Both are protocol/primitive extensions needing a new Human authorization and a
+refrozen budget (recommended 4–5 batches / 3–4 CI reruns). **Neither is
+authorized by this fallback.**
+
+### Design finding worth keeping
+
+`indexExternalEngine` runs the Rust writer with its own `ProjectLock`; Node's
+`FileLock` serves only the pure-TypeScript index paths (`indexAll` non-rust,
+`indexFiles`, `sync`, `finalizeRustIndex`). Both use the same OS lock but never
+hold it at the same time, so batch 2 does **not** need a new
+`--index-lease-externally-held` borrowing flag. The experimental batch 2 edits
+(Rust `ProjectLock` swap, async `FileLock`, 4 `await` call sites) compiled
+locally but were reverted before any commit; PR #705 stayed at batch 1 only.
+
+### Known documentation drift (recorded, not changed — Q81)
+
+ADR-0011's `> Implementation status (2026-11-06)` note still says `unlock`
+calls `fs.unlinkSync`. That half became stale with PR #705, while the rest
+(§1/§3 unwired, 8 items uncovered) is still accurate. The ADR body is not
+edited in this round; sync it at the next Q79 re-open event.
