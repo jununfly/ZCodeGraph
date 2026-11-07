@@ -146,6 +146,19 @@ export function findRustCoreCommand(
   );
 }
 
+/**
+ * Resolve the real production `zcodegraph-core` binary for the index-write
+ * lease helper. The lease helper must never be the test-redirected
+ * `ZCG_RUST_CORE_BINARY` fixture, which only implements `supervised-index` /
+ * `replacement-gate` / `worker-lease` and does not understand `index-lease`.
+ * Using the real core keeps the OS-backed lease working in every environment
+ * while the index-engine core can still be substituted in tests.
+ */
+export function findLeaseHelperCommand(): RustCoreCommand {
+  const { ZCG_RUST_CORE_BINARY: _override, ...cleanEnv } = process.env;
+  return findRustCoreCommand(cleanEnv);
+}
+
 function configuredEngineDiagnostics(env: NodeJS.ProcessEnv = process.env): RustReadinessDiagnostics['configuredEngine'] {
   void env;
   return { engine: 'rust-hybrid', source: 'default' };
