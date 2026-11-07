@@ -258,7 +258,7 @@ R1 was subsequently committed (feat + chore) and merged as **PR #708** (merge co
 
 ## R2: atomic cross-language switch (FileLock ⇄ ProjectLock → IndexWriteLease)
 
-> Status: **implemented in the working tree, not committed.** Authorized by the same Q75/Q76/Q68 terms carried from R1 (refrozen budget **4 feat batches / 3 CI reruns**; R1 consumed 0 reruns, R2 is the 2nd feat batch and will consume CI rerun 1 when its PR runs). Q68 reviewer remains Human.
+> Status: **committed and pushed as PR #709; one CI rerun consumed (3 remaining).** During that CI run the architecture red-line (`index` +58.2% vs baseline) and `frameworks-integration` 5000 ms timeouts surfaced; root-caused to the blanket 13-call-site conversion and fixed in follow-up commits. Re-CI pending. Authorized by the same Q75/Q76/Q68 terms carried from R1 (refrozen budget **4 feat batches / 3 CI reruns**; R1 consumed 0 reruns, R2 is the 2nd feat batch and consumed CI rerun 1 on its first PR run). Q68 reviewer remains Human.
 
 ### Scope actually landed (working tree)
 
@@ -268,19 +268,25 @@ R1 was subsequently committed (feat + chore) and merged as **PR #708** (merge co
 - **`tests/security.test.ts` FileLock block rewritten.** Async lease contract: acquire → stable rendezvous file exists; release → file **never deleted** (key behavioral change); same-process second acquire rejects with `locked by another process`; cross-process writer exit → OS releases → re-acquire succeeds; `withLock`/`withLockAsync` release and never delete; `release` idempotent. The import was corrected to pull `FileLock` from `../src/index` (it had brokenly imported `FileLock` from `../src/utils`).
 - **`ZJ-CONTEXT.md` glossary (lines 406–434)** rewritten from design-state to implemented-state: the §2 "parent retains sole OS lock / Rust children borrow" wording — which was **not** built that way — was replaced with the actual supervised-native-helper (TS) + direct `IndexWriteLease` (Rust) model. CLI `unlock` help text was already §4-aligned in R1; confirmed no change needed.
 
-### Key design finding
+### Key design finding (corrected 2026-11-08)
 
-The planned §2 "single-operation lease / remove nested `finalizeRustIndex` acquire" refactor turned out to be a **no-op**: `indexExternalEngine` does not hold `FileLock`; it calls `cg.finalizeRustIndex` on a *second* `CodeGraph` instance whose own `acquire` is sequential, not nested. `FileLock` and `ProjectLock` never hold the lock simultaneously, so no new `--index-lease-externally-held` borrowing flag was needed, and the §2 refactor was not implemented. This matches the R1 decision's "no borrowing flag" conclusion.
+The earlier "no-op" conclusion for the §2 "remove nested `finalizeRustIndex` acquire" refactor was **wrong** — it was inferred from the *old* PID-file `FileLock`, where `finalizeRustIndex`'s re-acquire was a trivial same-PID write and `FileLock`/`ProjectLock` never held a real OS lock simultaneously. Under the OS-backed `IndexWriteLease`, the 13-call-site blanket conversion **did** add a second OS-lease acquire to `finalizeRustIndex` (the old PID-file write became a process spawn of `zcodegraph-core index-lease`). On the rust-hybrid path `indexExternalEngine` does not hold `FileLock`, so `finalizeRustIndex` was the *only* new OS-lease acquire vs the branch point — and because it runs after the Rust child has already exited and released its lease, it was a **purely redundant spawn** that added ~1.4 s to the `index` red-line (`2491→3941 ms`, +58.2%) and pushed `frameworks-integration` past its 5000 ms per-test timeout.
 
-### R2 acceptance (pending — task #13)
+The §2 refactor was therefore **implemented as the regression fix**: `finalizeRustIndex` no longer acquires/releases `fileLock` (it runs inside `indexMutex` and after the Rust child's own lease, exactly as at the branch point). No `--index-lease-externally-held` borrowing flag was needed — the fix was *removing* the redundant acquire, not adding a flag — which still matches the R1 "no borrowing flag" decision. The pure-TS `index()` path keeps its `fileLock` acquire because it has no Rust child and genuinely needs the cross-process OS lock.
 
-- `cargo check --package zcodegraph-core --all-targets` — **done locally, pass** (only benign Windows incremental-lock-file warnings; no dead-code warnings).
-- `cargo test --lib` (incl. `index_write_lock`) — pending.
-- `node node_modules/typescript/bin/tsc` — pending.
-- `npx vitest run` full regression (incl. `tests/security.test.ts`, `tests/native-process-supervision.test.ts`) — pending.
-- governance suites + `git diff --check` — pending.
+### R2 acceptance (as of 2026-11-08)
+
+- `cargo check --package zcodegraph-core --all-targets` — **pass** (no dead-code warnings).
+- `cargo test --lib` (`index_write_lock`) — **9/9 pass**.
+- `node node_modules/typescript/bin/tsc` — **pass**.
+- Full `npx vitest run` — **2530 passed / 38 skipped, 0 failures** (after the regression-fix commits; the 5 files that failed on the first CI run now pass).
+- `frameworks-integration.test.ts` — **37/37 pass** after the regression fix (previously 2 × 5000 ms timeouts).
+- `git diff --check` — no real whitespace errors.
+- **CI red-line regression (2026-11-08):** first PR #709 run failed `Architecture red lines` (`index` +58.2%) and `Rust packaged path (ubuntu-latest)` (`frameworks-integration` 2 × 5000 ms). Both root-caused to the redundant `finalizeRustIndex` lease spawn and fixed. Re-CI pending.
 - R2 closes **no** Required verification item by itself; item count unchanged (0 of 8 fully covered). Debt stays OPEN; ADR-0011 must not be described as implemented.
 
 ### R2 verification results
 
-Filled in after the local run (see the closing status note in the conversation deliverable).
+- First PR #709 CI run (1 of 3 reruns consumed): `Architecture red lines` FAILED (`index` baseline 2491 ms → current 3941 ms, +58.2%, red-line 15%) and `Rust packaged path (ubuntu-latest)` FAILED (`frameworks-integration` 2 × `Test timed out in 5000 ms`). Root cause: the 13-call-site blanket conversion added a redundant OS-lease spawn to `finalizeRustIndex` on the rust-hybrid path (the old sub-ms PID-file write became a `zcodegraph-core index-lease` process spawn, redundant because `finalizeRustIndex` runs after the Rust child has released its lease).
+- Fix commits (appended, did not rewrite pushed history): `5c62bdb` route lease helper through the real core (bypass `ZCG_RUST_CORE_BINARY`), `e3892f5` rewrite `failure-safety` occupied-lease test, plus the regression fix removing the redundant `finalizeRustIndex` acquire (committed below). After the fix: full vitest 2530/38 pass, `frameworks-integration` 37/37 pass, `tsc` + `cargo check` clean.
+- Re-CI pending (will consume no additional rerun beyond the 1 already used by the first PR run; the fix commits are pushed to the same PR branch).
