@@ -38,6 +38,7 @@ import { createShimmerProgress } from '../ui/shimmer-progress';
 import { getGlyphs } from '../ui/glyphs';
 import { IndexEngine, resolveIndexEngine } from '../indexing/engine-selection';
 import { getRustReadinessDiagnostics, runRustIndexer } from '../indexing/rust-indexer';
+import { diagnoseIndexWriteLease, repairIndexWriteLeaseMetadata } from '../indexing/index-write-lease';
 import {
   buildRustHybridMetadataFromPlan,
   mergeMissingFallbackDiagnostics,
@@ -2058,31 +2059,62 @@ program
   });
 
 /**
- * codegraph unlock [path]
+ * zcodegraph unlock [path]
+ *
+ * ADR-0011 §4: diagnosis, not deletion. `.zcodegraph/zcodegraph.lock` is a
+ * stable rendezvous file; OS handle cleanup releases the lock after process
+ * termination, so no delete-to-recover is needed. `--force` only rewrites
+ * bounded diagnostic metadata through an already-acquired OS lock and can
+ * never detach an active writer.
  */
 program
   .command('unlock [path]')
-  .description('Remove a stale lock file that is blocking indexing')
-  .action(async (pathArg: string | undefined) => {
+  .description('Diagnose the index write lock; never deletes the stable lock file')
+  .option('--force', 'Repair malformed lock metadata while holding the OS lock (cannot override an active writer)')
+  .action(async (pathArg: string | undefined, options: { force?: boolean }) => {
     const projectPath = resolveProjectPath(pathArg);
 
     try {
       if (!isInitialized(projectPath)) {
         error(`CodeGraph not initialized in ${projectPath}`);
+        process.exit(1);
         return;
       }
 
-      const lockPath = path.join(getCodeGraphDir(projectPath), 'zcodegraph.lock');
-
-      if (!fs.existsSync(lockPath)) {
-        info(`No lock file found ${getGlyphs().dash} nothing to do`);
+      if (options.force) {
+        // Force is metadata repair, not a mutual-exclusion bypass.
+        if (diagnoseIndexWriteLease(projectPath) === 'active-writer') {
+          error('An active index writer holds the OS lock; --force cannot override it.');
+          process.exit(1);
+          return;
+        }
+        if (!repairIndexWriteLeaseMetadata(projectPath)) {
+          error('Failed to repair lock metadata while holding the OS lock; nothing was deleted.');
+          process.exit(1);
+          return;
+        }
+        success('Lock metadata repaired in place; the stable lock file was not deleted.');
         return;
       }
 
-      fs.unlinkSync(lockPath);
-      success('Removed lock file. You can now run indexing again.');
+      switch (diagnoseIndexWriteLease(projectPath)) {
+        case 'not-locked':
+          info(`No active index writer ${getGlyphs().dash} stable lock file left in place`);
+          return;
+        case 'active-writer':
+          error('An active index writer holds the OS lock; unlock cannot override it. No lock file was deleted.');
+          process.exit(1);
+          return;
+        case 'unsupported-adapter':
+          error('OS file locking is unsupported on this platform or filesystem; index writes fail closed.');
+          process.exit(1);
+          return;
+        default:
+          error('Cannot determine index lock state; failing closed. No lock file was deleted.');
+          process.exit(1);
+      }
     } catch (err) {
-      error(`Failed to remove lock: ${err instanceof Error ? err.message : String(err)}`);
+      error(`Failed to diagnose index lock: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
     }
   });

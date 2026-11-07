@@ -36,7 +36,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::replacement_gate::{try_lock, try_unlock};
 
-pub(crate) const RENDEZVOUS_FILE: &str = "zcodegraph.lock";
+pub const RENDEZVOUS_FILE: &str = "zcodegraph.lock";
 
 const PROTOCOL_VERSION: u32 = 1;
 const MAX_METADATA_BYTES: usize = 512;
@@ -45,7 +45,7 @@ const MAX_METADATA_BYTES: usize = 512;
 /// intentionally not an authorization result: no state here permits bypassing
 /// the OS lock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum RendezvousState {
+pub enum RendezvousState {
     NotLocked,
     ActiveWriter,
     InvalidRendezvous,
@@ -53,10 +53,23 @@ pub(crate) enum RendezvousState {
     Unknown,
 }
 
+impl RendezvousState {
+    /// Stable, non-sensitive token for the `unlock` CLI diagnosis (ADR-0011 §4).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NotLocked => "not-locked",
+            Self::ActiveWriter => "active-writer",
+            Self::InvalidRendezvous => "invalid-rendezvous",
+            Self::UnsupportedAdapter => "unsupported-adapter",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
 /// An acquired OS lock on the stable rendezvous file. Dropping the value
 /// releases the lock through the OS; the file itself is never removed.
 #[derive(Debug)]
-pub(crate) struct IndexWriteLease {
+pub struct IndexWriteLease {
     file: File,
     #[allow(dead_code)]
     path: PathBuf,
@@ -152,7 +165,7 @@ impl IndexWriteLease {
     /// Acquire the exclusive OS lock before any write. On `WouldBlock` or an
     /// unsupported Adapter this fails closed; there is no PID/stale fallback
     /// and no unlocked write path.
-    pub(crate) fn acquire(project_path: &Path) -> io::Result<Self> {
+    pub fn acquire(project_path: &Path) -> io::Result<Self> {
         let path = validated_rendezvous_path(project_path)?;
         let mut file = open_rendezvous(&path)?;
         try_lock(&file, true)?;
@@ -169,7 +182,7 @@ impl IndexWriteLease {
 
     /// Explicit release surfaces unlock errors (Required verification item 5).
     /// The rendezvous file is left in place.
-    pub(crate) fn release(mut self) -> io::Result<()> {
+    pub fn release(mut self) -> io::Result<()> {
         let result = try_unlock(&self.file);
         if result.is_ok() {
             self.released = true;
@@ -179,7 +192,7 @@ impl IndexWriteLease {
 
     /// Inspect-only diagnosis for `unlock`. It never deletes the file and
     /// never reports `NotLocked` while another process holds the OS lock.
-    pub(crate) fn diagnose(project_path: &Path) -> RendezvousState {
+    pub fn diagnose(project_path: &Path) -> RendezvousState {
         let path = match validated_rendezvous_path(project_path) {
             Ok(path) => path,
             Err(_) => return RendezvousState::InvalidRendezvous,

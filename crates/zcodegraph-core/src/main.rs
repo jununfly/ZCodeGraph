@@ -65,8 +65,96 @@ fn run_supervised_index(args: Vec<String>) {
     }
 }
 
+/// ADR-0011 §1/§3: one supervised native process owns the sole OS lock handle
+/// for `.zcodegraph/zcodegraph.lock`. Node borrows this lease through the
+/// helper's stdin supervision channel; EOF (normal release, parent exit, or
+/// SIGKILL closing the pipe) releases the OS lock through handle cleanup.
+/// No PID files, no unlink, no stale-by-age reclamation.
+fn run_index_write_lease(args: &[String]) {
+    let mut project_path: Option<String> = None;
+    let mut diagnose_only = false;
+    let mut repair_only = false;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--project-path" => {
+                index += 1;
+                project_path = args.get(index).cloned();
+            }
+            "--diagnose" => diagnose_only = true,
+            "--repair" => repair_only = true,
+            other => {
+                eprintln!("unknown index-lease argument: {}", other);
+                process::exit(2);
+            }
+        }
+        index += 1;
+    }
+    let Some(project_path) = project_path else {
+        eprintln!("--project-path is required");
+        process::exit(2);
+    };
+    let project = Path::new(&project_path);
+
+    if diagnose_only {
+        // Inspection only: never deletes the rendezvous file and never reports
+        // not-locked while another process holds the OS lock (ADR-0011 §4).
+        println!("{}", zcodegraph_core::IndexWriteLease::diagnose(project).as_str());
+        return;
+    }
+
+    arm_parent_death_signal();
+    let lease = match zcodegraph_core::IndexWriteLease::acquire(project) {
+        Ok(lease) => lease,
+        Err(error) => {
+            eprintln!("{}", error);
+            process::exit(match error.kind() {
+                io::ErrorKind::WouldBlock => 3,
+                io::ErrorKind::Unsupported => 5,
+                _ => 2,
+            });
+        }
+    };
+
+    if repair_only {
+        // `acquire` already rewrote bounded metadata in place through the
+        // locked handle. Force is metadata repair, not a lock bypass: an
+        // active writer makes acquire fail with WouldBlock above.
+        if let Err(error) = lease.release() {
+            eprintln!("index-write lease unlock failed: {}", error);
+            process::exit(4);
+        }
+        println!("repaired");
+        return;
+    }
+
+    println!("acquired");
+    {
+        use std::io::Write;
+        let _ = io::stdout().flush();
+    }
+    // Hold the lease until the supervision channel closes. A parent SIGKILL
+    // closes the pipe through the OS, so no delete-to-recover is needed.
+    let mut byte = [0_u8; 1];
+    loop {
+        match io::stdin().read(&mut byte) {
+            Ok(0) | Err(_) => break,
+            Ok(_) => {}
+        }
+    }
+    if let Err(error) = lease.release() {
+        // Unlock errors must be surfaced, never converted into an unlink.
+        eprintln!("index-write lease unlock failed: {}", error);
+        process::exit(4);
+    }
+}
+
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("index-lease") {
+        run_index_write_lease(&args[1..]);
+        return;
+    }
     if args.first().map(String::as_str) == Some("supervised-index") {
         run_supervised_index(args[1..].to_vec());
         return;
