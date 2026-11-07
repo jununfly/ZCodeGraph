@@ -274,6 +274,38 @@ implemented") is unchanged and remains accurate. Q81 is respected: no review
 triggers were written into the ADR — this edit corrects a factual
 implementation-status statement only. The debt stays OPEN.
 
+## P1 restart (2026-11-07, late): new Q75 approval, refrozen budget, R1 prerequisite
+
+Human issued the short directive "重启 P1 接线程序，并先补齐 ADR §4 独立诊断通道（批次 ② 的前置）" and answered the two Human-only inputs in the follow-up. This is a **new, explicit Q75 second approval** for a restarted P1 program (the earlier 2026-11-07 approval was consumed by the P1 that fell back to P3 under Q76). It re-fires Q79(c), a formal P1 proposal, and moves the path from P3 back to **P1**. Q73 stays superseded. Q51, Q68, Q70, Q71, Q74, Q76, Q77–Q83 remain in force. The P3 freeze on `unlock`, `tests/security.test.ts:69`, `FileLock`, `ProjectLock`, and CLI help text is lifted **only inside this restarted program** and only for the batches listed below; it is not a general unfreeze.
+
+| Human input | Decision |
+|---|---|
+| Q76 refrozen hard budget | **4 feat batches / 3 full three-platform CI reruns.** All batches keep zero new runtime dependency, product default OFF, no `1-4` unblock, and no weakening of the P0 lock / DB replacement barrier (`cli-p1-modularity-and-explore-v1.md:320`). If the 8 Required verification items cannot all be evidenced inside this ceiling, Q76 mandates falling back to P3 and keeping the debt OPEN. |
+| R1 delivery boundary | **Local verification + governance registration only.** No branch, no PR, no commit/push, and **no CI rerun consumed** (3 of 3 remain). Three-platform evidence for the new channel is taken together with the first PR. |
+| §4 channel shape | **A — independent diagnosis channel**: a stable, unlocked sidecar diagnostics file written by `IndexWriteLease`, exposed through structured `zcodegraph-core index-lease --diagnose-json` stdout and a TypeScript reader. Option B (byte-range lock) is not selected: it changes the shared `try_lock` primitive and metadata layout that `replacement_gate.rs` also uses. |
+| Q68 named concurrency/security reviewer | **Unchanged: Human.** Every batch output returns to Human for approval; an AI agent must not self-assign. |
+
+### Restarted batch plan (4 batches / 3 CI reruns)
+
+| # | Content | Verification |
+|---:|---|---|
+| R1 | ADR-0011 §4 independent diagnosis channel (this round): sidecar + structured helper channel + TS reader + non-sensitive `unlock` active-writer diagnostics + real-process tests | Windows-local `cargo check` / `cargo test` / `tsc` / vitest; **no CI rerun** |
+| R2 | **Atomic** cross-language switch of `FileLock` and `ProjectLock` to `IndexWriteLease`, including the swap of the two `readPid(zcodegraph.lock)` call sites in `tests/native-process-supervision.test.ts` and `tests/fixtures/supervised-index-owner.cjs` to the R1 channel; `tests/security.test.ts:69`, `ZJ-CONTEXT.md` glossary, CLI help | CI rerun 1 |
+| R3 | §2 single operation-lease refactor (remove the nested `finalizeRustIndex` acquire; cover clear/staging/promotion/finalization/synchronous enqueue) plus evidence for items 1/3/4/6/8 | CI rerun 2 |
+| R4 | close all 8 Required verification items with three-platform native-process evidence, then update ADR-0011's implementation-status note | CI rerun 3 |
+
+R1 is a **prerequisite**, not a verification-item closure: 0 of 8 items are fully covered and the debt stays OPEN. ADR-0011 must not be described as implemented.
+
+### R1 invariants (Q51 / Q80 / Q81 / §1)
+
+- The sidecar is **never authoritative** for mutual exclusion or lock state. `IndexWriteLease::diagnose()` (a non-blocking OS-lock probe) remains the only state source; owner fields are exposed only when that probe reports `active-writer`, so a stale sidecar left by a SIGKILLed writer cannot be reported as a live owner.
+- No changes to `FileLock`, `ProjectLock`, the 13 `src/index.ts` call sites, `tests/security.test.ts:69`, `ZJ-CONTEXT.md`, ADR-0011, `docs/README.md`, or `ci.yml`.
+- No standalone change to the two supervision-test PID sources: that swap belongs to R2's atomic switch, so no supervision assertion is weakened in isolation.
+- `unlock` keeps its shipped §4 semantics (inspect-and-report, `--force` metadata repair only, never deletes); only the active-writer branch gains non-sensitive owner fields.
+- The new channel adds no runtime dependency and does not touch `replacement_gate.rs` or `try_lock`.
+
+R1 verification results and the exact R2 call-site contract are recorded in `2026-11-07-p1-wiring-decision-package.md`. This section is a governance record; it does not by itself authorize any commit or push.
+
 ## Boundary
 
 This backlog is a governance aid, not an ADR, contract, method, or release input. It must not be registered in `docs/README.md`. Decisions recorded here authorize document edits only; no item above constitutes implementation approval.
