@@ -894,6 +894,11 @@
           "q": "ADR-0011 整体实现债务最终选择哪条路径，复审触发条件是什么？",
           "answer": "2026-11-07 第二/三轮 grill（Q73-Q83）Human 全部同意推荐并明确达成共识。路径选定为 **P3 保持现状**，但这是「暂不解决」而非「债务已解决」：ADR-0011 仍是 Accepted 设计稿，zcodegraph.lock 仍是 PID-only 旧实现，本节点保持 pending、治理台账条目保持 OPEN，8 项 Required verification 仍 0 完整覆盖。锁定条款：Q73=P3；Q74=独立批次、feat/chore 严格分离、不夹带其它治理项、不自动 commit/push；Q75=路径选定后进入实现或新建 ADR 仍需 Human 二次批准；Q76=若将来 P1 在硬预算内无法补齐 8 项验证、或 P2 的风险论证不成立，一律退回 P3 并保留 OPEN，不得静默降低「已实施」标准。复审触发（Q77-Q79）：事件驱动为主 + 绑定治理动作的周期兜底，不写死日历数字；四类必须重开本 grill 的事件——(a) 索引写锁相关代码或契约发生任何变更；(b) 出现并发写、锁丢失、stale-delete 引发的真实故障或用户报告；(c) 有人正式提出 P1 整篇实现或 P2 新建 supersede ADR；(d) 每次 roadmap review、每次新增或修订 Accepted ADR、每次索引锁相关契约变更等治理动作命中兜底。落盘形态（Q80-Q82）：仅在治理台账 OPEN 条目加 Reviewed 2026-11-07 · P3 status quo · triggers 标注，并在本节点 append-only 追加本 decision；节点不改 status、budget、边，不标 completed；不写进 ADR-0011、不新建 contract 或 ADR、不改 docs/README.md。冻结范围：在触发条件命中并重开路径选择前，unlock、tests/security.test.ts:69、FileLock、ProjectLock、CLI 帮助文本一律不动，任何顺手修复都必须先回到本 grill。Q83=双闸门：本次落盘由 Human 明确「达成共识」授权，落盘后不自动 commit/push。",
           "note": "证据 docs/decisions/ZJ-0011-index-write-lock-lease-and-reclaim.md；治理台账 2026-11-06-adr-human-decisions.md 保持 OPEN；取证备忘 2026-11-06-adr-0011-implementation-gap.md。"
+        },
+        {
+          "q": "ADR-0011 整体实现债务：Human 二次批准后的路径与第一批落地范围？",
+          "answer": "2026-11-07 后续轮次 Human 选择 C 并明确确认这就是 Q75 所需的二次批准，命中 Q79(c) 正式提出 P1，路径由 P3 保持现状转为 P1 整篇实现；Q73 被这一更晚的 Human 决策取代，Q51/Q68/Q70/Q71/Q74/Q76/Q77-Q79/Q83 继续有效。P3 对 unlock、tests/security.test.ts:69、FileLock、ProjectLock、CLI 帮助文本的冻结仅在 P1 程序内解除，不是普遍解冻，程序外任何顺手修复仍需回到 grill。第一批（2026-11-07）为 additive 且零行为变更：replacement_gate.rs 将 try_lock 提升为 crate 可见并新增 try_unlock（Unix flock LOCK_UN / Windows fs2 unlock），使索引写锁复用同一套已验证的平台 Adapter；新增 index_write_lock.rs 实现 stable rendezvous 租约（路径校验拒绝 symlink/目录/逃逸、非阻塞独占 OS 锁、经已锁句柄原地重写有界诊断元数据、release 只解锁同一句柄、Drop 绝不删除文件、diagnose 只读诊断映射 §4 行为矩阵），并附 6 个单元测试（Windows 实测 6/6 通过）。该模块未接入 ProjectLock 或 TypeScript FileLock，5 个原冻结资产一个未改，ADR-0011 实现状态注记保持原样，cargo check --all-targets 通过。Windows 实测新证据：fs2 独占 LockFileEx 锁整个文件，持租约期间另一句柄连读都被 ERROR_LOCK_VIOLATION(33) 拒绝，因此 §4 的 active writer 诊断不能从 rendezvous 文件本身读回，共享 Adapter 决策必须预留独立诊断通道或专用字节范围；已固化为一致性测试 windows_exclusive_lease_pins_sharing_mode_semantics。未接线的原因不是偷懒：TS 侧没有原生文件锁 API 也没有 N-API/FFI 桥，只改 Rust 会让 FileLock 继续删除新租约当作 stable rendezvous 的 PID 文件，属于真实跨语言回归，必须先选定并评审共享 Adapter（新 Node 原生 addon，或复用 process_supervision 与 fixture bins 的受监管 Rust 锁持有进程）。仍 OPEN 的硬闸门：Q68 具名并发/安全 reviewer 未提供；Q76 硬预算未冻结（预算内补不齐 8 项验证须退回 P3 并保留 OPEN）；ADR-0011 §3 的共享 native Adapter 选型未定（本 ADR 不单独批准新运行时依赖）；Q51/Q71 的 8 项 Required verification 当前 0 项完整覆盖，其中第 7 项三平台真实 native-process 证据只能由 CI 提供。节点保持 pending、budget 0/2、无子节点、无新边，e9 与 1-4 blocked=True 不变，治理台账条目保持 OPEN，8 项验证齐备前不得称 ADR-0011 已实施。",
+          "note": "证据 docs/decisions/ZJ-0011-index-write-lock-lease-and-reclaim.md；治理台账 2026-11-06-adr-human-decisions.md 的 Authorization to enter implementation 节；取证备忘 2026-11-06-adr-0011-implementation-gap.md。条目仍 OPEN，节点仍 pending。"
         }
       ],
       "notes": "",
@@ -928,7 +933,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-07 15:50:34",
+    "updated": "2026-11-07 17:02:00",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
