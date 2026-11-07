@@ -1915,13 +1915,6 @@ export class CodeGraph {
     };
   }> {
     return this.indexMutex.withLock(async () => {
-      try {
-        await this.fileLock.acquire();
-      } catch {
-        throw new Error('Could not acquire file lock - another process may be indexing');
-      }
-
-      try {
         const before = this.queries.getNodeAndEdgeCount();
         const profile = {
           frameworkPostExtractMs: 0,
@@ -2499,9 +2492,6 @@ export class CodeGraph {
           edgesCreated: after.edges - before.edges,
           profile,
         };
-      } finally {
-        await this.fileLock.release();
-      }
     });
   }
 
