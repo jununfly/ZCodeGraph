@@ -1,11 +1,12 @@
 //! OS-backed stable rendezvous lock for the index-write path (ADR-0011 §1/§3).
 //!
-//! Stage 1 of the P1 implementation program: an additive, independently
-//! testable lock-policy module. It is **not wired into** `ProjectLock` or the
-//! TypeScript `FileLock` yet, does not change any shipped behavior, and must
-//! not be read as evidence that ADR-0011 is implemented. Wiring requires the
-//! cross-language native Adapter decision and all 8 Required verification
-//! items; see the 2026-11-07 governance backlog entry.
+//! This module is the **production** cross-process index-write mutex. It was
+//! adopted in R2 (P1 batch 2, the atomic cross-language switch): the Rust
+//! writer replaced the historical PID-only `ProjectLock` with `IndexWriteLease`,
+//! and the TypeScript `FileLock` delegates to the same native lease, so both
+//! languages share one rendezvous file and one lock policy. ADR-0011 is
+//! implemented once the 8 Required verification items pass (tracked in the
+//! governance backlog); this module is the reviewable unit.
 //!
 //! Design rules taken verbatim from ADR-0011 §1:
 //! - `.zcodegraph/zcodegraph.lock` is a stable rendezvous file, never a mutex
@@ -22,19 +23,15 @@
 //! exclusive `LockFileEx` locks the whole file, so while a lease is held a
 //! second handle cannot even read the rendezvous file (ERROR_LOCK_VIOLATION).
 //! ADR-0011 §4 asks `unlock` to report diagnostics for an active writer; that
-//! cannot be implemented by reading this file.
+//! cannot be implemented by reading this file, hence the independent §4
+//! diagnosis channel below.
 //!
-//! R1 (2026-11-07, restarted P1) adds the independent §4 diagnosis channel:
-//! a separate, never-locked sidecar file written by the **lease layer** (not
-//! by one particular helper process), so the same channel serves both
-//! `zcodegraph-core index-lease` and the Rust writer after `ProjectLock`
-//! adopts this lease. The OS-lock probe in `diagnose()` remains the only
-//! authority for lock state; the sidecar only carries non-sensitive owner
-//! fields and is ignored unless that probe reports an active writer.
-
-// Stage 1 is deliberately unwired: the module and its tests are the reviewable
-// unit, while cross-language wiring waits for the Adapter decision.
-#![allow(dead_code)]
+//! The §4 diagnosis channel (added in R1, 2026-11-07): a separate, never-locked
+//! sidecar file written by the lease layer itself, so the same channel serves
+//! both `zcodegraph-core index-lease` and the Rust writer. The OS-lock probe in
+//! `diagnose()` remains the only authority for lock state; the sidecar only
+//! carries non-sensitive owner fields and is ignored unless that probe reports
+//! an active writer.
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Seek, SeekFrom, Write};

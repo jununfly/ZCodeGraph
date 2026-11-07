@@ -1403,10 +1403,11 @@ pub fn write_minimal_index_with_borrowed_gate(
     let write_paths = SqliteIndexWritePaths::new(Path::new(&request.index_path));
     write_paths.ensure_parent_dir()?;
 
-    let lock_path = Path::new(&request.project_path)
-        .join(".zcodegraph")
-        .join("zcodegraph.lock");
-    let _lock = ProjectLock::acquire(&lock_path)?;
+    // ADR-0011 §1/§3: an OS-backed exclusive lease on the stable
+    // `.zcodegraph/zcodegraph.lock` rendezvous file. The lease covers the
+    // complete index-write operation and the file is never deleted on release
+    // or after a crash; recovery is OS handle cleanup.
+    let _lock = IndexWriteLease::acquire(&Path::new(&request.project_path))?;
     sleep_after_lock_for_tests();
 
     write_paths.prepare_temp_path()?;
@@ -17126,111 +17127,11 @@ fn now_ms() -> i64 {
         .as_millis() as i64
 }
 
-struct ProjectLock {
-    path: PathBuf,
-}
-
-impl ProjectLock {
-    fn acquire(path: &Path) -> io::Result<Self> {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-
-        match create_lock_file(path) {
-            Ok(mut file) => {
-                use std::io::Write;
-                write!(file, "{}", std::process::id())?;
-                Ok(Self {
-                    path: path.to_path_buf(),
-                })
-            }
-            Err(err) if err.kind() == io::ErrorKind::AlreadyExists => {
-                if remove_stale_lock(path)? {
-                    let mut file = create_lock_file(path)?;
-                    use std::io::Write;
-                    write!(file, "{}", std::process::id())?;
-                    return Ok(Self {
-                        path: path.to_path_buf(),
-                    });
-                }
-
-                Err(io::Error::new(
-                    io::ErrorKind::AlreadyExists,
-                    format!(
-                        "CodeGraph database is locked by another process. If this is stale, delete {}",
-                        path.display()
-                    ),
-                ))
-            }
-            Err(err) => Err(err),
-        }
-    }
-}
-
-fn create_lock_file(path: &Path) -> io::Result<fs::File> {
-    fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)
-}
-
-fn remove_stale_lock(path: &Path) -> io::Result<bool> {
-    let Ok(raw) = fs::read_to_string(path) else {
-        return Ok(false);
-    };
-    let Ok(pid) = raw.trim().parse::<u32>() else {
-        return Ok(false);
-    };
-    if pid_is_running(pid) {
-        return Ok(false);
-    }
-    fs::remove_file(path)?;
-    Ok(true)
-}
-
-#[cfg(unix)]
-fn pid_is_running(pid: u32) -> bool {
-    let result = unsafe { libc::kill(pid as libc::pid_t, 0) };
-    if result == 0 {
-        return true;
-    }
-    std::io::Error::last_os_error()
-        .raw_os_error()
-        .is_some_and(|code| code != libc::ESRCH)
-}
-
-#[cfg(windows)]
-fn pid_is_running(pid: u32) -> bool {
-    use windows_sys::Win32::Foundation::{
-        CloseHandle, GetLastError, ERROR_INVALID_PARAMETER, STILL_ACTIVE,
-    };
-    use windows_sys::Win32::System::Threading::{
-        GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
-    };
-    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
-    if process.is_null() {
-        // A missing PID is reclaimable. Permission or other query failures
-        // remain fail-closed because they cannot prove the writer exited.
-        return unsafe { GetLastError() } != ERROR_INVALID_PARAMETER;
-    }
-    let mut exit_code = 0_u32;
-    let queried = unsafe { GetExitCodeProcess(process, &mut exit_code) };
-    unsafe {
-        CloseHandle(process);
-    }
-    queried == 0 || exit_code == STILL_ACTIVE as u32
-}
-
-#[cfg(not(any(unix, windows)))]
-fn pid_is_running(_pid: u32) -> bool {
-    true
-}
-
-impl Drop for ProjectLock {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
-    }
-}
+// ADR-0011 §1/§3: cross-process index-write mutual exclusion is now provided
+// by `IndexWriteLease` (see `index_write_lock.rs`), an OS-backed exclusive lock
+// on the stable `.zcodegraph/zcodegraph.lock` rendezvous file. The historical
+// PID-only `ProjectLock` (which created and deleted that file) was removed in
+// the P1 batch 2 atomic switch; the lease never deletes the rendezvous file.
 
 fn escape_json(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
@@ -23132,45 +23033,6 @@ mod tests {
             response["diagnostics"]["rustMatcherFallbackReasons"]["missing-candidate-facts"],
             1
         );
-    }
-
-    #[test]
-    fn project_lock_rejects_a_second_writer() {
-        let dir = temp_dir("lock");
-        let lock_path = dir.join(".zcodegraph").join("zcodegraph.lock");
-        let first = ProjectLock::acquire(&lock_path).unwrap();
-
-        let second = ProjectLock::acquire(&lock_path);
-        assert!(second.is_err());
-
-        drop(first);
-        assert!(ProjectLock::acquire(&lock_path).is_ok());
-        cleanup_temp_dir(dir);
-    }
-
-    #[test]
-    fn project_lock_reclaims_only_a_pid_that_has_exited() {
-        let dir = temp_dir("dead-lock");
-        let lock_path = dir.join(".zcodegraph").join("zcodegraph.lock");
-        fs::create_dir_all(lock_path.parent().unwrap()).unwrap();
-        let child = std::process::Command::new(std::env::current_exe().unwrap())
-            .arg("--exact")
-            .arg("tests::project_lock_reclaims_only_a_pid_that_has_exited")
-            .arg("--list")
-            .stdout(std::process::Stdio::null())
-            .spawn()
-            .unwrap();
-        let pid = child.id();
-        let output = child.wait_with_output().unwrap();
-        assert!(output.status.success());
-        assert!(
-            !pid_is_running(pid),
-            "reaped process PID must not block recovery"
-        );
-        fs::write(&lock_path, pid.to_string()).unwrap();
-        let recovered = ProjectLock::acquire(&lock_path).unwrap();
-        drop(recovered);
-        cleanup_temp_dir(dir);
     }
 
     #[test]
