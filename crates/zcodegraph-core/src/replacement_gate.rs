@@ -65,8 +65,11 @@ fn open_stable_file(path: &Path) -> io::Result<File> {
     Ok(file)
 }
 
+/// Platform Adapter primitive for a non-blocking OS lock on an open regular
+/// file. Shared with the index-write rendezvous lease so both domains use the
+/// same verified `flock` / `fs2` mechanism (ADR-0011 §3).
 #[cfg(unix)]
-fn try_lock(file: &File, exclusive: bool) -> io::Result<()> {
+pub(crate) fn try_lock(file: &File, exclusive: bool) -> io::Result<()> {
     use std::os::fd::AsRawFd;
     let operation = if exclusive {
         libc::LOCK_EX
@@ -81,7 +84,7 @@ fn try_lock(file: &File, exclusive: bool) -> io::Result<()> {
 }
 
 #[cfg(windows)]
-fn try_lock(file: &File, exclusive: bool) -> io::Result<()> {
+pub(crate) fn try_lock(file: &File, exclusive: bool) -> io::Result<()> {
     let result = if exclusive {
         fs2::FileExt::try_lock_exclusive(file)
     } else {
@@ -97,7 +100,33 @@ fn try_lock(file: &File, exclusive: bool) -> io::Result<()> {
 }
 
 #[cfg(not(any(unix, windows)))]
-fn try_lock(_file: &File, _exclusive: bool) -> io::Result<()> {
+pub(crate) fn try_lock(_file: &File, _exclusive: bool) -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "no OS replacement gate adapter",
+    ))
+}
+
+/// Release the lock held on this exact handle. ADR-0011 §1 requires release to
+/// act on the acquired handle and requires unlock errors to be surfaced, not
+/// swallowed by deleting the rendezvous file.
+#[cfg(unix)]
+pub(crate) fn try_unlock(file: &File) -> io::Result<()> {
+    use std::os::fd::AsRawFd;
+    if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) } == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+#[cfg(windows)]
+pub(crate) fn try_unlock(file: &File) -> io::Result<()> {
+    fs2::FileExt::unlock(file)
+}
+
+#[cfg(not(any(unix, windows)))]
+pub(crate) fn try_unlock(_file: &File) -> io::Result<()> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "no OS replacement gate adapter",

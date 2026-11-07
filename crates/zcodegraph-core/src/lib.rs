@@ -13,6 +13,7 @@ use tree_sitter::{Node as SyntaxNode, Parser, TreeCursor};
 mod csharp;
 mod dart;
 mod index_options;
+mod index_write_lock;
 mod lua;
 mod luau;
 mod objc;
