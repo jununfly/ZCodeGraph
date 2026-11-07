@@ -28,7 +28,7 @@ exactly this reason. The cost of ignoring these clauses is silent index
 corruption (schema drift) and tool-surface bloat that the agent never
 pays back.
 
-Roadmap source: capability-harvest-roadmap node **1-2-7**.
+Roadmap source: retired `capability-harvest-roadmap.json` node **1-2-7** (file no longer in repo; historical snapshot in Git history). Current roadmap authority: `docs/plans/semantic-retrieval-roadmap.json`.
 
 ## Non-goals
 

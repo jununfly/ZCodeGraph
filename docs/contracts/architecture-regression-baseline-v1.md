@@ -7,8 +7,11 @@ bounded-question: "What stable contract does the architecture regression red-lin
 # Architecture Regression Red-line Baseline v1
 
 Status: active
-Roadmap: `docs/plans/capability-harvest-roadmap.json` node **1-2-8**
-(横切：架构回归红线 + 能力健康探针).
+Roadmap: `docs/plans/semantic-retrieval-roadmap.json` node **1-8-1**
+(ADR-0011 R2 ledger — architecture regression red-line baseline + re-baseline
+authority). NOTE: the originally-referenced `docs/plans/capability-harvest-roadmap.json`
+(node 1-2-8, 横切：架构回归红线 + 能力健康探针) was retired; its red-line
+baseline governance migrated to the 1-8-1 ledger.
 
 ## Purpose
 
@@ -24,8 +27,8 @@ an optimization keep/no-go classification, and vice versa.
 
 | Metric | Threshold | Basis |
 |---|---|---|
-| index wall-time regression | **≤ 15%** | roadmap 1-2-8 exit criterion (frozen) |
-| explore latency regression | **≤ 20%** | roadmap 1-2-8 decision 2026-10-22: explore runs SQLite queries with higher variance than indexing; 20% noise tolerance avoids flake |
+| index wall-time regression | **≤ 15%** | frozen exit criterion (origin: roadmap 1-2-8; current authority: node 1-8-1) |
+| explore latency regression | **≤ 20%** | frozen decision 2026-10-22 (origin: roadmap 1-2-8; current authority: node 1-8-1): explore runs SQLite queries with higher variance than indexing; 20% noise tolerance avoids flake |
 
 Regression is computed per corpus as:
 
@@ -47,8 +50,10 @@ Single medium-size corpus, reused from the real-corpus gate set
   routes (Spring) end to end.
 
 The baseline artifact records the pinned commit sha. Re-baselining requires a
-roadmap decision on node 1-2-8 and an update to the registered versioned input;
-the contract version bumps when corpus, queries, or thresholds change.
+roadmap decision on node **1-8-1** (the ADR-0011 R2 ledger in
+`docs/plans/semantic-retrieval-roadmap.json`) and an update to the registered
+versioned input; the contract version bumps when corpus, queries, thresholds, or
+the measurement build/statistic change.
 
 ## Measurement Protocol
 
@@ -80,9 +85,12 @@ Frozen explore queries (structural, representative of agent高频 flows):
 - Node >= 22 (managed runtime), `npm run build` must precede measurement.
 - Clones use SSH by default; `MEASURE_GIT_PROTOCOL=https` or the
   `gh-proxy.com` mirror for network-restricted hosts.
-- The committed reference artifact records its original `win32-x64` environment.
-  Ubuntu CI compares against that frozen artifact as a regression alarm, not as
-  a same-host performance equivalence claim. Windows/macOS timing variance is
+- The committed reference artifact's `evidence.platform` records the environment
+  it was measured on. It was originally `win32-x64` (2026-10-22) and was
+  re-baselined to `linux-x64` (Ubuntu DEBUG rust-hybrid, 2026-11-08) to match
+  the gate platform (see the `rebaseline` block in the artifact). Ubuntu CI
+  compares against that frozen artifact as a regression alarm, not as a
+  same-host performance equivalence claim. Windows/macOS timing variance is
   governed by node 1-2-10, not this contract.
 
 ## Artifacts
