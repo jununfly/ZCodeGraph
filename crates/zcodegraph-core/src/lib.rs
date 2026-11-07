@@ -29,7 +29,10 @@ use index_options::GraphWorkFeatures;
 pub use index_options::{GraphWorkProfile, IndexRequest, SqliteWriteMode};
 pub use profiling::{start_heap_profiler, HeapProfilerGuard};
 pub use replacement_gate::{acquire_replacement_gate, acquire_worker_lease, OsFileLease};
-pub use index_write_lock::{IndexWriteLease, RendezvousState, RENDEZVOUS_FILE};
+pub use index_write_lock::{
+    IndexWriteLease, LeaseDiagnostics, LeaseOwner, RendezvousState, DIAGNOSTIC_FILE,
+    RENDEZVOUS_FILE,
+};
 
 #[cfg(feature = "dhat")]
 #[global_allocator]

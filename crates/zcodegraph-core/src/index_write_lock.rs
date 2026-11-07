@@ -22,8 +22,15 @@
 //! exclusive `LockFileEx` locks the whole file, so while a lease is held a
 //! second handle cannot even read the rendezvous file (ERROR_LOCK_VIOLATION).
 //! ADR-0011 §4 asks `unlock` to report diagnostics for an active writer; that
-//! cannot be implemented by reading this file. The shared Adapter decision
-//! must reserve a separate diagnostic channel or a dedicated byte range.
+//! cannot be implemented by reading this file.
+//!
+//! R1 (2026-11-07, restarted P1) adds the independent §4 diagnosis channel:
+//! a separate, never-locked sidecar file written by the **lease layer** (not
+//! by one particular helper process), so the same channel serves both
+//! `zcodegraph-core index-lease` and the Rust writer after `ProjectLock`
+//! adopts this lease. The OS-lock probe in `diagnose()` remains the only
+//! authority for lock state; the sidecar only carries non-sensitive owner
+//! fields and is ignored unless that probe reports an active writer.
 
 // Stage 1 is deliberately unwired: the module and its tests are the reviewable
 // unit, while cross-language wiring waits for the Adapter decision.
@@ -34,12 +41,19 @@ use std::io::{self, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use serde::{Deserialize, Serialize};
+
 use crate::replacement_gate::{try_lock, try_unlock};
 
 pub const RENDEZVOUS_FILE: &str = "zcodegraph.lock";
+/// Independent, never-locked diagnosis channel (ADR-0011 §4). It is a normal
+/// regular file in the same validated `.zcodegraph` store, so a cross-process
+/// read succeeds even while `zcodegraph.lock` is exclusively locked on Windows.
+pub const DIAGNOSTIC_FILE: &str = "index-lease.diagnostics.json";
 
 const PROTOCOL_VERSION: u32 = 1;
 const MAX_METADATA_BYTES: usize = 512;
+const MAX_DIAGNOSTIC_BYTES: usize = 512;
 
 /// Diagnosis outcome for `unlock` (ADR-0011 §4 behavior matrix). This is
 /// intentionally not an authorization result: no state here permits bypassing
@@ -66,6 +80,32 @@ impl RendezvousState {
     }
 }
 
+/// Non-sensitive owner fields for an active writer (ADR-0011 §4 "available
+/// diagnostics"). These are diagnostics only, never fencing credentials.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LeaseOwner {
+    pub pid: u32,
+    pub acquired_at_ms: u64,
+}
+
+/// Structured §4 diagnosis. `state` comes only from the OS-lock probe;
+/// `owner` is populated only when that probe reports an active writer, so a
+/// stale sidecar left behind by a SIGKILLed writer cannot be reported as a
+/// live owner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LeaseDiagnostics {
+    pub state: RendezvousState,
+    pub owner: Option<LeaseOwner>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct DiagnosticRecord {
+    protocol: u32,
+    pid: u32,
+    #[serde(rename = "acquiredAt")]
+    acquired_at_ms: u64,
+}
+
 /// An acquired OS lock on the stable rendezvous file. Dropping the value
 /// releases the lock through the OS; the file itself is never removed.
 #[derive(Debug)]
@@ -80,11 +120,14 @@ fn invalid(message: &str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput, message)
 }
 
-fn metadata_written_now() -> io::Result<String> {
-    let acquired_at = SystemTime::now()
+fn now_ms() -> u64 {
+    SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
-        .as_millis();
+        .as_millis() as u64
+}
+
+fn metadata_written_now(acquired_at: u64) -> io::Result<String> {
     let metadata = format!(
         "{{\"protocol\":{},\"pid\":{},\"acquiredAt\":{}}}",
         PROTOCOL_VERSION,
@@ -153,12 +196,75 @@ fn open_rendezvous(path: &Path) -> io::Result<File> {
 
 /// Bounded metadata is rewritten in place through the already-locked handle.
 /// It never unlinks, renames over, or replaces the rendezvous directory entry.
-fn write_metadata_in_place(file: &mut File) -> io::Result<()> {
-    let metadata = metadata_written_now()?;
+/// Returns the `acquiredAt` value shared with the diagnosis channel.
+fn write_metadata_in_place(file: &mut File) -> io::Result<u64> {
+    let acquired_at = now_ms();
+    let metadata = metadata_written_now(acquired_at)?;
     file.seek(SeekFrom::Start(0))?;
     file.write_all(metadata.as_bytes())?;
     file.set_len(metadata.len() as u64)?;
+    file.flush()?;
+    Ok(acquired_at)
+}
+
+/// Path of the independent §4 diagnosis channel. It shares the validated
+/// `.zcodegraph` store with the rendezvous file but is never OS-locked.
+fn diagnostics_path(project_path: &Path) -> io::Result<PathBuf> {
+    Ok(validated_rendezvous_path(project_path)?.with_file_name(DIAGNOSTIC_FILE))
+}
+
+/// Publish non-sensitive owner diagnostics through a separate regular file.
+/// A missing channel would leave an active writer unverifiable (verification
+/// item 3), so the caller fails the acquisition closed on any error here.
+fn write_diagnostics(project_path: &Path, acquired_at: u64) -> io::Result<()> {
+    let path = diagnostics_path(project_path)?;
+    if let Ok(meta) = fs::symlink_metadata(&path) {
+        if meta.file_type().is_symlink() || !meta.file_type().is_file() {
+            return Err(invalid("diagnostics channel is not a regular file"));
+        }
+    }
+    let record = DiagnosticRecord {
+        protocol: PROTOCOL_VERSION,
+        pid: std::process::id(),
+        acquired_at_ms: acquired_at,
+    };
+    let bytes = serde_json::to_vec(&record)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    if bytes.len() > MAX_DIAGNOSTIC_BYTES {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "diagnostics record exceeds its bounded size",
+        ));
+    }
+    let mut options = OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options.open(&path)?;
+    file.write_all(&bytes)?;
     file.flush()
+}
+
+/// Read only bounded, well-formed owner fields. Never used to decide whether
+/// a writer is active — that is `diagnose()`'s OS-lock probe.
+fn read_diagnostics(project_path: &Path) -> Option<LeaseOwner> {
+    let path = diagnostics_path(project_path).ok()?;
+    let meta = fs::symlink_metadata(&path).ok()?;
+    if !meta.file_type().is_file() || meta.len() > MAX_DIAGNOSTIC_BYTES as u64 {
+        return None;
+    }
+    let bytes = fs::read(&path).ok()?;
+    let record: DiagnosticRecord = serde_json::from_slice(&bytes).ok()?;
+    if record.protocol != PROTOCOL_VERSION || record.pid == 0 {
+        return None;
+    }
+    Some(LeaseOwner {
+        pid: record.pid,
+        acquired_at_ms: record.acquired_at_ms,
+    })
 }
 
 impl IndexWriteLease {
@@ -169,7 +275,17 @@ impl IndexWriteLease {
         let path = validated_rendezvous_path(project_path)?;
         let mut file = open_rendezvous(&path)?;
         try_lock(&file, true)?;
-        if let Err(error) = write_metadata_in_place(&mut file) {
+        let acquired_at = match write_metadata_in_place(&mut file) {
+            Ok(acquired_at) => acquired_at,
+            Err(error) => {
+                let _ = try_unlock(&file);
+                return Err(error);
+            }
+        };
+        // A writer whose owner diagnostics cannot be published would be
+        // unverifiable. Fail closed before returning a lease; the rendezvous
+        // file is never deleted on this path.
+        if let Err(error) = write_diagnostics(project_path, acquired_at) {
             let _ = try_unlock(&file);
             return Err(error);
         }
@@ -214,6 +330,19 @@ impl IndexWriteLease {
             }
             Err(_) => RendezvousState::Unknown,
         }
+    }
+
+    /// Structured §4 diagnosis. The OS-lock probe is the only state source;
+    /// owner fields are read from the independent channel and exposed only
+    /// for an active writer.
+    pub fn diagnose_with_owner(project_path: &Path) -> LeaseDiagnostics {
+        let state = Self::diagnose(project_path);
+        let owner = if state == RendezvousState::ActiveWriter {
+            read_diagnostics(project_path)
+        } else {
+            None
+        };
+        LeaseDiagnostics { state, owner }
     }
 }
 
@@ -310,8 +439,7 @@ mod tests {
         // the whole file: while the lease is held, a second handle's read is
         // rejected with ERROR_LOCK_VIOLATION (33). Consequence for §4: an
         // active writer's diagnostics cannot be read back from the rendezvous
-        // file itself. The Adapter decision must reserve a separate diagnostic
-        // channel or a dedicated byte range instead of assuming readability.
+        // file itself. The independent channel below is the resolution.
         let dir = fixture();
         let rendezvous = dir.join(".zcodegraph").join(RENDEZVOUS_FILE);
         let lease = IndexWriteLease::acquire(&dir).unwrap();
@@ -364,6 +492,69 @@ mod tests {
             IndexWriteLease::diagnose(&dir),
             RendezvousState::NotLocked
         );
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn independent_diagnosis_channel_is_readable_while_the_lease_is_held() {
+        let dir = fixture();
+        let diagnostics = dir.join(".zcodegraph").join(DIAGNOSTIC_FILE);
+        let lease = IndexWriteLease::acquire(&dir).unwrap();
+
+        // The sidecar is a separate regular file: readable cross-process even
+        // on Windows, where the rendezvous file itself is exclusively locked.
+        assert!(fs::read_to_string(&diagnostics)
+            .unwrap()
+            .contains("\"pid\""));
+        #[cfg(windows)]
+        {
+            let rendezvous = dir.join(".zcodegraph").join(RENDEZVOUS_FILE);
+            assert!(fs::read_to_string(&rendezvous).is_err());
+        }
+
+        let details = IndexWriteLease::diagnose_with_owner(&dir);
+        assert_eq!(details.state, RendezvousState::ActiveWriter);
+        let owner = details
+            .owner
+            .expect("active writer must expose non-sensitive owner diagnostics");
+        assert_eq!(owner.pid, std::process::id());
+        assert!(owner.acquired_at_ms > 0);
+
+        lease.release().unwrap();
+        let after = IndexWriteLease::diagnose_with_owner(&dir);
+        assert_eq!(after.state, RendezvousState::NotLocked);
+        assert!(after.owner.is_none());
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn stale_diagnostics_are_never_authoritative_for_lock_state() {
+        let dir = fixture();
+        let diagnostics = dir.join(".zcodegraph").join(DIAGNOSTIC_FILE);
+        // A SIGKILLed writer cannot rewrite the sidecar. Its stale owner must
+        // not be presented as a live writer.
+        fs::write(
+            &diagnostics,
+            br#"{"protocol":1,"pid":999999,"acquiredAt":123}"#,
+        )
+        .unwrap();
+        let details = IndexWriteLease::diagnose_with_owner(&dir);
+        assert_eq!(details.state, RendezvousState::NotLocked);
+        assert!(details.owner.is_none());
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn malformed_diagnostics_channel_does_not_produce_an_owner() {
+        let dir = fixture();
+        let diagnostics = dir.join(".zcodegraph").join(DIAGNOSTIC_FILE);
+        fs::write(&diagnostics, b"not json").unwrap();
+        let lease = IndexWriteLease::acquire(&dir).unwrap();
+        let details = IndexWriteLease::diagnose_with_owner(&dir);
+        assert_eq!(details.state, RendezvousState::ActiveWriter);
+        // acquire rewrote the channel in place with a valid record.
+        assert_eq!(details.owner.map(|owner| owner.pid), Some(std::process::id()));
+        lease.release().unwrap();
         cleanup(&dir);
     }
 

@@ -38,7 +38,7 @@ import { createShimmerProgress } from '../ui/shimmer-progress';
 import { getGlyphs } from '../ui/glyphs';
 import { IndexEngine, resolveIndexEngine } from '../indexing/engine-selection';
 import { getRustReadinessDiagnostics, runRustIndexer } from '../indexing/rust-indexer';
-import { diagnoseIndexWriteLease, repairIndexWriteLeaseMetadata } from '../indexing/index-write-lease';
+import { diagnoseIndexWriteLease, readIndexWriteLeaseDiagnostics, repairIndexWriteLeaseMetadata } from '../indexing/index-write-lease';
 import {
   buildRustHybridMetadataFromPlan,
   mergeMissingFallbackDiagnostics,
@@ -2097,14 +2097,22 @@ program
         return;
       }
 
-      switch (diagnoseIndexWriteLease(projectPath)) {
+      const diagnostics = readIndexWriteLeaseDiagnostics(projectPath);
+      switch (diagnostics.state) {
         case 'not-locked':
           info(`No active index writer ${getGlyphs().dash} stable lock file left in place`);
           return;
-        case 'active-writer':
-          error('An active index writer holds the OS lock; unlock cannot override it. No lock file was deleted.');
+        case 'active-writer': {
+          // ADR-0011 §4: report non-sensitive available diagnostics from the
+          // independent channel; never read the whole-file-locked rendezvous.
+          const owner = diagnostics.owner;
+          const ownerDiagnostics = owner
+            ? ` Owner diagnostics: pid ${owner.pid}, acquiredAt ${owner.acquiredAt}.`
+            : '';
+          error(`An active index writer holds the OS lock; unlock cannot override it. No lock file was deleted.${ownerDiagnostics}`);
           process.exit(1);
           return;
+        }
         case 'unsupported-adapter':
           error('OS file locking is unsupported on this platform or filesystem; index writes fail closed.');
           process.exit(1);
