@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import * as path from 'node:path';
-import { findRustCoreCommand } from './rust-indexer';
+import { findLeaseHelperCommand } from './rust-indexer';
 
 /**
  * ADR-0011 §1/§3: Node has no native file-lock API, so the OS lock handle is
@@ -36,7 +36,7 @@ const DIAGNOSIS_STATES: readonly string[] = [
 ];
 
 function leaseArgs(projectRoot: string, extra: string[] = []): string[] {
-  const core = findRustCoreCommand();
+  const core = findLeaseHelperCommand();
   return [
     ...core.argsPrefix,
     'index-lease',
@@ -48,7 +48,7 @@ function leaseArgs(projectRoot: string, extra: string[] = []): string[] {
 
 /** Inspect-only diagnosis for `unlock` (§4). Never deletes or repairs. */
 export function diagnoseIndexWriteLease(projectRoot: string): IndexWriteLeaseState {
-  const core = findRustCoreCommand();
+  const core = findLeaseHelperCommand();
   const result = spawnSync(core.command, leaseArgs(projectRoot, ['--diagnose']), {
     cwd: core.cwd,
     env: process.env,
@@ -79,7 +79,7 @@ export interface IndexWriteLeaseDiagnostics {
  * fails closed with `unknown` / `null`.
  */
 export function readIndexWriteLeaseDiagnostics(projectRoot: string): IndexWriteLeaseDiagnostics {
-  const core = findRustCoreCommand();
+  const core = findLeaseHelperCommand();
   const result = spawnSync(core.command, leaseArgs(projectRoot, ['--diagnose-json']), {
     cwd: core.cwd,
     env: process.env,
@@ -119,7 +119,7 @@ export function readIndexWriteLeaseDiagnostics(projectRoot: string): IndexWriteL
  * exits 3), and never deletes the rendezvous file.
  */
 export function repairIndexWriteLeaseMetadata(projectRoot: string): boolean {
-  const core = findRustCoreCommand();
+  const core = findLeaseHelperCommand();
   const result = spawnSync(core.command, leaseArgs(projectRoot, ['--repair']), {
     cwd: core.cwd,
     env: process.env,
@@ -196,7 +196,7 @@ export class NativeIndexWriteLease {
 }
 
 export function acquireIndexWriteLease(projectRoot: string): Promise<NativeIndexWriteLease> {
-  const core = findRustCoreCommand();
+  const core = findLeaseHelperCommand();
   return new Promise((resolve, reject) => {
     const child = spawn(core.command, leaseArgs(projectRoot), {
       cwd: core.cwd,

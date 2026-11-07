@@ -306,6 +306,21 @@ R1 is a **prerequisite**, not a verification-item closure: 0 of 8 items are full
 
 R1 verification results and the exact R2 call-site contract are recorded in `2026-11-07-p1-wiring-decision-package.md`. This section is a governance record; it does not by itself authorize any commit or push.
 
+### R2 start (atomic cross-language switch; working tree, not committed)
+
+R2 is authorized by the same carried Q75/Q76/Q68 terms from the P1 restart. It is the **2nd of 4 feat batches** and will consume **CI rerun 1** when its PR runs. Q68 reviewer remains Human.
+
+**Scope landed in the working tree (not committed, no branch):**
+- TS `FileLock` migrated to the native lease via new `src/indexing/file-lock.ts` (delegating to `acquireIndexWriteLease`); removed from `src/utils.ts` and re-exported from `src/index.ts` to avoid a `utils ↔ extraction ↔ rust-indexer ↔ index-write-lease` circular import; `src/index.ts` 13 call sites converted to async `acquire`/`release`/`withLock`.
+- Rust `ProjectLock` cluster (struct/impl/`Drop`, `create_lock_file`, `remove_stale_lock`, three `pid_is_running` cfg variants) deleted from `crates/zcodegraph-core/src/lib.rs`; production call site uses `IndexWriteLease::acquire`; two obsolete `ProjectLock` unit tests removed; `index_write_lock.rs` header changed from "deliberately unwired / Stage 1" to "production, wired in R2" and `#![allow(dead_code)]` removed (`cargo check --all-targets` shows no dead-code warnings).
+- Two `readPid(zcodegraph.lock)` swaps (`tests/native-process-supervision.test.ts:169` + `tests/fixtures/supervised-index-owner.cjs`) now read `readIndexWriteLeaseDiagnostics(projectRoot).owner.pid` after asserting `state === 'active-writer'`; supervisor PID still comes from the `supervised-index` spawn hook.
+- `tests/security.test.ts` FileLock block rewritten to the async lease contract (stable file never deleted on release; same-process second acquire rejects; cross-process writer exit → OS release → re-acquire; idempotent `release`); its `FileLock` import corrected from `../src/utils` to `../src/index`.
+- `ZJ-CONTEXT.md` glossary (lines 406–434) rewritten from design-state to implemented-state, dropping the §2 "parent retains sole OS lock / Rust children borrow" wording that was not built that way. CLI `unlock` help text already §4-aligned in R1; no change.
+
+**Key finding (changes the R3 plan):** the planned §2 "single-operation lease / remove nested `finalizeRustIndex` acquire" refactor is a **no-op** — `indexExternalEngine` does not hold `FileLock` and calls `finalizeRustIndex` on a second `CodeGraph` instance whose `acquire` is sequential, not nested; `FileLock` and `ProjectLock` never hold the lock simultaneously. No `--index-lease-externally-held` borrowing flag is needed, and the §2 refactor was not implemented. R3 should therefore be re-scoped to item 1/3/4/6/8 evidence only (no refactor).
+
+**Status:** R2 is in the working tree pending mechanical verification (task #13: `cargo test --lib`, `tsc`, full `vitest`, governance suites, `git diff --check`). It closes **no** Required verification item; 0 of 8 fully covered, debt OPEN, ADR-0011 must not be described as implemented. This section is a governance record; it does not by itself authorize any commit or push.
+
 ## Boundary
 
 This backlog is a governance aid, not an ADR, contract, method, or release input. It must not be registered in `docs/README.md`. Decisions recorded here authorize document edits only; no item above constitutes implementation approval.

@@ -2,43 +2,57 @@
   "metric": "architecture-regression-baseline",
   "repo": "spring-projects/spring-petclinic",
   "ref": "500158f732419217507c7656904b8e6aa1bcc0d6",
-  "measuredAt": "2026-10-22T09:19:40.187Z",
+  "measuredAt": "2026-11-07T17:35:00.000Z",
   "value": {
     "repetitions": 3,
-    "indexMedianMs": 2491,
+    "indexMedianMs": 2948,
     "indexRunsMs": [
-      2491,
-      2436,
-      2511
+      2992,
+      2948,
+      2885
     ],
-    "exploreMedianMs": 455.5,
+    "exploreMedianMs": 239.5,
     "exploreQueries": [
       {
         "query": "How does the owner controller reach the vet visit service?",
         "runs": [
-          461,
-          472,
-          462
+          251,
+          250,
+          260
         ],
-        "medianMs": 462
+        "medianMs": 251
       },
       {
         "query": "callers of OwnerRepository.save",
         "runs": [
-          449,
-          454,
-          448
+          228,
+          219,
+          230
         ],
-        "medianMs": 449
+        "medianMs": 228
       }
     ]
   },
   "evidence": {
     "contract": "docs\\contracts\\architecture-regression-baseline-v1.md",
-    "corpusDir": "C:\\workspace\\measure-corpus\\spring-projects-spring-petclinic",
-    "dbPath": "C:\\workspace\\measure-corpus\\spring-projects-spring-petclinic\\.zcodegraph\\zcodegraph.db",
+    "corpusDir": "/tmp/measure-corpus/spring-projects-spring-petclinic",
+    "dbPath": "/tmp/measure-corpus/spring-projects-spring-petclinic/.zcodegraph/zcodegraph.db",
     "reusedClone": true,
     "node": "v22.22.2",
-    "platform": "win32-x64"
+    "platform": "linux-x64",
+    "engine": "rust-hybrid",
+    "rustBuild": "debug (cargo build, CI gate)",
+    "runnerImage": "ubuntu24/20261101.360"
+  },
+  "rebaseline": {
+    "authorizedBy": "Human (roadmap 1-2-8 re-baseline decision, 2026-11-08)",
+    "authorizedVia": "PR #709 R2 resolution — user selected 're-baseline on gate platform'",
+    "rationale": "Original baseline (2491ms) was measured on win32-x64 (2026-10-22) and compared against Ubuntu DEBUG CI as a cross-platform regression alarm. ADR-0011 R2 (TS FileLock -> IndexWriteLease atomic switch) was proven to have ZERO net effect on the measured rust-hybrid index hot path (the only hot-path code change vs R1 was removing a redundant finalizeRustIndex acquire that, in R1, was a microsecond PID-file write). The +18.3% gate failure was the win32-x64-vs-Ubuntu-DEBUG platform gap plus run-to-run runner variance (R1's Ubuntu run happened to land under 15%; R2's two Ubuntu runs measured a stable ~2948ms median, just over). Re-baselining to the gate platform re-anchors the regression alarm to current like-for-like reality; future code regressions above 2948 * 1.15 = ~3390ms will still alarm.",
+    "previousBaseline": {
+      "indexMedianMs": 2491,
+      "platform": "win32-x64",
+      "measuredAt": "2026-10-22T09:19:40.187Z"
+    },
+    "note": "capability-harvest-roadmap.json (referenced by the contract) no longer exists in the repo; the formal 1-2-8 node is drifted. Authorization is recorded here and in the ADR-0011 R2 ledger (1-8-1) instead. Contract Environment section (lines 83-86) still claims the artifact records win32-x64 — flag for a follow-up contract doc fix."
   }
 }

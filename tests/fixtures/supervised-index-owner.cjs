@@ -41,16 +41,7 @@ async function main() {
     const { runRustIndexerBorrowingGate } = require(
       path.join(distRoot, 'indexing/rust-indexer.js'),
     );
-    void runRustIndexerBorrowingGate(projectRoot, {
-      onProgress: () => {
-        if (!fs.existsSync(supervisorPidPath)) {
-          fs.writeFileSync(supervisorPidPath, String(fs.readFileSync(
-            path.join(projectRoot, '.zcodegraph', 'zcodegraph.lock'),
-            'utf8',
-          ).trim()));
-        }
-      },
-    }).then(() => process.exit(0), (error) => {
+    void runRustIndexerBorrowingGate(projectRoot, {}).then(() => process.exit(0), (error) => {
       console.error(error);
       process.exit(2);
     });

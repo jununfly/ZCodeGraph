@@ -405,7 +405,7 @@ are what give the term its skeletonization decision power.
 
 ### Index Write Lock Ownership
 
-**Definition:** The OS-enforced exclusive holding of an index-write lock handle by one complete index operation, including its Rust and TypeScript delegates.
+**Definition:** The OS-enforced exclusive holding of the index-write lease handle on the stable `.zcodegraph/zcodegraph.lock` rendezvous file by one complete index operation. In the TypeScript path the holder is a supervised native `index-lease` helper; in the Rust path it is `IndexWriteLease` directly. Both share one rendezvous file and one lock policy.
 
 **Use when:** Acquiring, borrowing, releasing, or diagnosing a project index lock.
 
@@ -415,9 +415,9 @@ are what give the term its skeletonization decision power.
 
 ### Index Write Lease
 
-**Definition:** The operation-scoped capability under which an outer index owner and its nested TypeScript/Rust delegates may write, valid until all delegated writers finish and the OS lock handle is released. Rust children borrow an externally-held lease while the parent retains the sole OS lock; OS-enforced child lifetime prevents a surviving delegate after parent death.
+**Definition:** The OS-backed exclusive lease on the stable `.zcodegraph/zcodegraph.lock` rendezvous file that gates a single index-write operation. The TypeScript `FileLock` borrows it through a supervised native `zcodegraph-core index-lease` helper (stdin EOF / parent exit releases the OS handle); the Rust writer acquires it directly via `IndexWriteLease`. The lease is never deleted on release or crash; recovery is OS handle cleanup, and an active writer cannot be overridden.
 
-**Use when:** Reasoning about long-running index writes, nested helpers, delegated child processes, crash recovery, and concurrent index access.
+**Use when:** Reasoning about long-running index writes, supervised helper processes, crash recovery, and concurrent index access.
 
 **Not:** A renewable timestamp, fixed indexing deadline, independent lock for each helper, an inherited child lock handle, a PID-only liveness check, or proof that external process termination left the index valid.
 
@@ -425,7 +425,7 @@ are what give the term its skeletonization decision power.
 
 ### Forced Lock Recovery
 
-**Definition:** Human-requested repair of legacy or malformed lock metadata while holding the OS lock, without deleting the stable rendezvous file or bypassing an active writer.
+**Definition:** Human-requested repair of malformed lock metadata in place while holding the OS lock, without deleting the stable rendezvous file or bypassing an active writer. The OS lock itself is never released by `--force`; only bounded diagnostic metadata is rewritten.
 
 **Use when:** Explaining `unlock --force` and its limits after crash-safe OS-backed recovery.
 

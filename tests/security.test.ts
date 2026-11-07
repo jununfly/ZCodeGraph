@@ -8,12 +8,14 @@
  * - Atomic writes
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { FileLock, validateProjectPath, validatePathWithinRoot } from '../src/utils';
-import CodeGraph from '../src/index';
+import { spawn } from 'node:child_process';
+import { validateProjectPath, validatePathWithinRoot } from '../src/utils';
+import CodeGraph, { FileLock } from '../src/index';
+import { findRustCoreCommand } from '../src/indexing/rust-indexer';
 import { ToolHandler, tools } from '../src/mcp/tools';
 import { scanDirectory, isSourceFile } from '../src/extraction';
 import { DatabaseConnection, getDatabasePath } from '../src/db';
@@ -35,103 +37,120 @@ describe('FileLock', () => {
 
   beforeEach(() => {
     tempDir = createTempDir();
-    lockPath = path.join(tempDir, 'test.lock');
+    const storeDir = path.join(tempDir, '.zcodegraph');
+    fs.mkdirSync(storeDir, { recursive: true });
+    // Production rendezvous file: <projectRoot>/.zcodegraph/zcodegraph.lock
+    lockPath = path.join(storeDir, 'zcodegraph.lock');
   });
 
   afterEach(() => {
     cleanupTempDir(tempDir);
   });
 
-  it('should acquire and release a lock', () => {
+  it('should acquire a lock that keeps a stable rendezvous file (never deletes it)', async () => {
     const lock = new FileLock(lockPath);
-    lock.acquire();
+    await lock.acquire();
 
+    // The stable rendezvous file exists while the OS-backed lease is held.
     expect(fs.existsSync(lockPath)).toBe(true);
-    const content = fs.readFileSync(lockPath, 'utf-8').trim();
-    expect(parseInt(content, 10)).toBe(process.pid);
 
-    lock.release();
-    expect(fs.existsSync(lockPath)).toBe(false);
+    await lock.release();
+    // ADR-0011 §1: the rendezvous file is never deleted on release, crash, or
+    // unlock. Deletion would open a symlink/race window on the directory entry.
+    expect(fs.existsSync(lockPath)).toBe(true);
   });
 
-  it('should prevent double acquisition within same process', () => {
+  it('should prevent double acquisition within the same process', async () => {
     const lock1 = new FileLock(lockPath);
     const lock2 = new FileLock(lockPath);
 
-    lock1.acquire();
+    await lock1.acquire();
 
-    // Second lock should fail because our PID is alive
-    expect(() => lock2.acquire()).toThrow(/locked by another process/);
+    // Second acquire fails because the OS-backed lease is held.
+    await expect(lock2.acquire()).rejects.toThrow(/locked by another process/);
 
-    lock1.release();
+    await lock1.release();
   });
 
-  it('should detect and remove stale locks from dead processes', () => {
-    // Write a lock file with a PID that doesn't exist
-    // PID 99999999 is extremely unlikely to be a real process
-    fs.writeFileSync(lockPath, '99999999');
+  it('should re-acquire the lease after a writer process exits (OS releases the handle)', async () => {
+    const core = findRustCoreCommand();
+    expect(fs.existsSync(core.command), 'run cargo build --package zcodegraph-core --bins').toBe(true);
 
-    const lock = new FileLock(lockPath);
-    // Should succeed because the PID is dead
-    expect(() => lock.acquire()).not.toThrow();
+    // A child process holds the OS-backed lease; killing it must release the
+    // lock so the parent can re-acquire, without deleting the file.
+    const child = spawn(process.execPath, [
+      '-e',
+      [
+        `const { FileLock } = require(${JSON.stringify(path.join(__dirname, '..', 'dist', 'indexing', 'file-lock.js'))});`,
+        `const l = new FileLock(${JSON.stringify(lockPath)});`,
+        `l.acquire().then(() => new Promise(() => {}), (e) => { console.error(e); process.exit(1); });`,
+      ].join(''),
+    ], { stdio: 'ignore' });
 
-    lock.release();
+    await vi.waitFor(() => {
+      expect(fs.existsSync(lockPath)).toBe(true);
+    }, { timeout: 10_000 });
+
+    // While the child holds the lease, the parent cannot acquire it.
+    const parentBlocked = new FileLock(lockPath);
+    await expect(parentBlocked.acquire()).rejects.toThrow(/locked by another process/);
+
+    child.kill('SIGKILL');
+    await new Promise<void>((resolve) => child.once('close', () => resolve()));
+
+    // OS released the handle on child death; re-acquire succeeds.
+    const reacquired = new FileLock(lockPath);
+    await expect(reacquired.acquire()).resolves.toBeUndefined();
+    await reacquired.release();
+
+    // Still never deleted.
+    expect(fs.existsSync(lockPath)).toBe(true);
   });
 
-  it('should execute function with withLock', () => {
+  it('should execute function with withLock', async () => {
     const lock = new FileLock(lockPath);
-
-    const result = lock.withLock(() => {
+    const result = await lock.withLock(() => {
       expect(fs.existsSync(lockPath)).toBe(true);
       return 42;
     });
-
     expect(result).toBe(42);
-    expect(fs.existsSync(lockPath)).toBe(false);
+    expect(fs.existsSync(lockPath)).toBe(true);
   });
 
-  it('should release lock even if function throws', () => {
+  it('should release lock even if function throws', async () => {
     const lock = new FileLock(lockPath);
-
-    expect(() => {
-      lock.withLock(() => {
-        throw new Error('test error');
-      });
-    }).toThrow('test error');
-
-    expect(fs.existsSync(lockPath)).toBe(false);
+    await expect(lock.withLock(() => {
+      throw new Error('test error');
+    })).rejects.toThrow('test error');
+    expect(fs.existsSync(lockPath)).toBe(true);
   });
 
   it('should execute async function with withLockAsync', async () => {
     const lock = new FileLock(lockPath);
-
     const result = await lock.withLockAsync(async () => {
       expect(fs.existsSync(lockPath)).toBe(true);
       return 'async-result';
     });
-
     expect(result).toBe('async-result');
-    expect(fs.existsSync(lockPath)).toBe(false);
+    expect(fs.existsSync(lockPath)).toBe(true);
   });
 
   it('should release lock even if async function throws', async () => {
     const lock = new FileLock(lockPath);
-
     await expect(
       lock.withLockAsync(async () => {
         throw new Error('async error');
       })
     ).rejects.toThrow('async error');
-
-    expect(fs.existsSync(lockPath)).toBe(false);
+    expect(fs.existsSync(lockPath)).toBe(true);
   });
 
-  it('release should be idempotent', () => {
+  it('release should be idempotent', async () => {
     const lock = new FileLock(lockPath);
-    lock.acquire();
-    lock.release();
+    await lock.acquire();
+    await lock.release();
     // Second release should not throw
-    expect(() => lock.release()).not.toThrow();
+    await expect(lock.release()).resolves.toBeUndefined();
   });
 });
 

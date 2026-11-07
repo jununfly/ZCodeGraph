@@ -56,7 +56,8 @@ import {
 } from './resolution/dynamic-dispatch-heuristic-edge-protocol';
 import { GraphTraverser, GraphQueryManager } from './graph';
 import { ContextBuilder, createContextBuilder } from './context';
-import { Mutex, FileLock } from './utils';
+import { Mutex } from './utils';
+import { FileLock } from './indexing/file-lock';
 import { FileWatcher, WatchOptions, PendingFile, LockUnavailableError } from './sync';
 import { EmbeddingRunner, embeddingEnabled } from './embedding/worker-runner';
 import { enqueueEmbeddingBatch, getEmbeddingQueueSnapshot, rebuildEmbeddingQueue, type EmbeddingQueueSnapshotEntry } from './embedding/queue';
@@ -706,7 +707,8 @@ export {
   silentLogger,
   defaultLogger,
 } from './errors';
-export { Mutex, FileLock, processInBatches, debounce, throttle, MemoryMonitor } from './utils';
+export { Mutex, processInBatches, debounce, throttle, MemoryMonitor } from './utils';
+export { FileLock } from './indexing/file-lock';
 export { FileWatcher, WatchOptions, PendingFile, LockUnavailableError } from './sync';
 export { MCPServer } from './mcp';
 
@@ -966,8 +968,8 @@ export class CodeGraph {
     void EmbeddingRunner.shutdownDatabase(this.db.getPath()).catch(() => {
       /* worker lifecycle failures must not make graph close fail */
     });
-    // Release file lock if held
-    this.fileLock.release();
+    // Release the index-write lease if held (never deletes the stable lock file).
+    void this.fileLock.release();
     this.db.close();
   }
 
@@ -981,7 +983,7 @@ export class CodeGraph {
       try {
         await EmbeddingRunner.shutdownDatabase(this.db.getPath());
       } finally {
-        this.fileLock.release();
+        await this.fileLock.release();
         this.db.close();
       }
     });
@@ -1041,7 +1043,7 @@ export class CodeGraph {
 
     return this.indexMutex.withLock(async () => {
       try {
-        this.fileLock.acquire();
+        await this.fileLock.acquire();
       } catch {
         return { success: false, filesIndexed: 0, filesSkipped: 0, filesErrored: 0, nodesCreated: 0, edgesCreated: 0, errors: [{ message: 'Could not acquire file lock - another process may be indexing', severity: 'error' as const }], durationMs: 0 };
       }
@@ -1114,7 +1116,7 @@ export class CodeGraph {
 
         return result;
       } finally {
-        this.fileLock.release();
+        await this.fileLock.release();
       }
     });
   }
@@ -1232,7 +1234,7 @@ export class CodeGraph {
 
   private closeDatabaseForExternalIndex(): void {
     this.unwatch();
-    this.fileLock.release();
+    void this.fileLock.release();
     this.db.close();
   }
 
@@ -1260,7 +1262,7 @@ export class CodeGraph {
   async indexFiles(filePaths: string[]): Promise<IndexResult> {
     return this.indexMutex.withLock(async () => {
       try {
-        this.fileLock.acquire();
+        await this.fileLock.acquire();
       } catch {
         return { success: false, filesIndexed: 0, filesSkipped: 0, filesErrored: 0, nodesCreated: 0, edgesCreated: 0, errors: [{ message: 'Could not acquire file lock - another process may be indexing', severity: 'error' as const }], durationMs: 0 };
       }
@@ -1270,7 +1272,7 @@ export class CodeGraph {
         await loadGrammarsForLanguages(neededLanguages);
         return this.orchestrator.indexFiles(filePaths);
       } finally {
-        this.fileLock.release();
+        await this.fileLock.release();
       }
     });
   }
@@ -1351,7 +1353,7 @@ export class CodeGraph {
   async sync(options: IndexOptions = {}): Promise<SyncResult> {
     return this.indexMutex.withLock(async () => {
       try {
-        this.fileLock.acquire();
+        await this.fileLock.acquire();
       } catch {
         return { filesChecked: 0, filesAdded: 0, filesModified: 0, filesRemoved: 0, nodesUpdated: 0, durationMs: 0 };
       }
@@ -1412,7 +1414,7 @@ export class CodeGraph {
 
         return result;
       } finally {
-        this.fileLock.release();
+        await this.fileLock.release();
       }
     });
   }
@@ -1913,13 +1915,6 @@ export class CodeGraph {
     };
   }> {
     return this.indexMutex.withLock(async () => {
-      try {
-        this.fileLock.acquire();
-      } catch {
-        throw new Error('Could not acquire file lock - another process may be indexing');
-      }
-
-      try {
         const before = this.queries.getNodeAndEdgeCount();
         const profile = {
           frameworkPostExtractMs: 0,
@@ -2497,9 +2492,6 @@ export class CodeGraph {
           edgesCreated: after.edges - before.edges,
           profile,
         };
-      } finally {
-        this.fileLock.release();
-      }
     });
   }
 
@@ -2957,7 +2949,7 @@ export class CodeGraph {
       await EmbeddingRunner.shutdownDatabase(getDatabasePath(this.projectRoot));
       const replacementGate = await acquireExclusiveReplacementGate(getDatabasePath(this.projectRoot));
       try {
-        this.fileLock.release();
+        await this.fileLock.release();
         this.db.close();
         removeDirectory(this.projectRoot);
       } finally {

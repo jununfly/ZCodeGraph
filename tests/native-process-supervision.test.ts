@@ -10,6 +10,7 @@ import {
   type NativeReplacementLease,
 } from '../src/embedding/replacement-gate';
 import { findRustCoreCommand } from '../src/indexing/rust-indexer';
+import { readIndexWriteLeaseDiagnostics } from '../src/indexing/index-write-lease';
 import { removeTempDirWithRetries } from './helpers/spawned-process-cleanup';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -166,7 +167,9 @@ describe('native process supervision and crash recovery', () => {
         expect(fs.existsSync(supervisorPidPath), ownerStderr).toBe(true);
       }, { timeout: 10_000 });
       const supervisorPid = readPid(supervisorPidPath);
-      const writerPid = readPid(legacyLockPath);
+      const leaseDiagnostics = readIndexWriteLeaseDiagnostics(projectRoot);
+      expect(leaseDiagnostics.state, ownerStderr).toBe('active-writer');
+      const writerPid = leaseDiagnostics.owner!.pid;
       ownedPids.add(supervisorPid);
       ownedPids.add(writerPid);
       expect(writerPid).not.toBe(supervisorPid);
