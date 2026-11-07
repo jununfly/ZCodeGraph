@@ -151,6 +151,25 @@ Why wiring must be a separate batch: TypeScript has no native file-lock API and 
 
 **Status: 0 of 8 fully covered.** Per Q76, if the hard budget cannot cover all 8, the program falls back to P3 and this item stays OPEN; the "implemented" bar is never lowered.
 
+## ZJ-0015 execution prerequisites: authorization and pre-registration (2026-11-07, separate batch)
+
+Option C also grants the **new Human authorization** required by `1-8-2`, with the explicit condition that pre-registration and a hard budget freeze happen **before** any implementation. This batch is strictly isolated from the ADR-0011 P1 batch (Q70): `e9` unchanged, `1-4` unchanged and still blocked, `1-8-1` / `1-8-2` remain parallel, product default stays OFF, v3 holdout stays frozen, G-ship 90%/95% and all safety gates unchanged, the 8 `unknownCriteria` and `has-gaps` retained. Approval covers the protocol, not results.
+
+Pre-registration fields to freeze before execution (these are field definitions, not invented values):
+
+| Field | State |
+|---|---|
+| Official N, total cost, hard budget ceiling | **to be frozen by Human before the pilot**; `5–8×4×3` is pilot only, `40×4` is not an argued budget |
+| Primary test | task-level two-sided sign-flip randomization; **Task Cluster is the sole independent inference cluster**, trials must not inflate N; `k=6` full permutation first; task-cluster bootstrap gives a 95% interval only |
+| MDE | 1.5, already frozen |
+| Arms | A/C/S; S uses the same candidates, content, count and payload, differing only by the fixed-seed ordering permutation; S is diagnostic only |
+| Correctness non-inferiority value, task-set composition, task freshness | **to be pre-registered**, not assumed |
+| Named operators / reviewers | **to be pre-registered** |
+
+Execution prerequisites that must be built only after the above is frozen: `ZCG_RETRIEVAL_ARM` (default OFF), S serialization, configuration fingerprint assertion, arm-blinded double review (raw agreement ≥90%), immutable run manifest, credential-free one-shot read-only snapshot isolation, fixed-seed statistics unit tests, independent task set, and a baseline under `DES-baseline-agent-sufficiency-v1` because arm switching changes MCP ranking. Then the pilot, then the formal run.
+
+**After this batch, all five prerequisites and the pilot remain unstarted.** This batch is a pre-registration and budget-freeze record only; it is not an execution start.
+
 ## Boundary
 
 This backlog is a governance aid, not an ADR, contract, method, or release input. It must not be registered in `docs/README.md`. Decisions recorded here authorize document edits only; no item above constitutes implementation approval.

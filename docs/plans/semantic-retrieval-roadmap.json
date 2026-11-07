@@ -921,6 +921,11 @@
           "q": "ZJ-0015 执行前置包含什么，现在是否可执行？",
           "answer": "ZJ-0015（ADR-0015, Accepted 2026-11-06）批准的是 ZRA-Paired v1 协议，不是结果，也不构成执行授权。前置能力全部未实现：默认 OFF 的 ZCG_RETRIEVAL_ARM 运行时切臂、S 的同 payload 固定种子排序置换、配置指纹断言、arm-blinded 双审（原始一致率≥90%）、不可变运行清单、无凭据一次性只读快照隔离、固定 seed 统计单元测试、按 DES-baseline-agent-sufficiency-v1 跑 baseline（切臂改变 MCP ranking）。正式 N/总成本/正确性非劣数值/任务集组成/人名须在 5-8x4x3 试点后预注册，试点前冻结硬预算。任何实现须另获 Human 授权。真机通过仅获 G-ship 补证资格，1-4 与产品默认 OFF 不变。",
           "note": "以 1-8-2 -> 1-4 的 blocks 边表达：前置未完成前 1-4 不可开工。"
+        },
+        {
+          "q": "ZJ-0015 执行前置：新 Human 授权后的预注册与硬预算冻结如何落地？",
+          "answer": "同一轮 Human 选择 C 也授予 1-8-2 所需的新 Human 授权，但明确条件是预注册与硬预算冻结必须先于任何实现，且按 Q70 与 ADR-0011 P1 批次严格隔离：e9 不变、1-4 不变且仍 blocked、1-8-1 与 1-8-2 保持并列、产品默认 OFF 不变、v3 holdout 永久冻结、G-ship 90%/95% 与全部安全门不变、8 个 unknownCriteria 与 has-gaps 保留；批准的是协议不是结果。预注册字段（本批只定义字段，不虚构数值）：正式 N / 总成本 / 硬预算上限须由 Human 在试点前冻结，5-8x4x3 仅是试点、40x4 不是已论证预算；主检验为任务级双侧符号翻转随机化，Task Cluster 是唯一独立推断簇、trial 不得放大 N、k=6 全排列优先、任务簇 bootstrap 只给 95% 区间；MDE=1.5 已冻结；A/C/S 三臂中 S 同候选/同内容/同条数/同 payload 仅以固定种子破坏排序且只作诊断；正确性非劣数值、任务集组成与 freshness、人名与 reviewer 须预注册。冻结后才准建设：ZCG_RETRIEVAL_ARM（默认 OFF）、S 序列化、配置指纹断言、arm-blinded 双审（原始一致率≥90%）、不可变运行清单、无凭据一次性只读快照隔离、固定 seed 统计单元测试、独立任务集，以及因切臂改变 MCP ranking 必须按 DES-baseline-agent-sufficiency-v1 跑 baseline；之后才是试点与正式运行。本批为预注册与硬预算冻结记录，不是执行启动：上述 5 项前置能力与试点在本批之后仍未开始，节点保持 pending、budget 0/2、无新边。",
+          "note": "e9 与 1-4 blocked=True 不变；治理台账 2026-11-06-adr-human-decisions.md 的 ZJ-0015 execution prerequisites 节；ADR-0015 与 methods v2 口径不变。"
         }
       ],
       "notes": "",
@@ -933,7 +938,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-07 17:02:00",
+    "updated": "2026-11-07 16:51:03",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
