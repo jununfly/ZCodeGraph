@@ -57,10 +57,10 @@ Q33=A and Q50=A restricted the **2026-11-06 governance batches** to `docs/` and 
 | Gap | Evidence | Status |
 |---|---|---|
 | `init` still called by harness scripts | `scripts/agent-eval/audit.sh:61`, `scripts/add-lang/bench.sh:45` | **Fixed 2026-11-07** in a separate `feat` batch: both indexing steps now run `index --force` after wiping the store, relying on `index` to bootstrap implicitly. ADR-0008's implementation-status note was updated in the same batch. No `init` alias or shim was added. |
-| `unlock` still deletes the lock file | `src/bin/zcodegraph.ts:2082` (`fs.unlinkSync`), `:2083` success message | **Still open.** Surface symptom of the whole-design debt: the §1/§3 OS-lock prerequisites are absent on the index-lock path. Not a standalone fix. |
+| `unlock` still deletes the lock file | pre-fix `src/bin/zcodegraph.ts:2082` (`fs.unlinkSync`), `:2083` success message | **Fixed 2026-11-07** by the separately authorized P1 batch 1 (PR #705, `4ffed66`): `unlock` now diagnoses via `index-lease --diagnose`, and `--force` repairs bounded metadata in place while holding the OS lock; the stable rendezvous file is never deleted. The ADR-0011 whole-design debt stays **OPEN** — §1/§3 OS-lock prerequisites are still absent on the index-write path, so `FileLock` / `ProjectLock` still delete their PID file. The evidence column records the original, now stale line numbers. |
 | Old delete semantics still asserted | `tests/security.test.ts:69` | **Still open by design.** Faithfully describes shipped behavior. Must **not** be changed alone (Q51=A); replace only together with the full implementation. |
 
-The 2026-11-06 governance batches modified no `src/`, `scripts/`, or `tests/` file. The 2026-11-07 separate `feat` batch touched only the two harness scripts above; `src/`, `tests/`, and the ADR-0011 whole-design debt are untouched.
+The 2026-11-06 governance batches modified no `src/`, `scripts/`, or `tests/` file. The 2026-11-07 separate `feat` batch touched only the two harness scripts above; `src/`, `tests/`, and the ADR-0011 whole-design debt are untouched by that batch. The `unlock` fix in the table above belongs to a different, later batch (P1 batch 1, PR #705); see `Fallback to P3`.
 
 ## Reclassification and open debt (Q48–Q53)
 
@@ -260,11 +260,19 @@ assets; `unlock` and the CLI help text are already shipped in their §4 form and
 are not reverted. The four Q79 re-open events and the periodic
 governance-action fallback remain in force.
 
-**Known documentation drift (recorded here, not changed — Q81):** ADR-0011's
-`> Implementation status (2026-11-06)` note still says `unlock` calls
-`fs.unlinkSync`. That half is stale after PR #705; the rest of the note (§1/§3
-unwired, 8 items uncovered) remains accurate. This round does not edit the ADR
-body; the note must be synced at the next re-open event.
+**Documentation drift — resolved at the 2026-11-07 review:** ADR-0011's
+`> Implementation status (2026-11-06)` note previously said `unlock` calls
+`fs.unlinkSync`; that half became stale with PR #705 and was registered here as
+pending the next review. The note's §4 paragraph has now been synced to describe
+the shipped inspect-and-report behavior, the constrained `--force` metadata
+repair, and the independent `index-lease --diagnose` / `--repair` channel. The
+Context sentence claiming `unlock` "deletes it unconditionally" was also given
+an explicit past-tense qualifier and a cross-reference to the status note,
+removing the ADR's internal contradiction. The rest of the note (§1/§3
+unwired, 0 of 8 verification items fully covered, "do not describe this ADR as
+implemented") is unchanged and remains accurate. Q81 is respected: no review
+triggers were written into the ADR — this edit corrects a factual
+implementation-status statement only. The debt stays OPEN.
 
 ## Boundary
 
