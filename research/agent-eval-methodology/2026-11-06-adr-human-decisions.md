@@ -66,12 +66,50 @@ The 2026-11-06 governance batches modified no `src/`, `scripts/`, or `tests/` fi
 
 Item #8 was closed under its inaccurate name after read-only evidence showed that ADR-0011 §1 and §3 are also unimplemented on `.zcodegraph/zcodegraph.lock`; §4 cannot be implemented alone because its diagnostics and `--force` require an already-acquired OS lock. Evidence, the 8-item verification gap (0 fully covered, 7 partial, 1 with corresponding tests), and both impact surfaces are recorded in `2026-11-06-adr-0011-implementation-gap.md` in this directory.
 
-**New OPEN item: ADR-0011 whole-design implementation debt.** Two paths remain available, and neither was chosen in this round:
+**New OPEN item: ADR-0011 whole-design implementation debt.** Two paths were available at the time, and neither was chosen in that round:
+
+> **Reviewed 2026-11-07 · P3 status quo · triggers: code/contract change, real lock failure, a formal P1/P2 proposal, or a governance-action fallback.** The path decision and full trigger set are recorded in the section below. This item remains **OPEN**; "P3" means the debt is deliberately not resolved, not that it is closed.
 
 1. Implement the whole ADR — native cross-platform Adapter, §1–§5, all 8 Required verification items, and real three-platform evidence — in a dedicated `feat` program.
 2. File a new accepted ADR that supersedes ADR-0011 and describes the shipped PID-only implementation together with its risks.
 
 Until one is approved: ADR-0011 must not be described as implemented; `tests/security.test.ts:69` must not be changed on its own; and no `unlock` behavior change may be folded into a docs-only batch. Any future work uses its own batch with strict feat/chore separation (Q50=A).
+
+## First-round consensus (2026-11-07, Q65–Q72)
+
+Human explicitly confirmed consensus on the eight public prerequisites for choosing a path. **No path had been selected in that round** (a path was selected later the same day — see the next section). This OPEN item was, and remains, **OPEN**, and roadmap node `1-8-1` was, and remains, `pending` with an append-only decision recording this round. The candidate set was extended from two to three:
+
+1. **P1** — implement the whole ADR (native cross-platform Adapter, §1–§5, all 8 Required verification items, real three-platform evidence) in a dedicated `feat` program. Requires a named concurrency/security reviewer before implementation; the name is deferred.
+2. **P2** — a new accepted ADR that supersedes ADR-0011 and describes the shipped PID-only implementation as an **accepted existing fact together with its risks**, not as a bug to fix.
+3. **P3** — keep the status quo, **but only with explicit re-review triggers**; an indefinite open item without triggers is not a valid form of this option.
+
+Locked constraints: Q51=A (`tests/security.test.ts:69` must not be changed alone; no `unlock` behavior change in a docs-only batch; no "implemented" claim before all 8 verification items have evidence); Q70=A (isolated from `e9: 1-8-2 -> 1-4 blocks`, from 1-4, and from ZJ-0015 execution prerequisites; `1-8-1` and `1-8-2` stay parallel); Q68=A (Human is the sole approver); Scope gate = Product execution but this round is discussion-only; strict feat/chore separation; no automatic commit/push.
+
+New read-only evidence for this round: `docs/contracts/cli-p1-modularity-and-explore-v1.md:320` forbids weakening the P0 lock or DB replacement barrier and `:317` places `unlock` last in the migration slices; `ZJ-CONTEXT.md` carries three glossary entries written in ADR-0011's design state; `src/bin/zcodegraph.ts:2065` still advertises delete-to-recover; `tests/security.test.ts` is not referenced by `ci.yml`; the 8 verification items remain 0 fully covered / 7 partial / 1 with corresponding tests.
+
+**At the time of recording, the second-round frontier — the path choice itself and each path's downstream costs — had not been asked yet.** It was asked and settled later the same day; see the next section. Recording this round authorized no implementation, no new ADR, and no change to `src/`, `tests/`, or `docs/README.md`.
+
+## Path decision (2026-11-07, Q73–Q83)
+
+Human accepted all recommendations and explicitly confirmed consensus. **Selected path: P3 — keep the status quo, with explicit re-review triggers.** This is a decision *not to resolve* the debt now; it is not a resolution. ADR-0011 remains an accepted design, `zcodegraph.lock` remains the PID-only implementation, the 8 Required verification items remain 0 fully covered, this backlog item remains **OPEN**, and roadmap node `1-8-1` remains `pending` (status, budget, and edges unchanged).
+
+Locked terms:
+
+| Q | Term |
+|---|---|
+| 73 | P3 selected; P1 (whole-ADR `feat` program) and P2 (new accepted superseding ADR) are not selected. |
+| 74 | Any future work uses its own batch with strict feat/chore separation, no unrelated governance items, no automatic commit/push. |
+| 75 | Even after a path is selected, entering implementation or creating a new ADR requires a **second, explicit Human approval**. |
+| 76 | If a future P1 cannot complete all 8 verification items within its hard budget, or a future P2 risk argument fails, fall back to P3 and keep this item OPEN; never silently lower the "implemented" bar. |
+| 77 | Event-driven triggers **plus** a periodic fallback, so "never triggered" cannot become indefinite drift. |
+| 78 | The fallback is bound to existing governance actions, not a calendar number. |
+| 79 | Four mandatory re-open events: **(a)** any change to index-write-lock code or contracts; **(b)** a real concurrency-write, lock-loss, or stale-delete failure or user report; **(c)** a formal proposal of P1 or P2; **(d)** a governance-action fallback hit — each roadmap review, each new or revised accepted ADR, each index-lock-related contract change. |
+| 80 | Record only in this backlog and as an append-only decision on `1-8-1`; do **not** mark the node completed or change its budget/edges. |
+| 81 | Do not write review triggers into ADR-0011, a new contract, a new ADR, or `docs/README.md`. They are process governance, not specification. |
+| 82 | Until a trigger fires and the path decision is reopened, `unlock`, `tests/security.test.ts:69`, `FileLock`, `ProjectLock`, and CLI help text are **frozen**. Any "small fix" must return to this grill first. |
+| 83 | Two gates: this landing was authorized by an explicit "consensus confirmed"; no automatic commit/push afterwards. |
+
+This round changed no `src/`, `scripts/`, `tests/`, ADR, contract, or `docs/README.md` file, and created no ADR. The design-tree frontier is empty.
 
 ## Boundary
 
