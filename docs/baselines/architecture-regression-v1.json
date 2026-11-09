@@ -53,6 +53,13 @@
       "platform": "win32-x64",
       "measuredAt": "2026-10-22T09:19:40.187Z"
     },
-    "note": "capability-harvest-roadmap.json (referenced by the contract) no longer exists in the repo; the formal 1-2-8 node is drifted. Authorization is recorded here and in the ADR-0011 R2 ledger (1-8-1) instead. Contract doc fix applied 2026-11-08: Environment section now reflects the linux-x64 re-baseline (was stale win32-x64 claim), and the roadmap reference was updated from the retired capability-harvest-roadmap.json 1-2-8 to semantic-retrieval-roadmap.json 1-8-1."
+    "note": "capability-harvest-roadmap.json (referenced by the contract) no longer exists in the repo; the formal 1-2-8 node is drifted. Authorization is recorded here and in the ADR-0011 R2 ledger (1-8-1) instead. Contract doc fix applied in PR #710 (docs-fix-capability-harvest-drift): Environment section now reflects the linux-x64 re-baseline (was stale win32-x64 claim), and the roadmap reference was updated from the retired capability-harvest-roadmap.json 1-2-8 to semantic-retrieval-roadmap.json 1-8-1. Gate-noise hardening (repetitions 3->9) shipped in PR #711 (governance-redline-noise-hardening)."
+  },
+  "measurement": {
+    "statistic": "median",
+    "checkRepetitions": 9,
+    "baselineRepetitions": 3,
+    "changedAt": "2026-11-09",
+    "rationale": "CI check repetition count raised 3 -> 9 (governance-redline-noise-hardening, 2026-11-09) to stabilize the bare median against CI runner-load variance: at 3 reps a single/double slow run (observed 2761/3455/3556 -> median 3455, +17.2% over 2948) crossed the 15% red line on a loaded runner, while an idle run measured a tight 2885/2948/2992. The 30% within-run spread far exceeds the 15% threshold, so the gate was detecting runner load, not code. The baseline indexMedianMs 2948 (median-of-3) remains the comparison anchor; the 9-rep median of a stable run is ~2950, inside the 15% band. Statistic unchanged (median)."
   }
 }

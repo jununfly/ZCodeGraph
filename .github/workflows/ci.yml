@@ -209,7 +209,7 @@ jobs:
           node scripts/measure/perf-regression-check.mjs
           --baseline docs/baselines/architecture-regression-v1.json
           --corpus-root /tmp/measure-corpus
-          --repetitions 3
+          --repetitions 9
       - name: Run capability probes (petclinic corpus)
         run: >
           node scripts/measure/capability-probes.mjs

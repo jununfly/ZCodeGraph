@@ -64,9 +64,9 @@ against `dist/bin/zcodegraph.js`).
 Per corpus:
 
 1. Clone (or reuse cache under `--corpus-root`), pin `--ref`.
-2. Cold index once, then re-index `repetitions` times (default 3, deleting
-   `.zcodegraph/` between runs); record each wall time; **index baseline =
-   median**.
+2. Cold index once, then re-index `repetitions` times (default 9 since
+   2026-11-09, was 3; deleting `.zcodegraph/` between runs); record each wall
+   time; **index baseline = median** of all repetitions.
 3. For each frozen explore query, run `zcodegraph explore "<query>"`
    `repetitions` times against the indexed DB; record per-run wall time of
    the CLI process; **explore baseline = median across queries and runs**.
@@ -109,3 +109,22 @@ Frozen explore queries (structural, representative of agent高频 flows):
   red line here);
 - Windows CI flake remediation (node 1-2-10);
 - automatic rollback — red lines alarm only.
+
+## Change history
+
+- **2026-11-09 — runner-load noise hardening.** The regression statistic stays
+  the bare **median**, but `repetitions` was raised from **3 → 9** (CI flag
+  `--repetitions` and both scripts' default). Root cause of the prior flake: at
+  3 repetitions a single or double CI runner-load spike (observed index runs
+  `2761 / 3455 / 3556` → median 3455, +17.2% over the 2948 baseline) dominated
+  the bare median and crossed the 15% red line, while a different run measured a
+  tight `2885 / 2948 / 2992` (median 2948, −22% on an idle runner). The 30%
+  within-run spread at 3 reps is far larger than the 15% threshold, so the gate
+  was detecting runner load, not code. With 9 repetitions the median is
+  estimated from many more samples; one or two slow runs no longer move it past
+  the threshold, while a uniformly slower run (a real regression) still does.
+  The baseline `indexMedianMs = 2948` remains the comparison anchor (a typical
+  value); it is not re-derived because the new statistic is still a median and
+  the current 9-rep median of a stable run is ~2950, well inside the 15% band.
+  Further hardening (release-build upstream-check binary + trimmed-mean
+  statistic) is possible but out of scope for this change.
