@@ -53,7 +53,7 @@
       "platform": "win32-x64",
       "measuredAt": "2026-10-22T09:19:40.187Z"
     },
-    "note": "capability-harvest-roadmap.json (referenced by the contract) no longer exists in the repo; the formal 1-2-8 node is drifted. Authorization is recorded here and in the ADR-0011 R2 ledger (1-8-1) instead. Contract Environment section (lines 83-86) still claims the artifact records win32-x64 — follow-up contract doc fix shipped in PR #710 (docs-fix-capability-harvest-drift)."
+    "note": "capability-harvest-roadmap.json (referenced by the contract) no longer exists in the repo; the formal 1-2-8 node is drifted. Authorization is recorded here and in the ADR-0011 R2 ledger (1-8-1) instead. Contract doc fix applied in PR #710 (docs-fix-capability-harvest-drift): Environment section now reflects the linux-x64 re-baseline (was stale win32-x64 claim), and the roadmap reference was updated from the retired capability-harvest-roadmap.json 1-2-8 to semantic-retrieval-roadmap.json 1-8-1. Gate-noise hardening (repetitions 3->9) shipped in PR #711 (governance-redline-noise-hardening)."
   },
   "measurement": {
     "statistic": "median",
