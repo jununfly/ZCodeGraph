@@ -21340,6 +21340,14 @@ mod tests {
     // buckets, mixed-language parser reuse, local exact lookup cache, and the
     // matched-ts-js graph work profile. Keep final-flush SQLite write mode tests
     // in the 1-2-3 SQLite write finalization boundary, not this bucket.
+    //
+    // Wall-clock timing assertions do not belong in this bucket: shared-runner
+    // disk-IO variance makes any in-unit threshold flaky (a code-unchanged CI
+    // run tripped sqliteWriteMs=2562 > parseExtractionMs*2=2170). Index latency
+    // regression is gated at the architecture-regression seam instead:
+    // docs/baselines/architecture-regression-v1.json + CI 9-rep median / 15%.
+    // Unit assertions here stay deterministic: index success, counts, and DB
+    // state (nodes / nodes_fts parity).
     #[test]
     fn candidate_producer_returns_exact_name_and_presence_from_sqlite() {
         let dir = temp_dir("candidate-producer");
@@ -23036,8 +23044,8 @@ mod tests {
     }
 
     #[test]
-    fn rust_index_keeps_sqlite_writes_batched_for_symbol_heavy_projects() {
-        let dir = temp_dir("batched-writes");
+    fn rust_index_keeps_symbol_heavy_projects_indexed_with_disk_writes() {
+        let dir = temp_dir("disk-writes");
         for file_index in 0..40 {
             let mut source = String::new();
             for symbol_index in 0..80 {
@@ -23069,16 +23077,16 @@ mod tests {
         assert!(result.success, "{:?}", result.errors);
         assert_eq!(result.files_indexed, 40);
         assert!(result.nodes_created >= 3_200);
-        if !cfg!(windows) {
-            let max_expected_sqlite_ms = 500.max(result.profile.parse_extraction_ms * 4);
-            assert!(
-                result.profile.sqlite_write_ms <= max_expected_sqlite_ms,
-                "sqliteWriteMs={}ms parseExtractionMs={}ms maxExpectedSqliteMs={}ms",
-                result.profile.sqlite_write_ms,
-                result.profile.parse_extraction_ms,
-                max_expected_sqlite_ms
-            );
-        }
+        let conn = Connection::open(db_path(&dir)).unwrap();
+        let match_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes_fts WHERE nodes_fts MATCH 'f0*'",
+        );
+        assert!(
+            match_count > 0,
+            "FTS index must be searchable after a bulk index"
+        );
+        drop(conn);
         cleanup_temp_dir(dir);
     }
 
@@ -23104,21 +23112,64 @@ mod tests {
         assert_eq!(result.files_indexed, 80);
         assert!(result.nodes_created >= 40_000);
         let conn = Connection::open(db_path(&dir)).unwrap();
-        let fts_count = sqlite_count(&conn, "SELECT count(*) FROM nodes_fts");
-        let node_count = sqlite_count(&conn, "SELECT count(*) FROM nodes");
-        assert_eq!(fts_count, node_count);
+        // `count(*)` on an external-content FTS5 table reads `nodes` itself;
+        // only a MATCH query can prove the FTS index was actually rebuilt.
+        let match_count = sqlite_count(
+            &conn,
+            "SELECT count(*) FROM nodes_fts WHERE nodes_fts MATCH 'f0*'",
+        );
+        assert!(
+            match_count > 0,
+            "FTS index must be searchable after a bulk index"
+        );
+        drop(conn);
 
-        if !cfg!(windows) {
-            let max_expected_sqlite_ms = 250.max(result.profile.parse_extraction_ms * 2);
-            assert!(
-                result.profile.sqlite_write_ms <= max_expected_sqlite_ms,
-                "sqliteWriteMs={}ms parseExtractionMs={}ms maxExpectedSqliteMs={}ms",
-                result.profile.sqlite_write_ms,
-                result.profile.parse_extraction_ms,
-                max_expected_sqlite_ms
-            );
-        }
         cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn rust_index_write_modes_keep_fts_consistent_for_symbol_heavy_projects() {
+        fn assert_index_db_parity(dir: &Path) -> (i64, i64) {
+            let conn = Connection::open(db_path(dir)).unwrap();
+            let node_count = sqlite_count(&conn, "SELECT count(*) FROM nodes");
+            // `nodes_fts` is an FTS5 external-content table (content='nodes'),
+            // so a bare count(*) reads the content table and can never disagree
+            // with node_count. A MATCH query exercises the FTS index itself.
+            let match_count = sqlite_count(
+                &conn,
+                "SELECT count(*) FROM nodes_fts WHERE nodes_fts MATCH 'f0*'",
+            );
+            assert!(
+                match_count > 0,
+                "FTS index must be searchable after a bulk index; MATCH 'f0*' \
+                 returned 0 rows out of {} nodes",
+                node_count
+            );
+            (node_count, match_count)
+        }
+
+        let modes = [SqliteWriteMode::Disk, SqliteWriteMode::FinalFlush];
+        let mut observed = Vec::new();
+        for (mode_index, mode) in modes.iter().enumerate() {
+            let dir = temp_dir(&format!("write-mode-parity-{mode_index}"));
+            for file_index in 0..8 {
+                let mut source = String::new();
+                for symbol_index in 0..50 {
+                    source.push_str(&format!(
+                        "export function f{}_{}() {{ return {}; }}\n",
+                        file_index, symbol_index, symbol_index
+                    ));
+                }
+                write_file(&dir, &format!("f{}.ts", file_index), &source);
+            }
+
+            let result = run_index(&index_request(&dir, *mode));
+
+            assert!(result.success, "{:?} {:?}", mode, result.errors);
+            observed.push(assert_index_db_parity(&dir));
+            cleanup_temp_dir(dir);
+        }
+        assert_eq!(observed[0], observed[1]);
     }
 
     #[test]
