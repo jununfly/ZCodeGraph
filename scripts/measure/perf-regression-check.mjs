@@ -39,7 +39,7 @@ const EXPLORE_RED_LINE = 0.20;
 function parseArgs(argv) {
   const args = {
     baseline: null,
-    repetitions: 3,
+    repetitions: 9,
     corpusRoot: 'C:/workspace/measure-corpus',
     out: null,
     quiet: false,

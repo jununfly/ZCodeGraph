@@ -43,7 +43,7 @@ export function parseArgs(argv) {
     repo: null,
     ref: null,
     sparse: [],
-    repetitions: 3,
+    repetitions: 9,
     corpusRoot: 'C:/workspace/measure-corpus',
     out: null,
     quiet: false,
