@@ -422,6 +422,18 @@ Targeted verification: `tsc --noEmit` exit 0; `vitest run` over the six zra-pair
 
 This section is a governance record; it does not by itself authorize any commit, push, pilot, or production wiring.
 
+## 1-8-2 option B+E: TDD isolation harness and fail-closed gate (2026-11-10)
+
+Human asked to continue B and E with `zj-tdd`. Per the TDD skill, the seams under test were written down and confirmed BEFORE any test was written: S1 (credential-free read-only snapshot contract), S2 (isolation context through `adapterOptions` to a process-free fake adapter), S3 (baseline fail-closed gate). S4 (flag registration + `plan()` wiring) was excluded because it changes MCP ranking and Trigger Matrix :42 requires an Agent Sufficiency baseline that does not exist; baseline evidence is still 0, the first real `-p` run is uncalibrated, and the four Human-only fields remain UNSET. Recorded as roadmap decision #21.
+
+Five vertical red-green cycles, each with a measured failing test then the minimal implementation: (1) snapshot mirrors the corpus, strips credential env vars and sensitive files, never mutates `process.env`, unique roots; (2) SHA-256 integrity fingerprint detects any corpus mutation; (3) one-shot semantics via `assertUsable` / `disposeSnapshot` with an auditable `.consumed` marker; (4) `runIsolatedBaseline` shares one isolation object across both arms using the real `runBaseline` and a process-free fake adapter, and invalidates the WHOLE run (both arms) on an integrity breach (ADR-0015 D4); (5) `canEnableRetrievalArm` / `assertArmSwitchAllowed` keep the arm switch blocked until all four Human-owned evidence gates are satisfied. The isolation context travels through the existing `adapterOptions`, so harness core is unchanged (ADR-0016 acceptance criterion 3).
+
+Artifacts: `scripts/agent-eval/harness/isolation.mjs`, `tests/agent-eval-isolation.test.ts`, `src/eval/zra-paired-gate.ts`, `tests/zra-paired-gate.test.ts`. Verification: `tsc --noEmit` 0; targeted vitest 9 files / 83 tests passed, including the 11 ADR-0016 harness acceptance tests (the new harness file carries no provider name). Full-suite regression (9m50s): 189 files passed / 1 failed / 6 skipped (196), 2610 tests passed / 38 skipped (2648). Versus the previous baseline (187/1/6, 2605 passed; decision #20) the delta is exactly +2 files and +5 tests, with the same single pre-existing `perf-regression-check.test.ts` failure: no new failure, no regression. Recorded as roadmap decision #23.
+
+Boundary: no ranking change, no `ZCG_RETRIEVAL_ARM`, no `plan()` / `sortedFiles` change, no real baseline or pilot run, no consumption of the 96 paired-runs, no fabricated DES evidence, no Human-only field filled in, no high-risk permission bypass, no ADR / contract / `docs/README.md` edit, no commit or push. The credential-free read-only snapshot capability is now an executable harness, but still evidence capability rather than production wiring; the B arm switch remains blocked. Nine prerequisites remain at 0 runtime wiring; four `exit-criteria` unsatisfied; node `in_progress`, rounds 1/2, `1-4` blocked, default OFF, v3 holdout, G-ship gates, the 8 `unknownCriteria`, `has-gaps` and Q68 reviewer=Human unchanged.
+
+This section is a governance record; it does not by itself authorize any commit, push, pilot, or production wiring.
+
 ## Boundary
 
 This backlog is a governance aid, not an ADR, contract, method, or release input. It must not be registered in `docs/README.md`. Decisions recorded here authorize document edits only; no item above constitutes implementation approval.

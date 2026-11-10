@@ -1058,6 +1058,21 @@
           "q": "A+ 轮全量回归相对上一轮基线是否引入新增失败？",
           "answer": "上一轮基线（决策 #17）：185 passed / 1 failed / 6 skipped（192 文件），2586 passed / 38 skipped（2624 例），唯一失败为 tests/perf-regression-check.test.ts。本轮全量 npx vitest run 用时 9m48s：**187 passed / 1 failed / 6 skipped（194 文件），2605 passed / 38 skipped（2643 例）**。差额恰为 +2 个测试文件、+19 例（design 6 + secondary 13），与本轮交付完全一致；唯一失败项与基线相同，仍是 tests/perf-regression-check.test.ts 收集阶段 SyntaxError（既有本地 Windows + vitest 2.1.9 静态 ESM .mjs 导入问题，归因链见 #14）。结论：**无新增失败、无回归**。本轮未修改任何既有测试或脚本文件；tsc --noEmit 0、定向 67/67、roadmap validate Valid。不变项同 #19：节点 in_progress、rounds 1/2、四条 exit-criteria 全未满足、九项能力运行时接线 0/9、e9 保留、1-4 pending+blocked、1-8-1 并列、默认 OFF、v3 holdout、G-ship 90%/95%、8 个 unknownCriteria 与 has-gaps、Q68 不变；不 completed、不解锁 1-4；未 commit/push。",
           "note": "补齐 #19 中全量回归另行运行的结论；基线数据来自 #17；render 自动刷新 md。"
+        },
+        {
+          "q": "Human 指令「继续 B 和 E」并附加 zj-tdd：scope gate、seam 确认与 B 的硬阻塞边界是什么？",
+          "answer": "分类=Product execution 治理前置节点；本轮按 zj-tdd 红→绿垂直切片执行，方向性决策先落盘。B 的生产切臂接线（ZCG_RETRIEVAL_ARM 登记 + plan() 的 sortedFiles 接线）会改变 MCP ranking，DES-baseline-agent-sufficiency-v1 Trigger Matrix :42 明确要求 Agent Sufficiency baseline，ADR-0015 D1 把该要求写死在切臂实现阶段；机械核查现状：baseline 证据 0、CodeBuddy CLI -p 真 run 未校准、独立任务集 + Task Freshness、named operators/reviewers、正确性非劣数值仍为 Human-only UNSET、tests/flag-governance.test.ts:20 硬编码 CODE_FLAG_REGISTRY 长度 38。结论：B 的生产接线本轮不实现、不绕过。Human 确认 seams：S1（无凭据一次性只读快照隔离的输入-输出契约）、S2（isolation 上下文经 adapterOptions 透传给 process-free fake adapter 的端到端 with/without run）、S3（baseline fail-closed 门：证据缺失时拒绝启用切臂）允许写测试与实现；S4（flag 注册 + plan() 接线契约）不实现。B 边界选择「只做合规准备」：E 完整 TDD 红→绿，B 仅做不触发 Trigger Matrix 的 fail-closed 门，生产接线继续 blocked。seam 提案已按 zj-tdd 要求先写下并经 Human 确认，未确认前未写任何测试。不越界：不改 ranking、不登记 ZCG_RETRIEVAL_ARM、不改 plan()/sortedFiles、不跑真机 baseline 或 pilot、不伪造 DES 证据、不代填 Human-only 字段、不使用高风险 permission bypass、不改 ADR/合同/docs/README、不自动 commit/push。不变项：e9、1-4 pending+blocked、1-8-1 并列、默认 OFF、v3 holdout、G-ship 90%/95%、8 个 unknownCriteria 与 has-gaps、Q68、96 paired-runs 唯一硬门、rounds 1/2 均不变；纯函数/测试不构成九项能力运行时接线，节点不 completed、不解锁 1-4。",
+          "note": "本轮工作留在工作区未提交，PR #717 已全绿待合并，不向该 PR 追加 commit；render 自动刷新 md。"
+        },
+        {
+          "q": "按 zj-tdd 完成 S1/S2/S3 后实际交付了什么，每个切片的红绿证据与边界是什么？",
+          "answer": "按 zj-tdd 垂直切片执行 5 个 cycle，每个 cycle 先写失败测试并实测红、再写最小实现并实测绿，未做水平切片、未重构。Cycle 1（S1）：测试断言快照 readOnly/credentialFree、语料内容一致、.env 不进快照、env 净化且不改 process.env、两次 root 唯一；红=Failed to load url isolation.mjs（模块不存在），绿=1/1。落地 scripts/agent-eval/harness/isolation.mjs 的 sanitizeEnv 与 createIsolatedSnapshot。Cycle 2（S1）：测试断言 64 位 SHA-256 fingerprint、verifySnapshot 创建后 true、篡改语料后 false；红=.toMatch expects string got undefined，绿=2/2。落地 fingerprintCorpus/listCorpusFiles/verifySnapshot。Cycle 3（S1）：测试断言 assertUsable 在 dispose 前不抛、dispose 后抛、verifySnapshot 拒绝、.consumed 审计标记落盘；红=isolation.assertUsable is not a function，绿=3/3。落地 WeakSet 一次性语义与 disposeSnapshot。Cycle 4（S2）：测试用真实 runBaseline + process-free fake adapter 端到端，断言两臂收到同一个 isolation 对象（引用相等）、readOnly/credentialFree/fingerprint/env 净化、result.isolation.consumed、以及 fake 篡改 corpusDir 后 status=invalid 且 with/without 两臂均 invalid（ADR-0015 D4 整 run 废弃，不留部分证据）；红=isolation.runIsolatedBaseline is not a function，绿=4/4。落地 runIsolatedBaseline，经 adapterOptions 透传隔离上下文、不 import CRLF 的 runner.mjs、不改 harness 核心，符合 ADR-0016 验收判据 3。Cycle 5（S3）：测试断言空证据 allowed=false 且 4 条 reasons、assertArmSwitchAllowed 抛 Agent Sufficiency baseline、齐备证据放行、8 个单项缺失/失败变体全部阻塞；红=Failed to load url zra-paired-gate（模块不存在），绿=1/1。落地 src/eval/zra-paired-gate.ts 的 canEnableRetrievalArm 与 assertArmSwitchAllowed，四门对应决策 #8 的 Human-only 项，Q68 reviewer 必须 Human，evidence 全部由调用方给出、不推断不伪造。验证：tsc --noEmit exit 0；定向 vitest 9 文件 83/83 通过（含 agent-sufficiency-harness 11 例，确认新 harness 文件不含 provider 名）；全量回归另行后台运行。边界：S4（flag 注册 + plan() 接线）不实现；不改 ranking、不登记 ZCG_RETRIEVAL_ARM、不改 plan()/sortedFiles、不跑真机 baseline 或 pilot、不消耗 96 门、不代填 Human-only 字段、不使用高风险 permission bypass、不改 ADR/合同/docs/README、不自动 commit/push。九项能力中『无凭据只读快照隔离』由纸面变为可运行 harness，但仍是证据能力而非生产接线；B 的生产切臂继续被 Trigger Matrix :42 阻塞。节点保持 in_progress、rounds 1/2、四条 exit-criteria 全未满足、运行时接线仍 0/9、不 completed、不解锁 1-4；e9、1-4 pending+blocked、1-8-1 并列、默认 OFF、v3 holdout、G-ship 90%/95%、8 个 unknownCriteria 与 has-gaps、Q68 均不变。",
+          "note": "范围决策 #21 在前；本轮改动留在工作区未提交，PR #717 已全绿待合并，未向该 PR 追加 commit；render 自动刷新 md。"
+        },
+        {
+          "q": "B+E / zj-tdd 轮全量回归相对上一轮基线是否引入新增失败？",
+          "answer": "上一轮基线（决策 #20）：187 passed / 1 failed / 6 skipped（194 文件），2605 passed / 38 skipped（2643 例），唯一失败为 tests/perf-regression-check.test.ts。本轮全量 npx vitest run 用时 9m50s：**189 passed / 1 failed / 6 skipped（196 文件），2610 passed / 38 skipped（2648 例）**。差额恰为 +2 个测试文件、+5 例（agent-eval-isolation 4 + zra-paired-gate 1），与本轮交付完全一致；唯一失败项与基线相同，仍是 tests/perf-regression-check.test.ts 收集阶段 SyntaxError（既有本地 Windows + vitest 2.1.9 静态 ESM .mjs 导入问题，归因链见 #14）。结论：**无新增失败、无回归**。本轮未修改任何既有测试或脚本文件；新增 harness 文件通过 tests/agent-sufficiency-harness.test.ts 11 例 provider-neutral 验收；tsc --noEmit 0、定向 83/83、roadmap validate Valid。不变项同 #22：节点 in_progress、rounds 1/2、四条 exit-criteria 全未满足、九项能力运行时接线 0/9、B 生产切臂仍 blocked、e9 保留、1-4 pending+blocked、1-8-1 并列、默认 OFF、v3 holdout、G-ship 90%/95%、8 个 unknownCriteria 与 has-gaps、Q68 不变；不 completed、不解锁 1-4；未 commit/push，PR #717 未受影响。",
+          "note": "补齐 #22 中全量回归另行运行的结论；基线数据来自 #20；render 自动刷新 md。"
         }
       ],
       "notes": "",
@@ -1077,7 +1092,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-10 20:29:35",
+    "updated": "2026-11-10 21:14:45",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
