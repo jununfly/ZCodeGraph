@@ -1003,6 +1003,11 @@
           "q": "2026-11-10 Human 确认通用 baseline harness 设计共识：落地了什么，仍未闭环什么？",
           "answer": "zj-grill-with-docs / zj-grilling / zj-domain-modeling 会话 Q1-Q14 收敛，Human 确认「共识达成」。落地：① ZJ-CONTEXT.md 新增 § Baseline Harness Language 六词条（Agent Sufficiency Baseline / Retrieval Arm A / AgentRunner / Adapter / BaselineTranscript / CodeBuddy CLI Runner），沿用仓库既有 ### 格式，规定裸 baseline 默认指前者；② 新建 ADR-0016（docs/decisions/，primary），docs/README.md 计数 15→16 并登记；③ 新建 scripts/agent-eval/harness/（runner.mjs、transcript-schema.json、adapters/codebuddy.mjs、adapters/fake.mjs）与 scripts/agent-eval/README.md 标注旧脚本 deprecated-but-kept，旧脚本零改动；④ tests/agent-sufficiency-harness.test.ts 11 例锁定 Q9 三条解耦判据、Q12 整 run 废弃语义、预算硬停、模型运行时解析、schema Human-owned。设计要点：AgentRunner 是唯一执行边界，with/without CodeGraph 为唯一变量；BaselineTranscript 承载 DES 八类证据且 humanReview 由 Human 填写；**模型不 hard-code**——按 Q11 运行时解析 + transcript 回读 + 同 run 共享版本，不冻结任何模型 id（deepseek-v4-flash 已被新版本覆盖）；预算上限由 harness 累计 maxTurns / token / credit 硬停，阈值数值仍 UNSET（Human-only，未虚构）。验证：node --check 三文件 OK、tsc OK、vitest 126/126、治理 --validate diagnostics=[] 且 decisions 16、架构 validator exit 0、diff-check clean。**未闭环**：未跑任何真实 baseline（CLI 仅 --version / --help 零消耗冒烟通过，-p 真实 run 与 stdout 解析未校准）；独立任务集 / Task Freshness、named operators/reviewers、正确性非劣数值、预算阈值数值仍 UNSET；DES Agent Sufficiency 证据仍为 0；C 臂移植 / ZCG_RETRIEVAL_ARM 登记 / plan() 接线 / 试点均未启动；9 项能力运行时接线 0。节点保持 in_progress（rounds 1/2）；e9、1-4 blocked、默认 OFF、v3 holdout、G-ship 90%/95%、8 unknownCriteria 与 has-gaps、Q68 不变；未 commit/push。",
           "note": "Q80/Q81 未违反（未把复审触发写进 ADR/README）；Q68 Human 由本轮共识确认；Q74 feat/chore 分离待提交时执行。"
+        },
+        {
+          "q": "2026-11-10 治理纠错：哪些被列为待办的项其实不是前置，1-8-2 的真实待办是什么？",
+          "answer": "背景：Human 连续追问「反复要求给预算做测试」「反复要求测试消耗的原因」，审计确认这是 Agent 的流程顺序错误，不是协议要求。纠正并落盘：①撤销「harness 预算阈值数值待 Human 冻结」这一伪前置。runner.mjs 的 budget={credit,totalTokens,turns} 与 maxTurns=40 是工程默认值与资源护栏，不是 ADR-0015 的预注册治理阈值；ADR-0016 D5 把它写成 pre-registered threshold 属归类错误，措辞更正需另走 ADR 修订流程，本轮不改已 Accepted 文本。②撤销「先跑一次最小真实 run 测消耗」这一伪前置：该动作是真实模型调用、产生 credit 消耗且不计入 96 paired-runs，等于为定义护栏而绕过护栏，与 D4「不追加批次求显著」冲突。③确认 pilot ceiling = 96 paired-runs 是唯一完备硬门（单位 + 数值 + 计数规则 + 触顶即 inconclusive），无需实测数据即可机械判定；金额 / wall-clock / token 仅观测告警。④ADR-0015 D5 的字段（任务集精确组成 + Task Freshness 审阅、named operators/reviewers、正确性 / 答案充分性规则、正式 N 与总成本）是试点与任务集设计时的预注册输入，不是 harness 校准或 baseline 结构验证的前置；Q68 要求 Human 唯一审批，AI 不得自任或代填。⑤真实待办（按依赖顺序）：(a) 九项前置能力的运行时接线与证据，当前 0/9；(b) 按 DES-baseline-agent-sufficiency-v1 Trigger Matrix :42，在切臂改变 MCP ranking 的实现阶段产出 Agent Sufficiency baseline 证据并记录结论；(c) 试点设计时预注册上述字段；(d) 在 96 主门内执行 5-8×4×3 试点；(e) 正式 N 预注册后按 N×k×3 冻结 formal ceiling；(f) 真机通过仅获 G-ship 补证资格，完整 G-ship 之前 1-4 保持 blocked、默认 OFF 不变。⑥当前不需要 Human 提供任何数值、不需要授权任何测试、不产生任何消耗；harness 保持 fake-adapter 可验证状态。节点保持 in_progress（rounds 1/2）、e9 保留、1-4 blocked；ready 仍为 1-8 与 1-8-1；critical-path 仍为 1-8-2 → 1-4。本轮只改 roadmap 元数据与决策记录，未改 src/、docs/decisions/、scripts/，未 commit/push。",
+          "note": "决策 append-only：#7/#8/#9 中「预算阈值 UNSET」「需 Human 给四项字段才能跑 baseline」的表述由本条取代，历史记录保留不删。同步为 1-8-2 追加 exit-criteria 供对照检查。"
         }
       ],
       "notes": "",
@@ -1011,12 +1016,18 @@
         "max_children": 0,
         "max_rounds": 2
       },
-      "rounds": 1
+      "rounds": 1,
+      "exit_criteria": [
+        "九项前置能力完成运行时接线并有证据：默认 OFF 的 ZCG_RETRIEVAL_ARM、S 序列化、配置指纹断言、arm-blinded 双审、不可变运行清单、无凭据只读快照隔离、固定 seed 统计单测、独立任务集、DES baseline。",
+        "切臂改变 MCP ranking 的实现阶段按 DES-baseline-agent-sufficiency-v1 Trigger Matrix :42 产出 Agent Sufficiency baseline 证据并记录结论。",
+        "试点设计时预注册：任务集精确组成 + Task Freshness 审阅、named operators/reviewers、答案充分性规则；正式 N 与总成本在试点后预注册（Q68 Human 唯一审批）。",
+        "5-8×4×3 试点在 96 paired-runs 唯一硬门内执行；正式 N 预注册后按 N×k×3 冻结 formal ceiling；不以 harness 资源护栏数值或任何校准 run 为前置；e9、1-4 blocked、默认 OFF 不变。"
+      ]
     }
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-10 15:37:41",
+    "updated": "2026-11-10 16:30:47",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
