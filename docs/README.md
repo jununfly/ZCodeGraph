@@ -24,7 +24,7 @@
 
 | Class | Folder | Authority range | Count |
 | --- | --- | --- | --- |
-| Decision | [`decisions/`](decisions/) | primary | 15 |
+| Decision | [`decisions/`](decisions/) | primary | 16 |
 | Contract | [`contracts/`](contracts/) | primary | 18 |
 | Method | [`methods/`](methods/) | primary / supporting | 14 |
 | Plan | `plans/` (CLI SoT, not always on disk) | process | not enumerated here |
@@ -87,6 +87,7 @@ ordinary reports stay in `.tmp/measure/`.
 | ADR-0013 | [ZJ-0013-bounded-reranking-and-independent-agent-value-gate.md](decisions/ZJ-0013-bounded-reranking-and-independent-agent-value-gate.md) | After the chunk-fused MRR gate fails, may one bounded reranking experiment proceed under a fresh holdout and an independent Agent-value gate rather than weakening the threshold? |
 | ADR-0014 | [ZJ-0014-split-retrieval-gate-into-agent-entry-and-ship.md](decisions/ZJ-0014-split-retrieval-gate-into-agent-entry-and-ship.md) | Should per-corpus Hit@5>=90% keep doubling as both the Agent A/B entry valve and the ship gate, or split into two tiers so the macro-gaining candidate C can reach paired Agent evaluation? (Accepted) |
 | ADR-0015 | [ZJ-0015-zra-paired-v1-agent-ab-protocol.md](decisions/ZJ-0015-zra-paired-v1-agent-ab-protocol.md) | 真机 Agent A/B 应采用哪套配对协议测量检索实现的净收益，以及它如何修订 ADR-0013 D5、ADR-0014 D2 与 methods v2 §5？ |
+| ADR-0016 | [ZJ-0016-provider-agnostic-agent-sufficiency-baseline.md](decisions/ZJ-0016-provider-agnostic-agent-sufficiency-baseline.md) | Why is the Agent Sufficiency baseline harness provider-agnostic instead of extending the Claude-specific scripts? |
 
 ---
 

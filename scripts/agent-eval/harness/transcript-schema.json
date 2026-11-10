@@ -1,0 +1,82 @@
+{
+  "title": "BaselineTranscript",
+  "description": "Provider-neutral evidence for one arm of an Agent Sufficiency Baseline. The harness never fills humanReview.",
+  "version": "1.0",
+  "type": "object",
+  "required": [
+    "schemaVersion", "runId", "arm", "corpus", "provider", "toolCalls",
+    "toolCallCount", "readGrepFallbackDisplacement", "usage",
+    "sharedConfigFingerprint", "status", "humanReview"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "runId": { "type": "string" },
+    "arm": { "enum": ["with", "without"] },
+    "corpus": {
+      "type": "object",
+      "required": ["id", "prompt"],
+      "properties": {
+        "id": { "type": "string" },
+        "prompt": { "type": "string" },
+        "promptId": { "type": "string" },
+        "snapshot": { "type": "string" }
+      }
+    },
+    "provider": {
+      "type": "object",
+      "required": ["adapterId", "model"],
+      "properties": {
+        "adapterId": { "type": "string" },
+        "model": { "type": "string", "description": "Resolved at run time; never hard-coded." }
+      }
+    },
+    "toolCalls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "callId": { "type": "string" },
+          "arguments": {},
+          "timestamp": { "type": "string" }
+        }
+      }
+    },
+    "toolCallCount": { "type": "integer", "minimum": 0 },
+    "readGrepFallbackDisplacement": {
+      "type": "object",
+      "properties": {
+        "read": { "type": "integer" },
+        "grep": { "type": "integer" },
+        "notes": { "type": "string" }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "promptTokens": { "type": "number" },
+        "completionTokens": { "type": "number" },
+        "totalTokens": { "type": "number" },
+        "credit": { "type": "number" }
+      }
+    },
+    "humanReview": {
+      "type": ["object", "null"],
+      "description": "Human-owned. The harness writes null; a named reviewer fills reviewer, answerSufficiencyNotes and finalClassification.",
+      "properties": {
+        "reviewer": { "type": "string" },
+        "reviewedAt": { "type": "string" },
+        "answerSufficiencyNotes": { "type": "string" },
+        "finalClassification": {
+          "enum": ["preserved", "improved", "regressed", "inconclusive", "needs-human-review"]
+        }
+      }
+    },
+    "sharedConfigFingerprint": { "type": "string" },
+    "graphStats": { "type": "object" },
+    "fallbackTaxonomy": { "type": "object" },
+    "status": { "enum": ["valid", "invalid"] },
+    "invalidReason": { "type": ["string", "null"] }
+  }
+}
