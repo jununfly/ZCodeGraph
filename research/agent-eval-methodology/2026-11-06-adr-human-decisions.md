@@ -362,6 +362,22 @@ Artifacts: `ADR-0016`, `ZJ-CONTEXT.md` section Baseline Harness Language (six te
 
 Still open: no real Agent Sufficiency baseline evidence; independent task set / Task Freshness review, named operators/reviewers, correctness non-inferiority value, and the numeric budget threshold remain UNSET. The C arm production port, `ZCG_RETRIEVAL_ARM`, `plan()` wiring and the pilot are not started. `e9`, `1-4` blocked, product default OFF, v3 holdout, G-ship gates, the 8 `unknownCriteria`, `has-gaps` and Q68 reviewer=Human are unchanged. This section is a governance record; it authorizes no commit, push, or implementation.
 
+## ADR-0016 classification correction (2026-11-10)
+
+A doc-only governance pass corrected ADR-0016. The harness `budget` values
+(turns / tokens / credit) are **engineering defaults**, not pre-registered
+thresholds; ADR-0015's `pilot ceiling = 96 paired-runs` remains the only
+pre-registered hard gate. D5 was retitled and rewritten, Boundaries was aligned,
+D1's contract signature dropped `timeoutMs` (timeout is adapter-owned and the
+harness never passes it), and Consequences no longer frames a calibration run as
+a prerequisite. A new `Change history` section records the correction.
+
+This closes the earlier statements in this backlog that a "numeric threshold
+remains UNSET and Human-only"; those lines are retained as history rather than
+rewritten. Roadmap `1-8-2` decision #11 records the close-out. No architecture,
+evidence schema, adapter boundary, acceptance criterion, or code changed. No
+review triggers were written into the ADR or `docs/README.md`.
+
 ## Boundary
 
 This backlog is a governance aid, not an ADR, contract, method, or release input. It must not be registered in `docs/README.md`. Decisions recorded here authorize document edits only; no item above constitutes implementation approval.
