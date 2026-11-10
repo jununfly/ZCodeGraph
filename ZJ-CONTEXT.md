@@ -626,3 +626,67 @@ are what give the term its skeletonization decision power.
 **Not:** Fallback Health State, product correctness, or evidence that a candidate won an Agent evaluation.
 
 **Related terms:** Recovery Read/Grep Fallback, Evidence Artifact.
+
+## Baseline Harness Language
+
+### Agent Sufficiency Baseline
+
+**Definition:** The with-vs-without CodeGraph comparison that records whether an agent can continue a task without generic Read/Grep recovery.
+
+**Use when:** Naming the baseline required by DES-baseline-agent-sufficiency-v1 when a change touches agent-facing Explore content, MCP tool behavior, or ranking.
+
+**Not:** Retrieval Arm A, a model version, a prompt, or a paired A/B trial.
+
+**Related terms:** Agent Sufficiency, Answer Sufficiency, BaselineTranscript, Retrieval Arm A.
+
+**Rules:** A bare "baseline" in this glossary refers to this term; Retrieval Arm A is always written out.
+
+### Retrieval Arm A
+
+**Definition:** The current `plan()` retrieval implementation used as the reference condition of a ZRA-Paired v1 Paired Block.
+
+**Use when:** Comparing retrieval implementations inside one Agent Task.
+
+**Not:** Agent Sufficiency Baseline, model versions, prompts, tasks, or execution orders.
+
+**Related terms:** Arm, Paired Block, Agent Sufficiency Baseline.
+
+### AgentRunner
+
+**Definition:** The harness-owned execution boundary that runs one agent task against one tool configuration and returns a normalized transcript.
+
+**Use when:** Describing how a baseline run is started without naming an agent product.
+
+**Not:** An Adapter, a provider runtime, or a retrieval arm.
+
+**Related terms:** Adapter, BaselineTranscript, CodeBuddy CLI Runner.
+
+### Adapter
+
+**Definition:** A provider-specific translation layer that maps one agent runtime's invocation and transcript format onto the AgentRunner contract.
+
+**Use when:** Adding support for another agent runtime without changing the harness.
+
+**Not:** The harness itself, a model, or a configuration preset.
+
+**Related terms:** AgentRunner, CodeBuddy CLI Runner.
+
+### BaselineTranscript
+
+**Definition:** The provider-neutral evidence record of one baseline arm, carrying tool calls, fallback displacement, usage, and a Human-owned review block.
+
+**Use when:** Recording or comparing the evidence required by DES-baseline-agent-sufficiency-v1.
+
+**Not:** A raw vendor log, a verdict written by an agent, or a release input.
+
+**Related terms:** Agent Sufficiency Baseline, AgentRunner, Answer Sufficiency, Task Freshness.
+
+### CodeBuddy CLI Runner
+
+**Definition:** The headless agent runtime shipped with WorkBuddy that serves as the first Adapter instance behind the AgentRunner contract.
+
+**Use when:** Naming the concrete runtime used by the first adapter.
+
+**Not:** A product-level `workbuddy` command, a model version, or the AgentRunner contract itself.
+
+**Related terms:** Adapter, AgentRunner.

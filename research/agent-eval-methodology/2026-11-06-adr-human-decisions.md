@@ -346,6 +346,22 @@ Still UNSET (Human-only or post-pilot): official N, total cost, correctness non-
 
 Unchanged: `e9`, `1-4` pending+blocked, `1-8-1` / `1-8-2` parallel, product default OFF, v3 holdout frozen, G-ship 90%/95% and all safety gates, the 8 `unknownCriteria` and `has-gaps`, Q68 reviewer=Human. Nine prerequisites and the pilot remain at 0 started. Prerequisite-capability batch 1 still requires Human review of this freeze record. This section is a governance record; it does not by itself authorize any commit, push, or implementation.
 
+## Provider-agnostic baseline harness design consensus (2026-11-10)
+
+A `zj-grill-with-docs` session converged on Q1-Q14 and Human confirmed shared understanding. Accepted decisions:
+
+- Interface abstraction (`AgentRunner`) with with-vs-without CodeGraph as the only variable; provider details confined to `harness/adapters/`.
+- First adapter: the WorkBuddy-shipped headless CodeBuddy CLI Runner (`adapters/codebuddy.mjs`). Zero-cost smoke check passed (`--version` 2.165.0, exit 0); a real `-p` run and stdout calibration have not been done.
+- **Model identifiers are not hard-coded**: resolved per run, read back from the transcript, and required to be shared across arms. No model id is frozen here or in ADR-0016; superseded ids need no code change.
+- Budget ceiling enforced by the harness (maxTurns plus accumulated tokens/credit); the numeric threshold remains UNSET and Human-only.
+- `BaselineTranscript` carries the eight DES evidence categories; `humanReview` stays Human-owned.
+- Legacy `scripts/agent-eval/` scripts are deprecated-but-kept and byte-identical.
+- Three falsifiable decoupling criteria and whole-run invalidation are test-locked.
+
+Artifacts: `ADR-0016`, `ZJ-CONTEXT.md` section Baseline Harness Language (six terms), `docs/README.md` decisions 15 to 16, `scripts/agent-eval/harness/`, `tests/agent-sufficiency-harness.test.ts`, and roadmap `1-8-2` decision #9.
+
+Still open: no real Agent Sufficiency baseline evidence; independent task set / Task Freshness review, named operators/reviewers, correctness non-inferiority value, and the numeric budget threshold remain UNSET. The C arm production port, `ZCG_RETRIEVAL_ARM`, `plan()` wiring and the pilot are not started. `e9`, `1-4` blocked, product default OFF, v3 holdout, G-ship gates, the 8 `unknownCriteria`, `has-gaps` and Q68 reviewer=Human are unchanged. This section is a governance record; it authorizes no commit, push, or implementation.
+
 ## Boundary
 
 This backlog is a governance aid, not an ADR, contract, method, or release input. It must not be registered in `docs/README.md`. Decisions recorded here authorize document edits only; no item above constitutes implementation approval.
