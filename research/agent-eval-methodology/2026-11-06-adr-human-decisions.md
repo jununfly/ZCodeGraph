@@ -321,6 +321,31 @@ R2 is authorized by the same carried Q75/Q76/Q68 terms from the P1 restart. It i
 
 **Status:** R2 is in the working tree pending mechanical verification (task #13: `cargo test --lib`, `tsc`, full `vitest`, governance suites, `git diff --check`). It closes **no** Required verification item; 0 of 8 fully covered, debt OPEN, ADR-0011 must not be described as implemented. This section is a governance record; it does not by itself authorize any commit or push.
 
+## 1-8-2 start: structural freeze only (2026-11-10)
+
+Human selected **A + A**: freeze the hard-budget ceiling and pilot boundary first, defer official N until the pilot estimates variance; and do **not** start prerequisite-capability batch 1 until the freeze record has been reviewed. Recorded as decision #4 on `1-8-2` (`in_progress`, round 1/2, `render` refreshed).
+
+This is a **structural freeze, not a numeric one**. Frozen: the statistical protocol (MDE=1.5; task-level two-sided sign-flip randomization; Task Cluster as the sole independent inference cluster with trials not inflating N; k=6 full permutation first; task-cluster bootstrap for a 95% interval only), the pilot boundary (`5-8 tasks x 4 trials x 3 arms`, for variance / audit agreement / order effects / missingness / cost only, never a product gate), and the D4 stop and inconclusive rules. Still **UNSET** and Human-only: the numeric hard budget ceiling, official N, total cost, correctness non-inferiority value, exact task-set composition and Task Freshness, named operators and reviewers. AI must not invent these. No implementation may start before the numeric ceiling is supplied and the freeze record is reviewed.
+
+Nine prerequisites and the pilot remain at 0 started. All Q70 isolation and D3 invariants are unchanged: `e9` intact, `1-4` pending+blocked, `1-8-1` / `1-8-2` parallel, product default OFF, v3 holdout frozen, G-ship 90%/95% and all safety gates, the 8 `unknownCriteria` and `has-gaps`, Q68 reviewer=Human. This section is a governance record; it does not by itself authorize any commit, push, or implementation.
+
+## 1-8-2 hard-budget ceiling frozen by delegated Human authority (2026-11-10)
+
+Human delegated the unit and value decision to the AI's prior recommendation. Recorded as decision #5 on `1-8-2` and extracted into `MET-hard-budget-ceiling-pre-registration` sections 3, 4 and 7.
+
+Frozen:
+
+- Unit = `paired-run` = 1 Agent Task x 1 arm (A/C/S) x 1 trial.
+- Counting rule: failed, timed-out, retried and fingerprint-rejected runs all count toward `consumed`; runs already executed under a task dropped by the D2 whole-task rule are not refunded; pilot and formal are separate ledgers with no transfer; each run is delimited by an immutable run-manifest entry.
+- `pilot ceiling = 96 paired-runs` (D5 upper bound 8 tasks x 4 trials x 3 arms; 60 at 5 tasks), for variance / audit agreement / order effects / missingness / cost only.
+- Primary ceiling unit = paired-run; money / wall-clock / token are reported observation signals with no threshold and no statistical gate.
+- `formal ceiling = 0 paired-runs` until official N is pre-registered; afterwards it is derived as `N x k x 3` and frozen separately, and must not be raised after seeing results.
+- `consumed(scope) >= ceiling(scope)` triggers the D4 stop and `inconclusive`.
+
+Still UNSET (Human-only or post-pilot): official N, total cost, correctness non-inferiority value, exact task-set composition and Task Freshness, named operators/reviewers, and the numeric formal ceiling. ADR-0015 D5 defers official N and total cost to pilot / task-set design, and `40x4` is not an argued budget; inventing N now would contradict the delegated recommendation itself.
+
+Unchanged: `e9`, `1-4` pending+blocked, `1-8-1` / `1-8-2` parallel, product default OFF, v3 holdout frozen, G-ship 90%/95% and all safety gates, the 8 `unknownCriteria` and `has-gaps`, Q68 reviewer=Human. Nine prerequisites and the pilot remain at 0 started. Prerequisite-capability batch 1 still requires Human review of this freeze record. This section is a governance record; it does not by itself authorize any commit, push, or implementation.
+
 ## Boundary
 
 This backlog is a governance aid, not an ADR, contract, method, or release input. It must not be registered in `docs/README.md`. Decisions recorded here authorize document edits only; no item above constitutes implementation approval.
