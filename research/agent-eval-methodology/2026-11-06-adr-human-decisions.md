@@ -378,6 +378,50 @@ rewritten. Roadmap `1-8-2` decision #11 records the close-out. No architecture,
 evidence schema, adapter boundary, acceptance criterion, or code changed. No
 review triggers were written into the ADR or `docs/README.md`.
 
+## 1-8-2 second start: immutable run manifest (2026-11-10)
+
+Human issued `开始 1-8-2`. Scope gate: Product execution, governance prerequisite node (decision #3); the instruction is treated as the explicit implementation instruction required by decision #6, narrowed by the #7/#8 constraints. Mechanical check at start: all four `exit-criteria` unsatisfied, runtime wiring of the nine prerequisites 0/9, `ready` = 1-8 and 1-8-1, `critical-path` = 1-8-2 -> 1-4. The node was already `in_progress`, so no `rounds` was consumed (1/2).
+
+Work done: `src/eval/zra-paired-ledger.ts` and `tests/zra-paired-ledger.test.ts` (13 tests). This is a side-effect-free implementation of the counting rules frozen in decision #5 and `MET-hard-budget-ceiling-pre-registration` sections 1 and 4: append-only manifest entries delimit one paired-run each; completed / failed / timeout / retry / config-rejected / isolation-breach all count toward `consumed`; pilot and formal are separate ledgers with `formal ceiling = 0`; `consumed(scope) >= ceiling(scope)` yields `inconclusive` and refuses further entries; a config fingerprint disagreement records the whole three-arm block as `config-rejected` rather than discarding it; no remove / refund API exists, so D2 whole-task exclusion never refunds executed runs; a block cannot straddle the ceiling.
+
+Not done: no `plan()` / `sortedFiles` / MCP ranking change, no `ZCG_RETRIEVAL_ARM` registration, no real model run or Agent Sufficiency baseline, no consumption of the 96 paired-runs, no Human-only field filled in, no ADR / contract / `docs/README.md` edit, no commit or push. The nine prerequisites remain at 0 runtime wiring; this module is a pure-function building block, not wiring. All Q70 isolation and D3 invariants are unchanged: `e9`, `1-4` pending+blocked, `1-8-1` / `1-8-2` parallel, product default OFF, v3 holdout frozen, G-ship 90%/95% and all safety gates, the 8 `unknownCriteria` and `has-gaps`, Q68 reviewer=Human.
+
+Targeted verification: `tsc --noEmit` exit 0; `vitest run tests/zra-paired-ledger.test.ts tests/zra-paired-core.test.ts` 26/26 passed. Full-suite regression (`npx vitest run`, 9m44s): 183 files passed / 1 failed / 6 skipped, 2564 tests passed / 38 skipped. The single failure is `tests/perf-regression-check.test.ts` (0 tests collected, `SyntaxError: Invalid or unexpected token`) via its static import of `scripts/measure/perf-regression-check.mjs`. That `.mjs` is byte-identical to HEAD (`096fdf3693cefbb60676c501bbf408b37fff796a`), passes `node --check` and `esbuild.transformSync` under both CRLF and LF, and the failure persists after normalizing line endings and isolating the Vite cache. It is a pre-existing local Windows / vitest 2.1.9 ESM-import issue, not a regression from this change; main push CI `42788023123` is 5/5 green. No test or script file was changed; original bytes and cache were restored. Recorded as roadmap decision #14.
+
+This section is a governance record; it does not by itself authorize any commit, push, pilot, or production wiring.
+
+## 1-8-2 option A: blinded audit and fixed-seed statistics (2026-11-10)
+
+Human selected A: continue the zero-dependency, unit-testable pure-function layer of the nine prerequisites. Scope gate and invariants are unchanged from the previous section (roadmap decision #15).
+
+Delivered four new files: `src/eval/zra-paired-audit.ts` + `tests/zra-paired-audit.test.ts` (7 tests), and `src/eval/zra-paired-stats.ts` + `tests/zra-paired-stats.test.ts` (15 tests). All are side-effect free and none is called from production code.
+
+Blinded double review: `blindToolCalls` shuffles with a fixed seed and strips callId/arm; `revealKey` stays sealed until the confirmation phase; `assertBlinded` fails closed on a leaked arm label; judgments are limited to recovery / deepening / edit-prep / verification; `rawAgreementRate` computes agreed / double-reviewed over an identical call set and rejects empty or mismatched sets (no intersection-only comparison, no 0/0 faking 100%); `MIN_RAW_AGREEMENT = 0.9`, below which `assertAuditAgreement` fails closed so the classification protocol is repaired rather than used for confirmation; `reviewCoverage` expresses the >=20% double-review share of confirmation trajectories.
+
+Fixed-seed statistics: `taskLevelDifferences` derives one d_i per task and errors on a missing arm instead of silently dropping it, with no trial dimension so N cannot be inflated; `signFlipTest` implements the task-level two-sided sign-flip randomization at alpha=0.05, exact Gray-code enumeration of 2^N for N<=20 and fixed-seed simulation of at least 100000 replications otherwise, refusing lower thresholds; `taskClusterBootstrapInterval` uses 10000 fixed-seed task-cluster resamples and returns only a 95% interval; `evaluatePrimaryOutcome` mechanically combines the three D2 rules (significant p, interval excluding zero, effect >= frozen MDE 1.5). Tests pin the zero-effect case, a constructed effect, a brute-force cross-check of the Gray-code enumeration, reproducible simulation, and both D2 failure modes (p not significant while the interval excludes zero; significant but below MDE).
+
+Boundary: `evaluatePrimaryOutcome` is a methodological predicate, not a G-ship or product gate; the pilot is not a product gate. No `plan()` / `sortedFiles` / MCP ranking change, no `ZCG_RETRIEVAL_ARM`, no real model run or baseline, no consumption of the 96 paired-runs, no unblinding of real trajectories, no Human-only field filled in, no ADR / contract / `docs/README.md` edit, no commit or push. The nine prerequisites remain at 0 runtime wiring; four `exit-criteria` unsatisfied; node stays `in_progress`, rounds 1/2, `1-4` blocked, product default OFF, v3 holdout, G-ship gates, the 8 `unknownCriteria`, `has-gaps` and Q68 reviewer=Human all unchanged.
+
+Targeted verification: `tsc --noEmit` exit 0; `vitest run` over the four zra-paired test files 48/48 passed. Full-suite regression (9m50s): 185 files passed / 1 failed / 6 skipped (192), 2586 tests passed / 38 skipped (2624). Versus the previous baseline (183/1/6, 2564 passed; decision #14) the delta is exactly +2 files and +22 tests, with the same single pre-existing `perf-regression-check.test.ts` failure: no new failure, no regression. Recorded as roadmap decision #17.
+
+This section is a governance record; it does not by itself authorize any commit, push, pilot, or production wiring.
+
+## 1-8-2 option A+: balanced arm order and secondary family (2026-11-10)
+
+Human selected A+: continue the pure-function layer with the design-side and secondary-family pieces of ADR-0015 D2. Scope gate and invariants are unchanged from the previous sections (roadmap decision #18).
+
+Delivered four new files: `src/eval/zra-paired-design.ts` + `tests/zra-paired-design.test.ts` (6 tests), and `src/eval/zra-paired-secondary.ts` + `tests/zra-paired-secondary.test.ts` (13 tests). All are side-effect free and none is called from production code.
+
+Design side: `FULL_ARM_ORDERS` freezes the six A/C/S permutations; `armOrderSchedule` covers all six for confirmatory k=6, while k=4 requires a pre-declared subset of exactly four, validates uniqueness and position balance (per-position per-arm count spread <= 1) and returns the two `uncovered` orders for disclosure; `hasAbbaPattern` / `assertNoAbba` reject x,y,y,x two-arm counterbalancing because three arms cannot reuse ABBA; `assignOrdersToTasks` independently permutes the schedule inside each task with a fixed seed, preserves task-internal balance, skips ABBA candidates and fails closed if none survives.
+
+Secondary family: `orderEffectDiagnosis` reuses `signFlipTest` on c_i - s_i and states explicitly that S differs from C only by a fixed-seed permutation, so the result is diagnostic, not full causal mediation and not a product gate; `mcnemarExact` runs a two-sided exact binomial test over discordant pairs (log-domain accumulation avoids underflow, n=0 yields p=1); `holmCorrection` requires an explicit pre-registered `familySize`, refuses a mismatched submission to prevent post-hoc endpoint addition or removal, and returns step-down `adjustedAlpha`, monotone `adjustedPValue` and `rejected`; `fallbackFreeConsistency` computes per-arm pass^k-style shares over a fixed k with missing or unknown trials never counted as success, and returns no p-value.
+
+Only existing frozen values are reused (k=6 / k=4 / alpha=0.05); AI introduced no new frozen value. Secondary endpoints never replace the primary endpoint or the primary A/C comparison. No `plan()` / `sortedFiles` / MCP ranking change, no `ZCG_RETRIEVAL_ARM`, no real model run or baseline, no consumption of the 96 paired-runs, no unblinding, no Human-only field filled in, no ADR / contract / `docs/README.md` edit, no commit or push. Nine prerequisites remain at 0 runtime wiring; four `exit-criteria` unsatisfied; node stays `in_progress`, rounds 1/2, `1-4` blocked, product default OFF, v3 holdout, G-ship gates, the 8 `unknownCriteria`, `has-gaps` and Q68 reviewer=Human unchanged.
+
+Targeted verification: `tsc --noEmit` exit 0; `vitest run` over the six zra-paired test files 67/67 passed. Full-suite regression (9m48s): 187 files passed / 1 failed / 6 skipped (194), 2605 tests passed / 38 skipped (2643). Versus the previous baseline (185/1/6, 2586 passed; decision #17) the delta is exactly +2 files and +19 tests, with the same single pre-existing `perf-regression-check.test.ts` failure: no new failure, no regression. Recorded as roadmap decision #20.
+
+This section is a governance record; it does not by itself authorize any commit, push, pilot, or production wiring.
+
 ## Boundary
 
 This backlog is a governance aid, not an ADR, contract, method, or release input. It must not be registered in `docs/README.md`. Decisions recorded here authorize document edits only; no item above constitutes implementation approval.
