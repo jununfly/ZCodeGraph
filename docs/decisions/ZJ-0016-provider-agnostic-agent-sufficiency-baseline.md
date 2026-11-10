@@ -48,13 +48,15 @@ CLI, MCP ranking, schema, or default Explore behavior, and does not unblock 1-4.
 The harness owns one contract:
 
 ```
-run({ prompt, mcpConfig, model, maxTurns, timeoutMs, arm })
+run({ arm, prompt, mcpConfig, model, maxTurns, ...adapterOptions })
   -> { exitCode, toolCalls, usage, model, turns }
 ```
 
 The harness constructs the with-vs-without CodeGraph MCP configurations as the
 single variable. No provider name, vendor flag, or vendor transcript format
-appears in harness code; they belong exclusively to adapters.
+appears in harness code; they belong exclusively to adapters. Timeout and other
+adapter-specific knobs are adapter-owned; the harness does not impose a
+wall-clock limit.
 
 ### D2 — One provider-neutral evidence record
 
@@ -83,13 +85,16 @@ model is read back from the transcript, and the shared-config fingerprint
 requires every arm of one run to use the same resolved version. A model id that
 is superseded later needs no code change.
 
-### D5 — Budget ceilings belong to the harness
+### D5 — Resource guards belong to the harness
 
 The first adapter's CLI exposes turn, step and token limits but no monetary
-budget flag. The harness therefore enforces the ceiling by accumulating turns,
-tokens and credit from normalized transcripts and hard-stopping a run when the
-pre-registered threshold is exceeded. Threshold values are pre-registration
-data, not architecture; they are not recorded here.
+budget flag. The harness therefore guards runaway executions by accumulating
+turns, tokens and credit from normalized transcripts and hard-stopping a run
+when an engineering default is exceeded. These guards are implementation
+defaults, not pre-registration values. The single pre-registered hard gate is
+ADR-0015's `pilot ceiling = 96 paired-runs`, recorded in
+`MET-hard-budget-ceiling-pre-registration`. No measurement run is needed to set
+or justify the guards.
 
 ### D6 — Falsifiable decoupling and failure semantics
 
@@ -112,8 +117,8 @@ isolation comes from the credential-free read-only snapshot harness.
   runtime; DES evidence becomes machine-readable; historical reports stay
   reproducible; a superseded model needs no code change.
 - **Cost**: an adapter must translate each vendor's transcript format; the first
-  adapter's stdout mapping needs one real run to calibrate; budget ceilings are
-  harness-enforced rather than native.
+  adapter's stdout mapping is uncalibrated until a real baseline run occurs;
+  resource guards are harness-enforced rather than native.
 - **Honest statement**: this ADR approves a harness architecture. It produces
   no Agent Sufficiency evidence by itself, does not prove any retrieval arm's
   value, and does not authorize implementation of `ZCG_RETRIEVAL_ARM`, the
@@ -121,11 +126,25 @@ isolation comes from the credential-free read-only snapshot harness.
 
 ## Boundaries
 
-- No model identifiers, budget thresholds, task sets, or reviewer names are
-  frozen here; those belong to pre-registration.
+- No model identifiers, resource-guard values, task sets, or reviewer names are
+  frozen here. Pre-registration owns the 96 paired-run gate and the pilot-time
+  fields; resource guards are engineering defaults.
 - No `src/`, CLI, MCP, schema, or default Explore changes; product default OFF.
 - `e9` unchanged; 1-4 remains pending + blocked; 1-8-1 and 1-8-2 remain parallel.
 - No review-trigger records are written into this ADR, any contract, or `docs/README.md`.
+
+## Change history
+
+- 2026-11-10 — **Classification correction, no design change.** D5 originally
+  called the harness guard values "pre-registered thresholds" and listed them
+  as pre-registration data; Boundaries repeated that classification. They are
+  engineering defaults, and ADR-0015's 96 paired-runs is the only pre-registered
+  gate. D1's contract signature listed `timeoutMs`, which the harness does not
+  pass; timeout is adapter-owned. Consequences no longer presents a calibration
+  run as a prerequisite. The architecture, the with-vs-without variable, the
+  evidence schema, the adapter boundary and the acceptance criteria are
+  unchanged. This clarifies stale wording in roadmap 1-8-2 decisions #7-#9,
+  which are retained append-only.
 
 ## Related
 
