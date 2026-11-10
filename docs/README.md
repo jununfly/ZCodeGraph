@@ -1,7 +1,7 @@
 # ZCodeGraph Documentation Map
 
 > Single entry point and entity registry for this repository's durable
-> documentation. Last reviewed: 2026-11-06.
+> documentation. Last reviewed: 2026-11-10.
 >
 > This map is the **entity registry** for the ontology defined in
 > [`ONTOLOGY.md`](ONTOLOGY.md). Each section corresponds to one entity
@@ -26,7 +26,7 @@
 | --- | --- | --- | --- |
 | Decision | [`decisions/`](decisions/) | primary | 15 |
 | Contract | [`contracts/`](contracts/) | primary | 18 |
-| Method | [`methods/`](methods/) | primary / supporting | 13 |
+| Method | [`methods/`](methods/) | primary / supporting | 14 |
 | Plan | `plans/` (CLI SoT, not always on disk) | process | not enumerated here |
 
 Root-level external entries: [`../ZJ-CONTEXT.md`](../ZJ-CONTEXT.md) —
@@ -137,6 +137,7 @@ codebase currently obeys. Test-locked where applicable.
 | primary | MET-agent-routing | [agent-routing.md](methods/agent-routing.md) | Should agents answer directly with CodeGraph or delegate to a sub-agent? |
 | supporting | MET-semantic-retrieval-evaluation-v1 | [semantic-retrieval-evaluation-v1.md](methods/semantic-retrieval-evaluation-v1.md) | How was the original file-entry semantic retrieval candidate measured and rejected under the v1 budgets? Historical protocol; its holdout is now diagnostic for later candidates. |
 | supporting | MET-semantic-retrieval-evaluation-v2 | [semantic-retrieval-evaluation-v2.md](methods/semantic-retrieval-evaluation-v2.md) | How does a bounded semantic-reranking candidate earn independent offline and Agent-value evidence without tuning on its acceptance set? |
+| supporting | MET-hard-budget-ceiling-pre-registration | [hard-budget-ceiling-pre-registration.md](methods/hard-budget-ceiling-pre-registration.md) | 如何让 ADR-0015 的预注册硬预算上限冻结具备机械可判定性，从而支撑 D4 的停止规则？ |
 
 ---
 

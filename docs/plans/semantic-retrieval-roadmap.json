@@ -580,7 +580,7 @@
       "id": "1-6",
       "uid": "01a1a9d85176-35b5c4d45c",
       "label": "检索质量提升探索（超 v2 冻结范围）",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1",
       "children": [
@@ -681,16 +681,33 @@
       "id": "1-6-3",
       "uid": "01a1a9db3eb0-6f21c56ebd",
       "label": "D3 注入位置与权重实验（前缀/后缀、符号权重、原始 query token 保留、注入数 1-5 扫描）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-6",
       "children": [],
-      "decisions": [],
-      "notes": "D3 注入位置/权重实验：未执行。1-6 NO-GO 后无必要，注入质量方向已并入 1-7 结构化检索。作为 parked 未来方向保留。",
+      "decisions": [
+        {
+          "q": "1-6-3 之前被 parked（note 称 1-6 NO-GO 后无必要、并入 1-7），现在为何重启？",
+          "answer": "重启原因：(1) D3 实际从未执行（原 note 自承'未执行'），park 是预判性而非基于 D3 自身证据；(2) D2 v2 在 dev 60 取得 1-6 唯一正向信号（d2@scGate=0.4 Hit@5=0.767 vs C0 0.700），证明在自洽门控注入之上仍有可探索空间；(3) 协议允许 dev-only 迭代（holdout 冻结仅作最终评估），D3 是注入环节自身的超参扫描、不依赖 holdout；(4) Human 于 2026-11-10 显式指令'开始 1-6-3'。故覆盖 parked 判定，置 in_progress，作为在 D2 v2 自洽门控注入之上做注入位置/权重扫描的独立 dev 探索。1-6 整体 holdout NO-GO 结论不变；D3 不预设能通过门，只产出 dev 证据。",
+          "note": ""
+        },
+        {
+          "q": "D3 实验设计：基于哪个配置、扫哪些维度、退出判据？",
+          "answer": "Base = D2 v2 自洽门控注入（scGate=0.4，D1 v2 符号 picker：类型名+查询对齐加权、cap3、去调用目标噪声）；D3 只改注入环节本身。候选网格（dev 60 迭代，holdout 不读）：注入位置∈{前缀prefix,后缀suffix} × 符号权重∈{uniform, type-boost(类型符号重复加权)} × 原始query token保留∈{keep, drop} × 注入符号数 cap∈{1,2,3,4,5} = 40 格。门控逻辑沿用：仅当 scOverlap<0.4 才注入 D3 变体，否则回落 base（保护易仓满分）。报告含 baseline/C0/d1/d2@0.4 参照臂。退出判据（沿用 1-6 协议）：dev Hit@5 须 > d2@0.4  incumbent 0.767 方够格进 holdout 一次性评估；否则按 1-5 关闭、路径不解锁 1-4。cap>3/prefix/drop/type-boost 均为新探索，可能揭示 D2 未覆盖的注入最优区；若 40 格全跑过慢则先跑 12 格主扫（pos×ret×cap{1,3,5}）再决定权重细扫。",
+          "note": ""
+        },
+        {
+          "q": "D3 在 dev 60 的扫描结果？是否优于 incumbent d2@0.4？",
+          "answer": "D3 在 dev 60（5 corpus×12=60 题）全 40 格扫描完成，28s。参照臂复现：baseline/C0=0.700、d1=0.650、d2@0.4=0.767（与 D2 v2 一致，harness 一致性强）。D3 最佳格 prefix|uniform|keep|5 → Hit@5=0.700 / Hit@10=0.817 / MRR=0.493；全 40 格 Hit@5∈[0.667,0.700]，无一超过 incumbent 0.767。结构性结论：(1) 注入字符串的位置/权重/query保留/注入数对最终 Hit@5 几乎无影响（prefix 略优于 suffix、keep 优于 drop、cap=5 略优、type-boost≈uniform）；(2) 关键差异在融合策略——D3 用'单次重 plan(augQ)'，d2 用'base+d1 双遍候选集 mergedRerank(0.4/0.4/0.2)'，后者才把 Hit@5 从 0.700 抬到 0.767。即'查询注入式单遍重排'被'双遍候选集重排融合'严格支配，注入质量方向确非杠杆。VERDICT=NO-GO（未达 >0.767 退出判据），路径转 1-5（证据不足，关闭/保留离线实验，不进产品）。证据：.tmp/measure/d3-dev.json。此结论反向印证 1-6-3 原 parked 判定的结果正确性（虽当时为预判）。",
+          "note": ""
+        }
+      ],
+      "notes": "2026-11-10 重启并完成：覆盖 parked 判定，dev 60 全 40 格扫描完成。基于 D2 v2 自洽门控注入（scGate=0.4），扫 位置{prefix,suffix}×权重{uniform,type-boost}×query保留{keep,drop}×注入数{1..5}=40 格。结果：best prefix|uniform|keep|5 Hit@5=0.700，全格∈[0.667,0.700]，无一超 incumbent d2@0.4=0.767。VERDICT=NO-GO（未达 >0.767 退出判据），路径转 1-5。结构性结论：'查询注入式单遍重排'被'base+d1 双遍候选集 mergedRerank'严格支配，注入质量方向非杠杆——反向印证原 parked 判定结果正确性。证据：.tmp/measure/d3-dev.json。",
       "layer": "plan",
       "budget": {
         "max_rounds": 2
-      }
+      },
+      "rounds": 1
     },
     "1-7": {
       "id": "1-7",
@@ -937,7 +954,7 @@
       "id": "1-8-2",
       "uid": "01a1b1bca5d1-65df505faa",
       "label": "ZJ-0015 执行前置授权",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "explore",
       "parent": "1-8",
       "children": [],
@@ -951,6 +968,26 @@
           "q": "ZJ-0015 执行前置：新 Human 授权后的预注册与硬预算冻结如何落地？",
           "answer": "同一轮 Human 选择 C 也授予 1-8-2 所需的新 Human 授权，但明确条件是预注册与硬预算冻结必须先于任何实现，且按 Q70 与 ADR-0011 P1 批次严格隔离：e9 不变、1-4 不变且仍 blocked、1-8-1 与 1-8-2 保持并列、产品默认 OFF 不变、v3 holdout 永久冻结、G-ship 90%/95% 与全部安全门不变、8 个 unknownCriteria 与 has-gaps 保留；批准的是协议不是结果。预注册字段（本批只定义字段，不虚构数值）：正式 N / 总成本 / 硬预算上限须由 Human 在试点前冻结，5-8x4x3 仅是试点、40x4 不是已论证预算；主检验为任务级双侧符号翻转随机化，Task Cluster 是唯一独立推断簇、trial 不得放大 N、k=6 全排列优先、任务簇 bootstrap 只给 95% 区间；MDE=1.5 已冻结；A/C/S 三臂中 S 同候选/同内容/同条数/同 payload 仅以固定种子破坏排序且只作诊断；正确性非劣数值、任务集组成与 freshness、人名与 reviewer 须预注册。冻结后才准建设：ZCG_RETRIEVAL_ARM（默认 OFF）、S 序列化、配置指纹断言、arm-blinded 双审（原始一致率≥90%）、不可变运行清单、无凭据一次性只读快照隔离、固定 seed 统计单元测试、独立任务集，以及因切臂改变 MCP ranking 必须按 DES-baseline-agent-sufficiency-v1 跑 baseline；之后才是试点与正式运行。本批为预注册与硬预算冻结记录，不是执行启动：上述 5 项前置能力与试点在本批之后仍未开始，节点保持 pending、budget 0/2、无新边。",
           "note": "e9 与 1-4 blocked=True 不变；治理台账 2026-11-06-adr-human-decisions.md 的 ZJ-0015 execution prerequisites 节；ADR-0015 与 methods v2 口径不变。"
+        },
+        {
+          "q": "开始 1-8-2（2026-11-10）：scope gate 分类、执行顺序、Human-only 冻结项与不变项是什么？",
+          "answer": "分类=Product execution 路线下的治理前置节点；本轮 artifact 仅为预注册与硬预算冻结记录，目标项目代码/CLI/MCP/schema 保持只读。依据：ADR-0015 D5 与执行边界、治理台账《2026-11-06-adr-human-decisions.md》ZJ-0015 节——Human 已于 2026-11-07 授予新授权，但预注册与硬预算冻结必须先于任何实现，且该批明确不是执行启动。执行顺序：①冻结预注册字段与硬预算 → ②建设 9 项前置能力（默认 OFF 的 ZCG_RETRIEVAL_ARM、S 同 payload 固定种子置换、配置指纹断言、arm-blinded 双审原始一致率≥90%、不可变运行清单、无凭据一次性只读快照隔离、固定 seed 统计单元测试、独立任务集、按 DES-baseline-agent-sufficiency-v1 跑 baseline）→ ③5-8 任务×4 trial×3 臂试点（仅估方差/审计一致性/顺序效应/缺失/成本）→ ④正式运行。Human-only 字段，AI 不得虚构：正式 N、总成本、硬预算上限、正确性非劣数值、任务集精确组成与 Task Freshness、named operators/reviewers；MDE=1.5 已冻结；5-8×4×3 仅试点，40×4 不是已论证预算。不变项：e9 保留、1-4 仍 pending+blocked、1-8-1 与 1-8-2 并列、产品默认 OFF、v3 holdout 永久冻结、G-ship 90%/95% 与全部安全门、8 个 unknownCriteria 与 has-gaps、Q68 reviewer=Human。本轮消耗 max_rounds 的第 1 次开工（rounds 1/2）；9 项前置能力与试点 0 开始，节点不 completed、不解锁 1-4。",
+          "note": "scope gate 声明于 commentary；不自动 commit/push，feat/chore 严格分离；上一轮 1-6-3 遗留未提交变更不夹带。"
+        },
+        {
+          "q": "2026-11-10 Human 对 1-8-2 冻结方式与后续动作的选择是什么？冻结记录落到什么程度？",
+          "answer": "Human 选择 A+A：①冻结方式=先冻结硬预算上限与试点边界，正式 N 在 5-8 任务×4 trial×3 臂试点估方差后再预注册；②后续动作=不启动 9 项前置能力建设批次①，先由 Human 复核冻结记录。落盘性质为结构性冻结而非数值冻结：已冻结项为统计口径（MDE=1.5、任务级双侧符号翻转随机化、Task Cluster 唯一独立推断簇、trial 不放大 N、k=6 全排列优先、任务簇 bootstrap 仅 95% 区间）、试点边界（5-8×4×3，仅估方差/审计一致性/顺序效应/缺失/成本，不作产品门）、D4 停止与 inconclusive 规则。仍为 UNSET 的 Human-only 数值：硬预算上限数值、正式 N、总成本、正确性非劣数值、任务集精确组成与 Task Freshness、named operators/reviewers；AI 不得虚构，任何实现在数值上限给定且冻结记录经 Human 复核前不得启动。节点保持 in_progress（rounds 1/2），9 项前置能力与试点 0 开始；e9 保留、1-4 pending+blocked、1-8-1 并列、默认 OFF、v3 holdout、G-ship 90%/95%、8 个 unknownCriteria 与 has-gaps、Q68 均不变。",
+          "note": "治理台账《2026-11-06-adr-human-decisions.md》新增 1-8-2 start 节；本轮未改 src/、未 commit/push。"
+        },
+        {
+          "q": "2026-11-10 Human 授权「硬预算上限的数值与单位按你的建议定」：冻结了什么，仍 UNSET 什么？",
+          "answer": "Human 明确把单位与数值的决定权授予 AI，按其既有建议冻结。已冻结：①单位 = paired-run，1 run = 1 Agent Task × 1 臂(A/C/S) × 1 trial 的完整执行；②计数规则 = 失败/超时/重试/配置指纹拒绝的 run 全部计入 consumed（防重跑绕过）；按 D2 整任务剔除时已执行 run 不回退；pilot 与 formal 分账、互不挪用；run 边界由不可变运行清单条目界定；③pilot ceiling = 96 paired-runs（ADR-0015 D5 上界 8 任务 × 4 trial × 3 臂，5 任务时 60），仅用于估方差/审计一致性/顺序效应/缺失/成本；④主上限单位取 paired-run；金额 / wall-clock / token 仅作记录与报告的观测告警，不设阈值、不作统计门；⑤formal ceiling 在正式 N 预注册前可用预算为 0，试点后按 N × k × 3 推导并另行冻结，且不得在看到结果后上调；⑥触发 consumed(scope) >= ceiling(scope) 即按 D4 停止并判 inconclusive，禁止追加批次求显著。仍 UNSET（Human-only / 试点后）：正式 N、总成本、正确性非劣数值、任务集精确组成与 Task Freshness、named operators/reviewers、formal ceiling 数值。依据：ADR-0015 D5 要求正式 N 与总成本延迟到试点与任务集设计时预注册，40×4 不是已论证预算；不虚构 N 是该冻结建议本身的一部分，而非未完成。节点保持 in_progress（rounds 1/2），9 项前置能力与试点 0 开始；e9、1-4 blocked、默认 OFF、v3 holdout、G-ship 90%/95%、8 个 unknownCriteria 与 has-gaps、Q68 均不变；实现批次①须待 Human 复核冻结记录后另行启动。",
+          "note": "同步长期文档 MET-hard-budget-ceiling-pre-registration 的 §3/§4/§7 与治理台账；不改 ADR-0015；未 commit/push。"
+        },
+        {
+          "q": "2026-11-10 Human 复核确认冻结记录后，1-8-2 的状态是什么？",
+          "answer": "Human 复核确认第 5 条冻结记录（单位 paired-run、pilot ceiling 96、formal ceiling 0 待正式 N 预注册、金额/wall-clock/token 仅观测告警）。确认解除的是『冻结记录待复核』这一条件，不构成实现、试点或批次①启动授权；9 项前置能力与试点仍 0 开始，须另有显式指令。节点保持 in_progress（rounds 1/2）；e9、1-4 blocked、默认 OFF、v3 holdout、G-ship 90%/95%、8 个 unknownCriteria 与 has-gaps、Q68 均不变。同步修剪 MET-hard-budget-ceiling-pre-registration：删除授权日期与来源、文档治理元信息、作者执行命令、历史数值细节、与 §1 重复的推导及状态注解，保留冻结值、计数规则、可判定性判据与边界；过程材料（roadmap 决策、台账）按 zj-docs-ontology 契约保留可追溯表述。",
+          "note": "长期页保持 reference 形状；未改 ADR-0015 / docs/README.md；未 commit/push。"
         }
       ],
       "notes": "",
@@ -958,12 +995,13 @@
       "budget": {
         "max_children": 0,
         "max_rounds": 2
-      }
+      },
+      "rounds": 1
     }
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-07 19:42:13",
+    "updated": "2026-11-10 14:02:36",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
