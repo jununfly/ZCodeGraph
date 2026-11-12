@@ -1073,6 +1073,171 @@
           "q": "B+E / zj-tdd 轮全量回归相对上一轮基线是否引入新增失败？",
           "answer": "上一轮基线（决策 #20）：187 passed / 1 failed / 6 skipped（194 文件），2605 passed / 38 skipped（2643 例），唯一失败为 tests/perf-regression-check.test.ts。本轮全量 npx vitest run 用时 9m50s：**189 passed / 1 failed / 6 skipped（196 文件），2610 passed / 38 skipped（2648 例）**。差额恰为 +2 个测试文件、+5 例（agent-eval-isolation 4 + zra-paired-gate 1），与本轮交付完全一致；唯一失败项与基线相同，仍是 tests/perf-regression-check.test.ts 收集阶段 SyntaxError（既有本地 Windows + vitest 2.1.9 静态 ESM .mjs 导入问题，归因链见 #14）。结论：**无新增失败、无回归**。本轮未修改任何既有测试或脚本文件；新增 harness 文件通过 tests/agent-sufficiency-harness.test.ts 11 例 provider-neutral 验收；tsc --noEmit 0、定向 83/83、roadmap validate Valid。不变项同 #22：节点 in_progress、rounds 1/2、四条 exit-criteria 全未满足、九项能力运行时接线 0/9、B 生产切臂仍 blocked、e9 保留、1-4 pending+blocked、1-8-1 并列、默认 OFF、v3 holdout、G-ship 90%/95%、8 个 unknownCriteria 与 has-gaps、Q68 不变；不 completed、不解锁 1-4；未 commit/push，PR #717 未受影响。",
           "note": "补齐 #22 中全量回归另行运行的结论；基线数据来自 #20；render 自动刷新 md。"
+        },
+        {
+          "q": "2026-11-11 继续剩余前置能力：Human 确认的公开 seam 与本轮实现边界是什么？",
+          "answer": "Human 明确确认以 runPairedEvaluation 作为本轮唯一新增公开测试 seam，以零消耗进程内执行器验证组合接线。分类仍为 Product execution 的治理前置建设，范围是把既有 A/C/S 显式选择、S 同 payload 固定种子置换与内容校验、共享配置指纹、不可变 paired-run 清单和 arm-blinded 双审接成可执行的 paired-block 编排器，并从既有隔离与 baseline 入口提供真实证据对象，而不是继续堆无消费者纯函数。执行器必须由调用方注入检索与 agent 执行边界；仓库本轮不提供 C=symbol-union 的生产实现、不登记 ZCG_RETRIEVAL_ARM、不改 plan()/sortedFiles/MCP ranking，故不会把实验候选伪装为生产能力。TDD 按成功三臂块、配置失败计数、S 载荷、失败/隔离异常整块作废且计数、盲审产物逐片红绿；每个已尝试 run 都计 consumed，任何失败使整块不可作确证证据，不退款不续跑求显著。既有 S1/S2 隔离与 baseline seam 保持，可补 adapter 使用 sanitized env/corpus 的实际接线但不执行真实模型。独立任务集/Task Freshness、named operators/reviewers、正确性非劣数值、真实 DES baseline 仍是 Human/真机证据待办；formal ceiling=0、pilot ceiling=96、默认 OFF、e9、1-4 blocked、G-ship 与全部安全门不变，不跑真实模型或试点、不消耗 96 门、不代填 Human-only 字段、不改 ADR/合同/docs/README、不自动 commit/push。",
+          "note": "先落盘范围与已确认 seam；完成后按实测结果另记，不把编排器就绪等同于九项全部完成。"
+        },
+        {
+          "q": "2026-11-11 runPairedEvaluation 与隔离证据保存接线实际交付了什么，哪些门仍未满足？",
+          "answer": "按 Human 已确认的 runPairedEvaluation 公开 seam，新增 src/eval/zra-paired-runtime.ts 与 tests/zra-paired-runtime.test.ts，把既有纯函数组合为零消耗、注入式的 paired-block 编排器：默认 A/C/S 或冻结 schedule 选择臂序；每块三臂各一次；S 只置换 C 候选且复用同一 payload；同一 C 候选准备即使在 S 先于 C 的臂序中也仅执行一次，避免不同索引快照破坏同载荷不变量；实际共享配置与运行时回读指纹均校验；失败、超时、配置拒绝和隔离越界都进入 consumed 清单，整块终态确定后统一 append，completed 遇整块失败改 failed，不提供退款/删除；96 pilot ceiling 和 0 formal ceiling 在执行前 fail closed；audit 不含 arm/callId/revealKey，显式 sealRevealKey 解盲，submitDoubleReview 通过既有 90% 原始一致率，不代替 Human 判读。新增 9 例：成功块、指纹不一致、S 置换、隔离越界、盲审、固定臂序、S 先于 C 的单次 C 准备、96/0 门、执行异常留账。既有 baseline/isolation seam 同步补齐：具体 adapter 收到 isolation 时仅使用快照 corpusDir 和 sanitized env，不含高风险 permission bypass；runBaseline 仅保存 valid run；runIsolatedBaseline 延后到完整性通过后才保存含 isolation.consumed/intact 的 transcript，避免普通失败或隔离越界遗留部分证据。验证：tsc --noEmit 通过；目标 9 文件 89/89 通过；adapter 无真实 CLI 进程冒烟、原生隔离契约与完整性通过后落盘冒烟均通过；diff --check 通过。本机 tests/agent-eval-isolation.test.ts 仍在动态 .mjs 加载阶段 SyntaxError，6 例未在 Vitest 中执行；与既有 perf .mjs 收集问题同类，不以原生冒烟冒充 Vitest 通过，不夹带无关换行修复。边界：这只是实验评测与 baseline harness 接线，不提供生产 C=symbol-union、不登记 ZCG_RETRIEVAL_ARM、不改 plan()/sortedFiles/MCP ranking、不跑真实模型或 DES baseline、不消耗试点额度、不代填 Human-only 字段。九项能力的完整运行时验收仍不能宣称完成，节点保持 in_progress、rounds 1/2、exit-criteria 未全满足；e9 与 1-4 pending+blocked 保留，默认 OFF、v3 holdout、G-ship 与全部安全门不变。未 commit/push。全量回归另行结束后记录，不提前写成通过。",
+          "note": "范围决策 #24 在前；TDD 的 S-first 用例先观测 C 重复准备 ['A','C','C']，最小复用修复后 9/9；render 自动刷新 md。"
+        },
+        {
+          "q": "2026-11-11 最终全量回归与本地 .mjs 收集限制的实际结果是什么？",
+          "answer": "最终全量 npx vitest run 用时 570.38s：189 passed / 2 failed / 6 skipped（197 文件），2616 passed / 44 skipped（2660 例）。失败均为收集阶段、0 个断言失败：① tests/perf-regression-check.test.ts 是决策 #14 已确认的既有本机 Windows + Vitest .mjs 静态导入 SyntaxError；② tests/agent-eval-isolation.test.ts 在动态 import isolation.mjs 的 beforeAll 处同类 SyntaxError，6 例 skipped（原有 4 + 新增 adapter 1 + 完整性通过后落盘 1）。前者不是本轮修改文件；后者的原生 Node import/node --check 正常，不能把 Vitest 收集失败改写成业务测试通过，也不能把原生零消耗冒烟等同完整 Vitest 通过。新增 adapter 冒烟、隔离/一次性/完整性契约、普通 invalid 与 isolation-breach 不落盘、有效 run 落盘均通过原生进程内验证；paired/baseline 目标 9 文件 89/89 与 tsc --noEmit 通过，治理/flag/正式资产/skip guardrail 另 136/136 通过。全量进程覆盖本轮主要实现；其运行期间最后补上的 S 先于 C 时 C 候选只准备一次修正，随后已由 runtime 9/9、目标 89/89 和 tsc 复验，不将该全量冒充为修正后的独立全量。未改 perf 脚本或换行、未用 continue-on-error、未把本机问题说成 CI 失败。生产 C、flag/plan() 接线、真实 DES baseline、独立任务集与 Human-only 字段、试点均未启动；1-8-2 in_progress、1-4 由 e9 blocked、默认 OFF 和全部安全门不变；未 commit/push。",
+          "note": "补齐决策 #25 的最终全量数据；收集失败与零消耗冒烟分别如实记录。"
+        },
+        {
+          "q": "2026-11-11 Human 指令解决生产切臂、baseline、任务集与试点阻塞：首轮授权和诚实限制是什么？",
+          "answer": "Human 明确授权生产 C/flag/plan() 与真实评测推进，并选择：①先取得真实 DES baseline，再接生产 C/flag/plan()；②新任务集由 Agent 从未参与 C 调参的新 commit 提出 8 个结构追踪任务，保留 repo/commit/预期证据/时间戳，由 Human 审阅冻结，绝不复用 v3 holdout 或既有调参查询；③正确性终点为每任务最终回答包含预期代码证据且不得新增事实性错误，非劣 margin=0，任一正确性回退即停止；④operator=primaryReviewer=secondaryReviewer=victo（Human 本人）。第④项是明确 Human 选择，可承担操作与审阅职责，但两人独立 reviewer 门不因此满足：记录为 single-reviewer-two-passes，原始一致率只能代表同人两次判读，不冒充相互独立双审；另需外部 reviewer 才能关闭该限制。正式 N/总成本继续 UNSET，formal ceiling=0，不得启动正式评估；试点只限 96 paired-runs、默认 OFF 与全部安全门不变。执行顺序保持真实 baseline→生产 C→任务冻结与真实试点，不跳过 Trigger Matrix，不伪造 CLI/回答/人审证据。范围=Product execution；先解决真实 CLI、transcript 最终回答和证据完整性，再决定是否已具备真实 baseline 条件。",
+          "note": "Human 已通过选择确认四项；人员角色按其选择原样记录，独立 reviewer 缺口不得以同一人自审伪装消除。"
+        },
+        {
+          "q": "真实 DES baseline 首轮模型与任务范围如何冻结？",
+          "answer": "Human 选择 balanced-model 作为真实 CLI 首次 with/without baseline 的固定请求模型，两臂共享模型、prompt、corpus、工具 schema，实际返回模型必须从 transcript 回读而非请求值冒充。范围为最小单任务：从 Flask 未参与 C 调参的新提交派生结构追踪任务，保留源 repo、原始 commit、预期代码证据与形成时间，经 Human 审阅后才算 baseline 证据；不是 ZRA 试点任务，不消耗 96 paired-runs，不证明 C 收益。真实调用允许按本轮明确授权发生，须使用只读工具限制和隔离 corpus，绝不使用 --dangerously-skip-permissions 或 bypassPermissions；先修复并验证 launcher/argv/transcript/final answer 链。v3 永久 holdout 不动，formal ceiling=0，生产 C 与 plan() 暂不修改。",
+          "note": "模型名来自本机 codebuddy 2.165.0 --help 当前公开列表；不硬编码到 ADR，运行记录保留实际解析模型。"
+        },
+        {
+          "q": "真实 Flask baseline 首次失败如何留账，何时可重试？",
+          "answer": "首次 flask-baseline-20261111-r1 的 with 臂非零退出、without 未启动、raw stdout 为空，整块 invalid 且快照完整性保持；外层沙箱日志拒绝 CLI 读取本机认证状态，尚无真实模型/MCP/回答失败结论。失败诊断由 runBaseline 公开 seam 单独返回，显式 diagnosticsDir 时在 runIsolatedBaseline 快照完整性检查后写 <runId>.diagnostics.json，标记 evidence:false 与实际 attemptedArms；绝不生成有效 baseline JSON、不保留部分臂为确证证据。Human 已批准一次外层沙箱外最小 Flask with/without 对照，CLI 仍只读、dontAsk、禁写入且不使用权限绕过；失败不反复追求通过。此次是 DES baseline 不是 ZRA 试点，96 paired-runs 消耗仍为 0。",
+          "note": ""
+        },
+        {
+          "q": "Flask r2/r3 的真实 CLI 结果如何分类？",
+          "answer": "r2 在 Human 批准的一次沙箱外对照中因继承宿主 SERVER__PORT=62986（WorkBuddy 主进程占用）而非零退出，未进入模型执行；r3 经 Human 批准后改为每臂独立空闲环回端口，with CLI exitCode=0 但真实 transcript 为 result.subtype=error_during_execution/is_error=true/errors=[Authentication required]，without 未启动。r3 不是模型回答或 MCP 检索失败：usage/credit/toolCalls=0，init 的 mcp_servers=[] 出现在认证失败前，不能据此判动态 MCP 配置通过或失败。adapter 现识别已观察的 assistant.message.content、tool_use、result.is_error/errors；runner 将 runtimeError 在最终回答检查前 fail closed。失败仍仅 diagnostics、evidence:false，无有效 DES baseline、无 Human 分类、96 paired-runs 消耗 0。",
+          "note": ""
+        },
+        {
+          "q": "r3 认证失败后的新授权范围是什么？",
+          "answer": "Human 以“授权”批准继续一次同一 Flask 候选 prompt、balanced-model 的只读 with/without 真实对照，允许按前述方式在外层沙箱外启动 CLI；未声明任务已审阅冻结，promptId 仍为 flask-ipv6-structure-trace-v1-candidate，正式冻结与 Human 回答分类仍待 victo 审阅。失败留账后停止，不反复重试；不进入生产 C/flag/plan()/ranking 或 ZRA 试点。",
+          "note": ""
+        },
+        {
+          "q": "r4 真实 init 是否排除了 MCP 连接阻塞？",
+          "answer": "r4 在 Human 新授权后仍 invalid，with 的 result.is_error=true/errors=[Authentication required]，without 未启动、usage/credit/toolCalls=0、快照 intact。与 r3 不同，r4 真实 init 明确 mcp_servers=[{name:codegraph,status:connected}]，工具表包含 mcp__codegraph__zcodegraph_explore/node/search；故动态 MCP 配置和 connected handshake 已在真实 CLI 验证，但未发生真实工具调用、模型回答或 Human 分类。fail-fast runtimeError 诊断已生效，不伪装为 final response missing。",
+          "note": ""
+        },
+        {
+          "q": "CLI 登录后的下一次真实对照授权范围？",
+          "answer": "Human 明确“已登录，授权”，批准一次同一 Flask 候选任务、balanced-model、只读 with/without 真实对照；按前述已披露方式在外层沙箱外运行。取得真实回答和工具轨迹后交 victo 审阅，程序 valid 不等于 DES 通过，candidate 任务未冻结；失败留账后停止，不自行追加重试。",
+          "note": ""
+        },
+        {
+          "q": "r5：Human 声明已登录后的一次授权对照是否取得 DES baseline？",
+          "answer": "没有。r5 仅执行 with 臂，exitCode=0 但 runtimeError=Authentication required，without 未启动；没有真实模型回答、真实工具调用或 Human 最终分类，快照 consumed=true 且 intact=true。失败诊断 evidence=false，不保存有效 baseline。r5 init 的 codegraph=connecting 不构成 MCP 失败或成功结论。",
+          "note": "诊断目录 C:/Users/victo/AppData/Local/Temp/zcg-flask-baseline-r5；raw C:/Users/victo/AppData/Local/Temp/cg-baseline-mCRJ2e/with.jsonl。该次授权已消费，不自动追加 r6。pilot 96 paired-runs 消耗=0，formal ceiling=0。"
+        },
+        {
+          "q": "r5 后如何诊断交互已登录但 headless 未认证？",
+          "answer": "仅做只读、非敏感的认证路径/运行时错误日志诊断；禁止读取、复制或披露 token、账户和会话标识。已知 spilled 与 bundled product authentication ID 一致，目标认证文件在交互登录后更新，并存在会话到期元数据；这只排除未写入和已知 ID 路径分叉，不能证明 headless 解密/会话校验成功。CodeBuddyExtension/Logs/System 本机不存在，敏感源码片段读取被 withheld 后未绕过。",
+          "note": "根因仍未确定；下一步只读定位错误类别、路径选择和时间字段。若证据不足，请 Human 提供同一 headless 调用的脱敏错误输出，不索取认证文件。"
+        },
+        {
+          "q": "r5 的 Authentication required 是否已有可验证的底层原因？",
+          "answer": "是：r5 对应 ~/.codebuddy/logs/2026-11-11/corpus__29596547d1a74963ad7deca21485d720.log 记录 FileAuthenticationStorage 打开已持久化认证文件时 EPERM，随后 afterRestore hasSession=false。非敏感环境检查显示子进程仍带 IN_DOCKER=1、WORKBUDDY_FS_PROTECTION_ROLE=daemon 及 LSBOX 标记；同日另一个正常终端会话 afterRestore hasSession=true。当前根因是 WorkBuddy 外层进程隔离拒绝对认证文件的读取，不是登录文件未写入、token 过期或 MCP 失败。",
+          "note": "认证内容未读取或输出。下一步只做无模型、无凭据内容、无文件写入的外部读取预检；不得在 WorkBuddy 内通过放宽 ACL、绕过安全控制或转发凭据修复。外层读取预检通过后，才另行请求真实 with/without 授权。"
+        },
+        {
+          "q": "外层无模型读取预检是否通过？",
+          "answer": "Human 明确批准一次无模型、无内容、无写入的沙箱外权限预检。结果 readable=True，writable=True；后者只表示权限可写，未执行写入、ACL 修改或内容读取。命令因额外要求 writable=False 而 exit=1，不是读取失败。该结果支持外层隔离导致 r5 EPERM，但不证明真实模型调用、MCP 工具调用或有效 DES baseline 已成功。",
+          "note": "该授权不包含 r6。真实 balanced-model Flask with/without 对照须另获 Human 批准。零消耗目标 25/25、tsc/diff check 通过；isolation Vitest 11 例仍本机 .mjs 收集失败、全 skipped。"
+        },
+        {
+          "q": "外部认证读取预检通过后，是否可执行一次真实 Flask 对照？",
+          "answer": "Human 明确回复授权执行。批准一次 balanced-model Flask candidate prompt with/without 对照，复用既有真实 CLI adapter、只读工具和一次性快照完整性检查，在 WorkBuddy 外层隔离之外运行。认证文件由 CLI 原路径读取，不复制、转发或披露凭据。该授权仅限本次，不自动追加 r7。",
+          "note": "程序 valid 仍需 Human 分类；失败仅留 diagnostics。DES baseline 不是 ZRA 试点，96 paired-runs/formal ceiling=0 不变；不修改生产 C/flag/plan()/ranking。"
+        },
+        {
+          "q": "r6 外层认证预检通过后，真实 baseline 是否成功？",
+          "answer": "没有。r6 with exit=0、runtimeError=Authentication required，without 未启动；tokens/credit/toolCalls=0，快照 intact，evidence=false。外层启动 stderr 仍明确列出同一认证文件/目录的 file-read 沙箱拒绝，说明权限预检与真实 CLI 子进程的隔离路径仍不一致，不能宣称已绕过或修复外层隔离。",
+          "note": "诊断 C:/Users/victo/AppData/Local/Temp/zcg-flask-baseline-r6；raw C:/Users/victo/AppData/Local/Temp/cg-baseline-T8CEWR/with.jsonl。不自动 r7。另：本次未能从可读历史恢复 r1-r5 的精确 prompt，使用同 commit/结构追踪范围重建并保留 candidate ID；任务仍待 Human 明确冻结，不作为严格同 prompt 重放证据。"
+        },
+        {
+          "q": "如何给 Human 一条不依赖 WorkBuddy 认证沙箱的可执行 baseline 路径？",
+          "answer": "新增 scripts/agent-eval/run-flask-baseline.mjs 作为 Human 显式调用的单一 Flask baseline 入口。默认无参只打印帮助；--prepare 只 clone/checkout 固定 commit、核对本地 index 并准备结果目录；--run 才通过既有 runIsolatedBaseline+真实 adapter 执行最多一次 with/without。结果与诊断分离到 %TEMP%/zcg-flask-results，固定 candidate prompt 于脚本，run ID 默认唯一且拒绝覆盖。入口检测 WORKBUDDY_FS_PROTECTION_ROLE/LSBOX_SHMEM_NAME 并拒绝运行，指示 Human 新开正常终端；不得通过清除标记绕过沙箱。",
+          "note": "本机已验证语法、参数解析、固定 commit 和现有 Flask index 的无模型准备函数；未以 --run 调用。入口仍是新增未跟踪文件，不自动 commit/push；Human 在独立终端执行才是新的真实 run 授权。生产 C/flag/plan()/ranking、默认 OFF、96/0 不变。"
+        },
+        {
+          "q": "Human 正常独立终端的 Flask baseline 是否已形成有效证据，认证失败应如何重新分类？",
+          "answer": "run=flask-baseline-20261112T031307Z（Human 独立 PowerShell 实际执行 --run）：Flask 固定 commit 与本地索引准备成功，但 with 臂 exitCode=0 且 result.is_error=true/runtimeError=Authentication required；without 未启动，tokens/credit/toolCalls=0，快照 consumed=true/intact=true。仅写 C:/Users/victo/AppData/Local/Temp/zcg-flask-results/flask-baseline-20261112T031307Z.diagnostics.json（evidence=false），raw=C:/Users/victo/AppData/Local/Temp/cg-baseline-RPOomM/with.jsonl，snapshot=C:/Users/victo/AppData/Local/Temp/zcg-iso-zQPvVN。raw init 的 mcp_servers=[]，没有真实工具调用；不能据此次认证前失败宣称 MCP 通过或失败，也不改变 r4 connected handshake 的有限事实。",
+          "note": "与 r5/r6 的 EPERM/hasSession=false 不同，本次正常终端日志 C:/Users/victo/.codebuddy/logs/2026-11-12/corpus__94536152c6d27dea739749cc6e97c5de.log 显示 AtRestEncryption missing-key、afterRestore hasSession=true/hasAccessToken=false、AuthRefresh HTTP 401，随后 Authentication required。文件可读不等于凭据可用；missing-key 不能单独定为根因。先由 Human 在同一正常终端、同一 CLI 交互 /login，再仅查新日志非敏感状态，不复制凭据或改 ACL。重新登录只是待验证诊断，不自动重跑 baseline；candidate prompt 未冻结，96 paired-runs 消耗=0、formal ceiling=0、默认 OFF、G-ship 与 e9 不变。"
+        },
+        {
+          "q": "安装目录 CLI 无参数启动出现 MODULE_NOT_FOUND 后，登录验证入口如何纠正？",
+          "answer": "Human 在正常独立 PowerShell 按先前建议运行 node <install>/cli/bin/codebuddy，立即报 Cannot find module ../dist/codebuddy；没有进入登录、没有发送模型任务。只读核实 launcher bin/codebuddy:168-197/245-297：无 -p 默认选择 TUI dist/codebuddy；安装包实际仅有 dist/codebuddy-lite-wb.mjs。先前命令不适配裁剪安装包，不能把它当作认证失败的新证据。",
+          "note": "不安装/修改文件，不清除隔离标记。下一步只在正常终端显式设 CODEBUDDY_FORCE_LITE_WB_BUNDLE=1 并运行同一 launcher、无 -p，以选择 baseline 同 bundle；是否支持完整交互 /login 尚未实测，若不支持须保留输出并停止，不输入任务 prompt、不运行 baseline。"
+        },
+        {
+          "q": "lite-wb 无参数立即退出后，是否继续内置 CLI 登录尝试？",
+          "answer": "Human 在正常独立 PowerShell 显式 CODEBUDDY_FORCE_LITE_WB_BUNDLE=1 后运行同一 launcher：进程无输出直接回到提示符，没有交互界面。随后 /login 是 PowerShell 命令而非 CLI 内命令，报 CommandNotFoundException；该错误不证明登录凭据状态，也未调用模型。官方 quickstart 的交互登录面向独立完整 CodeBuddy CLI，不是当前仅有 lite-wb 的 WorkBuddy 内置裁剪包。",
+          "note": "停止内置 CLI 登录尝试，不修改安装文件、不补造凭据、不自动安装。可选新路径是由 Human 明确选择安装官方独立 CLI（npm install -g @tencent-ai/codebuddy-code 或官方原生安装器），完成其交互登录；独立 CLI 的账号权益、可用模型与 balanced-model 兼容均未证明，需重新校准，不得继承桌面端假设。现有 adapter 以 process.execPath + cliPath 调用 JS launcher，Windows 独立 .exe/.cmd 尚需单独启动适配；授权安装不等于授权真实 baseline。96/0、默认 OFF、e9 不变。"
+        },
+        {
+          "q": "Human 选择官方独立 CLI 后，本轮允许哪些实现与真实执行？",
+          "answer": "Human 明确选择 A：走官方独立完整 CodeBuddy CLI 登录路径。仅授权该路径的准备与零消耗启动适配，不是自动安装、不是自动真实模型对照，也不是生产 C/flag/plan()/ranking 或试点授权。",
+          "note": "先由 Human 在正常 PowerShell 自行 npm install -g @tencent-ai/codebuddy-code、codebuddy --version、codebuddy 并完成交互登录，不输入任务 prompt。实现侧只适配 Windows 独立可执行入口并做进程桩回归；现有 JS launcher 保持兼容。安装后先回传版本、启动器路径及 /model 或等价界面显示的非敏感模型选项，不读取/复制凭据；模型映射与账号权益未验证前不运行 baseline。"
+        },
+        {
+          "q": "独立 CLI 启动适配如何实现并验证，是否解除真实 baseline 阻塞？",
+          "answer": "采用显式 cliFlavor=standalone，不自动探测：.exe 直接 spawn，npm 包 bin/codebuddy JS 入口仍由 Node 启动，.cmd/.bat shell shim fail-closed，standalone 删除 lite bundle override；默认 workbuddy-lite 原行为不变。run-flask-baseline.mjs 增加 --cli-flavor 并透传。仅改 adapter/独立入口及 isolation 回归，不碰生产 C/flag/plan()/ranking。",
+          "note": "零消耗原生进程桩验证 exe 直启、npm JS、shim 拒绝、lite 兼容和参数校验通过；harness 16 + paired runtime 9=25/25、tsc/node --check/diff check 通过。isolation Vitest 仍 beforeAll 动态 .mjs SyntaxError，12 例 skipped，新增用例不能称 Vitest 通过。真实独立 CLI 尚未安装/登录/校准，DES baseline 仍 0，等待 Human 返回版本、JS/exe 路径及非敏感模型选项；96/0 不变，不自动真实执行。"
+        },
+        {
+          "q": "官方独立 CLI 2.183.0 无交互的错误是否表示独立 CLI 不支持 TUI？",
+          "answer": "Human 已执行 npm install -g @tencent-ai/codebuddy-code，codebuddy --version=2.183.0。随后 codebuddy 明确报错：Interactive mode is unavailable，因为当前进程设置了 CODEBUDDY_FORCE_HEADLESS_BUNDLE 或 CODEBUDDY_FORCE_LITE_WB_BUNDLE。此前为诊断内置包在同一 PowerShell 显式设置 LITE=1，变量仍在该用户终端会话；这是已确认的 bundle 选择覆盖，不是独立包缺 TUI，也不是认证结果。",
+          "note": "只允许在该正常独立终端移除 CODEBUDDY_FORCE_HEADLESS_BUNDLE 和 CODEBUDDY_FORCE_LITE_WB_BUNDLE 两个 bundle 变量后重进 codebuddy；不得移除 WORKBUDDY_FS_PROTECTION_ROLE、LSBOX_* 等隔离标记。仍未进入登录、未调用模型。登录后只查看 /model 与退出，不输入任务，不启动 baseline。"
+        },
+        {
+          "q": "独立 CLI 显示 GLM-5.3-Flash/high 后，能否直接沿用 balanced-model 对照？",
+          "answer": "Human 回报独立 CLI 交互界面输出：Model reasoning effort set to high，Switched model to GLM-5.3-Flash。该事实说明已进入交互 CLI 且可选择模型，不等于完整模型列表、账号权益证明、登录恢复证明或真实 headless transcript 成功。界面显示名也不直接等于 CLI --model 参数或 transcript 回读的实际模型 ID。",
+          "note": "不改变既有 balanced-model 默认请求，不启动 baseline。先由 Human 在 CLI 内 /status 查看登录状态（不复制账号/token）并 /exit；随后定位独立 npm JS 入口。实际可用模型须由 CLI 帮助/非敏感界面与运行 transcript 校准；若需从 balanced-model 改为 GLM-5.3-Flash，必须 Human 单独确认新模型和 reasoning effort，并固定两臂同配置，不能把切换悄悄并入重试。"
+        },
+        {
+          "q": "独立 CLI 登录后的新认证日志提供了什么证据？",
+          "answer": "独立 npm JS 入口已只读定位为 C:/Users/victo/AppData/Roaming/npm/node_modules/@tencent-ai/codebuddy-code/bin/codebuddy。独立 CLI 同项目日志 C:/Users/victo/.codebuddy/logs/2026-11-12/ZCodeGraph__7fedcecd938c380e779adadf30d19923.log 在 11:52 启动时 afterRestore hasSession=false，11:53 出现 AuthRefresh skipped: reason=success-cooldown；与先前独立内置 CLI 立即刷新 401 不同，是认证恢复的正向信号。未读取凭据内容或披露 token。",
+          "note": "success-cooldown 不等于真实 headless 成功，也不证明 balanced-model 或 GLM-5.3-Flash 的实际模型 ID 和 entitlement。下一步先由 Human 确认是否把新对照配置改为 GLM-5.3-Flash + reasoning effort=high，并在 adapter/证据指纹中固定；两臂同配置，真实 transcript 必须回读 model/effort（若 envelope 提供）。确认配置与另一次真实执行授权后才运行，不自动启动。"
+        },
+        {
+          "q": "Human 是否已冻结独立 CLI 的模型与推理强度？",
+          "answer": "Human 对提议配置回复",
+          "note": "确认：本轮首个真实 with/without 对照的目标配置为官方独立 CodeBuddy CLI 2.183.0、GLM-5.3-Flash、reasoning effort=high，两臂同配置。此确认替代此前 balanced-model 的请求选择，仅作用于独立 CLI 的这次最小 Flask baseline 候选，不延伸到试点或生产默认。"
+        },
+        {
+          "q": "GLM-5.3-Flash + high 如何在 baseline 中显式传递、留证并防配置漂移？",
+          "answer": "独立 CLI 2.183.0 --help 只读确认 --model 支持 glm-5.3-flash、--effort 支持 high。Human 已确认该新配置；runBaseline 新增 provider-neutral execution={effort}，两臂透传并纳入 sharedConfigFingerprint，provider 证据分别记录 requestedEffort 与 resolvedEffort（未回读则 null），真实回读不一致 fail-closed。adapter.run 显式 --effort high；run-flask-baseline.mjs 新增 --effort 和合法值校验，不依赖交互会话残留。",
+          "note": "目标 harness 18 + paired runtime 9=27/27、tsc/node --check/diff check 通过；零消耗入口、--effort 参数及原真实失败 transcript 回放通过。新增 mismatch 首红暴露 fake adapter 未透传 effort，已补齐桩后转绿，未放宽断言。isolation Vitest 仍本机 .mjs 收集 SyntaxError（13 skipped），不能称其通过。下一步命令仅准备一次独立 CLI with/without 候选 baseline，仍须 Human 明确授权执行；真实模型/effort/工具轨迹与 Human review 未闭环，96/0、默认 OFF、e9 不变。"
+        },
+        {
+          "q": "Human 是否授权独立 CLI 的一次真实 Flask with/without 对照？",
+          "answer": "Human 明确回复",
+          "note": "授权执行，授权范围仅为官方独立 CodeBuddy CLI 2.183.0、glm-5.3-flash、effort=high、固定 Flask commit/candidate prompt 的一次 with/without 对照。真实命令使用 --cli-flavor standalone 和已定位 npm bin/codebuddy JS 入口；两臂共享 execution effort 指纹。"
+        },
+        {
+          "q": "首个真实独立 CLI 双臂结果是否已证明 DES Agent Sufficiency 或允许生产切臂？",
+          "answer": "run=flask-baseline-20261112T055419Z 已保存 C:/Users/victo/AppData/Local/Temp/zcg-flask-results/flask-baseline-20261112T055419Z.json，with/without 均 success，真实 model=glm-5.3-flash、requestedEffort=high、resolvedEffort=null（raw envelope 无 effort 字段），总 usage=137770 tokens/43 turns/credit=0，快照 consumed/intact。with raw=C:/Users/victo/AppData/Local/Temp/cg-baseline-7QU44m/with.jsonl，without raw=C:/Users/victo/AppData/Local/Temp/cg-baseline-4UcMET/without.jsonl。with init codegraph=connected 且三个工具 advertised，但 7 次调用全部 Glob/Grep/Read、CodeGraph 调用=0；without 8 次 Glob/Grep/Read。两臂 permissionDenials=[]，无运行时错误。",
+          "note": "这是首个真实程序有效双臂记录，但不是 DES pass、不证明工具被采用或减少泛读，不授权生产 C/flag/plan()/ranking/试点。with 19 turns/54477 tokens、without 24 turns/83293 tokens 只是单任务观测，不作优效结论。源码初核：两臂均准确描述 SERVER_NAME urlsplit host/port 和 session_transaction cookie host/path 三参数调用、未虚构 port；但两臂均误称 threaded 从 self.debug 默认，源码 app.py:744 实际 options.setdefault('threaded', True)。答案是否正确、是否满足零正确性回退及最终分类仍须 Human；当前证据形态倾向 inconclusive，不能自动写 humanReview。"
+        },
+        {
+          "q": "首个真实 baseline 的字段有哪些未被测量，证据能覆盖哪些变化？",
+          "answer": "readGrepFallbackDisplacement={read:0,grep:0} 是 adapter 未生成该指标时 runner 的默认占位，不是实测零；真实轨迹 with 2 Read+2 Grep+3 Glob、without 2 Read+3 Grep+3 Glob。graphStats/fallbackTaxonomy 也是空占位，不能填造。程序 status=valid 仅表示双臂 transcript/回答/模型/退出条件满足，不含工具采用、fallback displacement、回答正确性或 Human 最终分类。",
+          "note": "本 run 是 provider/headless/认证/transcript 校准与一个 Flask candidate prompt 的真实 A/B 初始证据，只测当前 MCP 工具暴露下的模型选择，未调用生产 C=symbol-union、未改变 ranking、未比较 C 与 A/S；不能替代生产 C 接入后 DES baseline。下一步先由 Human 审阅当前两臂答案并选择 finalClassification（事实倾向 inconclusive），再决定修正工具采用证据/任务设计；不得据此宣称 baseline 已完全满足 Trigger Matrix 或开始 96 paired-runs。"
+        },
+        {
+          "q": "Human 对 flask-baseline-20261112T055419Z 的最终分类是什么？",
+          "answer": "Human 在 A=inconclusive、B=regressed、C=needs-human-review 中明确选择 A：该 run 最终分类为 inconclusive。理由是真实双臂流程虽完整，with 的 CodeGraph 已 connected/advertised 但零调用，无法证明 Agent Sufficiency 改善或减少泛读；不能由程序 valid 推导 improved/preserved。两臂相同 threaded 默认来源小错误由 Human 一并知悉，未据此选择 regressed。",
+          "note": "结论由 Human 作出，非 agent 自动填写。保持 single-reviewer-two-passes 限制，仍缺另一名真实外部 reviewer；此分类不是 C/A/S 试点判定。后续先修正 fallback/工具采用证据与任务设计，不重复消耗同任务模型调用；生产 C 接入后仍须新 DES baseline。96 paired-runs 消耗=0、formal ceiling=0、默认 OFF、G-ship 和 e9 不变。"
+        },
+        {
+          "q": "三项零消耗前置修正的证据语义和直接 Explore 核查结果是什么？",
+          "answer": "Human 授权三项零消耗修正且不调用真实模型。runBaseline 对未实测 readGrepFallbackDisplacement、graphStats、fallbackTaxonomy 统一保存 null，不再用 0 或空对象占位；schema 同步允许 null。CodeBuddy adapter 从 init 事件记录 mcp.servers、advertisedCodeGraphTools，并从实际 tool_use 记录 codeGraphToolCallCount；供应商 envelope 仍留在 adapter，harness 原样保留 provider-neutral mcp 证据。真实 with 回放为 codegraph connected、3 个工具暴露、CodeGraph 调用 0（总工具 7），without 为无 MCP、调用 0（总工具 8）；合成 adapter.run 验证一次 Explore 调用计数为 1，未改写历史 evidence 或 Human inconclusive。",
+          "note": ""
+        },
+        {
+          "q": "固定 Flask commit 的原始 prompt 一次 Explore 是否足以覆盖两条结构链？",
+          "answer": "不充分。对 commit 05e9c6bd630ecf4ec0ec884b1fc7901663737bc7 的现有索引直接调用 serve --mcp / zcodegraph_explore，原始 prompt 返回 app.py 721-751：SERVER_NAME 经 urlsplit 取得 hostname/port，缺省后调用 run_simple(host, port, self, **options)，且 threaded=True；但没有返回 testing.py cookie 更新调用。精确查询 FlaskClient.session_transaction _update_cookies_from_response testing.py 返回 testing.py 135-183，其中 179-183 以 request host_url 的 hostname（fallback localhost）、request.path、Set-Cookie 三参数更新 cookie，没有独立 port 参数。结论仅是单次原始 Explore 覆盖不全、精确后续查询可补证据；不推断模型不采用工具的原因，不修改生产 C/ranking/工具描述。",
+          "note": "harness 18 + paired runtime 9=27/27、tsc、node --check、diff check 通过；真实 transcript adapter.run 回放与合成 1 次 Explore 调用断言通过。isolation Vitest 仍本机 .mjs beforeAll 收集 SyntaxError，14 skipped，不称通过。未启动真实模型，96 paired-runs=0、formal ceiling=0、默认 OFF、G-ship、e9 不变；无 commit/push。"
         }
       ],
       "notes": "",
@@ -1092,7 +1257,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-10 21:14:45",
+    "updated": "2026-11-12 14:24:33",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
