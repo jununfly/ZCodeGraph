@@ -5,8 +5,8 @@
   "type": "object",
   "required": [
     "schemaVersion", "runId", "arm", "corpus", "provider", "toolCalls",
-    "toolCallCount", "readGrepFallbackDisplacement", "usage",
-    "sharedConfigFingerprint", "status", "humanReview"
+    "toolCallCount", "readGrepFallbackDisplacement", "usage", "finalResponse",
+    "transcriptPath", "sharedConfigFingerprint", "status", "humanReview"
   ],
   "properties": {
     "schemaVersion": { "const": "1.0" },
@@ -27,7 +27,9 @@
       "required": ["adapterId", "model"],
       "properties": {
         "adapterId": { "type": "string" },
-        "model": { "type": "string", "description": "Resolved at run time; never hard-coded." }
+        "model": { "type": "string", "description": "Resolved at run time; never hard-coded." },
+        "requestedEffort": { "type": "string", "description": "Explicit shared execution setting; not evidence of runtime adoption." },
+        "resolvedEffort": { "type": ["string", "null"], "description": "Runtime-read effort, or null when the provider transcript does not expose it." }
       }
     },
     "toolCalls": {
@@ -44,8 +46,35 @@
       }
     },
     "toolCallCount": { "type": "integer", "minimum": 0 },
-    "readGrepFallbackDisplacement": {
+    "mcp": {
       "type": "object",
+      "description": "Observed MCP handshake and tool adoption. Connection and advertisement do not imply tool calls.",
+      "required": ["servers", "advertisedCodeGraphTools", "codeGraphToolCallCount"],
+      "properties": {
+        "servers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "status"],
+            "properties": {
+              "name": { "type": "string" },
+              "status": { "type": "string" }
+            }
+          }
+        },
+        "advertisedCodeGraphTools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "codeGraphToolCallCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "finalResponse": { "type": "string", "minLength": 1 },
+    "transcriptPath": { "type": "string" },
+    "readGrepFallbackDisplacement": {
+      "type": ["object", "null"],
+      "description": "Null means not measured; zero counts require an independently reviewed fallback classification.",
       "properties": {
         "read": { "type": "integer" },
         "grep": { "type": "integer" },
@@ -74,8 +103,14 @@
       }
     },
     "sharedConfigFingerprint": { "type": "string" },
-    "graphStats": { "type": "object" },
-    "fallbackTaxonomy": { "type": "object" },
+    "graphStats": {
+      "type": ["object", "null"],
+      "description": "Null means graph statistics were not measured; the empty object is not a measurement."
+    },
+    "fallbackTaxonomy": {
+      "type": ["object", "null"],
+      "description": "Null means no reviewed fallback taxonomy is available; the empty object is not a measurement."
+    },
     "status": { "enum": ["valid", "invalid"] },
     "invalidReason": { "type": ["string", "null"] }
   }

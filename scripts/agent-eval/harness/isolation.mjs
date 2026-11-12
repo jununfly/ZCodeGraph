@@ -10,6 +10,7 @@ import path from 'node:path';
 
 const SENSITIVE_ENV = /(TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|API_KEY|APIKEY|PRIVATE_KEY|ACCESS_KEY|COOKIE|AUTH)/i;
 const SENSITIVE_FILE = /^(\.env|\.npmrc|\.netrc|id_rsa.*|.*\.pem|.*\.key|credentials.*)$/i;
+const RUNTIME_DIR = '.zcodegraph';
 const disposedSnapshots = new WeakSet();
 
 /** Every consumer must reject a snapshot that has already served one run. */
@@ -52,6 +53,9 @@ async function listCorpusFiles(dir, prefix = '') {
   const files = [];
   for (const entry of entries) {
     const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    // The local MCP store is a disposable index, not protected source. Index
+    // writes/WAL files must not masquerade as source-code integrity breaches.
+    if (relative === RUNTIME_DIR) continue;
     if (entry.isDirectory()) {
       files.push(...await listCorpusFiles(path.join(dir, entry.name), relative));
     } else if (entry.isFile()) {
@@ -61,7 +65,7 @@ async function listCorpusFiles(dir, prefix = '') {
   return files;
 }
 
-/** SHA-256 over sorted relative paths and their contents. */
+/** SHA-256 over sorted source paths and contents; runtime indexes are excluded. */
 export async function fingerprintCorpus(corpusDir) {
   const hash = createHash('sha256');
   for (const relative of await listCorpusFiles(corpusDir)) {
@@ -119,6 +123,7 @@ export async function runIsolatedBaseline(options = {}) {
 
   const result = await runBaseline({
     ...baselineOptions,
+    ...(baselineOptions.outDir ? { outDir: null } : {}),
     adapterOptions: { ...(baselineOptions.adapterOptions ?? {}), isolation: context },
   });
 
@@ -131,18 +136,41 @@ export async function runIsolatedBaseline(options = {}) {
     intact,
   });
 
-  if (!intact) {
-    const arms = {};
-    for (const [arm, record] of Object.entries(result?.arms ?? {})) {
-      arms[arm] = { ...record, status: 'invalid', invalidReason: 'snapshot integrity breach' };
-    }
-    return Object.freeze({
-      ...(result ?? {}),
+  const output = {
+    ...(result ?? {}),
+    ...(intact ? {} : {
       status: 'invalid',
       invalidReason: 'snapshot integrity breach',
-      arms: Object.freeze(arms),
+      arms: Object.fromEntries(Object.entries(result?.arms ?? {}).map(([arm, record]) => [
+        arm, { ...record, status: 'invalid', invalidReason: 'snapshot integrity breach' },
+      ])),
+    }),
+    isolation,
+  };
+
+  if (baselineOptions.diagnosticsDir && output.status === 'invalid') {
+    const diagnostics = {
+      ...(output.diagnostics ?? {}),
+      kind: 'failed-baseline-diagnostics',
+      evidence: false,
+      runId: output.runId,
+      invalidReason: output.invalidReason,
       isolation,
-    });
+    };
+    await mkdir(baselineOptions.diagnosticsDir, { recursive: true });
+    await writeFile(
+      path.join(baselineOptions.diagnosticsDir, `${output.runId}.diagnostics.json`),
+      JSON.stringify(diagnostics, null, 2),
+      'utf8',
+    );
   }
-  return Object.freeze({ ...(result ?? {}), isolation });
+  if (baselineOptions.outDir && output.status === 'valid') {
+    await mkdir(baselineOptions.outDir, { recursive: true });
+    await writeFile(
+      path.join(baselineOptions.outDir, `${output.runId}.json`),
+      JSON.stringify(output, null, 2),
+      'utf8',
+    );
+  }
+  return Object.freeze(output);
 }
