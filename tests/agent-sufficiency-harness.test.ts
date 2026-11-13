@@ -115,6 +115,29 @@ describe('ADR-0016 decoupling criteria 2 and 3', () => {
     expect(result.arms.with.toolCallCount).toBe(0);
   });
 
+  it('fingerprints the declared retrieval candidate and snapshot preparation across both arms', async () => {
+    const retrieval = {
+      arm: 'C', candidateSha256: 'd'.repeat(64),
+      preparation: {
+        kind: 'snapshot-bound-c-explore-preparation-v1',
+        snapshotFingerprint: 'a'.repeat(64),
+        sourceDbSha256: 'b'.repeat(64),
+        symbolIndexSha256: 'c'.repeat(64),
+      },
+    };
+    const first = await runBaseline({ ...baseOptions, adapterId: 'fake', retrieval });
+    const second = await runBaseline({
+      ...baseOptions, adapterId: 'fake',
+      retrieval: { ...retrieval, preparation: { ...retrieval.preparation, sourceDbSha256: 'e'.repeat(64) } },
+    });
+    expect(first.status).toBe('valid');
+    expect(first.arms.with.sharedConfigFingerprint).toBe(first.arms.without.sharedConfigFingerprint);
+    expect(first.arms.with.sharedConfigFingerprint).not.toBe(second.arms.with.sharedConfigFingerprint);
+    expect(first.arms.with.sharedConfigFingerprint).toBe(sharedConfigFingerprint({
+      ...baseOptions, toolSchema: '', retrieval,
+    }));
+  });
+
   it('resolves the model per run instead of freezing an identifier', async () => {
     const first = await runBaseline({ ...baseOptions, adapterId: 'fake' });
     const second = await runBaseline({ ...baseOptions, adapterId: 'fake', model: 'another-model' });

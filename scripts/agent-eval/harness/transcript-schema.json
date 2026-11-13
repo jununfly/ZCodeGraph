@@ -46,6 +46,18 @@
       }
     },
     "toolCallCount": { "type": "integer", "minimum": 0 },
+    "toolResults": {
+      "type": "array",
+      "description": "Observed tool-result text, correlated to tool calls by callId; not inferred from the final response.",
+      "items": {
+        "type": "object",
+        "required": ["callId", "text"],
+        "properties": {
+          "callId": { "type": "string" },
+          "text": { "type": "string" }
+        }
+      }
+    },
     "mcp": {
       "type": "object",
       "description": "Observed MCP handshake and tool adoption. Connection and advertisement do not imply tool calls.",
@@ -78,6 +90,7 @@
       "properties": {
         "read": { "type": "integer" },
         "grep": { "type": "integer" },
+        "glob": { "type": "integer" },
         "notes": { "type": "string" }
       }
     },
@@ -105,11 +118,40 @@
     "sharedConfigFingerprint": { "type": "string" },
     "graphStats": {
       "type": ["object", "null"],
-      "description": "Null means graph statistics were not measured; the empty object is not a measurement."
+      "description": "Null means graph statistics were not measured; the empty object is not a measurement.",
+      "properties": {
+        "firstCodeGraphCallIndex": { "type": "integer" },
+        "codeGraphCallCount": { "type": "integer" },
+        "totalToolCallCount": { "type": "integer" },
+        "codeGraphCallRatio": { "type": "number" },
+        "exploreUsageRate": { "type": "number" },
+        "structuralPathCoverage": { "type": "boolean" },
+        "codeGraphToolSequence": { "type": "array", "items": { "type": "string" } },
+        "nonCodeGraphCalls": { "type": "integer" }
+      }
     },
     "fallbackTaxonomy": {
       "type": ["object", "null"],
-      "description": "Null means no reviewed fallback taxonomy is available; the empty object is not a measurement."
+      "description": "Null means no reviewed fallback taxonomy is available; the empty object is not a measurement.",
+      "properties": {
+        "replaceable": {
+          "type": "object",
+          "properties": {
+            "read": { "type": "integer" },
+            "grep": { "type": "integer" },
+            "glob": { "type": "integer" }
+          }
+        },
+        "justified": {
+          "type": "object",
+          "properties": {
+            "read": { "type": "integer" },
+            "grep": { "type": "integer" },
+            "glob": { "type": "integer" }
+          }
+        },
+        "details": { "type": "array" }
+      }
     },
     "status": { "enum": ["valid", "invalid"] },
     "invalidReason": { "type": ["string", "null"] }

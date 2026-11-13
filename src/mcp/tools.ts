@@ -1435,7 +1435,8 @@ export class ToolHandler {
    * that have no dependents (nothing to warn about), and returns '' when none
    * qualify so a leaf-only exploration stays clean.
    */
-  private buildBlastRadiusSection(cg: CodeGraph, subgraph: Subgraph): string {
+  /** Shared with the evaluation-only Explore wrapper; behavior is unchanged. */
+  buildBlastRadiusSection(cg: CodeGraph, subgraph: Subgraph): string {
     const ROOT_CAP = 5; // only the symbols the query actually targeted
     const FILE_CAP = 4; // caller files listed per symbol before "+N more"
     const MEANINGFUL = new Set<string>([
@@ -2332,7 +2333,8 @@ export class ToolHandler {
     return lines.join('\n');
   }
 
-  private textResult(text: string): ToolResult {
+  /** Shared with the evaluation-only Explore wrapper; production shape is unchanged. */
+  textResult(text: string): ToolResult {
     return {
       content: [{ type: 'text', text }],
     };

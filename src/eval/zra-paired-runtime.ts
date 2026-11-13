@@ -20,6 +20,13 @@ import {
 } from './zra-paired-audit';
 import { assignOrdersToTasks, type ArmOrder } from './zra-paired-design';
 
+export { preparePairedExecutionPlan } from './zra-paired-execution-plan';
+export type {
+  PairedExecutionPlanOptions,
+  PairedExecutionReadiness,
+  PlannedPairedBlock,
+} from './zra-paired-execution-plan';
+
 export interface RetrievalResult {
   readonly candidates: readonly unknown[];
   readonly payload: unknown;

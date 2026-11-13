@@ -26,8 +26,8 @@ export function listAdapterIds() {
 }
 
 /** Fingerprint of the fields every arm must share; MCP config is the only variable. */
-export function sharedConfigFingerprint({ corpus, prompt, model, toolSchema, execution = {} }) {
-  const canonical = JSON.stringify({ corpus, prompt, model, toolSchema, execution });
+export function sharedConfigFingerprint({ corpus, prompt, model, toolSchema, execution = {}, retrieval }) {
+  const canonical = JSON.stringify({ corpus, prompt, model, toolSchema, execution, ...(retrieval ? { retrieval } : {}) });
   return createHash('sha256').update(canonical, 'utf8').digest('hex');
 }
 
@@ -58,7 +58,7 @@ export async function runBaseline(options = {}) {
     adapterId, corpus, prompt, model, toolSchema = '',
     server = null, maxTurns = 40, budget = null,
     outDir = null, runId = `baseline-${Date.now()}`,
-    promptId = '', snapshot = '', adapterOptions = {}, execution = {},
+    promptId = '', snapshot = '', adapterOptions = {}, execution = {}, retrieval,
   } = options;
 
   const totals = { credit: 0, totalTokens: 0, turns: 0 };
@@ -72,7 +72,7 @@ export async function runBaseline(options = {}) {
 
   const adapter = getAdapter(adapterId);
   const configs = withAndWithoutConfigs(server);
-  const fingerprint = sharedConfigFingerprint({ corpus, prompt, model, toolSchema, execution });
+  const fingerprint = sharedConfigFingerprint({ corpus, prompt, model, toolSchema, execution, retrieval });
   const arms = {};
   const diagnostics = {
     kind: 'failed-baseline-diagnostics',
@@ -158,6 +158,7 @@ export async function runBaseline(options = {}) {
       transcriptPath: result.transcriptPath ?? '',
       toolCalls: result.toolCalls,
       toolCallCount: result.toolCalls.length,
+      ...(result.toolResults !== undefined ? { toolResults: result.toolResults } : {}),
       ...(result.mcp !== undefined ? { mcp: result.mcp } : {}),
       readGrepFallbackDisplacement: result.readGrepFallbackDisplacement ?? null,
       usage: result.usage ?? {},

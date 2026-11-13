@@ -11,17 +11,18 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const COMMIT = '05e9c6bd630ecf4ec0ec884b1fc7901663737bc7';
-const PROMPT_ID = 'flask-ipv6-structure-trace-v1-candidate';
-const PROMPT = [
-  'Trace the IPv6-related structure in this Flask checkout.',
-  'First, explain how Flask.run uses SERVER_NAME to resolve an IPv6 host and optional port before invoking the development server.',
-  'Second, trace FlaskClient.session_transaction through the cookie update helper and explain how response cookies are reapplied using the cookie host and path.',
-  'Cite the exact files and function names.',
-  'Do not claim a separate port argument is passed to the cookie update helper unless the code does so.',
-  'Read-only investigation only: do not edit files, run tests, or start a server.',
-  'Return a concise technical explanation.',
-].join(' ');
+
+// All prompt text, including the historical default, has one registry source.
+// Explicit --prompt-id is required to select a calibrated diagnostic variant.
+const DEFAULT_COMMIT = '05e9c6bd630ecf4ec0ec884b1fc7901663737bc7';
+const DEFAULT_PROMPT_ID = 'flask-ipv6-structure-trace-v1-candidate';
+
+/** Resolve the selected or historical default prompt through the registry. */
+async function resolvePrompt(promptId) {
+  const { getPrompt } = await import(pathToFileURL(path.join(REPO, 'scripts/agent-eval/task-prompts/registry.mjs')).href);
+  const mod = getPrompt(promptId || DEFAULT_PROMPT_ID);
+  return { promptId: mod.PROMPT_ID, prompt: mod.PROMPT, commit: mod.COMMIT };
+}
 
 function usage() {
   return `Usage (run from any normal terminal):
@@ -37,6 +38,8 @@ Options:
   --cli <path>       Installed CodeBuddy launcher; auto-detected on this host
   --cli-flavor <id>  workbuddy-lite (default) or standalone (explicit .exe/JS entry)
   --clone-url <url>  Source for first preparation; default: GitHub pallets/flask
+  --prompt-id <id>   Prompt from task-prompts registry; default: flask-ipv6-structure-trace-v1-candidate
+  --post-c           Use frozen C; --prepare rehearses snapshot/index binding without a model
 
 No arguments prints this help and performs no I/O. --prepare may clone/index,
 but never invokes a model. --run invokes at most one with/without pair.
@@ -44,15 +47,19 @@ The candidate prompt is not frozen by this script; Human review is still require
 }
 
 function parse(argv) {
-  const options = { mode: '', source: '', outDir: '', runId: '', model: 'balanced-model', effort: '', cli: '', cliFlavor: 'workbuddy-lite', cloneUrl: '' };
+  const options = { mode: '', source: '', outDir: '', runId: '', model: 'balanced-model', effort: '', cli: '', cliFlavor: 'workbuddy-lite', cloneUrl: '', promptId: '', postC: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
+    if (arg === '--post-c') {
+      options.postC = true;
+      continue;
+    }
     if (arg === '--prepare' || arg === '--run') {
       if (options.mode) throw new Error('choose exactly one of --prepare or --run');
       options.mode = arg.slice(2);
       continue;
     }
-    const key = { '--source': 'source', '--out-dir': 'outDir', '--run-id': 'runId', '--model': 'model', '--effort': 'effort', '--cli': 'cli', '--cli-flavor': 'cliFlavor', '--clone-url': 'cloneUrl' }[arg];
+    const key = { '--source': 'source', '--out-dir': 'outDir', '--run-id': 'runId', '--model': 'model', '--effort': 'effort', '--cli': 'cli', '--cli-flavor': 'cliFlavor', '--clone-url': 'cloneUrl', '--prompt-id': 'promptId' }[arg];
     if (!key || !argv[i + 1]) throw new Error(`unknown/incomplete argument: ${arg}`);
     options[key] = argv[++i];
   }
@@ -82,7 +89,7 @@ function execute(command, args, options = {}) {
   if (result.status !== 0) throw new Error(`${command} exited ${result.status}`);
 }
 
-async function prepare(options) {
+async function prepare(options, commit) {
   for (const [label, file] of [
     ['CodeBuddy launcher', options.cli],
     ['ZCodeGraph CLI', path.join(REPO, 'dist/bin/zcodegraph.js')],
@@ -96,11 +103,11 @@ async function prepare(options) {
     execute('git', ['clone', '--filter=blob:none', '--no-checkout', options.cloneUrl, options.source]);
   }
   const head = spawnSync('git', ['-C', options.source, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
-  if (head.status !== 0 || head.stdout.trim() !== COMMIT) {
-    execute('git', ['-C', options.source, 'checkout', '--detach', COMMIT]);
+  if (head.status !== 0 || head.stdout.trim() !== commit) {
+    execute('git', ['-C', options.source, 'checkout', '--detach', commit]);
   }
   const confirmed = spawnSync('git', ['-C', options.source, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
-  if (confirmed.status !== 0 || confirmed.stdout.trim() !== COMMIT) throw new Error('Flask commit verification failed');
+  if (confirmed.status !== 0 || confirmed.stdout.trim() !== commit) throw new Error('Flask commit verification failed');
   const db = path.join(options.source, '.zcodegraph', 'zcodegraph.db');
   if (!existsSync(db)) execute(process.execPath, [path.join(REPO, 'dist/bin/zcodegraph.js'), 'index', options.source, '--quiet']);
   if (!existsSync(db)) throw new Error('index preparation did not create zcodegraph.db');
@@ -114,16 +121,31 @@ async function commandPath(command) {
 
 async function main() {
   const options = parse(process.argv.slice(2));
-  if (process.env.WORKBUDDY_FS_PROTECTION_ROLE || process.env.LSBOX_SHMEM_NAME) {
+  if (options.mode === 'run' && (process.env.WORKBUDDY_FS_PROTECTION_ROLE || process.env.LSBOX_SHMEM_NAME)) {
     throw new Error('This terminal still has WorkBuddy process isolation markers. Open a NEW normal Windows Terminal/PowerShell outside WorkBuddy; do not clear markers to bypass the sandbox.');
   }
-  const db = await prepare(options);
+  const { promptId, prompt, commit } = await resolvePrompt(options.promptId);
+  const db = await prepare(options, commit);
   await mkdir(options.outDir, { recursive: true });
   const outputPath = path.join(options.outDir, `${options.runId}.json`);
   const diagnosticPath = path.join(options.outDir, `${options.runId}.diagnostics.json`);
   if (existsSync(outputPath) || existsSync(diagnosticPath)) throw new Error(`run ID already has an output; choose a new --run-id: ${options.runId}`);
-  console.log(JSON.stringify({ mode: options.mode, source: options.source, commit: COMMIT, indexReady: true, outDir: options.outDir, modelInvoked: false }, null, 2));
-  if (options.mode === 'prepare') return;
+  console.log(JSON.stringify({ mode: options.mode, source: options.source, commit, promptId, indexReady: true, postC: options.postC, outDir: options.outDir, modelInvoked: false }, null, 2));
+  if (options.mode === 'prepare') {
+    if (options.postC) {
+      const { createIsolatedSnapshot, preparePostCExplore, disposeSnapshot } = await import(pathToFileURL(path.join(REPO, 'scripts/agent-eval/harness/isolation.mjs')).href);
+      const snapshot = await createIsolatedSnapshot({ sourceDir: options.source });
+      try {
+        const { prepared } = await preparePostCExplore(snapshot, {
+          arm: 'C', candidateSha256: 'd687c4a831a1e7b03edab29690c5888ccb27dedfa633cf9d57f5e351c6394d4d',
+        });
+        console.log(JSON.stringify({ preparation: prepared, desEvidence: false, modelInvoked: false }, null, 2));
+      } finally {
+        await disposeSnapshot(snapshot);
+      }
+    }
+    return;
+  }
 
   const [{ registerAdapter, runBaseline }, { runIsolatedBaseline }, adapter] = await Promise.all([
     import(pathToFileURL(path.join(REPO, 'scripts/agent-eval/harness/runner.mjs')).href),
@@ -137,21 +159,27 @@ async function main() {
     baselineOptions: {
       runId: options.runId,
       adapterId: 'codebuddy',
-      corpus: `pallets/flask@${COMMIT}`,
-      prompt: PROMPT,
+      corpus: `pallets/flask@${commit}`,
+      prompt,
       model: options.model,
       toolSchema: 'Read,Grep,Glob,mcp__codegraph__*',
-      promptId: PROMPT_ID,
-      snapshot: COMMIT,
+      promptId,
+      snapshot: commit,
       ...(options.effort ? { execution: { effort: options.effort } } : {}),
       server: {
         command: process.execPath,
         args: [path.join(REPO, 'dist/bin/zcodegraph.js'), 'serve', '--mcp', '--no-watch'],
         env: { ZCG_NO_DAEMON: '1', ZCG_NO_WATCH: '1' },
+        alwaysLoad: true,
       },
       outDir: options.outDir,
       diagnosticsDir: options.outDir,
       adapterOptions: { cliPath: options.cli, cliFlavor: options.cliFlavor, timeoutMs: 600000 },
+      ...(options.postC ? {
+        retrieval: {
+          arm: 'C', candidateSha256: 'd687c4a831a1e7b03edab29690c5888ccb27dedfa633cf9d57f5e351c6394d4d',
+        },
+      } : {}),
     },
   });
   console.log(JSON.stringify({
@@ -173,4 +201,4 @@ if (invoked) {
   else main().catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
 }
 
-export { COMMIT, PROMPT, PROMPT_ID, parse, prepare, usage };
+export { DEFAULT_COMMIT as COMMIT, DEFAULT_PROMPT_ID as PROMPT_ID, parse, prepare, resolvePrompt, usage };

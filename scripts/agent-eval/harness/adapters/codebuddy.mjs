@@ -11,6 +11,8 @@ import { createServer } from 'node:net';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { analyzeFallback } from '../fallback-taxonomy.mjs';
+import { analyzeToolAdoption } from '../tool-adoption-metrics.mjs';
 
 const CLI = 'codebuddy';
 
@@ -34,6 +36,7 @@ async function reserveLoopbackPort() {
 
 function normalize(lines) {
   const toolCalls = [];
+  const toolResults = [];
   const mcpServers = [];
   const advertisedCodeGraphTools = new Set();
   let model;
@@ -42,6 +45,42 @@ function normalize(lines) {
   let effort;
   let finalResponse = '';
   let runtimeError = '';
+  function addToolResult(callId, output) {
+    if (typeof callId !== 'string' || !callId) return;
+    if (typeof output === 'string') {
+      try {
+        const envelope = JSON.parse(output);
+        if (Array.isArray(envelope) && envelope.every(item =>
+          item?.type === 'text' && typeof item.text === 'string')) {
+          output = envelope;
+        }
+      } catch {
+        // Ordinary tool output that only resembles an envelope is kept verbatim.
+      }
+    }
+    let text;
+    if (typeof output === 'string') text = output;
+    else if (Array.isArray(output)) {
+      const parts = output.map(item => {
+        if (typeof item === 'string') return item;
+        return item?.type === 'text' && typeof item.text === 'string' ? item.text : null;
+      });
+      if (parts.some(part => part === null)) return;
+      text = parts.join('\n');
+    } else if (output?.type === 'text' && typeof output.text === 'string') text = output.text;
+    if (typeof text === 'string') {
+      try {
+        const envelope = JSON.parse(text);
+        if (Array.isArray(envelope) && envelope.every(item =>
+          item?.type === 'text' && typeof item.text === 'string')) {
+          text = envelope.map(item => item.text).join('\n');
+        }
+      } catch {
+        // Preserve non-JSON tool output exactly as observed.
+      }
+    }
+    if (text !== undefined) toolResults.push({ callId, text });
+  }
   for (const line of lines) {
     if (!line.trim()) continue;
     let event;
@@ -54,6 +93,14 @@ function normalize(lines) {
         timestamp: event.timestamp,
       });
       turns += 1;
+    }
+    if (['function_call_output', 'tool_result', 'tool_result_event'].includes(event.type)) {
+      addToolResult(event.call_id ?? event.callId ?? event.tool_use_id, event.output ?? event.result ?? event.content);
+    }
+    if (event.type === 'user' && event.message) {
+      for (const item of Array.isArray(event.message.content) ? event.message.content : []) {
+        if (item?.type === 'tool_result') addToolResult(item.tool_use_id, item.content);
+      }
     }
     if (event.type === 'system' && typeof event.model === 'string') model = event.model;
     if (event.type === 'system' && event.subtype === 'init') {
@@ -124,8 +171,12 @@ function normalize(lines) {
       };
     }
   }
+  const { readGrepFallbackDisplacement, fallbackTaxonomy } = analyzeFallback(toolCalls);
+  const { graphStats } = analyzeToolAdoption(toolCalls);
+
   return {
     toolCalls,
+    toolResults,
     mcp: {
       servers: mcpServers,
       advertisedCodeGraphTools: [...advertisedCodeGraphTools],
@@ -137,6 +188,9 @@ function normalize(lines) {
     usage,
     turns,
     finalResponse,
+    ...(readGrepFallbackDisplacement !== undefined ? { readGrepFallbackDisplacement } : {}),
+    ...(fallbackTaxonomy !== undefined ? { fallbackTaxonomy } : {}),
+    ...(graphStats !== undefined ? { graphStats } : {}),
     ...(effort ? { effort } : {}),
     ...(runtimeError ? { runtimeError } : {}),
   };
@@ -170,9 +224,21 @@ export async function run({
     '--mcp-config', configPath,
     '--strict-mcp-config',
     '--setting-sources', '',
-    '--tools', 'Read,Grep,Glob',
+    '--tools', [
+      // Built-in tools the model may use for investigation
+      'Read', 'Grep', 'Glob',
+      // CodeGraph MCP tools exposed to the model's function schemas
+      'mcp__codegraph__zcodegraph_explore',
+      'mcp__codegraph__zcodegraph_node',
+      'mcp__codegraph__zcodegraph_search',
+      'mcp__codegraph__zcodegraph_callers',
+      'mcp__codegraph__zcodegraph_callees',
+      'mcp__codegraph__zcodegraph_impact',
+      'mcp__codegraph__zcodegraph_files',
+      'mcp__codegraph__zcodegraph_status',
+    ].join(','),
     '--allowedTools', 'Read,Grep,Glob,mcp__codegraph__*',
-    '--disallowedTools', 'Edit,Write,MultiEdit,NotebookEdit,Bash,Task',
+    '--disallowedTools', ['Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'Bash', 'Task'].join(','),
     '--model', model,
     ...(effort ? ['--effort', effort] : []),
     '--max-turns', String(maxTurns),
