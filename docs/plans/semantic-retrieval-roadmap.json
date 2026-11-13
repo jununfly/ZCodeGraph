@@ -1350,6 +1350,21 @@
           "q": "2026-11-13 v2 固定 Flask post-C 真实双臂的 Human 最终分类与推进结论是什么？",
           "answer": "Human 明确选择 B=inconclusive，并附 correctness flag。run flask-baseline-20261113T083913Z 使用固定 Flask commit、弱引导 v2、冻结 C、独立 CLI glm-5.3-flash/high；程序 status=valid，47 turns/174951 tokens，快照 consumed/intact。with 自然调用真实 C Explore 一次，answer tool-result/运行内记录/服务端字节及 SHA256 绑定一致，app host/port 与 testing cookie 三参数必要源码实际进入模型上下文且无硬截断。with=20 turns/86279 tokens，1 Grep+2 Read+2 Glob；without=27 turns/88672 tokens，3 Grep+2 Read+5 Glob。较少工具数/tokens 不推导 improved：Explore 已给 testing 源码后 with 仍重复 Grep/Read；外部 Werkzeug Glob 与合法深化不能由自动 taxonomy 全算 replaceable。with 错写 threaded 来自 self.debug（实际默认 True）且对继承 helper 的 port scope 作超本仓断言；without 也有 create_jinja_environment 的无依据扩展。主链基本正确，单对单模型且正确性非劣阈值未预注册，不能据此作 C 导致回退的因果结论；故不判 regressed/improved/preserved。过程证据有效，但 Agent Sufficiency 与 correctness 非劣未证明，DES 不通过、不晋级、不接生产。原始 evidence 的 humanReview:null 不改写，Human 决定在此 append-only 留账。",
           "note": "本次授权已消耗，不自动重跑、不启动 paired-runs。1-8-2 仍 in_progress，1-4/e9 blocked，第二名 reviewer、五仓覆盖、正确性非劣预注册、S/C 最终 payload 等独立 blocker 不变；96/0、formal ceiling=0、默认 OFF、G-ship/v3 不变，无 commit/push。"
+        },
+        {
+          "q": "2026-11-13 Human 选择 A 并指定 zxj：本轮授权边界与 reviewer 记录方式是什么？",
+          "answer": "Human 明确选择 A=收束 1-8-2 试点前 manifest，并指定 zxj 为第二名独立 run reviewer；primary reviewer 仍为 victo，二者不同。该具名解除『第二名 reviewer=UNSET』这一项身份前置，不证明 zxj 已完成任何轨迹审阅、不证明双审原始一致率>=90%，也不代替正确性非劣阈值、五仓覆盖、S/C 最终 payload、post-C DES pass 或生产 C/S 授权。本轮通过独立 Human 指派记录向 manifest 注入 reviewer，不硬编码新身份；只运行无模型的本地索引/工具覆盖与隔离 S/C 渲染核验，不调用真实 Agent、不消耗 96 paired-runs、不接生产、不启动试点、不自动重跑已 inconclusive 的 Flask DES、不自动 commit/push。范围=Product execution 下的评测准备；如机械核验失败，保持 fail-closed 并留证，不通过修改任务、阈值或生产 ranking 消除 blocker。",
+          "note": "依据本轮 Human 原话。1-8-2 仍 in_progress，1-4/e9 blocked、formal ceiling=0、产品默认 OFF、G-ship/v3 不变；第二名 reviewer 的实际审阅留待未来已授权 run。"
+        },
+        {
+          "q": "五仓 C 覆盖与 S/C 最终渲染的无模型核验采用什么证据口径？",
+          "answer": "使用固定 commit 的本地 CodeGraph 与从该数据库新建的隔离 symbol-index，走 composeSymbolOnlyPlan + 真实 render。分别记录 index、candidate、实际 Source Code 文件区块覆盖；C/S 比较候选多重集、非 Source Code 前缀、按文件键控的源码区块及 hard-ceiling 标记，允许的只有固定 seed 导致的文件/区块顺序差异。任一候选缺失、实际源码差异、必要文件未被渲染或预算截断均留证为失败，不改任务/阈值/生产代码来通过。这些是准备诊断，不自动解除 coverage readiness，不调用模型或消耗 paired-run。",
+          "note": ""
+        },
+        {
+          "q": "2026-11-13 reviewer 指派、五仓隔离 C/S 最终渲染核验和 manifest 的实际结果是什么？",
+          "answer": "Human 指定 zxj 为第二独立 run reviewer，victo 仍为第一 reviewer；独立 assignment 记录已接入 prepare-zra-pilot-manifest CLI，只解除身份 UNSET，不产生轨迹审阅或一致率。固定 commit 与源数据库绑定的隔离 symbol-index 上，真实 composeSymbolOnlyPlan + render 五仓诊断均 incomplete：C 缺 Flask ctx/app、Django middleware init/base、Gin context/routergroup 必要文件；Express 必要文件进入 C 且渲染，但 C/S 文件集合/内容仍受预算顺序影响；Spring 的 PetController 在候选但未渲染且 Owner 未进候选。Django 两臂均 hard-ceiling 截断，五仓均有非纯顺序的 C/S 源码差异，不得视为 S payload readiness。manifest 已同步 reviewer 和 rendered evidence，仍 blocked；仅剩 coverage、生产 C/S、DES inconclusive、正确性非劣四个 blocker，60 planned/0 consumed、96/0、原 reservation digest 不变。覆盖/渲染失败不通过改题、阈值或生产代码消除，不接生产、不启动试点、不重跑 DES。",
+          "note": ""
         }
       ],
       "notes": "",
@@ -1369,7 +1384,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-13 17:03:45",
+    "updated": "2026-11-13 18:10:45",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
