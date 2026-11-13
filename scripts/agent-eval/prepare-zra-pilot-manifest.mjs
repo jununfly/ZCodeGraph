@@ -14,6 +14,7 @@ const EVIDENCE_DIR = '.workbuddy/agent-eval';
 const DEFAULT_COVERAGE = path.join(REPO, EVIDENCE_DIR, '2026-11-12-zra-pilot-index-tool-coverage.json');
 const DEFAULT_OUT = path.join(REPO, EVIDENCE_DIR, '2026-11-12-zra-pilot-execution-manifest.json');
 const DEFAULT_DES_CLASSIFICATION = path.join(REPO, EVIDENCE_DIR, '2026-11-13-post-c-des-human-classification.json');
+const DEFAULT_REVIEWER_ASSIGNMENT = path.join(REPO, EVIDENCE_DIR, '2026-11-13-secondary-reviewer-assignment.json');
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 
 export function resolvePreparationPaths(repoRoot, { coverage, out }) {
@@ -39,7 +40,24 @@ export function readHumanDesClassification(filePath) {
   return Object.freeze({ runId: record.runId, conclusion: record.conclusion });
 }
 
-export function prepareManifest({ coverage, desBaseline = null }) {
+export function readHumanReviewerAssignment(filePath) {
+  const record = JSON.parse(readFileSync(filePath, 'utf8'));
+  if (record.kind !== 'zra-pilot-human-reviewer-assignment'
+    || typeof record.primaryRunReviewer !== 'string' || !record.primaryRunReviewer.trim()
+    || typeof record.secondaryRunReviewer !== 'string' || !record.secondaryRunReviewer.trim()
+    || record.secondaryRunReviewer === 'UNSET'
+    || record.primaryRunReviewer === record.secondaryRunReviewer
+    || record.reviewersAreHuman !== true || record.reviewCompleted !== false) {
+    throw new Error('two distinct named Human run reviewers and an explicit unreviewed assignment are required');
+  }
+  return Object.freeze({
+    primaryRunReviewer: record.primaryRunReviewer,
+    secondaryRunReviewer: record.secondaryRunReviewer,
+    reviewersAreHuman: true,
+  });
+}
+
+export function prepareManifest({ coverage, desBaseline = null, reviewers = null, renderedAudit = null }) {
   if (coverage.kind !== 'zra-pilot-index-tool-coverage' || !Array.isArray(coverage.results)) {
     throw new Error('a real five-corpus coverage report is required');
   }
@@ -47,6 +65,33 @@ export function prepareManifest({ coverage, desBaseline = null }) {
   const missing = pilotTasks.filter((task) => !coverageByPrompt.has(task.PROMPT_ID));
   if (missing.length > 0 || coverage.results.length !== pilotTasks.length) {
     throw new Error('coverage report must contain exactly the five registered pilot tasks');
+  }
+  if (renderedAudit) {
+    if (renderedAudit.kind !== 'zra-pilot-isolated-c-s-rendered-audit'
+      || renderedAudit.seed !== 20261112 || !Array.isArray(renderedAudit.results)
+      || renderedAudit.results.length !== pilotTasks.length
+      || new Set(renderedAudit.results.map((result) => result.promptId)).size !== pilotTasks.length
+      || pilotTasks.some((task) => !renderedAudit.results.some((result) => result.promptId === task.PROMPT_ID))) {
+      throw new Error('rendered audit must contain exactly the five registered pilot tasks and frozen seed');
+    }
+    for (const result of renderedAudit.results) {
+      const comparison = result.renderedComparison;
+      if (!comparison || !Array.isArray(comparison.contentDifferences)
+        || !['pass', 'incomplete'].includes(result.status)
+        || typeof comparison.nonSourcePrefixIdentical !== 'boolean'
+        || typeof comparison.fileSetsEqual !== 'boolean'
+        || typeof comparison.cHardCeiling !== 'boolean'
+        || typeof comparison.sHardCeiling !== 'boolean') {
+        throw new Error(`rendered audit requires explicit source-parity evidence: ${result.promptId}`);
+      }
+      if (result.status === 'pass' && (!comparison.nonSourcePrefixIdentical
+        || !comparison.fileSetsEqual || comparison.contentDifferences.length > 0
+        || comparison.cHardCeiling || comparison.sHardCeiling
+        || Object.values(result.coverage ?? {}).filter((value) => typeof value === 'string')
+          .some((value) => value !== 'pass'))) {
+        throw new Error(`rendered audit cannot pass with missing or different source evidence: ${result.promptId}`);
+      }
+    }
   }
   const schedule = armOrderSchedule({
     k: 4,
@@ -56,9 +101,9 @@ export function prepareManifest({ coverage, desBaseline = null }) {
     taskSetReviewed: pilotTasks.every((task) => task.TASK_SET_REVIEW.verdict === 'accept'
       && task.TASK_SET_REVIEW.reviewer === 'victo' && task.FRESHNESS.reusedV3Text === false),
     taskFreshnessReviewer: 'victo',
-    primaryRunReviewer: 'victo',
-    secondaryRunReviewer: 'UNSET',
-    reviewersAreHuman: true,
+    primaryRunReviewer: reviewers?.primaryRunReviewer ?? 'victo',
+    secondaryRunReviewer: reviewers?.secondaryRunReviewer ?? 'UNSET',
+    reviewersAreHuman: reviewers?.reviewersAreHuman ?? true,
     indexToolCoverageVerified: coverage.status === 'pass'
       && coverage.results.every((result) => result.status === 'pass' && result.commitMatches === true),
     productionArmsReady: false,
@@ -124,12 +169,28 @@ export function prepareManifest({ coverage, desBaseline = null }) {
       frozenCandidateSha256: frozenCandidate.candidateSha256,
       frozenCandidateRawSha256: frozenCandidate.rawSha256,
       lineEndingNormalization: frozenCandidate.lineEndingNormalization,
-      payload: 'file candidates plus frozen retrieval metadata; no rendered Explore payload yet',
-      limitation: 'S shares the C payload object and permutes candidates only; this is not evidence of full rendered-payload parity.',
+      payload: renderedAudit
+        ? 'isolated C/S final Explore markdown rendered from the frozen candidate order and its fixed-seed permutation'
+        : 'file candidates plus frozen retrieval metadata; no rendered Explore payload yet',
+      limitation: renderedAudit
+        ? 'The isolated rendered audit is diagnostic evidence only; any coverage, content-parity or budget failure remains incomplete.'
+        : 'S shares the C payload object and permutes candidates only; this is not evidence of full rendered-payload parity.',
     },
     evidence: {
-      coverageReport: path.relative(REPO, DEFAULT_COVERAGE).replace(/\\/g, '/'),
+      coverageReport: coverage.evidencePath ?? path.relative(REPO, DEFAULT_COVERAGE).replace(/\\/g, '/'),
       coverageStatus: coverage.status,
+      renderedArms: renderedAudit ? {
+        report: renderedAudit.evidencePath,
+        status: renderedAudit.status,
+        seed: renderedAudit.seed,
+        results: renderedAudit.results.map((result) => ({
+          promptId: result.promptId,
+          status: result.status,
+          coverage: result.coverage,
+          comparison: result.renderedComparison,
+          error: result.error,
+        })),
+      } : { status: 'not-run' },
       coverage: coverage.results.map((result) => ({
         promptId: result.promptId,
         status: result.status,
@@ -137,7 +198,9 @@ export function prepareManifest({ coverage, desBaseline = null }) {
         indexCoverage: result.indexCoverage,
         planCoverage: result.planCoverage,
       })),
-      humanReview: 'single-reviewer-two-passes; not two independent reviewers',
+      humanReview: reviewers
+        ? `${reviewers.primaryRunReviewer} and ${reviewers.secondaryRunReviewer} are assigned as distinct Human run reviewers; no trajectory review or agreement result yet`
+        : 'single-reviewer-two-passes; not two independent reviewers',
       des: desBaseline
         ? `Human-classified post-C Agent Sufficiency baseline ${desBaseline.runId}: ${desBaseline.conclusion}; DES has not passed and production C/S wiring remains blocked`
         : 'post-C Agent Sufficiency baseline has not run; production C/S wiring remains blocked',
@@ -154,10 +217,10 @@ export function prepareManifest({ coverage, desBaseline = null }) {
 }
 
 function parse(argv) {
-  const options = { coverage: DEFAULT_COVERAGE, out: DEFAULT_OUT, desClassification: null };
+  const options = { coverage: DEFAULT_COVERAGE, out: DEFAULT_OUT, desClassification: null, reviewerAssignment: null, renderedAudit: null };
   for (let i = 0; i < argv.length; i += 1) {
-    const key = { '--coverage': 'coverage', '--out': 'out', '--des-classification': 'desClassification' }[argv[i]];
-    if (!key || !argv[i + 1]) throw new Error('Usage: node scripts/agent-eval/prepare-zra-pilot-manifest.mjs [--coverage <report.json>] [--out <manifest.json>] [--des-classification <human-record.json>]');
+    const key = { '--coverage': 'coverage', '--out': 'out', '--des-classification': 'desClassification', '--reviewer-assignment': 'reviewerAssignment', '--rendered-audit': 'renderedAudit' }[argv[i]];
+    if (!key || !argv[i + 1]) throw new Error('Usage: node scripts/agent-eval/prepare-zra-pilot-manifest.mjs [--coverage <report.json>] [--out <manifest.json>] [--des-classification <human-record.json>] [--reviewer-assignment <human-record.json>] [--rendered-audit <local-report.json>]');
     options[key] = path.resolve(argv[++i]);
   }
   return options;
@@ -168,9 +231,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const options = parse(process.argv.slice(2));
     const paths = resolvePreparationPaths(REPO, options);
     const coverage = JSON.parse(readFileSync(paths.coverage, 'utf8'));
+    const renderedAudit = options.renderedAudit
+      ? JSON.parse(readFileSync(options.renderedAudit, 'utf8')) : null;
     const manifest = prepareManifest({
-      coverage,
+      coverage: { ...coverage, evidencePath: path.relative(REPO, paths.coverage).replace(/\\/g, '/') },
       desBaseline: readHumanDesClassification(options.desClassification ?? DEFAULT_DES_CLASSIFICATION),
+      reviewers: readHumanReviewerAssignment(options.reviewerAssignment ?? DEFAULT_REVIEWER_ASSIGNMENT),
+      renderedAudit: renderedAudit ? {
+        ...renderedAudit,
+        evidencePath: path.relative(REPO, options.renderedAudit).replace(/\\/g, '/'),
+      } : null,
     });
     const text = `${JSON.stringify(manifest, null, 2)}\n`;
     const reservationSha256 = createHash('sha256').update(JSON.stringify({

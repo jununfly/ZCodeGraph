@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { preparePairedExecutionPlan } from '../src/eval/zra-paired-runtime';
 import { armOrderSchedule } from '../src/eval/zra-paired-design';
 import type { SharedRunConfig } from '../src/eval/zra-paired-core';
@@ -114,6 +117,81 @@ describe('preparePairedExecutionPlan', () => {
     expect(manifest.manifestSha256).toBe('9efb02b260bfd220817eb7383705896e2900498dceb6224e722e045694dcf7cf');
     expect(manifest.plannedRuns).toBe(60);
     expect(manifest.consumedRuns).toBe(0);
+  });
+
+  it('applies the Human zxj assignment through the CLI without creating review evidence', async () => {
+    const { readHumanReviewerAssignment } = await import('../scripts/agent-eval/prepare-zra-pilot-manifest.mjs');
+    const root = path.resolve(import.meta.dirname, '..');
+    const directory = mkdtempSync(path.join(tmpdir(), 'zra-pilot-manifest-'));
+    try {
+      const assignment = path.join(directory, 'assignment.json');
+      writeFileSync(assignment, JSON.stringify({
+        kind: 'zra-pilot-human-reviewer-assignment',
+        primaryRunReviewer: 'victo', secondaryRunReviewer: 'zxj',
+        reviewersAreHuman: true, reviewCompleted: false,
+      }));
+      const reviewers = readHumanReviewerAssignment(assignment);
+      expect(reviewers).toEqual({
+        primaryRunReviewer: 'victo', secondaryRunReviewer: 'zxj', reviewersAreHuman: true,
+      });
+
+      const desClassification = path.join(directory, 'des.json');
+      writeFileSync(desClassification, JSON.stringify({
+        reviewer: 'victo', conclusion: 'inconclusive', runId: 'flask-baseline-20261113T083913Z',
+      }));
+      const { pilotTasks } = await import('../scripts/agent-eval/task-prompts/zra-pilot-v1.mjs');
+      const coveragePath = path.join(directory, 'coverage.json');
+      writeFileSync(coveragePath, JSON.stringify({
+        kind: 'zra-pilot-index-tool-coverage', status: 'incomplete',
+        results: pilotTasks.map((task: { PROMPT_ID: string; COMMIT: string }) => ({
+          promptId: task.PROMPT_ID, commit: task.COMMIT, commitMatches: true,
+          indexCoverage: 'pass', planCoverage: 'incomplete', status: 'incomplete',
+        })),
+      }));
+      const renderedAuditPath = path.join(directory, 'rendered.json');
+      const comparison = {
+        nonSourcePrefixIdentical: true, fileSetsEqual: false,
+        contentDifferences: ['a.py'], cHardCeiling: false, sHardCeiling: false,
+      };
+      writeFileSync(renderedAuditPath, JSON.stringify({
+        kind: 'zra-pilot-isolated-c-s-rendered-audit', seed: 20261112, status: 'incomplete',
+        results: pilotTasks.map((task: { PROMPT_ID: string }) => ({
+          promptId: task.PROMPT_ID, status: 'incomplete',
+          coverage: { indexCoverage: 'pass', candidateCoverage: 'incomplete', renderedSourceCoverage: 'incomplete' },
+          renderedComparison: comparison,
+        })),
+      }));
+      const out = path.join(directory, 'manifest.json');
+      const run = spawnSync(process.execPath, [
+        path.join(root, 'scripts/agent-eval/prepare-zra-pilot-manifest.mjs'),
+        '--coverage', coveragePath, '--out', out, '--reviewer-assignment', assignment,
+        '--des-classification', desClassification, '--rendered-audit', renderedAuditPath,
+      ], { encoding: 'utf8' });
+      expect(run.status).toBe(0);
+      const manifest = JSON.parse(readFileSync(out, 'utf8'));
+      expect(manifest.status).toBe('blocked');
+      expect(manifest.readiness).toMatchObject({
+        primaryRunReviewer: 'victo', secondaryRunReviewer: 'zxj', reviewersAreHuman: true,
+      });
+      expect(manifest.blockers).not.toContain('second independent Human run reviewer is UNSET');
+      expect(manifest.blockers).toEqual([
+        'five-corpus index/tool coverage is incomplete',
+        'production C/S wiring is incomplete',
+        'post-C Agent Sufficiency baseline has not passed',
+        'correctness non-inferiority is not pre-registered',
+      ]);
+      expect(manifest.evidence.humanReview).toContain('no trajectory review or agreement result yet');
+      expect(manifest.evidence.coverageReport).toBe(path.relative(root, coveragePath).replace(/\\/g, '/'));
+      expect(manifest.evidence.renderedArms).toMatchObject({ status: 'incomplete' });
+      expect(manifest.evidence.renderedArms.results.every((result: { status: string }) => result.status === 'incomplete')).toBe(true);
+      expect(manifest.plannedRuns).toBe(60);
+      expect(manifest.consumedRuns).toBe(0);
+      expect(manifest.pilotCeiling).toBe(96);
+      expect(manifest.formalCeiling).toBe(0);
+      expect(manifest.manifestSha256).toBe('9efb02b260bfd220817eb7383705896e2900498dceb6224e722e045694dcf7cf');
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it('requires actual prerequisites instead of treating self-review as independent review', () => {

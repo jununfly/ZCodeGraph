@@ -5,7 +5,6 @@
   "scope": "preparation reservations plus a separately supplied Human DES classification; no model execution or production wiring",
   "status": "blocked",
   "blockers": [
-    "second independent Human run reviewer is UNSET",
     "five-corpus index/tool coverage is incomplete",
     "production C/S wiring is incomplete",
     "post-C Agent Sufficiency baseline has not passed",
@@ -15,7 +14,7 @@
     "taskSetReviewed": true,
     "taskFreshnessReviewer": "victo",
     "primaryRunReviewer": "victo",
-    "secondaryRunReviewer": "UNSET",
+    "secondaryRunReviewer": "zxj",
     "reviewersAreHuman": true,
     "indexToolCoverageVerified": false,
     "productionArmsReady": false,
@@ -741,11 +740,11 @@
     "frozenCandidateSha256": "d687c4a831a1e7b03edab29690c5888ccb27dedfa633cf9d57f5e351c6394d4d",
     "frozenCandidateRawSha256": "60f53171ae67d05e3956e0775848ab5ee6cd3180d81681b17dcb59de7ddb987c",
     "lineEndingNormalization": "CRLF-to-LF-only",
-    "payload": "file candidates plus frozen retrieval metadata; no rendered Explore payload yet",
-    "limitation": "S shares the C payload object and permutes candidates only; this is not evidence of full rendered-payload parity."
+    "payload": "isolated C/S final Explore markdown rendered from the frozen candidate order and its fixed-seed permutation",
+    "limitation": "The isolated rendered audit is diagnostic evidence only; any coverage, content-parity or budget failure remains incomplete."
   },
   "evidence": {
-    "coverageReport": ".workbuddy/agent-eval/2026-11-12-zra-pilot-index-tool-coverage.json",
+    "coverageReport": ".workbuddy/agent-eval/2026-11-13-zra-pilot-index-tool-coverage.json",
     "coverageStatus": "incomplete",
     "coverage": [
       {
@@ -784,8 +783,518 @@
         "planCoverage": "pass"
       }
     ],
-    "humanReview": "single-reviewer-two-passes; not two independent reviewers",
-    "des": "Human-classified post-C Agent Sufficiency baseline flask-baseline-20261113T083913Z: inconclusive; DES has not passed and production C/S wiring remains blocked"
+    "humanReview": "victo and zxj are assigned as distinct Human run reviewers; no trajectory review or agreement result yet",
+    "des": "Human-classified post-C Agent Sufficiency baseline flask-baseline-20261113T083913Z: inconclusive; DES has not passed and production C/S wiring remains blocked",
+    "renderedArms": {
+      "report": ".workbuddy/agent-eval/2026-11-13-zra-pilot-rendered-arms-v2/report.json",
+      "status": "incomplete",
+      "seed": 20261112,
+      "results": [
+        {
+          "promptId": "flask-session-response-trace-v1",
+          "status": "incomplete",
+          "coverage": {
+            "requirements": [
+              {
+                "file": "src/flask/ctx.py",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              },
+              {
+                "file": "src/flask/app.py",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              },
+              {
+                "file": "src/flask/sessions.py",
+                "indexed": true,
+                "candidate": true,
+                "rendered": true
+              }
+            ],
+            "symbols": [
+              {
+                "query": "_get_session",
+                "name": "AppContext._get_session",
+                "file": "src/flask/ctx.py",
+                "found": true
+              },
+              {
+                "query": "process_response",
+                "name": "Flask.process_response",
+                "file": "src/flask/app.py",
+                "found": true
+              },
+              {
+                "query": "open_session",
+                "name": "SecureCookieSessionInterface.open_session",
+                "file": "src/flask/sessions.py",
+                "found": true
+              },
+              {
+                "query": "save_session",
+                "name": "SecureCookieSessionInterface.save_session",
+                "file": "src/flask/sessions.py",
+                "found": true
+              },
+              {
+                "query": "should_set_cookie",
+                "name": "SessionInterface.should_set_cookie",
+                "file": "src/flask/sessions.py",
+                "found": true
+              }
+            ],
+            "indexCoverage": "pass",
+            "candidateCoverage": "incomplete",
+            "renderedSourceCoverage": "incomplete"
+          },
+          "comparison": {
+            "schema": "markdown-explore-source-blocks-v1",
+            "nonSourcePrefixIdentical": true,
+            "cFileOrder": [
+              "tests/test_basic.py",
+              "src/flask/sessions.py",
+              "src/flask/wrappers.py",
+              "src/flask/globals.py",
+              "tests/test_apps/cliapp/inner1/__init__.py"
+            ],
+            "sFileOrder": [
+              "tests/test_blueprints.py",
+              "src/flask/wrappers.py",
+              "tests/test_basic.py",
+              "src/flask/sessions.py",
+              "tests/test_apps/cliapp/inner1/__init__.py",
+              "src/flask/globals.py"
+            ],
+            "fileSetsEqual": false,
+            "onlyInC": [],
+            "onlyInS": [
+              "tests/test_blueprints.py"
+            ],
+            "contentDifferences": [
+              "src/flask/globals.py",
+              "tests/test_apps/cliapp/inner1/__init__.py"
+            ],
+            "cHardCeiling": false,
+            "sHardCeiling": false,
+            "cSha256": "a9c52b13b2c354162466f6e84d407eb8f069de21e43116674250e041c44d6357",
+            "sSha256": "70a587cb323917c2479e0d82b5a3b3a064176c928a1058ad9d4c07ff99e370fe",
+            "wholeTextEqual": false
+          }
+        },
+        {
+          "promptId": "django-csrf-view-trace-v1",
+          "status": "incomplete",
+          "coverage": {
+            "requirements": [
+              {
+                "file": "django/middleware/__init__.py",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              },
+              {
+                "file": "django/core/handlers/base.py",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              },
+              {
+                "file": "django/middleware/csrf.py",
+                "indexed": true,
+                "candidate": true,
+                "rendered": true
+              }
+            ],
+            "symbols": [
+              {
+                "query": "__call__",
+                "name": "MiddlewareMixin.__call__",
+                "file": "django/middleware/__init__.py",
+                "found": true
+              },
+              {
+                "query": "load_middleware",
+                "name": "BaseHandler.load_middleware",
+                "file": "django/core/handlers/base.py",
+                "found": true
+              },
+              {
+                "query": "_get_response",
+                "name": "BaseHandler._get_response",
+                "file": "django/core/handlers/base.py",
+                "found": true
+              },
+              {
+                "query": "process_view",
+                "name": "CsrfViewMiddleware.process_view",
+                "file": "django/middleware/csrf.py",
+                "found": true
+              },
+              {
+                "query": "process_response",
+                "name": "CsrfViewMiddleware.process_response",
+                "file": "django/middleware/csrf.py",
+                "found": true
+              },
+              {
+                "query": "_reject",
+                "name": "CsrfViewMiddleware._reject",
+                "file": "django/middleware/csrf.py",
+                "found": true
+              }
+            ],
+            "indexCoverage": "pass",
+            "candidateCoverage": "incomplete",
+            "renderedSourceCoverage": "incomplete"
+          },
+          "comparison": {
+            "schema": "markdown-explore-source-blocks-v1",
+            "nonSourcePrefixIdentical": true,
+            "cFileOrder": [
+              "django/views/generic/base.py",
+              "django/contrib/auth/middleware.py",
+              "django/http/cookie.py",
+              "django/middleware/csrf.py",
+              "django/middleware/common.py",
+              "django/db/models/deletion.py"
+            ],
+            "sFileOrder": [
+              "django/middleware/common.py",
+              "django/contrib/admindocs/middleware.py",
+              "django/http/cookie.py",
+              "django/views/generic/edit.py",
+              "django/views/generic/base.py",
+              "django/db/models/lookups.py",
+              "django/db/models/deletion.py"
+            ],
+            "fileSetsEqual": false,
+            "onlyInC": [
+              "django/contrib/auth/middleware.py",
+              "django/middleware/csrf.py"
+            ],
+            "onlyInS": [
+              "django/contrib/admindocs/middleware.py",
+              "django/db/models/lookups.py",
+              "django/views/generic/edit.py"
+            ],
+            "contentDifferences": [
+              "django/contrib/auth/middleware.py",
+              "django/db/models/deletion.py",
+              "django/middleware/csrf.py"
+            ],
+            "cHardCeiling": true,
+            "sHardCeiling": true,
+            "cSha256": "fda0f2d28dc69aaa172d191d2a7dfa3d390b6e80eb81c4e31b1b9a5a3cae2fb5",
+            "sSha256": "ba23a8b1ed85ade08bf15069f825d11ce4e1002f77f1a00521faa8452a6bde64",
+            "wholeTextEqual": false
+          }
+        },
+        {
+          "promptId": "express-mounted-prototypes-trace-v1",
+          "status": "incomplete",
+          "coverage": {
+            "requirements": [
+              {
+                "file": "lib/express.js",
+                "indexed": true,
+                "candidate": true,
+                "rendered": true
+              },
+              {
+                "file": "lib/application.js",
+                "indexed": true,
+                "candidate": true,
+                "rendered": true
+              }
+            ],
+            "symbols": [
+              {
+                "query": "createApplication",
+                "name": "createApplication",
+                "file": "lib/express.js",
+                "found": true
+              },
+              {
+                "query": "lazyrouter",
+                "name": "lazyrouter",
+                "file": "lib/application.js",
+                "found": false
+              },
+              {
+                "query": "handle",
+                "name": "handle",
+                "file": "lib/application.js",
+                "found": false
+              },
+              {
+                "query": "use",
+                "name": "use",
+                "file": "lib/application.js",
+                "found": false
+              },
+              {
+                "query": "mounted_app",
+                "name": "mounted_app",
+                "file": "lib/application.js",
+                "found": false
+              }
+            ],
+            "indexCoverage": "incomplete",
+            "candidateCoverage": "pass",
+            "renderedSourceCoverage": "pass"
+          },
+          "comparison": {
+            "schema": "markdown-explore-source-blocks-v1",
+            "nonSourcePrefixIdentical": true,
+            "cFileOrder": [
+              "lib/application.js",
+              "examples/static-files/index.js",
+              "lib/response.js",
+              "lib/view.js",
+              "lib/express.js",
+              "examples/error/index.js"
+            ],
+            "sFileOrder": [
+              "lib/express.js",
+              "examples/route-middleware/index.js",
+              "lib/response.js",
+              "lib/request.js",
+              "lib/application.js",
+              "examples/error/index.js",
+              "lib/view.js"
+            ],
+            "fileSetsEqual": false,
+            "onlyInC": [
+              "examples/static-files/index.js"
+            ],
+            "onlyInS": [
+              "examples/route-middleware/index.js",
+              "lib/request.js"
+            ],
+            "contentDifferences": [
+              "examples/error/index.js",
+              "examples/static-files/index.js",
+              "lib/view.js"
+            ],
+            "cHardCeiling": false,
+            "sHardCeiling": false,
+            "cSha256": "f24242c12204f3192d9f4df2adc963a8b23994a3c0b4c82f34ea4fe2a93754b9",
+            "sSha256": "99cf9ca026a49778c93a932b4f8748d21d9a480771e95665a4c4f40d9c475d06",
+            "wholeTextEqual": false
+          }
+        },
+        {
+          "promptId": "gin-not-found-middleware-trace-v1",
+          "status": "incomplete",
+          "coverage": {
+            "requirements": [
+              {
+                "file": "gin.go",
+                "indexed": true,
+                "candidate": true,
+                "rendered": true
+              },
+              {
+                "file": "context.go",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              },
+              {
+                "file": "routergroup.go",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              }
+            ],
+            "symbols": [
+              {
+                "query": "ServeHTTP",
+                "name": "Engine.ServeHTTP",
+                "file": "gin.go",
+                "found": true
+              },
+              {
+                "query": "handleHTTPRequest",
+                "name": "Engine.handleHTTPRequest",
+                "file": "gin.go",
+                "found": true
+              },
+              {
+                "query": "serveError",
+                "name": "serveError",
+                "file": "gin.go",
+                "found": true
+              },
+              {
+                "query": "Next",
+                "name": "Context.Next",
+                "file": "context.go",
+                "found": true
+              },
+              {
+                "query": "Abort",
+                "name": "Context.Abort",
+                "file": "context.go",
+                "found": true
+              },
+              {
+                "query": "combineHandlers",
+                "name": "RouterGroup.combineHandlers",
+                "file": "routergroup.go",
+                "found": true
+              },
+              {
+                "query": "Use",
+                "name": "Engine.Use",
+                "file": "gin.go",
+                "found": true
+              }
+            ],
+            "indexCoverage": "pass",
+            "candidateCoverage": "incomplete",
+            "renderedSourceCoverage": "incomplete"
+          },
+          "comparison": {
+            "schema": "markdown-explore-source-blocks-v1",
+            "nonSourcePrefixIdentical": true,
+            "cFileOrder": [
+              "binding/form_mapping_test.go",
+              "routes_test.go",
+              "gin.go",
+              "fs.go",
+              "ginS/gins.go",
+              "tree_test.go",
+              "context_appengine.go"
+            ],
+            "sFileOrder": [
+              "ginS/gins.go",
+              "context_test.go",
+              "gin.go",
+              "context_appengine.go",
+              "binding/form_mapping_test.go",
+              "tree_test.go",
+              "fs.go"
+            ],
+            "fileSetsEqual": false,
+            "onlyInC": [
+              "routes_test.go"
+            ],
+            "onlyInS": [
+              "context_test.go"
+            ],
+            "contentDifferences": [
+              "context_appengine.go",
+              "fs.go",
+              "routes_test.go"
+            ],
+            "cHardCeiling": false,
+            "sHardCeiling": false,
+            "cSha256": "bb941994c37e5abdfee96d8f8dbc20dfa33edec7729f7c11179f1f6421b22c75",
+            "sSha256": "05f54458c9d5bfb1128e5281fb898d01351036589d1312f8e23f2331fbc8735d",
+            "wholeTextEqual": false
+          }
+        },
+        {
+          "promptId": "spring-pet-update-persistence-trace-v1",
+          "status": "incomplete",
+          "coverage": {
+            "requirements": [
+              {
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "indexed": true,
+                "candidate": true,
+                "rendered": false
+              },
+              {
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              }
+            ],
+            "symbols": [
+              {
+                "query": "findPet",
+                "name": "findPet",
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "found": true
+              },
+              {
+                "query": "initOwnerBinder",
+                "name": "initOwnerBinder",
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "found": true
+              },
+              {
+                "query": "initPetBinder",
+                "name": "initPetBinder",
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "found": true
+              },
+              {
+                "query": "processUpdateForm",
+                "name": "processUpdateForm",
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "found": true
+              },
+              {
+                "query": "updatePetDetails",
+                "name": "updatePetDetails",
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "found": true
+              },
+              {
+                "query": "getPet",
+                "name": "getPet",
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "found": true
+              }
+            ],
+            "indexCoverage": "pass",
+            "candidateCoverage": "incomplete",
+            "renderedSourceCoverage": "incomplete"
+          },
+          "comparison": {
+            "schema": "markdown-explore-source-blocks-v1",
+            "nonSourcePrefixIdentical": true,
+            "cFileOrder": [
+              "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+              "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+              "src/test/java/org/springframework/samples/petclinic/PostgresIntegrationTests.java",
+              "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+              "src/test/java/org/springframework/samples/petclinic/owner/PetTypeFormatterTests.java",
+              "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java"
+            ],
+            "sFileOrder": [
+              "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+              "src/test/java/org/springframework/samples/petclinic/owner/PetTypeFormatterTests.java",
+              "src/test/java/org/springframework/samples/petclinic/PostgresIntegrationTests.java",
+              "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java",
+              "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java"
+            ],
+            "fileSetsEqual": false,
+            "onlyInC": [
+              "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java"
+            ],
+            "onlyInS": [],
+            "contentDifferences": [
+              "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+              "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java",
+              "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java"
+            ],
+            "cHardCeiling": false,
+            "sHardCeiling": false,
+            "cSha256": "5db38eb086e1b76aeeb0de664b5b681b5df70d51ddda5500077c6d0a86365cb7",
+            "sSha256": "e174ae11f31ff123adca4664bb58f1fe3fc25c42d685d05c9eb832cdbf6b5b5c",
+            "wholeTextEqual": false
+          }
+        }
+      ]
+    }
   },
   "limitations": [
     "Reservations are not attempts and consume zero paired-runs.",
