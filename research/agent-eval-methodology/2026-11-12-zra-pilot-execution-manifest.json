@@ -1,0 +1,798 @@
+{
+  "schemaVersion": "1.0",
+  "evidenceDirectory": ".workbuddy/agent-eval",
+  "kind": "zra-paired-pilot-execution-reservations",
+  "scope": "preparation reservations plus a separately supplied Human DES classification; no model execution or production wiring",
+  "status": "blocked",
+  "blockers": [
+    "second independent Human run reviewer is UNSET",
+    "five-corpus index/tool coverage is incomplete",
+    "production C/S wiring is incomplete",
+    "post-C Agent Sufficiency baseline has not passed",
+    "correctness non-inferiority is not pre-registered"
+  ],
+  "readiness": {
+    "taskSetReviewed": true,
+    "taskFreshnessReviewer": "victo",
+    "primaryRunReviewer": "victo",
+    "secondaryRunReviewer": "UNSET",
+    "reviewersAreHuman": true,
+    "indexToolCoverageVerified": false,
+    "productionArmsReady": false,
+    "desBaselineConclusion": "inconclusive",
+    "desBaselineRunId": "flask-baseline-20261113T083913Z",
+    "correctnessNonInferiority": null
+  },
+  "requestedExecution": {
+    "provider": "codebuddy-standalone",
+    "model": "glm-5.3-flash",
+    "effort": "high",
+    "runtimeModelReadback": "UNSET",
+    "runtimeEffortReadback": "UNSET"
+  },
+  "seed": 20261112,
+  "plannedRuns": 60,
+  "consumedRuns": 0,
+  "pilotCeiling": 96,
+  "formalCeiling": 0,
+  "armOrders": [
+    [
+      "A",
+      "S",
+      "C"
+    ],
+    [
+      "C",
+      "A",
+      "S"
+    ],
+    [
+      "S",
+      "A",
+      "C"
+    ],
+    [
+      "S",
+      "C",
+      "A"
+    ]
+  ],
+  "uncoveredArmOrders": [
+    [
+      "A",
+      "C",
+      "S"
+    ],
+    [
+      "C",
+      "S",
+      "A"
+    ]
+  ],
+  "manifestSha256": "9efb02b260bfd220817eb7383705896e2900498dceb6224e722e045694dcf7cf",
+  "manifestDigestScope": "scope, seed, schedule and block config fingerprints; readiness and evidence are separate fields",
+  "blocks": [
+    {
+      "taskId": "flask-session-response-trace-v1",
+      "trial": 1,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ]
+      ],
+      "configFingerprint": "d932a5f89958893d5ed1cc05ca68bcf52e480699989e57048123bb6ae11fa7c4"
+    },
+    {
+      "taskId": "flask-session-response-trace-v1",
+      "trial": 2,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ]
+      ],
+      "configFingerprint": "d932a5f89958893d5ed1cc05ca68bcf52e480699989e57048123bb6ae11fa7c4"
+    },
+    {
+      "taskId": "flask-session-response-trace-v1",
+      "trial": 3,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ]
+      ],
+      "configFingerprint": "d932a5f89958893d5ed1cc05ca68bcf52e480699989e57048123bb6ae11fa7c4"
+    },
+    {
+      "taskId": "flask-session-response-trace-v1",
+      "trial": 4,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ]
+      ],
+      "configFingerprint": "d932a5f89958893d5ed1cc05ca68bcf52e480699989e57048123bb6ae11fa7c4"
+    },
+    {
+      "taskId": "django-csrf-view-trace-v1",
+      "trial": 1,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "03d5f3389895cedff3aacd4913495544fd0dbeb882084c8ee99e9a919ace12d4"
+    },
+    {
+      "taskId": "django-csrf-view-trace-v1",
+      "trial": 2,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "03d5f3389895cedff3aacd4913495544fd0dbeb882084c8ee99e9a919ace12d4"
+    },
+    {
+      "taskId": "django-csrf-view-trace-v1",
+      "trial": 3,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "03d5f3389895cedff3aacd4913495544fd0dbeb882084c8ee99e9a919ace12d4"
+    },
+    {
+      "taskId": "django-csrf-view-trace-v1",
+      "trial": 4,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "03d5f3389895cedff3aacd4913495544fd0dbeb882084c8ee99e9a919ace12d4"
+    },
+    {
+      "taskId": "express-mounted-prototypes-trace-v1",
+      "trial": 1,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "276b017b5e7910617321f57aa00f4864007bd28fa789fe26daf8dcaaaca6f7f5"
+    },
+    {
+      "taskId": "express-mounted-prototypes-trace-v1",
+      "trial": 2,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "276b017b5e7910617321f57aa00f4864007bd28fa789fe26daf8dcaaaca6f7f5"
+    },
+    {
+      "taskId": "express-mounted-prototypes-trace-v1",
+      "trial": 3,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "276b017b5e7910617321f57aa00f4864007bd28fa789fe26daf8dcaaaca6f7f5"
+    },
+    {
+      "taskId": "express-mounted-prototypes-trace-v1",
+      "trial": 4,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "276b017b5e7910617321f57aa00f4864007bd28fa789fe26daf8dcaaaca6f7f5"
+    },
+    {
+      "taskId": "gin-not-found-middleware-trace-v1",
+      "trial": 1,
+      "seed": 20261112,
+      "orders": [
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "bfde45ce3b9c7b550d117109737692431ee8b1d7db4b926fbf3e318ffdf0e808"
+    },
+    {
+      "taskId": "gin-not-found-middleware-trace-v1",
+      "trial": 2,
+      "seed": 20261112,
+      "orders": [
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "bfde45ce3b9c7b550d117109737692431ee8b1d7db4b926fbf3e318ffdf0e808"
+    },
+    {
+      "taskId": "gin-not-found-middleware-trace-v1",
+      "trial": 3,
+      "seed": 20261112,
+      "orders": [
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "bfde45ce3b9c7b550d117109737692431ee8b1d7db4b926fbf3e318ffdf0e808"
+    },
+    {
+      "taskId": "gin-not-found-middleware-trace-v1",
+      "trial": 4,
+      "seed": 20261112,
+      "orders": [
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "bfde45ce3b9c7b550d117109737692431ee8b1d7db4b926fbf3e318ffdf0e808"
+    },
+    {
+      "taskId": "spring-pet-update-persistence-trace-v1",
+      "trial": 1,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ]
+      ],
+      "configFingerprint": "57824a79c89ee42008c35cffacbb509fd7b0a40812f1742d6ef4348f8abad7a3"
+    },
+    {
+      "taskId": "spring-pet-update-persistence-trace-v1",
+      "trial": 2,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ]
+      ],
+      "configFingerprint": "57824a79c89ee42008c35cffacbb509fd7b0a40812f1742d6ef4348f8abad7a3"
+    },
+    {
+      "taskId": "spring-pet-update-persistence-trace-v1",
+      "trial": 3,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ]
+      ],
+      "configFingerprint": "57824a79c89ee42008c35cffacbb509fd7b0a40812f1742d6ef4348f8abad7a3"
+    },
+    {
+      "taskId": "spring-pet-update-persistence-trace-v1",
+      "trial": 4,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ]
+      ],
+      "configFingerprint": "57824a79c89ee42008c35cffacbb509fd7b0a40812f1742d6ef4348f8abad7a3"
+    }
+  ],
+  "promptRegistry": [
+    {
+      "promptId": "flask-session-response-trace-v1",
+      "corpus": "pallets/flask@05e9c6bd630ecf4ec0ec884b1fc7901663737bc7",
+      "commit": "05e9c6bd630ecf4ec0ec884b1fc7901663737bc7",
+      "promptSha256": "a7402f156f37947cb96a6ec260a2777c77dd23f4d3d077da919eb792f840a1b9",
+      "rubricSha256": "ced90ba72539c909bab64ab307ce05a2ecb1d6e86cfa4ea11a578d18da268b57",
+      "negativeConstraintsSha256": "d4f4beb0d252c41a4c78170cf0e28e2c768c6195de9e19e9d160a8a25b727bc9",
+      "sourceAnchorsSha256": "9118bc497cd4eaf7719b47775dd610f36e2ccfb391a2e38e6a5c44f25badf72c",
+      "taskSetReview": {
+        "reviewer": "victo",
+        "verdict": "accept",
+        "reviewedAt": "2026-11-12"
+      },
+      "freshness": {
+        "createdAt": "2026-11-12",
+        "reusedV3Text": false,
+        "limitation": "New prompt/rubric; no claim of an unseen repository or zero model-training contamination."
+      }
+    },
+    {
+      "promptId": "django-csrf-view-trace-v1",
+      "corpus": "django/django@2fff3e9f493a9c85fb8a2294358c6751575ee4bf",
+      "commit": "2fff3e9f493a9c85fb8a2294358c6751575ee4bf",
+      "promptSha256": "231d82bd92c1b066826be5a4f20c5b1a13262ac2aea239d87aa1d88afb6c8023",
+      "rubricSha256": "374f0d9d68c3b69c5bb12e810a24587d4fe35adfad7714925419990b1bfaab2d",
+      "negativeConstraintsSha256": "9d86ed5ab2397fdadf9d18665fb74604744f6625a9c5de7360775ffc47e81be0",
+      "sourceAnchorsSha256": "5507b8d1bc37121824b9f383c17765a8628979ec52297756daa804c1c7fa1e71",
+      "taskSetReview": {
+        "reviewer": "victo",
+        "verdict": "accept",
+        "reviewedAt": "2026-11-12"
+      },
+      "freshness": {
+        "createdAt": "2026-11-12",
+        "reusedV3Text": false,
+        "limitation": "New prompt/rubric; no claim of an unseen repository or zero model-training contamination."
+      }
+    },
+    {
+      "promptId": "express-mounted-prototypes-trace-v1",
+      "corpus": "expressjs/express@6d2df035a95f3d1002be3e29997b7a4bfe976b5f",
+      "commit": "6d2df035a95f3d1002be3e29997b7a4bfe976b5f",
+      "promptSha256": "fd7946705efd68d713f3e75200b1bd82c2b3613c61defa6c9021dc335db2027c",
+      "rubricSha256": "463a0e36e49cc5f336671249d4651a6150bfdb4f9845aaf12f177a7cc23e0fad",
+      "negativeConstraintsSha256": "e77765efd02aaca6178d19af64e68c49c28ce95cc5232d40f66a5e70ac5645f1",
+      "sourceAnchorsSha256": "5d5fdd0d17bb82cf88f189e7047d7d3fdb5dcec8afef61968b7b75b7565b3202",
+      "taskSetReview": {
+        "reviewer": "victo",
+        "verdict": "accept",
+        "reviewedAt": "2026-11-12"
+      },
+      "freshness": {
+        "createdAt": "2026-11-12",
+        "reusedV3Text": false,
+        "limitation": "New prompt/rubric; no claim of an unseen repository or zero model-training contamination."
+      }
+    },
+    {
+      "promptId": "gin-not-found-middleware-trace-v1",
+      "corpus": "gin-gonic/gin@0f09c3a9b4626d9fe9979cf4d0521d6ae32ab646",
+      "commit": "0f09c3a9b4626d9fe9979cf4d0521d6ae32ab646",
+      "promptSha256": "8f05c8e9b18a94c322aa35c713c1d9d488e6a901bca7a1e0b8356800257a05f7",
+      "rubricSha256": "3f9ae2305dfa2ac6c40485579092329a5087e82b453debc7237bdf8b7479e1f0",
+      "negativeConstraintsSha256": "35f5b959c22c2acff7925a92505a5e11488a8b6317031be1c50902f9c2501bd1",
+      "sourceAnchorsSha256": "62910447ce256fb8e0dd888b0c8f4d3a1a725bbbda8a0266646822a1a71e8c95",
+      "taskSetReview": {
+        "reviewer": "victo",
+        "verdict": "accept",
+        "reviewedAt": "2026-11-12"
+      },
+      "freshness": {
+        "createdAt": "2026-11-12",
+        "reusedV3Text": false,
+        "limitation": "New prompt/rubric; no claim of an unseen repository or zero model-training contamination."
+      }
+    },
+    {
+      "promptId": "spring-pet-update-persistence-trace-v1",
+      "corpus": "spring-projects/spring-petclinic@f3c74834e31079f69855e9c9eddb34fceb40a8d9",
+      "commit": "f3c74834e31079f69855e9c9eddb34fceb40a8d9",
+      "promptSha256": "dddef4d5db881793b208372bce2135023c1f1690fa0a77f189ca68a2cdd060a2",
+      "rubricSha256": "a5b03a828fbf2f9ac6704b2260396ed0202d4cce600cbad1ed8e23c71759161a",
+      "negativeConstraintsSha256": "24a052ec5f2da0a956d9c683250b7e1f45ff7793fc892e0d462efd79b60e594f",
+      "sourceAnchorsSha256": "6ee427584ad2bc900b503a4f1d831df7f00189e9d53140cfde368e285e23dc49",
+      "taskSetReview": {
+        "reviewer": "victo",
+        "verdict": "accept",
+        "reviewedAt": "2026-11-12"
+      },
+      "freshness": {
+        "createdAt": "2026-11-12",
+        "reusedV3Text": false,
+        "limitation": "New prompt/rubric; no claim of an unseen repository or zero model-training contamination."
+      }
+    }
+  ],
+  "retrievalPreparation": {
+    "isolationOnly": true,
+    "productionFlag": null,
+    "productionPlanChanged": false,
+    "baselinePlanMaxFiles": 20,
+    "unionFileTopK": 10,
+    "symbolTopK": 50,
+    "unionRerank": "0.4*planPos + 0.4*symPos + 0.2*termAlign",
+    "frozenCandidateSha256": "d687c4a831a1e7b03edab29690c5888ccb27dedfa633cf9d57f5e351c6394d4d",
+    "frozenCandidateRawSha256": "60f53171ae67d05e3956e0775848ab5ee6cd3180d81681b17dcb59de7ddb987c",
+    "lineEndingNormalization": "CRLF-to-LF-only",
+    "payload": "file candidates plus frozen retrieval metadata; no rendered Explore payload yet",
+    "limitation": "S shares the C payload object and permutes candidates only; this is not evidence of full rendered-payload parity."
+  },
+  "evidence": {
+    "coverageReport": ".workbuddy/agent-eval/2026-11-12-zra-pilot-index-tool-coverage.json",
+    "coverageStatus": "incomplete",
+    "coverage": [
+      {
+        "promptId": "flask-session-response-trace-v1",
+        "status": "pass",
+        "commitMatches": true,
+        "indexCoverage": "pass",
+        "planCoverage": "pass"
+      },
+      {
+        "promptId": "django-csrf-view-trace-v1",
+        "status": "incomplete",
+        "commitMatches": true,
+        "indexCoverage": "pass",
+        "planCoverage": "incomplete"
+      },
+      {
+        "promptId": "express-mounted-prototypes-trace-v1",
+        "status": "incomplete",
+        "commitMatches": true,
+        "indexCoverage": "incomplete",
+        "planCoverage": "incomplete"
+      },
+      {
+        "promptId": "gin-not-found-middleware-trace-v1",
+        "status": "incomplete",
+        "commitMatches": true,
+        "indexCoverage": "pass",
+        "planCoverage": "incomplete"
+      },
+      {
+        "promptId": "spring-pet-update-persistence-trace-v1",
+        "status": "pass",
+        "commitMatches": true,
+        "indexCoverage": "pass",
+        "planCoverage": "pass"
+      }
+    ],
+    "humanReview": "single-reviewer-two-passes; not two independent reviewers",
+    "des": "Human-classified post-C Agent Sufficiency baseline flask-baseline-20261113T083913Z: inconclusive; DES has not passed and production C/S wiring remains blocked"
+  },
+  "limitations": [
+    "Reservations are not attempts and consume zero paired-runs.",
+    "Provider/model/effort are requested for preparation; runtime transcript readback remains UNSET before execution.",
+    "Correctness non-inferiority remains UNSET and requires Human pre-registration.",
+    "Index/tool coverage does not prove answer correctness or Agent Sufficiency.",
+    "Isolated retrieval availability is not production wiring or DES evidence.",
+    "No claim of unseen repositories or zero model-training contamination."
+  ]
+}

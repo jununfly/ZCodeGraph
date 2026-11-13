@@ -1238,6 +1238,118 @@
           "q": "固定 Flask commit 的原始 prompt 一次 Explore 是否足以覆盖两条结构链？",
           "answer": "不充分。对 commit 05e9c6bd630ecf4ec0ec884b1fc7901663737bc7 的现有索引直接调用 serve --mcp / zcodegraph_explore，原始 prompt 返回 app.py 721-751：SERVER_NAME 经 urlsplit 取得 hostname/port，缺省后调用 run_simple(host, port, self, **options)，且 threaded=True；但没有返回 testing.py cookie 更新调用。精确查询 FlaskClient.session_transaction _update_cookies_from_response testing.py 返回 testing.py 135-183，其中 179-183 以 request host_url 的 hostname（fallback localhost）、request.path、Set-Cookie 三参数更新 cookie，没有独立 port 参数。结论仅是单次原始 Explore 覆盖不全、精确后续查询可补证据；不推断模型不采用工具的原因，不修改生产 C/ranking/工具描述。",
           "note": "harness 18 + paired runtime 9=27/27、tsc、node --check、diff check 通过；真实 transcript adapter.run 回放与合成 1 次 Explore 调用断言通过。isolation Vitest 仍本机 .mjs beforeAll 收集 SyntaxError，14 skipped，不称通过。未启动真实模型，96 paired-runs=0、formal ceiling=0、默认 OFF、G-ship、e9 不变；无 commit/push。"
+        },
+        {
+          "q": "工具采用与 fallback 证据的零消耗实现方案是什么？",
+          "answer": "基于真实 transcript schema 分析，实现三个零消耗组件：(1) fallback-taxonomy.mjs：扫 tool_use 序列，对每个 Read/Grep/Glob 调用判定 CodeGraph 能否替代——Glob 定位文件→explore/search 可替代、Grep 搜符号名→search/explore 可替代、Read 读符号源码→explore/node 可替代、Read 读非代码文件→justified；输出 {read,grep,glob} 各分为 codegraphReplaceable/justified 两类计数。(2) tool-adoption-metrics.mjs：从 toolCalls 提取 CodeGraph 调用序列（含参数），计算 firstCodeGraphCallIndex、codeGraphCallRatio、exploreUsageRate、structuralPathCoverage（是否用了 explore/callers/callees/impact 中任一）。(3) 任务设计修正：新 prompt 显式要求 use CodeGraph explore to trace the structure，避免模型默认走 Read/Grep；旧 Flask 任务保留作对照，新增 Django/Express 任务分摊消耗。所有组件纯函数、无模型调用、用真实 transcript 回放验证。",
+          "note": "Human 指令「先完善工具采用与 fallback 证据、调整任务设计」的直接响应。不改生产 C/ranking/工具描述，不启动真实模型，96 paired-runs=0 不变。"
+        },
+        {
+          "q": "工具采用与 fallback 证据的零消耗实现结果是什么？",
+          "answer": "交付三个组件：(1) fallback-taxonomy.mjs：将每个 Read/Grep/Glob 分类为 codegraphReplaceable 或 justified，基于 CodeGraph 工具覆盖范围。真实 Flask with 回放：7 调用全部 replaceable（read=2,grep=2,glob=3）；without：8 调用全部 replaceable（read=2,grep=3,glob=3）。两臂 justified=0，证明模型完全没用 CodeGraph，全部走 fallback。(2) tool-adoption-metrics.mjs：计算 firstCodeGraphCallIndex、codeGraphCallRatio、exploreUsageRate、structuralPathCoverage、codeGraphToolSequence。真实回放：两臂 codeGraphCallRatio=0、structuralPathCoverage=false。(3) task-prompts/ 注册表：flask-original（对照）、flask-guided（显式 CodeGraph explore 引导）、django-guided、express-guided 四个 prompt，新任务避免重复消耗同一 Flask 任务。adapter normalize() 现在输出 readGrepFallbackDisplacement、graphStats、fallbackTaxonomy 真实值而非 null。19 新测试全通过，27 已有测试无回归，tsc 无错误。",
+          "note": "Human 指令「先完善工具采用与 fallback 证据、调整任务设计」已交付。生产 C/ranking/工具描述不变。96 paired-runs=0、formal ceiling=0、默认 OFF、G-ship、e9 不变。未启动真实模型。下一步：用 guided prompt 跑一次真实 with/without 对照验证 prompt-driven tool adoption 是否改善。"
+        },
+        {
+          "q": "Human 是否授权用 flask-guided prompt 做一次真实 with/without 对照？",
+          "answer": "Human 明确授权一次真实模型调用（1 对 with/without），使用 flask-guided prompt（PROMPT_ID=flask-ipv6-structure-trace-v2-guided），验证 prompt-driven tool adoption 是否改善。本次不计入 96 paired-runs，不启动试点，不改变生产 C/ranking/工具描述。沿用已冻结的独立 CLI + GLM-5.3-Flash + high 配置。",
+          "note": "96 paired-runs=0 不变、formal ceiling=0、默认 OFF、G-ship、e9 不变。"
+        },
+        {
+          "q": "flask-guided prompt 的真实 run 结果如何，根因是什么？",
+          "answer": "run=flask-baseline-20261112T070521Z 程序状态 valid，但 with 臂 CodeGraph 调用=0（10 次工具全部 Glob/Grep/Read），without 臂同样=0。根因定位：adapter 传 --tools 'Read,Grep,Glob' 过滤了模型可见工具集，模型在 thinking 中明确说「I only have Read, Glob, and Grep — no mcp__codegraph__* tools are actually exposed」。MCP init 事件显示 codegraph:connected + 3 工具 advertised，但 --tools 参数覆盖了模型可见性。修复：--tools 改为 'Read,Grep,Glob,mcp__codegraph__*'，与 --allowedTools 一致。37/37 测试通过。这次 run 证明 guided prompt 本身不能解决工具采用问题——CLI 参数过滤是根因。",
+          "note": "修复后需重跑一次真实 with/without 对照验证。96 paired-runs=0 不变。"
+        },
+        {
+          "q": "q",
+          "answer": "a",
+          "note": "n"
+        },
+        {
+          "q": "q",
+          "answer": "a",
+          "note": "n"
+        },
+        {
+          "q": "test q",
+          "answer": "test a",
+          "note": ""
+        },
+        {
+          "q": "test q2",
+          "answer": "test a2",
+          "note": "test note2"
+        },
+        {
+          "q": "q",
+          "answer": "a",
+          "note": "n"
+        },
+        {
+          "q": "CLI wildcard root cause and fix",
+          "answer": "Second real run (flask-baseline-20261112T085835Z) with arm MCP completely disconnected (servers=[], advertisedCodeGraphTools=[]) because the tools flag wildcard caused CLI to fail MCP initialization. Fix: tools flag now lists exact tool names instead of wildcard. 18/18 tests pass. Need third real run to verify exact tool names restore MCP connection.",
+          "note": "96 paired-runs=0 unchanged. Third real model call authorized for CLI parameter fix verification only."
+        },
+        {
+          "q": "CodeGraph MCP tool exposure root cause and final fix",
+          "answer": "Third real run (flask-baseline-20261112T091815Z) with arm MCP connected but model still saw zero CodeGraph tools in function schemas. Root cause: --tools flag filters MCP tools from model function schemas even though it claims to only restrict built-in tools. Fix: --tools now includes all built-in tools (Read,Grep,Glob) plus all 8 CodeGraph MCP tool names explicitly. Verified via direct CLI test: model sees all 8 CodeGraph tools, MCP connected. 18/18 tests pass. Need fourth real run to verify model actually calls CodeGraph tools.",
+          "note": "96 paired-runs=0 unchanged. Fourth real model call authorized for MCP tool exposure fix verification only."
+        },
+        {
+          "q": "MCP defer_loading root cause and alwaysLoad fix",
+          "answer": "Fourth real run (flask-baseline-20261112T093718Z) with arm MCP connected but model still saw zero CodeGraph tools. Root cause found in CodeBuddy CLI source: MCP tools have defer_loading flag that hides them from model function schemas by default. The createToolFilter function checks isToolDeferLoadingWithOverlay and filters out deferred tools. Fix: add alwaysLoad:true to MCP server config in run-flask-baseline.mjs. This forces MCP tools to be exposed immediately instead of deferred. 18/18 tests pass. Need fifth real run to verify alwaysLoad exposes CodeGraph tools to model.",
+          "note": "96 paired-runs=0 unchanged. Fifth real model call authorized for alwaysLoad fix verification only."
+        },
+        {
+          "q": "Fifth real run: CodeGraph tool adoption breakthrough",
+          "answer": "Run flask-baseline-20261112T095119Z: with arm CodeGraph calls=6 (2 explore + 4 node), codeGraphCallRatio=0.545, structuralPathCoverage=true, firstCodeGraphCallIndex=0. Model immediately used explore for both trace targets, then node for source details. Only 5 fallback calls (2 Read + 3 Grep for werkzeug third-party source not indexed by CodeGraph). Without arm: 0 CodeGraph calls, 10 fallback. Token consumption: with=112831, without=171487 (34% reduction with CodeGraph). alwaysLoad:true fix verified — MCP tools now exposed to model function schemas. This is the first real DES baseline evidence showing CodeGraph tool adoption and fallback displacement.",
+          "note": "96 paired-runs=0 unchanged. Human review required for final classification (preserved/improved/inconclusive). This is a single-task observation, not a pilot result."
+        },
+        {
+          "q": "Human authorizes one real run A: original prompt control",
+          "answer": "Human explicitly authorizes one real model call for option A: run flask-original prompt (no CodeGraph guidance) as control arm to verify guided prompt is the active variable in tool adoption. This is a single with/without pair, not counted in 96 paired-runs. Uses same standalone CLI + GLM-5.3-Flash + high + alwaysLoad config as fifth run.",
+          "note": "96 paired-runs=0 unchanged. Sixth real model call authorized for original prompt control only."
+        },
+        {
+          "q": "Option A result: original prompt control proves guided prompt is active variable",
+          "answer": "Run flask-baseline-20261112T100730Z (original prompt, no CodeGraph guidance): with arm CodeGraph calls=0, codeGraphCallRatio=0, structuralPathCoverage=false. Compare with fifth run (guided prompt): CodeGraph calls=6, ratio=0.545, coverage=true. Same config (standalone CLI + GLM-5.3-Flash + high + alwaysLoad), only variable is prompt design. Causal inference: guided prompt is the active variable in tool adoption. Original prompt model immediately falls back to Read/Grep/Glob despite CodeGraph tools being advertised and connected. This validates the task design hypothesis.",
+          "note": "96 paired-runs=0 unchanged. Human review required for final classification. Next: proceed to pilot task set design (option C) with guided prompts as standard."
+        },
+        {
+          "q": "2026-11-12 Human 确认试点任务集的方向与授权边界是什么？",
+          "answer": "Human 选择五仓五题、统一弱引导、双角色+新计划稿。授权范围仅为 Product execution / evaluation design：Flask、Django、Express、Gin、Spring PetClinic 各一新任务，4 语言 5 仓，主计划 5x4x3=60 paired-runs、96 仅为硬上限；A/C/S 逐字同 prompt，只说明 CodeGraph 可用于结构问题，不指定工具或答案符号；Agent 为作者、Human victo 为任务集 reviewer，另需未参与调参的第二名 run reviewer。不启动真实模型或试点，不修改生产 C/ranking，formal ceiling=0、e9/默认 OFF/G-ship/v3 不变。",
+          "note": "现有 Flask original/guided 与 Django/Express guided 仅作诊断候选，不直接冻结为试点；新计划必须走 roadmap CLI，不写普通 docs/plans Markdown 实体，不宣称双审或试点就绪。"
+        },
+        {
+          "q": "五仓五题与共享执行审计规则的 Human 审阅结论是什么？",
+          "answer": "Human victo 于 2026-11-12 对 T1 Flask、T2 Django、T3 Express、T4 Gin、T5 Spring PetClinic 逐题均 accept，并对共享执行/审计/停止规则 accept。独立任务集计划为 content-reviewed / execution-not-authorized：主计划 5x4x3=60、N=5；k=4=[ASC,CAS,SAC,SCA]、uncovered=[ACS,CSA]；主终点 recovery Read/Grep、MDE=1.5，Glob 单列描述性审计；96 为硬上限，失败消耗/剔除不退款、正确性回退停止。第二名独立 run reviewer=UNSET、索引/工具覆盖未核验、生产 C/S 和 C 接入后的 DES baseline 未完成，未生成 seed/manifest/prompt registry，不能启动试点。",
+          "note": "仅任务集内容审阅完成；主 1-8-2 继续 in_progress，1-4 的 e9 blocked、formal ceiling=0、产品默认 OFF、G-ship/v3 不变。无真实模型调用、无生产 ranking 改动、无 commit/push。"
+        },
+        {
+          "q": "ZRA 试点准备：固定 registry/seed/manifest 与隔离 C/S 接线是否等于可执行或生产就绪？",
+          "answer": "不等于。五题 registry 已含显式源码锚点、固定 commit、评分锚点与负向约束；固定 seed=20261112，k=4 预声明子集为 ASC/CAS/SAC/SCA，生成 20 blocks/60 planned-runs，consumedRuns=0，pilot ceiling=96、formal ceiling=0。新增评测专用 A=现 plan()、C=冻结 symbol-union、S=运行时固定 seed 仅置换候选且共享 C payload；仅通过 runPairedEvaluation 注入，不改生产 plan()/flags/ranking。当前 S 证明限于候选和检索元数据，不宣称最终渲染文本逐字节一致。manifest 真实 status=blocked：第二独立 reviewer=UNSET，五仓覆盖 incomplete，生产 C/S 未接，post-C DES baseline 未跑，正确性非劣未预注册。保留先真实 DES 后生产接线顺序；无模型/试点/生产切臂执行。",
+          "note": "Human 已明确保持先 DES 后生产接线。冻结候选配置哈希按 CRLF→LF 规范化核验，原始哈希另记，不修改冻结配置。隔离适配器与 runtime/execution-plan 目标测试 14/14 通过，不外推为全仓或 DES 证据。"
+        },
+        {
+          "q": "ZRA manifest 的过程证据如何与正式资产解耦？",
+          "answer": "[内容已脱敏] 原始条目含被禁止的本地过程目录字面值，导致正式资产校验失败；有效结论由后续脱敏条目取代。撤回记录及 retracts 指纹保留。",
+          "note": "全量曾得 193 pass/3 failed suite、2648 pass/1 failed test/52 skipped；修复 formal-assets 后仅复验相关测试，尚未再次全跑。其余 agent-eval-isolation 与 perf-regression-check 的 .mjs SyntaxError 属已记录的本机收集问题，不据此宣称全量通过。"
+        },
+        {
+          "q": "ZRA manifest 的过程证据如何与正式资产解耦？",
+          "answer": "",
+          "note": "retracted: 全量曾得 193 pass/3 failed suite、2648 pass/1 failed test/52 skipped；修复 formal-assets 后仅复验相关测试，尚未再次全跑。其余 agent-eval-isolation 与 perf-regression-check 的 .mjs SyntaxError 属已记录的本机收集问题，不据此宣称全量通过。",
+          "retracted": true,
+          "retracts": "02791dd7371b9672e611f6cff657d984f9e1d2f18e99199f7df1f9c1dec51172"
+        },
+        {
+          "q": "ZRA manifest 的本地过程证据如何与正式资产解耦？",
+          "answer": "正式脚本不默认引用本地过程工作区。prepare-zra-pilot-manifest.mjs 默认从 .workbuddy/agent-eval/ 读取真实五仓覆盖报告并写入 blocked execution manifest，对输入/输出中的本地过程目录 fail-closed；manifest 的 coverageReport/evidenceDirectory 均记录 .workbuddy 相对位置。已有本地报告保持原处，不移动、不删除。全量回归发现的该新增治理错误已修复，formal-assets-decoupling 8/8 与相关目标 23/23 曾通过，tsc 和 diff check 曾通过，待本次最终复验。",
+          "note": "全量曾得 193 pass/3 failed suite、2648 pass/1 failed test/52 skipped；其余 agent-eval-isolation 与 perf-regression-check 的 .mjs SyntaxError 属已记录的本机收集问题，不据此宣称全量通过。"
+        },
+        {
+          "q": "2026-11-13 v2 固定 Flask post-C 真实双臂的 Human 最终分类与推进结论是什么？",
+          "answer": "Human 明确选择 B=inconclusive，并附 correctness flag。run flask-baseline-20261113T083913Z 使用固定 Flask commit、弱引导 v2、冻结 C、独立 CLI glm-5.3-flash/high；程序 status=valid，47 turns/174951 tokens，快照 consumed/intact。with 自然调用真实 C Explore 一次，answer tool-result/运行内记录/服务端字节及 SHA256 绑定一致，app host/port 与 testing cookie 三参数必要源码实际进入模型上下文且无硬截断。with=20 turns/86279 tokens，1 Grep+2 Read+2 Glob；without=27 turns/88672 tokens，3 Grep+2 Read+5 Glob。较少工具数/tokens 不推导 improved：Explore 已给 testing 源码后 with 仍重复 Grep/Read；外部 Werkzeug Glob 与合法深化不能由自动 taxonomy 全算 replaceable。with 错写 threaded 来自 self.debug（实际默认 True）且对继承 helper 的 port scope 作超本仓断言；without 也有 create_jinja_environment 的无依据扩展。主链基本正确，单对单模型且正确性非劣阈值未预注册，不能据此作 C 导致回退的因果结论；故不判 regressed/improved/preserved。过程证据有效，但 Agent Sufficiency 与 correctness 非劣未证明，DES 不通过、不晋级、不接生产。原始 evidence 的 humanReview:null 不改写，Human 决定在此 append-only 留账。",
+          "note": "本次授权已消耗，不自动重跑、不启动 paired-runs。1-8-2 仍 in_progress，1-4/e9 blocked，第二名 reviewer、五仓覆盖、正确性非劣预注册、S/C 最终 payload 等独立 blocker 不变；96/0、formal ceiling=0、默认 OFF、G-ship/v3 不变，无 commit/push。"
         }
       ],
       "notes": "",
@@ -1257,7 +1369,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-12 14:24:33",
+    "updated": "2026-11-13 17:03:45",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

@@ -1,0 +1,760 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "zra-pilot-index-tool-coverage",
+  "scope": "pre-execution public-seam inspection; no model runs; no consumed paired-runs",
+  "status": "incomplete",
+  "results": [
+    {
+      "promptId": "flask-session-response-trace-v1",
+      "commit": "05e9c6bd630ecf4ec0ec884b1fc7901663737bc7",
+      "stats": {
+        "nodeCount": 2805,
+        "edgeCount": 4274,
+        "fileCount": 84,
+        "nodesByKind": {
+          "class": 160,
+          "file": 82,
+          "function": 1017,
+          "import": 642,
+          "method": 442,
+          "module": 82,
+          "route": 268,
+          "variable": 112
+        },
+        "edgesByKind": {
+          "calls": 382,
+          "contains": 2455,
+          "decorates": 64,
+          "imports": 950,
+          "instantiates": 159,
+          "references": 264
+        },
+        "filesByLanguage": {
+          "python": 82,
+          "yaml": 2
+        },
+        "dbSizeBytes": 4460544,
+        "lastUpdated": 1794483513769
+      },
+      "indexCoverage": "pass",
+      "planCoverage": "pass",
+      "status": "pass",
+      "plannedFiles": [
+        "src/flask/globals.py",
+        "tests/test_apps/cliapp/inner1/__init__.py",
+        "tests/test_basic.py",
+        "src/flask/__init__.py",
+        "src/flask/wrappers.py",
+        "src/flask/config.py",
+        "src/flask/sessions.py",
+        "src/flask/json/__init__.py",
+        "src/flask/app.py",
+        "examples/tutorial/flaskr/auth.py",
+        "examples/tutorial/tests/test_auth.py",
+        "examples/tutorial/flaskr/blog.py",
+        "examples/celery/src/task_app/views.py",
+        "examples/javascript/js_example/views.py",
+        "src/flask/helpers.py",
+        "src/flask/signals.py",
+        "src/flask/ctx.py"
+      ],
+      "requiredFiles": [
+        {
+          "file": "src/flask/ctx.py",
+          "indexed": true,
+          "indexedNodeCount": 51,
+          "planned": true
+        },
+        {
+          "file": "src/flask/app.py",
+          "indexed": true,
+          "indexedNodeCount": 113,
+          "planned": true
+        },
+        {
+          "file": "src/flask/sessions.py",
+          "indexed": true,
+          "indexedNodeCount": 44,
+          "planned": true
+        }
+      ],
+      "symbols": [
+        {
+          "query": "_get_session",
+          "name": "AppContext._get_session",
+          "file": "src/flask/ctx.py",
+          "found": true,
+          "matches": [
+            {
+              "name": "AppContext._get_session",
+              "kind": "method",
+              "file": "src/flask/ctx.py"
+            }
+          ]
+        },
+        {
+          "query": "process_response",
+          "name": "Flask.process_response",
+          "file": "src/flask/app.py",
+          "found": true,
+          "matches": [
+            {
+              "name": "Flask.process_response",
+              "kind": "method",
+              "file": "src/flask/app.py"
+            }
+          ]
+        },
+        {
+          "query": "open_session",
+          "name": "SecureCookieSessionInterface.open_session",
+          "file": "src/flask/sessions.py",
+          "found": true,
+          "matches": [
+            {
+              "name": "SecureCookieSessionInterface.open_session",
+              "kind": "method",
+              "file": "src/flask/sessions.py"
+            }
+          ]
+        },
+        {
+          "query": "save_session",
+          "name": "SecureCookieSessionInterface.save_session",
+          "file": "src/flask/sessions.py",
+          "found": true,
+          "matches": [
+            {
+              "name": "SecureCookieSessionInterface.save_session",
+              "kind": "method",
+              "file": "src/flask/sessions.py"
+            }
+          ]
+        },
+        {
+          "query": "should_set_cookie",
+          "name": "SessionInterface.should_set_cookie",
+          "file": "src/flask/sessions.py",
+          "found": true,
+          "matches": [
+            {
+              "name": "SessionInterface.should_set_cookie",
+              "kind": "method",
+              "file": "src/flask/sessions.py"
+            }
+          ]
+        }
+      ],
+      "externalBoundaries": [],
+      "directory": "C:\\workspace\\measure-corpus\\pallets-flask",
+      "actualCommit": "05e9c6bd630ecf4ec0ec884b1fc7901663737bc7",
+      "commitMatches": true
+    },
+    {
+      "promptId": "django-csrf-view-trace-v1",
+      "commit": "2fff3e9f493a9c85fb8a2294358c6751575ee4bf",
+      "stats": {
+        "nodeCount": 23093,
+        "edgeCount": 46369,
+        "fileCount": 999,
+        "nodesByKind": {
+          "class": 2006,
+          "constant": 272,
+          "file": 996,
+          "function": 1908,
+          "import": 4531,
+          "method": 8198,
+          "module": 907,
+          "route": 32,
+          "variable": 4243
+        },
+        "edgesByKind": {
+          "calls": 10796,
+          "contains": 22968,
+          "decorates": 499,
+          "imports": 9301,
+          "instantiates": 2786,
+          "references": 19
+        },
+        "filesByLanguage": {
+          "javascript": 87,
+          "python": 907,
+          "xml": 2,
+          "yaml": 3
+        },
+        "dbSizeBytes": 43335680,
+        "lastUpdated": 1794483514041
+      },
+      "indexCoverage": "pass",
+      "planCoverage": "incomplete",
+      "status": "incomplete",
+      "plannedFiles": [
+        "django/views/generic/base.py",
+        "django/http/cookie.py",
+        "django/db/models/deletion.py",
+        "django/db/models/lookups.py",
+        "django/views/generic/edit.py",
+        "django/contrib/messages/storage/cookie.py",
+        "django/db/migrations/graph.py",
+        "django/db/migrations/state.py",
+        "django/core/exceptions.py",
+        "django/conf/__init__.py",
+        "django/contrib/postgres/fields/array.py",
+        "django/utils/regex_helper.py",
+        "django/middleware/csrf.py",
+        "django/db/models/__init__.py",
+        "django/utils/crypto.py"
+      ],
+      "requiredFiles": [
+        {
+          "file": "django/middleware/__init__.py",
+          "indexed": true,
+          "indexedNodeCount": 10,
+          "planned": false
+        },
+        {
+          "file": "django/core/handlers/base.py",
+          "indexed": true,
+          "indexedNodeCount": 28,
+          "planned": false
+        },
+        {
+          "file": "django/middleware/csrf.py",
+          "indexed": true,
+          "indexedNodeCount": 60,
+          "planned": true
+        }
+      ],
+      "symbols": [
+        {
+          "query": "__call__",
+          "name": "MiddlewareMixin.__call__",
+          "file": "django/middleware/__init__.py",
+          "found": true,
+          "matches": [
+            {
+              "name": "MiddlewareMixin.__call__",
+              "kind": "method",
+              "file": "django/middleware/__init__.py"
+            }
+          ]
+        },
+        {
+          "query": "load_middleware",
+          "name": "BaseHandler.load_middleware",
+          "file": "django/core/handlers/base.py",
+          "found": true,
+          "matches": [
+            {
+              "name": "BaseHandler.load_middleware",
+              "kind": "method",
+              "file": "django/core/handlers/base.py"
+            }
+          ]
+        },
+        {
+          "query": "_get_response",
+          "name": "BaseHandler._get_response",
+          "file": "django/core/handlers/base.py",
+          "found": true,
+          "matches": [
+            {
+              "name": "BaseHandler._get_response",
+              "kind": "method",
+              "file": "django/core/handlers/base.py"
+            }
+          ]
+        },
+        {
+          "query": "process_view",
+          "name": "CsrfViewMiddleware.process_view",
+          "file": "django/middleware/csrf.py",
+          "found": true,
+          "matches": [
+            {
+              "name": "CsrfViewMiddleware.process_view",
+              "kind": "method",
+              "file": "django/middleware/csrf.py"
+            }
+          ]
+        },
+        {
+          "query": "process_response",
+          "name": "CsrfViewMiddleware.process_response",
+          "file": "django/middleware/csrf.py",
+          "found": true,
+          "matches": [
+            {
+              "name": "CsrfViewMiddleware.process_response",
+              "kind": "method",
+              "file": "django/middleware/csrf.py"
+            }
+          ]
+        },
+        {
+          "query": "_reject",
+          "name": "CsrfViewMiddleware._reject",
+          "file": "django/middleware/csrf.py",
+          "found": true,
+          "matches": [
+            {
+              "name": "CsrfViewMiddleware._reject",
+              "kind": "method",
+              "file": "django/middleware/csrf.py"
+            }
+          ]
+        }
+      ],
+      "externalBoundaries": [],
+      "directory": "C:\\workspace\\measure-corpus\\django-django",
+      "actualCommit": "2fff3e9f493a9c85fb8a2294358c6751575ee4bf",
+      "commitMatches": true
+    },
+    {
+      "promptId": "express-mounted-prototypes-trace-v1",
+      "commit": "6d2df035a95f3d1002be3e29997b7a4bfe976b5f",
+      "stats": {
+        "nodeCount": 561,
+        "edgeCount": 916,
+        "fileCount": 51,
+        "nodesByKind": {
+          "constant": 6,
+          "file": 50,
+          "function": 43,
+          "route": 57,
+          "variable": 405
+        },
+        "edgesByKind": {
+          "calls": 373,
+          "contains": 454,
+          "imports": 76,
+          "instantiates": 8,
+          "references": 5
+        },
+        "filesByLanguage": {
+          "javascript": 50,
+          "yaml": 1
+        },
+        "dbSizeBytes": 1060864,
+        "lastUpdated": 1794483514601
+      },
+      "indexCoverage": "incomplete",
+      "planCoverage": "incomplete",
+      "status": "incomplete",
+      "plannedFiles": [
+        "lib/application.js",
+        "lib/view.js",
+        "examples/error/index.js",
+        "lib/response.js"
+      ],
+      "requiredFiles": [
+        {
+          "file": "lib/express.js",
+          "indexed": true,
+          "indexedNodeCount": 10,
+          "planned": false
+        },
+        {
+          "file": "lib/application.js",
+          "indexed": true,
+          "indexedNodeCount": 45,
+          "planned": true
+        }
+      ],
+      "symbols": [
+        {
+          "query": "createApplication",
+          "name": "createApplication",
+          "file": "lib/express.js",
+          "found": true,
+          "matches": [
+            {
+              "name": "createApplication",
+              "kind": "function",
+              "file": "lib/express.js"
+            }
+          ]
+        },
+        {
+          "query": "lazyrouter",
+          "name": "lazyrouter",
+          "file": "lib/application.js",
+          "found": false,
+          "matches": []
+        },
+        {
+          "query": "handle",
+          "name": "handle",
+          "file": "lib/application.js",
+          "found": false,
+          "matches": []
+        },
+        {
+          "query": "use",
+          "name": "use",
+          "file": "lib/application.js",
+          "found": false,
+          "matches": []
+        },
+        {
+          "query": "mounted_app",
+          "name": "mounted_app",
+          "file": "lib/application.js",
+          "found": false,
+          "matches": []
+        }
+      ],
+      "externalBoundaries": [],
+      "directory": "C:\\workspace\\measure-corpus\\expressjs-express",
+      "actualCommit": "6d2df035a95f3d1002be3e29997b7a4bfe976b5f",
+      "commitMatches": true
+    },
+    {
+      "promptId": "gin-not-found-middleware-trace-v1",
+      "commit": "0f09c3a9b4626d9fe9979cf4d0521d6ae32ab646",
+      "stats": {
+        "nodeCount": 3055,
+        "edgeCount": 6615,
+        "fileCount": 109,
+        "nodesByKind": {
+          "constant": 108,
+          "field": 618,
+          "file": 98,
+          "function": 909,
+          "interface": 20,
+          "method": 408,
+          "module": 98,
+          "route": 248,
+          "struct": 153,
+          "type_alias": 35,
+          "variable": 360
+        },
+        "edgesByKind": {
+          "calls": 2956,
+          "contains": 2957,
+          "instantiates": 685,
+          "references": 17
+        },
+        "filesByLanguage": {
+          "go": 98,
+          "yaml": 11
+        },
+        "dbSizeBytes": 5443584,
+        "lastUpdated": 1794483514713
+      },
+      "indexCoverage": "pass",
+      "planCoverage": "incomplete",
+      "status": "incomplete",
+      "plannedFiles": [
+        "ginS/gins.go",
+        "gin.go",
+        "fs.go",
+        "binding/form_mapping_test.go",
+        "tree_test.go",
+        "context_appengine.go",
+        "recovery_test.go",
+        "context_test.go",
+        "routes_test.go",
+        "ginS/gins_test.go",
+        "logger_test.go",
+        "routergroup_test.go",
+        "gin_test.go",
+        "middleware_test.go",
+        "gin_integration_test.go",
+        "benchmarks_test.go",
+        "auth_test.go"
+      ],
+      "requiredFiles": [
+        {
+          "file": "gin.go",
+          "indexed": true,
+          "indexedNodeCount": 101,
+          "planned": true
+        },
+        {
+          "file": "context.go",
+          "indexed": true,
+          "indexedNodeCount": 203,
+          "planned": false
+        },
+        {
+          "file": "routergroup.go",
+          "indexed": true,
+          "indexedNodeCount": 39,
+          "planned": false
+        }
+      ],
+      "symbols": [
+        {
+          "query": "ServeHTTP",
+          "name": "Engine.ServeHTTP",
+          "file": "gin.go",
+          "found": true,
+          "matches": [
+            {
+              "name": "Engine.ServeHTTP",
+              "kind": "method",
+              "file": "gin.go"
+            }
+          ]
+        },
+        {
+          "query": "handleHTTPRequest",
+          "name": "Engine.handleHTTPRequest",
+          "file": "gin.go",
+          "found": true,
+          "matches": [
+            {
+              "name": "Engine.handleHTTPRequest",
+              "kind": "method",
+              "file": "gin.go"
+            }
+          ]
+        },
+        {
+          "query": "serveError",
+          "name": "serveError",
+          "file": "gin.go",
+          "found": true,
+          "matches": [
+            {
+              "name": "serveError",
+              "kind": "function",
+              "file": "gin.go"
+            }
+          ]
+        },
+        {
+          "query": "Next",
+          "name": "Context.Next",
+          "file": "context.go",
+          "found": true,
+          "matches": [
+            {
+              "name": "Context.Next",
+              "kind": "method",
+              "file": "context.go"
+            }
+          ]
+        },
+        {
+          "query": "Abort",
+          "name": "Context.Abort",
+          "file": "context.go",
+          "found": true,
+          "matches": [
+            {
+              "name": "Context.Abort",
+              "kind": "method",
+              "file": "context.go"
+            }
+          ]
+        },
+        {
+          "query": "combineHandlers",
+          "name": "RouterGroup.combineHandlers",
+          "file": "routergroup.go",
+          "found": true,
+          "matches": [
+            {
+              "name": "RouterGroup.combineHandlers",
+              "kind": "method",
+              "file": "routergroup.go"
+            }
+          ]
+        },
+        {
+          "query": "Use",
+          "name": "Engine.Use",
+          "file": "gin.go",
+          "found": true,
+          "matches": [
+            {
+              "name": "Engine.Use",
+              "kind": "method",
+              "file": "gin.go"
+            }
+          ]
+        }
+      ],
+      "externalBoundaries": [],
+      "directory": "C:\\workspace\\measure-corpus\\gin-gonic-gin",
+      "actualCommit": "0f09c3a9b4626d9fe9979cf4d0521d6ae32ab646",
+      "commitMatches": true
+    },
+    {
+      "promptId": "spring-pet-update-persistence-trace-v1",
+      "commit": "f3c74834e31079f69855e9c9eddb34fceb40a8d9",
+      "stats": {
+        "nodeCount": 1132,
+        "edgeCount": 1955,
+        "fileCount": 69,
+        "nodesByKind": {
+          "bean": 4,
+          "class": 50,
+          "constant": 23,
+          "field": 78,
+          "file": 53,
+          "import": 473,
+          "interface": 3,
+          "method": 193,
+          "module": 50,
+          "route": 17,
+          "variable": 188
+        },
+        "edgesByKind": {
+          "calls": 366,
+          "contains": 1035,
+          "decorates": 1,
+          "extends": 10,
+          "imports": 473,
+          "injects": 6,
+          "instantiates": 46,
+          "references": 18
+        },
+        "filesByLanguage": {
+          "java": 50,
+          "properties": 14,
+          "xml": 3,
+          "yaml": 2
+        },
+        "dbSizeBytes": 2826240,
+        "lastUpdated": 1794483514882
+      },
+      "indexCoverage": "pass",
+      "planCoverage": "pass",
+      "status": "pass",
+      "plannedFiles": [
+        "src/test/java/org/springframework/samples/petclinic/PostgresIntegrationTests.java",
+        "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+        "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+        "src/test/java/org/springframework/samples/petclinic/owner/PetTypeFormatterTests.java",
+        "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java",
+        "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+        "src/main/java/org/springframework/samples/petclinic/model/Person.java",
+        "src/test/java/org/springframework/samples/petclinic/owner/VisitControllerTests.java",
+        "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+        "src/main/java/org/springframework/samples/petclinic/owner/PetTypeFormatter.java",
+        "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+        "src/test/java/org/springframework/samples/petclinic/owner/PetValidatorTests.java",
+        "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+        "src/test/java/org/springframework/samples/petclinic/vet/VetControllerTests.java"
+      ],
+      "requiredFiles": [
+        {
+          "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+          "indexed": true,
+          "indexedNodeCount": 53,
+          "planned": true
+        },
+        {
+          "file": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+          "indexed": true,
+          "indexedNodeCount": 40,
+          "planned": true
+        }
+      ],
+      "symbols": [
+        {
+          "query": "findPet",
+          "name": "findPet",
+          "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+          "found": true,
+          "matches": [
+            {
+              "name": "findPet",
+              "kind": "method",
+              "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+            }
+          ]
+        },
+        {
+          "query": "initOwnerBinder",
+          "name": "initOwnerBinder",
+          "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+          "found": true,
+          "matches": [
+            {
+              "name": "initOwnerBinder",
+              "kind": "method",
+              "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+            }
+          ]
+        },
+        {
+          "query": "initPetBinder",
+          "name": "initPetBinder",
+          "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+          "found": true,
+          "matches": [
+            {
+              "name": "initPetBinder",
+              "kind": "method",
+              "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+            }
+          ]
+        },
+        {
+          "query": "processUpdateForm",
+          "name": "processUpdateForm",
+          "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+          "found": true,
+          "matches": [
+            {
+              "name": "processUpdateForm",
+              "kind": "method",
+              "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+            }
+          ]
+        },
+        {
+          "query": "updatePetDetails",
+          "name": "updatePetDetails",
+          "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+          "found": true,
+          "matches": [
+            {
+              "name": "updatePetDetails",
+              "kind": "method",
+              "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java"
+            }
+          ]
+        },
+        {
+          "query": "getPet",
+          "name": "getPet",
+          "file": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+          "found": true,
+          "matches": [
+            {
+              "name": "getPet",
+              "kind": "method",
+              "file": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java"
+            },
+            {
+              "name": "getPet",
+              "kind": "method",
+              "file": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java"
+            },
+            {
+              "name": "getPet",
+              "kind": "method",
+              "file": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java"
+            }
+          ]
+        }
+      ],
+      "externalBoundaries": [
+        "OwnerRepository.saveAndFlush is inherited from external Spring Data; it is not a repository-local symbol requirement."
+      ],
+      "directory": "C:\\workspace\\measure-corpus\\spring-projects-spring-petclinic",
+      "actualCommit": "f3c74834e31079f69855e9c9eddb34fceb40a8d9",
+      "commitMatches": true
+    }
+  ],
+  "limitations": [
+    "Index and plan coverage do not prove answer correctness or DES sufficiency.",
+    "Plan coverage is not a release gate and cannot replace Human review.",
+    "No claim of unseen repositories or zero model-training contamination."
+  ]
+}

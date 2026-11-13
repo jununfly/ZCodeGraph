@@ -1,0 +1,221 @@
+{
+  "title": "ZRA-Paired v1 试点任务集（待审候选）",
+  "description": "五仓五题、统一弱引导、源码锚定；设计待 Human 任务集 reviewer 批准。主计划 5x4x3=60 paired-runs，硬上限 96，未授权真实模型或试点。",
+  "version": 1,
+  "nodes": {
+    "1": {
+      "id": "1",
+      "uid": "01a1cf4f67ad-5a97f66661",
+      "label": "ZRA-Paired v1 试点任务集（内容已审，执行未授权）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": null,
+      "children": [
+        "1-1",
+        "1-2",
+        "1-3",
+        "1-4",
+        "1-5",
+        "1-6",
+        "1-7"
+      ],
+      "decisions": [],
+      "notes": "content-reviewed / execution-not-authorized：五题与共享规则已获 Human accept。独立 reviewer、索引/工具覆盖、生产 C/S 和 DES baseline 未满足，未生成 seed/manifest/registry，未启动试点；pending 表示等待后续独立前置，不是内容审阅未完成。",
+      "layer": "plan",
+      "rounds": 1,
+      "budget": {
+        "max_children": 7,
+        "max_rounds": 2
+      },
+      "exit_criteria": [
+        "五题均有固定 commit、新 prompt、逐题源码正确性锚点和负向约束；未复用 v3 holdout，并披露固定快照的新鲜度限制。",
+        "Human victo 完成无 arm/ranking 的任务集审阅；第二名独立 run reviewer 具名，未满足时保持 UNSET，不得启动试点。",
+        "源码标注与任务注册公开 seam 冻结：prompt、commit、rubric、审计规则由同一计划生成；未通过索引/工具覆盖核验前不注册为可执行。",
+        "主计划 5x4x3=60 paired-runs、k=4 平衡子集、缺失/重试不退款规则明确；96 是硬上限不是补跑额度，formal ceiling=0，生产默认 OFF。"
+      ]
+    },
+    "1-1": {
+      "id": "1-1",
+      "uid": "01a1cf4fc651-03e536673b",
+      "label": "T1 Flask：会话读取到响应写回",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "固定快照、共享 prompt 和作者标注是什么？",
+          "answer": "快照 pallets/flask@05e9c6bd630ecf4ec0ec884b1fc7901663737bc7（commit 2026-08-11T12:48:40-07:00）。共享英文任务正文：Trace how the default Flask session is loaded on demand and how changes reach the HTTP response. Identify the request-context accessor, application response hook, and concrete session-interface methods involved. Explain when no cookie is written even when the session is non-empty, and distinguish empty-session deletion from ordinary persistence. Cite repository files and symbols, and do not attribute cookie serialization to the response hook itself. 各臂共同前缀：CodeGraph MCP tools are available for structural code questions in this read-only checkout; use them when they help. Investigate without editing files, running tests, or starting a server. Give a concise technical explanation with exact file paths and symbol names. 源码锚点：src/flask/ctx.py:381-389 _get_session 惰性 open_session/None 时 null session；app.py:1397-1420 process_response 调 after hooks 且仅非 null session 时委托 save_session；sessions.py:233-246 should_set_cookie=modified 或 permanent+refresh；323-334 open_session 读签名 cookie、无值/坏签名给新 session；337-393 save_session 空且 modified 删除、否则 should_set_cookie 才序列化 set_cookie。负向约束：不得说 process_response 自己序列化 cookie；不得说每个非空 session 都无条件写 cookie；不能复用已诊断 IPv6+cookie prompt。作者 Z/2026-11-12，状态 awaiting-human-review，未注册执行。",
+          "note": "锚点来自固定 commit 源码阅读；仅设计、未调用模型，未证明 CodeGraph 当前索引覆盖此链。"
+        },
+        {
+          "q": "Human victo 对 T1 的任务集审阅结论是什么？",
+          "answer": "accept。Human 于 2026-11-12 接受 T1 的固定 Flask 快照、共享弱引导、任务正文、源码评分锚点与负向约束；仅完成本题任务集 reviewer 审阅，不生成 manifest、不注册执行、不启动试点。",
+          "note": "本题可标记内容审阅 completed；第二名独立 run reviewer、索引/工具覆盖、生产 C/S 与 C 接入后的 DES baseline 仍是独立前置，96/0、formal ceiling=0、默认 OFF 不变。"
+        }
+      ],
+      "notes": "2026-11-12 Human victo 审阅结论=accept：接受本题内容设计；未批准或执行试点，未满足独立 run reviewer/索引覆盖/DES baseline 等执行前置。",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-2": {
+      "id": "1-2",
+      "uid": "01a1cf5020b1-eb489ef6d2",
+      "label": "T2 Django：CSRF 中间件到视图防护",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "固定快照、共享 prompt 和作者标注是什么？",
+          "answer": "快照 django/django@2fff3e9f493a9c85fb8a2294358c6751575ee4bf（commit 2026-10-20T14:44:09-04:00，已存在固定索引语料；不采用最新 main）。共享英文任务正文：Trace how Django's CSRF middleware protects a state-changing view. Follow the request from the middleware's request hook through view dispatch, then explain how a rejected request is produced and how an outgoing CSRF cookie is refreshed. Identify which component schedules view middleware, rather than assuming the middleware base class calls every hook directly. Cite repository files and symbols. 使用已冻结各臂共同弱引导前缀与只读、简洁、精确文件/符号要求。源码锚点：django/middleware/__init__.py:35-45 MiddlewareMixin.__call__ 依次 process_request/get_response/process_response（异步 47-64 另列）；core/handlers/base.py:75-86 注册 process_view、176-208 _get_response 执行视图中间件并调用 view；middleware/csrf.py:403-414 process_request 取 secret、416-472 process_view 校验并 _reject/_accept、474-486 process_response 按 CSRF_COOKIE_NEEDS_UPDATE 调 _set_csrf_cookie 后清 flag。负向约束：不得说 MiddlewareMixin.__call__ 直接调 process_view；不得省略 base handler 的调度角色；不得沿用未核验 CsrfViewMiddleware 覆盖 process_request 这一不充分描述。作者 Z/2026-11-12，awaiting-human-review，未注册执行。",
+          "note": "本题取代先前 guided Django 候选，不把先前概念或 main 占位当作冻结事实；仅源码设计，未调用模型。"
+        },
+        {
+          "q": "Human victo 对 T2 的任务集审阅结论是什么？",
+          "answer": "accept。Human 于 2026-11-12 接受 T2 的固定 Django 快照、共享弱引导、任务正文、源码评分锚点与负向约束；明确区分 MiddlewareMixin.__call__ 与 base handler 的 process_view 调度。仅完成本题任务集 reviewer 审阅，不生成 manifest、不注册执行、不启动试点。",
+          "note": "本题可标记内容审阅 completed；独立 run reviewer、索引/工具覆盖、生产 C/S 与 C 接入后的 DES baseline 仍是独立前置，96/0、formal ceiling=0、默认 OFF 不变。"
+        }
+      ],
+      "notes": "2026-11-12 Human victo 审阅结论=accept：接受本题内容设计；未批准或执行试点，未满足独立 run reviewer/索引覆盖/DES baseline 等执行前置。",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-3": {
+      "id": "1-3",
+      "uid": "01a1cf5070b5-fa44e3af6f",
+      "label": "T3 Express：子应用挂载与原型恢复",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "固定快照、共享 prompt 和作者标注是什么？",
+          "answer": "快照 expressjs/express@6d2df035a95f3d1002be3e29997b7a4bfe976b5f（commit 2026-10-09T10:54:30-05:00，已存在固定索引语料；最新 master 已改变布局，不混入）。共享英文任务正文：Trace how an Express sub-application is mounted and how request/response prototypes are restored after the sub-application finishes. Identify the creation-time prototypes, the application request hook, and the mounted wrapper. Explain the role of the mount event and distinguish what is proven in this checkout from behavior delegated to the external router package. Cite repository files and symbols. 使用各臂共同弱引导前缀与只读、简洁、精确文件/符号要求。源码锚点：lib/express.js:36-56 createApplication 建 per-app request/response prototypes；application.js:59-83 lazy Router、152-177 handle 设置 req/res prototypes 后 router.handle；190-244 use 记录 mountpath/parent、wrapped mounted_app 保存 orig=req.app 并在子 app handle 的 callback 恢复 orig.request/response prototypes 后 next(err)，随后 emit mount；26 Router=require('router')。负向约束：不得虚构本仓 lib/router/index.js；URL/path 剥离等未在此快照证明的行为必须标 external-router boundary，不得将恢复误写为 req.app=orig；mount event 不替代 wrapper 恢复。作者 Z/2026-11-12，awaiting-human-review，未注册执行。",
+          "note": "替换先前 guided Express 路由链候选；不是沿用 v3 题目，但仓库/固定快照是既有选择，须披露 Freshness 限制。仅源码设计、未调用模型。"
+        },
+        {
+          "q": "Human victo 对 T3 的任务集审阅结论是什么？",
+          "answer": "accept。Human 于 2026-11-12 接受 T3 的固定 Express 快照、共享弱引导、任务正文、源码评分锚点与负向约束；保留 external router 边界和 mounted wrapper 原型恢复语义。仅完成本题任务集 reviewer 审阅，不生成 manifest、不注册执行、不启动试点。",
+          "note": "本题可标记内容审阅 completed；独立 run reviewer、索引/工具覆盖、生产 C/S 与 C 接入后的 DES baseline 仍是独立前置，96/0、formal ceiling=0、默认 OFF 不变。"
+        }
+      ],
+      "notes": "2026-11-12 Human victo 审阅结论=accept：接受本题内容设计；未批准或执行试点，未满足独立 run reviewer/索引覆盖/DES baseline 等执行前置。",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-4": {
+      "id": "1-4",
+      "uid": "01a1cf50c622-72d4d4cee5",
+      "label": "T4 Gin：未命中路由与全局中间件",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "固定快照、共享 prompt 和作者标注是什么？",
+          "answer": "快照 gin-gonic/gin@0f09c3a9b4626d9fe9979cf4d0521d6ae32ab646（commit 2026-10-10T12:20:35+08:00，今日 remote master 固定候选；尚无既有索引覆盖证据）。共享英文任务正文：Trace how a request with no matching route reaches Gin's custom not-found handlers. Start at the HTTP entry point, follow the route-miss branch, and explain how global middleware joins that chain, when the default body is written, and why aborting inside a handler does not mean the HTTP entry point returns immediately. Cite repository files and symbols. 使用各臂共同弱引导前缀与只读、简洁、精确文件/符号要求。源码锚点：gin.go:691-702 ServeHTTP reset Context 后 handleHTTPRequest；719-789 无匹配、无 allowed method 时 c.handlers=allNoRoute 后 serveError；363-366 Use 后 rebuild404Handlers；379-381 allNoRoute=combineHandlers(noRoute)；routergroup.go:277-283 combine 合并 group 与 handlers；gin.go:793-812 serveError 设 status、调 c.Next、仅在未 Written 且 status 保持时写 default404Body；context.go:197-206 Next 自增 index 执行链；216-219 Abort 把 index 设 abortIndex，不能终止当前函数或使 ServeHTTP 立刻 return。负向约束：不得说 404 绕过全局 middleware；不得说默认 body 无条件覆盖 handler 响应；不得把 Abort 写成 Go panic/return。作者 Z/2026-11-12，awaiting-human-review，未注册执行。",
+          "note": "仅源码设计；首次使用前须额外通过索引覆盖/隔离准备，不因其最新提交就宣称 Task Freshness 或模型零污染。"
+        },
+        {
+          "q": "Human victo 对 T4 的任务集审阅结论是什么？",
+          "answer": "accept。Human 于 2026-11-12 接受 T4 的固定 Gin 快照、共享弱引导、任务正文、源码评分锚点与负向约束；保留全局 middleware 合链、条件默认 body 和 Abort 非立即返回语义。仅完成本题任务集 reviewer 审阅，不生成 manifest、不注册执行、不启动试点。",
+          "note": "本题可标记内容审阅 completed；Gin 尚无既有索引覆盖证据，执行前必须额外核验。独立 run reviewer、生产 C/S 与 C 接入后的 DES baseline 仍未满足，96/0、formal ceiling=0、默认 OFF 不变。"
+        }
+      ],
+      "notes": "2026-11-12 Human victo 审阅结论=accept：接受本题内容设计；Gin 索引/工具覆盖仍须单独核验，未批准或执行试点，独立 run reviewer/DES baseline 等执行前置未满足。",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-5": {
+      "id": "1-5",
+      "uid": "01a1cf511cd5-6a1e223e31",
+      "label": "T5 Spring PetClinic：编辑宠物到持久化",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "固定快照、共享 prompt 和作者标注是什么？",
+          "answer": "快照 spring-projects/spring-petclinic@f3c74834e31079f69855e9c9eddb34fceb40a8d9（commit 2026-09-29T08:48:06+01:00，已存在固定索引语料）。共享英文任务正文：Trace how editing an existing pet in Spring PetClinic reaches persistence without allowing the request to replace the pet or owner ID. Identify the model-loading and binding methods, the POST handler, and the helper that updates the entity. Explain which entity is saved and how a duplicate-name integrity error becomes form feedback. Cite repository files and symbols. 使用各臂共同弱引导前缀与只读、简洁、精确文件/符号要求。源码锚点：owner/PetController.java:75-86 findPet 按 ownerId 从 owners.findById 后 owner.getPet(petId)；91-97 initOwnerBinder/initPetBinder 禁止 id/*.id；145-180 processUpdateForm 查重/日期/result errors 后 updatePetDetails，并捕获 DataIntegrityViolationException，仅 isDuplicatePetNameViolation 时 result.rejectValue(name,duplicate) 返回表单，其他异常重抛；186-200 updatePetDetails 取 existingPet 后复制 name/birthDate/type，最后 this.owners.saveAndFlush(owner)；Owner.java:129-140 getPet(Integer id) 只选非 new 且 id 相等实体。负向约束：保存的是 owner，不是直接 save 提交的 pet；不得声称控制器自己实现 JPA 或事务；不得把 binding 禁 ID 与 URL owner/pet 关联加载省略。作者 Z/2026-11-12，awaiting-human-review，未注册执行。",
+          "note": "仓库/快照既有，prompt 与评分锚点新建；仅源码设计，未运行测试或模型，不声称 CodeGraph 图边可完整表达框架动态分派。"
+        },
+        {
+          "q": "Human victo 对 T5 的任务集审阅结论是什么？",
+          "answer": "accept。Human 于 2026-11-12 接受 T5 的固定 Spring PetClinic 快照、共享弱引导、任务正文、源码评分锚点与负向约束；保留 owner 聚合持久化、ID 绑定限制和重复名称异常到表单反馈语义。仅完成本题任务集 reviewer 审阅，不生成 manifest、不注册执行、不启动试点。",
+          "note": "本题可标记内容审阅 completed；独立 run reviewer、索引/工具覆盖、生产 C/S 与 C 接入后的 DES baseline 仍是独立前置，96/0、formal ceiling=0、默认 OFF 不变。"
+        }
+      ],
+      "notes": "2026-11-12 Human victo 审阅结论=accept：接受本题内容设计；未批准或执行试点，未满足独立 run reviewer/索引覆盖/DES baseline 等执行前置。",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-6": {
+      "id": "1-6",
+      "uid": "01a1cf51b6dc-ec0c38fccd",
+      "label": "统一执行、审计与停止设计",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "60-run 计划、臂序、终点与审计规则是什么？",
+          "answer": "主计划=5 个 Task Cluster（每仓一题）x4 trialxA/C/S=60 paired-runs；trial 只估计 run noise，不放大 N=5。k=4 预声明位置平衡子集 [ACS,CAS,SCA,SAC]，uncovered=[ASC,CSA]；每个任务内以固定 seed 重排该子集并禁 ABBA，manifest 生成后公开 seed、各 task×trial 臂序和 SHA-256，不得结果后改 seed。失败/超时/retry/config-rejected/isolation breach 均消耗，整块 3 runs 预留，整任务剔除不退款，剩余 36 不是补跑求显著额度，96 触顶 inconclusive；formal ceiling=0。主终点 d_i=mean(A_i)-mean(C_i) 的 recovery Read/Grep/Glob 次数，MDE=1.5 冻结；pilot 只估方差、审计一致性、顺序/缺失/成本，不求显著晋升。按调用时序盲审：结构发现/定位/恢复缺失证据的 generic Read/Grep/Glob 为 recovery；已定位源码的合理深化、核对、非代码配置或外部依赖边界阅读单列 justified；heuristic 仅辅助，绝不按扩展名自动定主终点。保留绝对数、序列、理由与 graphStats，原始 token/time/tool 数仅描述。工具采用分层报告：零调用=observation gap，非自动产品质量失败；C vs S 排序诊断、fallback-free McNemar 次要 family Holm；正确性回归停止。",
+          "note": "prompt 统一弱引导不指定函数或工具调用次数，因此 adopt/nonadopt 是分层结果而非可事后剔除的自由度；仅设计，未生成可执行 manifest、未消耗任何 paired-run。"
+        },
+        {
+          "q": "正确性、独立性与就绪边界如何机械判定？",
+          "answer": "每题有源码必需评分项+负向约束；每项 pass/fail/uncertain，明确违背负向约束即 correctness regression 并停止。程序 valid 不等于 DES pass；humanReview 只能由 Human 填，任何正确性非劣数值仍 UNSET。Task Freshness=2026-11-12 新 prompt/新 rubric，不复用 v3 holdout 文本，但 Flask/Django/Express/Spring 固定仓快照既有，Gin 为新固定候选；不能宣称整仓 unseen 或模型训练零污染。作者 Z；任务集 reviewer=victo 待审，不看到 arm/ranking；第二名未参与调参的 run reviewer=UNSET，双审>=90%未满足，victo 自审不能消除缺口。索引准备、源码/图覆盖核验、独立 reviewer、生产 C/S 接线及 C 接入后的 DES baseline 全部完成前，本计划始终 awaiting-human-review，不生成可执行 prompt registry。src/mcp/explore-planner.ts 与 ranking 默认 OFF 不变。",
+          "note": "保留 ADR-0015 的 8 个 unknownCriteria 和 has-gaps；试点任务集计划不是新 ADR，不改动 Accepted 方法或 G-ship。"
+        },
+        {
+          "q": "设计复核发现臂序与主终点口径冲突，如何更正且不篡改历史？",
+          "answer": "以本条为待审执行口径，保留先前冲突决策作为历史。k=4 子集改为 [ASC,CAS,SAC,SCA]，uncovered=[ACS,CSA]；位置计数 A=[1,2,1]、C=[1,1,2]、S=[2,1,1]，每个位置三臂计数差均<=1。公开 armOrderSchedule({k:4,subset}) 已接受并返回 balanced=true，旧 [ACS,CAS,SCA,SAC] 不得冻结。执行 manifest 必须再经 assignOrdersToTasks 用固定 seed 在每任务内重排并拒绝 ABBA，不得直接采用未重排的平铺序列；当前未选 seed、未生成 manifest。主终点恢复为 ADR-0015 D5 的 recovery Read/Grep 次数，d_i=mean(A_i)-mean(C_i)，MDE=1.5/Agent Task 不变；Glob 只作单独描述性/辅助审计指标，不并入带该 MDE 的主终点。Read/Grep 仍须按调用时序审计 recovery 与 justified，heuristic 不自动定主终点。N=5、60-run 主计划、96 硬上限、formal ceiling=0、失败消耗与停止规则均不变。",
+          "note": "机械验证：tests/zra-paired-design.test.ts 6/6 通过，其中精确断言本子集、uncovered 和位置平衡；ledger/gate/secondary 27/27 通过。仅只读设计验证，未调用模型或消耗 paired-run。"
+        },
+        {
+          "q": "Human victo 对共享执行、审计与停止规则的审阅结论是什么？",
+          "answer": "accept。Human 于 2026-11-12 接受共享规则：5 Task Cluster x4 trial xA/C/S=60 paired-runs，N=5；k=4=[ASC,CAS,SAC,SCA]、uncovered=[ACS,CSA]，执行时固定 seed 任务内重排并拒绝 ABBA；主终点 recovery Read/Grep、MDE=1.5，Glob 单列描述性审计；按调用时序审计 recovery 与 justified；失败/超时/retry/config-rejected/isolation breach 均消耗且整任务剔除不退款；96 是硬上限，剩余 36 不补跑求显著；正确性回退或隔离越界停止，预算/证据不足 inconclusive；工具采用分层，零采用为 observation gap；源码评分 pass/fail/uncertain；第二名独立 run reviewer=UNSET。",
+          "note": "仅认可任务集和共享设计内容，未生成 seed/manifest/prompt registry、未调用真实模型或启动 60 runs、未改生产 C/S/ranking。formal ceiling=0、默认 OFF、1-4 blocked、G-ship/v3 不变。"
+        }
+      ],
+      "notes": "2026-11-12 Human victo 对共享执行/审计/停止规则=accept。设计内容审阅已完成；不构成试点执行授权，未生成 seed/manifest/prompt registry，96/0、formal ceiling=0、默认 OFF 不变。",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-7": {
+      "id": "1-7",
+      "uid": "01a1cf520d2d-672e91732b",
+      "label": "Human 审阅与冻结检查",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Human 应审阅什么，批准后仍不能做什么？",
+          "answer": "逐题审阅 repo+commit、任务正文、源码必需项、负向约束、共享弱引导与 k=4 子集；可逐题 accept/amend/reject，修订须留新决策而非覆盖历史。批准仅代表候选任务集内容获 reviewer 认可，不等于已执行、已双盲、已生产接入、已 DES pass 或可启动 60 runs。固定行号仅是定位锚点，执行前须按固定 commit 再验证路径和符号存在；工具覆盖核验不选择对 C 有利的题，拒绝/替换规则须在见到 arm 结果前记录。待 Human 逐题审阅后才可将完成项标 completed；在此之前全部设计保持 in_progress，不宣称完成。",
+          "note": "设计验证 seam 已确认：源码标注与任务注册。下一步只读验证锚点/预算/JSON/render；不会修改 src、现有候选 prompt 或新增运行时代码。"
+        },
+        {
+          "q": "五题和共享规则均获 accept 后，任务集状态与剩余前置是什么？",
+          "answer": "五题及共享规则均获 Human victo accept，任务集内容审阅完成，状态=content-reviewed / execution-not-authorized。根 exit criterion 的 Human 任务集审阅部分已满足；第二名独立 run reviewer 仍 UNSET，独立审阅 exit criterion 未完整满足。源码标注与任务注册只在计划层获审，未生成可执行 registry；索引/工具覆盖、生产 C/S 接线及 C 接入后的 DES baseline 未完成，不能启动 60 paired-runs。Freshness 仅新 prompt/rubric、不复用 v3 文本，不宣称整仓 unseen 或模型零污染。",
+          "note": "内容获审不等于试点就绪；需另行明确授权并满足独立 reviewer、覆盖、生产 C/S 和 DES baseline 前置后才讨论 seed/manifest。当前无模型调用、96/0、formal ceiling=0、默认 OFF。"
+        }
+      ],
+      "notes": "2026-11-12 Human 对五题及共享规则均 accept：内容审阅完成。保留未满足项：独立 run reviewer=UNSET、索引/工具覆盖未核验、生产 C/S 及 C 接入后的 DES baseline 未完成、未生成执行 registry；execution-not-authorized。",
+      "layer": "plan",
+      "rounds": 1
+    }
+  },
+  "metadata": {
+    "created": "2026-11-12 18:30:50",
+    "updated": "2026-11-12 19:11:18",
+    "md_file": "ZRA-PILOT-TASK-SET-V1.md"
+  }
+}
