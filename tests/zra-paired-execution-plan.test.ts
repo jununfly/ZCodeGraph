@@ -26,6 +26,7 @@ const blockedReadiness = {
   secondaryRunReviewer: 'victo',
   reviewersAreHuman: true,
   indexToolCoverageVerified: false,
+  finalPayloadReady: false,
   productionArmsReady: false,
   desBaselineConclusion: null,
   desBaselineRunId: null,
@@ -68,6 +69,7 @@ describe('preparePairedExecutionPlan', () => {
     expect(plan.reasons).toEqual([
       'second independent Human run reviewer is UNSET',
       'five-corpus index/tool coverage is incomplete',
+      'final payload parity and diagnostics are incomplete',
       'production C/S wiring is incomplete',
       'post-C Agent Sufficiency baseline has not passed',
       'correctness non-inferiority is not pre-registered',
@@ -176,6 +178,7 @@ describe('preparePairedExecutionPlan', () => {
       expect(manifest.blockers).not.toContain('second independent Human run reviewer is UNSET');
       expect(manifest.blockers).toEqual([
         'five-corpus index/tool coverage is incomplete',
+      'final payload parity and diagnostics are incomplete',
         'production C/S wiring is incomplete',
         'post-C Agent Sufficiency baseline has not passed',
         'correctness non-inferiority is not pre-registered',
@@ -194,6 +197,114 @@ describe('preparePairedExecutionPlan', () => {
     }
   });
 
+  it('retains the same-order rendering control without treating preparation as ready', async () => {
+    const { prepareManifest } = await import('../scripts/agent-eval/prepare-zra-pilot-manifest.mjs');
+    const { pilotTasks } = await import('../scripts/agent-eval/task-prompts/zra-pilot-v1.mjs');
+    const comparison = {
+      nonSourcePrefixIdentical: true, fileSetsEqual: false,
+      contentDifferences: ['a.py'], cHardCeiling: false, sHardCeiling: false,
+    };
+    const renderedAudit = {
+      kind: 'zra-pilot-isolated-c-s-rendered-audit', seed: 20261112, status: 'incomplete',
+      results: pilotTasks.map((task: { PROMPT_ID: string }) => ({
+        promptId: task.PROMPT_ID, status: 'incomplete',
+        coverage: { indexCoverage: 'pass', candidateCoverage: 'pass', renderedSourceCoverage: 'incomplete' },
+        renderedComparison: comparison,
+        orderIsolation: { schema: 'same-c-candidates-repeated-v1', status: 'deterministic' },
+      })),
+    };
+    const manifest = prepareManifest({
+      coverage: {
+        kind: 'zra-pilot-index-tool-coverage', status: 'incomplete',
+        results: pilotTasks.map((task: { PROMPT_ID: string; COMMIT: string }) => ({
+          promptId: task.PROMPT_ID, commit: task.COMMIT, commitMatches: true,
+          indexCoverage: 'pass', planCoverage: 'incomplete', status: 'incomplete',
+        })),
+      },
+      desBaseline: { runId: 'flask-baseline-20261113T083913Z', conclusion: 'inconclusive' },
+      reviewers: { primaryRunReviewer: 'victo', secondaryRunReviewer: 'zxj', reviewersAreHuman: true },
+      renderedAudit,
+    });
+
+    expect(manifest.status).toBe('blocked');
+    expect(manifest.evidence.renderedArms.results[0]).toMatchObject({
+      status: 'incomplete', orderIsolation: { schema: 'same-c-candidates-repeated-v1', status: 'deterministic' },
+    });
+    expect(manifest.plannedRuns).toBe(60);
+    expect(manifest.consumedRuns).toBe(0);
+  });
+
+  it('derives final payload readiness from every bound proof rather than a declared boolean', async () => {
+    const { deriveFinalPayloadReady, prepareManifest } = await import('../scripts/agent-eval/prepare-zra-pilot-manifest.mjs');
+    const { pilotTasks } = await import('../scripts/agent-eval/task-prompts/zra-pilot-v1.mjs');
+    const { verifyFrozenSymbolUnionCandidate } = await import('../scripts/agent-eval/isolated-symbol-union.mjs');
+    const candidateSha256 = verifyFrozenSymbolUnionCandidate().candidateSha256;
+    const coverage = {
+      kind: 'zra-pilot-index-tool-coverage', status: 'pass',
+      results: pilotTasks.map((task: { PROMPT_ID: string; COMMIT: string }) => ({
+        promptId: task.PROMPT_ID, commit: task.COMMIT, actualCommit: task.COMMIT,
+        commitMatches: true, indexCoverage: 'pass', planCoverage: 'pass', status: 'pass',
+        sourceDbSha256: 'source-bound', symbolIndexSha256: 'symbol-bound',
+      })),
+    };
+    const proof = {
+      schema: 'fixed-c-visible-evidence-order-only-v1', status: 'pass', diagnostic: true,
+      candidateProjectionEqual: true, nonSourcePrefixIdentical: true, nonSourceSuffixIdentical: true,
+      fileSetsEqual: true, onlyInC: [], onlyInS: [], contentDifferences: [],
+      cHardCeiling: false, sHardCeiling: false, wholeTextEqual: false,
+      // Independently checked fixed-seed projection: [a, b, c] -> [b, a, c].
+      cFileOrder: ['a.ts', 'b.ts', 'c.ts'], sFileOrder: ['b.ts', 'a.ts', 'c.ts'],
+      cSha256: 'c-bound', sSha256: 's-bound',
+    };
+    const renderedAudit = {
+      kind: 'zra-pilot-isolated-c-s-rendered-audit', seed: 20261112, status: 'incomplete',
+      results: pilotTasks.map((task: { PROMPT_ID: string; COMMIT: string }) => ({
+        promptId: task.PROMPT_ID, actualCommit: task.COMMIT, commitMatches: true,
+        status: 'incomplete', candidateSha256, sourceDbSha256: 'source-bound', symbolIndexSha256: 'symbol-bound',
+        cCandidates: ['a.ts', 'b.ts', 'c.ts'], sCandidates: ['b.ts', 'a.ts', 'c.ts'],
+        protocolSchema: 'fixed-c-visible-evidence-order-only-v1', finalPayloadProof: proof,
+        renderedComparison: proof,
+        orderIsolation: {
+          schema: 'same-c-candidates-repeated-v1', status: 'deterministic', wholeTextEqual: true,
+          cSha256: 'c-bound', sSha256: 'c-bound',
+        },
+        coverage: { indexCoverage: 'pass', candidateCoverage: 'pass', renderedSourceCoverage: 'pass' },
+      })),
+    };
+    expect(deriveFinalPayloadReady(renderedAudit, coverage)).toBe(true);
+    for (const [field, value] of [
+      ['diagnostic', false], ['nonSourceSuffixIdentical', false], ['contentDifferences', ['a.ts']],
+      ['cHardCeiling', true], ['candidateProjectionEqual', false],
+    ]) {
+      const altered = structuredClone(renderedAudit);
+      altered.results[0].finalPayloadProof[field] = value;
+      expect(deriveFinalPayloadReady(altered, coverage)).toBe(false);
+    }
+    const stale = structuredClone(renderedAudit);
+    stale.results[0].actualCommit = '0'.repeat(40);
+    stale.results[0].commitMatches = false;
+    expect(deriveFinalPayloadReady(stale, coverage)).toBe(false);
+    const wrongProjection = structuredClone(renderedAudit);
+    wrongProjection.results[0].sCandidates = ['a.ts', 'c.ts', 'b.ts'];
+    expect(deriveFinalPayloadReady(wrongProjection, coverage)).toBe(false);
+    const missingProof = structuredClone(renderedAudit);
+    delete missingProof.results[0].finalPayloadProof;
+    expect(deriveFinalPayloadReady(missingProof, coverage)).toBe(false);
+    const missingSnapshotHashes = structuredClone(renderedAudit);
+    delete missingSnapshotHashes.results[0].sourceDbSha256;
+    delete missingSnapshotHashes.results[0].symbolIndexSha256;
+    const missingCoverageHashes = structuredClone(coverage);
+    delete missingCoverageHashes.results[0].sourceDbSha256;
+    delete missingCoverageHashes.results[0].symbolIndexSha256;
+    expect(deriveFinalPayloadReady(missingSnapshotHashes, missingCoverageHashes)).toBe(false);
+    const manifest = prepareManifest({ coverage, desBaseline: { runId: 'flask-baseline-20261113T083913Z', conclusion: 'pass' }, renderedAudit });
+    expect(manifest.readiness.finalPayloadReady).toBe(true);
+    expect(manifest.blockers).not.toContain('final payload parity and diagnostics are incomplete');
+    expect(manifest.status).toBe('blocked');
+    expect(manifest.blockers).toEqual(expect.arrayContaining(['production C/S wiring is incomplete', 'correctness non-inferiority is not pre-registered']));
+    expect(manifest.consumedRuns).toBe(0);
+  });
+
   it('requires actual prerequisites instead of treating self-review as independent review', () => {
     const plan = preparePairedExecutionPlan({
       configs, scope: 'pilot', seed: 20261112,
@@ -202,6 +313,7 @@ describe('preparePairedExecutionPlan', () => {
         ...blockedReadiness,
         secondaryRunReviewer: 'external-human-reviewer',
         indexToolCoverageVerified: true,
+        finalPayloadReady: true,
         productionArmsReady: true,
         desBaselineConclusion: 'pass',
         desBaselineRunId: 'post-c-des-baseline-v1',

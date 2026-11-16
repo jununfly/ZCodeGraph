@@ -30,6 +30,7 @@ describe('isolated ZRA retrieval adapter', () => {
     });
     const result = await runPairedEvaluation({
       config, scope: 'pilot', trial: 1, seed: 42, retrieve,
+      deriveRenderedS: () => ({ source: 'C-answer', order: 'S-fixed-seed' }),
       execute: async () => ({ outcome: 'completed', toolCalls: [] }),
     });
     const [a, c, s] = result.executions;
@@ -41,7 +42,8 @@ describe('isolated ZRA retrieval adapter', () => {
     // All symbol-only files therefore precede all plan-only files here.
     expect(c!.candidates.map(([file]) => file)).toEqual(['d.ts', 'e.ts', 'f.ts', 'a.ts', 'b.ts', 'c.ts']);
     expect(c!.candidates.find(([file]) => file === 'd.ts')![1]).toEqual({ nodes: [], score: 0 });
-    expect(s!.payload).toBe(c!.payload);
+    expect(c!.payload).toMatchObject({ symbolFiles: ['d.ts', 'e.ts', 'f.ts'] });
+    expect(s!.payload).toEqual({ source: 'C-answer', order: 'S-fixed-seed' });
     expect(s!.candidates).not.toEqual(c!.candidates);
     expect([...s!.candidates].sort((left, right) => left[0].localeCompare(right[0])))
       .toEqual([...c!.candidates].sort((left, right) => left[0].localeCompare(right[0])));

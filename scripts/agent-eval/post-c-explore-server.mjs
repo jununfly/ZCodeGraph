@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { buildSymbolIndex, symbolRecallFiles } from '../measure/symbol-index-core.mjs';
-import { verifyFrozenSymbolUnionCandidate } from './isolated-symbol-union.mjs';
+import { createIsolatedSymbolUnionRetrieval, verifyFrozenSymbolUnionCandidate } from './isolated-symbol-union.mjs';
+import { deriveFixedCVisibleEvidenceOrder, FIXED_C_VISIBLE_EVIDENCE_SCHEMA } from './fixed-c-visible-evidence.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -55,20 +56,40 @@ function evaluationHandler(ToolHandler, cg, prepared) {
     });
     const retrieved = await retrieval({ arm: 'C', config: { query: args.query } });
     const mergedPlan = prepared.composeSymbolOnlyPlan(cg, result, retrieved.candidates);
-    const answer = prepared.render(mergedPlan, cg, mergedPlan.spine,
+    const cAnswer = prepared.render(mergedPlan, cg, mergedPlan.spine,
       mergedPlan.budget.includeBlastRadius === false ? ''
         : handler.buildBlastRadiusSection(cg, mergedPlan.subgraph));
+    let answer = cAnswer;
+    let finalPayloadProof = null;
+    if (prepared.retrievalArm === 'S') {
+      const sCandidates = prepared.permuteWithFixedSeed(retrieved.candidates, prepared.seed);
+      const derived = deriveFixedCVisibleEvidenceOrder({
+        cCandidates: retrieved.candidates, sCandidates, cPayload: cAnswer,
+      });
+      if (!derived.proof.diagnostic) {
+        throw new Error(`S final payload is not diagnostic: ${derived.proof.reason}`);
+      }
+      answer = derived.answer;
+      finalPayloadProof = derived.proof;
+    }
     const call = {
       query: args.query,
       files: retrieved.candidates.map(([file]) => file),
       symbolOnlyFiles: retrieved.candidates
         .filter(([file]) => !result.fileGroups.has(file)).map(([file]) => file),
       answerSha256: hash(answer),
+      cAnswerSha256: hash(cAnswer),
+      finalPayloadProof,
     };
     prepared.calls.push(call);
-    prepared.lastEvidence = candidateEvidence(
-      prepared, args.query, answer, [...prepared.calls], prepared.symbolIndexPath,
-    );
+    prepared.lastEvidence = {
+      ...candidateEvidence(prepared, args.query, answer, [...prepared.calls], prepared.symbolIndexPath),
+      retrievalArm: prepared.retrievalArm,
+      ...(prepared.retrievalArm === 'S' ? {
+        kind: 'snapshot-bound-s-explore-v1', protocolSchema: FIXED_C_VISIBLE_EVIDENCE_SCHEMA,
+        seed: prepared.seed, cAnswerSha256: hash(cAnswer), finalPayloadProof,
+      } : {}),
+    };
     await writeFile(path.join(prepared.evidenceDir, `${hash(answer)}.json`),
       `${JSON.stringify(prepared.lastEvidence, null, 2)}\n`, 'utf8');
     return handler.textResult(answer);
@@ -79,6 +100,13 @@ function evaluationHandler(ToolHandler, cg, prepared) {
 async function createRuntime(cwd, env) {
   const snapshotFingerprint = env.ZCG_EVAL_SNAPSHOT_FINGERPRINT;
   const candidateSha256 = env.ZCG_EVAL_CANDIDATE_SHA256;
+  const retrievalArm = env.ZCG_EVAL_RETRIEVAL_ARM ?? 'C';
+  const seed = Number(env.ZCG_EVAL_SEED);
+  if (!['C', 'S'].includes(retrievalArm)
+      || (retrievalArm === 'S' && (!Number.isInteger(seed) || seed < 0))
+      || (retrievalArm === 'C' && env.ZCG_EVAL_SEED !== undefined)) {
+    throw new Error('evaluation server requires explicit C or S with a non-negative fixed seed');
+  }
   const evidenceDir = env.ZCG_EVAL_EVIDENCE_DIR ?? await mkdtemp(path.join(tmpdir(), 'zcg-post-c-evidence-'));
   if (!/^[0-9a-f]{64}$/.test(snapshotFingerprint ?? '')
       || !/^[0-9a-f]{64}$/.test(candidateSha256 ?? '')) {
@@ -98,6 +126,7 @@ async function createRuntime(cwd, env) {
   const { plan } = await import(pathToFileURL(path.join(REPO, 'dist/mcp/explore-planner.js')).href);
   const { render } = await import(pathToFileURL(path.join(REPO, 'dist/mcp/render-c-explore-plan.js')).href);
   const { createIsolatedSymbolUnionRetrieval } = await import('./isolated-symbol-union.mjs');
+  const { permuteWithFixedSeed } = await import(pathToFileURL(path.join(REPO, 'dist/eval/zra-paired-core.js')).href);
   const { composeSymbolOnlyPlan } = await import(pathToFileURL(path.join(REPO, 'dist/mcp/c-explore-plan.js')).href);
   const cg = CodeGraph.openSync(cwd);
   if (typeof cg.findRelevantContext !== 'function') {
@@ -110,7 +139,9 @@ async function createRuntime(cwd, env) {
   const preparation = JSON.parse(await readFile(preparationPath, 'utf8'));
   const symbolIndexPath = path.resolve(preparation.symbolIndexPath ?? '');
   if (preparation.kind !== 'snapshot-bound-c-explore-preparation-v1'
-      || preparation.retrievalArm !== 'C'
+      || preparation.retrievalArm !== retrievalArm
+      || preparation.protocolSchema !== FIXED_C_VISIBLE_EVIDENCE_SCHEMA
+      || (retrievalArm === 'S' ? preparation.seed !== seed : preparation.seed !== undefined)
       || preparation.snapshotFingerprint !== snapshotFingerprint
       || preparation.candidateSha256 !== candidateSha256
       || preparation.evidenceDir !== resolvedEvidence
@@ -124,6 +155,7 @@ async function createRuntime(cwd, env) {
   }
   const prepared = {
     snapshotFingerprint, candidateSha256, symbolIndexPath,
+    retrievalArm, seed, permuteWithFixedSeed,
     evidenceDir: resolvedEvidence,
     planBaseline: plan, createIsolatedSymbolUnionRetrieval,
     composeSymbolOnlyPlan, render, calls: [], lastEvidence: null,
@@ -151,6 +183,13 @@ async function createRuntime(cwd, env) {
 export async function preparePostCExplore({ corpusDir, env }) {
   const snapshotFingerprint = env.ZCG_EVAL_SNAPSHOT_FINGERPRINT;
   const candidateSha256 = env.ZCG_EVAL_CANDIDATE_SHA256;
+  const retrievalArm = env.ZCG_EVAL_RETRIEVAL_ARM ?? 'C';
+  const seed = Number(env.ZCG_EVAL_SEED);
+  if (!['C', 'S'].includes(retrievalArm)
+      || (retrievalArm === 'S' && (!Number.isInteger(seed) || seed < 0))
+      || (retrievalArm === 'C' && env.ZCG_EVAL_SEED !== undefined)) {
+    throw new Error('evaluation preparation requires explicit C or S with a non-negative fixed seed');
+  }
   const verified = verifyFrozenSymbolUnionCandidate();
   if (!/^[0-9a-f]{64}$/.test(snapshotFingerprint ?? '')
       || verified.candidateSha256 !== candidateSha256) {
@@ -166,7 +205,9 @@ export async function preparePostCExplore({ corpusDir, env }) {
   await cg.closeAndWait();
   const prepared = {
     kind: 'snapshot-bound-c-explore-preparation-v1',
-    retrievalArm: 'C',
+    retrievalArm,
+    protocolSchema: FIXED_C_VISIBLE_EVIDENCE_SCHEMA,
+    ...(retrievalArm === 'S' ? { seed } : {}),
     snapshotFingerprint,
     candidateSha256,
     sourceDbSha256: hash(await readFile(path.join(corpusDir, '.zcodegraph', 'zcodegraph.db'))),
@@ -196,7 +237,7 @@ async function main() {
     }
     await runtime.close();
   };
-  process.stdin.once('close', () => {
+  process.stdin.once('end', () => {
     void close().then(() => { process.exit(0); });
   });
 }

@@ -26,6 +26,10 @@ describe('runPairedEvaluation', () => {
         candidates: ['a.ts', 'b.ts', 'c.ts'],
         payload: { arm },
       }),
+      deriveRenderedS: ({ cCandidates, sCandidates, cPayload }) => ({
+        candidates: sCandidates,
+        payload: { source: cPayload, order: sCandidates },
+      }),
       execute: async () => ({ status: 'completed', toolCalls: [] }),
     });
 
@@ -82,7 +86,7 @@ describe('runPairedEvaluation', () => {
     expect(result.ledger.consumed('pilot')).toBe(3);
   });
 
-  it('reuses the C payload for S and permutes only its candidate ordering with a fixed seed', async () => {
+  it('derives S from the final C payload instead of treating candidate permutation as parity', async () => {
     const retrievalArms: string[] = [];
     const candidates = ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts'];
     const payload = Object.freeze({ schema: 'explore-v1', content: 'same-content' });
@@ -96,6 +100,9 @@ describe('runPairedEvaluation', () => {
         return { candidates, payload };
       },
       execute: async () => ({ status: 'completed' as const, toolCalls: [] }),
+      deriveRenderedS: ({ cPayload, sCandidates }: { cPayload: unknown; sCandidates: readonly unknown[] }) => ({
+        schema: 'explore-v1', content: cPayload, fileOrder: sCandidates,
+      }),
     };
 
     const first = await runPairedEvaluation(options);
@@ -104,7 +111,8 @@ describe('runPairedEvaluation', () => {
     const s = first.executions.find((execution) => execution.arm === 'S')!;
 
     expect(retrievalArms).toEqual(['A', 'C', 'A', 'C']);
-    expect(s.payload).toBe(c.payload);
+    expect(s.payload).not.toBe(c.payload);
+    expect(s.payload).toEqual({ schema: 'explore-v1', content: c.payload, fileOrder: s.candidates });
     expect(s.candidates).toEqual(['b.ts', 'a.ts', 'e.ts', 'f.ts', 'c.ts', 'd.ts']);
     expect([...s.candidates].sort()).toEqual(candidates);
     expect(s.candidates).not.toEqual(c.candidates);
@@ -150,6 +158,7 @@ describe('runPairedEvaluation', () => {
         outcome: 'completed' as const,
         toolCalls: [{ name: 'Read', callId: `${arm}-call-1`, arguments: { file_path: 'a.ts' } }],
       }),
+      deriveRenderedS: ({ cPayload }: { cPayload: unknown }) => ({ derived: cPayload }),
     });
 
     expect(result.audit.blinded).toHaveLength(3);
@@ -182,10 +191,11 @@ describe('runPairedEvaluation', () => {
       config, scope: 'pilot', trial: 1, seed: 42, schedule,
       retrieve: async () => ({ candidates: ['a.ts'], payload: null }),
       execute: async () => ({ outcome: 'completed', toolCalls: [] }),
+      deriveRenderedS: ({ cPayload }: { cPayload: unknown }) => ({ derived: cPayload }),
     });
     expect(result.executions.map((execution) => execution.arm)).toEqual(['A', 'S', 'C']);
     expect(result.executions.find((execution) => execution.arm === 'S')!.payload)
-      .toBe(result.executions.find((execution) => execution.arm === 'C')!.payload);
+      .toEqual({ derived: result.executions.find((execution) => execution.arm === 'C')!.payload });
   });
 
   it('prepares C candidates exactly once even when the frozen order puts S first', async () => {
@@ -203,13 +213,27 @@ describe('runPairedEvaluation', () => {
         };
       },
       execute: async () => ({ outcome: 'completed', toolCalls: [] }),
+      deriveRenderedS: ({ cPayload }: { cPayload: unknown }) => ({ derived: cPayload }),
     });
     const c = result.executions.find((execution) => execution.arm === 'C')!;
     const s = result.executions.find((execution) => execution.arm === 'S')!;
     expect(result.executions.map((execution) => execution.arm)).toEqual(['A', 'S', 'C']);
     expect(retrievalArms).toEqual(['A', 'C']);
-    expect(c.payload).toBe(s.payload);
+    expect(c.payload).not.toBe(s.payload);
     expect(c.candidates).toEqual(s.candidates);
+    expect(s.payload).toEqual({ derived: c.payload });
+  });
+
+  it('rejects missing final-payload derivation inside the consumed block instead of reusing C payload', async () => {
+    const result = await runPairedEvaluation({
+      config, scope: 'pilot', trial: 1, seed: 42,
+      retrieve: async () => ({ candidates: ['a.ts'], payload: null }),
+      execute: async () => ({ outcome: 'completed', toolCalls: [] }),
+    });
+    expect(result.status).toBe('invalid');
+    expect(result.invalidReason).toContain('explicit final-payload derivation seam');
+    expect(result.ledger.consumed('pilot')).toBe(3);
+    expect(result.manifest.every((record) => record.outcome === 'failed')).toBe(true);
   });
 
   it('fails closed before a block that would cross the ceiling', async () => {

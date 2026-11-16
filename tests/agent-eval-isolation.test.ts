@@ -297,12 +297,24 @@ describe('isolated with-vs-without baseline (S2)', () => {
         });
         const stdout: Buffer[] = [];
         const stderr: Buffer[] = [];
-        child.stdout.on('data', (chunk) => stdout.push(chunk));
+        let wire = '';
+        const responseReceived = new Promise<void>((resolve, reject) => {
+          child.stdout.on('data', (chunk) => {
+            stdout.push(chunk);
+            wire += chunk.toString('utf8');
+            if (wire.split('\n').some((line) => {
+              try { return JSON.parse(line).id === 1; } catch { return false; }
+            })) resolve();
+          });
+          child.once('error', reject);
+        });
         child.stderr.on('data', (chunk) => stderr.push(chunk));
         const request = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: {
           name: 'zcodegraph_explore', arguments: { query: 'sessionEntry' },
         } };
-        child.stdin.end(`${JSON.stringify(request)}\n`);
+        child.stdin.write(`${JSON.stringify(request)}\n`);
+        await responseReceived;
+        child.stdin.end();
         const [exitCode] = await new Promise<[number]>((resolve) => {
           child.once('close', (code) => resolve([code ?? 1]));
         });
@@ -384,6 +396,80 @@ describe('isolated with-vs-without baseline (S2)', () => {
       .toBe('local MCP integration only; not a real-agent DES baseline');
   }, 60_000);
 
+  it('binds an explicit S snapshot tool answer to C source bytes and its fixed-seed order', async () => {
+    const sourceDir = await mkdtemp(path.join(tmpdir(), 'zcg-post-s-source-'));
+    await writeFile(path.join(sourceDir, 'entry.ts'),
+      'export function sessionEntry() { return "entry"; }\n', 'utf8');
+    await writeFile(path.join(sourceDir, 'cookie.ts'),
+      'export function writeSessionCookie() { return "symbol-only-source-proof";\n}\n', 'utf8');
+    await writeFile(path.join(sourceDir, 'helper.ts'),
+      'export function sessionEntryHelper() { return "third-visible-block";\n}\n', 'utf8');
+    const indexed = CodeGraph.initSync(sourceDir, { config: { include: ['**/*.ts'], exclude: [] } });
+    await indexed.indexAll({ engine: 'typescript' });
+    await indexed.closeAndWait();
+    const snapshot = await isolation.createIsolatedSnapshot({ sourceDir, env: envFixture() });
+    const candidateSha256 = 'd687c4a831a1e7b03edab29690c5888ccb27dedfa633cf9d57f5e351c6394d4d';
+    const preparedC = await isolation.preparePostCExplore(snapshot, { arm: 'C', candidateSha256 });
+    const preparedS = await isolation.preparePostCExplore(snapshot, { arm: 'S', candidateSha256, seed: 20261112 });
+    expect(preparedS.prepared).toMatchObject({
+      retrievalArm: 'S', seed: 20261112, protocolSchema: 'fixed-c-visible-evidence-order-only-v1',
+    });
+    const { deriveFixedCVisibleEvidenceOrder } = await import('../scripts/agent-eval/fixed-c-visible-evidence.mjs');
+    const { permuteWithFixedSeed } = await import('../src/eval/zra-paired-core');
+    const call = async (prepared: any) => {
+      const child = spawn(prepared.config.command, prepared.config.args, {
+        cwd: snapshot.corpusDir, env: { ...snapshot.env, ...prepared.config.env },
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      const stdout: Buffer[] = [];
+      const stderr: Buffer[] = [];
+      let wire = '';
+      const responseReceived = new Promise<void>((resolve, reject) => {
+        child.stdout.on('data', (chunk) => {
+          stdout.push(chunk);
+          wire += chunk.toString('utf8');
+          if (wire.split('\n').some((line) => {
+            try { return JSON.parse(line).id === 1; } catch { return false; }
+          })) resolve();
+        });
+        child.once('error', reject);
+      });
+      child.stderr.on('data', (chunk) => stderr.push(chunk));
+      child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: {
+        name: 'zcodegraph_explore', arguments: { query: 'sessionEntry' },
+      } })}\n`);
+      await responseReceived;
+      child.stdin.end();
+      const exitCode = await new Promise<number>((resolve) => child.once('close', (code) => resolve(code ?? 1)));
+      const response = Buffer.concat(stdout).toString('utf8').trim().split('\n').filter((line) => line.trim())
+        .map((line) => JSON.parse(line)).find((message) => message.id === 1);
+      const text = response?.result?.content?.[0]?.text;
+      if (exitCode !== 0 || typeof text !== 'string') {
+        throw new Error(`MCP failed: ${Buffer.concat(stderr).toString('utf8')}; stdout=${JSON.stringify(response)}`);
+      }
+      return text;
+    };
+    const [cAnswer, sAnswer] = [await call(preparedC), await call(preparedS)];
+    const cEvidence = await isolation.verifySnapshotArmEvidence(preparedC.prepared, 'C', cAnswer);
+    const sEvidence = await isolation.verifySnapshotArmEvidence(preparedS.prepared, 'S', sAnswer);
+    expect(sEvidence).toMatchObject({
+      kind: 'snapshot-bound-s-explore-v1', retrievalArm: 'S', seed: 20261112,
+      protocolSchema: 'fixed-c-visible-evidence-order-only-v1',
+      finalPayloadProof: { status: 'pass', diagnostic: true, contentDifferences: [] },
+    });
+    expect(sEvidence.cAnswerSha256).toBe(cEvidence.answerSha256);
+    const derived = deriveFixedCVisibleEvidenceOrder({
+      cCandidates: cEvidence.calls[0].files, sCandidates: permuteWithFixedSeed(cEvidence.calls[0].files, 20261112),
+      cPayload: cAnswer,
+    });
+    expect(sAnswer).toBe(derived.answer);
+    await expect(isolation.verifySnapshotArmEvidence(preparedS.prepared, 'S', cAnswer)).rejects.toThrow();
+    await expect(isolation.verifySnapshotArmEvidence(preparedS.prepared, 'C', sAnswer)).rejects.toThrow();
+    await expect(isolation.preparePostCExplore(snapshot, { arm: 'S', candidateSha256 })).rejects.toThrow(/fixed seed/);
+    await expect(isolation.preparePostCExplore(snapshot, { arm: 'C', candidateSha256, seed: 1 })).rejects.toThrow(/must not accept/);
+    await isolation.disposeSnapshot(snapshot);
+  }, 60_000);
+
   it('keeps necessary source from later C candidates out of the final hard-ceiling cut', async () => {
     const sourceDir = await mkdtemp(path.join(tmpdir(), 'zcg-post-c-truncation-source-'));
     await writeFile(path.join(sourceDir, 'sessions.py'), [
@@ -449,13 +535,25 @@ describe('isolated with-vs-without baseline (S2)', () => {
         });
         const stdout: Buffer[] = [];
         const stderr: Buffer[] = [];
-        child.stdout.on('data', (chunk) => stdout.push(chunk));
+        let wire = '';
+        const responseReceived = new Promise<void>((resolve, reject) => {
+          child.stdout.on('data', (chunk) => {
+            stdout.push(chunk);
+            wire += chunk.toString('utf8');
+            if (wire.split('\n').some((line) => {
+              try { return JSON.parse(line).id === 1; } catch { return false; }
+            })) resolve();
+          });
+          child.once('error', reject);
+        });
         child.stderr.on('data', (chunk) => stderr.push(chunk));
-        child.stdin.end(`${JSON.stringify({
+        child.stdin.write(`${JSON.stringify({
           jsonrpc: '2.0', id: 1, method: 'tools/call', params: {
             name: 'zcodegraph_explore', arguments: { query },
           },
         })}\n`);
+        await responseReceived;
+        child.stdin.end();
         const [exitCode] = await new Promise<[number]>((resolve) => {
           child.once('close', (code) => resolve([code ?? 1]));
         });

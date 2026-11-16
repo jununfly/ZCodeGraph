@@ -71,6 +71,13 @@ export interface PairedEvaluationOptions {
     config: SharedRunConfig;
   }) => string | undefined;
   readonly retrieve: (input: RetrievalInput) => Promise<RetrievalResult>;
+  /** Evaluation adapters derive S from C's actual final answer; no Markdown parsing here. */
+  readonly deriveRenderedS?: (input: {
+    readonly cCandidates: readonly unknown[];
+    readonly sCandidates: readonly unknown[];
+    readonly cPayload: unknown;
+    readonly seed: number;
+  }) => unknown | Promise<unknown>;
   readonly execute: (input: AgentExecutionInput) => Promise<AgentExecutionResult>;
 }
 
@@ -157,6 +164,9 @@ export async function runPairedEvaluation(
     if (mismatch) {
       invalidReason ??= `configuration fingerprint mismatch at arm ${arm}`;
     }
+    if (arm === 'S' && typeof options.deriveRenderedS !== 'function') {
+      invalidReason ??= 'strict S requires an explicit final-payload derivation seam';
+    }
     if (!invalidReason) {
       try {
         if (arm === 'S') {
@@ -166,7 +176,15 @@ export async function runPairedEvaluation(
           }
           const candidates = permuteWithFixedSeed(cRetrieval.candidates, options.seed);
           assertSamePayload(cRetrieval.candidates, candidates);
-          retrieval = { candidates, payload: cRetrieval.payload };
+          retrieval = {
+            candidates,
+            payload: await options.deriveRenderedS!({
+              cCandidates: cRetrieval.candidates,
+              sCandidates: candidates,
+              cPayload: cRetrieval.payload,
+              seed: options.seed,
+            }),
+          };
         } else if (arm === 'C') {
           if (!cRetrieval) cRetrieval = await options.retrieve({ arm, config });
           retrieval = cRetrieval;

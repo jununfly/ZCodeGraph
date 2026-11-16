@@ -8,6 +8,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { buildSymbolIndex, symbolRecallFiles } from '../measure/symbol-index-core.mjs';
 import { pilotTasks } from './task-prompts/zra-pilot-v1.mjs';
 import { createIsolatedSymbolUnionRetrieval, verifyFrozenSymbolUnionCandidate } from './isolated-symbol-union.mjs';
+import {
+  compareFinalExploreAnswers,
+  deriveFixedCVisibleEvidenceOrder,
+  FIXED_C_VISIBLE_EVIDENCE_SCHEMA,
+} from './fixed-c-visible-evidence.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const CORPORA = {
@@ -124,8 +129,29 @@ export async function auditPilotRenderedArms({ corpusRoot, output }) {
         return render(composed, cg, composed.spine, blastRadius);
       };
       const cAnswer = renderArm(cRetrieval.candidates);
-      const sAnswer = renderArm(sCandidates);
-      const compare = compareRenderedAnswers(cAnswer, sAnswer);
+      const independentSAnswer = renderArm(sCandidates);
+      const controlAnswer = renderArm(cRetrieval.candidates);
+      writeFileSync(path.join(output, `${task.PROMPT_ID}-rendered.json`),
+        `${JSON.stringify({ c: cAnswer, s: null, status: 'derivation-pending' }, null, 2)}\n`, 'utf8');
+      let derived;
+      let derivationError = null;
+      try {
+        derived = deriveFixedCVisibleEvidenceOrder({
+          cCandidates: cRetrieval.candidates, sCandidates, cPayload: cAnswer,
+        });
+      } catch (error) {
+        derivationError = error instanceof Error ? error.message : String(error);
+      }
+      const sAnswer = derived?.answer ?? cAnswer;
+      const compare = compareFinalExploreAnswers(cAnswer, sAnswer);
+      let independentRender;
+      let independentRenderError = null;
+      try {
+        independentRender = compareFinalExploreAnswers(cAnswer, independentSAnswer);
+      } catch (error) {
+        independentRenderError = error instanceof Error ? error.message : String(error);
+      }
+      const orderIsolation = compareFinalExploreAnswers(cAnswer, controlAnswer);
       const requiredFiles = task.SOURCE_ANCHORS.requiredFiles.map((file) => ({
         file, indexed: cg.getNodesInFile(file).length > 0,
       }));
@@ -142,18 +168,34 @@ export async function auditPilotRenderedArms({ corpusRoot, output }) {
         sourceDbSha256,
         symbolIndexSha256,
         candidateSha256: verifyFrozenSymbolUnionCandidate().candidateSha256,
+        protocolSchema: FIXED_C_VISIBLE_EVIDENCE_SCHEMA,
+        finalPayloadProof: derived?.proof ?? {
+          schema: FIXED_C_VISIBLE_EVIDENCE_SCHEMA,
+          status: 'incomplete', diagnostic: false, reason: derivationError,
+        },
+        independentRenderDiagnostic: independentRender ?? { status: 'incomplete', reason: independentRenderError },
         baselineFiles: baseline.sortedFiles.map(([file]) => file),
         symbolFiles: cRetrieval.payload.symbolFiles,
         cCandidates: cFiles,
         sCandidates: sCandidates.map(([file]) => file),
         coverage: coverage(requiredFiles, cFiles, compare.cFileOrder, symbols),
         renderedComparison: compare,
+        orderIsolation: {
+          ...orderIsolation,
+          schema: 'same-c-candidates-repeated-v1',
+          sourceBlockSchema: orderIsolation.schema,
+          status: orderIsolation.wholeTextEqual ? 'deterministic' : 'same-order-rendering-differs',
+          cHardCeiling: orderIsolation.cHardCeiling,
+          sHardCeiling: orderIsolation.sHardCeiling,
+        },
       };
       const pass = report.coverage.indexCoverage === 'pass'
         && report.coverage.candidateCoverage === 'pass'
         && report.coverage.renderedSourceCoverage === 'pass'
-        && compare.nonSourcePrefixIdentical && compare.fileSetsEqual
-        && compare.contentDifferences.length === 0
+        && derived?.proof.diagnostic === true
+        && derived.proof.candidateProjectionEqual === true
+        && compare.nonSourcePrefixIdentical && compare.nonSourceSuffixIdentical
+        && compare.fileSetsEqual && compare.contentDifferences.length === 0
         && !compare.cHardCeiling && !compare.sHardCeiling;
       results.push({ ...report, status: pass ? 'pass' : 'incomplete' });
       writeFileSync(path.join(output, `${task.PROMPT_ID}-rendered.json`), `${JSON.stringify({ c: cAnswer, s: sAnswer }, null, 2)}\n`, 'utf8');
@@ -169,13 +211,16 @@ export async function auditPilotRenderedArms({ corpusRoot, output }) {
   return {
     schemaVersion: '1.0',
     kind: 'zra-pilot-isolated-c-s-rendered-audit',
-    scope: 'preparation-only local renderer audit; no models, agents, paired-runs or production wiring',
+    scope: 'preparation-only fixed-C-visible-evidence order audit; no models, agents, paired-runs or production wiring',
     seed: 20261112,
     status: results.every((result) => result.status === 'pass') ? 'pass' : 'incomplete',
     results,
     limitations: [
       'Candidate presence and source-block parity are not answer-correctness or Agent Sufficiency evidence.',
       'Only fixed-seed file/block order may differ between C and S; hard-ceiling truncation is a preparation failure.',
+      'The estimand is presentation order conditional on C visible evidence and clipping, not budget/top-K mediation.',
+      'Fewer than two visible blocks or an identity fixed-seed projection is non-diagnostic, never repaired by another seed.',
+      'independentRenderDiagnostic is broader order-sensitivity context only; it is not strict S evidence (Issue #719).',
       'This diagnostic alone does not change the combined five-corpus coverage readiness.',
     ],
   };
@@ -205,6 +250,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     writeFileSync(out, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
     console.log(JSON.stringify({ status: report.status, out, results: report.results.map((result) => ({
       promptId: result.promptId, status: result.status, coverage: result.coverage,
+      finalPayloadProof: result.finalPayloadProof,
       missingCandidates: result.coverage?.requirements.filter((entry) => !entry.candidate).map((entry) => entry.file),
       missingRendered: result.coverage?.requirements.filter((entry) => !entry.rendered).map((entry) => entry.file),
       comparison: result.renderedComparison, error: result.error,

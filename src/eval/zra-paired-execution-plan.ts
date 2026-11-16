@@ -11,6 +11,8 @@ export interface PairedExecutionReadiness {
   readonly secondaryRunReviewer: string | null;
   readonly reviewersAreHuman: boolean;
   readonly indexToolCoverageVerified: boolean;
+  /** Must be derived from bound audit evidence by the preparation adapter. */
+  readonly finalPayloadReady: boolean;
   readonly productionArmsReady: boolean;
   readonly desBaselineConclusion: 'pass' | 'fail' | 'inconclusive' | null;
   readonly desBaselineRunId: string | null;
@@ -70,6 +72,7 @@ export function preparePairedExecutionPlan(options: PairedExecutionPlanOptions) 
     reasons.push('second run reviewer must be a different Human from the primary reviewer');
   }
   if (!readiness.indexToolCoverageVerified) reasons.push('five-corpus index/tool coverage is incomplete');
+  if (!readiness.finalPayloadReady) reasons.push('final payload parity and diagnostics are incomplete');
   if (!readiness.productionArmsReady) reasons.push('production C/S wiring is incomplete');
   if (readiness.desBaselineConclusion !== 'pass' || !readiness.desBaselineRunId) {
     reasons.push('post-C Agent Sufficiency baseline has not passed');

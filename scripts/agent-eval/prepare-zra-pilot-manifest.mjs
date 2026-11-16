@@ -6,8 +6,10 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { preparePairedExecutionPlan } from '../../dist/eval/zra-paired-execution-plan.js';
 import { armOrderSchedule } from '../../dist/eval/zra-paired-design.js';
+import { permuteWithFixedSeed } from '../../dist/eval/zra-paired-core.js';
 import { pilotTasks } from './task-prompts/zra-pilot-v1.mjs';
 import { verifyFrozenSymbolUnionCandidate } from './isolated-symbol-union.mjs';
+import { FIXED_C_VISIBLE_EVIDENCE_SCHEMA } from './fixed-c-visible-evidence.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const EVIDENCE_DIR = '.workbuddy/agent-eval';
@@ -54,6 +56,53 @@ export function readHumanReviewerAssignment(filePath) {
     primaryRunReviewer: record.primaryRunReviewer,
     secondaryRunReviewer: record.secondaryRunReviewer,
     reviewersAreHuman: true,
+  });
+}
+
+/** A boolean supplied by a caller cannot stand in for a bound per-task proof. */
+export function deriveFinalPayloadReady(renderedAudit, coverage) {
+  const frozenCandidate = verifyFrozenSymbolUnionCandidate();
+  if (!renderedAudit || renderedAudit.kind !== 'zra-pilot-isolated-c-s-rendered-audit'
+    || renderedAudit.seed !== 20261112 || !Array.isArray(renderedAudit.results)
+    || renderedAudit.results.length !== pilotTasks.length || !Array.isArray(coverage?.results)
+    || renderedAudit.results.some((result) => result.protocolSchema !== FIXED_C_VISIBLE_EVIDENCE_SCHEMA
+      || result.candidateSha256 !== frozenCandidate.candidateSha256)) return false;
+  const coverageByPrompt = new Map(coverage.results.map((result) => [result.promptId, result]));
+  return pilotTasks.every((task) => {
+    const result = renderedAudit.results.find((candidate) => candidate.promptId === task.PROMPT_ID);
+    const inspected = coverageByPrompt.get(task.PROMPT_ID);
+    const proof = result?.finalPayloadProof;
+    const control = result?.orderIsolation;
+    const sOrder = result?.sCandidates;
+    const projectionMatches = Array.isArray(result?.cCandidates) && Array.isArray(sOrder)
+      && JSON.stringify(sOrder) === JSON.stringify(permuteWithFixedSeed(result.cCandidates, 20261112))
+      && JSON.stringify(proof?.cFileOrder)
+        === JSON.stringify(result.cCandidates.filter((file) => proof?.cFileOrder?.includes(file)))
+      && JSON.stringify(proof?.sFileOrder)
+        === JSON.stringify(sOrder.filter((file) => proof?.sFileOrder?.includes(file)));
+    return result?.actualCommit === task.COMMIT && result.commitMatches === true
+      && inspected?.commit === task.COMMIT && inspected.commitMatches === true
+      && inspected.indexCoverage === 'pass'
+      && typeof result.sourceDbSha256 === 'string' && result.sourceDbSha256.length > 0
+      && result.sourceDbSha256 === inspected.sourceDbSha256
+      && typeof result.symbolIndexSha256 === 'string' && result.symbolIndexSha256.length > 0
+      && result.symbolIndexSha256 === inspected.symbolIndexSha256
+      && projectionMatches
+      && proof?.schema === FIXED_C_VISIBLE_EVIDENCE_SCHEMA
+      && proof.status === 'pass' && proof.diagnostic === true
+      && proof.candidateProjectionEqual === true
+      && proof.nonSourcePrefixIdentical === true && proof.nonSourceSuffixIdentical === true
+      && proof.fileSetsEqual === true && Array.isArray(proof.contentDifferences)
+      && proof.contentDifferences.length === 0 && proof.onlyInC?.length === 0 && proof.onlyInS?.length === 0
+      && proof.cHardCeiling === false && proof.sHardCeiling === false
+      && proof.wholeTextEqual === false
+      && proof.cSha256 === result.renderedComparison?.cSha256
+      && proof.sSha256 === result.renderedComparison?.sSha256
+      && JSON.stringify(proof.cFileOrder) === JSON.stringify(result.renderedComparison?.cFileOrder)
+      && JSON.stringify(proof.sFileOrder) === JSON.stringify(result.renderedComparison?.sFileOrder)
+      && control?.schema === 'same-c-candidates-repeated-v1' && control.status === 'deterministic'
+      && control.wholeTextEqual === true && control.cSha256 === proof.cSha256
+      && control.sSha256 === proof.cSha256;
   });
 }
 
@@ -106,6 +155,7 @@ export function prepareManifest({ coverage, desBaseline = null, reviewers = null
     reviewersAreHuman: reviewers?.reviewersAreHuman ?? true,
     indexToolCoverageVerified: coverage.status === 'pass'
       && coverage.results.every((result) => result.status === 'pass' && result.commitMatches === true),
+    finalPayloadReady: deriveFinalPayloadReady(renderedAudit, coverage),
     productionArmsReady: false,
     desBaselineConclusion: desBaseline?.conclusion ?? null,
     desBaselineRunId: desBaseline?.runId ?? null,
@@ -170,11 +220,11 @@ export function prepareManifest({ coverage, desBaseline = null, reviewers = null
       frozenCandidateRawSha256: frozenCandidate.rawSha256,
       lineEndingNormalization: frozenCandidate.lineEndingNormalization,
       payload: renderedAudit
-        ? 'isolated C/S final Explore markdown rendered from the frozen candidate order and its fixed-seed permutation'
+        ? 'C renders normally once; S projects C actual visible file blocks into the fixed-seed candidate order without changing their bytes or non-source content'
         : 'file candidates plus frozen retrieval metadata; no rendered Explore payload yet',
       limitation: renderedAudit
         ? 'The isolated rendered audit is diagnostic evidence only; any coverage, content-parity or budget failure remains incomplete.'
-        : 'S shares the C payload object and permutes candidates only; this is not evidence of full rendered-payload parity.',
+        : 'No bound final-answer derivation proof is available; finalPayloadReady remains false.',
     },
     evidence: {
       coverageReport: coverage.evidencePath ?? path.relative(REPO, DEFAULT_COVERAGE).replace(/\\/g, '/'),
@@ -188,6 +238,9 @@ export function prepareManifest({ coverage, desBaseline = null, reviewers = null
           status: result.status,
           coverage: result.coverage,
           comparison: result.renderedComparison,
+          finalPayloadProof: result.finalPayloadProof,
+          protocolSchema: result.protocolSchema,
+          orderIsolation: result.orderIsolation ?? { status: 'not-run' },
           error: result.error,
         })),
       } : { status: 'not-run' },

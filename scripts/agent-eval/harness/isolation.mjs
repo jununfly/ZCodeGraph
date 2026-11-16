@@ -40,12 +40,20 @@ function invalidPostC(baselineOptions, snapshot, invalidReason) {
 
 /** Bind the declared candidate to this one-shot snapshot before any agent run. */
 export async function preparePostCExplore(snapshot, retrieval) {
-  if (retrieval?.arm !== 'C' || !/^[0-9a-f]{64}$/.test(retrieval.candidateSha256 ?? '')) {
-    throw new Error('post-C retrieval requires arm C and its frozen candidate SHA-256');
+  if (!['C', 'S'].includes(retrieval?.arm) || !/^[0-9a-f]{64}$/.test(retrieval.candidateSha256 ?? '')) {
+    throw new Error('snapshot-bound retrieval requires explicit C/S and the frozen candidate SHA-256');
+  }
+  if (retrieval.arm === 'S' && (!Number.isInteger(retrieval.seed) || retrieval.seed < 0)) {
+    throw new Error('S requires a non-negative integer fixed seed');
+  }
+  if (retrieval.arm === 'C' && retrieval.seed !== undefined) {
+    throw new Error('C must not accept an S ordering seed');
   }
   const env = {
     ZCG_EVAL_SNAPSHOT_FINGERPRINT: snapshot.fingerprint,
     ZCG_EVAL_CANDIDATE_SHA256: retrieval.candidateSha256,
+    ZCG_EVAL_RETRIEVAL_ARM: retrieval.arm,
+    ...(retrieval.arm === 'S' ? { ZCG_EVAL_SEED: String(retrieval.seed) } : {}),
     ZCG_NO_DAEMON: '1',
     ZCG_NO_WATCH: '1',
   };
@@ -66,6 +74,41 @@ export async function preparePostCExplore(snapshot, retrieval) {
     alwaysLoad: true,
   });
   return Object.freeze({ config, prepared });
+}
+
+/**
+ * Verify one actual paired-arm tool result. The caller owns snapshot freshness,
+ * arm order and the paired ledger; this seam never runs a model or a baseline.
+ */
+export async function verifySnapshotArmEvidence(prepared, arm, answer) {
+  if (!['C', 'S'].includes(arm) || prepared.retrievalArm !== arm || typeof answer !== 'string') {
+    throw new Error('paired-arm evidence must match the prepared C/S arm and actual answer text');
+  }
+  const answerSha256 = sha256(answer);
+  const evidence = JSON.parse(await readFile(
+    path.join(prepared.evidenceDir, `${answerSha256}.json`), 'utf8',
+  ));
+  const expectedKind = arm === 'S' ? 'snapshot-bound-s-explore-v1' : 'snapshot-bound-c-explore-v1';
+  if (evidence.kind !== expectedKind || evidence.retrievalArm !== arm
+      || evidence.answer !== answer || evidence.answerSha256 !== answerSha256
+      || evidence.snapshotFingerprint !== prepared.snapshotFingerprint
+      || evidence.candidateSha256 !== prepared.candidateSha256
+      || evidence.symbolIndexPath !== prepared.symbolIndexPath) {
+    throw new Error('actual paired-arm answer is not bound to its snapshot/candidate/index evidence');
+  }
+  const proof = evidence.finalPayloadProof;
+  if (arm === 'S' && (evidence.protocolSchema !== 'fixed-c-visible-evidence-order-only-v1'
+      || evidence.seed !== prepared.seed || evidence.cAnswerSha256 !== proof?.cSha256
+      || proof?.schema !== evidence.protocolSchema || proof.status !== 'pass'
+      || proof.diagnostic !== true || proof.candidateProjectionEqual !== true
+      || proof.nonSourcePrefixIdentical !== true || proof.nonSourceSuffixIdentical !== true
+      || proof.fileSetsEqual !== true || proof.contentDifferences?.length !== 0
+      || proof.onlyInC?.length !== 0 || proof.onlyInS?.length !== 0
+      || proof.cHardCeiling !== false || proof.sHardCeiling !== false
+      || proof.sSha256 !== answerSha256)) {
+    throw new Error('S answer lacks valid final-payload order-only proof');
+  }
+  return Object.freeze(evidence);
 }
 
 /** Every consumer must reject a snapshot that has already served one run. */
@@ -184,7 +227,7 @@ export async function runIsolatedBaseline(options = {}) {
       prepared = await preparePostCExplore(context, baselineOptions.retrieval);
     } catch (error) {
       const invalid = invalidPostC(baselineOptions, snapshot,
-        'post-C retrieval requires snapshot-bound C Explore evidence');
+        'post-C retrieval requires snapshot-bound C/S Explore evidence');
       await disposeSnapshot(snapshot);
       return Object.freeze({ ...invalid, diagnostics: {
         ...invalid.diagnostics,
@@ -227,7 +270,7 @@ export async function runIsolatedBaseline(options = {}) {
     const toolResults = Array.isArray(withArm.toolResults) ? withArm.toolResults : [];
     if (toolCalls.length === 0) {
       result.status = 'invalid';
-      result.invalidReason = 'post-C with arm did not call the real C Explore MCP tool';
+      result.invalidReason = `post-C with arm did not call the real ${baselineOptions.retrieval.arm} Explore MCP tool`;
     } else {
       const answers = [];
       for (const toolCall of toolCalls) {
@@ -247,14 +290,31 @@ export async function runIsolatedBaseline(options = {}) {
         } catch {
           // Missing server-side evidence is an invalid run, never a valid synthetic one.
         }
-        if (evidence?.kind !== 'snapshot-bound-c-explore-v1'
-            || evidence.retrievalArm !== 'C'
+        const expectedEvidenceKind = baselineOptions.retrieval.arm === 'S'
+          ? 'snapshot-bound-s-explore-v1' : 'snapshot-bound-c-explore-v1';
+        if (evidence?.kind !== expectedEvidenceKind
+            || evidence.retrievalArm !== baselineOptions.retrieval.arm
             || evidence.snapshotFingerprint !== snapshot.fingerprint
             || evidence.candidateSha256 !== baselineOptions.retrieval.candidateSha256
             || evidence.answerSha256 !== answerSha256
             || evidence.answer !== toolResult.text
             || evidence.query !== (toolCall.input ?? toolCall.arguments)?.query
-            || evidence.symbolIndexPath !== postCPrepared.symbolIndexPath) {
+            || evidence.symbolIndexPath !== postCPrepared.symbolIndexPath
+            || (baselineOptions.retrieval.arm === 'S' && (
+              evidence.seed !== baselineOptions.retrieval.seed
+              || evidence.protocolSchema !== 'fixed-c-visible-evidence-order-only-v1'
+              || evidence.finalPayloadProof?.status !== 'pass'
+              || evidence.finalPayloadProof?.diagnostic !== true
+              || evidence.finalPayloadProof?.candidateProjectionEqual !== true
+              || evidence.finalPayloadProof?.nonSourcePrefixIdentical !== true
+              || evidence.finalPayloadProof?.nonSourceSuffixIdentical !== true
+              || evidence.finalPayloadProof?.fileSetsEqual !== true
+              || evidence.finalPayloadProof?.contentDifferences?.length !== 0
+              || evidence.finalPayloadProof?.cHardCeiling !== false
+              || evidence.finalPayloadProof?.sHardCeiling !== false
+              || evidence.finalPayloadProof?.cSha256 !== evidence.cAnswerSha256
+              || evidence.finalPayloadProof?.sSha256 !== answerSha256
+            ))) {
           answers.length = 0;
           break;
         }
@@ -262,11 +322,14 @@ export async function runIsolatedBaseline(options = {}) {
       }
       if (answers.length !== toolCalls.length) {
         result.status = 'invalid';
-        result.invalidReason = 'post-C with arm tool results do not match snapshot-bound C Explore evidence';
+        result.invalidReason = 'post-C with arm tool results do not match snapshot-bound C/S Explore evidence';
       } else {
         withArm.mcpExploreEvidence = Object.freeze({
           kind: 'snapshot-bound-c-explore-evidence-v1',
-          retrievalArm: 'C',
+          retrievalArm: baselineOptions.retrieval.arm,
+          ...(baselineOptions.retrieval.arm === 'S' ? {
+            protocolSchema: 'fixed-c-visible-evidence-order-only-v1', seed: baselineOptions.retrieval.seed,
+          } : {}),
           snapshotFingerprint: snapshot.fingerprint,
           candidateSha256: baselineOptions.retrieval.candidateSha256,
           answers: Object.freeze(answers),
