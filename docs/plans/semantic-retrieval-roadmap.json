@@ -1618,7 +1618,7 @@
       "id": "1-9-5",
       "uid": "01a1ed687c6f-4262f880dd",
       "label": "Slice 1：共享 ExploreApplication、真实端口与纯渲染器",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-9",
       "children": [],
@@ -1672,6 +1672,16 @@
           "q": "Slice 1 step 6 如何剥离 evaluation-only C/S projection 而不复活候选？",
           "answer": "生产 ExplorePlan 删除 symbolHitNodeIds/symbolHitRanks，纯 renderer 不再接受该输入；harness 用 EvaluationExplorePlan=ExplorePlan & EvaluationExploreProjection 持有真实 symbol hits。src/eval 收编 c-explore-plan、render-c-explore-plan 与纯化前 legacy renderer，脚本只更新 dist/eval 入口，生产 src/explore 与 CLI/MCP 不导入它们。受 TS rootDir=src 限制，历史 renderer/wrapper 置于 src/eval，执行/审计仍在 scripts/agent-eval；这不是生产注册、候选执行或语义验收。",
           "note": "冻结 candidate SHA=d687c4a831...、fileTopK=10、symbolTopK=50、unionRerank 与默认 OFF 不变；不运行 paired Agent、DES、pilot，60/0 与 96/0 门不变。"
+        },
+        {
+          "q": "Slice 1 step 7 如何补齐 runtime 快照验收且保持逐提交可回退？",
+          "answer": "新增同一真实 SQLite 图、同一 MCP handler 连续两次 Explore 调用测试，spy 共享 ExploreApplication 每次收到不同 runtime 快照，覆盖 adaptive/lineNumbers/elidedMarkers/tightSmallProject 四 flag 及行号变化；生产实现不改。该测试单独归 step 7 commit=be5dc93。第4步历史提交=5c2a21f 已独立 TypeScript 构建通过，最终澄清 step5 旧 note 的 ed28085 是重写前本地哈希、非本 PR 提交。其余步骤也改在项目外隔离工作树逐一构建，避免 tmp 源码树触发全仓 identity-residue 扫描。",
+          "note": "首轮全仓期间切提交/重建 dist 出现3个C/S stdio失败；稳定构建单独复验及第二轮均21/21通过。第二轮3失败全为临时 tmp/slice1-step4-build 被 identity-residue 扫描，已完成构建后移除；不得写成全绿。当前定向新测试5/5通过，第三轮全仓待完成。"
+        },
+        {
+          "q": "Slice 1 的最终验证证据是否满足过程完成条件？",
+          "answer": "满足。最终带日志全仓退出码0：203个测试文件通过、6个跳过，2728项测试通过、38个跳过；最终定向10文件222/222通过，主仓tsc --noEmit与5个修改过的mjs语法检查通过。步骤1-6提交195238b、2635fed、08fcae2、5c2a21f、fc3b74c、737c2f8均有独立TypeScript构建通过证据；本轮再次在项目外干净worktree构建5c2a21f与737c2f8通过，隔离worktree已清理。五仓parity报告status=pass，5/5完整字符串、legacy及冻结answer SHA一致且数据库未变，SHA-256=b70e91db031ab62b4a4bf55c8e3e1a7d0121698b269961f18fd2c58c63ac90d2。",
+          "note": "这是行为保持型模块化的过程完成，不是五仓语义验收或生产准入；无Agent/DES/pilot，agentDesOrPilotExecuted=false，默认OFF、60/0、96/0及停止C/S冻结配置不变。前两轮测试干扰事实保留于上条append-only决策，第三轮UCggq3虽正常退出但无输出，不采用；本条只采用可审阅日志ZUcJt1。"
         }
       ],
       "notes": "",
@@ -1785,7 +1795,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-18 17:54:54",
+    "updated": "2026-11-18 19:46:57",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
