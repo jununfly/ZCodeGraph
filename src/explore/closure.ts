@@ -208,8 +208,9 @@ export function closeObligations(
 
   for (const ob of interpretation.obligations) {
     // Find the anchor by node id embedded in the obligation id.
-    // Convention: ob-def-<nodeId>, ob-<role>-<nodeId>.
-    const nodeId = ob.id.split('-').pop()!;
+    // Convention: ob-def-<nodeId>, ob-<role>-<nodeId>. Node ids may
+    // themselves contain '-', so strip only the known prefix.
+    const nodeId = ob.id.replace(/^ob-(?:def|invocation-site|registration-site|scheduling-site|condition|state-mutation|alternative-branch|exception-branch|external-terminal|supporting)-/, '');
     const matchedAnchor = anchorById.get(nodeId);
 
     if (!matchedAnchor) {
