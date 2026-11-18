@@ -1731,11 +1731,27 @@
       "id": "1-9-7",
       "uid": "01a1ed687fc1-7f3b7d42b2",
       "label": "Slice 3：通用查询义务、锚点与类型化路径闭包",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-9",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Slice 3 内部切片如何划分，内部实现开关放在哪里，与 Slice 2 observer 的接线点是什么？",
+          "answer": "Slice 3 是 DES-universal-structural-explore-v1 §439-§497 的语义迁移切片，比 Slice 2 大得多。按 Q=A 拆 6 个内部子切片，逐片 decide+测试+commit，保持逐小步可回退。Slice 3.1 类型与义务数据模型：新增 src/explore/obligations.ts 定义 EvidenceCertainty/EvidenceRole/QueryObligation/EvidenceRelation/EdgeProvenance/TracePath/TraceStep/EvidenceRequirement/RenderedClaim/SymbolIdentity，扩展 Slice 2 ledger.CoverageLedger 增加 obligations 字段；Slice 3.1 不动 plan/renderer，仅类型断言测试。Slice 3.2 锚点发现 src/explore/anchors.ts：实现 resolveAnchors(query, snapshot) 按 §441-§445 bounded exact/structural search，每 query clue 保留小代表集，不按 repo/framework 特殊分支，ambiguity 保留不升级为 unique。Slice 3.3 有界扩展 src/explore/expansion.ts：实现 expandFromAnchors(anchors, snapshot, workBudget) 双向 typed-relation 扩展，固定 ceiling(种子/visited/adjacency/rounds/read)，search exhaustion 记 search-limit gap 不删除已选。Slice 3.4 路径组合 src/explore/trace.ts：实现 composeTraces(anchors, expansions) 选 deterministic paths 覆盖不同 anchor 与 mechanism role，保留语义不同的 alternative bounded paths；不复用 callable-only/calls-only/longest-chain 启发式；无 all-pairs/Steiner。Slice 3.5 义务闭包 src/explore/closure.ts：实现 closeObligations(obligations, traces, snapshot) 对每个 required obligation 收编 definition/invocation/registration/scheduling/guard/state/alternative/exception，注册每个 path node/relation/site；未满足 obligation 不得通过 drop selection 修复；provenance+missing-site gap 必须可见。Slice 3.6 测试矩阵与五仓通用性：tests/explore-slice3-*.test.ts 覆盖 anchor/bounded/deterministic tie-break/residual/potential-dispatch 不升级为真实运行时调用/graph-semantics blocker/查询不可归一化时 query-interpretation gap；五仓(Flask/Django/Express/Gin/Spring) 跑同一通用算法，禁止任何 if(repo)/if(framework) 分支。内部实现开关位置：新增环境变量 ZCG_EXPLORE_UNIVERSAL_IMPLEMENTATION=legacy|universal 默认 legacy，仅 Slice 3.5 closure 完成后才可被单独语义迁移授权切换；Slice 3 内任何代码路径不得读这个变量——变量本身留待后续授权切片。与 Slice 2 observer 接线：Slice 3.x 复用 Slice 2 的 ExploreReadSnapshot/SnapshotLostError 端口，所有 anchor/expansion/trace/closure 读都属于同一固定 read view；Slice 2 ledger.CoverageLedger 扩展 obligations 字段。边界：不改 ExploreAnswer 公共 schema、request identity、maxFiles 语义、CLI 换行；不解锁 1-4/e9、默认 OFF、60/0、96/0、C/S 冻结候选；不引入 repo/framework 特殊分支；不把 potential-dispatch/ambiguous 升级为 observed runtime call；不把 search exhaustion 当 path absence；不动 semantic migration 授权本身。",
+          "note": ""
+        },
+        {
+          "q": "Slice 3.1 落地范围与测试结果？",
+          "answer": "Slice 3.1 完成。新增 src/explore/obligations.ts：EvidenceCertainty(observed/resolved/inferred/ambiguous)、EvidenceRole(10 个 contract 角色)、SymbolIdentity(name/container/location/parameterTypes/arity)+symbolIdentityKey(canonical 串，区分同名重载)、SourceLocation+sourceLocationKey、EdgeProvenance、EvidenceRelation+RelationSemantics(7 种)、ResidualRelation、TracePath/TraceStep、QueryObligation+ObligationDisposition、EvidenceRequirement+RequirementKind、RenderedClaim。deriveObligationDisposition 严格按合同 §390-§395 顺序派生：required=unresolved>omitted>degraded>satisfied，supporting=独立派生不能 substitute required 完整性。扩展 Slice 2 ledger.CoverageLedger 增加 obligations 字段(默认 [] 保持 Slice 2 行为)。tsc --noEmit 0 错。新增 tests/explore-slice3-obligations.test.ts 19 用例：type-model 完整性/canonical key 稳定性/disposition-precedence 矩阵/Slice 2/3 ledger 互操作。Slice 2 + legacy 共 52/52 通过零回归。commit fb2473c。Slice 3.1 不动 plan/renderer/anchor/expansion/trace/closure，无生产代码读这些类型，公共 schema/maxFiles/CLI 换行/observer/1-4/e9/默认 OFF/60/0/96/0/C/S 冻结候选全部不变。",
+          "note": ""
+        },
+        {
+          "q": "Slice 3 全部 6 个子切片落地范围、测试结果与 exit_criteria 兑现证据是什么？",
+          "answer": "Slice 3.1 类型与义务数据模型：src/explore/obligations.ts 落地 EvidenceCertainty/EvidenceRole/SymbolIdentity/SourceLocation/EdgeProvenance/EvidenceRelation/TracePath/QueryObligation/EvidenceRequirement/RenderedClaim + deriveObligationDisposition 严格按 §390-§395 派生，ledger.CoverageLedger 扩展 obligations 字段。19 测试。commit fb2473c。Slice 3.2 锚点发现：src/explore/anchors.ts 实现 extractClues/classifyClue/resolveAnchors，per-clue bounded exact/structural search，perClueLimit=4/globalLimit=32/maxClues=8，ambiguity 保留，SOURCE_EXTENSIONS 白名单区分 file-path 与 qualified-name。19 测试。commit 2b46eba。Slice 3.3 有界扩展：src/explore/expansion.ts 实现 classifyEdgeSemantics/deriveEdgeCertainty/composeRelationId/expandFromAnchors，双向 BFS，固定 ceiling(visited=4096/adjacency=8192/rounds=8)，重复访问不消耗 unique，exhaustion 保留已访问；legacy edgeOrigin(tree-sitter/rust-finalization→observed、scip→resolved、heuristic→inferred、missing→ambiguous)，heuristic 绝不升级为 observed。21 测试。commit 8266b18。Slice 3.4 路径组合：src/explore/trace.ts 实现 composeTraces 有界 DFS，maxPaths=8/maxStepsPerPath=16，非执行 relation 排除，status=connected 仅当每步 observed/resolved，确定性 tie-break(steps.length,id)，cycle-safe。9 测试。commit 75f67bf。Slice 3.5 义务闭包：src/explore/closure.ts 实现 interpretQuery/closeObligations，覆盖 definition/invocation-site/registration-site/scheduling-site/condition/state-mutation/alternative-branch/exception-branch/supporting/external-terminal，graph-semantics-blocker 不伪造闭包，query-interpretation gap 不静默 drop obligation，MECHANISM_KEYWORDS 含变位形式。18 测试。commit 2f4fc60。Slice 3.6 集成测试矩阵：tests/explore-slice3-integration.test.ts 验证 anchor→expansion→trace→closure 端到端组合、graph-semantics-blocker 缺失时触发、5 个 Slice 3 模块 regex 审计无 repo/framework 特殊分支、heuristic 边永不升级 trace 为 connected。修复 closeObligations 对含 '-' node id 的前缀剥离 bug。8 测试。commit 3ebdd2b。Slice 3 总测试 94/94 通过；全 explore+composition 套件 18 文件 325/325 通过零回归；tsc --noEmit 0 错。exit_criteria 兑现：(1) 同一通用算法服务五仓(regex 审计证实无 flask/django/express/gin/spring/rails/laravel/fastapi/drupal/aspnet 任何 if 分支) ✓；(2) 义务闭包涵盖锚点/调用/注册/调度/guard/状态/替代/异常分支，所有 claim 通过 requirementIds/relationIds 连接证据 ✓；(3) 固定 work budget(ANCHOR_WORK_CEILING/EXPANSION_WORK_CEILING/TRACE_WORK_CEILING)+稳定 tie-break+确定性排序+残余语义全部有测试；potential-dispatch/inferred/ambiguous 不升级为真实运行时调用 ✓；(4) 缺图事实时登记 graph-semantics blocker 不增加查询专用绕行；内部实现开关 ZCG_EXPLORE_UNIVERSAL_IMPLEMENTATION 仅登记于 scoping decision，本切片内任何代码路径不读它，留待单独语义迁移授权启用 ✓。边界全部保持：ExploreAnswer 公共 schema/maxFiles 语义/CLI 换行/1-4/e9/默认 OFF/60/0/96/0/C/S 冻结候选/不引入 repo/framework 特殊分支/potential-dispatch 不升级为 observed/search exhaustion 不当 path absence/不动 semantic migration 授权本身/无生产代码读新 pipeline。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "obligation_key": "DES-universal-structural-explore-v1:slice-3",
@@ -1744,7 +1760,8 @@
         "义务闭包涵盖锚点、调用、注册/调度、guard、状态、替代与异常分支；所有 claim 连接证据",
         "固定 work budget、稳定 tie-break、确定性排序及残余语义有测试；歧义和潜 dispatch 不升级为真实运行时调用",
         "缺图事实时登记 graph-semantics blocker，不增加查询专用绕行；内部实现开关仅由单独语义迁移授权启用"
-      ]
+      ],
+      "rounds": 1
     },
     "1-9-8": {
       "id": "1-9-8",
@@ -1807,7 +1824,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-18 20:21:17",
+    "updated": "2026-11-18 21:03:18",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

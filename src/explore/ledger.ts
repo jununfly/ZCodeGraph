@@ -18,6 +18,7 @@
 import type { SnapshotIdentity, ExploreWorkBudget } from './snapshot';
 import { fingerprintWorkBudget } from './snapshot';
 import type { ExplorePlan } from './types';
+import type { QueryObligation } from './obligations';
 
 // ===========================================================================
 // Report core types (contract §111-§118, §369-§380)
@@ -69,6 +70,10 @@ export interface ExploreDiagnostic {
  * counters (selected/returned/degraded/omitted) are derived, never written
  * independently. `searchExhausted` and `selectedEvidencePreserved` are
  * first-class booleans — search exhaustion is NOT path absence.
+ *
+ * Slice 3.1 adds `obligations` (contract §376). In Slice 2 the field is
+ * always empty because legacy composition has no obligation tree; Slice
+ * 3.5 will populate it once obligation closure lands.
  */
 export interface CoverageLedger {
   status: ExploreReportStatus;
@@ -77,6 +82,8 @@ export interface CoverageLedger {
   returnedRequirements: number;
   degradedRequirements: number;
   omittedRequirements: number;
+  /** Slice 3: query obligations. Empty in Slice 2. */
+  obligations: readonly QueryObligation[];
   gaps: EvidenceGap[];
   searchExhausted: boolean;
   selectedEvidencePreserved: boolean;
@@ -115,6 +122,8 @@ export interface DeriveCoverageInput {
   requiredIds: ReadonlySet<string>;
   gaps: EvidenceGap[];
   searchExhausted: boolean;
+  /** Slice 3: obligations tree. Defaults to empty (Slice 2 behaviour). */
+  obligations?: readonly QueryObligation[];
 }
 
 export function deriveCoverageLedger(input: DeriveCoverageInput): CoverageLedger {
@@ -165,6 +174,7 @@ export function deriveCoverageLedger(input: DeriveCoverageInput): CoverageLedger
     returnedRequirements: returned,
     degradedRequirements: degraded,
     omittedRequirements: omitted,
+    obligations: input.obligations ?? [],
     gaps: input.gaps,
     searchExhausted: input.searchExhausted,
     selectedEvidencePreserved,
