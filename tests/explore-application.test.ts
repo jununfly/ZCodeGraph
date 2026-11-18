@@ -34,6 +34,7 @@ function cli(args: string[], env: Record<string, string> = {}) {
 }
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
   await Promise.all(handlers.splice(0).map((handler) => handler.closeAll()));
   for (const root of temporaryDirectories.splice(0)) fs.rmSync(root, { recursive: true, force: true });
@@ -80,6 +81,56 @@ describe('shared ExploreApplication and platform ports', () => {
     // console.log contributes exactly one newline beyond the markdown payload.
     expect(output.stdout.endsWith('\n\n')).toBe(true);
     expect(output.stdout.endsWith('\n\n\n')).toBe(false);
+  });
+
+  it('snapshots all runtime flags afresh across two calls on one MCP application', async () => {
+    const root = temporaryProject();
+    fs.writeFileSync(path.join(root, 'feature.ts'), 'export function target() { return 1; }\n');
+    const graph = CodeGraph.initSync(root, { config: { include: ['**/*.ts'], exclude: [] } });
+    await graph.indexAll({ engine: 'typescript' });
+    const handler = new ToolHandler(graph);
+    handlers.push(handler);
+    const runtimeFlags = {
+      ZCG_ADAPTIVE_EXPLORE: '1',
+      ZCG_EXPLORE_LINENUMS: '1',
+      ZCG_EXPLORE_ELIDED_MARKERS: '1',
+      ZCG_EXPLORE_TIGHT_SMALL_PROJECT: '0',
+    };
+    for (const [name, value] of Object.entries(runtimeFlags)) vi.stubEnv(name, value);
+    const explore = vi.spyOn(exploreApplication, 'explore');
+
+    const first = await handler.execute('zcodegraph_explore', { query: 'target' });
+    expect(first.isError).toBeUndefined();
+    expect(first.content[0].text).toMatch(/^1\texport function target/m);
+    expect(explore).toHaveBeenCalledTimes(1);
+    const firstRuntime = explore.mock.calls[0]?.[2].runtime;
+    expect(firstRuntime).toEqual({
+      adaptiveEnabled: true,
+      lineNumbersEnabled: true,
+      elidedMarkersEnabled: true,
+      tightSmallProjectBudgetEnabled: false,
+    });
+
+    for (const [name, value] of Object.entries(runtimeFlags)) {
+      vi.stubEnv(name, value === '1' ? '0' : '1');
+    }
+    const second = await handler.execute('zcodegraph_explore', { query: 'target' });
+    expect(second.isError).toBeUndefined();
+    expect(second.content[0].text).toContain('export function target');
+    expect(second.content[0].text).not.toMatch(/^1\texport function target/m);
+    expect(explore).toHaveBeenCalledTimes(2);
+    expect(explore.mock.calls[1]?.[2].runtime).toEqual({
+      adaptiveEnabled: false,
+      lineNumbersEnabled: false,
+      elidedMarkersEnabled: false,
+      tightSmallProjectBudgetEnabled: true,
+    });
+    expect(firstRuntime).toEqual({
+      adaptiveEnabled: true,
+      lineNumbersEnabled: true,
+      elidedMarkersEnabled: true,
+      tightSmallProjectBudgetEnabled: false,
+    });
   });
 
   it('keeps source reads root-confined and supports an in-memory counterpart', () => {
