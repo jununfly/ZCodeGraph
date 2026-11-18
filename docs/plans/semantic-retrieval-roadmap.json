@@ -1647,6 +1647,11 @@
           "q": "Slice 1 step 2 如何消除 CLI/MCP blast-radius 私有副本？",
           "answer": "抽出共享 buildExploreBlastRadius 数据计算与 renderExploreBlastRadius 纯 Markdown 渲染；真实 CodeGraph 通过窄 ExploreCallerLookup 接口使用，测试可注入内存 fake，canonical isTestFile 由组合点注入。保留最多5个入口、caller按ID去重、路径归一化、test/non-test分区、4文件cap、逐entry异常跳过与legacy空行。",
           "note": ""
+        },
+        {
+          "q": "Slice 1 step 3 planner 归属与兼容策略是什么？",
+          "answer": "完整 legacy planner 迁至 src/explore/planner.ts，src/mcp/explore-planner.ts 仅兼容 re-export 供历史测量/评估脚本使用。planner 直接依赖共享 budget，不再依赖 tools.ts；新增 runtime options 快照参数，旧直接调用保留原环境读取，新应用路径不在渲染阶段惰性读取。",
+          "note": ""
         }
       ],
       "notes": "",
@@ -1760,7 +1765,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-18 17:13:34",
+    "updated": "2026-11-18 17:18:50",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

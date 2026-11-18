@@ -4,7 +4,7 @@
  * Defines the tools exposed by the CodeGraph MCP server.
  */
 
-import { readBooleanFlag, readListFlag } from '../config/flags';
+import { readListFlag } from '../config/flags';
 import type CodeGraph from '../index';
 import { findNearestCodeGraphRoot } from '../directory';
 // Lazy-load the heavy CodeGraph chain off the MCP startup path — see the same
@@ -38,7 +38,8 @@ import {
 } from '../explore/budget';
 import { buildExploreBlastRadius } from '../explore/blast-radius';
 import { renderExploreBlastRadius } from '../explore/blast-radius-renderer';
-import { plan } from './explore-planner';
+import { tightSmallProjectBudgetEnabled } from '../explore/runtime';
+import { plan } from '../explore/planner';
 import { render } from './explore-renderer';
 import { ComplexityCalculator } from '../metrics/complexity/index.js';
 
@@ -96,17 +97,10 @@ export const getExploreBudget = sharedGetExploreBudget;
 export type { ExploreOutputBudget } from './explore-types.js';
 
 /**
- * Roadmap 1-2-11 (P0a explore 小项目 budget 收紧): opt-in tightened budget for
- * small projects (fileCount < 500). Driven by ZCG_EXPLORE_TIGHT_SMALL_PROJECT=1.
- *
- * Per P1 this flag is parsed once per operation by the Adapter and passed
- * through `ExploreOptions.runtime`. The exported helper is retained for the
- * legacy call sites that still read the environment directly; new callers
- * should treat the flag as data.
+ * Roadmap 1-2-11: opt-in tightened small-project budget.
+ * @deprecated New callers pass ExploreRuntimeOptions as operation data.
  */
-export function tightSmallProjectBudgetEnabled(): boolean {
-  return readBooleanFlag('ZCG_EXPLORE_TIGHT_SMALL_PROJECT');
-}
+export { tightSmallProjectBudgetEnabled } from '../explore/runtime';
 
 /**
  * Legacy single-argument wrapper. The shared Module takes the tight-tier
