@@ -25,7 +25,7 @@
 | Class | Folder | Authority range | Count |
 | --- | --- | --- | --- |
 | Decision | [`decisions/`](decisions/) | primary | 16 |
-| Contract | [`contracts/`](contracts/) | primary | 18 |
+| Contract | [`contracts/`](contracts/) | primary | 19 |
 | Method | [`methods/`](methods/) | primary / supporting | 14 |
 | Plan | `plans/` (CLI SoT, not always on disk) | process | not enumerated here |
 
@@ -117,6 +117,7 @@ codebase currently obeys. Test-locked where applicable.
 | DES-cli-p0-output-git-range-v1 | [cli-p0-output-and-git-range-v1.md](contracts/cli-p0-output-and-git-range-v1.md) | What output, error, exit-code, and Git-range guarantees must the P0 CLI hardening preserve? |
 | DES-cli-p1-embedding-operations-v1 | [cli-p1-embedding-operations-v1.md](contracts/cli-p1-embedding-operations-v1.md) | What exact queue, JSON, concurrency, migration, and interruption guarantees govern embedding status, run, and retry-failed? |
 | DES-cli-p1-modularity-explore-v1 | [cli-p1-modularity-and-explore-v1.md](contracts/cli-p1-modularity-and-explore-v1.md) | What module interfaces, dependency directions, resource ownership, and migration slices must the CLI and shared Explore blast-radius extraction preserve? |
+| DES-universal-structural-explore-v1 | [universal-structural-explore-v1.md](contracts/universal-structural-explore-v1.md) | How must Explore compose and deliver auditable structural evidence across Flask, Django, Express, Gin, and Spring without repository-specific query policies? |
 
 ---
 

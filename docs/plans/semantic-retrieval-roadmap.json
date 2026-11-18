@@ -18,9 +18,16 @@
         "1-5",
         "1-6",
         "1-7",
-        "1-8"
+        "1-8",
+        "1-9"
       ],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "五仓检索失败后选择什么产品路线？",
+          "answer": "Human 于 2026-11-18 明确选择重新设计：目标是 Flask/Django/Express/Gin/Spring 五仓通用的生产功能，不再做 v17 renderer 微调或 source-trace-v2 二次调参。先形成新的接口、证据模型、预算合同和五仓验收矩阵；本次新授权不等于生产开启、真实 Agent/DES/试点或既有硬门解除。",
+          "note": "保留旧候选及失败证据为离线诊断；新路线须独立设计与验证。"
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "rounds": 1
@@ -1395,6 +1402,91 @@
           "q": "A 方案 evaluation-only 实现、五仓复验与 finalPayloadReady 的当前结论是什么？",
           "answer": "Human 已授权先采用 A=fixed-c-visible-evidence-order-only-v1，并把 B 仅发布为 GitHub Issue #719 TODO。实现严格限定 evaluation-only：C 通过冻结 candidate 和现有 renderer 正常渲染一次，S 仅按固定 seed 投影重排 C 实际呈现的完整文件块，保持逐块字节及非源码内容不变；未改生产 plan/ranking/renderer/default flag。新增共享派生模块、paired runtime 可选 deriveRenderedS、真实五仓审计及 snapshot-bound C/S stdio MCP adapter；S 缺 seed、C 携带 seed、hard-ceiling、少于两块或恒等投影均 fail-closed。v9-r5 报告中 Flask/Express/Gin/Spring 四仓 parity 通过，Django 因真实 hard-ceiling 不可派生合法 S；Flask ctx/app、Django middleware init/base、Gin context/routergroup 覆盖缺口、Express 索引搜索覆盖缺口及 Spring Owner/PetController 覆盖缺口保持。manifest 由 deriveFinalPayloadReady 交叉验证五题固定 commit、candidate、快照哈希、真实固定 seed 候选投影、最终 proof 和 C/C 确定性；缺 proof/快照哈希、错误候选顺序均拒绝。通用低层 PairedExecutionReadiness 仍接收派生 boolean，没有扩展为证据对象或不可伪造的执行授权。最终目标测试 47/47 连续两轮通过，tsc、五个相关 mjs node --check、diff check 通过；未跑全仓。最终 manifest 仍 blocked、60 planned/0 consumed、96 pilot/0 formal、reservation SHA=9efb02b260... 不变，五 blocker=coverage、finalPayload、production C/S、DES inconclusive、correctness non-inferiority。1-8-2 仍 in_progress，B 不实施，未运行真实 paired Agent、未重跑 DES、未启动试点、未 commit/push。",
           "note": "证据：.workbuddy/agent-eval/2026-11-16-zra-pilot-rendered-arms-v9-r5/report.json；.workbuddy/agent-eval/2026-11-16-zra-pilot-execution-manifest.json。stdio 测试客户端先收完整 JSON-RPC 响应再关闭 stdin，evaluation server 监听 stdin end 完成排空后退出；不改生产 transport。"
+        },
+        {
+          "q": "Django hard-ceiling 的处置方案如何确定，是否解除当前准备失败？",
+          "answer": "2026-11-16 只读取证后确定保守处置：Django 继续作为 preparation failure，禁止 uncap、补文件、取交集、替换 seed、修改任务或生产预算来伪造 finalPayloadReady。真实输出为 24918 chars，触及 min(round(24000*1.5),25000)=25000 硬顶，截断标记估计未呈现约 6685 chars（总约 31603）；完整文件头显示至少 6 个块，但 core/handlers/base.py 未候选、csrf.py 只有 imports、middleware/__init__.py 未候选，即使单块也无法证明顺序效应，不具诊断资格。后续独立工作应修正冻结 C 的检索/必要源选择，再取全新证据并满足全部五仓门，不能在本协议内放宽。另发现 evaluation-only 解析缺陷：parseExploreSourceBlocks 在 hard-ceiling 时遇到源码中以三反引号 python 开头的续块提前判定 sourceEnd，使 Django 实际 6 块被报告为 1 块、wholeTextEqual 假阳性；finalPayloadReady 仍正确拒绝，故不影响硬门。解析器修复只允许改善诊断，严禁把任何 hard-ceiling 解释为可派生合法 S；不借此宣称 coverage/parity 通过。本轮仅作方案决策与 roadmap 记录，不改代码、不跑模型、不消费 paired ledger。",
+          "note": "证据 .workbuddy/agent-eval/2026-11-16-zra-pilot-rendered-arms-v9-r5/django-csrf-view-trace-v1-rendered.json 与 report.json；src/mcp/explore-renderer.ts:831-856；src/mcp/tools.ts 大仓 maxOutputChars=24000；ADR-0015 D1/D5。1-8-2 保持 in_progress，1-4/e9 blocked、默认 OFF、60 planned/0 consumed、96 pilot/0 formal 不变。"
+        },
+        {
+          "q": "继续消除五仓覆盖缺口的执行范围与允许修改的机制是什么？",
+          "answer": "Human 于 2026-11-16 明确开始继续消除五仓覆盖缺口，分类=Product execution 下的 ZJ-0015 评测准备；完成标准是五仓固定任务在真实索引/候选/最终渲染中覆盖已审源码锚点，并由单测和全新零模型证据支持，而不是修改审计阈值。可修正通用检索、图扩展、必要源码选择、真实符号抽取与 evaluation-only 诊断 bug；不得把 rubric/expected file 注入 retrieval、不得任务名特判、不得改题/真实 seed/fileTopK=10/symbolTopK=50/unionRerank/生产输出预算、不得 uncap 或修改硬门。若修正冻结 C 的实质算法，必须明确新版本与旧证据边界，不能把新结果冒充旧 frozen-candidate-v1；若只修复实际 plan/render 接线则保持 candidate SHA 并逐仓取差。Django hard-ceiling 处置决策仍有效，S 保持 fixed-c-visible-evidence-order-only-v1。未授权生产 ZCG_RETRIEVAL_ARM、真实模型/DES 重跑、试点或 commit/push；1-4/e9、默认 OFF、96/0 不变。",
+          "note": "先按未召回/未入选/未渲染/符号未抽取分类，并以非任务特定 fixture 和真实五仓差分证明；不把 coverage pass 等同回答正确性、Agent Sufficiency 或发布就绪。"
+        },
+        {
+          "q": "如何修复必要源码选择而不伪造冻结 C v1 证据？",
+          "answer": "将文件集合/排序与真实召回符号的渲染 provenance 分开；冻结 symbolTopK=50、fileTopK=10 和 unionRerank 不变。先实现 evaluation-only 的必要符号选择及 JavaScript 赋值函数抽取、诊断解析的通用回归。任何改变 C 文件集合或顺序的词形召回接入必须单独立版，旧 SHA 及旧五仓结论不得复用。",
+          "note": "只修复评测准备，不运行模型、DES、试点或生产接线；真实五仓复验前不改变 coverage/finalPayloadReady。"
+        },
+        {
+          "q": "v10 真实复验暴露的必要源码选择与诊断缺口如何处置？",
+          "answer": "v10 五仓报告已真实生成但 status=incomplete：Flask/Gin 在首个完整文件块前触发 hard-ceiling 后解析器误报；Django/Express/Spring 同样硬顶失败，Django/Spring 仍缺必要候选，Express 仍为旧索引。下一步只修 evaluation-only 必要源码选择：真实 symbol hit 与 baseline entry/spine/named 上下文优先，压缩这些文件的偶发内容，真实命中文件不因小而整文件绕过簇选择；shared renderer 只在显式 symbolHitNodeIds 时启用，A 默认行为不变。解析器允许诊断首块前截断，derive 仍拒绝 hard-ceiling。冻结候选集合/排序、symbolTopK=50、fileTopK=10、unionRerank、seed、任务与生产预算不变；Express 另行隔离重建索引，其余未入选缺口保留。",
+          "note": "证据 .workbuddy/agent-eval/2026-11-16-zra-pilot-rendered-arms-v10-provenance/report.json。coverage 与 finalPayloadReady 保持未通过；无模型/DES/试点/生产接线。"
+        },
+        {
+          "q": "v12 真实命中接线后出现截断回归，下一步如何处置？",
+          "answer": "v12 报告为 incomplete：Flask/Django/Gin hard-ceiling，Express/Spring strict C/S proof pass 但仍有必要文件未入选，Express 旧索引缺符号。真实 hit 已进入 evidence 后，fileNecessary 同时改变了原 fileBudget 计算；将剩余输出预算的原有行为保留给 A，仅 C 真实 hit 文件使用 maxCharsPerFile 的簇选择预算。补 symbol-only evidence 直接断言；不改冻结候选集合/顺序、top-K、seed、任务、输出预算或安全门。Express 用无旧 .zcodegraph 的 tmp 副本重建，分别报告固定 checkout 的真实稀疏语料边界，不混入旧 DB readiness。",
+          "note": ""
+        },
+        {
+          "q": "v13 剩余 hard-ceiling 的实际源码选择原因与修复边界？",
+          "answer": "真实诊断显示 Flask/Gin/Django 的 C 命中函数及相邻范围被 gapThreshold 合并为超大簇，首个高分簇不受 fileBudget 限制，且 symbolHit 分支忽略了剩余输出预算。仅 C 的真实命中文件启用按预算截断簇合并：按完整节点范围累积，达到 maxCharsPerFile 后不继续并入；非命中文件与生产默认路径保持原算法。所有命中文件（包括其余 necessary 节点）都使用剩余输出预算约束簇选择，不再通过 fileNecessary 绕过。不切函数体、不改 maxOutputChars/maxCharsPerFile/maxFiles、不改候选或任务；若真实必要文件仍未入选，保留 candidate incomplete。",
+          "note": ""
+        },
+        {
+          "q": "v14 有界簇合并后仍截断的源码根因如何处置？",
+          "answer": "真实 v14 报告显示 Gin hard-ceiling 已消除且 strict C/S proof pass，Flask/Django 仍失败；Express/Spring proof pass 但原覆盖缺口不变。Flask sessions.py 的 SessionInterface 类外壳与内部方法重叠形成约 9.4K 文件块，单簇超过 3.8K 文件预算。下一步仅对 C 真实 symbol-hit 文件：当类/模块外壳包含更具体命中范围时不把外壳作为不可分整段，保留完整具体函数/方法，按原预算选簇；不改文件集合、顺序、候选 SHA、函数边界、生产预算或默认 render 行为。另将非源码关系前缀的顺序敏感性作为独立诊断，不以 strict S 投影替代该问题。",
+          "note": ""
+        },
+        {
+          "q": "v15 暴露的 symbol-only provenance 跨文件串扰如何处置？",
+          "answer": "v15 使 Flask strict C/S proof pass 且无 hard-ceiling，但 Django 仍截断。真实节点核对确认 composeSymbolOnlyPlan 把全部候选文件的 symbolHitIds 合并，再从每个文件筛选同一全局集合，使非 top-50 的同文件节点被误标为真实命中；例如 CSRF process_view/process_response 被放进 dropped cluster。下一步先按 filePath 将真实 symbolRecallFiles 命中范围限制到所属候选文件，保留 baseline designated evidence，不改冻结 top-50/top-10 或文件顺序。真实 ID 绑定修正后再判断剩余预算，禁止用预算增长掩盖错误命中。",
+          "note": ""
+        },
+        {
+          "q": "v16 后 Django 的簇选择与关系前缀如何完成有界修复？",
+          "answer": "v16 文件隔离回归通过但真实 Django 输出未变。canMergeRange 以未带行号文本估算，而 buildSection 带行号，造成合并簇超 maxCharsPerFile；所有真实 hit 的 importance=9 又丢失 symbolRecallFiles 排名，且 baseline entry importance=10 可压过最高分 C hit。下一步仅在 symbolHit 文件：以实际行号输出估算合并预算，按真实 top-50 名次给 hit 簇优先序，保留函数体完整；baseline/A 的评分不变。composeSymbolOnlyPlan 同时将关系子图限制为入选 evidence 内部，消除 C 独立渲染前缀随文件顺序变化，且不改变 S 的逐块派生约束。此为 evaluation-only 渲染/投影修复，不是新候选版本。",
+          "note": ""
+        },
+        {
+          "q": "v17 未通过后，当前合同不可准入如何收口？",
+          "answer": "停止继续围绕 v17 微调 renderer。v17 总体 incomplete：Flask strict proof pass 但缺 ctx.py/app.py；Django strict proof incomplete 且 hard-ceiling，缺 middleware/__init__.py 与 core/handlers/base.py；Express strict proof 与文件覆盖 pass，但固定 checkout 的 getrouter 与冻结 lazyrouter anchor 确定不一致，且原 DB 缺 handle/use/mounted_app；Gin strict proof incomplete 且 hard-ceiling，缺 context.go/routergroup.go；Spring strict proof pass 但缺 Owner.java。局部 proof 不得覆盖其他门。证据与边界已固化至 .workbuddy/agent-eval/2026-11-16-zra-pilot-rendered-arms-v17-ranked-bounded-evidence/no-go-disposition.json，引用 v17 report 与 Express clean-index 报告及其实际哈希。当前合同+当前 C v1 为 NO-GO，1-8-2 保持 in_progress，含义为等待 Human 修订而非执行准入；1-4 继续 pending 并由 e9 阻塞，不删边、不完成前置、不启动试点、不改默认 OFF。Human 待决：A 修订并复审任务合同；B 另立检索/渲染候选版本、新配置身份并重跑全部证据；C 停止此产品化路线并保留离线诊断。未选方向前不继续 renderer 调参，不把不可准入写成所有算法在逻辑上不可能。v17 代码改动保留为未提交实验工作，未形成授权候选版本。",
+          "note": ""
+        },
+        {
+          "q": "A 有效任务集合与 B/C 顺序如何落地？",
+          "answer": "A 源码复核结果：Flask 与 Express 为 revise-and-rereview；Django、Gin、Spring 为 retain-content-rereview-v2，无任务撤回。Flask 原 loaded on demand/lazily 未区分 RequestContext.push() 正常请求时主动调用 _get_session（ctx.py:416-440）与 accessor 缓存（381-389）；Express 固定 checkout 为 getrouter property getter（application.js:59-83），不是 lazyrouter 普通函数。已新增独立 zra-pilot-v2-draft.mjs，五题统一 pending-human-rereview，registry 不含 v2，v1 原文与 accept 不复制为新版证据。B 评估=one-bounded-new-candidate-justified-not-authorized：五仓五语言仍符合 ADR-0015 D5 的 5-8 试点范围，索引/召回/渲染缺陷可分治，值得一次独立候选，但不继续 v18 式调参。Human 对 v2 文本复审是 B 实现前置；若该候选仍有必要文件缺失或 hard-ceiling，或必须靠任务注入/扩预算/换 seed，则按 Human 已选顺序转 C，不无限续研。证据=.workbuddy/agent-eval/2026-11-16-zra-pilot-rendered-arms-v17-ranked-bounded-evidence/contract-revision-v2-draft.json。",
+          "note": "仅 evaluation-only 草案与投入评估。未修改生产 renderer/检索、未运行模型或 DES、未接线生产 C/S、未生成 ready manifest；1-8-2 in_progress，1-4/e9、默认 OFF、60 planned/0 consumed、96 pilot/0 formal 不变，不自动 commit/push。"
+        },
+        {
+          "q": "Human 是否接受 ZRA-Paired v2 五题合同内容，是否授权 B 的准备？",
+          "answer": "Human victo 于 2026-11-17 明确确认 v2 草案：Flask 修正 push-time opening 与 accessor caching，Express 修正为 getrouter property getter，Django/Gin/Spring 内容保留；五题均 accept。该 accept 只覆盖 prompt、rubric、negative constraints 与 source anchors，不是执行注册、真实 paired Agent、DES、生产 C/S 或试点授权。按 A→B→C 顺序，允许一次独立、有边界的新检索渲染候选的 preparation-only 评估。",
+          "note": "v2 文件继续 content-reviewed-not-registered；v1 原文和证据不可变。B 不改冻结 C v1 SHA、top-50/top-10、union 权重、真实 seed、输出预算或默认 OFF；若单候选仍缺必要源码或 hard-ceiling，则转 C 保留离线诊断，不续 v18。"
+        },
+        {
+          "q": "B 的单一候选如何隔离于冻结 C v1？",
+          "answer": "采用独立 preparation-only 候选身份与配置哈希，旧 C v1 文件及 SHA 保持冻结；审计入口必须显式选择已 Human 内容复审的 v2 任务与新候选，不能修改 registry 或让旧审计静默换算法。候选仅接收 prompt 和真实图/符号索引，task rubric/expected files/SOURCE_ANCHORS 只能用于事后审计。",
+          "note": "方向性实现细节在候选证据中冻结并绑定代码与配置；一次评估后以五仓 coverage、hard-ceiling、strict C/S proof 和 C/C 确定性决定 B 或转 C，不做连续 renderer 微调。"
+        },
+        {
+          "q": "一次有边界的 B 候选验收失败后如何处置？",
+          "answer": "按 Human 既定 A→B→C 顺序转 C：停止本轮语义检索产品化路线，保留离线诊断，不再围绕该候选调参或做第二次验收。独立 source-trace-candidate-v2 仅运行一次零模型五仓准备审计，整体 incomplete：Flask 缺 ctx.py 候选/渲染且 RequestContext.push 锚点未找到；Django 缺 middleware/__init__.py 候选、base.py/csrf.py 未渲染并触发 hard-ceiling；Express 局部准备 pass；Gin 缺 context.go/routergroup.go 并触发 hard-ceiling；Spring 缺 Owner.java 并触发 hard-ceiling。报告 SHA-256=9fb9ef5d3104b33cfa0bc065f6710404457af458a98c2b2d31f2fa88700d7bda，配置 SHA-256=cb4faf73ee802bb342b47bf969fb8fb8ffd826f9fa1b4164c13bc0144b5ae510（仅配置，不是完整实现清单）。机器处置=stop-candidate-retain-offline-diagnostics；独立证据=.workbuddy/agent-eval/2026-11-17-zra-source-trace-v2-bounded-candidate/b-to-c-disposition.json。1-8-2 保持 in_progress，不视为准入完成；1-4 保持 pending+blocked(e9)，默认 OFF、60/0、96/0、旧 finalPayloadReady=false 不变；不生成新 manifest，不运行真实 Agent/DES/试点，不自动 commit/push。",
+          "note": ""
+        },
+        {
+          "q": "Human 要求按 v2 合同执行后，执行准备的首个阻塞是什么？",
+          "answer": "选择先补执行准备，不启动真实 Agent/DES/试点。固定 Flask 源码复核发现 v2 仍误写 RequestContext.push，且同文件可执行 push() 与部分 first-access 文档存在时序差异。已在独立 v2 修订为 AppContext.push/session/_get_session，保留 push-time opening、accessor caching/accessed 和 RequestContext 仅为弃用别名的事实；该 Flask 题退为 pending-human-rereview，其余四题保留原内容 accept 但未注册。旧五仓审计 fail-closed，v1 registry、旧证据、C v1 和 B→C 处置均不改。13/13 定向测试通过。未补齐全任务集复审、五仓覆盖/no hard-ceiling、生产切臂、DES、正确性非劣预注册、双审和隔离前，不注册可执行合同，不生成 ready manifest，不解除 1-4/e9。准备证据=.workbuddy/agent-eval/2026-11-17-zra-v2-execution-preparation/。",
+          "note": ""
+        },
+        {
+          "q": "Flask v2 修订是否已通过 Human 复审，是否因此可以执行？",
+          "answer": "Human victo 于 2026-11-18 明确接受 Flask 修订：使用 AppContext 的具体方法，push-time 打开 session，accessor 负责缓存与 accessed 标记，RequestContext 仅为弃用别名。五题 v2 现均为内容 accept 但未注册执行；Flask 的 reviewedAt 独立更新为 2026-11-18，其余四题保持 2026-11-17。合同/registry/candidate 13/13 定向测试通过。此复审只解除任务内容阻塞，不撤销 B→C，不重跑旧候选，不证明五仓覆盖/no hard-ceiling，不替代生产 C/S、DES、正确性非劣预注册、双审、隔离和 manifest，也不构成真实 Agent/试点授权；1-8-2 仍 in_progress，1-4/e9 与默认 OFF 不变。",
+          "note": ""
+        },
+        {
+          "q": "Flask 复审后 v2 剩余执行前置如何判定？",
+          "answer": "机械核对仍为 blocked：v2 未注册且没有 readiness-bearing v2 manifest；唯一 B 候选旧报告四题候选/渲染覆盖不足、Django/Gin/Spring hard-ceiling，未重跑；生产无 ZCG_RETRIEVAL_ARM，默认 OFF；DES Human=inconclusive+correctness flag，未重跑；correctnessNonInferiority=null，未获新预注册；victo/zxj 仅指派未双盲审；旧 manifest 绑定 v1/C v1，不是 v2 隔离证据。独立清单=.workbuddy/agent-eval/2026-11-18-zra-v2-flask-rereview/prerequisites.json。合同内容门已完成，不因此撤销 C 或伪造其他门为 ready；后续新候选/生产接线/真实 Agent/DES/试点各需独立 Human 范围与授权。",
+          "note": ""
         }
       ],
       "notes": "",
@@ -1410,11 +1502,245 @@
         "试点设计时预注册：任务集精确组成 + Task Freshness 审阅、named operators/reviewers、答案充分性规则；正式 N 与总成本在试点后预注册（Q68 Human 唯一审批）。",
         "5-8×4×3 试点在 96 paired-runs 唯一硬门内执行；正式 N 预注册后按 N×k×3 冻结 formal ceiling；不以 harness 资源护栏数值或任何校准 run 为前置；e9、1-4 blocked、默认 OFF 不变。"
       ]
+    },
+    "1-9": {
+      "id": "1-9",
+      "uid": "01a1ecc59bbf-6fd9f55ee8",
+      "label": "五仓通用生产检索重新设计：统一证据模型、预算合同与可迁移验收",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1",
+      "children": [
+        "1-9-1",
+        "1-9-2",
+        "1-9-3",
+        "1-9-4",
+        "1-9-5",
+        "1-9-6",
+        "1-9-7",
+        "1-9-8",
+        "1-9-9",
+        "1-9-10"
+      ],
+      "decisions": [
+        {
+          "q": "Slice 0 之后如何编排实现、验收与生产准入？",
+          "answer": "沿用已批准 DES-universal-structural-explore-v1 的 Slice 1–6 顺序追加 1-9-5 至 1-9-10：共享应用与端口、证据台账、通用路径闭包、全局 UTF-8 分配、五仓及负例硬门、独立价值与 Human 准入清理；1-9 保持已批准设计完成态，新增节点全部 pending，按 blocks 串联。开工是单独产品执行决定，节点 ready 不授权 Agent/DES/pilot、生产默认变更或预算消耗。P1 行为保持先于语义替换；C/S 冻结候选保留，EvaluationExploreProjection 在 harness 边界；1-8-2 仅约束旧 Agent Sufficiency 集成，不冒充 Explore 语义迁移授权。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-1": {
+      "id": "1-9-1",
+      "uid": "01a1ecc5d229-49be1932ec",
+      "label": "盘点生产链路、五仓失败分层与不可变约束",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [
+        {
+          "q": "当前生产链路与重新设计约束是什么？",
+          "answer": "MCP/CLI 仍分别编排 plan/blast/render；renderer 同时查图读盘选源码并最终硬截断，planner 的 renderMode 不是唯一有效控制面。五仓失败主要是索引事实已存在但候选、路径、物化、预算逐层丢失。新设计保留 explore 工具与 P1 共享 application/纯 renderer 方向；旧 C/S 与 agent-eval 仅诊断，默认 OFF、60/0、96/0、DES/e9 等硬门不变。",
+          "note": "事实核查文件：src/mcp/tools.ts、src/bin/zcodegraph.ts、src/mcp/explore-planner.ts、src/mcp/explore-renderer.ts、docs/contracts/cli-p1-modularity-and-explore-v1.md。"
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-2": {
+      "id": "1-9-2",
+      "uid": "01a1ecc5d3cc-33329f277e",
+      "label": "Design-it-twice：比较至少三种检索接口与证据编排架构",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [
+        {
+          "q": "三种接口架构如何取舍？",
+          "answer": "选择混合方案：保留现有 explore 作为唯一主工具，以共享 ExploreApplication 和纯 renderer 为外部 seam；内部由 file-centric ranking 改为 typed EvidenceGraph、anchor/endpoint 覆盖、typed trace、EvidenceRequirement、全局 source budget 和 coverage ledger。语言/框架知识留在索引期事实生产，不设查询规则包，不新增 trace/DSL/运行时 LLM，不以最终字符串截断控制预算。",
+          "note": "比较了最小接口、可扩展证据图、默认调用者证据包/continuation 三种设计。首版不引入 continuation/session、不先改 SQLite schema，先复用 Node/Edge/FileRecord 及 provenance；缺失语义必须显式 residual/gap，不能伪装成运行时事实。详细合同进入 DES-universal-structural-explore-v1。"
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-3": {
+      "id": "1-9-3",
+      "uid": "01a1ecc5d589-6f5bd62ac6",
+      "label": "选定设计并形成五仓通用生产合同、验收矩阵与迁移切片",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [
+        {
+          "q": "独立设计复核是否关闭，下一阶段边界是什么？",
+          "answer": "两路独立复核及局部修订后，DES-universal-structural-explore-v1 可进入 slice 0/1 的行为冻结与共享 application 提取；不是五仓实现、正确性或生产准入通过。",
+          "note": "以原子 QueryObligation/claim links 防止少选证据获 complete；以固定 read view、逐 atom source acquisition、关系 provenance 和 UTF-8 全 transport 预算闭合接口。明确 v2 draft 仅作本地开发内容源，未注册、不执行。现有图 facts 充分性、负向 fixtures、真实 transport/ledger、五仓验收分别留给后续 slice；默认 OFF、60/0、96/0、DES/e9 与 Agent A/B/correctness 门禁不变。"
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-4": {
+      "id": "1-9-4",
+      "uid": "01a1ed1d56c6-43e9418837",
+      "label": "Slice 0：冻结 legacy Explore 行为、评测边界、任务身份与性能基线",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Slice 0 的测试接缝、任务身份和性能归属是什么？",
+          "answer": "按已批准设计，在真实 CLI/MCP 与现有 planner/renderer 公共接口冻结 legacy 行为；固定 v2-draft 五任务 ID、commit、模块 SHA-256 与 content-reviewed-not-registered；建立 anchor/path/source/budget/claim 五阶段开发审计；沿用注册 Spring corpus/query、9 次 median 测量，新增环境明确的当前观测，不覆盖旧 3-run 锚点或发明阈值；不执行 Agent/DES/pilot，不改变停止的 C/S。",
+          "note": ""
+        },
+        {
+          "q": "Slice 0 的冻结证据和下一步授权边界是什么？",
+          "answer": "当前工作树的 15/15 定向测试通过；v3 五仓五阶段审计已记录五题 anchor/source 缺口，Django 保留一个 rust-owned parse gap，Flask/Django/Spring 有 hard-ceiling；v4 九次 fresh-process CLI median 已绑定源码、可执行文件、固定任务和审计哈希。旧不完整或被覆盖样本不作基线。slice 0 仅完成 legacy 冻结，不是语义正确性、五仓验收或生产准入；进入已批准合同的 slice 1 行为保持迁移，不改停止的 C/S 候选、默认 OFF、60/0、96/0 或其他门禁。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-5": {
+      "id": "1-9-5",
+      "uid": "01a1ed687c6f-4262f880dd",
+      "label": "Slice 1：共享 ExploreApplication、真实端口与纯渲染器",
+      "status": "in_progress",
+      "mode": "exploit",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Slice 1 开工前如何处置未提交的多线改动与里程碑边界？",
+          "answer": "采用 Q1=A/Q2=A/Q3=A1/Q4=B1：先把 Slice 0 冻结产物（合同、Slice 0 测试、latency harness、README 合同登记）单独成 PR-B 合入，再开干净 Slice 1 分支按 P1 合同垂直顺序落地。1-8-2 v10-v17 evaluation-only 改动作为受控历史证据以 PR-A 入库，绑 v17 no-go disposition，不改生产默认 OFF 与 C/S 冻结候选，不解除 1-4/e9/96/0 等硬门。两 PR 严格 feat/chore 分离，均走分支+PR 不直接推 main。",
+          "note": "roadmap JSON/MD 因 append-only 决策链放在 PR-A 一次入库保持时间顺序；PR-B 只追加 1-9-5 状态迁移。"
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "obligation_key": "DES-universal-structural-explore-v1:slice-1",
+      "exit_criteria": [
+        "CLI 与 MCP 经同一 ExploreApplication 调用同一证据策略，transport 不复制选择逻辑",
+        "真实 CodeGraph/SQLite 图端口与 root-confined 文件端口、内存测试端口均有接口验证",
+        "legacy 行为、maxFiles 语义、非数值/小数输入、运行时输出选项和 CLI 换行保持",
+        "EvaluationExploreProjection 仅属 harness；生产 plan/model/renderer 不导入或接受它，停止的 C/S 候选不变",
+        "可独立构建与回退，不引入生产语义开关；五仓 legacy 对照和定向测试留证"
+      ],
+      "rounds": 1
+    },
+    "1-9-6": {
+      "id": "1-9-6",
+      "uid": "01a1ed687e26-3982e708e4",
+      "label": "Slice 2：固定快照证据台账与 legacy 旁路观测",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "obligation_key": "DES-universal-structural-explore-v1:slice-2",
+      "exit_criteria": [
+        "所有图节点、边、文件及 unresolved-ref 读取属于固定 SQLite read view，失效显式报 snapshot-lost",
+        "每个已选 requirement 具有 returned/degraded/omitted 处置、provenance、residual、freshness 和一致派生计数",
+        "新台账仅旁路观测 legacy composition，不改变回答语义；缺失关系 site 等 graph blocker 不伪造闭包",
+        "内部 report 未经兼容性审批不暴露到 ToolResult/metadata；source 失败不伪装 no-evidence"
+      ]
+    },
+    "1-9-7": {
+      "id": "1-9-7",
+      "uid": "01a1ed687fc1-7f3b7d42b2",
+      "label": "Slice 3：通用查询义务、锚点与类型化路径闭包",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "obligation_key": "DES-universal-structural-explore-v1:slice-3",
+      "exit_criteria": [
+        "同一通用算法服务五仓，禁止按仓库/框架/任务/rubric 选择候选、权重、路径或预算例外",
+        "义务闭包涵盖锚点、调用、注册/调度、guard、状态、替代与异常分支；所有 claim 连接证据",
+        "固定 work budget、稳定 tie-break、确定性排序及残余语义有测试；歧义和潜 dispatch 不升级为真实运行时调用",
+        "缺图事实时登记 graph-semantics blocker，不增加查询专用绕行；内部实现开关仅由单独语义迁移授权启用"
+      ]
+    },
+    "1-9-8": {
+      "id": "1-9-8",
+      "uid": "01a1ed68816a-66584548c6",
+      "label": "Slice 4：全局源码原子分配与 UTF-8 传输预算",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "obligation_key": "DES-universal-structural-explore-v1:slice-4",
+      "exit_criteria": [
+        "CLI/MCP 使用同一完整结果接口和唯一回答策略；maxFiles 按详细交付文件解释",
+        "原子全局分配、合并重叠区间、预留 transport notice，以 UTF-8 字节精确满足最终 cap",
+        "完整签名或 location/gap 结构化降级，禁止半方法、半 Unicode、尾切及 necessary-file 旁路",
+        "极小 cap、最小错误 envelope、取消/快照/源码失败、重复原子与输出确定性 golden 全通过"
+      ]
+    },
+    "1-9-9": {
+      "id": "1-9-9",
+      "uid": "01a1ed688309-d3bfdbe8c9",
+      "label": "Slice 5：五仓开发矩阵、负例与性能硬门",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "obligation_key": "DES-universal-structural-explore-v1:slice-5",
+      "exit_criteria": [
+        "五固定 commit 的每题义务、路径、材料化源码、预算和 claim-evidence 全部独立通过，宏平均不掩盖失败",
+        "歧义、错误重载、注册 decoy、外部终点、搜索耗尽、预算排除、缺失/变更源码与路径/Unicode 负例通过",
+        "真实 Python/JavaScript/Go/Java 图适配器、read view、hash、乱序批次和 cache 稳定性测试通过",
+        "注册红线 explore <=20%、index <=15% 按其协议执行；诊断性能记录原始样本与环境，不发明阈值",
+        "需要图/索引/schema 变更时拆分独立评审与迁移，不夹入查询渲染绕行"
+      ]
+    },
+    "1-9-10": {
+      "id": "1-9-10",
+      "uid": "01a1ed6884ad-6e42ed649f",
+      "label": "Slice 6：独立 Agent 产品价值、Human 准入与 legacy 清理",
+      "status": "pending",
+      "mode": "exploit",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan",
+      "obligation_key": "DES-universal-structural-explore-v1:slice-6",
+      "exit_criteria": [
+        "仅使用独立来源且 Human 复审的新任务，开发题与负例不得重命名为 unseen holdout",
+        "Agent A/B、correctness non-inferiority、预注册预算、隔离、reviewer 与正式证据单独满足既有门",
+        "Human 明确批准后才改变默认、移除 legacy composition、更新默认启用指导及清理兼容代码",
+        "未取得独立价值或批准则保持 legacy 默认并记录停止/保留诊断结论，不消耗现有 60/0、96/0 预算"
+      ]
     }
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-16 17:49:36",
+    "updated": "2026-11-18 16:00:57",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
@@ -1465,7 +1791,43 @@
       "from": "01a1b1bca5d1-65df505faa",
       "to": "01a19c859594-0c665d6436",
       "type": "blocks"
+    },
+    {
+      "id": "e10",
+      "from": "01a1ed1d56c6-43e9418837",
+      "to": "01a1ed687c6f-4262f880dd",
+      "type": "blocks"
+    },
+    {
+      "id": "e11",
+      "from": "01a1ed687c6f-4262f880dd",
+      "to": "01a1ed687e26-3982e708e4",
+      "type": "blocks"
+    },
+    {
+      "id": "e12",
+      "from": "01a1ed687e26-3982e708e4",
+      "to": "01a1ed687fc1-7f3b7d42b2",
+      "type": "blocks"
+    },
+    {
+      "id": "e13",
+      "from": "01a1ed687fc1-7f3b7d42b2",
+      "to": "01a1ed68816a-66584548c6",
+      "type": "blocks"
+    },
+    {
+      "id": "e14",
+      "from": "01a1ed68816a-66584548c6",
+      "to": "01a1ed688309-d3bfdbe8c9",
+      "type": "blocks"
+    },
+    {
+      "id": "e15",
+      "from": "01a1ed688309-d3bfdbe8c9",
+      "to": "01a1ed6884ad-6e42ed649f",
+      "type": "blocks"
     }
   ],
-  "edge_seq": 9
+  "edge_seq": 15
 }
