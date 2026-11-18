@@ -1652,6 +1652,16 @@
           "q": "Slice 1 step 3 planner 归属与兼容策略是什么？",
           "answer": "完整 legacy planner 迁至 src/explore/planner.ts，src/mcp/explore-planner.ts 仅兼容 re-export 供历史测量/评估脚本使用。planner 直接依赖共享 budget，不再依赖 tools.ts；新增 runtime options 快照参数，旧直接调用保留原环境读取，新应用路径不在渲染阶段惰性读取。",
           "note": ""
+        },
+        {
+          "q": "Slice 1 五仓 legacy 对照如何隔离 plan 与 blast-radius 组合差异？",
+          "answer": "使用 Slice 0 固定五仓 SQLite 快照与原始 prompt，重新生成一次 plan，并对同一 plan、同一 runtime 快照和相同 blastRadius='' 分别执行保存的旧 renderer 与新 buildExploreRenderModel+纯 renderer；逐仓比较完整字符串、SHA-256，并校验冻结 answer SHA 与数据库前后 SHA。观察脚本保持显式空 blastRadius，不改借共享 Application 默认生成该 section；共享 Application 的 payload 等价另由真实端口与 CLI/MCP 测试证明。这只是行为保持对照，不是语义验收或生产准入。",
+          "note": "固定快照输出留于 .workbuddy/agent-eval 过程证据区；不重索引、不执行 Agent/DES/pilot。"
+        },
+        {
+          "q": "Slice 1 step 4 纯 renderer 与 evidence 的验收结果是什么？",
+          "answer": "生产 render 改为只吃 ExploreRenderModel，源码、邻接、额外节点、registration snippet 与 stats 在 evidence 阶段预物化；CodeGraph/SQLite 与 root-confined 文件读取通过窄端口，提供内存源码端口。保留缺文件/目录不可读、metadata 优先与 disk fallback、stats 不可用省略预算提示的旧行为。五仓固定 SQLite 快照以同 plan/runtime/空 blastRadius 对照，legacy 与新 renderer 五仓完整字符串和 SHA-256 全一致，且五者均匹配冻结 answer SHA、数据库前后不变；观察脚本恢复显式空 blastRadius 组合，不借共享 Application 改写观察口径。",
+          "note": "过程报告 .workbuddy/agent-eval/2026-11-18-universal-explore-slice1/legacy-renderer-parity/report.json；Flask 85677649...、Django 43a03e13...、Express 78011fd8...、Gin 26e5d7af...、Spring 8d85d1b8...；不代表语义验收或生产准入。"
         }
       ],
       "notes": "",
@@ -1765,7 +1775,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-18 17:18:50",
+    "updated": "2026-11-18 17:50:25",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

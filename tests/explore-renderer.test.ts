@@ -7,7 +7,10 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render } from '../src/mcp/explore-renderer';
-import type { ExplorePlan, Subgraph, Edge, Node } from '../src/mcp/explore-types';
+import type { ExplorePlan, ExploreRenderModel, Edge, Node } from '../src/mcp/explore-types';
+import { buildExploreRenderModel } from '../src/explore/evidence';
+import { readExploreRuntimeOptions } from '../src/explore/runtime';
+import type { ExploreGraphRead } from '../src/explore/ports';
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -63,6 +66,12 @@ function mockExplorePlan(overrides: Partial<ExplorePlan> = {}): ExplorePlan {
 // Issue #14: ExploreRenderer
 // ---------------------------------------------------------------------------
 
+const modelFor = (plan: ExplorePlan, blastRadius = ''): ExploreRenderModel => ({
+  plan, blastRadius, runtime: readExploreRuntimeOptions(), fileContents: new Map(),
+  extraNodes: new Map(), outgoingEdges: new Map(), incomingEdges: new Map(),
+  registrationSnippets: new Map(), projectFileCount: undefined, recommendedExploreCalls: 0,
+});
+
 describe('render', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -84,10 +93,9 @@ describe('render', () => {
       centralFiles: new Set(['src/main.ts']),
     });
 
-    const flow = { text: '', pathNodeIds: new Set<string>(), namedNodeIds: new Set<string>(), uniqueNamedNodeIds: new Set<string>() };
     const blastRadius = '';
 
-    const output = render(plan, null as any, flow, blastRadius);
+    const output = render(modelFor(plan, blastRadius));
     expect(typeof output).toBe('string');
     expect(output.length).toBeGreaterThan(0);
   });
@@ -109,10 +117,9 @@ describe('render', () => {
       centralFiles: new Set(['src/main.ts']),
     });
 
-    const flow = { text: '', pathNodeIds: new Set<string>(), namedNodeIds: new Set<string>(), uniqueNamedNodeIds: new Set<string>() };
     const blastRadius = '';
 
-    const output = render(plan, null as any, flow, blastRadius);
+    const output = render(modelFor(plan, blastRadius));
     expect(output).toContain('my specific query');
   });
 
@@ -132,10 +139,9 @@ describe('render', () => {
       centralFiles: new Set(['src/main.ts']),
     });
 
-    const flow = { text: '', pathNodeIds: new Set<string>(), namedNodeIds: new Set<string>(), uniqueNamedNodeIds: new Set<string>() };
     const blastRadius = '### Blast radius\n\n- `foo` (src/foo.ts:10)\n';
 
-    const output = render(plan, null as any, flow, blastRadius);
+    const output = render(modelFor(plan, blastRadius));
     expect(output).toContain('Blast radius');
     expect(output).toContain('`foo`');
   });
@@ -160,10 +166,9 @@ describe('render', () => {
       centralFiles: new Set(['src/caller.ts']),
     });
 
-    const flow = { text: '', pathNodeIds: new Set<string>(), namedNodeIds: new Set<string>(), uniqueNamedNodeIds: new Set<string>() };
     const blastRadius = '';
 
-    const output = render(plan, null as any, flow, blastRadius);
+    const output = render(modelFor(plan, blastRadius));
     expect(output).toContain('caller');
     expect(output).toContain('callee');
   });
@@ -230,9 +235,8 @@ describe('formatElidedMarker + insertion points (1-2-3)', () => {
         includeBudgetNote: false,
       },
     });
-    const flow = { text: '', pathNodeIds: new Set<string>(), namedNodeIds: new Set<string>(), uniqueNamedNodeIds: new Set<string>() };
     const blastRadius = 'x'.repeat(5000); // force ceiling
-    const out = render(plan, null as any, flow, blastRadius);
+    const out = render(modelFor(plan, blastRadius));
     expect(out).toContain('elided[output#');
     expect(out).toContain('zcodegraph_explore("');
     expect(out).toContain('do NOT Read these files');
@@ -255,9 +259,8 @@ describe('formatElidedMarker + insertion points (1-2-3)', () => {
         includeBudgetNote: false,
       },
     });
-    const flow = { text: '', pathNodeIds: new Set<string>(), namedNodeIds: new Set<string>(), uniqueNamedNodeIds: new Set<string>() };
     const blastRadius = 'x'.repeat(5000);
-    const out = render(plan, null as any, flow, blastRadius);
+    const out = render(modelFor(plan, blastRadius));
     expect(out).toContain('(output truncated to budget');
     expect(out).not.toContain('elided[output#');
   });

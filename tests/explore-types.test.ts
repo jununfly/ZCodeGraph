@@ -16,10 +16,10 @@ import {
 import type { Node, Edge } from '../src/types';
 
 describe('domain language', () => {
-  it('uses Flow Spine terminology for MCP explore source comments', () => {
-    const mcpDir = join(__dirname, '..', 'src', 'mcp');
-    const source = ['explore-types.ts', 'explore-planner.ts']
-      .map((file) => readFileSync(join(mcpDir, file), 'utf8'))
+  it('uses Flow Spine terminology for shared explore source comments', () => {
+    const exploreDir = join(__dirname, '..', 'src', 'explore');
+    const source = ['types.ts', 'planner.ts']
+      .map((file) => readFileSync(join(exploreDir, file), 'utf8'))
       .join('\n');
 
     expect(source).not.toContain('call-path spine');

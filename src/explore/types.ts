@@ -268,7 +268,7 @@ export interface ExploreRenderModel {
    */
   registrationSnippets: ReadonlyMap<string, string>;
   /** Project size (file count) used by the budget-note section. */
-  projectFileCount: number;
+  projectFileCount: number | undefined;
   /** Total explore calls recommended for this project size. */
   recommendedExploreCalls: number;
 }

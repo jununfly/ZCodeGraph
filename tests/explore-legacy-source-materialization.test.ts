@@ -5,7 +5,9 @@ import * as path from 'node:path';
 import CodeGraph from '../src/index';
 import { render } from '../src/mcp/explore-renderer';
 import type { ExplorePlan } from '../src/mcp/explore-types';
-import type { Edge, Node } from '../src/types';
+import { buildExploreRenderModel } from '../src/explore/evidence';
+import { readExploreRuntimeOptions } from '../src/explore/runtime';
+import { CodeGraphExploreGraphRead, RootConfinedExploreSourceRead } from '../src/explore/ports';
 
 const emptyFlow = {
   text: '', pathNodeIds: new Set<string>(), namedNodeIds: new Set<string>(),
@@ -35,6 +37,17 @@ function planFor(root: string, files: Array<[string, Node]>): ExplorePlan {
     entries: [], spine: emptyFlow, adaptiveEnabled: false, glueNodeIds: new Set(),
     connectedToEntry: new Set(), centralFiles: new Set(), projectRoot: root,
   };
+}
+
+function renderLegacy(plan: ExplorePlan, graph: CodeGraph, blastRadius = ''): string {
+  const model = buildExploreRenderModel(
+    new CodeGraphExploreGraphRead(graph),
+    new RootConfinedExploreSourceRead(plan.projectRoot),
+    plan,
+    blastRadius,
+    readExploreRuntimeOptions(),
+  );
+  return render(model);
 }
 
 function graphWithCallback(edge: Edge, target: Node): CodeGraph {
@@ -67,7 +80,7 @@ describe('legacy source materialization', () => {
       ['src/last.ts', symbol('last', 'src/last.ts')],
     ]);
 
-    const output = render(plan, graphWithCallback({ source: '', target: '', kind: 'calls' }, symbol('unused', 'src/unused.ts')), emptyFlow, '');
+    const output = renderLegacy(plan, graphWithCallback({ source: '', target: '', kind: 'calls' }, symbol('unused', 'src/unused.ts')));
     expect(output).toContain('#### src/readable.ts');
     expect(output).toContain('#### src/last.ts');
     expect(output).not.toContain('#### src/missing.ts');
@@ -86,7 +99,7 @@ describe('legacy source materialization', () => {
     ]);
     plan.maxFiles = 1;
 
-    const output = render(plan, graphWithCallback({ source: '', target: '', kind: 'calls' }, symbol('unused', 'src/unused.ts')), emptyFlow, '');
+    const output = renderLegacy(plan, graphWithCallback({ source: '', target: '', kind: 'calls' }, symbol('unused', 'src/unused.ts')));
     expect(output).toContain('#### src/readable.ts');
     expect(output).not.toContain('#### src/unreadable.ts');
     expect(output).toContain('Complete source for 1 files');
@@ -110,7 +123,7 @@ describe('legacy source materialization', () => {
     plan.subgraph.edges = [edge];
     const graph = graphWithCallback(edge, target);
 
-    const indexed = render(plan, graph, emptyFlow, '');
+    const indexed = renderLegacy(plan, graph);
     expect(indexed).toContain('indexed registration text');
     expect(indexed).not.toContain('— `events.on("change", listener);`');
 
@@ -119,11 +132,11 @@ describe('legacy source materialization', () => {
     };
     plan.subgraph.edges = [withoutMetadata];
     const diskGraph = graphWithCallback(withoutMetadata, target);
-    const fallback = render(plan, diskGraph, emptyFlow, '');
+    const fallback = renderLegacy(plan, diskGraph);
     expect(fallback).toContain('events.on("change", listener);');
 
     fs.rmSync(path.join(root, 'src', 'registry.ts'));
-    const missing = render(plan, diskGraph, emptyFlow, '');
+    const missing = renderLegacy(plan, diskGraph);
     expect(missing).toContain('callback via `events.on` @src/registry.ts:1');
     expect(missing).not.toContain('events.on("change", listener);');
     expect(missing).not.toContain('Explore budget:');
