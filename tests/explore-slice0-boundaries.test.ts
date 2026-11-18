@@ -36,12 +36,13 @@ describe('universal Explore slice 0 development boundaries', () => {
 
   it('keeps C/S projection inputs confined to the stopped evaluation wrapper', () => {
     const productionRenderer = readFileSync(path.join(ROOT, 'src/mcp/explore-renderer.ts'), 'utf8');
-    const productionPlan = readFileSync(path.join(ROOT, 'src/mcp/explore-types.ts'), 'utf8');
+    const productionPlan = readFileSync(path.join(ROOT, 'src/explore/types.ts'), 'utf8');
     const evaluationWrapper = readFileSync(path.join(ROOT, 'src/mcp/render-c-explore-plan.ts'), 'utf8');
     expect(evaluationWrapper).toContain('projectSymbolOnlyRelationships');
     expect(evaluationWrapper).toContain('plan.symbolHitNodeIds');
-    // These optional inputs are the pre-migration debt to remove in slice 1;
-    // production must never import the C/S evaluation wrapper to obtain them.
+    // Slice 1 step 6 will remove these optional inputs and migrate the harness
+    // onto EvaluationExploreProjection; production must never import the C/S
+    // evaluation wrapper to obtain them.
     expect(productionPlan).toContain('symbolHitNodeIds?:');
     expect(productionRenderer).not.toContain('render-c-explore-plan');
     expect(productionRenderer).not.toContain('c-explore-plan');

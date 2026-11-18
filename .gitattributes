@@ -1,0 +1,21 @@
+# Slice 0 of DES-universal-structural-explore-v1 binds development task identity
+# to the SHA-256 of frozen task module bytes. Those hashes must be identical on
+# every platform; Windows autocrlf would silently rewrite LF to CRLF on checkout
+# and break the freeze. Force LF for the frozen .mjs modules and any baseline
+# JSON files whose bytes are hash-pinned by tests.
+*.mjs text eol=lf
+docs/baselines/**/*.json text eol=lf
+scripts/agent-eval/task-prompts/*.mjs text eol=lf
+
+# Source and test files: keep LF on every platform so byte-level fixtures and
+# documentation examples render identically.
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sql text eol=lf
+*.rs text eol=lf
+

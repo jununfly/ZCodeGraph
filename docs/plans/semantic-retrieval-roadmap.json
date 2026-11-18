@@ -1627,6 +1627,21 @@
           "q": "Slice 1 开工前如何处置未提交的多线改动与里程碑边界？",
           "answer": "采用 Q1=A/Q2=A/Q3=A1/Q4=B1：先把 Slice 0 冻结产物（合同、Slice 0 测试、latency harness、README 合同登记）单独成 PR-B 合入，再开干净 Slice 1 分支按 P1 合同垂直顺序落地。1-8-2 v10-v17 evaluation-only 改动作为受控历史证据以 PR-A 入库，绑 v17 no-go disposition，不改生产默认 OFF 与 C/S 冻结候选，不解除 1-4/e9/96/0 等硬门。两 PR 严格 feat/chore 分离，均走分支+PR 不直接推 main。",
           "note": "roadmap JSON/MD 因 append-only 决策链放在 PR-A 一次入库保持时间顺序；PR-B 只追加 1-9-5 状态迁移。"
+        },
+        {
+          "q": "PR-A/PR-B 已合并，Slice 1 启动路径是什么？",
+          "answer": "PR-A #720 以 squash 合入 main=4b139c3，PR-B #721 rebase 后以 squash 合入 main=71f461c；两分支均删。Slice 0 现已是 main 的持久事实。Slice 1 将从最新 main=71f461c 切新分支 feat-universal-explore-slice1-20261118，按 P1 合同垂直顺序：抽 src/explore/（budget/plan/evidence/blast-radius/render-model + 纯 renderer），CLI/MCP 迁入共享 ExploreApplication，删 transport 私有副本；legacy maxFiles/小数/非数值/运行时输出选项/CLI 单换行保持；EvaluationExploreProjection 仅属 harness；五仓 legacy 对照 + 定向测试留证。",
+          "note": "CI：PR-A 5/5 一次绿；PR-B windows-2025 首跑遇 native-process-supervision channel-eof flake（已知），rerun --failed 后 5/5 绿，rebase 后 5/5 再绿。"
+        },
+        {
+          "q": "Slice 1 的目录布局与模块边界如何划定？",
+          "answer": "新建 src/explore/ 为共享模块目录，与 src/mcp/、src/bin/ 平级；CLI 与 MCP 都改为经同一 ExploreApplication 调用同一证据策略，删除 transport 私有副本。布局：(1) src/explore/types.ts 集中 ExplorePlan/ExploreOutputBudget/ExplorePlanEntry/FileGroup/FlowSpine/ExploreOptions/ExploreAnswer/ExploreRenderModel/ExploreRuntimeOptions；(2) src/explore/budget.ts 抽 getExploreOutputBudget+tightSmallProjectBudgetEnabled（吃 tightSmallProjectBudgetEnabled 作为数据不读环境）；(3) src/explore/planner.ts 收编 src/mcp/explore-planner.ts 全部逻辑（不含 symbolHit*）；(4) src/explore/blast-radius.ts+blast-radius-renderer.ts 按 P1 合同 §Shared blast-radius Module 抽 buildExploreBlastRadius+renderExploreBlastRadius，共享 isTestFile 单一来源；(5) src/explore/evidence.ts 收编 registrationSnippetFromLocation 等源码读取，从 renderer 移到证据组装阶段；(6) src/explore/render-model.ts 定义 ExploreRenderModel，在 application 层把 CodeGraph/文件系统读取全部落到 model，renderer 仅吃 model；(7) src/explore/renderer.ts 改纯函数，不接收 CodeGraph/projectRoot/环境；(8) src/explore/application.ts 实现 ExploreApplication.explore(graph,query,options) 串起 plan→empty→blast-radius→evidence→render-model→render；(9) src/mcp/explore-{planner,renderer,types}.ts 改为纯类型/函数 re-export，不含策略，不引 symbolHit*；(10) src/mcp/c-explore-plan.ts 与 render-c-explore-plan.ts 撤到 scripts/agent-eval/，把 symbolHit* 信号从 ExplorePlan 类型中抽离到 harness 的 EvaluationExploreProjection，经 adapter 注入。",
+          "note": "退出判据：Slice 0 15/15 + 现有 explore-* 测试全保绿；src/bin/zcodegraph.ts 删自有 blast radius 副本改调共享模块；src/mcp/tools.ts handleExplore 改调共享 ExploreApplication；legacy maxFiles 小数/非数值/运行时输出选项/CLI 单换行保持；EvaluationExploreProjection 仅属 harness。"
+        },
+        {
+          "q": "PR-A 合入后 Slice 0 测试 SHA 校验在 Windows 失败的根因与处置？",
+          "answer": "根因：PR-A 把 scripts/agent-eval/task-prompts/zra-pilot-v2-draft.mjs 加入 git 时 core.autocrlf=true 把 LF blob 写成 CRLF disk；Slice 0 测试用 readFileSync 读 disk 字节算 SHA-256，与冻结 LF 期望不符。CI ubuntu 是 LF 所以绿，Windows 本地红。处置：新增 .gitattributes 强制 *.mjs text eol=lf + docs/baselines/**/*.json text eol=lf + scripts/agent-eval/task-prompts/*.mjs text eol=lf，再用 python 把 scripts/**/*.mjs 磁盘 CRLF→LF，git add --renormalize 刷新 index。同时把 Slice 0 测试中 src/mcp/explore-types.ts 改指 src/explore/types.ts（re-export 后 symbolHit* 已迁至共享类型）。此为 Slice 1 准备修复，单独成 commit。",
+          "note": " Slice 0 15/15 + 现有 explore-* 163/163 + composition 40/40 + tsc 通过；CI ubuntu 应继续绿。"
         }
       ],
       "notes": "",
@@ -1740,7 +1755,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-18 16:00:57",
+    "updated": "2026-11-18 16:59:07",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
