@@ -18,4 +18,3 @@ scripts/agent-eval/task-prompts/*.mjs text eol=lf
 *.yaml text eol=lf
 *.sql text eol=lf
 *.rs text eol=lf
-
