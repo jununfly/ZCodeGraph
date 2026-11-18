@@ -134,6 +134,26 @@ describe('Language Support', () => {
   });
 });
 
+describe('JavaScript assignment-function extraction', () => {
+  it('extracts top-level member assignments without promoting inline callbacks', () => {
+    const result = extractFromSource('registry.js', [
+      'app.handle = function(req, res) { return dispatch(req, res); };',
+      'router.use = function(req, res, next) { next(); };',
+      'router.use(function(req, res, next) { next(); });',
+      'callbacks.push(() => true);',
+    ].join('\n'));
+
+    const handle = result.nodes.find((node) => node.name === 'handle');
+    expect(handle).toMatchObject({ kind: 'function', language: 'javascript' });
+    expect(handle?.startLine).toBe(1);
+    expect(handle?.endLine).toBe(1);
+    expect(result.nodes.filter((node) => node.name === 'use')).toHaveLength(1);
+    expect(result.nodes.some((node) => node.name === '<anonymous>')).toBe(false);
+    expect(result.unresolvedReferences.some((ref) =>
+      ref.fromNodeId === handle?.id && ref.referenceName === 'dispatch')).toBe(true);
+  });
+});
+
 describe('TypeScript Extraction', () => {
   it('should extract function declarations', () => {
     const code = `

@@ -102,7 +102,7 @@ export function symbolRecallFiles(query, idxPath) {
   const byFile = new Map();
   const topSymIds = [];
   for (const r of rows) {
-    topSymIds.push({ id: r.node_id, score: Math.max(0, -r.rank) });
+    topSymIds.push({ id: r.node_id, filePath: r.file_path, score: Math.max(0, -r.rank) });
     if (!byFile.has(r.file_path)) byFile.set(r.file_path, { count: 0, bm25: 0, names: [], kinds: [], exported: [] });
     const e = byFile.get(r.file_path);
     e.count += 1;

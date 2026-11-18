@@ -133,6 +133,9 @@ export interface LanguageExtractor {
   /** Override symbol name extraction (e.g. ObjC multi-part selectors). */
   resolveName?: (node: SyntaxNode, source: string) => string | undefined;
 
+  /** Resolve an anonymous function assigned to a file-scope property. */
+  resolveAssignedFunctionName?: (node: SyntaxNode, source: string) => string | undefined;
+
   /** Extract property name when the generic name walk fails (e.g. ObjC @property). */
   extractPropertyName?: (node: SyntaxNode, source: string) => string | null;
 

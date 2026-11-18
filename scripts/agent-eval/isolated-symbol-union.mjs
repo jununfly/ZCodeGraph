@@ -49,10 +49,23 @@ export function createIsolatedSymbolUnionRetrieval({ planBaseline, symbolRecall 
         const symbol = await symbolRecall(config);
         const baseFiles = baseline.sortedFiles.map(([file]) => file);
         const files = mergedRerank(baseFiles, symbol.files, symbol.byFile, symbol.qTok);
+        const provenance = symbolProvenance(symbol);
+        const groupFor = (file) => {
+          const baselineGroup = baseline.fileGroups.get(file);
+          const group = baselineGroup ?? { nodes: [], score: 0 };
+          const symbolHitIds = new Set();
+          const symbolHitRanks = new Map();
+          for (const [id, hit] of provenance) if (hit.filePath === file) {
+            symbolHitIds.add(id);
+            symbolHitRanks.set(id, hit.rank);
+          }
+          // Composition verifies these IDs against the indexed file contents;
+          // the baseline group itself is never mutated.
+          return symbolHitIds.size > 0 ? { ...group, symbolHitIds, symbolHitRanks } : group;
+        };
         return Object.freeze({
-          candidates: Object.freeze(files.map((file) => Object.freeze([
-            file, baseline.fileGroups.get(file) ?? Object.freeze({ nodes: Object.freeze([]), score: 0 }),
-          ]))),
+          candidates: Object.freeze(files.map((file) => Object.freeze([file, groupFor(file)]))),
+          symbolHitIds: Object.freeze([...provenance.keys()]),
           baselineFiles: Object.freeze(baseFiles),
           symbolFiles: Object.freeze([...symbol.files]),
           files: Object.freeze(files),
@@ -61,6 +74,17 @@ export function createIsolatedSymbolUnionRetrieval({ planBaseline, symbolRecall 
     }
     return cached;
   };
+function symbolProvenance(symbol) {
+  const provenance = new Map();
+  // Rendering consumes the real indexed hit IDs, not task-specific names. This
+  // does not add, remove or reorder any candidate selected by the frozen union.
+  for (const [rank, { id, filePath, score }] of (symbol.topSymIds ?? []).entries()) {
+    if (typeof id !== 'string' || !Number.isFinite(score)) continue;
+    provenance.set(id, { filePath, score: Math.max(0, score), rank });
+  }
+  return provenance;
+}
+
   return async ({ arm, config }) => {
     if (arm !== 'A' && arm !== 'C') throw new Error('S must be derived from C by runPairedEvaluation');
     if (arm === 'A') {
@@ -76,6 +100,7 @@ export function createIsolatedSymbolUnionRetrieval({ planBaseline, symbolRecall 
         baselineFiles: prepared.baselineFiles,
         symbolFiles: prepared.symbolFiles,
         files: prepared.files,
+        symbolHitIds: prepared.symbolHitIds,
       }),
     };
   };

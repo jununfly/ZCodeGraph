@@ -168,8 +168,50 @@ describe('fixed-c-visible-evidence-order-only-v1', () => {
     expect(compareFinalExploreAnswers(cAnswer, truncated)).toMatchObject({
       cHardCeiling: false, sHardCeiling: true,
       cFileOrder: ['alpha.ts', 'beta.ts', 'gamma.ts'],
-      sFileOrder: ['alpha.ts'],
+      sFileOrder: ['alpha.ts', 'beta.ts'],
     });
+  });
+
+  it('diagnoses every complete file before a renderer hard-ceiling tail', async () => {
+    const { compareFinalExploreAnswers, deriveFixedCVisibleEvidenceOrder, parseExploreSourceBlocks } = await load();
+    const truncated = [
+      cAnswer.slice(0, cAnswer.indexOf('### Not shown above')),
+      '```py',
+      'class Incomplete:',
+      '> … elided[output#csrf] — `zcodegraph_explore("csrf")` for full body',
+      '> **Do not Read the files above.**',
+    ].join('');
+    const parsed = parseExploreSourceBlocks(truncated);
+    expect([...parsed.blocks.keys()]).toEqual(['alpha.ts', 'beta.ts', 'gamma.ts']);
+    expect(parsed.suffix).toContain('class Incomplete:');
+    expect(parsed.suffix).toContain('elided[output#');
+    expect(compareFinalExploreAnswers(truncated, truncated)).toMatchObject({
+      cHardCeiling: true, cFileOrder: ['alpha.ts', 'beta.ts', 'gamma.ts'],
+      wholeTextEqual: true,
+    });
+    expect(() => deriveFixedCVisibleEvidenceOrder({
+      cCandidates: [alpha, beta, gamma], sCandidates: [beta, alpha, gamma], cAnswer: truncated,
+    })).toThrow('hard-ceiling truncation is a preparation failure');
+  });
+
+  it('diagnoses truncation before the first file without treating its fragment as evidence', async () => {
+    const { compareFinalExploreAnswers, deriveFixedCVisibleEvidenceOrder, parseExploreSourceBlocks } = await load();
+    const truncated = cAnswer.slice(0, cAnswer.indexOf('#### alpha.ts — run'))
+      + '```py\nclass TruncatedBeforeFirstFile:\n'
+      + '> … elided[output#csrf] — `zcodegraph_explore("csrf")` for full body';
+    const parsed = parseExploreSourceBlocks(truncated);
+    expect(parsed.hardCeiling).toBe(true);
+    expect([...parsed.blocks.keys()]).toEqual([]);
+    expect(parsed.sourceHeader).toBe(cAnswer.slice(
+      cAnswer.indexOf('### Source Code'), cAnswer.indexOf('#### alpha.ts — run'),
+    ));
+    expect(parsed.suffix).toContain('TruncatedBeforeFirstFile');
+    expect(compareFinalExploreAnswers(truncated, truncated)).toMatchObject({
+      wholeTextEqual: true, cHardCeiling: true, cFileOrder: [],
+    });
+    expect(() => deriveFixedCVisibleEvidenceOrder({
+      cCandidates: [alpha, beta], sCandidates: [beta, alpha], cAnswer: truncated,
+    })).toThrow('hard-ceiling truncation is a preparation failure');
   });
 
   it('marks fewer than two blocks or an identity projection as non-diagnostic without choosing another seed', async () => {

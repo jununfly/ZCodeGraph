@@ -1,0 +1,29 @@
+{
+  "metric": "source-trace-candidate-v2",
+  "version": 2,
+  "scope": "One bounded preparation-only evaluation candidate; not production wiring, a new release baseline or execution authorization",
+  "supersedesForThisEvaluation": "semantic-retrieval-symbol-index-candidate-v1; frozen v1 remains immutable",
+  "config": {
+    "symbolTopK": 50,
+    "fileTopK": 10,
+    "symbolKinds": ["function", "method", "class", "struct", "interface", "type_alias", "constant", "variable", "field", "enum", "enum_member", "property", "trait", "protocol"],
+    "tokenize": "Unicode-aware camelCase, snake_case and kebab-case split; lowercase; len>=2",
+    "lexicalIndex": "Separate symbol-name and comment/string-stripped source-body token fields; BM25 symbol-name score + bounded IDF-weighted distinct query-term coverage",
+    "sourceReadLimitCharsPerNode": 12000,
+    "bodyCoverageMultiplier": 4,
+    "nameCoverageMultiplier": 2,
+    "candidateScoreMultiplier": 20,
+    "graphExpansion": "Callers, callees and type-hierarchy nodes reachable from each of the real top-50 symbol hits; one graph hop; bounded best lexical evidence per neighboring node",
+    "graphEvidenceDiscount": 0.5,
+    "productionFilePriority": "For implementation queries, ordinary test/spec/fixture paths rank after production files with positive evidence; explicit test queries are unchanged",
+    "unionRerank": "0.4*planPos + 0.4*symPos + 0.2*termAlign",
+    "rendering": "Existing evaluation-only complete-symbol clustering with real per-file hit provenance and fixed global hard ceiling; no whole-method slicing, budget increase or uncapping",
+    "seed": 20261112,
+    "productionDefault": "OFF"
+  },
+  "frozenBeforeFiveCorpusAudit": true,
+  "inputsPermitted": ["Prompt text", "Fixed source checkout", "Real graph and source-body symbol index"],
+  "inputsForbiddenForRetrieval": ["Task names", "Rubric", "Expected files", "SOURCE_ANCHORS", "Reviewer verdicts"],
+  "acceptance": "All five retained tasks must have index, candidate and rendered-source coverage, no hard-ceiling, strict C/S proof and deterministic C/C. Any missing required source or hard-ceiling triggers C; no parameter retry.",
+  "notAuthorized": ["Real paired Agent", "DES rerun", "Production C/S wiring", "Pilot or formal runs", "Readiness manifest", "Commit or push"]
+}

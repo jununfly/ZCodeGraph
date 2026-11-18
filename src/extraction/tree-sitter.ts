@@ -723,7 +723,8 @@ export class TreeSitterExtractor {
     // caller resolved itself (e.g. arrow values of exported-const object members
     // — SvelteKit actions). Inline-object arrows reached by the general walker
     // get no override, so they still fall through to the <anonymous> skip below.
-    let name = nameOverride ?? extractName(node, this.source, this.extractor);
+    let name = nameOverride ?? this.extractor.resolveAssignedFunctionName?.(node, this.source)
+      ?? extractName(node, this.source, this.extractor);
     // For arrow functions and function expressions assigned to variables,
     // resolve the name from the parent variable_declarator.
     // e.g. `export const useAuth = () => { ... }` — the arrow_function node

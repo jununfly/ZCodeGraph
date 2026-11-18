@@ -1,5 +1,22 @@
 import { getNodeText, getChildByField } from '../tree-sitter-helpers';
 import type { LanguageExtractor } from '../tree-sitter-types';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
+
+/**
+ * Resolve `receiver.property = function/arrow` only at file scope. Inline
+ * callbacks and local assignments must not become spurious global symbols.
+ */
+function assignedFunctionName(node: SyntaxNode, source: string): string | undefined {
+  const assignment = node.parent;
+  if (assignment?.type !== 'assignment_expression'
+      || getChildByField(assignment, 'right')?.id !== node.id
+      || assignment.parent?.type !== 'expression_statement'
+      || assignment.parent.parent?.type !== 'program') return undefined;
+  const left = getChildByField(assignment, 'left');
+  const property = left?.type === 'member_expression'
+    ? getChildByField(left, 'property') : undefined;
+  return property ? getNodeText(property, source) : undefined;
+}
 
 export const javascriptExtractor: LanguageExtractor = {
   functionTypes: ['function_declaration', 'arrow_function', 'function_expression'],
@@ -13,6 +30,7 @@ export const javascriptExtractor: LanguageExtractor = {
   callTypes: ['call_expression'],
   variableTypes: ['lexical_declaration', 'variable_declaration'],
   nameField: 'name',
+  resolveAssignedFunctionName: assignedFunctionName,
   bodyField: 'body',
   resolveBody: (node, bodyField) => {
     // field_definition (arrow function class fields) nest the body inside

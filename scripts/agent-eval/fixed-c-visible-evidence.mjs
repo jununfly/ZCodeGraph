@@ -29,7 +29,9 @@ export function parseExploreSourceBlocks(answer) {
   }
   let fence = null;
   let fenceStart = -1;
-  let firstBlockStart = -1;
+  let currentHeader = null;
+  let currentBlockStart = -1;
+  let completedBlockEnd = -1;
   let sourceEnd = source.length;
   let position = EXPECTED_SOURCE_HEADER.length;
   const headers = [];
@@ -41,7 +43,16 @@ export function parseExploreSourceBlocks(answer) {
       if (fenceMatch && fenceMatch[1][0] === fence.character
           && fenceMatch[1].length >= fence.length && /^(`+|~+)\s*(?:\n|$)/.test(line)) {
         fence = null;
+        if (currentHeader && currentBlockStart >= 0) {
+          headers.push({ file: currentHeader, index: currentBlockStart });
+          completedBlockEnd = position + line.length;
+          currentHeader = null;
+          currentBlockStart = -1;
+        }
       }
+    } else if (hardCeiling && line.includes('elided[output#')) {
+      sourceEnd = position;
+      break;
     } else if (fenceMatch) {
       fence = { character: fenceMatch[1][0], length: fenceMatch[1].length };
       fenceStart = position;
@@ -51,28 +62,27 @@ export function parseExploreSourceBlocks(answer) {
     } else {
       const match = line.match(FILE_HEADER);
       if (match) {
-        if (firstBlockStart < 0) firstBlockStart = position;
-        headers.push({ file: match[1], index: position });
+        currentHeader = match[1];
+        currentBlockStart = position;
       } else if (/^> … elided\[output#[^\n]*$/.test(line)) {
         if (!hardCeiling) throw new Error('output truncation marker is inconsistent with the hard-ceiling flag');
         sourceEnd = position;
         break;
-      } else if (hardCeiling) {
-        // The final ceiling is not a complete file-block grammar. Preserve its
-        // tail for diagnosis; deriveFixedCVisibleEvidenceOrder rejects it below.
+      } else if (currentBlockStart >= 0 && (/^> /.test(line) || /^---\s*(?:\n|$)/.test(line))) {
         sourceEnd = position;
         break;
-      } else if (firstBlockStart >= 0 && (/^> /.test(line) || /^---\s*(?:\n|$)/.test(line))) {
-        sourceEnd = position;
-        break;
-      } else if (firstBlockStart >= 0 && line.trim() !== '') {
+      } else if (currentBlockStart >= 0 && line.trim() !== '') {
         throw new Error(`Source Code section must contain only complete file blocks; unexpected top-level content at offset ${position}: ${JSON.stringify(line.slice(0, 160))}`);
       }
     }
     position += line.length;
   }
-  if (fence) throw new Error(`unclosed source fence at offset ${fenceStart}`);
-  if (headers.length === 0 && sourceEnd !== EXPECTED_SOURCE_HEADER.length - 1) {
+  if (hardCeiling) {
+    const completeBoundary = completedBlockEnd >= 0 ? completedBlockEnd : EXPECTED_SOURCE_HEADER.length;
+    if (sourceEnd > completeBoundary) sourceEnd = completeBoundary;
+  }
+  if (fence && !hardCeiling) throw new Error(`unclosed source fence at offset ${fenceStart}`);
+  if (headers.length === 0 && !hardCeiling && sourceEnd === EXPECTED_SOURCE_HEADER.length) {
     throw new Error('Source Code preamble must be followed by a file block or a trailing section');
   }
   const blocks = new Map();

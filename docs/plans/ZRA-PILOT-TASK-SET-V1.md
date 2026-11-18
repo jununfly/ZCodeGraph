@@ -7,7 +7,7 @@ durable-citation: forbidden
 promote-via: ADR|design|contract|runtime-evidence
 -->
 
-> 数据文件: `zra-pilot-task-set-v1.json` | 最后更新: 2026-11-12 19:11:18
+> 数据文件: `zra-pilot-task-set-v1.json` | 最后更新: 2026-11-17 20:53:33
 
 [ ][X+] 1. ZRA-Paired v1 试点任务集（内容已审，执行未授权）
 ├── [x][X+] 1-1. T1 Flask：会话读取到响应写回

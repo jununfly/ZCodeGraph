@@ -19,7 +19,18 @@
         "1-6",
         "1-7"
       ],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "A 阶段如何处置已发现的内容矛盾而不改写冻结证据？",
+          "answer": "采用 A=v2 独立草案、v1 原样冻结：Flask 原题 loaded on demand/lazily 未区分正常 RequestContext.push() 主动加载与 accessor 缓存，须修正时序；Express 原 lazyrouter 与固定 checkout 的 getrouter getter 不符，须修正命名与语义。Django、Gin、Spring 保持原任务内容。五题 v2 均 pending-human-rereview，不注册执行，不把 v1 的 2026-11-12 accept 复制为 v2 审核证据，不因 v17 结果撤回难题。下一步先固化可机械比较的草案和来源行号，再决定是否值得为 B 另立候选。",
+          "note": "Human 于 2026-11-17 选择顺序 A 明确有效集合 -> 决定 B 投入 -> 不成立则 C。此 decision 记录草案路线，不代表 Human 已审阅 v2 文本，不解除 1-8-2/1-4/e9，不启动试点。"
+        },
+        {
+          "q": "Human 是否接受 ZRA-Paired v2 五题合同内容？",
+          "answer": "accept。Human victo 于 2026-11-17 明确指令『确认 v2 草案』，接受五题 prompt/rubric/negative constraints/source anchors；Flask 时序与 Express getrouter 合同缺陷已修，Django/Gin/Spring 内容保留。证据=.workbuddy/agent-eval/2026-11-16-zra-pilot-rendered-arms-v17-ranked-bounded-evidence/contract-v2-human-review.json。",
+          "note": "仅 content-reviewed / not-registered；v1 与旧证据不变，不继承执行许可，不表示 1-8-2 已完成。按既定顺序授权一次 B 独立候选的 preparation-only 评估，五仓覆盖或 hard-ceiling 仍失败则转 C。"
+        }
+      ],
       "notes": "content-reviewed / execution-not-authorized：五题与共享规则已获 Human accept。独立 reviewer、索引/工具覆盖、生产 C/S 和 DES baseline 未满足，未生成 seed/manifest/registry，未启动试点；pending 表示等待后续独立前置，不是内容审阅未完成。",
       "layer": "plan",
       "rounds": 1,
@@ -215,7 +226,7 @@
   },
   "metadata": {
     "created": "2026-11-12 18:30:50",
-    "updated": "2026-11-12 19:11:18",
+    "updated": "2026-11-17 20:53:33",
     "md_file": "ZRA-PILOT-TASK-SET-V1.md"
   }
 }
