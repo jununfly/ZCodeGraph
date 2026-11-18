@@ -1618,7 +1618,7 @@
       "id": "1-9-5",
       "uid": "01a1ed687c6f-4262f880dd",
       "label": "Slice 1：共享 ExploreApplication、真实端口与纯渲染器",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-9",
       "children": [],
@@ -1627,6 +1627,61 @@
           "q": "Slice 1 开工前如何处置未提交的多线改动与里程碑边界？",
           "answer": "采用 Q1=A/Q2=A/Q3=A1/Q4=B1：先把 Slice 0 冻结产物（合同、Slice 0 测试、latency harness、README 合同登记）单独成 PR-B 合入，再开干净 Slice 1 分支按 P1 合同垂直顺序落地。1-8-2 v10-v17 evaluation-only 改动作为受控历史证据以 PR-A 入库，绑 v17 no-go disposition，不改生产默认 OFF 与 C/S 冻结候选，不解除 1-4/e9/96/0 等硬门。两 PR 严格 feat/chore 分离，均走分支+PR 不直接推 main。",
           "note": "roadmap JSON/MD 因 append-only 决策链放在 PR-A 一次入库保持时间顺序；PR-B 只追加 1-9-5 状态迁移。"
+        },
+        {
+          "q": "PR-A/PR-B 已合并，Slice 1 启动路径是什么？",
+          "answer": "PR-A #720 以 squash 合入 main=4b139c3，PR-B #721 rebase 后以 squash 合入 main=71f461c；两分支均删。Slice 0 现已是 main 的持久事实。Slice 1 将从最新 main=71f461c 切新分支 feat-universal-explore-slice1-20261118，按 P1 合同垂直顺序：抽 src/explore/（budget/plan/evidence/blast-radius/render-model + 纯 renderer），CLI/MCP 迁入共享 ExploreApplication，删 transport 私有副本；legacy maxFiles/小数/非数值/运行时输出选项/CLI 单换行保持；EvaluationExploreProjection 仅属 harness；五仓 legacy 对照 + 定向测试留证。",
+          "note": "CI：PR-A 5/5 一次绿；PR-B windows-2025 首跑遇 native-process-supervision channel-eof flake（已知），rerun --failed 后 5/5 绿，rebase 后 5/5 再绿。"
+        },
+        {
+          "q": "Slice 1 的目录布局与模块边界如何划定？",
+          "answer": "新建 src/explore/ 为共享模块目录，与 src/mcp/、src/bin/ 平级；CLI 与 MCP 都改为经同一 ExploreApplication 调用同一证据策略，删除 transport 私有副本。布局：(1) src/explore/types.ts 集中 ExplorePlan/ExploreOutputBudget/ExplorePlanEntry/FileGroup/FlowSpine/ExploreOptions/ExploreAnswer/ExploreRenderModel/ExploreRuntimeOptions；(2) src/explore/budget.ts 抽 getExploreOutputBudget+tightSmallProjectBudgetEnabled（吃 tightSmallProjectBudgetEnabled 作为数据不读环境）；(3) src/explore/planner.ts 收编 src/mcp/explore-planner.ts 全部逻辑（不含 symbolHit*）；(4) src/explore/blast-radius.ts+blast-radius-renderer.ts 按 P1 合同 §Shared blast-radius Module 抽 buildExploreBlastRadius+renderExploreBlastRadius，共享 isTestFile 单一来源；(5) src/explore/evidence.ts 收编 registrationSnippetFromLocation 等源码读取，从 renderer 移到证据组装阶段；(6) src/explore/render-model.ts 定义 ExploreRenderModel，在 application 层把 CodeGraph/文件系统读取全部落到 model，renderer 仅吃 model；(7) src/explore/renderer.ts 改纯函数，不接收 CodeGraph/projectRoot/环境；(8) src/explore/application.ts 实现 ExploreApplication.explore(graph,query,options) 串起 plan→empty→blast-radius→evidence→render-model→render；(9) src/mcp/explore-{planner,renderer,types}.ts 改为纯类型/函数 re-export，不含策略，不引 symbolHit*；(10) src/mcp/c-explore-plan.ts 与 render-c-explore-plan.ts 撤到 scripts/agent-eval/，把 symbolHit* 信号从 ExplorePlan 类型中抽离到 harness 的 EvaluationExploreProjection，经 adapter 注入。",
+          "note": "退出判据：Slice 0 15/15 + 现有 explore-* 测试全保绿；src/bin/zcodegraph.ts 删自有 blast radius 副本改调共享模块；src/mcp/tools.ts handleExplore 改调共享 ExploreApplication；legacy maxFiles 小数/非数值/运行时输出选项/CLI 单换行保持；EvaluationExploreProjection 仅属 harness。"
+        },
+        {
+          "q": "PR-A 合入后 Slice 0 测试 SHA 校验在 Windows 失败的根因与处置？",
+          "answer": "根因：PR-A 把 scripts/agent-eval/task-prompts/zra-pilot-v2-draft.mjs 加入 git 时 core.autocrlf=true 把 LF blob 写成 CRLF disk；Slice 0 测试用 readFileSync 读 disk 字节算 SHA-256，与冻结 LF 期望不符。CI ubuntu 是 LF 所以绿，Windows 本地红。处置：新增 .gitattributes 强制 *.mjs text eol=lf + docs/baselines/**/*.json text eol=lf + scripts/agent-eval/task-prompts/*.mjs text eol=lf，再用 python 把 scripts/**/*.mjs 磁盘 CRLF→LF，git add --renormalize 刷新 index。同时把 Slice 0 测试中 src/mcp/explore-types.ts 改指 src/explore/types.ts（re-export 后 symbolHit* 已迁至共享类型）。此为 Slice 1 准备修复，单独成 commit。",
+          "note": " Slice 0 15/15 + 现有 explore-* 163/163 + composition 40/40 + tsc 通过；CI ubuntu 应继续绿。"
+        },
+        {
+          "q": "Slice 1 step 2 如何消除 CLI/MCP blast-radius 私有副本？",
+          "answer": "抽出共享 buildExploreBlastRadius 数据计算与 renderExploreBlastRadius 纯 Markdown 渲染；真实 CodeGraph 通过窄 ExploreCallerLookup 接口使用，测试可注入内存 fake，canonical isTestFile 由组合点注入。保留最多5个入口、caller按ID去重、路径归一化、test/non-test分区、4文件cap、逐entry异常跳过与legacy空行。",
+          "note": ""
+        },
+        {
+          "q": "Slice 1 step 3 planner 归属与兼容策略是什么？",
+          "answer": "完整 legacy planner 迁至 src/explore/planner.ts，src/mcp/explore-planner.ts 仅兼容 re-export 供历史测量/评估脚本使用。planner 直接依赖共享 budget，不再依赖 tools.ts；新增 runtime options 快照参数，旧直接调用保留原环境读取，新应用路径不在渲染阶段惰性读取。",
+          "note": ""
+        },
+        {
+          "q": "Slice 1 五仓 legacy 对照如何隔离 plan 与 blast-radius 组合差异？",
+          "answer": "使用 Slice 0 固定五仓 SQLite 快照与原始 prompt，重新生成一次 plan，并对同一 plan、同一 runtime 快照和相同 blastRadius='' 分别执行保存的旧 renderer 与新 buildExploreRenderModel+纯 renderer；逐仓比较完整字符串、SHA-256，并校验冻结 answer SHA 与数据库前后 SHA。观察脚本保持显式空 blastRadius，不改借共享 Application 默认生成该 section；共享 Application 的 payload 等价另由真实端口与 CLI/MCP 测试证明。这只是行为保持对照，不是语义验收或生产准入。",
+          "note": "固定快照输出留于 .workbuddy/agent-eval 过程证据区；不重索引、不执行 Agent/DES/pilot。"
+        },
+        {
+          "q": "Slice 1 step 4 纯 renderer 与 evidence 的验收结果是什么？",
+          "answer": "生产 render 改为只吃 ExploreRenderModel，源码、邻接、额外节点、registration snippet 与 stats 在 evidence 阶段预物化；CodeGraph/SQLite 与 root-confined 文件读取通过窄端口，提供内存源码端口。保留缺文件/目录不可读、metadata 优先与 disk fallback、stats 不可用省略预算提示的旧行为。五仓固定 SQLite 快照以同 plan/runtime/空 blastRadius 对照，legacy 与新 renderer 五仓完整字符串和 SHA-256 全一致，且五者均匹配冻结 answer SHA、数据库前后不变；观察脚本恢复显式空 blastRadius 组合，不借共享 Application 改写观察口径。",
+          "note": "过程报告 .workbuddy/agent-eval/2026-11-18-universal-explore-slice1/legacy-renderer-parity/report.json；Flask 85677649...、Django 43a03e13...、Express 78011fd8...、Gin 26e5d7af...、Spring 8d85d1b8...；不代表语义验收或生产准入。"
+        },
+        {
+          "q": "Slice 1 step 5 的共享应用入口与 transport 兼容边界是什么？",
+          "answer": "DefaultExploreApplication 统一执行 plan→empty→预算门控 blast-radius→evidence→纯 render；CLI/MCP 只负责各自参数解析、runtime 快照、CodeGraph 生命周期及 ToolResult/console envelope，不再组合 planner、evidence 或 blast-radius。CLI 保留十进制 parseInt、Math.max(1,...) 下界与小数/非数值旧接受域，console.log 只附加一个换行；MCP 保持错误传播。真实 SQLite fixture 上 application 与 MCP Markdown 字节一致，CLI 与 MCP 使用相同 singleton 和 payload，历史 buildBlastRadiusSection 只作停止 C/S harness 的兼容委托，不是第二套实现。",
+          "note": "联合工作树定向 10 文件 210/210 通过；step 4 commit=ed28085 后独立 build 通过。step 5 单独提交应用、CLI/MCP、共享入口测试和测量模块身份。"
+        },
+        {
+          "q": "Slice 1 step 6 如何剥离 evaluation-only C/S projection 而不复活候选？",
+          "answer": "生产 ExplorePlan 删除 symbolHitNodeIds/symbolHitRanks，纯 renderer 不再接受该输入；harness 用 EvaluationExplorePlan=ExplorePlan & EvaluationExploreProjection 持有真实 symbol hits。src/eval 收编 c-explore-plan、render-c-explore-plan 与纯化前 legacy renderer，脚本只更新 dist/eval 入口，生产 src/explore 与 CLI/MCP 不导入它们。受 TS rootDir=src 限制，历史 renderer/wrapper 置于 src/eval，执行/审计仍在 scripts/agent-eval；这不是生产注册、候选执行或语义验收。",
+          "note": "冻结 candidate SHA=d687c4a831...、fileTopK=10、symbolTopK=50、unionRerank 与默认 OFF 不变；不运行 paired Agent、DES、pilot，60/0 与 96/0 门不变。"
+        },
+        {
+          "q": "Slice 1 step 7 如何补齐 runtime 快照验收且保持逐提交可回退？",
+          "answer": "新增同一真实 SQLite 图、同一 MCP handler 连续两次 Explore 调用测试，spy 共享 ExploreApplication 每次收到不同 runtime 快照，覆盖 adaptive/lineNumbers/elidedMarkers/tightSmallProject 四 flag 及行号变化；生产实现不改。该测试单独归 step 7 commit=be5dc93。第4步历史提交=5c2a21f 已独立 TypeScript 构建通过，最终澄清 step5 旧 note 的 ed28085 是重写前本地哈希、非本 PR 提交。其余步骤也改在项目外隔离工作树逐一构建，避免 tmp 源码树触发全仓 identity-residue 扫描。",
+          "note": "首轮全仓期间切提交/重建 dist 出现3个C/S stdio失败；稳定构建单独复验及第二轮均21/21通过。第二轮3失败全为临时 tmp/slice1-step4-build 被 identity-residue 扫描，已完成构建后移除；不得写成全绿。当前定向新测试5/5通过，第三轮全仓待完成。"
+        },
+        {
+          "q": "Slice 1 的最终验证证据是否满足过程完成条件？",
+          "answer": "满足。最终带日志全仓退出码0：203个测试文件通过、6个跳过，2728项测试通过、38个跳过；最终定向10文件222/222通过，主仓tsc --noEmit与5个修改过的mjs语法检查通过。步骤1-6提交195238b、2635fed、08fcae2、5c2a21f、fc3b74c、737c2f8均有独立TypeScript构建通过证据；本轮再次在项目外干净worktree构建5c2a21f与737c2f8通过，隔离worktree已清理。五仓parity报告status=pass，5/5完整字符串、legacy及冻结answer SHA一致且数据库未变，SHA-256=b70e91db031ab62b4a4bf55c8e3e1a7d0121698b269961f18fd2c58c63ac90d2。",
+          "note": "这是行为保持型模块化的过程完成，不是五仓语义验收或生产准入；无Agent/DES/pilot，agentDesOrPilotExecuted=false，默认OFF、60/0、96/0及停止C/S冻结配置不变。前两轮测试干扰事实保留于上条append-only决策，第三轮UCggq3虽正常退出但无输出，不采用；本条只采用可审阅日志ZUcJt1。"
         }
       ],
       "notes": "",
@@ -1740,7 +1795,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-18 16:00:57",
+    "updated": "2026-11-18 19:46:57",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

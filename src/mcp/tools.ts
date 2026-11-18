@@ -4,7 +4,7 @@
  * Defines the tools exposed by the CodeGraph MCP server.
  */
 
-import { readBooleanFlag, readListFlag } from '../config/flags';
+import { readListFlag } from '../config/flags';
 import type CodeGraph from '../index';
 import { findNearestCodeGraphRoot } from '../directory';
 // Lazy-load the heavy CodeGraph chain off the MCP startup path — see the same
@@ -32,8 +32,14 @@ import { isGeneratedFile } from '../extraction/generated-detection';
 import { embeddingEnabled } from '../embedding/worker-runner';
 import { resolve as resolvePath } from 'path';
 import type { ExploreOutputBudget } from './explore-types.js';
-import { plan } from './explore-planner';
-import { render } from './explore-renderer';
+import {
+  getExploreBudget as sharedGetExploreBudget,
+  getExploreOutputBudget as sharedGetExploreOutputBudget,
+} from '../explore/budget';
+import { buildExploreBlastRadius } from '../explore/blast-radius';
+import { renderExploreBlastRadius } from '../explore/blast-radius-renderer';
+import { tightSmallProjectBudgetEnabled, readExploreRuntimeOptions } from '../explore/runtime';
+import { exploreApplication } from '../explore/application';
 import { ComplexityCalculator } from '../metrics/complexity/index.js';
 
 /** Maximum output length to prevent context bloat (characters) */
@@ -82,172 +88,26 @@ function lastQualifierPart(symbol: string): string {
 
 /**
  * Calculate the recommended number of zcodegraph_explore calls based on project size.
- * Larger codebases need more exploration calls to cover their surface area,
- * but smaller ones should use fewer to avoid unnecessary overhead.
+ * Re-exported from the shared Explore budget Module per P1.
  */
-export function getExploreBudget(fileCount: number): number {
-  if (fileCount < 500) return 1;
-  if (fileCount < 5000) return 2;
-  if (fileCount < 15000) return 3;
-  if (fileCount < 25000) return 4;
-  return 5;
-}
+export const getExploreBudget = sharedGetExploreBudget;
 
 // ExploreOutputBudget is defined in explore-types.ts (single source of truth).
 export type { ExploreOutputBudget } from './explore-types.js';
 
 /**
- * Roadmap 1-2-11 (P0a explore 小项目 budget 收紧): opt-in tightened budget for
- * small projects (fileCount < 500). Driven by ZCG_EXPLORE_TIGHT_SMALL_PROJECT=1.
- *
- * Motivation: 2026-10-21 layer2 evidence shows petclinic 3 tasks all >1.0
- * explore/read ratio (1.28/1.50/1.74). On small projects the explore answer
- * over-fires: the blast-radius section + whole-file rule on central
- * controller files push the numerator past the byte cost of reading the 2-3
- * equivalent files directly. This env var enables a tightened budget tier so
- * we can A/B measure the real compression before flipping the default.
+ * Roadmap 1-2-11: opt-in tightened small-project budget.
+ * @deprecated New callers pass ExploreRuntimeOptions as operation data.
  */
-export function tightSmallProjectBudgetEnabled(): boolean {
-  return readBooleanFlag('ZCG_EXPLORE_TIGHT_SMALL_PROJECT');
-}
+export { tightSmallProjectBudgetEnabled } from '../explore/runtime';
 
+/**
+ * Legacy single-argument wrapper. The shared Module takes the tight-tier
+ * flag as data; this wrapper reads it from the environment to preserve the
+ * legacy signature consumed by `src/mcp/explore-planner.ts`.
+ */
 export function getExploreOutputBudget(fileCount: number): ExploreOutputBudget {
-  // Tiered budget, scaled to project size. The budget is a CEILING (relevance
-  // still gates WHAT is included), and it MUST stay under the agent's INLINE
-  // tool-result cap (~25K chars). Above that, the host externalizes the result
-  // to a file the agent then Reads back — re-introducing a read AND the
-  // cache-write cost — which is exactly what a 35K vscode explore did in the
-  // n=4 README A/B. So even large repos cap at ~24K: the answer is the handful
-  // of ~100-line flow windows the agent would have grep-located and read (it
-  // natively reads ~6–9 files, median 100-line ranges), NOT a sprawl of 12
-  // files. Concentration onto the flow emerges from this cap + the named-file-
-  // first sort dropping peripheral files. Invariant: a larger tier must never
-  // get a smaller `maxCharsPerFile` than a smaller tier.
-  if (fileCount < 150) {
-    // Roadmap 1-2-11: opt-in tight tier for small projects. Default preserves
-    // the ITER3 shape (13K/4/3.8K); with ZCG_EXPLORE_TIGHT_SMALL_PROJECT=1
-    // we halve the output ceiling and per-file cap and skip the blast-radius
-    // section, because on small projects (petclinic evidence 2026-10-21) the
-    // explore answer over-fires past the byte cost of reading 2-3 equivalent
-    // files directly.
-    if (tightSmallProjectBudgetEnabled()) {
-      return {
-        maxOutputChars: 8000,
-        defaultMaxFiles: 3,
-        maxCharsPerFile: 2200,
-        gapThreshold: 7,
-        maxSymbolsInFileHeader: 5,
-        maxEdgesPerRelationshipKind: 4,
-        includeRelationships: false,
-        includeBlastRadius: false,
-        includeAdditionalFiles: false,
-        includeCompletenessSignal: false,
-        includeBudgetNote: false,
-        excludeLowValueFiles: true,
-      };
-    }
-    return {
-      // ITER3: revert iter2's aggressive body shrink (forced Read fallback —
-      // the per-file 2.5K cap pushed the agent to Read instead of node).
-      // Back to the iter1 shape (13K/4/3.8K) but keep the test-file
-      // hard-exclude. The cost lever for this tier lives in steering the
-      // agent to stop after 1-2 calls, not in this budget.
-      maxOutputChars: 13000,
-      defaultMaxFiles: 4,
-      maxCharsPerFile: 3800,
-      gapThreshold: 7,
-      maxSymbolsInFileHeader: 5,
-      maxEdgesPerRelationshipKind: 4,
-      includeRelationships: false,
-      includeAdditionalFiles: false,
-      includeCompletenessSignal: false,
-      includeBudgetNote: false,
-      excludeLowValueFiles: true,
-    };
-  }
-  if (fileCount < 500) {
-    // Roadmap 1-2-11: same opt-in tight tier as <150, tuned slightly larger.
-    if (tightSmallProjectBudgetEnabled()) {
-      return {
-        maxOutputChars: 10000,
-        defaultMaxFiles: 4,
-        maxCharsPerFile: 2600,
-        gapThreshold: 8,
-        maxSymbolsInFileHeader: 6,
-        maxEdgesPerRelationshipKind: 6,
-        includeRelationships: false,
-        includeBlastRadius: false,
-        includeAdditionalFiles: false,
-        includeCompletenessSignal: false,
-        includeBudgetNote: false,
-        excludeLowValueFiles: true,
-      };
-    }
-    return {
-      // ITER3: same revert/keep-filter pattern as <150.
-      maxOutputChars: 18000,
-      defaultMaxFiles: 5,
-      maxCharsPerFile: 3800,
-      gapThreshold: 8,
-      maxSymbolsInFileHeader: 6,
-      maxEdgesPerRelationshipKind: 6,
-      includeRelationships: false,
-      includeAdditionalFiles: false,
-      includeCompletenessSignal: false,
-      includeBudgetNote: false,
-      excludeLowValueFiles: true,
-    };
-  }
-  if (fileCount < 5000) {
-    return {
-      // ~150-line per-file window (the native read unit) × ~6 files, capped at
-      // the ~24K inline ceiling so the response is never externalized. Per-file
-      // stays ≥ the <500 tier (3800) — monotonic.
-      maxOutputChars: 24000,
-      defaultMaxFiles: 8,
-      maxCharsPerFile: 6500,
-      gapThreshold: 12,
-      maxSymbolsInFileHeader: 10,
-      maxEdgesPerRelationshipKind: 10,
-      includeRelationships: true,
-      includeAdditionalFiles: true,
-      includeCompletenessSignal: true,
-      includeBudgetNote: true,
-      excludeLowValueFiles: false,
-    };
-  }
-  // Large + very-large repos: SAME ~24K inline ceiling (a bigger response just
-  // externalizes — see vscode). More files indexed → more CALLS via
-  // getExploreBudget, not a bigger single response. Per-file 7000 (≥ smaller
-  // tiers) gives the central file a ~180-line orientation window.
-  if (fileCount < 15000) {
-    return {
-      maxOutputChars: 24000,
-      defaultMaxFiles: 8,
-      maxCharsPerFile: 7000,
-      gapThreshold: 15,
-      maxSymbolsInFileHeader: 15,
-      maxEdgesPerRelationshipKind: 15,
-      includeRelationships: true,
-      includeAdditionalFiles: true,
-      includeCompletenessSignal: true,
-      includeBudgetNote: true,
-      excludeLowValueFiles: false,
-    };
-  }
-  return {
-    maxOutputChars: 24000,
-    defaultMaxFiles: 8,
-    maxCharsPerFile: 7000,
-    gapThreshold: 15,
-    maxSymbolsInFileHeader: 15,
-    maxEdgesPerRelationshipKind: 15,
-    includeRelationships: true,
-    includeAdditionalFiles: true,
-    includeCompletenessSignal: true,
-    includeBudgetNote: true,
-    excludeLowValueFiles: false,
-  };
+  return sharedGetExploreOutputBudget(fileCount, tightSmallProjectBudgetEnabled());
 }
 
 /**
@@ -1435,57 +1295,10 @@ export class ToolHandler {
    * that have no dependents (nothing to warn about), and returns '' when none
    * qualify so a leaf-only exploration stays clean.
    */
-  /** Shared with the evaluation-only Explore wrapper; behavior is unchanged. */
+  /** Shared with the evaluation-only Explore wrapper; behavior is unchanged.
+   * Delegates to the shared Explore blast-radius Module per P1. */
   buildBlastRadiusSection(cg: CodeGraph, subgraph: Subgraph): string {
-    const ROOT_CAP = 5; // only the symbols the query actually targeted
-    const FILE_CAP = 4; // caller files listed per symbol before "+N more"
-    const MEANINGFUL = new Set<string>([
-      'function', 'method', 'class', 'interface', 'struct', 'trait', 'protocol',
-      'enum', 'type_alias', 'component', 'constant', 'variable', 'property', 'field',
-    ]);
-    const rel = (p: string) => p.replace(/\\/g, '/');
-
-    const entryNodes = subgraph.entryNodes
-      .map((id) => subgraph.nodes.get(id))
-      .filter((n): n is Node => !!n && MEANINGFUL.has(n.kind))
-      .slice(0, ROOT_CAP);
-    if (entryNodes.length === 0) return '';
-
-    const entries: string[] = [];
-    for (const entryNode of entryNodes) {
-      let callers: Array<{ node: Node }> = [];
-      try { callers = cg.getCallers(entryNode.id) as Array<{ node: Node }>; } catch { /* skip this Entry Node */ }
-
-      const seen = new Set<string>();
-      const uniq: Node[] = [];
-      for (const c of callers) {
-        if (c?.node && !seen.has(c.node.id)) { seen.add(c.node.id); uniq.push(c.node); }
-      }
-      if (uniq.length === 0) continue; // no blast radius → nothing to flag
-
-      const callerFiles = [...new Set(uniq.map((n) => rel(n.filePath)))];
-      const testFiles = callerFiles.filter((f) => isTestFile(f));
-      const nonTest = callerFiles.filter((f) => !isTestFile(f));
-
-      const shown = nonTest.slice(0, FILE_CAP).map((f) => `\`${f}\``).join(', ');
-      const more = nonTest.length > FILE_CAP ? ` +${nonTest.length - FILE_CAP} more` : '';
-      const where = nonTest.length > 0 ? ` in ${shown}${more}` : '';
-      const tests = testFiles.length > 0
-        ? `; tests: ${testFiles.slice(0, FILE_CAP).map((f) => `\`${f}\``).join(', ')}${testFiles.length > FILE_CAP ? ` +${testFiles.length - FILE_CAP}` : ''}`
-        : '; ⚠️ no covering tests found';
-
-      entries.push(
-        `- \`${entryNode.name}\` (${rel(entryNode.filePath)}:${entryNode.startLine}) — ${uniq.length} caller${uniq.length === 1 ? '' : 's'}${where}${tests}`,
-      );
-    }
-    if (entries.length === 0) return '';
-
-    return [
-      '### Blast radius — what depends on these (update/verify before editing)',
-      '',
-      ...entries,
-      '',
-    ].join('\n');
+    return renderExploreBlastRadius(buildExploreBlastRadius(cg, subgraph, isTestFile));
   }
 
   /**
@@ -1505,26 +1318,12 @@ export class ToolHandler {
 
     const cg = this.getCodeGraph(args.projectPath as string | undefined);
 
-    // Delegate ALL planning to the explore planner (Issue #25).
-    const planResult = await plan(cg, query, { maxFiles: args.maxFiles as number | undefined });
-
-    if (planResult.subgraph.nodes.size === 0) {
-      return this.textResult(`No relevant code found for "${query}"`);
-    }
-
-    // Compute blast radius (stays here — needs cg.getCallers + isTestFile).
-    // Roadmap 1-2-11: skip the section entirely when the budget tier opts out
-    // (small-project tight tier; the section is a meaningful byte cost on
-    // tightly-scoped questions and the agent can always `zcodegraph_impact`
-    // the named symbol explicitly if it wants blast radius).
-    const blastRadius =
-      planResult.budget.includeBlastRadius === false
-        ? ''
-        : this.buildBlastRadiusSection(cg, planResult.subgraph);
-
-    // Delegate ALL rendering to the explore renderer (Issue #14).
-    const output = render(planResult, cg, planResult.spine, blastRadius);
-    return this.textResult(output);
+    // Shared application composition; MCP owns only validation and ToolResult.
+    const answer = await exploreApplication.explore(cg, query, {
+      maxFiles: args.maxFiles as number | undefined,
+      runtime: readExploreRuntimeOptions(),
+    });
+    return this.textResult(answer.kind === 'empty' ? answer.text : answer.markdown);
   }
 
   /**

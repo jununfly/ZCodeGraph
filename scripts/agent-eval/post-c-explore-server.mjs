@@ -124,10 +124,10 @@ async function createRuntime(cwd, env) {
   await mkdir(resolvedEvidence, { recursive: true });
   const [{ CodeGraph }, tools, { MCPSession }, { StdioTransport }] = await modules();
   const { plan } = await import(pathToFileURL(path.join(REPO, 'dist/mcp/explore-planner.js')).href);
-  const { render } = await import(pathToFileURL(path.join(REPO, 'dist/mcp/render-c-explore-plan.js')).href);
+  const { render } = await import(pathToFileURL(path.join(REPO, 'dist/eval/render-c-explore-plan.js')).href);
   const { createIsolatedSymbolUnionRetrieval } = await import('./isolated-symbol-union.mjs');
   const { permuteWithFixedSeed } = await import(pathToFileURL(path.join(REPO, 'dist/eval/zra-paired-core.js')).href);
-  const { composeSymbolOnlyPlan } = await import(pathToFileURL(path.join(REPO, 'dist/mcp/c-explore-plan.js')).href);
+  const { composeSymbolOnlyPlan } = await import(pathToFileURL(path.join(REPO, 'dist/eval/c-explore-plan.js')).href);
   const cg = CodeGraph.openSync(cwd);
   if (typeof cg.findRelevantContext !== 'function') {
     throw new Error('post-C server did not open a CodeGraph instance');

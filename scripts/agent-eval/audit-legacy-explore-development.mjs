@@ -138,11 +138,15 @@ export async function auditLegacyExploreDevelopment({ corpusRoot, output, onlyPr
     throw new Error(`unknown development prompt ID: ${onlyPromptId}`);
   }
   await mkdir(output, { recursive: true });
-  const [{ CodeGraph }, { plan }, { render }] = await Promise.all([
-    import(pathToFileURL(path.join(REPO, 'dist/index.js')).href),
-    import(pathToFileURL(path.join(REPO, 'dist/mcp/explore-planner.js')).href),
-    import(pathToFileURL(path.join(REPO, 'dist/mcp/explore-renderer.js')).href),
-  ]);
+  const [{ CodeGraph }, { plan }, { render }, { buildExploreRenderModel },
+    { CodeGraphExploreGraphRead, RootConfinedExploreSourceRead }, { readExploreRuntimeOptions }] = await Promise.all([
+      import(pathToFileURL(path.join(REPO, 'dist/index.js')).href),
+      import(pathToFileURL(path.join(REPO, 'dist/mcp/explore-planner.js')).href),
+      import(pathToFileURL(path.join(REPO, 'dist/explore/renderer.js')).href),
+      import(pathToFileURL(path.join(REPO, 'dist/explore/evidence.js')).href),
+      import(pathToFileURL(path.join(REPO, 'dist/explore/ports.js')).href),
+      import(pathToFileURL(path.join(REPO, 'dist/explore/runtime.js')).href),
+    ]);
   const results = [];
   for (const entry of contract.tasks) {
     if (onlyPromptId && entry.id !== onlyPromptId) continue;
@@ -166,9 +170,15 @@ export async function auditLegacyExploreDevelopment({ corpusRoot, output, onlyPr
       if (indexStatus.fatal) {
         throw new Error(`isolated default indexing failed: ${JSON.stringify(indexResult.errors)}`);
       }
-      const planResult = await plan(graph, entry.task.PROMPT, { maxFiles: 20 });
+      const runtime = readExploreRuntimeOptions();
+      const planResult = await plan(graph, entry.task.PROMPT, { maxFiles: 20, runtime });
       const blastRadius = '';
-      const answer = render(planResult, graph, planResult.spine, blastRadius);
+      const model = buildExploreRenderModel(
+        new CodeGraphExploreGraphRead(graph),
+        new RootConfinedExploreSourceRead(planResult.projectRoot),
+        planResult, blastRadius, runtime,
+      );
+      const answer = render(model);
       const stats = graph.getStats();
       result = {
         ...inspectLegacyExploreTask({ task: entry.task, graph, planResult, answer }),

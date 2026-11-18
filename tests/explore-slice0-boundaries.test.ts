@@ -35,14 +35,20 @@ describe('universal Explore slice 0 development boundaries', () => {
   });
 
   it('keeps C/S projection inputs confined to the stopped evaluation wrapper', () => {
-    const productionRenderer = readFileSync(path.join(ROOT, 'src/mcp/explore-renderer.ts'), 'utf8');
-    const productionPlan = readFileSync(path.join(ROOT, 'src/mcp/explore-types.ts'), 'utf8');
-    const evaluationWrapper = readFileSync(path.join(ROOT, 'src/mcp/render-c-explore-plan.ts'), 'utf8');
+    const productionRenderer = readFileSync(path.join(ROOT, 'src/explore/renderer.ts'), 'utf8');
+    const productionPlan = readFileSync(path.join(ROOT, 'src/explore/types.ts'), 'utf8');
+    const evaluationWrapper = readFileSync(path.join(ROOT, 'src/eval/render-c-explore-plan.ts'), 'utf8');
+    const projection = readFileSync(path.join(ROOT, 'src/eval/explore-projection.ts'), 'utf8');
     expect(evaluationWrapper).toContain('projectSymbolOnlyRelationships');
     expect(evaluationWrapper).toContain('plan.symbolHitNodeIds');
-    // These optional inputs are the pre-migration debt to remove in slice 1;
-    // production must never import the C/S evaluation wrapper to obtain them.
-    expect(productionPlan).toContain('symbolHitNodeIds?:');
+    expect(projection).toContain('export interface EvaluationExploreProjection');
+    expect(productionPlan).not.toContain('symbolHitNodeIds?:');
+    expect(productionPlan).not.toContain('symbolHitRanks?:');
+    expect(productionRenderer).not.toContain('symbolHitNodeIds:');
+    expect(productionRenderer).not.toContain('symbolHitRanks:');
+    expect(productionRenderer).not.toContain('readFileSync');
+    expect(productionRenderer).not.toContain("from '../index'");
+    expect(productionRenderer).not.toContain("from '../config/flags'");
     expect(productionRenderer).not.toContain('render-c-explore-plan');
     expect(productionRenderer).not.toContain('c-explore-plan');
     expect(readFileSync(path.join(ROOT, 'src/bin/zcodegraph.ts'), 'utf8')).not.toContain('symbolHitNodeIds');

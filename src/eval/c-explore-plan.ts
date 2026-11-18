@@ -1,5 +1,8 @@
 import { isConfigLeafNode } from '../utils';
-import type { ExplorePlan, ExplorePlanEntry, FileGroup } from './explore-types';
+import type { ExplorePlan, ExplorePlanEntry, FileGroup } from '../explore/types';
+import type { EvaluationExploreProjection } from './explore-projection';
+
+export type EvaluationExplorePlan = ExplorePlan & EvaluationExploreProjection;
 import type CodeGraph from '../index';
 
 // This helper is imported by the evaluation harness, never registered by the
@@ -14,7 +17,7 @@ export function composeSymbolOnlyPlan(
   cg: CodeGraph,
   baseline: ExplorePlan,
   candidates: ReadonlyArray<readonly [string, FileGroup]>,
-): ExplorePlan {
+): EvaluationExplorePlan {
   const subgraph = {
     ...baseline.subgraph,
     nodes: new Map(baseline.subgraph.nodes),
@@ -74,7 +77,7 @@ export function composeSymbolOnlyPlan(
 /** C carries only relationships internal to its selected evidence, not all
  * nodes belonging to newly recalled files. Baseline production plans are
  * returned unchanged; this also makes independent C renders order-invariant. */
-export function projectSymbolOnlyRelationships(plan: ExplorePlan): ExplorePlan {
+export function projectSymbolOnlyRelationships(plan: EvaluationExplorePlan): EvaluationExplorePlan {
   if (!plan.symbolHitNodeIds) return plan;
   const selected = new Set(plan.sortedFiles.flatMap(([, group]) => group.nodes.map((node) => node.id)));
   return {
