@@ -69,7 +69,7 @@ export async function measureSlice0Latency({ corpusRoot, audit, out }) {
   const identity = sourceIdentity();
   const executableSha256 = sha256(await readFile(BIN));
   const runtimeModules = Object.fromEntries(await Promise.all([
-    'dist/index.js', 'dist/mcp/explore-planner.js', 'dist/mcp/explore-renderer.js', 'dist/bin/zcodegraph.js',
+    'dist/index.js', 'dist/explore/application.js', 'dist/explore/renderer.js', 'dist/bin/zcodegraph.js',
   ].map(async (module) => [module, sha256(await readFile(path.join(REPO, module)))])));
   const results = [];
   for (const entry of contract.tasks) {

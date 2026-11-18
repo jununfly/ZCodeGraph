@@ -1662,6 +1662,11 @@
           "q": "Slice 1 step 4 纯 renderer 与 evidence 的验收结果是什么？",
           "answer": "生产 render 改为只吃 ExploreRenderModel，源码、邻接、额外节点、registration snippet 与 stats 在 evidence 阶段预物化；CodeGraph/SQLite 与 root-confined 文件读取通过窄端口，提供内存源码端口。保留缺文件/目录不可读、metadata 优先与 disk fallback、stats 不可用省略预算提示的旧行为。五仓固定 SQLite 快照以同 plan/runtime/空 blastRadius 对照，legacy 与新 renderer 五仓完整字符串和 SHA-256 全一致，且五者均匹配冻结 answer SHA、数据库前后不变；观察脚本恢复显式空 blastRadius 组合，不借共享 Application 改写观察口径。",
           "note": "过程报告 .workbuddy/agent-eval/2026-11-18-universal-explore-slice1/legacy-renderer-parity/report.json；Flask 85677649...、Django 43a03e13...、Express 78011fd8...、Gin 26e5d7af...、Spring 8d85d1b8...；不代表语义验收或生产准入。"
+        },
+        {
+          "q": "Slice 1 step 5 的共享应用入口与 transport 兼容边界是什么？",
+          "answer": "DefaultExploreApplication 统一执行 plan→empty→预算门控 blast-radius→evidence→纯 render；CLI/MCP 只负责各自参数解析、runtime 快照、CodeGraph 生命周期及 ToolResult/console envelope，不再组合 planner、evidence 或 blast-radius。CLI 保留十进制 parseInt、Math.max(1,...) 下界与小数/非数值旧接受域，console.log 只附加一个换行；MCP 保持错误传播。真实 SQLite fixture 上 application 与 MCP Markdown 字节一致，CLI 与 MCP 使用相同 singleton 和 payload，历史 buildBlastRadiusSection 只作停止 C/S harness 的兼容委托，不是第二套实现。",
+          "note": "联合工作树定向 10 文件 210/210 通过；step 4 commit=ed28085 后独立 build 通过。step 5 单独提交应用、CLI/MCP、共享入口测试和测量模块身份。"
         }
       ],
       "notes": "",
@@ -1775,7 +1780,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-18 17:50:25",
+    "updated": "2026-11-18 17:53:53",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

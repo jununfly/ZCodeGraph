@@ -2414,37 +2414,16 @@ program
       const { default: CodeGraph } = await loadCodeGraph();
       const cg = await CodeGraph.open(projectPath);
 
-      // Inline-composition of MCP handleExplore: plan + blastRadius + render.
-      // We do NOT reuse ToolsHandler.handleExplore directly because it is a
-      // private instance method on the MCP server; instead we re-use the two
-      // exported seams (explore-planner.plan, explore-renderer.render) and
-      // a local copy of buildBlastRadiusSection so the byte-level output
-      // matches the MCP channel exactly.
-      const { plan } = await import('../mcp/explore-planner.js');
-      const { render } = await import('../mcp/explore-renderer.js');
-      const { isTestFile } = await import('../search/query-utils.js');
-      const { buildExploreBlastRadius } = await import('../explore/blast-radius.js');
-      const { renderExploreBlastRadius } = await import('../explore/blast-radius-renderer.js');
-
+      // Keep legacy CLI parsing at the transport boundary, then share the
+      // exact application and evidence policy with MCP.
+      const { exploreApplication } = await import('../explore/application.js');
+      const { readExploreRuntimeOptions } = await import('../explore/runtime.js');
       const maxFiles = options.maxFiles ? Math.max(1, parseInt(options.maxFiles, 10)) : undefined;
-      const planResult = await plan(cg, query, { maxFiles });
-
-      if (planResult.subgraph.nodes.size === 0) {
-        console.log(`No relevant code found for "${query}"`);
-        cg.destroy();
-        return;
-      }
-
-      // Roadmap 1-2-11: skip blast-radius when the budget tier opts out
-      // (tight small-project tier via ZCG_EXPLORE_TIGHT_SMALL_PROJECT).
-      // Delegates to the shared Explore blast-radius Module per P1 — the CLI
-      // no longer keeps a private copy of the policy.
-      const blastRadius =
-        planResult.budget.includeBlastRadius === false
-          ? ''
-          : renderExploreBlastRadius(buildExploreBlastRadius(cg, planResult.subgraph, isTestFile));
-      const output = render(planResult, cg, planResult.spine, blastRadius);
-      console.log(output);
+      const answer = await exploreApplication.explore(cg, query, {
+        maxFiles,
+        runtime: readExploreRuntimeOptions(),
+      });
+      console.log(answer.kind === 'empty' ? answer.text : answer.markdown);
 
       cg.destroy();
     } catch (err) {

@@ -38,9 +38,8 @@ import {
 } from '../explore/budget';
 import { buildExploreBlastRadius } from '../explore/blast-radius';
 import { renderExploreBlastRadius } from '../explore/blast-radius-renderer';
-import { tightSmallProjectBudgetEnabled } from '../explore/runtime';
-import { plan } from '../explore/planner';
-import { render } from './explore-renderer';
+import { tightSmallProjectBudgetEnabled, readExploreRuntimeOptions } from '../explore/runtime';
+import { exploreApplication } from '../explore/application';
 import { ComplexityCalculator } from '../metrics/complexity/index.js';
 
 /** Maximum output length to prevent context bloat (characters) */
@@ -1319,26 +1318,12 @@ export class ToolHandler {
 
     const cg = this.getCodeGraph(args.projectPath as string | undefined);
 
-    // Delegate ALL planning to the explore planner (Issue #25).
-    const planResult = await plan(cg, query, { maxFiles: args.maxFiles as number | undefined });
-
-    if (planResult.subgraph.nodes.size === 0) {
-      return this.textResult(`No relevant code found for "${query}"`);
-    }
-
-    // Compute blast radius (stays here — needs cg.getCallers + isTestFile).
-    // Roadmap 1-2-11: skip the section entirely when the budget tier opts out
-    // (small-project tight tier; the section is a meaningful byte cost on
-    // tightly-scoped questions and the agent can always `zcodegraph_impact`
-    // the named symbol explicitly if it wants blast radius).
-    const blastRadius =
-      planResult.budget.includeBlastRadius === false
-        ? ''
-        : this.buildBlastRadiusSection(cg, planResult.subgraph);
-
-    // Delegate ALL rendering to the explore renderer (Issue #14).
-    const output = render(planResult, cg, planResult.spine, blastRadius);
-    return this.textResult(output);
+    // Shared application composition; MCP owns only validation and ToolResult.
+    const answer = await exploreApplication.explore(cg, query, {
+      maxFiles: args.maxFiles as number | undefined,
+      runtime: readExploreRuntimeOptions(),
+    });
+    return this.textResult(answer.kind === 'empty' ? answer.text : answer.markdown);
   }
 
   /**
