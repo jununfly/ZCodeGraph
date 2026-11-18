@@ -2423,6 +2423,8 @@ program
       const { plan } = await import('../mcp/explore-planner.js');
       const { render } = await import('../mcp/explore-renderer.js');
       const { isTestFile } = await import('../search/query-utils.js');
+      const { buildExploreBlastRadius } = await import('../explore/blast-radius.js');
+      const { renderExploreBlastRadius } = await import('../explore/blast-radius-renderer.js');
 
       const maxFiles = options.maxFiles ? Math.max(1, parseInt(options.maxFiles, 10)) : undefined;
       const planResult = await plan(cg, query, { maxFiles });
@@ -2433,66 +2435,14 @@ program
         return;
       }
 
-      // buildBlastRadiusSection — verbatim copy of the ToolsHandler private
-      // method, kept in sync by code review. Uses isTestFile + cg.getCallers.
-      const buildBlastRadiusSection = (cgArg: typeof cg, subgraph: typeof planResult.subgraph): string => {
-        const ROOT_CAP = 5;
-        const FILE_CAP = 4;
-        const MEANINGFUL = new Set<string>([
-          'function', 'method', 'class', 'interface', 'struct', 'trait', 'protocol',
-          'enum', 'type_alias', 'component', 'constant', 'variable', 'property', 'field',
-        ]);
-        const rel = (p: string) => p.replace(/\\/g, '/');
-
-        const entryNodes = subgraph.entryNodes
-          .map((id) => subgraph.nodes.get(id))
-          .filter((n): n is NonNullable<typeof n> => !!n && MEANINGFUL.has(n.kind))
-          .slice(0, ROOT_CAP);
-        if (entryNodes.length === 0) return '';
-
-        const entries: string[] = [];
-        for (const entryNode of entryNodes) {
-          let callers: Array<{ node: NonNullable<typeof entryNode> }> = [];
-          try { callers = cgArg.getCallers(entryNode.id) as Array<{ node: NonNullable<typeof entryNode> }>; } catch { /* skip */ }
-
-          const seen = new Set<string>();
-          const uniq: Array<NonNullable<typeof entryNode>> = [];
-          for (const c of callers) {
-            if (c?.node && !seen.has(c.node.id)) { seen.add(c.node.id); uniq.push(c.node); }
-          }
-          if (uniq.length === 0) continue;
-
-          const callerFiles = [...new Set(uniq.map((n) => rel(n.filePath)))];
-          const testFiles = callerFiles.filter((f) => isTestFile(f));
-          const nonTest = callerFiles.filter((f) => !isTestFile(f));
-
-          const shown = nonTest.slice(0, FILE_CAP).map((f) => `\`${f}\``).join(', ');
-          const more = nonTest.length > FILE_CAP ? ` +${nonTest.length - FILE_CAP} more` : '';
-          const where = nonTest.length > 0 ? ` in ${shown}${more}` : '';
-          const tests = testFiles.length > 0
-            ? `; tests: ${testFiles.slice(0, FILE_CAP).map((f) => `\`${f}\``).join(', ')}${testFiles.length > FILE_CAP ? ` +${testFiles.length - FILE_CAP}` : ''}`
-            : '; ⚠️ no covering tests found';
-
-          entries.push(
-            `- \`${entryNode.name}\` (${rel(entryNode.filePath)}:${entryNode.startLine}) — ${uniq.length} caller${uniq.length === 1 ? '' : 's'}${where}${tests}`,
-          );
-        }
-        if (entries.length === 0) return '';
-
-        return [
-          '### Blast radius — what depends on these (update/verify before editing)',
-          '',
-          ...entries,
-          '',
-        ].join('\n');
-      };
-
       // Roadmap 1-2-11: skip blast-radius when the budget tier opts out
       // (tight small-project tier via ZCG_EXPLORE_TIGHT_SMALL_PROJECT).
+      // Delegates to the shared Explore blast-radius Module per P1 — the CLI
+      // no longer keeps a private copy of the policy.
       const blastRadius =
         planResult.budget.includeBlastRadius === false
           ? ''
-          : buildBlastRadiusSection(cg, planResult.subgraph);
+          : renderExploreBlastRadius(buildExploreBlastRadius(cg, planResult.subgraph, isTestFile));
       const output = render(planResult, cg, planResult.spine, blastRadius);
       console.log(output);
 

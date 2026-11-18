@@ -36,6 +36,8 @@ import {
   getExploreBudget as sharedGetExploreBudget,
   getExploreOutputBudget as sharedGetExploreOutputBudget,
 } from '../explore/budget';
+import { buildExploreBlastRadius } from '../explore/blast-radius';
+import { renderExploreBlastRadius } from '../explore/blast-radius-renderer';
 import { plan } from './explore-planner';
 import { render } from './explore-renderer';
 import { ComplexityCalculator } from '../metrics/complexity/index.js';
@@ -1300,57 +1302,10 @@ export class ToolHandler {
    * that have no dependents (nothing to warn about), and returns '' when none
    * qualify so a leaf-only exploration stays clean.
    */
-  /** Shared with the evaluation-only Explore wrapper; behavior is unchanged. */
+  /** Shared with the evaluation-only Explore wrapper; behavior is unchanged.
+   * Delegates to the shared Explore blast-radius Module per P1. */
   buildBlastRadiusSection(cg: CodeGraph, subgraph: Subgraph): string {
-    const ROOT_CAP = 5; // only the symbols the query actually targeted
-    const FILE_CAP = 4; // caller files listed per symbol before "+N more"
-    const MEANINGFUL = new Set<string>([
-      'function', 'method', 'class', 'interface', 'struct', 'trait', 'protocol',
-      'enum', 'type_alias', 'component', 'constant', 'variable', 'property', 'field',
-    ]);
-    const rel = (p: string) => p.replace(/\\/g, '/');
-
-    const entryNodes = subgraph.entryNodes
-      .map((id) => subgraph.nodes.get(id))
-      .filter((n): n is Node => !!n && MEANINGFUL.has(n.kind))
-      .slice(0, ROOT_CAP);
-    if (entryNodes.length === 0) return '';
-
-    const entries: string[] = [];
-    for (const entryNode of entryNodes) {
-      let callers: Array<{ node: Node }> = [];
-      try { callers = cg.getCallers(entryNode.id) as Array<{ node: Node }>; } catch { /* skip this Entry Node */ }
-
-      const seen = new Set<string>();
-      const uniq: Node[] = [];
-      for (const c of callers) {
-        if (c?.node && !seen.has(c.node.id)) { seen.add(c.node.id); uniq.push(c.node); }
-      }
-      if (uniq.length === 0) continue; // no blast radius → nothing to flag
-
-      const callerFiles = [...new Set(uniq.map((n) => rel(n.filePath)))];
-      const testFiles = callerFiles.filter((f) => isTestFile(f));
-      const nonTest = callerFiles.filter((f) => !isTestFile(f));
-
-      const shown = nonTest.slice(0, FILE_CAP).map((f) => `\`${f}\``).join(', ');
-      const more = nonTest.length > FILE_CAP ? ` +${nonTest.length - FILE_CAP} more` : '';
-      const where = nonTest.length > 0 ? ` in ${shown}${more}` : '';
-      const tests = testFiles.length > 0
-        ? `; tests: ${testFiles.slice(0, FILE_CAP).map((f) => `\`${f}\``).join(', ')}${testFiles.length > FILE_CAP ? ` +${testFiles.length - FILE_CAP}` : ''}`
-        : '; ⚠️ no covering tests found';
-
-      entries.push(
-        `- \`${entryNode.name}\` (${rel(entryNode.filePath)}:${entryNode.startLine}) — ${uniq.length} caller${uniq.length === 1 ? '' : 's'}${where}${tests}`,
-      );
-    }
-    if (entries.length === 0) return '';
-
-    return [
-      '### Blast radius — what depends on these (update/verify before editing)',
-      '',
-      ...entries,
-      '',
-    ].join('\n');
+    return renderExploreBlastRadius(buildExploreBlastRadius(cg, subgraph, isTestFile));
   }
 
   /**

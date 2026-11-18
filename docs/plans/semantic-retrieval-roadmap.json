@@ -1642,6 +1642,11 @@
           "q": "PR-A 合入后 Slice 0 测试 SHA 校验在 Windows 失败的根因与处置？",
           "answer": "根因：PR-A 把 scripts/agent-eval/task-prompts/zra-pilot-v2-draft.mjs 加入 git 时 core.autocrlf=true 把 LF blob 写成 CRLF disk；Slice 0 测试用 readFileSync 读 disk 字节算 SHA-256，与冻结 LF 期望不符。CI ubuntu 是 LF 所以绿，Windows 本地红。处置：新增 .gitattributes 强制 *.mjs text eol=lf + docs/baselines/**/*.json text eol=lf + scripts/agent-eval/task-prompts/*.mjs text eol=lf，再用 python 把 scripts/**/*.mjs 磁盘 CRLF→LF，git add --renormalize 刷新 index。同时把 Slice 0 测试中 src/mcp/explore-types.ts 改指 src/explore/types.ts（re-export 后 symbolHit* 已迁至共享类型）。此为 Slice 1 准备修复，单独成 commit。",
           "note": " Slice 0 15/15 + 现有 explore-* 163/163 + composition 40/40 + tsc 通过；CI ubuntu 应继续绿。"
+        },
+        {
+          "q": "Slice 1 step 2 如何消除 CLI/MCP blast-radius 私有副本？",
+          "answer": "抽出共享 buildExploreBlastRadius 数据计算与 renderExploreBlastRadius 纯 Markdown 渲染；真实 CodeGraph 通过窄 ExploreCallerLookup 接口使用，测试可注入内存 fake，canonical isTestFile 由组合点注入。保留最多5个入口、caller按ID去重、路径归一化、test/non-test分区、4文件cap、逐entry异常跳过与legacy空行。",
+          "note": ""
         }
       ],
       "notes": "",
@@ -1755,7 +1760,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-18 16:59:07",
+    "updated": "2026-11-18 17:13:34",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
