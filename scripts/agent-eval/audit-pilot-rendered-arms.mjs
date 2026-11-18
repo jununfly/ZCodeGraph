@@ -86,8 +86,8 @@ async function loadModules() {
   return {
     ...(await dist('index.js')),
     ...(await dist('mcp/explore-planner.js')),
-    ...(await dist('mcp/c-explore-plan.js')),
-    ...(await dist('mcp/render-c-explore-plan.js')),
+    ...(await dist('eval/c-explore-plan.js')),
+    ...(await dist('eval/render-c-explore-plan.js')),
     ...(await dist('mcp/tools.js')),
     ...(await dist('eval/zra-paired-core.js')),
   };

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { runPairedEvaluation } from '../src/eval/zra-paired-runtime';
 import type { SharedRunConfig } from '../src/eval/zra-paired-core';
-import { composeSymbolOnlyPlan } from '../src/mcp/c-explore-plan';
-import { render } from '../src/mcp/render-c-explore-plan';
+import { composeSymbolOnlyPlan } from '../src/eval/c-explore-plan';
+import { render } from '../src/eval/render-c-explore-plan';
 import type { Node } from '../src/types';
 import type { ExplorePlan } from '../src/mcp/explore-types';
 import { mkdtempSync, writeFileSync } from 'node:fs';
@@ -160,7 +160,21 @@ describe('isolated ZRA retrieval adapter', () => {
     expect(answer).not.toContain('SessionInterface(class)');
     expect(answer).not.toContain('elided[output#');
     const { render: renderDefault } = await import('../src/mcp/explore-renderer');
-    const defaultAnswer = renderDefault(composed, cg as any, composed.spine, '');
+    const defaultAnswer = renderDefault({
+      plan: composed,
+      blastRadius: '',
+      runtime: { adaptiveEnabled: false, lineNumbersEnabled: false, elidedMarkersEnabled: true, tightSmallProjectBudgetEnabled: false },
+      fileContents: new Map([['session.py', [
+        'class SessionInterface:',
+        '    def open_session(self, request):',
+        '        return "complete recalled method"',
+        '',
+        '    def other_method(self):',
+        '        return "not selected"',
+      ].join('\n')]]),
+      extraNodes: new Map(), outgoingEdges: new Map(), incomingEdges: new Map(),
+      registrationSnippets: new Map(), projectFileCount: 1, recommendedExploreCalls: 1,
+    });
     expect(defaultAnswer).toContain('not selected');
   });
 

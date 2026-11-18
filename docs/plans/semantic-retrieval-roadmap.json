@@ -1667,6 +1667,11 @@
           "q": "Slice 1 step 5 的共享应用入口与 transport 兼容边界是什么？",
           "answer": "DefaultExploreApplication 统一执行 plan→empty→预算门控 blast-radius→evidence→纯 render；CLI/MCP 只负责各自参数解析、runtime 快照、CodeGraph 生命周期及 ToolResult/console envelope，不再组合 planner、evidence 或 blast-radius。CLI 保留十进制 parseInt、Math.max(1,...) 下界与小数/非数值旧接受域，console.log 只附加一个换行；MCP 保持错误传播。真实 SQLite fixture 上 application 与 MCP Markdown 字节一致，CLI 与 MCP 使用相同 singleton 和 payload，历史 buildBlastRadiusSection 只作停止 C/S harness 的兼容委托，不是第二套实现。",
           "note": "联合工作树定向 10 文件 210/210 通过；step 4 commit=ed28085 后独立 build 通过。step 5 单独提交应用、CLI/MCP、共享入口测试和测量模块身份。"
+        },
+        {
+          "q": "Slice 1 step 6 如何剥离 evaluation-only C/S projection 而不复活候选？",
+          "answer": "生产 ExplorePlan 删除 symbolHitNodeIds/symbolHitRanks，纯 renderer 不再接受该输入；harness 用 EvaluationExplorePlan=ExplorePlan & EvaluationExploreProjection 持有真实 symbol hits。src/eval 收编 c-explore-plan、render-c-explore-plan 与纯化前 legacy renderer，脚本只更新 dist/eval 入口，生产 src/explore 与 CLI/MCP 不导入它们。受 TS rootDir=src 限制，历史 renderer/wrapper 置于 src/eval，执行/审计仍在 scripts/agent-eval；这不是生产注册、候选执行或语义验收。",
+          "note": "冻结 candidate SHA=d687c4a831...、fileTopK=10、symbolTopK=50、unionRerank 与默认 OFF 不变；不运行 paired Agent、DES、pilot，60/0 与 96/0 门不变。"
         }
       ],
       "notes": "",
@@ -1780,7 +1785,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-18 17:53:53",
+    "updated": "2026-11-18 17:54:54",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

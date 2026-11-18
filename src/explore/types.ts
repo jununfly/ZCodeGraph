@@ -130,9 +130,8 @@ export interface FileGroup {
  * Production plans MUST NOT carry evaluation-only signals (e.g. symbolHit*).
  * Those signals are owned by the harness-side `EvaluationExploreProjection`.
  *
- * Slice 1 step 6 removes the optional `symbolHit*` fields below; they are
- * retained temporarily so existing harness tests can migrate onto
- * `EvaluationExploreProjection` in the same slice.
+ * Symbol-hit recall signals are confined to the harness-owned
+ * `EvaluationExploreProjection` in `src/eval`; they are not production plan data.
  */
 export interface ExplorePlan {
   // ===== Input =====
@@ -162,17 +161,6 @@ export interface ExplorePlan {
   // ===== Flow Spine =====
   /** The Flow Spine traced through named symbols. */
   spine: FlowSpine;
-
-  /**
-   * Evaluation-only: verified symbol-union hits to prioritize as source evidence.
-   * @deprecated Will move to `EvaluationExploreProjection` in Slice 1 step 6.
-   */
-  symbolHitNodeIds?: ReadonlySet<string>;
-  /**
-   * Evaluation-only: zero-based positions in the frozen symbol recall.
-   * @deprecated Will move to `EvaluationExploreProjection` in Slice 1 step 6.
-   */
-  symbolHitRanks?: ReadonlyMap<string, number>;
 
   // ===== Adaptive Sizing Signal =====
   /** Whether skeletonization is enabled for this operation. */

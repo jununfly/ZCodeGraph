@@ -22,7 +22,7 @@ const CORPORA = {
 async function modules() {
   const load = (file) => import(pathToFileURL(path.join(REPO, 'dist', file)).href);
   return { ...(await load('index.js')), ...(await load('mcp/explore-planner.js')),
-    ...(await load('mcp/c-explore-plan.js')), ...(await load('mcp/render-c-explore-plan.js')),
+    ...(await load('eval/c-explore-plan.js')), ...(await load('eval/render-c-explore-plan.js')),
     ...(await load('mcp/tools.js')), ...(await load('eval/zra-paired-core.js')) };
 }
 
