@@ -161,7 +161,7 @@ export function classifyClue(clue: string): AnchorKind {
     // The latter has a non-source extension or starts with an uppercase
     // container segment.
     const match = clue.match(/\.([a-zA-Z]+)$/);
-    if (match && SOURCE_EXTENSIONS.has(match[1].toLowerCase())) {
+    if (match && match[1] && SOURCE_EXTENSIONS.has(match[1].toLowerCase())) {
       return 'file-path';
     }
     return 'qualified-name';
