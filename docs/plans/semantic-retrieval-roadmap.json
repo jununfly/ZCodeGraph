@@ -1700,11 +1700,22 @@
       "id": "1-9-6",
       "uid": "01a1ed687e26-3982e708e4",
       "label": "Slice 2：固定快照证据台账与 legacy 旁路观测",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-9",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Slice 2 开工范围、scope gate 与边界如何锁定？",
+          "answer": "Scope gate=Product execution（DES-universal-structural-explore-v1 已批准，Slice 2 在合同 §688 迁移切片表中）。开工分支 feat-universal-explore-slice2-20261118 自 main 切出。可改范围：src/explore/ 下新增 snapshot/ledger 旁路模块与对应单元测试，CLI/MCP 经同一 ExploreApplication 调用，不改 legacy 组合语义。硬边界：(1) 仅加内部 ExploreReport 旁路观测，ToolResult/metadata 不暴露任何新字段（须另行兼容性审批）；(2) 不改 ExploreAnswer 公共 schema、request identity、maxFiles 语义；(3) 不改 1-4/e9、默认 OFF、60/0、96/0、G-ship、C/S 冻结候选；(4) 不新建并行持久化 evidence graph、不引入新 graph 数据库；(5) 不解锁 1-9-7，不动 semantic migration；(6) snapshot-lost/source-changed 不得伪装成 no-evidence，graph blocker 不伪造闭包；(7) report 的 status/coverage/omissions/diagnostics/workBudgetFingerprint 与 SnapshotIdentity/CoverageLedger/EvidenceGap 严格按合同 §111-§118 与 §369-§380 落地。Slice 2 exit_criteria 四条全部按 obligation_key=DES-universal-structural-explore-v1:slice-2 兑现；验收为定向单测 + 全仓回归，不消耗 CI 复跑额度（CI 复跑计入 1-8-1 的 Q76 硬预算独立账本）。",
+          "note": ""
+        },
+        {
+          "q": "Slice 2 内部切片落地范围、测试结果与 exit_criteria 兑现证据是什么？",
+          "answer": "Slice 2 全部 4 个子切片按序完成。Slice 2.1 新增 src/explore/snapshot.ts：SnapshotIdentity(projectId/databaseGeneration/readViewId/schemaVersion)+ExploreReadSnapshot 端口+SnapshotLostError+fingerprintWorkBudget。Slice 2.2 新增 src/explore/ledger.ts：ExploreReport/CoverageLedger/EvidenceGap/ExploreDiagnostic+deriveCoverageLedger(计数纯派生，状态按合同 §397-408 顺序 failed>empty>complete>partial)+observeLegacyComposition(把 legacy plan entries 映射为 requirement，renderMode full→returned/skeleton/focused→degraded/omit→omitted，读失败→omitted+gap，绝不把 source/snapshot 失败伪装成 no-evidence)。Slice 2.3 新增 src/explore/snapshot-observer.ts：CodeGraphExploreReadSnapshot 用 dbSizeBytes+backend+journalMode 三元组作为 generation 指纹，DB 替换/reindex 即抛 snapshot-lost；防御性处理 mock graph 缺 getBackend/getJournalMode/dbSizeBytes 的情形。src/explore/application.ts 串接旁路：先 plan 得 projectRoot 派生稳定 projectId(sha256 前 16 hex，与 daemon-paths.ts 同约定)，再开 snapshot 覆盖 evidence/render，setExploreReportObserver 进程级 observer 仅在显式安装时调用，report 不进 ToolResult/metadata。Slice 2.4 新增两个定向测试文件：tests/explore-slice2-ledger.test.ts 20 用例(identity/lifecycle/fingerprint/coverage 派生/status 互斥/观察映射/失败不伪装 no-evidence/searchExhausted 独立)+tests/explore-slice2-application-observer.test.ts 3 用例(真实 CodeGraph+indexAll+observer 接收 report/空查询产 no-evidence report/无 observer 时 Slice 1 行为完全保留)。测试结果：tsc --noEmit 0 错；Slice 2 新测试 23/23 通过；Slice 1 既有 explore+composition 测试 12 文件 231/231 通过零回归。exit_criteria 兑现：(1) snapshot 端口+observer 绑定固定 read view，失效抛 snapshot-lost ✓；(2) 每个 plan entry 派生 returned/degraded/omitted+provenance(filePath)+gap+一致派生计数 ✓；(3) report 仅旁路观测，answer.markdown 形状与 legacy 完全一致 ✓；(4) report 经 setExploreReportObserver 进程级 observer 暴露，CLI/MCP 传输层完全不感知 ✓。Slice 2 不解锁 1-9-7、不动 semantic migration、不改公共 schema/maxFiles 语义/CLI 换行、默认 OFF/60/0/96/0/C/S 冻结候选/1-4/e9 全部不变。slice 2 observer 未识别 legacy mock graph 缺 getBackend 等表面导致的初次回归已通过 sentinel 兜底修复，并固化为测试。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "obligation_key": "DES-universal-structural-explore-v1:slice-2",
@@ -1713,7 +1724,8 @@
         "每个已选 requirement 具有 returned/degraded/omitted 处置、provenance、residual、freshness 和一致派生计数",
         "新台账仅旁路观测 legacy composition，不改变回答语义；缺失关系 site 等 graph blocker 不伪造闭包",
         "内部 report 未经兼容性审批不暴露到 ToolResult/metadata；source 失败不伪装 no-evidence"
-      ]
+      ],
+      "rounds": 1
     },
     "1-9-7": {
       "id": "1-9-7",
@@ -1795,7 +1807,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-18 19:46:57",
+    "updated": "2026-11-18 20:21:17",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
