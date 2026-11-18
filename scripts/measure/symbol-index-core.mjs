@@ -38,14 +38,22 @@ export function camelSplit(s) {
     .filter((t) => t.length >= 2);
 }
 
-export function buildSymbolIndex(corpus) {
-  const dbPath = path.join(CORPUS_ROOT, corpus, '.zcodegraph', 'zcodegraph.db');
-  const idxPath = path.join(SYMBOL_DIR, `${corpus}.db`);
+export function buildSymbolIndex(corpusOrOptions) {
+  const isolated = typeof corpusOrOptions === 'object' && corpusOrOptions !== null;
+  const dbPath = isolated
+    ? corpusOrOptions.dbPath
+    : path.join(CORPUS_ROOT, corpusOrOptions, '.zcodegraph', 'zcodegraph.db');
+  const idxPath = isolated
+    ? corpusOrOptions.indexPath
+    : path.join(SYMBOL_DIR, `${corpusOrOptions}.db`);
+  if (!dbPath || !idxPath) throw new Error('symbol index requires source and output paths');
   const requireFromRepo = createRequire(path.join(REPO, 'package.json'));
   const { DatabaseSync } = requireFromRepo('node:sqlite');
-  if (fs.existsSync(idxPath)) return idxPath;
-  fs.mkdirSync(SYMBOL_DIR, { recursive: true });
-  if (fs.existsSync(idxPath)) fs.rmSync(idxPath);
+  if (!isolated && fs.existsSync(idxPath)) return idxPath;
+  fs.mkdirSync(path.dirname(idxPath), { recursive: true });
+  if (isolated && fs.existsSync(idxPath)) {
+    throw new Error('snapshot-bound symbol index must use a fresh output path');
+  }
   const src = new DatabaseSync(dbPath, { readOnly: true });
   const idx = new DatabaseSync(idxPath);
   idx.exec('PRAGMA journal_mode = MEMORY; PRAGMA synchronous = OFF;');
@@ -70,7 +78,7 @@ export function buildSymbolIndex(corpus) {
   idx.exec('COMMIT');
   src.close();
   idx.close();
-  console.error(`[sym] built index ${corpus}: ${rows.length} symbols -> ${idxPath}`);
+  console.error(`[sym] built index ${isolated ? 'snapshot' : corpusOrOptions}: ${rows.length} symbols -> ${idxPath}`);
   return idxPath;
 }
 
@@ -94,7 +102,7 @@ export function symbolRecallFiles(query, idxPath) {
   const byFile = new Map();
   const topSymIds = [];
   for (const r of rows) {
-    topSymIds.push({ id: r.node_id, score: Math.max(0, -r.rank) });
+    topSymIds.push({ id: r.node_id, filePath: r.file_path, score: Math.max(0, -r.rank) });
     if (!byFile.has(r.file_path)) byFile.set(r.file_path, { count: 0, bm25: 0, names: [], kinds: [], exported: [] });
     const e = byFile.get(r.file_path);
     e.count += 1;

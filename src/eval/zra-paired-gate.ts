@@ -13,6 +13,8 @@ export interface ArmSwitchEvidence {
   /** Conclusion of the Agent Sufficiency baseline, owned by Human. */
   readonly baselineConclusion: 'pass' | 'fail' | null;
   readonly baselineRunId: string | null;
+  /** Required for a C/S switch: pre-C Flask evidence cannot satisfy this gate. */
+  readonly retrievalArm?: 'C';
   /** Independent task set plus Task Freshness review. */
   readonly taskSetReviewed: boolean;
   readonly taskFreshnessReviewer: string | null;
@@ -31,14 +33,14 @@ export interface ArmSwitchGateResult {
 export function canEnableRetrievalArm(evidence: ArmSwitchEvidence): ArmSwitchGateResult {
   const reasons: string[] = [];
 
-  if (evidence.baselineConclusion !== 'pass' || !evidence.baselineRunId) {
-    reasons.push('Agent Sufficiency baseline evidence is missing or not passed (Trigger Matrix :42)');
+  if (evidence.baselineConclusion !== 'pass' || !evidence.baselineRunId || evidence.retrievalArm !== 'C') {
+    reasons.push('post-C Agent Sufficiency baseline evidence is missing or not passed (Trigger Matrix :42)');
   }
   if (!evidence.taskSetReviewed || !evidence.taskFreshnessReviewer) {
     reasons.push('independent task set and Task Freshness review are not recorded');
   }
-  if (evidence.namedReviewers.length === 0 || !evidence.reviewerIsHuman) {
-    reasons.push('named operators/reviewers are missing or the reviewer is not Human (Q68)');
+  if (evidence.namedReviewers.length < 2 || new Set(evidence.namedReviewers).size < 2 || !evidence.reviewerIsHuman) {
+    reasons.push('two distinct named Human reviewers are required; one reviewer in two passes is not independent (Q68)');
   }
   const nonInferiority = evidence.correctnessNonInferiority;
   if (nonInferiority === null || !Number.isFinite(nonInferiority) || nonInferiority < 0) {

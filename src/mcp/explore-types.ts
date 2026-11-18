@@ -198,6 +198,11 @@ export interface ExplorePlan {
   /** The Flow Spine traced through named symbols. */
   spine: FlowSpine;
 
+  /** Evaluation-only: verified symbol-union hits to prioritize as source evidence. */
+  symbolHitNodeIds?: ReadonlySet<string>;
+  /** Evaluation-only: zero-based positions in the frozen symbol recall. */
+  symbolHitRanks?: ReadonlyMap<string, number>;
+
   // ===== Adaptive Sizing Signal =====
   /** Whether ZCG_ADAPTIVE_EXPLORE is enabled (skeletonization on). */
   adaptiveEnabled: boolean;

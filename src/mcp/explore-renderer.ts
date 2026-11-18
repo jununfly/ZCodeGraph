@@ -96,6 +96,8 @@ export function render(
   cg: CodeGraph,
   flow: { text: string; pathNodeIds: Set<string>; namedNodeIds: Set<string>; uniqueNamedNodeIds: Set<string> },
   blastRadius: string,
+  symbolHitNodeIds: ReadonlySet<string> = new Set(),
+  symbolHitRanks: ReadonlyMap<string, number> = new Map(),
 ): string {
   const { budget, subgraph, entryNodeIds, fileGroups, sortedFiles, adaptiveEnabled,
     glueNodeIds, connectedToEntry, centralFiles, projectRoot } = plan;
@@ -284,7 +286,8 @@ export function render(
     // after the build + validators-exec files and never reached the ranked-in
     // validate-logic file (Alamofire's Validation.swift).
     const fileNecessary = group.nodes.some(n =>
-      entryNodeIds.has(n.id) || flow.pathNodeIds.has(n.id) || flow.uniqueNamedNodeIds.has(n.id));
+      entryNodeIds.has(n.id) || flow.pathNodeIds.has(n.id) || flow.uniqueNamedNodeIds.has(n.id)
+      || symbolHitNodeIds.has(n.id));
     if (!fileNecessary && totalChars > budget.maxOutputChars * 0.9) {
       if (elidedMarkersEnabled() && skippedFileMarkers.length < 5) {
         // Pick a representative symbol (highest-priority non-import/export) so
@@ -474,7 +477,11 @@ export function render(
       : (isCentralFile
           ? Math.min(Math.max(0, budget.maxOutputChars - totalChars - 200), Math.round(budget.maxCharsPerFile * 1.5))
           : budget.maxCharsPerFile * 3);
-    if (fileLines.length <= WHOLE_FILE_MAX_LINES && fileContent.length <= WHOLE_FILE_MAX_CHARS) {
+    // Necessary hit files use bounded per-symbol selection below; avoid
+    // unconditional full-file output from consuming every later file's budget.
+    const symbolHit = group.nodes.some(n => symbolHitNodeIds.has(n.id));
+    const allowWholeFile = !symbolHit;
+    if (allowWholeFile && fileLines.length <= WHOLE_FILE_MAX_LINES && fileContent.length <= WHOLE_FILE_MAX_CHARS) {
       const body = fileContent.replace(/\n+$/, '');
       let wholeSection = exploreLineNumbersEnabled() ? numberSourceLines(body, 1) : body;
       const uniqSymbols = [...new Set(
@@ -528,7 +535,7 @@ export function render(
     // budget — the agent explicitly asked for these symbols.
     const rangeNodes = new Map<string, Node>();
     for (const n of group.nodes) if (n.startLine > 0 && n.endLine > 0) rangeNodes.set(n.id, n);
-    for (const id of flow.namedNodeIds) {
+    for (const id of [...flow.namedNodeIds, ...symbolHitNodeIds]) {
       if (rangeNodes.has(id)) continue;
       const n = cg.getNode(id);
       if (n && n.filePath === filePath && n.startLine > 0 && n.endLine > 0) rangeNodes.set(id, n);
@@ -536,10 +543,18 @@ export function render(
     const ranges: Array<{ start: number; end: number; name: string; kind: string; importance: number }> = [...rangeNodes.values()]
       // Drop whole-file envelope nodes (containers covering >50% of the file).
       .filter(n => !(ENVELOPE_KINDS.has(n.kind) && (n.endLine - n.startLine + 1) > fileLines.length * 0.5))
+      // A recalled class plus its recalled methods is one large nested range,
+      // not additional evidence. Only C's real-hit path drops the redundant
+      // envelope when a more specific hit exists; default Explore is unchanged.
+      .filter(n => !(symbolHit && ENVELOPE_KINDS.has(n.kind) && [...rangeNodes.values()].some(other =>
+        other.id !== n.id && symbolHitNodeIds.has(other.id)
+        && other.startLine >= n.startLine && other.endLine <= n.endLine
+      )))
       .map(n => {
         let importance = 1;
-        if (entryNodeIds.has(n.id)) importance = 10;
-        else if (flow.namedNodeIds.has(n.id)) importance = 9; // agent named it → keep its cluster
+        if (symbolHitNodeIds.has(n.id)) importance = 20 - Math.min(19, symbolHitRanks.get(n.id) ?? 19) / 20;
+        else if (entryNodeIds.has(n.id)) importance = 10;
+        else if (flow.namedNodeIds.has(n.id)) importance = 9;
         else if (glueNodeIds.has(n.id)) importance = 6; // bridging caller/callee of an entry
         else if (connectedToEntry.has(n.id)) importance = 3;
         return { start: n.startLine, end: n.endLine, name: n.name, kind: n.kind, importance };
@@ -578,9 +593,21 @@ export function render(
       maxImportance: ranges[0]!.importance,
     };
   
+    // C's broad OR-symbol recall can place many independent methods next to
+    // one another. Do not let an ordinary small gap turn the entire class into
+    // one oversized high-priority cluster. Whole methods remain indivisible;
+    // the baseline and other plans retain the original contiguous clustering.
+    const canMergeRange = (r: { start: number; end: number }): boolean => {
+      if (!symbolHit) return r.start <= current.end + gapThreshold;
+      if (r.start > current.end + gapThreshold) return false;
+      const startIdx = Math.max(0, current.start - 1 - 3);
+      const slice = fileLines.slice(startIdx, Math.min(fileLines.length, r.end + 3)).join('\n');
+      const size = exploreLineNumbersEnabled() ? numberSourceLines(slice, startIdx + 1).length : slice.length;
+      return size <= budget.maxCharsPerFile;
+    };
     for (let i = 1; i < ranges.length; i++) {
       const r = ranges[i]!;
-      if (r.start <= current.end + gapThreshold) {
+      if (canMergeRange(r)) {
         current.end = Math.max(current.end, r.end);
         current.symbols.push(`${r.name}(${r.kind})`);
         current.score += r.importance;

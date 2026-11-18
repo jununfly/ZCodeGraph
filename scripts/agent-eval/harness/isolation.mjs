@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Credential-free, one-shot, read-only snapshot isolation for baseline runs
 // (ADR-0015 D5/D7; ADR-0016 Boundaries). Harness-owned and provider-agnostic:
 // no provider name, no model id, no vendor transcript marker.
@@ -7,10 +6,110 @@ import { createHash } from 'node:crypto';
 import { copyFile, mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const SENSITIVE_ENV = /(TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|API_KEY|APIKEY|PRIVATE_KEY|ACCESS_KEY|COOKIE|AUTH)/i;
 const SENSITIVE_FILE = /^(\.env|\.npmrc|\.netrc|id_rsa.*|.*\.pem|.*\.key|credentials.*)$/i;
+const RUNTIME_DIR = '.zcodegraph';
 const disposedSnapshots = new WeakSet();
+const POST_C_SERVER = new URL('../post-c-explore-server.mjs', import.meta.url);
+
+function sha256(value) {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+function invalidPostC(baselineOptions, snapshot, invalidReason) {
+  return Object.freeze({
+    runId: baselineOptions.runId,
+    status: 'invalid',
+    invalidReason,
+    arms: {
+      with: { status: 'invalid', humanReview: null },
+      without: { status: 'invalid', humanReview: null },
+    },
+    diagnostics: { attemptedArms: [], arms: [] },
+    totals: { credit: 0, totalTokens: 0, turns: 0 },
+    isolation: Object.freeze({
+      root: snapshot.root,
+      fingerprint: snapshot.fingerprint,
+      consumed: true,
+      intact: true,
+    }),
+  });
+}
+
+/** Bind the declared candidate to this one-shot snapshot before any agent run. */
+export async function preparePostCExplore(snapshot, retrieval) {
+  if (!['C', 'S'].includes(retrieval?.arm) || !/^[0-9a-f]{64}$/.test(retrieval.candidateSha256 ?? '')) {
+    throw new Error('snapshot-bound retrieval requires explicit C/S and the frozen candidate SHA-256');
+  }
+  if (retrieval.arm === 'S' && (!Number.isInteger(retrieval.seed) || retrieval.seed < 0)) {
+    throw new Error('S requires a non-negative integer fixed seed');
+  }
+  if (retrieval.arm === 'C' && retrieval.seed !== undefined) {
+    throw new Error('C must not accept an S ordering seed');
+  }
+  const env = {
+    ZCG_EVAL_SNAPSHOT_FINGERPRINT: snapshot.fingerprint,
+    ZCG_EVAL_CANDIDATE_SHA256: retrieval.candidateSha256,
+    ZCG_EVAL_RETRIEVAL_ARM: retrieval.arm,
+    ...(retrieval.arm === 'S' ? { ZCG_EVAL_SEED: String(retrieval.seed) } : {}),
+    ZCG_NO_DAEMON: '1',
+    ZCG_NO_WATCH: '1',
+  };
+  const { preparePostCExplore: prepare } = await import(POST_C_SERVER.href);
+  const prepared = await prepare({ corpusDir: snapshot.corpusDir, env });
+  if (prepared.candidateSha256 !== retrieval.candidateSha256
+      || prepared.snapshotFingerprint !== snapshot.fingerprint) {
+    throw new Error('post-C Explore preparation evidence does not match the snapshot/candidate');
+  }
+  const config = Object.freeze({
+    command: process.execPath,
+    args: [fileURLToPath(POST_C_SERVER)],
+    env: {
+      ...env,
+      ZCG_EVAL_EVIDENCE_DIR: prepared.evidenceDir,
+      ZCG_EVAL_PREPARATION_PATH: prepared.preparationPath,
+    },
+    alwaysLoad: true,
+  });
+  return Object.freeze({ config, prepared });
+}
+
+/**
+ * Verify one actual paired-arm tool result. The caller owns snapshot freshness,
+ * arm order and the paired ledger; this seam never runs a model or a baseline.
+ */
+export async function verifySnapshotArmEvidence(prepared, arm, answer) {
+  if (!['C', 'S'].includes(arm) || prepared.retrievalArm !== arm || typeof answer !== 'string') {
+    throw new Error('paired-arm evidence must match the prepared C/S arm and actual answer text');
+  }
+  const answerSha256 = sha256(answer);
+  const evidence = JSON.parse(await readFile(
+    path.join(prepared.evidenceDir, `${answerSha256}.json`), 'utf8',
+  ));
+  const expectedKind = arm === 'S' ? 'snapshot-bound-s-explore-v1' : 'snapshot-bound-c-explore-v1';
+  if (evidence.kind !== expectedKind || evidence.retrievalArm !== arm
+      || evidence.answer !== answer || evidence.answerSha256 !== answerSha256
+      || evidence.snapshotFingerprint !== prepared.snapshotFingerprint
+      || evidence.candidateSha256 !== prepared.candidateSha256
+      || evidence.symbolIndexPath !== prepared.symbolIndexPath) {
+    throw new Error('actual paired-arm answer is not bound to its snapshot/candidate/index evidence');
+  }
+  const proof = evidence.finalPayloadProof;
+  if (arm === 'S' && (evidence.protocolSchema !== 'fixed-c-visible-evidence-order-only-v1'
+      || evidence.seed !== prepared.seed || evidence.cAnswerSha256 !== proof?.cSha256
+      || proof?.schema !== evidence.protocolSchema || proof.status !== 'pass'
+      || proof.diagnostic !== true || proof.candidateProjectionEqual !== true
+      || proof.nonSourcePrefixIdentical !== true || proof.nonSourceSuffixIdentical !== true
+      || proof.fileSetsEqual !== true || proof.contentDifferences?.length !== 0
+      || proof.onlyInC?.length !== 0 || proof.onlyInS?.length !== 0
+      || proof.cHardCeiling !== false || proof.sHardCeiling !== false
+      || proof.sSha256 !== answerSha256)) {
+    throw new Error('S answer lacks valid final-payload order-only proof');
+  }
+  return Object.freeze(evidence);
+}
 
 /** Every consumer must reject a snapshot that has already served one run. */
 export function assertUsable(snapshot) {
@@ -52,6 +151,9 @@ async function listCorpusFiles(dir, prefix = '') {
   const files = [];
   for (const entry of entries) {
     const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    // The local MCP store is a disposable index, not protected source. Index
+    // writes/WAL files must not masquerade as source-code integrity breaches.
+    if (relative === RUNTIME_DIR) continue;
     if (entry.isDirectory()) {
       files.push(...await listCorpusFiles(path.join(dir, entry.name), relative));
     } else if (entry.isFile()) {
@@ -61,7 +163,7 @@ async function listCorpusFiles(dir, prefix = '') {
   return files;
 }
 
-/** SHA-256 over sorted relative paths and their contents. */
+/** SHA-256 over sorted source paths and contents; runtime indexes are excluded. */
 export async function fingerprintCorpus(corpusDir) {
   const hash = createHash('sha256');
   for (const relative of await listCorpusFiles(corpusDir)) {
@@ -104,7 +206,8 @@ export async function createIsolatedSnapshot(options = {}) {
  * WHOLE run (ADR-0015 D4); partial arms are never retained as evidence.
  */
 export async function runIsolatedBaseline(options = {}) {
-  const { sourceDir, runBaseline, baselineOptions = {}, isolationOptions = {} } = options;
+  const { sourceDir, runBaseline, baselineOptions: requestedBaseline = {}, isolationOptions = {} } = options;
+  let baselineOptions = requestedBaseline;
   if (typeof runBaseline !== 'function') throw new Error('runBaseline is required');
 
   const snapshot = await createIsolatedSnapshot({ sourceDir, ...isolationOptions });
@@ -117,13 +220,147 @@ export async function runIsolatedBaseline(options = {}) {
     env: snapshot.env,
   });
 
+  let postCPrepared;
+  if (baselineOptions.retrieval !== undefined) {
+    let prepared;
+    try {
+      prepared = await preparePostCExplore(context, baselineOptions.retrieval);
+    } catch (error) {
+      const invalid = invalidPostC(baselineOptions, snapshot,
+        'post-C retrieval requires snapshot-bound C/S Explore evidence');
+      await disposeSnapshot(snapshot);
+      return Object.freeze({ ...invalid, diagnostics: {
+        ...invalid.diagnostics,
+        error: error instanceof Error ? error.message : String(error),
+      } });
+    }
+    postCPrepared = prepared.prepared;
+    baselineOptions = {
+      ...baselineOptions,
+      server: prepared.config,
+      retrieval: {
+        ...baselineOptions.retrieval,
+        preparation: {
+          kind: postCPrepared.kind,
+          retrievalArm: postCPrepared.retrievalArm,
+          snapshotFingerprint: postCPrepared.snapshotFingerprint,
+          candidateSha256: postCPrepared.candidateSha256,
+          sourceDbSha256: postCPrepared.sourceDbSha256,
+          symbolIndexSha256: postCPrepared.symbolIndexSha256,
+        },
+      },
+      adapterOptions: { ...(baselineOptions.adapterOptions ?? {}), retrievalEvidence: prepared.prepared },
+    };
+  }
+
   const result = await runBaseline({
     ...baselineOptions,
+    ...(baselineOptions.outDir ? { outDir: null } : {}),
     adapterOptions: { ...(baselineOptions.adapterOptions ?? {}), isolation: context },
   });
 
   const intact = await verifySnapshot(snapshot);
   await disposeSnapshot(snapshot);
+  if (postCPrepared && intact && result.status === 'valid') {
+    const withArm = result.arms.with;
+    const toolCalls = withArm.toolCalls.filter((call) => {
+      const name = call.name ?? call.toolName ?? '';
+      return name.endsWith('zcodegraph_explore');
+    });
+    const toolResults = Array.isArray(withArm.toolResults) ? withArm.toolResults : [];
+    if (toolCalls.length === 0) {
+      result.status = 'invalid';
+      result.invalidReason = `post-C with arm did not call the real ${baselineOptions.retrieval.arm} Explore MCP tool`;
+    } else {
+      const answers = [];
+      for (const toolCall of toolCalls) {
+        const toolResult = toolResults.find((candidate) =>
+          typeof candidate.callId === 'string' && candidate.callId === toolCall.callId
+          && typeof candidate.text === 'string');
+        if (!toolResult) {
+          answers.length = 0;
+          break;
+        }
+        const answerSha256 = sha256(toolResult.text);
+        let evidence;
+        try {
+          evidence = JSON.parse(await readFile(
+            path.join(postCPrepared.evidenceDir, `${answerSha256}.json`), 'utf8',
+          ));
+        } catch {
+          // Missing server-side evidence is an invalid run, never a valid synthetic one.
+        }
+        const expectedEvidenceKind = baselineOptions.retrieval.arm === 'S'
+          ? 'snapshot-bound-s-explore-v1' : 'snapshot-bound-c-explore-v1';
+        if (evidence?.kind !== expectedEvidenceKind
+            || evidence.retrievalArm !== baselineOptions.retrieval.arm
+            || evidence.snapshotFingerprint !== snapshot.fingerprint
+            || evidence.candidateSha256 !== baselineOptions.retrieval.candidateSha256
+            || evidence.answerSha256 !== answerSha256
+            || evidence.answer !== toolResult.text
+            || evidence.query !== (toolCall.input ?? toolCall.arguments)?.query
+            || evidence.symbolIndexPath !== postCPrepared.symbolIndexPath
+            || (baselineOptions.retrieval.arm === 'S' && (
+              evidence.seed !== baselineOptions.retrieval.seed
+              || evidence.protocolSchema !== 'fixed-c-visible-evidence-order-only-v1'
+              || evidence.finalPayloadProof?.status !== 'pass'
+              || evidence.finalPayloadProof?.diagnostic !== true
+              || evidence.finalPayloadProof?.candidateProjectionEqual !== true
+              || evidence.finalPayloadProof?.nonSourcePrefixIdentical !== true
+              || evidence.finalPayloadProof?.nonSourceSuffixIdentical !== true
+              || evidence.finalPayloadProof?.fileSetsEqual !== true
+              || evidence.finalPayloadProof?.contentDifferences?.length !== 0
+              || evidence.finalPayloadProof?.cHardCeiling !== false
+              || evidence.finalPayloadProof?.sHardCeiling !== false
+              || evidence.finalPayloadProof?.cSha256 !== evidence.cAnswerSha256
+              || evidence.finalPayloadProof?.sSha256 !== answerSha256
+            ))) {
+          answers.length = 0;
+          break;
+        }
+        answers.push(Object.freeze({ callId: toolCall.callId, ...evidence }));
+      }
+      if (answers.length !== toolCalls.length) {
+        result.status = 'invalid';
+        result.invalidReason = 'post-C with arm tool results do not match snapshot-bound C/S Explore evidence';
+      } else {
+        withArm.mcpExploreEvidence = Object.freeze({
+          kind: 'snapshot-bound-c-explore-evidence-v1',
+          retrievalArm: baselineOptions.retrieval.arm,
+          ...(baselineOptions.retrieval.arm === 'S' ? {
+            protocolSchema: 'fixed-c-visible-evidence-order-only-v1', seed: baselineOptions.retrieval.seed,
+          } : {}),
+          snapshotFingerprint: snapshot.fingerprint,
+          candidateSha256: baselineOptions.retrieval.candidateSha256,
+          answers: Object.freeze(answers),
+          ...(withArm.transcriptPath ? {} : {
+            desEligible: false,
+            evidenceLimit: 'local MCP integration only; not a real-agent DES baseline',
+          }),
+        });
+      }
+    }
+    if (result.status === 'invalid') {
+      result.diagnostics = {
+        ...(result.diagnostics ?? {}),
+        // A runner failure already supplies these fields. A successful runner
+        // rejected by the post-C gate needs the same bounded audit locations.
+        attemptedArms: result.diagnostics?.attemptedArms ?? ['with', 'without'],
+        arms: result.diagnostics?.arms ?? ['with', 'without'].map((arm) => ({
+          arm,
+          outcome: 'attempted',
+          exitCode: 0,
+          stderrTail: '',
+          transcriptPath: typeof result.arms[arm]?.transcriptPath === 'string'
+            ? result.arms[arm].transcriptPath : '',
+        })),
+        postCPrepared,
+      };
+      for (const arm of ['with', 'without']) {
+        result.arms[arm] = { ...result.arms[arm], status: 'invalid', invalidReason: result.invalidReason };
+      }
+    }
+  }
   const isolation = Object.freeze({
     root: snapshot.root,
     fingerprint: snapshot.fingerprint,
@@ -131,18 +368,41 @@ export async function runIsolatedBaseline(options = {}) {
     intact,
   });
 
-  if (!intact) {
-    const arms = {};
-    for (const [arm, record] of Object.entries(result?.arms ?? {})) {
-      arms[arm] = { ...record, status: 'invalid', invalidReason: 'snapshot integrity breach' };
-    }
-    return Object.freeze({
-      ...(result ?? {}),
+  const output = {
+    ...(result ?? {}),
+    ...(intact ? {} : {
       status: 'invalid',
       invalidReason: 'snapshot integrity breach',
-      arms: Object.freeze(arms),
+      arms: Object.fromEntries(Object.entries(result?.arms ?? {}).map(([arm, record]) => [
+        arm, { ...record, status: 'invalid', invalidReason: 'snapshot integrity breach' },
+      ])),
+    }),
+    isolation,
+  };
+
+  if (baselineOptions.diagnosticsDir && output.status === 'invalid') {
+    const diagnostics = {
+      ...(output.diagnostics ?? {}),
+      kind: 'failed-baseline-diagnostics',
+      evidence: false,
+      runId: output.runId,
+      invalidReason: output.invalidReason,
       isolation,
-    });
+    };
+    await mkdir(baselineOptions.diagnosticsDir, { recursive: true });
+    await writeFile(
+      path.join(baselineOptions.diagnosticsDir, `${output.runId}.diagnostics.json`),
+      JSON.stringify(diagnostics, null, 2),
+      'utf8',
+    );
   }
-  return Object.freeze({ ...(result ?? {}), isolation });
+  if (baselineOptions.outDir && output.status === 'valid') {
+    await mkdir(baselineOptions.outDir, { recursive: true });
+    await writeFile(
+      path.join(baselineOptions.outDir, `${output.runId}.json`),
+      JSON.stringify(output, null, 2),
+      'utf8',
+    );
+  }
+  return Object.freeze(output);
 }

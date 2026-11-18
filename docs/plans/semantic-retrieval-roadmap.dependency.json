@@ -1,0 +1,31 @@
+{
+  "blocked_by": [],
+  "blocked_depth": {
+    "1": 0
+  },
+  "blocking": [],
+  "boundary": "only-blocks",
+  "critical_path": [
+    "1"
+  ],
+  "edge_count": 0,
+  "edges": [],
+  "envelope": {
+    "authority": "zj-roadmap-authority/v1",
+    "carrier_revision": "81a4c0c920cb3fea",
+    "carrier_stem": "semantic-retrieval-roadmap",
+    "focus": "1",
+    "generated_by": "zj-roadmap-driven/viz",
+    "node_uid": "01a19c8540d5-16c95112bd",
+    "view_kind": "zj-roadmap-visual-review/dependency-v1"
+  },
+  "impact": [],
+  "revision_status": {
+    "auto_refresh": false,
+    "carrier_revision": "81a4c0c920cb3fea",
+    "checked": false,
+    "expected_revision": null,
+    "refresh_command": null,
+    "stale": false
+  }
+}

@@ -1,0 +1,1307 @@
+{
+  "schemaVersion": "1.0",
+  "evidenceDirectory": ".workbuddy/agent-eval",
+  "kind": "zra-paired-pilot-execution-reservations",
+  "scope": "preparation reservations plus a separately supplied Human DES classification; no model execution or production wiring",
+  "status": "blocked",
+  "blockers": [
+    "five-corpus index/tool coverage is incomplete",
+    "production C/S wiring is incomplete",
+    "post-C Agent Sufficiency baseline has not passed",
+    "correctness non-inferiority is not pre-registered"
+  ],
+  "readiness": {
+    "taskSetReviewed": true,
+    "taskFreshnessReviewer": "victo",
+    "primaryRunReviewer": "victo",
+    "secondaryRunReviewer": "zxj",
+    "reviewersAreHuman": true,
+    "indexToolCoverageVerified": false,
+    "productionArmsReady": false,
+    "desBaselineConclusion": "inconclusive",
+    "desBaselineRunId": "flask-baseline-20261113T083913Z",
+    "correctnessNonInferiority": null
+  },
+  "requestedExecution": {
+    "provider": "codebuddy-standalone",
+    "model": "glm-5.3-flash",
+    "effort": "high",
+    "runtimeModelReadback": "UNSET",
+    "runtimeEffortReadback": "UNSET"
+  },
+  "seed": 20261112,
+  "plannedRuns": 60,
+  "consumedRuns": 0,
+  "pilotCeiling": 96,
+  "formalCeiling": 0,
+  "armOrders": [
+    [
+      "A",
+      "S",
+      "C"
+    ],
+    [
+      "C",
+      "A",
+      "S"
+    ],
+    [
+      "S",
+      "A",
+      "C"
+    ],
+    [
+      "S",
+      "C",
+      "A"
+    ]
+  ],
+  "uncoveredArmOrders": [
+    [
+      "A",
+      "C",
+      "S"
+    ],
+    [
+      "C",
+      "S",
+      "A"
+    ]
+  ],
+  "manifestSha256": "9efb02b260bfd220817eb7383705896e2900498dceb6224e722e045694dcf7cf",
+  "manifestDigestScope": "scope, seed, schedule and block config fingerprints; readiness and evidence are separate fields",
+  "blocks": [
+    {
+      "taskId": "flask-session-response-trace-v1",
+      "trial": 1,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ]
+      ],
+      "configFingerprint": "d932a5f89958893d5ed1cc05ca68bcf52e480699989e57048123bb6ae11fa7c4"
+    },
+    {
+      "taskId": "flask-session-response-trace-v1",
+      "trial": 2,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ]
+      ],
+      "configFingerprint": "d932a5f89958893d5ed1cc05ca68bcf52e480699989e57048123bb6ae11fa7c4"
+    },
+    {
+      "taskId": "flask-session-response-trace-v1",
+      "trial": 3,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ]
+      ],
+      "configFingerprint": "d932a5f89958893d5ed1cc05ca68bcf52e480699989e57048123bb6ae11fa7c4"
+    },
+    {
+      "taskId": "flask-session-response-trace-v1",
+      "trial": 4,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ]
+      ],
+      "configFingerprint": "d932a5f89958893d5ed1cc05ca68bcf52e480699989e57048123bb6ae11fa7c4"
+    },
+    {
+      "taskId": "django-csrf-view-trace-v1",
+      "trial": 1,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "03d5f3389895cedff3aacd4913495544fd0dbeb882084c8ee99e9a919ace12d4"
+    },
+    {
+      "taskId": "django-csrf-view-trace-v1",
+      "trial": 2,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "03d5f3389895cedff3aacd4913495544fd0dbeb882084c8ee99e9a919ace12d4"
+    },
+    {
+      "taskId": "django-csrf-view-trace-v1",
+      "trial": 3,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "03d5f3389895cedff3aacd4913495544fd0dbeb882084c8ee99e9a919ace12d4"
+    },
+    {
+      "taskId": "django-csrf-view-trace-v1",
+      "trial": 4,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "03d5f3389895cedff3aacd4913495544fd0dbeb882084c8ee99e9a919ace12d4"
+    },
+    {
+      "taskId": "express-mounted-prototypes-trace-v1",
+      "trial": 1,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "276b017b5e7910617321f57aa00f4864007bd28fa789fe26daf8dcaaaca6f7f5"
+    },
+    {
+      "taskId": "express-mounted-prototypes-trace-v1",
+      "trial": 2,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "276b017b5e7910617321f57aa00f4864007bd28fa789fe26daf8dcaaaca6f7f5"
+    },
+    {
+      "taskId": "express-mounted-prototypes-trace-v1",
+      "trial": 3,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "276b017b5e7910617321f57aa00f4864007bd28fa789fe26daf8dcaaaca6f7f5"
+    },
+    {
+      "taskId": "express-mounted-prototypes-trace-v1",
+      "trial": 4,
+      "seed": 20261112,
+      "orders": [
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "276b017b5e7910617321f57aa00f4864007bd28fa789fe26daf8dcaaaca6f7f5"
+    },
+    {
+      "taskId": "gin-not-found-middleware-trace-v1",
+      "trial": 1,
+      "seed": 20261112,
+      "orders": [
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "bfde45ce3b9c7b550d117109737692431ee8b1d7db4b926fbf3e318ffdf0e808"
+    },
+    {
+      "taskId": "gin-not-found-middleware-trace-v1",
+      "trial": 2,
+      "seed": 20261112,
+      "orders": [
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "bfde45ce3b9c7b550d117109737692431ee8b1d7db4b926fbf3e318ffdf0e808"
+    },
+    {
+      "taskId": "gin-not-found-middleware-trace-v1",
+      "trial": 3,
+      "seed": 20261112,
+      "orders": [
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "bfde45ce3b9c7b550d117109737692431ee8b1d7db4b926fbf3e318ffdf0e808"
+    },
+    {
+      "taskId": "gin-not-found-middleware-trace-v1",
+      "trial": 4,
+      "seed": 20261112,
+      "orders": [
+        [
+          "A",
+          "S",
+          "C"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "C",
+          "A",
+          "S"
+        ]
+      ],
+      "configFingerprint": "bfde45ce3b9c7b550d117109737692431ee8b1d7db4b926fbf3e318ffdf0e808"
+    },
+    {
+      "taskId": "spring-pet-update-persistence-trace-v1",
+      "trial": 1,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ]
+      ],
+      "configFingerprint": "57824a79c89ee42008c35cffacbb509fd7b0a40812f1742d6ef4348f8abad7a3"
+    },
+    {
+      "taskId": "spring-pet-update-persistence-trace-v1",
+      "trial": 2,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ]
+      ],
+      "configFingerprint": "57824a79c89ee42008c35cffacbb509fd7b0a40812f1742d6ef4348f8abad7a3"
+    },
+    {
+      "taskId": "spring-pet-update-persistence-trace-v1",
+      "trial": 3,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ]
+      ],
+      "configFingerprint": "57824a79c89ee42008c35cffacbb509fd7b0a40812f1742d6ef4348f8abad7a3"
+    },
+    {
+      "taskId": "spring-pet-update-persistence-trace-v1",
+      "trial": 4,
+      "seed": 20261112,
+      "orders": [
+        [
+          "C",
+          "A",
+          "S"
+        ],
+        [
+          "S",
+          "C",
+          "A"
+        ],
+        [
+          "S",
+          "A",
+          "C"
+        ],
+        [
+          "A",
+          "S",
+          "C"
+        ]
+      ],
+      "configFingerprint": "57824a79c89ee42008c35cffacbb509fd7b0a40812f1742d6ef4348f8abad7a3"
+    }
+  ],
+  "promptRegistry": [
+    {
+      "promptId": "flask-session-response-trace-v1",
+      "corpus": "pallets/flask@05e9c6bd630ecf4ec0ec884b1fc7901663737bc7",
+      "commit": "05e9c6bd630ecf4ec0ec884b1fc7901663737bc7",
+      "promptSha256": "a7402f156f37947cb96a6ec260a2777c77dd23f4d3d077da919eb792f840a1b9",
+      "rubricSha256": "ced90ba72539c909bab64ab307ce05a2ecb1d6e86cfa4ea11a578d18da268b57",
+      "negativeConstraintsSha256": "d4f4beb0d252c41a4c78170cf0e28e2c768c6195de9e19e9d160a8a25b727bc9",
+      "sourceAnchorsSha256": "9118bc497cd4eaf7719b47775dd610f36e2ccfb391a2e38e6a5c44f25badf72c",
+      "taskSetReview": {
+        "reviewer": "victo",
+        "verdict": "accept",
+        "reviewedAt": "2026-11-12"
+      },
+      "freshness": {
+        "createdAt": "2026-11-12",
+        "reusedV3Text": false,
+        "limitation": "New prompt/rubric; no claim of an unseen repository or zero model-training contamination."
+      }
+    },
+    {
+      "promptId": "django-csrf-view-trace-v1",
+      "corpus": "django/django@2fff3e9f493a9c85fb8a2294358c6751575ee4bf",
+      "commit": "2fff3e9f493a9c85fb8a2294358c6751575ee4bf",
+      "promptSha256": "231d82bd92c1b066826be5a4f20c5b1a13262ac2aea239d87aa1d88afb6c8023",
+      "rubricSha256": "374f0d9d68c3b69c5bb12e810a24587d4fe35adfad7714925419990b1bfaab2d",
+      "negativeConstraintsSha256": "9d86ed5ab2397fdadf9d18665fb74604744f6625a9c5de7360775ffc47e81be0",
+      "sourceAnchorsSha256": "5507b8d1bc37121824b9f383c17765a8628979ec52297756daa804c1c7fa1e71",
+      "taskSetReview": {
+        "reviewer": "victo",
+        "verdict": "accept",
+        "reviewedAt": "2026-11-12"
+      },
+      "freshness": {
+        "createdAt": "2026-11-12",
+        "reusedV3Text": false,
+        "limitation": "New prompt/rubric; no claim of an unseen repository or zero model-training contamination."
+      }
+    },
+    {
+      "promptId": "express-mounted-prototypes-trace-v1",
+      "corpus": "expressjs/express@6d2df035a95f3d1002be3e29997b7a4bfe976b5f",
+      "commit": "6d2df035a95f3d1002be3e29997b7a4bfe976b5f",
+      "promptSha256": "fd7946705efd68d713f3e75200b1bd82c2b3613c61defa6c9021dc335db2027c",
+      "rubricSha256": "463a0e36e49cc5f336671249d4651a6150bfdb4f9845aaf12f177a7cc23e0fad",
+      "negativeConstraintsSha256": "e77765efd02aaca6178d19af64e68c49c28ce95cc5232d40f66a5e70ac5645f1",
+      "sourceAnchorsSha256": "5d5fdd0d17bb82cf88f189e7047d7d3fdb5dcec8afef61968b7b75b7565b3202",
+      "taskSetReview": {
+        "reviewer": "victo",
+        "verdict": "accept",
+        "reviewedAt": "2026-11-12"
+      },
+      "freshness": {
+        "createdAt": "2026-11-12",
+        "reusedV3Text": false,
+        "limitation": "New prompt/rubric; no claim of an unseen repository or zero model-training contamination."
+      }
+    },
+    {
+      "promptId": "gin-not-found-middleware-trace-v1",
+      "corpus": "gin-gonic/gin@0f09c3a9b4626d9fe9979cf4d0521d6ae32ab646",
+      "commit": "0f09c3a9b4626d9fe9979cf4d0521d6ae32ab646",
+      "promptSha256": "8f05c8e9b18a94c322aa35c713c1d9d488e6a901bca7a1e0b8356800257a05f7",
+      "rubricSha256": "3f9ae2305dfa2ac6c40485579092329a5087e82b453debc7237bdf8b7479e1f0",
+      "negativeConstraintsSha256": "35f5b959c22c2acff7925a92505a5e11488a8b6317031be1c50902f9c2501bd1",
+      "sourceAnchorsSha256": "62910447ce256fb8e0dd888b0c8f4d3a1a725bbbda8a0266646822a1a71e8c95",
+      "taskSetReview": {
+        "reviewer": "victo",
+        "verdict": "accept",
+        "reviewedAt": "2026-11-12"
+      },
+      "freshness": {
+        "createdAt": "2026-11-12",
+        "reusedV3Text": false,
+        "limitation": "New prompt/rubric; no claim of an unseen repository or zero model-training contamination."
+      }
+    },
+    {
+      "promptId": "spring-pet-update-persistence-trace-v1",
+      "corpus": "spring-projects/spring-petclinic@f3c74834e31079f69855e9c9eddb34fceb40a8d9",
+      "commit": "f3c74834e31079f69855e9c9eddb34fceb40a8d9",
+      "promptSha256": "dddef4d5db881793b208372bce2135023c1f1690fa0a77f189ca68a2cdd060a2",
+      "rubricSha256": "a5b03a828fbf2f9ac6704b2260396ed0202d4cce600cbad1ed8e23c71759161a",
+      "negativeConstraintsSha256": "24a052ec5f2da0a956d9c683250b7e1f45ff7793fc892e0d462efd79b60e594f",
+      "sourceAnchorsSha256": "6ee427584ad2bc900b503a4f1d831df7f00189e9d53140cfde368e285e23dc49",
+      "taskSetReview": {
+        "reviewer": "victo",
+        "verdict": "accept",
+        "reviewedAt": "2026-11-12"
+      },
+      "freshness": {
+        "createdAt": "2026-11-12",
+        "reusedV3Text": false,
+        "limitation": "New prompt/rubric; no claim of an unseen repository or zero model-training contamination."
+      }
+    }
+  ],
+  "retrievalPreparation": {
+    "isolationOnly": true,
+    "productionFlag": null,
+    "productionPlanChanged": false,
+    "baselinePlanMaxFiles": 20,
+    "unionFileTopK": 10,
+    "symbolTopK": 50,
+    "unionRerank": "0.4*planPos + 0.4*symPos + 0.2*termAlign",
+    "frozenCandidateSha256": "d687c4a831a1e7b03edab29690c5888ccb27dedfa633cf9d57f5e351c6394d4d",
+    "frozenCandidateRawSha256": "60f53171ae67d05e3956e0775848ab5ee6cd3180d81681b17dcb59de7ddb987c",
+    "lineEndingNormalization": "CRLF-to-LF-only",
+    "payload": "isolated C/S final Explore markdown rendered from the frozen candidate order and its fixed-seed permutation",
+    "limitation": "The isolated rendered audit is diagnostic evidence only; any coverage, content-parity or budget failure remains incomplete."
+  },
+  "evidence": {
+    "coverageReport": ".workbuddy/agent-eval/2026-11-13-zra-pilot-index-tool-coverage.json",
+    "coverageStatus": "incomplete",
+    "coverage": [
+      {
+        "promptId": "flask-session-response-trace-v1",
+        "status": "pass",
+        "commitMatches": true,
+        "indexCoverage": "pass",
+        "planCoverage": "pass"
+      },
+      {
+        "promptId": "django-csrf-view-trace-v1",
+        "status": "incomplete",
+        "commitMatches": true,
+        "indexCoverage": "pass",
+        "planCoverage": "incomplete"
+      },
+      {
+        "promptId": "express-mounted-prototypes-trace-v1",
+        "status": "incomplete",
+        "commitMatches": true,
+        "indexCoverage": "incomplete",
+        "planCoverage": "incomplete"
+      },
+      {
+        "promptId": "gin-not-found-middleware-trace-v1",
+        "status": "incomplete",
+        "commitMatches": true,
+        "indexCoverage": "pass",
+        "planCoverage": "incomplete"
+      },
+      {
+        "promptId": "spring-pet-update-persistence-trace-v1",
+        "status": "pass",
+        "commitMatches": true,
+        "indexCoverage": "pass",
+        "planCoverage": "pass"
+      }
+    ],
+    "humanReview": "victo and zxj are assigned as distinct Human run reviewers; no trajectory review or agreement result yet",
+    "des": "Human-classified post-C Agent Sufficiency baseline flask-baseline-20261113T083913Z: inconclusive; DES has not passed and production C/S wiring remains blocked",
+    "renderedArms": {
+      "report": ".workbuddy/agent-eval/2026-11-13-zra-pilot-rendered-arms-v2/report.json",
+      "status": "incomplete",
+      "seed": 20261112,
+      "results": [
+        {
+          "promptId": "flask-session-response-trace-v1",
+          "status": "incomplete",
+          "coverage": {
+            "requirements": [
+              {
+                "file": "src/flask/ctx.py",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              },
+              {
+                "file": "src/flask/app.py",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              },
+              {
+                "file": "src/flask/sessions.py",
+                "indexed": true,
+                "candidate": true,
+                "rendered": true
+              }
+            ],
+            "symbols": [
+              {
+                "query": "_get_session",
+                "name": "AppContext._get_session",
+                "file": "src/flask/ctx.py",
+                "found": true
+              },
+              {
+                "query": "process_response",
+                "name": "Flask.process_response",
+                "file": "src/flask/app.py",
+                "found": true
+              },
+              {
+                "query": "open_session",
+                "name": "SecureCookieSessionInterface.open_session",
+                "file": "src/flask/sessions.py",
+                "found": true
+              },
+              {
+                "query": "save_session",
+                "name": "SecureCookieSessionInterface.save_session",
+                "file": "src/flask/sessions.py",
+                "found": true
+              },
+              {
+                "query": "should_set_cookie",
+                "name": "SessionInterface.should_set_cookie",
+                "file": "src/flask/sessions.py",
+                "found": true
+              }
+            ],
+            "indexCoverage": "pass",
+            "candidateCoverage": "incomplete",
+            "renderedSourceCoverage": "incomplete"
+          },
+          "comparison": {
+            "schema": "markdown-explore-source-blocks-v1",
+            "nonSourcePrefixIdentical": true,
+            "cFileOrder": [
+              "tests/test_basic.py",
+              "src/flask/sessions.py",
+              "src/flask/wrappers.py",
+              "src/flask/globals.py",
+              "tests/test_apps/cliapp/inner1/__init__.py"
+            ],
+            "sFileOrder": [
+              "tests/test_blueprints.py",
+              "src/flask/wrappers.py",
+              "tests/test_basic.py",
+              "src/flask/sessions.py",
+              "tests/test_apps/cliapp/inner1/__init__.py",
+              "src/flask/globals.py"
+            ],
+            "fileSetsEqual": false,
+            "onlyInC": [],
+            "onlyInS": [
+              "tests/test_blueprints.py"
+            ],
+            "contentDifferences": [
+              "src/flask/globals.py",
+              "tests/test_apps/cliapp/inner1/__init__.py"
+            ],
+            "cHardCeiling": false,
+            "sHardCeiling": false,
+            "cSha256": "a9c52b13b2c354162466f6e84d407eb8f069de21e43116674250e041c44d6357",
+            "sSha256": "70a587cb323917c2479e0d82b5a3b3a064176c928a1058ad9d4c07ff99e370fe",
+            "wholeTextEqual": false
+          }
+        },
+        {
+          "promptId": "django-csrf-view-trace-v1",
+          "status": "incomplete",
+          "coverage": {
+            "requirements": [
+              {
+                "file": "django/middleware/__init__.py",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              },
+              {
+                "file": "django/core/handlers/base.py",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              },
+              {
+                "file": "django/middleware/csrf.py",
+                "indexed": true,
+                "candidate": true,
+                "rendered": true
+              }
+            ],
+            "symbols": [
+              {
+                "query": "__call__",
+                "name": "MiddlewareMixin.__call__",
+                "file": "django/middleware/__init__.py",
+                "found": true
+              },
+              {
+                "query": "load_middleware",
+                "name": "BaseHandler.load_middleware",
+                "file": "django/core/handlers/base.py",
+                "found": true
+              },
+              {
+                "query": "_get_response",
+                "name": "BaseHandler._get_response",
+                "file": "django/core/handlers/base.py",
+                "found": true
+              },
+              {
+                "query": "process_view",
+                "name": "CsrfViewMiddleware.process_view",
+                "file": "django/middleware/csrf.py",
+                "found": true
+              },
+              {
+                "query": "process_response",
+                "name": "CsrfViewMiddleware.process_response",
+                "file": "django/middleware/csrf.py",
+                "found": true
+              },
+              {
+                "query": "_reject",
+                "name": "CsrfViewMiddleware._reject",
+                "file": "django/middleware/csrf.py",
+                "found": true
+              }
+            ],
+            "indexCoverage": "pass",
+            "candidateCoverage": "incomplete",
+            "renderedSourceCoverage": "incomplete"
+          },
+          "comparison": {
+            "schema": "markdown-explore-source-blocks-v1",
+            "nonSourcePrefixIdentical": true,
+            "cFileOrder": [
+              "django/views/generic/base.py",
+              "django/contrib/auth/middleware.py",
+              "django/http/cookie.py",
+              "django/middleware/csrf.py",
+              "django/middleware/common.py",
+              "django/db/models/deletion.py"
+            ],
+            "sFileOrder": [
+              "django/middleware/common.py",
+              "django/contrib/admindocs/middleware.py",
+              "django/http/cookie.py",
+              "django/views/generic/edit.py",
+              "django/views/generic/base.py",
+              "django/db/models/lookups.py",
+              "django/db/models/deletion.py"
+            ],
+            "fileSetsEqual": false,
+            "onlyInC": [
+              "django/contrib/auth/middleware.py",
+              "django/middleware/csrf.py"
+            ],
+            "onlyInS": [
+              "django/contrib/admindocs/middleware.py",
+              "django/db/models/lookups.py",
+              "django/views/generic/edit.py"
+            ],
+            "contentDifferences": [
+              "django/contrib/auth/middleware.py",
+              "django/db/models/deletion.py",
+              "django/middleware/csrf.py"
+            ],
+            "cHardCeiling": true,
+            "sHardCeiling": true,
+            "cSha256": "fda0f2d28dc69aaa172d191d2a7dfa3d390b6e80eb81c4e31b1b9a5a3cae2fb5",
+            "sSha256": "ba23a8b1ed85ade08bf15069f825d11ce4e1002f77f1a00521faa8452a6bde64",
+            "wholeTextEqual": false
+          }
+        },
+        {
+          "promptId": "express-mounted-prototypes-trace-v1",
+          "status": "incomplete",
+          "coverage": {
+            "requirements": [
+              {
+                "file": "lib/express.js",
+                "indexed": true,
+                "candidate": true,
+                "rendered": true
+              },
+              {
+                "file": "lib/application.js",
+                "indexed": true,
+                "candidate": true,
+                "rendered": true
+              }
+            ],
+            "symbols": [
+              {
+                "query": "createApplication",
+                "name": "createApplication",
+                "file": "lib/express.js",
+                "found": true
+              },
+              {
+                "query": "lazyrouter",
+                "name": "lazyrouter",
+                "file": "lib/application.js",
+                "found": false
+              },
+              {
+                "query": "handle",
+                "name": "handle",
+                "file": "lib/application.js",
+                "found": false
+              },
+              {
+                "query": "use",
+                "name": "use",
+                "file": "lib/application.js",
+                "found": false
+              },
+              {
+                "query": "mounted_app",
+                "name": "mounted_app",
+                "file": "lib/application.js",
+                "found": false
+              }
+            ],
+            "indexCoverage": "incomplete",
+            "candidateCoverage": "pass",
+            "renderedSourceCoverage": "pass"
+          },
+          "comparison": {
+            "schema": "markdown-explore-source-blocks-v1",
+            "nonSourcePrefixIdentical": true,
+            "cFileOrder": [
+              "lib/application.js",
+              "examples/static-files/index.js",
+              "lib/response.js",
+              "lib/view.js",
+              "lib/express.js",
+              "examples/error/index.js"
+            ],
+            "sFileOrder": [
+              "lib/express.js",
+              "examples/route-middleware/index.js",
+              "lib/response.js",
+              "lib/request.js",
+              "lib/application.js",
+              "examples/error/index.js",
+              "lib/view.js"
+            ],
+            "fileSetsEqual": false,
+            "onlyInC": [
+              "examples/static-files/index.js"
+            ],
+            "onlyInS": [
+              "examples/route-middleware/index.js",
+              "lib/request.js"
+            ],
+            "contentDifferences": [
+              "examples/error/index.js",
+              "examples/static-files/index.js",
+              "lib/view.js"
+            ],
+            "cHardCeiling": false,
+            "sHardCeiling": false,
+            "cSha256": "f24242c12204f3192d9f4df2adc963a8b23994a3c0b4c82f34ea4fe2a93754b9",
+            "sSha256": "99cf9ca026a49778c93a932b4f8748d21d9a480771e95665a4c4f40d9c475d06",
+            "wholeTextEqual": false
+          }
+        },
+        {
+          "promptId": "gin-not-found-middleware-trace-v1",
+          "status": "incomplete",
+          "coverage": {
+            "requirements": [
+              {
+                "file": "gin.go",
+                "indexed": true,
+                "candidate": true,
+                "rendered": true
+              },
+              {
+                "file": "context.go",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              },
+              {
+                "file": "routergroup.go",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              }
+            ],
+            "symbols": [
+              {
+                "query": "ServeHTTP",
+                "name": "Engine.ServeHTTP",
+                "file": "gin.go",
+                "found": true
+              },
+              {
+                "query": "handleHTTPRequest",
+                "name": "Engine.handleHTTPRequest",
+                "file": "gin.go",
+                "found": true
+              },
+              {
+                "query": "serveError",
+                "name": "serveError",
+                "file": "gin.go",
+                "found": true
+              },
+              {
+                "query": "Next",
+                "name": "Context.Next",
+                "file": "context.go",
+                "found": true
+              },
+              {
+                "query": "Abort",
+                "name": "Context.Abort",
+                "file": "context.go",
+                "found": true
+              },
+              {
+                "query": "combineHandlers",
+                "name": "RouterGroup.combineHandlers",
+                "file": "routergroup.go",
+                "found": true
+              },
+              {
+                "query": "Use",
+                "name": "Engine.Use",
+                "file": "gin.go",
+                "found": true
+              }
+            ],
+            "indexCoverage": "pass",
+            "candidateCoverage": "incomplete",
+            "renderedSourceCoverage": "incomplete"
+          },
+          "comparison": {
+            "schema": "markdown-explore-source-blocks-v1",
+            "nonSourcePrefixIdentical": true,
+            "cFileOrder": [
+              "binding/form_mapping_test.go",
+              "routes_test.go",
+              "gin.go",
+              "fs.go",
+              "ginS/gins.go",
+              "tree_test.go",
+              "context_appengine.go"
+            ],
+            "sFileOrder": [
+              "ginS/gins.go",
+              "context_test.go",
+              "gin.go",
+              "context_appengine.go",
+              "binding/form_mapping_test.go",
+              "tree_test.go",
+              "fs.go"
+            ],
+            "fileSetsEqual": false,
+            "onlyInC": [
+              "routes_test.go"
+            ],
+            "onlyInS": [
+              "context_test.go"
+            ],
+            "contentDifferences": [
+              "context_appengine.go",
+              "fs.go",
+              "routes_test.go"
+            ],
+            "cHardCeiling": false,
+            "sHardCeiling": false,
+            "cSha256": "bb941994c37e5abdfee96d8f8dbc20dfa33edec7729f7c11179f1f6421b22c75",
+            "sSha256": "05f54458c9d5bfb1128e5281fb898d01351036589d1312f8e23f2331fbc8735d",
+            "wholeTextEqual": false
+          }
+        },
+        {
+          "promptId": "spring-pet-update-persistence-trace-v1",
+          "status": "incomplete",
+          "coverage": {
+            "requirements": [
+              {
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "indexed": true,
+                "candidate": true,
+                "rendered": false
+              },
+              {
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "indexed": true,
+                "candidate": false,
+                "rendered": false
+              }
+            ],
+            "symbols": [
+              {
+                "query": "findPet",
+                "name": "findPet",
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "found": true
+              },
+              {
+                "query": "initOwnerBinder",
+                "name": "initOwnerBinder",
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "found": true
+              },
+              {
+                "query": "initPetBinder",
+                "name": "initPetBinder",
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "found": true
+              },
+              {
+                "query": "processUpdateForm",
+                "name": "processUpdateForm",
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "found": true
+              },
+              {
+                "query": "updatePetDetails",
+                "name": "updatePetDetails",
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/PetController.java",
+                "found": true
+              },
+              {
+                "query": "getPet",
+                "name": "getPet",
+                "file": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+                "found": true
+              }
+            ],
+            "indexCoverage": "pass",
+            "candidateCoverage": "incomplete",
+            "renderedSourceCoverage": "incomplete"
+          },
+          "comparison": {
+            "schema": "markdown-explore-source-blocks-v1",
+            "nonSourcePrefixIdentical": true,
+            "cFileOrder": [
+              "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+              "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java",
+              "src/test/java/org/springframework/samples/petclinic/PostgresIntegrationTests.java",
+              "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+              "src/test/java/org/springframework/samples/petclinic/owner/PetTypeFormatterTests.java",
+              "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java"
+            ],
+            "sFileOrder": [
+              "src/test/java/org/springframework/samples/petclinic/owner/OwnerTests.java",
+              "src/test/java/org/springframework/samples/petclinic/owner/PetTypeFormatterTests.java",
+              "src/test/java/org/springframework/samples/petclinic/PostgresIntegrationTests.java",
+              "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java",
+              "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java"
+            ],
+            "fileSetsEqual": false,
+            "onlyInC": [
+              "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java"
+            ],
+            "onlyInS": [],
+            "contentDifferences": [
+              "src/main/java/org/springframework/samples/petclinic/model/NamedEntity.java",
+              "src/test/java/org/springframework/samples/petclinic/owner/OwnerControllerTests.java",
+              "src/test/java/org/springframework/samples/petclinic/service/ClinicServiceTests.java"
+            ],
+            "cHardCeiling": false,
+            "sHardCeiling": false,
+            "cSha256": "5db38eb086e1b76aeeb0de664b5b681b5df70d51ddda5500077c6d0a86365cb7",
+            "sSha256": "e174ae11f31ff123adca4664bb58f1fe3fc25c42d685d05c9eb832cdbf6b5b5c",
+            "wholeTextEqual": false
+          }
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "Reservations are not attempts and consume zero paired-runs.",
+    "Provider/model/effort are requested for preparation; runtime transcript readback remains UNSET before execution.",
+    "Correctness non-inferiority remains UNSET and requires Human pre-registration.",
+    "Index/tool coverage does not prove answer correctness or Agent Sufficiency.",
+    "Isolated retrieval availability is not production wiring or DES evidence.",
+    "No claim of unseen repositories or zero model-training contamination."
+  ]
+}

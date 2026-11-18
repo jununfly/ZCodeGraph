@@ -20,8 +20,9 @@ const completeEvidence = (): ArmSwitchEvidence => ({
   baselineRunId: 'baseline-run-001',
   taskSetReviewed: true,
   taskFreshnessReviewer: 'Human reviewer',
-  namedReviewers: ['Human'],
+  namedReviewers: ['victo', 'external-human-reviewer'],
   reviewerIsHuman: true,
+  retrievalArm: 'C',
   correctnessNonInferiority: 0,
 });
 
@@ -43,6 +44,8 @@ describe('baseline fail-closed gate (S3)', () => {
       { taskSetReviewed: false },
       { taskFreshnessReviewer: null },
       { namedReviewers: [] },
+      { namedReviewers: ['victo', 'victo'] },
+      { retrievalArm: undefined },
       { reviewerIsHuman: false },
       { correctnessNonInferiority: null },
       { baselineConclusion: 'fail' },
