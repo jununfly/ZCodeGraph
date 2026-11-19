@@ -1868,11 +1868,26 @@
       "id": "1-9-9",
       "uid": "01a1ed688309-d3bfdbe8c9",
       "label": "Slice 5：五仓开发矩阵、负例与性能硬门",
-      "status": "pending",
+      "status": "in_progress",
       "mode": "exploit",
       "parent": "1-9",
-      "children": [],
-      "decisions": [],
+      "children": [
+        "1-9-9-1",
+        "1-9-9-2",
+        "1-9-9-3"
+      ],
+      "decisions": [
+        {
+          "q": "Slice 5 开工授权范围",
+          "answer": "Human 选 a = 完整 Product execution：授权在 ZCodeGraph 产品代码 + 测试中落地 Slice 5 全部 exit_criteria（五仓每题义务/路径/材料化源码/预算/claim-evidence 独立通过；歧义/重载/decoy/外部终点/搜索耗尽/预算排除/缺失变更/Unicode 负例；真实 Python/JavaScript/Go/Java 图适配器、read view、hash、乱序批次、cache 稳定性测试；红线 explore<=20%/index<=15% 按注册协议执行并记录原始样本；图/索引/schema 变更须拆独立评审不夹入查询渲染绕行）。feat/chore 严格分离，不自动 commit/push，不绕过 1-8-2 旧 Agent Sufficiency 集成冻结。",
+          "note": ""
+        },
+        {
+          "q": "Slice 5 起步切片如何划分以避免一次性吞掉五仓硬门",
+          "answer": "Slice 5 的 exit_criteria 跨 5 仓×5 题×5 阶段验收矩阵 + 负例 + 真实适配器 + 性能红线，单次落地不现实。拆为三个有序子切片：5a 落地开发矩阵脚手架（五仓 fixed-commit corpus resolver、rubric-to-QueryObligation 转换、五阶段审计 fixture、每题独立硬门 harness），用本地 fixture 替身验证矩阵骨架自身；5b 落地负例与新鲜度套件（歧义/错误重载/注册 decoy/外部终点/搜索耗尽/预算排除/缺失变更/Unicode/Windows 路径）；5c 落地真实 Python/JavaScript/Go/Java 适配器集成 + 跑注册性能红线并记录原始诊断样本。每切片独立 commit/revert，不把图/索引/schema 变更夹入查询渲染绕行。5a 先行，5b/5c 视 5a 结果决定；不消耗 96 paired-runs 预算、不解锁 1-4、不改 v3 冻结。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "obligation_key": "DES-universal-structural-explore-v1:slice-5",
@@ -1882,7 +1897,8 @@
         "真实 Python/JavaScript/Go/Java 图适配器、read view、hash、乱序批次和 cache 稳定性测试通过",
         "注册红线 explore <=20%、index <=15% 按其协议执行；诊断性能记录原始样本与环境，不发明阈值",
         "需要图/索引/schema 变更时拆分独立评审与迁移，不夹入查询渲染绕行"
-      ]
+      ],
+      "rounds": 1
     },
     "1-9-10": {
       "id": "1-9-10",
@@ -1902,11 +1918,54 @@
         "Human 明确批准后才改变默认、移除 legacy composition、更新默认启用指导及清理兼容代码",
         "未取得独立价值或批准则保持 legacy 默认并记录停止/保留诊断结论，不消耗现有 60/0、96/0 预算"
       ]
+    },
+    "1-9-9-1": {
+      "id": "1-9-9-1",
+      "uid": "01a1f292dc74-bacb2f4e10",
+      "label": "5a：开发矩阵脚手架（五仓 fixed-commit resolver + rubric-to-obligation + 五阶段审计 harness + fixture 替身验证）",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-9-9",
+      "children": [],
+      "decisions": [
+        {
+          "q": "5a 交付形态：脚手架是否落在 scripts/ 还是 src/",
+          "answer": "脚手架落在 scripts/agent-eval/slice5-dev-matrix/ + tests/explore-slice5-dev-matrix-harness.test.ts，产品 src/ 完全不动。三模块：corpus-resolver.mjs（FROZEN_REPO_DIRECTORIES 映射 + ensureClone 复用 + resolveFixtureSubstitute 显式替身通道）、rubric-to-obligation.mjs（RUBRIC→QueryObligation/EvidenceRequirement/ForbiddenClaim；ROLE_CUES 优先级 state-mutation>condition>exception>external-terminal>scheduling>registration>invocation>definition；rubric 一行拆 (file,symbol) 对防 compound 隐藏）、five-stage-audit.mjs（auditDevelopmentTask/auditDevelopmentMatrix 五阶段：indexed-anchor/discovered-anchor/selected-trace/materialized-requirement/rendered-evidence；消费真实 coverage.dispositions+obligations 形态，合成 requirements/claims 仅作 fixture side-channel；任何 required obligation unselected/degraded/unresolved/omitted 即 fail，宏平均禁止掩盖）。20/20 fixture 测试 + slice0/slice4 32/32 回归 + tsc clean。5a 完成，5b/5c 待 Human 决定继续。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-9-2": {
+      "id": "1-9-9-2",
+      "uid": "01a1f29318ba-e378a61874",
+      "label": "5b：负例与新鲜度套件（歧义/重载/decoy/外部终点/搜索耗尽/预算排除/缺失变更/Unicode/Windows 路径）",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-9-9",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan"
+    },
+    "1-9-9-3": {
+      "id": "1-9-9-3",
+      "uid": "01a1f2931a63-59f9358912",
+      "label": "5c：真实 Python/JS/Go/Java 适配器集成 + 注册性能红线 + 诊断原始样本",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-9-9",
+      "children": [],
+      "decisions": [],
+      "notes": "",
+      "layer": "plan"
     }
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-19 12:56:57",
+    "updated": "2026-11-19 15:00:14",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
