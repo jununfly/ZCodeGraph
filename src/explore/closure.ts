@@ -48,8 +48,10 @@ export type { EvidenceGap } from './ledger';
  * an artificially complete subset.
  *
  * Slice 3.5 baseline: every anchor match becomes the endpoint of a
- * `definition` obligation. If the query explicitly mentions mechanism
- * terms (call/registration/scheduling/guard/state/branch/exception),
+ * `definition` obligation. An ambiguous match also carries a required
+ * residual; returning all candidate definitions cannot erase that ambiguity.
+ * If the query explicitly mentions mechanism terms
+ * (call/registration/scheduling/guard/state/branch/exception),
  * additional obligations are derived.
  */
 export interface QueryInterpretation {
@@ -107,9 +109,19 @@ export function interpretQuery(
   const interpretationGaps: EvidenceGap[] = [];
   const lowerQuery = query.toLowerCase();
 
-  // Always derive a `definition` obligation per anchor.
+  // Always derive a `definition` obligation per anchor. Ambiguity is a
+  // required query residual: returning every candidate definition does not
+  // prove that the bare clue identified a unique endpoint (§432-§445).
   for (const anchor of anchors) {
     const symbol: SymbolIdentity | undefined = anchor.symbol;
+    if (anchor.ambiguous) {
+      interpretationGaps.push({
+        id: `gap-ob-def-${anchor.nodeId}`,
+        reason: 'graph-semantics-blocker',
+        detail: `Anchor clue "${anchor.clue}" has multiple equally-valid definitions; candidates are retained without selecting a unique endpoint`,
+        location: anchor.symbol?.location,
+      });
+    }
     obligations.push({
       id: `ob-def-${anchor.nodeId}`,
       role: 'definition',
@@ -117,6 +129,7 @@ export function interpretQuery(
       required: true,
       requirementIds: [],
       disposition: 'unresolved',
+      gapId: anchor.ambiguous ? `gap-ob-def-${anchor.nodeId}` : undefined,
     });
   }
 

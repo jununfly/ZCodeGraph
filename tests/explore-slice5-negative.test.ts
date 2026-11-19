@@ -75,24 +75,7 @@ afterEach(async () => {
 // ---------------------------------------------------------------------------
 
 describe('Slice 5b — ambiguous same-name symbol', () => {
-  // KNOWN GAP documentation test (roadmap 1-9-9-2; contract §283, §432-§434, §691).
-  //
-  // The Slice 4 closure treats every anchor match as an independent
-  // `definition` obligation (src/explore/closure.ts §41-§53) and never
-  // consults `AnchorMatch.ambiguous`. Two same-name methods on different
-  // receivers (UserRepo.save / OrderRepo.save) therefore close to
-  // `complete` even though the contract requires ambiguity to be retained
-  // and `complete` to be forbidden.
-  //
-  // This test documents the CURRENT (gap) behaviour on purpose so it can
-  // run actively without a skip-debt tracker. When the future reviewed
-  // slice lands the closure fix, the assertions below MUST be flipped:
-  //   - `result.report.coverage.status` should become `!== 'complete'`
-  //     (or the result should become kind='empty' with no-evidence).
-  //
-  // Do NOT delete this test; flip it when the gap closes. Tracking:
-  // roadmap 1-9-9-2 decision + future closure-semantics slice.
-  it('documents the Slice 4 ambiguity gap (closure does not consult AnchorMatch.ambiguous)', async () => {
+  it('retains same-name receiver ambiguity and never reports complete', async () => {
     const root = projectRoot();
     fs.writeFileSync(path.join(root, 'a.ts'),
       'export class UserRepo { save(u: string) { return u; } }\n');
@@ -100,12 +83,15 @@ describe('Slice 5b — ambiguous same-name symbol', () => {
       'export class OrderRepo { save(o: number) { return o; } }\n');
     const graph = await indexed(root);
     const result = await new DefaultExploreApplication('universal-v1').explore(graph, 'save', options());
-    // CURRENT Slice 4 behaviour (gap): both anchors close to independent
-    // definition obligations and the coverage reports `complete`.
-    // TODO(future closure-semantics slice): flip to `!== 'complete'`.
-    expect(result.kind).toBe('answer');
+    expect(result, JSON.stringify(result)).toMatchObject({
+      kind: 'answer',
+      report: { coverage: { status: 'partial' } },
+    });
     if (result.kind === 'answer') {
-      expect(result.report.coverage.status).toBe('complete');
+      expect(result.report.coverage.gaps).toEqual(expect.arrayContaining([
+        expect.objectContaining({ reason: 'graph-semantics-blocker' }),
+      ]));
+      expect(result.markdown).toContain('ambiguity="save"');
     }
   });
 });
