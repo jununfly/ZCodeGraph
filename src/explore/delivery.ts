@@ -158,6 +158,7 @@ function deriveFinalResiduals(options: {
 }): FinalResiduals {
   const { requirements, obligations, inputGaps, atomFor, searchExhausted } = options;
   const gaps = [...inputGaps.values()];
+  const requiredObligationGapIds = new Set<string>();
   const appendGap = (gap: EvidenceGap): void => {
     if (inputGaps.has(gap.id)) return;
     const previous = gaps.find((existing) => existing.id === gap.id);
@@ -178,8 +179,15 @@ function deriveFinalResiduals(options: {
     appendGap(inputGaps.has(gap.id) && inputGaps.get(gap.id)!.reason !== gap.reason
       ? { ...gap, id: `${gap.id}:${gap.reason}` } : gap);
   }
+  // A required residual survives even when every candidate's definition was
+  // returned. Otherwise ambiguity can be rendered yet still score complete.
+  for (const gap of gaps) {
+    if (options.obligations.some((obligation) => obligation.required
+        && `gap-${obligation.id}` === gap.id)) {
+      requiredObligationGapIds.add(gap.id);
+    }
+  }
   const byRequirementId = new Map(requirements.map((requirement) => [requirement.id, requirement]));
-  const requiredObligationGapIds = new Set<string>();
   const finalObligations = obligations.map((obligation) => {
     const linked = obligation.requirementIds.map((id) => byRequirementId.get(id))
       .filter((requirement) => requirement !== undefined);
@@ -206,7 +214,11 @@ function deriveFinalResiduals(options: {
         });
       }
     }
-    return { ...obligation, disposition, gapId: disposition === 'satisfied' ? undefined : gapId };
+    return {
+      ...obligation,
+      disposition,
+      gapId: disposition === 'satisfied' && !inputGaps.has(gapId) ? undefined : gapId,
+    };
   });
   if (searchExhausted && !gaps.some((gap) => gap.reason === 'search-limit')) {
     appendGap({
