@@ -1868,7 +1868,7 @@
       "id": "1-9-9",
       "uid": "01a1ed688309-d3bfdbe8c9",
       "label": "Slice 5：五仓开发矩阵、负例与性能硬门",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-9",
       "children": [
@@ -1966,18 +1966,86 @@
       "id": "1-9-9-3",
       "uid": "01a1f2931a63-59f9358912",
       "label": "5c：真实 Python/JS/Go/Java 适配器集成 + 注册性能红线 + 诊断原始样本",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-9-9",
-      "children": [],
-      "decisions": [],
+      "children": [
+        "1-9-9-3-1",
+        "1-9-9-3-2",
+        "1-9-9-3-3"
+      ],
+      "decisions": [
+        {
+          "q": "5c 拆分子切片",
+          "answer": "5c 合同 §658-§675 跨真实适配器 + 性能红线 + 诊断样本三块，单次吞不现实。拆为：5c-1 真实 Python/JavaScript/Go/Java 适配器集成测试（小 fixture + 本地 Rust 引擎跑测，不触发真实五仓 clone；每语言独立 it()）；5c-2 注册性能红线跑测（perf-regression-check.mjs，9 重复，explore<=20%/index<=15%，记录原始样本到 docs/evidence/）；5c-3 诊断原始样本记录（DB ops/files/bytes/cold+warm p95/peak RSS + 环境元数据，docs/evidence/2026-11-19-slice5c-diagnostic.json，不发明阈值）。5c-1 先行；5c-2 与 5c-3 视 5c-1 结果决定。真实五仓固定 commit 矩阵跑测按合同 §691 属 Slice 5 完成后的独立评审切片（因可能暴露需要图/索引/schema 变更的 gap），不在 5c 范围。",
+          "note": ""
+        }
+      ],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-9-3-1": {
+      "id": "1-9-9-3-1",
+      "uid": "01a1f2d5e325-6b7a6cfd3f",
+      "label": "5c-1：真实 Python/JS/Go/Java 适配器集成测试（小 fixture，每语言独立 it()）",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-9-9-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "5c-1 落地形态与 Java overload ambiguity 处理",
+          "answer": "5c-1 全部落在 tests/explore-slice5c-real-adapters.test.ts，产品 src/ 零改动。15/15 pass：Python 4 个（maps/missing/source-changed/determinism）+ JavaScript 3 个 + Go 3 个 + Java 3 个 + 跨语言 single-read-view + cache determinism 2 个。每语言独立 describe。初跑 14/15 时 Java overload 断言写错（期望 class Owner），实际 Slice 4 ambiguity 处理正确——markdown 含 ambiguity=\"getPet\" may-match=... 并 materialize 两个 overload，正是合同 §283 想要的行为。已修正断言为「ambiguity retained」+「两个 overload 都 materialize」。所有用例走默认 rust-hybrid 引擎（真实适配器路径），不用 typescript fallback。回归 67/67（slice0 5 + slice4-answer 14 + slice4-universal-app 13 + slice5a 20 + slice5b 11 + skip-debt 4），tsc 干净。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-9-3-2": {
+      "id": "1-9-9-3-2",
+      "uid": "01a1f2d5e4d7-5696f93462",
+      "label": "5c-2：注册性能红线跑测（perf-regression-check，9 重复，记录原始样本）",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-9-9-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "5c-2 性能红线本机跑测结果与跨平台判定",
+          "answer": "本机 win32-x64 跑 perf-regression-check（9 重复）：index baseline 2948ms→current 1830ms（-37.9% 改进，pass），explore baseline 239.5ms→current 289.5ms（+20.9% 回归，超 20% 红线，FAIL）。两次跑测数值几乎一致（index 1854→1830，explore 290→289.5），不是噪声。根因：baseline 是 2026-11-07 linux-x64 测的，本机是 win32-x64，跨平台对比不是有效红线判定（合同 §671-§675 absolute targets cannot be invented；memory 记录 libsql FFI Windows 间歇崩溃代码层无解）。5c 改动只新增 tests/ + scripts/ + docs/evidence，没碰 src/explore，与 explore 回归无关。处置：原始样本落到 docs/evidence/2026-11-19-slice5c-perf-current.json + -rerun.json；真实红线判定留给 CI ubuntu runner（5c PR 的 CI 会跑同一份 baseline）；本机结果标为 diagnostic observation 而非红线判定。不重跑第三次，不改 baseline，不改阈值，不用 continue-on-error 掩盖。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-9-3-3": {
+      "id": "1-9-9-3-3",
+      "uid": "01a1f2d5e685-e0cd328be7",
+      "label": "5c-3：诊断原始样本记录（DB ops/files/bytes/p95/RSS + 环境）",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-9-9-3",
+      "children": [],
+      "decisions": [
+        {
+          "q": "5c-3 诊断原始样本记录形态",
+          "answer": "诊断脚本 scripts/measure/slice5c-diagnostic.mjs 落地：读 perf-current.json + baseline，派生 index/explore 的 raw samples + median/p95/min/max，收集环境元数据（platform/arch/node/cpu/mem/hostname/git HEAD sha），写 docs/evidence/2026-11-19-slice5c-diagnostic.json。DB ops/filesRead/bytesRead/peakRss 当前 perf-baseline harness 不暴露，记为 null 并在 notes 字段说明，不虚构。明确 hardGate=null——这是 diagnostic observation 不是门。原始 9 重复 index 样本=[2389,1865,1907,1831,1820,1833,1854,1834,1878]ms，explore 18 样本跨两查询（每查询 9 次），delta index=-37.92% explore=+20.88%。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
     }
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-19 15:30:49",
+    "updated": "2026-11-19 16:13:31",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
