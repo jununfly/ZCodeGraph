@@ -1,0 +1,116 @@
+{
+  "metric": "architecture-regression-check",
+  "repo": "spring-projects/spring-petclinic",
+  "ref": "500158f732419217507c7656904b8e6aa1bcc0d6",
+  "measuredAt": "2026-11-19T08:09:52.908Z",
+  "value": {
+    "pass": false,
+    "checks": [
+      {
+        "metric": "index",
+        "redLine": 0.15,
+        "baselineMs": 2948,
+        "currentMs": 1854,
+        "regression": -0.3710990502035278,
+        "pass": true
+      },
+      {
+        "metric": "explore",
+        "redLine": 0.2,
+        "baselineMs": 239.5,
+        "currentMs": 290,
+        "regression": 0.21085594989561587,
+        "pass": false
+      }
+    ],
+    "current": {
+      "repetitions": 9,
+      "indexMedianMs": 1854,
+      "indexRunsMs": [
+        2389,
+        1865,
+        1907,
+        1831,
+        1820,
+        1833,
+        1854,
+        1834,
+        1878
+      ],
+      "exploreMedianMs": 290,
+      "exploreQueries": [
+        {
+          "query": "How does the owner controller reach the vet visit service?",
+          "runs": [
+            304,
+            306,
+            299,
+            299,
+            298,
+            297,
+            294,
+            300,
+            298
+          ],
+          "medianMs": 299
+        },
+        {
+          "query": "callers of OwnerRepository.save",
+          "runs": [
+            288,
+            277,
+            295,
+            277,
+            281,
+            280,
+            278,
+            288,
+            292
+          ],
+          "medianMs": 281
+        }
+      ]
+    },
+    "baseline": {
+      "artifact": "docs\\baselines\\architecture-regression-v1.json",
+      "measuredAt": "2026-11-07T17:35:00.000Z",
+      "value": {
+        "repetitions": 3,
+        "indexMedianMs": 2948,
+        "indexRunsMs": [
+          2992,
+          2948,
+          2885
+        ],
+        "exploreMedianMs": 239.5,
+        "exploreQueries": [
+          {
+            "query": "How does the owner controller reach the vet visit service?",
+            "runs": [
+              251,
+              250,
+              260
+            ],
+            "medianMs": 251
+          },
+          {
+            "query": "callers of OwnerRepository.save",
+            "runs": [
+              228,
+              219,
+              230
+            ],
+            "medianMs": 228
+          }
+        ]
+      }
+    }
+  },
+  "evidence": {
+    "contract": "docs\\contracts\\architecture-regression-baseline-v1.md",
+    "corpusDir": "C:\\workspace\\measure-corpus\\spring-projects-spring-petclinic",
+    "reusedClone": true,
+    "node": "v22.22.2",
+    "platform": "win32-x64"
+  }
+}

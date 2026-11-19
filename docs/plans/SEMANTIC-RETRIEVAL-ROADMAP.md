@@ -7,17 +7,16 @@ durable-citation: forbidden
 promote-via: ADR|design|contract|runtime-evidence
 -->
 
-> 数据文件: `semantic-retrieval-roadmap.json` | 最后更新: 2026-11-19 15:30:49
+> 数据文件: `semantic-retrieval-roadmap.json` | 最后更新: 2026-11-19 16:13:31
 
 [~][X+] 1. 语义检索独立项目：真实基准、效果验证与证据门控集成
     ├── [ ][X+] 1-8. 跨线治理与执行前置
     │   └── [~][X+] 1-8-2. ZJ-0015 执行前置授权
     │   ... 该层还有 1 个兄弟，0 个 in_progress ▸
     ... 该层还有 8 个兄弟，1 个 in_progress ▸
-<details><summary>阻塞链：2 个节点被阻塞</summary>
+<details><summary>阻塞链：1 个节点被阻塞</summary>
 
 - 1-4. 验证 Agent Sufficiency 净收益并审批 opt-in 集成 ← e9: 1-8-2. ZJ-0015 执行前置授权 [~]
-- 1-9-10. Slice 6：独立 Agent 产品价值、Human 准入与 legacy 清理 ← e15: 1-9-9. Slice 5：五仓开发矩阵、负例与性能硬门 [~]
 
 </details>
 
@@ -134,7 +133,7 @@ promote-via: ADR|design|contract|runtime-evidence
 
 - 1-8. 跨线治理与执行前置 [ ]
 - 1-8-1. ADR-0011 整体实现债务 [ ]
-- 1-9-9-3. 5c：真实 Python/JS/Go/Java 适配器集成 + 注册性能红线 + 诊断原始样本 [ ]
+- 1-9-10. Slice 6：独立 Agent 产品价值、Human 准入与 legacy 清理 [ ]
 
 <details><summary>编排信号：8 条待确认</summary>
 

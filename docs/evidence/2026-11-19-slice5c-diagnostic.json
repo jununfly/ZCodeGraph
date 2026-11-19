@@ -1,0 +1,100 @@
+{
+  "metric": "slice5c-diagnostic",
+  "schema": "slice5c-diagnostic-v1",
+  "recordedAt": "2026-11-19T08:12:54.765Z",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "nodeVersion": "v22.22.2",
+    "cpuModel": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+    "cpuCount": 24,
+    "totalMemBytes": 33412722688,
+    "freeMemBytes": 16956952576,
+    "hostname": "jununfly-ROG",
+    "recordedAt": "2026-11-19T08:12:54.770Z"
+  },
+  "git": {
+    "head": "ref: refs/heads/feat-universal-explore-slice5c-20261119",
+    "ref": "refs/heads/feat-universal-explore-slice5c-20261119",
+    "sha": "49ec6d3cb508882090c58475e9245a6ec334976a"
+  },
+  "baseline": {
+    "path": "docs\\baselines\\architecture-regression-v1.json",
+    "repo": "spring-projects/spring-petclinic",
+    "ref": "500158f732419217507c7656904b8e6aa1bcc0d6",
+    "measuredAt": "2026-11-07T17:35:00.000Z"
+  },
+  "current": {
+    "path": "docs\\evidence\\2026-11-19-slice5c-perf-current-rerun.json",
+    "repo": "spring-projects/spring-petclinic",
+    "ref": "500158f732419217507c7656904b8e6aa1bcc0d6",
+    "measuredAt": "2026-11-19T08:11:58.685Z"
+  },
+  "diagnostics": {
+    "indexWallTime": {
+      "unit": "ms",
+      "samples": [
+        1873,
+        1830,
+        1878,
+        1828,
+        1822,
+        1834,
+        1830,
+        1838,
+        1809
+      ],
+      "repetitions": 9,
+      "medianMs": 1830,
+      "p95Ms": 1876,
+      "minMs": 1809,
+      "maxMs": 1878
+    },
+    "exploreWallTime": {
+      "unit": "ms",
+      "samples": [
+        304,
+        301,
+        295,
+        293,
+        293,
+        299,
+        297,
+        304,
+        296,
+        281,
+        283,
+        280,
+        281,
+        283,
+        282,
+        283,
+        286,
+        283
+      ],
+      "repetitions": 18,
+      "medianMs": 289.5,
+      "p95Ms": 304,
+      "minMs": 280,
+      "maxMs": 304
+    },
+    "dbOps": null,
+    "filesRead": null,
+    "bytesRead": null,
+    "peakRssBytes": null,
+    "notes": [
+      "dbOps / filesRead / bytesRead / peakRssBytes are not exposed by the current perf-baseline harness.",
+      "Recorded as null to keep the artifact honest; a future harness revision can populate them.",
+      "This artifact is diagnostic only. No thresholds, no pass/fail. See contract §671-§675."
+    ]
+  },
+  "comparison": {
+    "baselineIndexMedianMs": 2948,
+    "currentIndexMedianMs": 1830,
+    "indexDeltaRatio": -0.37924016282225237,
+    "baselineExploreMedianMs": 239.5,
+    "currentExploreMedianMs": 289.5,
+    "exploreDeltaRatio": 0.20876826722338204
+  },
+  "hardGate": null
+}
