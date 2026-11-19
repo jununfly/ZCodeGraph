@@ -1767,11 +1767,92 @@
       "id": "1-9-8",
       "uid": "01a1ed68816a-66584548c6",
       "label": "Slice 4：全局源码原子分配与 UTF-8 传输预算",
-      "status": "pending",
+      "status": "completed",
       "mode": "exploit",
       "parent": "1-9",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "Slice 4 内部切片如何划分，与 Slice 3 pipeline 和 legacy composition 的边界是什么？",
+          "answer": "Slice 4 是 DES-universal-structural-explore-v1 §499-§565 的语义迁移切片，交付完整结果接口+UTF-8 字节精确预算+原子全局分配+结构化降级。按 Q=A 拆 6 个内部子切片。Slice 4.1 UTF-8 预算与 reservation src/explore/budget-utf8.ts：Utf8Budget{maxOutputUtf8Bytes,transportReservation.utf8Bytes,optionalCliNewlineBytes,minimumErrorUtf8Bytes}、utf8ByteLength(s) 精确字节长度(复用 Buffer.byteLength)、computeApplicationBodyAllowance(budget) 按 §518-§528 公式、freezeTransportNotice(adapter inputs) 冻结 adapter 的 pending/worktree/clock 状态。Slice 4.2 原子分配器 src/explore/allocator.ts：SourceAtom{id,requirementIds,range,bytes,role,required}、globalAllocateAtoms(atoms,bodyAllowance) 按 §538-§543 顺序 compact trace/gap skeleton→required anchor/path-node/relationship-site→alternatives→supporting；合并重叠区间 §546；多 required 文件在同一全局分配器竞争，无 necessary-file 例外；omission notices 先于其描述的源码分配。Slice 4.3 结构化降级 src/explore/degradation.ts：完整 atom 放不下时降级为完整 signature+精确 source location，仍放不下则整体降级为 location+gap，绝不半切方法/半切 Unicode/尾切；oversized atom 报告不切片；signature 不可切。Slice 4.4 完整结果接口 src/explore/answer.ts：扩展 ExploreAnswer 为完整 {kind:'empty'|'answer'|'failed',report:ExploreReport,...} 联合类型（§93-§99），failed 携带 §101-§109 ExploreFailureCode；这是 Slice 4 才允许改的公共 schema（Slice 1-3 不可改）；CLI/MCP 同一完整结果接口+唯一回答策略；maxFiles 按详细交付文件解释 §123-§128。Slice 4.5 golden 测试矩阵 tests/explore-slice4-golden.test.ts：精确 UTF-8 cap 边界、transport notice、单 oversized atom/signature、多必要大文件、重复 atom、omission overhead、minimum-envelope exhaustion、无 mid-method/Unicode/text-tail 切、重复渲染字节相同、zero-anchor interpretation failure、不存在 normalized endpoint、混合 degraded/omitted obligations、all-budget-omitted anchors、每个 zero-evidence source failure code；renderer 不 import/access graph/fs/env/clock；CLI 与 MCP 收同 model 与 markdown payload。Slice 4.6 极小 cap 与 budget-exhausted envelope src/explore/exhausted.ts：固定最小 budget-exhausted 结果含稳定 code、有界确定性 counts、有界稳定 requirement/gap IDs；自己 envelope 也 size-checked；永不 complete；cap<protocol minimum 时 adapter 在 retrieval 前 fail validation 而非 emit malformed answer；diagnostic codes 是有限 enum。边界：Slice 4.4 是语义迁移切片，但仍不动 semantic migration 授权本身——新接口落地后默认仍走 legacy composition，由单独授权切片切换；不解锁 1-4/e9、默认 OFF、60/0、96/0、C/S 冻结候选；不引入 repo/framework 特殊分支；legacy text-cut 行为仅在有 replacement requirement/gap accounting 的切片中移除（本切片）；不引入 continuation token/session/multi-page retrieval 合同/预授权新 SQLite 表。",
+          "note": ""
+        },
+        {
+          "q": "Slice 4 完成条件审查发现哪些实质缺口，如何在不改变默认 legacy 语义的前提下收尾？",
+          "answer": "审查结论：4.4 目前仅新增孤立 ExploreResult 类型，未兑现 CLI/MCP 共享完整结果接口；maxFiles 的 delivered-file 新语义也尚无实现/测试。4.2/4.5/4.6 还需加强真实渲染字节、omission overhead、取消与源码失败 golden。下一步仅在 Slice 4 已授权边界内补齐共享应用结果接口与传输单投影，默认仍走 legacy composition、外部文本与请求 identity 不变、内部 report 不进 ToolResult/metadata；新 delivered-file 语义只在独立新组合中实现，不通过读取 ZCG_EXPLORE_UNIVERSAL_IMPLEMENTATION 提前启用。分配器必须复用 degradation ladder，预留/验证 omission 自身开销，minimumErrorUtf8Bytes 是包含 notice/newline 的完整最小错误包络；随后补定向 golden 和双传输测试。",
+          "note": ""
+        },
+        {
+          "q": "Slice 4 精确分配与 delivered-file 验收如何修复？",
+          "answer": "仅实际输出的 location/omission gap 计入 omission 成本，full 不永久支付预留；maxFiles 第二轮保留所有 atom，仅将超额文件强制 location/gap；合并 atom 从同一验证源码重建范围；ledger/obligation 从最终交付和未物化 requirement 派生。保持默认 legacy、无环境实现开关，新增真实通用应用与双 transport 集成证据后才完成节点。",
+          "note": ""
+        },
+        {
+          "q": "最终双轴复核发现哪些 Slice 4 阻断项，如何限定本轮修复范围？",
+          "answer": "阻断项：重叠 atom 直接拼文本会制造重复源码且丢失严格优先级；delivery 尚未将 compact trace/ambiguity/gap skeleton 先于源码分配；relationship-site 缺失不得回退为定义源码；原 residual 原因与 report/result 状态必须保留；source-read ceiling 应记录 search-limit；无可用源码时按 canonical requirement 顺序取首个 source failure。修复采用共享 verified-source rematerializer，去重/绑定多 requirement 的原子身份；冻结 skeleton 并在源码前计费；补真实组合与 byte-cap golden。默认 legacy、双 transport 外部文本和 request identity 不变，不启用 env 开关。真实 SQLite read-view、Python/JavaScript/Go/Java 与五仓矩阵留 Slice 5 硬门，不作为本切片已完成声明。",
+          "note": ""
+        },
+        {
+          "q": "真实 MCP transport 如何冻结 worktree/staleness 提示并保持 legacy 兼容？",
+          "answer": "在显式 universal-v1 组合边界新增只读冻结 transport plan：一次采集 pending/worktree/clock，基于计划交付的文件集合生成 worktree 前缀、staleness 前缀/后缀，并把完整前缀/后缀字节在源码分配前冻结。该显式组合的 transport adapter 校验实际组合 cap；默认 ToolHandler 仍使用原 withWorktreeNotice/withStalenessNotice 后置路径和 legacy exploreApplication，不改外部文本、footer 位置或 request identity，不启用环境实现开关。纯 transport plan 用显式 pending/worktree/clock fixture 验证冻结、动态变更隔离及精确 UTF-8 cap；真实 MCP 新组合的接线证据单独验证，不以纯函数测试替代。",
+          "note": ""
+        },
+        {
+          "q": "冻结 footer 如何进入最终 cap 与 minimum error envelope？",
+          "answer": "冻结 plan 同时预留 prefix 与所有 pending 文件可能产生的 footer；最终 body 只把响应中实际引用文件的 banner 放前缀、其余放 footer，预留值不小于实际值。任何 ExploreResult.kind='failed' 只投影冻结 prefix + bounded failure text，不追加可选 footer；因此 failure 的最终 cap 与 minimumErrorUtf8Bytes 可证明。legacy 错误/成功路径均保持原样。minimumErrorUtf8Bytes 按 complete reserved prefix + possible footer + minimum failure text + CLI newline 计算，并在冻结适配器入口验证；低于完整冻结协议 minimum 在任何 graph/snapshot/read 前拒绝。",
+          "note": ""
+        },
+        {
+          "q": "补充 Slice 4 末端审计时必须显式保持哪些差异？",
+          "answer": "冻结 MCP adapter 在成功/empty 结果时从已冻结 pending 快照投影响应相关的 banner 与剩余 footer；failed 结果只投影冻结 worktree 前缀与 bounded failure text，suffix 不进入错误输出。应用 minimumErrorUtf8Bytes 覆盖完整预留，而实际失败 reservation 可以更小的关系在适配器显式表达，不伪造 application/transport 一致性。401/401 explore 测试、tsc、build 只作局部验证，不替代双轴审查与全仓测试。Slice 5 的真实 SQLite read-view、多语言与五仓门槛不变。",
+          "note": ""
+        },
+        {
+          "q": "末端 spec 审查发现的剩余阻断项如何修复？",
+          "answer": "修复范围限定 Slice 4：skeleton 按 canonical trace 排序但保持 steps 原路径顺序；delivery 对 merged atom、requirement dispositions 与 gaps 使用确定性顺序，不以 repeated atom 创建重复 requirement，并以 ledger IDs 驱动 exhausted envelope 计数；通用应用零 requests 直接走同一 empty/report 组合，不带 source skeleton，且在文件循环发现没有任何可物化 atom 时不因 source failure 误选 canonical failure；cap<minimum 在 try 前继续抛出，最终 cap assertion 使用专门错误向上传递，invalid-input 不伪装 graph-unavailable；共享 atom 用真实 fixture 验证两条 requirement 均入台账、source 仅一次。冻结 MCP 显式入口不替代默认 legacy handler，5 仓/多语言/read-view 仍属 Slice 5。",
+          "note": ""
+        },
+        {
+          "q": "共享 atom 与冻结 MCP 的最终复核如何收敛？",
+          "answer": "共享 atom 先写 requirement 再合并源码是正确模型；去掉新 atom 分支重复 push 保留逐条入账，合并时按全局 atom comparator 选择最强角色并去重 requirementIds。任何非物化请求先写 source/graph residual 再判断整体 failure，不将显式缺失站点当 source-unavailable。delivery 先构造 canonical requirement/disposition/gap 集合，final skeleton 只渲染一次实际输出 gap；合并后再分配，无骨架版本仅给 no-evidence。EvidenceGap 增加有限 search-limit reason，search/anchor/source ceiling 对每个未闭合 obligation 产生机器可读 gap，source ceiling 的 requirement 保持 graph-semantics-blocker 且不会被 source-failure 过滤器误选。冻结 MCP 对全部 pending 文件预留 banner+worktree 与 footer+分隔符，空 pending 不产生虚假 footer；成功投影复用冻结输入，最小 cap 在 retrieval 前验证。",
+          "note": ""
+        },
+        {
+          "q": "最终 skeleton 与预算缺口如何避免重复计费，同时保持报告完整？",
+          "answer": "分配前冻结图语义、源码与 search-limit 等 residual gaps，并只渲染一次 compact skeleton；分配器产生的 budget gap 保留在对应 atom 的完整 omission 单元并进入最终 report，不再追加第二份 skeleton 文本。共享 atom 由统一 merge 路径按确定性角色优先级合并 requirementIds，只有合并范围与原签名范围完全一致且签名不冲突时保留 signature。冻结 transport reservation 包含可能 prefix 与正文分隔符、可能 footer 与其分隔符；实际投影只可减少。",
+          "note": ""
+        },
+        {
+          "q": "当前定向与兼容性回归结果如何记录，哪些验收仍未完成？",
+          "answer": "修复后 Slice4 定向 6 文件 75/75 pass；完整 explore/composition/默认 worktree+staleness 回归 27 文件 428/428 pass，tsc --noEmit 与 git diff --check 通过。共享 atom 每 requirement 入账且源码一次、混合 disposition、双 residual、完整 exhausted counts、trace steps 顺序和真实 SQLite 紧 cap 均有新 golden。上述仅是实现验证，不替代正在进行的独立双轴审查、production build 和全仓测试；1-9-8 保持 in_progress，不 push/PR，不开始 Slice5。",
+          "note": ""
+        },
+        {
+          "q": "最小失败包络为何需要固定宽度计数？",
+          "answer": "边界测试发现以 0 计数计算的 minimum envelope 不能覆盖实际多位计数，可能使 budget-exhausted 二次抛错。现改为固定宽度 base-36 计数，合法非负计数使用同一 UTF-8 字节宽度，超出有界表示显式 invalid-input；因此协议 minimum 对计数增长保持稳定。新 golden 验证非空 residual skeleton 在精确 cap 下返回 budget-exhausted、保留 selected 计数且不伪装 graph failure。该变更仅属显式 universal 结果，不改 legacy 文本。",
+          "note": ""
+        },
+        {
+          "q": "独立复审指出的重叠 atom、最终 gap 与快照边界如何修复？",
+          "answer": "重叠 atom 不再保留空正文：完全相同 atom 先去重，真实重叠按行验证共享源码且覆盖合并范围，sourceAtomIds 保留全部原 atom 链接；delivery 对每个实际渲染单元给 disposition，不把同一源码重复计数。最终 gap 不再排除在 skeleton 之外：保留 trace/ambiguity，按最终 allocation 替换 residual 行，通过有界的 allocation→final gaps→skeleton→reallocation 收敛，正文与 report 中同一逻辑 gap ID 恰好一次，所有新增 gap 参与 UTF-8 计费；未收敛显式失败，不尾切。source/search 原因使用独立稳定 ID，exhausted 保留原始 source/graph reason/detail 并补齐全局 search-limit 计数。最后 stats 读取经快照保护，交付前再 assertActive；projectRoot 读取纳入统一失败边界。真实 target target.ts 重复 clue 走逐行合并返回完整源码，不伪装 invalid-input。默认 legacy 不变，不启用 env 开关。",
+          "note": ""
+        },
+        {
+          "q": "独立复审指出的 merged ceiling 与 residual 保留问题如何收敛？",
+          "answer": "普通重叠合并未设置 ceiling 时保持 maximumTier=undefined，只有显式 location/signature/full 约束按最严格值继承；回归直接验证 full 超 cap 时仍可交付完整 location+gap，不被 omitted。最终 skeleton 的独立 gap 行统一由 disposition 重建，内嵌 trace 仅剥离 gap=<id> 字段，保留其他合法字段。末次 stats 与 projectRoot 异常分别有 snapshot-lost/graph-unavailable 直接回归。上述修复不修改生产 reservation、默认 legacy 或 transport 外部文本。",
+          "note": ""
+        },
+        {
+          "q": "末轮独立合同复核后如何收敛关系残差与计费语义？",
+          "answer": "缺失 source 的已选 relationship 明确标为 graph-semantics-blocker，不误记 source-unavailable；文件有 location 但无法读/越界才进入 source failure，源码可验证路径不凭空注入 failure。allocator/degradation 删除无法投影到最终 markdown 的 perAtomOverheadBytes/omissionNoticeBytes 数字参数，全部以实际完整渲染单元 UTF-8 字节计费；omission 仍先预留，源码/signature/location 不截断。真实 Python 注册边缺少站点回归由 source-unavailable 修正为 graph-semantics-blocker。冻结 adapter 经真实 SQLite+notice/clock 测试就是显式新 MCP 组合，默认 CLI/MCP legacy 不变，无 env 开关，未授权默认启用。",
+          "note": ""
+        },
+        {
+          "q": "最终独立复核与全仓验收是否允许关闭 Slice 4？",
+          "answer": "允许仅关闭 Slice 4 实现范围。稳定工作树上 Slice4 六文件 89/89 pass，Explore/legacy/worktree/staleness 27 文件 444/444 pass，tsc --noEmit、git diff --check 与 production build 通过；全仓 218 文件 pass、6 文件按既有条件 skip，2948 pass、38 skip、0 fail。最终独立双轴复核在 delivery/allocator/degradation/universal-application、显式冻结 MCP transport、默认 legacy 隔离及相关测试范围内无 P0/P1/P2；其兼容回归 444/444，额外 cap0/32/64、exact-envelope 与 multi-rank sweep 未断言且失败 envelope 有效。此前 cap 非收敛及双重计费 finding 因 fixture 错误或不可复现已撤回，不作生产投机修复。该结论不证明所有输入的数学收敛，不替代五仓/多语言/read-view/性能硬门或独立 Agent 产品价值；默认 CLI/MCP 仍 legacy，显式 universal-v1/FrozenMcpExploreAdapter 才启用新实现，无环境实现开关；不 commit/push/PR，不启动 Slice5。",
+          "note": ""
+        }
+      ],
       "notes": "",
       "layer": "plan",
       "obligation_key": "DES-universal-structural-explore-v1:slice-4",
@@ -1780,7 +1861,8 @@
         "原子全局分配、合并重叠区间、预留 transport notice，以 UTF-8 字节精确满足最终 cap",
         "完整签名或 location/gap 结构化降级，禁止半方法、半 Unicode、尾切及 necessary-file 旁路",
         "极小 cap、最小错误 envelope、取消/快照/源码失败、重复原子与输出确定性 golden 全通过"
-      ]
+      ],
+      "rounds": 1
     },
     "1-9-9": {
       "id": "1-9-9",
@@ -1824,7 +1906,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-18 21:03:18",
+    "updated": "2026-11-19 12:56:57",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

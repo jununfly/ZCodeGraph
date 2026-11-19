@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import type CodeGraph from '../index';
 import type { Edge, Node } from '../types';
 import { validatePathWithinRoot } from '../utils';
@@ -14,6 +14,15 @@ export interface ExploreGraphRead {
 /** Source reads are root-confined and never expose filesystem access to a renderer. */
 export interface ExploreSourceRead {
   readText(filePath: string): string | undefined;
+}
+
+export type ExploreSourceReadResult =
+  | { kind: 'ok'; text: string }
+  | { kind: 'unavailable' }
+  | { kind: 'too-large' };
+
+export interface BoundedExploreSourceRead {
+  readBounded(filePath: string, maxUtf8Bytes: number): ExploreSourceReadResult;
 }
 
 export class CodeGraphExploreGraphRead implements ExploreGraphRead {
@@ -36,16 +45,24 @@ export class CodeGraphExploreGraphRead implements ExploreGraphRead {
   }
 }
 
-export class RootConfinedExploreSourceRead implements ExploreSourceRead {
+export class RootConfinedExploreSourceRead implements ExploreSourceRead, BoundedExploreSourceRead {
   constructor(private readonly projectRoot: string) {}
 
   readText(filePath: string): string | undefined {
+    const result = this.readBounded(filePath, Number.POSITIVE_INFINITY);
+    return result.kind === 'ok' ? result.text : undefined;
+  }
+
+  readBounded(filePath: string, maxUtf8Bytes: number): ExploreSourceReadResult {
     const absolute = validatePathWithinRoot(this.projectRoot, filePath);
-    if (!absolute || !existsSync(absolute)) return undefined;
+    if (!absolute || !existsSync(absolute)) return { kind: 'unavailable' };
     try {
-      return readFileSync(absolute, 'utf8');
+      if (statSync(absolute).size > maxUtf8Bytes) return { kind: 'too-large' };
+      const text = readFileSync(absolute, 'utf8');
+      return Buffer.byteLength(text, 'utf8') > maxUtf8Bytes
+        ? { kind: 'too-large' } : { kind: 'ok', text };
     } catch {
-      return undefined;
+      return { kind: 'unavailable' };
     }
   }
 }

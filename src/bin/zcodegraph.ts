@@ -2423,7 +2423,8 @@ program
         maxFiles,
         runtime: readExploreRuntimeOptions(),
       });
-      console.log(answer.kind === 'empty' ? answer.text : answer.markdown);
+      const { cliExploreOutput } = await import('../explore/transport.js');
+      process.stdout.write(cliExploreOutput(answer));
 
       cg.destroy();
     } catch (err) {

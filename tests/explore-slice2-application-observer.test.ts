@@ -52,11 +52,12 @@ describe('Slice 2 — ExploreApplication observer', () => {
     const app = new DefaultExploreApplication();
     const answer = await app.explore(graph, 'hello', { runtime });
 
-    // The answer shape is unchanged — no `report` field is attached.
+    // Slice 4 carries the report at the application boundary; transports
+    // still receive only the legacy text projection.
     expect(answer.kind).toBe('answer');
     if (answer.kind === 'answer') {
       expect(answer.markdown).toContain('hello');
-      expect('report' in answer).toBe(false);
+      expect(answer.report).toBe(reports[0]);
     }
 
     // The observer fired exactly once with a coherent internal report.

@@ -3,6 +3,7 @@ import { buildExploreBlastRadius } from './blast-radius';
 import { renderExploreBlastRadius } from './blast-radius-renderer';
 import { buildExploreRenderModel } from './evidence';
 import { observeLegacyComposition, type ExploreReport } from './ledger';
+import { UniversalExploreApplication } from './universal-application';
 import { plan } from './planner';
 import { CodeGraphExploreGraphRead, RootConfinedExploreSourceRead } from './ports';
 import { render } from './renderer';
@@ -43,7 +44,14 @@ export function setExploreReportObserver(fn: ExploreReportObserver | undefined):
 
 /** Shared CLI/MCP composition; transports own only parsing and envelopes. */
 export class DefaultExploreApplication implements ExploreApplication {
+  private readonly universal?: UniversalExploreApplication;
+
+  constructor(implementation: 'legacy' | 'universal-v1' = 'legacy') {
+    if (implementation === 'universal-v1') this.universal = new UniversalExploreApplication();
+  }
+
   async explore(graph: CodeGraph, query: string, options: ExploreOptions): Promise<ExploreAnswer> {
+    if (this.universal) return this.universal.explore(graph, query, options);
     // Plan first so we can derive a stable project id from plan.projectRoot.
     const planned = await plan(graph, query, { maxFiles: options.maxFiles, runtime: options.runtime });
     const projectId = projectIdFromRoot(planned.projectRoot);
@@ -55,18 +63,20 @@ export class DefaultExploreApplication implements ExploreApplication {
     // accepted.
     const snapshot = openCodeGraphSnapshot(graph, projectId);
     try {
+      let report: ExploreReport | undefined;
+      const publish = (value: ExploreReport): void => {
+        report = value;
+        if (observer) observer(value);
+      };
       if (planned.subgraph.nodes.size === 0) {
-        if (observer) {
-          observer(
-            observeLegacyComposition({
-              snapshot: snapshot.identity,
-              plan: planned,
-              attemptedFileReads: new Map(),
-              workBudget: SLICE_2_WORK_BUDGET,
-            }),
-          );
-        }
-        return { kind: 'empty', text: `No relevant code found for "${query}"` };
+        const report = observeLegacyComposition({
+          snapshot: snapshot.identity,
+          plan: planned,
+          attemptedFileReads: new Map(),
+          workBudget: SLICE_2_WORK_BUDGET,
+        });
+        publish(report);
+        return { kind: 'empty', text: `No relevant code found for "${query}"`, report };
       }
       const blastRadius = planned.budget.includeBlastRadius === false
         ? ''
@@ -81,8 +91,7 @@ export class DefaultExploreApplication implements ExploreApplication {
 
       // Slice 2: observe the legacy composition and emit an internal report.
       // This is a pure side-channel — it does NOT touch the returned answer.
-      if (observer) {
-        const attemptedFileReads = new Map<
+      const attemptedFileReads = new Map<
           string,
           { ok: boolean; reason?: 'source-unavailable'; detail?: string }
         >();
@@ -93,17 +102,15 @@ export class DefaultExploreApplication implements ExploreApplication {
             read ? { ok: true } : { ok: false, reason: 'source-unavailable', detail: `file not materialized: ${filePath}` },
           );
         }
-        observer(
-          observeLegacyComposition({
-            snapshot: snapshot.identity,
-            plan: planned,
-            attemptedFileReads,
-            workBudget: SLICE_2_WORK_BUDGET,
-          }),
-        );
-      }
+        report = observeLegacyComposition({
+          snapshot: snapshot.identity,
+          plan: planned,
+          attemptedFileReads,
+          workBudget: SLICE_2_WORK_BUDGET,
+        });
+        publish(report);
 
-      return { kind: 'answer', markdown: render(model) };
+      return { kind: 'answer', markdown: render(model), report };
     } finally {
       await snapshot.close();
     }
