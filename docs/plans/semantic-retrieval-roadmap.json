@@ -1942,13 +1942,25 @@
       "id": "1-9-9-2",
       "uid": "01a1f29318ba-e378a61874",
       "label": "5b：负例与新鲜度套件（歧义/重载/decoy/外部终点/搜索耗尽/预算排除/缺失变更/Unicode/Windows 路径）",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-9-9",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "5b 落地形态：负例套件放 src/ 还是 tests/，怎么复用 Slice 4 替身",
+          "answer": "5b 全部落在 tests/explore-slice5-negative.test.ts，产品 src/ 零改动。每个负例用 Slice 4 的 project() + CodeGraph.initSync + DefaultExploreApplication('universal-v1') 端到端跑：临时目录建小项目 → indexAll → application.explore → 断言 ExploreResult.kind/code/report.coverage/markdown。覆盖 12 类：nonexistent endpoint / ambiguous same-name / wrong overload / external terminal / searchExhausted vs no-path / budget-forbids-complete / missing source / changed source / Windows path separator identity / non-ASCII UTF-8 byte precision / unrelated receiver decoy / swapped direct-call order / missing registration forbids connectivity / deterministic repeated output。每类至少 1 个 it()，不让单测变成 macro-average。",
+          "note": ""
+        },
+        {
+          "q": "5b 发现的 Slice 4 ambiguity gap 如何处置",
+          "answer": "5b 端到端跑通后发现：两个 receiver 上同名方法（UserRepo.save / OrderRepo.save）+ 裸名查询 save 时，UniversalExploreApplication 报告 complete，但合同 §283/§432-§434 要求 ambiguity 必须保留且 complete 禁止。根因：src/explore/closure.ts §41-§53 把每个 anchor match 当独立 definition obligation，从不查 AnchorMatch.ambiguous。修复属图语义变更，按合同 §691 须在独立评审 slice 落地（含 migration、schema、Agent-Sufficiency 义务），5b 不授权顺手改。处置：tests/explore-slice5-negative.test.ts 中该用例标 it.skip + 注释记录 KNOWN GAP（指向 closure.ts §41-§53 + 合同条款），等 Slice 5c 之后的独立 slice 拾起。其他 10/10 通过：wrong overload / external terminal / searchExhausted vs no-path / budget exclusion / non-ASCII UTF-8 / Windows path / decoy receiver / swapped call order / missing registration / deterministic output。",
+          "note": ""
+        }
+      ],
       "notes": "",
-      "layer": "plan"
+      "layer": "plan",
+      "rounds": 1
     },
     "1-9-9-3": {
       "id": "1-9-9-3",
@@ -1965,7 +1977,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-19 15:00:14",
+    "updated": "2026-11-19 15:30:49",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
