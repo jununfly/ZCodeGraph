@@ -1886,6 +1886,11 @@
           "q": "Slice 5 起步切片如何划分以避免一次性吞掉五仓硬门",
           "answer": "Slice 5 的 exit_criteria 跨 5 仓×5 题×5 阶段验收矩阵 + 负例 + 真实适配器 + 性能红线，单次落地不现实。拆为三个有序子切片：5a 落地开发矩阵脚手架（五仓 fixed-commit corpus resolver、rubric-to-QueryObligation 转换、五阶段审计 fixture、每题独立硬门 harness），用本地 fixture 替身验证矩阵骨架自身；5b 落地负例与新鲜度套件（歧义/错误重载/注册 decoy/外部终点/搜索耗尽/预算排除/缺失变更/Unicode/Windows 路径）；5c 落地真实 Python/JavaScript/Go/Java 适配器集成 + 跑注册性能红线并记录原始诊断样本。每切片独立 commit/revert，不把图/索引/schema 变更夹入查询渲染绕行。5a 先行，5b/5c 视 5a 结果决定；不消耗 96 paired-runs 预算、不解锁 1-4、不改 v3 冻结。",
           "note": ""
+        },
+        {
+          "q": "Slice 5 完成判据与 Slice 6 入口",
+          "answer": "Slice 5 全部子切片落地并合入 main：5a 开发矩阵脚手架（PR #726 merge 5223f44）、5b 负例与新鲜度套件（PR #727 merge 49ec6d3）、5c 真实适配器+性能红线+诊断（PR #728 merge 7aef4f1）。CI ubuntu 真实红线 PASS：index -2.4%、explore +3.1%。本机 Windows 的 explore +20.9% 是平台差异，与代码无关。Slice 5 合同 §691 的 exit gate「五固定 commit 矩阵跑测」属独立评审 slice——可能暴露需要图/索引/schema 变更的 gap（如 5b 发现的 AnchorMatch.ambiguous closure gap），须自带 migration/schema/Agent-Sufficiency 义务，不在 5c 范围。Slice 5 节点标 completed。Slice 6（独立 Agent 产品价值 + Human 准入 + legacy 清理）维持 blocked/pending：须先用全新独立任务集跑 Agent A/B 协议（正确性非劣、预注册预算、reviewer、隔离），再请 Human 显式生产准入；不得把 5 仓本地 coverage 当作 answer-correctness 或 Agent Sufficiency 证明。默认 OFF/G-ship/v3 holdout/96 paired-runs 硬预算/1-4 blocked/1-8-1 与 1-8-2 并列/C-S 冻结候选全部保留。",
+          "note": ""
         }
       ],
       "notes": "",
@@ -2045,7 +2050,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-19 16:13:31",
+    "updated": "2026-11-19 16:31:42",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
