@@ -44,25 +44,28 @@ export interface DegradedRendering {
 export function degradationLadder(
   atom: SourceAtom,
   remainingBytes: number,
-  perAtomOverheadBytes: number,
 ): DegradedRendering | null {
+  const overhead = utf8ByteLength(atom.overhead ?? '');
+  const suffixBytes = 1; // exact newline separating the header from this unit
+
   // Tier 1: full atom.
-  const fullBytes = utf8ByteLength(atom.text) + perAtomOverheadBytes;
-  if (fullBytes <= remainingBytes) {
+  const fullBytes = utf8ByteLength(atom.text) + overhead + suffixBytes;
+  if (fullBytes <= remainingBytes && atom.maximumTier !== 'location' && atom.maximumTier !== 'signature') {
     return { tier: 'full', text: atom.text, bytes: fullBytes };
   }
 
   // Tier 2: complete signature (never sliced).
-  if (atom.signature !== undefined) {
-    const sigBytes = utf8ByteLength(atom.signature) + perAtomOverheadBytes;
+  if (atom.signature !== undefined && atom.maximumTier !== 'location') {
+    const signature = `${atom.signature}\n${formatLocation(atom)}`;
+    const sigBytes = utf8ByteLength(signature) + overhead + suffixBytes;
     if (sigBytes <= remainingBytes) {
-      return { tier: 'signature', text: atom.signature, bytes: sigBytes };
+      return { tier: 'signature', text: signature, bytes: sigBytes };
     }
   }
 
   // Tier 3: location-only.
   const locationText = formatLocation(atom);
-  const locationBytes = utf8ByteLength(locationText) + perAtomOverheadBytes;
+  const locationBytes = utf8ByteLength(locationText) + overhead + suffixBytes;
   if (locationBytes <= remainingBytes) {
     return { tier: 'location', text: locationText, bytes: locationBytes };
   }
@@ -87,19 +90,8 @@ export function formatLocation(atom: SourceAtom): string {
 export function isOversizedAtom(
   atom: SourceAtom,
   bodyAllowance: number,
-  perAtomOverheadBytes: number,
 ): boolean {
-  const fullBytes = utf8ByteLength(atom.text) + perAtomOverheadBytes;
-  if (fullBytes <= bodyAllowance) return false;
-  // Even the location-only form might fit; only report oversized when
-  // the FULL form alone exceeds the entire allowance AND we cannot
-  // show even a signature.
-  if (atom.signature !== undefined) {
-    const sigBytes = utf8ByteLength(atom.signature) + perAtomOverheadBytes;
-    if (sigBytes <= bodyAllowance) return false;
-  }
-  const locationBytes = utf8ByteLength(formatLocation(atom)) + perAtomOverheadBytes;
-  return locationBytes > bodyAllowance;
+  return degradationLadder(atom, bodyAllowance) === null;
 }
 
 // ===========================================================================

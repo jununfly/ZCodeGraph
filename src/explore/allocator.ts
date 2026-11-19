@@ -16,6 +16,7 @@
 
 import type { EvidenceRole, SourceLocation } from './obligations';
 import { utf8ByteLength } from './budget-utf8';
+import { degradationLadder } from './degradation';
 
 // ===========================================================================
 // SourceAtom
@@ -27,8 +28,12 @@ import { utf8ByteLength } from './budget-utf8';
  * exact source location when the full atom cannot fit (Slice 4.3).
  */
 export interface SourceAtom {
+  /** Optional structured-degradation ceiling imposed by delivered-file maxFiles. */
+  maximumTier?: 'full' | 'signature' | 'location';
   /** Stable atom identifier. */
   id: string;
+  /** All original identifiers represented by this merged atom. */
+  sourceAtomIds?: readonly string[];
   /** Requirement ids this atom satisfies. */
   requirementIds: readonly string[];
   /** The file containing this atom. */
@@ -45,6 +50,8 @@ export interface SourceAtom {
   required: boolean;
   /** True if this atom is an alternative needed to preserve ambiguity. */
   isAlternative?: boolean;
+  /** Complete Markdown heading/fence overhead measured before allocation. */
+  overhead?: string;
 }
 
 // ===========================================================================
@@ -58,6 +65,8 @@ export type AtomDisposition =
 
 export interface AllocationResult {
   dispositions: AtomDisposition[];
+  /** Exact renderable units in allocation order. */
+  entries: Array<{ atom: SourceAtom; text: string; disposition: AtomDisposition }>;
   /** Total bytes consumed by the body (atoms + their overhead). */
   totalBytes: number;
   /** Remaining allowance after allocation. */
@@ -87,13 +96,35 @@ function allocationPriority(atom: SourceAtom): number {
   return 3;
 }
 
-function compareAtoms(a: SourceAtom, b: SourceAtom): number {
+const ROLE_PRIORITY: Readonly<Record<EvidenceRole, number>> = {
+  definition: 0,
+  'invocation-site': 1,
+  'registration-site': 1,
+  'scheduling-site': 1,
+  condition: 2,
+  'state-mutation': 2,
+  'exception-branch': 3,
+  'external-terminal': 4,
+  'alternative-branch': 5,
+  supporting: 6,
+};
+
+export function compareSourceAtoms(a: SourceAtom, b: SourceAtom): number {
   const pa = allocationPriority(a);
   const pb = allocationPriority(b);
   if (pa !== pb) return pa - pb;
   if (a.filePath !== b.filePath) return a.filePath.localeCompare(b.filePath);
   if (a.range.startLine !== b.range.startLine) return a.range.startLine - b.range.startLine;
-  return a.id.localeCompare(b.id);
+  const roleOrder = ROLE_PRIORITY[a.role] - ROLE_PRIORITY[b.role];
+  if (roleOrder !== 0) return roleOrder;
+  if (a.id !== b.id) return a.id.localeCompare(b.id);
+  if (a.range.endLine !== b.range.endLine) return a.range.endLine - b.range.endLine;
+  if (a.required !== b.required) return Number(b.required) - Number(a.required);
+  if (Boolean(a.isAlternative) !== Boolean(b.isAlternative)) {
+    return Number(a.isAlternative) - Number(b.isAlternative);
+  }
+  return (a.signature ?? '').localeCompare(b.signature ?? '')
+    || a.text.localeCompare(b.text) || (a.overhead ?? '').localeCompare(b.overhead ?? '');
 }
 
 // ===========================================================================
@@ -105,9 +136,9 @@ function compareAtoms(a: SourceAtom, b: SourceAtom): number {
  * NOT implicitly pull an entire class/file. When two atoms in the same
  * file overlap, merge their ranges and keep the union of requirementIds.
  *
- * Atoms are merged only when their line ranges overlap or are directly
- * adjacent. The merged atom's text must be recomputed by the caller
- * (we don't have file contents here).
+ * Atoms are merged only when their line ranges overlap. Shared source lines
+ * must agree byte-for-byte; verified callers may replace the result with a
+ * fresh bounded read of the combined range.
  */
 export function mergeOverlappingAtoms(atoms: readonly SourceAtom[]): SourceAtom[] {
   // Group by file.
@@ -133,10 +164,10 @@ export function mergeOverlappingAtoms(atoms: readonly SourceAtom[]): SourceAtom[
       const reqIds = new Set(base.requirementIds);
       const members: SourceAtom[] = [base];
       let j = i + 1;
-      // Merge subsequent atoms that overlap or are adjacent.
+      // Merge only actual overlap; adjacency does not authorize unselected lines.
       while (j < sorted.length) {
         const next = sorted[j]!;
-        if (next.range.startLine > endLine + 1) break;
+        if (next.range.startLine > endLine) break;
         endLine = Math.max(endLine, next.range.endLine);
         for (const r of next.requirementIds) reqIds.add(r);
         members.push(next);
@@ -145,25 +176,74 @@ export function mergeOverlappingAtoms(atoms: readonly SourceAtom[]): SourceAtom[
 
       if (members.length === 1) {
         merged.push(base);
-      } else {
-        // Merge: keep the earliest atom's id + role + signature, but
-        // expand the range and union requirementIds. Text composition:
-        //   - If all members share the same text (true duplicates),
-        //     keep just one copy (no double-counting).
-        //   - Otherwise concatenate (overlapping ranges — the caller
-        //     is responsible for re-materializing from disk if needed).
-        const allSameText = members.every((m) => m.text === base.text);
-        const combinedText = allSameText ? base.text : members.map((m) => m.text).join('');
+      } else if (members.every((member) => member.id === base.id
+        && member.range.startLine === base.range.startLine && member.range.endLine === base.range.endLine
+        && member.text === base.text && member.signature === base.signature
+        && member.role === base.role && member.required === base.required
+        && member.isAlternative === base.isAlternative && member.maximumTier === base.maximumTier
+        && member.overhead === base.overhead)) {
         merged.push({
-          id: base.id,
+          ...base,
+          requirementIds: [...reqIds].sort(),
+          sourceAtomIds: members.some((member) => member.sourceAtomIds !== undefined)
+            ? [...new Set(members.flatMap((member) => member.sourceAtomIds ?? [member.id]))].sort()
+            : undefined,
+        });
+      } else {        // Merge only identity/range metadata. Concatenating these texts
+        // would repeat their overlap and invent bytes absent from source.
+        const orderedMembers = [...members].sort(compareSourceAtoms);
+        const first = orderedMembers[0]!;
+        const range = {
           filePath: base.filePath,
-          role: base.role,
-          required: base.required,
-          isAlternative: base.isAlternative,
-          signature: base.signature,
-          range: { filePath: base.range.filePath, startLine: base.range.startLine, endLine },
-          requirementIds: [...reqIds],
-          text: combinedText,
+          startLine: Math.min(...members.map((member) => member.range.startLine)),
+          endLine,
+        };
+        const signatures = new Set(members.flatMap((member) =>
+          member.signature === undefined ? [] : [member.signature]));
+        const sameRange = (member: SourceAtom) =>
+          member.range.startLine === range.startLine && member.range.endLine === range.endLine;
+        const signatureRangeUnchanged = members.every(sameRange);
+        const sourceLines = new Map<number, string>();
+        for (const member of members) {
+          const lines = member.text.split('\n');
+          if (lines.length !== member.range.endLine - member.range.startLine + 1) {
+            throw new Error(`invalid-input: unmaterialized or incomplete shared atom ${member.id}`);
+          }
+          for (let offset = 0; offset < lines.length; offset += 1) {
+            const line = member.range.startLine + offset;
+            const text = lines[offset]!;
+            const previous = sourceLines.get(line);
+            if (previous !== undefined && previous !== text) {
+              throw new Error(`invalid-input: conflicting source for shared atom ${first.id}`);
+            }
+            sourceLines.set(line, text);
+          }
+        }
+        merged.push({
+          id: first.id,
+          sourceAtomIds: [...new Set(members.flatMap((member) =>
+            member.sourceAtomIds ?? [member.id]))].sort(),
+          filePath: base.filePath,
+          role: first.role,
+          required: members.some((member) => member.required),
+          isAlternative: first.isAlternative,
+          maximumTier: members.some((m) => m.maximumTier === 'location')
+            ? 'location' : members.some((m) => m.maximumTier === 'signature')
+              ? 'signature' : members.some((m) => m.maximumTier === 'full') ? 'full' : undefined,
+          // A signature for only part of an enlarged range is not a signature
+          // for that range. Conflicting same-range signatures are also unsafe.
+          signature: signatureRangeUnchanged && signatures.size === 1
+            ? [...signatures][0] : undefined,
+          overhead: `#### ${range.filePath}:${range.startLine}-${range.endLine}\n`,
+          range,
+          requirementIds: [...reqIds].sort(),
+          text: Array.from({ length: endLine - range.startLine + 1 }, (_, offset) => {
+            const text = sourceLines.get(range.startLine + offset);
+            if (text === undefined) {
+              throw new Error(`invalid-input: missing verified source for shared atom ${first.id}`);
+            }
+            return text;
+          }).join('\n'),
         });
       }
       i = j;
@@ -179,10 +259,8 @@ export function mergeOverlappingAtoms(atoms: readonly SourceAtom[]): SourceAtom[
 export interface GlobalAllocateOptions {
   /** Byte allowance for the body (output of Slice 4.1). */
   bodyAllowance: number;
-  /** Per-atom overhead bytes (fences, line-number gutter, etc.). */
-  perAtomOverheadBytes: number;
-  /** Bytes for each omission notice (allocated BEFORE the source it describes). */
-  omissionNoticeBytes: number;
+  /** Frozen compact trace/ambiguity/gap prefix, paid before any source. */
+  skeleton?: string;
 }
 
 /**
@@ -195,59 +273,97 @@ export interface GlobalAllocateOptions {
  * Omission notices for already-omitted required atoms are allocated
  * before attempting to place the next atom (§551-§552).
  */
+export interface VerifiedAtomSource {
+  readRange(range: SourceLocation): string;
+}
+
+/** Materialize an overlapping range from the same verified immutable text. */
+export function rematerializeAtoms(
+  atoms: readonly SourceAtom[],
+  source: VerifiedAtomSource,
+): SourceAtom[] {
+  return mergeOverlappingAtoms(atoms).map((atom) => {
+    const text = source.readRange(atom.range);
+    return {
+      ...atom,
+      text,
+      overhead: atom.overhead ?? `#### ${atom.filePath}:${atom.range.startLine}-${atom.range.endLine}\n`,
+    };
+  });
+}
+
 export function globalAllocateAtoms(
   atoms: readonly SourceAtom[],
   options: GlobalAllocateOptions,
 ): AllocationResult {
-  // Merge overlapping atoms first so we never double-count bytes.
   const merged = mergeOverlappingAtoms(atoms);
-  // Deterministic order.
-  const ordered = [...merged].sort(compareAtoms);
+  const ordered = [...merged].sort(compareSourceAtoms);
+  // The frozen trace/ambiguity/gap skeleton is allocated before source.
+  // Existing callers without a skeleton retain their original allowance.
+  const allowance = options.bodyAllowance - utf8ByteLength(options.skeleton ?? '');
+  if (allowance < 0) throw new Error('budget-exhausted: minimum skeleton exceeds body allowance');
 
-  const dispositions: AtomDisposition[] = [];
-  const omittedAtomIds: string[] = [];
+  const entries: AllocationResult['entries'] = [];
   let usedBytes = 0;
-
+  // Reserve every complete minimum gap before promoting any atom. A later
+  // required file can therefore never be squeezed out by an earlier full body.
   for (const atom of ordered) {
-    const atomBytes = utf8ByteLength(atom.text) + options.perAtomOverheadBytes;
-
-    // Try to fit the full atom.
-    if (usedBytes + atomBytes <= options.bodyAllowance) {
-      dispositions.push({ kind: 'returned', atomId: atom.id, bytes: atomBytes });
-      usedBytes += atomBytes;
-      continue;
+    const text = `${atom.overhead ?? ''}[gap:${atom.id}:budget-exhausted]\n`;
+    const bytes = utf8ByteLength(text);
+    if (usedBytes + bytes > allowance) {
+      throw new Error(`budget-exhausted: minimum gap for ${atom.id} exceeds body allowance`);
     }
-
-    // Try signature degradation (if signature present).
-    if (atom.signature !== undefined) {
-      const sigBytes = utf8ByteLength(atom.signature) + options.perAtomOverheadBytes;
-      if (usedBytes + sigBytes <= options.bodyAllowance) {
-        dispositions.push({ kind: 'degraded', atomId: atom.id, degradedTo: 'signature', bytes: sigBytes });
-        usedBytes += sigBytes;
-        continue;
-      }
-    }
-
-    // Try location-only degradation.
-    const locationText = `${atom.filePath}:${atom.range.startLine}-${atom.range.endLine}`;
-    const locationBytes = utf8ByteLength(locationText) + options.perAtomOverheadBytes;
-    if (usedBytes + locationBytes <= options.bodyAllowance) {
-      dispositions.push({ kind: 'degraded', atomId: atom.id, degradedTo: 'location', bytes: locationBytes });
-      usedBytes += locationBytes;
-      continue;
-    }
-
-    // Cannot fit even a location — omit and reserve bytes for the
-    // omission notice (allocated before the next atom, §551-§552).
-    dispositions.push({ kind: 'omitted', atomId: atom.id, reason: 'budget', bytes: 0 });
-    omittedAtomIds.push(atom.id);
-    usedBytes += options.omissionNoticeBytes;
+    entries.push({
+      atom,
+      text,
+      disposition: { kind: 'omitted', atomId: atom.id, reason: 'budget', bytes: 0 },
+    });
+    usedBytes += bytes;
   }
 
+  for (const entry of entries) {
+    const { atom } = entry;
+    const reservedBytes = utf8ByteLength(entry.text);
+    const remaining = allowance - usedBytes + reservedBytes;
+    const omission = `[gap:${atom.id}:budget-exhausted]\n`;
+    const locationAllowance = Math.max(0, remaining
+      - utf8ByteLength(omission));
+    const rendering = degradationLadder(atom, remaining);
+    if (rendering?.tier === 'full') {
+      entry.text = (atom.overhead ?? '') + atom.text + '\n';
+      entry.disposition = { kind: 'returned', atomId: atom.id, bytes: rendering.bytes };
+    } else if (rendering?.tier === 'signature') {
+      entry.text = (atom.overhead ?? '') + rendering.text + '\n';
+      entry.disposition = {
+        kind: 'degraded', atomId: atom.id, degradedTo: 'signature', bytes: rendering.bytes,
+      };
+    } else if (atom.maximumTier !== 'signature' && atom.maximumTier !== 'full') {
+      const location = degradationLadder(
+        { ...atom, signature: undefined, maximumTier: 'location' },
+        locationAllowance,
+      );
+      if (location?.tier === 'location') {
+        entry.text = (atom.overhead ?? '') + location.text + '\n' + omission;
+        entry.disposition = {
+          kind: 'degraded', atomId: atom.id, degradedTo: 'location', bytes: location.bytes,
+        };
+      }
+    }
+    usedBytes += utf8ByteLength(entry.text) - reservedBytes;
+  }
+
+  if (usedBytes > allowance) {
+    throw new Error('budget-exhausted: minimum atom/gap accounting exceeds body allowance');
+  }
   return {
-    dispositions,
-    totalBytes: usedBytes,
-    remainingBytes: Math.max(0, options.bodyAllowance - usedBytes),
-    omittedAtomIds,
+    dispositions: entries.flatMap((entry) =>
+      (entry.atom.sourceAtomIds ?? [entry.atom.id]).map((atomId) => ({
+        ...entry.disposition, atomId,
+      }))),
+    entries,
+    totalBytes: utf8ByteLength(options.skeleton ?? '') + usedBytes,
+    remainingBytes: Math.max(0, allowance - usedBytes),
+    omittedAtomIds: entries.flatMap((entry) =>
+      entry.disposition.kind === 'omitted' ? (entry.atom.sourceAtomIds ?? [entry.atom.id]) : []),
   };
 }

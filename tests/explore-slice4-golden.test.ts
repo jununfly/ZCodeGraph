@@ -15,8 +15,10 @@ import {
   verifyComposedCap,
   type Utf8Budget,
 } from '../src/explore/budget-utf8';
-import { globalAllocateAtoms, type SourceAtom } from '../src/explore/allocator';
+import { globalAllocateAtoms, rematerializeAtoms, type SourceAtom } from '../src/explore/allocator';
 import { sliceAtCodepointBoundary } from '../src/explore/degradation';
+import { renderCompactExploreSkeleton } from '../src/explore/skeleton';
+import type { TracePath } from '../src/explore/obligations';
 import {
   buildBudgetExhaustedEnvelope,
   measureEnvelopeBytes,
@@ -37,17 +39,13 @@ describe('Slice 4.5 — golden matrix', () => {
     const body = '中'.repeat(10); // 30 UTF-8 bytes
     const a = atom({ id: 'a', filePath: 'f.ts', text: body });
     const result = globalAllocateAtoms([a], {
-      bodyAllowance: 30, // exact fit
-      perAtomOverheadBytes: 0,
-      omissionNoticeBytes: 0,
+      bodyAllowance: utf8ByteLength(body + '\n'), // exact fit, including the real separator
     });
     expect(result.dispositions[0].kind).toBe('returned');
-    expect(result.totalBytes).toBe(30);
+    expect(result.totalBytes).toBe(31);
 
     const result29 = globalAllocateAtoms([a], {
-      bodyAllowance: 29, // one byte short → must degrade
-      perAtomOverheadBytes: 0,
-      omissionNoticeBytes: 0,
+      bodyAllowance: utf8ByteLength('[gap:a:budget-exhausted]\n'), // full cannot fit; complete gap can
     });
     expect(result29.dispositions[0].kind).not.toBe('returned');
   });
@@ -72,8 +70,6 @@ describe('Slice 4.5 — golden matrix', () => {
     const big = atom({ id: 'big', filePath: 'f.ts', text: 'x'.repeat(10000) });
     const result = globalAllocateAtoms([big], {
       bodyAllowance: 100,
-      perAtomOverheadBytes: 0,
-      omissionNoticeBytes: 0,
     });
     // Full form does not fit; if no signature, location-only may fit;
     // either way the FULL text must NOT appear truncated.
@@ -89,11 +85,9 @@ describe('Slice 4.5 — golden matrix', () => {
     const a = atom({ id: 'a', filePath: 'a.ts', text: 'x'.repeat(40) });
     const b = atom({ id: 'b', filePath: 'b.ts', text: 'y'.repeat(40) });
     const c = atom({ id: 'c', filePath: 'c.ts', text: 'z'.repeat(40) });
-    // Budget fits only ~2 of the 3.
+    // Two full atoms plus one complete omission; no source is cut to make room.
     const result = globalAllocateAtoms([a, b, c], {
-      bodyAllowance: 85,
-      perAtomOverheadBytes: 0,
-      omissionNoticeBytes: 5,
+      bodyAllowance: 82 + utf8ByteLength('[gap:c:budget-exhausted]\n'),
     });
     const returned = result.dispositions.filter((d) => d.kind === 'returned');
     // At most 2 can be returned.
@@ -105,25 +99,23 @@ describe('Slice 4.5 — golden matrix', () => {
   it('duplicate atoms do not double-count bytes', () => {
     const a = atom({ id: 'a', filePath: 'f.ts', text: 'hello', range: { filePath: 'f.ts', startLine: 1, endLine: 5 } });
     const dup = atom({ id: 'a', filePath: 'f.ts', text: 'hello', range: { filePath: 'f.ts', startLine: 1, endLine: 5 } });
-    const result = globalAllocateAtoms([a, dup], {
+    const result = globalAllocateAtoms(rematerializeAtoms([a, dup], {
+      readRange: () => 'hello',
+    }), {
       bodyAllowance: 100,
-      perAtomOverheadBytes: 0,
-      omissionNoticeBytes: 0,
     });
-    // mergeOverlappingAtoms merges them; total bytes should be ~5, not ~10.
-    expect(result.totalBytes).toBeLessThanOrEqual(5);
+    // The exact source/header separator is retained; duplicate source is emitted once.
+    expect(result.totalBytes).toBe(utf8ByteLength('#### f.ts:1-5\nhello\n'));
   });
 
   it('omission notices are allocated before the source they describe', () => {
     const a = atom({ id: 'a', filePath: 'a.ts', text: 'x'.repeat(100) });
     const result = globalAllocateAtoms([a], {
-      bodyAllowance: 5,
-      perAtomOverheadBytes: 0,
-      omissionNoticeBytes: 3,
+      bodyAllowance: utf8ByteLength('[gap:a:budget-exhausted]\n'),
     });
-    // Atom is omitted; omission notice bytes (3) are reserved.
+    // The complete omission is reserved before its source and charged once.
     expect(result.dispositions[0].kind).toBe('omitted');
-    expect(result.totalBytes).toBe(3);
+    expect(result.totalBytes).toBe(utf8ByteLength('[gap:a:budget-exhausted]\n'));
   });
 
   it('minimum-envelope exhaustion produces a stable bounded envelope', () => {
@@ -154,10 +146,24 @@ describe('Slice 4.5 — golden matrix', () => {
       atom({ id: 'a', filePath: 'a.ts', text: 'foo' }),
       atom({ id: 'b', filePath: 'b.ts', text: 'bar' }),
     ];
-    const r1 = globalAllocateAtoms(atoms, { bodyAllowance: 100, perAtomOverheadBytes: 0, omissionNoticeBytes: 0 });
-    const r2 = globalAllocateAtoms(atoms, { bodyAllowance: 100, perAtomOverheadBytes: 0, omissionNoticeBytes: 0 });
+    const r1 = globalAllocateAtoms(atoms, { bodyAllowance: 100 });
+    const r2 = globalAllocateAtoms(atoms, { bodyAllowance: 100 });
     expect(JSON.stringify(r1.dispositions)).toBe(JSON.stringify(r2.dispositions));
     expect(r1.totalBytes).toBe(r2.totalBytes);
+  });
+
+  it('keeps A→B→C trace steps in path order while sorting trace boundaries', () => {
+    const step = (relationId: string): TracePath['steps'][number] => ({
+      relationId, semantics: 'direct-call', guards: [],
+    });
+    const traces: TracePath[] = [
+      { id: 'trace-z', status: 'connected', requiredRelationIds: [], steps: [step('z-last')] },
+      { id: 'trace-a', status: 'connected', requiredRelationIds: [], steps: [step('c-third'), step('a-first'), step('b-second')] },
+    ];
+    const skeleton = renderCompactExploreSkeleton({ traces, anchors: [], gaps: [] });
+    expect(skeleton.indexOf('trace-a')).toBeLessThan(skeleton.indexOf('trace-z'));
+    expect(skeleton.indexOf('relation=c-third')).toBeLessThan(skeleton.indexOf('relation=a-first'));
+    expect(skeleton.indexOf('relation=a-first')).toBeLessThan(skeleton.indexOf('relation=b-second'));
   });
 
   it('composed cap postcondition holds for the assembled answer', () => {

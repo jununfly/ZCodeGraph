@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import CodeGraph from '../src/index';
 import { ToolHandler } from '../src/mcp/tools';
 import { exploreApplication } from '../src/explore/application';
+import { mcpExploreContent } from '../src/explore/transport';
 import { readExploreRuntimeOptions } from '../src/explore/runtime';
 import {
   CodeGraphExploreGraphRead,
@@ -56,7 +57,11 @@ describe('shared ExploreApplication and platform ports', () => {
     handlers.push(handler);
     const mcp = await handler.execute('zcodegraph_explore', { query: 'target caller', maxFiles: 2 });
     expect(mcp.isError).toBeUndefined();
-    expect(application).toEqual({ kind: 'answer', markdown: mcp.content[0].text });
+    expect(application.kind === 'answer' && application.markdown).toBe(mcp.content[0].text);
+    expect(mcpExploreContent(application)).toEqual(mcp.content);
+    expect(mcp).not.toHaveProperty('report');
+    expect(mcp).not.toHaveProperty('metadata');
+    expect(application.kind === 'answer' && application.report.snapshot).toBeDefined();
     expect(application.kind === 'answer' && application.markdown).toContain('export function target');
 
     const port = new CodeGraphExploreGraphRead(graph);

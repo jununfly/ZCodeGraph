@@ -138,9 +138,7 @@ export function freezeTransportNotice(inputs: FrozenTransportInputs): TransportR
  * malformed answer (§562-§564).
  */
 export function isCapBelowProtocolMinimum(budget: Utf8Budget): boolean {
-  const total =
-    budget.minimumErrorUtf8Bytes +
-    budget.transportReservation.utf8Bytes +
-    budget.optionalCliNewlineBytes;
-  return budget.maxOutputUtf8Bytes < total;
+  // minimumErrorUtf8Bytes already includes the frozen notices, separators
+  // and optional CLI newline. Subtracting them twice would reject valid caps.
+  return budget.maxOutputUtf8Bytes < budget.minimumErrorUtf8Bytes;
 }

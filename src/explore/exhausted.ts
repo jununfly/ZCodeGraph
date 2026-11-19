@@ -58,6 +58,8 @@ export interface BudgetExhaustedEnvelope {
   };
   /** Bounded stable requirement/gap IDs. */
   stableIds: readonly string[];
+  /** Total logical IDs, including IDs omitted from the bounded text projection. */
+  gapCount?: number;
 }
 
 export interface BudgetExhaustedInput {
@@ -65,19 +67,31 @@ export interface BudgetExhaustedInput {
   returnedRequirements: number;
   omittedRequirements: number;
   gapIds: readonly string[];
+  /** Logical gap count, independent of the optional bounded stableIds text. */
+  gapCount?: number;
 }
 
 /**
  * Build the budget-exhausted envelope. Deterministic: same inputs
  * always produce the same envelope text and byte count.
  */
+const MAX_COUNT = 36 ** 8 - 1;
+
+/** Fixed-width base-36 counts keep the protocol minimum valid as counts grow. */
+function formatBoundedCount(value: number): string {
+  if (!Number.isSafeInteger(value) || value < 0 || value > MAX_COUNT) {
+    throw new Error('invalid-input: exhausted-envelope count exceeds its bounded representation');
+  }
+  return value.toString(36).padStart(8, '0');
+}
+
 export function buildBudgetExhaustedEnvelope(
   input: BudgetExhaustedInput,
 ): BudgetExhaustedEnvelope {
   const stableIds = input.gapIds.slice(0, MAX_STABLE_IDS);
   const text = [
     'budget-exhausted: output cap too small for minimum skeleton',
-    `selected=${input.selectedRequirements} returned=${input.returnedRequirements} omitted=${input.omittedRequirements} gaps=${input.gapIds.length}`,
+    `selected=${formatBoundedCount(input.selectedRequirements)} returned=${formatBoundedCount(input.returnedRequirements)} omitted=${formatBoundedCount(input.omittedRequirements)} gaps=${formatBoundedCount(input.gapCount ?? input.gapIds.length)}`,
     ...stableIds.map((id) => `gap:${id}`),
   ].join('\n');
 
@@ -89,9 +103,10 @@ export function buildBudgetExhaustedEnvelope(
       selectedRequirements: input.selectedRequirements,
       returnedRequirements: input.returnedRequirements,
       omittedRequirements: input.omittedRequirements,
-      gapCount: input.gapIds.length,
+      gapCount: input.gapCount ?? input.gapIds.length,
     },
     stableIds,
+    gapCount: input.gapCount ?? input.gapIds.length,
   };
 }
 
@@ -129,10 +144,7 @@ export function validateCapAgainstProtocolMinimum(
   minimumEnvelope: BudgetExhaustedEnvelope,
 ): void {
   const envelopeBytes = measureEnvelopeBytes(minimumEnvelope);
-  const required =
-    envelopeBytes +
-    budget.transportReservation.utf8Bytes +
-    budget.optionalCliNewlineBytes;
+  const required = Math.max(envelopeBytes, budget.minimumErrorUtf8Bytes);
   if (budget.maxOutputUtf8Bytes < required) {
     throw new CapBelowProtocolMinimumError(required, budget.maxOutputUtf8Bytes);
   }

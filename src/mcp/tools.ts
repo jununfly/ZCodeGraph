@@ -40,6 +40,7 @@ import { buildExploreBlastRadius } from '../explore/blast-radius';
 import { renderExploreBlastRadius } from '../explore/blast-radius-renderer';
 import { tightSmallProjectBudgetEnabled, readExploreRuntimeOptions } from '../explore/runtime';
 import { exploreApplication } from '../explore/application';
+import { mcpExploreContent } from '../explore/transport';
 import { ComplexityCalculator } from '../metrics/complexity/index.js';
 
 /** Maximum output length to prevent context bloat (characters) */
@@ -133,8 +134,7 @@ function numberSourceLines(slice: string, firstLineNumber: number): string {
  * The agent uses this to fall back to Read for those specific files
  * without waiting for the debounced sync (issue #403).
  */
-export function formatStaleBanner(stale: PendingFile[]): string {
-  const now = Date.now();
+export function formatStaleBanner(stale: readonly PendingFile[], now = Date.now()): string {
   const lines = stale.map((p) => {
     const ageMs = Math.max(0, now - p.lastSeenMs);
     const label = p.indexing ? 'indexing in progress' : 'pending sync';
@@ -154,9 +154,8 @@ export function formatStaleBanner(stale: PendingFile[]): string {
  * response. Gives the agent a complete project-wide freshness picture
  * without bloating the main banner.
  */
-export function formatStaleFooter(stale: PendingFile[]): string {
+export function formatStaleFooter(stale: readonly PendingFile[], now = Date.now()): string {
   const MAX = 5;
-  const now = Date.now();
   const shown = stale.slice(0, MAX);
   const lines = shown.map((p) => {
     const ageMs = Math.max(0, now - p.lastSeenMs);
@@ -1323,7 +1322,7 @@ export class ToolHandler {
       maxFiles: args.maxFiles as number | undefined,
       runtime: readExploreRuntimeOptions(),
     });
-    return this.textResult(answer.kind === 'empty' ? answer.text : answer.markdown);
+    return { content: mcpExploreContent(answer) };
   }
 
   /**

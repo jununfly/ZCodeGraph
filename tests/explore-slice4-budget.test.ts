@@ -99,7 +99,7 @@ describe('Slice 4.1 — isCapBelowProtocolMinimum', () => {
       maxOutputUtf8Bytes: 100,
       transportReservation: { utf8Bytes: 30 },
       optionalCliNewlineBytes: 1,
-      minimumErrorUtf8Bytes: 80,
+      minimumErrorUtf8Bytes: 112,
     };
     expect(isCapBelowProtocolMinimum(budget)).toBe(true);
   });

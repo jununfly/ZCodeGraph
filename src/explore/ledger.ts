@@ -50,6 +50,7 @@ export interface EvidenceGap {
     | 'source-too-large'
     | 'graph-semantics-blocker'
     | 'query-interpretation'
+    | 'search-limit'
     | 'budget-exhausted'
     | 'aborted'
     | 'other';
@@ -140,7 +141,8 @@ export function deriveCoverageLedger(input: DeriveCoverageInput): CoverageLedger
     else omitted += 1;
   }
 
-  const requiredReturned = [...input.requiredIds].every((id) => dispositions[id] === 'returned');
+  const requiredReturned = input.requiredIds.size > 0
+    && [...input.requiredIds].every((id) => dispositions[id] === 'returned');
   const requiredGap = input.gaps.some(
     (g) => input.requiredIds.has(g.id) || g.reason === 'query-interpretation',
   );

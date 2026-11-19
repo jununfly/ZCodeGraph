@@ -9,6 +9,8 @@
  */
 
 import type { Node, Subgraph } from '../types';
+import type { ExploreResult } from './answer';
+import type { Utf8Budget } from './budget-utf8';
 
 // ===========================================================================
 // ExploreOutputBudget
@@ -203,16 +205,16 @@ export interface ExploreRuntimeOptions {
 export interface ExploreOptions {
   maxFiles?: number;
   runtime: ExploreRuntimeOptions;
+  /** Frozen adapter delivery inputs; legacy composition ignores these. */
+  delivery?: Utf8Budget;
+  signal?: AbortSignal;
 }
 
 /**
- * P1 shape of the answer returned by `ExploreApplication.explore`.
- * Slice 1 keeps the legacy `empty`/`answer` union with string payloads;
- * the structured report arrives in Slice 2.
+ * @deprecated Slice 1 compatibility alias. New application code consumes
+ * ExploreResult; report remains internal to the application boundary.
  */
-export type ExploreAnswer =
-  | { kind: 'empty'; text: string }
-  | { kind: 'answer'; markdown: string };
+export type ExploreAnswer = ExploreResult;
 
 /**
  * Internal completed-data contract for the pure renderer.
@@ -274,5 +276,5 @@ export interface ExploreApplication {
     graph: import('../index').default,
     query: string,
     options: ExploreOptions,
-  ): Promise<ExploreAnswer>;
+  ): Promise<ExploreResult>;
 }

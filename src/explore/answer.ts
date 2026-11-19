@@ -10,12 +10,9 @@
  *     | { kind: 'empty', text, report }
  *     | { kind: 'answer', markdown, report }
  *
- * The legacy `ExploreAnswer` (without `report`) remains as
- * `LegacyExploreAnswer` so existing callers (CLI/MCP transports,
- * Slice 1 composition) keep compiling unchanged. A separate
- * semantic-migration authorization will switch the production
- * transport over to `ExploreResult` — this slice does NOT do that
- * switch.
+ * The application boundary returns this union for both implementations.
+ * Legacy composition still supplies the default text; the internal report
+ * never becomes ToolResult/metadata without a separate compatibility review.
  */
 
 import type { ExploreReport } from './ledger';
@@ -116,13 +113,15 @@ export function resolveResultState(input: ResultStateInput): ResultState {
   if (
     input.anchorCount === 0 &&
     input.returnedOrDegradedCount === 0 &&
-    !input.hasQueryInterpretationGap
+    !input.hasQueryInterpretationGap &&
+    !input.hasRequiredGap
   ) {
     return 'empty';
   }
 
   // 3. answer / complete
-  if (input.allRequiredSatisfied && !input.hasRequiredGap) {
+  if (input.allRequiredSatisfied && !input.hasRequiredGap
+      && (input.anchorCount > 0 || input.returnedOrDegradedCount > 0)) {
     return 'answer-complete';
   }
 
