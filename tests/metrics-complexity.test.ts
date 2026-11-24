@@ -224,6 +224,22 @@ describe('java', () => {
     expect(v.exemption).toBe('extern-or-ffi');
   });
 
+  it('v1 declaration headers retain abstract and native exemptions', () => {
+    for (const [header, exemption] of [
+      ['public abstract void m();', 'abstract-no-body'],
+      ['public native void m();', 'extern-or-ffi'],
+    ] as const) {
+      const n = fn({
+        name: 'm',
+        filePath: 'A.java',
+        language: 'java',
+        kind: 'method',
+        signature: `zcg-java-declaration/v1\ncategory=ordinary-method\nheader-bytes=${Buffer.byteLength(header)}\n\n${header}`,
+      });
+      expect(computeCyclomatic(n, null).exemption).toBe(exemption);
+    }
+  });
+
   it('@Generated → E3 exemption', () => {
     const n = fn({
       name: 'm',

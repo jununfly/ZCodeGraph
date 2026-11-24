@@ -19,7 +19,7 @@ import {
   FrameworkResolver,
   ImportMapping,
 } from './types';
-import { matchReference, sameLanguageFamily, crossesKnownFamily, stripGenericTypeArgs } from './name-matcher';
+import { matchPythonImplicitReceiverCall, matchReference, sameLanguageFamily, crossesKnownFamily, stripGenericTypeArgs } from './name-matcher';
 import {
   resolveViaImport,
   resolveJvmImport,
@@ -916,7 +916,8 @@ export class ReferenceResolver {
     // from './barrel'` where the barrel has `export { signIn as login }
     // from './auth'`) intentionally call a name that has no
     // declaration anywhere — only the renamed upstream symbol does.
-    const hasPossibleMatch = this.hasAnyPossibleMatch(ref.referenceName);
+    const hasPossibleMatch = this.hasAnyPossibleMatch(ref.referenceName)
+      || matchPythonImplicitReceiverCall(ref, this.context) !== null;
     addElapsed(timings, 'otherResolutionMs', started);
     started = Date.now();
     const matchesImport = hasPossibleMatch ? false : this.matchesAnyImport(ref);

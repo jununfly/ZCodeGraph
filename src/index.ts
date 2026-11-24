@@ -24,7 +24,7 @@ import {
   FindRelevantContextOptions,
   UnresolvedReference,
 } from './types';
-import { DatabaseConnection, getDatabasePath } from './db';
+import { DatabaseConnection, getDatabasePath, issueJavaFinalizationToken } from './db';
 import { QueryBuilder } from './db/queries';
 import {
   isInitialized,
@@ -42,6 +42,7 @@ import {
   initGrammars,
   loadGrammarsForLanguages,
 } from './extraction';
+import { javaPreflightError } from './extraction/java-write-preflight';
 import {
   ReferenceResolver,
   createResolver,
@@ -1121,25 +1122,65 @@ export class CodeGraph {
     });
   }
 
+  private static async openForJavaFinalization(
+    projectRoot: string,
+    token: ReturnType<typeof issueJavaFinalizationToken>,
+  ): Promise<CodeGraph> {
+    await initGrammars();
+    const resolvedRoot = path.resolve(projectRoot);
+    const db = DatabaseConnection.openForJavaFinalization(
+      getDatabasePath(resolvedRoot),
+      token,
+    );
+    const queries = new QueryBuilder(db.getDb());
+    const graph = new CodeGraph(db, queries, resolvedRoot);
+    graph.orchestrator.allowPrivateV1ReplacementForFinalization();
+    return graph;
+  }
+
   private async indexExternalEngine(engine: 'rust' | 'rust-hybrid', options: IndexOptions): Promise<IndexResult> {
+    return this.indexExternalEngineForEvaluation(engine, options, {});
+  }
+
+  /** Internal evaluation composition; production callers provide no overrides. */
+  private async indexExternalEngineForEvaluation(
+    engine: 'rust' | 'rust-hybrid',
+    options: IndexOptions,
+    dependencies: {
+      openFinalizationGraph?: typeof CodeGraph.openForJavaFinalization;
+      rebuildQueue?: typeof rebuildEmbeddingQueue;
+      markFailed?: (token: ReturnType<typeof issueJavaFinalizationToken>) => void;
+    },
+  ): Promise<IndexResult> {
     return this.indexMutex.withLock(async () => {
       // A completed batch is not a replacement barrier: the local worker must
       // exit and close its DB/vec0 handles before the Rust child may promote.
       await EmbeddingRunner.shutdownDatabase(getDatabasePath(this.projectRoot));
       const replacementGate = await acquireExclusiveReplacementGate(getDatabasePath(this.projectRoot));
-      this.closeDatabaseForExternalIndex();
+      this.unwatch();
+      this.db.close();
       let promoted = false;
+      const finalizationToken = issueJavaFinalizationToken(crypto.randomUUID(), '1');
+      let completed = false;
+      let cleanupError: unknown;
+      let hasCleanupError = false;
+      let originalError: unknown;
+      let hasOriginalError = false;
       try {
         const result = await runRustIndexerBorrowingGate(this.projectRoot, {
           verbose: options.verbose,
           onProgress: options.onProgress,
+          javaFinalization: finalizationToken,
         });
         promoted = result.success;
-        if (!result.success || result.filesIndexed === 0) {
+        if (!result.success) {
           return result;
         }
 
-        const cg = await CodeGraph.open(this.projectRoot);
+        const cg = await (dependencies.openFinalizationGraph ?? CodeGraph.openForJavaFinalization)(
+          this.projectRoot,
+          finalizationToken,
+        );
         try {
           let fallbackResult: Awaited<ReturnType<typeof cg.indexFallbackFiles>> | null = null;
           const hybridPlan = engine === 'rust-hybrid' ? planRustHybridAssignments(this.projectRoot) : null;
@@ -1153,26 +1194,7 @@ export class CodeGraph {
               runtimeHybridPlan = mergeMissingFallbackDiagnostics(runtimeHybridPlan, fallbackResult);
             }
             if (!fallbackResult.success) {
-              return {
-                success: false,
-                filesIndexed: result.filesIndexed + fallbackResult.filesIndexed,
-                filesSkipped: result.filesSkipped + fallbackResult.filesSkipped,
-                filesErrored: result.filesErrored + fallbackResult.filesErrored,
-                nodesCreated: result.nodesCreated + fallbackResult.nodesCreated,
-                edgesCreated: result.edgesCreated + fallbackResult.edgesCreated,
-                errors: fallbackResult.errors,
-                durationMs: result.durationMs + fallbackResult.durationMs,
-                profile: {
-                  rustCore: result.profile,
-                  typescriptFallbackAppend: {
-                    durationMs: fallbackResult.durationMs,
-                    fallbackFileCount: fallbackResult.fallbackFileCount,
-                    missingFallbackFileCount: fallbackResult.missingFallbackFileCount,
-                    missingFallbackByLanguage: fallbackResult.missingFallbackByLanguage,
-                    errorTaxonomy: fallbackResult.errorTaxonomy,
-                  },
-                },
-              };
+              throw new Error('Java finalization fallback failed before the graph was complete.');
             }
             result.filesIndexed += fallbackResult.filesIndexed;
             result.filesSkipped += fallbackResult.filesSkipped;
@@ -1213,29 +1235,97 @@ export class CodeGraph {
             finalize: finalized.profile,
             typescriptFinalizationMs: Date.now() - finalizationStarted,
           };
+          const queueRows = (dependencies.rebuildQueue ?? rebuildEmbeddingQueue)(cg.db.getDb());
+          const verifier = DatabaseConnection.openForJavaFinalizationVerification(
+            getDatabasePath(this.projectRoot),
+            finalizationToken,
+          );
+          try {
+            const queue = verifier.getDb();
+            const expected = queue.prepare(
+              'SELECT path, content_hash FROM files ORDER BY path, content_hash',
+            ).all() as Array<{ path: string; content_hash: string }>;
+            const actual = queue.prepare(
+              'SELECT file_path, content_hash, status, attempts, last_error, model_version, ' +
+              'enqueued_at, started_at, finished_at, worker_id, heartbeat_at ' +
+              'FROM embedding_queue ORDER BY file_path, content_hash',
+            ).all() as Array<{
+              file_path: string;
+              content_hash: string;
+              status: string;
+              attempts: number;
+              last_error: string | null;
+              model_version: string | null;
+              enqueued_at: number;
+              started_at: number | null;
+              finished_at: number | null;
+              worker_id: string | null;
+              heartbeat_at: number | null;
+            }>;
+            const exactPairs = actual.length === expected.length && actual.every((row, index) =>
+              row.file_path === expected[index]?.path &&
+              row.content_hash === expected[index]?.content_hash
+            );
+            const initialRows = actual.every((row) =>
+              row.status === 'pending' && row.attempts === 0 &&
+              Number.isSafeInteger(row.enqueued_at) && row.enqueued_at > 0 &&
+              row.last_error === null && row.model_version === null &&
+              row.started_at === null && row.finished_at === null &&
+              row.worker_id === null && row.heartbeat_at === null
+            );
+            if (queueRows !== expected.length || !exactPairs || !initialRows) {
+              throw new Error(
+                'Java finalization queue reconciliation requires exactly one initial pending ' +
+                'row per current file, with no extras, missing, or non-initial fields.',
+              );
+            }
+          } finally {
+            verifier.close();
+          }
+          cg.db.commitJavaFinalizationComplete();
+          completed = true;
           return result;
         } finally {
           cg.close();
         }
+      } catch (error) {
+        originalError = error;
+        hasOriginalError = true;
+        if (!promoted) this.reopenDatabaseAfterExternalIndex();
       } finally {
         try {
-          this.reopenDatabaseAfterExternalIndex();
-          if (promoted) rebuildEmbeddingQueue(this.db.getDb());
+          if (promoted && !completed) {
+            if (dependencies.markFailed) {
+              dependencies.markFailed(finalizationToken);
+            } else {
+              const failed = DatabaseConnection.openForJavaFinalization(
+                getDatabasePath(this.projectRoot),
+                finalizationToken,
+              );
+              failed.getDb().prepare(
+                'UPDATE project_metadata SET value = ? WHERE key = ? AND value = ?',
+              ).run('failed', 'java_finalization_state', 'required');
+              failed.close();
+            }
+          }
+          if (completed) this.reopenDatabaseAfterExternalIndex();
+        } catch (error) {
+          cleanupError = error;
+          hasCleanupError = true;
         } finally {
           await replacementGate.release();
         }
+        if (hasOriginalError) throw originalError;
+        if (hasCleanupError) throw cleanupError;
       }
+      if (hasOriginalError) throw originalError;
+      if (hasCleanupError) throw cleanupError;
+      throw new Error('External index exited without a result or error.');
     });
   }
 
   getEmbeddingQueueSnapshot(): EmbeddingQueueSnapshotEntry[] {
     return getEmbeddingQueueSnapshot(this.db.getDb());
-  }
-
-  private closeDatabaseForExternalIndex(): void {
-    this.unwatch();
-    void this.fileLock.release();
-    this.db.close();
   }
 
   private reopenDatabaseAfterExternalIndex(): void {
@@ -1267,6 +1357,19 @@ export class CodeGraph {
         return { success: false, filesIndexed: 0, filesSkipped: 0, filesErrored: 0, nodesCreated: 0, edgesCreated: 0, errors: [{ message: 'Could not acquire file lock - another process may be indexing', severity: 'error' as const }], durationMs: 0 };
       }
       try {
+        const preflight = this.orchestrator.preflightJavaWritesForEvaluation(filePaths);
+        if (preflight) {
+          return {
+            success: false,
+            filesIndexed: 0,
+            filesSkipped: 0,
+            filesErrored: filePaths.length,
+            nodesCreated: 0,
+            edgesCreated: 0,
+            errors: [javaPreflightError(preflight)],
+            durationMs: 0,
+          };
+        }
         await initGrammars();
         const neededLanguages = [...new Set(filePaths.map((filePath) => detectLanguage(filePath)))];
         await loadGrammarsForLanguages(neededLanguages);
@@ -1297,6 +1400,23 @@ export class CodeGraph {
     const existingFilePaths: string[] = [];
     const missingFallbackByLanguage: Record<string, number> = {};
     const missingErrors = [];
+    const preflight = this.orchestrator.preflightJavaWritesForEvaluation(filePaths);
+    if (preflight) {
+      return {
+        success: false,
+        filesIndexed: 0,
+        filesSkipped: 0,
+        filesErrored: filePaths.length,
+        nodesCreated: 0,
+        edgesCreated: 0,
+        errors: [javaPreflightError(preflight)],
+        fallbackFileCount: filePaths.length,
+        missingFallbackFileCount: 0,
+        missingFallbackByLanguage: {},
+        errorTaxonomy: { [preflight.code]: 1 },
+        durationMs: Date.now() - started,
+      };
+    }
 
     for (const filePath of filePaths) {
       const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(this.projectRoot, filePath);

@@ -24,6 +24,7 @@ import ignore, { Ignore } from 'ignore';
 import { loadProjectConfig } from '../config/project-config';
 import { detectFrameworks } from '../resolution/frameworks';
 import type { ResolutionContext } from '../resolution/types';
+import { javaPreflightError, preflightJavaWrites } from './java-write-preflight';
 
 /**
  * Number of files to read in parallel during indexing.
@@ -558,10 +559,33 @@ export class ExtractionOrchestrator {
    * hasn't run yet so single-file re-index paths can detect on the spot.
    */
   private detectedFrameworkNames: string[] | null = null;
+  private privateV1Replacement = false;
 
   constructor(rootDir: string, queries: QueryBuilder) {
     this.rootDir = rootDir;
     this.queries = queries;
+  }
+
+  /** Internal test observation; it performs no filesystem operation itself. */
+  probePathForEvaluation(filePath: string): string | null {
+    return validatePathWithinRoot(this.rootDir, filePath);
+  }
+
+  private checkJavaWritePreflight(filePaths: readonly string[], sync = false): ReturnType<typeof preflightJavaWrites> {
+    return preflightJavaWrites(this.queries.getDatabase(), this.rootDir, filePaths, {
+      sync,
+      privateV1Replacement: this.privateV1Replacement,
+    });
+  }
+
+  /** @internal Observe preflight at the real database/read boundary in tests. */
+  preflightJavaWritesForEvaluation(filePaths: readonly string[]): ReturnType<typeof preflightJavaWrites> {
+    return this.checkJavaWritePreflight(filePaths);
+  }
+
+  /** @internal Only the token-bound private replacement graph uses this path. */
+  allowPrivateV1ReplacementForFinalization(): void {
+    this.privateV1Replacement = true;
   }
 
   /**
@@ -669,6 +693,19 @@ export class ExtractionOrchestrator {
         currentFile: file,
       });
     });
+    const preflight = this.checkJavaWritePreflight(files);
+    if (preflight) {
+      return {
+        success: false,
+        filesIndexed: 0,
+        filesSkipped: 0,
+        filesErrored: files.length,
+        nodesCreated: 0,
+        edgesCreated: 0,
+        errors: [javaPreflightError(preflight)],
+        durationMs: Date.now() - startTime,
+      };
+    }
 
     // Detect frameworks once per indexAll run using the scanned file list.
     // Names are passed to each parse call so framework-specific extractors
@@ -875,7 +912,7 @@ export class ExtractionOrchestrator {
       const fileContents = await Promise.all(
         batch.map(async (fp) => {
           try {
-            const fullPath = validatePathWithinRoot(this.rootDir, fp);
+            const fullPath = this.probePathForEvaluation(fp);
             if (!fullPath) {
               logWarn('Path traversal blocked in batch reader', { filePath: fp });
               return { filePath: fp, content: null as string | null, stats: null as fs.Stats | null, error: new Error('Path traversal blocked') };
@@ -1135,6 +1172,19 @@ export class ExtractionOrchestrator {
    */
   async indexFiles(filePaths: string[]): Promise<IndexResult> {
     const startTime = Date.now();
+    const preflight = this.checkJavaWritePreflight(filePaths);
+    if (preflight) {
+      return {
+        success: false,
+        filesIndexed: 0,
+        filesSkipped: 0,
+        filesErrored: filePaths.length,
+        nodesCreated: 0,
+        edgesCreated: 0,
+        errors: [javaPreflightError(preflight)],
+        durationMs: Date.now() - startTime,
+      };
+    }
     const errors: ExtractionError[] = [];
     let filesIndexed = 0;
     let filesSkipped = 0;
@@ -1181,7 +1231,17 @@ export class ExtractionOrchestrator {
    * Index a single file
    */
   async indexFile(relativePath: string): Promise<ExtractionResult> {
-    const fullPath = validatePathWithinRoot(this.rootDir, relativePath);
+    const preflight = this.checkJavaWritePreflight([relativePath]);
+    if (preflight) {
+      return {
+        nodes: [],
+        edges: [],
+        unresolvedReferences: [],
+        errors: [javaPreflightError(preflight)],
+        durationMs: 0,
+      };
+    }
+    const fullPath = this.probePathForEvaluation(relativePath);
 
     if (!fullPath) {
       return {
@@ -1228,6 +1288,16 @@ export class ExtractionOrchestrator {
     content: string,
     stats: fs.Stats
   ): Promise<ExtractionResult> {
+    const preflight = this.checkJavaWritePreflight([relativePath]);
+    if (preflight) {
+      return {
+        nodes: [],
+        edges: [],
+        unresolvedReferences: [],
+        errors: [javaPreflightError(preflight)],
+        durationMs: 0,
+      };
+    }
     // Prevent path traversal
     const fullPath = validatePathWithinRoot(this.rootDir, relativePath);
     if (!fullPath) {
@@ -1295,6 +1365,10 @@ export class ExtractionOrchestrator {
     stats: fs.Stats,
     result: ExtractionResult
   ): void {
+    const preflight = this.checkJavaWritePreflight([filePath]);
+    if (preflight) {
+      throw new Error(preflight.reason);
+    }
     const contentHash = hashContent(content);
 
     // Check if file already exists and hasn't changed
@@ -1397,6 +1471,13 @@ export class ExtractionOrchestrator {
     const currentSet = new Set(currentFiles);
 
     const trackedFiles = this.queries.getAllFiles();
+    const preflight = this.checkJavaWritePreflight(
+      [...currentFiles, ...trackedFiles.map((file) => file.path)],
+      true,
+    );
+    if (preflight) {
+      throw new Error(preflight.reason);
+    }
     const trackedMap = new Map<string, FileRecord>();
     for (const f of trackedFiles) {
       trackedMap.set(f.path, f);
@@ -1406,7 +1487,7 @@ export class ExtractionOrchestrator {
     // filesystem directly — `scanDirectory` (via `git ls-files`) still lists a
     // file deleted from disk but not yet staged, so set membership alone misses it.
     for (const tracked of trackedFiles) {
-      if (!currentSet.has(tracked.path) || !fs.existsSync(path.join(this.rootDir, tracked.path))) {
+      if (!currentSet.has(tracked.path) || !this.probePathForEvaluation(tracked.path) || !fs.existsSync(path.join(this.rootDir, tracked.path))) {
         this.queries.deleteFile(tracked.path);
         filesRemoved++;
       }
@@ -1424,7 +1505,8 @@ export class ExtractionOrchestrator {
       // mtime on every file it writes during checkout/merge, so pulls are caught.)
       if (tracked) {
         try {
-          const stat = fs.statSync(fullPath);
+          const stat = this.probePathForEvaluation(filePath) ? fs.statSync(fullPath) : null;
+          if (!stat) continue;
           if (stat.size === tracked.size && Math.floor(stat.mtimeMs) === Math.floor(tracked.modifiedAt)) {
             continue;
           }

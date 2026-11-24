@@ -491,6 +491,51 @@ function inferJavaFieldReceiverType(
 }
 
 /**
+ * Resolve Python's implicit instance/class receivers only within the lexical
+ * class containing the call. Do not infer a dynamic receiver's type or fall
+ * back to a same-named method in another class.
+ */
+export function matchPythonImplicitReceiverCall(
+  ref: UnresolvedRef,
+  context: ResolutionContext,
+): ResolvedRef | null {
+  if (ref.language !== 'python' || ref.referenceKind !== 'calls') return null;
+  const match = ref.referenceName.match(/^(?:self|cls)\.(\w+)$/);
+  if (!match) return null;
+
+  const enclosingClasses = context.getNodesInFile(ref.filePath).filter(
+    (node) =>
+      node.kind === 'class' &&
+      node.language === 'python' &&
+      node.startLine <= ref.line &&
+      node.endLine >= ref.line,
+  );
+  if (enclosingClasses.length === 0) return null;
+  const enclosingClass = enclosingClasses.reduce((innermost, candidate) =>
+    candidate.startLine > innermost.startLine ? candidate : innermost
+  );
+  const methodName = match[1]!;
+  const expectedName = `${enclosingClass.name}.${methodName}`;
+  const expectedQualifiedName = `${enclosingClass.qualifiedName}.${methodName}`;
+  const candidates = context.getNodesByName(expectedName).filter(
+    (node) =>
+      node.kind === 'method' &&
+      node.language === 'python' &&
+      node.qualifiedName === expectedQualifiedName &&
+      node.startLine >= enclosingClass.startLine &&
+      node.endLine <= enclosingClass.endLine,
+  );
+  if (candidates.length !== 1) return null;
+
+  return {
+    original: ref,
+    targetNodeId: candidates[0]!.id,
+    confidence: 0.95,
+    resolvedBy: 'qualified-name',
+  };
+}
+
+/**
  * Try to resolve by method name on a class/object
  */
 export function matchMethodCall(
@@ -852,7 +897,7 @@ export function matchReference(
   if (result) return result;
 
   // 2. Method call pattern
-  result = matchMethodCall(ref, context);
+  result = matchPythonImplicitReceiverCall(ref, context) ?? matchMethodCall(ref, context);
   if (result) return result;
 
   // 3. Exact name match

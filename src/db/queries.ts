@@ -296,6 +296,11 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
     this.db = db;
   }
 
+  /** @internal Shared storage boundary for orchestration preflight. */
+  getDatabase(): SqliteDatabase {
+    return this.db;
+  }
+
   // ===========================================================================
   // Node Operations
   // ===========================================================================

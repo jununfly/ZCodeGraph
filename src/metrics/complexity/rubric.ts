@@ -16,6 +16,7 @@
  */
 
 import type { Node } from '../../types.js';
+import { javaSemanticSignature } from '../../java-declaration.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -379,6 +380,7 @@ function countDecisionPoints(
  * already on the row (`is_abstract`, `signature`, `decorators`).
  */
 function checkE1Abstract(node: Node): ComplexityExemptionReason | null {
+  const signature = javaSemanticSignature(node.signature);
   // Direct flag from extractor.
   if (node.isAbstract) return 'abstract-no-body';
 
@@ -411,8 +413,8 @@ function checkE1Abstract(node: Node): ComplexityExemptionReason | null {
   if (
     node.language === 'java' &&
     node.kind === 'method' &&
-    node.signature &&
-    node.signature.trim().endsWith(');')
+    signature &&
+    signature.trim().endsWith(');')
   ) {
     return 'abstract-no-body';
   }
@@ -427,6 +429,7 @@ function checkE2Extern(
   node: Node,
   bodySlice: string | null,
 ): ComplexityExemptionReason | null {
+  const signature = javaSemanticSignature(node.signature);
   if (node.language === 'rust' && node.signature) {
     const sig = node.signature.trim();
     if (sig.startsWith('extern ')) return 'extern-or-ffi';
@@ -436,8 +439,8 @@ function checkE2Extern(
     if (/\bextern\b/.test(node.signature)) return 'extern-or-ffi';
   }
 
-  if (node.language === 'java' && node.signature) {
-    if (/\bnative\b/.test(node.signature)) return 'extern-or-ffi';
+  if (node.language === 'java' && signature) {
+    if (/\bnative\b/.test(signature)) return 'extern-or-ffi';
   }
 
   // Python stub: body slice is empty or contains only a docstring /

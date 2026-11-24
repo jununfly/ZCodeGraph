@@ -186,6 +186,224 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
     }
   }, 30_000);
 
+  it('attributes calls and containment through decorated Python definitions', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'context.py'),
+      [
+        'def marker(fn):',
+        '    return fn',
+        '',
+        'def open_session():',
+        '    return object()',
+        '',
+        '@marker',
+        'class Context:',
+        '    def push(self):',
+        '        return self._open_session()',
+        '',
+        '    def _open_session(self):',
+        '        return open_session()',
+        '',
+        '    def pop(self):',
+        '        return None',
+        '',
+        '    @classmethod',
+        '    def create(cls):',
+        '        return cls._open_session()',
+        '',
+        '    def dynamic_receiver(self, other):',
+        '        return other._open_session()',
+        '',
+        'class OtherContext:',
+        '    def _open_session(self):',
+        '        return None',
+      ].join('\n') + '\n',
+    );
+
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const context = cg.searchNodes('Context').find((match) => match.node.kind === 'class')?.node;
+      const push = cg.searchNodes('Context.push').find((match) => match.node.kind === 'method')?.node;
+      const pop = cg.searchNodes('Context.pop').find((match) => match.node.kind === 'method')?.node;
+      const openSession = cg.searchNodes('Context._open_session').find((match) => match.node.kind === 'method')?.node;
+      const otherOpenSession = cg.searchNodes('OtherContext._open_session').find((match) => match.node.kind === 'method')?.node;
+      const create = cg.searchNodes('Context.create').find((match) => match.node.kind === 'method')?.node;
+      const dynamicReceiver = cg.searchNodes('Context.dynamic_receiver').find((match) => match.node.kind === 'method')?.node;
+      expect(context).toBeDefined();
+      expect(push).toBeDefined();
+      expect(pop).toBeDefined();
+      expect(openSession).toBeDefined();
+      expect(otherOpenSession).toBeDefined();
+      expect(create).toBeDefined();
+      expect(dynamicReceiver).toBeDefined();
+
+      expect(cg.getIncomingEdges(push!.id)).toContainEqual(expect.objectContaining({
+        source: context!.id,
+        kind: 'contains',
+      }));
+      expect(cg.getOutgoingEdges(push!.id)).toContainEqual(expect.objectContaining({
+        target: openSession!.id,
+        kind: 'calls',
+        line: 10,
+      }));
+      expect(cg.getIncomingEdges(openSession!.id)).toContainEqual(expect.objectContaining({
+        source: push!.id,
+        kind: 'calls',
+        line: 10,
+      }));
+      expect(cg.getOutgoingEdges(context!.id)).not.toContainEqual(expect.objectContaining({
+        target: openSession!.id,
+        kind: 'calls',
+      }));
+      expect(cg.getOutgoingEdges(create!.id)).toContainEqual(expect.objectContaining({
+        target: openSession!.id,
+        kind: 'calls',
+        line: 20,
+      }));
+      expect(cg.getIncomingEdges(openSession!.id)).toContainEqual(expect.objectContaining({
+        source: create!.id,
+        kind: 'calls',
+        line: 20,
+      }));
+      expect(cg.getOutgoingEdges(dynamicReceiver!.id)).not.toContainEqual(expect.objectContaining({
+        target: otherOpenSession!.id,
+        kind: 'calls',
+      }));
+      expect(cg.getOutgoingEdges(dynamicReceiver!.id)).not.toContainEqual(expect.objectContaining({
+        target: openSession!.id,
+        kind: 'calls',
+      }));
+      expect(cg.getIndexBuildInfo().hybrid).toMatchObject({
+        engineByLanguage: { python: 'rust' },
+      });
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('scopes Python implicit receivers without dynamic or lexical guesses', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'nested.py'),
+      [
+        'class Outer:',
+        '    def helper(self):',
+        '        return None',
+        '',
+        '    def use(self):',
+        '        return self.helper()',
+        '',
+        '    def outer_only(self):',
+        '        return None',
+        '',
+        '    class Inner:',
+        '        def helper(self):',
+        '            return None',
+        '',
+        '        def use(self):',
+        '            return self.helper()',
+        '',
+        '        def inherited_guess(self):',
+        '            return self.outer_only()',
+        '',
+        'class OnlyCandidate:',
+        '    def resolve(self):',
+        '        return None',
+        '',
+        'class Caller:',
+        '    def dynamic(self, other):',
+        '        return other.resolve()',
+      ].join('\n') + '\n',
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'duplicate.py'),
+      [
+        'class Inner:',
+        '    def helper(self):',
+        '        return None',
+      ].join('\n') + '\n',
+    );
+
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const method = (name: string, filePath = 'nested.py') => {
+        const candidates = cg.getNodesByName(name).filter((node) =>
+          node.kind === 'method' && node.filePath === filePath
+        );
+        expect(candidates).toHaveLength(1);
+        return candidates[0]!;
+      };
+      const callTargets = (name: string) => cg.getOutgoingEdges(method(name).id)
+        .filter((edge) => edge.kind === 'calls');
+
+      expect(callTargets('Outer.use')).toEqual([
+        expect.objectContaining({ target: method('Outer.helper').id }),
+      ]);
+      expect(callTargets('Inner.use')).toEqual([
+        expect.objectContaining({ target: method('Inner.helper').id }),
+      ]);
+      expect(cg.getIncomingEdges(method('Inner.helper').id)).toContainEqual(
+        expect.objectContaining({ source: method('Inner.use').id, kind: 'calls' }),
+      );
+      expect(callTargets('Inner.inherited_guess')).not.toContainEqual(
+        expect.objectContaining({ target: method('Outer.outer_only').id }),
+      );
+      expect(callTargets('Caller.dynamic')).not.toContainEqual(
+        expect.objectContaining({ target: method('OnlyCandidate.resolve').id }),
+      );
+      expect(method('Inner.helper', 'duplicate.py')).toBeDefined();
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('does not infer a Python inherited callee from a bare same-name method', () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'inheritance.py'),
+      [
+        'class Parent:',
+        '    def inherited(self):',
+        '        return None',
+        '',
+        'class Child(Parent):',
+        '    def use(self):',
+        '        return self.inherited()',
+      ].join('\n') + '\n',
+    );
+
+    const result = runZcodegraphCli(tempDir, ['index', '--quiet'], {
+      ZCG_RUST_CORE_BINARY: RUST_CORE_BIN,
+    });
+
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const method = (name: string) => {
+        const candidates = cg.getNodesByName(name).filter((node) => node.kind === 'method');
+        expect(candidates).toHaveLength(1);
+        return candidates[0]!;
+      };
+      const inherited = method('Parent.inherited');
+      expect(cg.getOutgoingEdges(method('Child.use').id)).not.toContainEqual(
+        expect.objectContaining({ target: inherited.id, kind: 'calls' }),
+      );
+      expect(cg.getIncomingEdges(inherited.id)).not.toContainEqual(
+        expect.objectContaining({ source: method('Child.use').id, kind: 'calls' }),
+      );
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
   it('indexes Java as Rust-owned under rust-hybrid', () => {
     const javaDir = path.join(tempDir, 'src/main/java/com/example');
     fs.mkdirSync(javaDir, { recursive: true });
@@ -273,6 +491,222 @@ describe('zcodegraph rust index language framework and MCP smoke behavior', () =
         fallbackFileCount: 0,
         fallbackReasonTaxonomy: {},
       });
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('persists complete categorized Java declaration headers through the public graph', async () => {
+    fs.writeFileSync(path.join(tempDir, 'Example.java'), [
+      'package démo;',
+      'import java.util.List;',
+      '@Deprecated',
+      'public class Example<T> implements java.io.Serializable {',
+      '  public Example() {}',
+      '  public String café(List<String> names) { return "☕"; }',
+      '  public interface Nested extends java.lang.Runnable {}',
+      '  public @interface Marker { String value(); }',
+      '}',
+      '',
+    ].join('\n'));
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const result = await cg.indexAll();
+      expect(result.success, JSON.stringify(result.errors)).toBe(true);
+      const javaNode = (name: string, kind: string) => {
+        const node = cg.getNodesByName(name).find((candidate) => candidate.kind === kind && candidate.language === 'java');
+        expect(node, `${name} (${kind})`).toBeDefined();
+        return node!;
+      };
+      const declaration = (name: string, kind: string, category: string, header: string) => {
+        expect(javaNode(name, kind).signature).toBe(
+          `zcg-java-declaration/v1\ncategory=${category}\nheader-bytes=${Buffer.byteLength(header, 'utf8')}\n\n${header}`,
+        );
+      };
+
+      declaration('démo', 'module', 'package', 'package démo;');
+      declaration('java.util.List', 'import', 'import', 'import java.util.List;');
+      declaration('Example', 'class', 'ordinary-class', '@Deprecated\npublic class Example<T> implements java.io.Serializable');
+      declaration('café', 'method', 'ordinary-method', 'public String café(List<String> names)');
+      declaration('Nested', 'interface', 'ordinary-interface', 'public interface Nested extends java.lang.Runnable');
+      declaration('Marker', 'interface', 'annotation-interface', 'public @interface Marker');
+      expect(javaNode('Example', 'method').signature).toBeUndefined();
+      expect(javaNode('value', 'method').signature).toBeUndefined();
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('marks an oversized Java declaration incomplete without partial declaration facts', async () => {
+    fs.writeFileSync(path.join(tempDir, 'Example.java'), [
+      'package demo;',
+      'import java.util.List;',
+      `@SuppressWarnings("${'x'.repeat(17 * 1024)}")`,
+      'public class Example<T> implements java.io.Serializable {',
+      '  public String café(List<String> names) { return "ok"; }',
+      '}',
+      '',
+    ].join('\n'));
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const result = await cg.indexAll();
+      expect(result.success, JSON.stringify(result.errors)).toBe(true);
+      expect(cg.getNodesInFile('Example.java').find((node) => node.kind === 'file')?.signature).toBe(
+        'zcg-java-declaration-incomplete/v1\nreason=declaration-bytes\n',
+      );
+      for (const name of ['demo', 'java.util.List', 'Example', 'café']) {
+        for (const node of cg.getNodesByName(name).filter((candidate) => candidate.language === 'java')) {
+          expect(node.signature, `${node.kind} ${name}`).toBeUndefined();
+        }
+      }
+      expect(cg.getFile('Example.java')?.contentHash).toMatch(/^[a-f0-9]{64}$/);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('marks combined Java package and import declarations incomplete atomically', async () => {
+    const imports = Array.from({ length: 1100 }, (_, index) =>
+      `import demo.feature${index}.SomeImportedDeclarationType;`
+    );
+    fs.writeFileSync(path.join(tempDir, 'Example.java'), [
+      'package demo;',
+      ...imports,
+      'public class Example {',
+      '  public String run() { return "ok"; }',
+      '}',
+      '',
+    ].join('\n'));
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const result = await cg.indexAll();
+      expect(result.success, JSON.stringify(result.errors)).toBe(true);
+      expect(cg.getNodesInFile('Example.java').find((node) => node.kind === 'file')?.signature).toBe(
+        'zcg-java-declaration-incomplete/v1\nreason=package-import-bytes\n',
+      );
+      for (const node of cg.getNodesInFile('Example.java')) {
+        if (node.kind !== 'file') {
+          expect(node.signature, `${node.kind} ${node.name}`).toBeUndefined();
+        }
+      }
+      expect(cg.getFile('Example.java')?.contentHash).toMatch(/^[a-f0-9]{64}$/);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('marks aggregate Java declaration text incomplete without partial facts', async () => {
+    const methods = Array.from({ length: 20 }, (_, index) =>
+      `  @SuppressWarnings("${'x'.repeat(14000)}") public String method${index}() { return "ok"; }`
+    );
+    fs.writeFileSync(path.join(tempDir, 'Example.java'), [
+      'package demo;',
+      'public class Example {',
+      ...methods,
+      '}',
+      '',
+    ].join('\n'));
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const result = await cg.indexAll();
+      expect(result.success, JSON.stringify(result.errors)).toBe(true);
+      expect(cg.getNodesInFile('Example.java').find((node) => node.kind === 'file')?.signature).toBe(
+        'zcg-java-declaration-incomplete/v1\nreason=declaration-bytes-total\n',
+      );
+      for (const node of cg.getNodesInFile('Example.java')) {
+        if (node.kind !== 'file') {
+          expect(node.signature, `${node.kind} ${node.name}`).toBeUndefined();
+        }
+      }
+      expect(cg.getFile('Example.java')?.contentHash).toMatch(/^[a-f0-9]{64}$/);
+    } finally {
+      cg.close();
+    }
+  }, 30_000);
+
+  it('selects Java overloads from declared argument types without legacy guesses', async () => {
+    fs.mkdirSync(path.join(tempDir, 'demo'), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, 'demo', 'NamedEntity.java'), [
+      'package demo;',
+      'public class NamedEntity {',
+      '  public String getName() { return "name"; }',
+      '}',
+      '',
+    ].join('\n'));
+    fs.writeFileSync(path.join(tempDir, 'demo', 'Pet.java'), [
+      'package demo;',
+      'public class Pet extends NamedEntity {}',
+      '',
+    ].join('\n'));
+    fs.writeFileSync(path.join(tempDir, 'demo', 'Owner.java'), [
+      'package demo;',
+      'public class Owner {',
+      '  public Pet getPet(String name) { return null; }',
+      '  public Pet getPet(Integer id) { return null; }',
+      '  public Pet getPet(String name, boolean ignoreNew) { return null; }',
+      '  public Pet delegate(String name) { return getPet(name, false); }',
+      '}',
+      '',
+    ].join('\n'));
+    fs.writeFileSync(path.join(tempDir, 'demo', 'PetController.java'), [
+      'package demo;',
+      'public class PetController {',
+      '  public Pet byId(Owner owner, Integer petId) {',
+      '    return owner.getPet(petId);',
+      '  }',
+      '  public Pet byName(Owner owner, Pet pet) {',
+      '    return owner.getPet(pet.getName(), true);',
+      '  }',
+      '  public Pet unsupportedPrimitive(Owner owner, int petId) {',
+      '    return owner.getPet(petId);',
+      '  }',
+      '  public Pet unsupportedChain(Owner owner) {',
+      '    return owner.getPet(owner.toString());',
+      '  }',
+      '}',
+      '',
+    ].join('\n'));
+
+    const cg = CodeGraph.openSync(tempDir);
+    try {
+      const result = await cg.indexAll();
+      expect(result.success, JSON.stringify(result.errors)).toBe(true);
+      const method = (name: 'getPet' | 'byId' | 'byName' | 'unsupportedPrimitive' | 'unsupportedChain' | 'delegate', line: number) => {
+        const node = cg.getNodesByName(name).find((candidate) => candidate.startLine === line);
+        expect(node, `${name} at ${line}`).toBeDefined();
+        return node!;
+      };
+      const stringOverload = method('getPet', 3);
+      const integerOverload = method('getPet', 4);
+      const pairOverload = method('getPet', 5);
+      const callsAt = (name: 'byId' | 'byName' | 'unsupportedPrimitive' | 'unsupportedChain' | 'delegate', declarationLine: number, line: number) =>
+        cg.getOutgoingEdges(method(name, declarationLine).id)
+          .filter((edge) => edge.kind === 'calls' && edge.line === line);
+
+      expect(callsAt('byId', 3, 4)).toEqual([
+        expect.objectContaining({ target: integerOverload.id }),
+      ]);
+      expect(callsAt('byName', 6, 7)).toEqual([
+        expect.objectContaining({ target: pairOverload.id }),
+      ]);
+      expect(callsAt('delegate', 6, 6)).toEqual([
+        expect.objectContaining({ target: pairOverload.id }),
+      ]);
+      expect(callsAt('unsupportedPrimitive', 9, 10)).toEqual([]);
+      expect(callsAt('unsupportedChain', 12, 13)).toEqual([]);
+      expect(cg.getIncomingEdges(integerOverload.id)).toContainEqual(
+        expect.objectContaining({ source: method('byId', 3).id, kind: 'calls', line: 4 }),
+      );
+      expect(cg.getIncomingEdges(pairOverload.id)).toContainEqual(
+        expect.objectContaining({ source: method('byName', 6).id, kind: 'calls', line: 7 }),
+      );
+      expect(cg.getIncomingEdges(stringOverload.id)).not.toContainEqual(
+        expect.objectContaining({ source: method('unsupportedChain', 12).id, line: 13 }),
+      );
     } finally {
       cg.close();
     }

@@ -25,6 +25,7 @@ import { loadProjectConfig } from '../config/project-config';
 import { detectFrameworks } from '../resolution/frameworks';
 import type { ResolutionContext } from '../resolution/types';
 import { hashContent } from './index';
+import { preflightJavaWrites } from './java-write-preflight';
 
 // Re-export constants from extraction/index.ts that stages depend on
 const FILE_IO_BATCH_SIZE = 10;
@@ -487,7 +488,9 @@ export class ParseStage implements IndexStage {
         // Store in database
         if (result.nodes.length > 0 || result.errors.length === 0) {
           const language = detectLanguage(filePath, content);
-          storeExtractionResult(ctx.queries, filePath, content, language, stats, result);
+          storeExtractionResult(ctx.queries, ctx.rootDir, filePath, content, language, stats, result, {
+            privateV1Replacement: ctx.privateV1Replacement === true,
+          });
         }
 
         if (result.errors.length > 0) {
@@ -584,7 +587,9 @@ export class RetryStage implements IndexStage {
       if (result.nodes.length > 0 || result.errors.length === 0) {
         const language = detectLanguage(filePath, content);
         const stats = await fsp.stat(path.join(ctx.rootDir, filePath));
-        storeExtractionResult(ctx.queries, filePath, content, language, stats, result);
+        storeExtractionResult(ctx.queries, ctx.rootDir, filePath, content, language, stats, result, {
+          privateV1Replacement: ctx.privateV1Replacement === true,
+        });
 
         const idx = ctx.errors!.indexOf(errEntry);
         if (idx >= 0) ctx.errors!.splice(idx, 1);
@@ -625,7 +630,9 @@ export class RetryStage implements IndexStage {
         if (result.nodes.length > 0 || result.errors.length === 0) {
           const language = detectLanguage(filePath, fullContent);
           const stats = await fsp.stat(path.join(ctx.rootDir, filePath));
-          storeExtractionResult(ctx.queries, filePath, fullContent, language, stats, result);
+          storeExtractionResult(ctx.queries, ctx.rootDir, filePath, fullContent, language, stats, result, {
+            privateV1Replacement: ctx.privateV1Replacement === true,
+          });
 
           const idx = ctx.errors!.indexOf(errEntry);
           if (idx >= 0) ctx.errors!.splice(idx, 1);
@@ -647,15 +654,29 @@ export class RetryStage implements IndexStage {
  * Store an extraction result in the database.
  * Extracted from ExtractionOrchestrator.storeExtractionResult() so both
  * ParseStage and RetryStage can use it without coupling to the orchestrator.
+ *
+ * Defense-in-depth: the pre-read Java preflight is the orchestrator's entry
+ * check. This shared helper independently re-runs the same lexical-only
+ * preflight immediately before `deleteFile()` so the RetryStage's post-read
+ * retry path cannot drop Java-bearing rows on a promoted v1 graph.
  */
 export function storeExtractionResult(
   queries: QueryBuilder,
+  rootDir: string,
   filePath: string,
   content: string,
   language: Language,
   stats: fs.Stats,
-  result: ExtractionResult
+  result: ExtractionResult,
+  options: { privateV1Replacement?: boolean } = {},
 ): void {
+  const preflight = preflightJavaWrites(queries.getDatabase(), rootDir, [filePath], {
+    privateV1Replacement: options.privateV1Replacement === true,
+  });
+  if (preflight) {
+    throw new Error(preflight.reason);
+  }
+
   const contentHash = hashContent(content);
 
   const existingFile = queries.getFileByPath(filePath);

@@ -130,3 +130,27 @@ describe.skipIf(!nodeSqliteAvailable)('node:sqlite adapter — allowExtension op
     }
   });
 });
+
+describe.skipIf(!nodeSqliteAvailable)('node:sqlite lifecycle guard adapter (1-9-15)', () => {
+  it('opens only on request and rejects mutations in read-only mode', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-readonly-guard-'));
+    const dbPath = path.join(dir, 'guard.db');
+    const setup = createDatabase(dbPath);
+    setup.db.exec('CREATE TABLE facts (value TEXT)');
+    setup.db.prepare('INSERT INTO facts VALUES (?)').run('persisted');
+    setup.db.close();
+
+    const guard = createDatabase(dbPath, { readOnly: true, open: false });
+    try {
+      expect(guard.db.open).toBe(false);
+      guard.db.openConnection?.();
+      expect(guard.db.prepare('SELECT value FROM facts').get()).toEqual({ value: 'persisted' });
+      expect(() => guard.db.prepare('INSERT INTO facts VALUES (?)').run('mutation')).toThrow(/readonly/i);
+      expect(() => guard.db.exec('CREATE TABLE forbidden (x INTEGER)')).toThrow(/readonly/i);
+      expect(guard.db.prepare('SELECT value FROM facts').all()).toEqual([{ value: 'persisted' }]);
+    } finally {
+      guard.db.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

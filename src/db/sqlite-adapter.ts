@@ -29,6 +29,8 @@ export interface SqliteDatabase {
   pragma(str: string, options?: { simple?: boolean }): any;
   transaction<T>(fn: (...args: any[]) => T): (...args: any[]) => T;
   close(): void;
+  /** Guard-only operation; ordinary adapters need not expose deferred opens. */
+  openConnection?(): void;
   readonly open: boolean;
 }
 
@@ -37,6 +39,12 @@ export interface SqliteDatabase {
  * so `zcodegraph status` and the per-instance reporting have a stable shape.
  */
 export type SqliteBackend = 'node-sqlite';
+
+/** Internal evaluation composition only; production uses the default factory. */
+export type SqliteDatabaseFactory = (
+  dbPath: string,
+  options?: SqliteAdapterOptions,
+) => { db: SqliteDatabase; backend: SqliteBackend };
 
 /**
  * Wraps Node's built-in `node:sqlite` (`DatabaseSync`) to match the
@@ -61,22 +69,37 @@ export type SqliteBackend = 'node-sqlite';
  */
 export interface SqliteAdapterOptions {
   allowExtension?: boolean;
+  /** Internal lifecycle guard only: never create or mutate a database. */
+  readOnly?: boolean;
+  open?: boolean;
+  /** Internal evaluation observation only; absent in production composition. */
+  onExec?: (sql: string) => void;
 }
 
 class NodeSqliteAdapter implements SqliteDatabase {
   private _db: any;
+  private onExec?: (sql: string) => void;
 
   constructor(dbPath: string, options: SqliteAdapterOptions = {}) {
+    this.onExec = options.onExec;
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { DatabaseSync } = require('node:sqlite');
     // node:sqlite (Node 22.13+) gates extension loading behind the
     // `allowExtension` constructor flag; pass it through verbatim. When the
     // flag is omitted we rely on node:sqlite's default (disabled).
-    this._db = new DatabaseSync(dbPath, { allowExtension: options.allowExtension ?? false });
+    this._db = new DatabaseSync(dbPath, {
+      allowExtension: options.allowExtension ?? false,
+      readOnly: options.readOnly ?? false,
+      open: options.open ?? true,
+    });
   }
 
   get open(): boolean {
     return this._db.isOpen;
+  }
+
+  openConnection(): void {
+    this._db.open();
   }
 
   prepare(sql: string): SqliteStatement {
@@ -105,6 +128,7 @@ class NodeSqliteAdapter implements SqliteDatabase {
   }
 
   exec(sql: string): void {
+    this.onExec?.(sql);
     this._db.exec(sql);
   }
 
@@ -127,13 +151,13 @@ class NodeSqliteAdapter implements SqliteDatabase {
 
   transaction<T>(fn: (...args: any[]) => T): (...args: any[]) => T {
     return (...args: any[]) => {
-      this._db.exec('BEGIN');
+      this.exec('BEGIN');
       try {
         const result = fn(...args);
-        this._db.exec('COMMIT');
+        this.exec('COMMIT');
         return result;
       } catch (error) {
-        this._db.exec('ROLLBACK');
+        this.exec('ROLLBACK');
         throw error;
       }
     };
