@@ -1520,7 +1520,12 @@
         "1-9-7",
         "1-9-8",
         "1-9-9",
-        "1-9-10"
+        "1-9-10",
+        "1-9-11",
+        "1-9-12",
+        "1-9-13",
+        "1-9-14",
+        "1-9-15"
       ],
       "decisions": [
         {
@@ -2046,11 +2051,471 @@
       "notes": "",
       "layer": "plan",
       "rounds": 1
+    },
+    "1-9-11": {
+      "id": "1-9-11",
+      "uid": "01a1f31d08a9-e01d721846",
+      "label": "五固定 commit 开发矩阵独立评审",
+      "status": "in_progress",
+      "mode": "exploit",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [
+        {
+          "q": "独立矩阵评审的范围、输入和 fail-closed 边界是什么？",
+          "answer": "Human 2026-11-19 授权开始五固定 commit 开发矩阵独立评审，Scope=Acceptance/evaluation。输入=content-reviewed-not-registered 的 v2 五任务、合同固定 commit、main a5db457（含 Slice 5 与 ambiguity 修复）。运行=真实只读语料隔离快照、默认 rust-hybrid 索引、显式 DefaultExploreApplication(universal-v1)，不得改变默认 legacy 生产组合。失败如实保留，不调参、不扩大预算、不修改 src/、不借旧 C/S 候选；先核对脚手架与真实 ledger 的接口，任何接口不成立均作为评审缺口而不是伪造 PASS。只更新 roadmap 和 .workbuddy/agent-eval 评审证据，不 commit/push，不启动 Agent/DES/pilot，不解除 Slice 6、1-4/e9 或 1-8-2 前置。",
+          "note": "合同 docs/contracts/universal-structural-explore-v1.md Five-repository development acceptance matrix 与 Verification item 4；本地 Spring HEAD=500158f 与冻结 f3c7483 不一致，运行前必须校验并修正。"
+        },
+        {
+          "q": "五固定 commit 真实矩阵的独立结论与未完成审计边界是什么？",
+          "answer": "FAIL：五个固定任务在 main a5db457 的隔离 fixed-commit 快照上均执行默认 rust-hybrid 索引和显式 universal-v1，full Prompt 与 question-only 均为 answer/partial。独立按完整名或 bare-name + 固定文件复核：31 个固定符号中 27 个有 exact indexed candidate，两臂固定 definition obligations=0、对应 req-def returned=0；最终回答均无固定方法源码。Flask/Django/Gin/Spring 为已索引后查询锚点/义务断裂；Express 固定 getrouter、handle、use、mounted_app 源码存在但无精确或 app.<name> 索引身份，需另行通用提取诊断。Django 3 个索引 warning 不在 requiredFiles，固定源文件逐字节或 CRLF→LF 后与固定 blob 一致。公共前缀占满 8 个 clue，但去前缀仍失败，不能归因于单一 prefix、提高预算或尾部渲染。证据=.workbuddy/agent-eval/2026-11-19-universal-five-fixed-development-matrix/{independent-review.md,independent-audit.json,report.json}。节点保持 in_progress：真实五阶段 rubric-role、requirement 和 rendered claim-evidence 完整映射尚未闭环，生产无 claims 数组、5a hashed ID 与生产 ID 不同；本轮仅评审不补生产或验收代码、不调参，后续修复与复验须单独授权。不启动 Agent/DES/pilot，不解除 1-4/e9、1-8-2 或 Slice 6，不消耗 paired-runs，默认 legacy 不变。",
+          "note": "2026-11-19 独立只读复核确认五题 FAIL 不是 runner 假阴性；节点过程未完成完整合同审计，不能把评审执行完毕等同产品验收通过。未 commit/push/PR。"
+        },
+        {
+          "q": "A0 可行性验证结果与 B/C 处置是什么？",
+          "answer": "A0 已执行且 BLOCKED，不进入 B/C。Human 本轮仅授权 Acceptance/evaluation 只读诊断及过程设计回写。五个 frozen fixed-commit 数据库、原五仓执行一致的 dist 与公共只读接口实测：身份仅部分可恢复（27/31 固定符号有候选；29 个候选 signature 均不可用，Spring getPet 三 overload；Express 4/5 缺索引身份）；Flask 7 个、Django 3 个固定方法无出边，其他部分目标有 calls 边，不能过度概括；真实 expandFromAnchors 转换 19942 条 EvidenceRelation 全部无 site/provenance source/resolver/registeredAt；原始固定文件 incident edges 2237 条均有 usable line。前四仓邻接返回 8193/8194/8214/8235 行，均超过 8192 后停止，当前 ceiling 在完整数组返回后检查；snapshot 只有 backend/journalMode/dbSizeBytes 指纹，不是 SQLite read transaction。五库 size/mtime 未变仅证明本次只读执行。证据=.workbuddy/agent-eval/2026-11-19-query-evidence-a0/{a0-report.md,a0-observations.json,run-a0.mjs}；run SHA256=80f010d46c5dc824f72d80861ccd4c93ff0cf85c53e1f8aca0bc9e31c5c2e97a，observations SHA256=0808943cebf4b9cf78e12d7f82a30edd83bc353ee52f20f276fe5acb055d360b。docs/plans/query-evidence-identity-repair-draft.md 保持 revise 并改为先独立 P0 图提取/身份、P1 关系归一化、P2 DB 有界读取、P3 SQLite read-view，再 A0-R 复审；各切片与 B/C 均须 Human 单独授权。完整五阶段审计未闭环、五仓 FAIL 不变；不启动 Agent/DES/pilot、不消耗 paired-runs、不改变默认 legacy、不解除 1-4/e9、1-8-2 或 Slice 6，不 commit/push。",
+          "note": "A0 运行完成不等于可行性通过或完整合同审计成功。1-9-11 保持 in_progress；后续产品修复与完整 claim-evidence 审计均未完成，本轮不修改 src/ 或生产测试。"
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "exit_criteria": [
+        "五个冻结任务均在真实 fixed-commit 快照上完成默认 rust-hybrid 索引和显式 universal-v1 Explore；每题保留五阶段、逐义务、逐要求及渲染证据；任一覆盖缺口均 fail-closed",
+        "评审脚本不得修改生产检索、调参、提高预算或把 rubric 注入查询；任务身份和源码 commit 必须匹配",
+        "评审结论不替代独立 Agent 产品价值、Human 准入或 Slice 6，不启动 Agent/DES/pilot，不消耗 paired-runs"
+      ],
+      "rounds": 1
+    },
+    "1-9-12": {
+      "id": "1-9-12",
+      "uid": "01a1f41b58ca-2f0b75945d",
+      "label": "P0a：Python 固定方法调用边与身份证据前置修复",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [
+        {
+          "q": "P0a 的执行边界是什么？",
+          "answer": "Product execution，仅 Python 固定方法调用边与身份证据前置修复",
+          "note": "Human 已批准 Plan zcodegraph-query-evidence-p0a-python-graph-v1、公开 CodeGraph 索引/图查询 seam、独立本地分支 fix-p0a-python-call-edges-20261119 与独立复核。起点 a5db457；不自动进入 P0 其余部分、P1/P2/P3、A0-R 或 B/C，不 commit/push/PR/merge；schema、节点 ID、EXTRACTION_VERSION 或迁移变化须重新审批。"
+        },
+        {
+          "q": "P0a 最终验收结论是什么？",
+          "answer": "局部 verified；停止在后续授权点",
+          "note": "独立 Standards/Spec 最终复核均无阻断。公开 seam 相关回归 104/104、tsc、diff check 通过；冻结 Flask/Django 全图 outgoing/incoming 对照一致，原冻结快照未变。仅证明 Python self/cls 同类精确调用边局部恢复，不解除 A0/五仓/完整合同阻断。主库事故独立 unresolved。"
+        }
+      ],
+      "notes": "P0a 局部 verified（过程完成，不等于生产准入）。双轴最终复核无阻断；104/104 相关回归、tsc、diff check 通过。冻结报告 SHA256=7656ec9bf3db21eaa6476bd4c6aea31c20e361976c3ac54889a011b9fa716021；close-out SHA256=fc8347e89da713ea59a03d1602645f02a21d70ad2321736228029c8f9463c5cb。剩余 P0/A0-R/五仓/完整审计另行授权；主库事故 unresolved 保留现场；未 commit/push/PR。",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-13": {
+      "id": "1-9-13",
+      "uid": "01a1f7933390-c0a57be6be",
+      "label": "P0 剩余范围收敛与独立评审",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [
+        {
+          "q": "本轮 P0 剩余范围收敛的授权与交付边界是什么？",
+          "answer": "Acceptance/evaluation：范围包与独立评审，不直接实施",
+          "note": "Human 明确要求开始收敛 P0 剩余范围并独立评审。输入为固定 A0、P0a close-out、当前设计及真实源码；输出为经独立评审的切片、验收与授权包。不得借此授权生产代码修改、schema/ID/EXTRACTION_VERSION/迁移变化、P1/P2/P3、A0-R、B/C/D、五仓复验、Agent/DES/pilot 或 Git 发布；主库事故继续保留现场。"
+        },
+        {
+          "q": "独立范围评审采用什么复核口径？",
+          "answer": "Standards 事实/边界 + Spec 验收/负例双轴只读复核；处置发现后范围包最多标记为 revise，不自动批准实现",
+          "note": ""
+        },
+        {
+          "q": "P0 剩余范围独立评审的最终结论是什么？",
+          "answer": "revise：范围包可作为后续逐切片 Plan 评审输入；不批准任何实现",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-14": {
+      "id": "1-9-14",
+      "uid": "01a1f7b2a319-55059fedcf",
+      "label": "P0b Java overload 实施 Plan 评审",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-9",
+      "children": [],
+      "decisions": [
+        {
+          "q": "P0b Java 本轮的交付和授权边界是什么？",
+          "answer": "Acceptance/evaluation：只读源码核查、实施 Plan、独立 Standards/Spec 评审及发现处置；不直接实现",
+          "note": ""
+        },
+        {
+          "q": "P0b Plan 的证据来源与版本停止门如何表述？",
+          "answer": "Rust 提供有界 Java 声明/调用语法事实，TS 保守选择并终端化显式 unresolved；复用现有 signature 与 unresolved_refs.metadata，不宣称纯 bugfix 必然无需 bump",
+          "note": "若完整实现需要 EXTRACTION_VERSION 变化则停止并请求 Human 决策；冻结基线仍为 A0 固定源码 f3c74834，工作树基线 a5db457，不得访问主工作区数据库"
+        },
+        {
+          "q": "P0b 首轮评审后如何收敛 :111、三态与终态生命周期？",
+          "answer": "采用唯一精确 arity 优先、同 arity 才要求完整类型证据的有界判定；显式失败 metadata 与已接管的继承/未知 receiver overload 终端化；内部 outcome 与公开 resolveOne/resolveAll 包装分离，非批量仅清 resolved+Java terminal，批量维持原全部 unresolved 清理语义并设提前停止检查。仍为 revise，未授权实现。",
+          "note": ""
+        },
+        {
+          "q": "第二轮评审后如何消除候选集、flow、chain 与生命周期冲突？",
+          "answer": "仅接管已知内部 receiver 且 direct 同名方法存在的调用；用现有分页 unresolved extends/implements 证据审计完整父链，未知父型即 abstain。显式已知类型先排除不支持转换，唯一 arity 仅在其余候选不可能同参数数且未知 method-return 不伪称类型推断时有界适用；所有调用前重赋值使该标识符证据失效，:181 改 residual。external/method-return receiver 与 inherited-only 保留 legacy；非批量不再删除 handled-unresolved，批量维持既有 public unresolved 清理并用现有按文件查询复核 just-read rowids。metadata decode 采用 WeakMap 内部侧信道，全图验收改 multiset+metadata 稳定性。",
+          "note": ""
+        },
+        {
+          "q": "第三轮后如何关闭父链、:111、公共投影与删除验证阻断？",
+          "answer": "撤销 unresolved queue 父链扫描、file-wide 删除复核和未知 method-return 的唯一 arity 例外；改为持久化 Java 声明头/返回类型事实，单 resolveAll 调用内的有界父链审计，仅零参唯一可见方法可提供返回类型，:111 保留 :147 正目标。私有 hydration 与旧公共 unresolved 投影分离；唯一精确 public inherited survivor 可直接指向声明。文件 contentHash 读取与 rowid 分块存在性查询及 signature/FTS、version-2 均作为 Human 实施前置门，不默认批准。",
+          "note": ""
+        },
+        {
+          "q": "第四轮发现的 unknown/inherited fallback、同代 import 与验收观察如何收紧？",
+          "answer": "所有新 v1 Java 调用进入三态决策；unknown/generic receiver 和 zero-direct inherited 均不再回 legacy，唯一已知 internal receiver 必须完整父链审计。package/import 与声明绑定 FileRecord.contentHash，读取先验证 source generation，禁直接沿用 live regex cache。receiver-self 可访问性与候选/declaration 查询设硬上限并纳入 Human read gate。验收新增 internal/evaluation-only ref capture 及完整 occurrence reciprocal multiset，保持公共图证明与内部终态证明分离。",
+          "note": ""
+        },
+        {
+          "q": "第五稿全文修订的交付边界与下一轮验证是什么？",
+          "answer": "第五稿已清除 inherited-only/unknown receiver 回 legacy 的旧文案，补齐私有 pre-cleanup 观察、source-AST/ref/decision/cleanup reconciliation、完整 occurrence reciprocal 与 stableJson 细则；method/class/interface/annotation/package/import signature、同代 declaration/FQN/category/rowid 读取及 test-only observer 全部进入 Human 前置门。package module 经完整 Rust 调用链确认实际存在。机械结构校验 PASS，评审基线 SHA-256=f2de69b16d4dd3d3126ca8d18278168f10fc3b2f8efb5312f6561ff4f9282138；仍需第五轮 Standards/Spec 独立复审，不批准实现。",
+          "note": "仅 Acceptance/evaluation；未修改生产源码/测试，未运行索引或五题"
+        },
+        {
+          "q": "第五轮阻断如何落盘并进入第六稿复核？",
+          "answer": "两轴均 revise（Standards 4、Spec 3），全部接受并已写入 independent-review-round-5.md；第六稿改为真实 :: FQN、显式 signature v1 类别记录、Java pre-prewarm 隔离、受限 owner/implicit access、occurrence→insert rowid/skip/error→decision/cleanup、隔离 raw edge 读取。constructor 不误伤整文件，Java v1 在 external guard 前终态化。最终稿机械校验 PASS，SHA-256=383f3f2c6c14d69f4ea8568bf97ca407198bc3f4c9f01a1f9fba8ff67f3df1fc；仍需第六轮独立评审，不批准实现。",
+          "note": ""
+        },
+        {
+          "q": "第六轮独立评审的结论与第七稿修订方向是什么？",
+          "answer": "两轴均 revise：Standards 5 blocking、Spec 2 blocking+1 non-blocking，全部接受并落盘 independent-review-round-6.md。第七稿需补真实 indexAll 的 observer 交接、signature dead-code/complexity 兼容投影、持久化 incomplete 状态、default-package 当前 relative_path:: 身份、public 跨包语义及持久 java_fact_generation；不得凭 namespace 缺失回 legacy。新增 seam 均保持 Human 前置门，不批准实现。",
+          "note": ""
+        },
+        {
+          "q": "第七轮 Spec 两项阻断如何处置，Standards 网络失败如何记账？",
+          "answer": "接受 Spec revise：ResolutionAccessModel 没有 getMetadata，必须将精确 generation read delta 纳入 Human 接口门；default-package 跨文件名称查询仅作候选发现，须校验目标自身 persisted FQN、词法容器、类别与 file/contentHash，并与 exact-FQN 唯一性协议统一。已创建 independent-review-round-7.md；Standards 初次因 DNS/502 无结论，正在对同一 SHA=5d8c044cef9cbcc75669f63ed07044f36e1093d89b5a3b69a36ac98ef79e9745 补做独立只读评审，不伪称双轴闭环。下一稿重跑 validator 和双轴复审，不批准实现。",
+          "note": ""
+        },
+        {
+          "q": "第七轮 Standards 替换评审与第八稿候选的真实状态是什么？",
+          "answer": "替换 Standards 已对第七稿 128099 bytes/SHA=5d8c044cef9cbcc75669f63ed07044f36e1093d89b5a3b69a36ac98ef79e9745 独立返回 revise（2 blocking+1 non-blocking），与 Spec revise（2 blocking）共同完成第七轮；接受 caller 持久身份、Java 增量 generation 和 observation/write-receipt 三项 Standards 阻断。第八稿停止编辑并通过机械 validator，固定 150620 bytes/SHA=323d983affdf899f79c0031fe0ea3b21d187d43ad8a1930eff2fc6e94362e5bd；仅获得新双轴独立复审资格，尚未复审或批准实现。",
+          "note": ""
+        },
+        {
+          "q": "第八稿双轴复审结果与第九稿最小修订边界是什么？",
+          "answer": "第八稿 150620 bytes/SHA=323d983affdf899f79c0031fe0ea3b21d187d43ad8a1930eff2fc6e94362e5bd 已完成新双轴复审：Standards revise（3 blocking+2 non-blocking），Spec revise（2 blocking）。全部接受：constructor caller 改为显式 unsupported terminal 而不增加 constructor declaration record；changed Java source/retry/单文件替换只允许 clean full patched replacement；完整 indexFiles 请求集合含缺失/不可读/路径异常 Java 在读取和任何 mutation 前 preflight；补 MemoryFinalFlush 与 native 单次 settle/close/staging 清理。P7-1/P7-2/S7-3 文本闭合但无运行时证明。记录 independent-review-round-8.md（11580 bytes/SHA=236cf938c6e3cbaf6929fcdd6b395f3ac44a85928803290931ec51d52b8c0d66），第九稿仍需复审，不批准实现。",
+          "note": ""
+        },
+        {
+          "q": "第九稿的固定复审身份与新增 Human 范围门是什么？",
+          "answer": "第八轮全部发现已落入第九稿：constructor-originated calls 显式 unsupported terminal；Java source rewrite/retry 只能 clean full patched replacement；完整 indexFiles 请求含缺失/不可读/路径异常 Java 在读取和任何批次 mutation 前 preflight；MemoryFinalFlush 与 native 单次 settle/close/staging cleanup 纳入证据门。停止编辑后 161763 bytes/SHA=6858419c1da80de495e9abd41e3ba338d9ccee1091ca8ad63fb0ce29a5c98bd4，validator PASS、git diff --check 通过（仅既有换行提示）。ordinary-method-only caller 与 initial-full-rebuild-only 都是 Human 前置范围门；新双轴复审未开始，不批准实现。",
+          "note": ""
+        },
+        {
+          "q": "第九轮双轴结论及第十稿处置边界是什么？",
+          "answer": "第九稿 161763 bytes/SHA=6858419c1da80de495e9abd41e3ba338d9ccee1091ca8ad63fb0ce29a5c98bd4 双轴均 revise：Standards 2 blocking，Spec 2 blocking+1 non-blocking。接受 promotion 后 finalization 失败状态/恢复、per-batch commit barrier、preflight 分类与确定性 FS 注入、whole-Spring 资源上限。Spec callback 类型失败主张 accept-in-part：实际 callback-synthesizer.ts 全部使用 concrete QueryBuilder，接口新增不导致其现有签名失败；仅保留实际组合 typecheck 与 access-models 过时 caller 注释修正，禁止借改造 widening。记录 independent-review-round-9.md（12740 bytes/SHA=4db14109e5aaa106e8493e7cc997bccd7f0f397626e12472bd3cd926519f47a7）；第十稿仍需复审，不批准实现。",
+          "note": ""
+        },
+        {
+          "q": "第十稿固定复审身份及新增生命周期/提交证据门是什么？",
+          "answer": "第九轮发现已落入第十稿：选择 promoted-but-unfinalized/failed 图普通 open/read/resolve/index 拒绝，只有独立 clean full replacement 恢复，不宣称自动回滚；要求 per-batch statement→insert COMMIT→committed raw/public→cleanup statement/COMMIT→fresh committed rowid absence；preflight 以 lexical+DB 分类先于 FS probe，fallback 原始完整集合与 sync removals 前覆盖，legacy-first/non-Java 保留旧 probe；callback 保持 concrete QueryBuilder，Spring fixture 文件/节点/出/raw 边与报告 bytes 上限。停止编辑后 182395 bytes/SHA=b3af25afed5251a31a511f7fb807daae2d2ab91e258adc118147c837188be4c2，validator PASS、git diff --check 通过（仅既有换行提示）。finalization metadata/open guard 与 transaction receipt seam 均为 Human 前置门；等待同一固定哈希全新双轴复审，不批准实现。",
+          "note": ""
+        },
+        {
+          "q": "第十轮双轴结论与第十一稿处置边界是什么？",
+          "answer": "第十稿 182395 bytes/SHA=b3af25afed5251a31a511f7fb807daae2d2ab91e258adc118147c837188be4c2 双轴均 revise：Standards 5 blocking，Spec 2 blocking。全部接受：所有 failure-capable 最终 raw/public/metadata/queue 对账移至唯一 required→complete 提交前，complete 是最后 graph write；hybrid metadata、best-effort maintenance、usability-critical embedding queue 纳入真实 finalization 顺序，complete 后无 writer；含 Java 的 v1/既有 Java sync 保守整体 rebuild-required，不保留 probe-dependent unchanged 例外；root 内 absolute path 保持合法，lexical 与 realpath/symlink 校验分离；unknown/mixed generation 优先于 non-Java preserve 并 fail closed。R9-2 commit barrier、Spec callback 与 fixture caps 文本 closed；记录 independent-review-round-10.md（10455 bytes/SHA=a1da78a64490f3a9b2ce68de0dbd98b6388142c092ff56292be364c33067601c）。第十一稿仍需机械校验和全新双轴复审，不批准实现。",
+          "note": ""
+        },
+        {
+          "q": "第十一稿的冻结身份与收敛门是什么？",
+          "answer": "第十轮全部已接受修订落入第十一稿；停止扩写并固定 192719 bytes/906 lines/SHA=a0de897314ca2e0550673909c392a8599d661f7cdc2038f0bd25bcff321b2018。validator PASS、git diff --check PASS；已对同一哈希启动一轮 Standards/Spec 独立只读复审。未出结果前不宣称批准、不修改冻结稿、不授权实现。",
+          "note": "仅 Acceptance/evaluation；无生产源码/测试、索引/五题、主库或 Git 写操作。"
+        },
+        {
+          "q": "第十一轮双轴结论与最小后续修订是什么？",
+          "answer": "第十一稿 192719 bytes/SHA=a0de897314ca2e0550673909c392a8599d661f7cdc2038f0bd25bcff321b2018 双轴均 revise：Standards 2 blocking+1 non-blocking，Spec 2 blocking，全部接受并保存 independent-review-round-11.md（9705 bytes/SHA=19f0354404c8aba219a3b8f5ff9ee833553b16028e7bfbcdf7390bfbf8f137cf）。仅修订 guard-before-configuration、callback writer/COMMIT/全图闭包、具名 marker writer、unknown→lexical→Java→legacy 总优先级及数值 path cap；不改变 16-call=10正+6 residual、不授权实现。",
+          "note": "源码核实 DatabaseConnection.open 配置/migration 先于 guard，synthesizeCallbackEdges 确有独立写入；不修改生产源码/测试或运行索引/五题。"
+        },
+        {
+          "q": "第十一轮发现处置后的固定候选身份是什么？",
+          "answer": "仅修订第十一轮四项 blocking 与 path cap 后，第十二候选稿固定 205070 bytes/927 lines/SHA=ca33f613459a421d55eaab7d84bf3833874184b9b0405293aac9586e565d7ee7；validator PASS、diff check PASS（仅既有换行提示）。新增 guard-before-configuration、callback 全 writer/COMMIT/all-kind 证据、具名 marker writer、总 preflight 优先级与 2048 path/1MiB 上限；不再自行扩写，待针对处置的独立双轴复核，不批准实现。",
+          "note": "只改 .workbuddy 评审稿与 CLI 登记的 roadmap；无生产源码/测试、索引/五题、主库或 Git 写操作。"
+        },
+        {
+          "q": "P0b Java Plan 的最终独立评审结论与实施边界是什么？",
+          "answer": "第十二候选技术稿在固定 205070 bytes/927 lines/SHA=ca33f613459a421d55eaab7d84bf3833874184b9b0405293aac9586e565d7ee7 上获 Standards approve 与 Spec approve，均无新发现，R11 全部闭合；记录 independent-review-round-12.md（5848 bytes/SHA=742059575904d18a92d8311f2fc08eefe027c886a5092d0f924f76bb5e193201）。仅为 Plan/source-feasibility 批准，不证明运行时、不授权实现。独立 Human 仍须明确选择 signature/语义、EXTRACTION_VERSION、读接口、评估观察/事务回执、DB guard/finalization、initial-full-rebuild-only 等所有门；不自动进入 P0c/P0d/A0-R/五仓复验。带评审记录的 final Plan 为 205914 bytes/SHA=7b776679d74d37ced50e03e17163f0833ebd1b7fa87aaa27f96f3964503f405e，validator PASS。",
+          "note": ""
+        },
+        {
+          "q": "Human 对双轴通过后的 P0b 实施决定是什么？",
+          "answer": "Human 明确选择暂不实施；保留双轴批准的 Plan 与全部未豁免 gates，不新建实现任务、不修改生产源码/测试、不运行索引/五题、不访问主库、不 commit/push。Plan approve 不等于产品 verified；后续实施须另建任务并重新取得明确授权。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-15": {
+      "id": "1-9-15",
+      "uid": "01a208349a0d-15695bb2e9",
+      "label": "P0b Java overload 有界实现",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1-9",
+      "children": [
+        "1-9-15-1",
+        "1-9-15-2",
+        "1-9-15-3",
+        "1-9-15-4",
+        "1-9-15-5",
+        "1-9-15-6"
+      ],
+      "decisions": [
+        {
+          "q": "P0b 实施采用哪些已冻结门与隔离边界？",
+          "answer": "Human 于 2026-11-23 明确批准 Plan :586-595 全部 A：v1 signature/FTS/语义兼容投影；EXTRACTION_VERSION 保持 2；受限 ResolutionAccessModel 读取；默认关闭私有评估观察与事务回执；required/failed/complete 终态门；Java 初始全量重建限定与写入 preflight。新建 FLAT 分支 p0b-java-overload-20261123 和隔离 worktree，基于 a5db457 加既有 P0a delta；公开 CodeGraph seam、固定 Spring f3c74834、OS 临时 DB；不访问主库、不 commit/push、不扩至后续切片。",
+          "note": ""
+        },
+        {
+          "q": "恢复实施后首个垂直切片如何选择？",
+          "answer": "保持公开 CodeGraph 红测；声明事实走已批准 Rust 提取产物 seam，终态门走 CodeGraph.openSync/索引生命周期 seam；先实现普通 method/class/interface/package/import 的完整 envelope 与 required/failed/complete 基础生命周期，再接 call metadata 和 pre-prewarm 精确解析。所有声明溢出/构造器/annotation 负例、每次 AST invocation 一条事实、终态终局弃权均按冻结稿，不增加 schema/version/公开图字段。",
+          "note": ""
+        },
+        {
+          "q": "Rust declaration 切片如何保持终态安全？",
+          "answer": "首个实现切片同时落 Rust 完整 declaration envelope 与 replacement-only generation/required marker，再由 CodeGraph 的唯一私有 token-bound finalization graph 执行全部尾部写入、queue rebuild、验证及最后 complete；普通 open 必须先只读 guard 后 configure。逐切片保留公开红测，未实现项不得推断通过。",
+          "note": ""
+        },
+        {
+          "q": "RetryStage 共享 store 的 Java predicate 如何落地？",
+          "answer": "共享 storeExtractionResult 在 index-stages.ts 加 rootDir 第 2 参数与 options.privateV1Replacement，在 deleteFile() 之前调用 preflightJavaWrites；ParseStage 与 RetryStage 两条 retry 路径均透传 ctx.rootDir；orchestrator 私有 storeExtractionResult 的入口检查保留，形成 defense-in-depth。红测：tests/index-pipeline.test.ts 新增两个用例（promoted complete 拒绝 + private V1 replacement 允许）。验证：index-pipeline 30/30、foundation 53/53、extraction 279/279、embedding-replacement 14/14、sdk-rust-hybrid 12/12、security+sync+node-sqlite+cli-fallback 78 passed/4 skipped、tsc 干净、git diff --check 通过。仍欠：normalized distinct cap 运行时专项、private filesystem adapter 故障注入、unknown/mixed Java evidence 完整审计。",
+          "note": ""
+        },
+        {
+          "q": "privateV1Replacement 如何透传到 pipeline IndexContext？",
+          "answer": "IndexContext 新增 privateV1Replacement 字段（index-pipeline-types.ts）；ParseStage 与 RetryStage 两条 retry 路径均把 ctx.privateV1Replacement === true 透传为 storeExtractionResult 的 options.privateV1Replacement；orchestrator 构造 pipeline ctx 时负责把 this.privateV1Replacement 注入（当前 orchestrator 未使用 pipeline，字段留待 pipeline 启用时接线）。红测：RetryStage 在 required 状态 + ctx.privateV1Replacement=true 下放行 Java 写入（vi.spyOn mock extractFromSource）。验证：index-pipeline 31/31、foundation 53/53、extraction 279/279、embedding-replacement 14/14、sdk-rust-hybrid 12/12、security+sync+node-sqlite+cli-fallback 78 passed/4 skipped、tsc 干净、git diff --check 通过。",
+          "note": ""
+        },
+        {
+          "q": "normalized distinct cap 与字节边界如何补运行时专项？",
+          "answer": "在 tests/foundation.test.ts 用 orchestrator.preflightJavaWritesForEvaluation seam 补 4 个运行时专项（不走 indexFiles 避免 Windows EBUSY/5s 超时）：(1) 恰好 2048 个原始路径通过；(2) >1 MiB UTF-8 字节拒绝 java-preflight-limit；(3) 字节 cap 在 lexical containment 之前触发（混合有效路径 + ../outside.ts 仍返回 java-preflight-limit）；(4) 2048 个高重复原始路径仅 2 个 distinct normalized，确认 normalized cap 是冗余防御、不会误触发。验证：foundation 57/57、index-pipeline+extraction+replacement+sdk-rust-hybrid 336/336、security+sync+node-sqlite+cli-fallback 78 passed/4 skipped、tsc 干净、git diff --check 通过。",
+          "note": ""
+        },
+        {
+          "q": "私有 filesystem adapter 故障注入如何落地？",
+          "answer": "ESM 下 fs 模块的 realpathSync/statSync/accessSync 是 non-configurable，vi.spyOn 和 Object.defineProperty 均无法替换。改用 orchestrator.probePathForEvaluation seam 注入确定性故障（realpathSync/statSync 各一例），fs.promises.readFile 用 vi.spyOn 成功注入。3 个 probe 用例验证 preflight 在 realpath/stat/read 之前拒绝 Java mutation；2 个 validatePathWithinRoot 用例验证真实 FS 故障（ENOENT 放行、escaping root 拒绝）。验证：foundation 62/62、index-pipeline+extraction+replacement+sdk-rust-hybrid 336/336、security+sync+node-sqlite+cli-fallback 78 passed/4 skipped、tsc 干净、git diff --check 通过。",
+          "note": ""
+        },
+        {
+          "q": "unknown/mixed Java evidence 与失败路径零写入审计如何闭环？",
+          "answer": "沿用已批准的 preflightJavaWritesForEvaluation、CodeGraph.indexFiles() 和 sync() seam，新增 6 个专项：9 组 unknown generation/state、缺失配对与 BLOB 元数据在普通和 private replacement 两种模式均拒绝；非字符串路径在 grammar 初始化前拒绝；files、nodes、unresolved_refs 三类持久化 Java evidence 分别可独立触发；混合 batch 中排在前面的 TS 文件零写入且 deleteFile() 未调用；sync 面对新增/修改/删除变化时 files/nodes/edges/unresolved_refs/project_metadata 全行不变。非字符串路径红测暴露公共 indexFiles() 在 preflight 前调用 detectLanguage() 导致 TypeError，最小修复为 src/index.ts 在 grammar 初始化前先走现有只读 preflight 并复用 javaPreflightError 返回。SQL NULL 不属于可达元数据输入，因为既有 project_metadata.value 为 TEXT NOT NULL，未修改 schema。验证：foundation 68/68、index-pipeline+extraction+replacement+sdk-rust-hybrid 336/336、security+sync+node-sqlite+cli-fallback 78 passed/4 skipped、tsc 与 diff --check 干净。仅该有界切片局部 verified，完整生命周期故障矩阵、精确 overload、Spring 验收和 P0b 仍未完成；不 commit/push/PR。",
+          "note": ""
+        },
+        {
+          "q": "已知待办如何挂到 P0b 有界实现 roadmap？",
+          "answer": "在 1-9-15 下建立六个 exploit 子项：initial-full-rebuild-only 剩余入口/路径矩阵收尾；Task #4 生命周期与观测闭环；Task #2 Java caller/declaration 完整性；Task #3 精确 resolver；Task #5 固定 Spring 验收；最后的 Standards/Spec 独立实施复审。用 blocks 边按此顺序表达过程依赖。刚完成的红绿证据仅记录为 release/reopen 局部边界，不据此完成生命周期组；1-9-11 的五仓开发矩阵评审不替代独立实施复审。节点仍是过程状态，不构成新实现授权或产品正确性证据。",
+          "note": "范围=roadmap 过程状态整理；只写主工作区 roadmap carrier 与派生 Markdown，不改隔离树产品或测试，不 commit/push。"
+        },
+        {
+          "q": "既有 P0b 授权是否覆盖 1-9-15-2，后补父级 blocks 如何解释？",
+          "answer": "Human 于本轮明确确认：1-9-15-2 属原 Plan :586-595 全部 A 的已批准 Task #4 范围，可在既定隔离树继续本节点；e21/e22 不删除、不改写，保留为父节点 1-9-15 的整体关闭门，而非本子节点的实现禁入。原授权的不扩至后续切片指 P0c/P0d/P1-P3/Agent-DES-pilot 等排除项，不否定已批准 P0b Plan 内的本子项。仅执行 lifecycle/transaction receipts/fresh committed readers/native staging-close ordinal 与默认关闭观察；不改 schema/EXTRACTION_VERSION/节点 ID/公开协议，不访问主库，不自动 commit/push/PR，不进入 1-9-15-3。",
+          "note": ""
+        }
+      ],
+      "notes": "",
+      "layer": "plan",
+      "rounds": 1
+    },
+    "1-9-15-1": {
+      "id": "1-9-15-1",
+      "uid": "01a20d75ba14-ce16cd9f12",
+      "label": "收尾 Java initial-full-rebuild-only 入口与路径矩阵",
+      "status": "completed",
+      "mode": "explore",
+      "parent": "1-9-15",
+      "children": [],
+      "decisions": [
+        {
+          "q": "入口与路径矩阵收尾的最小实现切片是什么？",
+          "answer": "沿用已批准 preflight/orchestrator/公共 CodeGraph seam：先把 DB 快照读取异常归一为 java-facts-inconsistent-state，再让批处理在完整原始计划 preflight 后按已验证的规范化身份去重；不改变状态机、公开结果、schema、版本或锁边界。定向测试覆盖 unreadable state、重复计划、绝对路径、symlink、目录/读取错误、indexAll/indexFiles/fallback/sync 与 store/RetryStage 零写入。",
+          "note": ""
+        },
+        {
+          "q": "红测确认绝对路径身份漂移后如何收敛？",
+          "answer": "不得只保留 guard 放行：内部 preflight 返回已验证的 normalized relative plan，indexFiles/indexFile/indexFileWithContent/store 和 fallback 在执行端复用该计划。原始输入仍完整计限/检查冲突，文件系统验证仍逐路径执行；同一 normalized identity 只 probe/mutate 一次。现有相对路径、拒绝码、公开结果和 schema 不变。",
+          "note": ""
+        },
+        {
+          "q": "红绿验证暴露了哪些实际防线缺口，如何修复？",
+          "answer": "红测确认四项：(1) unreadable metadata/evidence 抛出底层异常而非 inconsistent-state；(2) 原始重复路径仍被重复 probe/store；(3) 合法根内绝对路径通过 guard 却按绝对路径持久化；(4) indexAll 仅检查 current scan，漏掉 deleted/directory tracked Java。实现将 DB snapshot failures 归一化，批处理复用规范化去重 relative plan，full preflight 使用 current ∪ tracked 而实际索引仍仅 current。定向 foundation+index-pipeline 110/110；联合回归待完成。",
+          "note": ""
+        },
+        {
+          "q": "最终入口审计中，如何收敛 orchestrator store 与 sync 的路径身份？",
+          "answer": "保持原始请求完整 preflight 与拒绝码不变，在 orchestrator 私有 store 查询 existing/delete 前复用 normalized relative identity；sync 在 preflight 后同样以 normalized plan 驱动删除、读取与写入。避免绝对路径或等价路径造成查询键与写入键漂移，不扩展生命周期或 resolver 范围。",
+          "note": "联合实际 5 suite 359 passed/4 skipped，纠正遗漏文件名后 SQLite+CLI fallback 24/24；定向 110/110；正在最终验证。"
+        },
+        {
+          "q": "最终故障注入还需要闭合哪些 DB 读取边界？",
+          "answer": "preflight 的 metadata、files/nodes/unresolved_refs Java evidence 与 per-path file language lookup 均覆盖 prepare 和 execute 阶段异常，统一 java-facts-inconsistent-state；lookup 使用保留原始大小写的 normalized relative path，Windows lowercase 只作 identity 不直接替代持久化查询键。以临时数据库 adapter 故障注入逐类验证，不改 schema。",
+          "note": ""
+        },
+        {
+          "q": "入口与路径矩阵的实际验证证据是什么，是否满足本节点退出标准？",
+          "answer": "满足。最终静态检查及九个真实 Vitest 文件在隔离树通过：495 passed、4 个既有 skipped、0 failed；foundation 81/81、index-pipeline 31/31，覆盖 full/batch/single/pre-read/fallback/sync/shared store 与 RetryStage。原始计划计限/冲突检查与 normalized relative 执行身份分离；current ∪ tracked full guard 捕获 tracked Java 删除/变目录；metadata、files/nodes/unresolved_refs evidence 与 file lookup 的 prepare/execute 异常归一为 inconsistent-state；拒绝在 probe/delete/write 前发生且混合批次与 sync 的 graph rows 不变。保留既有拒绝码和公开协议，未改 schema、节点 ID 或 EXTRACTION_VERSION。",
+          "note": "最终 YRWVd1 于 2026-11-24 完成，9 files / 495 passed / 4 skipped；最终 tsc --noEmit 与 git diff --check 通过。早期命令误写两个不存在测试文件名，已纠正并包含在最终九文件命令中；新增故障注入第一轮 1 fail 为夹具提前拒绝，修正后最终全绿。仅临时目录/临时数据库；无主库访问。"
+        }
+      ],
+      "notes": "已完成 Java initial-full-rebuild-only 的入口、路径和持久化 evidence 防线：full current ∪ tracked、batch/single/pre-read/fallback/sync、orchestrator/shared store 与 RetryStage；原始计划前置检查、normalized relative 身份、DB 读取失败闭合和零写入快照。最终 9 files：495 passed、4 skipped；tsc 与 diff check 通过。仅本切片 verified：生命周期 receipts、reader 对账、caller/declaration、精确 overload、Spring 验收及独立实施复审留在 1-9-15-2..6。",
+      "layer": "plan",
+      "exit_criteria": [
+        "逐入口、逐故障、逐持久化 evidence 验证 Java 普通增量与 Java-bearing sync 在写入/删除/探测前失败闭合",
+        "保留既有拒绝码与公开协议；无 schema、节点 ID 或 EXTRACTION_VERSION 改动；输出实际 runtime 证据与剩余缺口"
+      ],
+      "rounds": 1
+    },
+    "1-9-15-2": {
+      "id": "1-9-15-2",
+      "uid": "01a20d75bbc7-f7757f36b9",
+      "label": "Task #4：Java 生命周期、事务回执与 reader 对账闭环",
+      "status": "in_progress",
+      "mode": "explore",
+      "parent": "1-9-15",
+      "children": [],
+      "decisions": [
+        {
+          "q": "Task #4 首个实现切片与观察边界",
+          "answer": "先用既有 token-bound DatabaseConnection 私有组合实现 failure marker：required→failed 必须带 exact generation/run/pass 条件、精确一行 statement receipt，并在真实 outermost COMMIT 成功后才返回；由 replacement 唯一 failure path 调用且 close 也走原异常优先。后续逐 slice 处理 resolver/callback writer receipts 与 fresh committed readers，observer 只在私有 evaluation composition 创建，不改公开 API/schema/节点 ID。",
+          "note": ""
+        },
+        {
+          "q": "probe-once 红灯的最小修复",
+          "answer": "保留 CodeGraph.indexFiles 原始计划 preflight 与 normalized execution plan；indexFile 已 probe 后把同一 validated fullPath 交给私有解析/存储段，直接 indexFileWithContent 入口仍自行 preflight+probe。只消除同次单文件调用的重复探测，不改变路径错误分类或公开协议。",
+          "note": ""
+        },
+        {
+          "q": "resolver writer receipt 的首个垂直切片",
+          "answer": "保持 insertValidatedEdges 返回类型和公开 ResolutionResult 不变；私有 SqliteAdapterOptions 仅在 evaluation composition 提供 run/pass/connection identity，transaction 在真实最外层 COMMIT 成功返回后生成 ordinal receipt；QueryBuilder 收集同一批真实 INSERT 的 changes/lastInsertRowid 并交给可选私有 observer。observer 在 cleanup 前新开 token-bound raw reader 与私有 CodeGraph reader 对账。观察模式下嵌套 writer 不自行 COMMIT，无法取得本 writer 的最外层回执即失败；普通生产不传 observer，不改变协议、schema 或结果形状。",
+          "note": ""
+        },
+        {
+          "q": "resolver cleanup 的下一最小回执切片",
+          "answer": "沿用真实 ReferenceResolver.resolveAndPersist、token-bound private writer 与私有 evaluation observer seam，只为 deleteUnresolvedReferencesByRowIds 的精确 rowid DELETE 增加 changes/rowids statement receipt；真实 outermost COMMIT 返回后，以独立 connection/run/pass identity 与递增 ordinal 通知 observer，fresh reader 确认该 rowid 已不存在且仍有未处理 ref。edge COMMIT ordinal 1 后继续观察 cleanup ordinal 2，不改公开返回类型、schema、节点 ID 或 ResolutionResult；普通生产不传 observer。只处理该精确 rowid cleanup 路径，不扩展 tuple/range cleanup、callback、native 或完整故障矩阵。",
+          "note": ""
+        },
+        {
+          "q": "精确 rowid cleanup 回执的局部运行证据与兼容边界",
+          "answer": "最新真实 resolver 红测已转绿：edge COMMIT ordinal 1 后，精确 rowid DELETE 返回 changes=1 与目标 rowids，COMMIT ordinal 2 返回后 fresh reader 确认目标 rowid 不存在，公共 getUnresolvedReferences 仍返回 missing ref。初次联合回归暴露 edge-only observer 被误当成 cleanup 订阅者；现仅在 observer 显式提供 recordCommittedCleanup 时收集/发送 cleanup 回执，两个 resolver receipt 测试均通过。最新五文件回归 187 passed/0 failed/0 skipped（foundation 83、resolution 69、node-sqlite 9、embedding-replacement 14、sdk-rust-hybrid 12），tsc --noEmit 和 diff --check 通过。仅限精确 rowid 单事务切片，不宣称 tuple/range cleanup、COMMIT fault injection、callback/native、完整生命周期或 Task #4 已完成。",
+          "note": ""
+        },
+        {
+          "q": "tuple/range cleanup receipt 扩展",
+          "answer": "在已批准的 1-9-15-2 范围内，把 cleanup statement receipt 从仅精确 rowid 扩展到同时覆盖 tuple 和 range cleanup 路径。deleteSpecificResolvedReferences 和 deleteUnresolvedReferencesByRowIdRanges 在 observer 显式提供 recordCommittedCleanup 时收集 statement receipt 并触发 observeCommit，保持公开返回类型、schema、ResolutionResult 不变。每个 cleanup 路径独立 COMMIT ordinal + fresh reader 对账。",
+          "note": "两条红测转绿，联合回归 204/204（resolution 71、foundation 81、access-models 17、node-sqlite 9、embedding-replacement 14、sdk-rust-hybrid 12），tsc --noEmit 和 git diff --check 通过。仅限当前 tuple/range 单事务切片，不宣称 callback、native staging/commit ordinal 或完整故障矩阵完成。"
+        },
+        {
+          "q": "callback synthesizer receipt 独立证明",
+          "answer": "resolveAndPersistBatched 末尾的 synthesizeCallbackEdges 通过 insertEdges → insertValidatedEdges 写入边，已有 observer 支持。新增独立红测证明：callback synthesizer 的边产生独立 COMMIT ordinal 2，带有 edgeOrigin=heuristic 和 synthesizedBy=interface-impl，fresh reader 验证这些边在 DB 中持久化。",
+          "note": "测试直接转绿（insertValidatedEdges 的 observer 已覆盖 callback 路径），联合回归 205/205（resolution 72、foundation 81、access-models 17、node-sqlite 9、embedding-replacement 14、sdk-rust-hybrid 12），tsc --noEmit 和 git diff --check 通过。仅限当前 callback synthesizer 单事务切片，不宣称 native staging/commit ordinal 或完整故障矩阵完成。"
+        },
+        {
+          "q": "native staging/commit ordinal 独立证明",
+          "answer": "在 node-sqlite-backend.test.ts 新增两个独立红测：(1) 未 COMMIT 的写入对 fresh reader 不可见（WAL 隔离），COMMIT 后立即可见；(2) edgeCommitOrdinal 跨多个 outermost 事务正确递增（ordinal 1、2），无 observer 的事务也静默递增。",
+          "note": "两个测试直接转绿（NodeSqliteAdapter 的 native staging 和 commit ordinal 行为已正确），联合回归 207/207（resolution 72、foundation 81、access-models 17、node-sqlite 11、embedding-replacement 14、sdk-rust-hybrid 12），tsc --noEmit 和 git diff --check 通过。仅限当前 native staging/commit ordinal 单点证明，不宣称完整故障矩阵完成。"
+        },
+        {
+          "q": "failure/complete marker 精确 statement/change/COMMIT receipts",
+          "answer": "commitJavaFinalizationState 的 transaction fn 现在接受 transactionObserver 并调用 observeCommit，使 marker writer 的 UPDATE 在 outermost COMMIT 后产生 statement receipt 并递增 edgeCommitOrdinal。新增两个红测验证 complete 和 failed marker 的提交后 fresh reader 可见。",
+          "note": "两个测试转绿，联合回归 209/209（resolution 72、foundation 85、access-models 17、node-sqlite 11、embedding-replacement 14、sdk-rust-hybrid 12），tsc --noEmit 和 git diff --check 通过。marker receipt 通过 NodeSqliteAdapter observation 机制自动产生，不暴露外部 observer 协议。仅限当前 marker 单点证明，不宣称完整故障矩阵完成。"
+        },
+        {
+          "q": "默认关闭 observer 独立证明",
+          "answer": "在 node-sqlite-backend.test.ts 新增三个独立红测：(1) 默认 createDatabase 不传 observation 时，transaction fn 的 transactionObserver 为 undefined；(2) 默认 QueryBuilder 未 attachJavaWriteObserverForEvaluation 时，insertValidatedEdges 不收集 receipt；(3) 默认路径下嵌套事务无观察开销。",
+          "note": "三个测试直接转绿（默认路径 observer 已完全关闭），联合回归 212/212（resolution 72、foundation 85、access-models 17、node-sqlite 14、embedding-replacement 14、sdk-rust-hybrid 12），tsc --noEmit 和 git diff --check 通过。仅限当前默认关闭单点证明，不宣称完整故障矩阵完成。"
+        },
+        {
+          "q": "required/failed/complete 生命周期失败闭合的局部证据",
+          "answer": "成功 complete replacement 必须在 return 前关闭私有 finalization graph；complete close 已尝试且失败时不重复 close、不写 failed、不恢复内部 reader，独立 fresh reader 验证 complete 可读。queue reconciliation、lifecycle guard 和 COMMIT 原始异常均优先于各自 close/ROLLBACK cleanup；观察路径允许普通嵌套 helper 在外层 receipt 注册前执行。failed writer 的真实 commit/close 与 release 组合继续 fail-closed。",
+          "note": "最新隔离树六文件联合回归 225/225（resolution 72、foundation 97、access-models 15、node-sqlite 15、embedding-replacement 14、sdk-rust-hybrid 12），tsc --noEmit 与 git diff --check 通过。公开 replacement fixture 的 Windows EBUSY 已通过真实成功 graph close 修复并反向红测定位；marker receipts 实际断言 statement/changes/run/pass/connection identity/COMMIT ordinal。仅限本轮已覆盖生命周期与事务切片；reader 配置失败清理、native stamp 和其余既定图视图对账仍待证，节点保持 in_progress。"
+        }
+      ],
+      "notes": "已局部闭合成功 complete graph close 与 Windows EBUSY、complete close 不重复且不 reopen、queue verifier/lifecycle guard/ROLLBACK 原始异常优先、failed writer 真实 close/commit 组合及 marker 精确 receipts；最新六文件联合回归 225/225，tsc 与 diff check 通过。仍需 reader 配置失败清理、native stamp 与 covered Java facts 事务边界、其余既定 raw/public/graph/hybrid 图视图对账；节点保持 in_progress。",
+      "layer": "plan",
+      "exit_criteria": [
+        "required/failed/complete 全生命周期故障矩阵失败闭合，原始异常优先于 cleanup；终态 marker 有精确事务 receipts",
+        "fresh committed readers 对所有既定图/队列视图对账一致；observer 默认关闭且 native staging/commit ordinal 有独立运行证据"
+      ],
+      "rounds": 1
+    },
+    "1-9-15-3": {
+      "id": "1-9-15-3",
+      "uid": "01a20d75bd61-7f4f1c7b95",
+      "label": "Task #2：Java caller/declaration 完整性冻结矩阵",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-9-15",
+      "children": [],
+      "decisions": [],
+      "notes": "Java caller/declaration 完整性、nested scope、shadowing、reassignment、flow、same-package、explicit import、JDK 遮蔽、generic/varargs 冻结矩阵。已有 declaration envelope 局部实现不代表完整性通过。",
+      "layer": "plan",
+      "exit_criteria": [
+        "冻结矩阵中的声明和 caller 事实完整、可解释，负例/溢出/构造器/annotation 等边界按已批准 Plan 保留证据"
+      ]
+    },
+    "1-9-15-4": {
+      "id": "1-9-15-4",
+      "uid": "01a20d75bf12-ca85654d7d",
+      "label": "Task #3：受限 ResolutionAccessModel 与精确 overload resolver",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-9-15",
+      "children": [],
+      "decisions": [],
+      "notes": "受限 ResolutionAccessModel.getMetadata()、私有 hydration、pre-prewarm 三态路由、唯一精确匹配、父类审计、declared-return、终态弃权、legacy fallback 阻断及 malformed metadata；需回归 Kotlin、P0a Python 和 non-Java resolver。",
+      "layer": "plan",
+      "exit_criteria": [
+        "精确 overload 只在声明/类型证据支持时产生唯一边；歧义或不完整证据终态弃权，不触发 legacy 宽松 fallback",
+        "受限读取边界和 malformed metadata 失败闭合；Kotlin、Python、non-Java 回归无退化"
+      ]
+    },
+    "1-9-15-5": {
+      "id": "1-9-15-5",
+      "uid": "01a20d75c0bf-b703c6b7c2",
+      "label": "Task #5：固定 Spring baseline/patched 验收与兼容矩阵",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-9-15",
+      "children": [],
+      "decisions": [],
+      "notes": "固定 Spring f3c74834e31079f69855e9c9eddb34fceb40a8d9 baseline/patched：16 个 getPet 调用、10 正例、6 residual、四处旧误边删除；签名/FTS/dead-code/complexity/search/display 兼容。不是五仓复验或 Agent 产品价值验收。",
+      "layer": "plan",
+      "exit_criteria": [
+        "在固定 Spring commit 上逐项验证调用边、residual 与四处旧误边删除，并保留 baseline/patched 可复核证据",
+        "声明投影的签名、FTS、dead-code、complexity、search、display 兼容检查完成；不扩至其他冻结验收"
+      ]
+    },
+    "1-9-15-6": {
+      "id": "1-9-15-6",
+      "uid": "01a20d75c267-6ffb696697",
+      "label": "P0b Standards/Spec 独立实施复审",
+      "status": "pending",
+      "mode": "explore",
+      "parent": "1-9-15",
+      "children": [],
+      "decisions": [],
+      "notes": "独立 Standards/Spec 实施复审：核对冻结 Plan、实际 diff 与运行证据；不得由 1-9-11 五仓矩阵评审或本 roadmap 完成状态替代。需要独立评审输入与明确 Human 授权。",
+      "layer": "plan",
+      "exit_criteria": [
+        "独立评审逐项对照冻结规范和真实实现证据，保留未通过项与结论；过程勾选不作为产品正确性证明"
+      ]
     }
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-19 16:31:42",
+    "updated": "2026-11-26 11:45:13",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
@@ -2137,7 +2602,49 @@
       "from": "01a1ed688309-d3bfdbe8c9",
       "to": "01a1ed6884ad-6e42ed649f",
       "type": "blocks"
+    },
+    {
+      "id": "e16",
+      "from": "01a20d75ba14-ce16cd9f12",
+      "to": "01a20d75bbc7-f7757f36b9",
+      "type": "blocks"
+    },
+    {
+      "id": "e17",
+      "from": "01a20d75bbc7-f7757f36b9",
+      "to": "01a20d75bd61-7f4f1c7b95",
+      "type": "blocks"
+    },
+    {
+      "id": "e18",
+      "from": "01a20d75bd61-7f4f1c7b95",
+      "to": "01a20d75bf12-ca85654d7d",
+      "type": "blocks"
+    },
+    {
+      "id": "e19",
+      "from": "01a20d75bf12-ca85654d7d",
+      "to": "01a20d75c0bf-b703c6b7c2",
+      "type": "blocks"
+    },
+    {
+      "id": "e20",
+      "from": "01a20d75c0bf-b703c6b7c2",
+      "to": "01a20d75c267-6ffb696697",
+      "type": "blocks"
+    },
+    {
+      "id": "e21",
+      "from": "01a1b1bca49f-3c1c8fdc71",
+      "to": "01a208349a0d-15695bb2e9",
+      "type": "blocks"
+    },
+    {
+      "id": "e22",
+      "from": "01a1b1bca5d1-65df505faa",
+      "to": "01a208349a0d-15695bb2e9",
+      "type": "blocks"
     }
   ],
-  "edge_seq": 15
+  "edge_seq": 22
 }
