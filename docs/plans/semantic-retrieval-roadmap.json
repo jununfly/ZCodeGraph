@@ -2381,7 +2381,7 @@
       "id": "1-9-15-2",
       "uid": "01a20d75bbc7-f7757f36b9",
       "label": "Task #4：Java 生命周期、事务回执与 reader 对账闭环",
-      "status": "in_progress",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-9-15",
       "children": [],
@@ -2485,9 +2485,19 @@
           "q": "四类剩余故障证据的最终局部闭合与边界",
           "answer": "FTS trigger restoration 用真实 bulk-write DropTrigger 后精确拒绝 nodes_au CreateTrigger，fresh reader 验证 facts/required、已重建 FTS、nodes_ai/nodes_ad 已恢复而 nodes_au 缺失；无需修改恢复逻辑。replacement 以真实目录冲突分别触发 backup restore rename 和 post-promotion remove_file 失败：双阶段错误同时报告 temp promotion 与 restore 失败、backup 保留旧 active 字节；cleanup 失败明确报告新 active 已 promoted 且不回滚。旧实现上两项新测试实际 0 passed/2 failed，恢复修复并逐字节核对后 replacement 6/6。真实 zcodegraph-core supervised-index 在 opt-in test-fault-injection 构建中启动同一 executable 的 native descendant，facts 最外层 COMMIT 后以 VACUUM INTO 保存测试快照，再由 authorizer 拒绝首个 nodes_fts rebuild；验证 supervisor exit=1、success=false、not authorized、旧 active 字节不变、快照新 facts/required 可见而 FTS/三个 triggers 未恢复、temp/backup 无遗留、gate 可回收、无注入对照成功。默认构建不识别隐藏参数，退出 2。",
           "note": "本机 Windows 证据：默认 Rust lib 230/230、native-process-supervision 5/5、默认 native 二进制六文件 230/230（resolution 72、foundation 102、access-models 15、node-sqlite 15、embedding-replacement 14、sdk-rust-hybrid 12）；tsc --noEmit 与隔离树 diff --check 通过。工具包装对若干成功命令误报 failed，以完整 stdout/test result 和显式 exit 断言为准。快速 worker 下 lease 轮询可能未运行，移除该非确定性前提，仅保留快照 native worker PID 与直接 supervisor PID 不同的确定性证据。快照是测试证据，不是生产恢复协议；失败 temp 仍按既有语义删除。新增 Rust 行已按 fmt 局部整理，全仓 fmt 仍有 HEAD/既有差异，未夹带重排。该切片不证明完整故障矩阵、其余平台、facts COMMIT/FTS/后处理/promotion 跨进程单事务或整体原子性；1-9-15-2 继续 in_progress，不进入 1-9-15-3，未 commit/push/PR，未触碰 tmp/。"
+        },
+        {
+          "q": "退出审计的矩阵边界与最后缺口",
+          "answer": "把全生命周期限定为当前 native replacement 到 TypeScript finalization 的实际阶段，而非任意底层 OS/SQLite 故障的无限笛卡尔积：unwatch/native facts、FTS rebuild/trigger restoration/native post-processing、replacement 的 pre-promotion/temp promotion/backup restore/post-promotion cleanup、promoted fallback/finalize/queue/verifier/complete marker，以及 required/failed/complete reader 配置、graph/writer close、reopen 和 gate release。已核到 raw files/nodes/edges/unresolved_refs/project_metadata、public CodeGraph、GraphTraverser/getChildren、rust-hybrid metadata 与 embedding queue；observer default-off 和 native staging/commit ordinal 独立证据已定位。仅补仍缺的组合证据：verifier 自身失败后的 fail-closed 与原异常优先、complete COMMIT 失败经真实 failed writer 的终态、complete graph close+release 双失败。现有 isolated marker/reader 测试与真实 native 阶段测试继续作为分项证据，不把单 fixture 对账外推为生产全图 verifier 或全平台保证。",
+          "note": "Scope=Product execution，仅在既定隔离树 tests/foundation.test.ts 增加必要可伪运行证据；行为直接通过则不改产品，若失败再做最小修复。节点仍 in_progress，直到定向及联合回归完成。"
+        },
+        {
+          "q": "Task #4 的最终组合证据与互斥构建回归",
+          "answer": "tests/foundation.test.ts 仅新增三条真实组合测试并加强 complete close 测试：verifier open/close 原异常在 graph close 与 gate release 双失败时优先，真实 failed writer 提交 failed 且 fresh reader 拒绝公开打开；complete COMMIT 注入失败按 BEGIN/COMMIT/ROLLBACK 顺序经真实 failed writer 终态落库，graph close/release 各一次且不 reopen；complete 后 graph close 已尝试即不重试、不写 failed，release 失败不覆盖 close error。四条定向实际 4/4，无需产品修复。故障注入构建下真实 native-process-supervision 5/5；恢复默认构建后隐藏参数 unknown argument 且 exit=2，六文件 233/233（foundation 105、resolution 72、access-models 15、node-sqlite 15、embedding-replacement 14、sdk-rust-hybrid 12），合计七文件 238/238。tsc --noEmit 与两树 diff --check 通过。",
+          "note": "此前把七文件混跑于默认二进制得到 237 passed/1 failed，唯一 exit=2 是不满足 opt-in 构建前提，不计通过也不计产品回归；现按互斥构建变体分别取得 5/5 与 233/233。一次探针输出位于 stderr 导致验证脚本误判，未改变默认二进制的实际拒绝行为，修正合并输出后复核。已限定生命周期矩阵与既定 fresh reader 视图均有运行证据，完成 1-9-15-2；不宣称全平台、任意 OS/SQLite 故障笛卡尔积、生产全图 verifier、facts COMMIT 至 promotion 的跨进程单事务或整体原子性。未进入 1-9-15-3、未访问主库数据、未触碰 tmp/、未自动 commit/push/PR。"
         }
       ],
-      "notes": "facts COMMIT 后有界证据已校正：真实 native FTS rebuild/后处理失败保留相应已提交 staging 状态；独立 active/staging reader 证明直接 writer+discard 范围内旧 active 不被替换。replacement 缺失 temp 输入已到达 temp rename 失败并恢复旧 active，非文件 backup 仅证明 promotion 前拒绝；旧记录已 append-only 纠正。最新 replacement 4/4、native writer 3/3、Rust lib 227/227、TS 六文件 230/230，tsc 与 diff check 通过；Rust/Vitest 工具包装状态异常，但完整 stdout 均显示通过。backup restore 自身失败、post-promotion cleanup 失败、FTS trigger restoration 和真实子进程精确 post-COMMIT 注入未证明，不宣称完整 replacement 矩阵或跨进程原子性；本切片无产品逻辑修改，节点保持 in_progress，未 commit/push/PR，未触碰 tmp/。",
+      "notes": "两条退出判据在本机 Windows、既定 native replacement 与 TypeScript finalization 有限矩阵内均有实际运行证据：required/failed/complete 原异常优先、failed fail-closed、complete 清理边界和精确 COMMIT receipts；raw/public/graph/hybrid/queue fresh committed readers 对账、observer default-off、native staging/commit ordinal。新增 verifier/complete COMMIT/close-release 组合测试 4/4，无需产品修改。按互斥构建验证：test-fault-injection native-process-supervision 5/5；默认 native 隐藏参数 exit=2，六文件 233/233；七文件合计 238/238，tsc --noEmit 和 diff --check 通过。证据不外推为跨进程整体原子性、任意底层故障、其他平台或生产全图 verifier；默认 native 二进制已恢复。过程节点完成，不自动进入 1-9-15-3，未 commit/push/PR，未触碰 tmp/。",
       "layer": "plan",
       "exit_criteria": [
         "required/failed/complete 全生命周期故障矩阵失败闭合，原始异常优先于 cleanup；终态 marker 有精确事务 receipts",
@@ -2560,7 +2570,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-26 19:09:24",
+    "updated": "2026-11-26 20:29:55",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
